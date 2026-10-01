@@ -401,10 +401,15 @@ function powerAnalysis() {
   var quietIn = function(from, to) {
     return quiet.reduce(function(s, q) { var a = q.from > from ? q.from : from, b = q.to < to ? q.to : to; return a <= b ? s + statsWorkingDayList(a, b).filter(function(d) { return span.days.indexOf(d) >= 0; }).length : s; }, 0);
   };
+  // A rate reads only the cuts on recorded days, the days it divides by (Iuno H-3, the case's total row; P127: each month and
+  // the year counted a cut on a day with no record, a Sunday included, over the recorded days alone).
+  var onRec = {};
+  if (span) span.days.forEach(function(d) { onRec[d] = true; });
   var months = {};
   cuts.forEach(function(c) {
-    var m = c.date.slice(0, 7), e = months[m] || (months[m] = { month: m, cuts: 0, min: 0, open: 0, cost: 0, upper: 0, lost: 0, contrib: 0, idle: 0, idleAll: 0, recOt: 0, restart: 0, fixed: 0 });
-    e.cuts++; if (c.min != null) e.min += c.min; else e.open++;
+    var m = c.date.slice(0, 7), e = months[m] || (months[m] = { month: m, cuts: 0, min: 0, open: 0, cost: 0, upper: 0, lost: 0, contrib: 0, idle: 0, idleAll: 0, recOt: 0, restart: 0, fixed: 0, cutsRec: 0, costRec: 0 });
+    e.cuts++;
+    if (onRec[c.date]) { e.cutsRec++; e.costRec += c.cost.total; } if (c.min != null) e.min += c.min; else e.open++;
     e.cost += c.cost.total; e.upper += c.cost.upper; e.lost += c.cost.lost; e.contrib += c.cost.contrib; e.idle += c.cost.idle; e.idleAll += c.cost.idleAll;
     e.recOt += c.cost.recOt; e.restart += c.cost.restart; e.fixed += c.cost.fixed;
   });
@@ -416,7 +421,7 @@ function powerAnalysis() {
     e.recorded = rd.recorded; e.of = rd.of; e.quiet = quietIn(start, end);
     // A month's rate leaves out its likely-unreported days: read across them it would say the power was fine (Iuno H-4).
     var base = rd.recorded - e.quiet;
-    e.perDay = base >= 5 ? e.cuts / base : null; e.costPerDay = base >= 5 ? e.cost / base : null;
+    e.perDay = base >= 5 ? e.cutsRec / base : null; e.costPerDay = base >= 5 ? e.costRec / base : null;
     return e;
   });
   // By when the cut began, in the shop's own bands.
@@ -431,7 +436,7 @@ function powerAnalysis() {
   });
   // The year ahead, from the last 90 days of record, per recorded working day, leaving out the days of a likely-unreported
   // run: they are recorded days whose power was not, and reading them as clean would put the year below the best month.
-  var from90 = isoAddDays(today, -89), recent = cuts.filter(function(c) { return c.date >= from90; });
+  var from90 = isoAddDays(today, -89), recent = cuts.filter(function(c) { return c.date >= from90 && onRec[c.date]; });
   var start90 = first && first > from90 ? first : from90;
   var rd90 = first ? powerRecordedDays(start90, today) : { recorded: 0, of: 0 };
   var quietIn90 = first ? quietIn(start90, today) : 0;
@@ -558,28 +563,42 @@ function powerOverviewHtml(a) {
 
 function powerCutsHtml(a) {
   if (!a.cuts.length) return '<div class="inv-empty">No power cut on record. Cuts come in from the register photos and the WhatsApp messages Production reads, or Enter a cut; the history from soma-internal&rsquo;s log comes in through Import history.</div>';
+  // A cut is one line (the day and the clock, how long, the damage and its status) that opens to what the damage is
+  // made of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass: this list
+  // ran 21.6 phone screens on the real book, a paragraph of arithmetic under every cut).
   var h = '<div class="inv-panels">';
-  a.months.slice().reverse().forEach(function(m) {
+  a.months.slice().reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
     var rows = list.map(function(c) {
-      var k = c.cost, lay = [];
-      if (k.lost) lay.push('output ' + formatCurrency(k.lost) + ', its contribution ' + formatCurrency(k.contrib));
-      if (k.idleAll) lay.push('idle wages ' + formatCurrency(k.idle) + ' (' + k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ')' + (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone present' : ''));
-      if (k.recOt) lay.push('catch-up overtime ' + formatCurrency(k.recOt) + (k.recovered ? ', ' + Math.round(k.recovered * 100) + '% made up' : ''));
-      if (k.restart) lay.push('restart ' + formatCurrency(k.restart));
-      if (k.fixed) lay.push('fixed charge ' + formatCurrency(k.fixed) + ', paid anyway');
-      var when = powerClock(c.from) + ' – ' + (c.to != null ? (c.atLeast ? 'after ' : '') + powerClock(c.to) + (c.overnight ? ' next day' : '') : 'not back');
+      var k = c.cost, left = 1 - (k.recovered || 0), parts = [];
+      var part = function(label, meta, amount) { parts.push('<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + label + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end"><span class="inv-num">' + formatCurrency(amount) + '</span></span></div>'); };
+      if (k.restart) part('Restart', 'restart ' + formatCurrency(k.restart) + ', paid whether or not the work is made up', k.restart);
+      if (k.recOt) part('Catch-up overtime', 'catch-up overtime ' + formatCurrency(k.recOt) + (k.recovered ? ', ' + Math.round(k.recovered * 100) + '% made up' : ''), k.recOt);
+      if (k.lost) part('Output not made', 'output ' + formatCurrency(k.lost) + ', its contribution ' + formatCurrency(k.contrib) + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.contrib));
+      if (k.idleAll) part('Wages that bought nothing', 'idle wages ' + formatCurrency(k.idle) + ' (' + k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ')' +
+        (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone present' : '') + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.idle));
+      if (k.fixed) part('Fixed charge', 'fixed charge ' + formatCurrency(k.fixed) + ', paid anyway, so not added', k.fixed);
+      // The meridiem once where both ends share it (10:10 – 10:45 AM): the row's title is the one line a phone gives it.
+      var at = powerClock(c.from), back = c.to != null ? powerClock(c.to) : null;
+      var when = back == null ? at + ' – not back' : c.atLeast || c.overnight ? at + ' – ' + (c.atLeast ? 'after ' : '') + back + (c.overnight ? ' next day' : '')
+        : at.slice(-2) === back.slice(-2) ? at.slice(0, -3) + ' – ' + back : at + ' – ' + back;
       var tone = c.open ? 'warning' : k.inside ? 'danger' : 'neutral';
-      return '<div class="inv-row inv-row-2" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><span class="inv-row-main"><span class="inv-row-title">' +
-        escHtml(formatDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta inv-row-wrap">' +
-        escHtml([powerDur(c.min) + (c.atLeast ? ' at least' : '') + (c.inferred ? ', close inferred' : ''), c.phase === 'single' ? 'single-phase' : '', k.inside ? powerDur(k.inside) + ' in working hours' + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours', lay.join(' · '), c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ')) +
-        '</span></span><span class="inv-row-end"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' + (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></div>';
+      var meta = [powerDur(c.min) + (c.atLeast ? ' at least' : '') + (c.inferred ? ', close inferred' : ''), c.phase === 'single' ? 'single-phase' : '',
+        k.inside ? (c.min != null && k.inside >= c.min ? 'all in working hours' : powerDur(k.inside) + ' in working hours') + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours',
+        k.hands ? k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ' idle' : '', c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ');
+      return '<details class="inv-row-fold" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
+        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' +
+        (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></summary>' +
+        (parts.length ? '<div class="inv-row-children">' + parts.join('') + '</div>' : '') + '</details>';
     });
-    h += '<div class="inv-panel inv-panel-flush" data-power-month="' + m.month + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) +
-      ' <span class="inv-panel-count">' + m.cuts + '</span></span></div>' +
+    var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
+      '<span class="inv-num">' + formatCurrency(m.cost) + '</span>';
+    h += uiFoldHtml('power-' + m.month, head,
       '<div class="inv-panel-body inv-note">' + escHtml(powerHours(m.min) + ' dark' + (m.open ? ', ' + m.open + ' with no time back' : '') + ' · ' + formatCurrency(m.cost) + ' · ' +
         m.recorded + ' of ' + m.of + ' working days recorded' + (m.perDay != null ? ' · ' + formatNum(m.perDay, 2) + ' cuts a recorded day' : '')) + '</div>' +
-      uiMoreHtml('power-' + m.month, rows, { noun: 'cuts' }) + '</div>';
+      uiMoreHtml('power-' + m.month, rows, { n: 10, noun: 'cuts' }), mi === 0, ' data-power-month="' + m.month + '"');
   });
   return h + '</div>';
 }
@@ -656,7 +675,7 @@ function powerCaseHtml(a) {
     a.months.map(function(m) { return [escHtml(billsMonthLabel(m.month)), m.cuts, escHtml(powerHours(m.min)), m.open || '', m.recorded + ' of ' + m.of + (m.quiet ? ' (' + m.quiet + ' quiet)' : ''),
       m.perDay != null ? formatNum(m.perDay, 2) : '—', m.recOt ? formatCurrency(m.recOt) : '—', formatCurrency(m.cost)]; }),
     ['Total', t.cuts, escHtml(powerHours(t.min)), t.open || '', a.span.recorded + ' of ' + a.span.of, rTot > 0 ? formatNum(onRec / rTot, 2) : '—', formatCurrency(t.recOt), formatCurrency(t.cost)]);
-  h += _pcP(escHtml('Cuts a recorded day leave out the quiet days (below) and a month with fewer than five days left; the total counts only the cuts that fell on a recorded day.'));
+  h += _pcP(escHtml('Cuts a recorded day leave out the quiet days (below) and a month with fewer than five days left; each month and the total count only the cuts that fell on a recorded day.'));
   if (a.span.gaps.length) h += _pcP(escHtml(a.span.gaps.length + ' working day' + (a.span.gaps.length === 1 ? '' : 's') + ' since the first cut carry no record at all (no production, no attendance, no power entry): a gap in the record, not days without cuts. Rates here are per recorded day.' +
     ' The longest run: ' + _powerLongestGap(a.span.gaps) + '.'));
 
@@ -889,9 +908,13 @@ function powerImportData(obj, name) {
   var res = { cuts: null, details: 0, noBill: [], load: false };
   if (obj.format === 'sep-production') res.cuts = prodMergeImport(obj, name);
   var pw = obj.power || (obj.format === 'sep-power' ? obj : null);
-  if (pw && pw.bills) Object.keys(pw.bills).forEach(function(m) {
-    var b = costBills().find(function(x) { return x.kind === 'power' && !x.voided && x.month === m; });
+  res.refused = 0;
+  if (pw && pw.bills && typeof pw.bills === 'object') Object.keys(pw.bills).forEach(function(m) {
     var fb = pw.bills[m];
+    // Checked before anything is added (P127): an entry that is not a bill, or a month that is not one, is refused and
+    // counted; it used to throw after the bills before it were pushed and never saved.
+    if (!fb || typeof fb !== 'object' || Array.isArray(fb) || !/^\d{4}-\d{2}$/.test(m)) { res.refused++; return; }
+    var b = costBills().find(function(x) { return x.kind === 'power' && !x.voided && x.month === m; });
     // What the shop paid is the cost; the bill's net payable is a detail beside it (Iuno H-6: April's net ₹54,096 was
     // paid as ₹52,846). A file with only an amount gives the amount, and says which it is in `basis`.
     var paid = Number(fb.paid) > 0 ? Number(fb.paid) : Number(fb.amount);
@@ -903,16 +926,24 @@ function powerImportData(obj, name) {
       res.bills = (res.bills || 0) + 1;
     }
     if (!b) { res.noBill.push(m); return; }
-    POWER_BILL_FIELDS.forEach(function(f) { var v = Number(pw.bills[m][f[0]]); if (v > 0 && !(Number(b[f[0]]) > 0)) { b[f[0]] = v; res.details++; } });
+    // Money to the paisa, as the Details form keeps it (HR-8); a penalty that with the arrears outgrows the bill is refused, as
+    // the form refuses it.
+    POWER_BILL_FIELDS.forEach(function(f) {
+      var v = Number(fb[f[0]]);
+      if (!(v > 0) || Number(b[f[0]]) > 0) return;
+      if (['kvaBilled', 'md', 'kwh', 'kvah'].indexOf(f[0]) < 0) v = gstRound(v);
+      if (f[0] === 'penalty' && gstRound(v + (Number(b.arrears) || 0)) > Number(b.amount)) { res.refused++; return; }
+      b[f[0]] = v; res.details++;
+    });
   });
   var p = powerData();
-  if (pw && pw.load && !(p.load.sanctioned || p.load.approved)) { p.load = Object.assign({}, pw.load, { at: Date.now() }); res.load = true; }
+  if (pw && pw.load && typeof pw.load === 'object' && !Array.isArray(pw.load) && !(p.load.sanctioned || p.load.approved)) { p.load = Object.assign({}, pw.load, { at: Date.now() }); res.load = true; }
   if (!(res.cuts && res.cuts.added) && !res.details && !res.load && !res.bills) { uiAlert({ title: 'Nothing imported', body: 'The file holds no power cuts or bill details this book does not already have.' + (res.noBill.length ? ' Bills not in the app for: ' + res.noBill.join(', ') + '.' : '') }); return res; }
   saveState();
   renderPower();
   var c = res.cuts || {};
   showToast([c.added ? c.added + ' cut' + (c.added === 1 ? '' : 's') + ' added' : c.ok ? 'no new cuts' : '', res.details ? res.details + ' bill detail' + (res.details === 1 ? '' : 's') + ' filled' : '',
-    res.bills ? res.bills + ' bill' + (res.bills === 1 ? '' : 's') + ' added' : '', res.noBill.length ? res.noBill.length + ' month' + (res.noBill.length === 1 ? '' : 's') + ' with no bill in the app' : ''].filter(Boolean).join(' · '));
+    res.bills ? res.bills + ' bill' + (res.bills === 1 ? '' : 's') + ' added' : '', res.refused ? res.refused + ' refused' : '', res.noBill.length ? res.noBill.length + ' month' + (res.noBill.length === 1 ? '' : 's') + ' with no bill in the app' : ''].filter(Boolean).join(' · '));
   return res;
 }
 

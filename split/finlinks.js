@@ -114,7 +114,10 @@ function renderFinHomeCard() {
     (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
-    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, fc && fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : fc ? 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date)) : '', fc && fc.cross ? 'danger' : '') +
+    // Overdrawn on the statement says so; counting outflows only (no receipt yet says when clients pay) is a warning, said.
+    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, !fc ? '' : fc.overdrawn ? 'overdrawn on ' + escHtml(stockShortDate(fc.asOf)) + (fc.noInflow ? ' · outflows only' : '')
+      : (fc.noInflow ? 'outflows only · ' : '') + (fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date))),
+      !fc ? '' : fc.overdrawn ? 'danger' : fc.cross ? (fc.noInflow ? 'warning' : 'danger') : '') +
     '</div>';
   el.innerHTML = h + '</div>';
 }

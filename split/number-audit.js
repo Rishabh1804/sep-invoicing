@@ -68,11 +68,21 @@ function invSerialCompare(a, b) {
   return na - nb;
 }
 
-/* invNextNum may only advance over what is held IN THE SERIES IN USE: live invoices and reserved voids under
-   S.invPrefix. It read every number of every year, so after the prefix moved to a new financial year last year's
-   00950 set this year's Next at 951. */
-function recomputeNextInvoiceNumber() {
-  S.invNextNum = invHighestIssued(S.invPrefix || '') + 1;
+/* After a delete, Next walks back only over what the delete gave back: the number deleted, when it was the last one
+   handed out (Next − 1) with nothing held after it, and the run just under it deleted the same way — never a number the
+   customer holds (reserved), and only IN THE SERIES IN USE (last year's 00950 once set this year's Next at 951). It
+   used to be set to the highest held + 1 after every delete and every gap accounted for, which threw away a Next moved
+   in Settings past a run of paper invoices or onto a number being reissued (the QA audit, 30 Sep 2026). */
+function invNextAfterDelete(inv, reserved) {
+  var p = S.invPrefix || '', n = invNumInt(inv.invoiceNumber);
+  if (reserved || n == null || invSeriesOf(inv) !== p || n !== invNumInt(S.invNextNum) - 1) return;
+  var hi = invHighestIssued(p);
+  if (n <= hi) return;
+  var freed = {};
+  getVoidedNumbers().forEach(function(v) { if (!v.reserved && invSeriesOf(v) === p) freed[invNumInt(v.invoiceNumber)] = true; });
+  var next = n;
+  while (next - 1 > hi && freed[next - 1]) next--;
+  S.invNextNum = next;
 }
 
 /* The highest number the customer holds under a prefix: a live invoice, or a
@@ -92,14 +102,50 @@ function invHighestIssued(prefix) {
 /* May this number be issued again? Never over a live invoice, and never once
    the invoice it belonged to was in a filed return: GSTR-1 already carries it.
    Before filing, a corrected invoice may take the number back (owner, 25 Sep
-   2026: "If GST has not been filed this should be allowed"). */
+   2026: "If GST has not been filed this should be allowed").
+   A filed return is not only a `filed` state (the QA audit, 30 Sep 2026): a gap
+   accounted for is a number somebody says was issued ("cancelled, filed in
+   GSTR-1 at zero"), and one cancelled before it was deleted was declared at zero
+   in the export. Both are refused. Any other whose month's GSTR-1 was due may be
+   in it: `due` says when, and Settings asks before it is issued again. */
 function invReissueCheck(prefix, n) {
   var disp = prefix + padInvNum(n);
   var live = S.invoices.find(function(i) { return i.displayNumber === disp; });
   if (live) return { ok: false, why: disp + ' is held by a live invoice' + (live.clientName ? ' (' + live.clientName + ')' : '') };
-  var filed = getVoidedNumbers().some(function(v) { return v.displayNumber === disp && v.lastState === 'filed'; });
-  if (filed) return { ok: false, why: disp + ' was in a filed return, so it cannot be issued again' };
-  return { ok: true, disp: disp };
+  var voids = getVoidedNumbers().filter(function(v) { return v.displayNumber === disp; });
+  if (voids.some(function(v) { return v.lastState === 'filed'; })) return { ok: false, why: disp + ' was in a filed return, so it cannot be issued again' };
+  var gap = voids.find(function(v) { return v.source === 'reconciled'; });
+  if (gap) return { ok: false, why: disp + ' was accounted for as "' + gap.reason + '", an issued number, so it cannot be issued again' };
+  if (voids.some(function(v) { return v.wasCancelled; })) return { ok: false, why: disp + ' was cancelled before it was deleted, so it is in GSTR-1 at zero and cannot be issued again' };
+  var now = new Date(), due = null;
+  voids.forEach(function(v) { var d = invFileDue(v); if (d && now >= d && (!due || d > due)) due = d; });
+  return { ok: true, disp: disp, due: due };
+}
+
+/* ===== THE YEAR A SERIES NAMES =====
+   A number is taken from its series whatever the document's date is, and the series names a financial year
+   ('SEP/2026-27/', a credit note's '26-27'): an invoice dated 31 Mar under the new year's prefix, or on 1 Apr under
+   last year's, went into the wrong year's run without a word (the QA audit, 30 Sep 2026). A save dated outside that
+   year asks first, naming both, and is never refused: an old document entered late may be meant. */
+function seriesFyStart(text) {
+  var m = String(text || '').match(/(?<!\d)(\d{4}|\d{2})\s*-\s*(\d{4}|\d{2})(?!\d)/);
+  if (!m) return null;
+  var y = m[1].length === 4 ? +m[1] : 2000 + +m[1];
+  // Two years running, or it is not a financial year ('SEP/12-34/' names none).
+  return +m[2] === (m[2].length === 4 ? y + 1 : (y + 1) % 100) ? y : null;
+}
+function isoFyStart(iso) {
+  var y = parseInt(String(iso || '').slice(0, 4), 10), mo = parseInt(String(iso || '').slice(5, 7), 10);
+  return isNaN(y) || isNaN(mo) ? null : (mo >= 4 ? y : y - 1);
+}
+function fyName(y) { return y + '-' + String(y + 1).slice(2); }
+/* The question before saving `what`, numbered `number` in `series`, dated `iso` outside the series' year; else null. */
+function seriesFyAsk(what, number, series, iso) {
+  var fy = seriesFyStart(series), at = isoFyStart(iso);
+  if (fy == null || at == null || fy === at) return null;
+  return { title: 'Dated in ' + fyName(at) + '?', tone: 'warning', okLabel: 'Save anyway',
+    body: what + ' is dated ' + formatDate(iso) + ', in the financial year ' + fyName(at) + ', but its number ' + number +
+      ' is in the ' + fyName(fy) + ' series. Save it under that number anyway?' };
 }
 
 /* ===== SEQUENCE ANALYSIS ===== */
@@ -241,7 +287,9 @@ function saveGapReason() {
     source: 'reconciled',
     voidedAt: Date.now()
   });
-  recomputeNextInvoiceNumber();
+  // Spent now, so Next may not sit on it; otherwise Next stays where it is. A gap is below Next, so this never moves it
+  // back, and a Next set in Settings stays where it was set.
+  if (disp === displayForNumber(invNumInt(S.invNextNum))) S.invNextNum = invHighestIssued(S.invPrefix || '') + 1;
   saveState();
   _accountForNum = null;
 

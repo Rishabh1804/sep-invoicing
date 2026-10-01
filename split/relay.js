@@ -37,7 +37,15 @@ var RELAY_NIGHT = 1200;    // 8:00 PM, the night hold's start (owner, 29 Sep 202
    words in it ("night hold"): a bare "8:00 PM" is when the crew went home, and one day's exception must not move every
    day's block. `S.relayLearn = {heads: {KEY: {areas, was, text, at, day}}, slots: {KEY: {from, to, wasFrom, wasTo, …}}}`. */
 function relayHeadKey(t) { return String(t || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ').trim(); }
-function relayHeadHasWords(t) { return /[A-Z]{2,}/.test(relayHeadKey(t).replace(/\b(AM|PM|OUT|TIME|IN)\b/g, '')); }
+/* A time is not a word however it is written: "12:00AM", "8:00PM" and "6AM" carry their meridiem on the digits, where
+   the word boundary the key's AM/PM strip needs is missing, and read as worded headings (the QA of 30 Sep 2026: a bare
+   "12:00AM--OUT TIME" learnt a day's block times for every roll after it). Nor are the roll's own type words (IN, OUT,
+   TIME: the roll's header says which roll it is) or a range's joining words (TO, FROM, TILL): what is left of
+   "12:00AM--OUT TIME" or "5 PM to 12 AM" is still only when a crew came or went. */
+function relayHeadHasWords(t) {
+  var s = String(t || '').replace(/\d{1,2}(?:\s*[:.]\s*\d{2})?\s*[AaPp]\.?\s?[Mm]\.?(?![A-Za-z])/g, ' ');
+  return /[A-Z]{2,}/.test(relayHeadKey(s).replace(/\b(AM|PM|OUT|TIME|IN|TO|FROM|TILL)\b/g, ''));
+}
 function relayLearnData() {
   if (!S.relayLearn || typeof S.relayLearn !== 'object' || Array.isArray(S.relayLearn)) S.relayLearn = {};
   if (!S.relayLearn.heads || typeof S.relayLearn.heads !== 'object') S.relayLearn.heads = {};
@@ -388,8 +396,12 @@ function parseRelayRoll(text, roster, sentOn) {
       }
     }
 
-    // EXTRA hours: booked to the section it sits in.
-    var ex = bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)\s*(?:h|$)/i) || bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)/i);
+    // EXTRA hours: booked to the section it sits in. A number that is a clock time is not hours: "EXTRA 5 PM TO 6 AM"
+    // read as 5 hours (the QA of 30 Sep 2026, on a roll of 25 Sep). Such a tag writes a span and no hours, and is kept at
+    // 0 h and asked about, never given hours the roll did not write.
+    var ex = bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)\s*(?:h|$)/i) || bare.match(/\bextra\b\W*(\d+(?:\.\d+)?)(?!\s*(?:[:.]\s*\d|[ap]\.?\s?m\b)|\d)/i);
+    var exNoHours = false;
+    if (!ex && /\bextra\b/i.test(bare) && relayTimes(bare).length) { ex = [bare.match(/\bextra\b/i)[0], '0']; exNoHours = true; }
     if (ex && !/^\d+\)/.test(bare)) {
       var hrs = +ex[1];
       var times = relayTimes(bare.replace(ex[0], ''));
@@ -444,6 +456,10 @@ function parseRelayRoll(text, roster, sentOn) {
         if (!row.crew.length) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h has no crew named under it; it is kept, and reads Not checkable on the Areas card.' });
       }
       if (flagged) out.issues.push({ tone: 'amber', n: ln.n, text: 'EXTRA ' + hrs + ' h sits under the production notes; read against the last line above them.' });
+      if (exNoHours) {
+        ln.read += ' (no hours written)';
+        out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" writes times, not hours: no hours written, so it is kept at 0 h. Type the hours on the Day view.' });
+      }
       ln.role = 'extra';
       day(st.iso).extra.push(row);
       // The tag closes its group: names after it are the next crew.
@@ -502,9 +518,16 @@ function parseRelayRoll(text, roster, sentOn) {
           var sStart = kindH.start;
           // A slot ahead of the 8:30 shift on an in-time roll is the morning: the
           // relay has headed it "6:00 pm" before, and BM ruled that a mislabel.
-          if (!kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
+          var pmSlot = !kindH.night && sStart != null && sStart >= 960 && sStart <= 1200 && !st.sawGeneral && out.kind === 'in' && st.mode === 'in';
+          if (pmSlot && /8\s*:\s*30/.test(lines.slice(i + 2).join(' '))) {
             sStart -= 720;
             out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" comes before the 8:30 shift, so it is read as ' + relayClockLabel(sStart) + '.' });
+          } else if (pmSlot && relaySlotHoldsShift(lines, i + 2)) {
+            // With no 8:30 heading at all, a PM heading over the day's lines and the absent lists IS the 8:30 shift, headed
+            // wrong (the rolls of 22 and 23 Sep 2026 wrote "8:00 PM" there). Read as an evening start, every hand under it
+            // came in at 8 PM and was out at 5 PM the next day: 21 hours, 13 of them OT (the QA of 30 Sep 2026).
+            sStart = RELAY_GENERAL;
+            out.issues.push({ tone: 'amber', n: ln.n, text: '"' + bare + '" holds the day\'s lines and the absent lists, and the roll has no 8:30 heading, so it is read as the 8:30 shift.' });
           }
           if (sStart === RELAY_GENERAL) st.sawGeneral = true;
           st.slot = { start: sStart, end: kindH.end, label: bare, night: !!kindH.night };
@@ -620,6 +643,12 @@ function parseRelayRoll(text, roster, sentOn) {
           else p.inExp = relayMin(p.inExp, tms[0].min);
         }
         if (slotIn != null) p.inSlot = relayMin(p.inSlot, slotIn);
+        // A slot that starts in the evening (the night hold, a block) and says when it ends: that is when its hands went
+        // home. With no out taken from it, a hand who came at 8 PM was read as out at 5 PM, and so at 5 PM the NEXT day.
+        // The morning and the 8:30 shift keep the 5 PM default: their hands stand the general shift after them.
+        if (slotIn != null && slotIn >= RELAY_GENERAL_OUT && st.slot.end != null && st.slot.end > slotIn) {
+          p.outSlot = p.outSlot == null ? st.slot.end : Math.max(p.outSlot, st.slot.end);
+        }
       }
       p.st = 'P';
     }
@@ -667,6 +696,23 @@ function relaySlotOrArea(bare) {
   return null;
 }
 
+/* Whether the lines under a heading, up to the next slot heading, are the general shift's: an area section and the absent
+   lists (the in-time roll's own shape). An evening block on an in-time roll has its line and its crew, never the absent. */
+function relaySlotHoldsShift(lines, from) {
+  var area = false, absent = false;
+  for (var j = from; j < lines.length; j++) {
+    var b = String(lines[j] || '').trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+    if (!b || /^0*\d{1,2}\s*[)\].]/.test(b)) continue;
+    if (/^out\s*-*\s*time\b/i.test(b)) break;
+    var k = relaySlotOrArea(b);
+    if (!k) continue;
+    if (k.slot) break;
+    if (k.absent) absent = true;
+    else if (k.areas && k.areas.length) area = true;
+  }
+  return area && absent;
+}
+
 /* The per-person reading → marks the Staff tab keeps. `comp` decides hours
    versus OT, so the roster is consulted here too. `outKnown` says whether an
    out-time roll has been read for the day: without one a present hand is
@@ -676,17 +722,22 @@ function relayPersonMark(p, w, restOut) {
   // No line written: a floor hand floats (Flex); the office and the gate are posts.
   var area = p.generalArea || p.areas || (w && (w.area === 'office' || w.area === 'gate' || w.area === 'civil') ? w.area : 'flex');
   var gate = area === 'gate';
-  var inMin, outMin;
+  var inMin, outMin, said = true;
   if (gate) {
     inMin = p.inExp != null ? p.inExp : RELAY_GATE[0];
-    outMin = p.outExp != null ? p.outExp : RELAY_GATE[1];
+    if (p.outExp != null) outMin = p.outExp; else { outMin = RELAY_GATE[1]; said = false; }
   } else {
     inMin = relayMin(p.inExp, p.inSlot);
     if (inMin == null) inMin = RELAY_GENERAL;
-    outMin = p.outExp != null ? p.outExp : p.outSlot != null ? p.outSlot : (restOut != null ? restOut : RELAY_GENERAL_OUT);
+    if (p.outExp != null) outMin = p.outExp;
+    else if (p.outSlot != null) outMin = p.outSlot;
+    else { outMin = restOut != null ? restOut : RELAY_GENERAL_OUT; said = false; }
   }
-  if (outMin <= inMin) outMin += 1440;
-  var hours = Math.max(0, Math.floor((outMin - inMin) / 60));
+  // An out the roll wrote for the hand or their slot that is not after they came ran past midnight. One it did not write
+  // for them (5 PM, the gate's 7 PM, "everyone else left at") is the others' time: before the hand came in, it is no
+  // out-time of theirs at all, never the same hour the next day (21 hours off an 8 PM heading, the QA of 30 Sep 2026).
+  if (outMin <= inMin) { if (said) outMin += 1440; else outMin = null; }
+  var hours = outMin == null ? 0 : Math.max(0, Math.floor((outMin - inMin) / 60));
   var hourly = w && w.comp === 'hourly';
   // The gate's twelve hours are its standing shift, not overtime.
   return { st: 'P', ot: hourly || gate ? 0 : Math.max(0, hours - 8), hours: hours, area: area, inMin: inMin, outMin: outMin };
@@ -702,14 +753,17 @@ var _relayShowLines = false;
    remembered spellings: a key placed on one worker is taken off any other, and
    a key left out is skipped. The picker's value is a string and roster ids are
    numbers, so ids are always compared as strings. */
-function relayRoster(choices) {
+function relayRoster(choices, day) {
   var extra = {}, skip = {};
   choices = choices || {};
   Object.keys(choices).forEach(function(k) {
     if (choices[k]) (extra[String(choices[k])] = extra[String(choices[k])] || []).push(k);
     else skip[k] = true;
   });
-  var r = (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) {
+  // A day's rolls read again (relayRereadOpen) are read against the roster of that day: a hand marked on it who has since
+  // left is still on its rolls.
+  var marked = day && S.attendance && S.attendance[day] ? S.attendance[day].marks || {} : {};
+  var r = (S.staff || []).filter(function(w) { return w.active !== false || marked[w.id]; }).map(function(w) {
     return { id: w.id, name: w.name, comp: w.comp, area: w.area,
       relayNames: (w.relayNames || []).filter(function(n) { return !(relayKey(n) in choices); }).concat(extra[String(w.id)] || []) };
   });
@@ -744,21 +798,41 @@ function relayPastes() {
   return S.relayPastes;
 }
 
+/* The day a roll saved to as the paste would build on it. Read again (rv.reread), the day starts from what was entered or
+   corrected by hand: the rolls' own marks and rows (`src: 'relay'`) are what is being read afresh, so nothing of the old
+   reading may carry into the new one (an out, an in or an area the bug wrote). A row the owner corrected by hand has lost
+   its `src` (_attHandEdit) and is theirs: kept, and the rolls' rows for its slot are not added, as on any paste. */
+function relayBaseDay(rv, iso) {
+  var rec = S.attendance && S.attendance[iso];
+  if (!rv.reread || !rec) return rec;
+  var marks = {};
+  Object.keys(rec.marks || {}).forEach(function(id) { if (rec.marks[id] && rec.marks[id].src !== 'relay') marks[id] = rec.marks[id]; });
+  return { marks: marks, extra: (rec.extra || []).filter(function(e) { return e.src !== 'relay'; }), note: rec.note || '' };
+}
+
 /* Everything the paste would do, worked out without touching S. */
 function relayPlan(rv) {
-  var roster = relayRoster(rv.choices), byId = {};
+  var roster = relayRoster(rv.choices, rv.reread), byId = {};
   roster.forEach(function(w) { byId[w.id] = w; });
-  var days = {}, issues = [], lines = [], dupes = 0;
+  var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn);
+    var r = parseRelayRoll(m.text, roster, m.sentOn), h = relayHash(m.text);
     m.parsed = r;
-    m.dup = relayPastes().find(function(p) { return p.hash === relayHash(m.text); }) || null;
+    // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
+    m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;
+    // The same roll twice in ONE paste (a chat export carries a roll the supervisor posted again) is read once: read
+    // twice, its EXTRA was booked twice and the paste recorded twice (the QA of 30 Sep 2026).
+    m.repeat = !m.dup && !!seen[h];
+    seen[h] = true;
     if (m.dup) { dupes++; return; }
+    if (m.repeat) { repeats++; return; }
     r.issues.forEach(function(is) { is.mi = mi; issues.push(is); });
     r.lines.forEach(function(l) { l.mi = mi; lines.push(l); });
     Object.keys(r.days).forEach(function(iso) {
       // A roll with no date to put it on (parseRelayRoll says so, red) saves nothing.
       if (!/^\d{4}-\d{2}-\d{2}$/.test(iso)) return;
+      // Read again, only the day asked about: another day a roll carries is not what the owner chose to read again.
+      if (rv.reread && iso !== rv.reread) return;
       var d = r.days[iso];
       var t = days[iso] || (days[iso] = { iso: iso, people: {}, extra: [], restOut: null, holiday: '', notes: [], kinds: [] });
       if (t.kinds.indexOf(r.kind) < 0) t.kinds.push(r.kind);
@@ -777,10 +851,9 @@ function relayPlan(rv) {
       t.notes = t.notes.concat(d.notes);
     });
   });
-  var out = { days: [], issues: issues, lines: lines, dupes: dupes, counts: { red: 0, amber: 0, people: 0 } };
-  issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else if (is.tone === 'amber') out.counts.amber++; });
+  var out = { days: [], issues: issues, lines: lines, dupes: dupes, repeats: repeats, counts: { red: 0, amber: 0, people: 0 } };
   Object.keys(days).sort().forEach(function(iso) {
-    var t = days[iso], rec = S.attendance && S.attendance[iso];
+    var t = days[iso], live = S.attendance && S.attendance[iso], rec = relayBaseDay(rv, iso);
     var rows = [];
     Object.keys(t.people).forEach(function(id) {
       var p = t.people[id], w = byId[id], prev = rec && rec.marks ? rec.marks[id] : null;
@@ -789,12 +862,17 @@ function relayPlan(rv) {
       if (prev && prev.st === 'P' && q.st === 'P') {
         if (prev.inMin != null) q.inExp = relayMin(q.inExp, prev.inMin);
         if (q.outExp == null && q.outSlot == null && prev.outKnown) q.outExp = prev.outMin;
-        if (!q.generalArea && !q.areas && prev.area) q.areas = prev.area;
+        // Where the hand stood is the general shift's, which the in-time roll gave: an out-time roll pasted after it names
+        // the evening block's line, and moved the day's mark there (pasted together, the general shift's area won). Only a
+        // general-shift area in this paste moves it; a hand the day holds on no line (Flex) takes the block's.
+        if (!q.generalArea && prev.area && (prev.area !== 'flex' || !q.areas)) q.areas = prev.area;
       }
       var next = relayPersonMark(q, w, t.restOut);
-      next.outKnown = q.outExp != null || q.outSlot != null || t.restOut != null || t.kinds.indexOf('out') >= 0;
-      var same = prev && prev.st === next.st && prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
-      rows.push({ w: w, p: p, prev: prev, next: next, change: !prev ? 'new' : same ? 'same' : 'updated' });
+      next.outKnown = next.outMin != null && (q.outExp != null || q.outSlot != null || t.restOut != null || t.kinds.indexOf('out') >= 0);
+      // Read again, the mark is set beside the one the rolls wrote before, which it replaces.
+      var was = rv.reread ? (live && live.marks && live.marks[id] && live.marks[id].src === 'relay' ? live.marks[id] : null) : prev;
+      var same = was && was.st === next.st && was.area === next.area && was.hours === next.hours && was.ot === next.ot;
+      rows.push({ w: w, p: p, prev: was, next: next, change: !was ? 'new' : same ? 'same' : 'updated' });
     });
     // Present hands already on the day that this paste does not name: "everyone else left at X" (restOut) is theirs
     // too. The in-time roll saved them out at 5 PM on trust; this is when they went. A hand whose out an earlier
@@ -804,9 +882,26 @@ function relayPlan(rv) {
       if (t.people[id] || !w || !prev || prev.src !== 'relay' || prev.st !== 'P' || prev.outKnown) return;
       var q = { st: 'P', areas: prev.area || null, generalArea: null, inExp: prev.inMin, inSlot: null, outExp: null, outSlot: null };
       var next = relayPersonMark(q, w, t.restOut);
-      next.outKnown = true;
+      next.outKnown = next.outMin != null;
       var same = prev.area === next.area && prev.hours === next.hours && prev.ot === next.ot;
       rows.push({ w: w, p: q, prev: prev, next: next, change: same ? 'same' : 'updated' });
+    });
+    // Read again, a mark the rolls wrote before and no longer read is taken off, and said so.
+    var removed = [];
+    if (rv.reread && live && live.marks) Object.keys(live.marks).forEach(function(id) {
+      var m = live.marks[id];
+      if (m && m.src === 'relay' && !t.people[id]) removed.push({ w: byId[id] || staffById(id) || { id: id, name: 'Removed worker' }, prev: m });
+    });
+    // A day no hand works in one stretch: over 16 hours is a time read wrong far more often than a day worked (21 hours
+    // off an 8 PM heading, the QA of 30 Sep 2026), and an out nobody wrote for a hand who came in the evening is 0 hours
+    // until the out-time roll says. Both are asked about, never saved unseen.
+    rows.forEach(function(r) {
+      var n = r.next, first = r.p && r.p.lines && r.p.lines.length ? r.p.lines[0] : null;
+      if (r.change === 'kept' || n.st !== 'P' || !r.w) return;
+      if (n.hours > 16) issues.push({ tone: 'amber', n: first, text:r.w.name + ' reads ' + n.hours + ' hours on ' + formatDate(iso) + ' (' +
+        relayClockLabel(n.inMin) + ' – ' + relayClockLabel(n.outMin) + '): check the times on the roll, or correct the day after saving.' });
+      else if (n.outMin == null) issues.push({ tone: 'amber', n: first, text: r.w.name + ' came in at ' + relayClockLabel(n.inMin) + ' on ' + formatDate(iso) +
+        ' and nothing on the roll says when they left: 0 hours until the out-time roll is pasted.' });
     });
     rows.sort(function(a, b) {
       var o = { P: 0, H: 1, A: 2 };
@@ -839,9 +934,12 @@ function relayPlan(rv) {
       });
       replaced = replaced.concat(left);
     });
+    // Read again, every row the rolls wrote before is replaced by what they read now (the base day holds none of them).
+    if (rv.reread) replaced = ((live && live.extra) || []).filter(function(e) { return e.src === 'relay'; });
     var provisional = t.kinds.indexOf('out') < 0 && rows.some(function(r) { return r.next.st === 'P' && r.change !== 'kept'; });
-    out.days.push({ iso: iso, rows: rows, extras: extras, replaced: replaced, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
+    out.days.push({ iso: iso, rows: rows, removed: removed, extras: extras, replaced: replaced, holiday: t.holiday, notes: t.notes, kinds: t.kinds, provisional: provisional });
   });
+  issues.forEach(function(is) { if (is.tone === 'red') out.counts.red++; else if (is.tone === 'amber') out.counts.amber++; });
   return out;
 }
 /* The slot an EXTRA row books in: a general-shift row by its area, a block by its times as the roll read them. A block
@@ -951,7 +1049,7 @@ function relayRead() {
 function relayMarkText(m) {
   if (m.st === 'A') return 'Absent';
   if (m.st === 'H') return 'Half day';
-  var t = (m.inMin != null ? relayClockLabel(m.inMin) + ' – ' + relayClockLabel(m.outMin) + ' · ' : '') + m.hours + ' h';
+  var t = (m.inMin != null ? relayClockLabel(m.inMin) + (m.outMin != null ? ' – ' + relayClockLabel(m.outMin) : ' in, out not known') + ' · ' : '') + m.hours + ' h';
   return t + (m.ot ? ' · OT ' + m.ot + ' h' : '');
 }
 
@@ -964,8 +1062,12 @@ var RELAY_CHANGE = {
 function relayRenderReview() {
   var rv = _relay, plan = relayPlan(rv);
   rv.plan = plan;
-  var h = relayBackBar('invRelayBack', 'Edit text', 'Check before saving');
+  var h = rv.reread ? relayBackBar('invRelayRereadBack', 'Day', 'Read the rolls again') : relayBackBar('invRelayBack', 'Edit text', 'Check before saving');
+  if (rv.reread) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayRereadNote">' + todoPlural(rv.msgs.length, 'roll') + ' saved for ' + escHtml(formatDate(rv.reread)) +
+    ', read as the reader reads them now. On Save every mark and EXTRA row they wrote is replaced by what is read here; what was entered or corrected by hand is kept, and the day as it is now goes to the log.</div>';
   if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
+  if (plan.repeats) h += '<div class="inv-callout inv-callout-warning inv-mb-8" id="relayRepeatNote">' + todoPlural(plan.repeats, 'message repeats', 'messages repeat') +
+    ' one earlier in ' + (rv.reread ? 'the day’s rolls' : 'this paste') + ' (a roll posted twice) and ' + (plan.repeats === 1 ? 'is' : 'are') + ' read once: read twice, its EXTRA would count twice.</div>';
   if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
   if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
@@ -983,7 +1085,7 @@ function relayRenderReview() {
       '<span class="inv-panel-count">' + plan.issues.length + '</span></span></div>';
     plan.issues.forEach(function(is) {
       h += '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main">' +
-        '<div class="inv-callout inv-callout-' + uiTone(is.tone) + '" data-issue="' + escHtml(is.tone) + '">Line ' + is.n + ': ' + escHtml(is.text) + '</div>';
+        '<div class="inv-callout inv-callout-' + uiTone(is.tone) + '" data-issue="' + escHtml(is.tone) + '">' + (is.n != null ? 'Line ' + is.n + ': ' : '') + escHtml(is.text) + '</div>';
       // A name not placed, one read as somebody, or one left out: each gets the
       // picker, so a wrong guess is put right here and remembered from then on.
       if (is.key && (is.tone === 'red' || is.tone === 'info' || is.id != null) && !askedNames[is.key]) {
@@ -1021,6 +1123,12 @@ function relayRenderReview() {
         '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(absent ? '—' : relayMarkText(r.next)) + '</span>' +
         '<span class="inv-badge inv-badge-' + ch[0] + '">' + ch[1] + '</span></span></span></div>';
     });
+    // Read again: a mark the rolls wrote before and no longer read goes on Save.
+    (d.removed || []).forEach(function(r) {
+      h += '<div class="inv-row inv-row-2 inv-row-muted" data-relay-removed><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.w.name) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">Written by the rolls before as ' + escHtml(relayMarkText(r.prev)) + '; the rolls do not read this hand now.</span></span>' +
+        '<span class="inv-row-end"><span class="inv-badge inv-badge-warning">Taken off</span></span></div>';
+    });
     var what = function(e) {
       return e.kind !== 'block' ? relayAreaName(e.area) + ', general shift'
         : 'Block ' + relayClockLabel(relayParseHhmm(e.from)) + ' – ' + (e.to ? relayClockLabel(relayParseHhmm(e.to)) : '?') +
@@ -1038,7 +1146,8 @@ function relayRenderReview() {
       // What the roll wrote before for a slot it now covers, and no longer carries: taken off on Save, and said so.
       d.replaced.forEach(function(e) {
         h += '<div class="inv-row inv-row-auto inv-row-muted" data-relay-replaced><span class="inv-row-main inv-row-wrap">' + escHtml(what(e)) +
-          ' · on the day from an earlier paste of this roll: replaced</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
+          (rv.reread ? ' · written by the rolls before: replaced by what they read now' : ' · on the day from an earlier paste of this roll: replaced') +
+          '</span><span class="inv-row-end inv-num">' + e.hours + ' h</span></div>';
       });
     }
     if (d.notes.length) h += '<div class="inv-panel-body inv-note">Also in the roll (kept as the day\'s note): ' + escHtml(d.notes.slice(0, 8).join(' · ')) + (d.notes.length > 8 ? '…' : '') + '</div>';
@@ -1081,33 +1190,91 @@ function relaySave() {
   });
   var marks = 0, extras = 0;
   plan.days.forEach(function(d) {
-    var rec = attDay(d.iso, true);
+    // Read again, the day is rebuilt: it goes to the log as it was, and starts over from what was entered by hand.
+    var rec = rv.reread ? relayRereadBase(d.iso) : attDay(d.iso, true);
     d.rows.forEach(function(r) {
-      if (r.change === 'kept' || r.change === 'same') return;
+      if (r.change === 'kept' || (r.change === 'same' && !rv.reread)) return;
       var n = r.next;
       rec.marks[r.w.id] = { st: n.st, ot: n.ot, hours: n.hours, area: n.area, inMin: n.inMin, outMin: n.outMin, outKnown: !!n.outKnown, src: 'relay' };
       marks++;
     });
-    if (d.replaced.length) rec.extra = rec.extra.filter(function(e) { return d.replaced.indexOf(e) < 0; });
+    if (d.replaced.length && !rv.reread) rec.extra = rec.extra.filter(function(e) { return d.replaced.indexOf(e) < 0; });
     d.extras.forEach(function(x) { if (!x.dup && !x.kept) { rec.extra.push(x.row); extras++; } });
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));
     add.forEach(function(a) { if (String(rec.note || '').indexOf(a) < 0) rec.note = (rec.note ? rec.note + '\n' : '') + a; });
+    _attPrune(d.iso);
   });
   var at = Date.now();
-  rv.msgs.forEach(function(m) {
-    if (m.dup) return;
+  // Read again, the rolls are already on record. A roll that saved no day (no date to put it on) is not recorded: kept, it
+  // refused the same roll pasted again with the date it lacked.
+  if (!rv.reread) rv.msgs.forEach(function(m) {
+    var ds = m.parsed ? Object.keys(m.parsed.days).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }) : [];
+    if (m.dup || m.repeat || !ds.length) return;
+    // The days it saved (a roll can carry a second day's block): a day deleted by hand takes its rolls with it (attDeleteDay).
     relayPastes().push({ id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
-      sentBy: m.sentBy || '', sentOn: m.sentOn || '', kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', text: m.text });
+      sentBy: m.sentBy || '', sentOn: m.sentOn || '', kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
   });
   saveState();
-  var first = plan.days[0].iso;
-  _relay = null; _relayDraft = ''; _relayView = 'paste';
+  var first = plan.days[0].iso, reread = !!rv.reread;
+  _relay = null; _relayView = 'paste';
+  if (!reread) _relayDraft = '';
   _attDate = first; _attView = 'day';
   renderAttendance();
   viewTop();
-  showToast('Saved ' + todoPlural(plan.days.length, 'day') + ': ' + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row'));
+  showToast((reread ? 'Read again: ' : 'Saved ' + todoPlural(plan.days.length, 'day') + ': ') + todoPlural(marks, 'mark') + ', ' + todoPlural(extras, 'EXTRA row') +
+    (reread ? '; the day as it was is in the log' : ''));
+}
+
+/* ===== Read the rolls again (Staff → Day) =====
+   The rolls a day was saved from are kept whole (S.relayPastes). A reader fixed since they were pasted reads them right
+   only if they are read again, and the owner's book held the wrong reading of three days (22, 23 and 25 Sep 2026: hands
+   at 21–36 hours off an 8 PM heading, "EXTRA 5 PM TO 6 AM" as 5 hours). So the day's rolls go back through the same check,
+   in the order they were saved, and Save replaces what they wrote: a mark or EXTRA row the rolls wrote (`src: 'relay'`)
+   is read afresh, one entered or corrected by hand is kept, and the day as it was goes to the deletion log with the
+   reason "read the rolls again". The refusal of a roll already saved is not for this. */
+function relayRollsFor(iso) {
+  var roster = null;
+  return relayPastes().filter(function(p) {
+    if (!p || (p.kind !== 'in' && p.kind !== 'out')) return false;
+    if (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)) return true;
+    if (Array.isArray(p.days)) return false;
+    // Saved before the days were kept on the roll: one dated another day that carries this day's block is read to see.
+    roster = roster || relayRoster({}, iso);
+    return !!parseRelayRoll(p.text, roster, p.sentOn || null).days[iso];
+  }).map(function(p, i) { return { p: p, i: i }; }).sort(function(a, b) { return (a.p.at || 0) - (b.p.at || 0) || a.i - b.i; }).map(function(x) { return x.p; });
+}
+/* Whether Day shows the action: a cheap test, drawn on every render (a roll saved before its days were kept is found by
+   its own date). */
+function relayDayHasRolls(iso) {
+  return relayPastes().some(function(p) { return p && (p.kind === 'in' || p.kind === 'out') && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); });
+}
+async function relayRereadOpen(iso) {
+  var rolls = relayRollsFor(iso);
+  if (!rolls.length) { showToast('No roll is saved for ' + formatDate(iso), 'error'); return; }
+  var ok = await uiConfirm({ title: 'Read the rolls again?', okLabel: 'Read again',
+    body: 'The ' + todoPlural(rolls.length, 'roll') + ' saved for ' + formatDate(iso) + ' ' + (rolls.length === 1 ? 'is' : 'are') +
+      ' read again as the reader reads them now. You check what is read before anything is saved. On Save, the marks and EXTRA rows the rolls wrote are replaced; ' +
+      'what was entered or corrected by hand is kept, and the day as it is now goes to the log.' });
+  if (!ok) return;
+  _relay = { text: rolls.map(function(p) { return p.text; }).join('\n\n'), reread: iso, choices: {}, stock: 0, other: 0, prod: 0,
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, text: p.text }; }) };
+  _relayView = 'review';
+  _relayShowLines = false;
+  _attView = 'paste';
+  renderAttendance();
+  viewTop();
+}
+/* The day as it was goes to the log whole; what comes back is only what was entered or corrected by hand. */
+function relayRereadBase(iso) {
+  if (!(S.attendance || {})[iso]) return attDay(iso, true);
+  var was = attDeleteRecord(iso, 'read the rolls again', 'reread').day, rec = attDay(iso, true);
+  var copy = function(o) { return JSON.parse(JSON.stringify(o)); };
+  Object.keys(was).forEach(function(k) { if (k !== 'marks' && k !== 'extra') rec[k] = copy(was[k]); });
+  Object.keys(was.marks || {}).forEach(function(id) { if (was.marks[id] && was.marks[id].src !== 'relay') rec.marks[id] = copy(was.marks[id]); });
+  rec.extra = (was.extra || []).filter(function(x) { return x && x.src !== 'relay'; }).map(copy);
+  return rec;
 }
 
 function relayAction(action, btn) {
@@ -1116,6 +1283,9 @@ function relayAction(action, btn) {
     case 'invRelayToProd': prodOpenPaste(_relay ? _relay.text : _relayDraft); break;
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
+    case 'invRelayReread': relayRereadOpen(_attDate); break;
+    // Back from a day's rolls read again is back to the day, and the reading is dropped: Paste message opens empty.
+    case 'invRelayRereadBack': _relay = null; _relayView = 'paste'; _attView = 'day'; renderAttendance(); viewTop(); break;
     case 'invRelayLines': _relayShowLines = !_relayShowLines; renderAttendance(); break;
     case 'invRelayForget': {
       var L = relayLearnData();

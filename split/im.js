@@ -718,6 +718,11 @@ function createInvoiceFromIM() {
     _linkedIMIds: [...linkedIMIds]
   };
 
+  // A piece client's share is priced off the challan's own amount, the share that completes a line taking what is left
+  // of it, as the Create picker does (createPickChallan): brought in at the open share alone, the last third of ₹100.00
+  // billed ₹33.33 and the line's invoices came to ₹99.99.
+  if (client.billingMode === 'piece') invoiceForm.items.forEach(item => { if (item.unit === 'NOS') createPieceShare(item); });
+
   // The vehicle came from the challans, so it is still the app's: the client's own may replace it.
   invoiceForm._auto = { ve: invoiceForm.transport };
   createApplyClientDefaults();

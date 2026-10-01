@@ -71,7 +71,7 @@ function navLocFromUrl(search) {
   var p;
   try { p = new URLSearchParams(search); } catch (e) { return null; }
   var tab = p.get('tab');
-  if (!tab || !document.getElementById(tab)) return null;
+  if (!tab || !isPageId(tab)) return null;
   return { tab: tab, v: p.get('v') || '', id: p.get('id') || '' };
 }
 
@@ -114,7 +114,7 @@ function navLabel(loc) {
 function navApply(loc) {
   _navHold++;
   try {
-    var tab = loc && loc.tab && document.getElementById(loc.tab) ? loc.tab : 'pageHome';
+    var tab = loc && isPageId(loc.tab) ? loc.tab : 'pageHome';
     var parts = String((loc && loc.v) || '').split('/'), id = (loc && loc.id) || '';
     var before = navLoc(), same = tab === before.tab;
     closeOverlay(); closePrintPreview(); closeMoreSheet();
@@ -135,6 +135,10 @@ function navApply(loc) {
         var sv = /^(overview|list|item|paste|manual|reorder)$/.test(parts[0]) ? parts[0] : 'overview';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
         if (sv === 'item') _stockItemId = id;
+        // Enter by hand and the reorder list are drawn from their own state: opened by an address it is made here, the
+        // way their buttons make it (a reload fell back to Lines and wrote v=list).
+        if (sv === 'manual' && !_stockManual) _stockManual = stockManualNew();
+        if (sv === 'reorder' && !_stockReorder) _stockReorder = { qty: {} };
         _stockView = sv;
         break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
@@ -326,11 +330,21 @@ document.addEventListener('keyup', navSoon);
 // A dialog or sheet opened later (after a question was answered, a file read) is a layer too.
 new MutationObserver(navSoon).observe(document.body, { childList: true });
 
-/* Backspace goes back when no field has focus (owner, 28 Sep 2026). */
+/* Backspace goes back when no field has focus (owner, 28 Sep 2026), and from the field the APP focused on arriving at a
+   screen (switchTab's step 8: the search on the Register, History, Create) while it is still empty and nobody has typed in
+   it or left it since: arriving there, Backspace did nothing (the QA audit of 30 Sep 2026). Once typed in, even emptied
+   again, its Backspace is the field's. */
+var _navArrivalField = null;
+function navArrived() {
+  var a = document.activeElement;
+  _navArrivalField = a && /^(INPUT|TEXTAREA)$/.test(a.tagName) && !a.value ? a : null;
+}
+document.addEventListener('input', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
+document.addEventListener('focusout', function(e) { if (e.target === _navArrivalField) _navArrivalField = null; }, true);
 document.addEventListener('keydown', function(e) {
   if (e.key !== 'Backspace' || e.altKey || e.ctrlKey || e.metaKey || e.shiftKey || e.defaultPrevented) return;
   var t = e.target;
-  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName))) return;
+  if (t && (t.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(t.tagName)) && !(t === _navArrivalField && !t.value)) return;
   if (!navCanBack()) return;
   e.preventDefault();
   navBack();

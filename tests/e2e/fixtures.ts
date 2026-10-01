@@ -139,7 +139,10 @@ export async function waitForBoot(page: Page): Promise<void> {
    clears the store first so the new fixture is the one that loads. */
 export async function loadAppWithState(page: Page, state: SepState): Promise<void> {
   if (!page.url().startsWith('about:')) {
+    // A fresh device: the database and the marker that this device kept its book there (without the marker gone too, an
+    // empty database is a book the browser threw away, and the app starts on a stand-in).
     await page.evaluate(() => new Promise<void>(resolve => {
+      try { localStorage.removeItem('sep_inv_idb_used'); } catch { /* none */ }
       try {
         const q = indexedDB.deleteDatabase('sep-invoicing');
         q.onsuccess = q.onerror = q.onblocked = () => resolve();

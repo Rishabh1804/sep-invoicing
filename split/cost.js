@@ -83,7 +83,8 @@ function stockBillSave() {
   var typedAmount = !(price > 0) && amount > 0;
   if (typedAmount) price = amount / qty;
   if (!(price > 0)) { showToast('Enter the price per unit or the bill amount', 'error'); return; }
-  price = Math.round(price * 10000) / 10000;
+  // Kept to 4 places, rounded on the figure as typed (HR-8): 12.00035 × 10000 is 120003.4999… on the binary copy.
+  price = gstRound(price, 4);
   var fields = { price: price, amount: gstRound(typedAmount ? amount : price * qty), supplier: b.supplier.trim(), billNo: b.billNo.trim(), billDate: b.date };
   if (b.entryId) {
     var e = stockData().entries.find(function(x) { return x.id === b.entryId; });
@@ -299,20 +300,32 @@ function liveCost(from, to, kg) {
   var boughtLine = function(t, what) {
     return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount, ref: true }] : [];
   };
-  // How much of the period the stock record covers.
+  // How much of the period the stock record covers: from the first USE or CHARGE (its window's first day). Use is read
+  // from nothing else, so a count or a delivery before it says nothing about what was used: one past purchase entered by
+  // hand, dated 6 Jul, marked the whole quarter recorded and read its chemicals and zinc as ₹0 (the QA audit, 30 Sep 2026).
   var firstStock = null;
-  stockData().entries.forEach(function(e) { if (!e.voided && e.kind !== 'bill' && (!firstStock || e.date < firstStock)) firstStock = e.date; });
+  stockData().entries.forEach(function(e) {
+    if (e.voided || (e.kind !== 'used' && e.kind !== 'charged')) return;
+    var d = /^\d{4}-\d{2}-\d{2}$/.test(e.from || '') && e.from < e.date ? e.from : e.date;
+    if (!firstStock || d < firstStock) firstStock = d;
+  });
   var coveredDays = !firstStock || firstStock > to ? 0 : firstStock <= from ? days : isoDaysBetween(firstStock, to) + 1;
   var stockMissing = 1 - coveredDays / days;
   var stockWhat = coveredDays ? (days - coveredDays) + ' of ' + days + ' days before the stock record starts (' + stockShortDate(firstStock) + ')' : 'no stock record in this period';
 
   var chemModel = stockCfg().chemModel;
   var chemDetail = chem.detail.sort(function(a, b) { return b.amount - a.amount; }).concat(chem.unpriced);
-  if (stockMissing > 0.001) chemDetail.push(fillLine(chemModel, stockMissing, stockWhat));
+  // Zinc's rule for chemicals: a period with nothing drawn in it, or drawn only from lines with no price, measured
+  // nothing, and is filled whole at the model; it read ₹0 as "model" (August on the real book).
+  var chemMeasured = chem.detail.some(function(d) { return d.amount > 0; });
+  var chemMissing = chemMeasured ? stockMissing : 1;
+  var chemWhat = chemMeasured || !coveredDays ? stockWhat : 'no chemical used in this period';
+  if (chemMissing > 0.001) chemDetail.push(fillLine(chemModel, chemMissing, chemWhat));
   var chemLines = chem.detail.length + chem.unpriced.length;
-  push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (stockMissing > 0.001 ? chemModel * kg * stockMissing : 0), low: chem.unpriced.length > 0,
-    note: (chemLines ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '') : 'no chemical use recorded') +
-      (stockMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : ''),
+  push({ key: 'chem', label: 'Chemicals', amount: chem.amount + (chemMissing > 0.001 ? chemModel * kg * chemMissing : 0), low: chem.unpriced.length > 0,
+    note: (chemMeasured || (chemLines && !coveredDays) ? chem.detail.length + ' of ' + chemLines + ' lines used are priced' + (chem.unpriced.length ? ', so the measured part reads low' : '')
+      : coveredDays ? 'no chemical used in this period' : 'no chemical use recorded') +
+      (chemMeasured ? (chemMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : '') : coveredDays ? ' · filled at the model' : ''),
     detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
       sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
 
@@ -412,16 +425,27 @@ function liveCostPaidCheck(from, to) {
   if (!bankData().rows.length) return [];
   var bk = bankCostForRange(from, to), out = [];
   var span = function(ym) { var s = ym + '-01', e = payMonthEnd(s); return [from > s ? from : s, to < e ? to : e]; };
+  // A month dropped because payees are not yet sorted says so, and where to sort them: read as "nothing paid" it hid
+  // lakhs a month paid to suppliers.
+  var unsortedIn = function(key) {
+    return ((bk[key] && bk[key].unknown) || []).filter(function(u) { return u.why === BANK_UNSORTED_WHY; }).map(function(u) { return billsMonthLabel(u.month); });
+  };
   var finish = function(key, label, t, why, known) {
     var r = { key: key, label: label, months: t.months, skipped: t.skipped, recorded: null, paid: null, delta: null, pct: null, flag: false, why: why };
-    if (key === 'supplies' && t.paid < 1 && t.recorded < 1) { r.note = 'no priced use and no supplier payment in the months the statement covers'; out.push(r); return; }
+    var uns = unsortedIn(key);
+    if (key === 'supplies' && t.paid < 1 && t.recorded < 1) {
+      r.note = uns.length ? 'nothing to compare: ' + BANK_UNSORTED_WHY + ' for ' + uns.join(', ') : 'no priced use and no supplier payment in the months the statement covers';
+      out.push(r); return;
+    }
     if (t.months.length) {
       r.recorded = gstRound(t.recorded); r.paid = gstRound(t.paid); r.delta = gstRound(t.paid - t.recorded);
       r.pct = t.recorded > 0 ? r.delta / t.recorded : null;
       r.flag = key !== 'supplies' && (r.pct == null ? r.paid > 0 : Math.abs(r.pct) > COST_GAP);
     }
-    r.note = t.months.length ? 'over ' + t.months.map(billsMonthLabel).join(', ') + (t.skipped.length ? ' · not ' + t.skipped.map(billsMonthLabel).join(', ') + ': ' + known : '') + ' · ' + why
-      : t.skipped.length ? 'nothing to compare: ' + known + ' for ' + t.skipped.map(billsMonthLabel).join(', ') : 'nothing paid on the statement for this period';
+    r.note = t.months.length ? 'over ' + t.months.map(billsMonthLabel).join(', ') + (t.skipped.length ? ' · not ' + t.skipped.map(billsMonthLabel).join(', ') + ': ' + known : '') +
+        (uns.length ? ' · not ' + uns.join(', ') + ': ' + BANK_UNSORTED_WHY : '') + ' · ' + why
+      : t.skipped.length || uns.length ? 'nothing to compare: ' + [t.skipped.length ? known + ' for ' + t.skipped.map(billsMonthLabel).join(', ') : '',
+        uns.length ? BANK_UNSORTED_WHY + ' for ' + uns.join(', ') : ''].filter(Boolean).join('; ') : 'nothing paid on the statement for this period';
     out.push(r);
   };
 
@@ -511,7 +535,15 @@ function _costDerivedHtml(res) {
         '<span class="inv-row-meta inv-row-wrap' + (r.skip ? '' : ' inv-id') + '">' + (r.skip ? escHtml(r.skip)
         : formatCurrency(r.paid) + ' &divide; ' + formatNum(r.kg / 1000, 1) + ' t = ' + formatCurrency(r.perKg) + '/kg') + '</span></span></div>';
     }).join('') + '</div>';
-    if (d.perKg == null) return h + '<p class="inv-note inv-mt-4">No month the statement covers has tonnage beside it, so nothing to offer.</p>';
+    if (d.perKg == null) {
+      // Why nothing is offered: a month left out for unsorted payees (or a salary run not on the statement yet) is not a
+      // month with no tonnage beside it.
+      var whys = [], by = {};
+      d.rows.forEach(function(r) { if (!r.skip) return; if (!by[r.skip]) { by[r.skip] = []; whys.push(r.skip); } by[r.skip].push(billsMonthLabel(r.month)); });
+      var plain = whys.every(function(w) { return w === 'no tonnage invoiced' || w === 'not on the statement'; });
+      return h + '<p class="inv-note inv-mt-4">' + (plain ? 'No month the statement covers has tonnage beside it, so nothing to offer.'
+        : escHtml('Nothing to offer: ' + whys.map(function(w) { return w + ' for ' + by[w].join(', '); }).join('; ') + '.')) + '</p>';
+    }
     var n = d.rows.filter(function(r) { return !r.skip; }).length;
     return h + '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><span class="inv-row-main">' + n + ' month' + (n === 1 ? '' : 's') + ': ' + formatCurrency(d.paid) + ' &divide; ' + formatNum(d.kg / 1000, 1) + ' t = <strong class="inv-id">' +
       formatCurrency(d.perKg) + '/kg</strong> against ' + formatCurrency(set[key] || 0) + ' set</span>' +

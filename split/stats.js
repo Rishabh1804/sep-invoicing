@@ -220,6 +220,10 @@ function statsPeriodCost(period, tonnage) {
    around it has already given the weighed share. */
 function statsCostWeighedNote(tonnage, said) {
   if (!tonnage || !(tonnage.kg > 0) || !(tonnage.coverage < 0.999)) return '';
+  // Weighed lines billed at nothing (replating) beside priced lines with no weight: nothing priced is weighed, and 1 ÷ 0
+  // read "by about Infinity%".
+  if (!(tonnage.coverage > 0)) return 'The live cost per kg divides the whole plant&rsquo;s cost by the tonnage of the weighed lines, and they carry none of the revenue: ' +
+    'nothing priced was weighed, so the figure cannot be set against what was billed.';
   var up = (1 / tonnage.coverage - 1) * 100;
   return 'The live cost per kg divides the whole plant&rsquo;s cost by the tonnage of the weighed lines' +
     (said ? '' : ', which carry ' + statsPctOf(tonnage.coverage) + '% of the revenue') + ', so it reads high' + (said ? ' too' : '') + ': ' +
@@ -327,8 +331,11 @@ function periodKeysBetween(minIso, maxIso, gran) {
   var d = new Date(minIso + 'T00:00:00');
   var end = new Date(maxIso + 'T00:00:00');
   if (isNaN(d) || isNaN(end)) return keys;
-  // Hard stop: a corrupt date can otherwise spin this for ever.
-  var guard = 0;
+  // Hard stop: a corrupt date can otherwise spin this for ever. The walk keeps the END of a longer range, the part every
+  // caller shows (they keep the last 12 months, 26 weeks or 90 days): from a date decades back it stopped at 4,000 days
+  // and handed the callers a tail of empty months.
+  var guard = 0, from = new Date(end); from.setDate(from.getDate() - 3999);
+  if (from > d) d = from;
   while (d <= end && guard++ < 4000) {
     var iso = isoOf(d);
     var k = gran === 'day' ? iso : gran === 'week' ? isoWeekKey(iso) : iso.substring(0, 7);
@@ -369,7 +376,11 @@ function statsInvoices() {
     var c = cr[inv.id];
     if (!c) return inv;
     var tv = Number(inv.taxableValue) || 0, f = tv > 0 ? Math.max(0, (tv - c) / tv) : 1;
+    // The tax and the total come down by the same share as the taxable, so "incl. GST" and output tax are net too and agree
+    // with Finance's GST due, which takes the notes' tax off.
     return Object.assign({}, inv, { taxableValue: gstRound(tv * f), _credit: gstRound(tv - tv * f),
+      cgstAmt: gstRound((Number(inv.cgstAmt) || 0) * f), sgstAmt: gstRound((Number(inv.sgstAmt) || 0) * f), igstAmt: gstRound((Number(inv.igstAmt) || 0) * f),
+      grandTotal: gstRound((Number(inv.grandTotal) || 0) * f),
       items: (inv.items || []).map(function(it) { return Object.assign({}, it, { amount: gstRound((Number(it.amount) || 0) * f) }); }) });
   });
 }
@@ -410,7 +421,9 @@ function buildTrendSeries(gran, series) {
   // Cap series length per granularity for readability + perf.
   var cap = gran === 'day' ? 90 : gran === 'week' ? 26 : 12;
   if (!minDate) return [];
-  var keys = periodKeysBetween(minDate, maxDate, gran).slice(-cap);
+  // The reach ends today, never at a date typed decades ahead (a date only ahead of today, with nothing before it, keeps it).
+  var today = localDateStr();
+  var keys = periodKeysBetween(minDate, maxDate > today && minDate <= today ? today : maxDate, gran).slice(-cap);
   return keys.map(function(k) { return { key: k, label: formatTrendLabel(k, gran), value: by[k] || 0 }; });
 }
 
@@ -1084,6 +1097,8 @@ var HISTORY_ICONS = {
   extra: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   except: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
 };
+// A deleted attendance day is a deletion, as a deleted invoice is.
+HISTORY_ICONS.attDelete = HISTORY_ICONS.void;
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
@@ -1098,7 +1113,7 @@ function historyIcon(kind) {
 var HISTORY_KIND_WORDS = {
   invoice: ['Invoice', 'neutral'], challan: ['Challan', 'neutral'], state: ['Status', 'ok'],
   cancel: ['Cancelled', 'danger'], void: ['Deleted', 'danger'], dupe: ['Duplicate', 'warning'],
-  shift: ['Attendance', 'neutral'], extra: ['Extra hours', 'neutral'], except: ['Exception', 'warning']
+  shift: ['Attendance', 'neutral'], extra: ['Extra hours', 'neutral'], except: ['Exception', 'warning'], attDelete: ['Deleted', 'danger']
 };
 function historyKindHtml(ev) {
   // A challan corrected from an invoice is a challan event on the audit filter.
@@ -1294,23 +1309,31 @@ function pushFloorEvents(events) {
      and says so. */
   // A deleted attendance day: on the recorded clock, the day it was about and why it went.
   (S.attendanceDeletes || []).forEach(function(x) {
+    var what = ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')';
     events.push({
       ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded',
-      text: 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') +
-        ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')' +
-        (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
+      // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
+      text: x.how === 'reread'
+        ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
+        : 'Attendance day deleted \u2014 ' + (x.iso ? formatDate(x.iso) : 'saved under no date ("' + x.key + '")') + what +
+          (x.how === 'migration' ? ', by the app on the owner\u2019s instruction' : '') + ' \u2014 ' + (x.reason || 'no reason recorded')
     });
   });
 
+  // An explanation explained again or reopened is kept (areas.js, recordExtraException): each is its own event.
   (S.extraExceptions || []).forEach(function(x) {
+    var about = (x.label || x.key || '') + ' on ' + formatDate(x.iso);
     events.push({
       ts: x.at || floorTs(x.iso), type: 'audit', kind: 'except', sourceId: null, jump: null,
       clock: x.at ? 'recorded' : 'floor',
-      text: 'Extra-hours exception explained \u2014 ' + (x.label || x.key || '') +
-        ' on ' + formatDate(x.iso) +
+      text: 'Extra-hours exception explained \u2014 ' + about +
         (x.expected == null ? '' : ' (expected ' + formatNum(x.expected, 1) + ' h, booked ' +
           formatNum(x.booked || 0, 1) + ' h)') +
-        ' \u2014 ' + (x.reason || 'no reason recorded')
+        ' \u2014 ' + (x.reason || 'no reason recorded') + (x.supersededAt ? ' (explained again since)' : '')
+    });
+    if (x.reopenedAt) events.push({
+      ts: x.reopenedAt, type: 'audit', kind: 'except', sourceId: null, jump: null, clock: 'recorded',
+      text: 'Extra-hours exception reopened \u2014 ' + about + ' \u2014 the explanation "' + (x.reason || '') + '" no longer stands'
     });
   });
 }

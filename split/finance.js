@@ -45,8 +45,9 @@ function renderFinance() {
   if (_finTabMoved) { _finTabMoved = false; viewTop(); }
 }
 
-/* The overview is read at a glance: whole rupees. Every tab behind it keeps the paise. */
-function finRs(v) { var n = Math.round(Number(v) || 0); return (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN'); }
+/* The overview is read at a glance: whole rupees, rounded half away from zero on the figure as written (HR-8's way:
+   Math.round took −₹1,234.50 to −₹1,234 and ₹1,234.50 to ₹1,235). Every tab behind it keeps the paise. */
+function finRs(v) { var n = gstRound(v, 0); return (n < 0 ? '-' : '') + '₹' + Math.abs(n).toLocaleString('en-IN'); }
 
 /* ---------- Months ---------- */
 /* The last n months, this one included, oldest first. */

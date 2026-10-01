@@ -446,7 +446,10 @@ test('a recorded exception can be reopened', async ({ page }) => {
   await expect(blocks(page)).toContainText('not the predicted amount');
   const ex = await page.evaluate(async () =>
     JSON.parse((await (window as any).readPersistedStateRaw())!).extraExceptions);
-  expect(ex).toEqual([]);
+  // Reopened, the record is kept with its stamp, never deleted (P124): it no longer explains the block.
+  expect(ex).toHaveLength(1);
+  expect(ex[0].reason).toBe('checked against the sheet — the tag is right');
+  expect(ex[0].reopenedAt).toBeGreaterThan(0);
 });
 
 /* ===== ENTRY ===== */

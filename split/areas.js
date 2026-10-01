@@ -255,19 +255,19 @@ function recordExtraException(d, reason) {
     reason: r,
     at: Date.now()
   };
+  // A record is never overwritten or deleted, the ledger rule every record here keeps: explained again, the earlier
+  // explanation is kept stamped `supersededAt`; reopened, it is kept stamped `reopenedAt`. Only a live one explains.
   var list = extraExceptions();
-  var at = -1;
-  list.forEach(function(x, i) { if (exceptionKey(x) === exceptionKey(rec)) at = i; });
-  if (at >= 0) list[at] = rec; else list.push(rec);
+  list.forEach(function(x) { if (exceptionLive(x) && exceptionKey(x) === exceptionKey(rec)) x.supersededAt = rec.at; });
+  list.push(rec);
   saveState();
   return rec;
 }
+function exceptionLive(x) { return !!x && !x.supersededAt && !x.reopenedAt; }
 
 function removeExtraException(key) {
-  var list = extraExceptions();
-  for (var i = list.length - 1; i >= 0; i--) {
-    if (exceptionKey(list[i]) === key) list.splice(i, 1);
-  }
+  var now = Date.now();
+  extraExceptions().forEach(function(x) { if (exceptionLive(x) && exceptionKey(x) === key) x.reopenedAt = now; });
   saveState();
 }
 
@@ -276,7 +276,7 @@ function removeExtraException(key) {
    from the figures it was written about, which is worth saying out loud. */
 function _partitionExceptions(found) {
   var byKey = {};
-  extraExceptions().forEach(function(x) { byKey[exceptionKey(x)] = x; });
+  extraExceptions().forEach(function(x) { if (exceptionLive(x)) byKey[exceptionKey(x)] = x; });
   var open = [], acked = [], stale = [];
   found.forEach(function(d) {
     var x = byKey[exceptionKey(d)];

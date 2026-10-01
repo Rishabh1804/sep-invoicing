@@ -104,11 +104,16 @@ var SETTINGS_SECS = {
       if (next <= used) {
         var chk = invReissueCheck(prefix, next);
         if (!chk.ok) { showToast(chk.why, 'error'); return false; }
-        if (!(await uiConfirm({ title: 'Reissue ' + chk.disp + '?', body: 'The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
-          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?', okLabel: 'Set next number' }))) return false;
+        // Deleted before it left the building, but its month's return was due: it may be in that GSTR-1 (at zero).
+        var dueSaid = chk.due ? 'The GSTR-1 it belongs to was due on ' + formatDate(isoOf(chk.due)) + ': if that return was filed with ' + chk.disp +
+          ' in it, the number is spent and must not be issued again. ' : '';
+        if (!(await uiConfirm({ title: 'Reissue ' + chk.disp + '?', body: dueSaid + 'The next invoice will be issued as ' + chk.disp + ', a number used before. After it the series carries on from ' +
+          prefix + padInvNum(used + 1) + '. (Delete → "Delete and reissue" does this in one step.) Continue?', okLabel: 'Set next number', tone: chk.due ? 'warning' : undefined }))) return false;
       }
       S.invPrefix = prefix;
       S.invNextNum = next;
+      // The operator's own Next: the start's reset of an empty book to 1 leaves it alone (resetSeriesIfEmpty).
+      S.invNextSetAt = Date.now();
     }
   },
   cn: {
@@ -183,8 +188,10 @@ var SETTINGS_SECS = {
     },
     why: 'Days left is the level over the daily use on record. Set 24 Sep 2026 at 3 and 7 days.',
     save: function() {
+      var r = _sPos('setStkRed'), a = _sPos('setStkAmber'), c = stockCfg();
+      // Amber is the earlier warning: under the red line, a line went red under the OK tile.
+      if ((r || c.redDays) > (a || c.amberDays)) { showToast('Red at ' + (r || c.redDays) + ' days is above amber at ' + (a || c.amberDays) + ': amber must be the same or more', 'error'); return false; }
       if (!S.stockCheck) S.stockCheck = {};
-      var r = _sPos('setStkRed'), a = _sPos('setStkAmber');
       if (r) S.stockCheck.redDays = r;
       if (a) S.stockCheck.amberDays = a;
     }
@@ -732,13 +739,44 @@ function estimateStorage() {
 }
 
 function exportData() {
+  // A stand-in (bookStandIn) is still exported, since anything typed this session lives only here, but as what it is: it
+  // was saved as a dated backup and reset the To-do's backup reminder (the QA audit of 30 Sep 2026).
+  var standIn = bookStandIn();
   const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sep-invoicing-backup-' + localDateStr() + '.json';
+  a.download = 'sep-invoicing-' + (standIn ? 'stand-in-' : 'backup-') + localDateStr() + '.json';
   a.click();
+  if (standIn) { showToast('Exported this window\'s stand-in. It is not this device\'s book, so it does not count as a backup.', 'warning'); return; }
   todoNoteExport();
   showToast('Data exported');
+}
+
+/* The read banner's export: the stored copy that would not parse, exactly as it was read, so it can be repaired. The
+   banner's Export JSON handed over the stand-in instead, as a dated backup. It does not open as a backup, so it is no
+   backup for the reminder either. */
+function exportStoredCopy() {
+  if (_unreadable == null) { showToast('The stored copy cannot be read out: ' + bookStandInWords(), 'error'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([_unreadable], { type: 'text/plain' }));
+  a.download = 'sep-invoicing-unreadable-' + localDateStr() + '.txt';
+  a.click();
+  showToast('Exported the stored copy as it is. It does not open as a backup; keep it for repair.', 'warning');
+}
+
+/* After the whole book is replaced (an import, a pull), every screen is drawn from the new book, and what was picked in the
+   old one goes with it: the Register's and Challans' toolbars (client lists) and their selections. A pull kept the
+   selections, so a bulk action could reach the old book's rows (the QA audit of 30 Sep 2026). */
+function bookReplacedShow() {
+  closeOverlay();
+  _tabDirty.home = true;
+  _tabDirty.register = true;
+  _regToolbarRendered = false;
+  _imToolbarRendered = false;
+  _regSelected = {};
+  _regSelectMode = false;
+  _imSelected = {};
+  switchTab('pageHome');
 }
 
 function importData() {
@@ -758,29 +796,31 @@ function importData() {
         showToast('Invalid file: ' + err.message, 'error');
         return;
       }
-      if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. Continue?', okLabel: 'Import and replace', danger: true }))) return;
+      // Where nothing can be written (a stored copy that cannot be set aside), nothing is replaced, and the reason is the
+      // app's own: it read "the browser refused to store it" of a refusal the browser never made.
+      var blocked = bookStandInBlocker();
+      if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
+      if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
+          (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
       try {
         // This path carried NO repairs at all, which was the sharper half of
         // the same bug: a backup written before `staff` existed left it
         // undefined and the Staff tab threw the moment it was opened.
         // All-or-nothing: a migration that throws restores what was here.
         adoptState(data);
+        // Out of a stand-in: an unreadable copy is set aside by the save below, never written over.
+        bookReleaseStandIn();
+        // An imported book is not the copy this device last exchanged with GitHub: the next push asks.
+        if (typeof ghForgetSha === 'function') ghForgetSha();
         // The success toast used to fire regardless, on top of — and therefore
         // instead of — the storage failure toast. A copy that only reached
         // memory is not imported, and the operator has to hear that.
         // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
         // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
-        closeOverlay();
-        _tabDirty.home = true;
-        _tabDirty.register = true;
-        _regToolbarRendered = false;
-        _imToolbarRendered = false;
-        _regSelected = {};
-        _imSelected = {};
-        switchTab('pageHome');
+        bookReplacedShow();
         saveState().then(function(saved) {
           if (saved) showToast('Data imported');
-          else showToast('NOT saved: the browser refused to store it (' + _storageHealth.lastError + '). The data is in memory only and will be lost on reload.', 'error');
+          else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');
         });
       } catch(err) {
         showToast('Invalid file: ' + err.message, 'error');

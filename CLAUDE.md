@@ -128,7 +128,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 991 tests, both layouts
+pnpm exec playwright test          # 1,122 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -230,6 +230,42 @@ layouts; builders fixed each area with its spec (P104–P113). What it leaves as
   night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
   says so.
 
+**The QA chain of 30 Sep 2026, the second** (owner: *"Go for a full QA chain on the app"*). Seven audits (about 90 findings, most confirmed
+on the real book), a scratch harness pressing every action on every page (the real book on the phone: 334 actions, no error, nothing stuck),
+every page and view measured and shot on the real book, then one builder per area with its spec (P123–P129) and the screen fixes (P130).
+What it leaves as rules:
+- **A book that would not load is a stand-in** (`bookStandIn()`, `_storageHealth.readKind`: closed, threw, unparsed, gone): nothing is written,
+  auto-push never arms, a push by hand asks with both sides' counts, the banner exports the stored copy as it was read, and an export of the
+  stand-in is named as one. A database that opens empty on a device whose book lived there (`sep_inv_idb_used`) is **gone**, not new. An import
+  or pull the owner confirms sets the unreadable copy aside under `unreadable-<ts>` (never deleted) in the same transaction as the new book.
+  **The sync SHA means GitHub holds what this disk holds**: a pull records it only after its save lands, a failed save or a stand-in never
+  records one, and an import forgets it (`ghForgetSha`), so the next push asks.
+- **Billing**: the invoice Part field holds the part number (the description under the line). A reissue takes over what was keyed on the
+  old invoice's id — its legacy challan lines and every credit note naming it (`invReissueCarry`). Next moves back only by a delete, onto the
+  last number handed out (`invNextAfterDelete`); a Next set in Settings is stamped (`invNextSetAt`). A document dated outside the year its
+  series names asks first (`seriesFyAsk`). Settings' reissue refuses a reconciled gap or a cancelled-then-deleted number.
+- **Money**: `gstRound(val, dp)` takes places (whole rupees for `finRs`, four for a stock price). Receivables apply notes and receipts in date
+  order; an exact match settles to the paisa (`rounding`), so owed always equals the open list. The forecast says **overdrawn** and **outflows
+  only** (`noInflow`: no receipt placed yet), the latter amber. **An imported statement can be removed** with a reason (Finance → Bank →
+  Imports): only the rows it added go, its record keeps `removedAt`, `removeReason`, `rowsRemoved`, `removedIds`.
+- **Live cost**: the stock record starts at the first **use or charge**, never a count or a delivery, and a period with no chemical drawn is
+  filled at the model — one back-dated delivery had read the quarter at ₹4.70/kg (about ₹7.9 measured this way).
+- **Stock messages**: "VAT A 2", "V A 1", "VAT-2" are one area word (`stockFoldAreas`), a use clause sums every part and never reads a date,
+  and a "+" sum after "use" is the use. A correction replays where the entry it corrects stood. A use before any count is **Not counted**, never Out.
+- **Attendance rolls**: a default out time never runs past midnight (0 h, flagged); a present mark over 16 h is amber; a PM heading over the
+  area sections with no 8:30 heading is the 8:30 shift, flagged; "EXTRA 5 PM TO 6 AM" is a span, asked, never hours. Staff → Day → **Read the
+  rolls again** re-reads a day's saved rolls, replacing what the rolls wrote and keeping what was typed; the old day goes to the log
+  (`how: 'reread'`). Delete this day takes its rolls with it, so they can be pasted again. A monthly payment dated by the 20th pays the month before.
+- **Production**: a pick on a carried load is that load's alone and teaches nothing; a correction keeps what the hand form does not show;
+  a bare floor code is a part code; register runs split at 8:30 AM and 5 PM; the line picked on the photo check drives the part rules; a
+  power-back pasted later closes the stored cut (`closedBy`). Power's rates count only cuts on recorded days.
+- **Performance** reads one client (`cpCurrentClientId`) in the render and every handler; Stats nets tax and total by credit notes like the
+  taxable; a chart bar with no figure is a gap.
+- **Screens**: Power → Cuts is one line a cut that opens to what its damage is made of, the newest month open and older ones folded (21.6 →
+  about 3 phone screens); Performance folds Materials worked and By the hour (9.7 → 4.5 on the real book); P/H/A on the Day board are whole
+  44px buttons again (`.inv-row-end > .inv-seg`; the board had left `inv-row-fields`, now deleted); Production's tonnage tile shows the pieces
+  when under 90% are weighed; Home's widgets are `home-w` containers, so a tile strip never leaves a blank cell.
+
 **Entering several at a sitting stays on the form** (owner, 30 Sep 2026: *"when entering by hand, the page reloads to the base screen
 after every entry, instead of staying there for multiple entry … Check for these page jumping back to the base page on some action bug
 across the app"*). A save on a form that is filled many times in a row keeps the form, carries over what repeats and clears the figures:
@@ -302,7 +338,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 467 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 467 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |

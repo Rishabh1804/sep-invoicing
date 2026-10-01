@@ -21,6 +21,22 @@ function getPerfClientId() {
   return v ? parseInt(v, 10) : null;
 }
 
+/* The client Performance shows: the one picked while it still exists, else the default the page draws (the account with
+   the most revenue, the one worth watching). The page and every handler read this; the stored pick alone was empty until
+   the picker was changed, so the page drew one client while its search and By the hour's buttons read none. */
+function cpCurrentClientId() {
+  var clients = S.clients || [], id = getPerfClientId();
+  var has = function(x) { return clients.some(function(c) { return String(c.id) === String(x); }); };
+  if (id != null && has(id)) return id;
+  if (!clients.length) return null;
+  var byRev = {};
+  (S.invoices || []).forEach(function(i) {
+    if (i.status === 'active' && has(i.clientId)) byRev[i.clientId] = (byRev[i.clientId] || 0) + (i.taxableValue || 0);
+  });
+  var best = Object.keys(byRev).sort(function(a, b) { return byRev[b] - byRev[a]; })[0];
+  return best != null ? clients.find(function(c) { return String(c.id) === best; }).id : clients[0].id;
+}
+
 function setPerfClientId(id) {
   regFilter.perfClientId = id == null ? '' : String(id);
   saveRegFilter();
@@ -210,8 +226,10 @@ function cpMonthly(clientId, months) {
   // Months with nothing in them are kept. A client who went quiet for a quarter
   // must not render as an unbroken run of bars — that silence is the finding. So the run goes on to this month: ending
   // at the last invoice hid the quietest months of all, the ones since.
+  // Never past today: an invoice typed decades ahead once drew twelve empty months (a date only ahead of today, with
+  // nothing before it, keeps its own).
   var today = localDateStr();
-  return periodKeysBetween(minDate, maxDate > today ? maxDate : today, 'month')
+  return periodKeysBetween(minDate, minDate > today ? maxDate : today, 'month')
     .slice(-(months || CP_LOOKBACK_MONTHS))
     .map(function(k) {
       var r = by[k] || { month: k, revenue: 0, kg: 0, count: 0, revKnown: 0 };
@@ -287,17 +305,7 @@ function _cpDelta(cur, prev, better) {
 function renderClientPerformance(container) {
   if (!container) return;
   var clients = S.clients.slice().sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
-  var clientId = getPerfClientId();
-  if (clientId == null && clients.length > 0) {
-    // Default to the account with the most revenue — the one worth watching.
-    var byRev = {};
-    S.invoices.forEach(function(i) {
-      if (i.status !== 'active') return;
-      byRev[i.clientId] = (byRev[i.clientId] || 0) + (i.taxableValue || 0);
-    });
-    var best = Object.keys(byRev).sort(function(a, b) { return byRev[b] - byRev[a]; })[0];
-    clientId = best != null ? parseInt(best, 10) : clients[0].id;
-  }
+  var clientId = cpCurrentClientId();
 
   // The client picker speaks through change only (events.js).
   var html = '<div class="inv-toolbar">' +
@@ -347,11 +355,12 @@ function renderClientPerformance(container) {
   var series = monthly.map(function(r) {
     return {
       label: r.label,
-      value: _cpSeries === 'tonnage' ? r.kg : _cpSeries === 'rate' ? (r.realisation || 0) : r.revenue
+      // A month with nothing weighed has no ₹/kg: a gap, never a ₹0.00 bar.
+      value: _cpSeries === 'tonnage' ? r.kg : _cpSeries === 'rate' ? r.realisation : r.revenue
     };
   });
   html += chartBars(series, {
-    unit: _cpSeries === 'tonnage' ? 'kg' : 'money',
+    unit: _cpSeries === 'tonnage' ? 'kg' : _cpSeries === 'rate' ? 'rate' : 'money',
     ariaLabel: 'Month on month'
   });
 
@@ -384,8 +393,8 @@ function renderClientPerformance(container) {
   }
   html += '</div>';
 
-  // Stopped first: it is the only one of the four that is a question. Each group shows its first ten (the count is on its
-  // head) and One-off (handled once, long ago) shows none until asked: SSS Mehta's card ran 23 phone screens with 101
+  // Stopped first: it is the only one of the four that is a question. Stopped and New show their first ten (the count is on
+  // the head); Steady and One-off, which need nothing, show none until asked: SSS Mehta's card ran 23 phone screens with 101
   // stopped parts and every part it ever sent (UX overhaul 2, step 6).
   var group = function(key, title, tone, list, emptyText, note, renamesFor, n) {
     var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
@@ -403,7 +412,7 @@ function renderClientPerformance(container) {
     group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
       'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
     group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
-    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null) +
+    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null, 0) +
     (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null, 0) : '') +
     '</div>';
 
@@ -421,9 +430,12 @@ function renderClientPerformance(container) {
 var _cpPeriod = '3m', _cpFrom = '', _cpTo = '', _cpQuery = '', _cpScope = 'client';
 var CP_PERIODS = [['mtd', 'This month'], ['3m', '3 months'], ['6m', '6 months'], ['fy', 'This FY'], ['all', 'All'], ['custom', 'Dates']];
 
-function cpPeriodRange() {
-  var today = localDateStr(), y = +today.slice(0, 4), m = +today.slice(5, 7);
-  var back = function(k) { var d = new Date(y, m - 1 - k, +today.slice(8, 10)); return isoOf(d); };
+/* `today` is the page's (localDateStr) unless given. A month back is the same day clamped to that month's length
+   (dayInMonth): 31 May back three months is 28 Feb, never 3 Mar. */
+function cpPeriodRange(today) {
+  today = today || localDateStr();
+  var y = +today.slice(0, 4), m = +today.slice(5, 7);
+  var back = function(k) { return isoOf(dayInMonth(y, m - 1 - k, +today.slice(8, 10))); };
   switch (_cpPeriod) {
     case 'mtd': return { from: today.slice(0, 8) + '01', to: today, label: 'this month' };
     case '6m': return { from: back(6), to: today, label: 'the last 6 months' };
@@ -604,21 +616,23 @@ function cpWorkedListHtml(clientId) {
 function cpWorkedHtml(clientId) {
   var seg = function(k, l, act, cur, attr) { return '<button type="button" class="inv-seg-btn" data-action="' + act + '" ' + attr + '="' + k + '" aria-pressed="' + (cur === k) + '">' + l + '</button>'; };
   var rg = cpPeriodRange();
-  var h = '<div class="inv-panel inv-panel-flush" data-card="worked"><div class="inv-panel-head"><span class="inv-panel-title">Materials worked</span>' +
-    '<span class="inv-note">what was sent and billed, and when</span></div><div class="inv-panel-body">' +
+  // A tool, used when asked and pages long on a big account: folded to its head on the phone, open on the desktop, and
+  // whichever the owner last left it on this device (UX overhaul 2, rule 3).
+  var body = '<div class="inv-panel-body">' +
     '<div class="inv-seg inv-mb-8" role="group" aria-label="Period">' + CP_PERIODS.map(function(p) { return seg(p[0], p[1], 'invCpPeriod', _cpPeriod, 'data-p'); }).join('') + '</div>' +
     (_cpPeriod === 'custom' ? '<div class="inv-fields inv-mb-8" data-nodirty><label class="inv-field"><span class="inv-field-label">From</span><input type="date" class="inv-input" id="cpFrom" value="' + escHtml(rg.from) + '"></label>' +
       '<label class="inv-field"><span class="inv-field-label">To</span><input type="date" class="inv-input" id="cpTo" value="' + escHtml(rg.to) + '"></label></div>' : '') +
     '<div class="inv-toolbar inv-toolbar-flush"><label class="inv-search inv-toolbar-item">' + ICON_SEARCH +
     '<input id="cpMatSearch" type="search" value="' + escHtml(_cpQuery) + '" placeholder="Part, size or word, e.g. clamp" aria-label="Search the materials" autocomplete="off"></label>' +
     '<div class="inv-seg" role="group" aria-label="Whose">' + seg('client', 'This client', 'invCpScope', _cpScope, 'data-s') + seg('all', 'All clients', 'invCpScope', _cpScope, 'data-s') + '</div></div>' +
-    '</div><div id="cpWorkedList">' + cpWorkedListHtml(clientId) + '</div></div>';
-  return h;
+    '</div><div id="cpWorkedList">' + cpWorkedListHtml(clientId) + '</div>';
+  return uiFoldHtml('cp-worked', '<span class="inv-panel-title">Materials worked</span><span class="inv-note">what was sent and billed, and when</span>',
+    body, _isDesktop, ' data-card="worked"');
 }
 /* The search redraws the list only, so the field keeps its focus and caret. */
 function cpWorkedRedraw() {
-  var el = document.getElementById('cpWorkedList'), id = getPerfClientId();
-  if (el) el.innerHTML = cpWorkedListHtml(id != null ? id : null);
+  var el = document.getElementById('cpWorkedList');
+  if (el) el.innerHTML = cpWorkedListHtml(cpCurrentClientId());
 }
 
 /* ===== BY THE HOUR =====
@@ -728,7 +742,10 @@ function cpTimedRate(client, t) {
     (inv.items || []).forEach(function(it) {
       var idn = cpPartIdentity(it.partNumber, it.desc);
       if (idn.base !== t.base || (t.gauge && idn.gauge && idn.gauge !== t.gauge)) return;
-      if (!best || inv.date > best.date) best = { rate: Number(it.rate) || 0, unit: it.unit || 'KG', date: inv.date, src: 'invoice ' + (inv.invoiceNumber || inv.displayNumber), part: it.partNumber, desc: it.desc };
+      // A NOS line's price a piece is its amount over its pieces: a nos_to_weight line's rate is the ₹/kg it was priced at.
+      var unit = it.unit || 'KG', q = Number(it.qty) || 0;
+      var rate = unit === 'NOS' && q > 0 ? (Number(it.amount) || 0) / q : Number(it.rate) || 0;
+      if (!best || inv.date > best.date) best = { rate: rate, unit: unit, date: inv.date, src: 'invoice ' + (inv.invoiceNumber || inv.displayNumber), part: it.partNumber, desc: it.desc };
     });
   });
   if (best && best.rate > 0) return best;
@@ -816,9 +833,7 @@ function cpHoursHtml(clientId) {
     .filter(function(p) { return p.n >= 2; }).sort(function(a, b) { return b.n - a.n; }).slice(0, 8);
   if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
   var ref = cpLineHourRef(), rg = cpPeriodRange();
-  var h = '<div class="inv-panel inv-panel-flush" data-card="hours"><div class="inv-panel-head"><span class="inv-panel-title">By the hour</span>' +
-    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span></div>';
-  h += '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
+  var h = '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
     (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg, ' + cpNum(ref.kg) + ' kg over ' + ref.days + ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours.'
     : 'No weighed billing in the last 90 days, so an hour has no cost to be set against yet.') +
     ' <label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
@@ -842,17 +857,20 @@ function cpHoursHtml(clientId) {
     h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record. A part plated by the round is judged here by what an hour of it earns.</div>') +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd">Set a part’s times</button></div>';
   }
-  return h + '</div>';
+  // Folded like Materials worked; open while its form is (Set or Edit was tapped inside it).
+  var n = times.length + auto.length;
+  return uiFoldHtml('cp-hours', '<span class="inv-panel-title">By the hour' + (n ? ' <span class="inv-panel-count">' + n + '</span>' : '') + '</span>' +
+    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span>', h, _isDesktop || !!_cpTimeForm, ' data-card="hours"');
 }
 var _cpTimeForm = false;
 function cpTimeFormOpen(key, id) {
-  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var client = (S.clients || []).find(function(c) { return c.id === cpCurrentClientId(); });
   var t = id && client ? cpPartTimes(client).find(function(x) { return x.id === id; }) : null;
   _cpTimeForm = t ? { id: t.id, key: t.base + '|' + (t.gauge || ''), line: t.line, pieces: t.pieces, pickleMin: t.pickleMin, plateMin: cpPlateSet(t) } : { key: key || '' };
   renderClientsPage();
 }
 function cpTimeSave() {
-  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var client = (S.clients || []).find(function(c) { return c.id === cpCurrentClientId(); });
   var v = function(id) { var el = document.getElementById(id); return el ? el.value : ''; };
   if (!client) return;
   var f = typeof _cpTimeForm === 'object' ? _cpTimeForm : {};
@@ -879,7 +897,7 @@ function cpTimeSave() {
   showToast('Times saved for ' + rec.name);
 }
 function cpTimeUseMeasured(id) {
-  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+  var client = (S.clients || []).find(function(c) { return c.id === cpCurrentClientId(); });
   var t = client ? cpPartTimes(client).find(function(x) { return x.id === id; }) : null;
   if (!t) return;
   var m = cpMeasured(cpMeasure(client.id, t.base, t.gauge));
@@ -890,8 +908,14 @@ function cpTimeUseMeasured(id) {
   renderClientsPage();
   showToast('Plating set to ' + t.plateMin + ' min a round, as measured');
 }
-function cpTimeRemove(id) {
-  var client = (S.clients || []).find(function(c) { return c.id === getPerfClientId(); });
+async function cpTimeRemove(id) {
+  var find = function() { var c = (S.clients || []).find(function(x) { return x.id === cpCurrentClientId(); }); return c ? cpPartTimes(c).find(function(t) { return t.id === id; }) : null; };
+  var t = find();
+  if (!t) return;
+  if (!(await uiConfirm({ title: 'Remove the times set for ' + t.name + '?', body: 'Its pieces, pickling and plating set on this client go, with the times they replaced. The part is then read from the production record alone.',
+    okLabel: 'Remove times', danger: true }))) return;
+  // Found again in the book held now: another window may have saved while the question was open.
+  var client = (S.clients || []).find(function(c) { return c.id === cpCurrentClientId(); });
   if (!client || !Array.isArray(client.partTimes)) return;
   client.partTimes = client.partTimes.filter(function(t) { return t.id !== id; });
   saveState();

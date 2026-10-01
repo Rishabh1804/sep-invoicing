@@ -62,7 +62,7 @@ function cnNoteFy(cn) {
    year as printed) holds a number in THAT year's series, never in this one's. */
 function cnInSeries(cn) {
   var fy = cnNoteFy(cn);
-  return !fy || fy === cnFyShort();
+  return !fy || billsCnFy(fy) === cnFyShort();   // a year stored as typed (2026-27) is this series' 26-27 (bills.js)
 }
 /* The highest number issued in the current series. */
 function cnSeriesHighest() {
@@ -273,6 +273,10 @@ async function saveCreditNote() {
   captureCnForm();
   if (!(_cnForm.pct > 0)) { showToast('Discount must be more than zero', 'error'); return; }
   if (!_cnForm.date) { showToast('A credit note needs a date', 'error'); return; }
+  // Dated outside the financial year its number's series names: asked, never refused (seriesFyAsk, number-audit.js).
+  var fyAsk = seriesFyAsk('This credit note', cnDisplayNumber(recomputeNextCnNumber()), cnFyShort(), _cnForm.date);
+  if (fyAsk && !(await uiConfirm(fyAsk))) return;
+  if (!_cnForm) return;
 
   var invoices = _cnForm.invoiceIds
     .map(function(id) { return S.invoices.find(function(i) { return i.id === id; }); })

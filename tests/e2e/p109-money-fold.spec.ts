@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P109: the QA sweep over Finance, the bank statement, receivables, payments, the live cost, zinc and bills. Each test
 // pins one finding so it cannot come back. Every date is built from today; names and figures are made up, and the only
@@ -214,8 +214,8 @@ function zincState(entries: any[], zinc: any) {
   return state({
     zinc,
     stock: { items: [{ id: 'Q', name: 'Q558', key: 'Q558', unit: 'kg', basis: 'draw', aliases: [] }, { id: 'Z', name: 'Zinc', key: 'ZINC', unit: 'kg', basis: 'charge', aliases: [] }],
-      // A count forty days back: the stock record covers every day of the period below.
-      entries: [{ id: 'c1', itemId: 'Q', kind: 'count', qty: 40, date: day(-40), at: 1, seq: 1 }].concat(entries), pastes: [] },
+      // A use forty days back: the stock record (which starts with the first use, P125) covers every day of the period below.
+      entries: [{ id: 'c1', itemId: 'Q', kind: 'used', qty: 4, days: 1, from: day(-40), date: day(-40), at: 1, seq: 2 }].concat(entries), pastes: [] },
   });
 }
 const zincRow = (page: Page) => ev(page, `(function() { var r = liveCost('${day(-3)}', '${todayIso()}', 1000).rows.find(function(x) { return x.key === 'zinc'; });
@@ -251,7 +251,7 @@ test('B5: a month the statement covers but whose payees are not sorted says so i
   rows.push(row(todayIso(), 'NEFT-UTRZ-ALPHA FORGINGS', 0, 1, { cat: 'receipt', clientId: 1 }));
   await loadAppWithState(page, state({ bank: bank(rows) }));
   const skips = await ev(page, `costDeriveCompute(['other']).other.rows.filter(function(r) { return r.skip && r.skip !== 'no tonnage invoiced'; }).map(function(r) { return [r.month, r.skip]; })`);
-  expect(skips).toEqual([[ym(-3), 'payees not yet sorted (Finance → Payments)']]);
+  expect(skips).toEqual([[ym(-3), 'payees not yet sorted (Finance → Payments → Not yet sorted)']]);
   await openSettingsAt(page, 'fallbacks');
   await page.locator('[data-action="invCostDeriveBank"][data-which="fallbacks"]').click();
   await expect(page.locator('#costDeriveOut [data-derive="other"]')).toContainText('payees not yet sorted');
@@ -492,6 +492,8 @@ test('BB5: Record an issued note offers a client with no invoice in the book, an
   await page.locator('#cnfInvNo').fill('000321');
   await page.locator('#cnfTaxable').fill('100');
   await page.locator('[data-action="invCnFormSave"]').click();
+  // A 25-26 note dated today is outside its series' year: the save asks first (P123, seriesFyAsk).
+  expect(await answerAsk(page, 'ok')).toContain('25-26');
   const notes = (await readStoredState(page)).creditNotes;
   expect(notes).toHaveLength(1);
   expect(notes[0]).toMatchObject({ clientId: 5, clientName: 'OMEGA WORKS', displayNumber: 'CN/012/25-26', againstInvoice: '000321', recorded: true });

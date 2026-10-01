@@ -242,6 +242,14 @@ function billsCnFormInput(t) {
   return true;
 }
 
+/* A recorded note's financial year however it was typed (2026-27, 2026-2027, 26-27, 26/27) in the series' own form,
+   '26-27' (cnFyShort): compared and stored that way, '2026-27' was a year of its own beside '26-27', so CN/012/2026-27
+   was missed by the duplicate check and the series, and the next new note took CN/012/26-27. Anything else is as typed. */
+function billsCnFy(s) {
+  var t = String(s == null ? '' : s).trim(), m = t.match(/^(\d{2}|\d{4})\s*[-\/]\s*(\d{2}|\d{4})$/);
+  return m ? m[1].slice(-2) + '-' + m[2].slice(-2) : t;
+}
+
 async function billsCnFormSave() {
   var f = _billForm;
   if (!f) return;
@@ -271,15 +279,19 @@ async function billsCnFormSave() {
   if (rec) {
     num = parseInt(f.num, 10);
     if (!(num > 0)) { showToast('Enter the number printed on the note', 'error'); return; }
-    var fy = String(f.fy || '').trim(), cur = cnFyShort();
+    var fy = billsCnFy(f.fy), cur = cnFyShort();
     display = 'CN/' + cnPadNum(num) + (fy ? '/' + fy : '');
-    if (getCreditNotes().some(function(x) { return parseInt(x.cnNumber, 10) === num && (cnNoteFy(x) || cur) === (fy || cur); })) {
+    if (getCreditNotes().some(function(x) { return parseInt(x.cnNumber, 10) === num && (billsCnFy(cnNoteFy(x)) || cur) === (fy || cur); })) {
       showToast(display + ' is already in the series', 'error'); return;
     }
   } else {
     num = recomputeNextCnNumber();
     display = cnDisplayNumber(num);
   }
+  // Dated outside the financial year its number's series names (a recorded note's own year, as typed): asked, never
+  // refused (seriesFyAsk, number-audit.js).
+  var fyAsk = seriesFyAsk('This credit note', display, rec ? (String(f.fy || '').trim() || cnFyShort()) : cnFyShort(), f.date);
+  if (fyAsk && !(await uiConfirm(fyAsk))) return;
 
   var c = _billsCnFigures();
   var qty = f.qty > 0 ? f.qty : null;
@@ -334,7 +346,7 @@ async function billsCnFormSave() {
   if (rec) {
     var keep = _billForm;
     billsCnFormOpen('record');
-    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = keep.fy; _billForm.saved = (keep.saved || 0) + 1;
+    _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = billsCnFy(keep.fy); _billForm.saved = (keep.saved || 0) + 1;
   } else _billForm = null;
   renderFinance();
   showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal) + (rec ? ' · the form is ready for the next' : ''));
@@ -354,7 +366,7 @@ async function stockEditSave(itemId) {
   var unit = unitEl ? unitEl.value : it.unit;
   if (!name) { showToast('A stock line needs a name', 'error'); return; }
   var key = stockKey(name);
-  var clash = stockData().items.find(function(o) { return o.id !== it.id && (o.key === key || (o.aliases || []).indexOf(key) >= 0); });
+  var clash = stockData().items.find(function(o) { return o.id !== it.id && (o.key === key || stockAliases(o).indexOf(key) >= 0); });
   if (clash) { showToast('"' + name + '" is already read as ' + clash.name + '. Pick another name.', 'error'); return; }
   var used = stockData().entries.some(function(e) { return e.itemId === it.id && !e.voided; });
   if (unit !== (it.unit || '') && used && !(await uiConfirm({ title: 'Change the unit from ' + (it.unit || 'not set') + ' to ' + (unit || 'not set') + '?',
@@ -362,7 +374,7 @@ async function stockEditSave(itemId) {
       okLabel: 'Change unit' }))) return;
   if (name !== it.name) {
     var old = stockKey(it.name);
-    it.aliases = (it.aliases || []).slice();
+    it.aliases = stockAliases(it);
     [old, it.key].forEach(function(k) { if (k && k !== key && it.aliases.indexOf(k) < 0) it.aliases.push(k); });
     if (key !== it.key && it.aliases.indexOf(key) < 0) it.aliases.push(key);
     it.name = name;
@@ -387,7 +399,7 @@ function stockEditHtml(item) {
     '<label class="inv-field"><span class="inv-field-label">Unit</span><select class="inv-select" id="stockEditUnit">' +
     '<option value=""' + (!item.unit ? ' selected' : '') + '>not set</option>' +
     units.map(function(u) { return '<option' + (item.unit === u ? ' selected' : '') + '>' + escHtml(u) + '</option>'; }).join('') + '</select></label></div>' +
-    ((item.aliases || []).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + item.aliases.map(escHtml).join(', ') + '</div>' : '') +
+    (stockAliases(item).length ? '<div class="inv-note inv-mb-8">Messages are also read as: ' + stockAliases(item).map(escHtml).join(', ') + '</div>' : '') +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockEditSave" data-id="' + escHtml(item.id) + '">Save name and unit</button></div></div>';
 }
 

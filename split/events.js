@@ -3,8 +3,9 @@
    does not set is cleared, and a selection made under the old filters is dropped (a selection must not outlive the
    filter that hid it). The month, the dates and the selection used to stay, so History's link to an invoice from
    another month opened on a Register that did not show it, and a bulk action still reached rows off the screen (the QA
-   sweep, 29 Sep 2026). */
+   sweep, 29 Sep 2026). Each shuts every dialog on the way, so one holding typed work asks first (dialogsTypedAsk). */
 function regJump(f) {
+  if (dialogsTypedAsk(function() { regJump(f); })) return;
   f = f || {};
   regFilter.clientId = f.clientId != null ? String(f.clientId) : '';
   regFilter.search = f.search || '';
@@ -25,6 +26,7 @@ function regJump(f) {
 }
 /* A client's challans: the Awaiting tab, only that client, nothing ticked. */
 function imJumpClient(clientId) {
+  if (dialogsTypedAsk(function() { imJumpClient(clientId); })) return;
   _imFilter.clientId = clientId != null ? String(clientId) : '';
   _imFilter.status = '';
   _imSelected = {};
@@ -36,6 +38,7 @@ function imJumpClient(clientId) {
 /* One challan: the tab and month it is under, its client, and the row in sight (open in the pane on the desktop). It
    ignored the tab, so a challan already invoiced was looked for under Awaiting, and not found. */
 function imJump(im) {
+  if (dialogsTypedAsk(function() { imJump(im); })) return;
   _imFilter.clientId = String(im.clientId);
   _imFilter.status = '';
   _imSelected = {};
@@ -85,7 +88,9 @@ function onDocClick(e) {
     case 'invCloseMore': closeMoreSheet(); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
-    case 'invOpenSettings': openSettings(); break;
+    // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
+    // open Settings, which is not opened twice.
+    case 'invOpenSettings': if (!document.getElementById('settingsScrim')) openSettings(btn.dataset.sec); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
     case 'invUiAsk': uiAskAnswer(btn); break;
@@ -154,6 +159,7 @@ function onDocClick(e) {
     case 'invCostUseDerived': costUseDerived(btn.dataset.field, btn.dataset.val); break;
     case 'invZincUseUplift': zincUseUplift(btn.dataset.pct); break;
     case 'invExportData': exportData(); break;
+    case 'invExportStored': exportStoredCopy(); break;
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
     case 'invRunDiagnostics': runStorageDiagnostics(); break;
@@ -390,7 +396,6 @@ function onDocClick(e) {
     case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
     case 'invClearItemSelection': clearItemSelection(); break;
     case 'invBatchDeleteItems': batchDeleteItems(); break;
-    case 'invLoadMoreItems': _renderItemsList(); break;
     // Clients/Items desktop: a row opens the pane; its close button shuts it
     case 'invSelectClientRow': _renderClientDetail(parseInt(btn.dataset.id)); break;
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
@@ -754,8 +759,14 @@ document.addEventListener('input', function(e) {
     const idx = parseInt(e.target.dataset.idx);
     const item = invoiceForm.items[idx];
     if (item) {
-      item.desc = e.target.value;
+      // The field is the part number (the description shows under the line), as on the challan form below: what is
+      // typed takes the description too only where it was empty or said the same as the part it replaces. Both used to
+      // take every keystroke, so a challan line's description became its part number and was corrected back onto it.
+      const wasPart = item.partNumber;
       item.partNumber = e.target.value;
+      if (!item.desc || item.desc === wasPart) item.desc = e.target.value;
+      // Typed in, the line is named by what the field holds: emptied, it names no part, whatever its description says.
+      item._partTyped = true;
 
       // Show part autocomplete dropdown
       showPartAutocomplete(idx, e.target.value);
@@ -826,6 +837,9 @@ document.addEventListener('input', function(e) {
       var cclient2 = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       var setVal = function(field, v) { var el = document.querySelector('[data-action="invUpdateChallanLine"][data-field="' + field + '"][data-idx="' + cidx2 + '"]'); if (el) el.value = v ? formatNum(v, field === 'qty' ? 3 : 2) : ''; };
       citem2._auto = citem2._auto || {};
+      // No figure on a challan is below zero: a negative typed is taken as nothing, and the field says so (the save
+      // refuses one that reached the form another way, challanIncomplete).
+      if (parseFloat(challanLineInput.value) < 0) challanLineInput.value = '';
       if (challanLineInput.dataset.field === 'nosQty') {
         citem2.nosQty = parseInt(challanLineInput.value) || null;
         // Pieces on a weight line fill the kilograms from kg/pc, into an empty field or one the record filled.
@@ -836,6 +850,8 @@ document.addEventListener('input', function(e) {
         return;
       }
       citem2[challanLineInput.dataset.field] = parseFloat(challanLineInput.value) || 0;
+      // Money to the paisa as it is typed (HR-8), as on the invoice line.
+      if (challanLineInput.dataset.field === 'amount') citem2.amount = gstRound(citem2.amount);
       // A figure typed is the operator's: the record never fills over it again.
       citem2._auto[challanLineInput.dataset.field] = false;
       if (cclient2 && cclient2.billingMode === 'piece' && citem2.unit === 'NOS') {
@@ -874,6 +890,9 @@ document.addEventListener('input', function(e) {
     if (!item) return;
     const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
     item[el.dataset.field] = parseFloat(el.value) || 0;
+    // Money is kept to the paisa as it is typed (HR-8), so the totals, the rate worked back from it and the saved line
+    // read one figure: an invoice was saved at ₹763.998.
+    if (el.dataset.field === 'amount') item.amount = gstRound(item.amount);
 
     if (client && client.billingMode === 'piece' && item.unit === 'NOS') {
       // A line taking PART of a challan: its amount is that share of the challan's

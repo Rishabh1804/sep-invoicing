@@ -78,7 +78,7 @@ function _chartEmpty(msg) {
    labels, and a <title> on every datum so a tap or hover gives the exact
    figure the shape only approximates. */
 function _chartFrame(data, unit, W, H, pad) {
-  var peak = Math.max.apply(null, data.map(function(d) { return d.value; }).concat([0]));
+  var peak = Math.max.apply(null, data.map(function(d) { return d.value; }).filter(function(v) { return v != null && isFinite(v); }).concat([0]));
   var maxVal = chartNiceMax(peak);
   var chartW = W - pad.l - pad.r;
   var chartH = H - pad.t - pad.b;
@@ -160,7 +160,8 @@ function chartBars(data, opts) {
     var h = f.maxVal > 0 ? (d.value / f.maxVal) * f.chartH : 0;
     var x = pad.l + i * slot + (slot - barW) / 2;
     var y = pad.t + f.chartH - h;
-    svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
+    // A datum with no figure (null) is a gap, not a zero: no bar, its label kept.
+    if (d.value != null && isFinite(d.value)) svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
       '" rx="1.5" class="inv-chart-bar">' +
       '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
     if (i % stride === 0 || i === data.length - 1) {

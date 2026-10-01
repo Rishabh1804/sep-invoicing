@@ -207,7 +207,8 @@ function prodResolveEntryPart(e, rack) {
 /* ---------- A round no rule names: flagged until its gauge is picked ----------
    Owner, 30 Sep 2026: "The ones that fall outside the range, raise a flag - resolvable." A run whose round size no gauge rule
    names keeps `gaugeUnknown` (the round) until a gauge is picked on it (Entries → Pick gauge). */
-function prodGaugeFlagged(e) { return e && e.kind === 'plated' && !e.voidedAt && e.gaugeUnknown && !e.gauge; }
+// A run corrected by another entry is not asked about: its correction carries the question on (P127).
+function prodGaugeFlagged(e) { return !!(e && e.kind === 'plated' && !e.voidedAt && e.gaugeUnknown && !e.gauge && !prodIndex().replaced[e.id]); }
 function prodGaugeChoices(e) {
   var w = (prodPartBase(e.part).toUpperCase().match(/[A-Z]+/) || [''])[0], out = [];
   var add = function(g) { g = String(g || '').toUpperCase().replace(/[×✕]/g, 'X'); if (g && out.indexOf(g) < 0) out.push(g); };
@@ -233,7 +234,13 @@ function prodClientParts(clientId) {
   (S.invoices || []).forEach(function(v) { if (v.status === 'active' && String(v.clientId) === String(clientId)) (v.items || []).forEach(add); });
   return Object.keys(out).map(function(k) { return out[k]; }).sort(function(a, b) { return b.n - a.n; });
 }
-function prodAliasCode(part) { var m = /\(\s*(\d{3,5})\s*\)|[-\s](\d{4})\s*$/.exec(String(part || '')); return m ? (m[1] || m[2]) : null; }
+function prodAliasCode(part) {
+  var s = String(part || ''), m = /\(\s*(\d{3,5})\s*\)|[-\s](\d{4})\s*$/.exec(s);
+  if (m) return m[1] || m[2];
+  // A code written bare ("4206", "0160" under the client's name) is the part's code too (P127): the loads read as no part.
+  m = /^\s*(\d{3,5})\s*$/.exec(s);
+  return m ? m[1] : null;
+}
 function prodAliasName(part) { return String(part || '').replace(/[-\s]*\(\s*\d{3,5}\s*\)/, '').replace(/[-\s]+\d{4}\s*$/, '').trim(); }
 function prodAliasCandidates(clientId, part) {
   var parts = prodClientParts(clientId), code = prodAliasCode(part), name = prodAliasName(part).toUpperCase();
@@ -978,7 +985,26 @@ function prodMergeImport(obj, fileName) {
   (src.pastes || []).forEach(function(x) { if (x && x.id && !ph[x.id] && !ph['h' + x.hash]) { p.pastes.push(x); ph[x.id] = true; } });
   var fh = {}; p.photos.forEach(function(x) { fh[x.id] = true; fh['s' + x.sha] = true; });
   (src.photos || []).forEach(function(x) { if (x && x.id && !fh[x.id] && !fh['s' + x.sha]) { p.photos.push(x); fh[x.id] = true; } });
-  ['clients', 'parts'].forEach(function(k) { var from = (src.learn || {})[k] || {}; Object.keys(from).forEach(function(key) { if (!(key in p.learn[k])) p.learn[k][key] = from[key]; }); });
+  // A lesson names a client by the id of the book that wrote the file. It is kept only for an id the file's own entries show
+  // under that client's name in this book (the entries' check), or a spelling that itself reads as the client: an id the two
+  // books give to different clients would point the lesson at the wrong one (P127).
+  var trusted = {}, heldOf = function(id) { return (S.clients || []).find(function(c) { return String(c.id) === String(id); }); };
+  src.entries.forEach(function(e0) {
+    if (!e0 || typeof e0 !== 'object' || e0.clientId == null || !e0.client) return;
+    var held = heldOf(e0.clientId), named = prodMatchClient(e0.client, ctx.clients);
+    if (held && (relayKey(held.name) === relayKey(e0.client) || (named && String(named.id) === String(held.id)))) trusted[String(held.id)] = true;
+  });
+  var fromL = src.learn && typeof src.learn === 'object' ? src.learn : {};
+  Object.keys(fromL.clients || {}).forEach(function(key) {
+    if (key in p.learn.clients) return;
+    var held = heldOf(fromL.clients[key]), named = held ? prodMatchClient(key, ctx.clients) : null;
+    if (held && (trusted[String(held.id)] || relayKey(held.name) === relayKey(key) || (named && String(named.id) === String(held.id)))) p.learn.clients[key] = held.id;
+  });
+  Object.keys(fromL.parts || {}).forEach(function(key) {
+    if (key in p.learn.parts) return;
+    var cid = key.split('|')[0];
+    if (trusted[cid] && heldOf(cid) && fromL.parts[key] && typeof fromL.parts[key] === 'object') p.learn.parts[key] = fromL.parts[key];
+  });
   imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad };
   if (added) p.imports.push(imp);
   prodTouch();

@@ -5,7 +5,15 @@ const PAGE_TITLES = {
   pageStats: 'Stats', pageHistory: 'History'
 };
 
+/* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
+   build had) opens Home and is never remembered: ?tab=topbarTitle drew a blank page, and every launch after reopened it
+   (the QA audit of 30 Sep 2026). */
+function isPageId(id) {
+  return typeof id === 'string' && Object.prototype.hasOwnProperty.call(PAGE_TITLES, id) && !!document.getElementById(id);
+}
+
 function switchTab(tabId) {
+  if (!isPageId(tabId)) tabId = 'pageHome';
   // Step 1: Dismiss toasts and close overlays
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   closeOverlay();
@@ -86,6 +94,7 @@ function switchTab(tabId) {
   // Where a keyboard continues from; on a touch screen never a field, which raised the keyboard over every screen
   // opened whose first control was a search (the QA sweep, 29 Sep 2026).
   if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
+  navArrived();
 }
 
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
@@ -207,8 +216,9 @@ function renderHomeTiles(active) {
   var tone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
   var tileEl = document.getElementById('mtdPerKgTile');
   if (tileEl) tileEl.className = 'inv-tile' + (tone ? ' inv-tile-' + tone : '');
-  set('mtdPerKgDelta', real == null ? '' : (cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) + ' · ' : '') +
-    (preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''));
+  // Only what there is, joined: with nothing weighed on the same days last month the line ended on a bare " · ".
+  set('mtdPerKgDelta', real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '',
+    preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '));
 }
 
 /* Last month's invoices over the same days this month has run (the 1st to today's date, capped at last month's length),
@@ -355,7 +365,7 @@ function homeApplyLayout() {
 function homeEditHtml(l) {
   var name = {}; HOME_WIDGETS.forEach(function(w) { name[w[0]] = w[1]; });
   var h = '<div class="inv-panel inv-panel-flush" id="homeEdit" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">Edit Home</span>' +
-    '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invHomeEditDone">Done</button></div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHomeEditDone">Done</button></div>' +
     '<div class="inv-panel-body"><div class="inv-field-label">Start from</div><div class="inv-seg" role="group" aria-label="Preset">' +
     Object.keys(HOME_PRESETS).map(function(k) { return '<button class="inv-seg-btn" data-action="invHomePreset" data-preset="' + k + '" aria-pressed="' + (l.preset === k) + '">' + HOME_PRESETS[k].label + '</button>'; }).join('') +
     '</div><div class="inv-note inv-mt-8">' + (l.preset === 'custom' ? 'Your own arrangement. ' : '') + 'Kept on this device only. Half or full is the width on a wide screen; a phone shows one column.</div></div>';

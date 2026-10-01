@@ -14,8 +14,11 @@
    - THE FILLED COPY: the same form carrying what was entered in the app for the day, to staple behind the two.
    Names come from the roster on this device; nothing about a worker is written into the build. */
 
+/* [heading, lines, an EXTRA box, shares the box before it]. Civil is a post of its own (a roll heading "civil" reads to
+   it; a civil hand printed under "No line written"), under its own heading in the office's box, as the two absent lists
+   share one: a box of its own took a row, and the page past one A4 sheet. */
 var ATT_SHEET_IN_AREAS = [
-  ['VAT A1', 6, true], ['VAT A2', 6, true], ['Barrel & pickling', 6, true], ['Pickling A1 & A2', 5, true], ['Office & gate', 4, false]
+  ['VAT A1', 6, true], ['VAT A2', 6, true], ['Barrel & pickling', 6, true], ['Pickling A1 & A2', 5, true], ['Office & gate', 4, false], ['Civil', 2, false, true]
 ];
 var _attSheetPick = { shyam: true, deepak: true, filled: true };
 
@@ -59,7 +62,7 @@ function _asName(id) { var w = staffById(id); return w ? w.name : String(id); }
 function attSheetShyamHtml(iso, rec) {
   var marks = rec ? rec.marks || {} : {}, extra = rec ? rec.extra || [] : [];
   var byBox = {}, absM = [], absW = [], flex = [];
-  var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4 };
+  var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4, 'civil': 5 };
   Object.keys(marks).forEach(function(id) {
     var m = marks[id], w = staffById(id);
     if (!m || !m.st) return;
@@ -73,13 +76,15 @@ function attSheetShyamHtml(iso, rec) {
   var morning = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f != null && f < 510; });
   var evening = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f == null || f >= 510; });
 
-  var n = 1, boxes = '';
+  var n = 1, parts = [];
   ATT_SHEET_IN_AREAS.forEach(function(a, i) {
     var names = byBox[i] || [];
-    boxes += '<div class="inv-as-box"><div class="inv-as-box-h">' + a[0] + '</div>' + _asFillLines(names, a[1], n) +
-      (a[2] ? _asFillField('EXTRA', cover[i] ? formatNum(cover[i], 1).replace(/\.0$/, '') : '', 'hours') : '') + '</div>';
+    var part = '<div class="inv-as-box-h">' + a[0] + '</div>' + _asFillLines(names, a[1], n) +
+      (a[2] ? _asFillField('EXTRA', cover[i] ? formatNum(cover[i], 1).replace(/\.0$/, '') : '', 'hours') : '');
+    if (a[3] && parts.length) parts[parts.length - 1] += part; else parts.push(part);
     n += Math.max(a[1], names.length);
   });
+  var boxes = parts.map(function(p) { return '<div class="inv-as-box">' + p + '</div>'; }).join('');
   if (flex.length) { boxes += '<div class="inv-as-box"><div class="inv-as-box-h">No line written</div>' + _asFillLines(flex, 1, n) + '</div>'; n += flex.length; }
   boxes += '<div class="inv-as-box"><div class="inv-as-box-h">Monthly absent</div>' + _asFillLines(absM, 3, n) +
     '<div class="inv-as-box-h">Weekly absent</div>' + _asFillLines(absW, 3, n + Math.max(3, absM.length)) + '</div>';
@@ -131,14 +136,8 @@ function attSheetFillFor(iso) {
   return rec && iso < localDateStr() && Object.keys(rec.marks || {}).length ? rec : null;
 }
 
-/* The roster in the Day view's order, and anyone marked that day who has since left it. */
-function _asRoster(rec) {
-  var list = staffActive().slice();
-  if (rec) Object.keys(rec.marks || {}).forEach(function(id) {
-    if (!list.some(function(w) { return String(w.id) === String(id); })) { var w = staffById(id); if (w) list.push(w); }
-  });
-  return list;
-}
+/* The roster in the Day view's order, and anyone marked that day who has since left it: the Day board's own list. */
+function _asRoster(rec) { return attDayRoster(rec); }
 
 /* Deepak's sheet: blank, or filled with what the app holds for the day. */
 function attSheetDeepakHtml(iso, filled) {

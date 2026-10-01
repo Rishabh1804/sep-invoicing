@@ -197,7 +197,8 @@ function insGo(tab) { return { kind: 'stats', tab: tab }; }
 TODO_RULE_FNS.insQuiet = function() {
   var months = insMonthsBack(3), mm = insMonthly(months), bookRev = 0;
   months.forEach(function(m) { bookRev += mm('', m).rev; });
-  return predCadence().filter(function(c) { return c.quiet; }).map(function(c) {
+  // A client set inactive has left, as the Next challan card reads it.
+  return predCadence().filter(function(c) { return c.quiet && insClientActive(c.id); }).map(function(c) {
     var rev = 0, kg = 0, known = 0;
     months.forEach(function(m) { var r = mm(c.id, m); rev += r.rev; kg += r.kg; if (r.real != null) known += r.real * r.kg; });
     if (rev < 20000) return null;
@@ -229,7 +230,8 @@ TODO_RULE_FNS.insRealLow = function() {
     sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2) + (moved && Math.abs(moved.d) >= 0.05 ? ' · ' + moved.name + ' is ' + Math.round(moved.a * 100) + '% of revenue against ' + Math.round(moved.b * 100) + '%' : ''),
     why: 'Money · this month', go: insGo('overview'), goLabel: 'Open Stats',
     facts: [['This month', '₹' + formatNum(now.real, 2) + '/kg'], ['Lowest before', '₹' + formatNum(Math.min.apply(null, reals), 2)], ['Median before', '₹' + formatNum(med, 2)]],
-    clears: 'Clears itself when the month climbs back above the lowest of the months before.', sig: cur + '|' + formatNum(now.real, 1) }];
+    // Snoozed against the month alone: every invoice moves the realisation, and "until the figures change" came back with each.
+    clears: 'Clears itself when the month climbs back above the lowest of the months before.', sig: cur }];
 };
 
 TODO_RULE_FNS.insClientDown = function() {
@@ -238,7 +240,7 @@ TODO_RULE_FNS.insClientDown = function() {
     var r = months.map(function(m) { return mm(String(c.id), m).rev; });
     if (!(r[0] >= 30000 && r[1] < r[0] && r[2] < r[1] && r[2] <= r[0] * 0.75)) return;
     out.push({ key: 'insClientDown:' + c.id, rule: 'insClientDown', tone: 'amber', title: c.name + ': billing down three months running',
-      sub: months.map(function(m, i) { return insMonthLabel(m) + ' ' + formatCurrency(Math.round(r[i])); }).join(' → '),
+      sub: months.map(function(m, i) { return insMonthLabel(m) + ' ' + formatCurrency(gstRound(r[i])); }).join(' → '),
       why: 'Client · trend', go: { kind: 'client', id: c.id }, goLabel: 'Open the client',
       facts: months.map(function(m, i) { return [insMonthLabel(m), formatCurrency(gstRound(r[i]))]; }).concat([['Fall', Math.round((1 - r[2] / r[0]) * 100) + '%']]),
       clears: 'Clears itself when a month stops the fall.', sig: months[2] });

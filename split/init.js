@@ -549,6 +549,18 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
+   A load written with its code alone ("DORABJI / 4206-1000") read as no part, and sat on the floor with no challan open
+   (P127: 8 of 8 real Dorabji loads, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already
+   held are matched once, as a register's or an import's are. The flag travels with the state. */
+(function() {
+  if (S._prodBareCodes1) return;
+  var p = prodData();
+  if (prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt && /^\s*\d{3,5}\s*$/.test(e.part || ''); }))) prodTouch();
+  S._prodBareCodes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
    Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
    18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,
@@ -576,6 +588,20 @@ if (!S._cnSeriesStart1) {
     attDeleteRecord(k, 'Saved under no date ("' + k + '"); the day it was for was entered correctly (owner, 30 Sep 2026: delete it)', 'migration');
   });
   saveJSON(STORAGE_KEY, S);
+})();
+
+/* A time lesson is kept only for a heading with words ("night hold"): a bare time is when a crew went home, and one day's
+   exception must not move every day's block. "12:00AM", "8:00PM" and "6AM" read as words until 30 Sep 2026 (the meridiem
+   on the digits hid it from the test), so a lesson learnt under such a heading is dropped, the heading's area lessons
+   untouched. Structural and idempotent: on a pulled or imported book too, and twice is a no-op. */
+(function() {
+  var slots = S.relayLearn && S.relayLearn.slots;
+  if (!slots || typeof slots !== 'object') return;
+  var gone = Object.keys(slots).filter(function(k) { var l = slots[k]; return !relayHeadHasWords((l && l.text) || k); });
+  if (!gone.length) return;
+  gone.forEach(function(k) { delete slots[k]; });
+  saveJSON(STORAGE_KEY, S);
+  console.log('[migrate] ' + gone.length + ' time lesson(s) under a heading with no words dropped');
 })();
 
 /* ===== ₹0 LINES CARRY A REASON, RETROSPECTIVELY TOO =====
@@ -818,7 +844,7 @@ function bootApp() {
   // Only do manual restore if we're still on mobile (no mode switch happened).
   if (!_isDesktop) {
     var _savedTab = regFilter.activeTab || 'pageHome';
-    if (_savedTab !== 'pageHome' && document.getElementById(_savedTab)) {
+    if (_savedTab !== 'pageHome' && isPageId(_savedTab)) {
       bootStep('the screen last open', function() { switchTab(_savedTab); });
     } else {
       bootStep('Home', renderHome);
@@ -848,8 +874,19 @@ function bootApp() {
      hear about: the store is read-only for this session (persistState refuses
      to write over a copy it could not open), so nothing entered here is kept. */
   if (_storageHealth.readError) {
-    showStorageBanner('This browser could not read the stored copy (' + _storageHealth.readError +
-      '). Nothing is written on this device until it can, so that copy is not lost \u2014 but nothing entered here is kept either.', 'read');
+    // The book in memory is a stand-in (bookStandIn). Its buttons: the stored copy as it is, where it was read (Export JSON
+    // here handed over the stand-in as a dated backup), and the way out, where an import or a pull can end it.
+    var readActs = '';
+    if (_unreadable != null) readActs += '<button class="inv-btn inv-btn-primary inv-update-btn" data-action="invExportStored">Export the stored copy</button>';
+    if (!bookStandInBlocker()) {
+      readActs += '<button class="inv-btn inv-btn-secondary inv-update-btn" data-action="invOpenSettings" data-sec="data">Import a backup</button>';
+      if (ghIsConfigured()) readActs += '<button class="inv-btn inv-btn-secondary inv-update-btn" data-action="invOpenSettings" data-sec="sync">Pull from GitHub</button>';
+    }
+    showStorageBanner(_storageHealth.readKind === 'gone'
+      ? 'The book this device kept is gone \u2014 import a backup or pull from GitHub. Until then this window holds a stand-in: nothing is written on this device, and nothing is sent to GitHub unasked.'
+      : 'This browser could not read the stored copy (' + _storageHealth.readError +
+        '). Nothing is written on this device until it can, so that copy is not lost \u2014 but nothing entered here is kept either.' +
+        (bookStandInBlocker() ? '' : ' Importing a backup or pulling from GitHub sets it aside and carries on.'), 'read', readActs);
   }
 
   document.body.classList.add('inv-booted');

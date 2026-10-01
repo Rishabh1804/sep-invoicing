@@ -175,9 +175,12 @@ function renderCreateForm() {
     const rateDisplay = (item.rate != null && !isNaN(item.rate) && item.rate !== 0) ? formatNum(item.rate) : (item.qty > 0 && isPieceNOS ? '—' : (item.rate === 0 && item.qty > 0 ? '0.00' : ''));
     const amtDisplay = (item.amount != null && !isNaN(item.amount) && item.amount !== 0) ? formatNum(item.amount) : (item.amount === 0 && item.qty > 0 ? '0.00' : '');
     const rm = client ? rateMatch(client, invoiceForm.date, item) : null;
+    // The field holds the PART NUMBER, as the challan form's does: it showed the description, and a keystroke made
+    // that text the part number ("BRACKET" for 2715 2671 0140), which then travelled back to the challan as a
+    // correction. The description, when it says more than the number, is said under the line.
     html += '<div class="inv-line"><span class="inv-line-num">' + (idx + 1) + '</span>' +
       lineField('Part', '<div class="inv-combo">' +
-        '<input class="inv-input" value="' + escHtml(item.desc || item.partNumber) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
+        '<input class="inv-input" value="' + escHtml(item.partNumber || item.desc) + '" data-action="invEditLinePart" data-idx="' + idx + '" placeholder="Part name or number" autocomplete="off"' +
         ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="invPartAC' + idx + '">' +
         '<div class="inv-menu inv-hidden" id="invPartAC' + idx + '" role="listbox"></div></div>', null, 'inv-line-part') +
       lineField('Qty', '<input type="number" class="inv-input inv-input-num" value="' + (item.qty||'') + '" data-field="qty" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0">') +
@@ -192,7 +195,7 @@ function renderCreateForm() {
       lineField('Amount', '<input type="number" class="inv-input inv-input-num" value="' + amtDisplay + '" data-field="amount" data-idx="' + idx + '" data-action="invUpdateLine" step="any" min="0"' +
         (isPieceNOS ? '' : ' readonly') + '>', null, 'inv-line-amt') +
       '<button type="button" class="inv-btn inv-btn-ghost inv-btn-icon inv-line-rm" data-action="invRemoveLineItem" data-idx="' + idx + '" aria-label="Remove line ' + (idx + 1) + '">' + LINE_X_ICON + '</button>' +
-      '<div class="inv-line-notes">' +
+      '<div class="inv-line-notes"><div id="invDesc' + idx + '">' + challanDescNote(item) + '</div>' +
       (item._override ? '<div><span class="inv-badge inv-badge-info">' + escHtml(item._label || 'Override') + '</span></div>' : '') +
       '<div id="invRateMatch' + idx + '">' + rateMatchNote(rm) + '</div>' +
       '<div id="invWeightMatch' + idx + '">' + (client ? weightMatchNote(weightMatch(client, invoiceForm.date, item)) : '') + '</div>' +
@@ -731,7 +734,9 @@ function validateInvoice() {
   invoiceForm.items.forEach((item, i) => {
     // A line bills a part, some of it: a blank line saved a ₹0 invoice, reached a quality certificate, and an
     // amount with no quantity printed 0.00 NOS.
-    if (!String(item.partNumber || item.desc || '').trim()) errors.push('Line ' + (i+1) + ': name the part');
+    // A line whose Part field was typed in is named by the field (the part number); one never touched may be named by its
+    // description alone, as a challan line written with only a description is.
+    if (!String((item._partTyped ? item.partNumber : item.partNumber || item.desc) || '').trim()) errors.push('Line ' + (i+1) + ': name the part');
     if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) errors.push('Line ' + (i+1) + ': enter the quantity'); }
     if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
     if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
@@ -793,9 +798,24 @@ function addLineItem() {
 
 function recalcLineItem(item, client) { linePrice(item, client, invoiceForm.date); }
 
-function saveInvoice() {
+/* The question before saving an invoice dated outside the financial year its number's series names, or null: the
+   next number's series for a new invoice, the number it keeps for an edit or a reissue. */
+function createFyAsk() {
+  const f = invoiceForm;
+  const editing = f.editingId ? S.invoices.find(i => i.id === f.editingId) : null;
+  const held = editing || f.reissue || null;
+  const number = held ? held.displayNumber : (S.invPrefix || '') + String(S.invNextNum).padStart(5, '0');
+  const dt = document.getElementById('invDate');
+  return seriesFyAsk('This invoice', number, held ? invSeriesOf(held) : (S.invPrefix || ''), dt ? dt.value : f.date);
+}
+
+async function saveInvoice() {
   const errors = validateInvoice();
   if (errors.length > 0) { showToast(errors[0], 'error'); return; }
+
+  // Asked, never refused: an old document entered late may be meant (seriesFyAsk, number-audit.js).
+  const fyAsk = createFyAsk();
+  if (fyAsk && !(await uiConfirm(fyAsk))) return;
 
   const client = S.clients.find(c => c.id === invoiceForm.clientId);
   if (!client) { showToast('The client chosen is no longer in the client master — nothing was saved', 'error'); return; }
@@ -849,6 +869,8 @@ function saveInvoice() {
       if (im) { if (!inv.linkedIMIds) inv.linkedIMIds = []; if (inv.linkedIMIds.indexOf(im.id) < 0) inv.linkedIMIds.push(im.id); }
     });
     const synced = backCorrectChallans(inv, invoiceForm.items);
+    // A line matched to its challan line as the edit opened, and taken off in it, bills that line no more.
+    invFreeDropped(inv, invoiceForm);
     imSyncBilled();
     const syncNote = synced.lines ? ' — challan ' + synced.challans.join(', ') + ' corrected to match (' + synced.lines + ' line' + (synced.lines === 1 ? '' : 's') + ')' : '';
     doneToast = gstTypeChanged
@@ -865,8 +887,9 @@ function saveInvoice() {
       return;
     }
     // Only what the invoice still carries is linked: a challan line taken out of
-    // the form again (a line removed, a challan unticked) stays unbilled.
-    const carried = invoiceForm.items.map(i => i._imItemId).filter(Boolean);
+    // the form again (a line removed, a challan unticked) stays unbilled. A reissue
+    // also carries what the old invoice held by its id alone (invReissueCarry).
+    const carried = invoiceForm.items.map(i => i._imItemId).filter(Boolean).concat((reissue && reissue.legacyItemIds) || []);
     const linkedItemIds = (invoiceForm._linkedIMItemIds || []).filter(id => carried.indexOf(id) >= 0);
     const linkedIMIds = (invoiceForm._linkedIMIds || []).filter(imId => {
       const im = (S.incomingMaterial || []).find(m => m.id === imId);
@@ -901,6 +924,8 @@ function saveInvoice() {
 
     // A field typed over what the challan said is a correction, and reaches the challan with a note (owner, 30 Sep 2026).
     const syncedNew = backCorrectChallans(inv, invoiceForm.items);
+    // A reissue takes over what was keyed on the old invoice's id: challan lines it held alone, and its credit notes.
+    if (reissue) invReissueCarry(reissue, inv);
     // What each challan line has been billed is derived from the invoices.
     imSyncBilled();
 
@@ -970,8 +995,12 @@ function refreshRateMatch(boxId, inputEl, client, onDate, item) {
 
 function refreshInvoiceLineMatch(idx) {
   var item = invoiceForm.items[idx];
+  if (!item) return;
+  // The description under the Part field follows the part being typed (the challan form's note, im-form.js).
+  var dn = document.getElementById('invDesc' + idx);
+  if (dn) dn.innerHTML = challanDescNote(item);
   var client = invoiceForm.clientId ? S.clients.find(function(c) { return c.id === invoiceForm.clientId; }) : null;
-  if (!item || !client) return;
+  if (!client) return;
   refreshRateMatch('invRateMatch' + idx, document.querySelector('[data-action="invUpdateLine"][data-field="rate"][data-idx="' + idx + '"]'),
     client, invoiceForm.date, item);
   refreshWeightMatch('invWeightMatch' + idx, client, invoiceForm.date, item);

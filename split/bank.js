@@ -465,15 +465,6 @@ function bankReceivables(cls) {
     var open = [];
     if (opening) open.push({ label: 'Owed at ' + formatDate(from), date: from, amount: opening, due: opening });
     invs.forEach(function(i) { open.push({ inv: i, label: _bankInvLabel(i), date: i.date, amount: gstRound(i.grandTotal || 0), due: gstRound(i.grandTotal || 0) }); });
-    var notesTotal = 0, looseNotes = 0;
-    getCreditNotes().forEach(function(n) {
-      if (n.status === 'cancelled' || String(n.clientId) !== String(c.id) || (n.date || '') < from) return;
-      var amt = gstRound(n.grandTotal || 0);
-      notesTotal += amt;
-      var o = open.find(function(x) { return x.inv && (x.inv.displayNumber === n.againstInvoice || x.inv.invoiceNumber === n.againstInvoice); });
-      if (o) { var k = Math.min(o.due, amt); o.due = gstRound(o.due - k); amt = gstRound(amt - k); }
-      looseNotes = gstRound(looseNotes + amt);
-    });
     // Oldest first, but never against an invoice raised after the money came in: a receipt cannot pay an
     // invoice not yet issued. What a receipt cannot place stays on account (most often money for work from
     // before the book, which the opening is for), rather than quietly paying invoices raised weeks later.
@@ -486,10 +477,26 @@ function bankReceivables(cls) {
       });
       return amt;
     };
-    if (looseNotes > 0) fifo(looseNotes);
-    var received = 0, allocs = [];
-    recs.forEach(function(v) {
-      var amt = v.row.cr, parts = [], how = 'oldest';
+    // Credit notes and receipts in the order they happened (a note before a receipt of the same day). A note takes its
+    // credit off its invoice on its own date; dated after the receipt that paid that invoice, the credit is the client's:
+    // it settles what is still open, oldest first, or stays on account (`noteCredit`). Read before every receipt, it
+    // turned a payment exact to the rupee into "₹118 more than was open". A rebate raised before its net payment still
+    // comes first, so that payment still matches its batch exactly.
+    var notes = getCreditNotes().filter(function(n) { return n.status !== 'cancelled' && String(n.clientId) === String(c.id) && (n.date || '') >= from; });
+    var events = notes.map(function(n, i) { return { date: n.date || '', k: 0, i: i, n: n }; })
+      .concat(recs.map(function(v, i) { return { date: v.row.date, k: 1, i: i, v: v }; }))
+      .sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : a.k - b.k || a.i - b.i; });
+    var notesTotal = 0, noteCredit = 0, rounding = 0, received = 0, allocs = [];
+    events.forEach(function(e) {
+      if (e.n) {
+        var na = gstRound(e.n.grandTotal || 0);
+        notesTotal = gstRound(notesTotal + na);
+        var o = open.find(function(x) { return x.inv && (x.inv.displayNumber === e.n.againstInvoice || x.inv.invoiceNumber === e.n.againstInvoice); });
+        if (o) { var nk = Math.min(o.due, na); o.due = gstRound(o.due - nk); na = gstRound(na - nk); }
+        if (na > 0) noteCredit = gstRound(noteCredit + fifo(na));
+        return;
+      }
+      var v = e.v, amt = v.row.cr, parts = [], how = 'oldest';
       received = gstRound(received + amt);
       // Exact only against what was already invoiced on the day it came in: a receipt cannot pay, to the
       // rupee, an invoice not yet raised, and matching one left the older invoices it did pay open.
@@ -500,6 +507,9 @@ function bankReceivables(cls) {
           sum = gstRound(sum + live[j].due);
           if (Math.abs(sum - amt) <= 1) {
             live.slice(i, j + 1).forEach(function(o) { parts.push({ label: o.label, amount: o.due, whole: true, date: o.date, inv: !!o.inv }); o.due = 0; });
+            // An exact match is a settlement: the paise between the invoices and the money are rounding, taken off what
+            // is owed (added, where the money was over), so the open list and what is owed always agree.
+            rounding = gstRound(rounding + sum - amt);
             how = 'exact'; break;
           }
           if (sum > amt + 1) break;
@@ -514,13 +524,13 @@ function bankReceivables(cls) {
     // open to pay; `onAccount` is what is left of it once the later invoices are settled. The carried figure
     // read "on account" long after it had paid them.
     var credits = [], carried = gstRound(allocs.reduce(function(t, a) { return t + a.unapplied; }, 0));
-    var onAccount = carried > 0 ? gstRound(fifo(carried, credits)) : 0;
+    var onAccount = gstRound((carried > 0 ? fifo(carried, credits) : 0) + noteCredit);
     var invoiced = gstRound(invs.reduce(function(s, i) { return s + (i.grandTotal || 0); }, 0));
-    var owed = gstRound(opening + invoiced - notesTotal - received);
+    var owed = gstRound(opening + invoiced - notesTotal - received - rounding) || 0;   // never -0
     var stillOpen = open.filter(function(o) { return o.due > 0.005; });
     var today = localDateStr();
     out.push({ client: c, opening: opening, openingSet: op.set, openingStale: op.stale, openingSuggest: op.set ? null : bankOpeningSuggest(recs, invs, from),
-      carried: carried, onAccount: onAccount, credits: credits, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
+      carried: carried, onAccount: onAccount, noteCredit: noteCredit, rounding: rounding, credits: credits, invoiced: invoiced, notes: gstRound(notesTotal), received: received, owed: owed,
       open: stillOpen, allocs: allocs, oldestDays: stillOpen.length ? Math.max(0, isoDaysBetween(stillOpen[0].date, today)) : null });
   });
   return out.sort(function(a, b) { return b.owed - a.owed; });
@@ -601,13 +611,16 @@ function bankCostByMonth(cls) {
 /* Why the statement cannot speak for a month's k, or '' when it can. Three different reasons, said apart: a
    month the statement does not cover, one whose salaries it does not reach yet, and one it covers whole but whose
    payees are not all sorted (which the owner fixes in a tap, and which "not on the statement" hid). */
+/* Why other costs and supplies cannot be read for a month while its payees are unsorted, with where to sort them: one
+   string, so a note elsewhere (Recorded against paid, Derive) can tell it from the other reasons. */
+var BANK_UNSORTED_WHY = 'payees not yet sorted (Finance → Payments → Not yet sorted)';
 function bankMonthUnknown(bm, ym, k) {
   var c = bm.cover, e = bm.months[ym];
   if (k === 'power') return e && e.power.amount > 0 ? '' : 'no payment for this month';
   if (!c || c.from > ym + '-01' || c.to < payMonthEnd(ym + '-01')) return 'not on the statement';
   // Other and supplies speak for a month only once every payment in it is sorted: an unsorted one
   // could be either, and counting it as neither reads the month cheap.
-  if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return 'payees not yet sorted (Finance → Payments)';
+  if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return BANK_UNSORTED_WHY;
   return k === 'labour' && c.to < bankNextMonth(ym) + '-20' ? 'its salaries are not on the statement yet' : '';
 }
 function bankMonthKnown(bm, ym, k) { return !bankMonthUnknown(bm, ym, k); }
@@ -624,7 +637,7 @@ function bankCostByMonthMemo() {
 function bankCostForRange(from, to, byMonth) {
   var bm = byMonth || bankCostByMonthMemo(), days = isoDaysBetween(from, to) + 1;
   var res = {};
-  ['labour', 'power', 'other', 'supplies'].forEach(function(k) { res[k] = { amount: 0, known: 0, months: [] }; });
+  ['labour', 'power', 'other', 'supplies'].forEach(function(k) { res[k] = { amount: 0, known: 0, months: [], unknown: [] }; });
   res.unsorted = { amount: 0, payees: {} };
   if (!bm.cover) return res;
   for (var ym = from.slice(0, 7), g = 0; ym <= to.slice(0, 7) && g < 240; ym = bankNextMonth(ym), g++) {
@@ -633,7 +646,9 @@ function bankCostForRange(from, to, byMonth) {
     if (e) e.unsorted.rows.forEach(function(v) { if (v.row.date >= from && v.row.date <= to) { res.unsorted.amount += v.row.dr; res.unsorted.payees[v.party || v.row.narration] = 1; } });
     ['labour', 'power', 'other', 'supplies'].forEach(function(k) {
       var c = e && e[k];
-      if (!bankMonthKnown(bm, ym, k)) return;
+      // A month the statement cannot speak for keeps its reason, so a note can say why it was left out.
+      var why = bankMonthUnknown(bm, ym, k);
+      if (why) { res[k].unknown.push({ month: ym, why: why }); return; }
       res[k].known += rangeShare;
       res[k].amount += (c ? c.amount : 0) * share;
       res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, rows: c ? c.rows : [] });
@@ -648,7 +663,7 @@ function bankCostForRange(from, to, byMonth) {
    to bring it in. */
 function renderBank(tab) {
   var rows = bankRows();
-  if (tab === 'bank') return _bankHeadHtml(rows) + (rows.length ? _bankStatementHtml(bankClassify(rows)) : '');
+  if (tab === 'bank') return _bankHeadHtml(rows) + _bankImportsHtml() + (rows.length ? _bankStatementHtml(bankClassify(rows)) : '');
   if (!rows.length) {
     return '<div class="inv-panel"><div class="inv-empty">' + (tab === 'payments' ? 'Payments read' : 'Receivables read') +
       ' the bank statement, and none is imported yet. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button></div></div>';
@@ -667,9 +682,9 @@ function _bankHeadHtml(rows) {
     return h + '<div class="inv-empty">No statement yet. Download the account statement from Bank of Baroda as Excel (.xls) and import it as it is; ' +
       'a later statement that overlaps it adds only the rows that are new.</div></div>';
   }
-  var first = rows[0], last = rows[rows.length - 1], breaks = bankContinuity(rows);
+  var first = rows[0], last = rows[rows.length - 1], breaks = bankContinuity(rows), liveImports = b.imports.filter(function(x) { return !x.removedAt; }).length;
   h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(first.date)) + ' – ' + escHtml(formatDate(last.date)) + '</span>' +
-    '<span class="inv-row-meta">' + rows.length + ' rows' + (b.account ? ' · account ' + escHtml(b.account) : '') + ' · ' + b.imports.length + ' import' + (b.imports.length === 1 ? '' : 's') + '</span></span>' +
+    '<span class="inv-row-meta">' + rows.length + ' rows' + (b.account ? ' · account ' + escHtml(b.account) : '') + ' · ' + liveImports + ' import' + (liveImports === 1 ? '' : 's') + '</span></span>' +
     '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(last.balance) + '</span><span class="inv-row-meta">closing balance</span></span></span></div>';
   if (breaks.length) {
     var br = breaks[0];
@@ -682,6 +697,59 @@ function _bankHeadHtml(rows) {
   h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">The record for the soma-internal compile</span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankExportJson">Export JSON</button></span></div>';
   return h + '</div>';
+}
+
+/* Each statement brought in, newest first: its file, the days it covers, what it added. One can be taken out, with a
+   reason (bankRemoveImport); a removed one stays listed, saying when and why. */
+function _bankImportsHtml() {
+  var b = bankData(), list = b.imports.slice().reverse();
+  if (!list.length) return '';
+  var held = {};
+  b.rows.forEach(function(r) { if (r.importId) held[r.importId] = (held[r.importId] || 0) + 1; });
+  var day = function(ts) { return formatDate(isoOf(new Date(ts))); };
+  return '<div class="inv-panel inv-panel-flush" id="bankImports"><div class="inv-panel-head"><span class="inv-panel-title">Imports <span class="inv-panel-count">' + list.length + '</span></span></div>' +
+    uiMoreHtml('bank-imports', list.map(function(imp) {
+      var gone = !!imp.removedAt, n = held[imp.id] || 0;
+      return '<div class="inv-row inv-row-2" data-bank-import="' + escHtml(imp.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(imp.file || 'Statement') + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml((imp.from ? formatDate(imp.from) + ' – ' + formatDate(imp.to) + ' · ' : '') + (imp.rows || 0) + ' rows read · ' + (imp.added || 0) + ' added · imported ' + day(imp.at)) +
+        (gone ? ' · <span class="inv-dot inv-dot-neutral">Removed ' + escHtml(day(imp.removedAt)) + '</span> ' + escHtml((imp.rowsRemoved || 0) + ' rows taken out: ' + (imp.removeReason || '')) : '') + '</span></span>' +
+        '<span class="inv-row-end">' + (!gone && n ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankImportRemove" data-id="' + escHtml(imp.id) + '" aria-label="Remove this import">Remove</button>' : '') + '</span></div>';
+    }), { n: 5, noun: 'imports' }) + '</div>';
+}
+
+/* Take an import out: only the rows it added go (a row it read that an earlier import had brought in carries that
+   import's id and stays), with what was set on them. A returned cheque's link that names one of them goes too, and the
+   rows left are linked afresh. The import is never deleted: it keeps when, why and which rows (removedIds), and the
+   sep-bank export carries that, so soma-internal's compile drops the same rows. */
+async function bankRemoveImport(id) {
+  var b = bankData(), imp = b.imports.find(function(x) { return x.id === id; });
+  if (!imp || imp.removedAt) return;
+  var n = b.rows.filter(function(r) { return r.importId === id; }).length;
+  if (!n) { showToast('No row this import added is still held', 'error'); return; }
+  if (!(await uiConfirm({ title: 'Remove this import?', danger: true, okLabel: 'Remove ' + todoPlural(n, 'row'),
+      body: (imp.file || 'This statement') + (imp.from ? ', ' + formatDate(imp.from) + ' – ' + formatDate(imp.to) : '') + ', added ' + todoPlural(n, 'row') + ' still held. They come out of the record, ' +
+        'with whatever was set on them (a client placed, a category, a returned cheque linked). Rows it read that an earlier import had already brought in stay. The import stays listed, saying when and why.' }))) return;
+  var reason = await uiPrompt({ title: 'Why is this import being removed?', label: 'Reason', danger: true, okLabel: 'Remove import', required: true, requiredText: 'A removed import needs a reason.' });
+  if (reason == null) return;
+  if (!reason.trim()) { showToast('A removed import needs a reason', 'error'); return; }
+  // Read again: another window may have saved while the dialogs were open.
+  b = bankData(); imp = b.imports.find(function(x) { return x.id === id; });
+  if (!imp || imp.removedAt) return;
+  var gone = {};
+  b.rows.forEach(function(r) { if (r.importId === id) gone[r.id] = true; });
+  b.rows = b.rows.filter(function(r) { return !gone[r.id]; });
+  Object.keys(b.bounces).forEach(function(k) { if (gone[k] || (b.bounces[k] != null && gone[b.bounces[k]])) delete b.bounces[k]; });
+  imp.removedAt = Date.now(); imp.removeReason = reason.trim(); imp.removedIds = Object.keys(gone); imp.rowsRemoved = imp.removedIds.length;
+  // The record's account is one a statement still held names.
+  if (imp.account && imp.account === b.account && !b.imports.some(function(x) { return !x.removedAt && x.account === imp.account; })) {
+    var other = b.imports.find(function(x) { return !x.removedAt && x.account; });
+    b.account = other ? other.account : '';
+  }
+  if (_bankEdit && gone[_bankEdit]) _bankEdit = null;
+  if (_bankChange && gone[_bankChange]) _bankChange = null;
+  saveState();
+  renderFinance();
+  showToast(todoPlural(imp.rowsRemoved, 'row') + ' taken out; the import stays listed with the reason');
 }
 
 function _bankReceiptsHtml(cls) {
@@ -702,7 +770,7 @@ function _bankReceiptsHtml(cls) {
     h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
-      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
+      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (Math.abs(r.rounding) > 0.005 ? ' · ' + escHtml(formatCurrency(Math.abs(r.rounding))) + ' rounded off' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
       (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
       // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
@@ -714,7 +782,9 @@ function _bankReceiptsHtml(cls) {
     else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
       (r.onAccount > 0.005 ? (r.onAccount < r.carried - 0.005 ? ': ' + escHtml(formatCurrency(r.onAccount)) + ' of it is still on account. ' : '. It is all still on account. ') : '. None of it is on account now. ') +
       'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
-    else if (r.owed < -0.005) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
+    else if (r.owed < -0.005 && !(r.noteCredit > 0.005)) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
+    if (r.noteCredit > 0.005) h += '<div class="inv-callout inv-callout-info" data-note-credit>' + escHtml(formatCurrency(r.noteCredit)) +
+      ' of credit notes came after what they credit was paid, so it is credit to the client, on account.</div>';
     h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
       '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.openingSet ? r.opening : '') + '" placeholder="not set"></span></div>';
     var sg = r.openingSuggest;
@@ -887,7 +957,11 @@ function _bankPaymentsHtml(cls) {
   var sup = {};
   cls.forEach(function(v) { if (v.cat === 'supplier' && v.row.dr > 0) { var k = v.party || v.row.narration; (sup[k] = sup[k] || { paid: 0, n: 0, name: v.supplier || v.party, written: bankSupplierWritten(v) }); sup[k].paid = gstRound(sup[k].paid + v.row.dr); sup[k].n++; } });
   var billed = {};
-  (stockData().entries || []).forEach(function(e) { if (!e.voided && e.supplier && e.amount) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + Number(e.amount)); });
+  // A delivery typed by hand before its amount was kept carries its price: price × quantity is its bill.
+  (stockData().entries || []).forEach(function(e) {
+    var amt = e.amount ? Number(e.amount) : e.price > 0 && e.qty > 0 ? gstRound(e.price * e.qty) : 0;
+    if (!e.voided && e.supplier && amt) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + amt);
+  });
   var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; });
   h += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid <span class="inv-panel-count">' + sk.length + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></div>';
@@ -1042,7 +1116,9 @@ function bankImportFile() {
         b = bankData();
       } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
       if (b.account && parsed.account && parsed.account !== b.account &&
-        !(await uiConfirm({ title: 'A different account', body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Import it into the same record?', okLabel: 'Import' }))) return;
+        !(await uiConfirm({ title: 'A different account', danger: true, okLabel: 'Import into the same record',
+          body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Imported, its rows sit in one record with them, and the balances will not follow from one another. ' +
+            'It can be taken out again under Imports.' }))) return;
       try {
         res = bankImport(parsed, f.name);
       } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
@@ -1178,6 +1254,7 @@ function bankAction(action, btn) {
     case 'invBankImport': bankImportFile(); return true;
     case 'invBankExport': bankExportXlsx(); return true;
     case 'invBankExportJson': bankExportJson(); return true;
+    case 'invBankImportRemove': bankRemoveImport(btn.dataset.id); return true;
     case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;

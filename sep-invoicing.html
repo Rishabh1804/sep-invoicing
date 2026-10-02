@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="8376a1a0">
+<meta name="app-build" content="16684119">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2909,6 +2909,11 @@ function ensureStateShape(s) {
    the caller saves once it knows the adoption held. */
 function adoptState(next) {
   var prev = S;
+  // Replacing the book takes its users and the guard's settings with it: the owner's alone (guard.js grdBookAsk), here
+  // too, whatever door it came through. Nothing is touched before the refusal.
+  if (typeof grdOn === 'function' && grdOn() && !grdIsOwner()) throw new Error('only the owner replaces the book: ask the owner');
+  // Who is replacing it, read off this book: the one coming in may not hold them (the change log's line, QA4-10).
+  var by = typeof chgBy === 'function' ? chgBy() : null;
   // The rollback has to cover STORAGE, not just memory. `migrateState()`
   // persists as it runs, and every one of those writes fires while `S` is the
   // incoming state — so a throw partway through used to leave a half-migrated
@@ -2929,8 +2934,9 @@ function adoptState(next) {
   // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
   if (typeof prodTouch === 'function') prodTouch();
   if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
-  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js).
-  if (typeof chgAdopted === 'function') chgAdopted();
+  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js), under the
+  // person who brought it in.
+  if (typeof chgAdopted === 'function') { if (typeof chgAs === 'function') chgAs(by, chgAdopted); else chgAdopted(); }
   // The book's users may differ: a session whose user it does not hold is locked (guard.js).
   if (typeof grdRecheck === 'function') grdRecheck();
   return S;
@@ -3883,9 +3889,17 @@ function getStateDotHtml(inv) {
     escHtml(invStateWord(inv)) + '</span>';
 }
 
+/* An invoice's state is a billing change (guard.js; the QA audit of 2 Oct 2026, QA4-6): a role without billing is told so,
+   and the PIN is asked again outside the re-ask window, as an invoice saved, cancelled or deleted is. Printing marks a
+   Created invoice Printed on the permission alone (print.js printMarkPrinted): it is part of printing an invoice the role
+   opened, and the print dialog cannot wait for a PIN. Each mark asks only where grdOk says no, so with the guard off (or
+   inside the window) nothing is awaited and the mark runs as it always did. → Promise<boolean>. */
+function invStateAsk(what) { return guardAsk('billing', what); }
+function invStateLower(st) { return String(INV_STATE_LABELS[st] || st).toLowerCase(); }
+
 /* The next state, or a named one further on: an invoice printed outside the app goes from Created straight to
    Dispatched. Never backwards, but for a print that never came out (invNotPrinted). */
-function advanceInvoiceState(invId, target) {
+async function advanceInvoiceState(invId, target) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv || inv.status === 'cancelled') return;
   var idx = INV_STATES.indexOf(getInvState(inv));
@@ -3893,6 +3907,10 @@ function advanceInvoiceState(invId, target) {
   // A button drawn before the state moved on (a print, another window) names a step already reached: it only shows
   // where the invoice is. It used to fall through to the step after, so Mark printed on a printed invoice dispatched it.
   if (idx < 0 || !nextState || invStateIdx(nextState) <= idx) { invStateShown(invId); return; }
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark an invoice ' + invStateLower(nextState)))) return;
+  // Found again after the question: another window's save can replace the book while it is open.
+  inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (!inv || inv.status === 'cancelled' || invStateIdx(getInvState(inv)) >= invStateIdx(nextState)) { invStateShown(invId); return; }
   invSetState(inv, nextState);
   saveState();
   invStateShown(invId);
@@ -3901,13 +3919,17 @@ function advanceInvoiceState(invId, target) {
 
 /* Print marks a Created invoice Printed, but the print dialog cannot say whether the paper came out: a print cancelled
    or jammed is put back here, and its stamp goes with it (History logs a print from printedAt). */
-function invNotPrinted(invId) {
+async function invNotPrinted(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
-    inv.invoiceState = 'created';
-    delete inv.printedAt;
-    saveState();
-    showToast(inv.displayNumber + ' is back to Created');
+    if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark an invoice not printed'))) return;
+    inv = S.invoices.find(function(i) { return i.id === invId; });
+    if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
+      inv.invoiceState = 'created';
+      delete inv.printedAt;
+      saveState();
+      showToast(inv.displayNumber + ' is back to Created');
+    }
   }
   invStateShown(invId);
 }
@@ -3922,6 +3944,7 @@ async function bulkMarkFiled() {
     return;
   }
   var ids = eligible.map(function(inv) { return inv.id; });
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark invoices filed'))) return;
   if (!(await uiConfirm({ title: 'Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?',
     body: 'A filed invoice cannot be deleted and reissued: its number is in a return.', okLabel: 'Mark as filed' }))) return;
   // Found again by id after the question: another window's save can replace the book while it is open, and the objects
@@ -4665,7 +4688,9 @@ var CHG_TRACK = [
   { path: 'power.load', kind: 'cfg', sec: 'Power → the connection' },
   { path: 'power.cfg', kind: 'cfg', sec: 'Power → the options’ figures' },
   { path: 'users', kind: 'arr', noun: 'user', label: function(r) { return chgJoin(r.name, r.role); } },
-  { path: 'devices', kind: 'arr', noun: 'device', label: function(r) { return r.name; } },
+  // A push stamps its time on the device's row and keeps it quietly (devices.js devPushPrep): a record of the sync, not a
+  // change anybody made, and it read "changed device · lastPushAt" at the next save (the QA audit, QA4-11).
+  { path: 'devices', kind: 'arr', noun: 'device', omit: ['lastPushAt'], label: function(r) { return r.name; } },
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
@@ -4718,7 +4743,21 @@ function chgStaffName(id) { if (id == null || !S) return ''; var w = chgFind(S.s
 function chgStockName(id) { var it = S && S.stock ? chgFind(S.stock.items, id) : null; return it ? it.name : ''; }
 function chgStockUnit(id) { var it = S && S.stock ? chgFind(S.stock.items, id) : null; return it ? it.unit || '' : ''; }
 function chgUid() { return 'CL-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function chgBy() { try { return typeof grdUserId === 'function' ? (grdUserId() || null) : null; } catch (e) { return null; } }
+/* Who made the change: the person signed in (the gate), unless a save is being made for somebody (chgAs). */
+var _chgAs;   // undefined: whoever is signed in
+function chgBy() {
+  if (_chgAs !== undefined) return _chgAs;
+  try { return typeof grdUserId === 'function' ? (grdUserId() || null) : null; } catch (e) { return null; }
+}
+/* Runs fn (a save) as the change of `by`: what the guard saves with nobody signed in any more, or not yet (the guard turned
+   off, a PIN reset from the lock), or with a book whose users do not hold the person (an import), is that person's, not
+   "Someone"'s (the QA audit of 2 Oct 2026, QA4-10). The log is written at the start of a save (saveState → chgOnSave), so
+   the name holds for that save alone. */
+function chgAs(by, fn) {
+  var was = _chgAs;
+  _chgAs = by == null ? null : by;
+  try { return fn(); } finally { _chgAs = was; }
+}
 function chgDev() { try { return typeof devId === 'function' ? (devId() || null) : null; } catch (e) { return null; } }
 function chgSpecOf(coll) { return CHG_TRACK.find(function(sp) { return sp.path === coll; }) || null; }
 function chgNounOf(coll, n) {
@@ -5338,16 +5377,21 @@ applyAppearance();
    - The re-ask (guardAsk): a P1 change asks the PIN again once askMinutes have passed since it was last given; a role that
      may not make the change is told so and never asked.
    - What a role opens (grdSees): a page it may not is refused with a word, and its doors are hidden (grdApplyDoors).
+   - Nothing a role decides is drawn while nobody is signed in (grdHeld): the unlock draws the screen for whoever unlocks,
+     and shuts what somebody else left open (grdAfterUser).
+   - Wrong PINs are counted per ID (grdFailNote); replacing the book whole is the owner's (grdBookAsk), and keeps this book's
+     IDs unless the owner says (grdBookUsersAsk).
    A PIN is kept only as a salted PBKDF2-SHA256 hash (WebCrypto): never as itself, in the book, on the device or in a log.
 
    The API the other steps read (guard-common.md): grdOn, grdUser, grdUserId, grdIsOwner, grdCan, guardAsk, grdSees, and
    grdApplyDoors for the shell. A P1 call site is `if (!grdOk(group) && !(await guardAsk(group, what))) return;` in an async
    handler, or `if (!grdGate(group, what, again)) return;` in one that must stay synchronous (it asks, then runs `again`):
-   with the guard off neither awaits anything, so every handler runs exactly as it did. */
+   with the guard off neither awaits anything, so every handler runs exactly as it did. A screen's drawing asks grdHeld
+   first; a launch that must wait for somebody to be in asks grdWhenIn. */
 
 var GRD_SESSION_KEY = 'sep_inv_session';     // this window's sign-in (sessionStorage): {userId, at, askAt, hiddenAt}
 var GRD_LAST_KEY = 'sep_inv_guard_last';     // the user last signed in on this device (localStorage): the id only
-var GRD_FAIL_KEY = 'sep_inv_guard_fail';     // wrong PINs on this device (localStorage): {n, until}
+var GRD_FAIL_KEY = 'sep_inv_guard_fail';     // wrong PINs on this device, by ID (localStorage): {ids: {'u:<id>': {n, until}}, all}
 var GRD_ALG = 'PBKDF2-SHA256';
 /* 210,000 iterations. Measured on the desktop project (P140, the sweep book): the hash an unlock runs takes about 70 ms at
    its quickest on the build sandbox's Chromium, and 250 ms median with the machine shared by nine test runs; 310,000 came
@@ -5361,9 +5405,11 @@ var GRD_GRACE_MS = 3000;                      // a PIN just given lets the chang
 var GRD_CODE_ABC = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';   // no 0/O, 1/I/L: read off paper without doubt
 var GRD_ROLES = ['owner', 'office', 'supervisor', 'floor'];
 var GRD_ROLE_NAMES = { owner: 'Owner', office: 'Office', supervisor: 'Supervisor', floor: 'Floor' };
-/* What a role may change. `users` is the owner's alone and is not a switch. */
+/* What a role may change. `users` is the owner's alone and is not a switch: users and devices, and replacing the book whole
+   (a backup imported, a pull from GitHub), which takes the users with it (grdBookAsk). `imports` is the floor's records,
+   which merge into the book. */
 var GRD_GROUPS = [['billing', 'Invoices and credit notes'], ['rates', 'Rates and the client master'], ['voids', 'Voids and deletions'],
-  ['payments', 'Payments and wages'], ['imports', 'Imports and pulls'], ['settings', 'Settings'], ['floor', 'Floor entries']];
+  ['payments', 'Payments and wages'], ['imports', 'Imports (stock, production, power, roster)'], ['settings', 'Settings'], ['floor', 'Floor entries']];
 /* Every page a role may be given, in the bar's order; a page this build does not have (Direction B's Pipeline and Floor
    day) is kept in a role's list and skipped on screen. */
 var GRD_PAGE_IDS = ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
@@ -5456,7 +5502,7 @@ function grdOk(group) {
   return !!(s && s.askAt && now - s.askAt >= 0 && now - s.askAt < grdAskMs());
 }
 /* The role opens this page. Home always; while locked nobody is signed in and the lock covers the screen, so the page
-   under it is checked again at the unlock (grdAfterUser). */
+   under it is checked again at the unlock (grdAfterUser), and nothing is drawn on it meanwhile (grdHeld). */
 function grdSees(tabId) {
   if (!grdOn() || tabId === 'pageHome') return true;
   var u = grdUser();
@@ -5497,6 +5543,53 @@ function grdGate(group, what, again) {
   if (grdOk(group)) return true;
   guardAsk(group, what).then(function(ok) { if (ok && typeof again === 'function') again(); });
   return false;
+}
+/* A save the guard makes while nobody is signed in (the guard turned off, a PIN reset from the lock), logged under the
+   person who did it (changelog.js chgAs): it read "Someone" (the QA audit, QA4-10). */
+function grdSaveAs(uid) { return typeof chgAs === 'function' ? chgAs(uid, saveState) : saveState(); }
+
+/* ---------- Replacing the book whole: the owner's ----------
+   A backup imported or a pull from GitHub replaces the book, its users and the guard's settings with it. Whoever may do
+   that may take the guard off, or put an owner of their own in, so it is the owner's alone (the `users` permission),
+   whatever a role's Imports switch says: that switch is for the floor's records (stock, production, power, a roster),
+   which merge and never replace (the QA audit of 2 Oct 2026, QA4-9). → Promise<boolean>. */
+function grdBookAsk(what) { return guardAsk('users', what); }
+/* A book is guarded when it holds an active owner with a PIN: the test grdOn makes of S, made of any book. */
+function grdBookGuarded(s) {
+  return !!(s && Array.isArray(s.users) && s.users.some(function(u) { return u && u.role === 'owner' && u.active !== false && u.secret && u.secret.hash; }));
+}
+/* The guard a book carries, as one string: each user's id, name, role, whether active and the PIN's hash; and the guard's
+   settings (the minutes, the roles, the recovery code's hash). Two books alike here sign in the same people the same way. */
+function grdBookGuardSig(s) {
+  var users = (s && Array.isArray(s.users) ? s.users : []).filter(Boolean).map(function(u) {
+    return [String(u.id), String(u.name || ''), String(u.role || ''), u.active !== false, u.secret && u.secret.hash ? String(u.secret.hash) : ''];
+  }).sort(function(a, b) { return a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0; });
+  // Read over the defaults, as the book's shape fills them (ensureStateShape): a key one copy has not been given yet is no
+  // difference.
+  var d = grdCfgDefaults(), c = s && s.guardCfg && typeof s.guardCfg === 'object' ? s.guardCfg : {};
+  var pick = function(k) { return c[k] == null ? d[k] : c[k]; };
+  return JSON.stringify({ users: users, lock: pick('lockMinutes'), ask: pick('askMinutes'), roles: pick('roles'), rec: c.recovery && c.recovery.hash ? c.recovery.hash : null });
+}
+/* Before a book replaces this guarded one (an import, a pull): where its IDs or the guard's settings differ, the owner is
+   asked whether to take them. Cancel, Esc, and a question that could not be asked all keep this book's: its users and
+   guard settings are written into the incoming book, and the rest of it is taken. With no guard here there is nothing to
+   keep, and nothing is asked. → Promise, after `next` is settled. */
+function grdBookUsersAsk(next) {
+  if (!grdOn() || !next || typeof next !== 'object' || grdBookGuardSig(next) === grdBookGuardSig(S)) return Promise.resolve();
+  var theirs = grdBookGuarded(next);
+  var here = grdActiveUsers().length, there = theirs ? (next.users || []).filter(function(u) { return u && u.active !== false && u.secret && u.secret.hash; }).length : 0;
+  var ask = theirs
+    ? { title: 'The book coming in has other IDs', okLabel: 'Take its IDs',
+      body: 'Its IDs, PINs or what each role opens differ from this book’s (' + here + ' here, ' + there + ' in it). Taken, they decide who signs in and with what PIN, ' +
+        'here and on every device that loads the book. Kept, this book’s IDs, PINs and roles stay, and the rest of the book coming in replaces this one.' }
+    : { title: 'The book coming in has no ID or PIN', okLabel: 'Take it without the guard',
+      body: 'Its guard is off: taken as it is, the app opens without an ID or PIN on every device that loads the book, and nobody is asked before a P1 change. ' +
+        'Kept, this book’s IDs, PINs and roles stay, and the rest of the book coming in replaces this one.' };
+  return uiConfirm({ title: ask.title, body: ask.body, okLabel: ask.okLabel, cancelLabel: 'Keep the IDs here', danger: true }).then(function(take) {
+    if (take) return;
+    next.users = JSON.parse(JSON.stringify(grdUsers()));
+    next.guardCfg = JSON.parse(JSON.stringify(grdCfg()));
+  });
 }
 
 /* ---------- Secrets: PBKDF2-SHA256, a 16-byte salt, a 32-byte hash, compared in full ---------- */
@@ -5547,54 +5640,90 @@ function grdInitials(name) {
   return ((w[0] || '?').charAt(0) + (w.length > 1 ? w[w.length - 1].charAt(0) : '')).toUpperCase();
 }
 
-/* ---------- The device's lockout: five wrong, then 30 s, doubling to 15 min; a right PIN clears it ---------- */
-function grdFailRead() { try { var f = JSON.parse(localStorage.getItem(GRD_FAIL_KEY) || 'null'); return f && typeof f.n === 'number' ? f : { n: 0, until: 0 }; } catch (e) { return { n: 0, until: 0 }; } }
-function grdFailWrite(f) { try { localStorage.setItem(GRD_FAIL_KEY, JSON.stringify(f)); } catch (e) { /* a lockout kept in memory is no lockout; nothing else to do */ } }
-function grdFailClear() { try { localStorage.removeItem(GRD_FAIL_KEY); } catch (e) { /* nothing kept */ } }
-function grdFailLeftMs() { return Math.max(0, grdFailRead().until - Date.now()); }
-function grdFailNote() {
-  var f = grdFailRead();
-  f.n++;
+/* ---------- The lockout, per ID: five wrong, then 30 s, doubling to 15 min; that ID's right PIN clears it ----------
+   Counted by the ID the PIN was typed for, never for the device (the QA audit of 2 Oct 2026, QA4-8): one count for the
+   device was cleared by any ID's right PIN, so a person holding an ID of their own could try the owner's PIN four times,
+   sign in as themselves, and try four more, for ever. One ID's right PIN clears that ID's count and no other; the recovery
+   code is counted under the owner's ID it resets. Kept as {ids: {'u:<id>': {n, until}}, all}: `all` is a lockout the count
+   from before (one for the device, {n, until}) was running, held for every ID until it ends. */
+function grdFailKey(uid) { return 'u:' + String(uid == null ? '' : uid); }
+function grdFailMap() {
+  var m = null;
+  try { m = JSON.parse(localStorage.getItem(GRD_FAIL_KEY) || 'null'); } catch (e) { m = null; }
+  var now = Date.now();
+  if (!m || typeof m !== 'object' || Array.isArray(m)) return { ids: {}, all: 0 };
+  if (typeof m.n === 'number') return { ids: {}, all: m.until > now ? m.until : 0 };
+  return { ids: m.ids && typeof m.ids === 'object' && !Array.isArray(m.ids) ? m.ids : {}, all: m.all > now ? m.all : 0 };
+}
+function grdFailSave(m) {
+  try {
+    if (!Object.keys(m.ids).length && !m.all) localStorage.removeItem(GRD_FAIL_KEY);
+    else localStorage.setItem(GRD_FAIL_KEY, JSON.stringify(m));
+  } catch (e) { /* a lockout kept in memory is no lockout; nothing else to do */ }
+}
+function grdFailRead(uid) {
+  var m = grdFailMap(), k = grdFailKey(uid), f = Object.prototype.hasOwnProperty.call(m.ids, k) ? m.ids[k] : null;
+  var n = f && typeof f.n === 'number' ? f.n : 0, until = f && typeof f.until === 'number' ? f.until : 0;
+  return { n: n, until: Math.max(until, m.all) };
+}
+/* That ID's count, and only that one. */
+function grdFailClear(uid) {
+  var m = grdFailMap(), k = grdFailKey(uid);
+  if (!Object.prototype.hasOwnProperty.call(m.ids, k)) return;
+  delete m.ids[k];
+  grdFailSave(m);
+}
+function grdFailLeftMs(uid) { return Math.max(0, grdFailRead(uid).until - Date.now()); }
+function grdFailNote(uid) {
+  var m = grdFailMap(), k = grdFailKey(uid), was = Object.prototype.hasOwnProperty.call(m.ids, k) ? m.ids[k] : null;
+  var f = { n: (was && typeof was.n === 'number' ? was.n : 0) + 1, until: was && typeof was.until === 'number' ? was.until : 0 };
   if (f.n >= GRD_FREE_TRIES) f.until = Date.now() + Math.min(GRD_FAIL_MAX_MS, GRD_FAIL_FIRST_MS * Math.pow(2, f.n - GRD_FREE_TRIES));
-  grdFailWrite(f);
+  m.ids[k] = f;
+  grdFailSave(m);
   return f;
 }
 function grdSecs(ms) {
   var s = Math.ceil(ms / 1000);
   return s < 120 ? s + ' second' + (s === 1 ? '' : 's') : Math.ceil(s / 60) + ' minutes';
 }
-/* What the field says after a wrong entry, or while the device is locked out. */
-function grdFailWords(noun) {
-  var left = grdFailLeftMs();
+/* What the field says after a wrong entry for this ID, or while this ID is locked out. */
+function grdFailWords(noun, uid) {
+  var left = grdFailLeftMs(uid);
   if (left > 0) return 'Locked for ' + grdSecs(left) + '.';
-  var f = grdFailRead();
+  var f = grdFailRead(uid);
   if (!f.n) return '';
   var tries = GRD_FREE_TRIES - f.n;
   return 'Wrong ' + (noun || 'PIN') + '. ' + (tries > 0 ? tries + ' tr' + (tries === 1 ? 'y' : 'ies') + ' left.' : 'Try again.');
 }
-/* Every guard field under a lockout counts down in place, and comes back when it ends. */
+/* The ID a field's PIN is checked for: its error line carries it (data-grd-uid). */
+function grdUidAttr(uid) { return ' data-grd-uid="' + escHtml(String(uid == null ? '' : uid)) + '"'; }
+/* Every PIN field under a lockout counts down in place, and comes back when its ID's lockout ends. A field's Go is the one
+   in its own box (the lock, or its dialog). */
 var _grdTick = null;
 function grdTickStart() {
   if (_grdTick) return;
   _grdTick = setInterval(function() {
-    var left = grdFailLeftMs();
-    document.querySelectorAll('[data-grd-err]').forEach(function(el) {
+    var any = false;
+    document.querySelectorAll('[data-grd-err][data-grd-uid]').forEach(function(el) {
+      var left = grdFailLeftMs(el.dataset.grdUid);
+      if (left > 0) any = true;
       if (el.dataset.grdLockout || left > 0) { el.textContent = left > 0 ? 'Locked for ' + grdSecs(left) + '.' : ''; el.dataset.grdLockout = left > 0 ? '1' : ''; }
+      var box = el.closest('#guardRoot, .inv-dialog'), go = box && box.querySelector('[data-grd-go]');
+      if (go) go.disabled = left > 0;
     });
-    document.querySelectorAll('[data-grd-go]').forEach(function(b) { b.disabled = left > 0; });
-    if (!left) { clearInterval(_grdTick); _grdTick = null; }
+    if (!any) { clearInterval(_grdTick); _grdTick = null; }
   }, 1000);
 }
-/* After a wrong entry: the words, and the countdown when the device is locked out. */
-function grdShowFail(errEl, goEl, noun) {
-  var left = grdFailLeftMs();
-  if (errEl) { errEl.textContent = grdFailWords(noun); errEl.dataset.grdLockout = left > 0 ? '1' : ''; }
+/* After a wrong entry: the words, and the countdown when this ID is locked out. */
+function grdShowFail(errEl, goEl, noun, uid) {
+  var left = grdFailLeftMs(uid);
+  if (errEl) { errEl.textContent = grdFailWords(noun, uid); errEl.dataset.grdLockout = left > 0 ? '1' : ''; }
   if (goEl) goEl.disabled = left > 0;
   if (left > 0) grdTickStart();
 }
-/* A field drawn while the device is locked out says so at once and counts down; otherwise it starts blank. */
-function grdShowLockout(errEl, goEl) {
-  if (grdFailLeftMs() > 0) grdShowFail(errEl, goEl); else if (goEl) goEl.disabled = false;
+/* A field drawn while its ID is locked out says so at once and counts down; otherwise it starts blank. */
+function grdShowLockout(errEl, goEl, uid) {
+  if (grdFailLeftMs(uid) > 0) grdShowFail(errEl, goEl, null, uid); else if (goEl) goEl.disabled = false;
 }
 
 /* ---------- The PIN, asked again in the one dialog shell ---------- */
@@ -5618,7 +5747,7 @@ function grdPinAsk(u, title) {
       dialogHeadHtml('<span id="grdAskT">' + escHtml(title) + '</span>', 'invGuardAskCancel', 'Cancel') +
       '<p class="inv-note inv-mb-8">Enter your PIN to go on.</p>' +
       '<div class="inv-field"><label class="inv-field-label" for="grdAskPin">PIN for ' + escHtml(u.name) + '</label>' +
-      grdPinInput('grdAskPin', u) + '<div class="inv-field-error" data-grd-err role="alert"></div></div>' +
+      grdPinInput('grdAskPin', u) + '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
       '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invGuardAskCancel">Cancel</button>' +
       '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardAskOk" data-grd-go>Go on</button></div></div>';
     try {
@@ -5632,7 +5761,7 @@ function grdPinAsk(u, title) {
       // Shut by anything else (a jump to another screen closes every dialog): a no, never a hang.
       obs = new MutationObserver(function() { if (!scrim.isConnected) ask.finish(false); });
       obs.observe(document.body, { childList: true });
-      grdShowLockout(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'));
+      grdShowLockout(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'), u.id);
       var inp = scrim.querySelector('#grdAskPin');
       if (inp) { try { inp.focus(); } catch (e) { /* focus is a convenience */ } }
     } catch (err) {
@@ -5649,7 +5778,8 @@ function grdAskSubmit() {
   var ask = _grdAsk;
   if (!ask || ask.busy) return;
   var scrim = ask.scrim, inp = scrim.querySelector('#grdAskPin'), err = scrim.querySelector('[data-grd-err]'), go = scrim.querySelector('[data-grd-go]');
-  if (grdFailLeftMs() > 0) { grdShowFail(err, go); return; }
+  var uid = ask.user.id;
+  if (grdFailLeftMs(uid) > 0) { grdShowFail(err, go, null, uid); return; }
   var pin = inp ? inp.value : '';
   if (!grdNorm(pin)) { if (err) err.textContent = 'Enter your PIN.'; if (inp) inp.focus(); return; }
   ask.busy = true;
@@ -5657,11 +5787,11 @@ function grdAskSubmit() {
   grdVerify(ask.user.secret, pin).then(function(ok) {
     ask.busy = false;
     if (ask.done) return;
-    if (ok) { grdFailClear(); ask.finish(true); return; }
-    grdFailNote();
+    if (ok) { grdFailClear(uid); ask.finish(true); return; }
+    grdFailNote(uid);
     if (inp) { inp.value = ''; inp.focus(); }
     if (go) go.disabled = false;
-    grdShowFail(err, go);
+    grdShowFail(err, go, null, uid);
   });
 }
 
@@ -5696,13 +5826,13 @@ function grdLockHtml() {
         '<div class="inv-field"><label class="inv-field-label" for="grdCode">Recovery code</label><input class="inv-input inv-id" id="grdCode" autocomplete="off" autocapitalize="characters" spellcheck="false" placeholder="XXXX-XXXX-XXXX"></div>' +
         '<div class="inv-field"><label class="inv-field-label" for="grdNew1">New PIN</label>' + grdPinInput('grdNew1', null) + '</div>' +
         '<div class="inv-field"><label class="inv-field-label" for="grdNew2">New PIN again</label>' + grdPinInput('grdNew2', null) +
-        '<div class="inv-field-error" data-grd-err role="alert"></div></div>' +
+        '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
         '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardRecover" data-grd-go>Reset the PIN</button>'
-      : '<div class="inv-callout inv-callout-warning inv-mb-8">No recovery code is on record in this book, so a forgotten owner PIN cannot be reset here. If the owner is still signed in in another window of the app on this device, set a new PIN there: Settings &rarr; Access &rarr; Users &amp; access &rarr; Reset PIN.</div>') +
+      : '<div class="inv-callout inv-callout-warning inv-mb-8">No recovery code is on record in this book, so a forgotten owner PIN cannot be reset. The owner&rsquo;s PIN is changed only with the PIN itself or the recovery code: once in, make one in Settings &rarr; Access &rarr; Users &amp; access &rarr; New recovery code.</div>') +
       '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="0">Back to the PIN</button></div>';
   }
   return h + '<div class="inv-field inv-mt-16"><label class="inv-field-label" for="grdPin">PIN for ' + escHtml(u.name) + '</label>' + grdPinInput('grdPin', u) +
-    '<div class="inv-field-error" data-grd-err role="alert"></div></div>' +
+    '<div class="inv-field-error" data-grd-err' + grdUidAttr(u.id) + ' role="alert"></div></div>' +
     '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invGuardUnlock" data-grd-go>Unlock</button>' +
     (_grdForgot ? '<p class="inv-note inv-mt-8" data-grd-forgot>Ask the owner to reset it.</p>'
       : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm inv-mt-8" data-action="invGuardForgot" data-v="1">Forgot your PIN?</button>') + '</div>';
@@ -5712,7 +5842,7 @@ function grdRenderLock() {
   if (!root) return;
   var had = document.activeElement && root.contains(document.activeElement) ? document.activeElement.id : '';
   root.innerHTML = grdLockHtml();
-  grdShowLockout(root.querySelector('[data-grd-err]'), root.querySelector('[data-grd-go]'));
+  grdShowLockout(root.querySelector('[data-grd-err]'), root.querySelector('[data-grd-go]'), _grdPick);
   var f = (had && document.getElementById(had)) || root.querySelector('#grdPin, #grdCode') || root.querySelector('[aria-checked="true"]') || root.querySelector('button');
   if (f) { try { f.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
@@ -5797,31 +5927,80 @@ function grdSignIn(u) {
   var now = Date.now();
   grdSessWrite({ userId: u.id, at: now, askAt: now, hiddenAt: null });
   try { localStorage.setItem(GRD_LAST_KEY, u.id); } catch (e) { /* remembered on this window only */ }
-  grdFailClear();
+  grdFailClear(u.id);
   _grdPick = u.id;
   if (_grdLocked) grdHideLock();
   grdAfterUser();
 }
+/* Who the screen on show was drawn for: the user and their role's settings, so a role changed elsewhere reads as another
+   drawing. Null for nobody: drawn at the start before anybody signed in, or not drawn because the lock was down. */
+function grdDrawKey(u) { return u ? String(u.id) + '|' + JSON.stringify(grdRole(u.role)) : null; }
+/* What a role decides (its pages, money, wages, its tasks) is never drawn while nobody is signed in: the guard on and the
+   lock down, or not yet lifted at the start, where grdSees would answer for everybody. A screen's drawing asks this first
+   (tabs.js tabRender, renderHome, the To-do's), skips while it holds, and the unlock draws it for whoever unlocks
+   (grdAfterUser). True while held. */
+function grdHeld() {
+  if (!grdNobody()) return false;
+  _grdDrawnFor = null;
+  return true;
+}
+/* The guard is on and nobody is signed in on this window (the lock down, or not yet lifted at the start). */
+function grdNobody() { return !!S && grdOn() && !grdUser(); }
+/* A screen was drawn: for whom (grdHeld's null when nobody, the guard off included). */
+function grdDrawn() { _grdDrawnFor = grdOn() ? grdDrawKey(grdUser()) : null; }
+/* True when somebody is signed in, or nobody need be (the guard off): go on now. Otherwise `fn` waits for the next unlock
+   and runs for whoever unlocks, with what their role sees (the Windows widget's launch at a fresh open), and false. */
+var _grdWhenIn = [];
+function grdWhenIn(fn) {
+  if (!grdNobody()) return true;
+  if (typeof fn === 'function') _grdWhenIn.push(fn);
+  return false;
+}
 /* After a sign-in, or a book loaded from elsewhere: the doors for this role, the top bar's button, and the page on screen
-   if this role may not open it (sent to Home with a word). A screen drawn for somebody else is drawn again, unless a form
-   or a dialog is in progress (bookBusy): what was typed stays. */
+   if this role may not open it (sent to Home with a word).
+   - Somebody else signed in, or the first person since this window opened: what the last person left open is not handed
+     on (the QA audit of 2 Oct 2026, QA4-7). Every dialog is shut, a question it was asking answered cancel, and the print
+     preview closed (an invoice the next role may not open); the same person coming back keeps them.
+   - A screen drawn for nobody, for somebody else or for this person's old role is drawn again for this one (QA4-2: the
+     first unlock of the day showed the supervisor the owner's Today, drawn at the start for nobody). For somebody else it
+     is drawn whatever was typed on it: the last person's half-typed form is theirs, and Staff → Pay with a figure typed
+     stayed on screen for a role without wages. The same person keeps what they typed, but never a Pay their role lost. */
+var _grdLastUser = null;     // the user last signed in on this window, for what is handed on
 function grdAfterUser() {
-  var u = grdUser(), prev = _grdDrawnFor;
+  var u = grdUser();
   grdUserBtnDraw();
   // The shell's doors are the role's views (workspace.js); then any door left over is marked.
   if (typeof wsRedraw === 'function') wsRedraw();
   grdApplyDoors();
   if (!u) return;
-  _grdDrawnFor = u.id;
-  // Somebody else signed in: a dialog the last person left open (a delete half-confirmed, a reason half-typed) is not
-  // handed on. Every one is shut, and a question it was asking is answered cancel; the same person coming back keeps it.
-  if (prev && prev !== u.id && document.querySelector('.inv-scrim-dialog') && typeof closeOverlay === 'function') closeOverlay();
+  var first = _grdLastUser == null, other = _grdLastUser !== u.id, stale = _grdDrawnFor !== grdDrawKey(u);
+  _grdLastUser = u.id;
+  if (other) {
+    if (document.querySelector('.inv-scrim-dialog') && typeof closeOverlay === 'function') closeOverlay();
+    var pv = document.getElementById('invPrintView');
+    if (pv && pv.classList.contains('inv-print-view-active') && typeof closePrintPreview === 'function') closePrintPreview();
+  }
   var page = (document.querySelector('.inv-page-active') || {}).id;
-  if (!page) return;
-  if (!grdSees(page)) { switchTab(page); return; }
-  var busy = typeof bookBusy === 'function' && bookBusy();
-  if (page === 'pageStaff' && !grdSeesWages() && !busy && typeof renderAttendance === 'function') { renderAttendance(); return; }
-  if (prev && prev !== u.id && !busy && typeof tabRedrawActive === 'function') tabRedrawActive();
+  if (page) {
+    var busy = typeof bookBusy === 'function' && bookBusy();
+    // A challan form a launch opened before the first unlock (the New challan shortcut) is the person's who launched it:
+    // drawn again, Challans would close it.
+    var launched = first && page === 'pageIM' && typeof _challanForm !== 'undefined' && !!_challanForm;
+    // Each drawing records whom it was for (tabRender → grdDrawn); a screen left as it was keeps what it says, so a redraw
+    // waiting on typed work (bookRedraw's pending one) still finds it stale.
+    if (!grdSees(page)) switchTab(page);
+    else if (stale && !launched && (other || !busy) && typeof tabRedrawActive === 'function') tabRedrawActive();
+    else if (page === 'pageStaff' && typeof _attView !== 'undefined' && _attView === 'pay' && !grdSeesWages() && typeof renderAttendance === 'function') renderAttendance();
+  }
+  // The bar's red counts are the role's (workspace.js wsRedCounts): counted again for whoever is in.
+  if (typeof wsUpdateCounts === 'function') wsUpdateCounts();
+  grdRunWaiting();
+}
+/* What waited for somebody to be in (grdWhenIn), now for whoever is. */
+function grdRunWaiting() {
+  var waiting = _grdWhenIn;
+  _grdWhenIn = [];
+  waiting.forEach(function(fn) { try { fn(); } catch (e) { if (typeof errReport === 'function') errReport(e, 'guard: after the unlock'); } });
 }
 function grdLockSubmit() {
   if (_grdForgot) grdRecover(); else grdUnlock();
@@ -5831,7 +6010,7 @@ function grdUnlock() {
   var u = _grdPick ? grdUserById(_grdPick) : null;
   if (!root || !u || _grdBusy) return;
   var inp = root.querySelector('#grdPin'), err = root.querySelector('[data-grd-err]'), go = root.querySelector('[data-grd-go]');
-  if (grdFailLeftMs() > 0) { grdShowFail(err, go); return; }
+  if (grdFailLeftMs(u.id) > 0) { grdShowFail(err, go, null, u.id); return; }
   var pin = inp ? inp.value : '';
   if (!grdNorm(pin)) { if (err) err.textContent = 'Enter your PIN.'; if (inp) inp.focus(); return; }
   if (!grdCryptoOk()) { if (err) err.textContent = 'This browser cannot check a PIN here: open the app from its https address.'; return; }
@@ -5845,9 +6024,11 @@ function grdUnlock() {
     var now = grdUserById(u.id);
     if (ok && now && now.active !== false) { grdSignIn(now); return; }
     if (ok) { grdRenderLock(); return; }
-    grdFailNote();
+    grdFailNote(u.id);
+    // The field on screen is still this ID's only if the same person is still chosen.
+    if (_grdPick !== u.id) return;
     if (go) go.disabled = false;
-    grdShowFail(err, go);
+    grdShowFail(err, go, null, u.id);
     if (inp) inp.focus();
   });
 }
@@ -5858,7 +6039,8 @@ function grdRecover() {
   var rec = grdCfg().recovery;
   if (!root || !u || u.role !== 'owner' || !rec || !rec.hash || _grdBusy) return;
   var err = root.querySelector('[data-grd-err]'), go = root.querySelector('[data-grd-go]');
-  if (grdFailLeftMs() > 0) { grdShowFail(err, go, 'recovery code'); return; }
+  // Counted under the owner's ID: the code resets that PIN, and a wrong one is a guess at it.
+  if (grdFailLeftMs(u.id) > 0) { grdShowFail(err, go, 'recovery code', u.id); return; }
   var code = grdCodeNorm((root.querySelector('#grdCode') || {}).value);
   var p1 = (root.querySelector('#grdNew1') || {}).value || '', p2 = (root.querySelector('#grdNew2') || {}).value || '';
   var bad = code.length !== 12 ? 'Type the 12 characters of the recovery code.' : grdPinProblem(p1, p2);
@@ -5868,9 +6050,9 @@ function grdRecover() {
   grdVerify(rec, code).then(function(ok) {
     if (!ok) {
       _grdBusy = false;
-      grdFailNote();
+      grdFailNote(u.id);
       if (go) go.disabled = false;
-      grdShowFail(err, go, 'recovery code');
+      grdShowFail(err, go, 'recovery code', u.id);
       return null;
     }
     var next = grdNewCode();
@@ -5881,7 +6063,8 @@ function grdRecover() {
       owner.secret = made[0];
       owner.updatedAt = Date.now();
       S.guardCfg.recovery = { alg: GRD_ALG, iter: made[1].iter, salt: made[1].salt, hash: made[1].hash };
-      saveState();
+      // Saved before the sign-in, while nobody is: the change log names the owner who proved it with the code (QA4-10).
+      grdSaveAs(owner.id);
       grdSignIn(owner);
       grdShowCode(next, 'reset');
     });
@@ -5925,8 +6108,10 @@ function grdApplyDoors() {
   document.querySelectorAll('[data-grd-off]').forEach(function(el) { el.removeAttribute('data-grd-off'); });
   if (!grdOn() || !grdUser()) return;
   var off = function(el) { el.setAttribute('data-grd-off', ''); };
+  // Pay has no door of its own here: it is a view inside People, and Staff draws its view tabs without it for a role
+  // without the wages (staff.js); Add's Payment is below.
   document.querySelectorAll('.inv-navbar [data-tab], #invSidebar [data-tab], #wsTabs [data-tab]').forEach(function(el) {
-    if (!grdSees(el.dataset.tab) || (el.dataset.sub === 'pay' && !grdSeesWages())) off(el);
+    if (!grdSees(el.dataset.tab)) off(el);
   });
   document.querySelectorAll('.inv-navbar [data-ws], #invSidebar [data-ws]').forEach(function(el) {
     if (typeof wsViewsPresent === 'function' && !wsViewsPresent(el.dataset.ws).length) off(el);
@@ -5947,7 +6132,8 @@ function grdApplyDoorsSoon() {
   _grdDoorsQueued = true;
   setTimeout(function() { _grdDoorsQueued = false; if (S) grdApplyDoors(); }, 0);
 }
-/* A sidebar or a More sheet drawn later gets its doors; anything appended while locked goes under the lock, inert. */
+/* A sidebar, Add's sheet or a dialog drawn later gets its doors; anything appended while locked goes under the lock,
+   inert. */
 if (typeof MutationObserver !== 'undefined' && document.body) {
   new MutationObserver(function() {
     if (_grdLocked) grdInertAll(true);
@@ -5956,7 +6142,8 @@ if (typeof MutationObserver !== 'undefined' && document.body) {
 }
 
 /* ---------- Boot, the background, other windows ---------- */
-/* At the end of the start (init.js bootApp): a window with no session, or one away past lockMinutes, is locked. */
+/* At the end of the start (init.js bootApp), before the first screen is drawn: a window with no session, or one away past
+   lockMinutes, is locked, and that screen waits for the unlock (grdHeld). A session the reload kept is the same person. */
 function grdBoot() {
   grdChannel();
   if (!grdOn()) { grdUserBtnDraw(); return; }
@@ -5965,18 +6152,23 @@ function grdBoot() {
   if (!u || u.active === false || !u.secret || away) { grdLock(away ? 'away' : 'boot'); return; }
   s.hiddenAt = null;
   grdSessWrite(s);
-  _grdDrawnFor = u.id;
+  _grdLastUser = u.id;
   grdUserBtnDraw();
   grdApplyDoors();
 }
 /* A book loaded from another window, an import or a pull: users or roles may have changed. A deactivated user is locked
-   out, a role that lost the page on screen is sent Home, the guard turned off lifts the lock. */
+   out, a role that lost the page on screen is sent Home, the guard turned off lifts the lock (and draws the screen the lock
+   held back). */
 function grdRecheck() {
   if (!S) return;
   if (!grdOn()) {
+    var wasLocked = _grdLocked;
     if (_grdLocked) grdHideLock();
+    _grdLastUser = null;
     grdUserBtnDraw();
     grdApplyDoors();
+    if (wasLocked && !(typeof bookBusy === 'function' && bookBusy()) && typeof tabRedrawActive === 'function') tabRedrawActive();
+    grdRunWaiting();
     return;
   }
   if (_grdLocked) { grdRenderLock(); return; }
@@ -6037,6 +6229,9 @@ function grdFormScrim() { var f = document.querySelector('[data-grd-form]'); ret
 function grdFormOpen(mode, id) {
   var u = id ? grdUserById(id) : null;
   if ((mode === 'edit' || mode === 'pin') && !u) return;
+  // One's own PIN is changed, never reset: a reset asks only the re-ask window, so the owner's PIN could be set anew by
+  // whoever had the device inside it (the QA audit of 2 Oct 2026, QA4-5). The change asks the PIN it has now.
+  if (mode === 'pin' && u && u.id === grdUserId()) { mode = 'mine'; id = null; u = null; }
   _grdForm = { mode: mode, id: id || null };
   var title = { on: 'Turn on the guard', add: 'Add a user', edit: 'Edit ' + escHtml(u ? u.name : ''), pin: 'Reset ' + escHtml(u ? u.name : '') + '’s PIN', mine: 'Change my PIN' }[mode];
   var pins = function(lbl) {
@@ -6068,11 +6263,14 @@ function grdFormOpen(mode, id) {
     body = '<p class="inv-note inv-mb-8">' + escHtml(u.name) + '&rsquo;s old PIN stops working at once. Tell them the new one.</p>' + pins('New PIN');
   } else if (mode === 'mine') {
     var me = grdUser();
+    if (!me) return;
     body = grdFieldHtml('grdCur', 'Your PIN now', grdPinInput('grdCur', me)) + pins('New PIN');
   }
   var ok = { on: 'Turn on', add: 'Add user', edit: 'Save', pin: 'Set PIN', mine: 'Change PIN' }[mode];
+  // The current PIN is checked under the ID it is for (the lockout's count, per ID).
+  var errUid = mode === 'mine' ? grdUidAttr(grdUserId()) : '';
   dialogOpen('<div class="inv-dialog" data-grd-form="' + mode + '">' + dialogHeadHtml(title, 'invCloseConfirm') + body +
-    '<div class="inv-field-error" data-grd-err role="alert"></div>' +
+    '<div class="inv-field-error" data-grd-err' + errUid + ' role="alert"></div>' +
     '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button>' +
     '<button type="button" class="inv-btn inv-btn-primary" data-action="invGuardFormSave" data-grd-go>' + ok + '</button></div></div>');
 }
@@ -6091,14 +6289,16 @@ async function grdFormSave() {
   if (f.mode === 'mine') {
     var me = grdUser();
     if (!me) return false;
-    if (grdFailLeftMs() > 0) { grdShowFail(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]')); return false; }
+    var mid = me.id;
+    if (grdFailLeftMs(mid) > 0) { grdShowFail(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'), null, mid); return false; }
     f.busy = true;
     var right = await grdVerify(me.secret, grdVal('grdCur'));
     f.busy = false;
-    if (!right) { grdFailNote(); grdShowFail(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]')); var c = document.getElementById('grdCur'); if (c) { c.value = ''; c.focus(); } return false; }
-    grdFailClear();
+    if (!right) { grdFailNote(mid); grdShowFail(scrim.querySelector('[data-grd-err]'), scrim.querySelector('[data-grd-go]'), null, mid); var c = document.getElementById('grdCur'); if (c) { c.value = ''; c.focus(); } return false; }
+    grdFailClear(mid);
     me = grdUser();
-    if (!me) return false;
+    // Still the person whose PIN was checked: a switch of user meanwhile changes nobody's PIN.
+    if (!me || me.id !== mid) return false;
     me.secret = await grdMakeSecret(p1);
     me.updatedAt = Date.now();
     saveState();
@@ -6106,8 +6306,12 @@ async function grdFormSave() {
     showToast('Your PIN is changed');
     return true;
   }
+  // One's own PIN is never reset here, however the form came to be open: it is changed with the PIN it has (grdFormOpen).
+  if (f.mode === 'pin' && f.id === grdUserId()) return grdFormErr('Your own PIN is changed with the PIN you have now: Change my PIN, in the menu under your initials.');
   var what = { on: 'turn on the guard', add: 'add a user', edit: 'edit a user', pin: 'reset a PIN' }[f.mode];
   if (!grdOk('users') && !(await guardAsk('users', what))) return false;
+  // The person may have changed while the PIN was asked (a switch in another window): their own PIN is not reset either.
+  if (f.mode === 'pin' && f.id === grdUserId()) return false;
   f.busy = true;
   var go = scrim.querySelector('[data-grd-go]');
   if (go) go.disabled = true;
@@ -6127,7 +6331,9 @@ async function grdFormSave() {
     S.guardCfg.recovery = { alg: GRD_ALG, iter: rec.iter, salt: rec.salt, hash: rec.hash };
     grdSessWrite({ userId: owner.id, at: now, askAt: now, hiddenAt: null });
     try { localStorage.setItem(GRD_LAST_KEY, owner.id); } catch (e) { /* remembered on this window only */ }
-    _grdDrawnFor = owner.id;
+    // The screens on show were drawn with the guard off, which is the owner's view of everything: theirs.
+    _grdDrawnFor = grdDrawKey(owner);
+    _grdLastUser = owner.id;
   } else if (f.mode === 'add') {
     var role = GRD_ROLES.indexOf(grdVal('grdRole')) > 0 ? grdVal('grdRole') : 'office';
     var staffId = grdVal('grdStaff');
@@ -6199,7 +6405,8 @@ function grdUserRowsHtml() {
     var meta = [grdRoleName(u.role), w ? 'worker ' + w.name : '', u.id === me ? 'signed in here' : ''].filter(Boolean).join(' · ');
     var acts = '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardEdit" data-id="' + escHtml(u.id) + '">Edit</button>';
     if (u.active !== false) {
-      acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardResetPin" data-id="' + escHtml(u.id) + '">Reset PIN</button>';
+      // One's own row changes the PIN with the PIN it has; another's is reset (grdFormOpen).
+      acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardResetPin" data-id="' + escHtml(u.id) + '">' + (u.id === me ? 'Change my PIN' : 'Reset PIN') + '</button>';
       if (u.role !== 'owner') acts += '<button type="button" class="inv-btn inv-btn-danger inv-btn-sm" data-action="invGuardDeactivate" data-id="' + escHtml(u.id) + '">Deactivate</button>';
     } else if (u.role !== 'owner') acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardReactivate" data-id="' + escHtml(u.id) + '">Reactivate</button>';
     return '<div class="inv-row inv-row-2 inv-row-flow' + (u.active === false ? ' inv-row-muted' : '') + '" data-grd-user="' + escHtml(u.id) + '">' +
@@ -6286,9 +6493,16 @@ async function grdSetActive(id, on) {
   grdUsersRedraw(false);
   showToast(u.name + (on ? ' is active again' : ' is deactivated'));
 }
+/* A new recovery code: the owner's PIN whatever the window, as turning the guard off asks it. The code resets the owner's
+   PIN, so making one inside the window let whoever had the device give themselves a way in (the QA audit, QA4-5). */
 async function grdNewRecovery() {
-  if (!grdOk('users') && !(await guardAsk('users', 'make a new recovery code'))) return;
+  var u = grdUser();
+  if (!u || u.role !== 'owner') { grdRefuse('make a new recovery code'); return; }
   if (!grdCryptoOk()) return;
+  if (!(await grdPinAsk(u, 'Make a new recovery code'))) return;
+  grdStampAsk();
+  // Still the owner who gave the PIN.
+  if (grdUserId() !== u.id) return;
   var code = grdNewCode(), rec = await grdMakeSecret(grdCodeNorm(code));
   S.guardCfg.recovery = { alg: GRD_ALG, iter: rec.iter, salt: rec.salt, hash: rec.hash };
   saveState();
@@ -6302,11 +6516,14 @@ async function grdTurnOff() {
   if (!(await grdPinAsk(u, 'Turn off the guard'))) return;
   if (!(await uiConfirm({ title: 'Turn off the guard?', body: 'The app opens without an ID or PIN on every device that loads this book, and nobody is asked before a P1 change. ' +
     'Every user is kept, inactive, so the guard can be turned on again.', okLabel: 'Turn off', danger: true }))) return;
+  if (grdUserId() !== u.id) return;
   var now = Date.now();
   grdUsers().forEach(function(x) { if (x && x.active !== false) { x.active = false; x.updatedAt = now; } });
   grdSessClear();
   _grdDrawnFor = null;
-  saveState();
+  _grdLastUser = null;
+  // Saved with nobody signed in any more: the change log names the owner who turned it off (QA4-10).
+  grdSaveAs(u.id);
   grdUsersRedraw(true);
   grdUserBtnDraw();
   grdApplyDoors();
@@ -6327,8 +6544,9 @@ var GRD_SETTINGS_SEC = {
   body: function() { return grdUsersBody(); },
   why: 'Who is using the app decides what it shows and what it may change. A PIN is kept only as a salted, slow hash, never as itself. ' +
     'The app asks for it when it is opened, after the minutes above in the background and on Lock now; then again before a P1 change ' +
-    '(an invoice or credit note issued, edited, cancelled or deleted; rates and the client master; any void; payments and wages; an import or pull; Settings; users) ' +
-    'once the second figure has passed since it was last given. Five wrong tries lock the device for 30 seconds, doubling to 15 minutes. ' +
+    '(an invoice or credit note issued, edited, cancelled, deleted or moved to another state; rates and the client master; any void; payments and wages; an import; Settings; users) ' +
+    'once the second figure has passed since it was last given. A backup imported or a pull from GitHub replaces the book and its IDs, so it is the owner’s alone. ' +
+    'Five wrong tries for an ID lock that ID for 30 seconds, doubling to 15 minutes; the others still unlock. ' +
     'A PIN of four digits stops someone at the screen, not someone holding a copy of the book: give the owner six or more, or a password.',
   saveIf: function() { return grdOn() && grdIsOwner(); },
   save: function() { return grdUsersSave(); }
@@ -6869,8 +7087,12 @@ function switchTab(tabId) {
   if (refused) showToast('Your ID doesn’t open ' + (PAGE_TITLES[refused] || 'that screen'), 'warning');
 }
 
-/* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
+/* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive).
+   Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the page waits for the unlock, which draws
+   it for whoever unlocks; each drawing records whom it was for (grdDrawn). */
 function tabRender(tabId, isDirty) {
+  if (typeof grdHeld === 'function' && grdHeld()) return;
+  if (typeof grdDrawn === 'function') grdDrawn();
   if (tabId === 'pageHome') {
     // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
     // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
@@ -6962,6 +7184,15 @@ var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 var ICON_CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
 var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 
+/* The stat strip for a role without money: its tiles say nothing, rather than another role's month left in them. */
+function homeBlankTiles() {
+  ['mtdCount', 'mtdRevenue', 'mtdKg', 'mtdPerKg'].forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = '&mdash;'; });
+  ['mtdCountSub', 'mtdRevenueSub', 'mtdKgSub', 'mtdPerKgSub', 'mtdCountDelta', 'mtdRevenueDelta', 'mtdKgDelta', 'mtdPerKgDelta'].forEach(function(id) {
+    var e = document.getElementById(id); if (e) e.innerHTML = '';
+  });
+  var tile = document.getElementById('mtdPerKgTile');
+  if (tile) tile.className = 'inv-tile';
+}
 /* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
 function renderHomeTiles(active) {
   var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
@@ -7013,33 +7244,41 @@ function homePriorSameDays() {
     invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
-/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. */
+/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
 var _homeDrawnView = '';   // the view of Today drawn last (tabRender)
 function renderHome() {
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
   tdyApplyView();
-  if (tdyView() === 'needs') { renderNeeds(); return; }
+  // The bar's red counts on either view: Needs you had none drawn, so they stood as the start counted them (QA2-7).
+  if (tdyView() === 'needs') { renderNeeds(); updateStockBadge(); return; }
   renderPulseQuestions();
   renderHomeWidgets();
 }
+/* A widget's card emptied: one the role signed in does not see is not drawn at all, hidden or not (the QA audit, QA4-4:
+   the money cards were drawn in full and hidden, for any role). */
+function homeWidgetBlank(ids) { ids.forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = ''; }); }
 /* Pulse's widgets, as the owner arranged them. */
 function renderHomeWidgets() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
-  const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
-  renderHomeTiles(active);
+  if (homeWidgetSeen('mtd')) {
+    const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
+    renderHomeTiles(active);
+  } else homeBlankTiles();
 
-  renderZincCard();
-  renderFinHomeCard();
+  if (homeWidgetSeen('zinc')) renderZincCard(); else homeWidgetBlank(['homeZincCard']);
+  if (homeWidgetSeen('money')) renderFinHomeCard(); else homeWidgetBlank(['homeFinCard']);
   renderTodoHomeCard();
-  renderAttHomeCard();
+  if (homeWidgetSeen('attendance')) renderAttHomeCard(); else homeWidgetBlank(['homeAttCard']);
   updateStockBadge();
-  ghRenderCard();
+  if (homeWidgetSeen('sync')) ghRenderCard(); else homeWidgetBlank(['homeSyncCard']);
   homeApplyLayout();
 
   var unbilledEl = document.getElementById('homeUnbilledCard');
-  if (unbilledEl) {
+  if (unbilledEl && !homeWidgetSeen('unbilled')) unbilledEl.innerHTML = '';
+  else if (unbilledEl) {
     var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null;
     (S.incomingMaterial || []).forEach(function(im) {
       var hasPending = false;
@@ -7072,8 +7311,9 @@ function renderHomeWidgets() {
     }
   }
 
-  const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
   const el = document.getElementById('recentInvoices');
+  if (!homeWidgetSeen('recent')) { el.innerHTML = ''; return; }
+  const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
   if (recent.length === 0) {
     el.innerHTML = '<div class="inv-empty">' +
       '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
@@ -7209,13 +7449,14 @@ function homeShowToggle(el) {
   homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
 }
 
-/* The three widgets Home had no card for. Each is drawn only while shown, and says nothing rather than a zero. */
+/* The three widgets Home had no card for. Each is drawn only while shown, to a role that sees it (homeWidgetSeen), and says
+   nothing rather than a zero. */
 function renderHomeExtraCards() {
   var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
   var head = function(title, go, label) { return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="' + go + '">' + label + '</button></div>'; };
   // Production: the last day with plating on record, by line.
-  if (!l.hidden.production) {
+  if (!l.hidden.production && homeWidgetSeen('production')) {
     var h = '';
     try {
       var last = null;
@@ -7236,7 +7477,7 @@ function renderHomeExtraCards() {
     set('homeProdCard', h);
   } else set('homeProdCard', '');
   // Power: this month's cuts and the last one.
-  if (!l.hidden.power) {
+  if (!l.hidden.power && homeWidgetSeen('power')) {
     var ph = '';
     try {
       var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
@@ -7249,7 +7490,7 @@ function renderHomeExtraCards() {
     set('homePowerCard', ph);
   } else set('homePowerCard', '');
   // Stock: the lines red or amber, soonest out first.
-  if (!l.hidden.stock) {
+  if (!l.hidden.stock && homeWidgetSeen('stock')) {
     var sh = '';
     try {
       var rows = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
@@ -11212,8 +11453,8 @@ function bookReplacedShow() {
 }
 
 function importData() {
-  // P1 (guard.js): an import replaces the book.
-  if (typeof grdGate === 'function' && !grdGate('imports', 'import a backup', importData)) return;
+  // P1 (guard.js): an import replaces the book, its IDs with it: the owner's alone (grdBookAsk), not the Imports switch's.
+  if (typeof grdGate === 'function' && !grdGate('users', 'import a backup', importData)) return;
   const inp = document.getElementById('importFileInput');
   inp.onchange = (e) => {
     const f = e.target.files[0];
@@ -11229,6 +11470,9 @@ function importData() {
 
 /* A backup's text, from Settings → Import or from Add → File (add.js): checked, asked about, and only then the book replaced. */
 async function importDataText(text) {
+  // Whatever door it came through (Settings → Import, Add → File): replacing the book is the owner's (guard.js). Asked
+  // once: the door's own question opened the window this one reads.
+  if (typeof grdOk === 'function' && !grdOk('users') && !(await grdBookAsk('import a backup'))) return;
   let data;
   try {
     data = JSON.parse(text);
@@ -11243,6 +11487,8 @@ async function importDataText(text) {
   if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
   if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
       (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
+  // This book's IDs stay unless the owner says to take the backup's (guard.js): a backup with no guard, or another's.
+  if (typeof grdBookUsersAsk === 'function') await grdBookUsersAsk(data);
   try {
     // This path carried NO repairs at all, which was the sharper half of
     // the same bug: a backup written before `staff` existed left it
@@ -11613,7 +11859,8 @@ async function ghPush(opts) {
 
 /* ===== PULL ===== */
 async function ghPull() {
-  if (!grdOk('imports') && !(await guardAsk('imports', 'pull from GitHub'))) return false;   // P1 (guard.js): a pull replaces the book
+  // P1 (guard.js): a pull replaces the book and its IDs with it, so it is the owner's alone (grdBookAsk).
+  if (!grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
   var cfg = getGhConfig();
   // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
   var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
@@ -11653,6 +11900,8 @@ async function ghPull() {
       ghSetStatus('Pull cancelled.');
       return false;
     }
+    // This book's IDs stay unless the owner says to take GitHub's copy's (guard.js), where the two differ.
+    await grdBookUsersAsk(env.state);
 
     // The same two passes the loader runs, in the same order: fill the shape a
     // backup might predate, then migrate the records inside it. The second was
@@ -13282,24 +13531,29 @@ function _renderRegSelBar() {
     '<span class="inv-selbar-sum">' + formatCurrency(gstRound(taxable)) + ' taxable</span>' + btns + '</div>';
 }
 
-function regBulkSetState(targetState) {
+async function regBulkSetState(targetState) {
   var ids = _regSelectedIds();
-  var now = Date.now();
   var updated = 0;
 
   var targetIdx = invStateIdx(targetState);
   if (targetIdx < 0) return;
 
+  // One step at a time, except that Created may be dispatched straight away (printed outside the app).
+  var moves = function(inv) {
+    if (!inv || inv.status !== 'active') return false;
+    var curState = getInvState(inv), curIdx = invStateIdx(curState);
+    return curIdx >= 0 && (curIdx + 1 === targetIdx || (curState === 'created' && targetState === 'dispatched'));
+  };
+  var find = function(id) { return S.invoices.find(function(i) { return i.id === id; }); };
+  if (!ids.some(function(id) { return moves(find(id)); })) return;
+  // A billing change (guard.js, as each invoice's own mark is: state.js invStateAsk); the invoices found again after it.
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark invoices ' + invStateLower(targetState)))) return;
+  var now = Date.now();
   ids.forEach(function(id) {
-    var inv = S.invoices.find(function(i) { return i.id === id; });
-    if (!inv || inv.status !== 'active') return;
-    var curState = getInvState(inv);
-    var curIdx = invStateIdx(curState);
-    // One step at a time, except that Created may be dispatched straight away (printed outside the app).
-    if (curIdx >= 0 && (curIdx + 1 === targetIdx || (curState === 'created' && targetState === 'dispatched'))) {
-      invSetState(inv, targetState, now);
-      updated++;
-    }
+    var inv = find(id);
+    if (!moves(inv)) return;
+    invSetState(inv, targetState, now);
+    updated++;
   });
 
   if (updated > 0) {
@@ -16070,10 +16324,14 @@ window.addEventListener('resize', printFit);
 
 /* Print on a Created invoice's preview moves it to Printed, and the screen under the preview shows it at once (the
    row, the pane, Home's recent invoices). The print dialog cannot say whether the paper came out, so a print that
-   never came out is put back with Not printed on the invoice (invNotPrinted). */
+   never came out is put back with Not printed on the invoice (invNotPrinted).
+   The mark is a billing change (guard.js): a role that may not make one prints the invoice and leaves its state as it was
+   (the QA audit of 2 Oct 2026, QA4-6). No PIN is asked: marking is part of printing an invoice the role opened, and the
+   print dialog has to open in the same tap. */
 function printMarkPrinted() {
   var inv = _printInvId && S.invoices.find(function(i) { return i.id === _printInvId; });
   if (!inv || inv.status === 'cancelled' || getInvState(inv) !== 'created') return;
+  if (typeof grdCan === 'function' && !grdCan('billing')) { showToast('Your ID can’t change invoices: printing leaves it Created', 'warning'); return; }
   invSetState(inv, 'printed');
   saveState();
   invStateShown(inv.id);
@@ -26173,7 +26431,8 @@ function renderStockReorder() {
   }
   if (L.groups.length) {
     // The cash it needs, against the forecast: an order is a payment in a few weeks.
-    var fc = finHasBank() ? finForecast(45) : null;
+    // The forecast is the bank's: shown to a role that may read money (finlinks.js finSeen).
+    var fc = finSeen() ? finForecast(45) : null;
     if (fc && L.total > 0) {
       var after = gstRound(fc.min.bal - L.total * 1.18);
       h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
@@ -28983,14 +29242,67 @@ var TODO_RULE_FNS = {
       clears: 'Clears itself when you export a backup or push to GitHub.',
       go: { kind: 'settings', sec: 'data' }, goLabel: 'Open backup', sig: String(last) }];
   },
+  // Settings → Costing → Zinc rate, where the rate is set and derived: the zinc card is a Pulse widget, and "Open Home"
+  // opened Needs you, where it is not (the QA audit, QA2-11).
   zinc: function() {
     var age = zincAgeDays();
     if (age == null || age <= ZINC_STALE_DAYS) return [];
     return [{ key: 'zinc', rule: 'zinc', tone: 'info', title: 'Update the zinc rate', sub: 'Last set ' + todoPlural(age, 'day') + ' ago',
       why: 'Zinc · rule: ' + ZINC_STALE_DAYS + ' days', facts: [['Age', todoPlural(age, 'day')]],
-      clears: 'Clears itself when the rate is refreshed.', go: { kind: 'home' }, goLabel: 'Open Home', sig: String(getZinc().updatedAt) }];
+      clears: 'Clears itself when the rate is refreshed.', go: { kind: 'settings', sec: 'zinc' }, goLabel: 'Open the zinc rate', sig: String(getZinc().updatedAt) }];
   }
 };
+
+/* ---------- Who sees a task (the guard; the QA audit of 2 Oct 2026, QA4-1, QA4-3, QA4-4) ----------
+   The To-do listed every task to every role: a supervisor saw what clients owe, the cash forecast and the wage checks, and
+   the link picker listed the last invoices and every client. A task is shown to the role signed in only where it may
+   follow its move (the page it lands on is one the role opens; Pay needs the wages; Settings the settings), and where the
+   rule's figures are ones it may read: a rule that reads money (the statement, margins, realisation) needs the finance
+   permission, one that reads a worker's pay needs the wages. Rules set their need where they are made (finintel.js for
+   the statement's); the insights' (insights.js) are named here. With the guard off, every task is everyone's; while
+   nobody is signed in, none is (nothing a role decides is drawn under the lock, guard.js grdHeld). The book's own list
+   (todoAppAll) is unfiltered: snoozes are kept against it, and the Windows widget reads it. */
+var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', insClientDown: 'money', insLeak: 'money', insBelowVar: 'money', insLabour: 'money' };
+// Moves that open Staff → Pay, which a role opens only with the wages (staff.js).
+var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
+// A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
+var TODO_GO_FLOOR = { stock: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
+  staffRoster: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
+function todoGuardOn() { return typeof grdOn === 'function' && grdOn(); }
+/* The page a move lands on (workspace.js WS_GO_PAGE; a move may name its page itself). */
+function todoGoPage(go) {
+  if (!go) return null;
+  if (typeof isPageId === 'function' && isPageId(go.page)) return go.page;
+  return typeof WS_GO_PAGE !== 'undefined' ? WS_GO_PAGE[go.kind] || null : null;
+}
+/* The role signed in may follow this move. A kind no page is known for is the owner's. */
+function todoGoSees(go) {
+  if (!go || !todoGuardOn()) return true;
+  if (!grdUser()) return false;
+  if (go.kind === 'settings') return grdCan('settings');
+  if (TODO_GO_WAGES[go.kind] && !grdSeesWages()) return false;
+  var page = todoGoPage(go);
+  return page ? grdSees(page) : grdIsOwner();
+}
+/* An app task the role signed in may see: its rule's need, and its move. */
+function todoSees(t) {
+  if (!t || !todoGuardOn()) return true;
+  if (!grdUser()) return false;
+  var need = TODO_RULE_NEED[t.rule] || '';
+  if (need.indexOf('money') >= 0 && !grdSeesMoney()) return false;
+  if (need.indexOf('wages') >= 0 && !grdSeesWages()) return false;
+  return todoGoSees(t.go);
+}
+/* A task of your own the role signed in may see: its move or its link where it has one; one made from a move needs the
+   money too, unless its place is the floor's (the move's sentence carries its worth, a client's rate or what is owed). */
+function todoMineSees(t) {
+  if (!t || !todoGuardOn()) return true;
+  if (!grdUser()) return false;
+  if (t.advKey && !(t.go && TODO_GO_FLOOR[t.go.kind]) && !grdSeesMoney()) return false;
+  if (t.go) return todoGoSees(t.go);
+  if (t.link) return todoGoSees({ kind: t.link.kind });
+  return true;
+}
 
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
@@ -29009,13 +29321,19 @@ function todoIsSnoozed(t) {
   if (s.until) return todoToday() < s.until;
   return s.sig === t.sig;
 }
-function todoApp(only) { return todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t); }); }
+/* The tasks the role signed in sees: not snoozed, and its own (todoSees). */
+function todoApp(only) { return todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t) && todoSees(t); }); }
+/* Your own open tasks the role signed in sees. */
+function todoMineShown() { return todoMineOpen().filter(todoMineSees); }
 
 /* Both kinds in one order, for Home and the widget: red, amber, then the rest;
-   App before Mine within a tone; Mine by due date. */
-function todoRanked() {
-  var rows = todoApp().map(function(t) { return { app: t, tone: t.tone }; });
-  todoMineOpen().forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
+   App before Mine within a tone; Mine by due date. What the role signed in sees, but for `all`: the book's whole list,
+   which the Windows widget shows (drawn by Windows outside the app and its lock, docs/GUARD.md, it would otherwise change
+   with whoever signed in last). */
+function todoRanked(all) {
+  var app = all ? todoAppAll().filter(function(t) { return !todoIsSnoozed(t); }) : todoApp();
+  var rows = app.map(function(t) { return { app: t, tone: t.tone }; });
+  (all ? todoMineOpen() : todoMineShown()).forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
   // Your own tasks come before everything the app raised, bar what is already red (owner, 26 Sep 2026:
   // a task typed in sat under ten raised ones and was easy to forget). An undated one of your own has
   // no tone, and ranked by tone alone it fell below every info task the data raised.
@@ -29028,10 +29346,6 @@ function todoRanked() {
     return 0;
   });
 }
-function todoRedCount() {
-  if (!S) return 0;
-  return todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-}
 
 /* ---------- Screens ----------
    View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
@@ -29042,9 +29356,11 @@ function todoRedCount() {
 function renderTodo() {
   var el = document.getElementById('todoContent');
   if (!el) return;
-  var app = todoApp(), mine = todoMineOpen(), td = todoData();
+  // Nothing a role decides is drawn while nobody is signed in (guard.js): the unlock draws it.
+  if (typeof grdHeld === 'function' && grdHeld()) return;
+  var app = todoApp(), mine = todoMineShown(), td = todoData();
   var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
+  var done = td.tasks.filter(function(t) { return t.doneAt && todoMineSees(t); }).sort(function(a, b) { return b.doneAt - a.doneAt; });
   var tab = function(v, label, n) {
     var on = (v === 'done') === _todoShowDone;
     return '<button class="inv-viewtab" role="tab" aria-selected="' + on + '" data-action="invTodoFoldDone" data-v="' + v + '">' +
@@ -29085,7 +29401,7 @@ function renderTodo() {
   app.forEach(function(t) { h += todoAppRowHtml(t); });
   h += '</div>';
 
-  var snoozed = todoAppAll().filter(todoIsSnoozed);
+  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); });
   if (snoozed.length) {
     h += '<div class="inv-panel inv-panel-flush inv-panels-wide" data-todo-sec="snoozed"><div class="inv-panel-head"><span class="inv-panel-title">Snoozed' +
       ' <span class="inv-panel-count">' + snoozed.length + '</span></span>' +
@@ -29145,6 +29461,7 @@ function todoMineRowHtml(t) {
 function renderTodoHomeCard() {
   var el = document.getElementById('homeTodoCard');
   if (!el) return;
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   var ranked = todoRanked();
   var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
     (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
@@ -29184,8 +29501,15 @@ function todoOverlay(title, body) {
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml(title) + body + '</div>', { dismiss: true });
 }
 
-function todoOpenApp(key) {
+/* An app task by its key (a row, the widget's launch): only one the role signed in sees. */
+function todoAppFind(key) {
   var t = todoAppAll().find(function(x) { return x.key === key; });
+  return t && todoSees(t) ? t : null;
+}
+function todoOpenApp(key) {
+  var all = todoAppAll().find(function(x) { return x.key === key; });
+  if (all && !todoSees(all)) { showToast('That task is not one your ID opens', 'warning'); return; }
+  var t = all;
   if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
   var s = todoData().snoozes[key];
   // The task's head is a flush panel: its title, why it was raised, then the figures it was
@@ -29209,8 +29533,13 @@ function todoOpenApp(key) {
 }
 
 var TODO_LINK_KINDS = [['', 'Nothing'], ['client', 'Client'], ['invoice', 'Invoice'], ['challan', 'Challan'], ['stock', 'Stock line']];
+/* A link's kind the role signed in may pick: its page is one the role opens (a client Clients, an invoice the Register, a
+   challan Challans, a stock line Stock). The picker listed the last 80 invoices and challans and every client to any role
+   (the QA audit, QA4-1). */
+function todoLinkKindSees(kind) { return !kind || todoGoSees({ kind: kind }); }
 function todoLinkOptions(kind, sel) {
   var opts = [];
+  if (!kind || !todoLinkKindSees(kind)) return kind ? '<option value="">Pick one</option>' : '';
   if (kind === 'client') opts = S.clients.filter(function(c) { return c.isActive !== false; })
     .sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(c) { return [String(c.id), c.name]; });
   else if (kind === 'invoice') opts = S.invoices.slice().sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 80)
@@ -29227,8 +29556,9 @@ function todoLinkOptions(kind, sel) {
 function todoOpenEdit(id, text) {
   var t = id ? todoData().tasks.find(function(x) { return x.id === id; }) : null;
   if (id && !t) return;
+  if (t && !todoMineSees(t)) { showToast('That task is not one your ID opens', 'warning'); return; }
   var v = t || { text: text || '', due: '', note: '', link: null };
-  var kind = v.link ? v.link.kind : '';
+  var kind = v.link && todoLinkKindSees(v.link.kind) ? v.link.kind : '';
   var h = '<div class="inv-field"><label class="inv-field-label" for="todoText">Task</label>' +
     '<input class="inv-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoDue">Due</label>' +
@@ -29237,7 +29567,7 @@ function todoOpenEdit(id, text) {
     '<button class="inv-chip" data-action="invTodoDue" data-v="">None</button></div>' +
     '<input type="date" class="inv-input" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
     '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="todoLinkKind">Link to</label>' +
-    '<select class="inv-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
+    '<select class="inv-select" id="todoLinkKind">' + TODO_LINK_KINDS.filter(function(k) { return todoLinkKindSees(k[0]); }).map(function(k) {
       return '<option value="' + k[0] + '"' + (k[0] === kind ? ' selected' : '') + '>' + k[1] + '</option>';
     }).join('') + '</select></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoLinkId">Which</label>' +
@@ -29256,17 +29586,19 @@ function todoSaveEdit(id, done) {
   var kind = (document.getElementById('todoLinkKind') || {}).value || '';
   var linkSel = document.getElementById('todoLinkId');
   var link = null;
-  if (kind && linkSel && linkSel.value) {
+  if (kind && todoLinkKindSees(kind) && linkSel && linkSel.value) {
     var opt = linkSel.options[linkSel.selectedIndex];
     link = { kind: kind, id: linkSel.value, label: opt ? opt.textContent : '' };
   }
   var td = todoData();
   var t = id ? td.tasks.find(function(x) { return x.id === id; }) : null;
+  if (t && !todoMineSees(t)) return;
   if (!t) { t = { id: todoUid(), createdAt: Date.now(), doneAt: null }; td.tasks.push(t); }
   t.text = text;
   t.due = (document.getElementById('todoDue') || {}).value || '';
   t.note = ((document.getElementById('todoNote') || {}).value || '').trim();
-  t.link = link;
+  // A link the picker did not offer this role (another role's, on a task opened here) is kept as it was.
+  if (link || !t.link || todoLinkKindSees(t.link.kind)) t.link = link;
   t.updatedAt = Date.now();
   if (done && !t.doneAt) { t.doneAt = Date.now(); t.doneBy = 'app'; }
   saveState();
@@ -29294,9 +29626,10 @@ function todoToggle(id, by) {
   todoRefreshViews();
 }
 function todoSnooze(key, v) {
+  // The book's whole list: a snooze on a task another role sees is not dropped as cleared because this one does not see it.
   var ran = {}, all = todoAppAll(null, ran);
   var t = all.find(function(x) { return x.key === key; });
-  if (!t) return;
+  if (!t || !todoSees(t)) return;
   var td = todoData();
   // A snooze whose task has cleared describes nothing; drop those while writing, but only where the task's rule ran
   // this time. A rule switched off, or one that failed on some shape of data, had every snooze of its dropped, and its
@@ -29402,6 +29735,7 @@ function todoGo(go) {
 }
 function todoGoLink(id) {
   var t = todoData().tasks.find(function(x) { return x.id === id; });
+  if (t && !todoMineSees(t)) return;
   if (t && t.go) { todoGo(t.go); return; }
   if (!t || !t.link) return;
   var l = t.link;
@@ -29575,7 +29909,7 @@ function todoApplyWidgetQueue() {
 /* What the widget shows: at most eight rows, the first three for the medium
    size; `big` rows only render on the large one. */
 function todoWidgetPayload() {
-  var ranked = todoRanked(), late = ranked.filter(function(r) { return r.tone === 'red'; }).length;
+  var ranked = todoRanked(true), late = ranked.filter(function(r) { return r.tone === 'red'; }).length;
   var colour = { red: 'Attention', amber: 'Warning' };
   var rows = ranked.slice(0, 8).map(function(r, i) {
     var row;
@@ -29627,6 +29961,8 @@ function todoOnWorkerMessage(msg) {
 }
 function todoHandleLaunch(action) {
   if (!action) return;
+  // With the lock down (a fresh open), done once somebody unlocks, for them and with what their role sees (guard.js).
+  if (typeof grdWhenIn === 'function' && !grdWhenIn(function() { todoHandleLaunch(action); })) return;
   // A tap on the widget while a dialog or a form holds typed work asks first, as every other way off the screen does:
   // a row tapped mid-challan left it without a word (the QA audit of 30 Sep 2026).
   if (dialogsTypedAsk(function() { todoHandleLaunch(action); })) return;
@@ -29653,7 +29989,7 @@ function todoAction(action, btn) {
     case 'invTodoToggle': todoToggle(btn.dataset.id); break;
     case 'invTodoOpenApp': todoOpenApp(btn.dataset.key); break;
     case 'invTodoGoApp': {
-      var t = todoAppAll().find(function(x) { return x.key === btn.dataset.key; });
+      var t = todoAppFind(btn.dataset.key);
       if (t) todoGo(t.go);
       break;
     }
@@ -31370,7 +31706,8 @@ function addJsonWhat(obj) {
 }
 /* What each file's import asks of the guard (guard.js), as its own screen's Import does: the permission and its words, and
    the page it lands on (a role that may not open the page is refused there too). A statement is Finance's, imported there
-   with no re-ask; the rest are P1 imports, and the payroll as paid is a payment. */
+   with no re-ask; the floor's records are P1 imports, and the payroll as paid is a payment. A backup replaces the book
+   and its IDs with it: the owner's alone (`users`, grdBookAsk), never the Imports switch's (the QA audit, QA4-9). */
 var ADD_FILE_GUARD = {
   xls: { page: 'pageFinance' },
   stock: { grp: 'imports', what: 'import stock records', page: 'pageStock' },
@@ -31378,7 +31715,7 @@ var ADD_FILE_GUARD = {
   power: { grp: 'imports', what: 'import power history', page: 'pagePower' },
   payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
-  backup: { grp: 'imports', what: 'import a backup' }
+  backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
 async function addFileGuardOk(key) {
@@ -35536,10 +35873,18 @@ var FIN_RULES = [
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+/* Who sees them (todo.js todoSees): every one reads the statement, which is money, whatever page its move lands on (a
+   supplier's bill on Stock, the wages on Staff → Pay); the two set against the pay need the wages as well (the QA audit
+   of 2 Oct 2026, QA4-4, QA4-3). */
+FIN_RULES.forEach(function(r) { TODO_RULE_NEED[r[0]] = 'money'; });
+TODO_RULE_NEED.wageVsSlip = 'money wages';
+TODO_RULE_NEED.cashSwing = 'money wages';
 /* A worker's balance carried from an earlier pay period (payCarried): it asks until it is paid, worked off, or
-   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). */
+   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). A worker's pay:
+   the wages' (QA4-3). */
 TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier period']);
 TODO_CHECK_DEFAULTS.payCarry = true;
+TODO_RULE_NEED.payCarry = 'wages';
 TODO_RULE_FNS.payCarry = function() {
   if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
   var ws = attWeekStartOf(localDateStr());
@@ -35759,10 +36104,15 @@ TODO_RULE_FNS.runway = function() {
  */
 
 function finHasBank() { return bankData().rows.length > 0; }
+/* The statement is there and the person signed in may read it: what the bank says is money, the finance permission's
+   (guard.js), on whichever screen it is carried (the QA audit of 2 Oct 2026, QA4-4: a client's Money panel, what the bank
+   paid a supplier on Stock, and an invoice's payment showed to a role without money). A screen says nothing then, as it
+   does with no statement. */
+function finSeen() { return finHasBank() && (typeof grdSeesMoney !== 'function' || grdSeesMoney()); }
 
 /* ---------- A client ---------- */
 function finClientMoney(clientId) {
-  if (!finHasBank()) return null;
+  if (!finSeen()) return null;
   var ctx = finCtx(), r = ctx.recv().find(function(x) { return String(x.client.id) === String(clientId); });
   var last = null;
   ctx.cls.forEach(function(v) { if (v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(clientId) && v.row.cr > 0) last = v.row; });
@@ -35793,7 +36143,7 @@ function finClientMoneyHtml(clientId) {
 /* Paid by the receipts it was set against, or open and how long. An invoice from before the statement's
    first day is not read at all: its payment may be on a statement nobody imported. */
 function finInvoicePayment(inv) {
-  if (!finHasBank() || !inv || inv.status !== 'active') return null;
+  if (!finSeen() || !inv || inv.status !== 'active') return null;
   var ctx = finCtx(), from = bankRecvFrom(ctx.rows);
   if (inv.date < from) return { before: from };
   var r = ctx.recv().find(function(x) { return String(x.client.id) === String(inv.clientId); });
@@ -35828,7 +36178,7 @@ function finInvoicePaymentHtml(inv) {
 /* Payments on the statement set to Supplier whose payee (or narration) carries the supplier's name, read by the
    one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
-  if (!name || !finHasBank()) return null;
+  if (!name || !finSeen()) return null;
   var k = bankKey(name);
   if (k.length < 4) return null;
   var out = { paid: 0, n: 0, last: null };
@@ -35843,7 +36193,9 @@ function finSupplierPaid(name) {
 function renderFinHomeCard() {
   var el = document.getElementById('homeFinCard');
   if (!el) return;
-  var h = '<div class="inv-panel inv-panel-flush" id="homeFin"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
+  // Pulse's Money widget is the finance permission's: for another role it is not drawn at all (tabs.js homeWidgetSeen).
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) { el.innerHTML = ''; return; }
+  var h ='<div class="inv-panel inv-panel-flush" id="homeFin"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button></div>';
   if (!finHasBank()) { el.innerHTML = h + '<div class="inv-empty">No bank statement yet. Import the bank’s .xls to see the balance, what is owed and the forecast.</div></div>'; return; }
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
@@ -37001,13 +37353,16 @@ function stockOverviewHtml() {
 
   h += dashPricePanelHtml();
 
-  var L = stockReorderList(), fc = finHasBank() ? finForecast(45) : null;
+  // The forecast is the bank's, money: a role without the finance permission sees the order's cost alone, and no tile
+  // asking for a statement (finlinks.js finSeen; the QA audit, QA4-4).
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var L = stockReorderList(), fc = finSeen() ? finForecast(45) : null;
   var need = gstRound(L.total * 1.18);
   h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(need))) + '</div><div class="inv-tile-sub">' +
       (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
-    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(fc.min.bal))) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
+    (!money ? '' : fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(fc.min.bal))) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
       '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(gstRound(fc.min.bal - need)))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
       : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
     '</div></div>';
@@ -38449,6 +38804,8 @@ function prodLinesHtml() {
         return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
+  // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
+  if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
   var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +
@@ -39540,8 +39897,8 @@ function flrOnChange(t) {
    The views are pageHome's own `v` (?tab=pageHome&v=pulse). The shell (workspace.js) draws their tabs once homeViews
    says they exist, and nav.js reads and applies the view. Nothing here is stored and nothing is worked out twice: each
    figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine, powerCuts, todoRanked,
-   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): a task whose move lands on a refused
-   page is left out, and Pulse's money is the finance permission's. */
+   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
+   a task it may not see (todo.js todoSees), and Pulse's money is the finance permission's. */
 
 var TDY_VIEWS = [{ v: 'needs', label: 'Needs you' }, { v: 'pulse', label: 'Pulse' }];
 var TDY_SHOW = 10;            // a group of tasks shows its first ten; the rest one tap away (uiMoreHtml)
@@ -39558,6 +39915,10 @@ function tdySetView(v) { _tdyView = v === 'pulse' ? 'pulse' : 'needs'; }
 /* What a role may see on Today. With the guard off, everything (guard.js answers yes). */
 function tdySees(tabId) { return typeof grdSees !== 'function' || grdSees(tabId); }
 function tdySeesMoney() { return typeof grdSeesMoney !== 'function' || grdSeesMoney(); }
+/* The screen each input fills, which a role must open for the input to be its own (the QA audit, QA2-5: an Office user saw
+   all five floor inputs toned Late, and every tap was refused). */
+var TDY_INPUT_PAGE = { 'roll-in': 'pageStaff', 'roll-out': 'pageStaff', pickling: 'pageProduction', production: 'pageProduction', stock: 'pageStock' };
+function tdyInputsSeen() { return TDY_INPUTS.filter(function(def) { return tdySees(TDY_INPUT_PAGE[def.k] || 'pageHome'); }); }
 
 /* ---------- The day's inputs ----------
    The five things the floor sends in a day, in the order they arrive. `usual` is the shop's own time, used until four
@@ -39681,7 +40042,10 @@ function tdyInput(def, day) {
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 
 function tdyInputsHtml(day) {
-  var rows = TDY_INPUTS.map(function(def) { return tdyInput(def, day); });
+  var defs = tdyInputsSeen();
+  // A role that takes none of the floor's inputs (the office) has no card of them.
+  if (!defs.length) return '';
+  var rows = defs.map(function(def) { return tdyInput(def, day); });
   var n = rows.filter(function(r) { return r.state === 'in'; }).length;
   var h = '<div class="inv-panel inv-panel-flush" data-card="inputs"><div class="inv-panel-head"><span class="inv-panel-title">The day&rsquo;s inputs ' +
     '<span class="inv-panel-count" data-tdy-in>' + n + ' of ' + rows.length + ' in</span></span>' +
@@ -39769,10 +40133,11 @@ function tdyTaskWs(t) {
   var tab = tdyTaskPage(t);
   return tab && typeof wsLabelOf === 'function' ? wsLabelOf(tab) : '';
 }
-/* The task's one-tap move: its first move (advice.js), else its own button. */
+/* The task's one-tap move: its first move (advice.js) the role may follow (todo.js todoGoSees: its page, Pay's wages,
+   Settings), else its own button. */
 function tdyTaskMoveHtml(t) {
   var mv = typeof advTaskMoves === 'function' ? advTaskMoves(t) : [];
-  var m = mv.filter(function(x) { return x.href || (x.go && tdySees(tdyTaskPage({ go: x.go }) || 'pageHome')); })[0];
+  var m = mv.filter(function(x) { return x.href || (x.go && todoGoSees(x.go)); })[0];
   if (m) {
     var ref = advRowRef(m);
     return m.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(m.href) + '" data-adv-call>' + escHtml(m.hrefLabel || 'Call') + '</a>'
@@ -39788,9 +40153,10 @@ function tdyAppRowHtml(t) {
     '<span class="inv-row-meta inv-row-wrap">' + escHtml([t.sub, ws].filter(Boolean).join(' · ')) + '</span></button>' +
     '<span class="inv-row-end inv-row-actions">' + tdyTaskMoveHtml(t) + '</span></div>';
 }
-function tdyTasks() {
-  return todoRanked().filter(function(r) { return !r.app || !tdyTaskPage(r.app) || tdySees(tdyTaskPage(r.app)); });
-}
+/* The To-do's own list for the role signed in (todo.js todoRanked → todoSees, todoMineSees): a task whose move lands on a
+   page the role does not open, on Pay without the wages or on Settings without the settings, or whose figures are money
+   or wages it may not read, is not here. One list for Needs you, the To-do and the bar's counts (workspace.js). */
+function tdyTasks() { return todoRanked(); }
 function tdyTasksHtml() {
   var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
@@ -39811,6 +40177,8 @@ function tdyTasksHtml() {
 function renderNeeds() {
   var el = document.getElementById('homeNeeds');
   if (!el) return;
+  // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   var day = localDateStr();
   var h = '<div class="inv-panels">' + tdyInputsHtml(day);
   if (_isDesktop && tdySees('pageFloor')) h += tdyFloorHtml(day);
@@ -44930,14 +45298,19 @@ function wsLastPut(id, view) {
   try { sessionStorage.setItem(WS_LAST_KEY, JSON.stringify(_wsLast)); } catch (e) { /* a convenience only */ }
 }
 /* Where a bar item or a sidebar head leads: the view last open in its workspace this session, else the first; for the
-   workspace open, its first view. A view {tab, v}, or null (search's new window reads it without going there). */
+   workspace open, its first view. A view {tab, v}, or null (search's new window reads it without going there).
+   The view remembered is reopened only for a role that opens it: the person signed in now may not be the one who left it
+   (the QA audit, QA2-6: the owner on Floor → People, then a role without Staff tapped Floor and was refused it every
+   time). `views` are the role's already (wsViewsPresent); a page held without a tab (Create) is checked on its own. */
 function wsTarget(id) {
   var w = wsGet(id), views = w ? wsViewsPresent(w) : [];
   if (!views.length) return null;
   if (wsOf(navPageOf()) === w.id) return views[0];
   var last = _wsLast[w.id];
   if (last && isPageId(last.tab) && wsOf(last.tab) === w.id) {
-    return views.filter(function(x) { return x.tab === last.tab && (!x.v || x.v === last.v); })[0] || { tab: last.tab, v: '' };
+    var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || x.v === last.v); })[0];
+    if (hit) return hit;
+    if (w.members.indexOf(last.tab) >= 0 && (typeof grdSees !== 'function' || grdSees(last.tab))) return { tab: last.tab, v: '' };
   }
   return views[0];
 }
@@ -45085,13 +45458,16 @@ function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;
   return (tab && wsOf(tab)) || 'today';
 }
+/* Counted from what the role signed in sees, the list Needs you draws (today.js tdyTasks: todo.js todoSees), never the
+   book's whole list: a supervisor's bar counted the owner's money tasks (the QA audit, QA2-9, QA4-4). Nothing is counted
+   while nobody is signed in (guard.js grdNobody). */
 function wsRedCounts() {
   var n = {};
   WORKSPACES.forEach(function(w) { n[w.id] = 0; });
-  if (!S) return n;
+  if (!S || (typeof grdNobody === 'function' && grdNobody())) return n;
   var rows = [];
   // One pass over the rules for every count (each rule reads the whole book).
-  try { rows = todoRanked(); } catch (e) { rows = []; }
+  try { rows = typeof tdyTasks === 'function' ? tdyTasks() : todoRanked(); } catch (e) { rows = []; }
   rows.forEach(function(r) {
     if (r.tone !== 'red') return;
     n.today++;

@@ -7,10 +7,15 @@
  */
 
 function finHasBank() { return bankData().rows.length > 0; }
+/* The statement is there and the person signed in may read it: what the bank says is money, the finance permission's
+   (guard.js), on whichever screen it is carried (the QA audit of 2 Oct 2026, QA4-4: a client's Money panel, what the bank
+   paid a supplier on Stock, and an invoice's payment showed to a role without money). A screen says nothing then, as it
+   does with no statement. */
+function finSeen() { return finHasBank() && (typeof grdSeesMoney !== 'function' || grdSeesMoney()); }
 
 /* ---------- A client ---------- */
 function finClientMoney(clientId) {
-  if (!finHasBank()) return null;
+  if (!finSeen()) return null;
   var ctx = finCtx(), r = ctx.recv().find(function(x) { return String(x.client.id) === String(clientId); });
   var last = null;
   ctx.cls.forEach(function(v) { if (v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(clientId) && v.row.cr > 0) last = v.row; });
@@ -41,7 +46,7 @@ function finClientMoneyHtml(clientId) {
 /* Paid by the receipts it was set against, or open and how long. An invoice from before the statement's
    first day is not read at all: its payment may be on a statement nobody imported. */
 function finInvoicePayment(inv) {
-  if (!finHasBank() || !inv || inv.status !== 'active') return null;
+  if (!finSeen() || !inv || inv.status !== 'active') return null;
   var ctx = finCtx(), from = bankRecvFrom(ctx.rows);
   if (inv.date < from) return { before: from };
   var r = ctx.recv().find(function(x) { return String(x.client.id) === String(inv.clientId); });
@@ -76,7 +81,7 @@ function finInvoicePaymentHtml(inv) {
 /* Payments on the statement set to Supplier whose payee (or narration) carries the supplier's name, read by the
    one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
-  if (!name || !finHasBank()) return null;
+  if (!name || !finSeen()) return null;
   var k = bankKey(name);
   if (k.length < 4) return null;
   var out = { paid: 0, n: 0, last: null };
@@ -91,7 +96,9 @@ function finSupplierPaid(name) {
 function renderFinHomeCard() {
   var el = document.getElementById('homeFinCard');
   if (!el) return;
-  var h = '<div class="inv-panel inv-panel-flush" id="homeFin"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
+  // Pulse's Money widget is the finance permission's: for another role it is not drawn at all (tabs.js homeWidgetSeen).
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) { el.innerHTML = ''; return; }
+  var h ='<div class="inv-panel inv-panel-flush" id="homeFin"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button></div>';
   if (!finHasBank()) { el.innerHTML = h + '<div class="inv-empty">No bank statement yet. Import the bank’s .xls to see the balance, what is owed and the forecast.</div></div>'; return; }
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);

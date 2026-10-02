@@ -307,7 +307,8 @@ function addJsonWhat(obj) {
 }
 /* What each file's import asks of the guard (guard.js), as its own screen's Import does: the permission and its words, and
    the page it lands on (a role that may not open the page is refused there too). A statement is Finance's, imported there
-   with no re-ask; the rest are P1 imports, and the payroll as paid is a payment. */
+   with no re-ask; the floor's records are P1 imports, and the payroll as paid is a payment. A backup replaces the book
+   and its IDs with it: the owner's alone (`users`, grdBookAsk), never the Imports switch's (the QA audit, QA4-9). */
 var ADD_FILE_GUARD = {
   xls: { page: 'pageFinance' },
   stock: { grp: 'imports', what: 'import stock records', page: 'pageStock' },
@@ -315,7 +316,7 @@ var ADD_FILE_GUARD = {
   power: { grp: 'imports', what: 'import power history', page: 'pagePower' },
   payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
-  backup: { grp: 'imports', what: 'import a backup' }
+  backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
 async function addFileGuardOk(key) {

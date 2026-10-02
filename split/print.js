@@ -272,10 +272,14 @@ window.addEventListener('resize', printFit);
 
 /* Print on a Created invoice's preview moves it to Printed, and the screen under the preview shows it at once (the
    row, the pane, Home's recent invoices). The print dialog cannot say whether the paper came out, so a print that
-   never came out is put back with Not printed on the invoice (invNotPrinted). */
+   never came out is put back with Not printed on the invoice (invNotPrinted).
+   The mark is a billing change (guard.js): a role that may not make one prints the invoice and leaves its state as it was
+   (the QA audit of 2 Oct 2026, QA4-6). No PIN is asked: marking is part of printing an invoice the role opened, and the
+   print dialog has to open in the same tap. */
 function printMarkPrinted() {
   var inv = _printInvId && S.invoices.find(function(i) { return i.id === _printInvId; });
   if (!inv || inv.status === 'cancelled' || getInvState(inv) !== 'created') return;
+  if (typeof grdCan === 'function' && !grdCan('billing')) { showToast('Your ID can’t change invoices: printing leaves it Created', 'warning'); return; }
   invSetState(inv, 'printed');
   saveState();
   invStateShown(inv.id);

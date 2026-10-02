@@ -275,10 +275,18 @@ var FIN_RULES = [
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+/* Who sees them (todo.js todoSees): every one reads the statement, which is money, whatever page its move lands on (a
+   supplier's bill on Stock, the wages on Staff → Pay); the two set against the pay need the wages as well (the QA audit
+   of 2 Oct 2026, QA4-4, QA4-3). */
+FIN_RULES.forEach(function(r) { TODO_RULE_NEED[r[0]] = 'money'; });
+TODO_RULE_NEED.wageVsSlip = 'money wages';
+TODO_RULE_NEED.cashSwing = 'money wages';
 /* A worker's balance carried from an earlier pay period (payCarried): it asks until it is paid, worked off, or
-   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). */
+   cleared with a reason on Staff → Pay ("stated otherwise and notification cleared", owner, 30 Sep 2026). A worker's pay:
+   the wages' (QA4-3). */
 TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier period']);
 TODO_CHECK_DEFAULTS.payCarry = true;
+TODO_RULE_NEED.payCarry = 'wages';
 TODO_RULE_FNS.payCarry = function() {
   if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
   var ws = attWeekStartOf(localDateStr());

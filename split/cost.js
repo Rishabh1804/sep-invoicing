@@ -798,7 +798,8 @@ function renderStockReorder() {
   }
   if (L.groups.length) {
     // The cash it needs, against the forecast: an order is a payment in a few weeks.
-    var fc = finHasBank() ? finForecast(45) : null;
+    // The forecast is the bank's: shown to a role that may read money (finlinks.js finSeen).
+    var fc = finSeen() ? finForecast(45) : null;
     if (fc && L.total > 0) {
       var after = gstRound(fc.min.bal - L.total * 1.18);
       h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +

@@ -95,8 +95,12 @@ function switchTab(tabId) {
   if (refused) showToast('Your ID doesn’t open ' + (PAGE_TITLES[refused] || 'that screen'), 'warning');
 }
 
-/* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
+/* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive).
+   Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the page waits for the unlock, which draws
+   it for whoever unlocks; each drawing records whom it was for (grdDrawn). */
 function tabRender(tabId, isDirty) {
+  if (typeof grdHeld === 'function' && grdHeld()) return;
+  if (typeof grdDrawn === 'function') grdDrawn();
   if (tabId === 'pageHome') {
     // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
     // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
@@ -188,6 +192,15 @@ var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 var ICON_CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
 var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 
+/* The stat strip for a role without money: its tiles say nothing, rather than another role's month left in them. */
+function homeBlankTiles() {
+  ['mtdCount', 'mtdRevenue', 'mtdKg', 'mtdPerKg'].forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = '&mdash;'; });
+  ['mtdCountSub', 'mtdRevenueSub', 'mtdKgSub', 'mtdPerKgSub', 'mtdCountDelta', 'mtdRevenueDelta', 'mtdKgDelta', 'mtdPerKgDelta'].forEach(function(id) {
+    var e = document.getElementById(id); if (e) e.innerHTML = '';
+  });
+  var tile = document.getElementById('mtdPerKgTile');
+  if (tile) tile.className = 'inv-tile';
+}
 /* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
 function renderHomeTiles(active) {
   var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
@@ -239,33 +252,41 @@ function homePriorSameDays() {
     invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
-/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. */
+/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
 var _homeDrawnView = '';   // the view of Today drawn last (tabRender)
 function renderHome() {
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
   tdyApplyView();
-  if (tdyView() === 'needs') { renderNeeds(); return; }
+  // The bar's red counts on either view: Needs you had none drawn, so they stood as the start counted them (QA2-7).
+  if (tdyView() === 'needs') { renderNeeds(); updateStockBadge(); return; }
   renderPulseQuestions();
   renderHomeWidgets();
 }
+/* A widget's card emptied: one the role signed in does not see is not drawn at all, hidden or not (the QA audit, QA4-4:
+   the money cards were drawn in full and hidden, for any role). */
+function homeWidgetBlank(ids) { ids.forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = ''; }); }
 /* Pulse's widgets, as the owner arranged them. */
 function renderHomeWidgets() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
-  const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
-  renderHomeTiles(active);
+  if (homeWidgetSeen('mtd')) {
+    const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
+    renderHomeTiles(active);
+  } else homeBlankTiles();
 
-  renderZincCard();
-  renderFinHomeCard();
+  if (homeWidgetSeen('zinc')) renderZincCard(); else homeWidgetBlank(['homeZincCard']);
+  if (homeWidgetSeen('money')) renderFinHomeCard(); else homeWidgetBlank(['homeFinCard']);
   renderTodoHomeCard();
-  renderAttHomeCard();
+  if (homeWidgetSeen('attendance')) renderAttHomeCard(); else homeWidgetBlank(['homeAttCard']);
   updateStockBadge();
-  ghRenderCard();
+  if (homeWidgetSeen('sync')) ghRenderCard(); else homeWidgetBlank(['homeSyncCard']);
   homeApplyLayout();
 
   var unbilledEl = document.getElementById('homeUnbilledCard');
-  if (unbilledEl) {
+  if (unbilledEl && !homeWidgetSeen('unbilled')) unbilledEl.innerHTML = '';
+  else if (unbilledEl) {
     var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null;
     (S.incomingMaterial || []).forEach(function(im) {
       var hasPending = false;
@@ -298,8 +319,9 @@ function renderHomeWidgets() {
     }
   }
 
-  const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
   const el = document.getElementById('recentInvoices');
+  if (!homeWidgetSeen('recent')) { el.innerHTML = ''; return; }
+  const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
   if (recent.length === 0) {
     el.innerHTML = '<div class="inv-empty">' +
       '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
@@ -435,13 +457,14 @@ function homeShowToggle(el) {
   homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
 }
 
-/* The three widgets Home had no card for. Each is drawn only while shown, and says nothing rather than a zero. */
+/* The three widgets Home had no card for. Each is drawn only while shown, to a role that sees it (homeWidgetSeen), and says
+   nothing rather than a zero. */
 function renderHomeExtraCards() {
   var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
   var head = function(title, go, label) { return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="' + go + '">' + label + '</button></div>'; };
   // Production: the last day with plating on record, by line.
-  if (!l.hidden.production) {
+  if (!l.hidden.production && homeWidgetSeen('production')) {
     var h = '';
     try {
       var last = null;
@@ -462,7 +485,7 @@ function renderHomeExtraCards() {
     set('homeProdCard', h);
   } else set('homeProdCard', '');
   // Power: this month's cuts and the last one.
-  if (!l.hidden.power) {
+  if (!l.hidden.power && homeWidgetSeen('power')) {
     var ph = '';
     try {
       var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
@@ -475,7 +498,7 @@ function renderHomeExtraCards() {
     set('homePowerCard', ph);
   } else set('homePowerCard', '');
   // Stock: the lines red or amber, soonest out first.
-  if (!l.hidden.stock) {
+  if (!l.hidden.stock && homeWidgetSeen('stock')) {
     var sh = '';
     try {
       var rows = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })

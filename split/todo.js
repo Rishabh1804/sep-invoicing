@@ -265,14 +265,67 @@ var TODO_RULE_FNS = {
       clears: 'Clears itself when you export a backup or push to GitHub.',
       go: { kind: 'settings', sec: 'data' }, goLabel: 'Open backup', sig: String(last) }];
   },
+  // Settings → Costing → Zinc rate, where the rate is set and derived: the zinc card is a Pulse widget, and "Open Home"
+  // opened Needs you, where it is not (the QA audit, QA2-11).
   zinc: function() {
     var age = zincAgeDays();
     if (age == null || age <= ZINC_STALE_DAYS) return [];
     return [{ key: 'zinc', rule: 'zinc', tone: 'info', title: 'Update the zinc rate', sub: 'Last set ' + todoPlural(age, 'day') + ' ago',
       why: 'Zinc · rule: ' + ZINC_STALE_DAYS + ' days', facts: [['Age', todoPlural(age, 'day')]],
-      clears: 'Clears itself when the rate is refreshed.', go: { kind: 'home' }, goLabel: 'Open Home', sig: String(getZinc().updatedAt) }];
+      clears: 'Clears itself when the rate is refreshed.', go: { kind: 'settings', sec: 'zinc' }, goLabel: 'Open the zinc rate', sig: String(getZinc().updatedAt) }];
   }
 };
+
+/* ---------- Who sees a task (the guard; the QA audit of 2 Oct 2026, QA4-1, QA4-3, QA4-4) ----------
+   The To-do listed every task to every role: a supervisor saw what clients owe, the cash forecast and the wage checks, and
+   the link picker listed the last invoices and every client. A task is shown to the role signed in only where it may
+   follow its move (the page it lands on is one the role opens; Pay needs the wages; Settings the settings), and where the
+   rule's figures are ones it may read: a rule that reads money (the statement, margins, realisation) needs the finance
+   permission, one that reads a worker's pay needs the wages. Rules set their need where they are made (finintel.js for
+   the statement's); the insights' (insights.js) are named here. With the guard off, every task is everyone's; while
+   nobody is signed in, none is (nothing a role decides is drawn under the lock, guard.js grdHeld). The book's own list
+   (todoAppAll) is unfiltered: snoozes are kept against it, and the Windows widget reads it. */
+var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', insClientDown: 'money', insLeak: 'money', insBelowVar: 'money', insLabour: 'money' };
+// Moves that open Staff → Pay, which a role opens only with the wages (staff.js).
+var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
+// A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
+var TODO_GO_FLOOR = { stock: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
+  staffRoster: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
+function todoGuardOn() { return typeof grdOn === 'function' && grdOn(); }
+/* The page a move lands on (workspace.js WS_GO_PAGE; a move may name its page itself). */
+function todoGoPage(go) {
+  if (!go) return null;
+  if (typeof isPageId === 'function' && isPageId(go.page)) return go.page;
+  return typeof WS_GO_PAGE !== 'undefined' ? WS_GO_PAGE[go.kind] || null : null;
+}
+/* The role signed in may follow this move. A kind no page is known for is the owner's. */
+function todoGoSees(go) {
+  if (!go || !todoGuardOn()) return true;
+  if (!grdUser()) return false;
+  if (go.kind === 'settings') return grdCan('settings');
+  if (TODO_GO_WAGES[go.kind] && !grdSeesWages()) return false;
+  var page = todoGoPage(go);
+  return page ? grdSees(page) : grdIsOwner();
+}
+/* An app task the role signed in may see: its rule's need, and its move. */
+function todoSees(t) {
+  if (!t || !todoGuardOn()) return true;
+  if (!grdUser()) return false;
+  var need = TODO_RULE_NEED[t.rule] || '';
+  if (need.indexOf('money') >= 0 && !grdSeesMoney()) return false;
+  if (need.indexOf('wages') >= 0 && !grdSeesWages()) return false;
+  return todoGoSees(t.go);
+}
+/* A task of your own the role signed in may see: its move or its link where it has one; one made from a move needs the
+   money too, unless its place is the floor's (the move's sentence carries its worth, a client's rate or what is owed). */
+function todoMineSees(t) {
+  if (!t || !todoGuardOn()) return true;
+  if (!grdUser()) return false;
+  if (t.advKey && !(t.go && TODO_GO_FLOOR[t.go.kind]) && !grdSeesMoney()) return false;
+  if (t.go) return todoGoSees(t.go);
+  if (t.link) return todoGoSees({ kind: t.link.kind });
+  return true;
+}
 
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
@@ -291,13 +344,19 @@ function todoIsSnoozed(t) {
   if (s.until) return todoToday() < s.until;
   return s.sig === t.sig;
 }
-function todoApp(only) { return todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t); }); }
+/* The tasks the role signed in sees: not snoozed, and its own (todoSees). */
+function todoApp(only) { return todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t) && todoSees(t); }); }
+/* Your own open tasks the role signed in sees. */
+function todoMineShown() { return todoMineOpen().filter(todoMineSees); }
 
 /* Both kinds in one order, for Home and the widget: red, amber, then the rest;
-   App before Mine within a tone; Mine by due date. */
-function todoRanked() {
-  var rows = todoApp().map(function(t) { return { app: t, tone: t.tone }; });
-  todoMineOpen().forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
+   App before Mine within a tone; Mine by due date. What the role signed in sees, but for `all`: the book's whole list,
+   which the Windows widget shows (drawn by Windows outside the app and its lock, docs/GUARD.md, it would otherwise change
+   with whoever signed in last). */
+function todoRanked(all) {
+  var app = all ? todoAppAll().filter(function(t) { return !todoIsSnoozed(t); }) : todoApp();
+  var rows = app.map(function(t) { return { app: t, tone: t.tone }; });
+  (all ? todoMineOpen() : todoMineShown()).forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
   // Your own tasks come before everything the app raised, bar what is already red (owner, 26 Sep 2026:
   // a task typed in sat under ten raised ones and was easy to forget). An undated one of your own has
   // no tone, and ranked by tone alone it fell below every info task the data raised.
@@ -310,10 +369,6 @@ function todoRanked() {
     return 0;
   });
 }
-function todoRedCount() {
-  if (!S) return 0;
-  return todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-}
 
 /* ---------- Screens ----------
    View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
@@ -324,9 +379,11 @@ function todoRedCount() {
 function renderTodo() {
   var el = document.getElementById('todoContent');
   if (!el) return;
-  var app = todoApp(), mine = todoMineOpen(), td = todoData();
+  // Nothing a role decides is drawn while nobody is signed in (guard.js): the unlock draws it.
+  if (typeof grdHeld === 'function' && grdHeld()) return;
+  var app = todoApp(), mine = todoMineShown(), td = todoData();
   var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-  var done = td.tasks.filter(function(t) { return t.doneAt; }).sort(function(a, b) { return b.doneAt - a.doneAt; });
+  var done = td.tasks.filter(function(t) { return t.doneAt && todoMineSees(t); }).sort(function(a, b) { return b.doneAt - a.doneAt; });
   var tab = function(v, label, n) {
     var on = (v === 'done') === _todoShowDone;
     return '<button class="inv-viewtab" role="tab" aria-selected="' + on + '" data-action="invTodoFoldDone" data-v="' + v + '">' +
@@ -367,7 +424,7 @@ function renderTodo() {
   app.forEach(function(t) { h += todoAppRowHtml(t); });
   h += '</div>';
 
-  var snoozed = todoAppAll().filter(todoIsSnoozed);
+  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); });
   if (snoozed.length) {
     h += '<div class="inv-panel inv-panel-flush inv-panels-wide" data-todo-sec="snoozed"><div class="inv-panel-head"><span class="inv-panel-title">Snoozed' +
       ' <span class="inv-panel-count">' + snoozed.length + '</span></span>' +
@@ -427,6 +484,7 @@ function todoMineRowHtml(t) {
 function renderTodoHomeCard() {
   var el = document.getElementById('homeTodoCard');
   if (!el) return;
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   var ranked = todoRanked();
   var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
     (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
@@ -466,8 +524,15 @@ function todoOverlay(title, body) {
   dialogOpen('<div class="inv-dialog">' + dialogHeadHtml(title) + body + '</div>', { dismiss: true });
 }
 
-function todoOpenApp(key) {
+/* An app task by its key (a row, the widget's launch): only one the role signed in sees. */
+function todoAppFind(key) {
   var t = todoAppAll().find(function(x) { return x.key === key; });
+  return t && todoSees(t) ? t : null;
+}
+function todoOpenApp(key) {
+  var all = todoAppAll().find(function(x) { return x.key === key; });
+  if (all && !todoSees(all)) { showToast('That task is not one your ID opens', 'warning'); return; }
+  var t = all;
   if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
   var s = todoData().snoozes[key];
   // The task's head is a flush panel: its title, why it was raised, then the figures it was
@@ -491,8 +556,13 @@ function todoOpenApp(key) {
 }
 
 var TODO_LINK_KINDS = [['', 'Nothing'], ['client', 'Client'], ['invoice', 'Invoice'], ['challan', 'Challan'], ['stock', 'Stock line']];
+/* A link's kind the role signed in may pick: its page is one the role opens (a client Clients, an invoice the Register, a
+   challan Challans, a stock line Stock). The picker listed the last 80 invoices and challans and every client to any role
+   (the QA audit, QA4-1). */
+function todoLinkKindSees(kind) { return !kind || todoGoSees({ kind: kind }); }
 function todoLinkOptions(kind, sel) {
   var opts = [];
+  if (!kind || !todoLinkKindSees(kind)) return kind ? '<option value="">Pick one</option>' : '';
   if (kind === 'client') opts = S.clients.filter(function(c) { return c.isActive !== false; })
     .sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(c) { return [String(c.id), c.name]; });
   else if (kind === 'invoice') opts = S.invoices.slice().sort(function(a, b) { return (b.createdAt || 0) - (a.createdAt || 0); }).slice(0, 80)
@@ -509,8 +579,9 @@ function todoLinkOptions(kind, sel) {
 function todoOpenEdit(id, text) {
   var t = id ? todoData().tasks.find(function(x) { return x.id === id; }) : null;
   if (id && !t) return;
+  if (t && !todoMineSees(t)) { showToast('That task is not one your ID opens', 'warning'); return; }
   var v = t || { text: text || '', due: '', note: '', link: null };
-  var kind = v.link ? v.link.kind : '';
+  var kind = v.link && todoLinkKindSees(v.link.kind) ? v.link.kind : '';
   var h = '<div class="inv-field"><label class="inv-field-label" for="todoText">Task</label>' +
     '<input class="inv-input" id="todoText" value="' + escHtml(v.text) + '" autocomplete="off"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoDue">Due</label>' +
@@ -519,7 +590,7 @@ function todoOpenEdit(id, text) {
     '<button class="inv-chip" data-action="invTodoDue" data-v="">None</button></div>' +
     '<input type="date" class="inv-input" id="todoDue" value="' + escHtml(v.due || '') + '"></div>' +
     '<div class="inv-fields"><div class="inv-field"><label class="inv-field-label" for="todoLinkKind">Link to</label>' +
-    '<select class="inv-select" id="todoLinkKind">' + TODO_LINK_KINDS.map(function(k) {
+    '<select class="inv-select" id="todoLinkKind">' + TODO_LINK_KINDS.filter(function(k) { return todoLinkKindSees(k[0]); }).map(function(k) {
       return '<option value="' + k[0] + '"' + (k[0] === kind ? ' selected' : '') + '>' + k[1] + '</option>';
     }).join('') + '</select></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="todoLinkId">Which</label>' +
@@ -538,17 +609,19 @@ function todoSaveEdit(id, done) {
   var kind = (document.getElementById('todoLinkKind') || {}).value || '';
   var linkSel = document.getElementById('todoLinkId');
   var link = null;
-  if (kind && linkSel && linkSel.value) {
+  if (kind && todoLinkKindSees(kind) && linkSel && linkSel.value) {
     var opt = linkSel.options[linkSel.selectedIndex];
     link = { kind: kind, id: linkSel.value, label: opt ? opt.textContent : '' };
   }
   var td = todoData();
   var t = id ? td.tasks.find(function(x) { return x.id === id; }) : null;
+  if (t && !todoMineSees(t)) return;
   if (!t) { t = { id: todoUid(), createdAt: Date.now(), doneAt: null }; td.tasks.push(t); }
   t.text = text;
   t.due = (document.getElementById('todoDue') || {}).value || '';
   t.note = ((document.getElementById('todoNote') || {}).value || '').trim();
-  t.link = link;
+  // A link the picker did not offer this role (another role's, on a task opened here) is kept as it was.
+  if (link || !t.link || todoLinkKindSees(t.link.kind)) t.link = link;
   t.updatedAt = Date.now();
   if (done && !t.doneAt) { t.doneAt = Date.now(); t.doneBy = 'app'; }
   saveState();
@@ -576,9 +649,10 @@ function todoToggle(id, by) {
   todoRefreshViews();
 }
 function todoSnooze(key, v) {
+  // The book's whole list: a snooze on a task another role sees is not dropped as cleared because this one does not see it.
   var ran = {}, all = todoAppAll(null, ran);
   var t = all.find(function(x) { return x.key === key; });
-  if (!t) return;
+  if (!t || !todoSees(t)) return;
   var td = todoData();
   // A snooze whose task has cleared describes nothing; drop those while writing, but only where the task's rule ran
   // this time. A rule switched off, or one that failed on some shape of data, had every snooze of its dropped, and its
@@ -684,6 +758,7 @@ function todoGo(go) {
 }
 function todoGoLink(id) {
   var t = todoData().tasks.find(function(x) { return x.id === id; });
+  if (t && !todoMineSees(t)) return;
   if (t && t.go) { todoGo(t.go); return; }
   if (!t || !t.link) return;
   var l = t.link;
@@ -857,7 +932,7 @@ function todoApplyWidgetQueue() {
 /* What the widget shows: at most eight rows, the first three for the medium
    size; `big` rows only render on the large one. */
 function todoWidgetPayload() {
-  var ranked = todoRanked(), late = ranked.filter(function(r) { return r.tone === 'red'; }).length;
+  var ranked = todoRanked(true), late = ranked.filter(function(r) { return r.tone === 'red'; }).length;
   var colour = { red: 'Attention', amber: 'Warning' };
   var rows = ranked.slice(0, 8).map(function(r, i) {
     var row;
@@ -909,6 +984,8 @@ function todoOnWorkerMessage(msg) {
 }
 function todoHandleLaunch(action) {
   if (!action) return;
+  // With the lock down (a fresh open), done once somebody unlocks, for them and with what their role sees (guard.js).
+  if (typeof grdWhenIn === 'function' && !grdWhenIn(function() { todoHandleLaunch(action); })) return;
   // A tap on the widget while a dialog or a form holds typed work asks first, as every other way off the screen does:
   // a row tapped mid-challan left it without a word (the QA audit of 30 Sep 2026).
   if (dialogsTypedAsk(function() { todoHandleLaunch(action); })) return;
@@ -935,7 +1012,7 @@ function todoAction(action, btn) {
     case 'invTodoToggle': todoToggle(btn.dataset.id); break;
     case 'invTodoOpenApp': todoOpenApp(btn.dataset.key); break;
     case 'invTodoGoApp': {
-      var t = todoAppAll().find(function(x) { return x.key === btn.dataset.key; });
+      var t = todoAppFind(btn.dataset.key);
       if (t) todoGo(t.go);
       break;
     }

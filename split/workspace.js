@@ -107,14 +107,19 @@ function wsLastPut(id, view) {
   try { sessionStorage.setItem(WS_LAST_KEY, JSON.stringify(_wsLast)); } catch (e) { /* a convenience only */ }
 }
 /* Where a bar item or a sidebar head leads: the view last open in its workspace this session, else the first; for the
-   workspace open, its first view. A view {tab, v}, or null (search's new window reads it without going there). */
+   workspace open, its first view. A view {tab, v}, or null (search's new window reads it without going there).
+   The view remembered is reopened only for a role that opens it: the person signed in now may not be the one who left it
+   (the QA audit, QA2-6: the owner on Floor → People, then a role without Staff tapped Floor and was refused it every
+   time). `views` are the role's already (wsViewsPresent); a page held without a tab (Create) is checked on its own. */
 function wsTarget(id) {
   var w = wsGet(id), views = w ? wsViewsPresent(w) : [];
   if (!views.length) return null;
   if (wsOf(navPageOf()) === w.id) return views[0];
   var last = _wsLast[w.id];
   if (last && isPageId(last.tab) && wsOf(last.tab) === w.id) {
-    return views.filter(function(x) { return x.tab === last.tab && (!x.v || x.v === last.v); })[0] || { tab: last.tab, v: '' };
+    var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || x.v === last.v); })[0];
+    if (hit) return hit;
+    if (w.members.indexOf(last.tab) >= 0 && (typeof grdSees !== 'function' || grdSees(last.tab))) return { tab: last.tab, v: '' };
   }
   return views[0];
 }
@@ -262,13 +267,16 @@ function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;
   return (tab && wsOf(tab)) || 'today';
 }
+/* Counted from what the role signed in sees, the list Needs you draws (today.js tdyTasks: todo.js todoSees), never the
+   book's whole list: a supervisor's bar counted the owner's money tasks (the QA audit, QA2-9, QA4-4). Nothing is counted
+   while nobody is signed in (guard.js grdNobody). */
 function wsRedCounts() {
   var n = {};
   WORKSPACES.forEach(function(w) { n[w.id] = 0; });
-  if (!S) return n;
+  if (!S || (typeof grdNobody === 'function' && grdNobody())) return n;
   var rows = [];
   // One pass over the rules for every count (each rule reads the whole book).
-  try { rows = todoRanked(); } catch (e) { rows = []; }
+  try { rows = typeof tdyTasks === 'function' ? tdyTasks() : todoRanked(); } catch (e) { rows = []; }
   rows.forEach(function(r) {
     if (r.tone !== 'red') return;
     n.today++;

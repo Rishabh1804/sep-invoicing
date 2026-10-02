@@ -341,7 +341,8 @@ async function ghPush(opts) {
 
 /* ===== PULL ===== */
 async function ghPull() {
-  if (!grdOk('imports') && !(await guardAsk('imports', 'pull from GitHub'))) return false;   // P1 (guard.js): a pull replaces the book
+  // P1 (guard.js): a pull replaces the book and its IDs with it, so it is the owner's alone (grdBookAsk).
+  if (!grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
   var cfg = getGhConfig();
   // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
   var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
@@ -381,6 +382,8 @@ async function ghPull() {
       ghSetStatus('Pull cancelled.');
       return false;
     }
+    // This book's IDs stay unless the owner says to take GitHub's copy's (guard.js), where the two differ.
+    await grdBookUsersAsk(env.state);
 
     // The same two passes the loader runs, in the same order: fill the shape a
     // backup might predate, then migrate the records inside it. The second was

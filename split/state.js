@@ -647,6 +647,11 @@ function ensureStateShape(s) {
    the caller saves once it knows the adoption held. */
 function adoptState(next) {
   var prev = S;
+  // Replacing the book takes its users and the guard's settings with it: the owner's alone (guard.js grdBookAsk), here
+  // too, whatever door it came through. Nothing is touched before the refusal.
+  if (typeof grdOn === 'function' && grdOn() && !grdIsOwner()) throw new Error('only the owner replaces the book: ask the owner');
+  // Who is replacing it, read off this book: the one coming in may not hold them (the change log's line, QA4-10).
+  var by = typeof chgBy === 'function' ? chgBy() : null;
   // The rollback has to cover STORAGE, not just memory. `migrateState()`
   // persists as it runs, and every one of those writes fires while `S` is the
   // incoming state — so a throw partway through used to leave a half-migrated
@@ -667,8 +672,9 @@ function adoptState(next) {
   // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
   if (typeof prodTouch === 'function') prodTouch();
   if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
-  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js).
-  if (typeof chgAdopted === 'function') chgAdopted();
+  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js), under the
+  // person who brought it in.
+  if (typeof chgAdopted === 'function') { if (typeof chgAs === 'function') chgAs(by, chgAdopted); else chgAdopted(); }
   // The book's users may differ: a session whose user it does not hold is locked (guard.js).
   if (typeof grdRecheck === 'function') grdRecheck();
   return S;
@@ -1621,9 +1627,17 @@ function getStateDotHtml(inv) {
     escHtml(invStateWord(inv)) + '</span>';
 }
 
+/* An invoice's state is a billing change (guard.js; the QA audit of 2 Oct 2026, QA4-6): a role without billing is told so,
+   and the PIN is asked again outside the re-ask window, as an invoice saved, cancelled or deleted is. Printing marks a
+   Created invoice Printed on the permission alone (print.js printMarkPrinted): it is part of printing an invoice the role
+   opened, and the print dialog cannot wait for a PIN. Each mark asks only where grdOk says no, so with the guard off (or
+   inside the window) nothing is awaited and the mark runs as it always did. → Promise<boolean>. */
+function invStateAsk(what) { return guardAsk('billing', what); }
+function invStateLower(st) { return String(INV_STATE_LABELS[st] || st).toLowerCase(); }
+
 /* The next state, or a named one further on: an invoice printed outside the app goes from Created straight to
    Dispatched. Never backwards, but for a print that never came out (invNotPrinted). */
-function advanceInvoiceState(invId, target) {
+async function advanceInvoiceState(invId, target) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv || inv.status === 'cancelled') return;
   var idx = INV_STATES.indexOf(getInvState(inv));
@@ -1631,6 +1645,10 @@ function advanceInvoiceState(invId, target) {
   // A button drawn before the state moved on (a print, another window) names a step already reached: it only shows
   // where the invoice is. It used to fall through to the step after, so Mark printed on a printed invoice dispatched it.
   if (idx < 0 || !nextState || invStateIdx(nextState) <= idx) { invStateShown(invId); return; }
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark an invoice ' + invStateLower(nextState)))) return;
+  // Found again after the question: another window's save can replace the book while it is open.
+  inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (!inv || inv.status === 'cancelled' || invStateIdx(getInvState(inv)) >= invStateIdx(nextState)) { invStateShown(invId); return; }
   invSetState(inv, nextState);
   saveState();
   invStateShown(invId);
@@ -1639,13 +1657,17 @@ function advanceInvoiceState(invId, target) {
 
 /* Print marks a Created invoice Printed, but the print dialog cannot say whether the paper came out: a print cancelled
    or jammed is put back here, and its stamp goes with it (History logs a print from printedAt). */
-function invNotPrinted(invId) {
+async function invNotPrinted(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
-    inv.invoiceState = 'created';
-    delete inv.printedAt;
-    saveState();
-    showToast(inv.displayNumber + ' is back to Created');
+    if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark an invoice not printed'))) return;
+    inv = S.invoices.find(function(i) { return i.id === invId; });
+    if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
+      inv.invoiceState = 'created';
+      delete inv.printedAt;
+      saveState();
+      showToast(inv.displayNumber + ' is back to Created');
+    }
   }
   invStateShown(invId);
 }
@@ -1660,6 +1682,7 @@ async function bulkMarkFiled() {
     return;
   }
   var ids = eligible.map(function(inv) { return inv.id; });
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark invoices filed'))) return;
   if (!(await uiConfirm({ title: 'Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?',
     body: 'A filed invoice cannot be deleted and reissued: its number is in a return.', okLabel: 'Mark as filed' }))) return;
   // Found again by id after the question: another window's save can replace the book while it is open, and the objects

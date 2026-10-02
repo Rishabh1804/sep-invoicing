@@ -242,9 +242,9 @@ function tdyTaskMoveHtml(t) {
   var mv = typeof advTaskMoves === 'function' ? advTaskMoves(t) : [];
   var m = mv.filter(function(x) { return x.href || (x.go && tdySees(tdyTaskPage({ go: x.go }) || 'pageHome')); })[0];
   if (m) {
-    _advMoves[m.key] = m;
+    var ref = advRowRef(m);
     return m.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(m.href) + '" data-adv-call>' + escHtml(m.hrefLabel || 'Call') + '</a>'
-      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(m.key) + '" title="' + escHtml(m.say) + '">' + escHtml(m.goLabel || 'Open') + '</button>';
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(m.key) + '" data-adv-row="' + escHtml(ref) + '" title="' + escHtml(m.say) + '">' + escHtml(m.goLabel || 'Open') + '</button>';
   }
   return t.goLabel ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGoApp" data-key="' + escHtml(t.key) + '">' + escHtml(t.goLabel) + '</button>' : '';
 }

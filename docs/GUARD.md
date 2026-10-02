@@ -32,16 +32,20 @@ B's workspaces are where that lands: a role is a set of workspaces and views, an
   money), **Floor** (Today, Floor → Day and the entries they make; no money). Each role's workspaces, views, whether it sees
   money, and what it may change are switches the owner sets.
 - **A PIN or password, 4 characters or more**, checked against a salted, slow hash (PBKDF2); never stored as itself, never
-  in a file the app can read without it. Five wrong tries lock the device for 30 seconds, doubling to 15 minutes.
+  in a file the app can read without it. Five wrong tries lock that ID for 30 seconds, doubling to 15 minutes; the others
+  still unlock (counted per ID since the QA chain of 2 Oct 2026: one count for the device was cleared by any ID's right PIN).
   **Remember user** remembers the ID, never the PIN. Fingerprint and face (a passkey) come after, as the faster way in.
 - **When it asks**: when the app is opened fresh, and after 15 minutes in the background (a setting). **Lock now** locks
   every window on the device.
 - **Asked again before a P1 change or Settings**, then not again for 5 minutes (a setting). **P1** (the owner can amend):
-  issuing, editing, cancelling or deleting an invoice or a credit note; rates and the client master; voiding any record;
-  payments, wages and wage rates; an import or pull that replaces the book; Settings; users and devices. A role that may
-  not make a change is told so, never asked for a PIN.
+  issuing, editing, cancelling or deleting an invoice or a credit note, and moving an invoice's state; rates and the client
+  master; voiding any record; payments, wages and wage rates, and Finance's edits; the floor's imports; Settings; users and
+  devices. A role that may not make a change is told so, never asked for a PIN. **Replacing the book** (a backup imported, a
+  pull from GitHub) takes its IDs with it, so it is the owner's alone, and where the incoming IDs differ the owner is asked
+  whether to take them. Nothing a role decides is drawn while nobody is signed in.
 - **A recovery code**, shown once when the owner's ID is created, resets a forgotten owner PIN. Without it a forgotten owner
-  PIN would lock the books.
+  PIN would lock the books: one's own PIN is changed only with the PIN it has, never reset from a signed-in window, and a new
+  recovery code asks the owner's PIN whatever the re-ask window.
 - **Every change is logged with who made it**: worked out at each save, record by record (what was added, changed, removed,
   each changed field from → to), and shown in History. The same log is what the merge (G4) will sync.
 

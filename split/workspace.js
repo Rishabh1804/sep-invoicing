@@ -256,7 +256,7 @@ var WS_GO_PAGE = {
   stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower',
   finance: 'pageFinance', bills: 'pageFinance',
-  stats: 'pageStats', liveCost: 'pageStats'
+  stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;

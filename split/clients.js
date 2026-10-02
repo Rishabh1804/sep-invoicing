@@ -472,7 +472,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
       cards += group('Item rate overrides', c.itemRates.length) + c.itemRates.map(function(ir) {
         return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(ir.partPattern) + '</span>' +
           (ir.label ? '<span class="inv-row-meta">' + escHtml(ir.label) + '</span>' : '') + '</span>' +
-          '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span></div>';
+          '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + itemRateUnit(ir) + '</span></div>';
       }).join('');
     }
     // Ten of each card here; the rest one tap away (Edit holds them all, folded).

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="e4808941">
+<meta name="app-build" content="18547cc8">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1735,6 +1735,7 @@ body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--h
 .inv-verdict-text { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-2); }
 .inv-input[data-verdict="check"] { border-color: var(--danger); background-color: var(--danger-bg); }
 .inv-input[data-verdict="decimal"] { border-color: var(--warning); background-color: var(--warning-bg); }
+.inv-input[data-verdict="unit"] { border-color: var(--warning); }
 .inv-input[data-verdict="match"] { border-color: var(--ok); }
 /* A question asked in a callout (a ₹0 line's reason, a red flag's): its chips, then its note. */
 .inv-callout .inv-toolbar { margin: var(--sp-8) 0; }
@@ -1901,19 +1902,25 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 /* ===== QUOTATION (quote.js) =====
    A document handed to a counterparty, on its own point scale like the credit note and the certificate (HR-6's print
    exception: the type, rules and gutters declared once here in pt and mm and read as var() below), ink pinned on paper.
-   One A4 sheet whose padding is its gutter on paper too (the @page margin stays 0); the terms' tail and the signature
-   are one box that never breaks, since the register records a render whose signature orphaned onto page 2. */
+   On screen one A4 sheet whose padding is its gutter. On paper the side gutters are padding and the top and bottom ones
+   the repeating head and foot rows of its frame (.inv-qt-frame), as the invoice's and the report's, so a page after the
+   first never starts against the paper's edge (the @page margin stays 0). The terms' tail and the signature are one box
+   that never breaks, since the register records a render whose signature orphaned onto page 2. */
 .inv-qt-doc {
   --ff-base: 'Inter', sans-serif;
   --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
   --qt-ink: #1a1a1a; --qt-paper: #fff; --qt-accent: #1f3a5f; --qt-muted: #444; --qt-cell-rule: #c9d2de; --qt-head-ink: #fff;
   --qt-fs: 9.5pt; --qt-fs-sm: 8.5pt; --qt-fs-terms: 8.2pt; --qt-fs-co: 17pt; --qt-fs-title: 14pt; --qt-fs-mark: 11pt;
-  --qt-sheet-w: 210mm; --qt-sheet-h: 297mm; --qt-pad: 12mm 13mm 10mm; --qt-rule: 0.5pt; --qt-band: 2.5pt;
+  --qt-gutter-top: 12mm; --qt-gutter-side: 13mm; --qt-gutter-bottom: 10mm;
+  --qt-sheet-w: 210mm; --qt-sheet-h: 297mm; --qt-pad: var(--qt-gutter-top) var(--qt-gutter-side) var(--qt-gutter-bottom); --qt-rule: 0.5pt; --qt-band: 2.5pt;
   --qt-cell: 1.4mm 2mm; --qt-gap: 3mm; --qt-gap-sm: 1.5mm; --qt-sig-w: 58mm; --qt-sig-gap: 8mm; --qt-indent: 5mm; --qt-track: 1.5pt;
   background: var(--qt-paper); color: var(--qt-ink); font-family: var(--ff-base); font-size: var(--qt-fs); line-height: 1.3;
   width: var(--qt-sheet-w); min-height: var(--qt-sheet-h); padding: var(--qt-pad); margin: 0 auto var(--sp-16);
   border: var(--hair) solid var(--border);
 }
+.inv-qt-frame { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.inv-qt-frame > thead, .inv-qt-frame > tfoot { display: none; }
+.inv-qt-frame-head, .inv-qt-frame-foot, .inv-qt-frame-body { padding: 0; font: inherit; text-align: left; vertical-align: top; }
 .inv-qt-mark {
   border: var(--qt-band) solid var(--qt-ink); text-align: center; font-weight: 700; font-size: var(--qt-fs-mark);
   letter-spacing: var(--qt-track); padding: var(--qt-gap-sm); margin-bottom: var(--qt-gap);
@@ -1952,7 +1959,11 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 .inv-qt-line { margin-top: var(--qt-sig-gap); border-top: var(--qt-rule) solid var(--qt-ink); min-width: var(--qt-sig-w); padding-top: var(--qt-gap-sm); font-size: var(--qt-fs-sm); }
 .inv-qt-foot { font-size: var(--qt-fs-sm); color: var(--qt-muted); }
 @media print {
-  .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
+  .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; padding: 0 var(--qt-gutter-side); }
+  .inv-qt-frame > thead { display: table-header-group; }
+  .inv-qt-frame > tfoot { display: table-footer-group; }
+  .inv-qt-frame-head { height: var(--qt-gutter-top); }
+  .inv-qt-frame-foot { height: var(--qt-gutter-bottom); }
 }
 
 /* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */
@@ -4055,6 +4066,40 @@ function getPieceWeight(client, onDate, partNumber, desc) {
   return { kg: hit.kgPerPiece, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
 }
 
+/* ===== AN ITEM RATE OVERRIDE, IN THE UNIT IT WAS GIVEN (the QA chain of 2 Oct 2026, QA5-1) =====
+   An itemRates row is a negotiated figure for a part, per piece unless it says kg (a per-kg rate posted from an
+   accepted quotation, quote.js). Every path read its `rate` alone and put it on the line whatever the line's unit: a
+   ₹16/kg override priced 600 pieces at 600 × 16 = ₹9,600 (600 × 0.2 kg × 16 is ₹1,920), a ₹3.83/pc one priced 150 kg
+   at ₹3.83 a kilo, and the rate check, comparing the line with that same figure, said Matches. So an override is
+   applied only in its own unit:
+   - per kg: a KG line at the rate a kilo, and a NOS line of a client billed by weight from pieces (nos_to_weight) as
+     pieces × the part's kg a piece × the rate, the way that client's ₹/kg ladder is used; only where the weight is known;
+   - per piece: a NOS line at the rate a piece.
+   Anything else does not fit the line: the line is priced at the client's own rate, and the check says the rate on
+   record is in another unit. Every path that prices a line reads the override here, and nowhere else. */
+function itemRateUnit(ir) { return ir && ir.unit === 'kg' ? 'kg' : 'piece'; }
+/* How an override in `unit` prices a line in `lineUnit` (KG | NOS) of this client's part: 'kg', 'piece', 'weight'
+   (pieces × kg/pc × rate), or null when it cannot. */
+function itemRateHow(client, unit, lineUnit, partNumber) {
+  if (unit === 'piece') return lineUnit === 'NOS' ? 'piece' : null;
+  if (lineUnit !== 'NOS') return 'kg';
+  return client && client.billingMode === 'nos_to_weight' && ((S.partWeights || {})[String(partNumber || '').toUpperCase()] || 0) > 0 ? 'weight' : null;
+}
+/* The override naming a line's part, or null: {rate, unit, label, how, fits, kgPc}. */
+function itemRateFor(client, onDate, item) {
+  if (!client || !item || !item.partNumber) return null;
+  var info = getLineItemRate(client, onDate || localDateStr(), item.partNumber);
+  if (!info._override) return null;
+  var unit = info.unit === 'kg' ? 'kg' : 'piece', lineUnit = item.unit === 'NOS' ? 'NOS' : 'KG';
+  var how = itemRateHow(client, unit, lineUnit, item.partNumber);
+  return { rate: info.rate, unit: unit, label: info._label || '', how: how, fits: !!how,
+    kgPc: how === 'weight' ? (S.partWeights || {})[String(item.partNumber).toUpperCase()] : 0 };
+}
+/* The client's own ₹/kg on a date, passing over any override (getLineItemRate with no part). */
+function clientLadderRate(client, onDate) {
+  return client ? (getLineItemRate(client, onDate || localDateStr(), '').ratePerKg || 0) : 0;
+}
+
 /* The one place a line's rate on record is read: override, then the client's
    piece rate for a NOS line, then the ₹/kg ladder. `unit` says which the figure
    is — comparing a piece rate against a ₹/kg one is the error the Items Master
@@ -4063,8 +4108,10 @@ function getRateOnRecord(client, onDate, item) {
   if (!client || !item) return null;
   var date = onDate || localDateStr();
   var info = getLineItemRate(client, date, item.partNumber);
-  // An override is per piece unless it says kg (a per-kg rate posted from an accepted quotation, quote.js).
-  if (info._override) return { rate: info.rate, unit: info.unit === 'kg' ? 'kg' : 'piece', source: 'override' };
+  // An override is per piece unless it says kg. One that does not fit the line's unit is still the rate on record for
+  // the part (`fits: false`): the check says so rather than comparing the line with the client's own rate.
+  var ov = itemRateFor(client, date, item);
+  if (ov) return ov.fits ? { rate: ov.rate, unit: ov.unit, source: 'override' } : { rate: ov.rate, unit: ov.unit, source: 'override', fits: false };
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, date, item.partNumber, item.desc);
     if (pr && pr.ambiguous) return { rate: null, unit: 'piece', source: 'gauge-ambiguous' };
@@ -4109,8 +4156,10 @@ function isZeroBilledLine(item) {
    pad; Samarth's 14.50 against a ₹3 bracket), which is exactly the unit error
    the replay found typed into the Items Master. */
 function defaultLineRate(client, onDate, item) {
-  var info = getLineItemRate(client, onDate, item.partNumber);
-  if (info._override) return info.rate;
+  // An override in the line's own unit; one in another unit leaves the line at the client's own rate (itemRateFor).
+  var ov = itemRateFor(client, onDate, item);
+  if (ov && ov.fits) return ov.rate;
+  var info = getLineItemRate(client, onDate, '');
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
     if (pr && pr.rate != null) return pr.rate;
@@ -4131,12 +4180,15 @@ function linePrice(item, client, onDate) {
     // Challan passthrough: the amount is entered as the challan says, and the rate is read back from it.
     if (item.qty > 0 && item.amount > 0) item.rate = gstRound(item.amount / item.qty);
   } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
-    var pwKey = (item.partNumber || '').toUpperCase();
-    var rateInfo = getLineItemRate(client, onDate, item.partNumber);
+    var pw = (S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0;
+    // An override in its own unit: per piece prices the pieces, per kg the pieces' weight, as the ladder does below.
+    // One that does not fit (per kg with no weight on record) leaves the line to the client's own rate (itemRateFor).
+    var ov = itemRateFor(client, onDate, item);
+    if (ov && !ov.fits) ov = null;
     // A part with no weight on record cannot be converted; it is billed per piece off the client's card (Samarth's
-    // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
-    var perPiece = rateInfo._override ? { rate: rateInfo.rate }
-      : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    // brackets), or a per-piece override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
+    var perPiece = ov ? (ov.how === 'piece' ? { rate: ov.rate } : null)
+      : (pw ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
     // A rate somebody typed is theirs (item._auto.rate false, while the line still carries the figure typed): the
     // record prices only an empty or a filled rate. It used to replace a typed rate silently.
     var typed = item.rate > 0 && item._auto && item._auto.rate === false && item._auto.rateTyped === item.rate;
@@ -4145,9 +4197,8 @@ function linePrice(item, client, onDate) {
       item.amount = gstRound((item.qty || 0) * item.rate);
       return;
     }
-    var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
-    if (!typed) item.rate = rateInfo.ratePerKg || 0;
-    item.amount = gstRound(w * item.rate);
+    if (!typed) item.rate = ov ? ov.rate : clientLadderRate(client, onDate);
+    item.amount = gstRound((item.qty || 0) * pw * item.rate);
   } else {
     item.amount = gstRound((item.qty || 0) * (item.rate || 0));
   }
@@ -4219,6 +4270,10 @@ function rateMatch(client, onDate, item) {
   var ref = getRateOnRecord(client, onDate, item);
   if (!ref) return { status: 'none' };
   if (ref.rate == null) return { status: 'gauge' };
+  // The part's override is in another unit than the line: nothing to compare, and never "Matches". `need` is what
+  // would let it price the line: the line in NOS, in KG, or (pieces of a nos_to_weight client) the part's weight.
+  if (ref.fits === false) return { status: 'unit', ref: ref.rate, unit: ref.unit, source: ref.source,
+    need: ref.unit === 'piece' ? 'NOS' : client.billingMode === 'nos_to_weight' && item.unit === 'NOS' ? 'weight' : 'KG' };
   var diff = gstRound(rate - ref.rate);
   // Quantity in the reference's own unit: a nos_to_weight line priced per kg
   // stakes the kilograms, not the pieces.
@@ -7680,7 +7735,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
       cards += group('Item rate overrides', c.itemRates.length) + c.itemRates.map(function(ir) {
         return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title inv-id">' + escHtml(ir.partPattern) + '</span>' +
           (ir.label ? '<span class="inv-row-meta">' + escHtml(ir.label) + '</span>' : '') + '</span>' +
-          '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + escHtml(ir.unit || 'kg') + '</span></div>';
+          '<span class="inv-row-end inv-num">' + formatCurrency(ir.rate) + '/' + itemRateUnit(ir) + '</span></div>';
       }).join('');
     }
     // Ten of each card here; the rest one tap away (Edit holds them all, folded).
@@ -10049,14 +10104,11 @@ function selectClient(id) {
   // Auto-fill rate on existing items
   if (client) {
     invoiceForm.items.forEach(item => {
-      const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-      if (rateInfo._override) {
-        item.rate = rateInfo.rate;
-        item._override = true;
-        item._label = rateInfo._label;
-      } else {
-        item.rate = defaultLineRate(client, invoiceForm.date, item);
-      }
+      // The part's override where it is in the line's unit, else the client's own rate (itemRateFor, state.js).
+      const ov = itemRateFor(client, invoiceForm.date, item);
+      item.rate = defaultLineRate(client, invoiceForm.date, item);
+      item._override = !!(ov && ov.fits);
+      item._label = item._override ? ov.label : '';
       // The new client's rate is the app's, not a typed one.
       if (item._auto) item._auto.rate = true;
       recalcLineItem(item, client);
@@ -10235,9 +10287,10 @@ async function saveInvoice() {
    One renderer for the invoice form, the challan form and the invoice detail,
    so the three can never describe the same line differently. */
 var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
-  none: 'No rate on record', gauge: 'Gauge not stated' };
-/* The tone each verdict speaks in (DR-1): a Check or ×10 is a red flag, the rest are not. */
-var RM_TONE = { match: 'ok', decimal: 'warning', differs: 'neutral', check: 'danger', none: 'neutral', gauge: 'neutral' };
+  none: 'No rate on record', gauge: 'Gauge not stated', unit: 'Another unit' };
+/* The tone each verdict speaks in (DR-1): a Check or ×10 is a red flag, the rest are not. A rate on record in another
+   unit than the line (an override per kg on a line in pieces) asks for a look, and stops nothing. */
+var RM_TONE = { match: 'ok', decimal: 'warning', differs: 'neutral', check: 'danger', none: 'neutral', gauge: 'neutral', unit: 'warning' };
 
 /* A verdict under a line: a dot and its word, then the working in mono (§6.15). */
 function verdictHtml(status, label, text) {
@@ -10257,6 +10310,8 @@ function rateMatchNote(m, compact) {
       ' · ' + sign(m.stake) + ' on this line';
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
+  else if (m.status === 'unit') text = 'On record ' + formatCurrency(m.ref) + per + ' for this part, not in this line’s unit' + (compact ? '' :
+    m.need === 'weight' ? ': enter its weight in Items → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
   return verdictHtml(m.status, RM_LABELS[m.status], text);
 }
 
@@ -15662,16 +15717,11 @@ function selectPartForLine(idx, partId) {
 
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
   if (client) {
-    const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-    if (rateInfo._override) {
-      item.rate = rateInfo.rate;
-      item._override = true;
-      item._label = rateInfo._label;
-    } else {
-      item.rate = defaultLineRate(client, invoiceForm.date, item);
-      item._override = false;
-      item._label = '';
-    }
+    // The part's override where it is in the line's unit, else the client's own rate (itemRateFor, state.js).
+    const ov = itemRateFor(client, invoiceForm.date, item);
+    item.rate = defaultLineRate(client, invoiceForm.date, item);
+    item._override = !!(ov && ov.fits);
+    item._label = item._override ? ov.label : '';
     recalcLineItem(item, client);
   }
 
@@ -17517,7 +17567,16 @@ function qtStatusWord(q) {
 function qtDotHtml(q) { var w = qtStatusWord(q); return '<span class="inv-dot inv-dot-' + w[1] + '">' + w[0] + '</span>'; }
 function qtRecipient(q) { return (q.to && q.to.name) || 'No recipient'; }
 function qtItemKey(l) { return rateKey(l.partNumber || l.item); }
-function qtRateText(l) { return formatCurrency(l.rate) + (l.basis === 'piece' ? '/pc' : '/kg'); }
+/* A quoted rate as it was typed: kept to four places like a stock price (QA5-13: ₹0.125 a piece was stored and printed
+   ₹0.13), shown with two places at least and as many as it has. */
+function qtMoney(n) {
+  var v = gstRound(Number(n) || 0, 4), s = String(Math.abs(v)), dot = s.indexOf('.');
+  var dec = dot < 0 || s.indexOf('e') >= 0 ? '' : s.slice(dot + 1);
+  if (dec.length <= 2) return formatCurrency(v);
+  var whole = Math.floor(Math.abs(v));
+  return formatCurrency(v < 0 ? -whole : whole).replace(/\.00$/, '.' + dec);
+}
+function qtRateText(l) { return qtMoney(l.rate) + (l.basis === 'piece' ? '/pc' : '/kg'); }
 function qtRateSummary(q) {
   var ls = (q.lines || []).filter(function(l) { return l.rate > 0; });
   return ls.length ? qtRateText(ls[0]) + (ls.length > 1 ? ' +' + (ls.length - 1) : '') : 'no rate';
@@ -17577,7 +17636,12 @@ function qtDocHtml(q) {
     : q.status === 'superseded' ? 'SUPERSEDED' + (qtFind(q.supersededBy) ? ' by ' + escHtml(qtNumberText(qtFind(q.supersededBy))) : '') : '';
   var transportNote = q.transport === 'included' ? 'inclusive of transportation' : q.transport === 'loading' ? 'incl. loading &amp; unloading at our works' : 'ex-works';
   var name = String(to.name || '').trim();
-  var h = '<div class="inv-qt-doc" data-qt-doc="' + escHtml(q.id || '') + '">' +
+  // One frame table, as the invoice's and the report's: its head and foot rows repeat on every printed page and are the
+  // top and bottom gutters there (the @page margin stays 0). The gutter was the sheet's padding, which applies once to
+  // the whole flow, so a quotation running to a second page began it against the paper's edge (QA5-4).
+  var h = '<div class="inv-qt-doc" data-qt-doc="' + escHtml(q.id || '') + '"><table class="inv-qt-frame">' +
+    '<thead><tr><td class="inv-qt-frame-head"></td></tr></thead><tfoot><tr><td class="inv-qt-frame-foot"></td></tr></tfoot>' +
+    '<tbody><tr><td class="inv-qt-frame-body">' +
     (mark ? '<div class="inv-qt-mark" data-qt-mark>' + mark + '</div>' : '') +
     '<div class="inv-qt-head"><div><div class="inv-qt-co">' + escHtml(co.name || '') + '</div>' +
       '<div class="inv-qt-co-sub">' + escHtml(addr) + (contact.length ? '<br>' + contact.map(escHtml).join(' &middot; ') : '') + '</div></div>' +
@@ -17600,14 +17664,15 @@ function qtDocHtml(q) {
       '<td>' + (piece ? 'Per piece' : 'Per kg of received weight') +
       (piece && l.refWeightKg > 0 ? '<div class="inv-qt-sub">reference weight <b>' + escHtml(formatNum(l.refWeightKg, qtWeightDp(l.refWeightKg))) + '&nbsp;kg/pc</b></div>' : '') +
       '<div class="inv-qt-sub"><b>' + transportNote + '</b></div></td>' +
-      '<td class="inv-qt-n"><b>' + escHtml(formatCurrency(l.rate || 0).replace('₹', '₹ ')) + '</b><div class="inv-qt-sub">per ' + (piece ? 'piece' : 'kg') + ' + GST</div></td></tr>';
+      '<td class="inv-qt-n"><b data-qt-rate>' + escHtml(qtMoney(l.rate || 0).replace('₹', '₹ ')) + '</b><div class="inv-qt-sub">per ' + (piece ? 'piece' : 'kg') + ' + GST</div></td></tr>';
   });
   h += '<tr><td colspan="4" class="inv-qt-gst">Rate <b>+ GST @ ' + escHtml(formatNum(q.gstPct, q.gstPct % 1 ? 1 : 0)) + '%</b>' + (q.sac ? ' (SAC ' + escHtml(q.sac) + ')' : '') + '.</td></tr></tbody></table>' +
     '<div class="inv-qt-tail"><div class="inv-qt-h3">TERMS &amp; CONDITIONS</div><ol class="inv-qt-terms">' +
     (q.terms || []).filter(function(t) { return String(t || '').trim(); }).map(function(t) { return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ol>' +
     '<div class="inv-qt-sig"><div class="inv-qt-foot">' + String(cfg.footNote || '').split('\n').map(escHtml).join('<br>') + '</div>' +
     '<div><div class="inv-qt-for">For ' + escHtml(co.name || '') + '</div><div class="inv-qt-line">' +
-      escHtml([cfg.signatory, cfg.signTitle || (cfg.signatory ? '' : 'Authorised signatory')].filter(Boolean).join(' — ')) + '</div></div></div></div></div>';
+      escHtml([cfg.signatory, cfg.signTitle || (cfg.signatory ? '' : 'Authorised signatory')].filter(Boolean).join(' — ')) + '</div></div></div></div>' +
+    '</td></tr></tbody></table></div>';
   return h;
 }
 function qtPrint(id) {
@@ -17992,7 +18057,8 @@ function qtSearchInput(el) {
 function qtStoreDraft() {
   var f = _qtForm, q = qtCopy(f.q), now = Date.now();
   q.lines = q.lines.filter(function(l) { return String(l.item || '').trim() || String(l.partNumber || '').trim() || l.rate > 0; });
-  q.lines.forEach(function(l) { l.item = String(l.item || '').trim(); l.partNumber = String(l.partNumber || '').trim(); if (l.rate != null) l.rate = gstRound(l.rate); });
+  // A rate is kept to four places, as typed (₹0.125 a piece): it was rounded to the paisa and printed ₹0.13 (QA5-13).
+  q.lines.forEach(function(l) { l.item = String(l.item || '').trim(); l.partNumber = String(l.partNumber || '').trim(); if (l.rate != null) l.rate = gstRound(l.rate, 4); });
   q.to.name = String(q.to.name || '').trim();
   q.to.gstin = String(q.to.gstin || '').trim().toUpperCase();
   q.terms = (q.terms || []).map(function(t) { return String(t || '').trim(); }).filter(Boolean);
@@ -18020,6 +18086,8 @@ function qtIssueProblems(q) {
   if (!String((q.to && q.to.name) || '').trim()) p.push('Name the recipient');
   if (!q.date) p.push('Enter the date');
   if (!(q.lines || []).length || q.lines.some(function(l) { return !(l.item || l.partNumber) || !(l.rate > 0); })) p.push('Every item needs a name and a rate above 0');
+  // A blank GST field printed "GST @ 0%" on an issued quotation (QA5-13).
+  if (!(q.gstPct > 0)) p.push('Enter the GST rate');
   if (!(q.validDays > 0)) p.push('Enter how many days it is valid');
   if (!(q.terms || []).length) p.push('Add the terms');
   return p;
@@ -18035,11 +18103,21 @@ function qtRivals(q) {
     return same && (o.lines || []).some(function(l) { return keys[qtItemKey(l)]; });
   });
 }
+/* A revision whose original was voided cannot be issued: issuing it would put the void number back into use (QA5-7).
+   Says why; true when it was refused. */
+async function qtRevOfVoid(q) {
+  var old = q && q.revOf ? qtFind(q.revOf) : null;
+  if (!old || old.status !== 'void') return false;
+  await uiAlert({ title: 'Not issued', tone: 'warning', body: qtNumberText(old) + ' was voided' + (old.voidReason ? ' (' + old.voidReason + ')' : '') +
+    ', and a void number is never used again, so a revision of it cannot be issued. Draft a new quotation instead: it takes a number of its own.' });
+  return true;
+}
 async function qtIssue(id) {
   var q = qtFind(id);
   if (!q || q.status !== 'draft') return false;
   var probs = qtIssueProblems(q);
   if (probs.length) { await uiAlert({ title: 'Not ready to issue', body: probs.join('\n'), tone: 'warning' }); return false; }
+  if (await qtRevOfVoid(q)) return false;
   var fy = q.num ? q.fy : qtFyOf(q.date), num = q.num || qtNextNum(fy), disp = qtDisplay(fy, num, q.rev);
   var old = q.revOf ? qtFind(q.revOf) : null;
   if (!(await uiConfirm({ title: 'Issue ' + disp + '?', okLabel: 'Issue',
@@ -18052,15 +18130,21 @@ async function qtIssue(id) {
       body: rivals.map(function(o) { return qtNumberText(o) + ' of ' + formatDate(o.date) + ' (' + qtRateSummary(o) + ')'; }).join('\n') +
         '\nalready quotes ' + qtRecipient(q) + ' for the same item. Two live prices let a counterparty anchor at the lower. Mark ' + (rivals.length === 1 ? 'it' : 'them') + ' superseded by ' + disp + '?' });
   }
+  // The book may have been loaded again while the questions were open (another window issued, bookReload): the number
+  // is worked out on the book as it is now, never on the one the question was asked over (QA5-3: two windows issued
+  // the same number).
   q = qtFind(id);
   if (!q || q.status !== 'draft') return false;
+  if (await qtRevOfVoid(q)) return false;
+  var asked = disp;
+  fy = q.num ? q.fy : qtFyOf(q.date); num = q.num || qtNextNum(fy); disp = qtDisplay(fy, num, q.rev);
   var now = Date.now();
   q.fy = fy; q.num = num; q.displayNumber = disp; q.status = 'issued'; q.issuedAt = now; q.at = now;
   old = q.revOf ? qtFind(q.revOf) : null;
   if (old && old.status !== 'void') { old.status = 'superseded'; old.supersededBy = q.id; old.supersededAt = now; old.at = now; }
   if (supersedeRivals) rivals.forEach(function(o) { var r = qtFind(o.id); if (r && qtLive(r)) { r.status = 'superseded'; r.supersededBy = q.id; r.supersededAt = now; r.at = now; } });
   saveState();
-  showToast(disp + ' issued');
+  showToast(disp + ' issued' + (disp !== asked ? ': ' + asked + ' was issued in another window meanwhile' : ''), disp !== asked ? 'warning' : undefined);
   return true;
 }
 async function qtIssueFromForm() {
@@ -18107,14 +18191,27 @@ async function qtVoid(id) {
   var q = qtFind(id);
   if (!q || q.status !== 'issued') return;
   if (!grdOk('voids') && !(await guardAsk('voids', 'void a quotation'))) return;   // P1 (guard.js)
-  var why = await uiPrompt({ title: 'Void ' + qtNumberText(q), body: 'For a quotation issued but never sent. The number stays in the series with the reason; it is never used again.', label: 'Why is it void?', required: true });
+  // A revision drafted of it would issue on the void number (QA5-7): it goes with the void, and the question says so.
+  var revs = function(x) { return getQuotations().filter(function(o) { return o.revOf === x.id && o.status === 'draft'; }); };
+  var open = revs(q);
+  var why = await uiPrompt({ title: 'Void ' + qtNumberText(q), label: 'Why is it void?', required: true,
+    body: 'For a quotation issued but never sent. The number stays in the series with the reason; it is never used again.' +
+      (open.length ? ' Its revision drafted, ' + open.map(qtNumberText).join(', ') + ', is deleted with it: it would issue on the same number.' : '') });
   if (!why) return;
   q = qtFind(id);
   if (!q || q.status !== 'issued') return;
+  var gone = revs(q).map(function(o) { return o.id; });
   q.status = 'void'; q.voidReason = why; q.voidedAt = Date.now(); q.at = q.voidedAt;
+  var formGone = !!(_qtForm && gone.indexOf(_qtForm.q.id) >= 0);
+  if (gone.length) {
+    S.quotations = getQuotations().filter(function(o) { return gone.indexOf(o.id) < 0; });
+    if (gone.indexOf(_qtActiveId) >= 0) _qtActiveId = null;
+    if (formGone) { _qtForm = null; _pageTyped = false; }
+  }
   saveState();
+  if (formGone && navPageOf() === 'pageClients') renderClientsPage();
   qtShown(id);
-  showToast(qtNumberText(q) + ' void');
+  showToast(qtNumberText(q) + ' void' + (gone.length ? ', and its revision drafted deleted' : ''));
 }
 async function qtDecline(id) {
   var q = qtFind(id);
@@ -18139,25 +18236,92 @@ async function qtDelete(id) {
 }
 
 /* ---------- Accepted: the rate offered to the client's card ---------- */
+/* The part numbers on a client's own invoices and challans, each once. */
+function qtClientParts(c) {
+  var seen = {}, out = [];
+  var add = function(it) { var pn = String((it && it.partNumber) || '').trim(); if (pn && !seen[pn]) { seen[pn] = 1; out.push(pn); } };
+  (S.invoices || []).forEach(function(inv) { if (String(inv.clientId) === String(c.id) && inv.status !== 'cancelled') (inv.items || []).forEach(add); });
+  (S.incomingMaterial || []).forEach(function(im) { if (String(im.clientId) === String(c.id)) (im.items || []).forEach(add); });
+  return out;
+}
+/* The units a client bills a part in, which a posted rate has to price (QA5-1): those of its own invoices' and challans'
+   lines the row would reach (every part number containing it, the override's own match), else what the quotation's
+   basis means for the client's billing mode: a piece quotation is billed in pieces, a kilo one by the kilo, or, for a
+   client billed by weight from pieces, in pieces converted by the part's weight. */
+function qtPartBilledUnits(c, part, basis) {
+  var u = {};
+  var see = function(it) { if (it && String(it.partNumber || '').indexOf(part) >= 0) u[it.unit === 'NOS' ? 'NOS' : 'KG'] = true; };
+  (S.invoices || []).forEach(function(inv) { if (String(inv.clientId) === String(c.id) && inv.status !== 'cancelled') (inv.items || []).forEach(see); });
+  (S.incomingMaterial || []).forEach(function(im) { if (String(im.clientId) === String(c.id)) (im.items || []).forEach(see); });
+  var seen = Object.keys(u).sort();
+  return seen.length ? { units: seen, seen: true } : { units: [basis === 'piece' || c.billingMode === 'nos_to_weight' ? 'NOS' : 'KG'], seen: false };
+}
+function qtUnitWords(u) { return u === 'NOS' ? 'in pieces (NOS)' : 'by the kilo (KG)'; }
+/* What a rate posted to a client's itemRates does where it lands (QA5-2). A row is a pattern, and the first row whose
+   pattern a line's part number contains prices the line (getLineItemRate): a row added after TM5181 never priced
+   TM5181-20, and P3302 prices 5206 P3302X too. So the row goes before every row whose pattern the part contains (the
+   more specific row wins), in place of one naming the part exactly; what it still cannot reach, and what it newly takes,
+   is named. `list` is the card as it stands; returns it as it would be, and the notes. */
+function qtItemRatePlace(c, list, part, row) {
+  var rest = list.filter(function(r) { return r.partPattern !== part; });
+  var at = rest.findIndex(function(r) { return r.partPattern && part.indexOf(r.partPattern) >= 0; });
+  if (at < 0) at = rest.length;
+  var next = rest.slice(0, at).concat([row], rest.slice(at));
+  var first = function(rows, pn) { return rows.find(function(r) { return r.partPattern && pn.indexOf(r.partPattern) >= 0; }) || null; };
+  var said = function(r) { return r.partPattern + ' at ' + qtMoney(r.rate) + '/' + itemRateUnit(r); };
+  var few = function(xs) { return xs.slice(0, 3).join(', ') + (xs.length > 3 ? ' and ' + (xs.length - 3) + ' more' : ''); };
+  var notes = [], after = rest.slice(at).filter(function(r) { return part.indexOf(r.partPattern) >= 0; });
+  if (after.length) notes.push('It goes before ' + few(after.map(said)) + ', which ' + (after.length === 1 ? 'goes' : 'go') + ' on pricing the other parts ' + (after.length === 1 ? 'it names' : 'they name') + '.');
+  // Every part number the row reaches: the client's own invoices and challans, and the patterns already on its card.
+  var seen = {}, still = [], caught = [];
+  qtClientParts(c).concat(list.map(function(r) { return String(r.partPattern || ''); })).forEach(function(pn) {
+    if (!pn || pn === part || pn.indexOf(part) < 0 || seen[pn]) return;
+    seen[pn] = 1;
+    var now = first(next, pn), was = first(list, pn);
+    if (now !== row) still.push(pn + ' (by ' + said(now) + ', which comes first)');
+    else if (!was || was.partPattern !== part) caught.push(pn + (was ? ' (until now ' + said(was) + ')' : ''));
+  });
+  if (still.length) notes.push('It does not reach ' + few(still) + '.');
+  if (caught.length) notes.push('It also prices ' + few(caught) + ', ' + (caught.length === 1 ? 'which contains ' : 'which contain ') + part + '.');
+  return { next: next, notes: notes };
+}
 /* What would be written, and what has to be set by hand. Read README § "On conversion, the field matters". */
 function qtPostPlan(q) {
-  var c = qtClient(q), post = [], hand = [];
+  var c = qtClient(q), post = [], hand = [], card = c ? (c.itemRates || []).slice() : [];
   (q.lines || []).forEach(function(l, i) {
     if (l.postedAt || !(l.rate > 0)) return;
     var name = l.item || l.partNumber, part = String(l.partNumber || '').trim();
     if (!c) { hand.push(name + ': the recipient is not a client in the book; add it, then set the rate on its card'); return; }
     if (!part) { hand.push(name + ': no part number, so no card entry can name it; set the rate on ' + c.name + '&rsquo;s card by hand'); return; }
     if (l.basis === 'piece' && c.billingMode === 'piece') {
-      post.push({ i: i, field: 'pieceRates', text: 'a piece rate on ' + c.name + '&rsquo;s card: ' + part + (lineGauge(l.desc) ? ' · ' + lineGauge(l.desc) : '') + ', ' + formatCurrency(l.rate) + '/pc from ' + formatDate(localDateStr()) });
+      post.push({ i: i, field: 'pieceRates', notes: [], text: 'a piece rate on ' + c.name + '&rsquo;s card: ' + part + (lineGauge(l.desc) ? ' · ' + lineGauge(l.desc) : '') + ', ' + qtMoney(l.rate) + '/pc from ' + formatDate(localDateStr()) });
     } else if (l.basis === 'kg' && c.billingMode === 'piece') {
       hand.push(name + ': a per-kg rate for a client billed by the piece; set it on the card by hand');
     } else {
-      var have = (c.itemRates || []).find(function(r) { return r.partPattern === part; });
-      post.push({ i: i, field: 'itemRates', text: 'an item rate override on ' + c.name + ': ' + part + ' at ' + formatCurrency(l.rate) + '/' + (l.basis === 'piece' ? 'piece' : 'kg') +
-        (have ? ' (replacing ' + formatCurrency(have.rate) + '/' + (have.unit || 'kg') + ')' : '') + '; the billing mode stays ' + (CLIENT_MODE_LABEL[c.billingMode] || c.billingMode) });
+      // A rate that cannot price the client's lines as they are billed is never written: it is named, to be set by hand.
+      var unit = l.basis === 'piece' ? 'piece' : 'kg', billed = qtPartBilledUnits(c, part, l.basis);
+      var priced = billed.units.filter(function(u) { return itemRateHow(c, unit, u, part); });
+      if (!priced.length) {
+        hand.push(name + ': a rate per ' + unit + ', and ' + c.name + ' bills ' + part + ' ' + billed.units.map(qtUnitWords).join(' and ') +
+          (unit === 'kg' && c.billingMode === 'nos_to_weight' ? ' with no weight a piece on record (Items → Part weights)' : '') + ', which it cannot price; set it on the card by hand');
+        return;
+      }
+      var have = card.find(function(r) { return r.partPattern === part; });
+      var place = qtItemRatePlace(c, card, part, qtPostRow(q, l));
+      card = place.next;
+      var how = priced.map(function(u) { return itemRateHow(c, unit, u, part) === 'weight' ? 'in pieces, at ' + formatNum((S.partWeights || {})[part.toUpperCase()], 3) + ' kg a piece' : qtUnitWords(u); });
+      var missed = billed.units.filter(function(u) { return priced.indexOf(u) < 0; });
+      post.push({ i: i, field: 'itemRates', text: 'an item rate override on ' + c.name + ': ' + part + ' at ' + qtMoney(l.rate) + '/' + unit +
+        (have ? ' (replacing ' + qtMoney(have.rate) + '/' + itemRateUnit(have) + ')' : '') + ', for its lines billed ' + how.join(' and ') + '; the billing mode stays ' + (CLIENT_MODE_LABEL[c.billingMode] || c.billingMode),
+        notes: (missed.length ? ['Its lines billed ' + missed.map(qtUnitWords).join(' and ') + ' stay at the client’s own rate.'] : []).concat(place.notes) });
     }
   });
   return { client: c, post: post, hand: hand };
+}
+/* The row an accepted line posts to a client's itemRates. */
+function qtPostRow(q, l) {
+  var part = String(l.partNumber || '').trim();
+  return { partPattern: part, rate: gstRound(l.rate, 4), unit: l.basis === 'piece' ? 'piece' : 'kg', label: (l.item || part) + ' (' + qtNumberText(q) + ')' };
 }
 async function qtPostRates(id) {
   var q = qtFind(id), plan = q && qtPostPlan(q);
@@ -18165,7 +18329,8 @@ async function qtPostRates(id) {
     if (plan && plan.hand.length) await uiAlert({ title: 'Set the rate by hand', body: plan.hand.join('\n').replace(/&rsquo;/g, '’') });
     return;
   }
-  var body = 'Writes ' + plan.post.map(function(p) { return p.text; }).join(';\n') + '.' + (plan.hand.length ? '\nBy hand: ' + plan.hand.join('; ') + '.' : '');
+  var body = plan.post.map(function(p) { return 'Writes ' + p.text + '.' + (p.notes.length ? ' ' + p.notes.join(' ') : ''); }).join('\n') +
+    (plan.hand.length ? '\nBy hand: ' + plan.hand.join('; ') + '.' : '');
   if (!grdOk('rates') && !(await guardAsk('rates', 'post a rate to a client'))) return;   // P1 (guard.js): the client's rate card
   if (!(await uiConfirm({ title: 'Post the accepted rate to ' + plan.client.name + '?', body: body.replace(/&rsquo;/g, '’'), okLabel: 'Post the rate' }))) return;
   q = qtFind(id);
@@ -18175,11 +18340,10 @@ async function qtPostRates(id) {
   qtPostPlan(q).post.forEach(function(p) {
     var l = q.lines[p.i], part = String(l.partNumber).trim();
     if (p.field === 'pieceRates') {
-      (c.pieceRates || (c.pieceRates = [])).push({ partNumber: part, gauge: lineGauge(l.desc) || '', rate: gstRound(l.rate), effectiveFrom: today, source: 'quotation', quotation: qtNumberText(q), addedAt: now });
+      (c.pieceRates || (c.pieceRates = [])).push({ partNumber: part, gauge: lineGauge(l.desc) || '', rate: gstRound(l.rate, 4), effectiveFrom: today, source: 'quotation', quotation: qtNumberText(q), addedAt: now });
     } else {
-      var row = { partPattern: part, rate: gstRound(l.rate), unit: l.basis === 'piece' ? 'piece' : 'kg', label: (l.item || part) + ' (' + qtNumberText(q) + ')' };
-      var list = c.itemRates || (c.itemRates = []), at = list.findIndex(function(r) { return r.partPattern === part; });
-      if (at >= 0) list[at] = row; else list.push(row);
+      // Placed as the plan said: before every row whose pattern the part contains, in place of one naming it exactly.
+      c.itemRates = qtItemRatePlace(c, c.itemRates || [], part, qtPostRow(q, l)).next;
     }
     l.postedAt = now; l.postedTo = p.field;
   });
@@ -18195,7 +18359,9 @@ async function qtAccept(id) {
   saveState();
   qtShown(id);
   showToast(qtNumberText(q) + ' accepted');
-  if (qtPostPlan(q).post.length) await qtPostRates(id);
+  // Offered when there is a rate to post; said when there is only one to set by hand, never left unsaid.
+  var plan = qtPostPlan(q);
+  if (plan.post.length || plan.hand.length) await qtPostRates(id);
 }
 
 /* ---------- History ---------- */
@@ -28955,6 +29121,8 @@ function todoGo(go) {
       break;
     case 'stats':
       try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ }
+      // A move worked out for a period opens Stats on it, so the block it names is the one on screen (advice.js).
+      if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
       switchTab('pageStats');
       if (go.anchor) uiRevealEl(document.getElementById(go.anchor));
       break;
@@ -28980,7 +29148,7 @@ function todoGo(go) {
     }
     // The jumps a move needs (advice.js, advGoTo): a quotation drafted, the quotations, a client's performance, the
     // reorder list, the power case, Areas, the week's pay, a line of the live cost, a production line, an invoice with
-    // a client's challans ticked, the register on a client's month.
+    // a client's challans ticked, the register on a client's month, a report on its period and section.
     default: if (typeof advGoTo === 'function') advGoTo(go);
   }
 }
@@ -35553,6 +35721,17 @@ var ADV_PERIOD_WORDS = { mtd: 'this month', qtd: 'this quarter', ytd: 'this fina
 var ADV_OPTION_NAME = { ts: 'the TSUISL supply switch', inv: 'an inverter and battery', gen: 'a diesel generator' };
 var ADV_LISTED_HTML = '<span class="inv-dot inv-dot-ok" data-adv-listed>On your list</span>';
 var _advMoves = {};               // every move drawn, by key: a tap finds its place, Add to my list its words
+var _advRows = {};                // every move drawn, by its row (advRowRef)
+
+/* A drawn move's row: its key and its words. One decision is one key wherever it is drawn (a task added from either
+   marks both), but two moves of it can differ in words and place (QA5-5: an insight asks a client for a month's full
+   cost, a question for the period's), so a tap acts on the move drawn under it, never on another drawn later. */
+function advRowRef(mv) {
+  var ref = mv.key + '#' + mv.say;
+  _advRows[ref] = mv;
+  _advMoves[mv.key] = mv;
+  return ref;
+}
 
 /* ---------- Reading the book once per render ---------- */
 /* One move or one question failing on a shape nobody anticipated must not take the others with it (the To-do's rule). */
@@ -35672,8 +35851,9 @@ function advOwesMove(c, id) {
 }
 /* The quotation a reprice drafts: the client's largest parts by tonnage over the last 90 days, each by the piece at the
    target ₹/kg × its kg a piece where the client's weight is known (prodKgPerPiece: its card, Part weights, the Items
-   Master for a part held by one gauge), else by the kilo at the target. `inv` is the 90 days' invoices where worked out. */
-function advRepriceDraft(clientId, target, inv) {
+   Master for a part held by one gauge), else by the kilo at the target. `inv` is the 90 days' invoices where worked out;
+   `basis` says which full cost the target is (a month's, for an insight), else it is the one "then". */
+function advRepriceDraft(clientId, target, inv, basis) {
   var today = localDateStr();
   var mine = (inv || advWindow(90).inv).filter(function(i) { return String(i.clientId) === String(clientId); });
   var unweighed = [];
@@ -35685,20 +35865,23 @@ function advRepriceDraft(clientId, target, inv) {
     return { item: item, partNumber: r.part, desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' };
   });
   if (!lines.length) lines = [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' }];
-  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost then' };
+  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
 }
 /* Ask a client below the full cost for the full cost, a quotation drafted with its largest parts. */
 function advRepriceMove(ctx, x) {
   var m = ctx.margins(), target = gstRound(m.fullKg), c = advClient(x.id), name = advNameOf(c, x.name);
   var mk = ctx.monthKg(x.id), draft = advRepriceDraft(x.id, target, ctx.days(90) ? ctx.days(90).inv : null);
-  var basis = ['the full cost ' + ctx.words + ', ' + statsPctOf(m.c.measuredShare) + '% measured', 'now ' + formatCurrency(x.net) + '/kg',
+  var basis = ['the live cost, ' + statsPctOf(m.c.measuredShare) + '% measured', 'now ' + formatCurrency(x.net) + '/kg',
     mk > 0 ? advKg(mk) + ' a month' : '',
     m.varKg != null ? 'it covers its variable cost at ' + formatCurrency(m.varKg) + '/kg' : 'the variable cost is not known yet'].filter(Boolean).join(' · ');
+  // The full cost is the period's: the words say which, since an insight's move asks the same client for a month's own
+  // (ADV_TASK_MOVES.insBelowVar) and both can be on one page (QA5-5). One decision, one key.
+  var said = 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost ' + ctx.words;
   return { key: 'reprice:' + x.id, tone: x.vsVar != null && x.vsVar < 0 ? 'red' : 'amber', what: name + ' below the full cost',
-    say: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost',
+    say: said,
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
-    task: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg',
+    task: said,
     hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or the Items Master) to quote ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
@@ -35858,7 +36041,7 @@ function advCostLineMove(ctx) {
   var mk = ctx.plantMonthKg(), r = best.r;
   return { key: 'cost:' + r.key, tone: 'amber', say: 'Look into ' + r.label.toLowerCase() + ': ' + formatCurrency(r.perKg) + '/kg against the ' + formatCurrency(best.model) + ' model',
     worth: mk > 0 ? { amount: best.over * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage, back at the model' } : null,
-    basis: COST_SRC_LABEL[r.source] + ' · ' + r.note, go: { kind: 'liveCost', key: r.key }, goLabel: 'Live cost', task: 'Look into the ' + r.label.toLowerCase() + ' cost' };
+    basis: COST_SRC_LABEL[r.source] + ' · ' + r.note, go: { kind: 'liveCost', key: r.key, period: ctx.a.period }, goLabel: 'Live cost', task: 'Look into the ' + r.label.toLowerCase() + ' cost' };
 }
 function advMoneyMoves(ctx) {
   var out = [], hints = [], m = ctx.margins();
@@ -35879,8 +36062,9 @@ function advMoneyMoves(ctx) {
 /* ---------- 3. Who is driving it? ---------- */
 function advRebateMove(ctx, x, name) {
   var since = isoAddDays(ctx.today, -89), sum = 0, n = 0;
+  // Rebates only (bills.js cnIsRebate): a rate correction or goods returned is not what the client's payment terms buy (QA5-8).
   getCreditNotes().forEach(function(cn) {
-    if (cn.status !== 'cancelled' && String(cn.clientId) === String(x.id) && (cn.date || '') >= since) { sum += Number(cn.taxableValue) || 0; n++; }
+    if (cn.status !== 'cancelled' && cnIsRebate(cn) && String(cn.clientId) === String(x.id) && (cn.date || '') >= since) { sum += Number(cn.taxableValue) || 0; n++; }
   });
   if (!(sum > 0.005)) return null;
   var pays = '';
@@ -35889,8 +36073,8 @@ function advRebateMove(ctx, x, name) {
     if (d && d.median != null) pays = 'pays in ' + Math.round(d.median) + ' days' + (b && b.median != null ? ' against the book’s ' + Math.round(b.median) : '');
   }
   return { key: 'rebate:' + x.id, tone: 'info', say: 'Weigh ' + name + '’s rebate against how it pays: ' + advRs(sum) + ' credited in 90 days',
-    worth: { amount: sum / 3, sign: -1, per: 'month', label: 'a month in credit notes' },
-    basis: todoPlural(n, 'credit note') + ' · ' + (pays || 'no bank statement to say how fast it pays'), go: { kind: 'cnList' }, goLabel: 'Credit notes',
+    worth: { amount: sum / 3, sign: -1, per: 'month', label: 'a month in rebates' },
+    basis: todoPlural(n, 'rebate note') + ' · ' + (pays || 'no bank statement to say how fast it pays'), go: { kind: 'cnList' }, goLabel: 'Credit notes',
     task: 'Weigh ' + name + '’s rebate against how it pays' };
 }
 /* By the hour: its part whose round earns least under what an hour of the plant costs (the panel's own figures). */
@@ -35917,7 +36101,8 @@ function advLabourMove(ctx, x, name) {
     say: 'Settle the labour question for ' + name + (split ? ': with labour fixed it ' + (x.vsVar >= 0 ? 'leaves ' + advRs(x.vsVar) : 'loses ' + advRs(x.vsVar)) +
       '/kg, with labour scaling it loses ' + advRs(x.vsFull) + '/kg' : ': record the attendance or import the bank statement to split labour'),
     worth: null, basis: 'contribution by client at the live cost ' + ctx.words + ', ' + statsPctOf(m.c.measuredShare) + '% measured',
-    go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst' }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name };
+    // The period it was worked out for goes with it: Stats opens there, where this client is the block named.
+    go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: ctx.a.period }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name };
 }
 function advClientsMoves(ctx, card) {
   var out = [], hints = [], m = ctx.margins(), x = card.worst;
@@ -35976,8 +36161,9 @@ function advPlantMoves(ctx) {
     // A new quotation at a rate that clears the full cost by 10%.
     if (m && m.fullKg > 0) {
       var rate = gstRound(m.fullKg * 1.1), spare = Math.max(0, plant.cap - a.tonnage.kg), base = m.varKg != null ? m.varKg : m.fullKg;
+      // The spare tonnes are the period's, so the worth is ranked as the period's, scaled to a month (QA5-9).
       out.push({ key: 'quote:new', tone: 'info', say: 'Quote new work at ' + formatCurrency(rate) + '/kg: it clears the full cost by 10%',
-        worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
+        worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, per: 'period', label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
         basis: 'the full cost ' + ctx.words + ' ' + formatCurrency(m.fullKg) + '/kg × 1.1' + (m.varKg != null ? ' · the variable cost ' + formatCurrency(m.varKg) + '/kg' : ''),
         go: { kind: 'quoteDraft', lines: [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: rate, refWeightKg: null, note: '' }],
           note: 'Drafted from the Pulse on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
@@ -36108,23 +36294,29 @@ var ADV_TASK_MOVES = {
       c ? { key: 'card:' + c.id, tone: 'info', say: 'Check ' + name + '’s rate card', worth: null, basis: 'its rates and piece rates on the client', go: { kind: 'client', id: c.id }, goLabel: 'Rate card',
         task: 'Check ' + name + '’s rate card' } : null];
   },
+  // An insight is about its own month, and Stats shows the period its chip holds (this month, the quarter…), where the
+  // month and the block a move named may not be on screen (QA5-12): its moves open that month's report on the section.
   insRealLow: function(t) {
-    return [{ key: 'mix:' + t.month, tone: 'info', say: 'See whose share of ' + insMonthLabel(t.month) + ' moved', worth: null, basis: 'contribution and realisation by client',
-      go: { kind: 'stats', tab: 'clients' }, goLabel: 'Clients', task: 'See whose share of ' + insMonthLabel(t.month) + ' moved' }];
+    return [{ key: 'mix:' + t.month, tone: 'info', say: 'See whose share of ' + insMonthLabel(t.month) + ' moved', worth: null, basis: billsMonthLabel(t.month) + '’s report: revenue, ₹/kg and share by client',
+      go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'See whose share of ' + insMonthLabel(t.month) + ' moved' }];
   },
   insBelowVar: function(t) {
-    var c = advClient(t.clientId), name = advNameOf(c, ''), target = gstRound(t.fullKg), draft = advRepriceDraft(t.clientId, target);
-    return [{ key: 'reprice:' + t.clientId + ':' + t.month, tone: 'red', say: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost',
+    var c = advClient(t.clientId), name = advNameOf(c, ''), target = gstRound(t.fullKg);
+    // The month's own full cost, said as such: the questions ask the same client for the period's (advRepriceMove).
+    var said = 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost in ' + billsMonthLabel(t.month);
+    var draft = advRepriceDraft(t.clientId, target, null, 'in ' + billsMonthLabel(t.month));
+    return [{ key: 'reprice:' + t.clientId, tone: 'red', say: said,
       worth: t.kg > 0 ? { amount: (target - t.net) * t.kg, sign: 1, per: 'month', label: 'a month at ' + insMonthLabel(t.month) + '’s tonnage' } : null,
       basis: insMonthLabel(t.month) + ': ' + formatCurrency(t.net) + '/kg against ' + formatCurrency(t.varKg) + ' variable and ' + formatCurrency(t.fullKg) + ' full',
-      go: { kind: 'quoteDraft', clientId: t.clientId, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation', task: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg' },
-      { key: 'labour:' + t.clientId, tone: 'amber', say: 'Settle the labour question for ' + name, worth: null, basis: 'contribution by client, settled both ways',
-        go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst' }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name }];
+      go: { kind: 'quoteDraft', clientId: t.clientId, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation', task: said },
+      { key: 'labour:' + t.clientId, tone: 'amber', say: 'Settle the labour question for ' + name, worth: null, basis: billsMonthLabel(t.month) + '’s contribution by client, against the variable and the full cost',
+        go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'Settle the labour question for ' + name }];
   },
   insLabour: function(t) {
     return [{ key: 'labour-model:' + t.month, tone: 'amber', say: 'See where labour’s ' + formatCurrency(t.perKg) + '/kg went, against the ' + formatCurrency(t.model) + ' model',
       worth: t.kg > 0 ? { amount: Math.abs(t.perKg - t.model) * t.kg, sign: t.perKg > t.model ? -1 : 1, label: insMonthLabel(t.month) + ', against the model' } : null,
-      basis: 'labour by tier in the live cost', go: { kind: 'liveCost', key: 'labour' }, goLabel: 'Live cost', task: 'See where labour went in ' + insMonthLabel(t.month) },
+      basis: billsMonthLabel(t.month) + '’s report: labour fixed and variable, and the hours by area', go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'staff' },
+      goLabel: 'Report', task: 'See where labour went in ' + insMonthLabel(t.month) },
       { key: 'areas', tone: 'info', say: 'See the hours by area', worth: null, basis: 'staffing, overtime and the EXTRA by area', go: { kind: 'areas' }, goLabel: 'Areas', task: 'See the hours by area' }];
   },
   insChemPrice: function(t) {
@@ -36139,7 +36331,8 @@ var ADV_TASK_MOVES = {
     if (!it) return [];
     var r = null;
     stockReorderList().groups.forEach(function(g) { g.rows.forEach(function(x) { if (x.item.id === it.id) r = x; }); });
-    return [{ key: 'order:' + it.id, tone: t.tone, say: 'Put ' + it.name + ' on the order', worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + (it.unit || '') + ' at the last price' } : null,
+    // The decision the Pulse's stock move names (advStockMoves): one key, so it is one task whichever list adds it (QA5-5).
+    return [{ key: 'stock:' + it.id, tone: t.tone, say: 'Put ' + it.name + ' on the order', worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + (it.unit || '') + ' at the last price' } : null,
       basis: r ? 'the reorder list: lead time and cover, rounded to the pack' : 'no daily use yet, so the list cannot suggest a quantity', go: { kind: 'reorder' }, goLabel: 'Reorder list', task: 'Order ' + it.name }];
   },
   challan: function(t) {
@@ -36203,17 +36396,20 @@ function advInsightMovesHtml(t) {
 /* ---------- Drawing ---------- */
 function advListedKeys() {
   var o = {};
-  todoData().tasks.forEach(function(t) { if (t.advKey && !t.doneAt) o[t.advKey] = true; });
+  todoData().tasks.forEach(function(t) { if (t.advKey && !t.doneAt) { o[t.advKey] = true; o[advKeyNow(t.advKey)] = true; } });
   return o;
 }
+/* A key a task kept from before one decision had one key (QA5-5): the stock task's order:<id> is the stock move's
+   stock:<id>, and an insight's reprice:<client>:<month> the reprice:<client> the questions draw. */
+function advKeyNow(k) { return String(k).replace(/^order:/, 'stock:').replace(/^(reprice:[^:]+):\d{4}-\d{2}$/, '$1'); }
 /* A move (§6.10): the tone's mark, the move, its worth and what it rests on, then its button (a real tel: or mailto: link
    for a call) and Add to my list; on the phone the end takes a line under the row (inv-row-actions). */
 function advMoveRowHtml(mv, listed) {
-  _advMoves[mv.key] = mv;
+  var ref = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"';
   var meta = [advWorthHtml(mv.worth), mv.basis ? escHtml(mv.basis) : ''].filter(Boolean).join(' · ');
   var btn = mv.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
-    : mv.go ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(mv.key) + '">' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
-  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invAdvTask" data-key="' + escHtml(mv.key) + '">Add to my list</button>';
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(mv.key) + '"' + ref + '>' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invAdvTask" data-key="' + escHtml(mv.key) + '"' + ref + '>Add to my list</button>';
   return '<div class="inv-row inv-row-auto inv-row-flow" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
     '<span class="inv-row-lead">' + todoGlyph(mv.tone) + '</span>' +
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mv.say) + '</span>' +
@@ -36240,8 +36436,8 @@ function advFootHtml(q) {
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */
-function advAddTask(key) {
-  var mv = _advMoves[key];
+function advAddTask(key, ref) {
+  var mv = (ref && _advRows[ref]) || _advMoves[key];
   if (!mv) return;
   if (!advListedKeys()[key]) {
     todoData().tasks.push({ id: todoUid(), text: mv.task || mv.say, due: todoToday(), note: [advWorthText(mv.worth), mv.basis].filter(Boolean).join(' · '),
@@ -36287,6 +36483,7 @@ function advGoTo(go) {
     case 'payWeek': _attView = 'pay'; _attDate = go.day || localDateStr(); switchTab('pageStaff'); return true;
     case 'liveCost': {
       try { localStorage.setItem(STATS_TAB_KEY, 'cost'); } catch (e) { /* per-device */ }
+      if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
       switchTab('pageStats');
       var row = document.querySelector('#statsContent details[data-cost="' + String(go.key || '').replace(/[^a-z]/gi, '') + '"]');
       if (row) { row.open = true; uiRevealEl(row); }
@@ -36296,17 +36493,25 @@ function advGoTo(go) {
       switchTab('pageProduction'); return true;
     case 'createFor': createForClient(go.clientId, go.ims); return true;
     case 'register': regJump({ clientId: go.clientId, month: go.month }); return true;
+    // A report of a kind on the period holding `from`, at a section (an insight's month, QA5-12).
+    case 'report': {
+      rptSet(rptKindOk(go.report) ? go.report : 'monthly', rptIsoOk(go.from) ? go.from : localDateStr());
+      switchTab('pageReports');
+      var sec = go.sec && document.querySelector('#rptSheet [data-rpt-sec="' + String(go.sec).replace(/[^a-z]/gi, '') + '"]');
+      if (sec) uiRevealEl(sec);
+      return true;
+    }
   }
   return false;
 }
 
 function advAction(action, btn) {
   if (action === 'invAdvGo') {
-    var mv = _advMoves[btn.dataset.key];
+    var mv = (btn.dataset.advRow && _advRows[btn.dataset.advRow]) || _advMoves[btn.dataset.key];
     if (mv && mv.go) todoGo(mv.go); else showToast('That move has changed: open the card again', 'warning');
     return true;
   }
-  if (action === 'invAdvTask') { advAddTask(btn.dataset.key); return true; }
+  if (action === 'invAdvTask') { advAddTask(btn.dataset.key, btn.dataset.advRow); return true; }
   return false;
 }
 /* ===== STAFF AND STOCK OVERVIEWS =====
@@ -36325,27 +36530,35 @@ function _dashPanel(id, title, body, head, rows) {
 function _dashWeekLabel(sat) { return stockShortDate(sat); }
 
 /* ---------- 7a. Staff ---------- */
-/* Worker-days present (P = 1, H = ½) over the active roster's marks typed that week, per pay week.
-   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator. */
+/* Worker-days present (P = 1, H = ½) over the active roster's marks typed, Monday to Saturday, to today: the attendance
+   Staff → Overview draws by pay week, and the one a report reads for its period (report.js; QA5-6: the report had its own
+   copy, which took Sundays in, counted a half day whole and divided by today's roster).
+   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator.
+   Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that were
+   actually typed — present, half or absent — so a half-entered day reads as what was entered. A Sunday worked is
+   overtime, not attendance. `avg` is the heads on site a day recorded, on the same counting. */
+function attPresenceForRange(from, to, ids) {
+  var today = localDateStr(), present = 0, marked = 0, days = 0;
+  if (!ids) { ids = {}; staffActive().forEach(function(w) { ids[String(w.id)] = true; }); }
+  attDatesInRange(from, to > today ? today : to).forEach(function(iso) {
+    var rec = (S.attendance || {})[iso];
+    if (attParseIso(iso).getDay() === 0 || !rec || !Object.keys(rec.marks || {}).length) return;
+    days++;
+    Object.keys(rec.marks).forEach(function(id) {
+      var m = rec.marks[id];
+      if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
+      marked++;
+      if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
+    });
+  });
+  return { days: days, marked: marked, present: present, pct: marked ? present / marked * 100 : null, avg: days ? present / days : null };
+}
 function dashAttendanceByWeek(n) {
-  // Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that
-  // were actually typed — present, half or absent — so a half-entered day reads as what was entered.
-  var active = staffActive(), ids = {}, today = localDateStr(), out = [], ws = attWeekStartOf(today);
-  active.forEach(function(w) { ids[String(w.id)] = true; });
+  var ids = {}, out = [], ws = attWeekStartOf(localDateStr());
+  staffActive().forEach(function(w) { ids[String(w.id)] = true; });
   for (var k = n - 1; k >= 0; k--) {
-    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), present = 0, marked = 0, days = 0;
-    for (var d = 1; d <= 6; d++) {
-      var iso = isoAddDays(start, d), rec = (S.attendance || {})[iso];
-      if (iso > today || !rec || !Object.keys(rec.marks || {}).length) continue;
-      days++;
-      Object.keys(rec.marks).forEach(function(id) {
-        var m = rec.marks[id];
-        if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
-        marked++;
-        if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
-      });
-    }
-    out.push({ start: start, sat: sat, days: days, marked: marked, pct: marked ? present / marked * 100 : null });
+    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), r = attPresenceForRange(start, sat, ids);
+    out.push({ start: start, sat: sat, days: r.days, marked: r.marked, pct: r.pct });
   }
   return out;
 }
@@ -39288,9 +39501,9 @@ function tdyTaskMoveHtml(t) {
   var mv = typeof advTaskMoves === 'function' ? advTaskMoves(t) : [];
   var m = mv.filter(function(x) { return x.href || (x.go && tdySees(tdyTaskPage({ go: x.go }) || 'pageHome')); })[0];
   if (m) {
-    _advMoves[m.key] = m;
+    var ref = advRowRef(m);
     return m.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(m.href) + '" data-adv-call>' + escHtml(m.hrefLabel || 'Call') + '</a>'
-      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(m.key) + '" title="' + escHtml(m.say) + '">' + escHtml(m.goLabel || 'Open') + '</button>';
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(m.key) + '" data-adv-row="' + escHtml(ref) + '" title="' + escHtml(m.say) + '">' + escHtml(m.goLabel || 'Open') + '</button>';
   }
   return t.goLabel ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGoApp" data-key="' + escHtml(t.key) + '">' + escHtml(t.goLabel) + '</button>' : '';
 }
@@ -40469,19 +40682,10 @@ function rptReceived(from, to) {
   });
   return out;
 }
-/* Heads on site a recorded day (present, or half), the average over the days recorded, against the active roster.
-   Unmarked is not absent: a day nobody typed is a gap, never a day nobody came. */
-function rptAttendance(from, to) {
-  var days = 0, onSite = 0, att = S.attendance || {};
-  attDatesInRange(from, to).forEach(function(d) {
-    var rec = att[d];
-    if (!rec || !rec.marks || !Object.keys(rec.marks).length) return;
-    days++;
-    Object.keys(rec.marks).forEach(function(id) { var m = rec.marks[id]; if (m && (m.st === 'P' || m.st === 'H')) onSite++; });
-  });
-  var roster = staffActive().length;
-  return { days: days, avg: days ? onSite / days : null, roster: roster, pct: days && roster ? onSite / days / roster * 100 : null };
-}
+/* Attendance is Staff → Overview's, by its own function (dash.js attPresenceForRange): Monday to Saturday, a half day
+   half, over the active roster's marks typed. Unmarked is not absent: a day nobody typed is a gap, never a day nobody
+   came. */
+function rptAttendance(from, to) { return attPresenceForRange(from, to); }
 function rptCuts(a, from, to) { return a.cuts.filter(function(c) { return c.date >= from && c.date <= to; }); }
 function rptCutSum(cuts) {
   return cuts.reduce(function(t, c) { t.n++; t.min += c.cost.inside || 0; t.cost += c.cost.total || 0; return t; }, { n: 0, min: 0, cost: 0 });
@@ -40495,7 +40699,7 @@ function rptRowFigures(ctx, from, to) {
   var inv = ctx.invs.filter(function(i) { return i.date >= from && i.date <= b; }), w = weighLines(inv);
   var pl = prodPlatedSummary(from, b), att = rptAttendance(from, b), cuts = rptCuts(ctx.power, from, b);
   var rec = powerRecordedDays(from, b);
-  return { inv: inv.length, taxable: sumTaxable(inv), kg: w.kg, real: w.kg > 0 ? w.revKnown / w.kg : null, rec: rptReceived(from, b),
+  return { inv: inv.length, taxable: sumTaxable(inv), kg: w.kg, revKnown: w.revKnown, real: w.kg > 0 ? w.revKnown / w.kg : null, rec: rptReceived(from, b),
     plated: pl, att: att, cuts: cuts.length, cutsKnown: cuts.length > 0 || rec.recorded > 0 };
 }
 
@@ -40526,13 +40730,15 @@ function rptHtml(kind, from, to) {
   var p = rptPeriodOf(kind, from);
   if (to) p.to = to;
   var today = localDateStr(), end = p.to > today ? today : p.to, open = p.to >= today, current = p.from <= today && p.to >= today;
-  var co = (S.company && S.company.name) || 'Soma Electro Products';
+  // Who issued it is read from S.company and nowhere else (CLAUDE.md: never freeze a copy of the company's identity into a
+  // document): a blank name prints none, rather than a name written into the build (QA5-14).
+  var co = String((S.company && S.company.name) || '').trim();
   var title = rptTitle(p);
   var build = typeof APP_BUILD === 'string' ? APP_BUILD : 'dev';
   var h = '<div class="inv-rpt-doc" data-rpt-doc data-kind="' + p.kind + '" data-from="' + p.from + '" data-to="' + p.to + '">' +
-    '<table class="inv-rpt-frame"><thead><tr><td class="inv-rpt-frame-head">' + escHtml(co) + ' · ' + escHtml(title) + '</td></tr></thead>' +
+    '<table class="inv-rpt-frame"><thead><tr><td class="inv-rpt-frame-head">' + escHtml([co, title].filter(Boolean).join(' · ')) + '</td></tr></thead>' +
     '<tfoot><tr><td class="inv-rpt-frame-foot"></td></tr></tfoot><tbody><tr><td class="inv-rpt-frame-body">' +
-    '<div class="inv-rpt-head"><div class="inv-rpt-co">' + escHtml(co) + '</div><h2 class="inv-rpt-title">' + escHtml(title) + '</h2>' +
+    '<div class="inv-rpt-head">' + (co ? '<div class="inv-rpt-co">' + escHtml(co) + '</div>' : '') + '<h2 class="inv-rpt-title">' + escHtml(title) + '</h2>' +
     '<div class="inv-rpt-meta">' + escHtml((p.from === p.to ? formatDate(p.from) : formatDate(p.from) + ' to ' + formatDate(p.to)) +
       (open ? ' · figures to ' + formatDate(end) : '')) + ' · generated ' + escHtml(formatDate(today)) + ' · build <span class="inv-rpt-id">' + escHtml(build) + '</span></div></div>';
   if (p.from > today) return h + rptNone('This period has not begun.') + '</td></tr></tbody></table></div>';
@@ -40579,10 +40785,11 @@ function rptHtml(kind, from, to) {
     ? rptTile('plated', 'Plated (floor)', escHtml(rptKg(plated.kg)), 'on ' + plated.days + ' complete day' + (plated.days === 1 ? '' : 's') + ' of ' + plated.working + ' working only',
       pplated ? dl(plated.kg / plated.days, pplated.kg / pplated.days, 'up').replace(/ on /, ' a day on ') : '')
     : rptTile('plated', 'Plated (floor)', '&mdash;', 'no complete day recorded (attendance and every staffed line)'));
-  tiles.push(att.days
-    ? rptTile('attendance', 'Attendance', figHtml(formatNum(att.avg, 1) + ' / ' + att.roster, figTonePct(att.pct, 90, 80)),
-      'on site a day, over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded' + (att.pct != null ? ' · ' + Math.round(att.pct) + '% of the roster' : ''), dl(att.avg, patt.avg, 'up'))
-    : rptTile('attendance', 'Attendance', '&mdash;', 'no day recorded'));
+  tiles.push(att.pct != null
+    ? rptTile('attendance', 'Attendance', figHtml(Math.round(att.pct) + '%', figTonePct(att.pct, 90, 80)),
+      'of the marks typed, Mon–Sat, a half day half, as Staff → Overview reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
+      dl(att.pct, patt.pct, 'up'))
+    : rptTile('attendance', 'Attendance', '&mdash;', att.days ? 'no mark of the active roster on the days recorded' : 'no working day recorded'));
   tiles.push(lab.total > 0
     ? rptTile('labour', 'Labour', rptMoney(lab.total), labV.ok ? figHtml(rptMoney(labV.perKg) + '/kg', figToneAgainst(labV.perKg, labourCfg().modelPerKg || 3.55, 10, true)) + ' against the model ' + rptMoney(labourCfg().modelPerKg || 3.55)
       : '₹/kg withheld: ' + labV.why, plab.total > 0 && Math.abs(lab.coverage - plab.coverage) < 0.1 ? dl(lab.total, plab.total, null) : '')
@@ -40666,20 +40873,26 @@ function rptBreakdownHtml(p, end, ctx) {
   } else {
     for (var m = p.from, k = 0; m <= p.to && k < 12; m = isoAddDays(payMonthEnd(m), 1), k++) subs.push({ from: m, to: payMonthEnd(m), label: insMonthLabel(m) + ' ' + m.slice(0, 4) });
   }
-  var tot = { inv: 0, kg: 0, rev: 0, rec: 0, nos: 0, pl: 0, cuts: 0 };
+  // The foot totals only what its rows carry (QA5-10): a column of dashes foots to a dash, never to a 0; ₹/kg is the
+  // weighed revenue over the weighed kilos of every row, and present the marks of every row, as each row reads them.
+  var tot = { inv: 0, kg: 0, revKnown: 0, rec: 0, nos: 0, pl: 0, plDays: 0, present: 0, marked: 0, cuts: 0, cutsKnown: false };
   var rows2 = subs.map(function(s) {
     var f = rptRowFigures(ctx, s.from, s.to);
     if (f.future) return [escHtml(s.label), '', '', '', '', '', '', ''];
-    tot.inv += f.taxable; tot.kg += f.kg; tot.rec += f.rec.kg; tot.nos += f.rec.nos; tot.pl += f.plated ? f.plated.kg : 0; tot.cuts += f.cuts;
+    tot.inv += f.taxable; tot.kg += f.kg; tot.revKnown += f.revKnown || 0; tot.rec += f.rec.kg; tot.nos += f.rec.nos;
+    if (f.plated) { tot.pl += f.plated.kg; tot.plDays += f.plated.days || 0; }
+    tot.present += f.att.present; tot.marked += f.att.marked;
+    if (f.cutsKnown) { tot.cuts += f.cuts; tot.cutsKnown = true; }
     return [escHtml(s.label), f.inv ? escHtml(finRs(f.taxable)) : '', f.kg > 0 ? rptInt(f.kg) : '', f.real != null ? formatNum(f.real, 2) : '',
       f.rec.n ? (f.rec.kg > 0 ? rptInt(f.rec.kg) : '') + (f.rec.nos > 0 ? (f.rec.kg > 0 ? ' · ' : '') + rptInt(f.rec.nos) + ' NOS' : '') : '',
-      f.plated ? rptInt(f.plated.kg) : '', f.att.days ? formatNum(f.att.avg, 1) : '', f.cutsKnown ? String(f.cuts) : ''];
+      f.plated ? rptInt(f.plated.kg) : '', f.att.pct != null ? Math.round(f.att.pct) + '%' : '', f.cutsKnown ? String(f.cuts) : ''];
   });
   var title = p.kind === 'weekly' ? 'By day' : p.kind === 'monthly' ? 'By pay week' : 'By month';
-  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is heads on site a recorded day. A dash is a stretch nobody recorded, not a zero.',
+  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is attendance as Staff → Overview reads it, the active roster’s marks typed Monday to Saturday, a half day half. A dash is a stretch nobody recorded, not a zero.',
     rptTable([[p.kind === 'weekly' ? 'Day' : p.kind === 'monthly' ? 'Week' : 'Month'], ['Invoiced', 1], ['kg', 1], ['₹/kg', 1], ['Received', 1], ['Plated kg', 1], ['Present', 1], ['Cuts', 1]], rows2,
-      ['Total', tot.inv ? escHtml(finRs(tot.inv)) : '', tot.kg ? rptInt(tot.kg) : '', tot.kg > 0 ? '' : '', tot.rec || tot.nos ? (tot.rec ? rptInt(tot.rec) : '') + (tot.nos ? (tot.rec ? ' · ' : '') + rptInt(tot.nos) + ' NOS' : '') : '',
-        tot.pl ? rptInt(tot.pl) : '', '', String(tot.cuts)], 'breakdown'));
+      ['Total', tot.inv ? escHtml(finRs(tot.inv)) : '', tot.kg > 0 ? rptInt(tot.kg) : '', tot.kg > 0 ? formatNum(tot.revKnown / tot.kg, 2) : '',
+        tot.rec || tot.nos ? (tot.rec ? rptInt(tot.rec) : '') + (tot.nos ? (tot.rec ? ' · ' : '') + rptInt(tot.nos) + ' NOS' : '') : '',
+        tot.plDays ? rptInt(tot.pl) : '', tot.marked ? Math.round(tot.present / tot.marked * 100) + '%' : '', tot.cutsKnown ? String(tot.cuts) : ''], 'breakdown'));
 }
 
 /* 3. Clients: the largest by revenue, concentration, and (a month or longer) contribution worst first at the live cost. */
@@ -40860,9 +41073,13 @@ function rptPowerHtml(p, end, cuts, cs, rec) {
   return rptSec('power', 'Power', cov, body);
 }
 
-/* 10. A day's invoices and challans, as lists. */
+/* 10. A day's invoices and challans, as lists. An invoice is listed as it was issued, at the taxable on its face: the
+   period's figures are net of credit notes (statsInvoices), a document is not (QA5-11). */
 function rptDayListsHtml(invs, rec) {
-  var a = invs.length ? rptTable([['Invoice'], ['Client'], ['Taxable', 1]], invs.map(function(i) {
+  var byId = {};
+  (S.invoices || []).forEach(function(i) { byId[i.id] = i; });
+  var a = invs.length ? rptTable([['Invoice'], ['Client'], ['Taxable', 1]], invs.map(function(n) {
+    var i = byId[n.id] || n;
     return [escHtml(i.displayNumber || i.invoiceNumber || ''), escHtml(i.clientName || ''), escHtml(formatCurrency(i.taxableValue || 0))];
   }), null, 'dayinvoices') : rptNone('No invoice issued.');
   var b = rec.n ? rptTable([['Challan'], ['Client'], ['Lines', 1], ['kg · NOS', 1]], rec.list.map(function(im) {
@@ -40907,8 +41124,11 @@ function renderReports() {
   if (p.kind === 'daily' || p.kind === 'weekly') pick = '<input type="date" class="inv-input inv-id" id="rptDay" value="' + escHtml(p.kind === 'daily' ? p.from : (p.to > today ? today : p.from)) + '" max="' + today + '" aria-label="' + (p.kind === 'daily' ? 'Day' : 'A day in the week') + '">';
   else if (p.kind === 'monthly') pick = '<input type="month" class="inv-input inv-id" id="rptMonth" value="' + p.from.slice(0, 7) + '" max="' + today.slice(0, 7) + '" aria-label="Month">';
   else {
-    var opts = [], fy = rptFy(today), first = (statsInvoices().map(function(i) { return i.date; }).filter(Boolean).sort()[0]) || today, fy0 = Math.min(rptFy(first), fy - 1);
-    for (var y = fy; y >= fy0 && opts.length < 40; y--) {
+    // Back to the book's first invoice, and always to the year shown: the stepper goes further back than the book, and the
+    // picker named another year than the document under it (QA5-14).
+    var opts = [], fy = rptFy(today), first = (statsInvoices().map(function(i) { return i.date; }).filter(Boolean).sort()[0]) || today;
+    var fy0 = Math.min(rptFy(first), fy - 1, rptFy(p.from));
+    for (var y = fy; y >= fy0 && opts.length < 400; y--) {
       if (p.kind === 'yearly') opts.push([y + '-04-01', rptFyLabel(y)]);
       else for (var q = 4; q >= 1; q--) { var qp = rptPeriodOf('quarterly', isoAddDays(y + '-04-01', (q - 1) * 92)); if (qp.from <= today) opts.push([qp.from, 'Q' + q + ' ' + rptFyLabel(y)]); }
     }
@@ -40948,11 +41168,13 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Stats → Overview → Make a report: the same period, as a report. */
+/* Stats → Overview → Make a report: the same period, as a report. Stats' All is the whole book, which no report covers
+   (a financial year at most): it opens the year to date and says so (QA5-14). */
 function rptFromStats() {
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
   rptSet(per === 'qtd' ? 'quarterly' : per === 'ytd' || per === 'all' ? 'yearly' : 'monthly', localDateStr());
   switchTab('pageReports');
+  if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book Stats showed. Step back a year with ‹.', 'info');
 }
 
 /* The address (nav.js): `kind/first-day`. */
@@ -43173,14 +43395,16 @@ function _applyScanResult(parsed) {
         }
         return;
       }
-      var info = getLineItemRate(appClient, onDate, item.partNumber);
+      // An override in the line's own unit (itemRateFor, state.js): per kg on pieces of a nos_to_weight client prices
+      // their weight; one in another unit leaves the line to the client's own rate.
+      var ov = itemRateFor(appClient, onDate, item);
       var piece = item.unit === 'NOS' ? getPieceRate(appClient, onDate, item.partNumber, item.desc) : null;
-      if (info._override) {
-        item.rate = info.rate;
-        item.amount = gstRound(item.qty * info.rate);
+      if (ov && ov.fits) {
+        item.rate = ov.rate;
+        item.amount = gstRound(item.qty * (ov.how === 'weight' ? ov.kgPc : 1) * ov.rate);
         item._auto.rate = true;
       } else if (item.unit === 'KG') {
-        item.rate = info.ratePerKg || 0;
+        item.rate = clientLadderRate(appClient, onDate);
         item.amount = gstRound(item.qty * item.rate);
         item._auto.rate = item.rate > 0;
       } else if (piece && piece.rate != null && !(appClient.billingMode === 'piece' && item.amount > 0)) {
@@ -43764,6 +43988,11 @@ function onDocChange(e) {
     if (!item) return;
     const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
     if (field === 'unit') {
+      // Where an override names the part, a rate the record put on the line (or none) is read again for the new unit: an
+      // override prices a line only in its own unit (itemRateFor, state.js), so ₹3.83 a piece must not stay on a line
+      // switched to KG. A rate typed, or a challan's own, stays as it is.
+      const fromRecord = client && itemRateFor(client, invoiceForm.date, item) &&
+        (!(item.rate > 0) || item.rate === defaultLineRate(client, invoiceForm.date, item));
       item.unit = el.value;
       // Piece mode: switching to NOS means amount is user-entered, rate is back-calculated
       if (client && client.billingMode === 'piece' && el.value === 'NOS') {
@@ -43771,6 +44000,11 @@ function onDocChange(e) {
         item.amount = 0;
         // A challan line's pieces put back: its share of the challan's own amount, not ₹0.
         createPieceShare(item);
+      } else if (fromRecord) {
+        const ov = itemRateFor(client, invoiceForm.date, item);
+        item.rate = defaultLineRate(client, invoiceForm.date, item);
+        item._override = !!(ov && ov.fits);
+        item._label = item._override ? ov.label : '';
       }
       recalcLineItem(item, client);
       captureOptionalFields();
@@ -43930,6 +44164,10 @@ function onDocChange(e) {
         citem.rate = 0; citem.amount = 0;
         lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
         lineFillFromCount(cclient, citem);
+      } else if (cclient && itemRateFor(cclient, _challanForm.challanDate || localDateStr(), citem) && (!(citem.rate > 0) || (citem._auto && citem._auto.rate))) {
+        // Where an override names the part, the record's rate follows the unit (an override prices a line only in its
+        // own unit, itemRateFor); a rate typed stays (lineFillFromRecord fills only an empty rate or one it filled).
+        lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
       }
       recalcChallanLine(citem, cclient);
       captureChallanFields();
@@ -44047,13 +44285,13 @@ document.addEventListener('input', function(e) {
         if (amtInput) amtInput.value = formatNum(item.amount);
         updateTotalsDisplay();
       }
-      // Also check itemRates override
+      // Also check itemRates override, in the line's own unit (itemRateFor, state.js)
       if (client && client.itemRates && client.itemRates.length > 0) {
-        const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-        if (rateInfo._override) {
-          item.rate = rateInfo.rate;
+        const ov = itemRateFor(client, invoiceForm.date, item);
+        if (ov && ov.fits) {
+          item.rate = ov.rate;
           item._override = true;
-          item._label = rateInfo._label;
+          item._label = ov.label;
           recalcLineItem(item, client);
           const rateInput = document.querySelector('[data-field="rate"][data-idx="' + idx + '"]');
           const amtInput = document.querySelector('[data-field="amount"][data-idx="' + idx + '"]');
@@ -44081,9 +44319,12 @@ document.addEventListener('input', function(e) {
       // Auto-fill rate from client rate card
       var cclient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       if (cclient && cclient.itemRates && cclient.itemRates.length > 0) {
-        var rateInfo = getLineItemRate(cclient, _challanForm.challanDate || localDateStr(), citem.partNumber);
-        if (rateInfo._override) {
-          citem.rate = rateInfo.rate;
+        var cov = itemRateFor(cclient, _challanForm.challanDate || localDateStr(), citem);
+        if (cov && cov.fits) {
+          citem.rate = cov.rate;
+          // The record's figure, marked so (item._auto): it follows the line's unit and is replaced by a rate typed.
+          citem._auto = citem._auto || {};
+          citem._auto.rate = true;
           recalcChallanLine(citem, cclient);
           var rI = document.querySelector('[data-action="invUpdateChallanLine"][data-field="rate"][data-idx="' + cidx + '"]');
           var aI = document.querySelector('[data-action="invUpdateChallanLine"][data-field="amount"][data-idx="' + cidx + '"]');
@@ -44567,7 +44808,7 @@ var WS_GO_PAGE = {
   stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower',
   finance: 'pageFinance', bills: 'pageFinance',
-  stats: 'pageStats', liveCost: 'pageStats'
+  stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;

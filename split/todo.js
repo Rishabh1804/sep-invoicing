@@ -651,6 +651,8 @@ function todoGo(go) {
       break;
     case 'stats':
       try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ }
+      // A move worked out for a period opens Stats on it, so the block it names is the one on screen (advice.js).
+      if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
       switchTab('pageStats');
       if (go.anchor) uiRevealEl(document.getElementById(go.anchor));
       break;
@@ -676,7 +678,7 @@ function todoGo(go) {
     }
     // The jumps a move needs (advice.js, advGoTo): a quotation drafted, the quotations, a client's performance, the
     // reorder list, the power case, Areas, the week's pay, a line of the live cost, a production line, an invoice with
-    // a client's challans ticked, the register on a client's month.
+    // a client's challans ticked, the register on a client's month, a report on its period and section.
     default: if (typeof advGoTo === 'function') advGoTo(go);
   }
 }

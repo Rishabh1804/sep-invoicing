@@ -1804,6 +1804,40 @@ function getPieceWeight(client, onDate, partNumber, desc) {
   return { kg: hit.kgPerPiece, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
 }
 
+/* ===== AN ITEM RATE OVERRIDE, IN THE UNIT IT WAS GIVEN (the QA chain of 2 Oct 2026, QA5-1) =====
+   An itemRates row is a negotiated figure for a part, per piece unless it says kg (a per-kg rate posted from an
+   accepted quotation, quote.js). Every path read its `rate` alone and put it on the line whatever the line's unit: a
+   ₹16/kg override priced 600 pieces at 600 × 16 = ₹9,600 (600 × 0.2 kg × 16 is ₹1,920), a ₹3.83/pc one priced 150 kg
+   at ₹3.83 a kilo, and the rate check, comparing the line with that same figure, said Matches. So an override is
+   applied only in its own unit:
+   - per kg: a KG line at the rate a kilo, and a NOS line of a client billed by weight from pieces (nos_to_weight) as
+     pieces × the part's kg a piece × the rate, the way that client's ₹/kg ladder is used; only where the weight is known;
+   - per piece: a NOS line at the rate a piece.
+   Anything else does not fit the line: the line is priced at the client's own rate, and the check says the rate on
+   record is in another unit. Every path that prices a line reads the override here, and nowhere else. */
+function itemRateUnit(ir) { return ir && ir.unit === 'kg' ? 'kg' : 'piece'; }
+/* How an override in `unit` prices a line in `lineUnit` (KG | NOS) of this client's part: 'kg', 'piece', 'weight'
+   (pieces × kg/pc × rate), or null when it cannot. */
+function itemRateHow(client, unit, lineUnit, partNumber) {
+  if (unit === 'piece') return lineUnit === 'NOS' ? 'piece' : null;
+  if (lineUnit !== 'NOS') return 'kg';
+  return client && client.billingMode === 'nos_to_weight' && ((S.partWeights || {})[String(partNumber || '').toUpperCase()] || 0) > 0 ? 'weight' : null;
+}
+/* The override naming a line's part, or null: {rate, unit, label, how, fits, kgPc}. */
+function itemRateFor(client, onDate, item) {
+  if (!client || !item || !item.partNumber) return null;
+  var info = getLineItemRate(client, onDate || localDateStr(), item.partNumber);
+  if (!info._override) return null;
+  var unit = info.unit === 'kg' ? 'kg' : 'piece', lineUnit = item.unit === 'NOS' ? 'NOS' : 'KG';
+  var how = itemRateHow(client, unit, lineUnit, item.partNumber);
+  return { rate: info.rate, unit: unit, label: info._label || '', how: how, fits: !!how,
+    kgPc: how === 'weight' ? (S.partWeights || {})[String(item.partNumber).toUpperCase()] : 0 };
+}
+/* The client's own ₹/kg on a date, passing over any override (getLineItemRate with no part). */
+function clientLadderRate(client, onDate) {
+  return client ? (getLineItemRate(client, onDate || localDateStr(), '').ratePerKg || 0) : 0;
+}
+
 /* The one place a line's rate on record is read: override, then the client's
    piece rate for a NOS line, then the ₹/kg ladder. `unit` says which the figure
    is — comparing a piece rate against a ₹/kg one is the error the Items Master
@@ -1812,8 +1846,10 @@ function getRateOnRecord(client, onDate, item) {
   if (!client || !item) return null;
   var date = onDate || localDateStr();
   var info = getLineItemRate(client, date, item.partNumber);
-  // An override is per piece unless it says kg (a per-kg rate posted from an accepted quotation, quote.js).
-  if (info._override) return { rate: info.rate, unit: info.unit === 'kg' ? 'kg' : 'piece', source: 'override' };
+  // An override is per piece unless it says kg. One that does not fit the line's unit is still the rate on record for
+  // the part (`fits: false`): the check says so rather than comparing the line with the client's own rate.
+  var ov = itemRateFor(client, date, item);
+  if (ov) return ov.fits ? { rate: ov.rate, unit: ov.unit, source: 'override' } : { rate: ov.rate, unit: ov.unit, source: 'override', fits: false };
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, date, item.partNumber, item.desc);
     if (pr && pr.ambiguous) return { rate: null, unit: 'piece', source: 'gauge-ambiguous' };
@@ -1858,8 +1894,10 @@ function isZeroBilledLine(item) {
    pad; Samarth's 14.50 against a ₹3 bracket), which is exactly the unit error
    the replay found typed into the Items Master. */
 function defaultLineRate(client, onDate, item) {
-  var info = getLineItemRate(client, onDate, item.partNumber);
-  if (info._override) return info.rate;
+  // An override in the line's own unit; one in another unit leaves the line at the client's own rate (itemRateFor).
+  var ov = itemRateFor(client, onDate, item);
+  if (ov && ov.fits) return ov.rate;
+  var info = getLineItemRate(client, onDate, '');
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
     if (pr && pr.rate != null) return pr.rate;
@@ -1880,12 +1918,15 @@ function linePrice(item, client, onDate) {
     // Challan passthrough: the amount is entered as the challan says, and the rate is read back from it.
     if (item.qty > 0 && item.amount > 0) item.rate = gstRound(item.amount / item.qty);
   } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
-    var pwKey = (item.partNumber || '').toUpperCase();
-    var rateInfo = getLineItemRate(client, onDate, item.partNumber);
+    var pw = (S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0;
+    // An override in its own unit: per piece prices the pieces, per kg the pieces' weight, as the ladder does below.
+    // One that does not fit (per kg with no weight on record) leaves the line to the client's own rate (itemRateFor).
+    var ov = itemRateFor(client, onDate, item);
+    if (ov && !ov.fits) ov = null;
     // A part with no weight on record cannot be converted; it is billed per piece off the client's card (Samarth's
-    // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
-    var perPiece = rateInfo._override ? { rate: rateInfo.rate }
-      : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    // brackets), or a per-piece override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
+    var perPiece = ov ? (ov.how === 'piece' ? { rate: ov.rate } : null)
+      : (pw ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
     // A rate somebody typed is theirs (item._auto.rate false, while the line still carries the figure typed): the
     // record prices only an empty or a filled rate. It used to replace a typed rate silently.
     var typed = item.rate > 0 && item._auto && item._auto.rate === false && item._auto.rateTyped === item.rate;
@@ -1894,9 +1935,8 @@ function linePrice(item, client, onDate) {
       item.amount = gstRound((item.qty || 0) * item.rate);
       return;
     }
-    var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
-    if (!typed) item.rate = rateInfo.ratePerKg || 0;
-    item.amount = gstRound(w * item.rate);
+    if (!typed) item.rate = ov ? ov.rate : clientLadderRate(client, onDate);
+    item.amount = gstRound((item.qty || 0) * pw * item.rate);
   } else {
     item.amount = gstRound((item.qty || 0) * (item.rate || 0));
   }
@@ -1968,6 +2008,10 @@ function rateMatch(client, onDate, item) {
   var ref = getRateOnRecord(client, onDate, item);
   if (!ref) return { status: 'none' };
   if (ref.rate == null) return { status: 'gauge' };
+  // The part's override is in another unit than the line: nothing to compare, and never "Matches". `need` is what
+  // would let it price the line: the line in NOS, in KG, or (pieces of a nos_to_weight client) the part's weight.
+  if (ref.fits === false) return { status: 'unit', ref: ref.rate, unit: ref.unit, source: ref.source,
+    need: ref.unit === 'piece' ? 'NOS' : client.billingMode === 'nos_to_weight' && item.unit === 'NOS' ? 'weight' : 'KG' };
   var diff = gstRound(rate - ref.rate);
   // Quantity in the reference's own unit: a nos_to_weight line priced per kg
   // stakes the kilograms, not the pieces.

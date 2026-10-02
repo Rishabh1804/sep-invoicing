@@ -27,6 +27,17 @@ var ADV_PERIOD_WORDS = { mtd: 'this month', qtd: 'this quarter', ytd: 'this fina
 var ADV_OPTION_NAME = { ts: 'the TSUISL supply switch', inv: 'an inverter and battery', gen: 'a diesel generator' };
 var ADV_LISTED_HTML = '<span class="inv-dot inv-dot-ok" data-adv-listed>On your list</span>';
 var _advMoves = {};               // every move drawn, by key: a tap finds its place, Add to my list its words
+var _advRows = {};                // every move drawn, by its row (advRowRef)
+
+/* A drawn move's row: its key and its words. One decision is one key wherever it is drawn (a task added from either
+   marks both), but two moves of it can differ in words and place (QA5-5: an insight asks a client for a month's full
+   cost, a question for the period's), so a tap acts on the move drawn under it, never on another drawn later. */
+function advRowRef(mv) {
+  var ref = mv.key + '#' + mv.say;
+  _advRows[ref] = mv;
+  _advMoves[mv.key] = mv;
+  return ref;
+}
 
 /* ---------- Reading the book once per render ---------- */
 /* One move or one question failing on a shape nobody anticipated must not take the others with it (the To-do's rule). */
@@ -146,8 +157,9 @@ function advOwesMove(c, id) {
 }
 /* The quotation a reprice drafts: the client's largest parts by tonnage over the last 90 days, each by the piece at the
    target ₹/kg × its kg a piece where the client's weight is known (prodKgPerPiece: its card, Part weights, the Items
-   Master for a part held by one gauge), else by the kilo at the target. `inv` is the 90 days' invoices where worked out. */
-function advRepriceDraft(clientId, target, inv) {
+   Master for a part held by one gauge), else by the kilo at the target. `inv` is the 90 days' invoices where worked out;
+   `basis` says which full cost the target is (a month's, for an insight), else it is the one "then". */
+function advRepriceDraft(clientId, target, inv, basis) {
   var today = localDateStr();
   var mine = (inv || advWindow(90).inv).filter(function(i) { return String(i.clientId) === String(clientId); });
   var unweighed = [];
@@ -159,20 +171,23 @@ function advRepriceDraft(clientId, target, inv) {
     return { item: item, partNumber: r.part, desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' };
   });
   if (!lines.length) lines = [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' }];
-  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost then' };
+  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
 }
 /* Ask a client below the full cost for the full cost, a quotation drafted with its largest parts. */
 function advRepriceMove(ctx, x) {
   var m = ctx.margins(), target = gstRound(m.fullKg), c = advClient(x.id), name = advNameOf(c, x.name);
   var mk = ctx.monthKg(x.id), draft = advRepriceDraft(x.id, target, ctx.days(90) ? ctx.days(90).inv : null);
-  var basis = ['the full cost ' + ctx.words + ', ' + statsPctOf(m.c.measuredShare) + '% measured', 'now ' + formatCurrency(x.net) + '/kg',
+  var basis = ['the live cost, ' + statsPctOf(m.c.measuredShare) + '% measured', 'now ' + formatCurrency(x.net) + '/kg',
     mk > 0 ? advKg(mk) + ' a month' : '',
     m.varKg != null ? 'it covers its variable cost at ' + formatCurrency(m.varKg) + '/kg' : 'the variable cost is not known yet'].filter(Boolean).join(' · ');
+  // The full cost is the period's: the words say which, since an insight's move asks the same client for a month's own
+  // (ADV_TASK_MOVES.insBelowVar) and both can be on one page (QA5-5). One decision, one key.
+  var said = 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost ' + ctx.words;
   return { key: 'reprice:' + x.id, tone: x.vsVar != null && x.vsVar < 0 ? 'red' : 'amber', what: name + ' below the full cost',
-    say: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost',
+    say: said,
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
-    task: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg',
+    task: said,
     hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or the Items Master) to quote ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
@@ -332,7 +347,7 @@ function advCostLineMove(ctx) {
   var mk = ctx.plantMonthKg(), r = best.r;
   return { key: 'cost:' + r.key, tone: 'amber', say: 'Look into ' + r.label.toLowerCase() + ': ' + formatCurrency(r.perKg) + '/kg against the ' + formatCurrency(best.model) + ' model',
     worth: mk > 0 ? { amount: best.over * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage, back at the model' } : null,
-    basis: COST_SRC_LABEL[r.source] + ' · ' + r.note, go: { kind: 'liveCost', key: r.key }, goLabel: 'Live cost', task: 'Look into the ' + r.label.toLowerCase() + ' cost' };
+    basis: COST_SRC_LABEL[r.source] + ' · ' + r.note, go: { kind: 'liveCost', key: r.key, period: ctx.a.period }, goLabel: 'Live cost', task: 'Look into the ' + r.label.toLowerCase() + ' cost' };
 }
 function advMoneyMoves(ctx) {
   var out = [], hints = [], m = ctx.margins();
@@ -353,8 +368,9 @@ function advMoneyMoves(ctx) {
 /* ---------- 3. Who is driving it? ---------- */
 function advRebateMove(ctx, x, name) {
   var since = isoAddDays(ctx.today, -89), sum = 0, n = 0;
+  // Rebates only (bills.js cnIsRebate): a rate correction or goods returned is not what the client's payment terms buy (QA5-8).
   getCreditNotes().forEach(function(cn) {
-    if (cn.status !== 'cancelled' && String(cn.clientId) === String(x.id) && (cn.date || '') >= since) { sum += Number(cn.taxableValue) || 0; n++; }
+    if (cn.status !== 'cancelled' && cnIsRebate(cn) && String(cn.clientId) === String(x.id) && (cn.date || '') >= since) { sum += Number(cn.taxableValue) || 0; n++; }
   });
   if (!(sum > 0.005)) return null;
   var pays = '';
@@ -363,8 +379,8 @@ function advRebateMove(ctx, x, name) {
     if (d && d.median != null) pays = 'pays in ' + Math.round(d.median) + ' days' + (b && b.median != null ? ' against the book’s ' + Math.round(b.median) : '');
   }
   return { key: 'rebate:' + x.id, tone: 'info', say: 'Weigh ' + name + '’s rebate against how it pays: ' + advRs(sum) + ' credited in 90 days',
-    worth: { amount: sum / 3, sign: -1, per: 'month', label: 'a month in credit notes' },
-    basis: todoPlural(n, 'credit note') + ' · ' + (pays || 'no bank statement to say how fast it pays'), go: { kind: 'cnList' }, goLabel: 'Credit notes',
+    worth: { amount: sum / 3, sign: -1, per: 'month', label: 'a month in rebates' },
+    basis: todoPlural(n, 'rebate note') + ' · ' + (pays || 'no bank statement to say how fast it pays'), go: { kind: 'cnList' }, goLabel: 'Credit notes',
     task: 'Weigh ' + name + '’s rebate against how it pays' };
 }
 /* By the hour: its part whose round earns least under what an hour of the plant costs (the panel's own figures). */
@@ -391,7 +407,8 @@ function advLabourMove(ctx, x, name) {
     say: 'Settle the labour question for ' + name + (split ? ': with labour fixed it ' + (x.vsVar >= 0 ? 'leaves ' + advRs(x.vsVar) : 'loses ' + advRs(x.vsVar)) +
       '/kg, with labour scaling it loses ' + advRs(x.vsFull) + '/kg' : ': record the attendance or import the bank statement to split labour'),
     worth: null, basis: 'contribution by client at the live cost ' + ctx.words + ', ' + statsPctOf(m.c.measuredShare) + '% measured',
-    go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst' }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name };
+    // The period it was worked out for goes with it: Stats opens there, where this client is the block named.
+    go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: ctx.a.period }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name };
 }
 function advClientsMoves(ctx, card) {
   var out = [], hints = [], m = ctx.margins(), x = card.worst;
@@ -450,8 +467,9 @@ function advPlantMoves(ctx) {
     // A new quotation at a rate that clears the full cost by 10%.
     if (m && m.fullKg > 0) {
       var rate = gstRound(m.fullKg * 1.1), spare = Math.max(0, plant.cap - a.tonnage.kg), base = m.varKg != null ? m.varKg : m.fullKg;
+      // The spare tonnes are the period's, so the worth is ranked as the period's, scaled to a month (QA5-9).
       out.push({ key: 'quote:new', tone: 'info', say: 'Quote new work at ' + formatCurrency(rate) + '/kg: it clears the full cost by 10%',
-        worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
+        worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, per: 'period', label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
         basis: 'the full cost ' + ctx.words + ' ' + formatCurrency(m.fullKg) + '/kg × 1.1' + (m.varKg != null ? ' · the variable cost ' + formatCurrency(m.varKg) + '/kg' : ''),
         go: { kind: 'quoteDraft', lines: [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: rate, refWeightKg: null, note: '' }],
           note: 'Drafted from the Pulse on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
@@ -582,23 +600,29 @@ var ADV_TASK_MOVES = {
       c ? { key: 'card:' + c.id, tone: 'info', say: 'Check ' + name + '’s rate card', worth: null, basis: 'its rates and piece rates on the client', go: { kind: 'client', id: c.id }, goLabel: 'Rate card',
         task: 'Check ' + name + '’s rate card' } : null];
   },
+  // An insight is about its own month, and Stats shows the period its chip holds (this month, the quarter…), where the
+  // month and the block a move named may not be on screen (QA5-12): its moves open that month's report on the section.
   insRealLow: function(t) {
-    return [{ key: 'mix:' + t.month, tone: 'info', say: 'See whose share of ' + insMonthLabel(t.month) + ' moved', worth: null, basis: 'contribution and realisation by client',
-      go: { kind: 'stats', tab: 'clients' }, goLabel: 'Clients', task: 'See whose share of ' + insMonthLabel(t.month) + ' moved' }];
+    return [{ key: 'mix:' + t.month, tone: 'info', say: 'See whose share of ' + insMonthLabel(t.month) + ' moved', worth: null, basis: billsMonthLabel(t.month) + '’s report: revenue, ₹/kg and share by client',
+      go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'See whose share of ' + insMonthLabel(t.month) + ' moved' }];
   },
   insBelowVar: function(t) {
-    var c = advClient(t.clientId), name = advNameOf(c, ''), target = gstRound(t.fullKg), draft = advRepriceDraft(t.clientId, target);
-    return [{ key: 'reprice:' + t.clientId + ':' + t.month, tone: 'red', say: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost',
+    var c = advClient(t.clientId), name = advNameOf(c, ''), target = gstRound(t.fullKg);
+    // The month's own full cost, said as such: the questions ask the same client for the period's (advRepriceMove).
+    var said = 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost in ' + billsMonthLabel(t.month);
+    var draft = advRepriceDraft(t.clientId, target, null, 'in ' + billsMonthLabel(t.month));
+    return [{ key: 'reprice:' + t.clientId, tone: 'red', say: said,
       worth: t.kg > 0 ? { amount: (target - t.net) * t.kg, sign: 1, per: 'month', label: 'a month at ' + insMonthLabel(t.month) + '’s tonnage' } : null,
       basis: insMonthLabel(t.month) + ': ' + formatCurrency(t.net) + '/kg against ' + formatCurrency(t.varKg) + ' variable and ' + formatCurrency(t.fullKg) + ' full',
-      go: { kind: 'quoteDraft', clientId: t.clientId, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation', task: 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg' },
-      { key: 'labour:' + t.clientId, tone: 'amber', say: 'Settle the labour question for ' + name, worth: null, basis: 'contribution by client, settled both ways',
-        go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst' }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name }];
+      go: { kind: 'quoteDraft', clientId: t.clientId, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation', task: said },
+      { key: 'labour:' + t.clientId, tone: 'amber', say: 'Settle the labour question for ' + name, worth: null, basis: billsMonthLabel(t.month) + '’s contribution by client, against the variable and the full cost',
+        go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'Settle the labour question for ' + name }];
   },
   insLabour: function(t) {
     return [{ key: 'labour-model:' + t.month, tone: 'amber', say: 'See where labour’s ' + formatCurrency(t.perKg) + '/kg went, against the ' + formatCurrency(t.model) + ' model',
       worth: t.kg > 0 ? { amount: Math.abs(t.perKg - t.model) * t.kg, sign: t.perKg > t.model ? -1 : 1, label: insMonthLabel(t.month) + ', against the model' } : null,
-      basis: 'labour by tier in the live cost', go: { kind: 'liveCost', key: 'labour' }, goLabel: 'Live cost', task: 'See where labour went in ' + insMonthLabel(t.month) },
+      basis: billsMonthLabel(t.month) + '’s report: labour fixed and variable, and the hours by area', go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'staff' },
+      goLabel: 'Report', task: 'See where labour went in ' + insMonthLabel(t.month) },
       { key: 'areas', tone: 'info', say: 'See the hours by area', worth: null, basis: 'staffing, overtime and the EXTRA by area', go: { kind: 'areas' }, goLabel: 'Areas', task: 'See the hours by area' }];
   },
   insChemPrice: function(t) {
@@ -613,7 +637,8 @@ var ADV_TASK_MOVES = {
     if (!it) return [];
     var r = null;
     stockReorderList().groups.forEach(function(g) { g.rows.forEach(function(x) { if (x.item.id === it.id) r = x; }); });
-    return [{ key: 'order:' + it.id, tone: t.tone, say: 'Put ' + it.name + ' on the order', worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + (it.unit || '') + ' at the last price' } : null,
+    // The decision the Pulse's stock move names (advStockMoves): one key, so it is one task whichever list adds it (QA5-5).
+    return [{ key: 'stock:' + it.id, tone: t.tone, say: 'Put ' + it.name + ' on the order', worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + (it.unit || '') + ' at the last price' } : null,
       basis: r ? 'the reorder list: lead time and cover, rounded to the pack' : 'no daily use yet, so the list cannot suggest a quantity', go: { kind: 'reorder' }, goLabel: 'Reorder list', task: 'Order ' + it.name }];
   },
   challan: function(t) {
@@ -677,17 +702,20 @@ function advInsightMovesHtml(t) {
 /* ---------- Drawing ---------- */
 function advListedKeys() {
   var o = {};
-  todoData().tasks.forEach(function(t) { if (t.advKey && !t.doneAt) o[t.advKey] = true; });
+  todoData().tasks.forEach(function(t) { if (t.advKey && !t.doneAt) { o[t.advKey] = true; o[advKeyNow(t.advKey)] = true; } });
   return o;
 }
+/* A key a task kept from before one decision had one key (QA5-5): the stock task's order:<id> is the stock move's
+   stock:<id>, and an insight's reprice:<client>:<month> the reprice:<client> the questions draw. */
+function advKeyNow(k) { return String(k).replace(/^order:/, 'stock:').replace(/^(reprice:[^:]+):\d{4}-\d{2}$/, '$1'); }
 /* A move (§6.10): the tone's mark, the move, its worth and what it rests on, then its button (a real tel: or mailto: link
    for a call) and Add to my list; on the phone the end takes a line under the row (inv-row-actions). */
 function advMoveRowHtml(mv, listed) {
-  _advMoves[mv.key] = mv;
+  var ref = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"';
   var meta = [advWorthHtml(mv.worth), mv.basis ? escHtml(mv.basis) : ''].filter(Boolean).join(' · ');
   var btn = mv.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
-    : mv.go ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(mv.key) + '">' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
-  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invAdvTask" data-key="' + escHtml(mv.key) + '">Add to my list</button>';
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(mv.key) + '"' + ref + '>' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invAdvTask" data-key="' + escHtml(mv.key) + '"' + ref + '>Add to my list</button>';
   return '<div class="inv-row inv-row-auto inv-row-flow" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
     '<span class="inv-row-lead">' + todoGlyph(mv.tone) + '</span>' +
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(mv.say) + '</span>' +
@@ -714,8 +742,8 @@ function advFootHtml(q) {
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */
-function advAddTask(key) {
-  var mv = _advMoves[key];
+function advAddTask(key, ref) {
+  var mv = (ref && _advRows[ref]) || _advMoves[key];
   if (!mv) return;
   if (!advListedKeys()[key]) {
     todoData().tasks.push({ id: todoUid(), text: mv.task || mv.say, due: todoToday(), note: [advWorthText(mv.worth), mv.basis].filter(Boolean).join(' · '),
@@ -761,6 +789,7 @@ function advGoTo(go) {
     case 'payWeek': _attView = 'pay'; _attDate = go.day || localDateStr(); switchTab('pageStaff'); return true;
     case 'liveCost': {
       try { localStorage.setItem(STATS_TAB_KEY, 'cost'); } catch (e) { /* per-device */ }
+      if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
       switchTab('pageStats');
       var row = document.querySelector('#statsContent details[data-cost="' + String(go.key || '').replace(/[^a-z]/gi, '') + '"]');
       if (row) { row.open = true; uiRevealEl(row); }
@@ -770,16 +799,24 @@ function advGoTo(go) {
       switchTab('pageProduction'); return true;
     case 'createFor': createForClient(go.clientId, go.ims); return true;
     case 'register': regJump({ clientId: go.clientId, month: go.month }); return true;
+    // A report of a kind on the period holding `from`, at a section (an insight's month, QA5-12).
+    case 'report': {
+      rptSet(rptKindOk(go.report) ? go.report : 'monthly', rptIsoOk(go.from) ? go.from : localDateStr());
+      switchTab('pageReports');
+      var sec = go.sec && document.querySelector('#rptSheet [data-rpt-sec="' + String(go.sec).replace(/[^a-z]/gi, '') + '"]');
+      if (sec) uiRevealEl(sec);
+      return true;
+    }
   }
   return false;
 }
 
 function advAction(action, btn) {
   if (action === 'invAdvGo') {
-    var mv = _advMoves[btn.dataset.key];
+    var mv = (btn.dataset.advRow && _advRows[btn.dataset.advRow]) || _advMoves[btn.dataset.key];
     if (mv && mv.go) todoGo(mv.go); else showToast('That move has changed: open the card again', 'warning');
     return true;
   }
-  if (action === 'invAdvTask') { advAddTask(btn.dataset.key); return true; }
+  if (action === 'invAdvTask') { advAddTask(btn.dataset.key, btn.dataset.advRow); return true; }
   return false;
 }

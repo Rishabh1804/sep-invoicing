@@ -533,6 +533,11 @@ function onDocChange(e) {
     if (!item) return;
     const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
     if (field === 'unit') {
+      // Where an override names the part, a rate the record put on the line (or none) is read again for the new unit: an
+      // override prices a line only in its own unit (itemRateFor, state.js), so ₹3.83 a piece must not stay on a line
+      // switched to KG. A rate typed, or a challan's own, stays as it is.
+      const fromRecord = client && itemRateFor(client, invoiceForm.date, item) &&
+        (!(item.rate > 0) || item.rate === defaultLineRate(client, invoiceForm.date, item));
       item.unit = el.value;
       // Piece mode: switching to NOS means amount is user-entered, rate is back-calculated
       if (client && client.billingMode === 'piece' && el.value === 'NOS') {
@@ -540,6 +545,11 @@ function onDocChange(e) {
         item.amount = 0;
         // A challan line's pieces put back: its share of the challan's own amount, not ₹0.
         createPieceShare(item);
+      } else if (fromRecord) {
+        const ov = itemRateFor(client, invoiceForm.date, item);
+        item.rate = defaultLineRate(client, invoiceForm.date, item);
+        item._override = !!(ov && ov.fits);
+        item._label = item._override ? ov.label : '';
       }
       recalcLineItem(item, client);
       captureOptionalFields();
@@ -699,6 +709,10 @@ function onDocChange(e) {
         citem.rate = 0; citem.amount = 0;
         lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
         lineFillFromCount(cclient, citem);
+      } else if (cclient && itemRateFor(cclient, _challanForm.challanDate || localDateStr(), citem) && (!(citem.rate > 0) || (citem._auto && citem._auto.rate))) {
+        // Where an override names the part, the record's rate follows the unit (an override prices a line only in its
+        // own unit, itemRateFor); a rate typed stays (lineFillFromRecord fills only an empty rate or one it filled).
+        lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
       }
       recalcChallanLine(citem, cclient);
       captureChallanFields();
@@ -816,13 +830,13 @@ document.addEventListener('input', function(e) {
         if (amtInput) amtInput.value = formatNum(item.amount);
         updateTotalsDisplay();
       }
-      // Also check itemRates override
+      // Also check itemRates override, in the line's own unit (itemRateFor, state.js)
       if (client && client.itemRates && client.itemRates.length > 0) {
-        const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-        if (rateInfo._override) {
-          item.rate = rateInfo.rate;
+        const ov = itemRateFor(client, invoiceForm.date, item);
+        if (ov && ov.fits) {
+          item.rate = ov.rate;
           item._override = true;
-          item._label = rateInfo._label;
+          item._label = ov.label;
           recalcLineItem(item, client);
           const rateInput = document.querySelector('[data-field="rate"][data-idx="' + idx + '"]');
           const amtInput = document.querySelector('[data-field="amount"][data-idx="' + idx + '"]');
@@ -850,9 +864,12 @@ document.addEventListener('input', function(e) {
       // Auto-fill rate from client rate card
       var cclient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       if (cclient && cclient.itemRates && cclient.itemRates.length > 0) {
-        var rateInfo = getLineItemRate(cclient, _challanForm.challanDate || localDateStr(), citem.partNumber);
-        if (rateInfo._override) {
-          citem.rate = rateInfo.rate;
+        var cov = itemRateFor(cclient, _challanForm.challanDate || localDateStr(), citem);
+        if (cov && cov.fits) {
+          citem.rate = cov.rate;
+          // The record's figure, marked so (item._auto): it follows the line's unit and is replaced by a rate typed.
+          citem._auto = citem._auto || {};
+          citem._auto.rate = true;
           recalcChallanLine(citem, cclient);
           var rI = document.querySelector('[data-action="invUpdateChallanLine"][data-field="rate"][data-idx="' + cidx + '"]');
           var aI = document.querySelector('[data-action="invUpdateChallanLine"][data-field="amount"][data-idx="' + cidx + '"]');

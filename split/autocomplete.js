@@ -175,16 +175,11 @@ function selectPartForLine(idx, partId) {
 
   const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
   if (client) {
-    const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-    if (rateInfo._override) {
-      item.rate = rateInfo.rate;
-      item._override = true;
-      item._label = rateInfo._label;
-    } else {
-      item.rate = defaultLineRate(client, invoiceForm.date, item);
-      item._override = false;
-      item._label = '';
-    }
+    // The part's override where it is in the line's unit, else the client's own rate (itemRateFor, state.js).
+    const ov = itemRateFor(client, invoiceForm.date, item);
+    item.rate = defaultLineRate(client, invoiceForm.date, item);
+    item._override = !!(ov && ov.fits);
+    item._label = item._override ? ov.label : '';
     recalcLineItem(item, client);
   }
 

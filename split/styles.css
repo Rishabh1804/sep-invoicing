@@ -1712,6 +1712,7 @@ body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--h
 .inv-verdict-text { font-family: var(--ff-mono); font-size: var(--fs-12); color: var(--text-2); }
 .inv-input[data-verdict="check"] { border-color: var(--danger); background-color: var(--danger-bg); }
 .inv-input[data-verdict="decimal"] { border-color: var(--warning); background-color: var(--warning-bg); }
+.inv-input[data-verdict="unit"] { border-color: var(--warning); }
 .inv-input[data-verdict="match"] { border-color: var(--ok); }
 /* A question asked in a callout (a ₹0 line's reason, a red flag's): its chips, then its note. */
 .inv-callout .inv-toolbar { margin: var(--sp-8) 0; }

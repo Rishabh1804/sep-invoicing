@@ -135,14 +135,16 @@ function _applyScanResult(parsed) {
         }
         return;
       }
-      var info = getLineItemRate(appClient, onDate, item.partNumber);
+      // An override in the line's own unit (itemRateFor, state.js): per kg on pieces of a nos_to_weight client prices
+      // their weight; one in another unit leaves the line to the client's own rate.
+      var ov = itemRateFor(appClient, onDate, item);
       var piece = item.unit === 'NOS' ? getPieceRate(appClient, onDate, item.partNumber, item.desc) : null;
-      if (info._override) {
-        item.rate = info.rate;
-        item.amount = gstRound(item.qty * info.rate);
+      if (ov && ov.fits) {
+        item.rate = ov.rate;
+        item.amount = gstRound(item.qty * (ov.how === 'weight' ? ov.kgPc : 1) * ov.rate);
         item._auto.rate = true;
       } else if (item.unit === 'KG') {
-        item.rate = info.ratePerKg || 0;
+        item.rate = clientLadderRate(appClient, onDate);
         item.amount = gstRound(item.qty * item.rate);
         item._auto.rate = item.rate > 0;
       } else if (piece && piece.rate != null && !(appClient.billingMode === 'piece' && item.amount > 0)) {

@@ -770,14 +770,11 @@ function selectClient(id) {
   // Auto-fill rate on existing items
   if (client) {
     invoiceForm.items.forEach(item => {
-      const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-      if (rateInfo._override) {
-        item.rate = rateInfo.rate;
-        item._override = true;
-        item._label = rateInfo._label;
-      } else {
-        item.rate = defaultLineRate(client, invoiceForm.date, item);
-      }
+      // The part's override where it is in the line's unit, else the client's own rate (itemRateFor, state.js).
+      const ov = itemRateFor(client, invoiceForm.date, item);
+      item.rate = defaultLineRate(client, invoiceForm.date, item);
+      item._override = !!(ov && ov.fits);
+      item._label = item._override ? ov.label : '';
       // The new client's rate is the app's, not a typed one.
       if (item._auto) item._auto.rate = true;
       recalcLineItem(item, client);
@@ -956,9 +953,10 @@ async function saveInvoice() {
    One renderer for the invoice form, the challan form and the invoice detail,
    so the three can never describe the same line differently. */
 var RM_LABELS = { match: 'Matches', decimal: '×10 slip', differs: 'Differs', check: 'Check',
-  none: 'No rate on record', gauge: 'Gauge not stated' };
-/* The tone each verdict speaks in (DR-1): a Check or ×10 is a red flag, the rest are not. */
-var RM_TONE = { match: 'ok', decimal: 'warning', differs: 'neutral', check: 'danger', none: 'neutral', gauge: 'neutral' };
+  none: 'No rate on record', gauge: 'Gauge not stated', unit: 'Another unit' };
+/* The tone each verdict speaks in (DR-1): a Check or ×10 is a red flag, the rest are not. A rate on record in another
+   unit than the line (an override per kg on a line in pieces) asks for a look, and stops nothing. */
+var RM_TONE = { match: 'ok', decimal: 'warning', differs: 'neutral', check: 'danger', none: 'neutral', gauge: 'neutral', unit: 'warning' };
 
 /* A verdict under a line: a dot and its word, then the working in mono (§6.15). */
 function verdictHtml(status, label, text) {
@@ -978,6 +976,8 @@ function rateMatchNote(m, compact) {
       ' · ' + sign(m.stake) + ' on this line';
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
+  else if (m.status === 'unit') text = 'On record ' + formatCurrency(m.ref) + per + ' for this part, not in this line’s unit' + (compact ? '' :
+    m.need === 'weight' ? ': enter its weight in Items → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
   return verdictHtml(m.status, RM_LABELS[m.status], text);
 }
 

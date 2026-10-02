@@ -208,6 +208,7 @@ function attDeleteRecord(key, reason, how) {
 async function attDeleteDay(iso) {
   var rec = (S.attendance || {})[iso];
   if (!rec) return;
+  if (!attFloorOk()) return;   // a floor record: a role that may not enter one is told so, never asked
   if (!grdOk('voids') && !(await guardAsk('voids', 'delete an attendance day'))) return;   // P1 (guard.js)
   var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
   // The rolls the day was saved from (relayPastes) go into the log with it: left on record, the same roll pasted again
@@ -498,6 +499,15 @@ function _attAfterTap(fn) {
   _attTapWait.push(fn);
   setTimeout(_attTapRun, 1000);
   return true;
+}
+
+/* Staff → Day is a floor entry (the guard, guard.js): a role that may not make one is told so, never asked a PIN, and
+   nothing is written. The owner, and a guard that is off, pass. One word at a time: a refusal already on screen is not
+   said again for the next key. */
+function attFloorOk() {
+  if (typeof grdOk !== 'function' || grdOk('floor')) return true;
+  if (!document.querySelector('[data-ui-ask]')) grdGate('floor', 'enter attendance');
+  return false;
 }
 
 function _attEmptyRoster() {
@@ -852,6 +862,7 @@ function _attNeedCard(iso, rec) {
 
 /* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
 function setAttBlockNeed(idx, v) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
@@ -1154,6 +1165,7 @@ function attSetDate(iso) {
 /* Writes one mark. `st` of '' clears the row back to unmarked, and a cleared
    row takes its OT with it — hours nobody was present for are not hours. */
 function attSetState(iso, staffId, st) {
+  if (!attFloorOk()) return false;
   var w = staffById(staffId);
   if (!w) return;
   var rec = attDay(iso, true);
@@ -1196,6 +1208,7 @@ function cycleAttState(staffId, iso) {
 }
 
 function setAttOt(staffId, hours) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
@@ -1207,6 +1220,7 @@ function setAttOt(staffId, hours) {
 /* Hours worked, for the hourly pool. Same guard as OT: hours without a
    presence mark are not a fact about the day. */
 function setAttHours(staffId, hours) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
@@ -1248,6 +1262,7 @@ function attHandSlot(rec, staffId, slot) {
 /* The area a hand stood in on a slot: the block's first area. */
 function attHandSlotArea(rec, staffId, slot) { var x = attHandSlot(rec, staffId, slot); return x ? (_attBlockAreas(x)[0] || '') : ''; }
 function setAttSlotArea(staffId, slot, areaId) {
+  if (!attFloorOk()) return false;
   var w = staffById(staffId), def = ATT_SLOTS.find(function(z) { return z[0] === slot; });
   if (!def || !w) return;
   var id = w.id;   // the crew holds the roster's own id, number or text
@@ -1268,6 +1283,7 @@ function setAttSlotArea(staffId, slot, areaId) {
   }
   _attPrune(_attDate);
   saveState();
+  return true;
 }
 /* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
    shift's area. Labour books the OT cost there (labourForRange). */
@@ -1306,6 +1322,7 @@ function attTimesApply(m, w) {
   m.ot = h.ot;
 }
 function setAttTime(staffId, which, v) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m || m.st === 'A') return;
   var min = attTimeMin(v);
@@ -1326,6 +1343,7 @@ function attTimesText(m) {
 }
 
 function setAttArea(staffId, areaId) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m) return;
   var wasGate = (m.area || (w && w.area)) === 'gate';
@@ -1335,11 +1353,13 @@ function setAttArea(staffId, areaId) {
   if ((m.inMin != null || m.outMin != null) && wasGate !== ((m.area || (w && w.area)) === 'gate')) attTimesApply(m, w);
   _attHandEdit(m);
   saveState();
+  return true;
 }
 
 /* Marks every unmarked worker present. It never overwrites a mark already
    made — the absences are the part that was typed deliberately. */
 function attAllPresent() {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, true);
   var n = 0;
   staffActive().forEach(function(w) {
@@ -1355,6 +1375,7 @@ function attAllPresent() {
 }
 
 function attAddExtra() {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, true);
   rec.extra.push({ area: 'barrel', hours: 0, kind: 'coverage' });
   saveState();
@@ -1362,6 +1383,7 @@ function attAddExtra() {
 }
 
 function attRemoveExtra(idx) {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, false);
   if (!rec) return;
   rec.extra.splice(idx, 1);
@@ -1399,15 +1421,18 @@ function relayLearnFromRow(x) {
 function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
 
 function setAttExtraArea(idx, areaId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
   _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
+  return true;
 }
 
 function setAttExtraKind(idx, kind) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
@@ -1422,9 +1447,11 @@ function setAttExtraKind(idx, kind) {
     delete x.areas; delete x.crew; delete x.from; delete x.to;
   }
   saveState();
+  return true;
 }
 
 function setAttBlockTime(idx, which, value) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
@@ -1439,6 +1466,7 @@ function setAttBlockTime(idx, which, value) {
    reconciler reads it first and falls back to `area` only for rows that
    predate this field. */
 function toggleAttBlockArea(idx, areaId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   if (!STAFF_AREAS.some(function(a) { return a.id === areaId; })) return;
@@ -1454,9 +1482,11 @@ function toggleAttBlockArea(idx, areaId) {
   _attHandEdit(x);
   relayLearnFromRow(x);
   saveState();
+  return true;
 }
 
 function toggleAttBlockCrew(idx, workerId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var id = Number(workerId);
@@ -1468,9 +1498,11 @@ function toggleAttBlockCrew(idx, workerId) {
   x.crew = list;
   _attHandEdit(x);
   saveState();
+  return true;
 }
 
 function setAttExtraHours(idx, hours) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);

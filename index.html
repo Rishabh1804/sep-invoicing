@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="7259047c">
+<meta name="app-build" content="0772381c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -18927,6 +18927,7 @@ function attDeleteRecord(key, reason, how) {
 async function attDeleteDay(iso) {
   var rec = (S.attendance || {})[iso];
   if (!rec) return;
+  if (!attFloorOk()) return;   // a floor record: a role that may not enter one is told so, never asked
   if (!grdOk('voids') && !(await guardAsk('voids', 'delete an attendance day'))) return;   // P1 (guard.js)
   var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
   // The rolls the day was saved from (relayPastes) go into the log with it: left on record, the same roll pasted again
@@ -19217,6 +19218,15 @@ function _attAfterTap(fn) {
   _attTapWait.push(fn);
   setTimeout(_attTapRun, 1000);
   return true;
+}
+
+/* Staff → Day is a floor entry (the guard, guard.js): a role that may not make one is told so, never asked a PIN, and
+   nothing is written. The owner, and a guard that is off, pass. One word at a time: a refusal already on screen is not
+   said again for the next key. */
+function attFloorOk() {
+  if (typeof grdOk !== 'function' || grdOk('floor')) return true;
+  if (!document.querySelector('[data-ui-ask]')) grdGate('floor', 'enter attendance');
+  return false;
 }
 
 function _attEmptyRoster() {
@@ -19571,6 +19581,7 @@ function _attNeedCard(iso, rec) {
 
 /* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
 function setAttBlockNeed(idx, v) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
@@ -19873,6 +19884,7 @@ function attSetDate(iso) {
 /* Writes one mark. `st` of '' clears the row back to unmarked, and a cleared
    row takes its OT with it — hours nobody was present for are not hours. */
 function attSetState(iso, staffId, st) {
+  if (!attFloorOk()) return false;
   var w = staffById(staffId);
   if (!w) return;
   var rec = attDay(iso, true);
@@ -19915,6 +19927,7 @@ function cycleAttState(staffId, iso) {
 }
 
 function setAttOt(staffId, hours) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
@@ -19926,6 +19939,7 @@ function setAttOt(staffId, hours) {
 /* Hours worked, for the hourly pool. Same guard as OT: hours without a
    presence mark are not a fact about the day. */
 function setAttHours(staffId, hours) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
@@ -19967,6 +19981,7 @@ function attHandSlot(rec, staffId, slot) {
 /* The area a hand stood in on a slot: the block's first area. */
 function attHandSlotArea(rec, staffId, slot) { var x = attHandSlot(rec, staffId, slot); return x ? (_attBlockAreas(x)[0] || '') : ''; }
 function setAttSlotArea(staffId, slot, areaId) {
+  if (!attFloorOk()) return false;
   var w = staffById(staffId), def = ATT_SLOTS.find(function(z) { return z[0] === slot; });
   if (!def || !w) return;
   var id = w.id;   // the crew holds the roster's own id, number or text
@@ -19987,6 +20002,7 @@ function setAttSlotArea(staffId, slot, areaId) {
   }
   _attPrune(_attDate);
   saveState();
+  return true;
 }
 /* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
    shift's area. Labour books the OT cost there (labourForRange). */
@@ -20025,6 +20041,7 @@ function attTimesApply(m, w) {
   m.ot = h.ot;
 }
 function setAttTime(staffId, which, v) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m || m.st === 'A') return;
   var min = attTimeMin(v);
@@ -20045,6 +20062,7 @@ function attTimesText(m) {
 }
 
 function setAttArea(staffId, areaId) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m) return;
   var wasGate = (m.area || (w && w.area)) === 'gate';
@@ -20054,11 +20072,13 @@ function setAttArea(staffId, areaId) {
   if ((m.inMin != null || m.outMin != null) && wasGate !== ((m.area || (w && w.area)) === 'gate')) attTimesApply(m, w);
   _attHandEdit(m);
   saveState();
+  return true;
 }
 
 /* Marks every unmarked worker present. It never overwrites a mark already
    made — the absences are the part that was typed deliberately. */
 function attAllPresent() {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, true);
   var n = 0;
   staffActive().forEach(function(w) {
@@ -20074,6 +20094,7 @@ function attAllPresent() {
 }
 
 function attAddExtra() {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, true);
   rec.extra.push({ area: 'barrel', hours: 0, kind: 'coverage' });
   saveState();
@@ -20081,6 +20102,7 @@ function attAddExtra() {
 }
 
 function attRemoveExtra(idx) {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, false);
   if (!rec) return;
   rec.extra.splice(idx, 1);
@@ -20118,15 +20140,18 @@ function relayLearnFromRow(x) {
 function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
 
 function setAttExtraArea(idx, areaId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
   _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
+  return true;
 }
 
 function setAttExtraKind(idx, kind) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
@@ -20141,9 +20166,11 @@ function setAttExtraKind(idx, kind) {
     delete x.areas; delete x.crew; delete x.from; delete x.to;
   }
   saveState();
+  return true;
 }
 
 function setAttBlockTime(idx, which, value) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
@@ -20158,6 +20185,7 @@ function setAttBlockTime(idx, which, value) {
    reconciler reads it first and falls back to `area` only for rows that
    predate this field. */
 function toggleAttBlockArea(idx, areaId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   if (!STAFF_AREAS.some(function(a) { return a.id === areaId; })) return;
@@ -20173,9 +20201,11 @@ function toggleAttBlockArea(idx, areaId) {
   _attHandEdit(x);
   relayLearnFromRow(x);
   saveState();
+  return true;
 }
 
 function toggleAttBlockCrew(idx, workerId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var id = Number(workerId);
@@ -20187,9 +20217,11 @@ function toggleAttBlockCrew(idx, workerId) {
   x.crew = list;
   _attHandEdit(x);
   saveState();
+  return true;
 }
 
 function setAttExtraHours(idx, hours) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
@@ -43799,8 +43831,9 @@ function onDocChange(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
-    attRedrawAround(e.target);
+    var needOk = attFloorOk();
+    if (needOk) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    attFieldDone(e.target, needOk);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
@@ -43892,12 +43925,13 @@ document.addEventListener('input', function(e) {
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
+  // A role that may not enter attendance is told so on the first key, and the field is put back as stored.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
-    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttOt(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
-    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttHours(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
@@ -43905,15 +43939,15 @@ document.addEventListener('input', function(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    if (attFloorOk()) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value); else renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
-    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
-    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   // History search. Debounced so a long log is not rebuilt per keystroke, and

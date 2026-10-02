@@ -626,8 +626,9 @@ function onDocChange(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
-    attRedrawAround(e.target);
+    var needOk = attFloorOk();
+    if (needOk) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    attFieldDone(e.target, needOk);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
@@ -719,12 +720,13 @@ document.addEventListener('input', function(e) {
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
+  // A role that may not enter attendance is told so on the first key, and the field is put back as stored.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
-    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttOt(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
-    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttHours(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
@@ -732,15 +734,15 @@ document.addEventListener('input', function(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    if (attFloorOk()) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value); else renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
-    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
-    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   // History search. Debounced so a long log is not rebuilt per keystroke, and

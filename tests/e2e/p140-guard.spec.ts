@@ -63,7 +63,7 @@ test.describe('P140: the guard (phone)', () => {
     expect(await page.evaluate(() => Array.from(document.body.children).some(el => (el as HTMLElement).inert))).toBe(false);
   });
 
-  test('a wrong PIN counts down the tries; five lock the device for 30 s, doubling; the right PIN opens and clears it', async ({ page }) => {
+  test('a wrong PIN counts down the tries; five lock the ID for 30 s, doubling; the right PIN opens and clears it', async ({ page }) => {
     await page.clock.install();
     await loadAppWithState(page, guardBook());
     await withUsers(page);
@@ -79,8 +79,8 @@ test.describe('P140: the guard (phone)', () => {
     await go.click();
     await expect(err).toHaveText('Locked for 30 seconds.');
     await expect(go).toBeDisabled();
-    // Per device: the count and the time are kept, and the lock says it counting down.
-    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_guard_fail')!).n)).toBe(5);
+    // Kept on the device, by the ID they were typed for (P152, QA4-8): the count and the time, and the lock says it counting down.
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_guard_fail')!).ids['u:U-own'].n)).toBe(5);
     await page.clock.fastForward(10_000);
     await expect(err).toHaveText(/^Locked for (19|20) seconds\.$/);
     await page.clock.fastForward(21_000);

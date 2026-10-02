@@ -97,7 +97,9 @@ var CHG_TRACK = [
   { path: 'power.load', kind: 'cfg', sec: 'Power → the connection' },
   { path: 'power.cfg', kind: 'cfg', sec: 'Power → the options’ figures' },
   { path: 'users', kind: 'arr', noun: 'user', label: function(r) { return chgJoin(r.name, r.role); } },
-  { path: 'devices', kind: 'arr', noun: 'device', label: function(r) { return r.name; } },
+  // A push stamps its time on the device's row and keeps it quietly (devices.js devPushPrep): a record of the sync, not a
+  // change anybody made, and it read "changed device · lastPushAt" at the next save (the QA audit, QA4-11).
+  { path: 'devices', kind: 'arr', noun: 'device', omit: ['lastPushAt'], label: function(r) { return r.name; } },
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
@@ -150,7 +152,21 @@ function chgStaffName(id) { if (id == null || !S) return ''; var w = chgFind(S.s
 function chgStockName(id) { var it = S && S.stock ? chgFind(S.stock.items, id) : null; return it ? it.name : ''; }
 function chgStockUnit(id) { var it = S && S.stock ? chgFind(S.stock.items, id) : null; return it ? it.unit || '' : ''; }
 function chgUid() { return 'CL-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 7); }
-function chgBy() { try { return typeof grdUserId === 'function' ? (grdUserId() || null) : null; } catch (e) { return null; } }
+/* Who made the change: the person signed in (the gate), unless a save is being made for somebody (chgAs). */
+var _chgAs;   // undefined: whoever is signed in
+function chgBy() {
+  if (_chgAs !== undefined) return _chgAs;
+  try { return typeof grdUserId === 'function' ? (grdUserId() || null) : null; } catch (e) { return null; }
+}
+/* Runs fn (a save) as the change of `by`: what the guard saves with nobody signed in any more, or not yet (the guard turned
+   off, a PIN reset from the lock), or with a book whose users do not hold the person (an import), is that person's, not
+   "Someone"'s (the QA audit of 2 Oct 2026, QA4-10). The log is written at the start of a save (saveState → chgOnSave), so
+   the name holds for that save alone. */
+function chgAs(by, fn) {
+  var was = _chgAs;
+  _chgAs = by == null ? null : by;
+  try { return fn(); } finally { _chgAs = was; }
+}
 function chgDev() { try { return typeof devId === 'function' ? (devId() || null) : null; } catch (e) { return null; } }
 function chgSpecOf(coll) { return CHG_TRACK.find(function(sp) { return sp.path === coll; }) || null; }
 function chgNounOf(coll, n) {

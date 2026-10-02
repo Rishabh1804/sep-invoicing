@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="16684119">
+<meta name="app-build" content="346a2515">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -22579,12 +22579,17 @@ function setAreaNeedOn(iso, areaId, v) {
   saveState();
 }
 
+/* An area's complement is a standing norm the owner sets (11 Jun 2026), not a day's entry: changed as Settings are (guard.js
+   'settings'), never by a role without that permission (the QA chain of 2 Oct 2026). */
+function areaTargetCan() { return typeof grdCan !== 'function' || grdCan('settings'); }
 function setAreaTarget(areaId, heads) {
+  if (!areaTargetCan()) return false;
   if (!S.areaTargets) S.areaTargets = {};
   var n = Math.max(0, Number(heads) || 0);
   if (n > 0) S.areaTargets[areaId] = n;
   else delete S.areaTargets[areaId];
   saveState();
+  return true;
 }
 
 /* Per-area totals over an inclusive ISO range.
@@ -23422,7 +23427,7 @@ function _areaRow(a) {
     '<span class="inv-field"><label class="inv-field-label" for="areaTgt-' + a.id + '">Complement</label>' +
     '<input type="number" class="inv-input inv-input-sm inv-input-num" id="areaTgt-' + a.id +
     '" data-area-target data-area="' + a.id + '" step="1" min="0" placeholder="—" value="' +
-    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"></span>' +
+    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"' + (areaTargetCan() ? '' : ' disabled title="The owner sets the complement"') + '></span>' +
     '</span></div>';
 }
 
@@ -23653,8 +23658,9 @@ function _attPayView() {
   html += _payDueCard(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
-  // The bank's side of the same payroll (Finance → Payments draws the same panel).
-  if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
+  // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
+  // wages but not money has the slips without the statement's legs (the guard, the QA chain of 2 Oct 2026).
+  if (finHasBank() && (typeof grdSeesMoney !== 'function' || grdSeesMoney())) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
 }
 
@@ -28571,7 +28577,7 @@ function bankAction(action, btn) {
   }
   return false;
 }
-/* ===== FINANCE (sidebar Money → Finance; More → Finance on the phone) =====
+/* ===== FINANCE (Money on the phone bar and the sidebar) =====
  * The money side of the shop in one place (owner, 26 Sep 2026: "The entire finance sector of our
  * app needs a dashboard"). Bank and Bills & notes lived under Stock, where they never belonged; they
  * are tabs here, beside the Overview that reads across them:
@@ -28976,7 +28982,7 @@ function financeAction(action, btn) {
   return false;
 }
 /* ===== TO-DO =====
-   More → To-do, a Home card, and a Windows 11 widget. The owner's own list,
+   Today → To-do, Needs you, and a Windows 11 widget. The owner's own list,
    inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
    later — S.todo is self-contained.
 
@@ -30529,7 +30535,8 @@ function parseRelayRoll(text, roster, sentOn) {
     }
 
     // An in-time roll that ends with its own out-times ("Out time" then names).
-    if (/^out\s*-*\s*time\b/i.test(bare) && !/\d{1,2}\/\d{1,2}/.test(bare)) {
+    // The time may run on ("Out time5:00 pm"): relayKind's test of the same word (the QA chain, 2 Oct 2026).
+    if (/^out\s*-*\s*time(?![a-z])/i.test(bare) && !/\d{1,2}\/\d{1,2}/.test(bare)) {
       var ot2 = relayTimes(bare);
       st.mode = 'out';
       st.slot = { start: null, end: ot2.length ? relayOutMin(ot2[0]) : null, label: bare };
@@ -30762,7 +30769,7 @@ function relaySlotHoldsShift(lines, from) {
   for (var j = from; j < lines.length; j++) {
     var b = String(lines[j] || '').trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
     if (!b || /^0*\d{1,2}\s*[)\].]/.test(b)) continue;
-    if (/^out\s*-*\s*time\b/i.test(b)) break;
+    if (/^out\s*-*\s*time(?![a-z])/i.test(b)) break;
     var k = relaySlotOrArea(b);
     if (!k) continue;
     if (k.slot) break;
@@ -36370,12 +36377,14 @@ function advCtx(a) {
     var m = ctx.margins();
     return m ? m.c : once('cost', function() { return a.tonnage.kg > 0 ? liveCost(ctx.r.from, ctx.r.to, a.tonnage.kg) : null; });
   };
-  ctx.todo = function() { return once('todo', function() { return todoAppAll(); }) || []; };
+  // The tasks the role signed in sees (todo.js todoSees): a question never moves on a task its screens would not list.
+  var seen = function(list) { return typeof todoSees === 'function' ? (list || []).filter(todoSees) : (list || []); };
+  ctx.todo = function() { return once('todo', function() { return seen(todoAppAll()); }) || []; };
   // One To-do rule's tasks: those the list already raised where the rule is on, else the rule's own test run here (the
   // questions ask whatever the To-do's switches say).
   ctx.rule = function(name) {
     return once('rule:' + name, function() {
-      return todoCfg()[name] ? ctx.todo().filter(function(t) { return t.rule === name; }) : (TODO_RULE_FNS[name]() || []);
+      return todoCfg()[name] ? ctx.todo().filter(function(t) { return t.rule === name; }) : seen(TODO_RULE_FNS[name]() || []);
     }) || [];
   };
   ctx.days = function(n) { return once('days' + n, function() { return advWindow(n); }); };
@@ -36529,7 +36538,8 @@ function advStockMoves(ctx) {
   });
 }
 function advWageMoves(ctx) {
-  if (!staffActive().length) return [];
+  // The week's payout is wages: a role that may not see them has no such move (guard.js grdSeesWages).
+  if (!staffActive().length || (typeof grdSeesWages === 'function' && !grdSeesWages())) return [];
   var ws = attWeekStartOf(ctx.today), sat = isoAddDays(ws, 6), until = isoDaysBetween(ctx.today, sat);
   if (until > 2) return [];
   var f = payForecast(ws);
@@ -38553,7 +38563,7 @@ function prodMergeImport(obj, fileName) {
   prodTouch();
   return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad };
 }
-/* ===== PRODUCTION — the page (Floor → Production; More → Production on the phone) =====
+/* ===== PRODUCTION — the page (Floor → Production) =====
  * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
  * a way back and end in the action bar, and draw no toolbar (DR-3).
@@ -40215,7 +40225,7 @@ function tdyAction(action, btn) {
   return false;
 }
 /* ===== POWER — the cuts, the connection's load, and the case for reliable supply =====
- * Floor → Power (More → Power on the phone; owner, 30 Sep 2026: "Make a power cut tab, we have built a business case
+ * Floor → Power (owner, 30 Sep 2026: "Make a power cut tab, we have built a business case
  * for power cut and how to resolve it, find it, read it and update it"). The case was written once, on 30 May, over 56
  * days (soma-internal `archives/2026-W21-W22-session/13-power-cut-infrastructure-case.md`); this page keeps it current.
  *
@@ -41196,7 +41206,7 @@ TODO_RULE_FNS.powerLoad = function() {
     clears: 'Clears itself when a bill is billed at the approved load, or the load record says it is.', go: { kind: 'power', tab: 'load' }, goLabel: 'Open Power',
     sig: L.sanctioned + '|' + L.approved + '|' + L.penaltySince }];
 };
-/* ===== REPORTS (sidebar Review → Reports; More → Reports on the phone) =====
+/* ===== REPORTS (Insights → Reports; on the phone from Pulse and search) =====
    Owner, 1 Oct 2026: "I would also like to have a daily weekly and a monthly quarterly yearly report generator". A report
    is a document drawn from the data every time it is shown or printed, the Power case's contract (power.js): rptHtml()
    draws one A4 document, the page shows it, Print sends the same document to the one print view, and a save in this or
@@ -44727,8 +44737,12 @@ function onDocChange(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
-    setAreaTarget(e.target.dataset.area, e.target.value);
-    attRedrawAround(e.target);
+    // A standing norm (areas.js areaTargetCan): asked as a Settings change outside the PIN's window, refused to a role
+    // without it. Waiting on the PIN or refused, the field shows what is stored; given, the figure typed is set.
+    var tgEl = e.target, tgArea = tgEl.dataset.area, tgV = tgEl.value;
+    if (typeof grdGate === 'function' && !grdGate('settings', 'set an area’s complement', function() { setAreaTarget(tgArea, tgV); renderAttendance(); })) { renderAttendance(); return; }
+    setAreaTarget(tgArea, tgV);
+    attRedrawAround(tgEl);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
@@ -44840,7 +44854,7 @@ document.addEventListener('input', function(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
-    setAreaTarget(e.target.dataset.area, e.target.value);
+    if (typeof grdOk !== 'function' || grdOk('settings')) setAreaTarget(e.target.dataset.area, e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {

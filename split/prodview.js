@@ -1,4 +1,4 @@
-/* ===== PRODUCTION — the page (Floor → Production; More → Production on the phone) =====
+/* ===== PRODUCTION — the page (Floor → Production) =====
  * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
  * a way back and end in the action bar, and draw no toolbar (DR-3).

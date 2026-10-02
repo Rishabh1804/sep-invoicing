@@ -55,12 +55,14 @@ function advCtx(a) {
     var m = ctx.margins();
     return m ? m.c : once('cost', function() { return a.tonnage.kg > 0 ? liveCost(ctx.r.from, ctx.r.to, a.tonnage.kg) : null; });
   };
-  ctx.todo = function() { return once('todo', function() { return todoAppAll(); }) || []; };
+  // The tasks the role signed in sees (todo.js todoSees): a question never moves on a task its screens would not list.
+  var seen = function(list) { return typeof todoSees === 'function' ? (list || []).filter(todoSees) : (list || []); };
+  ctx.todo = function() { return once('todo', function() { return seen(todoAppAll()); }) || []; };
   // One To-do rule's tasks: those the list already raised where the rule is on, else the rule's own test run here (the
   // questions ask whatever the To-do's switches say).
   ctx.rule = function(name) {
     return once('rule:' + name, function() {
-      return todoCfg()[name] ? ctx.todo().filter(function(t) { return t.rule === name; }) : (TODO_RULE_FNS[name]() || []);
+      return todoCfg()[name] ? ctx.todo().filter(function(t) { return t.rule === name; }) : seen(TODO_RULE_FNS[name]() || []);
     }) || [];
   };
   ctx.days = function(n) { return once('days' + n, function() { return advWindow(n); }); };
@@ -214,7 +216,8 @@ function advStockMoves(ctx) {
   });
 }
 function advWageMoves(ctx) {
-  if (!staffActive().length) return [];
+  // The week's payout is wages: a role that may not see them has no such move (guard.js grdSeesWages).
+  if (!staffActive().length || (typeof grdSeesWages === 'function' && !grdSeesWages())) return [];
   var ws = attWeekStartOf(ctx.today), sat = isoAddDays(ws, 6), until = isoDaysBetween(ctx.today, sat);
   if (until > 2) return [];
   var f = payForecast(ws);

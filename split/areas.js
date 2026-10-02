@@ -327,12 +327,17 @@ function setAreaNeedOn(iso, areaId, v) {
   saveState();
 }
 
+/* An area's complement is a standing norm the owner sets (11 Jun 2026), not a day's entry: changed as Settings are (guard.js
+   'settings'), never by a role without that permission (the QA chain of 2 Oct 2026). */
+function areaTargetCan() { return typeof grdCan !== 'function' || grdCan('settings'); }
 function setAreaTarget(areaId, heads) {
+  if (!areaTargetCan()) return false;
   if (!S.areaTargets) S.areaTargets = {};
   var n = Math.max(0, Number(heads) || 0);
   if (n > 0) S.areaTargets[areaId] = n;
   else delete S.areaTargets[areaId];
   saveState();
+  return true;
 }
 
 /* Per-area totals over an inclusive ISO range.
@@ -1170,7 +1175,7 @@ function _areaRow(a) {
     '<span class="inv-field"><label class="inv-field-label" for="areaTgt-' + a.id + '">Complement</label>' +
     '<input type="number" class="inv-input inv-input-sm inv-input-num" id="areaTgt-' + a.id +
     '" data-area-target data-area="' + a.id + '" step="1" min="0" placeholder="—" value="' +
-    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"></span>' +
+    (target != null ? target : '') + '" aria-label="Expected heads in ' + escHtml(a.label) + '"' + (areaTargetCan() ? '' : ' disabled title="The owner sets the complement"') + '></span>' +
     '</span></div>';
 }
 

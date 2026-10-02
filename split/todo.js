@@ -1,5 +1,5 @@
 /* ===== TO-DO =====
-   More → To-do, a Home card, and a Windows 11 widget. The owner's own list,
+   Today → To-do, Needs you, and a Windows 11 widget. The owner's own list,
    inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
    later — S.todo is self-contained.
 

@@ -1,5 +1,5 @@
 /* ===== POWER — the cuts, the connection's load, and the case for reliable supply =====
- * Floor → Power (More → Power on the phone; owner, 30 Sep 2026: "Make a power cut tab, we have built a business case
+ * Floor → Power (owner, 30 Sep 2026: "Make a power cut tab, we have built a business case
  * for power cut and how to resolve it, find it, read it and update it"). The case was written once, on 30 May, over 56
  * days (soma-internal `archives/2026-W21-W22-session/13-power-cut-infrastructure-case.md`); this page keeps it current.
  *

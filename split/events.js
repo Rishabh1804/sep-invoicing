@@ -631,8 +631,12 @@ function onDocChange(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
-    setAreaTarget(e.target.dataset.area, e.target.value);
-    attRedrawAround(e.target);
+    // A standing norm (areas.js areaTargetCan): asked as a Settings change outside the PIN's window, refused to a role
+    // without it. Waiting on the PIN or refused, the field shows what is stored; given, the figure typed is set.
+    var tgEl = e.target, tgArea = tgEl.dataset.area, tgV = tgEl.value;
+    if (typeof grdGate === 'function' && !grdGate('settings', 'set an area’s complement', function() { setAreaTarget(tgArea, tgV); renderAttendance(); })) { renderAttendance(); return; }
+    setAreaTarget(tgArea, tgV);
+    attRedrawAround(tgEl);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
@@ -744,7 +748,7 @@ document.addEventListener('input', function(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
-    setAreaTarget(e.target.dataset.area, e.target.value);
+    if (typeof grdOk !== 'function' || grdOk('settings')) setAreaTarget(e.target.dataset.area, e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {

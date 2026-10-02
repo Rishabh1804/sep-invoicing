@@ -513,7 +513,8 @@ function parseRelayRoll(text, roster, sentOn) {
     }
 
     // An in-time roll that ends with its own out-times ("Out time" then names).
-    if (/^out\s*-*\s*time\b/i.test(bare) && !/\d{1,2}\/\d{1,2}/.test(bare)) {
+    // The time may run on ("Out time5:00 pm"): relayKind's test of the same word (the QA chain, 2 Oct 2026).
+    if (/^out\s*-*\s*time(?![a-z])/i.test(bare) && !/\d{1,2}\/\d{1,2}/.test(bare)) {
       var ot2 = relayTimes(bare);
       st.mode = 'out';
       st.slot = { start: null, end: ot2.length ? relayOutMin(ot2[0]) : null, label: bare };
@@ -746,7 +747,7 @@ function relaySlotHoldsShift(lines, from) {
   for (var j = from; j < lines.length; j++) {
     var b = String(lines[j] || '').trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
     if (!b || /^0*\d{1,2}\s*[)\].]/.test(b)) continue;
-    if (/^out\s*-*\s*time\b/i.test(b)) break;
+    if (/^out\s*-*\s*time(?![a-z])/i.test(b)) break;
     var k = relaySlotOrArea(b);
     if (!k) continue;
     if (k.slot) break;

@@ -221,8 +221,9 @@ function _attPayView() {
   html += _payDueCard(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
-  // The bank's side of the same payroll (Finance → Payments draws the same panel).
-  if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
+  // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
+  // wages but not money has the slips without the statement's legs (the guard, the QA chain of 2 Oct 2026).
+  if (finHasBank() && (typeof grdSeesMoney !== 'function' || grdSeesMoney())) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
 }
 

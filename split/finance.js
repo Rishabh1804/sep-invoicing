@@ -1,4 +1,4 @@
-/* ===== FINANCE (sidebar Money → Finance; More → Finance on the phone) =====
+/* ===== FINANCE (Money on the phone bar and the sidebar) =====
  * The money side of the shop in one place (owner, 26 Sep 2026: "The entire finance sector of our
  * app needs a dashboard"). Bank and Bills & notes lived under Stock, where they never belonged; they
  * are tabs here, beside the Overview that reads across them:

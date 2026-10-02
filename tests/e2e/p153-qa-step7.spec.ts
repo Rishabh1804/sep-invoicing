@@ -119,3 +119,75 @@ test.describe('P153: the QA chain over step 7 (phone)', () => {
     await expect(loose(page)).toHaveCount(before);
   });
 });
+
+// What the builders left to the lead (the QA chain of 2 Oct 2026): an area's complement is a standing norm, set as Settings
+// are; a role that sees wages but not money has no bank legs on Pay; the Pulse's payout move needs the wages, and its
+// questions read only the tasks the role sees; an "Out time" heading with its time run on is still a heading.
+test.describe('P153: what the builders left (phone)', () => {
+  const staffRole = { roles: { supervisor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: true, finance: false } } };
+
+  test("an area's complement is the owner's: read-only to a role without Settings, asked of the owner past the window", async ({ page }) => {
+    await loadAppWithState(page, sweepState());
+    await withUsers(page, staffRole);
+    await unlock(page, 'U-sup', PINS.super);
+    await switchTab(page, 'pageStaff');
+    await page.locator('#pageStaff .inv-viewtab[data-view="areas"]').click();
+    const field = page.locator('[data-area-target]').first();
+    await expect(field).toBeDisabled();
+    // The setter refuses too, whatever reaches it.
+    expect(await page.evaluate(() => (window as any).setAreaTarget('vat-a1', 9))).toBe(false);
+    expect(((await readStoredState(page)).areaTargets || {})['vat-a1']).not.toBe(9);
+  });
+
+  test('the owner past the window is asked the PIN before a complement changes', async ({ page }) => {
+    await loadAppWithState(page, sweepState());
+    await withUsers(page);
+    await unlock(page, 'U-own', PINS.owner);
+    await switchTab(page, 'pageStaff');
+    await page.locator('#pageStaff .inv-viewtab[data-view="areas"]').click();
+    await windowGone(page);
+    const field = page.locator('[data-area-target][data-area="vat-a1"]');
+    await expect(field).toBeEnabled();
+    await field.fill('7');
+    await field.press('Tab');
+    const ask = page.locator('[data-grd-ask]');
+    await expect(ask.locator('.inv-dialog-title')).toHaveText('Set an area’s complement');
+    expect(((await readStoredState(page)).areaTargets || {})['vat-a1']).not.toBe(7);
+    await ask.locator('#grdAskPin').fill(PINS.owner);
+    await ask.locator('#grdAskPin').press('Enter');
+    await expect.poll(async () => ((await readStoredState(page)).areaTargets || {})['vat-a1']).toBe(7);
+  });
+
+  test('a role that sees wages but not money has the slips on Pay without the bank’s legs', async ({ page }) => {
+    await loadAppWithState(page, sweepState());
+    await withUsers(page, staffRole);
+    await unlock(page, 'U-sup', PINS.super);
+    await switchTab(page, 'pageStaff');
+    await page.locator('#pageStaff .inv-viewtab[data-view="pay"]').click();
+    await expect(page.locator('#attContent')).toContainText('payout', { ignoreCase: true });
+    await expect(page.locator('#payBankWages')).toHaveCount(0);
+  });
+
+  test("the Pulse's payout move needs the wages", async ({ page }) => {
+    await loadAppWithState(page, sweepState());
+    const sat = await page.evaluate(() => { const w = window as any; return w.isoAddDays(w.attWeekStartOf(w.localDateStr()), 6); });
+    const owner = await page.evaluate(s => (window as any).advWageMoves({ today: s }).length, sat);
+    await withUsers(page, { roles: { office: { pages: ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: true } } });
+    await unlock(page, 'U-off', PINS.office);
+    expect(await page.evaluate(s => (window as any).advWageMoves({ today: s }).length, sat)).toBe(0);
+    // The owner, with the same book, has the move (a payout is predicted at the week's pace): the test above is not vacuous.
+    expect(owner).toBe(1);
+  });
+
+  test('an "Out time" heading with its time run on is read as the out-times', async ({ page }) => {
+    await loadAppWithState(page, sweepState());
+    const heads = await page.evaluate(() => {
+      const w = window as any, d = new Date(), p = (n: number) => String(n).padStart(2, '0');
+      const dmy = p(d.getDate()) + '/' + p(d.getMonth() + 1) + '/' + String(d.getFullYear()).slice(2);
+      const S = (0, eval)('S'), a = S.staff[0].name.toUpperCase(), b = (S.staff[1] || S.staff[0]).name.toUpperCase();
+      const text = dmy + '/ in time\n----8:30 AM---\n---VAT A 1----\n1) ' + a + '\n2) ' + b + '\nOut time5:00 pm\n1) ' + b;
+      return w.parseRelayRoll(text, w.relayRoster({}), w.localDateStr()).lines.filter((l: any) => l.role === 'head').map((l: any) => l.read);
+    });
+    expect(heads).toContain('Out-times from here');
+  });
+});

@@ -156,7 +156,13 @@ function addClipHtml(d, text) {
         '<span class="inv-row-title">' + escHtml(it.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(it.meta) + '</span></span></div>';
     }).join('') + quote +
     '<div class="inv-toolbar"><button type="button" class="inv-btn inv-btn-secondary" data-action="invAddClipRead">Read it</button>' +
-    '<span class="inv-note">Read in ' + escHtml(d.where) + ' and checked there before anything is saved.</span></div></div>';
+    '<span class="inv-note" data-add-clip-where>Read in ' + escHtml(d.where) + ' and checked there before anything is saved' + escHtml(addAlsoText(d.also)) + '.</span></div></div>';
+}
+/* What a roll's check hands on (relay.js: Read in Production, Read in Stock), said after where the roll is read. */
+var ADD_ALSO_WHAT = { Production: 'the production', Stock: 'the stock message' };
+function addAlsoText(also) {
+  if (!also || !also.length) return '';
+  return '; ' + also.map(function(w) { return ADD_ALSO_WHAT[w]; }).join(' and ') + (also.length > 1 ? ' are' : ' is') + ' read in ' + also.join(' and ') + ' from there';
 }
 /* The first lines as copied, so what is on the clipboard can be told at a glance. */
 function addQuoteLines(text) {
@@ -171,21 +177,24 @@ function addQuoteLines(text) {
 var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', power: 'Power cuts' };
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
-  var d = { items: [], where: '', lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
-  var rolls = 0, stock = 0, prod = 0, roster = null, groups = {};
-  relaySplit(text).forEach(function(m) {
+  var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
+  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text);
+  msgs.forEach(function(m) {
     var k = relayKind(m.text);
     if (k === 'in' || k === 'out') {
       rolls++;
       roster = roster || relayRoster({});
       d.items.push(addDescRoll(parseRelayRoll(m.text, roster, m.sentOn)));
-    } else if (k === 'stock') {
-      stock++;
-      d.items.push(addDescStock(parseStockMessage(m.text)));
     }
   });
+  // The stock as the paste box hands it to Stock: each stock message, and the stock written under a roll (relayStockParts).
+  relayStockParts(msgs).forEach(function(t) {
+    stock++;
+    d.items.push(addDescStock(parseStockMessage(t)));
+  });
   (typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()) : []).forEach(function(m) {
-    if (m.kind === 'roll' || !m.read || !m.read.items.length) return;
+    if (!m.read || !m.read.items.length) return;
+    if (m.kind === 'roll') { rollProd++; return; }
     prod++;
     var g = groups[m.kind] || (groups[m.kind] = { kind: m.kind, n: 0, dates: [], counts: {} });
     g.n++;
@@ -194,6 +203,9 @@ function addDescribe(text) {
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
   d.where = rolls ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
+  // and the stock beside a roll was never read (QA3-10).
+  if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);
   return d;
 }
 function addWhen(dates) {
@@ -384,9 +396,11 @@ function addPayment() {
   if (form) uiRevealEl(form);
   if (who) { try { who.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
-/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). */
+/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). Search's
+   Add a bill opens it here too. A role that may not open Money is refused by todoGo, and nothing is focused. */
 function addBill() {
   todoGo({ kind: 'bills', month: addBillMonth() });
+  if (navPageOf() !== 'pageFinance') return;
   var amt = costBillRoot('finance').querySelector('#costBillAmount');
   if (amt) { uiRevealEl(amt); try { amt.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }

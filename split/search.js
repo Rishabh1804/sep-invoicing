@@ -9,10 +9,14 @@
    window's book, an import or a pull is a new S), never on a keystroke. It never leaves the device.
 
    MATCHING (srchQuery): every part of the query must match. A number matches whole: 834 finds challan 834 and invoice
-   00834, never 8341 (leading zeros ignored, as imChallanNoKey does). An amount matches to the paisa: 5902.12, 5,902.12,
-   ₹5,902.12. A date matches its day: 21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and
-   punctuation folded (rateKey); a number written with its punctuation (SEP/2026-27/00834, DA1/00877) matches as one.
-   Results come grouped by kind, screens first, five a kind with Show all.
+   00834, never 8341 (leading zeros ignored, as imChallanNoKey does). A challan or a P.O. is known by its first number
+   standing on its own, after a trailing financial year: 0901/26-27 is 901 (never 26 or 27), DA1/00877 is 877 (the 1 of
+   DA1 is part of a word). An amount matches to the paisa: 5902.12, 5,902.12, ₹5,902.12. A date matches its day:
+   21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and punctuation folded (rateKey); a number
+   written with its punctuation (SEP/2026-27/00834, DA1/00877) matches as one, whole when it ends in a digit (00083 never
+   finds 00834), or by its tail (27/00834, 2026-27/00834). A series word that starts an identifier counts only beside
+   something else that matches: SEP 834 and sep/834 find SEP/2026-27/00834, SEP alone finds nothing; SEP 21 is invoice
+   00021 as well as 21 Sep. Results come grouped by kind, screens first, five a kind with Show all.
 
    THE PALETTE (searchOpen) is a layer: back and Esc close it, and it takes no address. A full-height sheet on the phone,
    centred on the desktop. The arrow keys move the cursor (aria-selected, the suggestion lists' pattern), Enter opens.
@@ -78,6 +82,22 @@ function srchWordsOf(s) {
 function srchNumsOf(s) {
   return (String(s == null ? '' : s).match(/\d+/g) || []).map(function(n) { return n.replace(/^0+(?=\d)/, ''); });
 }
+/* A list of challan numbers as an invoice cites them ("834, 835 & 838"): each one. */
+function srchDocList(s) {
+  return String(s == null ? '' : s).split(/[,;&]+/).map(function(x) { return x.trim(); }).filter(Boolean);
+}
+/* The number a challan or a P.O. is known by, for each of a list: its first run of digits standing on its own, after a
+   trailing financial year. poChallanDigits' rule (state.js), with the year and the word left out: "0901/26-27" is 901, never
+   26 or 27, and "DA1/00877" is 877, never 1 (QA3-4: every run counted, so challan 27 came seventh behind six /26-27 ones). */
+function srchDocNums(s) {
+  return srchDocList(s).map(function(x) {
+    var m = /(?<![A-Za-z0-9])\d+(?![A-Za-z0-9])/.exec(x.replace(/\s*\/\s*(\d{2}|\d{4})\s*-\s*\d{2}\s*$/, ''));
+    return m ? m[0].replace(/^0+(?=\d)/, '') : '';
+  }).filter(Boolean);
+}
+/* A plain word that starts an identifier ("SEP" of SEP/2026-27/00834) matches it only this weakly: enough to stand beside a
+   number that matches (SEP 834), never enough on its own, so SEP alone still finds no invoice by its series (QA3-12). */
+var SRCH_WEAK = 0.001;
 /* A figure as whole paise, the key an amount is matched on (never a sum: HR-8 is about money computed). */
 function srchPaise(v) {
   var n = Number(v);
@@ -91,8 +111,6 @@ function srchPad(n) { return String(Math.max(0, Math.floor(Number(n) || 0))).pad
 function srchScreens() {
   var at = function(tab, v) { return { kind: 'place', loc: { tab: tab, v: v || '', id: '' } }; };
   var act = function(a) { return { kind: 'act', act: a }; };
-  var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
-  var lastMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   var list = [
     ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
     ['pulse', 'Pulse', 'Today', 'home questions what to do widgets', at('pageHome', 'pulse')],
@@ -149,7 +167,8 @@ function srchScreens() {
     ['add-task', 'Add task', 'Add', 'new task to-do', act('task')],
     ['stock-entry', 'Stock entry', 'Add', 'enter by hand count received used charged', act('stock')],
     ['paste', 'Paste message', 'Add', 'whatsapp roll stock pickling production power cut', act('paste')],
-    ['add-bill', 'Add a bill', 'Add', 'electricity bill power bill', { kind: 'bills', month: lastMonth }],
+    // The month is worked out when it is opened, as Add → By hand → Bill works it out (addBill: the latest with no bill).
+    ['add-bill', 'Add a bill', 'Add', 'electricity bill power bill', { kind: 'bills' }],
     ['settings', 'Settings', 'Settings', 'preferences', { kind: 'settings' }]
   ];
   // Every Settings section by its own title, under its group, so a new section is found without a line here.
@@ -174,13 +193,23 @@ var _srchCache = null;    // {s, w, list, keys, byKey, ms, parts}
    applied to every answer, so a role never reads a figure its screens hide (with the guard off, everything). */
 var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pageIM', client: 'pageClients', part: 'pageClients',
   quote: 'pageClients', worker: 'pageStaff', stock: 'pageStock', bank: 'pageFinance' };
+/* The page every other jump opens: the To-do's jumps a screen makes, and each action's form (Add's, GRD_ADD_PAGE). A screen
+   entry is shown only where its page opens to the role. Every non-place entry passed before (QA3-1): a Supervisor found the
+   credit notes and the Number audit, which opened over Home after switchTab had refused the Register. */
+var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'pageFinance' };
+var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
+  worker: 'pageStaff', task: 'pageTodo', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
     var go = e.go || {};
-    if (go.kind === 'place' && go.loc) return grdSees(go.loc.tab);
     if (go.kind === 'settings') return grdCan('settings');
-    return true;
+    var page = go.kind === 'place' ? go.loc && go.loc.tab : go.kind === 'act' ? SRCH_ACT_PAGE[go.act] : SRCH_GO_PAGE[go.kind];
+    // A jump this table cannot place is the owner's alone until it says where it leads.
+    if (!page) return grdIsOwner();
+    if (!grdSees(page)) return false;
+    // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
+    return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
   var page = SRCH_KIND_PAGE[e.kind];
   if (page && !grdSees(page)) return false;
@@ -224,7 +253,10 @@ function srchData() {
         text: 'Invoice ' + num + ' to ' + (inv.clientName || '') + ', dated ' + formatDate(inv.date) + ': taxable ' + formatCurrency(inv.taxableValue) +
           ', total ' + formatCurrency(inv.grandTotal) + (inv.challanNo ? '; challans ' + inv.challanNo : '') + (inv.poNumber ? '; P.O. ' + inv.poNumber : '') + '; ' + state + '.',
         go: { kind: 'invoice', id: String(inv.id) } },
-        { title: num, words: [inv.clientName, inv.poNumber], ids: [num, inv.poNumber, inv.challanNo], nums: [inv.challanNo, inv.poNumber],
+        // Each challan it cites is an identifier of its own, and the number of each (and of the P.O.) is read as srchDocNums
+        // reads it: never the year of a challan or the 1 of DA1 (QA3-4).
+        { title: num, words: [inv.clientName, inv.poNumber], ids: [num, inv.poNumber].concat(srchDocList(inv.challanNo)),
+          nums: srchDocNums(inv.challanNo).concat(srchDocNums(inv.poNumber)),
           primary: [serial], amounts: [inv.taxableValue, inv.grandTotal], dates: [inv.date], rank: (inv.date || '') + srchPad(inv.createdAt) });
     });
   });
@@ -237,7 +269,7 @@ function srchData() {
         text: 'Challan ' + (im.challanNo || '(no number)') + ' from ' + (im.clientName || '') + ', dated ' + formatDate(im.challanDate) + ': ' + parts.join('; ') + '; ' + formatCurrency(total) + '; ' + st + '.',
         go: { kind: 'challan', id: String(im.id) } },
         { title: imChallanLabel(im), words: [im.clientName].concat(parts), ids: [im.challanNo].concat(lines.map(function(l) { return l.partNumber; })),
-          primary: [im.challanNo], amounts: [total], dates: [im.challanDate], rank: (im.challanDate || '') + srchPad(im.createdAt) });
+          primary: srchDocNums(im.challanNo), amounts: [total], dates: [im.challanDate], rank: (im.challanDate || '') + srchPad(im.createdAt) });
     });
   });
   each('clients', function() {
@@ -328,10 +360,11 @@ function srchData() {
 }
 
 /* What an entry is matched on, as strings searched with one indexOf each: a space before every word, so a word's start
-   is ' ' + it. t: the title's words (a name's; an identifier's title is matched whole, in ti, so SEP in every invoice
-   number is never a word), w: the words, k: the identifiers whole, n and p: the numbers and the record's own number,
-   a: amounts in paise, d: dates. memo keeps what a text folds to for one build: a client's name, a part's description
-   and a P.O. come round on hundreds of records. */
+   is ' ' + it, and a space after every word and identifier too, so ' ' + it + ' ' is it whole. t: the title's words (a
+   name's; an identifier's title is matched whole, in ti, so SEP in every invoice number is never a word), tt: an
+   identifier title's tails (SEP/2026-27/00834's 202627834, 27834 and 834), w: the words, k: the identifiers whole, n and p:
+   the numbers and the record's own number, a: amounts in paise, d: dates; i: the title is an identifier. memo keeps what a
+   text folds to for one build: a client's name, a part's description and a P.O. come round on hundreds of records. */
 var SRCH_KIND_KEYS = null;
 function srchKeys(kind, m, memo) {
   memo = memo || {};
@@ -356,11 +389,15 @@ function srchKeys(kind, m, memo) {
   (m.nums || []).forEach(function(s) { if (s) srchNumsOf(s).forEach(function(n) { nums.push(n); }); });
   (m.amounts || []).forEach(function(v) { var p = srchPaise(v); if (p) amts.push(p); });
   (m.dates || []).forEach(function(d) { if (/^\d{4}-\d{2}-\d{2}$/.test(d || '')) dates.push(d); });
+  var segs = srchWordsOf(m.title), tails = [];
+  if (ident) for (var i = 1; i < segs.length; i++) tails.push(segs.slice(i).join(''));
   return {
-    t: ident ? '' : ' ' + srchWordsOf(m.title).join(' '),
-    ti: ' ' + srchIdKey(m.title),
-    w: ' ' + words.join(' '),
-    k: ' ' + ids.join(' '),
+    i: ident,
+    t: ident ? '' : ' ' + segs.join(' '),
+    ti: ' ' + srchIdKey(m.title) + ' ',
+    tt: tails.length ? ' ' + tails.join(' ') + ' ' : '',
+    w: ' ' + words.join(' ') + ' ',
+    k: ' ' + ids.join(' ') + ' ',
     n: ' ' + nums.join(' ') + ' ',
     p: ' ' + prim.join(' ') + ' ',
     a: ' ' + amts.join(' ') + ' ',
@@ -381,6 +418,10 @@ function srchDateTok(y, m, d) {
   var pad = function(n) { return String(n).padStart(2, '0'); };
   return { t: 'date', y: y == null ? null : String(y).length === 2 ? '20' + y : String(y), m: pad(m), d: d == null ? null : pad(d) };
 }
+/* A text token. `whole`: an identifier typed ending in a digit matches only whole, never as the start of a longer one:
+   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and DA1/00087 of DA1/00877 (QA3-3; a number matches whole).
+   One typed ending in a separator ("sep/2026-27/") asks for what follows, and matches as a start. */
+function srchTxt(sq, id, typed) { return { t: 'txt', sq: sq, id: id, whole: id && /\d$/.test(typed) }; }
 function srchTxtTok(p) {
   var sq = srchIdKey(p);
   if (!sq) return null;
@@ -388,8 +429,8 @@ function srchTxtTok(p) {
   // identifier: matched whole against the record's numbers as well as its words, else part by part. A plain word is
   // matched against words alone, so SEP never finds every invoice by its series.
   var bits = String(p).split(/[^A-Za-z0-9]+/).filter(Boolean);
-  var tok = { t: 'txt', sq: sq, id: /\d/.test(sq) || bits.length > 1 };
-  if (bits.length > 1) tok.parts = bits.map(function(b) { return /^\d+$/.test(b) ? { t: 'num', n: b.replace(/^0+(?=\d)/, '') } : { t: 'txt', sq: srchIdKey(b), id: /\d/.test(b) }; });
+  var tok = srchTxt(sq, /\d/.test(sq) || bits.length > 1, String(p));
+  if (bits.length > 1) tok.parts = bits.map(function(b) { return /^\d+$/.test(b) ? { t: 'num', n: b.replace(/^0+(?=\d)/, '') } : srchTxt(srchIdKey(b), /\d/.test(b), b); });
   return tok;
 }
 /* The query, read into tokens: amounts, dates, numbers and text. */
@@ -429,6 +470,9 @@ function srchParse(q) {
     var tok = srchDateTok(year, mo, dayAt >= 0 ? out[dayAt].n : null);
     if (!tok) continue;
     var from = Math.min(i, dayAt < 0 ? i : dayAt), to = year != null ? yAt : Math.max(i, dayAt);
+    // The word first and a day after it, no year: "SEP 21" is invoice SEP/…/00021 as well as 21 Sep. Both readings are
+    // tried and each entry takes the better, so the number is found (it was read as the date alone: QA3-12).
+    if (dayAt === i + 1 && year == null) tok = { t: 'alt', alts: [[tok], [t, out[dayAt]]] };
     out.splice(from, to - from + 1, tok);
     i = from;
   }
@@ -439,7 +483,8 @@ function srchDateHit(tk, ds) {
   if (tk.d) return ds.indexOf('-' + tk.m + '-' + tk.d + ' ') >= 0;
   return ds.indexOf(' ' + tk.y + '-' + tk.m + '-') >= 0;
 }
-/* How well one token matches one entry: 0 is no match. The record's own number scores highest, then a title. */
+/* How well one token matches one entry: 0 is no match, SRCH_WEAK a series word only. The record's own number scores
+   highest, then a title. */
 function srchTokScore(tk, k) {
   switch (tk.t) {
     case 'num':
@@ -449,21 +494,36 @@ function srchTokScore(tk, k) {
     case 'amt': return k.a.indexOf(' ' + tk.paise + ' ') >= 0 ? 4 : 0;
     case 'date': return srchDateHit(tk, k.d) ? 2 : 0;
     case 'txt': {
+      var at = ' ' + tk.sq + (tk.whole ? ' ' : '');
       if (k.t.indexOf(' ' + tk.sq) >= 0) return 3;
-      if (tk.id && k.ti.indexOf(' ' + tk.sq) >= 0) return 4;
-      if (k.w.indexOf(' ' + tk.sq) >= 0) return tk.id ? 2 : 1;
-      if (tk.id && k.k.indexOf(' ' + tk.sq) >= 0) return 2;
-      if (!tk.parts) return 0;
-      var s = 0;
-      for (var i = 0; i < tk.parts.length; i++) { var x = srchTokScore(tk.parts[i], k); if (!x) return 0; s += x; }
-      return s;
+      // An identifier's title, whole or by its tail: 27/00834 and 2026-27/00834 are SEP/2026-27/00834 (QA3-12).
+      if (tk.id && (k.ti.indexOf(at) >= 0 || k.tt.indexOf(at) >= 0)) return 4;
+      if (k.w.indexOf(at) >= 0) return tk.id ? 2 : 1;
+      if (tk.id && k.k.indexOf(at) >= 0) return 2;
+      if (tk.parts) {
+        var s = 0;
+        for (var i = 0; i < tk.parts.length; i++) { var x = srchTokScore(tk.parts[i], k); if (!x) return 0; s += x; }
+        return s;
+      }
+      return !tk.id && k.i && k.ti.indexOf(' ' + tk.sq) === 0 ? SRCH_WEAK : 0;
+    }
+    // Two readings of one stretch of the query ("SEP 21"): the better of those whose every token matches.
+    case 'alt': {
+      var best = 0;
+      tk.alts.forEach(function(alt) {
+        var sum = 0;
+        for (var a = 0; a < alt.length; a++) { var v = srchTokScore(alt[a], k); if (!v) return; sum += v; }
+        if (sum > best) best = sum;
+      });
+      return best;
     }
   }
   return 0;
 }
-/* Every entry matching every token, grouped by kind in SRCH_KINDS' order, best first. */
+/* Every entry matching every token, grouped by kind in SRCH_KINDS' order, best first. An entry matched by series words
+   alone (SRCH_WEAK) is not a match. */
 function srchQuery(q) {
-  var t0 = performance.now(), d = srchData(), toks = srchParse(q), whole = ' ' + srchIdKey(q);
+  var t0 = performance.now(), d = srchData(), toks = srchParse(q), whole = ' ' + srchIdKey(q) + ' ';
   var by = {}, total = 0;
   if (toks.length) {
     for (var i = 0; i < d.keys.length; i++) {
@@ -473,7 +533,7 @@ function srchQuery(q) {
         if (!s) { score = 0; break; }
         score += s;
       }
-      if (!score || !srchSees(d.list[i])) continue;
+      if (score < 1 || !srchSees(d.list[i])) continue;
       if (k.ti === whole) score += 6;    // the whole query is the title
       var kind = d.list[i].kind;
       (by[kind] = by[kind] || []).push({ i: i, s: score, r: k.r });
@@ -726,6 +786,13 @@ function srchGo(go) {
     case 'worker': {
       var w = staffById(id);
       if (!w) { srchMissing('That worker'); return; }
+      // The desktop: People → Roster with the worker open in its pane, as its row opens it (UX overhaul 2, step 7; it opened
+      // Edit worker: QA3-6). The phone's roster has no pane: the worker's sheet over it.
+      if (_isDesktop) {
+        srchGoPlace({ tab: 'pageStaff', v: 'roster', id: String(w.id) });
+        uiRevealEl(document.querySelector('#attRosterTable tr[data-id="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]'));
+        return;
+      }
       _attView = 'roster';
       switchTab('pageStaff');
       uiRevealEl(document.querySelector('#pageStaff [data-action="invAttEditWorker"][data-id="' + w.id + '"]'));
@@ -751,8 +818,11 @@ function srchGo(go) {
       return;
     // Settings opens once (events.js's rule for its button).
     case 'settings': if (!document.getElementById('settingsScrim')) openSettings(go.sec); return;
+    // A bill: Add → By hand → Bill's own opener, on the latest month with no electricity bill as it stands now (it opened
+    // last month, whatever was entered: QA3-11).
+    case 'bills': addBill(); return;
   }
-  // A challan, a stock line, the credit notes, the number audit, a bill: the To-do's own jumps.
+  // A challan, a stock line, the credit notes, the number audit: the To-do's own jumps.
   todoGo(go);
 }
 
@@ -914,7 +984,9 @@ function srchLocOf(el) {
   var act = a.dataset.action, d = a.dataset;
   if (act === 'invSearchPick') { var s = _srch && _srch.shown[+d.n]; return s && s.e ? srchEntryLoc(s.e) : null; }
   if (a.closest('.inv-scrim')) return null;
-  if (act === 'invSwitchTab' || act === 'invSideGo') return isPageId(d.tab) ? { tab: d.tab, v: d.sub || '', id: '' } : null;
+  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
+  // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
+  if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
     var go = sp ? srchGTarget(sp[0]) : null;
@@ -933,6 +1005,17 @@ function srchLocOf(el) {
   if (act === 'invBankClient') return { tab: 'pageFinance', v: 'receipts', id: String(d.id) };
   if (act === 'invProdEntryOpen') return { tab: 'pageProduction', v: 'entries', id: String(d.id) };
   if (act === 'invHistoryOpen') return { tab: 'pageHistory', v: '', id: String(d.key) };
+  // Direction B's screens (QA3-8: a Ctrl+click on them moved this window, or did nothing). Office → Pipeline: a stage is the
+  // Pipeline on it, a challan under it the challan; a client owing, and Money's other doors, Money on that view and client.
+  if (act === 'invPipeStage') return pipeStageKey(d.pipeStage) ? { tab: 'pagePipeline', v: d.pipeStage, id: '' } : null;
+  if (act === 'invPipeChallan') return srchRecordLoc('challan', String(d.id));
+  if (act === 'invFinGo') return { tab: 'pageFinance', v: d.tab || 'overview', id: d.tab === 'receipts' && d.client ? String(d.client) : '' };
+  // Floor → Day: a line's card is Production → Lines, the tiles and the staffing and EXTRA words their own screens. The line
+  // and the day are not in those screens' addresses: the new window opens on their own line and day.
+  if (act === 'invFlrLine' || act === 'invFlrPlated') return { tab: 'pageProduction', v: 'lines', id: '' };
+  if (act === 'invFlrStaff') return { tab: 'pageStaff', v: 'day', id: '' };
+  if (act === 'invFlrAreas') return { tab: 'pageStaff', v: 'areas', id: '' };
+  if (act === 'invFlrPower') return { tab: 'pagePower', v: 'cuts', id: '' };
   return null;
 }
 /* Caught on the window before anything else sees the click, so the place opens there and not here as well (and nav.js

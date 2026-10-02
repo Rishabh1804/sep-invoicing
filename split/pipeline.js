@@ -35,7 +35,8 @@ function pipeInvoices(st) {
 }
 
 /* The six stages, in order: {key, label, n, amount, of (what the amount is), tone, word, items, open}. A stage is open
-   (can be opened) when it holds something; Owed to us needs a bank statement to say anything (noBank). */
+   (can be opened) when it holds something; Owed to us needs a bank statement to say anything (noBank), and is left out
+   for a role that does not see money. */
 function pipeStages() {
   var today = localDateStr(), now = Date.now(), out = [];
   var add = function(key, o) {
@@ -72,6 +73,9 @@ function pipeStages() {
     add(st, { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word });
   });
 
+  // Owed to us is the bank's receivables: money. A role that does not see money has no such stage, as Pulse has no Money
+  // widget for it (homeWidgetSeen('money')): Office's defaults are "no wages, bank or margins" (QA3-2).
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return out;
   // Owed to us: what Receivables say, judged by the age of the oldest open invoice. Never red while a receipt is
   // unplaced: that money may be in already, and what is owed reads high (the owed90 rule's reason; Home says the same).
   if (!finHasBank()) add('owed', { noBank: true });

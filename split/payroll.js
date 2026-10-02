@@ -706,7 +706,6 @@ function areaHoursCard(from, to) {
 /* One day's attendance, read once: Home's card and Staff → Overview draw the same figures. The day is today,
    or the last day that has marks when nothing is typed today, and it says which. A day named (Floor → Day) is that day. */
 function attDaySummary(day) {
-  var roster = staffActive();
   var today = localDateStr();
   var iso = day || today, rec = (S.attendance || {})[iso];
   var marked = function(r) { return r && Object.keys(r.marks || {}).length > 0; };
@@ -714,6 +713,9 @@ function attDaySummary(day) {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
+  // The day's roster, as Staff → Day counts it: the active hands and anyone marked that day who has since left. The active
+  // roster alone read 15/16 on Floor → Day and Home against Staff → Day's 16/17 for the same day (QA3-9).
+  var roster = attDayRoster(rec);
   var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false, byArea: {} };
   if (!out.marked) return out;
   roster.forEach(function(w) {

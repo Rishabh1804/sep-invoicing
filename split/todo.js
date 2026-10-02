@@ -599,6 +599,19 @@ function todoSnooze(key, v) {
 /* ---------- Going to the thing ---------- */
 function todoGo(go) {
   if (!go) return;
+  // The guard (guard.js): a jump to a page this ID may not open opens nothing, neither the page nor what the jump draws over
+  // it. switchTab refused the page and drew Home, and the jump went on to open its dialog there: the credit notes, the number
+  // audit and its Record, an invoice with its Mark buttons, a client's rates (QA3-1, QA4-1). Said as switchTab says it.
+  // Settings asks its own way (openSettings).
+  var page = { stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
+    bills: 'pageFinance', finance: 'pageFinance', cnList: 'pageRegister', cnBatch: 'pageRegister', regState: 'pageRegister',
+    audit: 'pageRegister', invoice: 'pageRegister', register: 'pageRegister', im: 'pageIM', challan: 'pageIM',
+    production: 'pageProduction', prodLines: 'pageProduction', stats: 'pageStats', liveCost: 'pageStats',
+    staffRoster: 'pageStaff', staffPaste: 'pageStaff', areas: 'pageStaff', payWages: 'pageStaff', payDue: 'pageStaff', payWeek: 'pageStaff',
+    power: 'pagePower', powerCase: 'pagePower', client: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', perf: 'pageClients',
+    createFor: 'pageCreate' }[go.kind];
+  if (page && typeof grdSees === 'function' && !grdSees(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
+  if (/^pay(Wages|Due|Week)$/.test(go.kind) && typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
   // Every dialog is shut on the way: one holding typed work asks first, as its × does (the client's edit sheet carries
   // Open in Finance, which dropped a typed GSTIN: the QA audit of 30 Sep 2026).
   if (dialogsTypedAsk(function() { todoGo(go); })) return;
@@ -621,14 +634,16 @@ function todoGo(go) {
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'production':
-      prodSetTab(go.tab || 'overview'); _prodView = 'main';
+      // A jump shows what it names: an entry left open in the desktop's pane would take the list's place below ~1100px (QA1-6).
+      prodSetTab(go.tab || 'overview'); _prodView = 'main'; _prodEntryOpen = null;
       if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
       else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
       switchTab('pageProduction');
       break;
     case 'finance':
       finSetTab(go.tab || 'overview');
-      if (go.client != null) _bankOpen = String(go.client);
+      // The client it names, or none: a client left open from before is not what the jump names (QA1-6).
+      _bankOpen = go.client != null ? String(go.client) : null;
       if (go.gstMonth) _finGstEdit = go.gstMonth;
       switchTab('pageFinance');
       var fa = go.anchor && document.getElementById(go.anchor);

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="abe3cab9">
+<meta name="app-build" content="e4808941">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -14011,7 +14011,7 @@ function openAccountForNumber(num, display) {
     '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>');
 }
 
-function saveGapReason() {
+async function saveGapReason() {
   if (_accountForNum == null) return;
   var reasonEl = document.getElementById('invGapReason');
   var reason = reasonEl ? reasonEl.value.trim() : '';
@@ -14020,13 +14020,18 @@ function saveGapReason() {
   var dateEl = document.getElementById('invGapDate');
   var clientEl = document.getElementById('invGapClient');
   var n = _accountForNum, disp = _accountForDisplay || displayForNumber(n);
+  var date = (dateEl && dateEl.value) || '', clientName = (clientEl && clientEl.value.trim()) || '';
+  // A number accounted for is a void tombstone: P1, asked as every other void is (guard.js). It wrote one for any role
+  // that reached the audit (QA3-1). What was typed is read first: the dialog stays open under the question.
+  if (!grdOk('voids') && !(await guardAsk('voids', 'account for a missing number'))) return;
+  if (_accountForNum !== n) return;   // recorded or closed while the question was open
 
   getVoidedNumbers().push({
     invoiceNumber: padInvNum(n),
     displayNumber: disp,
-    date: (dateEl && dateEl.value) || '',
+    date: date,
     clientId: null,
-    clientName: (clientEl && clientEl.value.trim()) || '',
+    clientName: clientName,
     taxableValue: 0,
     grandTotal: 0,
     lastState: 'unknown',
@@ -14198,7 +14203,8 @@ function pipeInvoices(st) {
 }
 
 /* The six stages, in order: {key, label, n, amount, of (what the amount is), tone, word, items, open}. A stage is open
-   (can be opened) when it holds something; Owed to us needs a bank statement to say anything (noBank). */
+   (can be opened) when it holds something; Owed to us needs a bank statement to say anything (noBank), and is left out
+   for a role that does not see money. */
 function pipeStages() {
   var today = localDateStr(), now = Date.now(), out = [];
   var add = function(key, o) {
@@ -14235,6 +14241,9 @@ function pipeStages() {
     add(st, { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word });
   });
 
+  // Owed to us is the bank's receivables: money. A role that does not see money has no such stage, as Pulse has no Money
+  // widget for it (homeWidgetSeen('money')): Office's defaults are "no wages, bank or margins" (QA3-2).
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return out;
   // Owed to us: what Receivables say, judged by the age of the oldest open invoice. Never red while a receipt is
   // unplaced: that money may be in already, and what is owed reads high (the owed90 rule's reason; Home says the same).
   if (!finHasBank()) add('owed', { noBank: true });
@@ -23462,7 +23471,6 @@ function areaHoursCard(from, to) {
 /* One day's attendance, read once: Home's card and Staff → Overview draw the same figures. The day is today,
    or the last day that has marks when nothing is typed today, and it says which. A day named (Floor → Day) is that day. */
 function attDaySummary(day) {
-  var roster = staffActive();
   var today = localDateStr();
   var iso = day || today, rec = (S.attendance || {})[iso];
   var marked = function(r) { return r && Object.keys(r.marks || {}).length > 0; };
@@ -23470,6 +23478,9 @@ function attDaySummary(day) {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
+  // The day's roster, as Staff → Day counts it: the active hands and anyone marked that day who has since left. The active
+  // roster alone read 15/16 on Floor → Day and Home against Staff → Day's 16/17 for the same day (QA3-9).
+  var roster = attDayRoster(rec);
   var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false, byArea: {} };
   if (!out.marked) return out;
   roster.forEach(function(w) {
@@ -28892,6 +28903,19 @@ function todoSnooze(key, v) {
 /* ---------- Going to the thing ---------- */
 function todoGo(go) {
   if (!go) return;
+  // The guard (guard.js): a jump to a page this ID may not open opens nothing, neither the page nor what the jump draws over
+  // it. switchTab refused the page and drew Home, and the jump went on to open its dialog there: the credit notes, the number
+  // audit and its Record, an invoice with its Mark buttons, a client's rates (QA3-1, QA4-1). Said as switchTab says it.
+  // Settings asks its own way (openSettings).
+  var page = { stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
+    bills: 'pageFinance', finance: 'pageFinance', cnList: 'pageRegister', cnBatch: 'pageRegister', regState: 'pageRegister',
+    audit: 'pageRegister', invoice: 'pageRegister', register: 'pageRegister', im: 'pageIM', challan: 'pageIM',
+    production: 'pageProduction', prodLines: 'pageProduction', stats: 'pageStats', liveCost: 'pageStats',
+    staffRoster: 'pageStaff', staffPaste: 'pageStaff', areas: 'pageStaff', payWages: 'pageStaff', payDue: 'pageStaff', payWeek: 'pageStaff',
+    power: 'pagePower', powerCase: 'pagePower', client: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', perf: 'pageClients',
+    createFor: 'pageCreate' }[go.kind];
+  if (page && typeof grdSees === 'function' && !grdSees(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
+  if (/^pay(Wages|Due|Week)$/.test(go.kind) && typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
   // Every dialog is shut on the way: one holding typed work asks first, as its × does (the client's edit sheet carries
   // Open in Finance, which dropped a typed GSTIN: the QA audit of 30 Sep 2026).
   if (dialogsTypedAsk(function() { todoGo(go); })) return;
@@ -28914,14 +28938,16 @@ function todoGo(go) {
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'production':
-      prodSetTab(go.tab || 'overview'); _prodView = 'main';
+      // A jump shows what it names: an entry left open in the desktop's pane would take the list's place below ~1100px (QA1-6).
+      prodSetTab(go.tab || 'overview'); _prodView = 'main'; _prodEntryOpen = null;
       if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
       else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
       switchTab('pageProduction');
       break;
     case 'finance':
       finSetTab(go.tab || 'overview');
-      if (go.client != null) _bankOpen = String(go.client);
+      // The client it names, or none: a client left open from before is not what the jump names (QA1-6).
+      _bankOpen = go.client != null ? String(go.client) : null;
       if (go.gstMonth) _finGstEdit = go.gstMonth;
       switchTab('pageFinance');
       var fa = go.anchor && document.getElementById(go.anchor);
@@ -29517,7 +29543,8 @@ function relayMatchName(words, idx, loose) {
 }
 
 /* Split a paste into WhatsApp messages. A paste of the roll alone (no header)
-   is one message. */
+   is one message. `wa` is the message's WhatsApp line before its text ("[1/10/26, 6:02 pm] Shyam: "), '' when it was
+   pasted without one: a part of it handed to another screen goes with who sent it and when (relayStockParts). */
 function relaySplit(text) {
   var msgs = [], cur = null;
   String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
@@ -29527,7 +29554,7 @@ function relaySplit(text) {
       // Copied timestamps follow the phone's locale: day-first unless impossible,
       // and the bracketed iOS export is month-first.
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
-      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), lines: [wa[5]] };
+      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), wa: line.slice(0, line.length - wa[5].length), lines: [wa[5]] };
       msgs.push(cur);
       return;
     }
@@ -29537,7 +29564,7 @@ function relaySplit(text) {
     // camical use"), and pasted after a roll it is a message of its own too.
     var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*((in|out)\s*-*\s*time|c[ae]mical|chemical)/i.test(line);
     if (!cur || (rollHead && cur.lines.some(function(l) { return l.trim(); }))) {
-      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, lines: [] };
+      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, wa: '', lines: [] };
       msgs.push(cur);
     }
     cur.lines.push(line);
@@ -29546,16 +29573,49 @@ function relaySplit(text) {
     .filter(function(m) { return m.text && !/^<Media omitted>$|omitted>$/i.test(m.text); });
 }
 
-/* What kind of message this is, from its first lines. */
+/* What kind of message this is, from its first lines. A roll's own dated head is a roll whatever follows it, the time
+   written straight after it included ("01/10/26/ in time6:00 am"): prodKind (prodparse.js) reads a paste with this, and its
+   own test of that head had read such a roll while this did not, so Add and Paste message said no roll was found, or sent
+   the whole paste to Production and the attendance was never read (QA3-5). Now the two agree by construction. */
+var RELAY_ROLL_HEAD_RE = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i;
 function relayKind(text) {
   var head = String(text || '').split('\n').slice(0, 2).join(' ');
+  var dh = RELAY_ROLL_HEAD_RE.exec(String(text || ''));
+  if (dh) return dh[1].toLowerCase();
   if (/c[ae]mical|chemical/i.test(head)) return 'stock';
-  var io = head.match(/\b(in|out)\s*-*\s*time\b/i);
+  var io = head.match(/\b(in|out)\s*-*\s*time(?![a-z])/i);
   if (io && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(head)) return io[1].toLowerCase();
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
   if (/pickling\s*time/i.test(text)) return 'material';
   return 'other';
+}
+
+/* The chemical stock written into a roll under its own heading, no date ("camical use camical stock"): the roll ends there
+   (parseRelayRoll), and from that line on is a stock message. A roll stopped earlier by another message's dated line has
+   none. '' when there is none. */
+var RELAY_STOCK_HEAD_RE = /^c[ae]mical\s+(use|stock)\b|^chemical\s+(use|stock)\b/i;
+function relayStockTail(text) {
+  var lines = String(text || '').split('\n');
+  for (var i = 1; i < lines.length; i++) {
+    var bare = lines[i].trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+    if (!bare) continue;
+    if (RELAY_STOCK_HEAD_RE.test(bare)) return lines.slice(i).join('\n').trim();
+    var dd = bare.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?\s*(.*)$/);
+    if (dd && isoFromDmy(dd[1], dd[2], dd[3]) && /c[ae]mical|chemical|stock|in\s*-*\s*time|out\s*-*\s*time/i.test(dd[4])) return '';
+  }
+  return '';
+}
+/* The stock in a paste, for Stock's own check: each stock message, and the stock under a roll, as it was sent (its WhatsApp
+   line kept, so the check reads who sent it and when). Rolls are read in Staff; their stock was dropped (QA3-10). */
+function relayStockParts(msgs) {
+  var out = [];
+  (msgs || []).forEach(function(m) {
+    var k = relayKind(m.text), tail = k === 'in' || k === 'out' ? relayStockTail(m.text) : '';
+    if (k === 'stock') out.push((m.wa || '') + m.text);
+    else if (tail) out.push((m.wa || '') + tail);
+  });
+  return out;
 }
 
 /* One roll → per-day records. Each line keeps what it was read as, so the
@@ -29605,10 +29665,11 @@ function parseRelayRoll(text, roster, sentOn) {
     out.lines.push(ln);
 
     // The chemical stock written into the same message, under its own heading
-    // and no date ("camical use camical stock"): the roll ends there.
-    if (/^c[ae]mical\s+(use|stock)\b|^chemical\s+(use|stock)\b/i.test(bare)) {
-      st.stop = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; paste it in More → Stock';
-      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. Paste it in More → Stock.' });
+    // and no date ("camical use camical stock"): the roll ends there, and the stock is Stock's (relayStockTail). More is
+    // retired: the stock is read in Stock (the review's Read in Stock hands it over).
+    if (RELAY_STOCK_HEAD_RE.test(bare)) {
+      st.stop = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; it is read in Stock';
+      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. It is read in Stock (Read in Stock, or Stock → Paste message).' });
       return;
     }
     // A date inside the roll: a holiday, or a second day's block ("16/08/26/ Sunday").
@@ -30255,6 +30316,15 @@ function relayLearntHtml() {
     '<div class="inv-panel-body inv-note">A heading you corrected on the Day view is read your way on every roll after it. Forget one to go back to how it is read by default.</div>' + rows + '</div>';
 }
 
+/* A stock message to Stock's own check (stock.js), as the paste box sends one. A role that may not open Stock is refused
+   there, with a word (switchTab), and nothing is read for it. */
+function relayOpenStock(text) {
+  _stockPasteDraft = text;
+  _stockView = 'paste';
+  switchTab('pageStock');
+  if (navPageOf() === 'pageStock') stockReadPaste();
+}
+
 function relayRead() {
   var ta = document.getElementById('relayPasteText');
   var text = ta ? ta.value : _relayDraft;
@@ -30272,18 +30342,15 @@ function relayRead() {
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
-  if (!rolls.length && stock.length) {
-    // A stock message belongs to Stock's own review.
-    _stockPasteDraft = text;
-    _stockView = 'paste';
-    switchTab('pageStock');
-    stockReadPaste();
-    return;
-  }
+  // A stock message belongs to Stock's own review.
+  if (!rolls.length && stock.length) { relayOpenStock(text); return; }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
   // Only a roll needs the roster: a stock message goes to Stock above whether or not anyone is on it yet.
   if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
-  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: Math.max(0, other.length - prodLoose), prod: prod.length };
+  // The stock beside the rolls, its own messages and what was written under a roll, is kept for Read in Stock: it was
+  // dropped, with a word pointing at the retired More sheet (QA3-10).
+  var stockParts = relayStockParts(msgs);
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stockParts.length, stockText: stockParts.join('\n'), other: Math.max(0, other.length - prodLoose), prod: prod.length };
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
@@ -30312,7 +30379,13 @@ function relayRenderReview() {
   if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
   if (plan.repeats) h += '<div class="inv-callout inv-callout-warning inv-mb-8" id="relayRepeatNote">' + todoPlural(plan.repeats, 'message repeats', 'messages repeat') +
     ' one earlier in ' + (rv.reread ? 'the day’s rolls' : 'this paste') + ' (a roll posted twice) and ' + (plan.repeats === 1 ? 'is' : 'are') + ' read once: read twice, its EXTRA would count twice.</div>';
-  if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
+  // The stock in the paste, read in Stock the way the production is read in Production: handed over whole, as it was sent.
+  if (rv.stock && rv.stockText) {
+    var stockOpens = typeof grdSees !== 'function' || grdSees('pageStock');
+    h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayStockNote"><div>' + (rv.stock === 1 ? 'The chemical stock in this paste is' : 'The chemical stock in ' + rv.stock + ' messages is') +
+      ' not attendance. Attendance is read here; the stock is read in Stock.</div>' +
+      (stockOpens ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToStock">Read in Stock</button>' : '') + '</div>';
+  }
   if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
   if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (notes) not read.</div>';
@@ -30526,6 +30599,8 @@ function relayAction(action, btn) {
   switch (action) {
     case 'invRelayRead': relayRead(); break;
     case 'invRelayToProd': prodOpenPaste(_relay ? _relay.text : _relayDraft); break;
+    // The stock part only: Stock's reader would take a roll's numbered lines for stock lines.
+    case 'invRelayToStock': if (_relay && _relay.stockText) relayOpenStock(_relay.stockText); break;
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayReread': relayRereadOpen(_attDate); break;
@@ -30712,7 +30787,13 @@ function addClipHtml(d, text) {
         '<span class="inv-row-title">' + escHtml(it.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(it.meta) + '</span></span></div>';
     }).join('') + quote +
     '<div class="inv-toolbar"><button type="button" class="inv-btn inv-btn-secondary" data-action="invAddClipRead">Read it</button>' +
-    '<span class="inv-note">Read in ' + escHtml(d.where) + ' and checked there before anything is saved.</span></div></div>';
+    '<span class="inv-note" data-add-clip-where>Read in ' + escHtml(d.where) + ' and checked there before anything is saved' + escHtml(addAlsoText(d.also)) + '.</span></div></div>';
+}
+/* What a roll's check hands on (relay.js: Read in Production, Read in Stock), said after where the roll is read. */
+var ADD_ALSO_WHAT = { Production: 'the production', Stock: 'the stock message' };
+function addAlsoText(also) {
+  if (!also || !also.length) return '';
+  return '; ' + also.map(function(w) { return ADD_ALSO_WHAT[w]; }).join(' and ') + (also.length > 1 ? ' are' : ' is') + ' read in ' + also.join(' and ') + ' from there';
 }
 /* The first lines as copied, so what is on the clipboard can be told at a glance. */
 function addQuoteLines(text) {
@@ -30727,21 +30808,24 @@ function addQuoteLines(text) {
 var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', power: 'Power cuts' };
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
-  var d = { items: [], where: '', lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
-  var rolls = 0, stock = 0, prod = 0, roster = null, groups = {};
-  relaySplit(text).forEach(function(m) {
+  var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
+  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text);
+  msgs.forEach(function(m) {
     var k = relayKind(m.text);
     if (k === 'in' || k === 'out') {
       rolls++;
       roster = roster || relayRoster({});
       d.items.push(addDescRoll(parseRelayRoll(m.text, roster, m.sentOn)));
-    } else if (k === 'stock') {
-      stock++;
-      d.items.push(addDescStock(parseStockMessage(m.text)));
     }
   });
+  // The stock as the paste box hands it to Stock: each stock message, and the stock written under a roll (relayStockParts).
+  relayStockParts(msgs).forEach(function(t) {
+    stock++;
+    d.items.push(addDescStock(parseStockMessage(t)));
+  });
   (typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()) : []).forEach(function(m) {
-    if (m.kind === 'roll' || !m.read || !m.read.items.length) return;
+    if (!m.read || !m.read.items.length) return;
+    if (m.kind === 'roll') { rollProd++; return; }
     prod++;
     var g = groups[m.kind] || (groups[m.kind] = { kind: m.kind, n: 0, dates: [], counts: {} });
     g.n++;
@@ -30750,6 +30834,9 @@ function addDescribe(text) {
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
   d.where = rolls ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
+  // and the stock beside a roll was never read (QA3-10).
+  if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);
   return d;
 }
 function addWhen(dates) {
@@ -30940,9 +31027,11 @@ function addPayment() {
   if (form) uiRevealEl(form);
   if (who) { try { who.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
-/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). */
+/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). Search's
+   Add a bill opens it here too. A role that may not open Money is refused by todoGo, and nothing is focused. */
 function addBill() {
   todoGo({ kind: 'bills', month: addBillMonth() });
+  if (navPageOf() !== 'pageFinance') return;
   var amt = costBillRoot('finance').querySelector('#costBillAmount');
   if (amt) { uiRevealEl(amt); try { amt.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
@@ -45023,10 +45112,14 @@ function navBoot(launch) {
    window's book, an import or a pull is a new S), never on a keystroke. It never leaves the device.
 
    MATCHING (srchQuery): every part of the query must match. A number matches whole: 834 finds challan 834 and invoice
-   00834, never 8341 (leading zeros ignored, as imChallanNoKey does). An amount matches to the paisa: 5902.12, 5,902.12,
-   ₹5,902.12. A date matches its day: 21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and
-   punctuation folded (rateKey); a number written with its punctuation (SEP/2026-27/00834, DA1/00877) matches as one.
-   Results come grouped by kind, screens first, five a kind with Show all.
+   00834, never 8341 (leading zeros ignored, as imChallanNoKey does). A challan or a P.O. is known by its first number
+   standing on its own, after a trailing financial year: 0901/26-27 is 901 (never 26 or 27), DA1/00877 is 877 (the 1 of
+   DA1 is part of a word). An amount matches to the paisa: 5902.12, 5,902.12, ₹5,902.12. A date matches its day:
+   21/09/2026, 2026-09-21, 21 Sep. A word matches the start of a word, case and punctuation folded (rateKey); a number
+   written with its punctuation (SEP/2026-27/00834, DA1/00877) matches as one, whole when it ends in a digit (00083 never
+   finds 00834), or by its tail (27/00834, 2026-27/00834). A series word that starts an identifier counts only beside
+   something else that matches: SEP 834 and sep/834 find SEP/2026-27/00834, SEP alone finds nothing; SEP 21 is invoice
+   00021 as well as 21 Sep. Results come grouped by kind, screens first, five a kind with Show all.
 
    THE PALETTE (searchOpen) is a layer: back and Esc close it, and it takes no address. A full-height sheet on the phone,
    centred on the desktop. The arrow keys move the cursor (aria-selected, the suggestion lists' pattern), Enter opens.
@@ -45092,6 +45185,22 @@ function srchWordsOf(s) {
 function srchNumsOf(s) {
   return (String(s == null ? '' : s).match(/\d+/g) || []).map(function(n) { return n.replace(/^0+(?=\d)/, ''); });
 }
+/* A list of challan numbers as an invoice cites them ("834, 835 & 838"): each one. */
+function srchDocList(s) {
+  return String(s == null ? '' : s).split(/[,;&]+/).map(function(x) { return x.trim(); }).filter(Boolean);
+}
+/* The number a challan or a P.O. is known by, for each of a list: its first run of digits standing on its own, after a
+   trailing financial year. poChallanDigits' rule (state.js), with the year and the word left out: "0901/26-27" is 901, never
+   26 or 27, and "DA1/00877" is 877, never 1 (QA3-4: every run counted, so challan 27 came seventh behind six /26-27 ones). */
+function srchDocNums(s) {
+  return srchDocList(s).map(function(x) {
+    var m = /(?<![A-Za-z0-9])\d+(?![A-Za-z0-9])/.exec(x.replace(/\s*\/\s*(\d{2}|\d{4})\s*-\s*\d{2}\s*$/, ''));
+    return m ? m[0].replace(/^0+(?=\d)/, '') : '';
+  }).filter(Boolean);
+}
+/* A plain word that starts an identifier ("SEP" of SEP/2026-27/00834) matches it only this weakly: enough to stand beside a
+   number that matches (SEP 834), never enough on its own, so SEP alone still finds no invoice by its series (QA3-12). */
+var SRCH_WEAK = 0.001;
 /* A figure as whole paise, the key an amount is matched on (never a sum: HR-8 is about money computed). */
 function srchPaise(v) {
   var n = Number(v);
@@ -45105,8 +45214,6 @@ function srchPad(n) { return String(Math.max(0, Math.floor(Number(n) || 0))).pad
 function srchScreens() {
   var at = function(tab, v) { return { kind: 'place', loc: { tab: tab, v: v || '', id: '' } }; };
   var act = function(a) { return { kind: 'act', act: a }; };
-  var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
-  var lastMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   var list = [
     ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
     ['pulse', 'Pulse', 'Today', 'home questions what to do widgets', at('pageHome', 'pulse')],
@@ -45163,7 +45270,8 @@ function srchScreens() {
     ['add-task', 'Add task', 'Add', 'new task to-do', act('task')],
     ['stock-entry', 'Stock entry', 'Add', 'enter by hand count received used charged', act('stock')],
     ['paste', 'Paste message', 'Add', 'whatsapp roll stock pickling production power cut', act('paste')],
-    ['add-bill', 'Add a bill', 'Add', 'electricity bill power bill', { kind: 'bills', month: lastMonth }],
+    // The month is worked out when it is opened, as Add → By hand → Bill works it out (addBill: the latest with no bill).
+    ['add-bill', 'Add a bill', 'Add', 'electricity bill power bill', { kind: 'bills' }],
     ['settings', 'Settings', 'Settings', 'preferences', { kind: 'settings' }]
   ];
   // Every Settings section by its own title, under its group, so a new section is found without a line here.
@@ -45188,13 +45296,23 @@ var _srchCache = null;    // {s, w, list, keys, byKey, ms, parts}
    applied to every answer, so a role never reads a figure its screens hide (with the guard off, everything). */
 var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pageIM', client: 'pageClients', part: 'pageClients',
   quote: 'pageClients', worker: 'pageStaff', stock: 'pageStock', bank: 'pageFinance' };
+/* The page every other jump opens: the To-do's jumps a screen makes, and each action's form (Add's, GRD_ADD_PAGE). A screen
+   entry is shown only where its page opens to the role. Every non-place entry passed before (QA3-1): a Supervisor found the
+   credit notes and the Number audit, which opened over Home after switchTab had refused the Register. */
+var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'pageFinance' };
+var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
+  worker: 'pageStaff', task: 'pageTodo', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
     var go = e.go || {};
-    if (go.kind === 'place' && go.loc) return grdSees(go.loc.tab);
     if (go.kind === 'settings') return grdCan('settings');
-    return true;
+    var page = go.kind === 'place' ? go.loc && go.loc.tab : go.kind === 'act' ? SRCH_ACT_PAGE[go.act] : SRCH_GO_PAGE[go.kind];
+    // A jump this table cannot place is the owner's alone until it says where it leads.
+    if (!page) return grdIsOwner();
+    if (!grdSees(page)) return false;
+    // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
+    return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
   var page = SRCH_KIND_PAGE[e.kind];
   if (page && !grdSees(page)) return false;
@@ -45238,7 +45356,10 @@ function srchData() {
         text: 'Invoice ' + num + ' to ' + (inv.clientName || '') + ', dated ' + formatDate(inv.date) + ': taxable ' + formatCurrency(inv.taxableValue) +
           ', total ' + formatCurrency(inv.grandTotal) + (inv.challanNo ? '; challans ' + inv.challanNo : '') + (inv.poNumber ? '; P.O. ' + inv.poNumber : '') + '; ' + state + '.',
         go: { kind: 'invoice', id: String(inv.id) } },
-        { title: num, words: [inv.clientName, inv.poNumber], ids: [num, inv.poNumber, inv.challanNo], nums: [inv.challanNo, inv.poNumber],
+        // Each challan it cites is an identifier of its own, and the number of each (and of the P.O.) is read as srchDocNums
+        // reads it: never the year of a challan or the 1 of DA1 (QA3-4).
+        { title: num, words: [inv.clientName, inv.poNumber], ids: [num, inv.poNumber].concat(srchDocList(inv.challanNo)),
+          nums: srchDocNums(inv.challanNo).concat(srchDocNums(inv.poNumber)),
           primary: [serial], amounts: [inv.taxableValue, inv.grandTotal], dates: [inv.date], rank: (inv.date || '') + srchPad(inv.createdAt) });
     });
   });
@@ -45251,7 +45372,7 @@ function srchData() {
         text: 'Challan ' + (im.challanNo || '(no number)') + ' from ' + (im.clientName || '') + ', dated ' + formatDate(im.challanDate) + ': ' + parts.join('; ') + '; ' + formatCurrency(total) + '; ' + st + '.',
         go: { kind: 'challan', id: String(im.id) } },
         { title: imChallanLabel(im), words: [im.clientName].concat(parts), ids: [im.challanNo].concat(lines.map(function(l) { return l.partNumber; })),
-          primary: [im.challanNo], amounts: [total], dates: [im.challanDate], rank: (im.challanDate || '') + srchPad(im.createdAt) });
+          primary: srchDocNums(im.challanNo), amounts: [total], dates: [im.challanDate], rank: (im.challanDate || '') + srchPad(im.createdAt) });
     });
   });
   each('clients', function() {
@@ -45342,10 +45463,11 @@ function srchData() {
 }
 
 /* What an entry is matched on, as strings searched with one indexOf each: a space before every word, so a word's start
-   is ' ' + it. t: the title's words (a name's; an identifier's title is matched whole, in ti, so SEP in every invoice
-   number is never a word), w: the words, k: the identifiers whole, n and p: the numbers and the record's own number,
-   a: amounts in paise, d: dates. memo keeps what a text folds to for one build: a client's name, a part's description
-   and a P.O. come round on hundreds of records. */
+   is ' ' + it, and a space after every word and identifier too, so ' ' + it + ' ' is it whole. t: the title's words (a
+   name's; an identifier's title is matched whole, in ti, so SEP in every invoice number is never a word), tt: an
+   identifier title's tails (SEP/2026-27/00834's 202627834, 27834 and 834), w: the words, k: the identifiers whole, n and p:
+   the numbers and the record's own number, a: amounts in paise, d: dates; i: the title is an identifier. memo keeps what a
+   text folds to for one build: a client's name, a part's description and a P.O. come round on hundreds of records. */
 var SRCH_KIND_KEYS = null;
 function srchKeys(kind, m, memo) {
   memo = memo || {};
@@ -45370,11 +45492,15 @@ function srchKeys(kind, m, memo) {
   (m.nums || []).forEach(function(s) { if (s) srchNumsOf(s).forEach(function(n) { nums.push(n); }); });
   (m.amounts || []).forEach(function(v) { var p = srchPaise(v); if (p) amts.push(p); });
   (m.dates || []).forEach(function(d) { if (/^\d{4}-\d{2}-\d{2}$/.test(d || '')) dates.push(d); });
+  var segs = srchWordsOf(m.title), tails = [];
+  if (ident) for (var i = 1; i < segs.length; i++) tails.push(segs.slice(i).join(''));
   return {
-    t: ident ? '' : ' ' + srchWordsOf(m.title).join(' '),
-    ti: ' ' + srchIdKey(m.title),
-    w: ' ' + words.join(' '),
-    k: ' ' + ids.join(' '),
+    i: ident,
+    t: ident ? '' : ' ' + segs.join(' '),
+    ti: ' ' + srchIdKey(m.title) + ' ',
+    tt: tails.length ? ' ' + tails.join(' ') + ' ' : '',
+    w: ' ' + words.join(' ') + ' ',
+    k: ' ' + ids.join(' ') + ' ',
     n: ' ' + nums.join(' ') + ' ',
     p: ' ' + prim.join(' ') + ' ',
     a: ' ' + amts.join(' ') + ' ',
@@ -45395,6 +45521,10 @@ function srchDateTok(y, m, d) {
   var pad = function(n) { return String(n).padStart(2, '0'); };
   return { t: 'date', y: y == null ? null : String(y).length === 2 ? '20' + y : String(y), m: pad(m), d: d == null ? null : pad(d) };
 }
+/* A text token. `whole`: an identifier typed ending in a digit matches only whole, never as the start of a longer one:
+   folded, SEP/2026-27/00083 is the start of SEP/2026-27/00836, and DA1/00087 of DA1/00877 (QA3-3; a number matches whole).
+   One typed ending in a separator ("sep/2026-27/") asks for what follows, and matches as a start. */
+function srchTxt(sq, id, typed) { return { t: 'txt', sq: sq, id: id, whole: id && /\d$/.test(typed) }; }
 function srchTxtTok(p) {
   var sq = srchIdKey(p);
   if (!sq) return null;
@@ -45402,8 +45532,8 @@ function srchTxtTok(p) {
   // identifier: matched whole against the record's numbers as well as its words, else part by part. A plain word is
   // matched against words alone, so SEP never finds every invoice by its series.
   var bits = String(p).split(/[^A-Za-z0-9]+/).filter(Boolean);
-  var tok = { t: 'txt', sq: sq, id: /\d/.test(sq) || bits.length > 1 };
-  if (bits.length > 1) tok.parts = bits.map(function(b) { return /^\d+$/.test(b) ? { t: 'num', n: b.replace(/^0+(?=\d)/, '') } : { t: 'txt', sq: srchIdKey(b), id: /\d/.test(b) }; });
+  var tok = srchTxt(sq, /\d/.test(sq) || bits.length > 1, String(p));
+  if (bits.length > 1) tok.parts = bits.map(function(b) { return /^\d+$/.test(b) ? { t: 'num', n: b.replace(/^0+(?=\d)/, '') } : srchTxt(srchIdKey(b), /\d/.test(b), b); });
   return tok;
 }
 /* The query, read into tokens: amounts, dates, numbers and text. */
@@ -45443,6 +45573,9 @@ function srchParse(q) {
     var tok = srchDateTok(year, mo, dayAt >= 0 ? out[dayAt].n : null);
     if (!tok) continue;
     var from = Math.min(i, dayAt < 0 ? i : dayAt), to = year != null ? yAt : Math.max(i, dayAt);
+    // The word first and a day after it, no year: "SEP 21" is invoice SEP/…/00021 as well as 21 Sep. Both readings are
+    // tried and each entry takes the better, so the number is found (it was read as the date alone: QA3-12).
+    if (dayAt === i + 1 && year == null) tok = { t: 'alt', alts: [[tok], [t, out[dayAt]]] };
     out.splice(from, to - from + 1, tok);
     i = from;
   }
@@ -45453,7 +45586,8 @@ function srchDateHit(tk, ds) {
   if (tk.d) return ds.indexOf('-' + tk.m + '-' + tk.d + ' ') >= 0;
   return ds.indexOf(' ' + tk.y + '-' + tk.m + '-') >= 0;
 }
-/* How well one token matches one entry: 0 is no match. The record's own number scores highest, then a title. */
+/* How well one token matches one entry: 0 is no match, SRCH_WEAK a series word only. The record's own number scores
+   highest, then a title. */
 function srchTokScore(tk, k) {
   switch (tk.t) {
     case 'num':
@@ -45463,21 +45597,36 @@ function srchTokScore(tk, k) {
     case 'amt': return k.a.indexOf(' ' + tk.paise + ' ') >= 0 ? 4 : 0;
     case 'date': return srchDateHit(tk, k.d) ? 2 : 0;
     case 'txt': {
+      var at = ' ' + tk.sq + (tk.whole ? ' ' : '');
       if (k.t.indexOf(' ' + tk.sq) >= 0) return 3;
-      if (tk.id && k.ti.indexOf(' ' + tk.sq) >= 0) return 4;
-      if (k.w.indexOf(' ' + tk.sq) >= 0) return tk.id ? 2 : 1;
-      if (tk.id && k.k.indexOf(' ' + tk.sq) >= 0) return 2;
-      if (!tk.parts) return 0;
-      var s = 0;
-      for (var i = 0; i < tk.parts.length; i++) { var x = srchTokScore(tk.parts[i], k); if (!x) return 0; s += x; }
-      return s;
+      // An identifier's title, whole or by its tail: 27/00834 and 2026-27/00834 are SEP/2026-27/00834 (QA3-12).
+      if (tk.id && (k.ti.indexOf(at) >= 0 || k.tt.indexOf(at) >= 0)) return 4;
+      if (k.w.indexOf(at) >= 0) return tk.id ? 2 : 1;
+      if (tk.id && k.k.indexOf(at) >= 0) return 2;
+      if (tk.parts) {
+        var s = 0;
+        for (var i = 0; i < tk.parts.length; i++) { var x = srchTokScore(tk.parts[i], k); if (!x) return 0; s += x; }
+        return s;
+      }
+      return !tk.id && k.i && k.ti.indexOf(' ' + tk.sq) === 0 ? SRCH_WEAK : 0;
+    }
+    // Two readings of one stretch of the query ("SEP 21"): the better of those whose every token matches.
+    case 'alt': {
+      var best = 0;
+      tk.alts.forEach(function(alt) {
+        var sum = 0;
+        for (var a = 0; a < alt.length; a++) { var v = srchTokScore(alt[a], k); if (!v) return; sum += v; }
+        if (sum > best) best = sum;
+      });
+      return best;
     }
   }
   return 0;
 }
-/* Every entry matching every token, grouped by kind in SRCH_KINDS' order, best first. */
+/* Every entry matching every token, grouped by kind in SRCH_KINDS' order, best first. An entry matched by series words
+   alone (SRCH_WEAK) is not a match. */
 function srchQuery(q) {
-  var t0 = performance.now(), d = srchData(), toks = srchParse(q), whole = ' ' + srchIdKey(q);
+  var t0 = performance.now(), d = srchData(), toks = srchParse(q), whole = ' ' + srchIdKey(q) + ' ';
   var by = {}, total = 0;
   if (toks.length) {
     for (var i = 0; i < d.keys.length; i++) {
@@ -45487,7 +45636,7 @@ function srchQuery(q) {
         if (!s) { score = 0; break; }
         score += s;
       }
-      if (!score || !srchSees(d.list[i])) continue;
+      if (score < 1 || !srchSees(d.list[i])) continue;
       if (k.ti === whole) score += 6;    // the whole query is the title
       var kind = d.list[i].kind;
       (by[kind] = by[kind] || []).push({ i: i, s: score, r: k.r });
@@ -45740,6 +45889,13 @@ function srchGo(go) {
     case 'worker': {
       var w = staffById(id);
       if (!w) { srchMissing('That worker'); return; }
+      // The desktop: People → Roster with the worker open in its pane, as its row opens it (UX overhaul 2, step 7; it opened
+      // Edit worker: QA3-6). The phone's roster has no pane: the worker's sheet over it.
+      if (_isDesktop) {
+        srchGoPlace({ tab: 'pageStaff', v: 'roster', id: String(w.id) });
+        uiRevealEl(document.querySelector('#attRosterTable tr[data-id="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]'));
+        return;
+      }
       _attView = 'roster';
       switchTab('pageStaff');
       uiRevealEl(document.querySelector('#pageStaff [data-action="invAttEditWorker"][data-id="' + w.id + '"]'));
@@ -45765,8 +45921,11 @@ function srchGo(go) {
       return;
     // Settings opens once (events.js's rule for its button).
     case 'settings': if (!document.getElementById('settingsScrim')) openSettings(go.sec); return;
+    // A bill: Add → By hand → Bill's own opener, on the latest month with no electricity bill as it stands now (it opened
+    // last month, whatever was entered: QA3-11).
+    case 'bills': addBill(); return;
   }
-  // A challan, a stock line, the credit notes, the number audit, a bill: the To-do's own jumps.
+  // A challan, a stock line, the credit notes, the number audit: the To-do's own jumps.
   todoGo(go);
 }
 
@@ -45928,7 +46087,9 @@ function srchLocOf(el) {
   var act = a.dataset.action, d = a.dataset;
   if (act === 'invSearchPick') { var s = _srch && _srch.shown[+d.n]; return s && s.e ? srchEntryLoc(s.e) : null; }
   if (a.closest('.inv-scrim')) return null;
-  if (act === 'invSwitchTab' || act === 'invSideGo') return isPageId(d.tab) ? { tab: d.tab, v: d.sub || '', id: '' } : null;
+  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
+  // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
+  if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
     var go = sp ? srchGTarget(sp[0]) : null;
@@ -45947,6 +46108,17 @@ function srchLocOf(el) {
   if (act === 'invBankClient') return { tab: 'pageFinance', v: 'receipts', id: String(d.id) };
   if (act === 'invProdEntryOpen') return { tab: 'pageProduction', v: 'entries', id: String(d.id) };
   if (act === 'invHistoryOpen') return { tab: 'pageHistory', v: '', id: String(d.key) };
+  // Direction B's screens (QA3-8: a Ctrl+click on them moved this window, or did nothing). Office → Pipeline: a stage is the
+  // Pipeline on it, a challan under it the challan; a client owing, and Money's other doors, Money on that view and client.
+  if (act === 'invPipeStage') return pipeStageKey(d.pipeStage) ? { tab: 'pagePipeline', v: d.pipeStage, id: '' } : null;
+  if (act === 'invPipeChallan') return srchRecordLoc('challan', String(d.id));
+  if (act === 'invFinGo') return { tab: 'pageFinance', v: d.tab || 'overview', id: d.tab === 'receipts' && d.client ? String(d.client) : '' };
+  // Floor → Day: a line's card is Production → Lines, the tiles and the staffing and EXTRA words their own screens. The line
+  // and the day are not in those screens' addresses: the new window opens on their own line and day.
+  if (act === 'invFlrLine' || act === 'invFlrPlated') return { tab: 'pageProduction', v: 'lines', id: '' };
+  if (act === 'invFlrStaff') return { tab: 'pageStaff', v: 'day', id: '' };
+  if (act === 'invFlrAreas') return { tab: 'pageStaff', v: 'areas', id: '' };
+  if (act === 'invFlrPower') return { tab: 'pagePower', v: 'cuts', id: '' };
   return null;
 }
 /* Caught on the window before anything else sees the click, so the place opens there and not here as well (and nav.js

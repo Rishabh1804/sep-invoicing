@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="fc26796a">
+<meta name="app-build" content="301dc2db">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -44500,6 +44500,7 @@ var _navTimer = null;
 var _navTrail = [];       // _navTrail[idx] = {loc, page, sub} for a place, null for a layer
 var _navBooted = false;
 var _navCur = null;       // the entry the app is on, as it stood: a popstate only says where it arrived
+var _navMoves = 0;        // every arrival and every new step: a pass-over's fallback fires only if nothing moved since
 
 function navPageOf() {
   var p = document.querySelector('.inv-page-active');
@@ -44720,6 +44721,7 @@ function navTrailPut(loc) {
   try { sessionStorage.setItem(NAV_TRAIL_KEY, JSON.stringify(_navTrail)); } catch (e) { /* a convenience only */ }
 }
 function navPush(loc, extra) {
+  _navMoves++;
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
@@ -44803,7 +44805,8 @@ function navCloseLayer() {
 window.addEventListener('popstate', function(e) {
   var st = e.state;
   if (!st || !st.sep || !_navBooted) return;
-  var from = _navIdx, dir = st.idx < from ? -1 : 1, left = _navCur;
+  _navMoves++;
+  var from = _navIdx, dir = st.idx < from ? -1 : 1, left = _navCur, moves = _navMoves;
   _navIdx = st.idx;
   _navCur = st;
   if (_navIgnore) { _navIgnore--; navBarDraw(); return; }
@@ -44811,9 +44814,12 @@ window.addEventListener('popstate', function(e) {
   // Leaving a shut layer's entry for the place it was over: that place is where the app already is, so go on.
   if (left && left.skip && !st.skip && !st.layer && navKey(st.loc) === navKey(navLoc()) && st.idx > 0) { history.go(dir); return; }
   if (st.skip || st.layer) {
-    // A layer already shut: pass over it, the way the move was going.
+    // A layer already shut: pass over it, the way the move was going. Where there is nothing further that way the browser
+    // sends no popstate, and after a moment the app arrives here instead. That fallback fires only if nothing has moved
+    // since: it checked the index alone, and a tap within the moment pushed its step onto this very index, so the stale
+    // fallback sent the app back to the screen just left (P139 failed on CI and on main, 9 runs in 15 locally; P148).
     history.go(dir);
-    setTimeout(function() { if (_navIdx === st.idx) navArrive(st, from); }, 120);
+    setTimeout(function() { if (_navMoves === moves && _navIdx === st.idx) navArrive(st, from); }, 120);
     return;
   }
   navArrive(st, from);

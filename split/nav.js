@@ -23,6 +23,7 @@ var _navTimer = null;
 var _navTrail = [];       // _navTrail[idx] = {loc, page, sub} for a place, null for a layer
 var _navBooted = false;
 var _navCur = null;       // the entry the app is on, as it stood: a popstate only says where it arrived
+var _navMoves = 0;        // every arrival and every new step: a pass-over's fallback fires only if nothing moved since
 
 function navPageOf() {
   var p = document.querySelector('.inv-page-active');
@@ -243,6 +244,7 @@ function navTrailPut(loc) {
   try { sessionStorage.setItem(NAV_TRAIL_KEY, JSON.stringify(_navTrail)); } catch (e) { /* a convenience only */ }
 }
 function navPush(loc, extra) {
+  _navMoves++;
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
@@ -326,7 +328,8 @@ function navCloseLayer() {
 window.addEventListener('popstate', function(e) {
   var st = e.state;
   if (!st || !st.sep || !_navBooted) return;
-  var from = _navIdx, dir = st.idx < from ? -1 : 1, left = _navCur;
+  _navMoves++;
+  var from = _navIdx, dir = st.idx < from ? -1 : 1, left = _navCur, moves = _navMoves;
   _navIdx = st.idx;
   _navCur = st;
   if (_navIgnore) { _navIgnore--; navBarDraw(); return; }
@@ -334,9 +337,12 @@ window.addEventListener('popstate', function(e) {
   // Leaving a shut layer's entry for the place it was over: that place is where the app already is, so go on.
   if (left && left.skip && !st.skip && !st.layer && navKey(st.loc) === navKey(navLoc()) && st.idx > 0) { history.go(dir); return; }
   if (st.skip || st.layer) {
-    // A layer already shut: pass over it, the way the move was going.
+    // A layer already shut: pass over it, the way the move was going. Where there is nothing further that way the browser
+    // sends no popstate, and after a moment the app arrives here instead. That fallback fires only if nothing has moved
+    // since: it checked the index alone, and a tap within the moment pushed its step onto this very index, so the stale
+    // fallback sent the app back to the screen just left (P139 failed on CI and on main, 9 runs in 15 locally; P148).
     history.go(dir);
-    setTimeout(function() { if (_navIdx === st.idx) navArrive(st, from); }, 120);
+    setTimeout(function() { if (_navMoves === moves && _navIdx === st.idx) navArrive(st, from); }, 120);
     return;
   }
   navArrive(st, from);

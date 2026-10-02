@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, readStoredState, noSeedIM, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, readStoredState, noSeedIM, SepState, openPulse } from './fixtures';
 
 /*
  * P108: invoices, credit notes, printed documents and GST exports (the QA sweep, 29 Sep 2026).
@@ -546,6 +546,7 @@ test('IB2: a reissue returns to the Register with the new invoice open', async (
 
 test('IB3: the Stats drill-down chooses its client even when a form exists, and the choice does not leak', async ({ page }) => {
   await loadAppWithState(page, book([inv(1)], { invNextNum: 2 }));
+  await openPulse(page);
   await switchTab(page, 'pageCreate');
   await expect(page.locator('#invClientSearch')).toBeVisible();
   await switchTab(page, 'pageStats');
@@ -555,7 +556,7 @@ test('IB3: the Stats drill-down chooses its client even when a form exists, and 
   await expect(page.locator('[data-chosen-client]')).toContainText('TEST CLIENT KG');
   // A later New invoice is blank.
   await page.locator('[data-action="invResetForm"]').click();
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await page.locator('#pageHome [data-action="invCreateNew"]').first().click();
   await expect(page.locator('#invClientSearch')).toBeVisible();
   expect(await g(page, 'typeof _preselectedClientId')).toBe('undefined');
@@ -571,14 +572,15 @@ const lineShown = (page: Page) => expect(page.locator('input[data-action="invEdi
 
 test('IB4: New invoice asks before it throws away an invoice being typed', async ({ page }) => {
   await loadAppWithState(page, book([inv(1)], { invNextNum: 2 }));
+  await openPulse(page);
   await typedForm(page);
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await page.locator('#pageHome [data-action="invCreateNew"]').first().click();
   const said = await answerAsk(page, 'cancel');
   expect(said).toContain('Discard the invoice being typed?');
   await switchTab(page, 'pageCreate');
   await lineShown(page);
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await page.locator('#pageHome [data-action="invCreateNew"]').first().click();
   await answerAsk(page, 'ok');
   await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();

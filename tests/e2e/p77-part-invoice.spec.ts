@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, readStoredState, switchTab, openStatsTab } from './fixtures';
+import { loadAppWithState, readStoredState, switchTab, openStatsTab, openPulse } from './fixtures';
 import { partState, partStateBilled, partInvoice } from './p77-part-invoice.fixture';
 
 // P77: a challan invoiced in parts. What a challan line has billed is derived from the
@@ -34,6 +34,7 @@ async function imStatus(page: Page) {
 
 test('600 invoiced as 200, 300 and 100: the share left, the status and the unbilled amounts follow', async ({ page }) => {
   await loadAppWithState(page, partState());
+  await openPulse(page);
 
   await invoiceQty(page, 200, 1);
   let it = await line(page);
@@ -42,7 +43,7 @@ test('600 invoiced as 200, 300 and 100: the share left, the status and the unbil
   expect((await readStoredState(page)).invoices[0].items[0]).toMatchObject({ qty: 200, amount: 500, imItemId: 'IM-301-0' });
   await expect(await imStatus(page)).toHaveText('Part invoiced');
   // Home: the unbilled amount is the open share, never the whole line.
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await expect(page.locator('#homeUnbilledCard')).toContainText('₹2,300.00');   // 400 × 2.50 + challan 401's 1,300
 
   // The picker offers what is left, and says what went before.

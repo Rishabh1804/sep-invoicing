@@ -8,10 +8,11 @@
    arrow all walk one trail. The step is taken AFTER whatever moved the app (navSync, after a click, a change, a key or
    switchTab), so no screen had to learn about it: a place is read off the screen's own state, never announced.
 
-   An open dialog, the More sheet or a print preview is a LAYER: one history entry over the screen, so back closes it
-   (a dialog holding typed work asks first, dialogLeaveOk). Closed any other way, its entry is marked `skip` and back
-   passes over it. A form with unsaved work (typed on a screen that shows its Save in the action bar) asks before back
-   leaves it. Filters, sorts and pagers are not places: they move nothing in the trail. */
+   An open dialog (the Add sheet and search are dialogs) or a print preview is a LAYER: one history entry over the screen,
+   so back closes it (a dialog holding typed work asks first, dialogLeaveOk). Closed any other way, its entry is marked
+   `skip` and back passes over it. A form with unsaved work (typed on a screen that shows its Save in the action bar) asks
+   before back leaves it. Filters, sorts and pagers are not places: they move nothing in the trail. The workspace a place
+   is in (workspace.js) is derived from its page: the address does not carry it. */
 
 var NAV_TRAIL_KEY = 'sep_inv_nav_trail';   // this tab's trail, kept across a reload (sessionStorage)
 var NAV_TRAIL_SHOWN = 3;                    // earlier steps named in the desktop's top bar
@@ -28,10 +29,11 @@ function navPageOf() {
   return p ? p.id : 'pageHome';
 }
 
-/* Where the app is: {tab, v, id}. v is the view tab or sub-view (a part after '/' is its month or sub-view),
-   id the record open in the desktop's pane (a phone opens a record in a dialog, which is a layer). */
+/* Where the app is: {tab, v, id, d}. v is the view tab or sub-view (a part after '/' is its month or sub-view),
+   id the record open in the desktop's pane (a phone opens a record in a dialog, which is a layer), d the day a page shows
+   where a day is a place (Floor → Day; today has none). */
 function navLoc() {
-  var tab = navPageOf(), v = '', id = '';
+  var tab = navPageOf(), v = '', id = '', d = '';
   switch (tab) {
     case 'pageIM':
       if (_challanForm) v = 'form';
@@ -41,6 +43,7 @@ function navLoc() {
       }
       break;
     case 'pageRegister': if (_isDesktop && _regActiveInvId) id = _regActiveInvId; break;
+    case 'pagePipeline': v = _pipeStage || ''; break;
     case 'pageClients':
       v = getItemsSubView();
       if (_isDesktop && v === 'clients' && _clientsActiveId != null) id = String(_clientsActiveId);
@@ -59,22 +62,24 @@ function navLoc() {
       v = _stockView === 'review' ? 'paste' : _stockView;
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
       break;
+    case 'pageHome': v = tdyView(); break;
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
+    case 'pageFloor': d = flrNavD(); break;
   }
-  return { tab: tab, v: v || '', id: id || '' };
+  return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
-function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') : ''; }
+function navKey(loc) { return loc ? loc.tab + '|' + (loc.v || '') + '|' + (loc.id || '') + (loc.d ? '|' + loc.d : '') : ''; }
 function navUrl(loc) {
   return window.location.pathname + '?tab=' + encodeURIComponent(loc.tab) +
-    (loc.v ? '&v=' + encodeURIComponent(loc.v) : '') + (loc.id ? '&id=' + encodeURIComponent(loc.id) : '');
+    (loc.v ? '&v=' + encodeURIComponent(loc.v) : '') + (loc.id ? '&id=' + encodeURIComponent(loc.id) : '') + (loc.d ? '&d=' + encodeURIComponent(loc.d) : '');
 }
 function navLocFromUrl(search) {
   var p;
   try { p = new URLSearchParams(search); } catch (e) { return null; }
   var tab = p.get('tab');
   if (!tab || !isPageId(tab)) return null;
-  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '' };
+  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' };
 }
 
 /* What a place is called: the page, then the view and the record ("Challans", "Invoiced, Aug 2026 · Ch. 301"). */
@@ -91,6 +96,7 @@ function navLabel(loc) {
       var inv = loc.id && S.invoices.find(function(i) { return i.id === loc.id; });
       if (inv) rec = 'Invoice ' + String(inv.displayNumber || '').split('/').pop();
       break;
+    case 'pagePipeline': sub.push(pipeStageLabel(parts[0])); break;
     case 'pageClients':
       sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance', quotes: 'Quotations' }[parts[0]] || '');
       if (parts[1] === 'form') sub.push('Quotation form');
@@ -102,6 +108,7 @@ function navLabel(loc) {
     case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
     case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
+    case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
     case 'pageStock':
@@ -111,9 +118,25 @@ function navLabel(loc) {
       break;
     case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
+    case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
   }
   if (rec) sub.push(rec);
-  return { page: PAGE_TITLES[loc.tab] || 'SEP Invoicing', sub: sub.filter(Boolean).join(' · ') };
+  // The page by its name in its workspace (Invoices, People, Money), with the workspace's.
+  return { ws: wsLabelOf(loc.tab), page: wsPageName(loc.tab, parts[0]), sub: sub.filter(Boolean).join(' · ') };
+}
+/* A place named in the top bar: the workspace, then the page, then its view and record. The page is left out where the
+   workspace names it already (Money, Today) and where the view repeats it (Clients · Clients). Worked out from the
+   address, so a step kept from an older build reads in today's names. */
+function navPlaceParts(t) {
+  var ws = wsLabelOf(t.loc.tab), page = wsPageName(t.loc.tab, String(t.loc.v || '').split('/')[0]), sub = t.sub || '';
+  if (page === ws || sub === page || sub.indexOf(page + ' · ') === 0) page = '';
+  return { ws: ws, page: page, sub: sub };
+}
+/* "Office › Challans · Awaiting invoice"; afterWs: only what follows the workspace's name (the top bar's context). */
+function navPlaceText(t, afterWs) {
+  var p = navPlaceParts(t), rest = [p.page, p.sub].filter(Boolean).join(' · ');
+  if (afterWs) return rest;
+  return p.ws ? p.ws + (rest ? ' › ' + rest : '') : rest;
 }
 
 /* Puts the app where loc says. Every screen's own setters, then one draw; the record last, once the list exists. */
@@ -123,7 +146,7 @@ function navApply(loc) {
     var tab = loc && isPageId(loc.tab) ? loc.tab : 'pageHome';
     var parts = String((loc && loc.v) || '').split('/'), id = (loc && loc.id) || '';
     var before = navLoc(), same = tab === before.tab;
-    closeOverlay(); closePrintPreview(); closeMoreSheet();
+    closeOverlay(); closePrintPreview();
     switch (tab) {
       case 'pageIM':
         if (parts[0] !== 'form') {
@@ -131,6 +154,8 @@ function navApply(loc) {
           imSetTab(parts[0] === 'invoiced' ? 'invoiced' : 'awaiting', parts[0] === 'invoiced' ? (parts[1] || null) : undefined);
         }
         break;
+      // A stage that is no longer there (or none) opens the default as the page is drawn.
+      case 'pagePipeline': _pipeStage = pipeStageKey(parts[0]); break;
       case 'pageClients':
         setItemsSubView(/^(clients|items|performance|quotes)$/.test(parts[0]) ? parts[0] : 'clients');
         // The quotation form is a sub-view: forward into it opens a new one; anywhere else leaves it.
@@ -152,8 +177,10 @@ function navApply(loc) {
         if (sv === 'reorder' && !_stockReorder) _stockReorder = { qty: {} };
         _stockView = sv;
         break;
+      case 'pageHome': tdySetView(parts[0]); break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
+      case 'pageFloor': flrSetDay(loc && loc.d); break;
     }
     if (!same) switchTab(tab);
     else {
@@ -187,7 +214,7 @@ function navApply(loc) {
 }
 
 /* ---------- Recording ---------- */
-function navLayerOpen() { return !!document.querySelector('.inv-scrim-dialog, #moreSheet, .inv-print-view-active'); }
+function navLayerOpen() { return !!document.querySelector('.inv-scrim-dialog, .inv-print-view-active'); }
 function navState(loc, extra) { return Object.assign({ sep: 1, idx: _navIdx, loc: loc }, extra || {}); }
 function navTrailPut(loc) {
   _navTrail.length = _navIdx + 1;
@@ -198,6 +225,12 @@ function navPush(loc, extra) {
   _navIdx++;
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
+}
+/* Opens a place as a new step: a workspace tab naming one of a page's own views (Today → Pulse). The step is taken first
+   and navApply puts the app there, writing onto it where the app arrived. */
+function navOpen(loc) {
+  if (_navBooted && navKey(loc) !== navKey(navLoc())) navPush(loc);
+  navApply(loc);
 }
 
 /* Takes the step, if the app moved: a new place is pushed; a layer that opened gets its entry; a layer that shut
@@ -234,11 +267,12 @@ function navLeaveOk() {
     okLabel: 'Leave', cancelLabel: 'Stay', danger: true }).then(function(ok) { if (ok) _pageTyped = false; return ok; });
 }
 
-/* A tap that leaves the screen: the phone bar, the sidebar, the More sheet, a view tab, a sub-view's back button. With
-   unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and a
-   tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
-   Caught before events.js sees it (capture), so the screen is never left and then asked about. */
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invSideGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1 };
+/* A tap that leaves the screen: the phone bar's workspaces, the sidebar, a workspace or view tab, a sub-view's back button.
+   With unsaved work on screen it asks first (owner, 29 Sep 2026: "that's a real bug" — only the browser's Back asked, and
+   a tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
+   Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
+   layer over the screen and leave nothing. */
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -265,7 +299,6 @@ function navCloseLayer() {
     return dialogLeaveOk(top).then(function(ok) { if (ok) dialogCloseScrim(top); });
   }
   if (document.querySelector('.inv-print-view-active')) closePrintPreview();
-  else closeMoreSheet();
   return Promise.resolve();
 }
 
@@ -305,11 +338,12 @@ function navGoTo(idx) { if (idx >= 0 && idx < _navIdx) history.go(idx - _navIdx)
 
 /* ---------- The top bar: the arrow, and on the desktop the trail ---------- */
 function navBarDraw() {
-  var back = document.getElementById('navBack'), trail = document.getElementById('navTrail'), ctx = document.getElementById('topbarCtx');
+  var back = document.getElementById('navBack'), trail = document.getElementById('navTrail');
   if (back) back.hidden = !navCanBack();
   var cur = _navTrail[_navIdx] || (history.state && history.state.loc ? Object.assign({ loc: history.state.loc }, navLabel(history.state.loc)) : null);
-  // The view and the record beside the page's name, on the desktop (the phone's bar has no room).
-  if (ctx) ctx.textContent = _isDesktop && cur ? cur.sub : '';
+  // The workspace is the title and, on the desktop, the page, its view and the record follow it (workspace.js; the
+  // phone's bar has no room, and its tab row names the view).
+  wsShellDraw();
   if (!trail) return;
   if (!_isDesktop) { trail.innerHTML = ''; return; }
   var steps = [];
@@ -320,11 +354,14 @@ function navBarDraw() {
     if (prev && navKey(prev.loc) === navKey(t.loc)) continue;
     steps.push({ i: i, t: t });
   }
-  // A step on the same page as the one after it names only its view and record: "Stats · Overview › Awaiting invoice ›".
+  // A step names its workspace before its page ("Office › Challans · Awaiting invoice"); one in the same workspace as the
+  // step after it names its page on, and one on the same page only its view and record ("Awaiting invoice").
   steps.reverse();
   trail.innerHTML = steps.map(function(s, k) {
-    var next = k + 1 < steps.length ? steps[k + 1].t : cur, name = s.t.page + (s.t.sub ? ' · ' + s.t.sub : '');
-    var text = next && next.loc && next.loc.tab === s.t.loc.tab && s.t.sub ? s.t.sub : name;
+    var next = k + 1 < steps.length ? steps[k + 1].t : cur, name = navPlaceText(s.t), sub = navPlaceParts(s.t).sub;
+    var onNext = next && next.loc;
+    var text = onNext && next.loc.tab === s.t.loc.tab && sub ? sub
+      : onNext && wsOf(next.loc.tab) === wsOf(s.t.loc.tab) ? navPlaceText(s.t, true) || name : name;
     return '<button type="button" class="inv-btn-link" data-action="invNavGo" data-to="' + s.i + '" title="' + escHtml(name) + '">' + escHtml(text) + '</button><span aria-hidden="true">›</span>';
   }).join('');
 }
@@ -372,7 +409,7 @@ function navBoot(launch) {
   else { _navIdx = 0; _navTrail = []; }
   _navBooted = true;
   // A reload keeps its address even where another window has since moved the saved tab.
-  if (launch && (launch.v || launch.id || launch.tab !== navPageOf())) navApply(launch);
+  if (launch && (launch.v || launch.id || launch.d || launch.tab !== navPageOf())) navApply(launch);
   var loc = navLoc();
   history.replaceState(navState(loc), '', navUrl(loc));
   _navCur = history.state;

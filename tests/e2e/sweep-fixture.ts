@@ -172,7 +172,7 @@ const V1_PREFIX = ['inv-stk-', 'inv-td-', 'inv-kpi', 'inv-att-', 'inv-stats-', '
   'inv-flip-kpi', 'inv-flip-container', 'inv-flip-inner'];
 const V1_EXACT = ['inv-tab', 'inv-td', 'inv-th', 'inv-tr', 'inv-detail', 'inv-preview-container', 'inv-trend-svg', 'inv-viewtab-on'];
 /* Classes drawn only as hooks for code or tests: no rule styles them, and none is a retired name. */
-const HOOKS = ['inv-booted', 'inv-desktop', 'inv-tablet', 'inv-lines', 'inv-navbar-more', 'inv-flip-front', 'inv-row-note', 'inv-build-id',
+const HOOKS = ['inv-booted', 'inv-desktop', 'inv-tablet', 'inv-lines', 'inv-flip-front', 'inv-row-note', 'inv-build-id',
   'inv-disk-summary', 'inv-save-status'];
 
 export type Stop = { where: string; v1: string[]; unstyled: string[]; selectAction: number; dupIds: string[]; blank: boolean; footNotLast: number; primaries: string[]; overflowX: number;
@@ -203,11 +203,12 @@ export async function sweep(page: Page, where: string): Promise<Stop> {
       dupIds: Object.keys(ids).filter(k => ids[k] > 1),
       blank: !!active && active.innerText.trim().length === 0,
       // A dialog's foot is sticky at its bottom edge, so anything after it would scroll under it.
-      // One primary per view (DR-3): the top dialog if one is open, else the page. A folded section's Save is not shown.
+      // One primary per view (DR-3): the top dialog if one is open, else the page. A folded section's Save is not shown, and
+      // the shell's Add (data-shell-primary: the phone bar's, the sidebar's) is the shell's, not a view's.
       primaries: (() => {
         const dlg = document.querySelectorAll('.inv-scrim-dialog');
         const root = dlg.length ? dlg[dlg.length - 1] : active;
-        return root ? Array.from(root.querySelectorAll('.inv-btn-primary')).filter(b => (b as HTMLElement).checkVisibility()).map(b => (b as HTMLElement).innerText.trim()) : [];
+        return root ? Array.from(root.querySelectorAll('.inv-btn-primary:not([data-shell-primary])')).filter(b => (b as HTMLElement).checkVisibility()).map(b => (b as HTMLElement).innerText.trim()) : [];
       })(),
       // Nothing pushes the page wider than the screen (a long name, a row of controls).
       overflowX: Math.max(0, document.documentElement.scrollWidth - document.documentElement.clientWidth),
@@ -289,7 +290,8 @@ export async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: !(await page.locator('.inv-scrim-dialog').count()) });
 }
 
-export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pageHistory'];
+export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pageHistory',
+  'pageFloor', 'pagePipeline'];
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {
@@ -389,22 +391,29 @@ export const DIALOGS: Array<[string, string]> = [
   ['todo-edit', `todoOpenEdit('T1')`],
   // An app task with What you can do (P133): the first the sweep book raises that carries moves.
   ['todo-app-moves', `todoOpenApp((todoAppAll().find(function(t) { return advTaskMoves(t).length; }) || {}).key)`],
+  ['add', `addOpen()`],
+  // Add with what the clipboard held named under its row (drawn as addClipCheck draws it once the browser hands the text over).
+  ['add-clipboard', `addOpen(); (function(t) { var o = document.getElementById('addClipOut'); o.innerHTML = addClipHtml(addDescribe(t), t); o.classList.remove('inv-hidden'); })(${
+    JSON.stringify(`${todayIso().split('-').reverse().join('/')}/ camical use\n1) NITRIC 10-2=8 L\n2) ZINC 40-5=35 KG`)})`],
+  // The guard (P140): the one guard dialog the sweep book reaches, with no users; the rest are swept in P140.
+  ['guard-on', `grdFormOpen('on')`],
   ['ask-confirm', `uiConfirm({ title: 'Delete this challan?', body: 'Challan 301 from SAMARTH, 2 lines. This cannot be undone.', okLabel: 'Delete challan', danger: true })`],
   ['ask-prompt', `uiPrompt({ title: 'Void this payment', body: 'It is kept on the record, not deleted.', label: 'Why is this payment void?', required: true })`],
   ['ask-alert', `uiAlert({ title: 'Copy the order', body: 'Select the text below and copy it.' })`],
   ['quote-detail', `qtOpen('Q2')`],
   ['quote-draft', `qtOpen('Q1')`],
-  ['more-sheet', `openMoreSheet()`],
+  ['search', `searchOpen()`],
+  ['search-results', `searchOpen('alpha')`],
+  ['keys', `srchKeysOpen()`],
 ];
 
 export async function walkDialogs(page: Page, tag: string, stops: Stop[]) {
   for (const [name, js] of DIALOGS) {
-    if (name === 'more-sheet' && await page.locator('body.inv-desktop').count()) continue;
     await page.evaluate(src => { (window as any).closeOverlay(); (window as any).closeSettings?.(); (0, eval)(src); }, js);
     await expect(page.locator('.inv-scrim')).not.toHaveCount(0);
     stops.push(await sweep(page, 'dialog ' + name));
     await shot(page, `${tag}-dialog-${name}`);
-    await page.evaluate(() => { (window as any).closeSettings?.(); (window as any).closeOverlay(); (window as any).closeMoreSheet(); });
+    await page.evaluate(() => { (window as any).closeSettings?.(); (window as any).closeOverlay(); });
   }
 }
 

@@ -10,7 +10,7 @@ test.describe('P50: Settings on the desktop', () => {
     await page.evaluate(() => localStorage.removeItem('sep_inv_settings_ui'));
     await page.locator('[data-action="invOpenSettings"]').first().click();
     await expect(page.locator('.inv-dialog-nav')).toBeVisible();
-    await expect(page.locator('.inv-dialog-nav .inv-side-item')).toHaveText(['Business', 'Checks & alerts', 'Costing', 'Labour', 'Connections', 'Data & device']);
+    await expect(page.locator('.inv-dialog-nav .inv-side-item')).toHaveText(['Business', 'Checks & alerts', 'Costing', 'Labour', 'Connections', 'Access', 'Data & device']);
     await expect(page.locator('section[data-group="business"]')).toBeVisible();
     await expect(page.locator('section[data-group="labour"]')).toBeHidden();
 

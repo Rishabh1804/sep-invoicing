@@ -6,7 +6,7 @@ import { imState } from './im-fixture';
 // P100: navigation (UX overhaul 2, step 1; owner, 28 Sep 2026: "Backspace goes back through the screens visited, with a
 // trail on screen"). Every screen, view tab and record has an address, every move is a step in the browser's history,
 // so the browser's back, the phone's back gesture, Backspace and the top bar's arrow walk one trail. A dialog is a layer
-// that back closes; a form holding unsaved work asks before back leaves it. Swiping reaches Finance.
+// that back closes; a form holding unsaved work asks before back leaves it. Swiping walks the open workspace's views.
 
 const url = (p: Page) => new URL(p.url());
 const where = (p: Page) => { const u = url(p); return [u.searchParams.get('tab'), u.searchParams.get('v') || '']; };
@@ -14,9 +14,12 @@ const where = (p: Page) => { const u = url(p); return [u.searchParams.get('tab')
 test.describe('P100: navigation on the phone', () => {
   test('each screen and view tab is a step: back and forward walk them, the address follows', async ({ page }) => {
     await loadAppWithState(page, imState());
-    expect(where(page)).toEqual(['pageHome', '']);
+    expect(where(page)).toEqual(['pageHome', 'needs']);
     await expect(page.locator('#navBack')).toBeHidden();
-    await switchTab(page, 'pageIM');
+    // Office is a step of its own (its first view), then Challans in its tab row.
+    await switchTab(page, 'pagePipeline');
+    const office = where(page);
+    await page.locator('#wsTabs [data-tab="pageIM"]').click();
     await expect.poll(() => where(page)).toEqual(['pageIM', 'awaiting']);
     await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
     await expect.poll(() => where(page)[1]).toMatch(/^invoiced\/\d{4}-\d{2}$/);
@@ -25,18 +28,18 @@ test.describe('P100: navigation on the phone', () => {
     await page.goBack();
     await expect(page.locator('[data-action="invIMTab"][data-tab="awaiting"]')).toHaveAttribute('aria-selected', 'true');
     await page.goBack();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => where(page)).toEqual(office);
     await page.goForward();
     await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
     expect(where(page)).toEqual(['pageIM', 'awaiting']);
     // The top bar's arrow is the same step.
     await page.locator('#navBack').click();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => where(page)).toEqual(office);
     // A filter is not a place.
-    await switchTab(page, 'pageIM');
+    await page.locator('#wsTabs [data-tab="pageIM"]').click();
     await page.locator('#imStatusFilter').selectOption('pending');
     await page.goBack();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect.poll(() => where(page)).toEqual(office);
   });
 
   test('an address opens its screen and view, and a reload stays there', async ({ page }) => {
@@ -57,6 +60,8 @@ test.describe('P100: navigation on the phone', () => {
 
   test('back closes a dialog and stays on the screen; a dialog holding typed work asks first', async ({ page }) => {
     await loadAppWithState(page, imState());
+    // Challans, then Clients from Office's tab row: one step between them.
+    await switchTab(page, 'pageIM');
     await switchTab(page, 'pageClients');
     await page.locator('[data-action="invShowAddClient"], [data-action="invAddClient"]').first().click();
     const dlg = page.locator('.inv-scrim-dialog');
@@ -74,12 +79,12 @@ test.describe('P100: navigation on the phone', () => {
     await answerAsk(page, 'ok');              // Discard
     await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
     await expect(page.locator('#pageClients')).toHaveClass(/inv-page-active/);
-    // Closed by its own button, the dialog's step is passed over: one back reaches Home.
+    // Closed by its own button, the dialog's step is passed over: one back reaches the screen before (Challans).
     await page.locator('[data-action="invShowAddClient"], [data-action="invAddClient"]').first().click();
     await page.locator('.inv-scrim-dialog [data-action="invCloseOverlay"], .inv-scrim-dialog .inv-dialog-close').first().click();
     await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
     await page.goBack();
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
   });
 
   test('back on Settings asks in its own words about a section not saved', async ({ page }) => {
@@ -126,17 +131,32 @@ test.describe('P100: navigation on the phone', () => {
     await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
   });
 
-  test('swiping walks the phone bar and then More in its order, Finance included', async ({ page }) => {
+  test("swiping walks the open workspace's views in its tab row's order, and never crosses to another", async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    await switchTab(page, 'pageTodo');
-    const swipeLeft = () => page.evaluate(() => {
+    const swipe = (from: number, to: number) => page.evaluate(([a, b]) => {
       const t = (x: number) => new Touch({ identifier: 1, target: document.body, clientX: x, clientY: 300 });
-      document.dispatchEvent(new TouchEvent('touchstart', { touches: [t(300)], changedTouches: [t(300)] }));
-      document.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(100)] }));
-    });
-    await swipeLeft();
+      document.dispatchEvent(new TouchEvent('touchstart', { touches: [t(a)], changedTouches: [t(a)] }));
+      document.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(b)] }));
+    }, [from, to]);
+    // Floor's views as its tab row lists them (Day joins them where its page is built).
+    const floor: string[] = await page.evaluate(() => (window as any).wsViewsPresent('floor').map((v: any) => v.tab));
+    expect(floor.slice(-4)).toEqual(['pageStaff', 'pageProduction', 'pageStock', 'pagePower']);
+    await switchTab(page, floor[0]);
+    for (const id of floor.slice(1)) {
+      await swipe(300, 100);
+      await expect(page.locator(`#${id}`)).toHaveClass(/inv-page-active/);
+    }
+    // Past the last view nothing moves: Money is another workspace.
+    await swipe(300, 100);
+    await page.waitForTimeout(150);
+    await expect(page.locator('#pagePower')).toHaveClass(/inv-page-active/);
+    await swipe(100, 300);
+    await expect(page.locator('#pageStock')).toHaveClass(/inv-page-active/);
+    // Money has one view: a swipe there goes nowhere.
+    await switchTab(page, 'pageFinance');
+    await swipe(300, 100);
+    await swipe(100, 300);
+    await page.waitForTimeout(150);
     await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
-    await swipeLeft();
-    await expect(page.locator('#pageProduction')).toHaveClass(/inv-page-active/);
   });
 });

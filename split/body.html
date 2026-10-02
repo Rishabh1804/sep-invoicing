@@ -7,16 +7,35 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
   </button>
   <nav class="inv-topbar-trail" id="navTrail" aria-label="Trail"></nav>
-  <h1 class="inv-topbar-title" id="topbarTitle">Home</h1>
+  <h1 class="inv-topbar-title" id="topbarTitle">Today</h1>
   <span class="inv-topbar-ctx" id="topbarCtx"></span>
   <span class="inv-topbar-spacer"></span>
+  <!-- Search (DIRECTION_B): a field-like button on the desktop, an icon on the phone; search.js builds what it opens. -->
+  <button class="inv-search inv-ws-search" data-action="invSearchOpen" aria-keyshortcuts="Control+K">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
+  </button>
+  <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+  </button>
+  <!-- This screen in a new window (search.js). The desktop's: hidden on the phone. -->
+  <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invNewWindow" aria-label="Open this screen in a new window" title="Open this screen in a new window">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+  </button>
+  <!-- The guard (guard.js): who is signed in; their menu. Shown only while the guard is on. -->
+  <button class="inv-guard-user" id="guardUserBtn" data-action="invGuardMenu" aria-label="Who is signed in" hidden></button>
   <button class="inv-topbar-btn" data-action="invOpenSettings" aria-label="Settings">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/></svg>
   </button>
 </header>
+<!-- The open workspace's views (workspace.js): here on the phone, moved into the top bar on the desktop. -->
+<div class="inv-viewtabs inv-ws-tabs inv-hidden" id="wsTabs" role="tablist"></div>
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
+  <!-- Today (today.js): Needs you, then Pulse; one of the two shown (pageHome's own view, ?tab=pageHome&v=pulse). -->
+  <div id="homeNeeds" data-today="needs"></div>
+  <div id="homePulse" data-today="pulse" class="inv-hidden">
+  <div id="homeQuestions"></div>
   <div id="homeEditArea"></div>
   <div class="inv-panels" id="homeWidgets">
     <div data-home-w="mtd" class="inv-panels-wide">
@@ -52,6 +71,7 @@
     </div>
   </div>
   <div class="inv-toolbar" id="homeEditBar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>
+  </div>
 </div>
 
 <div id="pageCreate" class="inv-page">
@@ -73,6 +93,10 @@
   <div id="regSelBar"></div>
 </div>
 
+<div id="pagePipeline" class="inv-page">
+  <div id="pipelineContent"></div>
+</div>
+
 <div id="pageClients" class="inv-page">
   <div id="clientsPageContent"></div>
 </div>
@@ -90,6 +114,10 @@
 
 <div id="pageReports" class="inv-page">
   <div id="reportsContent"></div>
+</div>
+
+<div id="pageFloor" class="inv-page">
+  <div id="floorContent"></div>
 </div>
 
 <div id="pageProduction" class="inv-page">
@@ -118,34 +146,8 @@
   <div id="historyList"></div>
 </div>
 
-<!-- BOTTOM BAR (phone and tablet) -->
-<nav class="inv-navbar" aria-label="Main">
-  <button class="inv-navbar-item inv-navbar-item-on" data-action="invSwitchTab" data-tab="pageHome">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>
-    Home
-  </button>
-  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageCreate">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>
-    Create
-  </button>
-  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageIM">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/></svg>
-    IM
-  </button>
-  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageRegister">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
-    Register
-  </button>
-  <button class="inv-navbar-item" data-action="invSwitchTab" data-tab="pageClients">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-    Clients
-  </button>
-  <button class="inv-navbar-item inv-navbar-more" data-action="invOpenMore" aria-label="More: To-do, Finance, Production, Stock, Staff, Stats, History">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
-    More
-    <span id="moreBadge" class="inv-navbar-count inv-hidden"></span>
-  </button>
-</nav>
+<!-- BOTTOM BAR (phone and tablet): Today · Office · Add · Floor · Money, drawn from the workspaces' map (workspace.js). -->
+<nav class="inv-navbar" aria-label="Main"></nav>
 
 <!-- SETTINGS OVERLAY (hidden) -->
 <div id="settingsOverlay" class="inv-hidden"></div>

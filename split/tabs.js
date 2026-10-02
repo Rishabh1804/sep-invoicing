@@ -2,6 +2,7 @@
 const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
   pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
+  pageFloor: 'Day', pagePipeline: 'Pipeline',
   pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History'
 };
 
@@ -14,11 +15,13 @@ function isPageId(id) {
 
 function switchTab(tabId) {
   if (!isPageId(tabId)) tabId = 'pageHome';
+  // The guard (guard.js): a page this ID may not open is refused with a word, and Home opens instead.
+  var refused = typeof grdSees === 'function' && !grdSees(tabId) ? tabId : null;
+  if (refused) tabId = 'pageHome';
   // Step 1: Dismiss toasts and close overlays
   document.querySelectorAll('.inv-toast').forEach(t => t.remove());
   closeOverlay();
   closePrintPreview();
-  closeMoreSheet();
 
   // Step 1b: Drain focus stack without focusing (DP v0.2 Section 8)
   drainFocusStack();
@@ -34,7 +37,6 @@ function switchTab(tabId) {
 
   // Step 3: Deactivate all tabs and pages
   document.querySelectorAll('.inv-page').forEach(p => p.classList.remove('inv-page-active'));
-  document.querySelectorAll('.inv-navbar-item').forEach(t => t.classList.remove('inv-navbar-item-on'));
 
   // Step 4: Read and clear _navReturnTab
   const returnTab = _navReturnTab;
@@ -43,15 +45,6 @@ function switchTab(tabId) {
   // Step 5: Activate target page and tab
   const page = document.getElementById(tabId);
   if (page) page.classList.add('inv-page-active');
-  document.querySelectorAll('.inv-navbar-item').forEach(t => {
-    if (t.dataset.tab === tabId) t.classList.add('inv-navbar-item-on');
-  });
-  // To-do, Finance, Stock, Staff, Stats and History live behind More on the phone bar.
-  document.querySelectorAll('.inv-navbar-more').forEach(t => t.classList.toggle('inv-navbar-item-on', MORE_TABS.indexOf(tabId) >= 0));
-  // The top bar names the screen (§4); the desktop sidebar marks it.
-  const title = document.getElementById('topbarTitle');
-  if (title) title.textContent = PAGE_TITLES[tabId] || 'SEP Invoicing';
-  markSideActive(tabId);
 
   // Step 6: Check dirty flag and re-render if needed
   const tabKey = tabId === 'pageHome' ? 'home' : tabId === 'pageRegister' ? 'register' : null;
@@ -71,6 +64,9 @@ function switchTab(tabId) {
     uiNotice('The ' + (PAGE_TITLES[tabId] || 'screen') + ' screen could not be drawn: ' + ((err && err.message) || err) +
       '. The rest of the app works; export a backup from Settings if this keeps happening.', 'danger');
   }
+  // Step 6c: the shell (workspace.js), once the page is drawn: the bar's workspace, its tab row, the top bar's names and
+  // the sidebar's mark.
+  wsShellDraw(tabId);
 
   // Step 7: Scroll restoration
   if (returnTab) {
@@ -96,12 +92,14 @@ function switchTab(tabId) {
   // opened whose first control was a search (the QA sweep, 29 Sep 2026).
   if (targetPage) focusFirstInteractive(targetPage, { noText: touchScreen() });
   navArrived();
+  if (refused) showToast('Your ID doesn’t open ' + (PAGE_TITLES[refused] || 'that screen'), 'warning');
 }
 
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
 function tabRender(tabId, isDirty) {
   if (tabId === 'pageHome') {
-    if (isDirty) { renderHome(); _tabDirty.home = false; }
+    // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved.
+    if (isDirty || tdyView() === 'needs') { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
       renderRegisterTable();
@@ -127,12 +125,16 @@ function tabRender(tabId, isDirty) {
       }
       renderIMList();
     }
+  } else if (tabId === 'pagePipeline') {
+    renderPipeline();
   } else if (tabId === 'pageCreate') {
     if (!document.getElementById('createFormArea').innerHTML) initCreateForm();
   } else if (tabId === 'pageProduction') {
     renderProduction();
   } else if (tabId === 'pagePower') {
     renderPower();
+  } else if (tabId === 'pageFloor') {
+    renderFloor();
   } else if (tabId === 'pageStock') {
     renderStock();
   } else if (tabId === 'pageTodo') {
@@ -235,7 +237,15 @@ function homePriorSameDays() {
     invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
+/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. */
 function renderHome() {
+  tdyApplyView();
+  if (tdyView() === 'needs') { renderNeeds(); return; }
+  renderPulseQuestions();
+  renderHomeWidgets();
+}
+/* Pulse's widgets, as the owner arranged them. */
+function renderHomeWidgets() {
   const now = new Date();
   const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
   // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
@@ -349,6 +359,17 @@ function homeLayoutSave(l) {
   try { localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(l)); } catch (e) { /* a per-device convenience only */ }
 }
 /* The layout onto the page: each widget moved to its place, hidden or shown, full or half. */
+/* What a widget needs to be shown to the person signed in (guard.js; everything with the guard off): the money widgets
+   the finance permission, GitHub sync the owner, the others the screen they open. */
+var HOME_WIDGET_NEEDS = { mtd: 'money', money: 'money', zinc: 'money', sync: 'owner', unbilled: 'pageIM', recent: 'pageRegister',
+  attendance: 'pageStaff', production: 'pageProduction', power: 'pagePower', stock: 'pageStock', quick: 'pageCreate' };
+function homeWidgetSeen(k) {
+  var need = HOME_WIDGET_NEEDS[k];
+  if (!need || typeof grdOn !== 'function' || !grdOn()) return true;
+  if (need === 'money') return grdSeesMoney();
+  if (need === 'owner') return grdIsOwner();
+  return grdSees(need);
+}
 function homeApplyLayout() {
   var host = document.getElementById('homeWidgets');
   if (!host) return;
@@ -358,7 +379,7 @@ function homeApplyLayout() {
     var el = host.querySelector('[data-home-w="' + k + '"]');
     if (!el) return;
     host.appendChild(el);
-    el.classList.toggle('inv-hidden', !!l.hidden[k]);
+    el.classList.toggle('inv-hidden', !!l.hidden[k] || !homeWidgetSeen(k));
     el.classList.toggle('inv-panels-wide', !!l.wide[k]);
   });
   var area = document.getElementById('homeEditArea'), bar = document.getElementById('homeEditBar');
@@ -373,6 +394,7 @@ function homeEditHtml(l) {
     Object.keys(HOME_PRESETS).map(function(k) { return '<button class="inv-seg-btn" data-action="invHomePreset" data-preset="' + k + '" aria-pressed="' + (l.preset === k) + '">' + HOME_PRESETS[k].label + '</button>'; }).join('') +
     '</div><div class="inv-note inv-mt-8">' + (l.preset === 'custom' ? 'Your own arrangement. ' : '') + 'Kept on this device only. Half or full is the width on a wide screen; a phone shows one column.</div></div>';
   l.order.forEach(function(k, i) {
+    if (!homeWidgetSeen(k)) return;
     var on = !l.hidden[k];
     h += '<div class="inv-row' + (on ? '' : ' inv-row-muted') + '" data-home-edit="' + k + '"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-home-show="' + k + '"' + (on ? ' checked' : '') + ' aria-label="Show ' + escHtml(name[k]) + '"></label>' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(name[k]) + '</span></span><span class="inv-row-end">' +

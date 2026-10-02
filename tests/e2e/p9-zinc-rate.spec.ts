@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, type SepState, openPulse } from './fixtures';
 
 // P9 assertion: the zinc rate is stored, shown with its age, and refreshable
 // from metals.dev with a key the user supplies.
@@ -23,6 +23,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('shows landed rate as market + premium, with its age', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await openPulse(page);
 
     const card = page.locator('#homeZincCard');
     await expect(card).toContainText('Zinc');
@@ -34,6 +35,7 @@ test.describe('P9: zinc market rate', () => {
   test('flags a rate that has gone stale', async ({ page }) => {
     const tenDaysAgo = Date.now() - 10 * 86400000;
     await loadAppWithState(page, stateWithZinc(400, 15, tenDaysAgo));
+    await openPulse(page);
 
     await expect(page.locator('#homeZincCard')).toContainText('10 days ago');
     await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toBeVisible();
@@ -42,6 +44,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('prompts for setup when no rate is recorded and no key is set', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
+    await openPulse(page);
     await expect(page.locator('#homeZincCard')).toContainText('No rate recorded');
     // Nothing to press yet — a refresh would only report the missing key.
     await expect(page.locator('[data-action="invRefreshZinc"]')).toHaveCount(0);
@@ -49,6 +52,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('with a key but no rate, offers Refresh instead of asking for the key again', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
+    await openPulse(page);
     await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
     await page.reload();
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
@@ -61,6 +65,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('that Refresh actually populates an empty card', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
+    await openPulse(page);
     await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
     await page.reload();
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
@@ -79,12 +84,14 @@ test.describe('P9: zinc market rate', () => {
 
   test('refresh without a key tells you to add one rather than failing silently', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await openPulse(page);
     await page.locator('[data-action="invRefreshZinc"]').click();
     await expect(page.locator('.inv-toast')).toContainText('metals.dev API key');
   });
 
   test('refresh reads the live rate and restamps the date', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now() - 10 * 86400000));
+    await openPulse(page);
     await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
@@ -110,6 +117,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('prefers an MCX figure over LME when both are offered', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await openPulse(page);
     await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
@@ -132,6 +140,7 @@ test.describe('P9: zinc market rate', () => {
   test('a hand-entered rate is treated as MCX and is never uplifted', async ({ page }) => {
     // basis 'manual' with the real MCX quote the operator read off the market.
     await loadAppWithState(page, stateWithZinc(392, 15, Date.now(), 'manual'));
+    await openPulse(page);
     const card = page.locator('#homeZincCard');
     await expect(card).toContainText('407.00');   // 392 + 15, uplift not applied
     await expect(card).not.toContainText('MCX est.');
@@ -139,6 +148,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('an LME-basis rate shows its full derivation rather than a bare number', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(355.11, 15, Date.now(), 'lme', 10.5));
+    await openPulse(page);
     const card = page.locator('#homeZincCard');
     // 355.11 + 10.5% = 392.40 MCX est., + 15 = 407.40 landed.
     await expect(card).toContainText('407.40');
@@ -149,6 +159,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('surfaces the response keys when zinc is absent, instead of a bare failure', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await openPulse(page);
     await page.evaluate(async (k) => localStorage.setItem(k, 'TEST-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>
@@ -165,6 +176,7 @@ test.describe('P9: zinc market rate', () => {
 
   test('relays an API error message rather than swallowing it', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
+    await openPulse(page);
     await page.evaluate(async (k) => localStorage.setItem(k, 'BAD-KEY'), METALS_KEY);
 
     await page.route('**/api.metals.dev/**', (route) =>

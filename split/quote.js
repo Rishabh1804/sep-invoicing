@@ -679,6 +679,7 @@ function qtRevNext(q) {
 async function qtVoid(id) {
   var q = qtFind(id);
   if (!q || q.status !== 'issued') return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'void a quotation'))) return;   // P1 (guard.js)
   var why = await uiPrompt({ title: 'Void ' + qtNumberText(q), body: 'For a quotation issued but never sent. The number stays in the series with the reason; it is never used again.', label: 'Why is it void?', required: true });
   if (!why) return;
   q = qtFind(id);
@@ -701,6 +702,7 @@ async function qtDecline(id) {
 async function qtDelete(id) {
   var q = qtFind(id);
   if (!q || q.status !== 'draft') return;
+  if (!grdOk('voids') && !(await guardAsk('voids', 'delete a quotation draft'))) return;   // P1 (guard.js)
   if (!(await uiConfirm({ title: 'Delete this draft?', body: 'A draft holds ' + (q.num ? 'the revision of ' + qtNumberText(q) + ', and the issued one stands.' : 'no number, so nothing in the series moves.'), okLabel: 'Delete draft', danger: true }))) return;
   S.quotations = getQuotations().filter(function(o) { return o.id !== id; });
   saveState();
@@ -737,6 +739,7 @@ async function qtPostRates(id) {
     return;
   }
   var body = 'Writes ' + plan.post.map(function(p) { return p.text; }).join(';\n') + '.' + (plan.hand.length ? '\nBy hand: ' + plan.hand.join('; ') + '.' : '');
+  if (!grdOk('rates') && !(await guardAsk('rates', 'post a rate to a client'))) return;   // P1 (guard.js): the client's rate card
   if (!(await uiConfirm({ title: 'Post the accepted rate to ' + plan.client.name + '?', body: body.replace(/&rsquo;/g, '’'), okLabel: 'Post the rate' }))) return;
   q = qtFind(id);
   var c = qtClient(q);

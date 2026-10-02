@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse } from './fixtures';
 
 // P107: the QA sweep's fold over Staff — attendance rolls, Areas, labour and Pay. Names are made up in the shop's shapes
 // (the repo is public), ids are numbers as on a real device, and every date is built from today.
@@ -142,7 +142,7 @@ test.describe('P107: attendance rolls', () => {
 
   test('W14: with nobody on the roster, a stock message pasted in the one box still reaches Stock', async ({ page }) => {
     await load(page, { staff: [] });
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
     await page.locator('#relayPasteText').fill(`[${dmy(0)}, 2:05 pm] Supervisor One: Chemical use chemical stock\n${dmy(-6)}/-${dmy(0)}/\n\n1) Q558 NIL\n\n2) MONICOL 6-1=5 KG`);
     await page.locator('[data-action="invRelayRead"]').click();

@@ -60,14 +60,16 @@ test.describe('P53: appearance', () => {
     expect(await css(page, '#pageHome .inv-btn-grid .inv-btn-primary', 'background-color')).toBe('rgb(79, 193, 179)');
   });
 
-  test('the top bar names the screen, and the system bar matches it', async ({ page }) => {
+  test('the top bar names the workspace, its tab row the screen, and the system bar matches it', async ({ page }) => {
     await load(page);
-    await expect(page.locator('#topbarTitle')).toHaveText('Home');
+    await expect(page.locator('#topbarTitle')).toHaveText('Today');
     await switchTab(page, 'pageRegister');
-    await expect(page.locator('#topbarTitle')).toHaveText('Register');
+    await expect(page.locator('#topbarTitle')).toHaveText('Office');
+    await expect(page.locator('#wsTabs .inv-viewtab[aria-selected="true"]')).toHaveText('Invoices');
     await switchTab(page, 'pageStock');
-    await expect(page.locator('#topbarTitle')).toHaveText('Stock');
-    await expect(page.locator('.inv-navbar-more')).toHaveClass(/inv-navbar-item-on/);
+    await expect(page.locator('#topbarTitle')).toHaveText('Floor');
+    await expect(page.locator('#wsTabs .inv-viewtab[aria-selected="true"]')).toHaveText('Stock');
+    await expect(page.locator('.inv-navbar-item[data-ws="floor"]')).toHaveClass(/inv-navbar-item-on/);
     await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#f8fafa');
   });
 

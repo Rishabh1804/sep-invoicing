@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, answerAsk, type SepState } from './fixtures';
 
-// P50: Settings in six groups, each section folded to a line that says what it
+// P50: Settings in seven groups (Access joined 1 Oct 2026), each section folded to a line that says what it
 // is set to, each section saved on its own; desktop two-pane. Part weights moved
 // to Items; the zinc uplift measured from the shop's own bills.
 
@@ -13,11 +13,11 @@ async function load(page: Page, extra: Partial<SepState> = {}) {
 }
 
 test.describe('P50: Settings', () => {
-  test('six groups, every section folded, and each line says what it is set to', async ({ page }) => {
+  test('seven groups, every section folded, and each line says what it is set to', async ({ page }) => {
     await load(page);
     await page.evaluate(() => localStorage.removeItem('sep_inv_settings_ui'));
     await page.locator('[data-action="invOpenSettings"]').first().click();
-    await expect(page.locator('section[data-group] .inv-pagehead-title')).toHaveText(['Business', 'Checks & alerts', 'Costing', 'Labour', 'Connections', 'Data & device']);
+    await expect(page.locator('section[data-group] .inv-pagehead-title')).toHaveText(['Business', 'Checks & alerts', 'Costing', 'Labour', 'Connections', 'Access', 'Data & device']);
     expect(await page.locator('details[data-sec][open]').count()).toBe(0);
     await expect(page.locator('[data-sum="rateCheck"]')).toHaveText('10% · ₹100 · ±3%');
     await expect(page.locator('[data-sum="overtime"]')).toContainText('cap ₹68.20/h from 01 Sep 2026');

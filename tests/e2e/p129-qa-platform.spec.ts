@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { readFile } from 'node:fs/promises';
-import { answerAsk, emptyState, loadAppWithState, openSettingsAt, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, openSettingsAt, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState, openPulse } from './fixtures';
 import { imState } from './im-fixture';
 
 // P129: the platform's share of the QA audit of 30 Sep 2026. The four worst findings share one root: the GitHub SHA
@@ -229,6 +229,7 @@ test.describe('P129: the SHA is this device\'s only for a book that reached its 
     await seedSync(page, { sha: 'remotesha' });
     const remote = await stubRemote(page, 'remotesha', 'pushedsha');
     await loadAppWithState(page, emptyState());
+    await openPulse(page);
     await breakStateWrites(page);
     expect(await g(page, 'S.company.name = "UNSAVED CO"; saveState()')).toBe(false);
     await page.locator('#homeSyncCard [data-action="invGhPush"]').dispatchEvent('click');
@@ -302,7 +303,7 @@ test('P129: with the shared pool full, moving between screens raises no error ab
   await logToasts(page);
   await switchTab(page, 'pageRegister');
   await switchTab(page, 'pageIM');
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   expect(await toastsShown(page)).toEqual([]);
 });
 

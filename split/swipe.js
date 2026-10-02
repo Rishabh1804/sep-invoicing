@@ -1,8 +1,8 @@
 /* ===== SWIPE NAVIGATION ===== */
 (function() {
   var _swipeX = 0, _swipeY = 0;
-  // The phone bar's five, then the More sheet's in its order: a list of its own left Finance out when it was added.
-  var TAB_ORDER = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients'].concat(MORE_TABS);
+  // A swipe moves between the open workspace's views, in its tab row's order, and stops at its ends: never across
+  // workspaces (DIRECTION_B; workspace.js holds the order).
 
   document.addEventListener('touchstart', function(e) {
     _swipeX = e.touches[0].clientX;
@@ -17,8 +17,8 @@
 
     // 80px threshold, 2:1 angle constraint
     if (absDx < 80 || absDx < absDy * 2) return;
-    // A swipe moves between screens, so it means nothing while a dialog, the More sheet or a print preview is over
-    // the screen: switching closed every dialog, a form holding typed work included (the QA sweep, 29 Sep 2026).
+    // A swipe moves between screens, so it means nothing while a dialog or a print preview is over the screen:
+    // switching closed every dialog, a form holding typed work included (the QA sweep, 29 Sep 2026).
     if (navLayerOpen()) return;
 
     // Don't swipe if inside a horizontally scrollable container
@@ -28,16 +28,10 @@
       target = target.parentElement;
     }
 
-    var current = document.querySelector('.inv-page-active');
-    if (!current) return;
-    var idx = TAB_ORDER.indexOf(current.id);
-    if (idx < 0) return;
-
-    var next = dx < 0 ? idx + 1 : idx - 1;
-    if (next < 0 || next >= TAB_ORDER.length) return;
+    var view = wsSwipeTarget(dx < 0 ? 1 : -1);
+    if (!view) return;
 
     // A swipe leaves the screen like a tap on the bar does: unsaved work asks first (nav.js).
-    navLeaveOk().then(function(ok) { if (ok) switchTab(TAB_ORDER[next]); });
+    navLeaveOk().then(function(ok) { if (ok) wsShowView(view); });
   }, { passive: true });
 })();
-

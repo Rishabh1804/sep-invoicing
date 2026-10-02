@@ -169,16 +169,53 @@ export async function openStatsTab(page: Page, tab: string): Promise<void> {
   await page.locator(`#statsToolbar .inv-viewtab[aria-selected="true"][data-tab="${tab}"]`).waitFor();
 }
 
+/* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone
+   bar carries Today, Office, Floor and Money; Insights has no bar item. Create and the To-do are held without a tab. */
+const WS_OF: Record<string, string> = {
+  pageHome: 'today', pageTodo: 'today',
+  pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',
+  pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
+  pageFinance: 'money',
+  pageStats: 'insights', pageReports: 'insights', pageHistory: 'insights',
+};
+
 export async function switchTab(page: Page, tabId: string): Promise<void> {
-  // Layout exposes this action in multiple places (mobile bottom tabs + desktop sidebar + home quick-actions).
-  // Any visible one works; pick the first so the helper is layout-agnostic. On the
-  // phone bar Stock, Staff, Stats and History sit behind More, so open it first.
-  // A page with two sidebar entries (Clients/Items, Staff/Pay) routes its plain entry through
-  // invSideGo; that entry, never the one carrying data-sub, is the page's own door.
-  const target = page.locator(`:is([data-action="invSwitchTab"], [data-action="invSideGo"]:not([data-sub]))[data-tab="${tabId}"]:visible`);
-  if ((await target.count()) === 0) await page.locator('.inv-navbar-more').click();
-  await target.first().click();
-  await page.locator(`#${tabId}.inv-page-active`).waitFor();
+  // A visible door to the page: a workspace's tab, a sidebar entry, a link on the screen (Home's "View challans"). Any
+  // one works; the first is taken, so the helper is layout-agnostic.
+  const door = () => page.locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]:visible`);
+  const active = page.locator(`#${tabId}.inv-page-active`);
+  let opened = false;
+  if ((await door().count()) === 0) {
+    // None on screen: open the page's workspace (its bar item on the phone, its head in the sidebar), whose tab row then
+    // shows. The open workspace's own item would go to its first view, so it is not pressed.
+    const ws = WS_OF[tabId];
+    const here = await page.evaluate(() => (window as any).wsOf((document.querySelector('.inv-page-active') || {}).id));
+    const item = page.locator(`[data-action="invWsGo"][data-ws="${ws}"]:visible`);
+    if (ws && ws !== here && (await item.count())) {
+      await item.first().click();
+      await page.locator('.inv-page-active').first().waitFor();
+      opened = true;
+    }
+  }
+  if (opened && (await active.count())) { /* the workspace opened on the page itself (Money, Today) */ }
+  else if (await door().count()) await door().first().click();
+  else {
+    // The last resort, where the shell has no door to the page: the Insights pages on the phone (reached from Today →
+    // Pulse and from search, other steps' work), and the pages a workspace holds without a tab (Create, the To-do) when
+    // nothing on screen links to them. Opened the way a jump opens them, then recorded as a click's step would be.
+    await page.evaluate(id => { (window as any).switchTab(id); (window as any).navSoon(); }, tabId);
+  }
+  await active.waitFor();
+}
+
+/** Today → Pulse (DIRECTION_B, B3): Home's cards (the month to date, money, attendance, sync, zinc, recent invoices, quick
+ *  actions) are Pulse's widgets now, drawn only while it shows. Opens Today first when another page is on screen, then
+ *  presses its Pulse tab the way the operator does. */
+export async function openPulse(page: Page): Promise<void> {
+  if (!(await page.locator('#pageHome.inv-page-active').count())) await switchTab(page, 'pageHome');
+  const tab = page.locator('#wsTabs [data-v="pulse"]');
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await page.locator('#homePulse:not(.inv-hidden)').waitFor();
 }
 
 /** Open Settings the way the operator does and bring one section into view:

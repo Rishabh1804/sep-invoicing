@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse } from './fixtures';
 
 // P69 (phone): the To-do screen on the v2.0 components (design principles §7, §9 step 3).
 // View tabs Open / Done; the add field in a toolbar with the view's one primary; app tasks
@@ -134,7 +134,7 @@ test.describe('P69: To-do', () => {
     await load(page);
     await switchTab(page, 'pageTodo');
     await page.locator('.inv-viewtab[data-v="done"]').click();
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     const home = page.locator('#homeTodoCard');
     await expect(home.locator('[data-todo="mine"] .inv-row-tick .inv-check')).toHaveCount(2);
     await page.locator('[data-action="invHomeQuick"][data-go="task"]').click();

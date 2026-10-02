@@ -12,7 +12,8 @@ import { sweepState } from './sweep-fixture';
 // Finance, Staff, To-do, History, Create, Clients → Performance, Stock → Overview) is an ordinary long document and is
 // meant to scroll, so it is not checked here.
 
-type Stop = { name: string; go: (page: Page) => Promise<void>; row: string };
+// `opened`: what shows once `row` is opened, where that is not a pane (the pipeline opens another stage's list beside it).
+type Stop = { name: string; go: (page: Page) => Promise<void>; row: string; opened?: string };
 
 const STOPS: Stop[] = [
   { name: 'Register', go: p => switchTab(p, 'pageRegister'), row: '#regMaster [data-action="invSelectRegRow"]' },
@@ -37,6 +38,8 @@ const STOPS: Stop[] = [
     go: async p => { await switchTab(p, 'pageStock'); await p.locator('#pageStock .inv-viewtab[data-view="list"]').click(); },
     row: '#stockMasterDetail [data-action="invStockOpen"]',
   },
+  // Office → Pipeline (P137): the pipeline beside the open stage's list.
+  { name: 'Pipeline', go: p => switchTab(p, 'pagePipeline'), row: '#pagePipeline button[data-pipe-stage="dispatched"]', opened: '#pipeList [data-pipe-list="dispatched"]' },
 ];
 
 async function measure(page: Page) {
@@ -74,7 +77,7 @@ for (const [w, h] of [[1280, 800], [1024, 768]] as const) {
       const row = page.locator(s.row).first();
       await expect(row, s.name + ' has a row to open').toHaveCount(1);
       await row.evaluate(el => (el as HTMLElement).click());
-      await expect(page.locator('.inv-page-active .inv-pane-host.inv-pane-open')).toHaveCount(1);
+      await expect(page.locator(s.opened || '.inv-page-active .inv-pane-host.inv-pane-open')).toHaveCount(1);
       const open = await measure(page);
       if (open.pageOver > 1) bad.push(`${s.name} (open): page scrolls ${open.pageOver}px`);
       if (open.hostGap !== null && Math.abs(open.hostGap) > 1) bad.push(`${s.name} (open): host foot ${open.hostGap}px from the viewport's`);

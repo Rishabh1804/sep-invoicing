@@ -34,6 +34,8 @@ function getDefaultState() {
     extraExceptions: [],
     // A deleted attendance day, kept whole with its required reason (attDeleteDay): History lists it.
     attendanceDeletes: [],
+    // Every save, record by record, with who made it and on which device (changelog.js): History → Changes.
+    changeLog: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.
@@ -69,6 +71,9 @@ function getDefaultState() {
     // The owner's to-do list: typed tasks (ticked, never deleted) and the
     // snoozes granted to app-raised ones, each against the figures it saw.
     todo: { tasks: [], snoozes: {} },
+    // The guard (guard.js): who may use the app, each PIN kept only as a salted hash, and what each role opens and may change.
+    users: [],
+    guardCfg: typeof grdCfgDefaults === 'function' ? grdCfgDefaults() : { lockMinutes: 15, askMinutes: 5, roles: {}, recovery: null },
     // Every attendance roll pasted in, whole, with a fingerprint so the same
     // roll twice is refused (it would count every hour twice).
     relayPastes: [],
@@ -84,6 +89,8 @@ function getDefaultState() {
     // Which rules may raise a task, and their day thresholds.
     todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
       backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
+    // The devices registered to push to and pull from GitHub while the guard is on (devices.js), removed with a reason.
+    devices: [],
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
     // actuals. The old 5.46 predated that rebuild and flattered every margin
     // figure by roughly a rupee a kilo. Only ever the default for a fresh
@@ -451,8 +458,13 @@ function saveFailText() {
 var _persistChain = Promise.resolve(true);
 var _persistQueued = null;
 var _persistQueuedBoot = false;
+// Every save asked for in this window, counted when it is asked: what is worked out from the book and kept (the search
+// index, search.js) is worked out again once this moves. A book loaded whole (another window's, an import, a pull) is
+// a new S, which says so by itself.
+var _bookWrites = 0;
 
 function persistState() {
+  _bookWrites++;
   // A copy that exists but would not read is never written over: seeding a
   // default book on top of it would turn an unreadable copy into a lost one.
   // The boot banner says so; every save this session reports false.
@@ -592,7 +604,8 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations'];
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations',
+  'devices'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
@@ -654,6 +667,10 @@ function adoptState(next) {
   // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
   if (typeof prodTouch === 'function') prodTouch();
   if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
+  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js).
+  if (typeof chgAdopted === 'function') chgAdopted();
+  // The book's users may differ: a session whose user it does not hold is locked (guard.js).
+  if (typeof grdRecheck === 'function') grdRecheck();
   return S;
 }
 
@@ -979,11 +996,17 @@ function bookReload(why) {
     S = next;
     ensureStateShape(S);
     _diskRev = b.rev;
+    // The other window logged its own saves: this book is where the change log starts comparing from (changelog.js).
+    if (typeof chgBaseline === 'function') chgBaseline();
     // Another window put a readable book on disk (it imported or pulled out of the same stand-in): this one holds it now.
     if (bookStandIn() && !_idbFailed) { _unreadable = null; _storageHealth.readError = ''; _storageHealth.readKind = ''; hideStorageBanner('read'); }
     if (typeof prodTouch === 'function') prodTouch();
     if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
+    // The book another window saved may say this device was removed: it forgets its GitHub token (devices.js).
+    if (typeof devAfterLoad === 'function') devAfterLoad('reload');
     bookRedraw(why);
+    // Users or roles changed elsewhere: a deactivated user is locked, a role that lost the page on screen sent Home.
+    if (typeof grdRecheck === 'function') grdRecheck();
     return true;
   }).then(null, function(e) {
     uiNotice('This window could not load the book another window saved (' + describeStorageError(e) + '). Close this window and reopen the app before editing here.', 'warning');
@@ -1209,6 +1232,8 @@ if (!regFilter.state) regFilter.state = regFilter.state || '';
 
 // Returns a Promise<boolean>: true once the write is verified on disk.
 function saveState() {
+  // What this save changed, record by record, into the log it carries (changelog.js). It never stops the save.
+  try { if (typeof chgOnSave === 'function') chgOnSave(); } catch (e) { /* counted inside; the save goes on */ }
   var landed = persistState();
   _tabDirty.home = true;
   _tabDirty.register = true;

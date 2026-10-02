@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P102: a figure says whether it is good (owner, 29 Sep 2026: "most numbers in our app don't convey any kind of meaning,
 // as in is it a good number or is it something of an issue, all are in default black"; the owner chose both options).
@@ -74,6 +74,7 @@ test.describe('P102: on the screens', () => {
 
   test('Home: every month-to-date tile against the same days last month; realisation against the cost, in its words', async ({ page }) => {
     await loadAppWithState(page, monthState());
+    await openPulse(page);
     await expect(page.locator('#mtdRevenueDelta .inv-fig-ok')).toHaveText('+100.0% on same days last month');
     await expect(page.locator('#mtdKgDelta .inv-fig-ok')).toHaveText('+400.0% on same days last month');
     // A count of invoices is a fact: its change is said, never coloured.
@@ -112,6 +113,7 @@ test.describe('P102: on the screens', () => {
     const rows = [row(1, day(-120), 'SMS CHARGES', 10, 0), row(2, day(-20), 'NEFT-ALPHA FORGINGS', 0, 11800, { cat: 'receipt', clientId: 1 }), row(3, day(-1), 'SMS CHARGES', 10, 0)];
     s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 't.xls', account: '', from: rows[0].date, to: rows[2].date, rows: 3, added: 3, closing: 250000 }], parties: {}, opening: {}, gstNotes: {} };
     await loadAppWithState(page, s as SepState);
+    await openPulse(page);
     const owed = page.locator('#homeFin [data-home-fin="Owed to us"]');
     await expect(owed).toHaveClass(/inv-tile-danger/);
     await expect(owed).toContainText('over 90 days');
@@ -133,6 +135,7 @@ test.describe('P102: on the screens', () => {
     const rows = [row(1, day(-120), 'SMS CHARGES', 10, 0), row(2, day(-10), 'NEFT-UNKNOWN TRADERS', 0, 3000), row(3, day(-1), 'SMS CHARGES', 10, 0)];
     s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 't.xls', account: '', from: rows[0].date, to: rows[2].date, rows: 3, added: 3, closing: 250000 }], parties: {}, opening: {}, gstNotes: {} };
     await loadAppWithState(page, s as SepState);
+    await openPulse(page);
     const owed = page.locator('#homeFin [data-home-fin="Owed to us"]');
     await expect(owed).toContainText('not placed');
     await expect(owed).toHaveClass(/inv-tile-warning/);
@@ -145,6 +148,7 @@ test.describe('P102: on the screens', () => {
       { id: 2, name: 'Bala', comp: 'hourly', hourRate: 50, area: 'barrel', onFloor: true, active: true }];
     s.attendance = { [todayIso()]: { marks: { 1: { st: 'P', area: 'barrel' }, 2: { st: 'A' } }, extra: [], note: '' } };
     await loadAppWithState(page, s as SepState);
+    await openPulse(page);
     await expect(page.locator('#homeAtt [data-att-onsite]')).toHaveClass(/inv-tile-danger/);
   });
 });

@@ -49,11 +49,13 @@ async function importXls(page: Page, file: string) {
 }
 const finTab = (page: Page, t: string) => page.locator(`[data-action="invFinTab"][data-tab="${t}"]`).click();
 
-test('Finance is reached from More, and Stock keeps only the chemicals', async ({ page }) => {
+test('Finance is Money on the bar, and Stock keeps only the chemicals', async ({ page }) => {
   await loadAppWithState(page, state());
-  await page.locator('.inv-navbar-more').click();
-  await page.locator('#moreSheet .inv-row[data-tab="pageFinance"]').click();
+  await page.locator('.inv-navbar-item[data-ws="money"]').click();
   await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
+  await expect(page.locator('#topbarTitle')).toHaveText('Money');
+  // One view, so no tab row: the page's own six tabs are the only row.
+  await expect(page.locator('#wsTabs')).toBeHidden();
   await expect(page.locator('#financeContent [data-action="invFinTab"]')).toHaveText(['Overview', 'Receivables', 'Payments', 'Bank', 'Bills & notes', 'GST']);
   await switchTab(page, 'pageStock');
   await expect(page.locator('#pageStock [data-action="invStockTab"]')).toHaveCount(0);

@@ -40,9 +40,11 @@ jobs:
   e2e:
     name: Playwright e2e
     runs-on: ubuntu-latest
-    # The suite runs in well under a minute; this is a hang backstop, not a
-    # budget. Without it a wedged browser would burn the 6h job default.
-    timeout-minutes: 15
+    # A hang backstop, not a budget: without it a wedged browser would burn the
+    # 6h job default. The suite itself takes ~13 min on two workers (1,275 tests,
+    # Oct 2026) and the apt step behind Chromium's install has taken 5 min on its
+    # own, so 15 cut real runs off mid-suite.
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
 

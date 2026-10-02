@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 import { partState } from './p77-part-invoice.fixture';
 
 // P114: the owner's rulings on what the QA sweep left to them (30 Sep 2026).
@@ -219,7 +219,7 @@ test("Home's month to date is net of credit notes, and says so", async ({ page }
   s.creditNotes = [{ id: 'CN-1', cnNumber: '001', displayNumber: 'CN/001/TEST', date: todayIso(), status: 'active', kind: 'adjustment',
     clientId: 1, invoiceIds: ['INV-1'], taxableValue: 200, createdAt: 1 }];
   await loadAppWithState(page, s);
-  await switchTab(page, 'pageHome');
+  await openPulse(page);
   await expect(page.locator('#mtdRevenue')).toContainText('9,800.00');
   await expect(page.locator('#mtdRevenueSub')).toContainText('net of ₹200.00 in credit notes');
 });

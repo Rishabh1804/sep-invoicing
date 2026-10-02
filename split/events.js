@@ -82,15 +82,15 @@ function onDocClick(e) {
   const action = btn.dataset.action;
 
   switch(action) {
-    case 'invSwitchTab': switchTab(btn.dataset.tab); break;
-    case 'invSideGo': sideGo(btn.dataset.tab, btn.dataset.sub); break;
-    case 'invOpenMore': openMoreSheet(); break;
-    case 'invCloseMore': closeMoreSheet(); break;
+    // A workspace tab naming one of a page's own views (Today's) carries data-v (workspace.js).
+    case 'invSwitchTab': wsSwitchTab(btn.dataset.tab, btn.dataset.v); break;
     case 'invCreateNew': createNew(); break;
     case 'invHomeQuick': homeQuick(btn.dataset.go); break;
     // data-sec opens it on one section (the read banner's Import a backup and Pull from GitHub). The banner sits above an
     // open Settings, which is not opened twice.
     case 'invOpenSettings': if (!document.getElementById('settingsScrim')) openSettings(btn.dataset.sec); break;
+    // Search (search.js): the top bar's icon, the sidebar's Search · Ctrl K.
+    case 'invSearchOpen': searchOpen(); break;
     case 'invCloseOverlay': closeOverlay(); break;
     case 'invCloseConfirm': closeTopOverlay(); break;
     case 'invUiAsk': uiAskAnswer(btn); break;
@@ -442,14 +442,22 @@ function onDocClick(e) {
       if (bankAction(action, btn)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
+      if (pipeAction(action, btn)) break;
       if (dashAction(action, btn)) break;
       if (navAction(action, btn)) break;
+      if (wsAction(action, btn)) break;
       if (prodAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (qtAction(action, btn)) break;
       if (rptAction(action, btn)) break;
       if (advAction(action, btn)) break;
+      if (addAction(action, btn)) break;
+      if (flrAction(action, btn)) break;
+      if (tdyAction(action, btn)) break;
+      if (srchAction(action, btn)) break;
+      if (typeof devAction === 'function' && devAction(action, btn)) break;
+      if (action.indexOf('invGuard') === 0) { if (typeof guardAction === 'function') guardAction(action, btn); break; }
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
       else if (action.indexOf('invTodo') === 0) todoAction(action, btn);
       else if (action.indexOf('invRelay') === 0) relayAction(action, btn);
@@ -501,6 +509,7 @@ document.addEventListener('change', function(e) { keepScroll(function() { onDocC
 function onDocChange(e) {
   if (errOnChange(e.target)) return;
   if (rptOnChange(e.target)) return;
+  if (flrOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
@@ -663,6 +672,12 @@ function onDocChange(e) {
   }
   if (e.target.id === 'historyDateTo') {
     _historyDateTo = e.target.value;
+    _historyShowCount = UI_MORE_ROWS;
+    renderHistory();
+  }
+  // Who made it (the change log, changelog.js)
+  if (e.target.id === 'historyWho') {
+    _historyWho = e.target.value;
     _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
@@ -994,8 +1009,8 @@ document.addEventListener('keydown', function(e) {
     if (imSearchRes) imSearchRes.classList.add('inv-hidden');
     if (listOpen) return;
     // Otherwise it closes the top layer the way Back does (the QA sweep, 29 Sep 2026: every dialog but a question
-    // ignored Escape): a dialog holding typed work asks first, Settings asks its own way, then the print preview and
-    // the More sheet. A question answers cancel (its scrim's own handler, or its observer when shut this way).
+    // ignored Escape): a dialog holding typed work asks first, Settings asks its own way, then the print preview. A
+    // question answers cancel (its scrim's own handler, or its observer when shut this way).
     if (navLayerOpen()) { e.preventDefault(); navCloseLayer(); }
     return;
   }

@@ -421,6 +421,9 @@ function saveItem(itemId, mode) {
     showToast('Already exists: ' + dup.partNumber + (dup.gauge ? ' (' + dup.gauge + ')' : ''), 'error');
     return;
   }
+  // P1 (guard.js): the Items master's rates and weights. A part added from the line being typed is billing work.
+  var inlineAdd = mode === 'add' && !!_inlineItemReturn;
+  if (!grdGate(inlineAdd ? 'billing' : 'rates', inlineAdd ? 'add a part' : 'save an item', function() { saveItem(itemId, mode); })) return;
 
   if (mode === 'add') {
     var maxId = S.items.reduce(function(mx, it) { return Math.max(mx, it.id); }, 0);
@@ -470,6 +473,7 @@ function saveItem(itemId, mode) {
 async function deleteItem(itemId) {
   var item = S.items.find(function(it) { return it.id === itemId; });
   if (!item) return;
+  if (!grdOk('rates') && !(await guardAsk('rates', 'delete an item'))) return;   // P1 (guard.js)
 
   var refs = _itemRefCounts(item.partNumber), invRefs = refs.inv, imRefs = refs.im;
 
@@ -677,6 +681,7 @@ function confirmMerge(groupIdx, primaryId) {
   if (!scrim || !scrim._mergeGroups || !scrim._mergeGroups[groupIdx]) return;
   var plan = _mergePlan(scrim._mergeGroups[groupIdx], primaryId);
   if (!plan) { showToast('The list changed: open Merge again', 'warning'); return; }
+  if (!grdGate('rates', 'merge items', function() { confirmMerge(groupIdx, primaryId); })) return;   // P1 (guard.js)
   var primary = plan.primary, now = Date.now();
 
   plan.invLines.forEach(function(li) { li.partNumber = primary.partNumber; });
@@ -836,6 +841,7 @@ function addPartWeight() {
   const part = partEl.value.trim().toUpperCase();
   const wt = parseFloat(wtEl.value);
   if (!part || isNaN(wt) || wt <= 0) { showToast('Enter part name and weight', 'error'); return; }
+  if (!grdGate('rates', 'add a part weight', addPartWeight)) return;   // P1 (guard.js): it prices nos_to_weight lines
   S.partWeights[part] = wt;
   saveState();
   const list = document.getElementById('setPWList');
@@ -847,6 +853,7 @@ function addPartWeight() {
 }
 
 async function deletePartWeight(part) {
+  if (!grdOk('rates') && !(await guardAsk('rates', 'delete a part weight'))) return;   // P1 (guard.js)
   if (!(await uiConfirm({ title: 'Delete weight for ' + part + '?', body: 'Its NOS lines then have no weight to convert by.', okLabel: 'Delete weight', danger: true }))) return;
   delete S.partWeights[part];
   saveState();
@@ -952,6 +959,7 @@ function updateWeightVerdict(input) {
 }
 
 function saveWeights() {
+  if (!grdGate('rates', 'save item weights', saveWeights)) return;   // P1 (guard.js)
   var inputs = document.querySelectorAll('[data-action="invWeightInput"]');
   var saved = 0;
   var invalid = 0;
@@ -1056,6 +1064,7 @@ function applyDerivedWeights() {
 }
 
 function deriveWeightsFromRates() {
+  if (!grdGate('rates', 'derive item weights', deriveWeightsFromRates)) return;   // P1 (guard.js)
   var result = applyDerivedWeights();
   var derived = result.derived;
   var highVariance = result.highVariance;
@@ -1077,6 +1086,7 @@ function deriveWeightsFromRates() {
 }
 
 function calculateStdWeights() {
+  if (!grdGate('rates', 'work out item weights', calculateStdWeights)) return;   // P1 (guard.js)
   var calculated = 0;
   var highVariance = 0;
   var twoGauge = _partsInTwoGauges(), skipped = 0;
@@ -1214,6 +1224,7 @@ function clearItemSelection() {
 async function batchDeleteItems() {
   var ids = Object.keys(_itemsSelected).filter(function(k) { return _itemsSelected[k]; }).map(Number);
   if (ids.length === 0) return;
+  if (!grdOk('rates') && !(await guardAsk('rates', 'delete items'))) return;   // P1 (guard.js)
   // Ticked as unused a while ago is not unused now: say how many have since reached an invoice or a challan.
   _invalidateUsageCache();
   var cache = _buildUsageCache();

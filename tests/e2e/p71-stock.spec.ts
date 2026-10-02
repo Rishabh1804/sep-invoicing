@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P71 (phone): Stock on the v2.0 components (design principles §7, §9 step 3). View tabs, Paste
 // message the one primary, tiles that filter, lines as rows grouped by status with a dot and a word;
@@ -119,6 +119,7 @@ test.describe('P71: Stock', () => {
 
   test('Enter by hand: the mode is a segmented control; Home\'s Stock entry opens it (Paste message is covered by P41)', async ({ page }) => {
     await loadAppWithState(page, state());
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();
     await expect(page.locator('.inv-seg-btn[data-mode="count"]')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('[data-action="invStockMode"][data-mode="received"]').click();
@@ -138,14 +139,14 @@ test.describe('P71: Stock', () => {
     await noV1(page);
   });
 
-  test('More is a sheet of rows; the page on screen is marked current', async ({ page }) => {
+  test("Stock is a tab in Floor's row; the page on screen is the tab pressed, and its line out counts on Floor", async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await page.locator('.inv-navbar-more').click();
-    const sheet = page.locator('#moreSheet.inv-scrim .inv-sheet[role="dialog"]');
-    await expect(sheet.locator('.inv-row')).toHaveCount(9);
-    await expect(sheet.locator('.inv-row[data-tab="pageStock"]')).toHaveAttribute('aria-current', 'page');
-    await expect(sheet.locator('.inv-row[data-tab="pageStock"] .inv-badge-danger')).toHaveText('1 out');
-    await expect(page.locator('[class*="inv-more-"]')).toHaveCount(0);
+    const row = page.locator('#wsTabs.inv-viewtabs[role="tablist"]');
+    await expect(row.locator('.inv-viewtab[role="tab"]')).toHaveCount(await page.locator('#pageFloor').count() ? 5 : 4);
+    await expect(row.locator('.inv-viewtab[data-tab="pageStock"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(row.locator('.inv-viewtab[aria-selected="true"]')).toHaveCount(1);
+    await expect(page.locator('.inv-navbar-item[data-ws="floor"] .inv-navbar-count')).toHaveText('1');
+    await expect(page.locator('[class*="inv-more-"], .inv-sheet, #moreSheet')).toHaveCount(0);
   });
 });

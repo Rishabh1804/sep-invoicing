@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P42 desktop: the To-do tab, the Home quick actions and the attendance-roll
 // paste in the desktop layout — sidebar instead of the More sheet, the register
@@ -29,12 +29,13 @@ async function load(page: Page, extra: Partial<SepState> = {}) {
 }
 
 test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
-  test('To-do is in the sidebar and works without the More sheet', async ({ page }) => {
+  test("the To-do is Today's: its late task counts on Today's head, and it works on the desktop", async ({ page }) => {
     await load(page, { todo: { tasks: [{ id: 'TD-a', text: 'Late one', due: iso(-1), note: '', link: null, createdAt: 1, doneAt: null }], snoozes: {} } } as any);
-    await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toBeVisible();
-    await expect(page.locator('.inv-navbar-more')).toBeHidden();
+    await expect(page.locator('.inv-side-item[data-ws="today"] .inv-side-count')).toHaveText('1');
+    await expect(page.locator('.inv-navbar')).toBeHidden();
     await switchTab(page, 'pageTodo');
-    await expect(page.locator('.inv-side-item[data-tab="pageTodo"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
+    // A page Today holds without an entry of its own marks Today's head.
+    await expect(page.locator('.inv-side-item[data-ws="today"]')).toHaveClass(/inv-side-item-on/);
     await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
     await page.locator('#todoNew').press('Enter');
@@ -44,6 +45,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
 
   test('the six quick actions sit in one row and each reaches its screen', async ({ page }) => {
     await load(page, { staff: STAFF } as any);
+    await openPulse(page);
     const qa = page.locator('.inv-btn-grid .inv-btn');
     await expect(qa).toHaveCount(6);
     const ys = await qa.evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
@@ -53,17 +55,18 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();
     await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
 
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();
     await expect(page.locator('[data-action="invStockSaveManual"]')).toBeVisible();
 
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="task"]').click();
     await expect(page.locator('#todoNew')).toBeFocused();
   });
 
   test('a roll pasted on the desktop is checked and saved into the day', async ({ page }) => {
     await load(page, { staff: STAFF, attendance: {} } as any);
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
     await expect(page.locator('.inv-side-item[data-tab="pageStaff"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
     await page.locator('#relayPasteText').fill(`${dmy(-1)}/ in time\n----6:00 AM---\n---VAT A 1---\n1) ARUN\nEXTRA 3 HOURS\n----8:30 AM---\n---VAT A 1---\n1) ARUN\n---berral---\n2) BALA`);
@@ -91,8 +94,9 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
       creditNotes: [{ id: 'CN-1', cnNumber: '007', displayNumber: 'CN/007/26-27', clientId: 2, clientName: 'PIECE CLIENT',
         status: 'active', invoiceIds: ['I1'], periodFrom: iso(-20), periodTo: iso(-20), discountPct: 2, createdAt: 1 }],
     } as any);
+    await openPulse(page);
     await page.locator('#homeTodoCard [data-action="invTodoOpenApp"]').filter({ hasText: 'Credit note due' }).click();
-    await page.locator('[data-action="invTodoGoApp"]').click();
+    await page.locator('.inv-dialog [data-action="invTodoGoApp"]').click();
     await expect(page.locator('#pageRegister.inv-page-active')).toBeVisible();
     expect(await g(page, `Object.keys(_regSelected).sort().join(',')`)).toBe('I2,I3');
     await expect(page.locator('#pageRegister')).toContainText('SEP/TEST-00002');

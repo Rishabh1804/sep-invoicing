@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P41: the supervisor's in-time and out-time rolls, pasted from WhatsApp and
 // read into the Staff tab's day, plus the Home quick actions that reach every
@@ -169,24 +169,25 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
 
   test('Home quick actions open each screen on the job', async ({ page }) => {
     await load(page);
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="stock"]').click();
     await expect(page.locator('#pageStock.inv-page-active')).toBeVisible();
     await expect(page.locator('[data-action="invStockSaveManual"]')).toBeVisible();
 
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="attendance"]').click();
     await expect(page.locator('#pageStaff.inv-page-active')).toBeVisible();
     await expect(page.locator('#attDate')).toHaveValue(todayIso());
 
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
     await expect(page.locator('#relayPasteText')).toBeVisible();
 
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="task"]').click();
     await expect(page.locator('#todoNew')).toBeFocused();
 
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="challan"]').click();
     await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();
     await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
@@ -194,7 +195,7 @@ test.describe('P41: attendance rolls from WhatsApp', () => {
 
   test('a stock message pasted in the same box goes to the Stock check', async ({ page }) => {
     await load(page);
-    await switchTab(page, 'pageHome');
+    await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
     await page.locator('#relayPasteText').fill(`[${dmy(0)}, 2:05 pm] Supervisor One: Chemical use chemical stock\n${dmy(-6)}/-${dmy(0)}/\n\n1) Q558 NIL\n\n2) MONICOL 6-1=5 KG`);
     await page.locator('[data-action="invRelayRead"]').click();

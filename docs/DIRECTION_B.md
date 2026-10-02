@@ -97,6 +97,8 @@ appear).
 
 ## The steps
 
+**Built** (1 Oct 2026): B1 shipped in #122; B2 to B6 are on the Direction B branch with the guard (CLAUDE.md, *Direction B*).
+
 Each is its own spec; B1 ships first, the rest ship together, because places should move once, not five times.
 
 1. **B1 · What to do** (P133). The engine (`advice.js`), the moves on the six questions, the moves on every app task, Add

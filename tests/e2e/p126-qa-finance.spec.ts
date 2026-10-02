@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P126: the finance QA findings of 30 Sep 2026 (G2-2 … G2-11). The forecast says when it counts outflows only and when the
 // account is already overdrawn; an exact receipt settles its invoices to the paisa; notes and receipts are read in the order
@@ -75,6 +75,7 @@ test('G2-2: with no receipt placed on an invoice the forecast counts outflows on
   rows.push(row(day(-30), 'BY INST 100001', 0, 23600), row(day(-20), 'BY INST 100002', 0, 23600), row(day(-12), 'BY INST 100003', 0, 23600));
   rows.push(row(day(-1), 'SMS CHARGES', 10, 0, undefined, 50000));
   await loadAppWithState(page, state({ bank: bank(rows), invoices: [inv(1, day(-35), 23600), inv(2, day(-25), 23600), inv(3, day(-15), 23600)] }));
+  await openPulse(page);
   const fc = await ev(page, `(function() { var f = finForecast(45); return { cross: f.cross, noInflow: f.noInflow, rests: f.rests.join(' ') }; })()`) as any;
   expect(fc.cross).not.toBeNull();
   expect(fc.noInflow).toBeTruthy();
@@ -108,6 +109,7 @@ test('G2-3: an account overdrawn on the statement\'s last day is said to be over
   [-3, -2, -1].forEach(k => rows.push(row(ym(k) + '-05', 'NEFT-HARDWARE MART', 3000, 0, { cat: 'other' })));
   rows.push(row(day(-1), 'SMS CHARGES', 10, 0, undefined, -20000));
   await loadAppWithState(page, state({ bank: bank(rows) }));
+  await openPulse(page);
   const fc = await ev(page, `(function() { var f = finForecast(45); return { cross: f.cross, overdrawn: f.overdrawn, start: f.start }; })()`);
   // Never a move from credit into overdraft: it starts there.
   expect(fc).toEqual({ cross: null, overdrawn: true, start: -20000 });

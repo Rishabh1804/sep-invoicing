@@ -34,7 +34,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 61 modules, ~33,400 lines total.
+Split-file PWA. 67 modules, ~46,500 lines total.
 
 ```
 split/
@@ -45,7 +45,9 @@ split/
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
 ├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells (1,064 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
+├── changelog.js       ← The change log: every save compared record by record, with who and which device; History → Changes (~670 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
+├── guard.js           ← The gate: IDs and PINs, roles, the lock, the re-ask before a P1 change, what each role opens (~1,030 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
 ├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
@@ -53,8 +55,10 @@ split/
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
 ├── settings.js        ← Settings: six groups, folded sections, per-section save + import/export + storage diagnostics (~640 lines)
 ├── github-sync.js     ← GitHub Contents API push/pull, SHA conflict guard (452 lines)
+├── devices.js         ← Devices: registered with the owner present, the token locked to the device, removed with a reason (~720 lines)
 ├── invoice-ops.js     ← Invoice detail, edit, cancel, delete, register (949 lines)
 ├── number-audit.js    ← Void ledger + serial-sequence audit + gap reconcile (340 lines)
+├── pipeline.js        ← Office → Pipeline: awaiting invoice → created → printed → dispatched → delivered → owed (~280 lines)
 ├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
@@ -76,6 +80,7 @@ split/
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
+├── add.js             ← Add: one door for everything that comes in (paste, clipboard, photo, file, by hand) (~400 lines)
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
@@ -88,6 +93,8 @@ split/
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
+├── floor.js           ← Floor → Day: a card per line, heads against the number, running, plated, crew, EXTRA (~240 lines)
+├── today.js           ← Today: Needs you (the day's inputs, the tasks Now / This week / Later) and Pulse (~320 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
@@ -96,13 +103,15 @@ split/
 ├── vision.js          ← One Gemini photo read: the scanner's request unchanged, a schema for the register (~100 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
-├── swipe.js           ← Swipe navigation: the phone bar's order, then More's (38 lines)
+├── workspace.js       ← Workspaces: the phone bar, the sidebar, each workspace's tab row, the red counts (~300 lines)
+├── swipe.js           ← Swipe navigation: within the open workspace's views (38 lines)
 ├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail (~330 lines)
+├── search.js          ← Search, keys and new windows: one index of records and screens, the palette, the shortcuts (~930 lines)
 ├── seed.js            ← seedIncomingMaterial(), called from boot (10 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → appearance → zinc → tabs → clients → items → create → settings → github-sync → invoice-ops → number-audit → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → advice → dash → production → prodview → power → report → client-perf → im-form → im-dupe → vision → scanner → events → swipe → nav → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → advice → dash → production → prodview → floor → today → power → report → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -132,14 +141,14 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,158 tests, both layouts
+pnpm exec playwright test          # 1,275 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else. The suite finishes in under a minute
-on a CI runner and takes ~13 minutes in a constrained sandbox — don't read a slow local
-run as a hang.
+`playwright.config.ts` reads; unset everywhere else. The suite takes about 13 minutes on
+a CI runner's two workers (the job allows 30, since the apt step behind Chromium's install has
+taken 5 on its own) and about as long in a constrained sandbox — don't read a slow run as a hang.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
@@ -2009,10 +2018,9 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
-**The phone bar is six tabs**: Home, Create, IM, Register, Clients, **More** (To-do, Finance, Production, Power, Stock,
-Staff, Stats, History). More lights up while one of those is open and carries a red count of **every red row**
-— stock out or under its red line, and your own tasks overdue. The test fixture's `switchTab` opens
-More when the target is behind it.
+**The phone bar is Direction B's** (below): Today · Office · Add · Floor · Money, with no More. Each workspace carries a red
+count of the red rows that jump into it (stock out, your own tasks overdue on Today). The test fixture's `switchTab` opens
+the target's workspace first when no door to it is on screen.
 
 ### What to do: every answer ends in its moves
 Direction B, step 1 (`advice.js`, P133; owner, 1 Oct 2026: *"In the pulse, we have a question that asks who's driving it and
@@ -2055,6 +2063,59 @@ of things in the app that can answer itself but that linkage is missing."*). The
   anchor.
 - **Left open**: the rebate move opens the whole credit-note list (no client filter there yet); a quotation draft's prefill is
   not restored by browser Back/Forward.
+
+### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
+The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
+- **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More. The desktop
+  sidebar is Add · Search · each workspace with its views · Settings. A workspace is a layer over the pages that exist: every
+  page keeps its id, its address and its own view tabs, and the workspace draws its views as a tab row above the page
+  (`#wsTabs`; `WORKSPACES` is the one map). Office holds Pipeline, Challans (pageIM), Invoices (pageRegister) and Clients, with
+  Create as a page it holds without a tab. Floor holds Day, People (pageStaff), Production, Stock and Power. Money is Finance.
+  Insights (Stats, Reports, History) has no bar item on the phone: it is reached from Pulse and from search. Opening a
+  workspace from the bar is a step of its own (its last view this session, else its first), so Back from Challans goes to
+  the Office view it came from. Swiping stays inside the open workspace.
+- **Today** (`today.js`, P135) is pageHome, two views with addresses (`?tab=pageHome&v=needs|pulse`). **Needs you** (the
+  default): the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records, the
+  out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
+  the shop's own time), with its door; on the desktop, the floor now; then every open task grouped **Now** (red, and your
+  own due today or late), **This week** and **Later**, each with its one-tap move. **Pulse**: the questions with what to do
+  (advice.js), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
+  a spec reaching one opens Pulse first (`openPulse` in the fixtures).
+- **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
+  by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
+- **Office → Pipeline** (`pipeline.js`, P137): awaiting invoice → created → printed → dispatched → delivered → owed to us,
+  each a count, an amount and a tone by age, read off the function its own screen uses; a stage opens its list and its
+  action goes through the screen that owns it.
+- **Floor → Day** (`floor.js`, P138): a card per line with the heads against the day's number, the EXTRA, what it is
+  running, what it has plated and who plated it; tiles for on site, plated and power. A day is `?tab=pageFloor&d=…`.
+- **Search, keys and new windows** (`search.js`, P139): one index of records, screens and actions, built when first
+  needed and kept until the book changes; numbers match whole, amounts to the paisa, dates by day. `Ctrl K` / the bar's
+  search, `A` for Add, and Ctrl+click or a middle click on a door, a tab or a row opens it in a new window.
+
+### The guard
+`docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.
+- **No owner, no guard**: until the owner's ID is created (Settings → Access → Users & access) the app works as it always
+  has, on every device and in every spec.
+- **The gate** (`guard.js`, P140): IDs and PINs (a salted PBKDF2-SHA256 hash, never the PIN), roles (Owner, Office,
+  Supervisor, Floor; each role's pages, what it may change, and whether it sees wages and money are settings), the lock at
+  a fresh open and after a while in the background, **Lock now**, a recovery code for the owner. **A P1 change asks the PIN
+  again** once the re-ask window has passed (`grdOk` / `guardAsk` / `grdGate`): invoices and credit notes, rates and the
+  client master, voids, payments and wages, an import or a pull, Settings, users and devices. A role that may not make a
+  change is told so and never asked. A page a role may not open is refused with a word and its doors are hidden
+  (`grdApplyDoors`), on the phone bar, the sidebar, the tab rows, Add and Pulse's quick actions; Settings' door too.
+- **The change log** (`changelog.js`, P141): every save compared with the book before it, record by record, each changed
+  field from → to, tagged with who was signed in and the device; kept in the book (`S.changeLog`), shown in History →
+  Changes. It is what the merge (G4, not built) will sync.
+- **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
+  Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
+  can only import. The token is kept encrypted under a key that cannot leave the device. A device the owner removes stops
+  syncing and forgets its token at its next load. With the guard off, sync is unchanged.
+- **Every door to a P1 change asks, wherever it is** (the review of 1 Oct 2026, P146): Add → File asks what its screen's own
+  Import asks (an import, the payroll as a payment) and refuses a file for a screen the role does not open; search lists
+  only what the role's screens show (`srchSees`: an invoice, a credit note, a client, a challan, a bank row, a screen);
+  Settings → GitHub sync writes the token only when the field was changed, so a token not read yet is never overwritten.
+- **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
+  compile). A PIN, a token or a key never does.
 
 ### Stats in tabs, and the overview
 Stats is five tabs over one period chip row (owner, 25 Sep 2026: *"break up the stats page into multiple
@@ -2445,7 +2506,7 @@ device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days 
 message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.
 
 ### Home, arranged by the owner
-Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where — dynamic home
+*These are Today → Pulse's widgets since Direction B (above).* Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where — dynamic home
 screen which user can adjust"*; they chose **presets and an edit mode, kept per device** (`tabs.js`, `HOME_WIDGETS`, `sep_inv_home`).
 - Every card on Home is a widget (`data-home-w` in `#homeWidgets`): month to date, quick actions, money, to-do, attendance, unbilled,
   **production** (the last day plated, by line), **power cuts** (this month's and the last), **stock running low** (red and amber lines,
@@ -2457,7 +2518,7 @@ screen which user can adjust"*; they chose **presets and an edit mode, kept per 
   new build never rearranges a Home. Kept in localStorage, never in the book: a backup or a pull does not rearrange another device. P121.
 
 ### Home quick actions
-Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
+*A Pulse widget since Direction B; Add is the one door for what comes in.* Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
 challan (the form open), Stock entry (the by-hand form), Attendance (today's day), Paste message (the
 one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check, and the pickling and production
 messages to Production's; it opens without a roster), Add task (the

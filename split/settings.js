@@ -18,6 +18,8 @@ var SETTINGS_GROUPS = [
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
+  // The guard (guard.js): users and roles; builder D's Devices joins this group.
+  { key: 'access', label: 'Access', secs: ['users'] },
   { key: 'data', label: 'Data & device', secs: ['appearance', 'data'] }
 ];
 
@@ -408,10 +410,13 @@ var SETTINGS_SECS = {
     summary: function() {
       var cfg = getGhConfig(), last = ghLastSyncAt();
       if (!cfg.owner || !cfg.repo) return 'not set up';
-      return '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
+      // The guard keeps this device from syncing (devices.js): said in place of when it last synced.
+      var held = typeof devSyncBlockedShort === 'function' ? devSyncBlockedShort() : '';
+      return '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(held ? ' · ' + held : last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
     },
     body: function() { return renderGhSyncFields(); },
-    save: function() { saveGhSyncSettings(); ghRenderCard(); }
+    // The token is stored locked to the device before the section reads as saved.
+    save: async function() { await saveGhSyncSettings(); ghRenderCard(); }
   },
   appearance: {
     title: 'Appearance',
@@ -438,7 +443,9 @@ var SETTINGS_SECS = {
         '<div id="storageDiagOut"></div>' + errSettingsHtml();
     },
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder. Error reports go to the developer from the live site only, and carry no record, name or figure.'
-  }
+  },
+  // Users & access (guard.js): turning the guard on, the users, the minutes and the roles.
+  users: GRD_SETTINGS_SEC
 };
 
 /* A section is a panel that folds (§6.15 inv-panel-fold): its head is the row that says what it is set
@@ -450,7 +457,7 @@ function _settingsSecHtml(key, open) {
     '<span class="inv-row-meta" data-sum="' + key + '">' + s.summary() + '</span></span></summary>' +
     '<div class="inv-panel-body">' + s.body() +
     (s.why ? '<details class="inv-mt-8"><summary class="inv-btn-link inv-summary">How this is used</summary><p class="inv-note inv-mt-4">' + s.why + '</p></details>' : '') +
-    (s.save ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
+    (s.save && (!s.saveIf || s.saveIf()) ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
     '</div></details>';
 }
 
@@ -467,6 +474,8 @@ function _settingsMark(el, on) {
 
 /* Opens Settings; with a section key, on that section, open and in view. */
 function openSettings(target) {
+  // The guard (guard.js): a role that may not change Settings does not open them (keys and the token are in them).
+  if (typeof grdCan === 'function' && !grdCan('settings')) { guardAsk('settings', 'open Settings'); return; }
   var ui = _setUi();
   var tgtGroup = target && _settingsGroupOf(target);
   if (tgtGroup) {
@@ -558,6 +567,9 @@ function _settingsDirty() {
 async function saveSettingsSection(key) {
   var s = SETTINGS_SECS[key];
   if (!s || !s.save) return;
+  // P1 (guard.js): every section's Save asks the PIN outside the re-ask window; Users & access is the owner's.
+  var grp = s.guard || 'settings', what = 'save ' + (/^[A-Z][a-z]+\b/.test(s.title) ? s.title.charAt(0).toLowerCase() + s.title.slice(1) : s.title);
+  if (typeof grdOk === 'function' && !grdOk(grp) && !(await guardAsk(grp, what))) return;
   if ((await s.save()) === false) return;
   saveState();
   var d = document.querySelector('#settingsScrim details[data-sec="' + key + '"]');
@@ -728,6 +740,7 @@ function buildDiagnosticsReport() {
       if (diskParseError) lines.push('  stored copy does not parse: ' + diskParseError);
     }
     lines.push('Last save: ' + renderLastSave().replace(/<[^>]+>/g, ''));
+    if (typeof chgHealthText === 'function') lines.push('Change log: ' + chgHealthText());
     if (_storageHealth.readError) lines.push('Read error at load: ' + _storageHealth.readError);
     lines.push('Legacy localStorage copy: ' + (legacyChars < 0 ? 'removed' : 'still present, ' + fmtChars(legacyChars) + ' (removed after the next verified save)'));
     lines.push('localStorage on ' + location.origin + ': ' + fmtChars(originTotal) + ' across ' + keys.length + ' key' + (keys.length === 1 ? '' : 's') +
@@ -807,6 +820,8 @@ function bookReplacedShow() {
 }
 
 function importData() {
+  // P1 (guard.js): an import replaces the book.
+  if (typeof grdGate === 'function' && !grdGate('imports', 'import a backup', importData)) return;
   const inp = document.getElementById('importFileInput');
   inp.onchange = (e) => {
     const f = e.target.files[0];
@@ -814,47 +829,52 @@ function importData() {
     inp.value = '';
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = async (ev) => {
-      let data;
-      try {
-        data = JSON.parse(ev.target.result);
-        if (!data.company || !data.clients) throw new Error('Invalid format');
-      } catch(err) {
-        showToast('Invalid file: ' + err.message, 'error');
-        return;
-      }
-      // Where nothing can be written (a stored copy that cannot be set aside), nothing is replaced, and the reason is the
-      // app's own: it read "the browser refused to store it" of a refusal the browser never made.
-      var blocked = bookStandInBlocker();
-      if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
-      if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
-          (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
-      try {
-        // This path carried NO repairs at all, which was the sharper half of
-        // the same bug: a backup written before `staff` existed left it
-        // undefined and the Staff tab threw the moment it was opened.
-        // All-or-nothing: a migration that throws restores what was here.
-        adoptState(data);
-        // Out of a stand-in: an unreadable copy is set aside by the save below, never written over.
-        bookReleaseStandIn();
-        // An imported book is not the copy this device last exchanged with GitHub: the next push asks.
-        if (typeof ghForgetSha === 'function') ghForgetSha();
-        // The success toast used to fire regardless, on top of — and therefore
-        // instead of — the storage failure toast. A copy that only reached
-        // memory is not imported, and the operator has to hear that.
-        // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
-        // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
-        bookReplacedShow();
-        saveState().then(function(saved) {
-          if (saved) showToast('Data imported');
-          else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');
-        });
-      } catch(err) {
-        showToast('Invalid file: ' + err.message, 'error');
-      }
-    };
+    reader.onload = (ev) => importDataText(ev.target.result);
     reader.readAsText(f);
   };
   inp.click();
+}
+
+/* A backup's text, from Settings → Import or from Add → File (add.js): checked, asked about, and only then the book replaced. */
+async function importDataText(text) {
+  let data;
+  try {
+    data = JSON.parse(text);
+    if (!data.company || !data.clients) throw new Error('Invalid format');
+  } catch(err) {
+    showToast('Invalid file: ' + err.message, 'error');
+    return;
+  }
+  // Where nothing can be written (a stored copy that cannot be set aside), nothing is replaced, and the reason is the
+  // app's own: it read "the browser refused to store it" of a refusal the browser never made.
+  var blocked = bookStandInBlocker();
+  if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
+  if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
+      (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
+  try {
+    // This path carried NO repairs at all, which was the sharper half of
+    // the same bug: a backup written before `staff` existed left it
+    // undefined and the Staff tab threw the moment it was opened.
+    // All-or-nothing: a migration that throws restores what was here.
+    adoptState(data);
+    // Out of a stand-in: an unreadable copy is set aside by the save below, never written over.
+    bookReleaseStandIn();
+    // An imported book is not the copy this device last exchanged with GitHub: the next push asks.
+    if (typeof ghForgetSha === 'function') ghForgetSha();
+    // The success toast used to fire regardless, on top of — and therefore
+    // instead of — the storage failure toast. A copy that only reached
+    // memory is not imported, and the operator has to hear that.
+    // Every screen is drawn from the new book, as after a pull: only Home was redrawn, and the Register's and
+    // Challans' toolbars (client lists, selections) stayed the old book's (the QA sweep, 29 Sep 2026).
+    bookReplacedShow();
+    // The book imported may say this device was removed: it forgets its GitHub token and says why (devices.js).
+    if (typeof devAfterLoad === 'function') devAfterLoad('import');
+    saveState().then(function(saved) {
+      if (saved) showToast('Data imported');
+      else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');
+    });
+  } catch(err) {
+    showToast('Invalid file: ' + err.message, 'error');
+  }
 }
 

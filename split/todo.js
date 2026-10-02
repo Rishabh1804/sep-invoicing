@@ -454,6 +454,8 @@ function renderTodoHomeCard() {
 function todoRefreshViews() {
   var page = document.querySelector('.inv-page-active');
   if (page && page.id === 'pageTodo') renderTodo();
+  // Today → Needs you lists the same tasks (today.js): a tick there is redrawn there.
+  if (page && page.id === 'pageHome' && typeof tdyView === 'function' && tdyView() === 'needs') keepScroll(renderNeeds);
   renderTodoHomeCard();
   updateStockBadge();
 }

@@ -61,7 +61,8 @@ test.describe('P93: two windows on one book', () => {
     expect(await storedNames(page)).toEqual(['ALPHA PLATING', 'EXISTING CLIENT']);
     await expect.poll(() => g(b, 'S.clients.map(function(c){ return c.name; }).sort().join()')).toBe('ALPHA PLATING,EXISTING CLIENT');
     await expect(b.locator('#pageClients')).toContainText('ALPHA PLATING');
-    // Made again, it saves on top of A's.
+    // Made again, it saves on top of A's (the notice read and dismissed first: on the phone it sits over the toolbar).
+    await b.locator('.inv-notice-bar [data-action="invNoticeDismiss"]').click();
     await addClient(b, 'BETA PRESS');
     expect(await storedNames(page)).toEqual(['ALPHA PLATING', 'BETA PRESS', 'EXISTING CLIENT']);
   });

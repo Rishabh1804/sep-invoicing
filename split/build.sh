@@ -25,7 +25,9 @@ JS_SOURCES=(
   "$DIR/data.js"
     "$DIR/state.js" \
     "$DIR/errors.js" \
+    "$DIR/changelog.js" \
     "$DIR/appearance.js" \
+    "$DIR/guard.js" \
     "$DIR/zinc.js" \
     "$DIR/tabs.js" \
     "$DIR/clients.js" \
@@ -33,8 +35,10 @@ JS_SOURCES=(
     "$DIR/create.js" \
     "$DIR/settings.js" \
     "$DIR/github-sync.js" \
+    "$DIR/devices.js" \
     "$DIR/invoice-ops.js" \
     "$DIR/number-audit.js" \
+    "$DIR/pipeline.js" \
     "$DIR/exports.js" \
     "$DIR/im.js" \
     "$DIR/autocomplete.js" \
@@ -56,6 +60,7 @@ JS_SOURCES=(
     "$DIR/finance.js" \
     "$DIR/todo.js" \
     "$DIR/relay.js" \
+    "$DIR/add.js" \
     "$DIR/attsheet.js" \
     "$DIR/stocksheet.js" \
     "$DIR/prodparse.js" \
@@ -68,6 +73,8 @@ JS_SOURCES=(
     "$DIR/dash.js" \
     "$DIR/production.js" \
     "$DIR/prodview.js" \
+    "$DIR/floor.js" \
+    "$DIR/today.js" \
     "$DIR/power.js" \
     "$DIR/report.js" \
     "$DIR/client-perf.js" \
@@ -76,8 +83,10 @@ JS_SOURCES=(
     "$DIR/vision.js" \
     "$DIR/scanner.js" \
     "$DIR/events.js" \
+    "$DIR/workspace.js" \
     "$DIR/swipe.js" \
     "$DIR/nav.js" \
+    "$DIR/search.js" \
   "$DIR/seed.js"
   "$DIR/init.js"
 )

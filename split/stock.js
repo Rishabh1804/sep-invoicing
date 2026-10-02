@@ -439,14 +439,10 @@ function stockOutCount() {
   if (!S || !S.stock) return 0;
   return stockData().items.filter(function(i) { return i.active !== false && stockStatus(i).group === 'out'; }).length;
 }
+/* The red counts on the bar's workspaces and the sidebar's heads (workspace.js): every red row, stock out or under the red
+   line and your own tasks overdue, each on the workspace its jump lands in, all of them on Today. */
 function updateStockBadge() {
-  var b = document.getElementById('moreBadge');
-  if (!b) return;
-  // Every red row: stock out or under the red line, and your own tasks overdue.
-  var n = todoRedCount();
-  b.textContent = n ? String(n) : '';
-  b.classList.toggle('inv-hidden', !n);
-  if (typeof updateSideCounts === 'function') updateSideCounts();
+  if (typeof wsUpdateCounts === 'function') wsUpdateCounts();
 }
 
 /* ---------- Resolving a parsed message against the app's lines ---------- */
@@ -936,6 +932,7 @@ function stockReviewRowHtml(r, rv, res, st) {
 function stockSavePaste() {
   var rv = _stockReview;
   if (!rv) return;
+  if (!grdGate('floor', 'save stock entries', stockSavePaste)) return;   // the guard (guard.js): a floor entry, never re-asked
   var res = resolveStockParse(rv.parsed, rv.choices);
   if (res.dup) { showToast('Already saved — nothing saved twice', 'error'); return; }
   var by = stockBy();
@@ -1041,6 +1038,7 @@ function stockDayEntriesHtml(date) {
 function stockSaveManual() {
   var m = _stockManual;
   if (!m) return;
+  if (!grdGate('floor', 'save a stock entry', stockSaveManual)) return;   // the guard (guard.js): a floor entry, never re-asked
   if (!m.date) { showToast('Pick a date', 'error'); return; }
   if (m.mode === 'received') {
     // A delivery is recorded with its bill: the company, the invoice and its
@@ -1198,6 +1196,9 @@ function stockEntryRowHtml(e, r, unit) {
    and an entry that vanished would leave soma-internal holding a figure the
    app no longer explains. */
 function stockVoid(id) {
+  // P1 (guard.js): asked at the first tap, so a role that may not void is told before arming; and at the second, which
+  // passes within the window (another user unlocked between the taps is asked, or told).
+  if (!grdGate('voids', 'void a stock entry', function() { stockVoid(id); })) return;
   if (_stockVoidArm !== id) { _stockVoidArm = id; renderStock(); return; }
   var e = stockData().entries.find(function(x) { return x.id === id; });
   _stockVoidArm = null;
@@ -1213,6 +1214,7 @@ function stockVoid(id) {
 async function stockCorrect(id) {
   var e = stockData().entries.find(function(x) { return x.id === id; });
   if (!e || e.voided) return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'correct a stock entry'))) return;   // the guard (guard.js): a floor entry
   var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
   var v = await uiPrompt({ title: 'Correct this entry', body: (STOCK_KIND_LABEL[e.kind] || e.kind) + ' ' + stockFmtQty(e.qty) + ' ' + unit + (it ? ' of ' + it.name : '') + ' on ' + stockShortDate(e.date) + '.',
     label: 'The right quantity' + (unit ? ' (' + unit + ')' : ''), value: String(e.qty), okLabel: 'Correct', required: true, requiredText: 'Enter the quantity.' });
@@ -1314,66 +1316,27 @@ function stockMergeImport(src) {
 }
 
 function stockImport() {
+  if (!grdGate('imports', 'import stock records', stockImport)) return;   // P1 (guard.js)
   var inp = document.getElementById('stockFileInput');
   if (!inp) return;
   inp.onchange = function(ev) {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) {
-      try {
-        var added = stockMergeImport(JSON.parse(e2.target.result));
-        saveState();
-        renderStock();
-        var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
-        showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
-      } catch (err) { showToast('Not a stock file', 'error'); }
-    };
+    reader.onload = function(e2) { stockImportText(e2.target.result); };
     reader.readAsText(f);
   };
   inp.click();
 }
-
-/* ---------- The More sheet ---------- */
-var MORE_TABS = ['pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pageHistory'];
-function closeMoreSheet() {
-  var el = document.getElementById('moreSheet');
-  if (el) el.remove();
-}
-function openMoreSheet() {
-  closeMoreSheet();
-  var out = stockOutCount();
-  var tdOpen = todoRanked().length, tdLate = todoRedCount();
-  var items = [
-    ['pageTodo', 'To-do', tdOpen ? tdOpen + ' open' + (tdLate ? ', ' + tdLate + ' late' : '') : 'Nothing due', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>'],
-    ['pageFinance', 'Finance', 'Bank, receivables, bills, GST', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
-    ['pageProduction', 'Production', 'Lines, material in plant', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
-    ['pagePower', 'Power', 'Cuts, the load, the case for backup', '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
-    ['pageStock', 'Stock', out ? out + ' out' : 'Chemicals on the shelf', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
-    ['pageStaff', 'Staff', 'Attendance, labour, areas', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/>'],
-    ['pageStats', 'Stats', 'Realisation, tonnage, cost', '<path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/>'],
-    ['pageReports', 'Reports', 'Daily to yearly, to print', '<path d="M14 3H6a1 1 0 0 0-1 1v16a1 1 0 0 0 1 1h12a1 1 0 0 0 1-1V8z"/><path d="M14 3v5h5M9 17v-3M12 17v-6M15 17v-2"/>'],
-    ['pageHistory', 'History', 'The audit trail', '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>']
-  ];
-  var cur = (document.querySelector('.inv-page-active') || {}).id;
-  // A sheet from the bottom (§6.16), its entries rows; the open one is the current page.
-  var h = '<div class="inv-sheet" data-action="invMoreStay" role="dialog" aria-label="More"><div class="inv-sheet-grab"></div>';
-  items.forEach(function(it) {
-    h += '<button class="inv-row inv-row-2" data-action="invSwitchTab" data-tab="' + it[0] + '"' + (cur === it[0] ? ' aria-current="page"' : '') + '>' +
-      '<span class="inv-row-lead"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + it[3] + '</svg></span>' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + it[1] + '</span><span class="inv-row-meta">' + escHtml(it[2]) + '</span></span>' +
-      (it[0] === 'pageStock' && out ? '<span class="inv-row-end"><span class="inv-badge inv-badge-danger">' + out + ' out</span></span>' : '') +
-      (it[0] === 'pageTodo' && tdLate ? '<span class="inv-row-end"><span class="inv-badge inv-badge-danger">' + tdLate + ' late</span></span>' : '') + '</button>';
-  });
-  h += '</div>';
-  var scrim = document.createElement('div');
-  scrim.id = 'moreSheet';
-  scrim.className = 'inv-scrim';
-  scrim.setAttribute('data-action', 'invCloseMore');
-  scrim.innerHTML = h;
-  document.body.appendChild(scrim);
-  var first = scrim.querySelector('.inv-row');
-  if (first) first.focus();
+/* A sep-stock file's text, from Stock's Import or from Add → File (add.js). */
+function stockImportText(text) {
+  try {
+    var added = stockMergeImport(JSON.parse(text));
+    saveState();
+    renderStock();
+    var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
+    showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
+  } catch (err) { showToast('Not a stock file', 'error'); }
 }
 
 /* ---------- Actions ---------- */

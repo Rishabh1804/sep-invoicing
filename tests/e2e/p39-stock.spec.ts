@@ -129,10 +129,13 @@ test.describe('P39: stock', () => {
     await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' })).toContainText('Out');
     await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Zinc' })).toContainText('Shelf empty');
     await expect(page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Brightener' })).toContainText('4 L/day');
-    // More's badge is every red row: each stock line out or under its red line.
+    // The bar's red count is every red row: each stock line out or under its red line counts on Floor, where its jump
+    // lands, and on Today, which carries every red row (More carried them before DIRECTION_B).
     const red = await g(page, `stockData().items.filter(function(i){ return stockStatus(i).tone === 'red'; }).map(function(i){ return i.name; })`) as string[];
     expect(red).toContain('Q558');
-    await expect(page.locator('#moreBadge')).toHaveText(String(red.length));
+    await expect(page.locator('.inv-navbar [data-ws-count="floor"]')).toHaveText(String(red.length));
+    await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toHaveText(String(red.length));
+    await expect(page.locator('.inv-navbar [data-ws-count="office"]')).toBeHidden();
 
     // The same message twice is caught, and nothing is saved twice.
     await paste(page, MSG1());
@@ -243,15 +246,17 @@ test.describe('P39: stock', () => {
     else await expect(chem.locator('.inv-row-children')).not.toContainText('Not recorded');
   });
 
-  test('More holds To-do, Finance, Production, Power, Stock, Staff, Stats, Reports and History, and lights up while one is open', async ({ page }) => {
+  test('the bar is the workspaces and Add: Floor holds People, Production, Stock and Power, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveCount(6);
-    await page.locator('.inv-navbar-more').click();
-    await expect(page.locator('#moreSheet .inv-row')).toHaveText([/To-do/, /Finance/, /Production/, /Power/, /Stock/, /Staff/, /Stats/, /Reports/, /History/]);
-    await page.locator('#moreSheet .inv-row[data-tab="pageStaff"]').click();
-    await expect(page.locator('#moreSheet')).toHaveCount(0);
+    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Today/, /Office/, /Add/, /Floor/, /Money/]);
+    await expect(page.locator('.inv-navbar-more, #moreSheet')).toHaveCount(0);
+    await page.locator('.inv-navbar-item[data-ws="floor"]').click();
+    await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText([...(await page.locator('#pageFloor').count() ? ['Day'] : []), 'People', 'Production', 'Stock', 'Power']);
+    await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('.inv-navbar-more')).toHaveClass(/inv-navbar-item-on/);
+    await expect(page.locator('.inv-navbar-item[data-ws="floor"]')).toHaveClass(/inv-navbar-item-on/);
+    // What More held besides: the To-do is Today's, Finance is Money, Stats, Reports and History are Insights'.
+    expect(await g(page, `['pageTodo', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory'].map(wsOf)`)).toEqual(['today', 'money', 'insights', 'insights', 'insights']);
   });
 
   test('export carries the whole record; importing it again adds nothing', async ({ page }) => {

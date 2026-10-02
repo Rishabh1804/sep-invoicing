@@ -32,6 +32,7 @@
     if (!view) return;
 
     // A swipe leaves the screen like a tap on the bar does: unsaved work asks first (nav.js).
-    navLeaveOk().then(function(ok) { if (ok) wsShowView(view); });
+    // It is a step of the trail as a tap is (navSync runs after a click, a change or a key, and a touch is none of them).
+    navLeaveOk().then(function(ok) { if (ok) { wsShowView(view); navSoon(); } });
   }, { passive: true });
 })();

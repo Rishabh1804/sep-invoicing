@@ -38,7 +38,7 @@ function renderFinance() {
   else if (_finTab === 'gst') h += finGstHtml(12);
   else if (_finTab === 'overview') h += finOverviewHtml();
   else h += renderBank(_finTab);
-  el.innerHTML = h;
+  paneScrollKeep(function() { el.innerHTML = h; });
   // Six tabs overflow a phone's width; the one open is brought into view by scrolling the row sideways. Never
   // scrollIntoView: with the tabs above the screen it scrolled the page back to them on every client picked (P79).
   viewTabReveal(el.querySelector('.inv-viewtabs'));
@@ -206,7 +206,7 @@ function finOverviewHtml() {
   months.forEach(function(m) { byMonth[m.month] = m; });
   var lab = function(m) { return insMonthLabel(m) + (inRange.length > 12 ? " '" + m.slice(2, 4) : ''); };
   h += chartRangeHtml(_finRange, 'invFinRange');
-  h += '<div class="inv-panels">';
+  h += '<div class="inv-panels inv-panels-3">';
 
   // Cash: balance, in and out on one axis; a tap on a month moves "where money went" to it.
   var cashMonths = inRange.filter(function(m) { return byMonth[m]; });
@@ -340,6 +340,8 @@ function finGstNoteSave(m) {
   if (!root) return;
   var v = function(id) { var el = root.querySelector('#' + id); return el ? el.value.trim() : ''; };
   if (!v('finGstNote')) { showToast('Say what happened', 'error'); return; }
+  // A P1 change, as every Finance edit (bankGate, bank.js); the form stays as typed while the PIN is asked.
+  if (!bankGate('note a month\'s GST', function() { finGstNoteSave(m); })) return;
   var paid = gstRound(parseFloat(v('finGstPaid')) || 0);
   bankData().gstNotes[m] = { note: v('finGstNote'), paidOther: paid > 0 ? paid : null, paidOn: v('finGstOn') || null, via: v('finGstVia') || null, at: Date.now() };
   _finGstEdit = null;
@@ -379,6 +381,8 @@ function financeAction(action, btn) {
       _bankOpen = btn.dataset.key; finSetTab('receipts'); renderFinance(); return true;
     case 'invFinStatementCat': _bankFilter = { cat: btn.dataset.cat, q: '' }; finSetTab('bank'); renderFinance(); return true;
     case 'invFinLoose':
+      // The list of receipts with no client, not a client's pane left open from before (QA chain, 2 Oct 2026).
+      _bankOpen = null;
       finSetTab('receipts'); renderFinance();
       var lp = document.getElementById('bankLoose');
       if (lp && lp.scrollIntoView) lp.scrollIntoView({ block: 'start' });
@@ -389,7 +393,11 @@ function financeAction(action, btn) {
     case 'invFinGstRemove':
       var gm = btn.dataset.month;
       uiConfirm({ title: 'Remove the note for ' + billsMonthLabel(gm) + '?', body: 'The month then reads from the bank alone.', okLabel: 'Remove note', danger: true })
-        .then(function(ok) { if (!ok) return; delete bankData().gstNotes[gm]; _finGstEdit = null; saveState(); renderFinance(); });
+        .then(function(ok) {
+          if (!ok) return;
+          var drop = function() { delete bankData().gstNotes[gm]; _finGstEdit = null; saveState(); renderFinance(); };
+          if (bankGate('remove a GST note', drop)) drop();
+        });
       return true;
   }
   return false;

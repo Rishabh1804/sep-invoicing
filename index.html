@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="301dc2db">
+<meta name="app-build" content="abe3cab9">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -989,7 +989,6 @@ body.inv-desktop .inv-side {
 .inv-side-label { flex: 1; }
 .inv-side-count { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); }
 .inv-side-count-danger { color: var(--danger); font-weight: 600; }
-.inv-side-count-warning { color: var(--warning); font-weight: 600; }
 .inv-side-spacer { flex: 1; min-height: var(--sp-16); }
 
 /* --- Desktop: body offset clear of the sidebar --- */
@@ -1360,10 +1359,12 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panels .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
-/* A wide screen takes three columns on Home's Pulse, Stats and Finance (UX overhaul 2, step 7): at about 1,600px two left
-   each panel 700px across for a figure or a chart that reads at half that. A wide panel still spans the row. (A media
-   query's condition cannot read a custom property, so the width is written out.) */
-@media (min-width: 100rem) { body.inv-desktop .inv-panels { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* A wide screen takes three columns on Today's Pulse, Stats and Finance's Overview (`inv-panels-3`; UX overhaul 2, step 7):
+   at about 1,600px two left each panel 700px across for a figure or a chart that reads at half that. A wide panel still
+   spans the row. Every other grid of panels (To-do's two lists, Needs you, Create, Floor, Production, Stock, Power) stays
+   two across: three left a column empty or a lone card under a row of three (the QA chain, 2 Oct 2026). (A media query's
+   condition cannot read a custom property, so the width is written out.) */
+@media (min-width: 100rem) { body.inv-desktop .inv-panels-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
@@ -2012,7 +2013,7 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
   padding: var(--sp-12); border-radius: var(--r-lg); background: var(--surface-2); text-align: center;
   font-family: var(--ff-mono); font-size: var(--fs-22); font-weight: 600; user-select: all; overflow-wrap: anywhere;
 }
-/* A door this ID may not open (grdApplyDoors): gone from the bars, the sidebar, the More sheet and Home. */
+/* A door this ID may not open (grdApplyDoors): gone from the bars, the sidebar, the tab rows, Add and Pulse. */
 [data-grd-off] { display: none !important; }
 
 /* ===== WORKSPACES (docs/DIRECTION_B.md, B2; workspace.js) =====
@@ -2090,7 +2091,7 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
   <div id="homePulse" data-today="pulse" class="inv-hidden">
   <div id="homeQuestions"></div>
   <div id="homeEditArea"></div>
-  <div class="inv-panels" id="homeWidgets">
+  <div class="inv-panels inv-panels-3" id="homeWidgets">
     <div data-home-w="mtd" class="inv-panels-wide">
       <div class="inv-tiles" id="homeTiles">
         <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
@@ -2162,7 +2163,7 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 
 <div id="pageStats" class="inv-page">
   <div id="statsToolbar"></div>
-  <div id="statsContent" class="inv-panels inv-panels-dense"></div>
+  <div id="statsContent" class="inv-panels inv-panels-dense inv-panels-3"></div>
 </div>
 
 <div id="pageReports" class="inv-page">
@@ -3109,7 +3110,7 @@ function keepScroll(fn) {
 /* ===== DIALOG SHELL (design system §6.16) =====
    Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
    desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.
-   The More sheet is an inv-scrim too but not a dialog, so closing dialogs never takes it (or its focus) along.
+   (The More sheet, an inv-scrim that was not a dialog, went with Direction B's workspaces; Add is a dialog like the rest.)
    `title` is HTML: the caller escapes what came from the user. */
 function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
   var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
@@ -3125,6 +3126,26 @@ var FLIP_MS = 200;
 function paneHeadHtml(titleHtml, closeAction) {
   return '<div class="inv-pane-head">' + titleHtml +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+}
+/* A screen drawn whole with its list and pane in it keeps where both were scrolled (UX overhaul 2, step 7). The list and
+   the pane scroll inside themselves, and a redraw replaced them, so a Void deep in Production's entries, History's Show more
+   or a receipt placed put the list back at its top (the QA chain, 2 Oct 2026). The pane keeps its place only while the same
+   record is open: the host says which (`data-open`). */
+function paneScrollKeep(fn) {
+  var kept = {};
+  document.querySelectorAll('.inv-page-active .inv-pane-host[id]').forEach(function(h) {
+    var l = h.querySelector(':scope > .inv-pane-list'), p = h.querySelector(':scope > .inv-pane');
+    kept[h.id] = { l: l ? l.scrollTop : 0, p: p ? p.scrollTop : 0, open: h.getAttribute('data-open') || '' };
+  });
+  try { return fn(); } finally {
+    Object.keys(kept).forEach(function(id) {
+      var h = document.getElementById(id), k = kept[id];
+      if (!h) return;
+      var l = h.querySelector(':scope > .inv-pane-list'), p = h.querySelector(':scope > .inv-pane');
+      if (l && k.l && l.scrollTop !== k.l) l.scrollTop = k.l;
+      if (p && k.p && k.open && h.getAttribute('data-open') === k.open) p.scrollTop = k.p;
+    });
+  }
 }
 
 /* Opens `html` (the whole inv-dialog) over the page and moves focus into it; the focus it left returns on close.
@@ -5139,7 +5160,7 @@ function chgHistoryEvents(events, clientFilter) {
     });
     if (clientFilter && String(e.cid) !== String(clientFilter)) return;
     var rec = ctx.rec(e), jump = rec ? (e.coll === 'invoices' ? 'invoice' : 'challan') : null;
-    events.push({ ts: e.at, type: 'change', kind: 'chg', act: chgAct(e), sourceId: jump ? e.rid : null, jump: jump, by: e.by, dev: e.dev, folded: folded,
+    events.push({ ts: e.at, type: 'change', kind: 'chg', act: chgAct(e), sourceId: jump ? e.rid : null, jump: jump, by: e.by, dev: e.dev, folded: folded, logId: e.id,
       text: chgText(e, false, ctx), full: chgText(e, true, ctx) });
   });
 }
@@ -6796,8 +6817,10 @@ function switchTab(tabId) {
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
 function tabRender(tabId, isDirty) {
   if (tabId === 'pageHome') {
-    // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved.
-    if (isDirty || tdyView() === 'needs') { renderHome(); _tabDirty.home = false; }
+    // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
+    // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
+    // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView()) { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
       renderRegisterTable();
@@ -6936,7 +6959,9 @@ function homePriorSameDays() {
 }
 
 /* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. */
+var _homeDrawnView = '';   // the view of Today drawn last (tabRender)
 function renderHome() {
+  _homeDrawnView = tdyView();
   tdyApplyView();
   if (tdyView() === 'needs') { renderNeeds(); return; }
   renderPulseQuestions();
@@ -13585,6 +13610,8 @@ function confirmCancelInvoice(invId) {
   saveState();
   closeOverlay();
   renderRegister();
+  // Cancelled from another screen's pane (History's): that screen is redrawn too, or it still offered Cancel (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageRegister') tabRedrawActive();
   showToast('Invoice ' + inv.displayNumber + ' cancelled');
 }
 
@@ -13717,6 +13744,7 @@ async function confirmDeleteInvoice(invId, reissue) {
     return;
   }
   renderRegister();
+  if (navPageOf() !== 'pageRegister') tabRedrawActive();
   showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }
 
@@ -19127,7 +19155,7 @@ function renderAttendance() {
     return;
   }
 
-  if (_attView === 'roster') area.innerHTML = _attRosterView();
+  if (_attView === 'roster') paneScrollKeep(function() { area.innerHTML = _attRosterView(); });
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'pay') area.innerHTML = _attPayView();
@@ -19657,15 +19685,15 @@ function _attRosterView() {
 function _attRosterDesktop(all, wages) {
   var open = _attRosterOpen != null ? staffById(_attRosterOpen) : null;
   if (!open) _attRosterOpen = null;
-  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost"><div class="inv-pane-list">' +
-    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt1">Rate</th>' : '') +
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
+    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
     '<th>Area</th><th>Status</th></tr></thead><tbody>';
   all.forEach(function(w) {
     var inactive = w.active === false, id = escHtml(String(w.id));
     h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
       '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
       '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
-      (wages ? '<td class="inv-col-opt1 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
+      (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
       '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
       '<td>' + (inactive ? '<span class="inv-dot inv-dot-neutral">Inactive</span>' : '<span class="inv-dot inv-dot-ok">Active</span>') + '</td></tr>';
   });
@@ -26934,12 +26962,20 @@ function _bankBouncesHtml(cls) {
   });
   return h + '</div>';
 }
+/* Finance's edits are P1 changes (docs/GUARD.md: payments): a receipt placed on a client, what a client owed at the start, a
+   returned cheque linked, a statement row sorted, a bill made from a payment, a month's GST note. They asked nothing, so an
+   ID without that permission placed receipts, and anyone at an owner's unlocked device past the re-ask window (the QA chain,
+   2 Oct 2026). With the guard off, or inside the window, they go through as before; a PIN asked for runs the edit once given. */
+function bankGate(what, again) { return typeof grdGate !== 'function' || grdGate('payments', what, again); }
+
 function bankSetBounce(revId, depId) {
+  if (!bankGate('link a returned cheque', function() { bankSetBounce(revId, depId); })) return;
   bankData().bounces[revId] = depId || null;
   saveState();
   renderFinance();
 }
 function bankClearBounce(revId) {
+  if (!bankGate('undo a returned cheque', function() { bankClearBounce(revId); })) return;
   delete bankData().bounces[revId];
   saveState();
   renderFinance();
@@ -27099,6 +27135,7 @@ function bankPowerRows(cls) { return (cls || bankClassify()).filter(function(v) 
 function bankAddPowerBill(rowId) {
   var row = bankData().rows.find(function(x) { return x.id === rowId; });
   if (!row) return;
+  if (!bankGate('add an electricity bill from the bank', function() { bankAddPowerBill(rowId); })) return;
   var m = bankBillMonth(row);
   if (costBills().some(function(b) { return b.kind === 'power' && !b.voided && b.month === m; })) { showToast('There is already an electricity bill for ' + billsMonthLabel(m), 'error'); return; }
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: 'power', month: m, amount: row.dr,
@@ -27412,7 +27449,9 @@ function _bankReceiptsHtml(cls) {
   h += _bankBouncesHtml(cls);
   if (!_isDesktop) return h;
   // The desktop: the whole tab is the list, and the open client's receivables the pane beside it (UX overhaul 2, step 7).
-  return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
+  // A client not on the list (nothing since the start, a garbage address) is no record open: the address drops it.
+  if (!openR) _bankOpen = null;
+  return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost" data-open="' + (openR ? escHtml(String(openR.client.id)) : '') + '"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
     '<div class="inv-pane" id="recvPane">' + (openR ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(openR.client.name) + '</span>', 'invBankPaneClose') +
       '<div class="inv-panel inv-panel-flush" data-recv-pane="' + escHtml(String(openR.client.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Owed</span>' +
       '<span class="inv-num">' + figHtml(formatCurrency(openR.owed), openR.owed > 0.005 ? figToneAge(openR.oldestDays) : null) + '</span></div>' +
@@ -27624,6 +27663,8 @@ function _bankEditHtml(v) {
 function bankSaveEdit(id) {
   var b = bankData(), row = b.rows.find(function(x) { return x.id === id; });
   if (!row) return;
+  // The form stays as typed while the PIN is asked; given, the same Save runs and reads it.
+  if (!bankGate('sort a statement row', function() { bankSaveEdit(id); })) return;
   var v = bankClassify([row])[0], val = function(i) { var el = document.getElementById(i); return el ? el.value : null; };
   var set = { cat: val('bankEditCat') || v.cat };
   var cl = val('bankEditClient'), st = val('bankEditStaff');
@@ -27656,6 +27697,8 @@ function _bankIdOf(list, s) { var hit = (list || []).find(function(x) { return S
 function bankSetClient(rowId, clientId) {
   var b = bankData(), row = b.rows.find(function(x) { return x.id === rowId; });
   if (!row) return;
+  // The picker is put back to what is stored while the PIN is asked; given, the placement is made.
+  if (!bankGate('place a receipt', function() { bankSetClient(rowId, clientId); })) { renderFinance(); return; }
   var v = bankClassify([row])[0], id = clientId === '' ? null : _bankIdOf(S.clients, clientId);
   // A named remitter is remembered, for money in only: a rule the same party's payments have is left alone.
   // A cheque deposit has no name to remember and is kept on the row. The row's own setting would outrank the
@@ -27777,7 +27820,8 @@ function bankInput(t) {
   }
   if (t.dataset && t.dataset.bankClient) { _bankChange = null; bankSetClient(t.dataset.bankClient, t.value); return true; }
   if (t.dataset && t.dataset.bankMonth) {
-    var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; });
+    var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; }), mo = t.value;
+    if (row && !bankGate('move a payment to another month', function() { t.value = mo; bankInput(t); })) { renderFinance(); return true; }
     if (row) {
       // The bill made from this payment moves with it: they are one payment, in one month.
       var bill = bankBillOf(row), twin = bill && costBills().find(function(b) { return b !== bill && b.kind === 'power' && !b.voided && b.month === t.value; });
@@ -27793,6 +27837,7 @@ function bankInput(t) {
     // An empty field clears it; 0 is an answer (nothing was owed that day) and is kept, which stops the figure
     // offered from asking again. A 0 used to read as nothing typed.
     var raw = String(t.value).trim(), amt = gstRound(parseFloat(raw) || 0), o = bankData().opening;
+    if (!bankGate('set what a client owed at the start', function() { t.value = raw; bankInput(t); })) { renderFinance(); return true; }
     if (raw !== '' && amt >= 0) o[t.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now() }; else delete o[t.dataset.client];
     saveState();
     renderFinance();
@@ -27831,6 +27876,7 @@ function bankAction(action, btn) {
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankOpeningUse': {
+      if (!bankGate('set what a client owed at the start', function() { bankAction('invBankOpeningUse', btn); })) return true;
       var amt = gstRound(parseFloat(btn.dataset.amount) || 0);
       if (amt > 0) { bankData().opening[btn.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now(), suggested: true }; saveState(); }
       renderFinance(); return true;
@@ -27881,7 +27927,7 @@ function renderFinance() {
   else if (_finTab === 'gst') h += finGstHtml(12);
   else if (_finTab === 'overview') h += finOverviewHtml();
   else h += renderBank(_finTab);
-  el.innerHTML = h;
+  paneScrollKeep(function() { el.innerHTML = h; });
   // Six tabs overflow a phone's width; the one open is brought into view by scrolling the row sideways. Never
   // scrollIntoView: with the tabs above the screen it scrolled the page back to them on every client picked (P79).
   viewTabReveal(el.querySelector('.inv-viewtabs'));
@@ -28049,7 +28095,7 @@ function finOverviewHtml() {
   months.forEach(function(m) { byMonth[m.month] = m; });
   var lab = function(m) { return insMonthLabel(m) + (inRange.length > 12 ? " '" + m.slice(2, 4) : ''); };
   h += chartRangeHtml(_finRange, 'invFinRange');
-  h += '<div class="inv-panels">';
+  h += '<div class="inv-panels inv-panels-3">';
 
   // Cash: balance, in and out on one axis; a tap on a month moves "where money went" to it.
   var cashMonths = inRange.filter(function(m) { return byMonth[m]; });
@@ -28183,6 +28229,8 @@ function finGstNoteSave(m) {
   if (!root) return;
   var v = function(id) { var el = root.querySelector('#' + id); return el ? el.value.trim() : ''; };
   if (!v('finGstNote')) { showToast('Say what happened', 'error'); return; }
+  // A P1 change, as every Finance edit (bankGate, bank.js); the form stays as typed while the PIN is asked.
+  if (!bankGate('note a month\'s GST', function() { finGstNoteSave(m); })) return;
   var paid = gstRound(parseFloat(v('finGstPaid')) || 0);
   bankData().gstNotes[m] = { note: v('finGstNote'), paidOther: paid > 0 ? paid : null, paidOn: v('finGstOn') || null, via: v('finGstVia') || null, at: Date.now() };
   _finGstEdit = null;
@@ -28222,6 +28270,8 @@ function financeAction(action, btn) {
       _bankOpen = btn.dataset.key; finSetTab('receipts'); renderFinance(); return true;
     case 'invFinStatementCat': _bankFilter = { cat: btn.dataset.cat, q: '' }; finSetTab('bank'); renderFinance(); return true;
     case 'invFinLoose':
+      // The list of receipts with no client, not a client's pane left open from before (QA chain, 2 Oct 2026).
+      _bankOpen = null;
       finSetTab('receipts'); renderFinance();
       var lp = document.getElementById('bankLoose');
       if (lp && lp.scrollIntoView) lp.scrollIntoView({ block: 'start' });
@@ -28232,7 +28282,11 @@ function financeAction(action, btn) {
     case 'invFinGstRemove':
       var gm = btn.dataset.month;
       uiConfirm({ title: 'Remove the note for ' + billsMonthLabel(gm) + '?', body: 'The month then reads from the bank alone.', okLabel: 'Remove note', danger: true })
-        .then(function(ok) { if (!ok) return; delete bankData().gstNotes[gm]; _finGstEdit = null; saveState(); renderFinance(); });
+        .then(function(ok) {
+          if (!ok) return;
+          var drop = function() { delete bankData().gstNotes[gm]; _finGstEdit = null; saveState(); renderFinance(); };
+          if (bankGate('remove a GST note', drop)) drop();
+        });
       return true;
   }
   return false;
@@ -33506,7 +33560,7 @@ function buildHistoryEvents() {
     var what = v.source === 'reconciled' ? 'Number ' + label + ' accounted for'
       : 'Invoice ' + label + ' deleted';
     events.push({
-      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null,
+      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null, source: v.source || '',
       cc: 'voidedNumbers', cr: typeof chgRidOf === 'function' ? chgRidOf('voidedNumbers', v) : null,
       text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
         ' — ' + (v.reason || 'no reason recorded') +
@@ -33788,6 +33842,7 @@ function renderHistory() {
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
     (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '');
 
+  historyEvKeys(events);
   var shown = events.slice(0, _historyShowCount);
   // Rows grouped by day (§7): the day heads the group, so on the desktop a row's
   // cell carries the time alone.
@@ -33853,16 +33908,30 @@ function renderHistory() {
   if (_isDesktop) {
     var open = _historyOpen ? events.find(function(ev) { return historyEvKey(ev) === _historyOpen; }) : null;
     if (!open) _historyOpen = null;
-    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost"><div class="inv-pane-list">' + html + '</div>' +
+    // What the back trail calls the step (navLabel): the event's time and its first words.
+    _historyOpenLabel = open ? (historyWhen(open, 'all') + ' · ' + String(open.text || '').slice(0, 40)).trim() : '';
+    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost" data-open="' + escHtml(_historyOpen || '') + '"><div class="inv-pane-list">' + html + '</div>' +
       '<div class="inv-pane" id="historyPane">' + (open ? historyPaneHtml(open) : '') + '</div></div>';
   }
-  area.innerHTML = html;
+  paneScrollKeep(function() { area.innerHTML = html; });
 }
 
-/* An event's key: what it is, when, and what it names. Stable while the record is, so it can be an address. */
-function historyEvKey(ev) {
-  return relayHash([ev.kind, ev.ts || '', ev.sourceId || '', ev.cr || '', ev.text || ''].join('|'));
+/* An event's key, its address in the desktop's pane: what it is, when, and the record it names — never its text where the
+   text can move (a change names the user who made it, and a rename moved the key; a change's record id was dropped when the
+   record went). Two events alike in all of that (two identical EXTRA rows on one day) are told apart by their order
+   (historyEvKeys). The QA chain, 2 Oct 2026. */
+var _historyOpenLabel = '';
+function historyEvBase(ev) {
+  return [ev.kind, ev.type || '', ev.ts || '', ev.logId || ev.sourceId || '', ev.cr || '', ev.kind === 'chg' ? '' : (ev.text || '')].join('|');
 }
+function historyEvKeys(events) {
+  var seen = {};
+  events.forEach(function(ev) {
+    var b = historyEvBase(ev), n = seen[b] = (seen[b] || 0) + 1;
+    ev._key = relayHash(b) + (n > 1 ? '-' + n : '');
+  });
+}
+function historyEvKey(ev) { return ev._key || relayHash(historyEvBase(ev)); }
 /* One event in the desktop's pane: the event whole (a change's every field), who and on which device, and the invoice or
    challan it names, drawn as the Invoices and Challans panes draw it, with the way there. */
 function historyPaneHtml(ev) {
@@ -33871,7 +33940,7 @@ function historyPaneHtml(ev) {
   if (ev.amount) kv.push(['Amount', '<span class="inv-num">' + escHtml(formatCurrency(ev.amount)) + '</span>']);
   if (Object.prototype.hasOwnProperty.call(ev, 'by') && typeof chgUserName === 'function') kv.push(['Who', escHtml(ev.by == null ? 'No ID' : chgUserName(ev.by))]);
   var dev = ev.dev || ev.byDev;
-  if (dev) { var dv = (S.devices || []).find(function(x) { return x && x.id === dev; }); kv.push(['Device', escHtml(dv && dv.name ? dv.name : dev)]); }
+  if (dev) kv.push(['Device', escHtml(typeof chgDeviceLabel === 'function' ? chgDeviceLabel(dev) : dev)]);
   var h = paneHeadHtml('<span class="inv-panel-title">Event</span>', 'invHistoryClose') +
     '<div class="inv-panel" data-history-pane="' + escHtml(ev.kind) + '"><div class="inv-history-full">' + escHtml(ev.full || ev.text) + '</div>' +
     '<div class="inv-kv inv-mt-4">' + kv.map(function(x) {
@@ -33885,7 +33954,9 @@ function historyPaneHtml(ev) {
     var im = (S.incomingMaterial || []).find(function(c) { return c.id === ev.sourceId; });
     if (im) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(imChallanLabel(im)) + '</span>' +
       '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpChallan" data-id="' + escHtml(im.id) + '">Open in Challans</button></div>' + challanDetailHtml(im) + '</div>';
-  } else if (ev.kind === 'void') h += '<div class="inv-note">The invoice this number was is deleted; Invoices → Number audit holds its record.</div>';
+  } else if (ev.kind === 'void') h += '<div class="inv-note">' + (ev.source === 'reconciled'
+    ? 'A number accounted for in the number audit: no invoice was ever recorded under it here.'
+    : 'The invoice this number was is deleted; Invoices → Number audit holds its record.') + '</div>';
   return h;
 }
 
@@ -37619,7 +37690,7 @@ function renderProduction() {
     else if (_prodTab === 'entries') h += prodEntriesHtml();
     else h += prodOverviewHtml();
   }
-  el.innerHTML = h;
+  paneScrollKeep(function() { el.innerHTML = h; });
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   if (_prodTabMoved) { _prodTabMoved = false; viewTop(); }
 }
@@ -37856,18 +37927,21 @@ function prodEntriesHtml() {
   var open = _prodEntryOpen && prodData().entries.find(function(e) { return e.id === _prodEntryOpen; });
   if (!open) _prodEntryOpen = null;
   var cut = h.indexOf('<div class="inv-panel inv-panel-flush" id="prodEntries">');
-  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
+  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost" data-open="' + (open ? escHtml(open.id) : '') + '"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
     '<div class="inv-pane" id="prodEntryPane">' + (open ? prodEntryDetailHtml(open, idx) : '') + '</div></div>';
 }
 
 /* One entry in the pane: everything it holds, the text it was read from, and what can be done to it. */
 function prodEntryDetailHtml(e, idx) {
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind] || e.kind;
-  var title = e.kind === 'downtime' ? 'Power cut' : prodEntryTitle(e);
+  // A cut with no time back says so, as its row does; the supervisor's whole-day barrel list is named as the hand form names
+  // it, not as the general shift (which shift it covers is recorded as unknown). The QA chain, 2 Oct 2026.
+  var open = e.kind === 'downtime' && e.downtime && e.downtime.open;
+  var title = e.kind === 'downtime' ? (open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
   var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
   var kv = [['Kind', kindWord + (e.rework ? ', rework' : '')], ['Day', formatDate(e.date)]];
-  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : '')]);
-  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : 'General']);
+  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : open ? ' – no time back' : '')]);
+  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : e.slot === 'day' ? 'Whole day (barrel list)' : 'General']);
   if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
   else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
   if (e.kind !== 'downtime') {
@@ -38379,10 +38453,14 @@ function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
-    : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+    : prodHandBlank();
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+}
+/* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
+function prodHandBlank() {
+  return { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
 }
 function prodHandHtml() {
   var f = _prodHand;
@@ -38596,7 +38674,8 @@ function prodAction(action, btn) {
       // A pressed chip on Entries lets its flag go; the Overview's "All N" always opens the loads it counts.
       if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodTab === 'entries' && _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
       else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: '' };
-      if (_prodTab !== 'entries') prodSetTab('entries');
+      // From another tab it is a jump to the entries it counts: no entry left open from before (QA chain, 2 Oct 2026).
+      if (_prodTab !== 'entries') { prodSetTab('entries'); _prodEntryOpen = null; }
       renderProduction(); return true;
     case 'invProdTask': {
       var t = todoAppAll(PROD_RULES.map(function(r) { return r[0]; })).find(function(x) { return x.key === btn.dataset.key; });
@@ -39173,7 +39252,7 @@ function renderPulseQuestions() {
   try { html = advPulseHtml(per); } catch (e) { html = ''; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
-    (html ? '<div class="inv-panels" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+    (html ? '<div class="inv-panels inv-panels-3" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
 }
 /* The view on screen: one of the two blocks shown. */
 function tdyApplyView() {
@@ -42284,6 +42363,8 @@ async function deleteChallan(imId) {
   renderIMToolbar();
   _imToolbarRendered = true;
   _renderIMView();
+  // Deleted from another screen's pane (History's): that screen is redrawn too (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageIM') tabRedrawActive();
   showToast('Challan deleted');
 }
 
@@ -42297,6 +42378,9 @@ function editChallan(imId) {
     showToast('Cannot edit: ' + invoicedCount + ' item' + (invoicedCount > 1 ? 's' : '') + ' already invoiced', 'warning');
     return;
   }
+  // Opened from another screen (History's pane): the form is drawn on Challans, so the app goes there first. It was built
+  // inside the hidden page, with only a toast to say so (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageIM') switchTab('pageIM');
   // Pre-fill challan form with existing data
   _challanForm = {
     clientId: im.clientId,
@@ -44472,7 +44556,8 @@ function wsAction(action, btn) {
     if (!view) return;
 
     // A swipe leaves the screen like a tap on the bar does: unsaved work asks first (nav.js).
-    navLeaveOk().then(function(ok) { if (ok) wsShowView(view); });
+    // It is a step of the trail as a tap is (navSync runs after a click, a change or a key, and a touch is none of them).
+    navLeaveOk().then(function(ok) { if (ok) { wsShowView(view); navSoon(); } });
   }, { passive: true });
 })();
 /* ===== NAVIGATION: AN ADDRESS FOR EVERY SCREEN, AND ONE TRAIL BACK =====
@@ -44611,6 +44696,8 @@ function navLabel(loc) {
     case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
+    // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
+    case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
   }
   if (rec) sub.push(rec);
   // The page by its name in its workspace (Invoices, People, Money), with the workspace's.
@@ -44654,10 +44741,15 @@ function navApply(loc) {
         if (parts[0] === 'quotes' && parts[1] === 'form') { if (!_qtForm) { _qtForm = { q: qtBlank(), termsAuto: true }; _qtForm.q.terms = qtTermsFor(_qtForm.q); } }
         else _qtForm = null;
         break;
-      case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id ? id : null; break;
+      case 'pageFinance':
+        finSetTab(parts[0]); _bankEdit = null;
+        if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id && S.clients.some(function(c) { return String(c.id) === id; }) ? id : null;
+        break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
       case 'pageProduction':
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
+        // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
+        if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
@@ -46560,6 +46652,9 @@ function updateLayoutMode() {
 }
 
 function _applyModeSwitch(newDesktop, newTablet) {
+  // The switch redraws the page through switchTab, which forgets that a field was typed: the leave guard then let a half-typed
+  // quotation or Stock by hand close unasked once a window crossed 1024px (the QA chain, 2 Oct 2026). The page is the same one.
+  var typed = _pageTyped;
   _isDesktop = newDesktop;
   _isTablet = newTablet;
   document.body.classList.toggle('inv-desktop', _isDesktop);
@@ -46569,6 +46664,7 @@ function _applyModeSwitch(newDesktop, newTablet) {
   _imToolbarRendered = false;
   renderSidebar();
   switchTab(regFilter.activeTab || 'pageHome');
+  if (typed) _pageTyped = true;
 }
 
 /* The desktop sidebar (renderSidebar, markSideActive) and the phone bar are the workspaces' shell: workspace.js. */

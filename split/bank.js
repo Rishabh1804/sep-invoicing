@@ -386,12 +386,20 @@ function _bankBouncesHtml(cls) {
   });
   return h + '</div>';
 }
+/* Finance's edits are P1 changes (docs/GUARD.md: payments): a receipt placed on a client, what a client owed at the start, a
+   returned cheque linked, a statement row sorted, a bill made from a payment, a month's GST note. They asked nothing, so an
+   ID without that permission placed receipts, and anyone at an owner's unlocked device past the re-ask window (the QA chain,
+   2 Oct 2026). With the guard off, or inside the window, they go through as before; a PIN asked for runs the edit once given. */
+function bankGate(what, again) { return typeof grdGate !== 'function' || grdGate('payments', what, again); }
+
 function bankSetBounce(revId, depId) {
+  if (!bankGate('link a returned cheque', function() { bankSetBounce(revId, depId); })) return;
   bankData().bounces[revId] = depId || null;
   saveState();
   renderFinance();
 }
 function bankClearBounce(revId) {
+  if (!bankGate('undo a returned cheque', function() { bankClearBounce(revId); })) return;
   delete bankData().bounces[revId];
   saveState();
   renderFinance();
@@ -551,6 +559,7 @@ function bankPowerRows(cls) { return (cls || bankClassify()).filter(function(v) 
 function bankAddPowerBill(rowId) {
   var row = bankData().rows.find(function(x) { return x.id === rowId; });
   if (!row) return;
+  if (!bankGate('add an electricity bill from the bank', function() { bankAddPowerBill(rowId); })) return;
   var m = bankBillMonth(row);
   if (costBills().some(function(b) { return b.kind === 'power' && !b.voided && b.month === m; })) { showToast('There is already an electricity bill for ' + billsMonthLabel(m), 'error'); return; }
   costBills().push({ id: 'CB-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), kind: 'power', month: m, amount: row.dr,
@@ -864,7 +873,9 @@ function _bankReceiptsHtml(cls) {
   h += _bankBouncesHtml(cls);
   if (!_isDesktop) return h;
   // The desktop: the whole tab is the list, and the open client's receivables the pane beside it (UX overhaul 2, step 7).
-  return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
+  // A client not on the list (nothing since the start, a garbage address) is no record open: the address drops it.
+  if (!openR) _bankOpen = null;
+  return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost" data-open="' + (openR ? escHtml(String(openR.client.id)) : '') + '"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
     '<div class="inv-pane" id="recvPane">' + (openR ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(openR.client.name) + '</span>', 'invBankPaneClose') +
       '<div class="inv-panel inv-panel-flush" data-recv-pane="' + escHtml(String(openR.client.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Owed</span>' +
       '<span class="inv-num">' + figHtml(formatCurrency(openR.owed), openR.owed > 0.005 ? figToneAge(openR.oldestDays) : null) + '</span></div>' +
@@ -1076,6 +1087,8 @@ function _bankEditHtml(v) {
 function bankSaveEdit(id) {
   var b = bankData(), row = b.rows.find(function(x) { return x.id === id; });
   if (!row) return;
+  // The form stays as typed while the PIN is asked; given, the same Save runs and reads it.
+  if (!bankGate('sort a statement row', function() { bankSaveEdit(id); })) return;
   var v = bankClassify([row])[0], val = function(i) { var el = document.getElementById(i); return el ? el.value : null; };
   var set = { cat: val('bankEditCat') || v.cat };
   var cl = val('bankEditClient'), st = val('bankEditStaff');
@@ -1108,6 +1121,8 @@ function _bankIdOf(list, s) { var hit = (list || []).find(function(x) { return S
 function bankSetClient(rowId, clientId) {
   var b = bankData(), row = b.rows.find(function(x) { return x.id === rowId; });
   if (!row) return;
+  // The picker is put back to what is stored while the PIN is asked; given, the placement is made.
+  if (!bankGate('place a receipt', function() { bankSetClient(rowId, clientId); })) { renderFinance(); return; }
   var v = bankClassify([row])[0], id = clientId === '' ? null : _bankIdOf(S.clients, clientId);
   // A named remitter is remembered, for money in only: a rule the same party's payments have is left alone.
   // A cheque deposit has no name to remember and is kept on the row. The row's own setting would outrank the
@@ -1229,7 +1244,8 @@ function bankInput(t) {
   }
   if (t.dataset && t.dataset.bankClient) { _bankChange = null; bankSetClient(t.dataset.bankClient, t.value); return true; }
   if (t.dataset && t.dataset.bankMonth) {
-    var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; });
+    var row = bankData().rows.find(function(x) { return x.id === t.dataset.bankMonth; }), mo = t.value;
+    if (row && !bankGate('move a payment to another month', function() { t.value = mo; bankInput(t); })) { renderFinance(); return true; }
     if (row) {
       // The bill made from this payment moves with it: they are one payment, in one month.
       var bill = bankBillOf(row), twin = bill && costBills().find(function(b) { return b !== bill && b.kind === 'power' && !b.voided && b.month === t.value; });
@@ -1245,6 +1261,7 @@ function bankInput(t) {
     // An empty field clears it; 0 is an answer (nothing was owed that day) and is kept, which stops the figure
     // offered from asking again. A 0 used to read as nothing typed.
     var raw = String(t.value).trim(), amt = gstRound(parseFloat(raw) || 0), o = bankData().opening;
+    if (!bankGate('set what a client owed at the start', function() { t.value = raw; bankInput(t); })) { renderFinance(); return true; }
     if (raw !== '' && amt >= 0) o[t.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now() }; else delete o[t.dataset.client];
     saveState();
     renderFinance();
@@ -1283,6 +1300,7 @@ function bankAction(action, btn) {
     case 'invBankPlace': bankSetClient(btn.dataset.id, btn.dataset.client); return true;
     case 'invBankChange': _bankChange = btn.dataset.id; renderFinance(); return true;
     case 'invBankOpeningUse': {
+      if (!bankGate('set what a client owed at the start', function() { bankAction('invBankOpeningUse', btn); })) return true;
       var amt = gstRound(parseFloat(btn.dataset.amount) || 0);
       if (amt > 0) { bankData().opening[btn.dataset.client] = { amount: amt, date: bankRecvFrom(), at: Date.now(), suggested: true }; saveState(); }
       renderFinance(); return true;

@@ -134,6 +134,8 @@ function navLabel(loc) {
     case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
+    // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
+    case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
   }
   if (rec) sub.push(rec);
   // The page by its name in its workspace (Invoices, People, Money), with the workspace's.
@@ -177,10 +179,15 @@ function navApply(loc) {
         if (parts[0] === 'quotes' && parts[1] === 'form') { if (!_qtForm) { _qtForm = { q: qtBlank(), termsAuto: true }; _qtForm.q.terms = qtTermsFor(_qtForm.q); } }
         else _qtForm = null;
         break;
-      case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id ? id : null; break;
+      case 'pageFinance':
+        finSetTab(parts[0]); _bankEdit = null;
+        if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id && S.clients.some(function(c) { return String(c.id) === id; }) ? id : null;
+        break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
       case 'pageProduction':
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
+        // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
+        if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
         break;
       case 'pagePower': powerSetTab(parts[0]); break;

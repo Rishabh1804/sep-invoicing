@@ -408,7 +408,7 @@ function renderAttendance() {
     return;
   }
 
-  if (_attView === 'roster') area.innerHTML = _attRosterView();
+  if (_attView === 'roster') paneScrollKeep(function() { area.innerHTML = _attRosterView(); });
   else if (_attView === 'paste') area.innerHTML = relayRenderView();
   else if (_attView === 'areas') area.innerHTML = _attAreasView();
   else if (_attView === 'pay') area.innerHTML = _attPayView();
@@ -938,15 +938,15 @@ function _attRosterView() {
 function _attRosterDesktop(all, wages) {
   var open = _attRosterOpen != null ? staffById(_attRosterOpen) : null;
   if (!open) _attRosterOpen = null;
-  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost"><div class="inv-pane-list">' +
-    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt1">Rate</th>' : '') +
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
+    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
     '<th>Area</th><th>Status</th></tr></thead><tbody>';
   all.forEach(function(w) {
     var inactive = w.active === false, id = escHtml(String(w.id));
     h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
       '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
       '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
-      (wages ? '<td class="inv-col-opt1 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
+      (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
       '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
       '<td>' + (inactive ? '<span class="inv-dot inv-dot-neutral">Inactive</span>' : '<span class="inv-dot inv-dot-ok">Active</span>') + '</td></tr>';
   });

@@ -98,8 +98,10 @@ function switchTab(tabId) {
 /* Draws one page from S (switchTab's step 6). Also what another window's save redraws, in place (tabRedrawActive). */
 function tabRender(tabId, isDirty) {
   if (tabId === 'pageHome') {
-    // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved.
-    if (isDirty || tdyView() === 'needs') { renderHome(); _tabDirty.home = false; }
+    // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
+    // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
+    // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView()) { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
       renderRegisterTable();
@@ -238,7 +240,9 @@ function homePriorSameDays() {
 }
 
 /* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. */
+var _homeDrawnView = '';   // the view of Today drawn last (tabRender)
 function renderHome() {
+  _homeDrawnView = tdyView();
   tdyApplyView();
   if (tdyView() === 'needs') { renderNeeds(); return; }
   renderPulseQuestions();

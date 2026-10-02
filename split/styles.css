@@ -967,7 +967,6 @@ body.inv-desktop .inv-side {
 .inv-side-label { flex: 1; }
 .inv-side-count { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); }
 .inv-side-count-danger { color: var(--danger); font-weight: 600; }
-.inv-side-count-warning { color: var(--warning); font-weight: 600; }
 .inv-side-spacer { flex: 1; min-height: var(--sp-16); }
 
 /* --- Desktop: body offset clear of the sidebar --- */
@@ -1338,10 +1337,12 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panels .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
-/* A wide screen takes three columns on Home's Pulse, Stats and Finance (UX overhaul 2, step 7): at about 1,600px two left
-   each panel 700px across for a figure or a chart that reads at half that. A wide panel still spans the row. (A media
-   query's condition cannot read a custom property, so the width is written out.) */
-@media (min-width: 100rem) { body.inv-desktop .inv-panels { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* A wide screen takes three columns on Today's Pulse, Stats and Finance's Overview (`inv-panels-3`; UX overhaul 2, step 7):
+   at about 1,600px two left each panel 700px across for a figure or a chart that reads at half that. A wide panel still
+   spans the row. Every other grid of panels (To-do's two lists, Needs you, Create, Floor, Production, Stock, Power) stays
+   two across: three left a column empty or a lone card under a row of three (the QA chain, 2 Oct 2026). (A media query's
+   condition cannot read a custom property, so the width is written out.) */
+@media (min-width: 100rem) { body.inv-desktop .inv-panels-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
@@ -1990,7 +1991,7 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
   padding: var(--sp-12); border-radius: var(--r-lg); background: var(--surface-2); text-align: center;
   font-family: var(--ff-mono); font-size: var(--fs-22); font-weight: 600; user-select: all; overflow-wrap: anywhere;
 }
-/* A door this ID may not open (grdApplyDoors): gone from the bars, the sidebar, the More sheet and Home. */
+/* A door this ID may not open (grdApplyDoors): gone from the bars, the sidebar, the tab rows, Add and Pulse. */
 [data-grd-off] { display: none !important; }
 
 /* ===== WORKSPACES (docs/DIRECTION_B.md, B2; workspace.js) =====

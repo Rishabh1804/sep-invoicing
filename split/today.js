@@ -295,7 +295,7 @@ function renderPulseQuestions() {
   try { html = advPulseHtml(per); } catch (e) { html = ''; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
-    (html ? '<div class="inv-panels" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+    (html ? '<div class="inv-panels inv-panels-3" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
 }
 /* The view on screen: one of the two blocks shown. */
 function tdyApplyView() {

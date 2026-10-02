@@ -668,6 +668,9 @@ function updateLayoutMode() {
 }
 
 function _applyModeSwitch(newDesktop, newTablet) {
+  // The switch redraws the page through switchTab, which forgets that a field was typed: the leave guard then let a half-typed
+  // quotation or Stock by hand close unasked once a window crossed 1024px (the QA chain, 2 Oct 2026). The page is the same one.
+  var typed = _pageTyped;
   _isDesktop = newDesktop;
   _isTablet = newTablet;
   document.body.classList.toggle('inv-desktop', _isDesktop);
@@ -677,6 +680,7 @@ function _applyModeSwitch(newDesktop, newTablet) {
   _imToolbarRendered = false;
   renderSidebar();
   switchTab(regFilter.activeTab || 'pageHome');
+  if (typed) _pageTyped = true;
 }
 
 /* The desktop sidebar (renderSidebar, markSideActive) and the phone bar are the workspaces' shell: workspace.js. */

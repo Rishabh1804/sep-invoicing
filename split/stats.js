@@ -1212,7 +1212,7 @@ function buildHistoryEvents() {
     var what = v.source === 'reconciled' ? 'Number ' + label + ' accounted for'
       : 'Invoice ' + label + ' deleted';
     events.push({
-      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null,
+      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null, source: v.source || '',
       cc: 'voidedNumbers', cr: typeof chgRidOf === 'function' ? chgRidOf('voidedNumbers', v) : null,
       text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
         ' — ' + (v.reason || 'no reason recorded') +
@@ -1494,6 +1494,7 @@ function renderHistory() {
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
     (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '');
 
+  historyEvKeys(events);
   var shown = events.slice(0, _historyShowCount);
   // Rows grouped by day (§7): the day heads the group, so on the desktop a row's
   // cell carries the time alone.
@@ -1559,16 +1560,30 @@ function renderHistory() {
   if (_isDesktop) {
     var open = _historyOpen ? events.find(function(ev) { return historyEvKey(ev) === _historyOpen; }) : null;
     if (!open) _historyOpen = null;
-    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost"><div class="inv-pane-list">' + html + '</div>' +
+    // What the back trail calls the step (navLabel): the event's time and its first words.
+    _historyOpenLabel = open ? (historyWhen(open, 'all') + ' · ' + String(open.text || '').slice(0, 40)).trim() : '';
+    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost" data-open="' + escHtml(_historyOpen || '') + '"><div class="inv-pane-list">' + html + '</div>' +
       '<div class="inv-pane" id="historyPane">' + (open ? historyPaneHtml(open) : '') + '</div></div>';
   }
-  area.innerHTML = html;
+  paneScrollKeep(function() { area.innerHTML = html; });
 }
 
-/* An event's key: what it is, when, and what it names. Stable while the record is, so it can be an address. */
-function historyEvKey(ev) {
-  return relayHash([ev.kind, ev.ts || '', ev.sourceId || '', ev.cr || '', ev.text || ''].join('|'));
+/* An event's key, its address in the desktop's pane: what it is, when, and the record it names — never its text where the
+   text can move (a change names the user who made it, and a rename moved the key; a change's record id was dropped when the
+   record went). Two events alike in all of that (two identical EXTRA rows on one day) are told apart by their order
+   (historyEvKeys). The QA chain, 2 Oct 2026. */
+var _historyOpenLabel = '';
+function historyEvBase(ev) {
+  return [ev.kind, ev.type || '', ev.ts || '', ev.logId || ev.sourceId || '', ev.cr || '', ev.kind === 'chg' ? '' : (ev.text || '')].join('|');
 }
+function historyEvKeys(events) {
+  var seen = {};
+  events.forEach(function(ev) {
+    var b = historyEvBase(ev), n = seen[b] = (seen[b] || 0) + 1;
+    ev._key = relayHash(b) + (n > 1 ? '-' + n : '');
+  });
+}
+function historyEvKey(ev) { return ev._key || relayHash(historyEvBase(ev)); }
 /* One event in the desktop's pane: the event whole (a change's every field), who and on which device, and the invoice or
    challan it names, drawn as the Invoices and Challans panes draw it, with the way there. */
 function historyPaneHtml(ev) {
@@ -1577,7 +1592,7 @@ function historyPaneHtml(ev) {
   if (ev.amount) kv.push(['Amount', '<span class="inv-num">' + escHtml(formatCurrency(ev.amount)) + '</span>']);
   if (Object.prototype.hasOwnProperty.call(ev, 'by') && typeof chgUserName === 'function') kv.push(['Who', escHtml(ev.by == null ? 'No ID' : chgUserName(ev.by))]);
   var dev = ev.dev || ev.byDev;
-  if (dev) { var dv = (S.devices || []).find(function(x) { return x && x.id === dev; }); kv.push(['Device', escHtml(dv && dv.name ? dv.name : dev)]); }
+  if (dev) kv.push(['Device', escHtml(typeof chgDeviceLabel === 'function' ? chgDeviceLabel(dev) : dev)]);
   var h = paneHeadHtml('<span class="inv-panel-title">Event</span>', 'invHistoryClose') +
     '<div class="inv-panel" data-history-pane="' + escHtml(ev.kind) + '"><div class="inv-history-full">' + escHtml(ev.full || ev.text) + '</div>' +
     '<div class="inv-kv inv-mt-4">' + kv.map(function(x) {
@@ -1591,7 +1606,9 @@ function historyPaneHtml(ev) {
     var im = (S.incomingMaterial || []).find(function(c) { return c.id === ev.sourceId; });
     if (im) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(imChallanLabel(im)) + '</span>' +
       '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpChallan" data-id="' + escHtml(im.id) + '">Open in Challans</button></div>' + challanDetailHtml(im) + '</div>';
-  } else if (ev.kind === 'void') h += '<div class="inv-note">The invoice this number was is deleted; Invoices → Number audit holds its record.</div>';
+  } else if (ev.kind === 'void') h += '<div class="inv-note">' + (ev.source === 'reconciled'
+    ? 'A number accounted for in the number audit: no invoice was ever recorded under it here.'
+    : 'The invoice this number was is deleted; Invoices → Number audit holds its record.') + '</div>';
   return h;
 }
 

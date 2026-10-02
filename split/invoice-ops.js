@@ -1047,6 +1047,8 @@ function confirmCancelInvoice(invId) {
   saveState();
   closeOverlay();
   renderRegister();
+  // Cancelled from another screen's pane (History's): that screen is redrawn too, or it still offered Cancel (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageRegister') tabRedrawActive();
   showToast('Invoice ' + inv.displayNumber + ' cancelled');
 }
 
@@ -1179,6 +1181,7 @@ async function confirmDeleteInvoice(invId, reissue) {
     return;
   }
   renderRegister();
+  if (navPageOf() !== 'pageRegister') tabRedrawActive();
   showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }
 

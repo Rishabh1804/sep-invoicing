@@ -63,7 +63,7 @@ function renderProduction() {
     else if (_prodTab === 'entries') h += prodEntriesHtml();
     else h += prodOverviewHtml();
   }
-  el.innerHTML = h;
+  paneScrollKeep(function() { el.innerHTML = h; });
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   if (_prodTabMoved) { _prodTabMoved = false; viewTop(); }
 }
@@ -300,18 +300,21 @@ function prodEntriesHtml() {
   var open = _prodEntryOpen && prodData().entries.find(function(e) { return e.id === _prodEntryOpen; });
   if (!open) _prodEntryOpen = null;
   var cut = h.indexOf('<div class="inv-panel inv-panel-flush" id="prodEntries">');
-  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
+  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost" data-open="' + (open ? escHtml(open.id) : '') + '"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
     '<div class="inv-pane" id="prodEntryPane">' + (open ? prodEntryDetailHtml(open, idx) : '') + '</div></div>';
 }
 
 /* One entry in the pane: everything it holds, the text it was read from, and what can be done to it. */
 function prodEntryDetailHtml(e, idx) {
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind] || e.kind;
-  var title = e.kind === 'downtime' ? 'Power cut' : prodEntryTitle(e);
+  // A cut with no time back says so, as its row does; the supervisor's whole-day barrel list is named as the hand form names
+  // it, not as the general shift (which shift it covers is recorded as unknown). The QA chain, 2 Oct 2026.
+  var open = e.kind === 'downtime' && e.downtime && e.downtime.open;
+  var title = e.kind === 'downtime' ? (open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
   var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
   var kv = [['Kind', kindWord + (e.rework ? ', rework' : '')], ['Day', formatDate(e.date)]];
-  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : '')]);
-  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : 'General']);
+  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : open ? ' – no time back' : '')]);
+  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : e.slot === 'day' ? 'Whole day (barrel list)' : 'General']);
   if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
   else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
   if (e.kind !== 'downtime') {
@@ -823,10 +826,14 @@ function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
-    : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+    : prodHandBlank();
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+}
+/* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
+function prodHandBlank() {
+  return { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
 }
 function prodHandHtml() {
   var f = _prodHand;
@@ -1040,7 +1047,8 @@ function prodAction(action, btn) {
       // A pressed chip on Entries lets its flag go; the Overview's "All N" always opens the loads it counts.
       if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodTab === 'entries' && _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
       else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: '' };
-      if (_prodTab !== 'entries') prodSetTab('entries');
+      // From another tab it is a jump to the entries it counts: no entry left open from before (QA chain, 2 Oct 2026).
+      if (_prodTab !== 'entries') { prodSetTab('entries'); _prodEntryOpen = null; }
       renderProduction(); return true;
     case 'invProdTask': {
       var t = todoAppAll(PROD_RULES.map(function(r) { return r[0]; })).find(function(x) { return x.key === btn.dataset.key; });

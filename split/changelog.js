@@ -647,7 +647,7 @@ function chgHistoryEvents(events, clientFilter) {
     });
     if (clientFilter && String(e.cid) !== String(clientFilter)) return;
     var rec = ctx.rec(e), jump = rec ? (e.coll === 'invoices' ? 'invoice' : 'challan') : null;
-    events.push({ ts: e.at, type: 'change', kind: 'chg', act: chgAct(e), sourceId: jump ? e.rid : null, jump: jump, by: e.by, dev: e.dev, folded: folded,
+    events.push({ ts: e.at, type: 'change', kind: 'chg', act: chgAct(e), sourceId: jump ? e.rid : null, jump: jump, by: e.by, dev: e.dev, folded: folded, logId: e.id,
       text: chgText(e, false, ctx), full: chgText(e, true, ctx) });
   });
 }

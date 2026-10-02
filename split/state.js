@@ -859,7 +859,7 @@ function keepScroll(fn) {
 /* ===== DIALOG SHELL (design system §6.16) =====
    Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
    desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.
-   The More sheet is an inv-scrim too but not a dialog, so closing dialogs never takes it (or its focus) along.
+   (The More sheet, an inv-scrim that was not a dialog, went with Direction B's workspaces; Add is a dialog like the rest.)
    `title` is HTML: the caller escapes what came from the user. */
 function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
   var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
@@ -875,6 +875,26 @@ var FLIP_MS = 200;
 function paneHeadHtml(titleHtml, closeAction) {
   return '<div class="inv-pane-head">' + titleHtml +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+}
+/* A screen drawn whole with its list and pane in it keeps where both were scrolled (UX overhaul 2, step 7). The list and
+   the pane scroll inside themselves, and a redraw replaced them, so a Void deep in Production's entries, History's Show more
+   or a receipt placed put the list back at its top (the QA chain, 2 Oct 2026). The pane keeps its place only while the same
+   record is open: the host says which (`data-open`). */
+function paneScrollKeep(fn) {
+  var kept = {};
+  document.querySelectorAll('.inv-page-active .inv-pane-host[id]').forEach(function(h) {
+    var l = h.querySelector(':scope > .inv-pane-list'), p = h.querySelector(':scope > .inv-pane');
+    kept[h.id] = { l: l ? l.scrollTop : 0, p: p ? p.scrollTop : 0, open: h.getAttribute('data-open') || '' };
+  });
+  try { return fn(); } finally {
+    Object.keys(kept).forEach(function(id) {
+      var h = document.getElementById(id), k = kept[id];
+      if (!h) return;
+      var l = h.querySelector(':scope > .inv-pane-list'), p = h.querySelector(':scope > .inv-pane');
+      if (l && k.l && l.scrollTop !== k.l) l.scrollTop = k.l;
+      if (p && k.p && k.open && h.getAttribute('data-open') === k.open) p.scrollTop = k.p;
+    });
+  }
 }
 
 /* Opens `html` (the whole inv-dialog) over the page and moves focus into it; the focus it left returns on close.

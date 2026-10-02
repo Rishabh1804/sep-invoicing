@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="e8537667">
+<meta name="app-build" content="adf62661">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -20045,11 +20045,22 @@ function setAttSlotArea(staffId, slot, areaId) {
   saveState();
   return true;
 }
-/* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
-   shift's area. Labour books the OT cost there (labourForRange). */
-function attOtArea(rec, w, m) {
+/* The area of the latest OT slot a hand stood on that day, '' when they stood on none. */
+function attOtSlotArea(rec, w) {
   for (var i = ATT_SLOTS.length - 1; i >= 0; i--) { var a = attHandSlotArea(rec, w.id, ATT_SLOTS[i][0]); if (a) return a; }
-  return (m && m.area) || w.area || 'flex';
+  return '';
+}
+/* Where a mark's hours were worked: the general shift's area and the OT slot's (the QA of 2 Oct 2026: Labour moved overtime
+   to the slot while the Areas card and Hours by area kept it on the general shift, and an hourly hand's evening hours were
+   never moved). One split, read by all three. A monthly or daily hand's overtime (m.ot) is booked where it was worked; an
+   hourly hand has no overtime of their own, so the hours past eight go to the slot's area when the hand stood on one, and
+   stay with the general shift's when not. → { area, otArea, otHours }: the general shift's area, the OT's, and the hours
+   booked to the OT's area (a monthly or daily hand's OT, an hourly hand's hours past eight on a slot). */
+function attHoursSplit(rec, w, m) {
+  var area = (m && m.area) || (w && w.area) || 'flex';
+  var slot = rec && w ? attOtSlotArea(rec, w) : '';
+  if (w && w.comp === 'hourly') return { area: area, otArea: slot || area, otHours: slot ? Math.max(0, (Number(m && m.hours) || 0) - 8) : 0 };
+  return { area: area, otArea: slot || area, otHours: Number(m && m.ot) || 0 };
 }
 function attSlotSelectHtml(rec, w, slot, live, label) {
   var cur = attHandSlotArea(rec, w.id, slot);
@@ -21340,6 +21351,9 @@ function labourForRange(fromIso, toIso) {
       if (!m || !m.st) return;
       var dayVal = ATT_DAY_VALUE[m.st] || 0;
       var areaId = m.area || w.area || 'flex';
+      // Where the hours were worked: the general shift's area, and the OT slot's for overtime (attHoursSplit, staff.js, the
+      // one split the Areas card and Hours by area read too).
+      var split = attHoursSplit(rec, w, m);
 
       if (w.comp === 'hourly') {
         // No day rate exists for this tier and no multiplier applies: the
@@ -21350,8 +21364,11 @@ function labourForRange(fromIso, toIso) {
           out.pool += pay;
           out.poolHours += hrs;
           bumpWorker(w, 'base', pay, 0, hrs, 0);
-          bumpArea(areaId, pay, 0, hrs);
-          bumpFloor(w, areaId, pay);
+          // The hours past eight on an OT slot were worked in the slot's area.
+          var late = Math.min(hrs, split.otHours), latePay = late * (w.hourRate || 0);
+          bumpArea(areaId, pay - latePay, 0, hrs - late);
+          bumpFloor(w, areaId, pay - latePay);
+          if (late > 0) { bumpArea(split.otArea, latePay, 0, late); bumpFloor(w, split.otArea, latePay); }
           if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
         } else if (dayVal > 0) {
           // Present with no hours typed: the pool pays hours, so this day prices nothing. Said on the card and on Pay,
@@ -21393,7 +21410,7 @@ function labourForRange(fromIso, toIso) {
       }
       bumpFloor(w, areaId, wage);
 
-      var oth = offDay ? 0 : (m.ot || 0);
+      var oth = offDay ? 0 : split.otHours;
       if (oth > 0) {
         var rate = workerOtRate(w, iso);
         var otPay = oth * workerOtHourPay(w, cfg, iso);
@@ -21401,9 +21418,8 @@ function labourForRange(fromIso, toIso) {
         out.ot += otPay;
         bumpWorker(w, 'ot', otPay, 0, 0, oth);
         // Overtime is booked where it was worked: the hand's OT block, else the general shift's area (staff.js).
-        var otArea = attOtArea(rec, w, m);
-        bumpArea(otArea, otPay, 0, oth);
-        bumpFloor(w, otArea, otPay);
+        bumpArea(split.otArea, otPay, 0, oth);
+        bumpFloor(w, split.otArea, otPay);
         if (!(rate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       }
     });
@@ -22140,20 +22156,25 @@ function areaStats(fromIso, toIso) {
       if (!a) return;
       headsToday[areaId] = (headsToday[areaId] || 0) + 1;
       a.headDays++;
+      // Overtime is placed where it was worked, the labour card's own split (attHoursSplit, staff.js): a monthly or daily
+      // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's.
+      var split = attHoursSplit(rec, w, m), ota = byId[split.otArea] || a;
 
       if (w.comp === 'hourly') {
-        var hrs = m.hours || 0;
-        a.hours += hrs;
-        a.cost += hrs * (w.hourRate || 0);
+        var hrs = m.hours || 0, late = Math.min(hrs, split.otHours);
+        a.hours += hrs - late;
+        a.cost += (hrs - late) * (w.hourRate || 0);
+        ota.hours += late;
+        ota.cost += late * (w.hourRate || 0);
       } else {
         var dayVal = ATT_DAY_VALUE[m.st] || 0;
         a.dayTierDays += dayVal;
         if (!(offDay && w.monthWage > 0)) a.cost += dayVal * workerDayRate(w, iso);
       }
-      var oth = offDay || w.comp === 'hourly' ? 0 : (m.ot || 0);
+      var oth = offDay || w.comp === 'hourly' ? 0 : split.otHours;
       if (oth > 0) {
-        a.otHours += oth;
-        a.cost += oth * workerOtHourPay(w, cfg, iso);
+        ota.otHours += oth;
+        ota.cost += oth * workerOtHourPay(w, cfg, iso);
       }
     });
 
@@ -23597,8 +23618,12 @@ function areaHoursForRange(from, to) {
       // A mark with no hours counts the day (8, a half day 4) and its OT on top: OT is part of a day's hours.
       var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8) + (m.ot || 0);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }
-      a.hours += hrs;
-      a.ot += m.ot || 0;
+      // The overtime where it was worked, as Labour and the Areas card place it (attHoursSplit, staff.js): a monthly or daily
+      // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's.
+      var sp = attHoursSplit(rec, w, m), late = Math.min(hrs, sp.otHours), o = get(sp.otArea);
+      a.hours += hrs - late;
+      o.hours += late;
+      o.ot += late;
       a.workerDays += m.st === 'H' ? 0.5 : 1;
     });
     // A block over several areas books to each of them evenly, as the Areas card splits it; it all went to the first.

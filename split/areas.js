@@ -384,20 +384,25 @@ function areaStats(fromIso, toIso) {
       if (!a) return;
       headsToday[areaId] = (headsToday[areaId] || 0) + 1;
       a.headDays++;
+      // Overtime is placed where it was worked, the labour card's own split (attHoursSplit, staff.js): a monthly or daily
+      // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's.
+      var split = attHoursSplit(rec, w, m), ota = byId[split.otArea] || a;
 
       if (w.comp === 'hourly') {
-        var hrs = m.hours || 0;
-        a.hours += hrs;
-        a.cost += hrs * (w.hourRate || 0);
+        var hrs = m.hours || 0, late = Math.min(hrs, split.otHours);
+        a.hours += hrs - late;
+        a.cost += (hrs - late) * (w.hourRate || 0);
+        ota.hours += late;
+        ota.cost += late * (w.hourRate || 0);
       } else {
         var dayVal = ATT_DAY_VALUE[m.st] || 0;
         a.dayTierDays += dayVal;
         if (!(offDay && w.monthWage > 0)) a.cost += dayVal * workerDayRate(w, iso);
       }
-      var oth = offDay || w.comp === 'hourly' ? 0 : (m.ot || 0);
+      var oth = offDay || w.comp === 'hourly' ? 0 : split.otHours;
       if (oth > 0) {
-        a.otHours += oth;
-        a.cost += oth * workerOtHourPay(w, cfg, iso);
+        ota.otHours += oth;
+        ota.cost += oth * workerOtHourPay(w, cfg, iso);
       }
     });
 

@@ -1326,11 +1326,22 @@ function setAttSlotArea(staffId, slot, areaId) {
   saveState();
   return true;
 }
-/* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
-   shift's area. Labour books the OT cost there (labourForRange). */
-function attOtArea(rec, w, m) {
+/* The area of the latest OT slot a hand stood on that day, '' when they stood on none. */
+function attOtSlotArea(rec, w) {
   for (var i = ATT_SLOTS.length - 1; i >= 0; i--) { var a = attHandSlotArea(rec, w.id, ATT_SLOTS[i][0]); if (a) return a; }
-  return (m && m.area) || w.area || 'flex';
+  return '';
+}
+/* Where a mark's hours were worked: the general shift's area and the OT slot's (the QA of 2 Oct 2026: Labour moved overtime
+   to the slot while the Areas card and Hours by area kept it on the general shift, and an hourly hand's evening hours were
+   never moved). One split, read by all three. A monthly or daily hand's overtime (m.ot) is booked where it was worked; an
+   hourly hand has no overtime of their own, so the hours past eight go to the slot's area when the hand stood on one, and
+   stay with the general shift's when not. → { area, otArea, otHours }: the general shift's area, the OT's, and the hours
+   booked to the OT's area (a monthly or daily hand's OT, an hourly hand's hours past eight on a slot). */
+function attHoursSplit(rec, w, m) {
+  var area = (m && m.area) || (w && w.area) || 'flex';
+  var slot = rec && w ? attOtSlotArea(rec, w) : '';
+  if (w && w.comp === 'hourly') return { area: area, otArea: slot || area, otHours: slot ? Math.max(0, (Number(m && m.hours) || 0) - 8) : 0 };
+  return { area: area, otArea: slot || area, otHours: Number(m && m.ot) || 0 };
 }
 function attSlotSelectHtml(rec, w, slot, live, label) {
   var cur = attHandSlotArea(rec, w.id, slot);

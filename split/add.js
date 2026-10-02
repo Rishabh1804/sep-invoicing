@@ -384,9 +384,11 @@ function addPayment() {
   if (form) uiRevealEl(form);
   if (who) { try { who.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
-/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). */
+/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). Search's
+   Add a bill opens it here too. A role that may not open Money is refused by todoGo, and nothing is focused. */
 function addBill() {
   todoGo({ kind: 'bills', month: addBillMonth() });
+  if (navPageOf() !== 'pageFinance') return;
   var amt = costBillRoot('finance').querySelector('#costBillAmount');
   if (amt) { uiRevealEl(amt); try { amt.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }

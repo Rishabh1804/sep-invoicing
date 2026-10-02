@@ -634,14 +634,16 @@ function todoGo(go) {
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'production':
-      prodSetTab(go.tab || 'overview'); _prodView = 'main';
+      // A jump shows what it names: an entry left open in the desktop's pane would take the list's place below ~1100px (QA1-6).
+      prodSetTab(go.tab || 'overview'); _prodView = 'main'; _prodEntryOpen = null;
       if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
       else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
       switchTab('pageProduction');
       break;
     case 'finance':
       finSetTab(go.tab || 'overview');
-      if (go.client != null) _bankOpen = String(go.client);
+      // The client it names, or none: a client left open from before is not what the jump names (QA1-6).
+      _bankOpen = go.client != null ? String(go.client) : null;
       if (go.gstMonth) _finGstEdit = go.gstMonth;
       switchTab('pageFinance');
       var fa = go.anchor && document.getElementById(go.anchor);

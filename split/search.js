@@ -111,8 +111,6 @@ function srchPad(n) { return String(Math.max(0, Math.floor(Number(n) || 0))).pad
 function srchScreens() {
   var at = function(tab, v) { return { kind: 'place', loc: { tab: tab, v: v || '', id: '' } }; };
   var act = function(a) { return { kind: 'act', act: a }; };
-  var d = new Date(); d.setDate(1); d.setMonth(d.getMonth() - 1);
-  var lastMonth = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
   var list = [
     ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
     ['pulse', 'Pulse', 'Today', 'home questions what to do widgets', at('pageHome', 'pulse')],
@@ -169,7 +167,8 @@ function srchScreens() {
     ['add-task', 'Add task', 'Add', 'new task to-do', act('task')],
     ['stock-entry', 'Stock entry', 'Add', 'enter by hand count received used charged', act('stock')],
     ['paste', 'Paste message', 'Add', 'whatsapp roll stock pickling production power cut', act('paste')],
-    ['add-bill', 'Add a bill', 'Add', 'electricity bill power bill', { kind: 'bills', month: lastMonth }],
+    // The month is worked out when it is opened, as Add → By hand → Bill works it out (addBill: the latest with no bill).
+    ['add-bill', 'Add a bill', 'Add', 'electricity bill power bill', { kind: 'bills' }],
     ['settings', 'Settings', 'Settings', 'preferences', { kind: 'settings' }]
   ];
   // Every Settings section by its own title, under its group, so a new section is found without a line here.
@@ -787,6 +786,13 @@ function srchGo(go) {
     case 'worker': {
       var w = staffById(id);
       if (!w) { srchMissing('That worker'); return; }
+      // The desktop: People → Roster with the worker open in its pane, as its row opens it (UX overhaul 2, step 7; it opened
+      // Edit worker: QA3-6). The phone's roster has no pane: the worker's sheet over it.
+      if (_isDesktop) {
+        srchGoPlace({ tab: 'pageStaff', v: 'roster', id: String(w.id) });
+        uiRevealEl(document.querySelector('#attRosterTable tr[data-id="' + String(w.id).replace(/["\\]/g, '\\$&') + '"]'));
+        return;
+      }
       _attView = 'roster';
       switchTab('pageStaff');
       uiRevealEl(document.querySelector('#pageStaff [data-action="invAttEditWorker"][data-id="' + w.id + '"]'));
@@ -812,8 +818,11 @@ function srchGo(go) {
       return;
     // Settings opens once (events.js's rule for its button).
     case 'settings': if (!document.getElementById('settingsScrim')) openSettings(go.sec); return;
+    // A bill: Add → By hand → Bill's own opener, on the latest month with no electricity bill as it stands now (it opened
+    // last month, whatever was entered: QA3-11).
+    case 'bills': addBill(); return;
   }
-  // A challan, a stock line, the credit notes, the number audit, a bill: the To-do's own jumps.
+  // A challan, a stock line, the credit notes, the number audit: the To-do's own jumps.
   todoGo(go);
 }
 
@@ -975,7 +984,9 @@ function srchLocOf(el) {
   var act = a.dataset.action, d = a.dataset;
   if (act === 'invSearchPick') { var s = _srch && _srch.shown[+d.n]; return s && s.e ? srchEntryLoc(s.e) : null; }
   if (a.closest('.inv-scrim')) return null;
-  if (act === 'invSwitchTab' || act === 'invSideGo') return isPageId(d.tab) ? { tab: d.tab, v: d.sub || '', id: '' } : null;
+  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
+  // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
+  if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
     var go = sp ? srchGTarget(sp[0]) : null;
@@ -994,6 +1005,17 @@ function srchLocOf(el) {
   if (act === 'invBankClient') return { tab: 'pageFinance', v: 'receipts', id: String(d.id) };
   if (act === 'invProdEntryOpen') return { tab: 'pageProduction', v: 'entries', id: String(d.id) };
   if (act === 'invHistoryOpen') return { tab: 'pageHistory', v: '', id: String(d.key) };
+  // Direction B's screens (QA3-8: a Ctrl+click on them moved this window, or did nothing). Office → Pipeline: a stage is the
+  // Pipeline on it, a challan under it the challan; a client owing, and Money's other doors, Money on that view and client.
+  if (act === 'invPipeStage') return pipeStageKey(d.pipeStage) ? { tab: 'pagePipeline', v: d.pipeStage, id: '' } : null;
+  if (act === 'invPipeChallan') return srchRecordLoc('challan', String(d.id));
+  if (act === 'invFinGo') return { tab: 'pageFinance', v: d.tab || 'overview', id: d.tab === 'receipts' && d.client ? String(d.client) : '' };
+  // Floor → Day: a line's card is Production → Lines, the tiles and the staffing and EXTRA words their own screens. The line
+  // and the day are not in those screens' addresses: the new window opens on their own line and day.
+  if (act === 'invFlrLine' || act === 'invFlrPlated') return { tab: 'pageProduction', v: 'lines', id: '' };
+  if (act === 'invFlrStaff') return { tab: 'pageStaff', v: 'day', id: '' };
+  if (act === 'invFlrAreas') return { tab: 'pageStaff', v: 'areas', id: '' };
+  if (act === 'invFlrPower') return { tab: 'pagePower', v: 'cuts', id: '' };
   return null;
 }
 /* Caught on the window before anything else sees the click, so the place opens there and not here as well (and nav.js

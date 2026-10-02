@@ -10,8 +10,8 @@
    The views are pageHome's own `v` (?tab=pageHome&v=pulse). The shell (workspace.js) draws their tabs once homeViews
    says they exist, and nav.js reads and applies the view. Nothing here is stored and nothing is worked out twice: each
    figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine, powerCuts, todoRanked,
-   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): a task whose move lands on a refused
-   page is left out, and Pulse's money is the finance permission's. */
+   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
+   a task it may not see (todo.js todoSees), and Pulse's money is the finance permission's. */
 
 var TDY_VIEWS = [{ v: 'needs', label: 'Needs you' }, { v: 'pulse', label: 'Pulse' }];
 var TDY_SHOW = 10;            // a group of tasks shows its first ten; the rest one tap away (uiMoreHtml)
@@ -28,6 +28,10 @@ function tdySetView(v) { _tdyView = v === 'pulse' ? 'pulse' : 'needs'; }
 /* What a role may see on Today. With the guard off, everything (guard.js answers yes). */
 function tdySees(tabId) { return typeof grdSees !== 'function' || grdSees(tabId); }
 function tdySeesMoney() { return typeof grdSeesMoney !== 'function' || grdSeesMoney(); }
+/* The screen each input fills, which a role must open for the input to be its own (the QA audit, QA2-5: an Office user saw
+   all five floor inputs toned Late, and every tap was refused). */
+var TDY_INPUT_PAGE = { 'roll-in': 'pageStaff', 'roll-out': 'pageStaff', pickling: 'pageProduction', production: 'pageProduction', stock: 'pageStock' };
+function tdyInputsSeen() { return TDY_INPUTS.filter(function(def) { return tdySees(TDY_INPUT_PAGE[def.k] || 'pageHome'); }); }
 
 /* ---------- The day's inputs ----------
    The five things the floor sends in a day, in the order they arrive. `usual` is the shop's own time, used until four
@@ -149,7 +153,10 @@ function tdyInput(def, day) {
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 
 function tdyInputsHtml(day) {
-  var rows = TDY_INPUTS.map(function(def) { return tdyInput(def, day); });
+  var defs = tdyInputsSeen();
+  // A role that takes none of the floor's inputs (the office) has no card of them.
+  if (!defs.length) return '';
+  var rows = defs.map(function(def) { return tdyInput(def, day); });
   var n = rows.filter(function(r) { return r.state === 'in'; }).length;
   var h = '<div class="inv-panel inv-panel-flush" data-card="inputs"><div class="inv-panel-head"><span class="inv-panel-title">The day&rsquo;s inputs ' +
     '<span class="inv-panel-count" data-tdy-in>' + n + ' of ' + rows.length + ' in</span></span>' +
@@ -237,10 +244,11 @@ function tdyTaskWs(t) {
   var tab = tdyTaskPage(t);
   return tab && typeof wsLabelOf === 'function' ? wsLabelOf(tab) : '';
 }
-/* The task's one-tap move: its first move (advice.js), else its own button. */
+/* The task's one-tap move: its first move (advice.js) the role may follow (todo.js todoGoSees: its page, Pay's wages,
+   Settings), else its own button. */
 function tdyTaskMoveHtml(t) {
   var mv = typeof advTaskMoves === 'function' ? advTaskMoves(t) : [];
-  var m = mv.filter(function(x) { return x.href || (x.go && tdySees(tdyTaskPage({ go: x.go }) || 'pageHome')); })[0];
+  var m = mv.filter(function(x) { return x.href || (x.go && todoGoSees(x.go)); })[0];
   if (m) {
     _advMoves[m.key] = m;
     return m.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(m.href) + '" data-adv-call>' + escHtml(m.hrefLabel || 'Call') + '</a>'
@@ -256,9 +264,10 @@ function tdyAppRowHtml(t) {
     '<span class="inv-row-meta inv-row-wrap">' + escHtml([t.sub, ws].filter(Boolean).join(' · ')) + '</span></button>' +
     '<span class="inv-row-end inv-row-actions">' + tdyTaskMoveHtml(t) + '</span></div>';
 }
-function tdyTasks() {
-  return todoRanked().filter(function(r) { return !r.app || !tdyTaskPage(r.app) || tdySees(tdyTaskPage(r.app)); });
-}
+/* The To-do's own list for the role signed in (todo.js todoRanked → todoSees, todoMineSees): a task whose move lands on a
+   page the role does not open, on Pay without the wages or on Settings without the settings, or whose figures are money
+   or wages it may not read, is not here. One list for Needs you, the To-do and the bar's counts (workspace.js). */
+function tdyTasks() { return todoRanked(); }
 function tdyTasksHtml() {
   var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
@@ -279,6 +288,8 @@ function tdyTasksHtml() {
 function renderNeeds() {
   var el = document.getElementById('homeNeeds');
   if (!el) return;
+  // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   var day = localDateStr();
   var h = '<div class="inv-panels">' + tdyInputsHtml(day);
   if (_isDesktop && tdySees('pageFloor')) h += tdyFloorHtml(day);

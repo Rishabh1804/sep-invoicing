@@ -249,6 +249,8 @@ function prodLinesHtml() {
         return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
+  // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
+  if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
   var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +

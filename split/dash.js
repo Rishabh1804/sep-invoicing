@@ -93,8 +93,10 @@ function staffOverviewHtml() {
     { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded' }) +
     '<div class="inv-note">Worker-days present (a half day is half) over the active roster’s marks typed that week; an unmarked hand is not counted absent. A week nobody typed is a gap, not a zero.</div>');
 
-  var labs = _dashLabMonths(insMonthsBack(6)), lm = dashLabourByMonth(labs), model = labourCfg().modelPerKg || 3.55;
-  h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
+  // Labour ₹/kg and the payroll are wages (the guard's "wages" setting): a role that may not see them has neither panel.
+  var wages = attSeesWages();
+  var labs = wages ? _dashLabMonths(insMonthsBack(6)) : null, lm = wages ? dashLabourByMonth(labs) : [], model = labourCfg().modelPerKg || 3.55;
+  if (wages) h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }) },
     { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), tone: 2 },
     { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
@@ -108,8 +110,8 @@ function staffOverviewHtml() {
   ], { unit: 'h', ariaLabel: 'OT and EXTRA hours by area', emptyText: 'No OT or EXTRA booked in the last four weeks' }) +
     '<div class="inv-note">From ' + escHtml(formatDate(from)) + ': overtime hours on each mark where the worker stood that day, and the EXTRA booked to the area.</div>');
 
-  var pb = dashPayrollVsBank(labs);
-  h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
+  var pb = wages ? dashPayrollVsBank(labs) : null;
+  if (wages) h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
     { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) }
   ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +

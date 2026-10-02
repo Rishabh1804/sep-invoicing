@@ -278,6 +278,14 @@ function relayMatchName(words, idx, loose) {
   return null;
 }
 
+/* The minute a WhatsApp header says the message was sent ("02/10/26, 8:50 am - …" is 530), or null: prodSplit's reading.
+   The header line itself is not kept with a roll, so this is how the roll remembers when it came (Today reads it). */
+var RELAY_WA_AT_RE = /^\s*\[?\d{1,2}\/\d{1,2}\/\d{2,4},?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp]\.?[Mm]\.?)?/;
+function relaySentAt(line) {
+  var t = String(line || '').match(RELAY_WA_AT_RE);
+  if (!t || +t[1] > 23 || +t[2] > 59) return null;
+  return t[3] ? (+t[1] % 12 + (/p/i.test(t[3]) ? 12 : 0)) * 60 + +t[2] : +t[1] * 60 + +t[2];
+}
 /* Split a paste into WhatsApp messages. A paste of the roll alone (no header)
    is one message. `wa` is the message's WhatsApp line before its text ("[1/10/26, 6:02 pm] Shyam: "), '' when it was
    pasted without one: a part of it handed to another screen goes with who sent it and when (relayStockParts). */
@@ -290,7 +298,7 @@ function relaySplit(text) {
       // Copied timestamps follow the phone's locale: day-first unless impossible,
       // and the bracketed iOS export is month-first.
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
-      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), wa: line.slice(0, line.length - wa[5].length), lines: [wa[5]] };
+      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), sentAt: relaySentAt(line), wa: line.slice(0, line.length - wa[5].length), lines: [wa[5]] };
       msgs.push(cur);
       return;
     }
@@ -300,7 +308,7 @@ function relaySplit(text) {
     // camical use"), and pasted after a roll it is a message of its own too.
     var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*((in|out)\s*-*\s*time|c[ae]mical|chemical)/i.test(line);
     if (!cur || (rollHead && cur.lines.some(function(l) { return l.trim(); }))) {
-      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, wa: '', lines: [] };
+      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, sentAt: null, wa: '', lines: [] };
       msgs.push(cur);
     }
     cur.lines.push(line);
@@ -961,10 +969,13 @@ function relayPlan(rv) {
     // The day's rows, slot by slot (relayExtraSlot). A roll pasted again after an edit REPLACES what the relay wrote for
     // each slot it covers, rather than adding its EXTRA beside the old: a row it brings again unchanged is left as it is,
     // and one it no longer carries is taken off (and said so). A slot holding a row entered or corrected by hand is
-    // the owner's, like a mark entered by hand: kept, and the roll's rows for it are not added.
+    // the owner's, like a mark entered by hand: kept, and the roll's rows for it are not added. A block the app made for
+    // a hand's slot pick (staff.js, attSlotMade) is nobody's row: it never holds a slot, is never replaced nor matched,
+    // and on Save the picks are put on the roll's blocks (attSlotsApply). It held the slot, and the roll's evening block
+    // and its EXTRA were left out (the QA of 2 Oct 2026).
     var slots = {}, replaced = [];
     extras.forEach(function(x) { var k = relayExtraSlot(x.row); (slots[k] || (slots[k] = { nw: [], od: [] })).nw.push(x); });
-    ((rec && rec.extra) || []).forEach(function(e) { var sl = slots[relayExtraSlot(e)]; if (sl) sl.od.push(e); });
+    ((rec && rec.extra) || []).forEach(function(e) { if (e && e.slotMade) return; var sl = slots[relayExtraSlot(e)]; if (sl) sl.od.push(e); });
     Object.keys(slots).forEach(function(k) {
       var sl = slots[k];
       if (sl.od.some(function(e) { return e.src !== 'relay'; })) { sl.nw.forEach(function(x) { x.kept = true; }); return; }
@@ -1254,6 +1265,9 @@ function relaySave() {
     });
     if (d.replaced.length && !rv.reread) rec.extra = rec.extra.filter(function(e) { return d.replaced.indexOf(e) < 0; });
     d.extras.forEach(function(x) { if (!x.dup && !x.kept) { rec.extra.push(x.row); extras++; } });
+    // The hands' own slot picks stand over the roll's crews: put on the roll's block of their slot and area, or kept on
+    // the block made for them. Crew the roll named for a hand with no pick is as the roll wrote it.
+    attSlotsApply(rec);
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));
@@ -1267,8 +1281,10 @@ function relaySave() {
     var ds = m.parsed ? Object.keys(m.parsed.days).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }) : [];
     if (m.dup || m.repeat || !ds.length) return;
     // The days it saved (a roll can carry a second day's block): a day deleted by hand takes its rolls with it (attDeleteDay).
+    // When WhatsApp sent it (`sentAt`, minutes on `sentOn`): the text is the roll's body alone, so without it the roll read
+    // as arriving the minute it was pasted (Today, tdyArrival).
     relayPastes().push({ id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
-      sentBy: m.sentBy || '', sentOn: m.sentOn || '', kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
+      sentBy: m.sentBy || '', sentOn: m.sentOn || '', sentAt: m.sentAt != null ? m.sentAt : null, kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
   });
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
@@ -1313,7 +1329,7 @@ async function relayRereadOpen(iso) {
       'what was entered or corrected by hand is kept, and the day as it is now goes to the log.' });
   if (!ok) return;
   _relay = { text: rolls.map(function(p) { return p.text; }).join('\n\n'), reread: iso, choices: {}, stock: 0, other: 0, prod: 0,
-    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, text: p.text }; }) };
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text }; }) };
   _relayView = 'review';
   _relayShowLines = false;
   _attView = 'paste';

@@ -45,8 +45,10 @@ var TDY_INPUTS = [
 function tdyMinOfDay(ts) { var d = new Date(ts); return d.getHours() * 60 + d.getMinutes(); }
 function tdyNowMin() { return tdyMinOfDay(Date.now()); }
 /* When a pasted message arrived on its day: the minute WhatsApp says it was sent (the header's), else the minute it was
-   pasted when that was the same day. Null when neither says (a message pasted days later with no header). */
-function tdyArrival(text, at, day) {
+   pasted when that was the same day. Null when neither says (a message pasted days later with no header). A saved roll
+   keeps only its body, and its header's minute beside it (`sent`: relay.js's sentOn and sentAt). */
+function tdyArrival(text, at, day, sent) {
+  if (sent && sent.sentAt != null && sent.sentOn === day) return sent.sentAt;
   var m = null;
   try { m = prodSplit(text || '').filter(function(x) { return x.sentOn === day && x.sentAt != null; })[0] || null; } catch (e) { m = null; }
   if (m) return m.sentAt;
@@ -75,7 +77,7 @@ function tdyUsual(k, day) {
   days.forEach(function(d) {
     var m = null;
     if (k === 'roll-in' || k === 'roll-out') {
-      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d); if (a != null && (m == null || a < m)) m = a; });
+      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d, p); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'pickling') {
       prodDayLoads(d).forEach(function(e) { var a = relayParseHhmm(e.time); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'stock') {
@@ -101,7 +103,7 @@ function tdyInput(def, day) {
   if (def.k === 'roll-in' || def.k === 'roll-out') {
     var rolls = tdyRolls(def.k === 'roll-in' ? 'in' : 'out', day);
     if (rolls.length) {
-      var a = rolls.map(function(p) { return tdyArrival(p.text, p.at, day); }).filter(function(x) { return x != null; });
+      var a = rolls.map(function(p) { return tdyArrival(p.text, p.at, day, p); }).filter(function(x) { return x != null; });
       o.state = 'in';
       o.text = [a.length ? clock(Math.min.apply(null, a)) : '', att.marked && def.k === 'roll-in' ? (att.p + att.half) + ' on site, ' + att.absent.length + ' absent' : ''].filter(Boolean).join(' · ') || 'In';
     } else if (def.k === 'roll-in' && att.marked) {

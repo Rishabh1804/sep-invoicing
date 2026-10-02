@@ -602,14 +602,15 @@ function onDocChange(e) {
     renderAttendance();
     return;
   }
+  // A field typed in (a time, an hour count) is saved and the day drawn AROUND it (attRedrawAround, staff.js): a time is
+  // complete, and fires this, while it is still being typed, and a number fires it on the blur a tap causes; drawn whole,
+  // the field went from under the next key and the button from under the tap.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-from')) {
-    setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'from', e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'from', e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-to')) {
-    setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-slot')) {
@@ -618,38 +619,34 @@ function onDocChange(e) {
     return;
   }
   if (e.target.hasAttribute && (e.target.hasAttribute('data-att-in') || e.target.hasAttribute('data-att-out'))) {
-    setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
-    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttOt(parseInt(e.target.dataset.id, 10), e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
-    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttHours(parseInt(e.target.dataset.id, 10), e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
     setAreaTarget(e.target.dataset.area, e.target.value);
-    renderAttendance();
+    attRedrawAround(e.target);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
-    renderAttendance();
+    var needOk = attFloorOk();
+    if (needOk) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    attFieldDone(e.target, needOk);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
-    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
-    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value));
     return;
   }
   // Client performance: which account is under the lens
@@ -737,12 +734,13 @@ document.addEventListener('input', function(e) {
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
+  // A role that may not enter attendance is told so on the first key, and the field is put back as stored.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
-    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttOt(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
-    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttHours(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
@@ -750,15 +748,15 @@ document.addEventListener('input', function(e) {
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    if (attFloorOk()) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value); else renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
-    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
-    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   // History search. Debounced so a long log is not rebuilt per keystroke, and

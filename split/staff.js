@@ -196,7 +196,7 @@ function attDatesInRange(fromIso, toIso) {
 function attDeleteRecord(key, reason, how) {
   var rec = (S.attendance || {})[key];
   if (!rec) return null;
-  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var marks = Object.keys(rec.marks || {}).length, extra = attExtraRows(rec).length;
   var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: key,
     iso: /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null, reason: reason, how: how || 'by hand', at: Date.now(),
     marks: marks, extra: extra, day: JSON.parse(JSON.stringify(rec)) };
@@ -208,8 +208,9 @@ function attDeleteRecord(key, reason, how) {
 async function attDeleteDay(iso) {
   var rec = (S.attendance || {})[iso];
   if (!rec) return;
+  if (!attFloorOk()) return;   // a floor record: a role that may not enter one is told so, never asked
   if (!grdOk('voids') && !(await guardAsk('voids', 'delete an attendance day'))) return;   // P1 (guard.js)
-  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var marks = Object.keys(rec.marks || {}).length, extra = attExtraRows(rec).length;
   // The rolls the day was saved from (relayPastes) go into the log with it: left on record, the same roll pasted again
   // was refused as already saved though nothing it saved was left (the QA of 30 Sep 2026).
   var rolls = function() { return (S.relayPastes || []).filter(function(p) { return p && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); }); };
@@ -231,6 +232,9 @@ async function attDeleteDay(iso) {
   renderAttendance();
   showToast(formatDate(iso) + ' deleted; the reason is in History');
 }
+
+/* A day's EXTRA rows: every row but a block this app made for a hand's slot pick, which books nothing (attSlotMade). */
+function attExtraRows(rec) { return ((rec && rec.extra) || []).filter(function(x) { return !(x && x.slotMade); }); }
 
 function attDay(iso, create) {
   if (!S.attendance) S.attendance = {};
@@ -376,6 +380,11 @@ function _attPasteBar() {
 
 var _attDateSeen = null;   // the day the week last followed
 function renderAttendance() {
+  _attRenderPage();
+  attEditRefresh();
+}
+/* The page itself (the tabs and the open view); the hand's dialog over it is left as it is. */
+function _attRenderPage() {
   if (!_attDate) _attDate = localDateStr();
   // Pay is refused to an ID that does not see wages (guard.js), by a tab, the sidebar or an address.
   if (_attView === 'pay' && typeof grdSeesWages === 'function' && !grdSeesWages()) { _attView = 'overview'; showToast('Your ID doesn’t open Pay', 'warning'); }
@@ -400,25 +409,113 @@ function renderAttendance() {
 
   var area = document.getElementById('attContent');
   if (!area) return;
+  // A list-and-pane view (Roster on the desktop) keeps where its list and pane were scrolled (paneScrollKeep, state.js).
+  paneScrollKeep(function() { area.innerHTML = _attViewHtml(); });
+  _attRestoreFocus(focusSel);
+}
+/* The open view's drawing. The paste box takes every message the floor sends, not only rolls, so it opens without a
+   roster (a roll asks). */
+function _attViewHtml() {
+  if ((S.staff || []).length === 0 && _attView !== 'roster' && _attView !== 'paste') return _attEmptyRoster();
+  if (_attView === 'roster') return _attRosterView();
+  if (_attView === 'paste') return relayRenderView();
+  if (_attView === 'areas') return _attAreasView();
+  if (_attView === 'pay') return _attPayView();
+  if (_attView === 'overview') return _attPasteBar() + staffOverviewHtml();
+  if (_attView === 'week') return _attWeekView();
+  return _attDayView();
+}
 
-  // The paste box takes every message the floor sends, not only rolls, so it opens without a roster (a roll asks).
-  if ((S.staff || []).length === 0 && _attView !== 'roster' && _attView !== 'paste') {
-    area.innerHTML = _attEmptyRoster();
-    _attRestoreFocus(focusSel);
+/* ===== A CHANGE TYPED IN A FIELD IS DRAWN AROUND THE FIELD (the QA of 2 Oct 2026) =====
+   A time field fires its change while the hand is still typing it: Chrome's In is complete at "8:30 AM", and the redraw
+   then replaced the field, focus came back on its hour, and Tab and "5:30 PM" went into the In again (5:00 AM stored, no
+   out). A number field fires its change on the blur a tap causes, and the redraw took the button from under the tap (OT
+   typed in a hand's day, then Done: the dialog stayed open). So a change typed in a field is saved, and the view is drawn
+   again AROUND the field: the field and every element holding it stay as they are (its focus, the part of a time being
+   typed, a table's sideways scroll) and everything else is its fresh drawing, so each figure the change moves (the row's
+   hours and OT, the dialog's note, the tiles, the day's cost, a block's length and check) is current at once. A tap on its
+   way lands first: the drawing waits for its click. A Tab's blur lands first too, and the field it lands in is the one
+   kept. Only a field being typed in is kept: a focused button is drawn afresh and keepScroll puts the focus back on it. */
+function attRedrawAround(el, landed) {
+  if (_attAfterTap(function() { attRedrawAround(el, landed); })) return;
+  // A number's change fires on the blur that moves the focus on: let it land, then keep the field it landed in.
+  if (!landed && el && el.isConnected && document.activeElement !== el) {
+    setTimeout(function() { attRedrawAround(el, true); }, 0);
     return;
   }
-
-  if (_attView === 'roster') paneScrollKeep(function() { area.innerHTML = _attRosterView(); });
-  else if (_attView === 'paste') area.innerHTML = relayRenderView();
-  else if (_attView === 'areas') area.innerHTML = _attAreasView();
-  else if (_attView === 'pay') area.innerHTML = _attPayView();
-  else if (_attView === 'overview') area.innerHTML = _attPasteBar() + staffOverviewHtml();
-  else if (_attView === 'week') area.innerHTML = _attWeekView();
-  else area.innerHTML = _attDayView();
-
-  _attRestoreFocus(focusSel);
-  attEditRefresh();
+  keepScroll(function() {
+    var keep = document.activeElement;
+    if (!keep || !/^(INPUT|TEXTAREA)$/.test(keep.tagName)) keep = null;
+    var scrim = keep && keep.closest('.inv-scrim-dialog');
+    if (scrim && scrim.querySelector('[data-att-edit]')) {
+      // The hand's dialog: the page behind it is drawn whole (the scrim stops any tap reaching it), the dialog around the field.
+      _attRenderPage();
+      if (!attSwapAround(scrim, attEditHtml(), keep)) attEditRefresh();
+      return;
+    }
+    var area = document.getElementById('attContent');
+    if (keep && area && area.contains(keep) && attSwapAround(area, _attViewHtml(), keep)) return;
+    renderAttendance();
+  });
 }
+/* Draws `root` again from `html` around `keep`, one element inside it: `keep` and the elements holding it stay (the same
+   nodes), every other node is replaced by its fresh twin. The twin is found by `keep`'s own id or data- attributes and must
+   be the only one, at the same depth; otherwise nothing is drawn and false is returned. */
+function attSwapAround(root, html, keep) {
+  var sel = _keepKey(keep);
+  if (!sel || !root || keep === root || !root.contains(keep)) return false;
+  var tpl = document.createElement('template');
+  tpl.innerHTML = html;
+  var twins;
+  try { twins = tpl.content.querySelectorAll(sel); } catch (e) { return false; }
+  if (twins.length !== 1) return false;
+  var lives = [keep], fresh = [twins[0]];
+  for (;;) {
+    var lp = lives[lives.length - 1].parentNode, fp = fresh[fresh.length - 1].parentNode;
+    if (!lp || !fp) return false;
+    lives.push(lp); fresh.push(fp);
+    if (lp === root || fp === tpl.content) break;
+  }
+  if (lives[lives.length - 1] !== root || fresh[fresh.length - 1] !== tpl.content) return false;
+  // From the outside in: each kept element's brothers become its twin's, in their order.
+  for (var i = lives.length - 2; i >= 0; i--) {
+    var lk = lives[i], fk = fresh[i], lpar = lives[i + 1], fpar = fresh[i + 1];
+    while (lk.previousSibling) lpar.removeChild(lk.previousSibling);
+    while (lk.nextSibling) lpar.removeChild(lk.nextSibling);
+    while (fpar.firstChild && fpar.firstChild !== fk) lpar.insertBefore(fpar.firstChild, lk);
+    while (fk.nextSibling) lpar.appendChild(fk.nextSibling);
+  }
+  return true;
+}
+/* A tap on its way: from its pointerdown until its click has run (or a moment has passed with none). */
+var _attTapAt = 0, _attTapWait = [];
+function _attTapRun() {
+  var w = _attTapWait;
+  _attTapWait = []; _attTapAt = 0;
+  w.forEach(function(fn) { try { fn(); } catch (e) { console.error(e); } });
+}
+document.addEventListener('pointerdown', function() { _attTapAt = Date.now(); }, true);
+document.addEventListener('click', function() { if (_attTapAt || _attTapWait.length) setTimeout(_attTapRun, 0); }, true);
+document.addEventListener('pointercancel', function() { if (_attTapAt || _attTapWait.length) setTimeout(_attTapRun, 0); }, true);
+/* Runs `fn` once the tap on its way has landed; false (and nothing kept) when no tap is. */
+function _attAfterTap(fn) {
+  if (!_attTapAt || Date.now() - _attTapAt > 1000) { _attTapAt = 0; return false; }
+  _attTapWait.push(fn);
+  setTimeout(_attTapRun, 1000);
+  return true;
+}
+
+/* Staff → Day is a floor entry (the guard, guard.js): a role that may not make one is told so, never asked a PIN, and
+   nothing is written. The owner, and a guard that is off, pass. One word at a time: a refusal already on screen is not
+   said again for the next key. */
+function attFloorOk() {
+  if (typeof grdOk !== 'function' || grdOk('floor')) return true;
+  if (!document.querySelector('[data-ui-ask]')) grdGate('floor', 'enter attendance');
+  return false;
+}
+/* Wages on the Staff page are the guard's "wages" setting: a role that may not see them sees hours and heads, never a ₹
+   figure (a day's cost with one hand per tier gives that hand's rate away). */
+function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWages(); }
 
 function _attEmptyRoster() {
   return '<div class="inv-panel"><div class="inv-empty">' +
@@ -495,7 +592,7 @@ function _attDayView() {
     html += attSheetEntryHtml(iso, rec, roster);
     html += _attNeedCard(iso, rec);
     html += _attExtraCard(iso, rec);
-    html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
+    html += _attDayCostCard(iso);
     return html;
   }
   var byArea = {}, absentees = [];
@@ -531,8 +628,13 @@ function _attDayView() {
 
   html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
-  html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
+  html += _attDayCostCard(iso);
   return html;
+}
+
+/* The day's cost, folded; none for a role that may not see wages (a day with one hand per tier gives each rate away). */
+function _attDayCostCard(iso) {
+  return attSeesWages() ? uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false) : '';
 }
 
 /* One hand on the board: the name (opens the area, hours and OT), what is recorded, and P / H / A. */
@@ -610,15 +712,19 @@ function attEditHtml() {
       ? escHtml(attTimesText(m) + ': ' + m.hours + ' h' + (hourly ? '' : ', OT ' + (m.ot || 0) + ' h') + ', worked out from the times. A figure typed below the times wins until a time is changed.')
       : 'Type the in and out from the sheet, and the hours and OT are worked out as a roll works them out. Left blank, the shift (8:30 AM to 5:00 PM) is assumed.') + '</div>'
       : '<div class="inv-note">' + (st === 'A' ? 'Absent: no area or hours.' : 'Mark the day first.') + '</div>') + '</div>' +
-    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose">Done</button></div></div>';
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invAttEditClose" data-att-done>Done</button></div></div>';
 }
 function attEditOpen(id) { _attEditId = id; dialogOpen(attEditHtml()); }
-/* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). */
+/* The dialog follows the day: after a change it is drawn again in place (the board behind it is redrawn too). Its own
+   scrim is drawn, never merely the top one: a word over it (a refusal, a question) is not written over. */
 function attEditRefresh() {
-  if (!_attEditId || !document.querySelector('[data-att-edit]')) return;
-  var focus = document.activeElement, k = focus && focus.dataset ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : focus.hasAttribute('data-att-in') ? '[data-att-in]' : focus.hasAttribute('data-att-out') ? '[data-att-out]' : null) : null;
-  dialogOpen(attEditHtml(), { replace: true });
-  if (k) { var el = document.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
+  var dlg = _attEditId ? document.querySelector('[data-att-edit]') : null, scrim = dlg && dlg.closest('.inv-scrim-dialog');
+  if (!scrim) return;
+  var html = attEditHtml();
+  if (!html) return;
+  var focus = document.activeElement, k = focus && focus.dataset && scrim.contains(focus) ? (focus.hasAttribute('data-att-hours') ? '[data-att-hours]' : focus.hasAttribute('data-att-ot') ? '[data-att-ot]' : focus.hasAttribute('data-att-in') ? '[data-att-in]' : focus.hasAttribute('data-att-out') ? '[data-att-out]' : null) : null;
+  scrim.innerHTML = html;
+  if (k) { var el = scrim.querySelector('[data-att-edit] ' + k); if (el) try { el.focus(); } catch (x) { /* a convenience */ } }
 }
 
 /* ===== EXTRA HOURS =====
@@ -768,22 +874,25 @@ function _attNeedCard(iso, rec) {
 
 /* A block's own number (blockNorm reads it first); blank goes back to the areas' complement. */
 function setAttBlockNeed(idx, v) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var n = String(v).trim() === '' ? NaN : Math.floor(Number(v));
   if (!isNaN(n) && n >= 0) rec.extra[idx].need = n; else delete rec.extra[idx].need;
   _attHandEdit(rec.extra[idx]);
   saveState();
+  return true;
 }
 
 function _attExtraCard(iso, rec) {
-  var rows = rec ? rec.extra : [];
+  // A block made for a hand's slot pick books nothing and is no EXTRA row: it is the pick, shown on the hand's line.
+  var all = rec ? rec.extra : [], rows = attExtraRows(rec);
   var html = '<div class="inv-panel inv-panel-flush" id="attExtra"><div class="inv-panel-head">' +
     '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
     '<div class="inv-panel-body inv-note">Hours booked to an area block rather than to a named worker &mdash; ' +
-    'the <span class="inv-id">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
-    '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill. ' +
+    'the <span class="inv-id">EXTRA n HOURS</span> lines on the daily sheet. ' +
+    (attSeesWages() ? 'Priced at the contract tier (' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted' : 'Counted') + ' in the bill. ' +
     'Both kinds are checked against the shortfall in the area that ran; they differ only in the ' +
     '<strong>multiplier</strong>. A general shift credits a missing hand a full eight hours. An ' +
     '<strong>OT block</strong> credits it the block&rsquo;s own length, so it needs its in and out ' +
@@ -792,7 +901,9 @@ function _attExtraCard(iso, rec) {
   if (rows.length === 0) {
     html += '<div class="inv-empty">None booked for this day</div>';
   } else {
-    rows.forEach(function(x, i) {
+    // data-idx is the row's place in the day's rows, the made blocks included: the setters read it.
+    all.forEach(function(x, i) {
+      if (attSlotMade(x)) return;
       var kind = x.kind || 'coverage';
       html += '<div class="inv-row inv-row-top inv-row-auto" data-extra-row="' + i + '"><div class="inv-row-main">' +
         '<div class="inv-toolbar inv-toolbar-flush">' +
@@ -887,7 +998,8 @@ function _attWeekView() {
       return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
 
-  html += renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost');
+  // A role that may not see wages sees the week's marks, never its cost (one hand per tier gives a rate away).
+  if (attSeesWages()) html += renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost');
   return html;
 }
 
@@ -1069,6 +1181,7 @@ function attSetDate(iso) {
 /* Writes one mark. `st` of '' clears the row back to unmarked, and a cleared
    row takes its OT with it — hours nobody was present for are not hours. */
 function attSetState(iso, staffId, st) {
+  if (!attFloorOk()) return false;
   var w = staffById(staffId);
   if (!w) return;
   var rec = attDay(iso, true);
@@ -1076,6 +1189,7 @@ function attSetState(iso, staffId, st) {
     delete rec.marks[staffId];
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
+    var was = m.st;
     // An absence carries no place (a roll writes it Flex): back from absent, a hand stands at their own area.
     if (m.st === 'A' && st !== 'A' && (!m.area || m.area === 'flex')) m.area = w.area || 'flex';
     m.st = st;
@@ -1083,10 +1197,13 @@ function attSetState(iso, staffId, st) {
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
     if (st === 'A') { m.ot = 0; m.hours = 0; delete m.inMin; delete m.outMin; }
+    // Present and half day with times typed: a half day is four hours from its in, so the hours and OT are worked out again.
+    else if ((was === 'P' || was === 'H') && was !== st && (m.inMin != null || m.outMin != null)) attTimesApply(m, w);
     rec.marks[staffId] = m;
   }
   _attPrune(iso);
   saveState();
+  return true;
 }
 
 function setAttState(staffId, st) {
@@ -1107,31 +1224,74 @@ function cycleAttState(staffId, iso) {
 }
 
 function setAttOt(staffId, hours) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId);
   if (!m) return;                       // OT without a presence mark is not a fact
   m.ot = Math.max(0, Number(hours) || 0);
   _attHandEdit(m);
   saveState();
+  return true;
 }
 
 /* Hours worked, for the hourly pool. Same guard as OT: hours without a
    presence mark are not a fact about the day. */
 function setAttHours(staffId, hours) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId);
   if (!m) return;
   m.hours = Math.max(0, Number(hours) || 0);
   _attHandEdit(m);
   saveState();
+  return true;
 }
+
+/* A field's change, written: drawn around the field when it was saved, the day drawn again (the field put back as stored)
+   when it was not (refused, or nothing to write it to). */
+function attFieldDone(el, saved) { if (saved) attRedrawAround(el); else renderAttendance(); }
 
 /* The shifts a hand works in a day (owner, 1 Oct 2026: "there is also no way to record which area the OT workers actually
    worked on, we get to select one option for the entire day. Every worker can have states, like morning OT, General, Evening
    OT, Late night OT, etc."). The General shift is the mark's own area. Each OT slot is the crew of that slot's block on the
    day (the EXTRA rows' kind 'block': areas, crew, from, to), the one record Areas, Power and Production's crews already read:
    putting a hand on Evening OT · VAT A2 adds them to the evening block covering VAT A2, made at the slot's usual times
-   (hours 0, no EXTRA booked) when there is none. A slot is read off a block's start: before 8:30 AM the morning, from 5 PM
-   the evening, from 8 PM (or past midnight) the night. */
+   (hours 0, no EXTRA booked, `slotMade`) when there is none. A slot is read off a block's start: before 8:30 AM the morning,
+   from 5 PM the evening, from 8 PM (or past midnight) the night.
+
+   The hand's own pick is a fact of the DAY, kept apart from the marks and the EXTRA rows (the QA of 2 Oct 2026): it was only
+   a crew, so a block made for it read as one entered by hand and a roll's evening block was "kept, not added" beside it
+   (its EXTRA lost), and a pick on a roll's block made that block the owner's, so reading the rolls again left the slot
+   without the roll's other rows. `rec.slotHand[staffId][slot]` is the area picked, or '' when taken off the slot by hand.
+   attSlotsApply puts the crews right from the picks, after a pick and after a roll is saved or read again; a pick never
+   makes a roll's row the owner's, and crew the roll named for a hand with no pick is left as the roll wrote it. */
 var ATT_SLOTS = [['morning', 'Morning OT', '06:00', '08:30'], ['evening', 'Evening OT', '17:00', '20:00'], ['night', 'Night', '20:00', '06:00']];
+/* A block this app made for a pick: it books nothing and is nobody's EXTRA row (not on the EXTRA card, the sheets, History
+   or the Areas check); it is only where the picked hands stood. */
+function attSlotMade(x) { return !!(x && x.slotMade); }
+function attSlotsApply(rec) {
+  if (!rec) return;
+  var picks = rec.slotHand || {};
+  if (!Array.isArray(rec.extra)) rec.extra = [];
+  Object.keys(picks).forEach(function(sid) {
+    var w = staffById(sid), id = w ? w.id : sid, mine = picks[sid] || {};   // the crew holds the roster's own id
+    ATT_SLOTS.forEach(function(z) {
+      if (!Object.prototype.hasOwnProperty.call(mine, z[0])) return;
+      var areaId = mine[z[0]];
+      rec.extra.forEach(function(x) {
+        if (attBlockSlot(x) !== z[0] || !Array.isArray(x.crew)) return;
+        for (var i = _attCrewAt(x, id); i >= 0; i = _attCrewAt(x, id)) x.crew.splice(i, 1);
+      });
+      if (!areaId) return;
+      // The block of the slot that covers the area: one the roll wrote or one entered by hand, before one made for a pick.
+      var on = rec.extra.filter(function(x) { return attBlockSlot(x) === z[0] && _attBlockAreas(x).indexOf(areaId) >= 0; });
+      var blk = on.find(function(r) { return !attSlotMade(r); }) || on[0];
+      if (!blk) { blk = { kind: 'block', areas: [areaId], area: areaId, crew: [], hours: 0, from: z[2], to: z[3], slotMade: true }; rec.extra.push(blk); }
+      if (!Array.isArray(blk.crew)) blk.crew = [];
+      blk.crew.push(id);
+    });
+  });
+  // A block made for a pick that nobody stands on any more goes.
+  rec.extra = rec.extra.filter(function(x) { return !(attSlotMade(x) && !(x.crew || []).length && !(x.hours > 0)); });
+}
 function attBlockSlot(x) {
   if (!x || x.kind !== 'block') return null;
   var a = relayParseHhmm(x.from);
@@ -1150,35 +1310,48 @@ function _attCrewAt(x, staffId) {
 function attHandSlot(rec, staffId, slot) {
   return (rec && rec.extra || []).find(function(x) { return attBlockSlot(x) === slot && _attCrewAt(x, staffId) >= 0; }) || null;
 }
-/* The area a hand stood in on a slot: the block's first area. */
-function attHandSlotArea(rec, staffId, slot) { var x = attHandSlot(rec, staffId, slot); return x ? (_attBlockAreas(x)[0] || '') : ''; }
+/* The area a hand stood in on a slot, '' on none: the hand's own pick; else the block's own first area (a block over Barrel
+   and VAT A2 is Barrel until VAT A2 is picked); a block that named no line (a roll's, saved Flex) is the hand's general
+   shift's area, never Flex for want of one. Read by the sheet's and the dialog's picks, the board and attHoursSplit. */
+function attHandSlotArea(rec, staffId, slot) {
+  var pick = rec && rec.slotHand ? rec.slotHand[String(staffId)] : null;
+  if (pick && Object.prototype.hasOwnProperty.call(pick, slot)) return pick[slot] || '';
+  var x = attHandSlot(rec, staffId, slot);
+  if (!x) return '';
+  var own = Array.isArray(x.areas) && x.areas.length ? x.areas : (x.area && x.area !== 'flex' ? [x.area] : []);
+  if (own.length) return own[0];
+  var m = rec.marks ? rec.marks[staffId] : null, w = staffById(staffId);
+  return (m && m.area) || (w && w.area) || 'flex';
+}
 function setAttSlotArea(staffId, slot, areaId) {
+  if (!attFloorOk()) return false;
   var w = staffById(staffId), def = ATT_SLOTS.find(function(z) { return z[0] === slot; });
   if (!def || !w) return;
-  var id = w.id;   // the crew holds the roster's own id, number or text
   var rec = attDay(_attDate, true);
-  // Off every block of this slot first; a block this app made for a slot and nobody stands on any more goes.
-  rec.extra = rec.extra.filter(function(x) {
-    if (attBlockSlot(x) !== slot || !Array.isArray(x.crew)) return true;
-    var i = _attCrewAt(x, id);
-    if (i >= 0) { x.crew.splice(i, 1); _attHandEdit(x); }
-    return !(x.slotMade && !x.crew.length && !(x.hours > 0));
-  });
-  if (areaId) {
-    var x = rec.extra.find(function(r) { return attBlockSlot(r) === slot && _attBlockAreas(r).indexOf(areaId) >= 0; });
-    if (!x) { x = { kind: 'block', areas: [areaId], crew: [], hours: 0, from: def[2], to: def[3], slotMade: true }; rec.extra.push(x); }
-    if (!Array.isArray(x.crew)) x.crew = [];
-    x.crew.push(id);
-    _attHandEdit(x);
-  }
+  if (!rec.slotHand || typeof rec.slotHand !== 'object') rec.slotHand = {};
+  var mine = rec.slotHand[String(w.id)] || (rec.slotHand[String(w.id)] = {});
+  mine[slot] = areaId || '';
+  attSlotsApply(rec);
   _attPrune(_attDate);
   saveState();
+  return true;
 }
-/* Where a hand's overtime was worked on a day: the area of their OT block (the latest slot they stood on), else the general
-   shift's area. Labour books the OT cost there (labourForRange). */
-function attOtArea(rec, w, m) {
+/* The area of the latest OT slot a hand stood on that day, '' when they stood on none. */
+function attOtSlotArea(rec, w) {
   for (var i = ATT_SLOTS.length - 1; i >= 0; i--) { var a = attHandSlotArea(rec, w.id, ATT_SLOTS[i][0]); if (a) return a; }
-  return (m && m.area) || w.area || 'flex';
+  return '';
+}
+/* Where a mark's hours were worked: the general shift's area and the OT slot's (the QA of 2 Oct 2026: Labour moved overtime
+   to the slot while the Areas card and Hours by area kept it on the general shift, and an hourly hand's evening hours were
+   never moved). One split, read by all three. A monthly or daily hand's overtime (m.ot) is booked where it was worked; an
+   hourly hand has no overtime of their own, so the hours past eight go to the slot's area when the hand stood on one, and
+   stay with the general shift's when not. → { area, otArea, otHours }: the general shift's area, the OT's, and the hours
+   booked to the OT's area (a monthly or daily hand's OT, an hourly hand's hours past eight on a slot). */
+function attHoursSplit(rec, w, m) {
+  var area = (m && m.area) || (w && w.area) || 'flex';
+  var slot = rec && w ? attOtSlotArea(rec, w) : '';
+  if (w && w.comp === 'hourly') return { area: area, otArea: slot || area, otHours: slot ? Math.max(0, (Number(m && m.hours) || 0) - 8) : 0 };
+  return { area: area, otArea: slot || area, otHours: Number(m && m.ot) || 0 };
 }
 function attSlotSelectHtml(rec, w, slot, live, label) {
   var cur = attHandSlotArea(rec, w.id, slot);
@@ -1190,8 +1363,10 @@ function attSlotSelectHtml(rec, w, slot, live, label) {
 /* In and out typed by hand (owner, 1 Oct 2026: "Attendance has no option to enter time in and time out by hand, so we
    have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in
    his sheet"). A time typed sets the hours and the OT by the rolls' own rule (relayHoursOf); the side not typed is the
-   shift's (8:30 AM to 5:00 PM, the gate's 7 to 7, a half day four hours from its in), and an out not after the in ran
-   past midnight. Both cleared, the hours and OT go back to none. The mark is then the hand's, never rewritten by a roll. */
+   shift's (8:30 AM to 5:00 PM, the gate's 7 to 7, a half day four hours from its in), and an out typed not after the in
+   ran past midnight. An out the shift supplies that is not after the in is no out of this hand's (a night hand typed in at
+   8 PM read 21 hours, OT 13): 0 hours until the out is typed, relayPersonMark's rule. Both cleared, the hours and OT go
+   back to none. The mark is then the hand's, never rewritten by a roll. */
 function attTimeMin(v) {
   var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim());
   return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null;
@@ -1200,14 +1375,16 @@ function attTimesApply(m, w) {
   var gate = (m.area || (w && w.area)) === 'gate';
   if (m.inMin == null && m.outMin == null) { delete m.inMin; delete m.outMin; m.hours = 0; m.ot = 0; return; }
   var a = m.inMin != null ? m.inMin : gate ? RELAY_GATE[0] : RELAY_GENERAL;
-  var b = m.outMin != null ? m.outMin % 1440 : gate ? RELAY_GATE[1] : m.st === 'H' ? a + 240 : RELAY_GENERAL_OUT;
-  if (b <= a) b += 1440;
-  if (m.outMin != null) m.outMin = b;
+  var typed = m.outMin != null;
+  var b = typed ? m.outMin % 1440 : gate ? RELAY_GATE[1] : m.st === 'H' ? a + 240 : RELAY_GENERAL_OUT;
+  if (b <= a) b = typed ? b + 1440 : null;
+  if (typed) m.outMin = b;
   var h = relayHoursOf(a, b, w, gate ? 'gate' : m.area);
   m.hours = h.hours;
   m.ot = h.ot;
 }
 function setAttTime(staffId, which, v) {
+  if (!attFloorOk()) return false;
   var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m || m.st === 'A') return;
   var min = attTimeMin(v);
@@ -1217,6 +1394,7 @@ function setAttTime(staffId, which, v) {
   m.outKnown = m.outMin != null;
   _attHandEdit(m);
   saveState();
+  return true;
 }
 /* "HH:MM" for a time field (a stored out past midnight shows its clock time). */
 function attTimeVal(min) { return min == null ? '' : relayHhmm(min); }
@@ -1227,18 +1405,23 @@ function attTimesText(m) {
 }
 
 function setAttArea(staffId, areaId) {
-  var m = attMark(_attDate, staffId);
+  if (!attFloorOk()) return false;
+  var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m) return;
+  var wasGate = (m.area || (w && w.area)) === 'gate';
   m.area = areaId;
-  // Times typed: the gate's hours are its shift and carry no OT, so moving to or from it is worked out again.
-  if (m.inMin != null || m.outMin != null) attTimesApply(m, staffById(staffId));
+  // Times typed: the gate's hours are its shift and carry no OT, so moving onto or off it is worked out again. Any other
+  // move keeps the hours and OT as they are: a figure typed in the hand's dialog wins until a time is changed.
+  if ((m.inMin != null || m.outMin != null) && wasGate !== ((m.area || (w && w.area)) === 'gate')) attTimesApply(m, w);
   _attHandEdit(m);
   saveState();
+  return true;
 }
 
 /* Marks every unmarked worker present. It never overwrites a mark already
    made — the absences are the part that was typed deliberately. */
 function attAllPresent() {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, true);
   var n = 0;
   staffActive().forEach(function(w) {
@@ -1254,6 +1437,7 @@ function attAllPresent() {
 }
 
 function attAddExtra() {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, true);
   rec.extra.push({ area: 'barrel', hours: 0, kind: 'coverage' });
   saveState();
@@ -1261,9 +1445,12 @@ function attAddExtra() {
 }
 
 function attRemoveExtra(idx) {
+  if (!attFloorOk()) return;
   var rec = attDay(_attDate, false);
   if (!rec) return;
   rec.extra.splice(idx, 1);
+  // A hand picked onto the block taken off still stood on that slot: the pick is kept, on a block made for it.
+  attSlotsApply(rec);
   _attPrune(_attDate);
   saveState();
   renderAttendance();
@@ -1298,15 +1485,18 @@ function relayLearnFromRow(x) {
 function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
 
 function setAttExtraArea(idx, areaId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].area = areaId;
   _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
+  return true;
 }
 
 function setAttExtraKind(idx, kind) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var x = rec.extra[idx];
@@ -1320,16 +1510,22 @@ function setAttExtraKind(idx, kind) {
   if (x.kind === 'coverage') {
     delete x.areas; delete x.crew; delete x.from; delete x.to;
   }
+  attSlotsApply(rec);
   saveState();
+  return true;
 }
 
+/* A block's in or out. The hands' picks are not put right here: a block made for a pick going would move the rows under a
+   time still being typed; the next pick, area or crew change, or roll does it. */
 function setAttBlockTime(idx, which, value) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx][which === 'to' ? 'to' : 'from'] = String(value || '');
   _attHandEdit(rec.extra[idx]);
   relayLearnFromRow(rec.extra[idx]);
   saveState();
+  return true;
 }
 
 /* Areas and crew are toggles, so both setters flip membership rather than
@@ -1337,6 +1533,7 @@ function setAttBlockTime(idx, which, value) {
    reconciler reads it first and falls back to `area` only for rows that
    predate this field. */
 function toggleAttBlockArea(idx, areaId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   if (!STAFF_AREAS.some(function(a) { return a.id === areaId; })) return;
@@ -1351,10 +1548,15 @@ function toggleAttBlockArea(idx, areaId) {
   x.area = list.length ? list[0] : 'flex';
   _attHandEdit(x);
   relayLearnFromRow(x);
+  // A hand picked onto an area the block now covers stands on it; one picked onto an area it no longer covers moves.
+  attSlotsApply(rec);
   saveState();
+  return true;
 }
 
+/* A crew chip edits the block itself: the hand's own pick for that slot no longer speaks for it, and goes. */
 function toggleAttBlockCrew(idx, workerId) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   var id = Number(workerId);
@@ -1365,15 +1567,20 @@ function toggleAttBlockCrew(idx, workerId) {
   if (at >= 0) list.splice(at, 1); else list.push(id);
   x.crew = list;
   _attHandEdit(x);
+  var slot = attBlockSlot(x), pick = rec.slotHand && rec.slotHand[String(id)];
+  if (slot && pick) { delete pick[slot]; if (!Object.keys(pick).length) delete rec.slotHand[String(id)]; }
   saveState();
+  return true;
 }
 
 function setAttExtraHours(idx, hours) {
+  if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
   if (!rec || !rec.extra[idx]) return;
   rec.extra[idx].hours = Math.max(0, Number(hours) || 0);
   _attHandEdit(rec.extra[idx]);
   saveState();
+  return true;
 }
 
 /* A day emptied of every mark is deleted rather than left as `{}`. The presence
@@ -1439,6 +1646,8 @@ function _wfield(id, label, control, hint) {
 function _showWorkerOverlay(worker, isAdd) {
   var w = worker || _blankWorker();
   var marks = worker ? _attMarkCount(w.id) : 0;
+  // A role that may not see wages edits the worker without the rates: the fields are not drawn, and Save keeps them.
+  var wages = attSeesWages();
   var num = function(id, v, step) {
     return '<input class="inv-input inv-input-num" id="' + id + '" type="number" step="' + step + '" min="0" value="' + v + '">';
   };
@@ -1455,7 +1664,7 @@ function _showWorkerOverlay(worker, isAdd) {
     '<div class="inv-note inv-mb-16">' + COMP_CLASSES.map(function(c) {
       return '<strong>' + escHtml(c.label) + '</strong> &mdash; ' + escHtml(c.hint) + '.';
     }).join(' ') + '</div>' +
-    '<div class="inv-fields">' +
+    (wages ? '<div class="inv-fields">' +
     _wfield('wedDay', 'Day rate', num('wedDay', w.dayRate || 0, '0.01')) +
     _wfield('wedHour', 'Hour rate', num('wedHour', w.hourRate || 0, '0.01')) +
     '</div>' +
@@ -1466,7 +1675,8 @@ function _showWorkerOverlay(worker, isAdd) {
     _wfield('wedMonth', 'Contracted monthly wage (monthly tier only)', num('wedMonth', w.monthWage || 0, '1'),
       'Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
       '<span class="inv-id">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
-      'Sunday worked adds nothing &mdash; it is inside the wage.') +
+      'Sunday worked adds nothing &mdash; it is inside the wage.')
+      : '<div class="inv-note inv-mb-16" data-wages-hidden>The rates are not shown to your ID. Saving keeps them as they are; the owner sets them.</div>') +
     _wfield('wedSpell', 'Other spellings on the WhatsApp roll',
       '<input class="inv-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO">',
       'Paste message reads these as this worker. A name you place on the check screen is added here.') +
@@ -1523,12 +1733,18 @@ function saveWorker(id, mode) {
   });
   if (dup) { showToast('Already on the roster: ' + dup.name, 'error'); return; }
 
+  // A rate field not drawn (a role that may not see wages) keeps what is stored: a new worker's starts at none.
+  var stored = mode === 'add' ? null : staffById(id);
+  var rateOf = function(elId, k) {
+    var el = document.getElementById(elId);
+    return el ? Math.max(0, parseFloat(el.value) || 0) : (stored ? Math.max(0, Number(stored[k]) || 0) : 0);
+  };
   var fields = {
     name: name,
     comp: comp,
-    dayRate: Math.max(0, parseFloat(document.getElementById('wedDay').value) || 0),
-    hourRate: Math.max(0, parseFloat(document.getElementById('wedHour').value) || 0),
-    monthWage: comp === 'monthly' ? Math.max(0, parseFloat((document.getElementById('wedMonth') || {}).value) || 0) : 0,
+    dayRate: rateOf('wedDay', 'dayRate'),
+    hourRate: rateOf('wedHour', 'hourRate'),
+    monthWage: comp === 'monthly' ? rateOf('wedMonth', 'monthWage') : 0,
     area: document.getElementById('wedArea').value,
     onFloor: document.getElementById('wedFloor').checked,
     active: document.getElementById('wedActive').checked
@@ -2102,6 +2318,14 @@ function mergeWorkers(fromId, intoId) {
       if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
       crews++;
     });
+    // The hand's own slot picks go with them; the survivor's own pick for a slot wins.
+    var picks = rec.slotHand && rec.slotHand[String(fromId)];
+    if (picks) {
+      var into = rec.slotHand[String(intoId)] || (rec.slotHand[String(intoId)] = {});
+      Object.keys(picks).forEach(function(sl) { if (!Object.prototype.hasOwnProperty.call(into, sl)) into[sl] = picks[sl]; });
+      delete rec.slotHand[String(fromId)];
+      attSlotsApply(rec);
+    }
   });
 
   // Money that names the worker follows the merge too: payments and advances, the bank's wage rules and the wage set on
@@ -2234,6 +2458,8 @@ async function deleteWorker(id) {
   if (!grdOk('payments') && !(await guardAsk('payments', 'delete a worker'))) return;   // P1 (guard.js): wage rates go with them
   if (!(await uiConfirm({ title: 'Delete ' + w.name + ' from the roster?', body: 'No day names them, so nothing is lost with the row.', okLabel: 'Delete', danger: true }))) return;
   S.staff = S.staff.filter(function(x) { return x.id !== id; });
+  // A slot pick naming nobody now (taken off a slot, then the day's mark cleared) goes with the row.
+  Object.keys(S.attendance || {}).forEach(function(iso) { var r = S.attendance[iso]; if (r && r.slotHand) delete r.slotHand[String(id)]; });
   saveState();
   closeOverlay();
   renderAttendance();

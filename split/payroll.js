@@ -669,8 +669,13 @@ function areaHoursForRange(from, to) {
       // A mark with no hours counts the day (8, a half day 4) and its OT on top: OT is part of a day's hours.
       var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8) + (m.ot || 0);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }
-      a.hours += hrs;
-      a.ot += m.ot || 0;
+      // The overtime where it was worked, as Labour and the Areas card place it (attHoursSplit, staff.js): a monthly or daily
+      // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's. Those hours are not
+      // overtime: the hourly tier has none (every hour at one rate), so they move as hours and are never counted as OT.
+      var sp = attHoursSplit(rec, w, m), late = Math.min(hrs, sp.otHours), o = get(sp.otArea);
+      a.hours += hrs - late;
+      o.hours += late;
+      if (!(w && w.comp === 'hourly')) o.ot += late;
       a.workerDays += m.st === 'H' ? 0.5 : 1;
     });
     // A block over several areas books to each of them evenly, as the Areas card splits it; it all went to the first.

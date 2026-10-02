@@ -184,6 +184,9 @@ function labourForRange(fromIso, toIso) {
       if (!m || !m.st) return;
       var dayVal = ATT_DAY_VALUE[m.st] || 0;
       var areaId = m.area || w.area || 'flex';
+      // Where the hours were worked: the general shift's area, and the OT slot's for overtime (attHoursSplit, staff.js, the
+      // one split the Areas card and Hours by area read too).
+      var split = attHoursSplit(rec, w, m);
 
       if (w.comp === 'hourly') {
         // No day rate exists for this tier and no multiplier applies: the
@@ -194,8 +197,11 @@ function labourForRange(fromIso, toIso) {
           out.pool += pay;
           out.poolHours += hrs;
           bumpWorker(w, 'base', pay, 0, hrs, 0);
-          bumpArea(areaId, pay, 0, hrs);
-          bumpFloor(w, areaId, pay);
+          // The hours past eight on an OT slot were worked in the slot's area.
+          var late = Math.min(hrs, split.otHours), latePay = late * (w.hourRate || 0);
+          bumpArea(areaId, pay - latePay, 0, hrs - late);
+          bumpFloor(w, areaId, pay - latePay);
+          if (late > 0) { bumpArea(split.otArea, latePay, 0, late); bumpFloor(w, split.otArea, latePay); }
           if (!(w.hourRate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
         } else if (dayVal > 0) {
           // Present with no hours typed: the pool pays hours, so this day prices nothing. Said on the card and on Pay,
@@ -237,7 +243,7 @@ function labourForRange(fromIso, toIso) {
       }
       bumpFloor(w, areaId, wage);
 
-      var oth = offDay ? 0 : (m.ot || 0);
+      var oth = offDay ? 0 : split.otHours;
       if (oth > 0) {
         var rate = workerOtRate(w, iso);
         var otPay = oth * workerOtHourPay(w, cfg, iso);
@@ -245,9 +251,8 @@ function labourForRange(fromIso, toIso) {
         out.ot += otPay;
         bumpWorker(w, 'ot', otPay, 0, 0, oth);
         // Overtime is booked where it was worked: the hand's OT block, else the general shift's area (staff.js).
-        var otArea = attOtArea(rec, w, m);
-        bumpArea(otArea, otPay, 0, oth);
-        bumpFloor(w, otArea, otPay);
+        bumpArea(split.otArea, otPay, 0, oth);
+        bumpFloor(w, split.otArea, otPay);
         if (!(rate > 0) && out.ratelessWorkers.indexOf(w.name) < 0) out.ratelessWorkers.push(w.name);
       }
     });

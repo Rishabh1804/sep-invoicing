@@ -34,12 +34,17 @@ test('a move keeps its sentence readable in a half-width card, its call is a lin
   await switchTab(page, 'pageTodo');
   await page.locator('#todoContent [data-action="invTodoOpenApp"][data-key="stock:PA"]').click();
   const dlg = page.locator('.inv-scrim-dialog .inv-dialog');
-  await expect(dlg.locator('[data-adv-moves] [data-adv-move="order:PA"]')).toContainText('Put Pickling acid on the order');
+  // One decision, one key: the task's move is the Pulse's stock move (QA5-5; it was "order:PA" here and "stock:PA" there).
+  await expect(dlg.locator('[data-adv-moves] [data-adv-move="stock:PA"]')).toContainText('Put Pickling acid on the order');
   const box = await dlg.boundingBox();
   expect(Math.abs(box!.x + box!.width / 2 - 640)).toBeLessThan(4);
   await expect(dlg.locator('.inv-btn-primary')).toHaveCount(1);
   // Add to my list from the dialog marks the move there and on the Pulse.
-  await dlg.locator('[data-adv-move="order:PA"] [data-action="invAdvTask"]').click();
-  await expect(dlg.locator('[data-adv-move="order:PA"] [data-adv-listed]')).toBeVisible();
-  expect(await g(page, `todoData().tasks.filter(function(t) { return t.advKey === 'order:PA' && !t.doneAt; }).length`)).toBe(1);
+  await dlg.locator('[data-adv-move="stock:PA"] [data-action="invAdvTask"]').click();
+  await expect(dlg.locator('[data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+  expect(await g(page, `todoData().tasks.filter(function(t) { return t.advKey === 'stock:PA' && !t.doneAt; }).length`)).toBe(1);
+  await page.keyboard.press('Escape');
+  await openStatsTab(page, 'overview');
+  await expect(page.locator('[data-story="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+  await expect(page.locator('[data-story="smooth"] [data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
 });

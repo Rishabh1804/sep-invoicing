@@ -111,6 +111,18 @@ export function todayIso(): string {
 }
 
 /**
+ * Today, or the last day before it that is an ordinary working day: not a Sunday and not one of the paid national
+ * holidays (labour.js LABOUR_HOLIDAYS: 26 Jan, 15 Aug, 2 Oct). A worked holiday is paid like a Sunday, with no
+ * overtime, so a labour spec dated "today" failed every 2 October (P24, P145 on 2 Oct 2026).
+ */
+export function workdayIso(): string {
+  const d = new Date(todayIso() + 'T00:00:00');
+  const iso = () => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  while (d.getDay() === 0 || ['01-26', '08-15', '10-02'].includes(iso().slice(5))) d.setDate(d.getDate() - 1);
+  return iso();
+}
+
+/**
  * A timestamp guaranteed to sit inside the current month-to-date window.
  *
  * `filterByPeriod(…, 'mtd')` compares `createdAt` against midnight on the 1st,

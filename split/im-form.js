@@ -517,6 +517,8 @@ async function deleteChallan(imId) {
   renderIMToolbar();
   _imToolbarRendered = true;
   _renderIMView();
+  // Deleted from another screen's pane (History's): that screen is redrawn too (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageIM') tabRedrawActive();
   showToast('Challan deleted');
 }
 
@@ -530,6 +532,9 @@ function editChallan(imId) {
     showToast('Cannot edit: ' + invoicedCount + ' item' + (invoicedCount > 1 ? 's' : '') + ' already invoiced', 'warning');
     return;
   }
+  // Opened from another screen (History's pane): the form is drawn on Challans, so the app goes there first. It was built
+  // inside the hidden page, with only a toast to say so (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageIM') switchTab('pageIM');
   // Pre-fill challan form with existing data
   _challanForm = {
     clientId: im.clientId,

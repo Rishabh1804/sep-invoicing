@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workdayIso, type SepState } from './fixtures';
 
 // P145 (owner, 1 Oct 2026: "there is also no way to record which area the OT workers actually worked on, we get to select one
 // option for the entire day. Every worker can have states, like morning OT, General, Evening OT, Late night OT, etc. … right now
@@ -63,15 +63,17 @@ test('a hand on an OT block the roll wrote shows its area, and the dialog sets t
 });
 
 test('overtime is booked to the area it was worked in, and Deepak’s sheet carries the OT areas', async ({ page }) => {
-  const s: any = book();
-  s.attendance[todayIso()].marks[1] = { st: 'P', area: 'vat-a1', hours: 11, ot: 3, inMin: 510, outMin: 1200 };
-  s.attendance[todayIso()].extra = [{ kind: 'block', areas: ['vat-a2'], crew: [1], hours: 0, from: '17:00', to: '20:00' }];
+  // A working day: a worked national holiday is paid like a Sunday, with no overtime to book (2 Oct is one).
+  const s: any = book(), day = workdayIso();
+  s.attendance = { [day]: s.attendance[todayIso()] };
+  s.attendance[day].marks[1] = { st: 'P', area: 'vat-a1', hours: 11, ot: 3, inMin: 510, outMin: 1200 };
+  s.attendance[day].extra = [{ kind: 'block', areas: ['vat-a2'], crew: [1], hours: 0, from: '17:00', to: '20:00' }];
   await loadAppWithState(page, s);
   const res = await page.evaluate((iso) => {
     const lab = (window as any).labourForRange(iso, iso);
     return { a1: lab.byArea['vat-a1'] ? lab.byArea['vat-a1'].hours : 0, a2: lab.byArea['vat-a2'] ? lab.byArea['vat-a2'].hours : 0,
       sheet: (window as any).attSheetDeepakHtml(iso, true) };
-  }, todayIso());
+  }, day);
   expect(res.a2).toBe(3);
   expect(res.a1).toBe(0);
   expect(res.sheet).toContain('Evening OT');

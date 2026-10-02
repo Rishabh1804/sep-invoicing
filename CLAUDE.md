@@ -23,8 +23,9 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
 later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
-Step 0 (the phone's selection bars) is built, so is the dialog guard (0b), the version guard (step 2), navigation (step 1) and the length pass (step 6, brought forward by the owner on 29 Sep 2026). The owner reordered the
-steps on 29 Sep 2026: the version guard comes before navigation.
+Every step is built: the phone's selection bars (0), the dialog guard (0b), the version guard (2), navigation (1), the length pass
+(6, brought forward by the owner on 29 Sep 2026), search, keys and new windows (3–5, with Direction B) and the desktop layouts (7,
+2 Oct 2026, then the QA chain the same day). The owner reordered the steps on 29 Sep 2026: the version guard came before navigation.
 
 ## What SEP Invoicing Is
 
@@ -141,7 +142,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,275 tests, both layouts
+pnpm exec playwright test          # 1,368 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -201,6 +202,18 @@ the dividers vanish), a group head goes with the row under it, and the head's co
 wage legs live in Staff → Pay (folded, open when a leg is off its slip), and Finance → Payments keeps one line that opens
 them (the To-do's wage tasks go there too, `todoGo` kind `payWages`). The before-and-after table is in
 `docs/UX_OVERHAUL_2.md` step 6. P101.
+
+**The desktop's list and pane reach four more screens, and a wide screen takes three columns** (UX overhaul 2, step 7, 2 Oct
+2026). Finance → Receivables, Production → Entries, Staff → Roster and History are a list beside the open record (`recvHost`,
+`prodEntriesHost`, `attRosterHost`, `historyHost`; the open one in `_bankOpen`, `_prodEntryOpen`, `_attRosterOpen`,
+`_historyOpen`, each the address's `id`, a History event's id its `historyEvKey`: what it is, when and the record it names, never a
+change's words, which name a user who can be renamed; two alike are numbered in order). A redraw keeps where the list and the open
+pane were scrolled (`paneScrollKeep`; the host's `data-open` says which record, and the pane keeps its place only while that record
+is open). The phone is unchanged: a client still opens under its row, a worker their sheet, a History row the invoice. **A role
+that may not see wages sees no rate on the roster** (`grdSeesWages`; the rows showed it to every role that could open Staff). Above
+a 100rem window the `inv-panels-3` grids (Pulse's questions and widgets, Stats, Finance's Overview) are three columns, and every
+panel in a grid is a `panel-w` container, so a strip of tiles never leaves a blank cell (the Home widgets' rule, now every
+panel's); every other grid stays two across, since three left a column empty or a lone card under a row. P147, P80, P153.
 
 **A figure says whether it is good** (owner, 29 Sep 2026: *"most numbers in our app don't convey any kind of meaning, as
 in is it a good number or is it something of an issue, all are in default black"*; the owner chose both of the options put to
@@ -279,6 +292,22 @@ What it leaves as rules:
   44px buttons again (`.inv-row-end > .inv-seg`; the board had left `inv-row-fields`, now deleted); Production's tonnage tile shows the pieces
   when under 90% are weighed; Home's widgets are `home-w` containers, so a tile strip never leaves a blank cell.
 
+**The QA chain of 2 Oct 2026** (owner: *"Run QA chain and Merge when ready"*). Six audits of what was built on 1–2 Oct and not yet
+audited (about 80 findings: step 7's screens and the shell, search and Add, the guard, quotations, reports and What to do, attendance),
+the mechanical sweeps and a harness pressing every action, then one builder per area with its spec (P149 attendance, P150 quotations,
+reports and What to do, P151 search, Add, Pipeline and Floor → Day, P152 the guard) and the lead's (P153). Each spec fails on the build
+before it. The detail is in each area's section; what it leaves as rules:
+- **Replacing the book is the owner's**, and keeps this book's IDs unless the owner says; **wrong PINs count per ID**; one's own PIN
+  is changed with the PIN it has; an invoice's state, Finance's edits and an area's complement are P1; nothing a role decides is drawn
+  while nobody is signed in; every list, count and move shows a role only what its screens show (The guard).
+- **An override prices a line only in its own unit**, and the matcher says *Another unit* (The rate on record). A posted quotation
+  rate is written only where it can price the client's lines, before the broader patterns (Quotations).
+- **One split places overtime** for Labour, the Areas card and Hours by area; **a hand's OT slot is its own pick** (`rec.slotHand`),
+  kept apart from the EXTRA rows; a field typed in on Staff → Day is drawn around, never replaced (Labour and attendance).
+- **A list-and-pane screen keeps its scroll on a redraw**, and an event's key in History survives a rename (UX overhaul 2, step 7).
+- A swipe is a step of the trail; Pulse opened from elsewhere is drawn; a window crossing 1024px keeps the leave guard; Cancel,
+  Delete and Edit from History's pane act where they can be seen; an address naming no record opens no pane.
+
 **Entering several at a sitting stays on the form** (owner, 30 Sep 2026: *"when entering by hand, the page reloads to the base screen
 after every entry, instead of staying there for multiple entry … Check for these page jumping back to the base page on some action bug
 across the app"*). A save on a form that is filled many times in a row keeps the form, carries over what repeats and clears the figures:
@@ -316,8 +345,8 @@ chip, segment or tile (`[data-action][aria-pressed]`), re-renders inside `keepSc
 and dialogs back and focus on the replaced control. Only a navigation goes to the top, through `viewTop()` (another
 page, sub-page or view tab). P79 sweeps every select and filter chip on every page, view tab and form dialog.
 
-**A list-and-pane screen never scrolls the page on the desktop.** Register, IM, Clients → Clients / Items and Stock →
-Lines fill the room under their own head exactly: the page is a flex column `var(--fill-h)` tall (`100dvh` less the
+**A list-and-pane screen never scrolls the page on the desktop.** Register, IM, Clients → Clients / Items / Quotations, Stock →
+Lines, Pipeline, Finance → Receivables, Production → Entries, Staff → Roster and History fill the room under their own head exactly: the page is a flex column `var(--fill-h)` tall (`100dvh` less the
 desktop bar), and the `inv-pane-host` and every wrapper above it take what is left, so the list and the pane each
 scroll inside themselves. The host used to be `100vh - --bar-h` — the *phone* bar, with the page's padding, tabs and
 toolbar ignored — so every one of those screens scrolled 78–222px on top of the list and the wheel moved the page.
@@ -351,7 +380,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 516 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 521 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1359,8 +1388,10 @@ the date GSTR-1 reports it under.
 ### History is the audit trail
 It was missing the two event kinds an audit goes looking for. A deleted invoice writes a
 tombstone to `S.voidedNumbers` with a required reason, and an accepted duplicate challan
-stamps `dupeAck` — neither appeared in the log. Both are now first-class events, and a void
-renders as non-tappable because the invoice it names no longer exists to open.
+stamps `dupeAck` — neither appeared in the log. Both are now first-class events. On the phone a
+void is a plain row, because the invoice it names no longer exists to open; on the desktop it opens
+in History's pane, which says where its record went (Invoices → Number audit), or, for a number
+accounted for, that no invoice was ever recorded under it.
 
 **The floor is in it too, and that puts TWO CLOCKS in one list.** An invoice event is dated by
 **when it was recorded** — every one carries a real `createdAt`. An attendance day has no such
@@ -1463,6 +1494,13 @@ of what a matcher would have flagged was reference data.
   line with no piece rate gets **no** reference rather than the ladder — comparing ₹1.10/pc against
   ₹10/kg is the unit error the master rows made. *(NEXT_SESSION had the order as ladder → itemRates →
   items master; the code has always been itemRates → ladder, and never read the master.)*
+- **An override prices a line only in its own unit** (`itemRateFor`, state.js; the QA chain of 2 Oct 2026): per kg on a KG
+  line, and on a `nos_to_weight` NOS line as pieces × the part's kg a piece × the rate where the weight is known; per piece
+  on a NOS line. Anything else is not the override's line: it is priced at the client's own rate and the matcher says
+  *Another unit*. Every path that prices a line reads it there (the invoice and challan forms, a part typed or picked, a
+  client picked, a unit switched, the scanner). Before this a ₹16/kg override priced 600 pieces at ₹9,600 (₹1,920 at
+  0.2 kg a piece) and the matcher, comparing the line with the same figure, said Matches. A row with no unit is per piece,
+  as it was always priced (the client card had shown it as /kg).
 - **The card is filled from what was billed** — Client → Edit → Piece Rates → *Fill from billing
   history* — building one dated entry per rate change. Two things are left out and **listed**: a
   rate seen on **one** invoice where another is established on two or more (the shape of 00922 /
@@ -1488,6 +1526,7 @@ lines and rendered side by side before any was built:
 | **Check** | **≥ 10% off, or ≥ ₹100 at stake on the line** (difference × quantity in the reference's unit — a `nos_to_weight` line stakes kilograms) |
 | **Differs** | anything less, with its difference shown |
 | *No rate on record* / *Gauge not stated* | grey, never red — nothing to compare against |
+| *Another unit* | amber, never Matches: the part's override is in another unit than the line (per kg on a line in pieces), so the line is at the client's own rate (QA chain, 2 Oct 2026) |
 
 The percentage catches a wrong rate whatever the quantity; the rupee floor catches the small slip on
 a big line (00684: 8.3% low, ₹119.60 short across 920 pieces), which the percentage alone let
@@ -1813,24 +1852,34 @@ in our Soma internal repo"*). Built to the rules of soma-internal's quotation re
 layout of its issued quotations; both are read-only references, and nothing of them is in this repo. P131.
 - **A draft holds no number.** Its face says DRAFT and its number reads *Draft*: the register's duplicate `001` came from drafts that
   printed one. **Issue** takes `SEP/QTN/<FY>/NNN` (the token from `S.invPrefix`, the year from the quotation's own date, `qtFyOf`), the
-  highest taken in that year + 1, voids and superseded counted: a number is never reused.
+  highest taken in that year + 1, voids and superseded counted: a number is never reused. The number is worked out again after
+  the questions, on the book as it is then: another window's issue meanwhile moves it, and the toast says so (two windows had
+  issued one number). Issue needs a GST rate; rates are kept to four places and printed as typed (₹0.125).
 - **An issued quotation is never edited.** *Revise* (a reason, required) copies it as a draft under the same number with Rev N
   (`…/005 Rev 1`); issuing the revision marks the old one `superseded` (`supersededBy`). A price after negotiation is a revision too.
-  *Void* (issued, never sent; a reason, required) keeps the number spent. *Accepted* / *Declined* record the answer. Only a draft is deleted.
+  *Void* (issued, never sent; a reason, required) keeps the number spent, and deletes a revision drafted of it (it would issue on
+  the void number), saying so first; a revision of a void is never issued. *Accepted* / *Declined* record the answer. Only a
+  draft is deleted.
 - **Two live prices for one item let a counterparty anchor at the lower** (the register's rule): issuing while another live quotation
   names the same client or registered name and the same item asks whether to supersede it (`qtRivals`).
 - **On acceptance the rate is offered to the client's record, never written unasked** (`qtPostPlan`, `qtPostRates`; the confirm says
   exactly what will be written): a weight-billed or nos_to_weight client gets an `itemRates` row (unit piece or kg), **never a billingMode
   change** (the register's "itemRates, never billingMode"); a piece client a dated `pieceRates` entry; a kg rate for a piece client, or a
-  line with no part number, is named *set by hand*. The line is stamped `postedAt` / `postedTo`. `getRateOnRecord` now reads an
-  itemRates row's `unit: 'kg'` as per kg (every override was read as per piece).
+  line with no part number, is named *set by hand*. The line is stamped `postedAt` / `postedTo`. **A row is written only where
+  it can price the client's lines as they are billed** (`qtPartBilledUnits`: the units of its own invoices and challans for
+  the part, else what the basis means for its billing mode), since an override prices a line only in its own unit (The rate
+  on record); one that cannot is named *set by hand*. **It goes before every row whose pattern the part contains**
+  (`qtItemRatePlace`, in place of one naming the part exactly): the first matching row prices a line, so a row added after
+  `TM5181` never priced `TM5181-20`. The confirm names what it goes before, what it still cannot reach and what it newly prices.
 - **Terms are generated from the form's options** (`qtTermsFor`): billing basis, transport (excluded, included with the minimum
   consignment, or loading at our works), GST and SAC, defects, the material's condition, liability, payment, rate specific to the items,
   the reference weight (only on a piece line with one), the lot size (only when set), validity. They follow the options until a term is
   edited; *Reset to the standard terms* regenerates.
 - **The printed quotation** (`qtDocHtml`, `qtPrint` through the one print view) reads S.company; signatory, title and foot note are
   Settings → Business → Quotations (`S.qtnCfg`), which also shows the next number per year. Its own pt tokens (`.inv-qt-doc`), `@page`
-  margin 0, the terms' tail and the signature one unbreakable box: **one A4 page** for three lines and eleven terms (soma-internal's
+  margin 0, one frame table like the invoice's and the report's (`.inv-qt-frame`: on paper its repeating head and foot rows are the
+  12 mm and 10 mm gutters, so a second page starts 12 mm down, not at the edge), the terms' tail and the signature one unbreakable
+  box: **one A4 page** for three lines and eleven terms (soma-internal's
   003 first rendered with its signature alone on page 2). A typed recipient carries the reminder that the registered name is checked
   against the recipient's own paper.
 - A client's detail lists its quotations; History logs issued, revised, superseded, voided, accepted and declined.
@@ -1853,8 +1902,13 @@ quarterly and a yearly follow the monthly's shape. P132.
   period only — a past report never invents them); sources.
 - **No second arithmetic**: every figure is read from the function its screen uses (`statsInvoices`, net of credit notes and said;
   `weighLines`, `liveCost`, `statsClientMargins`, `labourForRange` with ₹/kg withheld under 90% of days, `payForecast`, `areaStats`,
-  `prodPlatedSummary` on complete days, `powerAnalysis`, `stockStatus`, `finAgeing`, `finGstByMonth`, `finForecast`, `todoRanked`).
-  **Empty is said, never a zero**: a dash with its reason, or one line for a period with nothing recorded.
+  `prodPlatedSummary` on complete days, `powerAnalysis`, `stockStatus`, `finAgeing`, `finGstByMonth`, `finForecast`, `todoRanked`,
+  and attendance by Staff → Overview's own reading, `attPresenceForRange`: the active roster's marks typed Monday to Saturday, a
+  half day half, as a percentage). **Empty is said, never a zero**: a dash with its reason, or one line for a period with nothing
+  recorded, and a breakdown's foot totals only what its rows carry (₹/kg as weighed revenue over weighed kilos).
+- **The day's invoices are listed as issued**, at the taxable on their face; the period's figures are net of credit notes. The
+  picker always holds the year shown, Stats' All opens the current financial year and says so, and the issuer's name is
+  `S.company`'s alone (no name written into the build).
 - **Paper**: its own pt tokens (`.inv-rpt-doc`), paper colours in dark mode too; in print the frame table's repeating head and foot rows
   are the top and bottom gutters (the invoice's frame), `@page` margin 0; rows never split, a section head never ends a page. The frame
   is `table-layout: fixed` (a scroller inside it had widened the phone's page by 116px).
@@ -2059,8 +2113,12 @@ of things in the app that can answer itself but that linkage is missing."*). The
   To-do.
 - **The jumps a move needs** (`advGoTo`, behind `todoGo`'s default): `quoteDraft`, `quotes`, `perf` (a client's Performance on
   a panel), `reorder`, `powerCase`, `areas`, `payWeek`, `liveCost` (a component open), `prodLines`, `createFor` (Create with the
-  client's challans ticked), `register` (a client and a month); `regState` ticks the ids it is given, `stats` scrolls to its
-  anchor.
+  client's challans ticked), `register` (a client and a month), `report` (an insight's month, at its section); `regState`
+  ticks the ids it is given, `stats` opens on the move's period and scrolls to its anchor.
+- **One key per decision** (`stock:<id>`, `reprice:<id>`; a task listed under an older key still reads *On your list*), each
+  reprice says which cost it is at, the rebate move counts rebates only (`cnIsRebate`), and a period's worth ranks per month. A
+  tap acts on the row it was drawn on (`advRowRef`). The questions read only the tasks the role signed in sees, and the
+  payout move needs the wages (the QA chain of 2 Oct 2026).
 - **Left open**: the rebate move opens the whole credit-note list (no client filter there yet); a quotation draft's prefill is
   not restored by browser Back/Forward.
 
@@ -2085,12 +2143,18 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
 - **Office → Pipeline** (`pipeline.js`, P137): awaiting invoice → created → printed → dispatched → delivered → owed to us,
   each a count, an amount and a tone by age, read off the function its own screen uses; a stage opens its list and its
-  action goes through the screen that owns it.
+  action goes through the screen that owns it. *Owed to us* is money: a role that does not see money has no such stage.
 - **Floor → Day** (`floor.js`, P138): a card per line with the heads against the day's number, the EXTRA, what it is
-  running, what it has plated and who plated it; tiles for on site, plated and power. A day is `?tab=pageFloor&d=…`.
+  running, what it has plated and who plated it; tiles for on site, plated and power. A day is `?tab=pageFloor&d=…`. It and
+  Home count the day's roster as Staff → Day does (`attDayRoster`: the active hands and anyone marked that day who has left).
 - **Search, keys and new windows** (`search.js`, P139): one index of records, screens and actions, built when first
   needed and kept until the book changes; numbers match whole, amounts to the paisa, dates by day. `Ctrl K` / the bar's
-  search, `A` for Add, and Ctrl+click or a middle click on a door, a tab or a row opens it in a new window.
+  search, `A` for Add, and Ctrl+click or a middle click on a door, a tab or a row opens it in a new window (Pipeline's
+  stages and challans, Money's doors and Floor → Day's cards included). The QA chain of 2 Oct 2026: an identifier typed
+  ending in a digit matches whole (`00083` never finds `00834`); a challan or a P.O. is known by its own number
+  (`srchDocNums`: `0901/26-27` is 901, never 26 or 27, and the 1 of `DA1` is no number); an invoice is found by its tail
+  (`27/00834`); a series word counts only beside something else that matches (SEP alone finds nothing, *SEP 21* is invoice
+  00021 as well as 21 Sep); a worker opens in Roster's pane on the desktop; *Add a bill* works out its month when opened.
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.
@@ -2099,10 +2163,25 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
 - **The gate** (`guard.js`, P140): IDs and PINs (a salted PBKDF2-SHA256 hash, never the PIN), roles (Owner, Office,
   Supervisor, Floor; each role's pages, what it may change, and whether it sees wages and money are settings), the lock at
   a fresh open and after a while in the background, **Lock now**, a recovery code for the owner. **A P1 change asks the PIN
-  again** once the re-ask window has passed (`grdOk` / `guardAsk` / `grdGate`): invoices and credit notes, rates and the
-  client master, voids, payments and wages, an import or a pull, Settings, users and devices. A role that may not make a
-  change is told so and never asked. A page a role may not open is refused with a word and its doors are hidden
-  (`grdApplyDoors`), on the phone bar, the sidebar, the tab rows, Add and Pulse's quick actions; Settings' door too.
+  again** once the re-ask window has passed (`grdOk` / `guardAsk` / `grdGate`): invoices and credit notes (an invoice's state
+  too; Print marks Printed on the permission alone, since the print dialog cannot wait), rates and the client master, voids,
+  payments and wages (Finance's edits included, `bankGate`), the floor's imports, Settings (an area's complement included),
+  users and devices. A role that may not make a change is told so and never asked. A page a role may not open is refused with
+  a word and its doors are hidden (`grdApplyDoors`), on the phone bar, the sidebar, the tab rows, Add and Pulse's quick
+  actions; Settings' door too.
+- **Replacing the book is the owner's alone** (`grdBookAsk`, the `users` permission; the QA chain of 2 Oct 2026): a backup
+  imported (Settings or Add → File) and a pull from GitHub take the users and the guard's settings with them, and `adoptState`
+  refuses anyone else. Where the incoming book's IDs, PINs or roles differ, the owner is asked whether to take them
+  (`grdBookUsersAsk`); Cancel keeps this book's. The Imports switch covers the floor's records (stock, production, power, a
+  roster), which merge.
+- **Wrong PINs are counted per ID** (`sep_inv_guard_fail`, `{ids, all}`): one ID's right PIN clears its own count only, and the
+  recovery code counts under the owner. **One's own PIN is changed with the PIN it has** (*Change my PIN*), never reset, and a
+  new recovery code asks the owner's PIN whatever the window: an owner who forgets the PIN with no recovery code cannot reset it.
+- **Nothing a role decides is drawn while nobody is signed in** (`grdHeld`): the unlock draws the screen for whoever unlocks and
+  shuts what somebody else left open (`grdAfterUser`); a launch waits for it (`grdWhenIn`). **Each role sees what its screens
+  show**: its tasks (`todoSees`; the finance rules need money, the pay ones wages), Needs you's inputs, the bar's counts, Pulse
+  and its moves, Pipeline's *Owed to us*, a client's Money panel, Stock's forecast, Production's labour per kg and Staff's rupees
+  (`attSeesWages`); a To-do jump to a page the role does not open opens nothing (`todoGo`).
 - **The change log** (`changelog.js`, P141): every save compared with the book before it, record by record, each changed
   field from → to, tagged with who was signed in and the device; kept in the book (`S.changeLog`), shown in History →
   Changes. It is what the merge (G4, not built) will sync.
@@ -2111,8 +2190,9 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   can only import. The token is kept encrypted under a key that cannot leave the device. A device the owner removes stops
   syncing and forgets its token at its next load. With the guard off, sync is unchanged.
 - **Every door to a P1 change asks, wherever it is** (the review of 1 Oct 2026, P146): Add → File asks what its screen's own
-  Import asks (an import, the payroll as a payment) and refuses a file for a screen the role does not open; search lists
-  only what the role's screens show (`srchSees`: an invoice, a credit note, a client, a challan, a bank row, a screen);
+  Import asks (an import, the payroll as a payment, a backup the owner's) and refuses a file for a screen the role does not
+  open; search lists only what the role's screens show (`srchSees`: an invoice, a credit note, a client, a challan, a bank row,
+  a screen, and every other jump by the page it opens);
   Settings → GitHub sync writes the token only when the field was changed, so a token not read yet is never overwritten.
 - **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
   compile). A PIN, a token or a key never does.
@@ -2619,11 +2699,17 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   numbers. Staff → Roster → Import keeps the file's `aliases` as spellings too, a merge keeps the
   retired row's name, and the worker's Edit screen lists them and takes corrections. The chemical stock
   written under a roll (`camical use camical stock`, no date) ends the roll rather than reading as a
-  dozen unknown names.
+  dozen unknown names, and is read in Stock: the review's **Read in Stock** hands over that part and any
+  stock message pasted with the rolls, each with its WhatsApp line (`relayStockParts`; it had pointed at
+  the retired More sheet and was never read).
 - **A mark entered by hand is kept** and shown as kept; the relay only rewrites marks it wrote
   (`src: 'relay'`, with `inMin`/`outMin`). EXTRA rows already on the day are not added twice. **The
   same roll twice is refused** by fingerprint (`S.relayPastes` keeps each roll whole). A roll with a
-  second message pasted on its end stops there and says so.
+  second message pasted on its end stops there and says so. **A roll keeps the minute WhatsApp sent it**
+  (`relayPastes[].sentAt`, from the header line, which the stored text leaves out), and Today reads its
+  arrival from that, not from when it was pasted. A roll's dated head ("01/10/26/ in time6:00 am") is a
+  roll to both readers (`relayKind`, `prodKind`), and an "Out time" heading with its time run on is
+  still a heading.
 
 
 ### The attendance on paper
@@ -3051,11 +3137,23 @@ entered by hand below the board. P144.
 worked on, we get to select one option for the entire day. Every worker can have states, like morning OT, General, Evening OT, Late
 night OT … right now we just select the General shift areas and OT areas are neglected, both in the app and in Deepak's sheet"*). The
 mark's area is the **General** shift's; **Morning OT**, **Evening OT** and **Night** each take an area, on the hand's dialog and as
-columns on Day → Sheet and on Deepak's printed sheet (`ATT_SLOTS`). A slot is the crew of that slot's OT block, the one record Areas,
-Power and Production's crews already read (`setAttSlotArea`): a hand put on Evening OT · VAT A2 joins the evening block covering VAT A2,
-made at the slot's usual times with no EXTRA booked when there is none (`slotMade`), and such a block goes when its last hand leaves it.
-A block's slot is read off its start (`attBlockSlot`: before 8:30 AM the morning, from 5 PM the evening, from 8 PM or past midnight the
-night). **Overtime is booked where it was worked** (`attOtArea`, labour.js): the hand's OT block's area, else the general shift's. P145.
+columns on Day → Sheet and on Deepak's printed sheet (`ATT_SLOTS`). **The hand's pick is a fact of the day, kept apart from the marks
+and the EXTRA rows** (`rec.slotHand[staffId][slot]`: the area, or '' when taken off by hand; the QA chain of 2 Oct 2026). The slot's
+crew is still the one record Areas, Power and Production's crews read: `attSlotsApply` puts each pick on the roll's block of that slot
+covering the area, else on a block made for it at the slot's usual times (`slotMade`), and a made block goes when its last hand leaves.
+A made block books nothing and is nobody's EXTRA row (`attExtraRows`): not on the EXTRA card, the printed sheets, History or the Areas
+check. A pick never makes a roll's row the owner's, survives *Read the rolls again*, and a crew chip toggled on a block drops the hand's
+pick for that slot. A block's slot is read off its start (`attBlockSlot`: before 8:30 AM the morning, from 5 PM the evening, from 8 PM
+or past midnight the night). **Overtime is booked where it was worked, by one split** (`attHoursSplit`, read by Labour, the Areas card
+and Hours by area): a monthly or daily hand's OT in their slot's area, else the general shift's; an hourly hand's hours past eight on a
+slot move there as hours, never as OT (the tier has none). P145, P149.
+
+**Staff → Day takes typing as typed** (the QA chain of 2 Oct 2026): a change in a field redraws everything around the field and its
+holders, never the field (`attRedrawAround`, `attSwapAround`), and a tap on its way lands first, so a time typed with the keyboard and a
+tap on Done after an OT are kept. **Every entry there is a floor entry** (`attFloorOk`): a role that may not make one is told so, never
+asked a PIN. A role that may not see wages sees hours and heads, never a rupee, and the worker's sheet keeps the rates it does not show.
+An out the shift supplies that is not after the in is no out (0 h until typed); P↔H with times works the hours again; a move of area
+works them again only onto or off the gate.
 
 **A day's attendance is deleted only with a reason, and the deletion is logged** (owner, 30 Sep 2026: *"there is no way to
 delete a day's data after providing a reason that can be logged"*). Staff → Day → **Delete this day** asks why (required),

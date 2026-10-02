@@ -1212,7 +1212,7 @@ function buildHistoryEvents() {
     var what = v.source === 'reconciled' ? 'Number ' + label + ' accounted for'
       : 'Invoice ' + label + ' deleted';
     events.push({
-      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null,
+      ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null, source: v.source || '',
       cc: 'voidedNumbers', cr: typeof chgRidOf === 'function' ? chgRidOf('voidedNumbers', v) : null,
       text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
         ' — ' + (v.reason || 'no reason recorded') +
@@ -1314,6 +1314,8 @@ function pushFloorEvents(events) {
     // was booked, where, needs the where.
     (rec.extra || []).forEach(function(x) {
       var hrs = Number(x.hours) || 0;
+      // A block the app made for a hand's slot pick books nothing and is nobody's entry (staff.js, attSlotMade).
+      if (x && x.slotMade) return;
       if (typeof extraIsBlock === 'function' && extraIsBlock(x)) {
         var covered = (x.areas || []).map(labelFor).join(' + ') || labelFor(x.area);
         var span = (x.from && x.to) ? x.from + '\u2013' + x.to : '';
@@ -1430,6 +1432,7 @@ function historyWhoText(ev) {
   return Object.prototype.hasOwnProperty.call(ev, 'by') ? ' · by ' + chgUserName(ev.by) : '';
 }
 
+var _historyOpen = null;   // the event open in the desktop's pane (History)
 function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
   var area = document.getElementById('historyList');
@@ -1493,6 +1496,7 @@ function renderHistory() {
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
     (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '');
 
+  historyEvKeys(events);
   var shown = events.slice(0, _historyShowCount);
   // Rows grouped by day (§7): the day heads the group, so on the desktop a row's
   // cell carries the time alone.
@@ -1517,18 +1521,17 @@ function renderHistory() {
   function fullAttr(ev) { return ev.full && ev.full !== ev.text ? ' title="' + escHtml(ev.full) + '"' : ''; }
 
   if (_isDesktop) {
+    // The desktop opens an event in the pane beside the list (UX overhaul 2, step 7): the event whole, and the invoice or
+    // challan it names, read without leaving History. Every event opens, a void and a floor day included.
     html += '<table class="inv-table inv-table-history"><thead><tr><th>Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
     days.forEach(function(d) {
       html += '<tr class="inv-table-group"><td colspan="4">' + escHtml(d) + ' · ' + dayCount[d] + '</td></tr>';
       byDay[d].forEach(function(ev) {
-        var action = jumpOf(ev);
-        var attrs = ' data-ev="' + ev.kind + '"' + (action ? ' data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '"' : '');
-        html += '<tr' + attrs + '>' +
+        var key = escHtml(historyEvKey(ev));
+        html += '<tr data-ev="' + ev.kind + '" data-action="invHistoryOpen" data-key="' + key + '"' + (_historyOpen === historyEvKey(ev) ? ' aria-current="true"' : '') + '>' +
           '<td class="inv-id">' + escHtml(historyWhen(ev, 'time')) + '</td>' +
           // The event is a real button on a row that opens, so it opens from the keyboard.
-          '<td' + fullAttr(ev) + '>' + (action
-            ? '<button class="inv-btn-link" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + escHtml(ev.text) + '</button>'
-            : escHtml(ev.text)) + '</td>' +
+          '<td' + fullAttr(ev) + '><button class="inv-btn-link" data-action="invHistoryOpen" data-key="' + key + '">' + escHtml(ev.text) + '</button></td>' +
           '<td>' + historyKindHtml(ev) + '</td>' +
           '<td class="inv-num">' + (ev.amount ? formatCurrency(ev.amount) : '') + '</td></tr>';
       });
@@ -1556,7 +1559,59 @@ function renderHistory() {
     html += '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invHistoryLoadMore">' +
       'Show more (' + remaining + ' remaining)</button>';
   }
-  area.innerHTML = html;
+  if (_isDesktop) {
+    var open = _historyOpen ? events.find(function(ev) { return historyEvKey(ev) === _historyOpen; }) : null;
+    if (!open) _historyOpen = null;
+    // What the back trail calls the step (navLabel): the event's time and its first words.
+    _historyOpenLabel = open ? (historyWhen(open, 'all') + ' · ' + String(open.text || '').slice(0, 40)).trim() : '';
+    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost" data-open="' + escHtml(_historyOpen || '') + '"><div class="inv-pane-list">' + html + '</div>' +
+      '<div class="inv-pane" id="historyPane">' + (open ? historyPaneHtml(open) : '') + '</div></div>';
+  }
+  paneScrollKeep(function() { area.innerHTML = html; });
+}
+
+/* An event's key, its address in the desktop's pane: what it is, when, and the record it names — never its text where the
+   text can move (a change names the user who made it, and a rename moved the key; a change's record id was dropped when the
+   record went). Two events alike in all of that (two identical EXTRA rows on one day) are told apart by their order
+   (historyEvKeys). The QA chain, 2 Oct 2026. */
+var _historyOpenLabel = '';
+function historyEvBase(ev) {
+  return [ev.kind, ev.type || '', ev.ts || '', ev.logId || ev.sourceId || '', ev.cr || '', ev.kind === 'chg' ? '' : (ev.text || '')].join('|');
+}
+function historyEvKeys(events) {
+  var seen = {};
+  events.forEach(function(ev) {
+    var b = historyEvBase(ev), n = seen[b] = (seen[b] || 0) + 1;
+    ev._key = relayHash(b) + (n > 1 ? '-' + n : '');
+  });
+}
+function historyEvKey(ev) { return ev._key || relayHash(historyEvBase(ev)); }
+/* One event in the desktop's pane: the event whole (a change's every field), who and on which device, and the invoice or
+   challan it names, drawn as the Invoices and Challans panes draw it, with the way there. */
+function historyPaneHtml(ev) {
+  // Each value is HTML: the kind is its dot and word, every other figure escaped here.
+  var kv = [['Kind', historyKindHtml(ev)], ['When', escHtml(historyWhen(ev, 'all'))]];
+  if (ev.amount) kv.push(['Amount', '<span class="inv-num">' + escHtml(formatCurrency(ev.amount)) + '</span>']);
+  if (Object.prototype.hasOwnProperty.call(ev, 'by') && typeof chgUserName === 'function') kv.push(['Who', escHtml(ev.by == null ? 'No ID' : chgUserName(ev.by))]);
+  var dev = ev.dev || ev.byDev;
+  if (dev) kv.push(['Device', escHtml(typeof chgDeviceLabel === 'function' ? chgDeviceLabel(dev) : dev)]);
+  var h = paneHeadHtml('<span class="inv-panel-title">Event</span>', 'invHistoryClose') +
+    '<div class="inv-panel" data-history-pane="' + escHtml(ev.kind) + '"><div class="inv-history-full">' + escHtml(ev.full || ev.text) + '</div>' +
+    '<div class="inv-kv inv-mt-4">' + kv.map(function(x) {
+      return '<div><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + x[1] + '</div></div>';
+    }).join('') + '</div></div>';
+  if (ev.jump === 'invoice') {
+    var inv = S.invoices.find(function(i) { return i.id === ev.sourceId; });
+    if (inv) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpInvoice" data-id="' + escHtml(inv.id) + '">Open in Invoices</button></div>' + invoiceDetailHtml(inv) + '</div>';
+  } else if (ev.jump === 'challan') {
+    var im = (S.incomingMaterial || []).find(function(c) { return c.id === ev.sourceId; });
+    if (im) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(imChallanLabel(im)) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpChallan" data-id="' + escHtml(im.id) + '">Open in Challans</button></div>' + challanDetailHtml(im) + '</div>';
+  } else if (ev.kind === 'void') h += '<div class="inv-note">' + (ev.source === 'reconciled'
+    ? 'A number accounted for in the number audit: no invoice was ever recorded under it here.'
+    : 'The invoice this number was is deleted; Invoices → Number audit holds its record.') + '</div>';
+  return h;
 }
 
 /* Exports exactly what the current filters show, so a query someone reasoned

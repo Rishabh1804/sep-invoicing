@@ -74,7 +74,9 @@ function attSheetShyamHtml(iso, rec) {
   extra.forEach(function(x) { if ((x.kind || 'coverage') === 'coverage') { var b = boxOf[x.area]; if (b != null) cover[b] = (cover[b] || 0) + (x.hours || 0); } });
   var blocks = extra.filter(function(x) { return x.kind === 'block'; }).sort(function(a, b) { return (relayParseHhmm(a.from) || 0) - (relayParseHhmm(b.from) || 0); });
   var morning = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f != null && f < 510; });
-  var evening = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return f == null || f >= 510; });
+  // A block the app made for a hand's slot pick is no block of Shyam's: its out is the slot's usual time, not the hand's,
+  // so the hand goes in the 5 PM list with their own time (attSlotMade, staff.js).
+  var evening = blocks.filter(function(x) { var f = relayParseHhmm(x.from); return (f == null || f >= 510) && !attSlotMade(x); });
 
   var n = 1, parts = [];
   ATT_SHEET_IN_AREAS.forEach(function(a, i) {
@@ -157,7 +159,8 @@ function attSheetDeepakHtml(iso, filled) {
   }).join('');
   if (!filled) for (var k = 0; k < 3; k++) rows += '<tr><td class="inv-as-tick">' + (roster.length + k + 1) + '</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 
-  var extras = rec ? (rec.extra || []) : [];
+  // The day's EXTRA rows: a block made for a hand's slot pick books nothing, and is on the hand's own line above.
+  var extras = rec ? attExtraRows(rec) : [];
   var exRows = extras.map(function(x) {
     var crew = (Array.isArray(x.crew) ? x.crew : []).map(function(id) { var w = staffById(id); return w ? w.name : ''; }).filter(Boolean).join(', ');
     return '<tr><td>' + escHtml(areaLabel(x.area || 'flex')) + '</td><td>' + escHtml(_asClock(x.from)) + '</td><td>' + escHtml(_asClock(x.to)) + '</td>' +

@@ -1,8 +1,9 @@
-/* ===== PRODUCTION — the page (Floor → Production; More → Production on the phone) =====
+/* ===== PRODUCTION — the page (Floor → Production) =====
  * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
  * a way back and end in the action bar, and draw no toolbar (DR-3).
  */
+var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
 var PROD_TABS = [['overview', 'Overview'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _prodTabMoved = false;
@@ -62,7 +63,7 @@ function renderProduction() {
     else if (_prodTab === 'entries') h += prodEntriesHtml();
     else h += prodOverviewHtml();
   }
-  el.innerHTML = h;
+  paneScrollKeep(function() { el.innerHTML = h; });
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   if (_prodTabMoved) { _prodTabMoved = false; viewTop(); }
 }
@@ -248,6 +249,8 @@ function prodLinesHtml() {
         return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
+  // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
+  if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
   var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +
@@ -292,7 +295,61 @@ function prodEntriesHtml() {
     h += prodEntryRowHtml(e, idx);
   });
   if (list.length > 300) h += '<div class="inv-panel-body inv-note">The latest 300 of ' + list.length + ' are shown.</div>';
-  return h + '</div>';
+  h += '</div>';
+  if (!_isDesktop) return h;
+  // The desktop: the list beside the open entry (UX overhaul 2, step 7). The chips stay above both; an entry the
+  // filter no longer lists stays open, since it is still a record somebody chose to read.
+  var open = _prodEntryOpen && prodData().entries.find(function(e) { return e.id === _prodEntryOpen; });
+  if (!open) _prodEntryOpen = null;
+  var cut = h.indexOf('<div class="inv-panel inv-panel-flush" id="prodEntries">');
+  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost" data-open="' + (open ? escHtml(open.id) : '') + '"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
+    '<div class="inv-pane" id="prodEntryPane">' + (open ? prodEntryDetailHtml(open, idx) : '') + '</div></div>';
+}
+
+/* One entry in the pane: everything it holds, the text it was read from, and what can be done to it. */
+function prodEntryDetailHtml(e, idx) {
+  var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind] || e.kind;
+  // A cut with no time back says so, as its row does; the supervisor's whole-day barrel list is named as the hand form names
+  // it, not as the general shift (which shift it covers is recorded as unknown). The QA chain, 2 Oct 2026.
+  var open = e.kind === 'downtime' && e.downtime && e.downtime.open;
+  var title = e.kind === 'downtime' ? (open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var kv = [['Kind', kindWord + (e.rework ? ', rework' : '')], ['Day', formatDate(e.date)]];
+  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : open ? ' – no time back' : '')]);
+  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : e.slot === 'day' ? 'Whole day (barrel list)' : 'General']);
+  if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
+  else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
+  if (e.kind !== 'downtime') {
+    kv.push(['Client', e.clientId != null ? prodClientName(e.clientId) || e.client || '' : (e.client ? e.client + ', not in the book' : 'Not written')]);
+    if (e.part || e.partNumber) kv.push(['Part', [e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '', e.gauge].filter(Boolean).join(' · ')]);
+    kv.push(['Quantity', prodQtyText(e.qty, e.unit) + (e.qty2 != null ? ' · ' + prodQtyText(e.qty2, e.unit2) : '')]);
+    if (e.rackSize) kv.push(['Rack', e.rackSize + (e.racks ? ' × ' + e.racks : '')]);
+  }
+  kv.push(['Source', prodSrcWord(e) + (e.basis && e.basis !== e.src ? ' · ' + e.basis : '')]);
+  if (e.sentBy) kv.push(['Sent by', e.sentBy]);
+  if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
+  var h = paneHeadHtml('<span class="inv-panel-title">' + escHtml(title) + '</span>', 'invProdEntryClose') +
+    '<div class="inv-panel" data-prod-pane="' + escHtml(e.id) + '"><div class="inv-kv">' + kv.map(function(x) {
+      return '<div><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(String(x[1])) + '</div></div>';
+    }).join('') + '</div></div>';
+  if (e.voidedAt) h += '<div class="inv-callout inv-callout-warning">Void' + (e.voidReason ? ': ' + escHtml(e.voidReason) : '') + '</div>';
+  var by = idx.replaced[e.id] && prodData().entries.find(function(x) { return x.replaces === e.id && !x.voidedAt; });
+  if (by) h += '<div class="inv-callout inv-callout-info">Corrected by the entry of ' + escHtml(formatDate(by.date)) + ': ' + escHtml(prodQtyText(by.qty, by.unit)) + '.</div>';
+  if (e.replaces) h += '<div class="inv-note">This entry corrects an earlier one.</div>';
+  var rounds = e.rounds || [];
+  if (rounds.length) {
+    h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Rounds <span class="inv-panel-count">' + rounds.length + '</span></span></div>' +
+      rounds.map(function(r) {
+        return '<div class="inv-row' + (r.struck ? ' inv-row-muted' : '') + '"><span class="inv-row-main inv-id">' + escHtml(r.time || '') + (r.start ? ' · start' : '') + (r.struck ? ' · struck' : '') + '</span>' +
+          '<span class="inv-row-end"><span class="inv-num">' + escHtml(r.qty != null ? String(r.qty) : '') + '</span></span></div>';
+      }).join('') + '</div>';
+  }
+  var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
+  if (crew) h += '<div class="inv-note" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</div>';
+  if (e.raw) h += '<div class="inv-field"><span class="inv-field-label">As written</span><div class="inv-quote">' + escHtml(e.raw) + '</div></div>';
+  var acts = prodEntryActionsHtml(e, idx);
+  if (acts) h += '<div class="inv-toolbar">' + acts + '</div>';
+  return h;
 }
 function prodEntryRowHtml(e, idx) {
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind];
@@ -308,19 +365,27 @@ function prodEntryRowHtml(e, idx) {
   else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
   if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
-  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
+  // On the desktop the entry opens in the pane beside the list, so its main is a button.
+  var cur = _isDesktop && _prodEntryOpen === e.id;
+  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"' + (cur ? ' aria-current="true"' : '') + '>' +
+    (_isDesktop ? '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' : '<span class="inv-row-main">') + '<span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
     (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
-    '</span><span class="inv-row-end">' +
-    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '');
-  if (!e.voidedAt) {
-    if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
-    if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
-    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
-    if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
-    h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
-  }
+    (_isDesktop ? '</button>' : '</span>') + '<span class="inv-row-end">' +
+    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '') + prodEntryActionsHtml(e, idx);
   return h + '</span></div>';
+}
+/* What can be done to an entry: on its row, and on the desktop in its pane too. A void entry takes nothing. */
+function prodEntryActionsHtml(e, idx) {
+  if (e.voidedAt) return '';
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
+  var h = '';
+  if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+  if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+  if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
+  if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
+  return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
 }
 
 /* The part a floor entry is, as matched: learnt from its name, its own part number, or a challan part of the same key.
@@ -763,10 +828,14 @@ function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
-    : { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null };
+    : prodHandBlank();
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
+}
+/* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
+function prodHandBlank() {
+  return { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
 }
 function prodHandHtml() {
   var f = _prodHand;
@@ -952,6 +1021,8 @@ function prodAction(action, btn) {
     case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
+    case 'invProdEntryOpen': _prodEntryOpen = _prodEntryOpen === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderProduction); return true;
+    case 'invProdEntryClose': _prodEntryOpen = null; keepScroll(renderProduction); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
     case 'invProdToScanner': {
@@ -978,7 +1049,8 @@ function prodAction(action, btn) {
       // A pressed chip on Entries lets its flag go; the Overview's "All N" always opens the loads it counts.
       if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodTab === 'entries' && _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
       else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: '' };
-      if (_prodTab !== 'entries') prodSetTab('entries');
+      // From another tab it is a jump to the entries it counts: no entry left open from before (QA chain, 2 Oct 2026).
+      if (_prodTab !== 'entries') { prodSetTab('entries'); _prodEntryOpen = null; }
       renderProduction(); return true;
     case 'invProdTask': {
       var t = todoAppAll(PROD_RULES.map(function(r) { return r[0]; })).find(function(x) { return x.key === btn.dataset.key; });

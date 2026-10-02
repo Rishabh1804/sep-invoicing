@@ -647,6 +647,11 @@ function ensureStateShape(s) {
    the caller saves once it knows the adoption held. */
 function adoptState(next) {
   var prev = S;
+  // Replacing the book takes its users and the guard's settings with it: the owner's alone (guard.js grdBookAsk), here
+  // too, whatever door it came through. Nothing is touched before the refusal.
+  if (typeof grdOn === 'function' && grdOn() && !grdIsOwner()) throw new Error('only the owner replaces the book: ask the owner');
+  // Who is replacing it, read off this book: the one coming in may not hold them (the change log's line, QA4-10).
+  var by = typeof chgBy === 'function' ? chgBy() : null;
   // The rollback has to cover STORAGE, not just memory. `migrateState()`
   // persists as it runs, and every one of those writes fires while `S` is the
   // incoming state — so a throw partway through used to leave a half-migrated
@@ -667,8 +672,9 @@ function adoptState(next) {
   // two had drifted, and a pull or an import kept the old book's part usage (the QA sweep, 29 Sep 2026).
   if (typeof prodTouch === 'function') prodTouch();
   if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
-  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js).
-  if (typeof chgAdopted === 'function') chgAdopted();
+  // A book adopted whole is one line in the change log and where it starts comparing from (changelog.js), under the
+  // person who brought it in.
+  if (typeof chgAdopted === 'function') { if (typeof chgAs === 'function') chgAs(by, chgAdopted); else chgAdopted(); }
   // The book's users may differ: a session whose user it does not hold is locked (guard.js).
   if (typeof grdRecheck === 'function') grdRecheck();
   return S;
@@ -859,7 +865,7 @@ function keepScroll(fn) {
 /* ===== DIALOG SHELL (design system §6.16) =====
    Every dialog is an inv-dialog in an inv-scrim-dialog: a sheet from the bottom on the phone, centred on the
    desktop. Its head is the title and a close button; its foot (inv-dialog-foot) the actions, primary last.
-   The More sheet is an inv-scrim too but not a dialog, so closing dialogs never takes it (or its focus) along.
+   (The More sheet, an inv-scrim that was not a dialog, went with Direction B's workspaces; Add is a dialog like the rest.)
    `title` is HTML: the caller escapes what came from the user. */
 function dialogHeadHtml(title, closeAction, closeLabel, actionsHtml) {
   var close = '<button class="inv-btn inv-btn-icon inv-dialog-close" data-action="' + (closeAction || 'invCloseOverlay') +
@@ -875,6 +881,26 @@ var FLIP_MS = 200;
 function paneHeadHtml(titleHtml, closeAction) {
   return '<div class="inv-pane-head">' + titleHtml +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + closeAction + '" aria-label="Close">&times;</button></div>';
+}
+/* A screen drawn whole with its list and pane in it keeps where both were scrolled (UX overhaul 2, step 7). The list and
+   the pane scroll inside themselves, and a redraw replaced them, so a Void deep in Production's entries, History's Show more
+   or a receipt placed put the list back at its top (the QA chain, 2 Oct 2026). The pane keeps its place only while the same
+   record is open: the host says which (`data-open`). */
+function paneScrollKeep(fn) {
+  var kept = {};
+  document.querySelectorAll('.inv-page-active .inv-pane-host[id]').forEach(function(h) {
+    var l = h.querySelector(':scope > .inv-pane-list'), p = h.querySelector(':scope > .inv-pane');
+    kept[h.id] = { l: l ? l.scrollTop : 0, p: p ? p.scrollTop : 0, open: h.getAttribute('data-open') || '' };
+  });
+  try { return fn(); } finally {
+    Object.keys(kept).forEach(function(id) {
+      var h = document.getElementById(id), k = kept[id];
+      if (!h) return;
+      var l = h.querySelector(':scope > .inv-pane-list'), p = h.querySelector(':scope > .inv-pane');
+      if (l && k.l && l.scrollTop !== k.l) l.scrollTop = k.l;
+      if (p && k.p && k.open && h.getAttribute('data-open') === k.open) p.scrollTop = k.p;
+    });
+  }
 }
 
 /* Opens `html` (the whole inv-dialog) over the page and moves focus into it; the focus it left returns on close.
@@ -1601,9 +1627,17 @@ function getStateDotHtml(inv) {
     escHtml(invStateWord(inv)) + '</span>';
 }
 
+/* An invoice's state is a billing change (guard.js; the QA audit of 2 Oct 2026, QA4-6): a role without billing is told so,
+   and the PIN is asked again outside the re-ask window, as an invoice saved, cancelled or deleted is. Printing marks a
+   Created invoice Printed on the permission alone (print.js printMarkPrinted): it is part of printing an invoice the role
+   opened, and the print dialog cannot wait for a PIN. Each mark asks only where grdOk says no, so with the guard off (or
+   inside the window) nothing is awaited and the mark runs as it always did. → Promise<boolean>. */
+function invStateAsk(what) { return guardAsk('billing', what); }
+function invStateLower(st) { return String(INV_STATE_LABELS[st] || st).toLowerCase(); }
+
 /* The next state, or a named one further on: an invoice printed outside the app goes from Created straight to
    Dispatched. Never backwards, but for a print that never came out (invNotPrinted). */
-function advanceInvoiceState(invId, target) {
+async function advanceInvoiceState(invId, target) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (!inv || inv.status === 'cancelled') return;
   var idx = INV_STATES.indexOf(getInvState(inv));
@@ -1611,6 +1645,10 @@ function advanceInvoiceState(invId, target) {
   // A button drawn before the state moved on (a print, another window) names a step already reached: it only shows
   // where the invoice is. It used to fall through to the step after, so Mark printed on a printed invoice dispatched it.
   if (idx < 0 || !nextState || invStateIdx(nextState) <= idx) { invStateShown(invId); return; }
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark an invoice ' + invStateLower(nextState)))) return;
+  // Found again after the question: another window's save can replace the book while it is open.
+  inv = S.invoices.find(function(i) { return i.id === invId; });
+  if (!inv || inv.status === 'cancelled' || invStateIdx(getInvState(inv)) >= invStateIdx(nextState)) { invStateShown(invId); return; }
   invSetState(inv, nextState);
   saveState();
   invStateShown(invId);
@@ -1619,13 +1657,17 @@ function advanceInvoiceState(invId, target) {
 
 /* Print marks a Created invoice Printed, but the print dialog cannot say whether the paper came out: a print cancelled
    or jammed is put back here, and its stamp goes with it (History logs a print from printedAt). */
-function invNotPrinted(invId) {
+async function invNotPrinted(invId) {
   var inv = S.invoices.find(function(i) { return i.id === invId; });
   if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
-    inv.invoiceState = 'created';
-    delete inv.printedAt;
-    saveState();
-    showToast(inv.displayNumber + ' is back to Created');
+    if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark an invoice not printed'))) return;
+    inv = S.invoices.find(function(i) { return i.id === invId; });
+    if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'printed') {
+      inv.invoiceState = 'created';
+      delete inv.printedAt;
+      saveState();
+      showToast(inv.displayNumber + ' is back to Created');
+    }
   }
   invStateShown(invId);
 }
@@ -1640,6 +1682,7 @@ async function bulkMarkFiled() {
     return;
   }
   var ids = eligible.map(function(inv) { return inv.id; });
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark invoices filed'))) return;
   if (!(await uiConfirm({ title: 'Mark ' + eligible.length + ' delivered invoice' + (eligible.length > 1 ? 's' : '') + ' as filed?',
     body: 'A filed invoice cannot be deleted and reissued: its number is in a return.', okLabel: 'Mark as filed' }))) return;
   // Found again by id after the question: another window's save can replace the book while it is open, and the objects
@@ -1784,6 +1827,40 @@ function getPieceWeight(client, onDate, partNumber, desc) {
   return { kg: hit.kgPerPiece, effectiveFrom: hit.effectiveFrom || '', gauge: hit.gauge || '' };
 }
 
+/* ===== AN ITEM RATE OVERRIDE, IN THE UNIT IT WAS GIVEN (the QA chain of 2 Oct 2026, QA5-1) =====
+   An itemRates row is a negotiated figure for a part, per piece unless it says kg (a per-kg rate posted from an
+   accepted quotation, quote.js). Every path read its `rate` alone and put it on the line whatever the line's unit: a
+   ₹16/kg override priced 600 pieces at 600 × 16 = ₹9,600 (600 × 0.2 kg × 16 is ₹1,920), a ₹3.83/pc one priced 150 kg
+   at ₹3.83 a kilo, and the rate check, comparing the line with that same figure, said Matches. So an override is
+   applied only in its own unit:
+   - per kg: a KG line at the rate a kilo, and a NOS line of a client billed by weight from pieces (nos_to_weight) as
+     pieces × the part's kg a piece × the rate, the way that client's ₹/kg ladder is used; only where the weight is known;
+   - per piece: a NOS line at the rate a piece.
+   Anything else does not fit the line: the line is priced at the client's own rate, and the check says the rate on
+   record is in another unit. Every path that prices a line reads the override here, and nowhere else. */
+function itemRateUnit(ir) { return ir && ir.unit === 'kg' ? 'kg' : 'piece'; }
+/* How an override in `unit` prices a line in `lineUnit` (KG | NOS) of this client's part: 'kg', 'piece', 'weight'
+   (pieces × kg/pc × rate), or null when it cannot. */
+function itemRateHow(client, unit, lineUnit, partNumber) {
+  if (unit === 'piece') return lineUnit === 'NOS' ? 'piece' : null;
+  if (lineUnit !== 'NOS') return 'kg';
+  return client && client.billingMode === 'nos_to_weight' && ((S.partWeights || {})[String(partNumber || '').toUpperCase()] || 0) > 0 ? 'weight' : null;
+}
+/* The override naming a line's part, or null: {rate, unit, label, how, fits, kgPc}. */
+function itemRateFor(client, onDate, item) {
+  if (!client || !item || !item.partNumber) return null;
+  var info = getLineItemRate(client, onDate || localDateStr(), item.partNumber);
+  if (!info._override) return null;
+  var unit = info.unit === 'kg' ? 'kg' : 'piece', lineUnit = item.unit === 'NOS' ? 'NOS' : 'KG';
+  var how = itemRateHow(client, unit, lineUnit, item.partNumber);
+  return { rate: info.rate, unit: unit, label: info._label || '', how: how, fits: !!how,
+    kgPc: how === 'weight' ? (S.partWeights || {})[String(item.partNumber).toUpperCase()] : 0 };
+}
+/* The client's own ₹/kg on a date, passing over any override (getLineItemRate with no part). */
+function clientLadderRate(client, onDate) {
+  return client ? (getLineItemRate(client, onDate || localDateStr(), '').ratePerKg || 0) : 0;
+}
+
 /* The one place a line's rate on record is read: override, then the client's
    piece rate for a NOS line, then the ₹/kg ladder. `unit` says which the figure
    is — comparing a piece rate against a ₹/kg one is the error the Items Master
@@ -1792,8 +1869,10 @@ function getRateOnRecord(client, onDate, item) {
   if (!client || !item) return null;
   var date = onDate || localDateStr();
   var info = getLineItemRate(client, date, item.partNumber);
-  // An override is per piece unless it says kg (a per-kg rate posted from an accepted quotation, quote.js).
-  if (info._override) return { rate: info.rate, unit: info.unit === 'kg' ? 'kg' : 'piece', source: 'override' };
+  // An override is per piece unless it says kg. One that does not fit the line's unit is still the rate on record for
+  // the part (`fits: false`): the check says so rather than comparing the line with the client's own rate.
+  var ov = itemRateFor(client, date, item);
+  if (ov) return ov.fits ? { rate: ov.rate, unit: ov.unit, source: 'override' } : { rate: ov.rate, unit: ov.unit, source: 'override', fits: false };
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, date, item.partNumber, item.desc);
     if (pr && pr.ambiguous) return { rate: null, unit: 'piece', source: 'gauge-ambiguous' };
@@ -1838,8 +1917,10 @@ function isZeroBilledLine(item) {
    pad; Samarth's 14.50 against a ₹3 bracket), which is exactly the unit error
    the replay found typed into the Items Master. */
 function defaultLineRate(client, onDate, item) {
-  var info = getLineItemRate(client, onDate, item.partNumber);
-  if (info._override) return info.rate;
+  // An override in the line's own unit; one in another unit leaves the line at the client's own rate (itemRateFor).
+  var ov = itemRateFor(client, onDate, item);
+  if (ov && ov.fits) return ov.rate;
+  var info = getLineItemRate(client, onDate, '');
   if (item.unit === 'NOS') {
     var pr = getPieceRate(client, onDate, item.partNumber, item.desc);
     if (pr && pr.rate != null) return pr.rate;
@@ -1860,12 +1941,15 @@ function linePrice(item, client, onDate) {
     // Challan passthrough: the amount is entered as the challan says, and the rate is read back from it.
     if (item.qty > 0 && item.amount > 0) item.rate = gstRound(item.amount / item.qty);
   } else if (client.billingMode === 'nos_to_weight' && item.unit === 'NOS') {
-    var pwKey = (item.partNumber || '').toUpperCase();
-    var rateInfo = getLineItemRate(client, onDate, item.partNumber);
+    var pw = (S.partWeights || {})[(item.partNumber || '').toUpperCase()] || 0;
+    // An override in its own unit: per piece prices the pieces, per kg the pieces' weight, as the ladder does below.
+    // One that does not fit (per kg with no weight on record) leaves the line to the client's own rate (itemRateFor).
+    var ov = itemRateFor(client, onDate, item);
+    if (ov && !ov.fits) ov = null;
     // A part with no weight on record cannot be converted; it is billed per piece off the client's card (Samarth's
-    // brackets), or an override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
-    var perPiece = rateInfo._override ? { rate: rateInfo.rate }
-      : (S.partWeights[pwKey] ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
+    // brackets), or a per-piece override. Before this the line priced itself at weight 0 × ₹/kg = ₹0.
+    var perPiece = ov ? (ov.how === 'piece' ? { rate: ov.rate } : null)
+      : (pw ? null : getPieceRate(client, onDate, item.partNumber, item.desc));
     // A rate somebody typed is theirs (item._auto.rate false, while the line still carries the figure typed): the
     // record prices only an empty or a filled rate. It used to replace a typed rate silently.
     var typed = item.rate > 0 && item._auto && item._auto.rate === false && item._auto.rateTyped === item.rate;
@@ -1874,9 +1958,8 @@ function linePrice(item, client, onDate) {
       item.amount = gstRound((item.qty || 0) * item.rate);
       return;
     }
-    var w = (item.qty || 0) * (S.partWeights[pwKey] || 0);
-    if (!typed) item.rate = rateInfo.ratePerKg || 0;
-    item.amount = gstRound(w * item.rate);
+    if (!typed) item.rate = ov ? ov.rate : clientLadderRate(client, onDate);
+    item.amount = gstRound((item.qty || 0) * pw * item.rate);
   } else {
     item.amount = gstRound((item.qty || 0) * (item.rate || 0));
   }
@@ -1948,6 +2031,10 @@ function rateMatch(client, onDate, item) {
   var ref = getRateOnRecord(client, onDate, item);
   if (!ref) return { status: 'none' };
   if (ref.rate == null) return { status: 'gauge' };
+  // The part's override is in another unit than the line: nothing to compare, and never "Matches". `need` is what
+  // would let it price the line: the line in NOS, in KG, or (pieces of a nos_to_weight client) the part's weight.
+  if (ref.fits === false) return { status: 'unit', ref: ref.rate, unit: ref.unit, source: ref.source,
+    need: ref.unit === 'piece' ? 'NOS' : client.billingMode === 'nos_to_weight' && item.unit === 'NOS' ? 'weight' : 'KG' };
   var diff = gstRound(rate - ref.rate);
   // Quantity in the reference's own unit: a nos_to_weight line priced per kg
   // stakes the kilograms, not the pieces.

@@ -664,24 +664,29 @@ function _renderRegSelBar() {
     '<span class="inv-selbar-sum">' + formatCurrency(gstRound(taxable)) + ' taxable</span>' + btns + '</div>';
 }
 
-function regBulkSetState(targetState) {
+async function regBulkSetState(targetState) {
   var ids = _regSelectedIds();
-  var now = Date.now();
   var updated = 0;
 
   var targetIdx = invStateIdx(targetState);
   if (targetIdx < 0) return;
 
+  // One step at a time, except that Created may be dispatched straight away (printed outside the app).
+  var moves = function(inv) {
+    if (!inv || inv.status !== 'active') return false;
+    var curState = getInvState(inv), curIdx = invStateIdx(curState);
+    return curIdx >= 0 && (curIdx + 1 === targetIdx || (curState === 'created' && targetState === 'dispatched'));
+  };
+  var find = function(id) { return S.invoices.find(function(i) { return i.id === id; }); };
+  if (!ids.some(function(id) { return moves(find(id)); })) return;
+  // A billing change (guard.js, as each invoice's own mark is: state.js invStateAsk); the invoices found again after it.
+  if (typeof grdOk === 'function' && !grdOk('billing') && !(await invStateAsk('mark invoices ' + invStateLower(targetState)))) return;
+  var now = Date.now();
   ids.forEach(function(id) {
-    var inv = S.invoices.find(function(i) { return i.id === id; });
-    if (!inv || inv.status !== 'active') return;
-    var curState = getInvState(inv);
-    var curIdx = invStateIdx(curState);
-    // One step at a time, except that Created may be dispatched straight away (printed outside the app).
-    if (curIdx >= 0 && (curIdx + 1 === targetIdx || (curState === 'created' && targetState === 'dispatched'))) {
-      invSetState(inv, targetState, now);
-      updated++;
-    }
+    var inv = find(id);
+    if (!moves(inv)) return;
+    invSetState(inv, targetState, now);
+    updated++;
   });
 
   if (updated > 0) {
@@ -1047,6 +1052,8 @@ function confirmCancelInvoice(invId) {
   saveState();
   closeOverlay();
   renderRegister();
+  // Cancelled from another screen's pane (History's): that screen is redrawn too, or it still offered Cancel (QA chain, 2 Oct 2026).
+  if (navPageOf() !== 'pageRegister') tabRedrawActive();
   showToast('Invoice ' + inv.displayNumber + ' cancelled');
 }
 
@@ -1179,6 +1186,7 @@ async function confirmDeleteInvoice(invId, reissue) {
     return;
   }
   renderRegister();
+  if (navPageOf() !== 'pageRegister') tabRedrawActive();
   showToast('Invoice ' + dispNum + (reserved ? ' deleted — number stays spent' : ' deleted'));
 }
 

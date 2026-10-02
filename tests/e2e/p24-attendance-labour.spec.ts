@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import {
-  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab } from './fixtures';
+  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab, workdayIso } from './fixtures';
 
 /**
  * Staff tab + labour breakdown.
@@ -36,11 +36,6 @@ function staffState(extra: Record<string, unknown> = {}) {
 const openStaff = async (page: Page) => { await switchTab(page, 'pageStaff'); await page.locator('[data-action="invAttView"][data-view="day"]').click(); };
 /** Today, unless today is a Sunday: then the Saturday before. A Sunday worked is paid as a day, never as OT, so a spec
  *  about overtime that marks "today" only held six days a week. */
-function workdayIso(): string {
-  const d = new Date(todayIso() + 'T00:00:00');
-  if (d.getDay() === 0) d.setDate(d.getDate() - 1);
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-}
 /** The Day view on a given date, through the date field the operator uses. */
 const openStaffOn = async (page: Page, iso: string) => {
   await openStaff(page);

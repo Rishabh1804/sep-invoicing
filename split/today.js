@@ -10,8 +10,8 @@
    The views are pageHome's own `v` (?tab=pageHome&v=pulse). The shell (workspace.js) draws their tabs once homeViews
    says they exist, and nav.js reads and applies the view. Nothing here is stored and nothing is worked out twice: each
    figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine, powerCuts, todoRanked,
-   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): a task whose move lands on a refused
-   page is left out, and Pulse's money is the finance permission's. */
+   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
+   a task it may not see (todo.js todoSees), and Pulse's money is the finance permission's. */
 
 var TDY_VIEWS = [{ v: 'needs', label: 'Needs you' }, { v: 'pulse', label: 'Pulse' }];
 var TDY_SHOW = 10;            // a group of tasks shows its first ten; the rest one tap away (uiMoreHtml)
@@ -28,6 +28,10 @@ function tdySetView(v) { _tdyView = v === 'pulse' ? 'pulse' : 'needs'; }
 /* What a role may see on Today. With the guard off, everything (guard.js answers yes). */
 function tdySees(tabId) { return typeof grdSees !== 'function' || grdSees(tabId); }
 function tdySeesMoney() { return typeof grdSeesMoney !== 'function' || grdSeesMoney(); }
+/* The screen each input fills, which a role must open for the input to be its own (the QA audit, QA2-5: an Office user saw
+   all five floor inputs toned Late, and every tap was refused). */
+var TDY_INPUT_PAGE = { 'roll-in': 'pageStaff', 'roll-out': 'pageStaff', pickling: 'pageProduction', production: 'pageProduction', stock: 'pageStock' };
+function tdyInputsSeen() { return TDY_INPUTS.filter(function(def) { return tdySees(TDY_INPUT_PAGE[def.k] || 'pageHome'); }); }
 
 /* ---------- The day's inputs ----------
    The five things the floor sends in a day, in the order they arrive. `usual` is the shop's own time, used until four
@@ -45,8 +49,10 @@ var TDY_INPUTS = [
 function tdyMinOfDay(ts) { var d = new Date(ts); return d.getHours() * 60 + d.getMinutes(); }
 function tdyNowMin() { return tdyMinOfDay(Date.now()); }
 /* When a pasted message arrived on its day: the minute WhatsApp says it was sent (the header's), else the minute it was
-   pasted when that was the same day. Null when neither says (a message pasted days later with no header). */
-function tdyArrival(text, at, day) {
+   pasted when that was the same day. Null when neither says (a message pasted days later with no header). A saved roll
+   keeps only its body, and its header's minute beside it (`sent`: relay.js's sentOn and sentAt). */
+function tdyArrival(text, at, day, sent) {
+  if (sent && sent.sentAt != null && sent.sentOn === day) return sent.sentAt;
   var m = null;
   try { m = prodSplit(text || '').filter(function(x) { return x.sentOn === day && x.sentAt != null; })[0] || null; } catch (e) { m = null; }
   if (m) return m.sentAt;
@@ -75,7 +81,7 @@ function tdyUsual(k, day) {
   days.forEach(function(d) {
     var m = null;
     if (k === 'roll-in' || k === 'roll-out') {
-      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d); if (a != null && (m == null || a < m)) m = a; });
+      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d, p); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'pickling') {
       prodDayLoads(d).forEach(function(e) { var a = relayParseHhmm(e.time); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'stock') {
@@ -101,7 +107,7 @@ function tdyInput(def, day) {
   if (def.k === 'roll-in' || def.k === 'roll-out') {
     var rolls = tdyRolls(def.k === 'roll-in' ? 'in' : 'out', day);
     if (rolls.length) {
-      var a = rolls.map(function(p) { return tdyArrival(p.text, p.at, day); }).filter(function(x) { return x != null; });
+      var a = rolls.map(function(p) { return tdyArrival(p.text, p.at, day, p); }).filter(function(x) { return x != null; });
       o.state = 'in';
       o.text = [a.length ? clock(Math.min.apply(null, a)) : '', att.marked && def.k === 'roll-in' ? (att.p + att.half) + ' on site, ' + att.absent.length + ' absent' : ''].filter(Boolean).join(' · ') || 'In';
     } else if (def.k === 'roll-in' && att.marked) {
@@ -149,7 +155,10 @@ function tdyInput(def, day) {
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 
 function tdyInputsHtml(day) {
-  var rows = TDY_INPUTS.map(function(def) { return tdyInput(def, day); });
+  var defs = tdyInputsSeen();
+  // A role that takes none of the floor's inputs (the office) has no card of them.
+  if (!defs.length) return '';
+  var rows = defs.map(function(def) { return tdyInput(def, day); });
   var n = rows.filter(function(r) { return r.state === 'in'; }).length;
   var h = '<div class="inv-panel inv-panel-flush" data-card="inputs"><div class="inv-panel-head"><span class="inv-panel-title">The day&rsquo;s inputs ' +
     '<span class="inv-panel-count" data-tdy-in>' + n + ' of ' + rows.length + ' in</span></span>' +
@@ -237,14 +246,15 @@ function tdyTaskWs(t) {
   var tab = tdyTaskPage(t);
   return tab && typeof wsLabelOf === 'function' ? wsLabelOf(tab) : '';
 }
-/* The task's one-tap move: its first move (advice.js), else its own button. */
+/* The task's one-tap move: its first move (advice.js) the role may follow (todo.js todoGoSees: its page, Pay's wages,
+   Settings), else its own button. */
 function tdyTaskMoveHtml(t) {
   var mv = typeof advTaskMoves === 'function' ? advTaskMoves(t) : [];
-  var m = mv.filter(function(x) { return x.href || (x.go && tdySees(tdyTaskPage({ go: x.go }) || 'pageHome')); })[0];
+  var m = mv.filter(function(x) { return x.href || (x.go && todoGoSees(x.go)); })[0];
   if (m) {
-    _advMoves[m.key] = m;
+    var ref = advRowRef(m);
     return m.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(m.href) + '" data-adv-call>' + escHtml(m.hrefLabel || 'Call') + '</a>'
-      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(m.key) + '" title="' + escHtml(m.say) + '">' + escHtml(m.goLabel || 'Open') + '</button>';
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(m.key) + '" data-adv-row="' + escHtml(ref) + '" title="' + escHtml(m.say) + '">' + escHtml(m.goLabel || 'Open') + '</button>';
   }
   return t.goLabel ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGoApp" data-key="' + escHtml(t.key) + '">' + escHtml(t.goLabel) + '</button>' : '';
 }
@@ -256,9 +266,10 @@ function tdyAppRowHtml(t) {
     '<span class="inv-row-meta inv-row-wrap">' + escHtml([t.sub, ws].filter(Boolean).join(' · ')) + '</span></button>' +
     '<span class="inv-row-end inv-row-actions">' + tdyTaskMoveHtml(t) + '</span></div>';
 }
-function tdyTasks() {
-  return todoRanked().filter(function(r) { return !r.app || !tdyTaskPage(r.app) || tdySees(tdyTaskPage(r.app)); });
-}
+/* The To-do's own list for the role signed in (todo.js todoRanked → todoSees, todoMineSees): a task whose move lands on a
+   page the role does not open, on Pay without the wages or on Settings without the settings, or whose figures are money
+   or wages it may not read, is not here. One list for Needs you, the To-do and the bar's counts (workspace.js). */
+function tdyTasks() { return todoRanked(); }
 function tdyTasksHtml() {
   var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
@@ -279,6 +290,8 @@ function tdyTasksHtml() {
 function renderNeeds() {
   var el = document.getElementById('homeNeeds');
   if (!el) return;
+  // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
+  if (typeof grdHeld === 'function' && grdHeld()) return;
   var day = localDateStr();
   var h = '<div class="inv-panels">' + tdyInputsHtml(day);
   if (_isDesktop && tdySees('pageFloor')) h += tdyFloorHtml(day);
@@ -295,7 +308,7 @@ function renderPulseQuestions() {
   try { html = advPulseHtml(per); } catch (e) { html = ''; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
-    (html ? '<div class="inv-panels" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+    (html ? '<div class="inv-panels inv-panels-3" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
 }
 /* The view on screen: one of the two blocks shown. */
 function tdyApplyView() {

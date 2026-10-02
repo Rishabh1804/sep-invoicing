@@ -7,10 +7,10 @@ import { sweepState } from './sweep-fixture';
 // `100vh - the PHONE bar`, which ignored the page's padding, view tabs and toolbar above it: the whole page scrolled
 // a little on top of the list, and the wheel moved the page instead of the list.
 //
-// Covered: every screen that draws an inv-pane-host (Register, IM, Clients → Clients and Items, Stock → Lines), with
-// the pane closed and with a row's pane open. Those are the fill-the-viewport layouts; everything else (Home, Stats,
-// Finance, Staff, To-do, History, Create, Clients → Performance, Stock → Overview) is an ordinary long document and is
-// meant to scroll, so it is not checked here.
+// Covered: every screen that draws an inv-pane-host (Register, IM, Clients → Clients, Items and Quotations, Stock → Lines,
+// Pipeline, Finance → Receivables, Production → Entries, Staff → Roster, History), with the pane closed and with a row's
+// pane open. Those are the fill-the-viewport layouts; everything else (Home, Stats, Finance's other tabs, Staff's other
+// views, To-do, Create, Clients → Performance, Stock → Overview) is an ordinary long document and is meant to scroll.
 
 // `opened`: what shows once `row` is opened, where that is not a pane (the pipeline opens another stage's list beside it).
 type Stop = { name: string; go: (page: Page) => Promise<void>; row: string; opened?: string };
@@ -40,6 +40,23 @@ const STOPS: Stop[] = [
   },
   // Office → Pipeline (P137): the pipeline beside the open stage's list.
   { name: 'Pipeline', go: p => switchTab(p, 'pagePipeline'), row: '#pagePipeline button[data-pipe-stage="dispatched"]', opened: '#pipeList [data-pipe-list="dispatched"]' },
+  // UX overhaul 2, step 7 (P147): four more screens a list beside its pane.
+  {
+    name: 'Finance › Receivables',
+    go: async p => { await switchTab(p, 'pageFinance'); await p.locator('#pageFinance .inv-viewtab[data-tab="receipts"]').click(); },
+    row: '#recvList [data-action="invBankClient"]',
+  },
+  {
+    name: 'Production › Entries',
+    go: async p => { await switchTab(p, 'pageProduction'); await p.locator('#pageProduction .inv-viewtab[data-tab="entries"]').click(); },
+    row: '#prodEntriesHost [data-action="invProdEntryOpen"]',
+  },
+  {
+    name: 'Staff › Roster',
+    go: async p => { await switchTab(p, 'pageStaff'); await p.locator('#pageStaff .inv-viewtab[data-view="roster"]').click(); },
+    row: '#attRosterTable tbody tr[data-action="invAttRosterOpen"]',
+  },
+  { name: 'History', go: p => switchTab(p, 'pageHistory'), row: '#historyHost tbody tr[data-action="invHistoryOpen"]' },
 ];
 
 async function measure(page: Page) {

@@ -221,8 +221,9 @@ function _attPayView() {
   html += _payDueCard(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
-  // The bank's side of the same payroll (Finance → Payments draws the same panel).
-  if (finHasBank()) html += finWagesHtml(finCtx().cls, 'pay');
+  // The bank's side of the same payroll (Finance → Payments draws the same panel): the bank is money, so a role that sees
+  // wages but not money has the slips without the statement's legs (the guard, the QA chain of 2 Oct 2026).
+  if (finHasBank() && (typeof grdSeesMoney !== 'function' || grdSeesMoney())) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
 }
 
@@ -669,8 +670,13 @@ function areaHoursForRange(from, to) {
       // A mark with no hours counts the day (8, a half day 4) and its OT on top: OT is part of a day's hours.
       var hrs = m.hours > 0 ? m.hours : (m.st === 'H' ? 4 : 8) + (m.ot || 0);
       if (!(m.hours > 0)) { a.assumed++; assumed++; }
-      a.hours += hrs;
-      a.ot += m.ot || 0;
+      // The overtime where it was worked, as Labour and the Areas card place it (attHoursSplit, staff.js): a monthly or daily
+      // hand's OT to their OT slot's area, an hourly hand's hours past eight on a slot to the slot's. Those hours are not
+      // overtime: the hourly tier has none (every hour at one rate), so they move as hours and are never counted as OT.
+      var sp = attHoursSplit(rec, w, m), late = Math.min(hrs, sp.otHours), o = get(sp.otArea);
+      a.hours += hrs - late;
+      o.hours += late;
+      if (!(w && w.comp === 'hourly')) o.ot += late;
       a.workerDays += m.st === 'H' ? 0.5 : 1;
     });
     // A block over several areas books to each of them evenly, as the Areas card splits it; it all went to the first.
@@ -706,7 +712,6 @@ function areaHoursCard(from, to) {
 /* One day's attendance, read once: Home's card and Staff → Overview draw the same figures. The day is today,
    or the last day that has marks when nothing is typed today, and it says which. A day named (Floor → Day) is that day. */
 function attDaySummary(day) {
-  var roster = staffActive();
   var today = localDateStr();
   var iso = day || today, rec = (S.attendance || {})[iso];
   var marked = function(r) { return r && Object.keys(r.marks || {}).length > 0; };
@@ -714,6 +719,9 @@ function attDaySummary(day) {
     var last = Object.keys(S.attendance || {}).filter(function(k) { return k < today && marked(S.attendance[k]); }).sort().pop();
     if (last) { iso = last; rec = S.attendance[last]; }
   }
+  // The day's roster, as Staff → Day counts it: the active hands and anyone marked that day who has since left. The active
+  // roster alone read 15/16 on Floor → Day and Home against Staff → Day's 16/17 for the same day (QA3-9).
+  var roster = attDayRoster(rec);
   var out = { roster: roster, iso: iso, today: iso === today, marked: marked(rec), p: 0, half: 0, absent: [], unmarked: 0, floorHeads: 0, complement: 0, extraH: 0, short: false, byArea: {} };
   if (!out.marked) return out;
   roster.forEach(function(w) {

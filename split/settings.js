@@ -820,8 +820,8 @@ function bookReplacedShow() {
 }
 
 function importData() {
-  // P1 (guard.js): an import replaces the book.
-  if (typeof grdGate === 'function' && !grdGate('imports', 'import a backup', importData)) return;
+  // P1 (guard.js): an import replaces the book, its IDs with it: the owner's alone (grdBookAsk), not the Imports switch's.
+  if (typeof grdGate === 'function' && !grdGate('users', 'import a backup', importData)) return;
   const inp = document.getElementById('importFileInput');
   inp.onchange = (e) => {
     const f = e.target.files[0];
@@ -837,6 +837,9 @@ function importData() {
 
 /* A backup's text, from Settings → Import or from Add → File (add.js): checked, asked about, and only then the book replaced. */
 async function importDataText(text) {
+  // Whatever door it came through (Settings → Import, Add → File): replacing the book is the owner's (guard.js). Asked
+  // once: the door's own question opened the window this one reads.
+  if (typeof grdOk === 'function' && !grdOk('users') && !(await grdBookAsk('import a backup'))) return;
   let data;
   try {
     data = JSON.parse(text);
@@ -851,6 +854,8 @@ async function importDataText(text) {
   if (blocked) { showToast('Not imported: ' + blocked, 'error'); return; }
   if (!(await uiConfirm({ title: 'Replace all data?', body: 'Import will replace ALL current data. ' +
       (bookStandIn() ? bookStandInReplaceText() + ' ' : '') + 'Continue?', okLabel: 'Import and replace', danger: true }))) return;
+  // This book's IDs stay unless the owner says to take the backup's (guard.js): a backup with no guard, or another's.
+  if (typeof grdBookUsersAsk === 'function') await grdBookUsersAsk(data);
   try {
     // This path carried NO repairs at all, which was the sharper half of
     // the same bug: a backup written before `staff` existed left it

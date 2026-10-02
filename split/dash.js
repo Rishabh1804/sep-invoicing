@@ -14,27 +14,35 @@ function _dashPanel(id, title, body, head, rows) {
 function _dashWeekLabel(sat) { return stockShortDate(sat); }
 
 /* ---------- 7a. Staff ---------- */
-/* Worker-days present (P = 1, H = ½) over the active roster's marks typed that week, per pay week.
-   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator. */
+/* Worker-days present (P = 1, H = ½) over the active roster's marks typed, Monday to Saturday, to today: the attendance
+   Staff → Overview draws by pay week, and the one a report reads for its period (report.js; QA5-6: the report had its own
+   copy, which took Sundays in, counted a half day whole and divided by today's roster).
+   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator.
+   Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that were
+   actually typed — present, half or absent — so a half-entered day reads as what was entered. A Sunday worked is
+   overtime, not attendance. `avg` is the heads on site a day recorded, on the same counting. */
+function attPresenceForRange(from, to, ids) {
+  var today = localDateStr(), present = 0, marked = 0, days = 0;
+  if (!ids) { ids = {}; staffActive().forEach(function(w) { ids[String(w.id)] = true; }); }
+  attDatesInRange(from, to > today ? today : to).forEach(function(iso) {
+    var rec = (S.attendance || {})[iso];
+    if (attParseIso(iso).getDay() === 0 || !rec || !Object.keys(rec.marks || {}).length) return;
+    days++;
+    Object.keys(rec.marks).forEach(function(id) {
+      var m = rec.marks[id];
+      if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
+      marked++;
+      if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
+    });
+  });
+  return { days: days, marked: marked, present: present, pct: marked ? present / marked * 100 : null, avg: days ? present / days : null };
+}
 function dashAttendanceByWeek(n) {
-  // Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that
-  // were actually typed — present, half or absent — so a half-entered day reads as what was entered.
-  var active = staffActive(), ids = {}, today = localDateStr(), out = [], ws = attWeekStartOf(today);
-  active.forEach(function(w) { ids[String(w.id)] = true; });
+  var ids = {}, out = [], ws = attWeekStartOf(localDateStr());
+  staffActive().forEach(function(w) { ids[String(w.id)] = true; });
   for (var k = n - 1; k >= 0; k--) {
-    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), present = 0, marked = 0, days = 0;
-    for (var d = 1; d <= 6; d++) {
-      var iso = isoAddDays(start, d), rec = (S.attendance || {})[iso];
-      if (iso > today || !rec || !Object.keys(rec.marks || {}).length) continue;
-      days++;
-      Object.keys(rec.marks).forEach(function(id) {
-        var m = rec.marks[id];
-        if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
-        marked++;
-        if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
-      });
-    }
-    out.push({ start: start, sat: sat, days: days, marked: marked, pct: marked ? present / marked * 100 : null });
+    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), r = attPresenceForRange(start, sat, ids);
+    out.push({ start: start, sat: sat, days: r.days, marked: r.marked, pct: r.pct });
   }
   return out;
 }
@@ -85,8 +93,10 @@ function staffOverviewHtml() {
     { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded' }) +
     '<div class="inv-note">Worker-days present (a half day is half) over the active roster’s marks typed that week; an unmarked hand is not counted absent. A week nobody typed is a gap, not a zero.</div>');
 
-  var labs = _dashLabMonths(insMonthsBack(6)), lm = dashLabourByMonth(labs), model = labourCfg().modelPerKg || 3.55;
-  h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
+  // Labour ₹/kg and the payroll are wages (the guard's "wages" setting): a role that may not see them has neither panel.
+  var wages = attSeesWages();
+  var labs = wages ? _dashLabMonths(insMonthsBack(6)) : null, lm = wages ? dashLabourByMonth(labs) : [], model = labourCfg().modelPerKg || 3.55;
+  if (wages) h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }) },
     { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), tone: 2 },
     { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
@@ -100,8 +110,8 @@ function staffOverviewHtml() {
   ], { unit: 'h', ariaLabel: 'OT and EXTRA hours by area', emptyText: 'No OT or EXTRA booked in the last four weeks' }) +
     '<div class="inv-note">From ' + escHtml(formatDate(from)) + ': overtime hours on each mark where the worker stood that day, and the EXTRA booked to the area.</div>');
 
-  var pb = dashPayrollVsBank(labs);
-  h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
+  var pb = wages ? dashPayrollVsBank(labs) : null;
+  if (wages) h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
     { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
     { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) }
   ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +
@@ -206,13 +216,16 @@ function stockOverviewHtml() {
 
   h += dashPricePanelHtml();
 
-  var L = stockReorderList(), fc = finHasBank() ? finForecast(45) : null;
+  // The forecast is the bank's, money: a role without the finance permission sees the order's cost alone, and no tile
+  // asking for a statement (finlinks.js finSeen; the QA audit, QA4-4).
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var L = stockReorderList(), fc = finSeen() ? finForecast(45) : null;
   var need = gstRound(L.total * 1.18);
   h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(need))) + '</div><div class="inv-tile-sub">' +
       (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
-    (fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(fc.min.bal))) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
+    (!money ? '' : fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(fc.min.bal))) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
       '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(gstRound(fc.min.bal - need)))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
       : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
     '</div></div>';

@@ -261,7 +261,7 @@ function openAccountForNumber(num, display) {
     '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>');
 }
 
-function saveGapReason() {
+async function saveGapReason() {
   if (_accountForNum == null) return;
   var reasonEl = document.getElementById('invGapReason');
   var reason = reasonEl ? reasonEl.value.trim() : '';
@@ -270,13 +270,18 @@ function saveGapReason() {
   var dateEl = document.getElementById('invGapDate');
   var clientEl = document.getElementById('invGapClient');
   var n = _accountForNum, disp = _accountForDisplay || displayForNumber(n);
+  var date = (dateEl && dateEl.value) || '', clientName = (clientEl && clientEl.value.trim()) || '';
+  // A number accounted for is a void tombstone: P1, asked as every other void is (guard.js). It wrote one for any role
+  // that reached the audit (QA3-1). What was typed is read first: the dialog stays open under the question.
+  if (!grdOk('voids') && !(await guardAsk('voids', 'account for a missing number'))) return;
+  if (_accountForNum !== n) return;   // recorded or closed while the question was open
 
   getVoidedNumbers().push({
     invoiceNumber: padInvNum(n),
     displayNumber: disp,
-    date: (dateEl && dateEl.value) || '',
+    date: date,
     clientId: null,
-    clientName: (clientEl && clientEl.value.trim()) || '',
+    clientName: clientName,
     taxableValue: 0,
     grandTotal: 0,
     lastState: 'unknown',

@@ -209,6 +209,8 @@ function onDocClick(e) {
     case 'invAttAddWorker': openWorkerAdd(); break;
     case 'invAttImportRoster': importRoster(); break;
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
+    case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
+    case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     case 'invAttMergeWorker': mergeWorkerInto(parseInt(btn.dataset.id, 10)); break;
@@ -339,6 +341,8 @@ function onDocClick(e) {
     }
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
+    case 'invHistoryOpen': _historyOpen = _historyOpen === btn.dataset.key ? null : btn.dataset.key; keepScroll(renderHistory); break;
+    case 'invHistoryClose': _historyOpen = null; keepScroll(renderHistory); break;
     case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner
@@ -529,6 +533,11 @@ function onDocChange(e) {
     if (!item) return;
     const client = invoiceForm.clientId ? S.clients.find(c => c.id === invoiceForm.clientId) : null;
     if (field === 'unit') {
+      // Where an override names the part, a rate the record put on the line (or none) is read again for the new unit: an
+      // override prices a line only in its own unit (itemRateFor, state.js), so ₹3.83 a piece must not stay on a line
+      // switched to KG. A rate typed, or a challan's own, stays as it is.
+      const fromRecord = client && itemRateFor(client, invoiceForm.date, item) &&
+        (!(item.rate > 0) || item.rate === defaultLineRate(client, invoiceForm.date, item));
       item.unit = el.value;
       // Piece mode: switching to NOS means amount is user-entered, rate is back-calculated
       if (client && client.billingMode === 'piece' && el.value === 'NOS') {
@@ -536,6 +545,11 @@ function onDocChange(e) {
         item.amount = 0;
         // A challan line's pieces put back: its share of the challan's own amount, not ₹0.
         createPieceShare(item);
+      } else if (fromRecord) {
+        const ov = itemRateFor(client, invoiceForm.date, item);
+        item.rate = defaultLineRate(client, invoiceForm.date, item);
+        item._override = !!(ov && ov.fits);
+        item._label = item._override ? ov.label : '';
       }
       recalcLineItem(item, client);
       captureOptionalFields();
@@ -588,14 +602,15 @@ function onDocChange(e) {
     renderAttendance();
     return;
   }
+  // A field typed in (a time, an hour count) is saved and the day drawn AROUND it (attRedrawAround, staff.js): a time is
+  // complete, and fires this, while it is still being typed, and a number fires it on the blur a tap causes; drawn whole,
+  // the field went from under the next key and the button from under the tap.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-from')) {
-    setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'from', e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'from', e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-to')) {
-    setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttBlockTime(parseInt(e.target.dataset.idx, 10), 'to', e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-slot')) {
@@ -604,38 +619,38 @@ function onDocChange(e) {
     return;
   }
   if (e.target.hasAttribute && (e.target.hasAttribute('data-att-in') || e.target.hasAttribute('data-att-out'))) {
-    setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttTime(parseInt(e.target.dataset.id, 10), e.target.hasAttribute('data-att-in') ? 'in' : 'out', e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
-    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttOt(parseInt(e.target.dataset.id, 10), e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
-    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttHours(parseInt(e.target.dataset.id, 10), e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
-    setAreaTarget(e.target.dataset.area, e.target.value);
-    renderAttendance();
+    // A standing norm (areas.js areaTargetCan): asked as a Settings change outside the PIN's window, refused to a role
+    // without it. Waiting on the PIN or refused, the field shows what is stored; given, the figure typed is set.
+    var tgEl = e.target, tgArea = tgEl.dataset.area, tgV = tgEl.value;
+    if (typeof grdGate === 'function' && !grdGate('settings', 'set an area’s complement', function() { setAreaTarget(tgArea, tgV); renderAttendance(); })) { renderAttendance(); return; }
+    setAreaTarget(tgArea, tgV);
+    attRedrawAround(tgEl);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
-    renderAttendance();
+    var needOk = attFloorOk();
+    if (needOk) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    attFieldDone(e.target, needOk);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
-    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value));
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
-    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
-    renderAttendance();
+    attFieldDone(e.target, setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value));
     return;
   }
   // Client performance: which account is under the lens
@@ -695,6 +710,10 @@ function onDocChange(e) {
         citem.rate = 0; citem.amount = 0;
         lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
         lineFillFromCount(cclient, citem);
+      } else if (cclient && itemRateFor(cclient, _challanForm.challanDate || localDateStr(), citem) && (!(citem.rate > 0) || (citem._auto && citem._auto.rate))) {
+        // Where an override names the part, the record's rate follows the unit (an override prices a line only in its
+        // own unit, itemRateFor); a rate typed stays (lineFillFromRecord fills only an empty rate or one it filled).
+        lineFillFromRecord(cclient, _challanForm.challanDate || localDateStr(), citem, S.items.find(function(p) { return p.partNumber === citem.partNumber; }));
       }
       recalcChallanLine(citem, cclient);
       captureChallanFields();
@@ -719,28 +738,29 @@ document.addEventListener('input', function(e) {
   // Attendance hours. Written on every keystroke so nothing is lost, but never
   // re-rendered here: replacing the field mid-entry is what ended the keyboard
   // path in challan entry, and a number input is the same trap.
+  // A role that may not enter attendance is told so on the first key, and the field is put back as stored.
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-ot')) {
-    setAttOt(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttOt(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-hours')) {
-    setAttHours(parseInt(e.target.dataset.id, 10), e.target.value);
+    if (setAttHours(parseInt(e.target.dataset.id, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-area-target')) {
-    setAreaTarget(e.target.dataset.area, e.target.value);
+    if (typeof grdOk !== 'function' || grdOk('settings')) setAreaTarget(e.target.dataset.area, e.target.value);
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-need')) {
-    setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value);
+    if (attFloorOk()) setAreaNeedOn(_attDate, e.target.dataset.area, e.target.value); else renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-block-need')) {
-    setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttBlockNeed(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   if (e.target.hasAttribute && e.target.hasAttribute('data-att-extra-hours')) {
-    setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value);
+    if (setAttExtraHours(parseInt(e.target.dataset.idx, 10), e.target.value) === false) renderAttendance();
     return;
   }
   // History search. Debounced so a long log is not rebuilt per keystroke, and
@@ -812,13 +832,13 @@ document.addEventListener('input', function(e) {
         if (amtInput) amtInput.value = formatNum(item.amount);
         updateTotalsDisplay();
       }
-      // Also check itemRates override
+      // Also check itemRates override, in the line's own unit (itemRateFor, state.js)
       if (client && client.itemRates && client.itemRates.length > 0) {
-        const rateInfo = getLineItemRate(client, invoiceForm.date, item.partNumber);
-        if (rateInfo._override) {
-          item.rate = rateInfo.rate;
+        const ov = itemRateFor(client, invoiceForm.date, item);
+        if (ov && ov.fits) {
+          item.rate = ov.rate;
           item._override = true;
-          item._label = rateInfo._label;
+          item._label = ov.label;
           recalcLineItem(item, client);
           const rateInput = document.querySelector('[data-field="rate"][data-idx="' + idx + '"]');
           const amtInput = document.querySelector('[data-field="amount"][data-idx="' + idx + '"]');
@@ -846,9 +866,12 @@ document.addEventListener('input', function(e) {
       // Auto-fill rate from client rate card
       var cclient = _challanForm.clientId ? S.clients.find(function(c) { return c.id === _challanForm.clientId; }) : null;
       if (cclient && cclient.itemRates && cclient.itemRates.length > 0) {
-        var rateInfo = getLineItemRate(cclient, _challanForm.challanDate || localDateStr(), citem.partNumber);
-        if (rateInfo._override) {
-          citem.rate = rateInfo.rate;
+        var cov = itemRateFor(cclient, _challanForm.challanDate || localDateStr(), citem);
+        if (cov && cov.fits) {
+          citem.rate = cov.rate;
+          // The record's figure, marked so (item._auto): it follows the line's unit and is replaced by a rate typed.
+          citem._auto = citem._auto || {};
+          citem._auto.rate = true;
           recalcChallanLine(citem, cclient);
           var rI = document.querySelector('[data-action="invUpdateChallanLine"][data-field="rate"][data-idx="' + cidx + '"]');
           var aI = document.querySelector('[data-action="invUpdateChallanLine"][data-field="amount"][data-idx="' + cidx + '"]');

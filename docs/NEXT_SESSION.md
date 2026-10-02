@@ -7,6 +7,33 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 2 Oct 2026: the QA chain over 1–2 Oct (read this first)
+
+Six audits of everything built on 1–2 Oct, then the fixes, each with its spec (P149–P153; CLAUDE.md, *The QA chain of 2 Oct 2026*).
+**What the owner should know before using it:**
+- **Only the owner replaces the book**: a backup imported and a pull from GitHub need the owner's ID, and where the incoming book's
+  IDs differ the owner is asked whether to take them. The Imports switch now covers the floor's files (stock, production, power,
+  a roster).
+- **The owner's own PIN is changed with the PIN itself** (*Change my PIN*), or reset from the lock with the recovery code. With
+  the guard on and no recovery code on record, **make one now** (Settings → Access → Users & access → New recovery code): a
+  forgotten PIN has no other way back.
+- Wrong PINs lock the ID they were typed for, not the device.
+- An invoice's state (Mark printed, dispatched, delivered, filed; Not printed) asks as an edit does; Print still marks Printed in one tap.
+- An area's complement on Staff → Areas is the owner's (a Settings change).
+- An item rate override prices only lines in its own unit; a line in the other unit is at the client's own rate and says *Another unit*.
+
+## Built 2 Oct 2026: UX overhaul 2, step 7
+
+The desktop's list and pane on Finance → Receivables, Production → Entries, Staff → Roster and History, and three columns on
+Pulse, Stats and Finance above about 1,600px (P147; CLAUDE.md and `docs/UX_OVERHAUL_2.md` step 7). **Every planned step of UX
+overhaul 2 is now built** (3, 4 and 5 came with Direction B's search, keys and new windows). **What is left in the queue:**
+- **G4, the merge** (`docs/GUARD.md`): waits, by the owner's plan, until more than one person enters data on their own device.
+- **Home hover previews** (parked below): the owner called them a planned UI update; not started.
+- **The Android To-do widget** (needs a native wrapper) and moving `S.todo` to `sep-dashboard` when that app is ready.
+- **The owner's own checks** listed in each section below (a real day of production end to end, a register photo through
+  Gemini, the power quotes, the quotation series already issued by hand).
+- **The owner said they have more asks queued** (30 Sep 2026): ask what is next.
+
 ## Built 1 Oct 2026: quotations and reports (read this first)
 
 Clients → **Quotations** (P131) and **Reports** (P132); CLAUDE.md has both sections. **Left for the owner:** the series already
@@ -73,8 +100,7 @@ production record, so nothing is measured yet); the 15-minute constant is theirs
 - **soma-internal T-IF:** August's app bill is ₹73,156 against the bank's ₹76,156.
 - **The compile session** should read `attendanceDeletes` before calling a missing day unrecorded (data-flow row below).
 - **Home's Revenue tile will link to its credit notes** once the hover previews are built (parked, `UX_OVERHAUL_2.md`).
-- **UX overhaul 2, steps not built:** 3 (open in a new window), 4 (search), 5 (keyboard), 7 (desktop layouts). See
-  `docs/UX_OVERHAUL_2.md`.
+- ~~**UX overhaul 2, steps not built:** 3, 4, 5, 7.~~ All built: 3–5 with Direction B (1 Oct), 7 on 2 Oct 2026.
 - **The owner said "We have updates remaining" (30 Sep 2026)**: they have more asks queued for this session. Ask what's next.
 
 **Local scratch checks** (git-excluded `tests/e2e/zz-*`, gone when the container is reclaimed):
@@ -259,6 +285,7 @@ in the PR**, so the compile session knows to re-check.
 | **What to do and error reports, 1 Oct 2026** | Tasks of the owner's own (`todo.tasks`) may carry `go` (a jump: `{kind, …}`), `goLabel` and `advKey` (a move added from the Pulse or a task's moves). Quotations may carry `draftNote` (a draft opened from a move; never printed). App tasks are not stored. Error reports go to Sentry from the live site and carry no book data; nothing about them is in the book (`sep_inv_err_off`, `sep_inv_err_queue` are per device). |
 | **Direction B and the guard, 1 Oct 2026** | New top-level `users: [{id, name, role, active, secret: {alg, iter, salt, hash, digits}, createdAt, createdBy}]` (a PIN only as a salted PBKDF2 hash), `guardCfg: {lockMinutes, askMinutes, roles: {office, supervisor, floor: {pages, may, wages, finance}}, recovery}`, `devices: [{id, name, user, registeredAt, registeredBy, build, lastPushAt?, removedAt?, removedBy?, removeReason?}]` and `changeLog: [{id, at, by, dev, op: add/change/remove, coll, rid, label, fields: [{f, from, to}]}]` (every save compared record by record). A GitHub copy pushed with the guard on carries `_device` beside the book. **For the compile:** keep `changeLog` whole (it is what the merge, G4, will sync); never expect a PIN, a token or a key in a backup. With no owner in `users` the guard is off and nothing else moves. Today's view (`?tab=pageHome&v=needs\|pulse`) and the workspaces store nothing in the book. |
 | **Quotations and reports, 1 Oct 2026** | New top-level `quotations: [{id, num, fy, displayNumber, rev, revOf, revReason, date, clientId, to: {name, address, gstin, state, attn}, intro, lines: [{item, partNumber, desc, basis: kg/piece, rate, refWeightKg, note, postedAt?, postedTo?}], gstPct, sac, transport, minConsignmentKg, lotPcs, validDays, paymentDays, terms, status: draft/issued/accepted/declined/superseded/void, issuedAt, supersededBy, voidReason, acceptedAt, createdAt, at}]` and `qtnCfg: {signatory, signTitle, footNote}`. **The app now issues the `SEP/QTN/<FY>/NNN` series** that `soma-internal/operations/quotations/README.md` registers by hand: the compile should read the app's issued quotations into that register (a draft has no number and is not a row), and the next number here starts above the highest **in the app** — the five issued in 2026-27 so far (001–005, 001-A) are not in the book, so **the owner should record them (or set them aside) before issuing from the app**, or the app's first will be 001 again. Clients' `itemRates` rows may now carry `unit: 'kg'`, posted from an accepted quotation. Reports store nothing. |
+| **The QA chain, 2 Oct 2026** | `S.attendance[iso].slotHand: {staffId: {morning\|evening\|night: areaId \| ''}}` — a hand's own OT slot pick, kept apart from the EXTRA rows. A `block` row with `slotMade: true` was made by the app for a pick: **it books nothing and is no EXTRA row; the compile must not read it as one** (hours 0, its crew the hands who picked it; the slot's usual times). `relayPastes[]` gain `sentAt` (the minute of `sentOn` WhatsApp sent the roll). Clients' `itemRates`: the first row whose pattern a part contains prices it, a row posted from a quotation goes before the broader ones, a row with no `unit` is per piece, and an override prices a line only in its own unit. `guardCfg.roles.*.may`'s `imports` now means the floor's files only; replacing the book is the owner's. The change log names the person for the guard turned off, a PIN reset from the lock and a book brought in. The lockout's count (`sep_inv_guard_fail`, now per ID) is on the device, never in the book. |
 | **Backup shape changed, 25 Sep 2026 (pay)** | New top-level `staffPayments: [{id, staffId, date, amount, kind: payment/advance, note, at, voidedAt?, voidReason?}]`: wages paid out, voided and never deleted. **The attendance week is now the pay week, Sunday to Saturday**, numbered by its Saturday's ISO week (the payout files' own numbering). Any compile step that groups attendance by week should use the same boundary. |
 | **Backup shape changed, 26 Sep 2026 (a challan invoiced in parts)** | ⚠ **A data-flow change to how the sister repos read challans.** A challan (IM) line may now be billed by several invoices. Its billed quantity is derived from the invoice lines naming it (`imItemId`, invoices not cancelled) and cached on the line as `billedQty`, `billedNos` (KG lines with pieces), `invoiceIds` (every invoice, oldest first; `invoiceId` is the latest) and `invoiced` (true only once nothing is left). A line with `billedQty > 0` and `invoiced: false` is **part-invoiced**; its unbilled share is `qty − billedQty` and its unbilled amount `amount × left ÷ qty`. `billedLegacy: true` marks a line billed whole by an invoice from before `imItemId`. Invoice lines gain `imWhole` (an old loose link that billed the whole challan line) and `overBillAck: {at, left}` (billing more than was left, accepted on save). **For the compile:** anything reading `invoiced` / `invoiceId` as "this line went on that one invoice" should read `invoiceIds` and `billedQty` instead, and unbilled material should be the open share, not the whole line. |
 | **Backup shape changed, 28 Sep 2026 (receivables start)** | `bank.opening[clientId]` gains `date`: the day the amount was owed on, which is now the later of the statement's first day and the book's first invoice (`bankRecvFrom`). One with no `date` meant the statement's first day and is counted only while that is still the start. An opening taken from the app's suggestion carries `suggested: true`. **For the compile:** receivables, days to pay and the owed figures no longer read receipts from before the book's first invoice, and a receipt is set only against invoices raised by its own day (the rest is on account). |

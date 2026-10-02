@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="301dc2db">
+<meta name="app-build" content="2df9f137">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -13983,7 +13983,7 @@ function openAccountForNumber(num, display) {
     '<button class="inv-btn inv-btn-primary" data-action="invSaveGapReason">Record</button></div></div>');
 }
 
-function saveGapReason() {
+async function saveGapReason() {
   if (_accountForNum == null) return;
   var reasonEl = document.getElementById('invGapReason');
   var reason = reasonEl ? reasonEl.value.trim() : '';
@@ -13992,13 +13992,18 @@ function saveGapReason() {
   var dateEl = document.getElementById('invGapDate');
   var clientEl = document.getElementById('invGapClient');
   var n = _accountForNum, disp = _accountForDisplay || displayForNumber(n);
+  var date = (dateEl && dateEl.value) || '', clientName = (clientEl && clientEl.value.trim()) || '';
+  // A number accounted for is a void tombstone: P1, asked as every other void is (guard.js). It wrote one for any role
+  // that reached the audit (QA3-1). What was typed is read first: the dialog stays open under the question.
+  if (!grdOk('voids') && !(await guardAsk('voids', 'account for a missing number'))) return;
+  if (_accountForNum !== n) return;   // recorded or closed while the question was open
 
   getVoidedNumbers().push({
     invoiceNumber: padInvNum(n),
     displayNumber: disp,
-    date: (dateEl && dateEl.value) || '',
+    date: date,
     clientId: null,
-    clientName: (clientEl && clientEl.value.trim()) || '',
+    clientName: clientName,
     taxableValue: 0,
     grandTotal: 0,
     lastState: 'unknown',
@@ -14170,7 +14175,8 @@ function pipeInvoices(st) {
 }
 
 /* The six stages, in order: {key, label, n, amount, of (what the amount is), tone, word, items, open}. A stage is open
-   (can be opened) when it holds something; Owed to us needs a bank statement to say anything (noBank). */
+   (can be opened) when it holds something; Owed to us needs a bank statement to say anything (noBank), and is left out
+   for a role that does not see money. */
 function pipeStages() {
   var today = localDateStr(), now = Date.now(), out = [];
   var add = function(key, o) {
@@ -14207,6 +14213,9 @@ function pipeStages() {
     add(st, { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word });
   });
 
+  // Owed to us is the bank's receivables: money. A role that does not see money has no such stage, as Pulse has no Money
+  // widget for it (homeWidgetSeen('money')): Office's defaults are "no wages, bank or margins" (QA3-2).
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return out;
   // Owed to us: what Receivables say, judged by the age of the oldest open invoice. Never red while a receipt is
   // unplaced: that money may be in already, and what is owed reads high (the owed90 rule's reason; Home says the same).
   if (!finHasBank()) add('owed', { noBank: true });
@@ -28838,6 +28847,19 @@ function todoSnooze(key, v) {
 /* ---------- Going to the thing ---------- */
 function todoGo(go) {
   if (!go) return;
+  // The guard (guard.js): a jump to a page this ID may not open opens nothing, neither the page nor what the jump draws over
+  // it. switchTab refused the page and drew Home, and the jump went on to open its dialog there: the credit notes, the number
+  // audit and its Record, an invoice with its Mark buttons, a client's rates (QA3-1, QA4-1). Said as switchTab says it.
+  // Settings asks its own way (openSettings).
+  var page = { stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
+    bills: 'pageFinance', finance: 'pageFinance', cnList: 'pageRegister', cnBatch: 'pageRegister', regState: 'pageRegister',
+    audit: 'pageRegister', invoice: 'pageRegister', register: 'pageRegister', im: 'pageIM', challan: 'pageIM',
+    production: 'pageProduction', prodLines: 'pageProduction', stats: 'pageStats', liveCost: 'pageStats',
+    staffRoster: 'pageStaff', staffPaste: 'pageStaff', areas: 'pageStaff', payWages: 'pageStaff', payDue: 'pageStaff', payWeek: 'pageStaff',
+    power: 'pagePower', powerCase: 'pagePower', client: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', perf: 'pageClients',
+    createFor: 'pageCreate' }[go.kind];
+  if (page && typeof grdSees === 'function' && !grdSees(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
+  if (/^pay(Wages|Due|Week)$/.test(go.kind) && typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
   // Every dialog is shut on the way: one holding typed work asks first, as its × does (the client's edit sheet carries
   // Open in Finance, which dropped a typed GSTIN: the QA audit of 30 Sep 2026).
   if (dialogsTypedAsk(function() { todoGo(go); })) return;
@@ -45096,13 +45118,23 @@ var _srchCache = null;    // {s, w, list, keys, byKey, ms, parts}
    applied to every answer, so a role never reads a figure its screens hide (with the guard off, everything). */
 var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pageIM', client: 'pageClients', part: 'pageClients',
   quote: 'pageClients', worker: 'pageStaff', stock: 'pageStock', bank: 'pageFinance' };
+/* The page every other jump opens: the To-do's jumps a screen makes, and each action's form (Add's, GRD_ADD_PAGE). A screen
+   entry is shown only where its page opens to the role. Every non-place entry passed before (QA3-1): a Supervisor found the
+   credit notes and the Number audit, which opened over Home after switchTab had refused the Register. */
+var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'pageFinance' };
+var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
+  worker: 'pageStaff', task: 'pageTodo', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
     var go = e.go || {};
-    if (go.kind === 'place' && go.loc) return grdSees(go.loc.tab);
     if (go.kind === 'settings') return grdCan('settings');
-    return true;
+    var page = go.kind === 'place' ? go.loc && go.loc.tab : go.kind === 'act' ? SRCH_ACT_PAGE[go.act] : SRCH_GO_PAGE[go.kind];
+    // A jump this table cannot place is the owner's alone until it says where it leads.
+    if (!page) return grdIsOwner();
+    if (!grdSees(page)) return false;
+    // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
+    return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
   var page = SRCH_KIND_PAGE[e.kind];
   if (page && !grdSees(page)) return false;

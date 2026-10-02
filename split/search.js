@@ -174,13 +174,23 @@ var _srchCache = null;    // {s, w, list, keys, byKey, ms, parts}
    applied to every answer, so a role never reads a figure its screens hide (with the guard off, everything). */
 var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pageIM', client: 'pageClients', part: 'pageClients',
   quote: 'pageClients', worker: 'pageStaff', stock: 'pageStock', bank: 'pageFinance' };
+/* The page every other jump opens: the To-do's jumps a screen makes, and each action's form (Add's, GRD_ADD_PAGE). A screen
+   entry is shown only where its page opens to the role. Every non-place entry passed before (QA3-1): a Supervisor found the
+   credit notes and the Number audit, which opened over Home after switchTab had refused the Register. */
+var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'pageFinance' };
+var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
+  worker: 'pageStaff', task: 'pageTodo', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
     var go = e.go || {};
-    if (go.kind === 'place' && go.loc) return grdSees(go.loc.tab);
     if (go.kind === 'settings') return grdCan('settings');
-    return true;
+    var page = go.kind === 'place' ? go.loc && go.loc.tab : go.kind === 'act' ? SRCH_ACT_PAGE[go.act] : SRCH_GO_PAGE[go.kind];
+    // A jump this table cannot place is the owner's alone until it says where it leads.
+    if (!page) return grdIsOwner();
+    if (!grdSees(page)) return false;
+    // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
+    return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
   var page = SRCH_KIND_PAGE[e.kind];
   if (page && !grdSees(page)) return false;

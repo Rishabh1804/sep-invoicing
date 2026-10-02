@@ -90,7 +90,16 @@ function qtStatusWord(q) {
 function qtDotHtml(q) { var w = qtStatusWord(q); return '<span class="inv-dot inv-dot-' + w[1] + '">' + w[0] + '</span>'; }
 function qtRecipient(q) { return (q.to && q.to.name) || 'No recipient'; }
 function qtItemKey(l) { return rateKey(l.partNumber || l.item); }
-function qtRateText(l) { return formatCurrency(l.rate) + (l.basis === 'piece' ? '/pc' : '/kg'); }
+/* A quoted rate as it was typed: kept to four places like a stock price (QA5-13: ₹0.125 a piece was stored and printed
+   ₹0.13), shown with two places at least and as many as it has. */
+function qtMoney(n) {
+  var v = gstRound(Number(n) || 0, 4), s = String(Math.abs(v)), dot = s.indexOf('.');
+  var dec = dot < 0 || s.indexOf('e') >= 0 ? '' : s.slice(dot + 1);
+  if (dec.length <= 2) return formatCurrency(v);
+  var whole = Math.floor(Math.abs(v));
+  return formatCurrency(v < 0 ? -whole : whole).replace(/\.00$/, '.' + dec);
+}
+function qtRateText(l) { return qtMoney(l.rate) + (l.basis === 'piece' ? '/pc' : '/kg'); }
 function qtRateSummary(q) {
   var ls = (q.lines || []).filter(function(l) { return l.rate > 0; });
   return ls.length ? qtRateText(ls[0]) + (ls.length > 1 ? ' +' + (ls.length - 1) : '') : 'no rate';
@@ -150,7 +159,12 @@ function qtDocHtml(q) {
     : q.status === 'superseded' ? 'SUPERSEDED' + (qtFind(q.supersededBy) ? ' by ' + escHtml(qtNumberText(qtFind(q.supersededBy))) : '') : '';
   var transportNote = q.transport === 'included' ? 'inclusive of transportation' : q.transport === 'loading' ? 'incl. loading &amp; unloading at our works' : 'ex-works';
   var name = String(to.name || '').trim();
-  var h = '<div class="inv-qt-doc" data-qt-doc="' + escHtml(q.id || '') + '">' +
+  // One frame table, as the invoice's and the report's: its head and foot rows repeat on every printed page and are the
+  // top and bottom gutters there (the @page margin stays 0). The gutter was the sheet's padding, which applies once to
+  // the whole flow, so a quotation running to a second page began it against the paper's edge (QA5-4).
+  var h = '<div class="inv-qt-doc" data-qt-doc="' + escHtml(q.id || '') + '"><table class="inv-qt-frame">' +
+    '<thead><tr><td class="inv-qt-frame-head"></td></tr></thead><tfoot><tr><td class="inv-qt-frame-foot"></td></tr></tfoot>' +
+    '<tbody><tr><td class="inv-qt-frame-body">' +
     (mark ? '<div class="inv-qt-mark" data-qt-mark>' + mark + '</div>' : '') +
     '<div class="inv-qt-head"><div><div class="inv-qt-co">' + escHtml(co.name || '') + '</div>' +
       '<div class="inv-qt-co-sub">' + escHtml(addr) + (contact.length ? '<br>' + contact.map(escHtml).join(' &middot; ') : '') + '</div></div>' +
@@ -173,14 +187,15 @@ function qtDocHtml(q) {
       '<td>' + (piece ? 'Per piece' : 'Per kg of received weight') +
       (piece && l.refWeightKg > 0 ? '<div class="inv-qt-sub">reference weight <b>' + escHtml(formatNum(l.refWeightKg, qtWeightDp(l.refWeightKg))) + '&nbsp;kg/pc</b></div>' : '') +
       '<div class="inv-qt-sub"><b>' + transportNote + '</b></div></td>' +
-      '<td class="inv-qt-n"><b>' + escHtml(formatCurrency(l.rate || 0).replace('₹', '₹ ')) + '</b><div class="inv-qt-sub">per ' + (piece ? 'piece' : 'kg') + ' + GST</div></td></tr>';
+      '<td class="inv-qt-n"><b data-qt-rate>' + escHtml(qtMoney(l.rate || 0).replace('₹', '₹ ')) + '</b><div class="inv-qt-sub">per ' + (piece ? 'piece' : 'kg') + ' + GST</div></td></tr>';
   });
   h += '<tr><td colspan="4" class="inv-qt-gst">Rate <b>+ GST @ ' + escHtml(formatNum(q.gstPct, q.gstPct % 1 ? 1 : 0)) + '%</b>' + (q.sac ? ' (SAC ' + escHtml(q.sac) + ')' : '') + '.</td></tr></tbody></table>' +
     '<div class="inv-qt-tail"><div class="inv-qt-h3">TERMS &amp; CONDITIONS</div><ol class="inv-qt-terms">' +
     (q.terms || []).filter(function(t) { return String(t || '').trim(); }).map(function(t) { return '<li>' + escHtml(t) + '</li>'; }).join('') + '</ol>' +
     '<div class="inv-qt-sig"><div class="inv-qt-foot">' + String(cfg.footNote || '').split('\n').map(escHtml).join('<br>') + '</div>' +
     '<div><div class="inv-qt-for">For ' + escHtml(co.name || '') + '</div><div class="inv-qt-line">' +
-      escHtml([cfg.signatory, cfg.signTitle || (cfg.signatory ? '' : 'Authorised signatory')].filter(Boolean).join(' — ')) + '</div></div></div></div></div>';
+      escHtml([cfg.signatory, cfg.signTitle || (cfg.signatory ? '' : 'Authorised signatory')].filter(Boolean).join(' — ')) + '</div></div></div></div>' +
+    '</td></tr></tbody></table></div>';
   return h;
 }
 function qtPrint(id) {
@@ -565,7 +580,8 @@ function qtSearchInput(el) {
 function qtStoreDraft() {
   var f = _qtForm, q = qtCopy(f.q), now = Date.now();
   q.lines = q.lines.filter(function(l) { return String(l.item || '').trim() || String(l.partNumber || '').trim() || l.rate > 0; });
-  q.lines.forEach(function(l) { l.item = String(l.item || '').trim(); l.partNumber = String(l.partNumber || '').trim(); if (l.rate != null) l.rate = gstRound(l.rate); });
+  // A rate is kept to four places, as typed (₹0.125 a piece): it was rounded to the paisa and printed ₹0.13 (QA5-13).
+  q.lines.forEach(function(l) { l.item = String(l.item || '').trim(); l.partNumber = String(l.partNumber || '').trim(); if (l.rate != null) l.rate = gstRound(l.rate, 4); });
   q.to.name = String(q.to.name || '').trim();
   q.to.gstin = String(q.to.gstin || '').trim().toUpperCase();
   q.terms = (q.terms || []).map(function(t) { return String(t || '').trim(); }).filter(Boolean);
@@ -593,6 +609,8 @@ function qtIssueProblems(q) {
   if (!String((q.to && q.to.name) || '').trim()) p.push('Name the recipient');
   if (!q.date) p.push('Enter the date');
   if (!(q.lines || []).length || q.lines.some(function(l) { return !(l.item || l.partNumber) || !(l.rate > 0); })) p.push('Every item needs a name and a rate above 0');
+  // A blank GST field printed "GST @ 0%" on an issued quotation (QA5-13).
+  if (!(q.gstPct > 0)) p.push('Enter the GST rate');
   if (!(q.validDays > 0)) p.push('Enter how many days it is valid');
   if (!(q.terms || []).length) p.push('Add the terms');
   return p;
@@ -608,11 +626,21 @@ function qtRivals(q) {
     return same && (o.lines || []).some(function(l) { return keys[qtItemKey(l)]; });
   });
 }
+/* A revision whose original was voided cannot be issued: issuing it would put the void number back into use (QA5-7).
+   Says why; true when it was refused. */
+async function qtRevOfVoid(q) {
+  var old = q && q.revOf ? qtFind(q.revOf) : null;
+  if (!old || old.status !== 'void') return false;
+  await uiAlert({ title: 'Not issued', tone: 'warning', body: qtNumberText(old) + ' was voided' + (old.voidReason ? ' (' + old.voidReason + ')' : '') +
+    ', and a void number is never used again, so a revision of it cannot be issued. Draft a new quotation instead: it takes a number of its own.' });
+  return true;
+}
 async function qtIssue(id) {
   var q = qtFind(id);
   if (!q || q.status !== 'draft') return false;
   var probs = qtIssueProblems(q);
   if (probs.length) { await uiAlert({ title: 'Not ready to issue', body: probs.join('\n'), tone: 'warning' }); return false; }
+  if (await qtRevOfVoid(q)) return false;
   var fy = q.num ? q.fy : qtFyOf(q.date), num = q.num || qtNextNum(fy), disp = qtDisplay(fy, num, q.rev);
   var old = q.revOf ? qtFind(q.revOf) : null;
   if (!(await uiConfirm({ title: 'Issue ' + disp + '?', okLabel: 'Issue',
@@ -625,15 +653,21 @@ async function qtIssue(id) {
       body: rivals.map(function(o) { return qtNumberText(o) + ' of ' + formatDate(o.date) + ' (' + qtRateSummary(o) + ')'; }).join('\n') +
         '\nalready quotes ' + qtRecipient(q) + ' for the same item. Two live prices let a counterparty anchor at the lower. Mark ' + (rivals.length === 1 ? 'it' : 'them') + ' superseded by ' + disp + '?' });
   }
+  // The book may have been loaded again while the questions were open (another window issued, bookReload): the number
+  // is worked out on the book as it is now, never on the one the question was asked over (QA5-3: two windows issued
+  // the same number).
   q = qtFind(id);
   if (!q || q.status !== 'draft') return false;
+  if (await qtRevOfVoid(q)) return false;
+  var asked = disp;
+  fy = q.num ? q.fy : qtFyOf(q.date); num = q.num || qtNextNum(fy); disp = qtDisplay(fy, num, q.rev);
   var now = Date.now();
   q.fy = fy; q.num = num; q.displayNumber = disp; q.status = 'issued'; q.issuedAt = now; q.at = now;
   old = q.revOf ? qtFind(q.revOf) : null;
   if (old && old.status !== 'void') { old.status = 'superseded'; old.supersededBy = q.id; old.supersededAt = now; old.at = now; }
   if (supersedeRivals) rivals.forEach(function(o) { var r = qtFind(o.id); if (r && qtLive(r)) { r.status = 'superseded'; r.supersededBy = q.id; r.supersededAt = now; r.at = now; } });
   saveState();
-  showToast(disp + ' issued');
+  showToast(disp + ' issued' + (disp !== asked ? ': ' + asked + ' was issued in another window meanwhile' : ''), disp !== asked ? 'warning' : undefined);
   return true;
 }
 async function qtIssueFromForm() {
@@ -680,14 +714,27 @@ async function qtVoid(id) {
   var q = qtFind(id);
   if (!q || q.status !== 'issued') return;
   if (!grdOk('voids') && !(await guardAsk('voids', 'void a quotation'))) return;   // P1 (guard.js)
-  var why = await uiPrompt({ title: 'Void ' + qtNumberText(q), body: 'For a quotation issued but never sent. The number stays in the series with the reason; it is never used again.', label: 'Why is it void?', required: true });
+  // A revision drafted of it would issue on the void number (QA5-7): it goes with the void, and the question says so.
+  var revs = function(x) { return getQuotations().filter(function(o) { return o.revOf === x.id && o.status === 'draft'; }); };
+  var open = revs(q);
+  var why = await uiPrompt({ title: 'Void ' + qtNumberText(q), label: 'Why is it void?', required: true,
+    body: 'For a quotation issued but never sent. The number stays in the series with the reason; it is never used again.' +
+      (open.length ? ' Its revision drafted, ' + open.map(qtNumberText).join(', ') + ', is deleted with it: it would issue on the same number.' : '') });
   if (!why) return;
   q = qtFind(id);
   if (!q || q.status !== 'issued') return;
+  var gone = revs(q).map(function(o) { return o.id; });
   q.status = 'void'; q.voidReason = why; q.voidedAt = Date.now(); q.at = q.voidedAt;
+  var formGone = !!(_qtForm && gone.indexOf(_qtForm.q.id) >= 0);
+  if (gone.length) {
+    S.quotations = getQuotations().filter(function(o) { return gone.indexOf(o.id) < 0; });
+    if (gone.indexOf(_qtActiveId) >= 0) _qtActiveId = null;
+    if (formGone) { _qtForm = null; _pageTyped = false; }
+  }
   saveState();
+  if (formGone && navPageOf() === 'pageClients') renderClientsPage();
   qtShown(id);
-  showToast(qtNumberText(q) + ' void');
+  showToast(qtNumberText(q) + ' void' + (gone.length ? ', and its revision drafted deleted' : ''));
 }
 async function qtDecline(id) {
   var q = qtFind(id);
@@ -712,25 +759,92 @@ async function qtDelete(id) {
 }
 
 /* ---------- Accepted: the rate offered to the client's card ---------- */
+/* The part numbers on a client's own invoices and challans, each once. */
+function qtClientParts(c) {
+  var seen = {}, out = [];
+  var add = function(it) { var pn = String((it && it.partNumber) || '').trim(); if (pn && !seen[pn]) { seen[pn] = 1; out.push(pn); } };
+  (S.invoices || []).forEach(function(inv) { if (String(inv.clientId) === String(c.id) && inv.status !== 'cancelled') (inv.items || []).forEach(add); });
+  (S.incomingMaterial || []).forEach(function(im) { if (String(im.clientId) === String(c.id)) (im.items || []).forEach(add); });
+  return out;
+}
+/* The units a client bills a part in, which a posted rate has to price (QA5-1): those of its own invoices' and challans'
+   lines the row would reach (every part number containing it, the override's own match), else what the quotation's
+   basis means for the client's billing mode: a piece quotation is billed in pieces, a kilo one by the kilo, or, for a
+   client billed by weight from pieces, in pieces converted by the part's weight. */
+function qtPartBilledUnits(c, part, basis) {
+  var u = {};
+  var see = function(it) { if (it && String(it.partNumber || '').indexOf(part) >= 0) u[it.unit === 'NOS' ? 'NOS' : 'KG'] = true; };
+  (S.invoices || []).forEach(function(inv) { if (String(inv.clientId) === String(c.id) && inv.status !== 'cancelled') (inv.items || []).forEach(see); });
+  (S.incomingMaterial || []).forEach(function(im) { if (String(im.clientId) === String(c.id)) (im.items || []).forEach(see); });
+  var seen = Object.keys(u).sort();
+  return seen.length ? { units: seen, seen: true } : { units: [basis === 'piece' || c.billingMode === 'nos_to_weight' ? 'NOS' : 'KG'], seen: false };
+}
+function qtUnitWords(u) { return u === 'NOS' ? 'in pieces (NOS)' : 'by the kilo (KG)'; }
+/* What a rate posted to a client's itemRates does where it lands (QA5-2). A row is a pattern, and the first row whose
+   pattern a line's part number contains prices the line (getLineItemRate): a row added after TM5181 never priced
+   TM5181-20, and P3302 prices 5206 P3302X too. So the row goes before every row whose pattern the part contains (the
+   more specific row wins), in place of one naming the part exactly; what it still cannot reach, and what it newly takes,
+   is named. `list` is the card as it stands; returns it as it would be, and the notes. */
+function qtItemRatePlace(c, list, part, row) {
+  var rest = list.filter(function(r) { return r.partPattern !== part; });
+  var at = rest.findIndex(function(r) { return r.partPattern && part.indexOf(r.partPattern) >= 0; });
+  if (at < 0) at = rest.length;
+  var next = rest.slice(0, at).concat([row], rest.slice(at));
+  var first = function(rows, pn) { return rows.find(function(r) { return r.partPattern && pn.indexOf(r.partPattern) >= 0; }) || null; };
+  var said = function(r) { return r.partPattern + ' at ' + qtMoney(r.rate) + '/' + itemRateUnit(r); };
+  var few = function(xs) { return xs.slice(0, 3).join(', ') + (xs.length > 3 ? ' and ' + (xs.length - 3) + ' more' : ''); };
+  var notes = [], after = rest.slice(at).filter(function(r) { return part.indexOf(r.partPattern) >= 0; });
+  if (after.length) notes.push('It goes before ' + few(after.map(said)) + ', which ' + (after.length === 1 ? 'goes' : 'go') + ' on pricing the other parts ' + (after.length === 1 ? 'it names' : 'they name') + '.');
+  // Every part number the row reaches: the client's own invoices and challans, and the patterns already on its card.
+  var seen = {}, still = [], caught = [];
+  qtClientParts(c).concat(list.map(function(r) { return String(r.partPattern || ''); })).forEach(function(pn) {
+    if (!pn || pn === part || pn.indexOf(part) < 0 || seen[pn]) return;
+    seen[pn] = 1;
+    var now = first(next, pn), was = first(list, pn);
+    if (now !== row) still.push(pn + ' (by ' + said(now) + ', which comes first)');
+    else if (!was || was.partPattern !== part) caught.push(pn + (was ? ' (until now ' + said(was) + ')' : ''));
+  });
+  if (still.length) notes.push('It does not reach ' + few(still) + '.');
+  if (caught.length) notes.push('It also prices ' + few(caught) + ', ' + (caught.length === 1 ? 'which contains ' : 'which contain ') + part + '.');
+  return { next: next, notes: notes };
+}
 /* What would be written, and what has to be set by hand. Read README § "On conversion, the field matters". */
 function qtPostPlan(q) {
-  var c = qtClient(q), post = [], hand = [];
+  var c = qtClient(q), post = [], hand = [], card = c ? (c.itemRates || []).slice() : [];
   (q.lines || []).forEach(function(l, i) {
     if (l.postedAt || !(l.rate > 0)) return;
     var name = l.item || l.partNumber, part = String(l.partNumber || '').trim();
     if (!c) { hand.push(name + ': the recipient is not a client in the book; add it, then set the rate on its card'); return; }
     if (!part) { hand.push(name + ': no part number, so no card entry can name it; set the rate on ' + c.name + '&rsquo;s card by hand'); return; }
     if (l.basis === 'piece' && c.billingMode === 'piece') {
-      post.push({ i: i, field: 'pieceRates', text: 'a piece rate on ' + c.name + '&rsquo;s card: ' + part + (lineGauge(l.desc) ? ' · ' + lineGauge(l.desc) : '') + ', ' + formatCurrency(l.rate) + '/pc from ' + formatDate(localDateStr()) });
+      post.push({ i: i, field: 'pieceRates', notes: [], text: 'a piece rate on ' + c.name + '&rsquo;s card: ' + part + (lineGauge(l.desc) ? ' · ' + lineGauge(l.desc) : '') + ', ' + qtMoney(l.rate) + '/pc from ' + formatDate(localDateStr()) });
     } else if (l.basis === 'kg' && c.billingMode === 'piece') {
       hand.push(name + ': a per-kg rate for a client billed by the piece; set it on the card by hand');
     } else {
-      var have = (c.itemRates || []).find(function(r) { return r.partPattern === part; });
-      post.push({ i: i, field: 'itemRates', text: 'an item rate override on ' + c.name + ': ' + part + ' at ' + formatCurrency(l.rate) + '/' + (l.basis === 'piece' ? 'piece' : 'kg') +
-        (have ? ' (replacing ' + formatCurrency(have.rate) + '/' + (have.unit || 'kg') + ')' : '') + '; the billing mode stays ' + (CLIENT_MODE_LABEL[c.billingMode] || c.billingMode) });
+      // A rate that cannot price the client's lines as they are billed is never written: it is named, to be set by hand.
+      var unit = l.basis === 'piece' ? 'piece' : 'kg', billed = qtPartBilledUnits(c, part, l.basis);
+      var priced = billed.units.filter(function(u) { return itemRateHow(c, unit, u, part); });
+      if (!priced.length) {
+        hand.push(name + ': a rate per ' + unit + ', and ' + c.name + ' bills ' + part + ' ' + billed.units.map(qtUnitWords).join(' and ') +
+          (unit === 'kg' && c.billingMode === 'nos_to_weight' ? ' with no weight a piece on record (Items → Part weights)' : '') + ', which it cannot price; set it on the card by hand');
+        return;
+      }
+      var have = card.find(function(r) { return r.partPattern === part; });
+      var place = qtItemRatePlace(c, card, part, qtPostRow(q, l));
+      card = place.next;
+      var how = priced.map(function(u) { return itemRateHow(c, unit, u, part) === 'weight' ? 'in pieces, at ' + formatNum((S.partWeights || {})[part.toUpperCase()], 3) + ' kg a piece' : qtUnitWords(u); });
+      var missed = billed.units.filter(function(u) { return priced.indexOf(u) < 0; });
+      post.push({ i: i, field: 'itemRates', text: 'an item rate override on ' + c.name + ': ' + part + ' at ' + qtMoney(l.rate) + '/' + unit +
+        (have ? ' (replacing ' + qtMoney(have.rate) + '/' + itemRateUnit(have) + ')' : '') + ', for its lines billed ' + how.join(' and ') + '; the billing mode stays ' + (CLIENT_MODE_LABEL[c.billingMode] || c.billingMode),
+        notes: (missed.length ? ['Its lines billed ' + missed.map(qtUnitWords).join(' and ') + ' stay at the client’s own rate.'] : []).concat(place.notes) });
     }
   });
   return { client: c, post: post, hand: hand };
+}
+/* The row an accepted line posts to a client's itemRates. */
+function qtPostRow(q, l) {
+  var part = String(l.partNumber || '').trim();
+  return { partPattern: part, rate: gstRound(l.rate, 4), unit: l.basis === 'piece' ? 'piece' : 'kg', label: (l.item || part) + ' (' + qtNumberText(q) + ')' };
 }
 async function qtPostRates(id) {
   var q = qtFind(id), plan = q && qtPostPlan(q);
@@ -738,7 +852,8 @@ async function qtPostRates(id) {
     if (plan && plan.hand.length) await uiAlert({ title: 'Set the rate by hand', body: plan.hand.join('\n').replace(/&rsquo;/g, '’') });
     return;
   }
-  var body = 'Writes ' + plan.post.map(function(p) { return p.text; }).join(';\n') + '.' + (plan.hand.length ? '\nBy hand: ' + plan.hand.join('; ') + '.' : '');
+  var body = plan.post.map(function(p) { return 'Writes ' + p.text + '.' + (p.notes.length ? ' ' + p.notes.join(' ') : ''); }).join('\n') +
+    (plan.hand.length ? '\nBy hand: ' + plan.hand.join('; ') + '.' : '');
   if (!grdOk('rates') && !(await guardAsk('rates', 'post a rate to a client'))) return;   // P1 (guard.js): the client's rate card
   if (!(await uiConfirm({ title: 'Post the accepted rate to ' + plan.client.name + '?', body: body.replace(/&rsquo;/g, '’'), okLabel: 'Post the rate' }))) return;
   q = qtFind(id);
@@ -748,11 +863,10 @@ async function qtPostRates(id) {
   qtPostPlan(q).post.forEach(function(p) {
     var l = q.lines[p.i], part = String(l.partNumber).trim();
     if (p.field === 'pieceRates') {
-      (c.pieceRates || (c.pieceRates = [])).push({ partNumber: part, gauge: lineGauge(l.desc) || '', rate: gstRound(l.rate), effectiveFrom: today, source: 'quotation', quotation: qtNumberText(q), addedAt: now });
+      (c.pieceRates || (c.pieceRates = [])).push({ partNumber: part, gauge: lineGauge(l.desc) || '', rate: gstRound(l.rate, 4), effectiveFrom: today, source: 'quotation', quotation: qtNumberText(q), addedAt: now });
     } else {
-      var row = { partPattern: part, rate: gstRound(l.rate), unit: l.basis === 'piece' ? 'piece' : 'kg', label: (l.item || part) + ' (' + qtNumberText(q) + ')' };
-      var list = c.itemRates || (c.itemRates = []), at = list.findIndex(function(r) { return r.partPattern === part; });
-      if (at >= 0) list[at] = row; else list.push(row);
+      // Placed as the plan said: before every row whose pattern the part contains, in place of one naming it exactly.
+      c.itemRates = qtItemRatePlace(c, c.itemRates || [], part, qtPostRow(q, l)).next;
     }
     l.postedAt = now; l.postedTo = p.field;
   });
@@ -768,7 +882,9 @@ async function qtAccept(id) {
   saveState();
   qtShown(id);
   showToast(qtNumberText(q) + ' accepted');
-  if (qtPostPlan(q).post.length) await qtPostRates(id);
+  // Offered when there is a rate to post; said when there is only one to set by hand, never left unsaid.
+  var plan = qtPostPlan(q);
+  if (plan.post.length || plan.hand.length) await qtPostRates(id);
 }
 
 /* ---------- History ---------- */

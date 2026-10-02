@@ -1879,19 +1879,25 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 /* ===== QUOTATION (quote.js) =====
    A document handed to a counterparty, on its own point scale like the credit note and the certificate (HR-6's print
    exception: the type, rules and gutters declared once here in pt and mm and read as var() below), ink pinned on paper.
-   One A4 sheet whose padding is its gutter on paper too (the @page margin stays 0); the terms' tail and the signature
-   are one box that never breaks, since the register records a render whose signature orphaned onto page 2. */
+   On screen one A4 sheet whose padding is its gutter. On paper the side gutters are padding and the top and bottom ones
+   the repeating head and foot rows of its frame (.inv-qt-frame), as the invoice's and the report's, so a page after the
+   first never starts against the paper's edge (the @page margin stays 0). The terms' tail and the signature are one box
+   that never breaks, since the register records a render whose signature orphaned onto page 2. */
 .inv-qt-doc {
   --ff-base: 'Inter', sans-serif;
   --ff-mono: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', 'Roboto Mono', monospace;
   --qt-ink: #1a1a1a; --qt-paper: #fff; --qt-accent: #1f3a5f; --qt-muted: #444; --qt-cell-rule: #c9d2de; --qt-head-ink: #fff;
   --qt-fs: 9.5pt; --qt-fs-sm: 8.5pt; --qt-fs-terms: 8.2pt; --qt-fs-co: 17pt; --qt-fs-title: 14pt; --qt-fs-mark: 11pt;
-  --qt-sheet-w: 210mm; --qt-sheet-h: 297mm; --qt-pad: 12mm 13mm 10mm; --qt-rule: 0.5pt; --qt-band: 2.5pt;
+  --qt-gutter-top: 12mm; --qt-gutter-side: 13mm; --qt-gutter-bottom: 10mm;
+  --qt-sheet-w: 210mm; --qt-sheet-h: 297mm; --qt-pad: var(--qt-gutter-top) var(--qt-gutter-side) var(--qt-gutter-bottom); --qt-rule: 0.5pt; --qt-band: 2.5pt;
   --qt-cell: 1.4mm 2mm; --qt-gap: 3mm; --qt-gap-sm: 1.5mm; --qt-sig-w: 58mm; --qt-sig-gap: 8mm; --qt-indent: 5mm; --qt-track: 1.5pt;
   background: var(--qt-paper); color: var(--qt-ink); font-family: var(--ff-base); font-size: var(--qt-fs); line-height: 1.3;
   width: var(--qt-sheet-w); min-height: var(--qt-sheet-h); padding: var(--qt-pad); margin: 0 auto var(--sp-16);
   border: var(--hair) solid var(--border);
 }
+.inv-qt-frame { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.inv-qt-frame > thead, .inv-qt-frame > tfoot { display: none; }
+.inv-qt-frame-head, .inv-qt-frame-foot, .inv-qt-frame-body { padding: 0; font: inherit; text-align: left; vertical-align: top; }
 .inv-qt-mark {
   border: var(--qt-band) solid var(--qt-ink); text-align: center; font-weight: 700; font-size: var(--qt-fs-mark);
   letter-spacing: var(--qt-track); padding: var(--qt-gap-sm); margin-bottom: var(--qt-gap);
@@ -1930,7 +1936,11 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 .inv-qt-line { margin-top: var(--qt-sig-gap); border-top: var(--qt-rule) solid var(--qt-ink); min-width: var(--qt-sig-w); padding-top: var(--qt-gap-sm); font-size: var(--qt-fs-sm); }
 .inv-qt-foot { font-size: var(--qt-fs-sm); color: var(--qt-muted); }
 @media print {
-  .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; }
+  .inv-qt-doc { border: none; width: auto; min-height: 0; margin: 0; padding: 0 var(--qt-gutter-side); }
+  .inv-qt-frame > thead { display: table-header-group; }
+  .inv-qt-frame > tfoot { display: table-footer-group; }
+  .inv-qt-frame-head { height: var(--qt-gutter-top); }
+  .inv-qt-frame-foot { height: var(--qt-gutter-bottom); }
 }
 
 /* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */

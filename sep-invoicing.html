@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="85d237d1">
+<meta name="app-build" content="40534926">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -19795,6 +19795,7 @@ function attSetState(iso, staffId, st) {
     delete rec.marks[staffId];
   } else {
     var m = rec.marks[staffId] || { ot: 0, hours: 0, area: w.area || 'flex' };
+    var was = m.st;
     // An absence carries no place (a roll writes it Flex): back from absent, a hand stands at their own area.
     if (m.st === 'A' && st !== 'A' && (!m.area || m.area === 'flex')) m.area = w.area || 'flex';
     m.st = st;
@@ -19802,6 +19803,8 @@ function attSetState(iso, staffId, st) {
     // Absent pays nothing and worked nothing: hours that nobody was here for
     // are not hours, in either tier.
     if (st === 'A') { m.ot = 0; m.hours = 0; delete m.inMin; delete m.outMin; }
+    // Present and half day with times typed: a half day is four hours from its in, so the hours and OT are worked out again.
+    else if ((was === 'P' || was === 'H') && was !== st && (m.inMin != null || m.outMin != null)) attTimesApply(m, w);
     rec.marks[staffId] = m;
   }
   _attPrune(iso);
@@ -19909,8 +19912,10 @@ function attSlotSelectHtml(rec, w, slot, live, label) {
 /* In and out typed by hand (owner, 1 Oct 2026: "Attendance has no option to enter time in and time out by hand, so we
    have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in
    his sheet"). A time typed sets the hours and the OT by the rolls' own rule (relayHoursOf); the side not typed is the
-   shift's (8:30 AM to 5:00 PM, the gate's 7 to 7, a half day four hours from its in), and an out not after the in ran
-   past midnight. Both cleared, the hours and OT go back to none. The mark is then the hand's, never rewritten by a roll. */
+   shift's (8:30 AM to 5:00 PM, the gate's 7 to 7, a half day four hours from its in), and an out typed not after the in
+   ran past midnight. An out the shift supplies that is not after the in is no out of this hand's (a night hand typed in at
+   8 PM read 21 hours, OT 13): 0 hours until the out is typed, relayPersonMark's rule. Both cleared, the hours and OT go
+   back to none. The mark is then the hand's, never rewritten by a roll. */
 function attTimeMin(v) {
   var m = /^(\d{1,2}):(\d{2})$/.exec(String(v || '').trim());
   return m && +m[1] < 24 && +m[2] < 60 ? +m[1] * 60 + +m[2] : null;
@@ -19919,9 +19924,10 @@ function attTimesApply(m, w) {
   var gate = (m.area || (w && w.area)) === 'gate';
   if (m.inMin == null && m.outMin == null) { delete m.inMin; delete m.outMin; m.hours = 0; m.ot = 0; return; }
   var a = m.inMin != null ? m.inMin : gate ? RELAY_GATE[0] : RELAY_GENERAL;
-  var b = m.outMin != null ? m.outMin % 1440 : gate ? RELAY_GATE[1] : m.st === 'H' ? a + 240 : RELAY_GENERAL_OUT;
-  if (b <= a) b += 1440;
-  if (m.outMin != null) m.outMin = b;
+  var typed = m.outMin != null;
+  var b = typed ? m.outMin % 1440 : gate ? RELAY_GATE[1] : m.st === 'H' ? a + 240 : RELAY_GENERAL_OUT;
+  if (b <= a) b = typed ? b + 1440 : null;
+  if (typed) m.outMin = b;
   var h = relayHoursOf(a, b, w, gate ? 'gate' : m.area);
   m.hours = h.hours;
   m.ot = h.ot;
@@ -19946,11 +19952,13 @@ function attTimesText(m) {
 }
 
 function setAttArea(staffId, areaId) {
-  var m = attMark(_attDate, staffId);
+  var m = attMark(_attDate, staffId), w = staffById(staffId);
   if (!m) return;
+  var wasGate = (m.area || (w && w.area)) === 'gate';
   m.area = areaId;
-  // Times typed: the gate's hours are its shift and carry no OT, so moving to or from it is worked out again.
-  if (m.inMin != null || m.outMin != null) attTimesApply(m, staffById(staffId));
+  // Times typed: the gate's hours are its shift and carry no OT, so moving onto or off it is worked out again. Any other
+  // move keeps the hours and OT as they are: a figure typed in the hand's dialog wins until a time is changed.
+  if ((m.inMin != null || m.outMin != null) && wasGate !== ((m.area || (w && w.area)) === 'gate')) attTimesApply(m, w);
   _attHandEdit(m);
   saveState();
 }

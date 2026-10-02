@@ -609,7 +609,7 @@ function todoGo(go) {
     production: 'pageProduction', prodLines: 'pageProduction', stats: 'pageStats', liveCost: 'pageStats',
     staffRoster: 'pageStaff', staffPaste: 'pageStaff', areas: 'pageStaff', payWages: 'pageStaff', payDue: 'pageStaff', payWeek: 'pageStaff',
     power: 'pagePower', powerCase: 'pagePower', client: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', perf: 'pageClients',
-    createFor: 'pageCreate' }[go.kind];
+    createFor: 'pageCreate', report: 'pageReports' }[go.kind];
   if (page && typeof grdSees === 'function' && !grdSees(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
   if (/^pay(Wages|Due|Week)$/.test(go.kind) && typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
   // Every dialog is shut on the way: one holding typed work asks first, as its × does (the client's edit sheet carries

@@ -899,7 +899,8 @@ function srchEntryLoc(e) {
   if (/^(invoice|challan|client|quote|stock)$/.test(go.kind)) return srchRecordLoc(go.kind, id);
   var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'bills'],
     cnList: ['pageRegister', ''], audit: ['pageRegister', ''], cn: ['pageRegister', ''] }[go.kind];
-  return page ? { tab: page[0], v: page[1], id: '' } : null;
+  // A worker opens in the roster's pane on the desktop (step 7); the phone's roster has no pane and ignores the id.
+  return page ? { tab: page[0], v: page[1], id: go.kind === 'worker' ? id : '' } : null;
 }
 /* A row's action and the record it opens. */
 var SRCH_ROW_KINDS = { invSelectRegRow: 'invoice', invViewInvoiceDetail: 'invoice', invHistoryJumpInvoice: 'invoice',
@@ -927,6 +928,11 @@ function srchLocOf(el) {
   if (SRCH_ROW_KINDS[act]) return srchRecordLoc(SRCH_ROW_KINDS[act], String(d.id));
   if (act === 'invSelectItemRow' || act === 'invEditItem') return { tab: 'pageClients', v: 'items', id: '' };
   if (act === 'invAttEditWorker') return { tab: 'pageStaff', v: 'roster', id: '' };
+  // The desktop's panes of step 7 (UX overhaul 2): the row's record is the address's id.
+  if (act === 'invAttRosterOpen') return { tab: 'pageStaff', v: 'roster', id: String(d.id) };
+  if (act === 'invBankClient') return { tab: 'pageFinance', v: 'receipts', id: String(d.id) };
+  if (act === 'invProdEntryOpen') return { tab: 'pageProduction', v: 'entries', id: String(d.id) };
+  if (act === 'invHistoryOpen') return { tab: 'pageHistory', v: '', id: String(d.key) };
   return null;
 }
 /* Caught on the window before anything else sees the click, so the place opens there and not here as well (and nav.js

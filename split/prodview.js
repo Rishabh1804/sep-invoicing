@@ -3,6 +3,7 @@
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
  * a way back and end in the action bar, and draw no toolbar (DR-3).
  */
+var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
 var PROD_TABS = [['overview', 'Overview'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _prodTabMoved = false;
@@ -292,7 +293,58 @@ function prodEntriesHtml() {
     h += prodEntryRowHtml(e, idx);
   });
   if (list.length > 300) h += '<div class="inv-panel-body inv-note">The latest 300 of ' + list.length + ' are shown.</div>';
-  return h + '</div>';
+  h += '</div>';
+  if (!_isDesktop) return h;
+  // The desktop: the list beside the open entry (UX overhaul 2, step 7). The chips stay above both; an entry the
+  // filter no longer lists stays open, since it is still a record somebody chose to read.
+  var open = _prodEntryOpen && prodData().entries.find(function(e) { return e.id === _prodEntryOpen; });
+  if (!open) _prodEntryOpen = null;
+  var cut = h.indexOf('<div class="inv-panel inv-panel-flush" id="prodEntries">');
+  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
+    '<div class="inv-pane" id="prodEntryPane">' + (open ? prodEntryDetailHtml(open, idx) : '') + '</div></div>';
+}
+
+/* One entry in the pane: everything it holds, the text it was read from, and what can be done to it. */
+function prodEntryDetailHtml(e, idx) {
+  var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind] || e.kind;
+  var title = e.kind === 'downtime' ? 'Power cut' : prodEntryTitle(e);
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var kv = [['Kind', kindWord + (e.rework ? ', rework' : '')], ['Day', formatDate(e.date)]];
+  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : '')]);
+  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : 'General']);
+  if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
+  else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
+  if (e.kind !== 'downtime') {
+    kv.push(['Client', e.clientId != null ? prodClientName(e.clientId) || e.client || '' : (e.client ? e.client + ', not in the book' : 'Not written')]);
+    if (e.part || e.partNumber) kv.push(['Part', [e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '', e.gauge].filter(Boolean).join(' · ')]);
+    kv.push(['Quantity', prodQtyText(e.qty, e.unit) + (e.qty2 != null ? ' · ' + prodQtyText(e.qty2, e.unit2) : '')]);
+    if (e.rackSize) kv.push(['Rack', e.rackSize + (e.racks ? ' × ' + e.racks : '')]);
+  }
+  kv.push(['Source', prodSrcWord(e) + (e.basis && e.basis !== e.src ? ' · ' + e.basis : '')]);
+  if (e.sentBy) kv.push(['Sent by', e.sentBy]);
+  if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
+  var h = paneHeadHtml('<span class="inv-panel-title">' + escHtml(title) + '</span>', 'invProdEntryClose') +
+    '<div class="inv-panel" data-prod-pane="' + escHtml(e.id) + '"><div class="inv-kv">' + kv.map(function(x) {
+      return '<div><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(String(x[1])) + '</div></div>';
+    }).join('') + '</div></div>';
+  if (e.voidedAt) h += '<div class="inv-callout inv-callout-warning">Void' + (e.voidReason ? ': ' + escHtml(e.voidReason) : '') + '</div>';
+  var by = idx.replaced[e.id] && prodData().entries.find(function(x) { return x.replaces === e.id && !x.voidedAt; });
+  if (by) h += '<div class="inv-callout inv-callout-info">Corrected by the entry of ' + escHtml(formatDate(by.date)) + ': ' + escHtml(prodQtyText(by.qty, by.unit)) + '.</div>';
+  if (e.replaces) h += '<div class="inv-note">This entry corrects an earlier one.</div>';
+  var rounds = e.rounds || [];
+  if (rounds.length) {
+    h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Rounds <span class="inv-panel-count">' + rounds.length + '</span></span></div>' +
+      rounds.map(function(r) {
+        return '<div class="inv-row' + (r.struck ? ' inv-row-muted' : '') + '"><span class="inv-row-main inv-id">' + escHtml(r.time || '') + (r.start ? ' · start' : '') + (r.struck ? ' · struck' : '') + '</span>' +
+          '<span class="inv-row-end"><span class="inv-num">' + escHtml(r.qty != null ? String(r.qty) : '') + '</span></span></div>';
+      }).join('') + '</div>';
+  }
+  var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
+  if (crew) h += '<div class="inv-note" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</div>';
+  if (e.raw) h += '<div class="inv-field"><span class="inv-field-label">As written</span><div class="inv-quote">' + escHtml(e.raw) + '</div></div>';
+  var acts = prodEntryActionsHtml(e, idx);
+  if (acts) h += '<div class="inv-toolbar">' + acts + '</div>';
+  return h;
 }
 function prodEntryRowHtml(e, idx) {
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind];
@@ -308,19 +360,27 @@ function prodEntryRowHtml(e, idx) {
   else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
   if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
-  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
+  // On the desktop the entry opens in the pane beside the list, so its main is a button.
+  var cur = _isDesktop && _prodEntryOpen === e.id;
+  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"' + (cur ? ' aria-current="true"' : '') + '>' +
+    (_isDesktop ? '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' : '<span class="inv-row-main">') + '<span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
     (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
-    '</span><span class="inv-row-end">' +
-    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '');
-  if (!e.voidedAt) {
-    if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
-    if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
-    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
-    if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
-    h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
-  }
+    (_isDesktop ? '</button>' : '</span>') + '<span class="inv-row-end">' +
+    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '') + prodEntryActionsHtml(e, idx);
   return h + '</span></div>';
+}
+/* What can be done to an entry: on its row, and on the desktop in its pane too. A void entry takes nothing. */
+function prodEntryActionsHtml(e, idx) {
+  if (e.voidedAt) return '';
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
+  var h = '';
+  if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+  if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+  if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
+  if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
+  return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
 }
 
 /* The part a floor entry is, as matched: learnt from its name, its own part number, or a challan part of the same key.
@@ -952,6 +1012,8 @@ function prodAction(action, btn) {
     case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
+    case 'invProdEntryOpen': _prodEntryOpen = _prodEntryOpen === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderProduction); return true;
+    case 'invProdEntryClose': _prodEntryOpen = null; keepScroll(renderProduction); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
     case 'invProdToScanner': {

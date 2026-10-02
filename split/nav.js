@@ -49,15 +49,16 @@ function navLoc() {
       if (_isDesktop && v === 'clients' && _clientsActiveId != null) id = String(_clientsActiveId);
       if (v === 'quotes') { if (_qtForm) v = 'quotes/form'; else if (_isDesktop && _qtActiveId) id = _qtActiveId; }
       break;
-    case 'pageFinance': v = _finTab; break;
+    case 'pageFinance': v = _finTab; if (_isDesktop && _finTab === 'receipts' && _bankOpen != null) id = String(_bankOpen); break;
     case 'pageStats': v = statsTab(); break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
       // The register photo's check is a place of its own: it shared the page's address, so Back left Production.
       v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : _prodView === 'photo' ? '/photo' : '');
+      if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
       break;
     case 'pagePower': v = _powerTab; break;
-    case 'pageStaff': v = _attView; break;
+    case 'pageStaff': v = _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
     case 'pageStock':
       v = _stockView === 'review' ? 'paste' : _stockView;
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
@@ -66,6 +67,7 @@ function navLoc() {
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
     case 'pageFloor': d = flrNavD(); break;
+    case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
@@ -105,12 +107,24 @@ function navLabel(loc) {
       var qt = loc.id && parts[0] === 'quotes' && qtFind(loc.id);
       if (qt) rec = qtNumberText(qt);
       break;
-    case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
+    case 'pageFinance':
+      sub.push(_navFind(FIN_TABS, parts[0]));
+      var fc = loc.id && parts[0] === 'receipts' && S.clients.find(function(x) { return String(x.id) === loc.id; });
+      if (fc) rec = fc.name;
+      break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
-    case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
+    case 'pageProduction':
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
+      var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
+      if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
+      break;
     case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
-    case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
+    case 'pageStaff':
+      sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0]));
+      var sw = loc.id && parts[0] === 'roster' && staffById(loc.id);
+      if (sw) rec = sw.name;
+      break;
     case 'pageStock':
       sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
@@ -162,11 +176,17 @@ function navApply(loc) {
         if (parts[0] === 'quotes' && parts[1] === 'form') { if (!_qtForm) { _qtForm = { q: qtBlank(), termsAuto: true }; _qtForm.q.terms = qtTermsFor(_qtForm.q); } }
         else _qtForm = null;
         break;
-      case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; break;
+      case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id ? id : null; break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
-      case 'pageProduction': prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main'; break;
+      case 'pageProduction':
+        prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
+        if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
+        break;
       case 'pagePower': powerSetTab(parts[0]); break;
-      case 'pageStaff': _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview'; break;
+      case 'pageStaff':
+        _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview';
+        if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
+        break;
       case 'pageStock':
         var sv = /^(overview|list|item|paste|manual|reorder)$/.test(parts[0]) ? parts[0] : 'overview';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
@@ -181,6 +201,7 @@ function navApply(loc) {
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
+      case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
     }
     if (!same) switchTab(tab);
     else {

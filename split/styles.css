@@ -1338,6 +1338,10 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panels .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
+/* A wide screen takes three columns on Home's Pulse, Stats and Finance (UX overhaul 2, step 7): at about 1,600px two left
+   each panel 700px across for a figure or a chart that reads at half that. A wide panel still spans the row. (A media
+   query's condition cannot read a custom property, so the width is written out.) */
+@media (min-width: 100rem) { body.inv-desktop .inv-panels { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
@@ -1500,6 +1504,8 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
    compounded to a third. */
 .inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
 .inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
+/* A row list beside its pane marks the open record the way a table does (Receivables, Production → Entries). */
+.inv-row[aria-current="true"] { background: var(--surface-2); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
 .inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1607,6 +1613,8 @@ body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
   body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
 }
 .inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+/* History's pane says the event whole: a change's every field, as the row's title held it. */
+.inv-history-full { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-13); }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
 body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1853,16 +1861,17 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
 /* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
 .inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }
-/* A Home widget lays its tiles out by the room it has (half or full width, on any window), never leaving a blank cell
+/* A panel in the page's grid (a Home widget, a Stats story, a Finance card) lays its tiles out by the room it has (half,
+   a third or full width, on any window), never leaving a blank cell
    beside the last tile: the Money panel's four tiles sat three and one at 1280, and its three two and one at 1024. Where
    two across is all that fits, an odd last tile takes the row, as on the phone; four go four across only where four fit,
    else two by two. The widths are written out: a container query's condition cannot read --tile-min (10rem). */
-body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; }
-@container home-w (max-width: 30.5rem) {
+body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
+@container panel-w (max-width: 30.5rem) {
   body.inv-desktop .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body.inv-desktop .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
-@container home-w (min-width: 30.5rem) and (max-width: 40.5rem) {
+@container panel-w (min-width: 30.5rem) and (max-width: 40.5rem) {
   body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 

@@ -559,12 +559,20 @@ is open** (a close button in its head), and where the screen cannot hold both it
 mono, status badge, party), a key/value grid (`inv-kv`), a nested table, totals, actions (one primary).
 On the phone the same content opens as a sheet (§6.16).
 The list and its pane sit in an `inv-pane-host` (the list is `inv-pane-list`), which carries `inv-pane-open` while something
-is open; the pane's head is `paneHeadHtml(title, closeAction)` in `state.js` — Register, IM, Clients / Items and Stock.
+is open; the pane's head is `paneHeadHtml(title, closeAction)` in `state.js` — Register, IM, Clients / Items / Quotations,
+Stock, Pipeline, and since UX overhaul 2's step 7 Finance → Receivables, Production → Entries, Staff → Roster and History.
+The open record is the list's `aria-current` row (a table row or an `inv-row`: `--surface-2` and the accent's inset rule), and
+its id is the address's `id` (a reload and Back follow it). A list whose rows carry their own actions keeps them; its main is
+the button that opens the pane. The phone is unchanged by a pane: the record opens where it always did.
 **The host fills the viewport; the page does not scroll.** A page holding a visible `inv-pane-host` is a flex column
 `--fill-h` tall (`100dvh` less `--bar-h-desk`); its head, view tabs and toolbar keep their height, and the host and each
 wrapper between it and the page take the rest (`flex: 1 1 0`). The list and the pane scroll inside themselves. Nothing is
 subtracted by hand. Content above the host taller than the screen squeezes it only to `--pane-host-min` (20rem), and past
 that the page scrolls like any long page. A host hidden under a form leaves the page an ordinary document.
+
+**Three columns on a wide screen.** `inv-panels` (Home's Pulse, Stats, Finance) is two columns on the desktop and three
+from a 100rem (about 1,600px) window; `inv-panels-wide` still spans the row. Every panel in the grid is a `panel-w`
+container, so a strip of tiles in a third of the row goes two across with an odd last tile taking the row, never a blank cell.
 
 ### 6.15 Forms — `inv-field`, `inv-input`, `inv-select`, `inv-actionbar`
 - `inv-field`: label **above** the control, `--t-label` `--text-2`, **sentence case** (DR-5); hint below

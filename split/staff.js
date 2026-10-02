@@ -342,6 +342,7 @@ function _attRestoreFocus(sel) {
 /* ===== TAB RENDER ===== */
 /* The view tabs (§6.4). Paste message is not one of them: it is a sub-view with its own way back, opened by
    the page's one primary (Overview, Day) or from Home. */
+var _attRosterOpen = null;   // the worker open in the desktop's pane (Roster)
 var ATT_VIEWS = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster']];
 var _attPrevView = 'overview';   // where Paste message's back button returns
 var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
@@ -910,6 +911,9 @@ function _attRosterView() {
     '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount is this number.</span></div>';
 
+  // A role that may not see wages sees the roster without its rates (the guard's "wages" setting).
+  var wages = typeof grdSeesWages !== 'function' || grdSeesWages();
+  if (_isDesktop && all.length) return html + _attRosterDesktop(all, wages);
   html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">Roster ' +
     '<span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
@@ -919,7 +923,7 @@ function _attRosterView() {
     var inactive = w.active === false;
     html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span></span>' +
+      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') + '</span>' +
       '<span class="inv-row-end">' +
       '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
@@ -928,6 +932,57 @@ function _attRosterView() {
       '</span></button>';
   });
   return html + '</div>';
+}
+
+/* The desktop's roster: a table beside the open worker (UX overhaul 2, step 7). The phone opens the worker's edit sheet. */
+function _attRosterDesktop(all, wages) {
+  var open = _attRosterOpen != null ? staffById(_attRosterOpen) : null;
+  if (!open) _attRosterOpen = null;
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost"><div class="inv-pane-list">' +
+    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt1">Rate</th>' : '') +
+    '<th>Area</th><th>Status</th></tr></thead><tbody>';
+  all.forEach(function(w) {
+    var inactive = w.active === false, id = escHtml(String(w.id));
+    h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
+      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
+      '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
+      (wages ? '<td class="inv-col-opt1 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
+      '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
+      '<td>' + (inactive ? '<span class="inv-dot inv-dot-neutral">Inactive</span>' : '<span class="inv-dot inv-dot-ok">Active</span>') + '</td></tr>';
+  });
+  return h + '</tbody></table></div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
+}
+
+/* One worker: who they are on the roster, and the last four pay weeks as the marks have them. */
+function _attWorkerPaneHtml(w, wages) {
+  var cls = compClass(w.comp), today = localDateStr();
+  var kv = [['Tier', cls.label], ['Home area', areaLabel(w.area)], ['On the floor', w.onFloor === false ? 'No' : 'Yes'], ['Status', w.active === false ? 'Inactive' : 'Active']];
+  if (wages) kv.splice(1, 0, ['Rate', workerRateLabel(w)]);
+  if ((w.relayNames || []).length) kv.push(['Spellings on the rolls', w.relayNames.join(', ')]);
+  var n = { P: 0, H: 0, A: 0 }, hours = 0, ot = 0, days = 0, areas = {}, last = '';
+  for (var i = 0; i < 28; i++) {
+    var iso = isoAddDays(today, -i), m = attMark(iso, w.id);
+    if (!m || !n.hasOwnProperty(m.st)) continue;
+    n[m.st]++; days++;
+    if (!last) last = iso;
+    if (m.st !== 'A') { hours += +m.hours || 0; ot += +m.ot || 0; if (m.area) areas[m.area] = (areas[m.area] || 0) + 1; }
+  }
+  var where = Object.keys(areas).sort(function(a, b) { return areas[b] - areas[a]; }).map(function(a) { return areaLabel(a) + ' ' + areas[a]; }).join(' · ');
+  var h = paneHeadHtml('<span class="inv-panel-title">' + escHtml(w.name) + '</span>', 'invAttRosterClose') +
+    '<div class="inv-panel" data-worker-pane="' + escHtml(String(w.id)) + '"><div class="inv-kv">' + kv.map(function(x) {
+      return '<div' + (x[0] === 'Rate' || x[0] === 'Spellings on the rolls' ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(x[1]) + '</div></div>';
+    }).join('') + '</div></div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">The last 28 days</span>' +
+    '<span class="inv-panel-count">' + (days ? todoPlural(days, 'day') + ' marked' : 'nothing marked') + '</span></div>';
+  if (days) {
+    h += '<div class="inv-tiles">' +
+      '<div class="inv-tile"><div class="inv-tile-label">Present</div><div class="inv-tile-value">' + n.P + '</div><div class="inv-tile-sub">' + (n.H ? n.H + ' half' : 'no half days') + '</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Absent</div><div class="inv-tile-value">' + n.A + '</div><div class="inv-tile-sub">marked absent</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Hours</div><div class="inv-tile-value">' + formatNum(hours, 0) + '</div><div class="inv-tile-sub">' + (ot ? formatNum(ot, 0) + ' of them OT' : 'no OT') + '</div></div>' +
+      '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
+  } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
+  h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
+  return h;
 }
 
 /* The hourly rate a worker's overtime is paid at.

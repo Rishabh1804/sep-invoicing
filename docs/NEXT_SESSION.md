@@ -7,6 +7,18 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 2 Oct 2026: UX overhaul 2, step 7 (read this first)
+
+The desktop's list and pane on Finance → Receivables, Production → Entries, Staff → Roster and History, and three columns on
+Pulse, Stats and Finance above about 1,600px (P147; CLAUDE.md and `docs/UX_OVERHAUL_2.md` step 7). **Every planned step of UX
+overhaul 2 is now built** (3, 4 and 5 came with Direction B's search, keys and new windows). **What is left in the queue:**
+- **G4, the merge** (`docs/GUARD.md`): waits, by the owner's plan, until more than one person enters data on their own device.
+- **Home hover previews** (parked below): the owner called them a planned UI update; not started.
+- **The Android To-do widget** (needs a native wrapper) and moving `S.todo` to `sep-dashboard` when that app is ready.
+- **The owner's own checks** listed in each section below (a real day of production end to end, a register photo through
+  Gemini, the power quotes, the quotation series already issued by hand).
+- **The owner said they have more asks queued** (30 Sep 2026): ask what is next.
+
 ## Built 1 Oct 2026: quotations and reports (read this first)
 
 Clients → **Quotations** (P131) and **Reports** (P132); CLAUDE.md has both sections. **Left for the owner:** the series already
@@ -73,8 +85,7 @@ production record, so nothing is measured yet); the 15-minute constant is theirs
 - **soma-internal T-IF:** August's app bill is ₹73,156 against the bank's ₹76,156.
 - **The compile session** should read `attendanceDeletes` before calling a missing day unrecorded (data-flow row below).
 - **Home's Revenue tile will link to its credit notes** once the hover previews are built (parked, `UX_OVERHAUL_2.md`).
-- **UX overhaul 2, steps not built:** 3 (open in a new window), 4 (search), 5 (keyboard), 7 (desktop layouts). See
-  `docs/UX_OVERHAUL_2.md`.
+- ~~**UX overhaul 2, steps not built:** 3, 4, 5, 7.~~ All built: 3–5 with Direction B (1 Oct), 7 on 2 Oct 2026.
 - **The owner said "We have updates remaining" (30 Sep 2026)**: they have more asks queued for this session. Ask what's next.
 
 **Local scratch checks** (git-excluded `tests/e2e/zz-*`, gone when the container is reclaimed):

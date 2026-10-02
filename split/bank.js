@@ -753,6 +753,46 @@ async function bankRemoveImport(id) {
   showToast(todoPlural(imp.rowsRemoved, 'row') + ' taken out; the import stays listed with the reason');
 }
 
+/* One client's receivables: what was owed at the start, each receipt and what it paid, the cheques, what is open.
+   The phone draws it under the client's row; the desktop in the pane beside the list (UX overhaul 2, step 7). */
+function _bankRecvDetailHtml(r, fromTxt, cls) {
+  var h = '';
+  if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
+    escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
+  else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
+    (r.onAccount > 0.005 ? (r.onAccount < r.carried - 0.005 ? ': ' + escHtml(formatCurrency(r.onAccount)) + ' of it is still on account. ' : '. It is all still on account. ') : '. None of it is on account now. ') +
+    'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
+  else if (r.owed < -0.005 && !(r.noteCredit > 0.005)) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
+  if (r.noteCredit > 0.005) h += '<div class="inv-callout inv-callout-info" data-note-credit>' + escHtml(formatCurrency(r.noteCredit)) +
+    ' of credit notes came after what they credit was paid, so it is credit to the client, on account.</div>';
+  h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
+    '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.openingSet ? r.opening : '') + '" placeholder="not set"></span></div>';
+  var sg = r.openingSuggest;
+  if (sg) h += '<div class="inv-row inv-row-2" data-opening-suggest="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main"><span class="inv-row-title">Most likely owed on ' + fromTxt + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(sg.rows.map(function(x) { return formatDate(x.date) + ' ' + formatCurrency(x.amount); }).join(' · ')) +
+    (sg.anchor ? ' came in before ' + escHtml(formatDate(sg.until)) + (sg.until === sg.anchor ? ', its first invoice here' : ', when its first invoice here was ' + BANK_OPENING_WINDOW + ' days old') : ', and nothing of theirs is in the book') +
+    ', so ' + (sg.rows.length === 1 ? 'it most likely paid' : 'they most likely paid') + ' work from before. Check it against your ledger: money owed then and never paid is not in it.</span></span>' +
+    '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(sg.amount) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankOpeningUse" data-client="' + escHtml(String(r.client.id)) + '" data-amount="' + sg.amount + '">Use</button></span></div>';
+  r.allocs.forEach(function(a) {
+    h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
+      '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
+      '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
+      (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + (a.parts.length ? ' more than was open by then' : ' with nothing open by then') : '') + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
+      (_bankChange === a.v.row.id ? _bankClientSelect(a.v, { empty: 'No client' })
+        : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
+  });
+  var ser = bankChequeSeries(cls)[String(r.client.id)];
+  if (ser && ser.length) h += '<div class="inv-row" data-series="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">Cheques: <span class="inv-id">' + escHtml(ser.slice(-5).join(' · ')) + '</span>' +
+    (ser.length > 5 ? ' and ' + (ser.length - 5) + ' more' : '') + '</span></div>';
+  r.open.forEach(function(o) {
+    h += '<div class="inv-row inv-row-2" data-open-inv="' + escHtml(o.label) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label) + '</span>' +
+      '<span class="inv-row-meta"><span class="inv-dot inv-dot-warning">Open</span> · ' + escHtml(formatDate(o.date)) + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(o.due) + (o.due < o.amount ? ' of ' + formatCurrency(o.amount) : '') + '</span></span></div>';
+  });
+  return h;
+}
+
 function _bankReceiptsHtml(cls) {
   var recv = bankReceivables(cls), rows = bankRows(), from = bankRecvFrom(rows), fromTxt = escHtml(formatDate(from));
   var totalOwed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
@@ -765,10 +805,13 @@ function _bankReceiptsHtml(cls) {
   if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + todoPlural(sgN, 'client') + ' paid money in the first weeks that most likely settled work from before ' + fromTxt +
     '. Open ' + (sgN === 1 ? 'it' : 'each') + ' to check the figure offered for what ' + (sgN === 1 ? 'it' : 'each') + ' owed on that day.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
-  var payHist = bankPayHistory(recv);
+  var payHist = bankPayHistory(recv), openR = null;
   recv.forEach(function(r) {
     var open = _bankOpen === String(r.client.id), dtp = bankDaysToPay(r.client.id, payHist);
-    h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
+    // On the desktop a client opens in the pane beside the list, so its row is the current one, not an expander.
+    if (open) openR = r;
+    h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"' + (_isDesktop && open ? ' aria-current="true"' : '') + '><button class="inv-row-main' +
+      (_isDesktop ? '"' : ' inv-row-expander" aria-expanded="' + open + '"') + ' data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
       (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (Math.abs(r.rounding) > 0.005 ? ' · ' + escHtml(formatCurrency(Math.abs(r.rounding))) + ' rounded off' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
@@ -776,42 +819,8 @@ function _bankReceiptsHtml(cls) {
       // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
       (r.owed < -0.005 ? 'paid ahead' : r.owed > 0.005 && r.oldestDays > 90 ? 'owed, over 90 d' : r.owed > 0.005 && r.oldestDays > 60 ? 'owed, over 60 d' : 'owed') + '</span></span></span></div>';
-    if (!open) return;
-    h += '<div class="inv-row-children">';
-    if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
-      escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
-    else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
-      (r.onAccount > 0.005 ? (r.onAccount < r.carried - 0.005 ? ': ' + escHtml(formatCurrency(r.onAccount)) + ' of it is still on account. ' : '. It is all still on account. ') : '. None of it is on account now. ') +
-      'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
-    else if (r.owed < -0.005 && !(r.noteCredit > 0.005)) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
-    if (r.noteCredit > 0.005) h += '<div class="inv-callout inv-callout-info" data-note-credit>' + escHtml(formatCurrency(r.noteCredit)) +
-      ' of credit notes came after what they credit was paid, so it is credit to the client, on account.</div>';
-    h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
-      '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.openingSet ? r.opening : '') + '" placeholder="not set"></span></div>';
-    var sg = r.openingSuggest;
-    if (sg) h += '<div class="inv-row inv-row-2" data-opening-suggest="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main"><span class="inv-row-title">Most likely owed on ' + fromTxt + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(sg.rows.map(function(x) { return formatDate(x.date) + ' ' + formatCurrency(x.amount); }).join(' · ')) +
-      (sg.anchor ? ' came in before ' + escHtml(formatDate(sg.until)) + (sg.until === sg.anchor ? ', its first invoice here' : ', when its first invoice here was ' + BANK_OPENING_WINDOW + ' days old') : ', and nothing of theirs is in the book') +
-      ', so ' + (sg.rows.length === 1 ? 'it most likely paid' : 'they most likely paid') + ' work from before. Check it against your ledger: money owed then and never paid is not in it.</span></span>' +
-      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(sg.amount) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankOpeningUse" data-client="' + escHtml(String(r.client.id)) + '" data-amount="' + sg.amount + '">Use</button></span></div>';
-    r.allocs.forEach(function(a) {
-      h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
-        '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
-        '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
-        (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + (a.parts.length ? ' more than was open by then' : ' with nothing open by then') : '') + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
-        (_bankChange === a.v.row.id ? _bankClientSelect(a.v, { empty: 'No client' })
-          : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
-    });
-    var ser = bankChequeSeries(cls)[String(r.client.id)];
-    if (ser && ser.length) h += '<div class="inv-row" data-series="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">Cheques: <span class="inv-id">' + escHtml(ser.slice(-5).join(' · ')) + '</span>' +
-      (ser.length > 5 ? ' and ' + (ser.length - 5) + ' more' : '') + '</span></div>';
-    r.open.forEach(function(o) {
-      h += '<div class="inv-row inv-row-2" data-open-inv="' + escHtml(o.label) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label) + '</span>' +
-        '<span class="inv-row-meta"><span class="inv-dot inv-dot-warning">Open</span> · ' + escHtml(formatDate(o.date)) + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(o.due) + (o.due < o.amount ? ' of ' + formatCurrency(o.amount) : '') + '</span></span></div>';
-    });
-    h += '</div>';
+    if (!open || _isDesktop) return;
+    h += '<div class="inv-row-children">' + _bankRecvDetailHtml(r, fromTxt, cls) + '</div>';
   });
   h += '</div>';
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
@@ -852,7 +861,14 @@ function _bankReceiptsHtml(cls) {
     });
     h += uiMoreHtml('bank-loose', looseRows, { n: 10, noun: 'receipts' }) + '</div>';
   }
-  return h + _bankBouncesHtml(cls);
+  h += _bankBouncesHtml(cls);
+  if (!_isDesktop) return h;
+  // The desktop: the whole tab is the list, and the open client's receivables the pane beside it (UX overhaul 2, step 7).
+  return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
+    '<div class="inv-pane" id="recvPane">' + (openR ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(openR.client.name) + '</span>', 'invBankPaneClose') +
+      '<div class="inv-panel inv-panel-flush" data-recv-pane="' + escHtml(String(openR.client.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Owed</span>' +
+      '<span class="inv-num">' + figHtml(formatCurrency(openR.owed), openR.owed > 0.005 ? figToneAge(openR.oldestDays) : null) + '</span></div>' +
+      _bankRecvDetailHtml(openR, fromTxt, cls) + '</div>' : '') + '</div></div>';
 }
 
 /* A cheque deposit names nobody. Where its amount equals, to the rupee, one open invoice or a run
@@ -1258,7 +1274,8 @@ function bankAction(action, btn) {
     case 'invBankExport': bankExportXlsx(); return true;
     case 'invBankExportJson': bankExportJson(); return true;
     case 'invBankImportRemove': bankRemoveImport(btn.dataset.id); return true;
-    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
+    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderFinance); return true;
+    case 'invBankPaneClose': _bankOpen = null; keepScroll(renderFinance); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;
     case 'invBankBounceClear': bankClearBounce(btn.dataset.rev); return true;

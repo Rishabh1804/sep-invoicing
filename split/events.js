@@ -209,6 +209,8 @@ function onDocClick(e) {
     case 'invAttAddWorker': openWorkerAdd(); break;
     case 'invAttImportRoster': importRoster(); break;
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
+    case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
+    case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     case 'invAttMergeWorker': mergeWorkerInto(parseInt(btn.dataset.id, 10)); break;
@@ -339,6 +341,8 @@ function onDocClick(e) {
     }
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
+    case 'invHistoryOpen': _historyOpen = _historyOpen === btn.dataset.key ? null : btn.dataset.key; keepScroll(renderHistory); break;
+    case 'invHistoryClose': _historyOpen = null; keepScroll(renderHistory); break;
     case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner

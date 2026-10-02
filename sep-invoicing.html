@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="4aa8cde8">
+<meta name="app-build" content="fc26796a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1360,6 +1360,10 @@ body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panels .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-panels { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
 body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
+/* A wide screen takes three columns on Home's Pulse, Stats and Finance (UX overhaul 2, step 7): at about 1,600px two left
+   each panel 700px across for a figure or a chart that reads at half that. A wide panel still spans the row. (A media
+   query's condition cannot read a custom property, so the width is written out.) */
+@media (min-width: 100rem) { body.inv-desktop .inv-panels { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
@@ -1522,6 +1526,8 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
    compounded to a third. */
 .inv-table tr[aria-current="true"]:not(.inv-row-selected) td { background: var(--surface-2); }
 .inv-table tr[aria-current="true"] td:first-child { box-shadow: inset var(--sp-2) 0 0 var(--accent); }
+/* A row list beside its pane marks the open record the way a table does (Receivables, Production → Entries). */
+.inv-row[aria-current="true"] { background: var(--surface-2); box-shadow: inset var(--sp-2) 0 0 var(--accent); }
 /* A column that takes the spare width and ellipsizes, rather than wrapping a client's name over three lines. */
 .inv-col-grow { width: 100%; max-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-col-grow-sm { max-width: var(--col-sm-w); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
@@ -1629,6 +1635,8 @@ body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
   body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { flex: 1 1 auto; border-left: none; }
 }
 .inv-pane-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); }
+/* History's pane says the event whole: a change's every field, as the row's title held it. */
+.inv-history-full { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-13); }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
 body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -1875,16 +1883,17 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
 /* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
 .inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }
-/* A Home widget lays its tiles out by the room it has (half or full width, on any window), never leaving a blank cell
+/* A panel in the page's grid (a Home widget, a Stats story, a Finance card) lays its tiles out by the room it has (half,
+   a third or full width, on any window), never leaving a blank cell
    beside the last tile: the Money panel's four tiles sat three and one at 1280, and its three two and one at 1024. Where
    two across is all that fits, an odd last tile takes the row, as on the phone; four go four across only where four fit,
    else two by two. The widths are written out: a container query's condition cannot read --tile-min (10rem). */
-body.inv-desktop .inv-panels > [data-home-w] { container: home-w / inline-size; }
-@container home-w (max-width: 30.5rem) {
+body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
+@container panel-w (max-width: 30.5rem) {
   body.inv-desktop .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   body.inv-desktop .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
-@container home-w (min-width: 30.5rem) and (max-width: 40.5rem) {
+@container panel-w (min-width: 30.5rem) and (max-width: 40.5rem) {
   body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
@@ -19052,6 +19061,7 @@ function _attRestoreFocus(sel) {
 /* ===== TAB RENDER ===== */
 /* The view tabs (§6.4). Paste message is not one of them: it is a sub-view with its own way back, opened by
    the page's one primary (Overview, Day) or from Home. */
+var _attRosterOpen = null;   // the worker open in the desktop's pane (Roster)
 var ATT_VIEWS = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster']];
 var _attPrevView = 'overview';   // where Paste message's back button returns
 var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
@@ -19620,6 +19630,9 @@ function _attRosterView() {
     '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount is this number.</span></div>';
 
+  // A role that may not see wages sees the roster without its rates (the guard's "wages" setting).
+  var wages = typeof grdSeesWages !== 'function' || grdSeesWages();
+  if (_isDesktop && all.length) return html + _attRosterDesktop(all, wages);
   html += '<div class="inv-panel inv-panel-flush" id="attRoster"><div class="inv-panel-head"><span class="inv-panel-title">Roster ' +
     '<span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
@@ -19629,7 +19642,7 @@ function _attRosterView() {
     var inactive = w.active === false;
     html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span></span>' +
+      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') + '</span>' +
       '<span class="inv-row-end">' +
       '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
@@ -19638,6 +19651,57 @@ function _attRosterView() {
       '</span></button>';
   });
   return html + '</div>';
+}
+
+/* The desktop's roster: a table beside the open worker (UX overhaul 2, step 7). The phone opens the worker's edit sheet. */
+function _attRosterDesktop(all, wages) {
+  var open = _attRosterOpen != null ? staffById(_attRosterOpen) : null;
+  if (!open) _attRosterOpen = null;
+  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost"><div class="inv-pane-list">' +
+    '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt1">Rate</th>' : '') +
+    '<th>Area</th><th>Status</th></tr></thead><tbody>';
+  all.forEach(function(w) {
+    var inactive = w.active === false, id = escHtml(String(w.id));
+    h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
+      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
+      '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
+      (wages ? '<td class="inv-col-opt1 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
+      '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
+      '<td>' + (inactive ? '<span class="inv-dot inv-dot-neutral">Inactive</span>' : '<span class="inv-dot inv-dot-ok">Active</span>') + '</td></tr>';
+  });
+  return h + '</tbody></table></div><div class="inv-pane" id="attRosterPane">' + (open ? _attWorkerPaneHtml(open, wages) : '') + '</div></div>';
+}
+
+/* One worker: who they are on the roster, and the last four pay weeks as the marks have them. */
+function _attWorkerPaneHtml(w, wages) {
+  var cls = compClass(w.comp), today = localDateStr();
+  var kv = [['Tier', cls.label], ['Home area', areaLabel(w.area)], ['On the floor', w.onFloor === false ? 'No' : 'Yes'], ['Status', w.active === false ? 'Inactive' : 'Active']];
+  if (wages) kv.splice(1, 0, ['Rate', workerRateLabel(w)]);
+  if ((w.relayNames || []).length) kv.push(['Spellings on the rolls', w.relayNames.join(', ')]);
+  var n = { P: 0, H: 0, A: 0 }, hours = 0, ot = 0, days = 0, areas = {}, last = '';
+  for (var i = 0; i < 28; i++) {
+    var iso = isoAddDays(today, -i), m = attMark(iso, w.id);
+    if (!m || !n.hasOwnProperty(m.st)) continue;
+    n[m.st]++; days++;
+    if (!last) last = iso;
+    if (m.st !== 'A') { hours += +m.hours || 0; ot += +m.ot || 0; if (m.area) areas[m.area] = (areas[m.area] || 0) + 1; }
+  }
+  var where = Object.keys(areas).sort(function(a, b) { return areas[b] - areas[a]; }).map(function(a) { return areaLabel(a) + ' ' + areas[a]; }).join(' · ');
+  var h = paneHeadHtml('<span class="inv-panel-title">' + escHtml(w.name) + '</span>', 'invAttRosterClose') +
+    '<div class="inv-panel" data-worker-pane="' + escHtml(String(w.id)) + '"><div class="inv-kv">' + kv.map(function(x) {
+      return '<div' + (x[0] === 'Rate' || x[0] === 'Spellings on the rolls' ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(x[1]) + '</div></div>';
+    }).join('') + '</div></div>' +
+    '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">The last 28 days</span>' +
+    '<span class="inv-panel-count">' + (days ? todoPlural(days, 'day') + ' marked' : 'nothing marked') + '</span></div>';
+  if (days) {
+    h += '<div class="inv-tiles">' +
+      '<div class="inv-tile"><div class="inv-tile-label">Present</div><div class="inv-tile-value">' + n.P + '</div><div class="inv-tile-sub">' + (n.H ? n.H + ' half' : 'no half days') + '</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Absent</div><div class="inv-tile-value">' + n.A + '</div><div class="inv-tile-sub">marked absent</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Hours</div><div class="inv-tile-value">' + formatNum(hours, 0) + '</div><div class="inv-tile-sub">' + (ot ? formatNum(ot, 0) + ' of them OT' : 'no OT') + '</div></div>' +
+      '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
+  } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
+  h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
+  return h;
 }
 
 /* The hourly rate a worker's overtime is paid at.
@@ -27237,6 +27301,46 @@ async function bankRemoveImport(id) {
   showToast(todoPlural(imp.rowsRemoved, 'row') + ' taken out; the import stays listed with the reason');
 }
 
+/* One client's receivables: what was owed at the start, each receipt and what it paid, the cheques, what is open.
+   The phone draws it under the client's row; the desktop in the pane beside the list (UX overhaul 2, step 7). */
+function _bankRecvDetailHtml(r, fromTxt, cls) {
+  var h = '';
+  if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
+    escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
+  else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
+    (r.onAccount > 0.005 ? (r.onAccount < r.carried - 0.005 ? ': ' + escHtml(formatCurrency(r.onAccount)) + ' of it is still on account. ' : '. It is all still on account. ') : '. None of it is on account now. ') +
+    'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
+  else if (r.owed < -0.005 && !(r.noteCredit > 0.005)) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
+  if (r.noteCredit > 0.005) h += '<div class="inv-callout inv-callout-info" data-note-credit>' + escHtml(formatCurrency(r.noteCredit)) +
+    ' of credit notes came after what they credit was paid, so it is credit to the client, on account.</div>';
+  h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
+    '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.openingSet ? r.opening : '') + '" placeholder="not set"></span></div>';
+  var sg = r.openingSuggest;
+  if (sg) h += '<div class="inv-row inv-row-2" data-opening-suggest="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main"><span class="inv-row-title">Most likely owed on ' + fromTxt + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(sg.rows.map(function(x) { return formatDate(x.date) + ' ' + formatCurrency(x.amount); }).join(' · ')) +
+    (sg.anchor ? ' came in before ' + escHtml(formatDate(sg.until)) + (sg.until === sg.anchor ? ', its first invoice here' : ', when its first invoice here was ' + BANK_OPENING_WINDOW + ' days old') : ', and nothing of theirs is in the book') +
+    ', so ' + (sg.rows.length === 1 ? 'it most likely paid' : 'they most likely paid') + ' work from before. Check it against your ledger: money owed then and never paid is not in it.</span></span>' +
+    '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(sg.amount) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankOpeningUse" data-client="' + escHtml(String(r.client.id)) + '" data-amount="' + sg.amount + '">Use</button></span></div>';
+  r.allocs.forEach(function(a) {
+    h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
+      '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
+      '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
+      (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + (a.parts.length ? ' more than was open by then' : ' with nothing open by then') : '') + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
+      (_bankChange === a.v.row.id ? _bankClientSelect(a.v, { empty: 'No client' })
+        : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
+  });
+  var ser = bankChequeSeries(cls)[String(r.client.id)];
+  if (ser && ser.length) h += '<div class="inv-row" data-series="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">Cheques: <span class="inv-id">' + escHtml(ser.slice(-5).join(' · ')) + '</span>' +
+    (ser.length > 5 ? ' and ' + (ser.length - 5) + ' more' : '') + '</span></div>';
+  r.open.forEach(function(o) {
+    h += '<div class="inv-row inv-row-2" data-open-inv="' + escHtml(o.label) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label) + '</span>' +
+      '<span class="inv-row-meta"><span class="inv-dot inv-dot-warning">Open</span> · ' + escHtml(formatDate(o.date)) + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(o.due) + (o.due < o.amount ? ' of ' + formatCurrency(o.amount) : '') + '</span></span></div>';
+  });
+  return h;
+}
+
 function _bankReceiptsHtml(cls) {
   var recv = bankReceivables(cls), rows = bankRows(), from = bankRecvFrom(rows), fromTxt = escHtml(formatDate(from));
   var totalOwed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
@@ -27249,10 +27353,13 @@ function _bankReceiptsHtml(cls) {
   if (sgN) h += '<div class="inv-callout inv-callout-info" data-opening-hint="' + sgN + '">' + todoPlural(sgN, 'client') + ' paid money in the first weeks that most likely settled work from before ' + fromTxt +
     '. Open ' + (sgN === 1 ? 'it' : 'each') + ' to check the figure offered for what ' + (sgN === 1 ? 'it' : 'each') + ' owed on that day.</div>';
   if (!recv.length) h += '<div class="inv-empty">No invoices or receipts since ' + fromTxt + '.</div>';
-  var payHist = bankPayHistory(recv);
+  var payHist = bankPayHistory(recv), openR = null;
   recv.forEach(function(r) {
     var open = _bankOpen === String(r.client.id), dtp = bankDaysToPay(r.client.id, payHist);
-    h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main inv-row-expander" aria-expanded="' + open + '" data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
+    // On the desktop a client opens in the pane beside the list, so its row is the current one, not an expander.
+    if (open) openR = r;
+    h += '<div class="inv-row inv-row-2" data-recv="' + escHtml(String(r.client.id)) + '"' + (_isDesktop && open ? ' aria-current="true"' : '') + '><button class="inv-row-main' +
+      (_isDesktop ? '"' : ' inv-row-expander" aria-expanded="' + open + '"') + ' data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
       (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (Math.abs(r.rounding) > 0.005 ? ' · ' + escHtml(formatCurrency(Math.abs(r.rounding))) + ' rounded off' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
@@ -27260,42 +27367,8 @@ function _bankReceiptsHtml(cls) {
       // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
       (r.owed < -0.005 ? 'paid ahead' : r.owed > 0.005 && r.oldestDays > 90 ? 'owed, over 90 d' : r.owed > 0.005 && r.oldestDays > 60 ? 'owed, over 60 d' : 'owed') + '</span></span></span></div>';
-    if (!open) return;
-    h += '<div class="inv-row-children">';
-    if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
-      escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
-    else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
-      (r.onAccount > 0.005 ? (r.onAccount < r.carried - 0.005 ? ': ' + escHtml(formatCurrency(r.onAccount)) + ' of it is still on account. ' : '. It is all still on account. ') : '. None of it is on account now. ') +
-      'It most likely paid work from before ' + fromTxt + ': set what was owed on that day.</div>';
-    else if (r.owed < -0.005 && !(r.noteCredit > 0.005)) h += '<div class="inv-callout inv-callout-info">More came in than was invoiced since ' + fromTxt + '. The early receipts most likely paid invoices from before then: set what was owed on that day.</div>';
-    if (r.noteCredit > 0.005) h += '<div class="inv-callout inv-callout-info" data-note-credit>' + escHtml(formatCurrency(r.noteCredit)) +
-      ' of credit notes came after what they credit was paid, so it is credit to the client, on account.</div>';
-    h += '<div class="inv-row"><span class="inv-row-main"><label class="inv-field-label" for="bankOpening">Owed at ' + fromTxt + '</label></span>' +
-      '<span class="inv-row-end"><input class="inv-input inv-input-sm inv-num" type="number" step="0.01" min="0" inputmode="decimal" id="bankOpening" data-client="' + escHtml(String(r.client.id)) + '" value="' + (r.openingSet ? r.opening : '') + '" placeholder="not set"></span></div>';
-    var sg = r.openingSuggest;
-    if (sg) h += '<div class="inv-row inv-row-2" data-opening-suggest="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main"><span class="inv-row-title">Most likely owed on ' + fromTxt + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(sg.rows.map(function(x) { return formatDate(x.date) + ' ' + formatCurrency(x.amount); }).join(' · ')) +
-      (sg.anchor ? ' came in before ' + escHtml(formatDate(sg.until)) + (sg.until === sg.anchor ? ', its first invoice here' : ', when its first invoice here was ' + BANK_OPENING_WINDOW + ' days old') : ', and nothing of theirs is in the book') +
-      ', so ' + (sg.rows.length === 1 ? 'it most likely paid' : 'they most likely paid') + ' work from before. Check it against your ledger: money owed then and never paid is not in it.</span></span>' +
-      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(sg.amount) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankOpeningUse" data-client="' + escHtml(String(r.client.id)) + '" data-amount="' + sg.amount + '">Use</button></span></div>';
-    r.allocs.forEach(function(a) {
-      h += '<div class="inv-row inv-row-2" data-alloc="' + escHtml(a.v.row.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(a.v.row.date)) + ' · ' +
-        '<span class="inv-badge inv-badge-' + (a.how === 'exact' ? 'ok' : 'neutral') + '">' + (a.how === 'exact' ? 'Exact' : 'Oldest first') + '</span></span>' +
-        '<span class="inv-row-meta">' + escHtml(a.parts.map(function(p) { return p.label + (p.whole ? '' : ' (part ' + formatCurrency(p.amount) + ')'); }).join(', ') || 'nothing open to set it against') +
-        (a.unapplied > 0 ? ' · ' + escHtml(formatCurrency(a.unapplied)) + (a.parts.length ? ' more than was open by then' : ' with nothing open by then') : '') + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(a.v.row.cr) + '</span>' +
-        (_bankChange === a.v.row.id ? _bankClientSelect(a.v, { empty: 'No client' })
-          : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankChange" data-id="' + escHtml(a.v.row.id) + '">Change</button>') + '</span></div>';
-    });
-    var ser = bankChequeSeries(cls)[String(r.client.id)];
-    if (ser && ser.length) h += '<div class="inv-row" data-series="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">Cheques: <span class="inv-id">' + escHtml(ser.slice(-5).join(' · ')) + '</span>' +
-      (ser.length > 5 ? ' and ' + (ser.length - 5) + ' more' : '') + '</span></div>';
-    r.open.forEach(function(o) {
-      h += '<div class="inv-row inv-row-2" data-open-inv="' + escHtml(o.label) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label) + '</span>' +
-        '<span class="inv-row-meta"><span class="inv-dot inv-dot-warning">Open</span> · ' + escHtml(formatDate(o.date)) + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(o.due) + (o.due < o.amount ? ' of ' + formatCurrency(o.amount) : '') + '</span></span></div>';
-    });
-    h += '</div>';
+    if (!open || _isDesktop) return;
+    h += '<div class="inv-row-children">' + _bankRecvDetailHtml(r, fromTxt, cls) + '</div>';
   });
   h += '</div>';
   // Receipts nobody can name: cheques deposited, a remitter the client list does not recognise.
@@ -27336,7 +27409,14 @@ function _bankReceiptsHtml(cls) {
     });
     h += uiMoreHtml('bank-loose', looseRows, { n: 10, noun: 'receipts' }) + '</div>';
   }
-  return h + _bankBouncesHtml(cls);
+  h += _bankBouncesHtml(cls);
+  if (!_isDesktop) return h;
+  // The desktop: the whole tab is the list, and the open client's receivables the pane beside it (UX overhaul 2, step 7).
+  return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
+    '<div class="inv-pane" id="recvPane">' + (openR ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(openR.client.name) + '</span>', 'invBankPaneClose') +
+      '<div class="inv-panel inv-panel-flush" data-recv-pane="' + escHtml(String(openR.client.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Owed</span>' +
+      '<span class="inv-num">' + figHtml(formatCurrency(openR.owed), openR.owed > 0.005 ? figToneAge(openR.oldestDays) : null) + '</span></div>' +
+      _bankRecvDetailHtml(openR, fromTxt, cls) + '</div>' : '') + '</div></div>';
 }
 
 /* A cheque deposit names nobody. Where its amount equals, to the rupee, one open invoice or a run
@@ -27742,7 +27822,8 @@ function bankAction(action, btn) {
     case 'invBankExport': bankExportXlsx(); return true;
     case 'invBankExportJson': bankExportJson(); return true;
     case 'invBankImportRemove': bankRemoveImport(btn.dataset.id); return true;
-    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; renderFinance(); return true;
+    case 'invBankClient': _bankOpen = _bankOpen === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderFinance); return true;
+    case 'invBankPaneClose': _bankOpen = null; keepScroll(renderFinance); return true;
     case 'invBankAddBill': bankAddPowerBill(btn.dataset.id); return true;
     case 'invBankBounce': bankSetBounce(btn.dataset.rev, btn.dataset.dep); return true;
     case 'invBankBounceClear': bankClearBounce(btn.dataset.rev); return true;
@@ -33643,6 +33724,7 @@ function historyWhoText(ev) {
   return Object.prototype.hasOwnProperty.call(ev, 'by') ? ' · by ' + chgUserName(ev.by) : '';
 }
 
+var _historyOpen = null;   // the event open in the desktop's pane (History)
 function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
   var area = document.getElementById('historyList');
@@ -33730,18 +33812,17 @@ function renderHistory() {
   function fullAttr(ev) { return ev.full && ev.full !== ev.text ? ' title="' + escHtml(ev.full) + '"' : ''; }
 
   if (_isDesktop) {
+    // The desktop opens an event in the pane beside the list (UX overhaul 2, step 7): the event whole, and the invoice or
+    // challan it names, read without leaving History. Every event opens, a void and a floor day included.
     html += '<table class="inv-table inv-table-history"><thead><tr><th>Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
     days.forEach(function(d) {
       html += '<tr class="inv-table-group"><td colspan="4">' + escHtml(d) + ' · ' + dayCount[d] + '</td></tr>';
       byDay[d].forEach(function(ev) {
-        var action = jumpOf(ev);
-        var attrs = ' data-ev="' + ev.kind + '"' + (action ? ' data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '"' : '');
-        html += '<tr' + attrs + '>' +
+        var key = escHtml(historyEvKey(ev));
+        html += '<tr data-ev="' + ev.kind + '" data-action="invHistoryOpen" data-key="' + key + '"' + (_historyOpen === historyEvKey(ev) ? ' aria-current="true"' : '') + '>' +
           '<td class="inv-id">' + escHtml(historyWhen(ev, 'time')) + '</td>' +
           // The event is a real button on a row that opens, so it opens from the keyboard.
-          '<td' + fullAttr(ev) + '>' + (action
-            ? '<button class="inv-btn-link" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + escHtml(ev.text) + '</button>'
-            : escHtml(ev.text)) + '</td>' +
+          '<td' + fullAttr(ev) + '><button class="inv-btn-link" data-action="invHistoryOpen" data-key="' + key + '">' + escHtml(ev.text) + '</button></td>' +
           '<td>' + historyKindHtml(ev) + '</td>' +
           '<td class="inv-num">' + (ev.amount ? formatCurrency(ev.amount) : '') + '</td></tr>';
       });
@@ -33769,7 +33850,43 @@ function renderHistory() {
     html += '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invHistoryLoadMore">' +
       'Show more (' + remaining + ' remaining)</button>';
   }
+  if (_isDesktop) {
+    var open = _historyOpen ? events.find(function(ev) { return historyEvKey(ev) === _historyOpen; }) : null;
+    if (!open) _historyOpen = null;
+    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost"><div class="inv-pane-list">' + html + '</div>' +
+      '<div class="inv-pane" id="historyPane">' + (open ? historyPaneHtml(open) : '') + '</div></div>';
+  }
   area.innerHTML = html;
+}
+
+/* An event's key: what it is, when, and what it names. Stable while the record is, so it can be an address. */
+function historyEvKey(ev) {
+  return relayHash([ev.kind, ev.ts || '', ev.sourceId || '', ev.cr || '', ev.text || ''].join('|'));
+}
+/* One event in the desktop's pane: the event whole (a change's every field), who and on which device, and the invoice or
+   challan it names, drawn as the Invoices and Challans panes draw it, with the way there. */
+function historyPaneHtml(ev) {
+  // Each value is HTML: the kind is its dot and word, every other figure escaped here.
+  var kv = [['Kind', historyKindHtml(ev)], ['When', escHtml(historyWhen(ev, 'all'))]];
+  if (ev.amount) kv.push(['Amount', '<span class="inv-num">' + escHtml(formatCurrency(ev.amount)) + '</span>']);
+  if (Object.prototype.hasOwnProperty.call(ev, 'by') && typeof chgUserName === 'function') kv.push(['Who', escHtml(ev.by == null ? 'No ID' : chgUserName(ev.by))]);
+  var dev = ev.dev || ev.byDev;
+  if (dev) { var dv = (S.devices || []).find(function(x) { return x && x.id === dev; }); kv.push(['Device', escHtml(dv && dv.name ? dv.name : dev)]); }
+  var h = paneHeadHtml('<span class="inv-panel-title">Event</span>', 'invHistoryClose') +
+    '<div class="inv-panel" data-history-pane="' + escHtml(ev.kind) + '"><div class="inv-history-full">' + escHtml(ev.full || ev.text) + '</div>' +
+    '<div class="inv-kv inv-mt-4">' + kv.map(function(x) {
+      return '<div><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + x[1] + '</div></div>';
+    }).join('') + '</div></div>';
+  if (ev.jump === 'invoice') {
+    var inv = S.invoices.find(function(i) { return i.id === ev.sourceId; });
+    if (inv) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpInvoice" data-id="' + escHtml(inv.id) + '">Open in Invoices</button></div>' + invoiceDetailHtml(inv) + '</div>';
+  } else if (ev.jump === 'challan') {
+    var im = (S.incomingMaterial || []).find(function(c) { return c.id === ev.sourceId; });
+    if (im) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(imChallanLabel(im)) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpChallan" data-id="' + escHtml(im.id) + '">Open in Challans</button></div>' + challanDetailHtml(im) + '</div>';
+  } else if (ev.kind === 'void') h += '<div class="inv-note">The invoice this number was is deleted; Invoices → Number audit holds its record.</div>';
+  return h;
 }
 
 /* Exports exactly what the current filters show, so a query someone reasoned
@@ -37442,6 +37559,7 @@ function prodMergeImport(obj, fileName) {
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
  * a way back and end in the action bar, and draw no toolbar (DR-3).
  */
+var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
 var PROD_TABS = [['overview', 'Overview'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _prodTabMoved = false;
@@ -37731,7 +37849,58 @@ function prodEntriesHtml() {
     h += prodEntryRowHtml(e, idx);
   });
   if (list.length > 300) h += '<div class="inv-panel-body inv-note">The latest 300 of ' + list.length + ' are shown.</div>';
-  return h + '</div>';
+  h += '</div>';
+  if (!_isDesktop) return h;
+  // The desktop: the list beside the open entry (UX overhaul 2, step 7). The chips stay above both; an entry the
+  // filter no longer lists stays open, since it is still a record somebody chose to read.
+  var open = _prodEntryOpen && prodData().entries.find(function(e) { return e.id === _prodEntryOpen; });
+  if (!open) _prodEntryOpen = null;
+  var cut = h.indexOf('<div class="inv-panel inv-panel-flush" id="prodEntries">');
+  return h.slice(0, cut) + '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="prodEntriesHost"><div class="inv-pane-list">' + h.slice(cut) + '</div>' +
+    '<div class="inv-pane" id="prodEntryPane">' + (open ? prodEntryDetailHtml(open, idx) : '') + '</div></div>';
+}
+
+/* One entry in the pane: everything it holds, the text it was read from, and what can be done to it. */
+function prodEntryDetailHtml(e, idx) {
+  var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind] || e.kind;
+  var title = e.kind === 'downtime' ? 'Power cut' : prodEntryTitle(e);
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var kv = [['Kind', kindWord + (e.rework ? ', rework' : '')], ['Day', formatDate(e.date)]];
+  if (e.time) kv.push(['Time', e.time + (e.to && e.to !== e.time ? ' – ' + e.to : '')]);
+  if (e.slot) kv.push(['Shift', e.slot === 'ot' ? 'Overtime' : 'General']);
+  if (e.kind === 'plated' || e.line) kv.push(['Line', e.line ? prodLineName(e.line) : 'Not written']);
+  else if (line) kv.push(['Line', line.line ? prodLineName(line.line) + (line.how === 'plating' ? ', from the plating' : '') : line.how === 'split' ? 'Split' : 'Unknown']);
+  if (e.kind !== 'downtime') {
+    kv.push(['Client', e.clientId != null ? prodClientName(e.clientId) || e.client || '' : (e.client ? e.client + ', not in the book' : 'Not written')]);
+    if (e.part || e.partNumber) kv.push(['Part', [e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '', e.gauge].filter(Boolean).join(' · ')]);
+    kv.push(['Quantity', prodQtyText(e.qty, e.unit) + (e.qty2 != null ? ' · ' + prodQtyText(e.qty2, e.unit2) : '')]);
+    if (e.rackSize) kv.push(['Rack', e.rackSize + (e.racks ? ' × ' + e.racks : '')]);
+  }
+  kv.push(['Source', prodSrcWord(e) + (e.basis && e.basis !== e.src ? ' · ' + e.basis : '')]);
+  if (e.sentBy) kv.push(['Sent by', e.sentBy]);
+  if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
+  var h = paneHeadHtml('<span class="inv-panel-title">' + escHtml(title) + '</span>', 'invProdEntryClose') +
+    '<div class="inv-panel" data-prod-pane="' + escHtml(e.id) + '"><div class="inv-kv">' + kv.map(function(x) {
+      return '<div><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(String(x[1])) + '</div></div>';
+    }).join('') + '</div></div>';
+  if (e.voidedAt) h += '<div class="inv-callout inv-callout-warning">Void' + (e.voidReason ? ': ' + escHtml(e.voidReason) : '') + '</div>';
+  var by = idx.replaced[e.id] && prodData().entries.find(function(x) { return x.replaces === e.id && !x.voidedAt; });
+  if (by) h += '<div class="inv-callout inv-callout-info">Corrected by the entry of ' + escHtml(formatDate(by.date)) + ': ' + escHtml(prodQtyText(by.qty, by.unit)) + '.</div>';
+  if (e.replaces) h += '<div class="inv-note">This entry corrects an earlier one.</div>';
+  var rounds = e.rounds || [];
+  if (rounds.length) {
+    h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Rounds <span class="inv-panel-count">' + rounds.length + '</span></span></div>' +
+      rounds.map(function(r) {
+        return '<div class="inv-row' + (r.struck ? ' inv-row-muted' : '') + '"><span class="inv-row-main inv-id">' + escHtml(r.time || '') + (r.start ? ' · start' : '') + (r.struck ? ' · struck' : '') + '</span>' +
+          '<span class="inv-row-end"><span class="inv-num">' + escHtml(r.qty != null ? String(r.qty) : '') + '</span></span></div>';
+      }).join('') + '</div>';
+  }
+  var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
+  if (crew) h += '<div class="inv-note" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</div>';
+  if (e.raw) h += '<div class="inv-field"><span class="inv-field-label">As written</span><div class="inv-quote">' + escHtml(e.raw) + '</div></div>';
+  var acts = prodEntryActionsHtml(e, idx);
+  if (acts) h += '<div class="inv-toolbar">' + acts + '</div>';
+  return h;
 }
 function prodEntryRowHtml(e, idx) {
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[e.kind];
@@ -37747,19 +37916,27 @@ function prodEntryRowHtml(e, idx) {
   else if (e.gaugeUnknown && e.gaugeSrc === 'set') meta += ' · gauge set (a round of ' + e.gaugeUnknown + ')';
   if (e.qtySrc === 'split') meta += ' · shared by the challans (estimate)';
   var crew = (e.kind === 'plated' || e.kind === 'pickled') && !e.voidedAt ? prodCrew(e) : null;
-  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
+  // On the desktop the entry opens in the pane beside the list, so its main is a button.
+  var cur = _isDesktop && _prodEntryOpen === e.id;
+  var h = '<div class="inv-row inv-row-2 inv-row-flow' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"' + (cur ? ' aria-current="true"' : '') + '>' +
+    (_isDesktop ? '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' : '<span class="inv-row-main">') + '<span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
     (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
-    '</span><span class="inv-row-end">' +
-    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '');
-  if (!e.voidedAt) {
-    if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
-    if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
-    if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
-    if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
-    h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
-  }
+    (_isDesktop ? '</button>' : '</span>') + '<span class="inv-row-end">' +
+    (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '') + prodEntryActionsHtml(e, idx);
   return h + '</span></div>';
+}
+/* What can be done to an entry: on its row, and on the desktop in its pane too. A void entry takes nothing. */
+function prodEntryActionsHtml(e, idx) {
+  if (e.voidedAt) return '';
+  var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
+  var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
+  var h = '';
+  if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+  if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+  if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
+  if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
+  return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
 }
 
 /* The part a floor entry is, as matched: learnt from its name, its own part number, or a challan part of the same key.
@@ -38391,6 +38568,8 @@ function prodAction(action, btn) {
     case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
     case 'invProdVoid': prodVoid(btn.dataset.id); return true;
+    case 'invProdEntryOpen': _prodEntryOpen = _prodEntryOpen === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderProduction); return true;
+    case 'invProdEntryClose': _prodEntryOpen = null; keepScroll(renderProduction); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
     case 'invProdToScanner': {
@@ -43088,6 +43267,8 @@ function onDocClick(e) {
     case 'invAttAddWorker': openWorkerAdd(); break;
     case 'invAttImportRoster': importRoster(); break;
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
+    case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
+    case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     case 'invAttMergeWorker': mergeWorkerInto(parseInt(btn.dataset.id, 10)); break;
@@ -43218,6 +43399,8 @@ function onDocClick(e) {
     }
     // Phase 7: History load more
     case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
+    case 'invHistoryOpen': _historyOpen = _historyOpen === btn.dataset.key ? null : btn.dataset.key; keepScroll(renderHistory); break;
+    case 'invHistoryClose': _historyOpen = null; keepScroll(renderHistory); break;
     case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryExport': exportHistoryCSV(); break;
     // Phase 4: Challan Scanner
@@ -44343,15 +44526,16 @@ function navLoc() {
       if (_isDesktop && v === 'clients' && _clientsActiveId != null) id = String(_clientsActiveId);
       if (v === 'quotes') { if (_qtForm) v = 'quotes/form'; else if (_isDesktop && _qtActiveId) id = _qtActiveId; }
       break;
-    case 'pageFinance': v = _finTab; break;
+    case 'pageFinance': v = _finTab; if (_isDesktop && _finTab === 'receipts' && _bankOpen != null) id = String(_bankOpen); break;
     case 'pageStats': v = statsTab(); break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
       // The register photo's check is a place of its own: it shared the page's address, so Back left Production.
       v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : _prodView === 'photo' ? '/photo' : '');
+      if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
       break;
     case 'pagePower': v = _powerTab; break;
-    case 'pageStaff': v = _attView; break;
+    case 'pageStaff': v = _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
     case 'pageStock':
       v = _stockView === 'review' ? 'paste' : _stockView;
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
@@ -44360,6 +44544,7 @@ function navLoc() {
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
     case 'pageFloor': d = flrNavD(); break;
+    case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
@@ -44399,12 +44584,24 @@ function navLabel(loc) {
       var qt = loc.id && parts[0] === 'quotes' && qtFind(loc.id);
       if (qt) rec = qtNumberText(qt);
       break;
-    case 'pageFinance': sub.push(_navFind(FIN_TABS, parts[0])); break;
+    case 'pageFinance':
+      sub.push(_navFind(FIN_TABS, parts[0]));
+      var fc = loc.id && parts[0] === 'receipts' && S.clients.find(function(x) { return String(x.id) === loc.id; });
+      if (fc) rec = fc.name;
+      break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
-    case 'pageProduction': sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || ''); break;
+    case 'pageProduction':
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
+      var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
+      if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
+      break;
     case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
-    case 'pageStaff': sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0])); break;
+    case 'pageStaff':
+      sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0]));
+      var sw = loc.id && parts[0] === 'roster' && staffById(loc.id);
+      if (sw) rec = sw.name;
+      break;
     case 'pageStock':
       sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
@@ -44456,11 +44653,17 @@ function navApply(loc) {
         if (parts[0] === 'quotes' && parts[1] === 'form') { if (!_qtForm) { _qtForm = { q: qtBlank(), termsAuto: true }; _qtForm.q.terms = qtTermsFor(_qtForm.q); } }
         else _qtForm = null;
         break;
-      case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; break;
+      case 'pageFinance': finSetTab(parts[0]); _bankEdit = null; if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id ? id : null; break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
-      case 'pageProduction': prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main'; break;
+      case 'pageProduction':
+        prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
+        if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
+        break;
       case 'pagePower': powerSetTab(parts[0]); break;
-      case 'pageStaff': _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview'; break;
+      case 'pageStaff':
+        _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview';
+        if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
+        break;
       case 'pageStock':
         var sv = /^(overview|list|item|paste|manual|reorder)$/.test(parts[0]) ? parts[0] : 'overview';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
@@ -44475,6 +44678,7 @@ function navApply(loc) {
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
+      case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
     }
     if (!same) switchTab(tab);
     else {
@@ -45611,7 +45815,8 @@ function srchEntryLoc(e) {
   if (/^(invoice|challan|client|quote|stock)$/.test(go.kind)) return srchRecordLoc(go.kind, id);
   var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'bills'],
     cnList: ['pageRegister', ''], audit: ['pageRegister', ''], cn: ['pageRegister', ''] }[go.kind];
-  return page ? { tab: page[0], v: page[1], id: '' } : null;
+  // A worker opens in the roster's pane on the desktop (step 7); the phone's roster has no pane and ignores the id.
+  return page ? { tab: page[0], v: page[1], id: go.kind === 'worker' ? id : '' } : null;
 }
 /* A row's action and the record it opens. */
 var SRCH_ROW_KINDS = { invSelectRegRow: 'invoice', invViewInvoiceDetail: 'invoice', invHistoryJumpInvoice: 'invoice',
@@ -45639,6 +45844,11 @@ function srchLocOf(el) {
   if (SRCH_ROW_KINDS[act]) return srchRecordLoc(SRCH_ROW_KINDS[act], String(d.id));
   if (act === 'invSelectItemRow' || act === 'invEditItem') return { tab: 'pageClients', v: 'items', id: '' };
   if (act === 'invAttEditWorker') return { tab: 'pageStaff', v: 'roster', id: '' };
+  // The desktop's panes of step 7 (UX overhaul 2): the row's record is the address's id.
+  if (act === 'invAttRosterOpen') return { tab: 'pageStaff', v: 'roster', id: String(d.id) };
+  if (act === 'invBankClient') return { tab: 'pageFinance', v: 'receipts', id: String(d.id) };
+  if (act === 'invProdEntryOpen') return { tab: 'pageProduction', v: 'entries', id: String(d.id) };
+  if (act === 'invHistoryOpen') return { tab: 'pageHistory', v: '', id: String(d.key) };
   return null;
 }
 /* Caught on the window before anything else sees the click, so the place opens there and not here as well (and nav.js

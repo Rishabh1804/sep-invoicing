@@ -202,6 +202,15 @@ wage legs live in Staff → Pay (folded, open when a leg is off its slip), and F
 them (the To-do's wage tasks go there too, `todoGo` kind `payWages`). The before-and-after table is in
 `docs/UX_OVERHAUL_2.md` step 6. P101.
 
+**The desktop's list and pane reach four more screens, and a wide screen takes three columns** (UX overhaul 2, step 7, 2 Oct
+2026). Finance → Receivables, Production → Entries, Staff → Roster and History are a list beside the open record (`recvHost`,
+`prodEntriesHost`, `attRosterHost`, `historyHost`; the open one in `_bankOpen`, `_prodEntryOpen`, `_attRosterOpen`,
+`_historyOpen`, each the address's `id`, a History event's id its `historyEvKey`). The phone is unchanged: a client still opens
+under its row, a worker their sheet, a History row the invoice. **A role that may not see wages sees no rate on the roster**
+(`grdSeesWages`; the rows showed it to every role that could open Staff). Above a 100rem window `inv-panels` (Pulse, Stats,
+Finance) is three columns, and every panel in it is a `panel-w` container, so a strip of tiles never leaves a blank cell
+(the Home widgets' rule, now every panel's). P147, P80.
+
 **A figure says whether it is good** (owner, 29 Sep 2026: *"most numbers in our app don't convey any kind of meaning, as
 in is it a good number or is it something of an issue, all are in default black"*; the owner chose both of the options put to
 them). A figure the app can judge is coloured in its status tone, always beside the words that give the reason (DR-8), and
@@ -316,8 +325,8 @@ chip, segment or tile (`[data-action][aria-pressed]`), re-renders inside `keepSc
 and dialogs back and focus on the replaced control. Only a navigation goes to the top, through `viewTop()` (another
 page, sub-page or view tab). P79 sweeps every select and filter chip on every page, view tab and form dialog.
 
-**A list-and-pane screen never scrolls the page on the desktop.** Register, IM, Clients → Clients / Items and Stock →
-Lines fill the room under their own head exactly: the page is a flex column `var(--fill-h)` tall (`100dvh` less the
+**A list-and-pane screen never scrolls the page on the desktop.** Register, IM, Clients → Clients / Items / Quotations, Stock →
+Lines, Pipeline, Finance → Receivables, Production → Entries, Staff → Roster and History fill the room under their own head exactly: the page is a flex column `var(--fill-h)` tall (`100dvh` less the
 desktop bar), and the `inv-pane-host` and every wrapper above it take what is left, so the list and the pane each
 scroll inside themselves. The host used to be `100vh - --bar-h` — the *phone* bar, with the page's padding, tabs and
 toolbar ignored — so every one of those screens scrolled 78–222px on top of the list and the wheel moved the page.
@@ -351,7 +360,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 516 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 517 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |

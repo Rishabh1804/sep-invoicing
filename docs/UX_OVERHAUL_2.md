@@ -1,6 +1,6 @@
 # UX overhaul 2: desktop use, search, how much each screen shows
 
-Agreed with the owner, 28 Sep 2026. **Planning document: steps 0, 0b, 2, 1 and 6 are built, nothing else is.** One PR per step, in
+Agreed with the owner, 28 Sep 2026. **Every step is built**: 0, 0b, 2, 1 and 6 on their own; 3, 4 and 5 (new windows, search, keys) with Direction B's step B6 (`search.js`, P139); 7 on 2 Oct 2026 (P147). One PR per step, in
 this order: **the version guard (2) now comes before navigation (1)** (owner, 29 Sep 2026), since two copies of the app
 open today (the installed app and a tab) already overwrite each other's saves; and IM's view tabs move into navigation. After it, the second batch: Home previews (parked in `NEXT_SESSION.md`) and the daily flow.
 
@@ -96,7 +96,18 @@ reopened the tab last used); measure it at step 6.
    Left as they are, each for a reason: **Finance → Overview (8)** is eight charts the owner asked for, no one longer than
    two screens; **Stats → Clients (6)** is four tables of ten or fewer clients this month (each now caps at ten); Staff →
    Day and To-do are the day's work, every row of which needs the owner.
-7. **Desktop layout.** List and pane on Finance → Receivables, Production → Entries, Staff → Roster and History; two or
-   three columns on Home, Stats and Finance above about 1,600px.
+7. **Desktop layout. Built** (2 Oct 2026, P147, P80). List and pane on Finance → Receivables, Production → Entries, Staff →
+   Roster and History; two or three columns on Home, Stats and Finance above about 1,600px.
+   - **Receivables**: a client's receivables (what was owed at the start, each receipt and what it paid, its cheques, what is
+     open) move from under its row into the pane; the receipts with no client and the returned cheques stay in the list.
+   - **Production → Entries**: the chips above both; an entry's pane is everything it holds (kind, day, time, shift, line, client,
+     part, quantity, rack, source, who sent it), its rounds, its crew, the text it was read from, and its actions.
+   - **Staff → Roster**: a table (name, tier, rate, area, status) and the worker's pane: the roster facts, the last 28 days as
+     the marks have them (present, absent, hours and OT, where they stood) and Edit. The rate is shown only to a role that sees
+     wages, in the table and on the phone's rows too (it was shown to every role that could open Staff).
+   - **History**: every event opens, a void and a floor day included: the event whole (a change's every field), who and on
+     which device, and the invoice or challan it names drawn as their own panes draw it, with *Open in Invoices / Challans*.
+   - **Three columns** from a 100rem window, and every grid panel lays its tiles out by its own width (a Stats story's three
+     tiles had left a blank cell at a third of the row).
 
 Each step amends `SEP_INVOICING_DESIGN_PRINCIPLES.md` where it needs something the design system does not define.

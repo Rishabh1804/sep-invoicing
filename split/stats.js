@@ -1430,6 +1430,7 @@ function historyWhoText(ev) {
   return Object.prototype.hasOwnProperty.call(ev, 'by') ? ' · by ' + chgUserName(ev.by) : '';
 }
 
+var _historyOpen = null;   // the event open in the desktop's pane (History)
 function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
   var area = document.getElementById('historyList');
@@ -1517,18 +1518,17 @@ function renderHistory() {
   function fullAttr(ev) { return ev.full && ev.full !== ev.text ? ' title="' + escHtml(ev.full) + '"' : ''; }
 
   if (_isDesktop) {
+    // The desktop opens an event in the pane beside the list (UX overhaul 2, step 7): the event whole, and the invoice or
+    // challan it names, read without leaving History. Every event opens, a void and a floor day included.
     html += '<table class="inv-table inv-table-history"><thead><tr><th>Time</th><th>Event</th><th>Kind</th><th class="inv-num">Amount</th></tr></thead><tbody>';
     days.forEach(function(d) {
       html += '<tr class="inv-table-group"><td colspan="4">' + escHtml(d) + ' · ' + dayCount[d] + '</td></tr>';
       byDay[d].forEach(function(ev) {
-        var action = jumpOf(ev);
-        var attrs = ' data-ev="' + ev.kind + '"' + (action ? ' data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '"' : '');
-        html += '<tr' + attrs + '>' +
+        var key = escHtml(historyEvKey(ev));
+        html += '<tr data-ev="' + ev.kind + '" data-action="invHistoryOpen" data-key="' + key + '"' + (_historyOpen === historyEvKey(ev) ? ' aria-current="true"' : '') + '>' +
           '<td class="inv-id">' + escHtml(historyWhen(ev, 'time')) + '</td>' +
           // The event is a real button on a row that opens, so it opens from the keyboard.
-          '<td' + fullAttr(ev) + '>' + (action
-            ? '<button class="inv-btn-link" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + escHtml(ev.text) + '</button>'
-            : escHtml(ev.text)) + '</td>' +
+          '<td' + fullAttr(ev) + '><button class="inv-btn-link" data-action="invHistoryOpen" data-key="' + key + '">' + escHtml(ev.text) + '</button></td>' +
           '<td>' + historyKindHtml(ev) + '</td>' +
           '<td class="inv-num">' + (ev.amount ? formatCurrency(ev.amount) : '') + '</td></tr>';
       });
@@ -1556,7 +1556,43 @@ function renderHistory() {
     html += '<button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invHistoryLoadMore">' +
       'Show more (' + remaining + ' remaining)</button>';
   }
+  if (_isDesktop) {
+    var open = _historyOpen ? events.find(function(ev) { return historyEvKey(ev) === _historyOpen; }) : null;
+    if (!open) _historyOpen = null;
+    html = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="historyHost"><div class="inv-pane-list">' + html + '</div>' +
+      '<div class="inv-pane" id="historyPane">' + (open ? historyPaneHtml(open) : '') + '</div></div>';
+  }
   area.innerHTML = html;
+}
+
+/* An event's key: what it is, when, and what it names. Stable while the record is, so it can be an address. */
+function historyEvKey(ev) {
+  return relayHash([ev.kind, ev.ts || '', ev.sourceId || '', ev.cr || '', ev.text || ''].join('|'));
+}
+/* One event in the desktop's pane: the event whole (a change's every field), who and on which device, and the invoice or
+   challan it names, drawn as the Invoices and Challans panes draw it, with the way there. */
+function historyPaneHtml(ev) {
+  // Each value is HTML: the kind is its dot and word, every other figure escaped here.
+  var kv = [['Kind', historyKindHtml(ev)], ['When', escHtml(historyWhen(ev, 'all'))]];
+  if (ev.amount) kv.push(['Amount', '<span class="inv-num">' + escHtml(formatCurrency(ev.amount)) + '</span>']);
+  if (Object.prototype.hasOwnProperty.call(ev, 'by') && typeof chgUserName === 'function') kv.push(['Who', escHtml(ev.by == null ? 'No ID' : chgUserName(ev.by))]);
+  var dev = ev.dev || ev.byDev;
+  if (dev) { var dv = (S.devices || []).find(function(x) { return x && x.id === dev; }); kv.push(['Device', escHtml(dv && dv.name ? dv.name : dev)]); }
+  var h = paneHeadHtml('<span class="inv-panel-title">Event</span>', 'invHistoryClose') +
+    '<div class="inv-panel" data-history-pane="' + escHtml(ev.kind) + '"><div class="inv-history-full">' + escHtml(ev.full || ev.text) + '</div>' +
+    '<div class="inv-kv inv-mt-4">' + kv.map(function(x) {
+      return '<div><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + x[1] + '</div></div>';
+    }).join('') + '</div></div>';
+  if (ev.jump === 'invoice') {
+    var inv = S.invoices.find(function(i) { return i.id === ev.sourceId; });
+    if (inv) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpInvoice" data-id="' + escHtml(inv.id) + '">Open in Invoices</button></div>' + invoiceDetailHtml(inv) + '</div>';
+  } else if (ev.jump === 'challan') {
+    var im = (S.incomingMaterial || []).find(function(c) { return c.id === ev.sourceId; });
+    if (im) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(imChallanLabel(im)) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpChallan" data-id="' + escHtml(im.id) + '">Open in Challans</button></div>' + challanDetailHtml(im) + '</div>';
+  } else if (ev.kind === 'void') h += '<div class="inv-note">The invoice this number was is deleted; Invoices → Number audit holds its record.</div>';
+  return h;
 }
 
 /* Exports exactly what the current filters show, so a query someone reasoned

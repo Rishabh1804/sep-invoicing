@@ -1314,6 +1314,8 @@ function pushFloorEvents(events) {
     // was booked, where, needs the where.
     (rec.extra || []).forEach(function(x) {
       var hrs = Number(x.hours) || 0;
+      // A block the app made for a hand's slot pick books nothing and is nobody's entry (staff.js, attSlotMade).
+      if (x && x.slotMade) return;
       if (typeof extraIsBlock === 'function' && extraIsBlock(x)) {
         var covered = (x.areas || []).map(labelFor).join(' + ') || labelFor(x.area);
         var span = (x.from && x.to) ? x.from + '\u2013' + x.to : '';

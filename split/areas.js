@@ -412,6 +412,10 @@ function areaStats(fromIso, toIso) {
     var blockRowsToday = [];
     extras.forEach(function(x) {
       var h = x.hours || 0;
+      // A block the app made for a hand's slot pick (staff.js, attSlotMade) is no row anybody wrote about a block: its times
+      // are the slot's usual ones, so beside a roll's block of the same times it would turn the fold or a crew-less row's
+      // heads on what the app assumed. It books nothing, and is no evidence either.
+      if (x && x.slotMade) return;
       // A row booking NOTHING is still evidence about the block's staffing: a
       // 6 AM `pickling` line with a crew and no tag beside a tagged `VAT A2`
       // line is what tells the fold that pickling was separately manned. Drop

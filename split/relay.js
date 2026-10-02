@@ -934,10 +934,13 @@ function relayPlan(rv) {
     // The day's rows, slot by slot (relayExtraSlot). A roll pasted again after an edit REPLACES what the relay wrote for
     // each slot it covers, rather than adding its EXTRA beside the old: a row it brings again unchanged is left as it is,
     // and one it no longer carries is taken off (and said so). A slot holding a row entered or corrected by hand is
-    // the owner's, like a mark entered by hand: kept, and the roll's rows for it are not added.
+    // the owner's, like a mark entered by hand: kept, and the roll's rows for it are not added. A block the app made for
+    // a hand's slot pick (staff.js, attSlotMade) is nobody's row: it never holds a slot, is never replaced nor matched,
+    // and on Save the picks are put on the roll's blocks (attSlotsApply). It held the slot, and the roll's evening block
+    // and its EXTRA were left out (the QA of 2 Oct 2026).
     var slots = {}, replaced = [];
     extras.forEach(function(x) { var k = relayExtraSlot(x.row); (slots[k] || (slots[k] = { nw: [], od: [] })).nw.push(x); });
-    ((rec && rec.extra) || []).forEach(function(e) { var sl = slots[relayExtraSlot(e)]; if (sl) sl.od.push(e); });
+    ((rec && rec.extra) || []).forEach(function(e) { if (e && e.slotMade) return; var sl = slots[relayExtraSlot(e)]; if (sl) sl.od.push(e); });
     Object.keys(slots).forEach(function(k) {
       var sl = slots[k];
       if (sl.od.some(function(e) { return e.src !== 'relay'; })) { sl.nw.forEach(function(x) { x.kept = true; }); return; }
@@ -1215,6 +1218,9 @@ function relaySave() {
     });
     if (d.replaced.length && !rv.reread) rec.extra = rec.extra.filter(function(e) { return d.replaced.indexOf(e) < 0; });
     d.extras.forEach(function(x) { if (!x.dup && !x.kept) { rec.extra.push(x.row); extras++; } });
+    // The hands' own slot picks stand over the roll's crews: put on the roll's block of their slot and area, or kept on
+    // the block made for them. Crew the roll named for a hand with no pick is as the roll wrote it.
+    attSlotsApply(rec);
     var add = [];
     if (d.holiday) add.push('Holiday: ' + d.holiday);
     if (d.notes.length) add.push(d.notes.join(' · '));

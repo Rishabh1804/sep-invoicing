@@ -196,7 +196,7 @@ function attDatesInRange(fromIso, toIso) {
 function attDeleteRecord(key, reason, how) {
   var rec = (S.attendance || {})[key];
   if (!rec) return null;
-  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var marks = Object.keys(rec.marks || {}).length, extra = attExtraRows(rec).length;
   var entry = { id: 'AD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 5), key: key,
     iso: /^\d{4}-\d{2}-\d{2}$/.test(key) ? key : null, reason: reason, how: how || 'by hand', at: Date.now(),
     marks: marks, extra: extra, day: JSON.parse(JSON.stringify(rec)) };
@@ -210,7 +210,7 @@ async function attDeleteDay(iso) {
   if (!rec) return;
   if (!attFloorOk()) return;   // a floor record: a role that may not enter one is told so, never asked
   if (!grdOk('voids') && !(await guardAsk('voids', 'delete an attendance day'))) return;   // P1 (guard.js)
-  var marks = Object.keys(rec.marks || {}).length, extra = (rec.extra || []).length;
+  var marks = Object.keys(rec.marks || {}).length, extra = attExtraRows(rec).length;
   // The rolls the day was saved from (relayPastes) go into the log with it: left on record, the same roll pasted again
   // was refused as already saved though nothing it saved was left (the QA of 30 Sep 2026).
   var rolls = function() { return (S.relayPastes || []).filter(function(p) { return p && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); }); };
@@ -232,6 +232,9 @@ async function attDeleteDay(iso) {
   renderAttendance();
   showToast(formatDate(iso) + ' deleted; the reason is in History');
 }
+
+/* A day's EXTRA rows: every row but a block this app made for a hand's slot pick, which books nothing (attSlotMade). */
+function attExtraRows(rec) { return ((rec && rec.extra) || []).filter(function(x) { return !(x && x.slotMade); }); }
 
 function attDay(iso, create) {
   if (!S.attendance) S.attendance = {};
@@ -873,7 +876,8 @@ function setAttBlockNeed(idx, v) {
 }
 
 function _attExtraCard(iso, rec) {
-  var rows = rec ? rec.extra : [];
+  // A block made for a hand's slot pick books nothing and is no EXTRA row: it is the pick, shown on the hand's line.
+  var all = rec ? rec.extra : [], rows = attExtraRows(rec);
   var html = '<div class="inv-panel inv-panel-flush" id="attExtra"><div class="inv-panel-head">' +
     '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
@@ -888,7 +892,9 @@ function _attExtraCard(iso, rec) {
   if (rows.length === 0) {
     html += '<div class="inv-empty">None booked for this day</div>';
   } else {
-    rows.forEach(function(x, i) {
+    // data-idx is the row's place in the day's rows, the made blocks included: the setters read it.
+    all.forEach(function(x, i) {
+      if (attSlotMade(x)) return;
       var kind = x.kind || 'coverage';
       html += '<div class="inv-row inv-row-top inv-row-auto" data-extra-row="' + i + '"><div class="inv-row-main">' +
         '<div class="inv-toolbar inv-toolbar-flush">' +
@@ -1238,9 +1244,44 @@ function attFieldDone(el, saved) { if (saved) attRedrawAround(el); else renderAt
    OT, Late night OT, etc."). The General shift is the mark's own area. Each OT slot is the crew of that slot's block on the
    day (the EXTRA rows' kind 'block': areas, crew, from, to), the one record Areas, Power and Production's crews already read:
    putting a hand on Evening OT · VAT A2 adds them to the evening block covering VAT A2, made at the slot's usual times
-   (hours 0, no EXTRA booked) when there is none. A slot is read off a block's start: before 8:30 AM the morning, from 5 PM
-   the evening, from 8 PM (or past midnight) the night. */
+   (hours 0, no EXTRA booked, `slotMade`) when there is none. A slot is read off a block's start: before 8:30 AM the morning,
+   from 5 PM the evening, from 8 PM (or past midnight) the night.
+
+   The hand's own pick is a fact of the DAY, kept apart from the marks and the EXTRA rows (the QA of 2 Oct 2026): it was only
+   a crew, so a block made for it read as one entered by hand and a roll's evening block was "kept, not added" beside it
+   (its EXTRA lost), and a pick on a roll's block made that block the owner's, so reading the rolls again left the slot
+   without the roll's other rows. `rec.slotHand[staffId][slot]` is the area picked, or '' when taken off the slot by hand.
+   attSlotsApply puts the crews right from the picks, after a pick and after a roll is saved or read again; a pick never
+   makes a roll's row the owner's, and crew the roll named for a hand with no pick is left as the roll wrote it. */
 var ATT_SLOTS = [['morning', 'Morning OT', '06:00', '08:30'], ['evening', 'Evening OT', '17:00', '20:00'], ['night', 'Night', '20:00', '06:00']];
+/* A block this app made for a pick: it books nothing and is nobody's EXTRA row (not on the EXTRA card, the sheets, History
+   or the Areas check); it is only where the picked hands stood. */
+function attSlotMade(x) { return !!(x && x.slotMade); }
+function attSlotsApply(rec) {
+  if (!rec) return;
+  var picks = rec.slotHand || {};
+  if (!Array.isArray(rec.extra)) rec.extra = [];
+  Object.keys(picks).forEach(function(sid) {
+    var w = staffById(sid), id = w ? w.id : sid, mine = picks[sid] || {};   // the crew holds the roster's own id
+    ATT_SLOTS.forEach(function(z) {
+      if (!Object.prototype.hasOwnProperty.call(mine, z[0])) return;
+      var areaId = mine[z[0]];
+      rec.extra.forEach(function(x) {
+        if (attBlockSlot(x) !== z[0] || !Array.isArray(x.crew)) return;
+        for (var i = _attCrewAt(x, id); i >= 0; i = _attCrewAt(x, id)) x.crew.splice(i, 1);
+      });
+      if (!areaId) return;
+      // The block of the slot that covers the area: one the roll wrote or one entered by hand, before one made for a pick.
+      var on = rec.extra.filter(function(x) { return attBlockSlot(x) === z[0] && _attBlockAreas(x).indexOf(areaId) >= 0; });
+      var blk = on.find(function(r) { return !attSlotMade(r); }) || on[0];
+      if (!blk) { blk = { kind: 'block', areas: [areaId], area: areaId, crew: [], hours: 0, from: z[2], to: z[3], slotMade: true }; rec.extra.push(blk); }
+      if (!Array.isArray(blk.crew)) blk.crew = [];
+      blk.crew.push(id);
+    });
+  });
+  // A block made for a pick that nobody stands on any more goes.
+  rec.extra = rec.extra.filter(function(x) { return !(attSlotMade(x) && !(x.crew || []).length && !(x.hours > 0)); });
+}
 function attBlockSlot(x) {
   if (!x || x.kind !== 'block') return null;
   var a = relayParseHhmm(x.from);
@@ -1259,28 +1300,28 @@ function _attCrewAt(x, staffId) {
 function attHandSlot(rec, staffId, slot) {
   return (rec && rec.extra || []).find(function(x) { return attBlockSlot(x) === slot && _attCrewAt(x, staffId) >= 0; }) || null;
 }
-/* The area a hand stood in on a slot: the block's first area. */
-function attHandSlotArea(rec, staffId, slot) { var x = attHandSlot(rec, staffId, slot); return x ? (_attBlockAreas(x)[0] || '') : ''; }
+/* The area a hand stood in on a slot, '' on none: the hand's own pick; else the block's own first area (a block over Barrel
+   and VAT A2 is Barrel until VAT A2 is picked); a block that named no line (a roll's, saved Flex) is the hand's general
+   shift's area, never Flex for want of one. Read by the sheet's and the dialog's picks, the board and attHoursSplit. */
+function attHandSlotArea(rec, staffId, slot) {
+  var pick = rec && rec.slotHand ? rec.slotHand[String(staffId)] : null;
+  if (pick && Object.prototype.hasOwnProperty.call(pick, slot)) return pick[slot] || '';
+  var x = attHandSlot(rec, staffId, slot);
+  if (!x) return '';
+  var own = Array.isArray(x.areas) && x.areas.length ? x.areas : (x.area && x.area !== 'flex' ? [x.area] : []);
+  if (own.length) return own[0];
+  var m = rec.marks ? rec.marks[staffId] : null, w = staffById(staffId);
+  return (m && m.area) || (w && w.area) || 'flex';
+}
 function setAttSlotArea(staffId, slot, areaId) {
   if (!attFloorOk()) return false;
   var w = staffById(staffId), def = ATT_SLOTS.find(function(z) { return z[0] === slot; });
   if (!def || !w) return;
-  var id = w.id;   // the crew holds the roster's own id, number or text
   var rec = attDay(_attDate, true);
-  // Off every block of this slot first; a block this app made for a slot and nobody stands on any more goes.
-  rec.extra = rec.extra.filter(function(x) {
-    if (attBlockSlot(x) !== slot || !Array.isArray(x.crew)) return true;
-    var i = _attCrewAt(x, id);
-    if (i >= 0) { x.crew.splice(i, 1); _attHandEdit(x); }
-    return !(x.slotMade && !x.crew.length && !(x.hours > 0));
-  });
-  if (areaId) {
-    var x = rec.extra.find(function(r) { return attBlockSlot(r) === slot && _attBlockAreas(r).indexOf(areaId) >= 0; });
-    if (!x) { x = { kind: 'block', areas: [areaId], crew: [], hours: 0, from: def[2], to: def[3], slotMade: true }; rec.extra.push(x); }
-    if (!Array.isArray(x.crew)) x.crew = [];
-    x.crew.push(id);
-    _attHandEdit(x);
-  }
+  if (!rec.slotHand || typeof rec.slotHand !== 'object') rec.slotHand = {};
+  var mine = rec.slotHand[String(w.id)] || (rec.slotHand[String(w.id)] = {});
+  mine[slot] = areaId || '';
+  attSlotsApply(rec);
   _attPrune(_attDate);
   saveState();
   return true;
@@ -1387,6 +1428,8 @@ function attRemoveExtra(idx) {
   var rec = attDay(_attDate, false);
   if (!rec) return;
   rec.extra.splice(idx, 1);
+  // A hand picked onto the block taken off still stood on that slot: the pick is kept, on a block made for it.
+  attSlotsApply(rec);
   _attPrune(_attDate);
   saveState();
   renderAttendance();
@@ -1446,10 +1489,13 @@ function setAttExtraKind(idx, kind) {
   if (x.kind === 'coverage') {
     delete x.areas; delete x.crew; delete x.from; delete x.to;
   }
+  attSlotsApply(rec);
   saveState();
   return true;
 }
 
+/* A block's in or out. The hands' picks are not put right here: a block made for a pick going would move the rows under a
+   time still being typed; the next pick, area or crew change, or roll does it. */
 function setAttBlockTime(idx, which, value) {
   if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
@@ -1481,10 +1527,13 @@ function toggleAttBlockArea(idx, areaId) {
   x.area = list.length ? list[0] : 'flex';
   _attHandEdit(x);
   relayLearnFromRow(x);
+  // A hand picked onto an area the block now covers stands on it; one picked onto an area it no longer covers moves.
+  attSlotsApply(rec);
   saveState();
   return true;
 }
 
+/* A crew chip edits the block itself: the hand's own pick for that slot no longer speaks for it, and goes. */
 function toggleAttBlockCrew(idx, workerId) {
   if (!attFloorOk()) return false;
   var rec = attDay(_attDate, false);
@@ -1497,6 +1546,8 @@ function toggleAttBlockCrew(idx, workerId) {
   if (at >= 0) list.splice(at, 1); else list.push(id);
   x.crew = list;
   _attHandEdit(x);
+  var slot = attBlockSlot(x), pick = rec.slotHand && rec.slotHand[String(id)];
+  if (slot && pick) { delete pick[slot]; if (!Object.keys(pick).length) delete rec.slotHand[String(id)]; }
   saveState();
   return true;
 }
@@ -2237,6 +2288,14 @@ function mergeWorkers(fromId, intoId) {
       if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
       crews++;
     });
+    // The hand's own slot picks go with them; the survivor's own pick for a slot wins.
+    var picks = rec.slotHand && rec.slotHand[String(fromId)];
+    if (picks) {
+      var into = rec.slotHand[String(intoId)] || (rec.slotHand[String(intoId)] = {});
+      Object.keys(picks).forEach(function(sl) { if (!Object.prototype.hasOwnProperty.call(into, sl)) into[sl] = picks[sl]; });
+      delete rec.slotHand[String(fromId)];
+      attSlotsApply(rec);
+    }
   });
 
   // Money that names the worker follows the merge too: payments and advances, the bank's wage rules and the wage set on
@@ -2369,6 +2428,8 @@ async function deleteWorker(id) {
   if (!grdOk('payments') && !(await guardAsk('payments', 'delete a worker'))) return;   // P1 (guard.js): wage rates go with them
   if (!(await uiConfirm({ title: 'Delete ' + w.name + ' from the roster?', body: 'No day names them, so nothing is lost with the row.', okLabel: 'Delete', danger: true }))) return;
   S.staff = S.staff.filter(function(x) { return x.id !== id; });
+  // A slot pick naming nobody now (taken off a slot, then the day's mark cleared) goes with the row.
+  Object.keys(S.attendance || {}).forEach(function(iso) { var r = S.attendance[iso]; if (r && r.slotHand) delete r.slotHand[String(id)]; });
   saveState();
   closeOverlay();
   renderAttendance();

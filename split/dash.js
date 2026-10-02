@@ -14,27 +14,35 @@ function _dashPanel(id, title, body, head, rows) {
 function _dashWeekLabel(sat) { return stockShortDate(sat); }
 
 /* ---------- 7a. Staff ---------- */
-/* Worker-days present (P = 1, H = ½) over the active roster's marks typed that week, per pay week.
-   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator. */
+/* Worker-days present (P = 1, H = ½) over the active roster's marks typed, Monday to Saturday, to today: the attendance
+   Staff → Overview draws by pay week, and the one a report reads for its period (report.js; QA5-6: the report had its own
+   copy, which took Sundays in, counted a half day whole and divided by today's roster).
+   Only the active roster's marks count: a leaver's days are not in the denominator, so they are not in the numerator.
+   Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that were
+   actually typed — present, half or absent — so a half-entered day reads as what was entered. A Sunday worked is
+   overtime, not attendance. `avg` is the heads on site a day recorded, on the same counting. */
+function attPresenceForRange(from, to, ids) {
+  var today = localDateStr(), present = 0, marked = 0, days = 0;
+  if (!ids) { ids = {}; staffActive().forEach(function(w) { ids[String(w.id)] = true; }); }
+  attDatesInRange(from, to > today ? today : to).forEach(function(iso) {
+    var rec = (S.attendance || {})[iso];
+    if (attParseIso(iso).getDay() === 0 || !rec || !Object.keys(rec.marks || {}).length) return;
+    days++;
+    Object.keys(rec.marks).forEach(function(id) {
+      var m = rec.marks[id];
+      if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
+      marked++;
+      if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
+    });
+  });
+  return { days: days, marked: marked, present: present, pct: marked ? present / marked * 100 : null, avg: days ? present / days : null };
+}
 function dashAttendanceByWeek(n) {
-  // Unmarked is not absent (CLAUDE.md, Labour and attendance): the denominator is the active roster's marks that
-  // were actually typed — present, half or absent — so a half-entered day reads as what was entered.
-  var active = staffActive(), ids = {}, today = localDateStr(), out = [], ws = attWeekStartOf(today);
-  active.forEach(function(w) { ids[String(w.id)] = true; });
+  var ids = {}, out = [], ws = attWeekStartOf(localDateStr());
+  staffActive().forEach(function(w) { ids[String(w.id)] = true; });
   for (var k = n - 1; k >= 0; k--) {
-    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), present = 0, marked = 0, days = 0;
-    for (var d = 1; d <= 6; d++) {
-      var iso = isoAddDays(start, d), rec = (S.attendance || {})[iso];
-      if (iso > today || !rec || !Object.keys(rec.marks || {}).length) continue;
-      days++;
-      Object.keys(rec.marks).forEach(function(id) {
-        var m = rec.marks[id];
-        if (!ids[String(id)] || !m || (m.st !== 'P' && m.st !== 'H' && m.st !== 'A')) return;
-        marked++;
-        if (m.st === 'P') present += 1; else if (m.st === 'H') present += 0.5;
-      });
-    }
-    out.push({ start: start, sat: sat, days: days, marked: marked, pct: marked ? present / marked * 100 : null });
+    var start = isoAddDays(ws, -7 * k), sat = isoAddDays(start, 6), r = attPresenceForRange(start, sat, ids);
+    out.push({ start: start, sat: sat, days: r.days, marked: r.marked, pct: r.pct });
   }
   return out;
 }

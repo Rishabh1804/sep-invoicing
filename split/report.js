@@ -125,19 +125,10 @@ function rptReceived(from, to) {
   });
   return out;
 }
-/* Heads on site a recorded day (present, or half), the average over the days recorded, against the active roster.
-   Unmarked is not absent: a day nobody typed is a gap, never a day nobody came. */
-function rptAttendance(from, to) {
-  var days = 0, onSite = 0, att = S.attendance || {};
-  attDatesInRange(from, to).forEach(function(d) {
-    var rec = att[d];
-    if (!rec || !rec.marks || !Object.keys(rec.marks).length) return;
-    days++;
-    Object.keys(rec.marks).forEach(function(id) { var m = rec.marks[id]; if (m && (m.st === 'P' || m.st === 'H')) onSite++; });
-  });
-  var roster = staffActive().length;
-  return { days: days, avg: days ? onSite / days : null, roster: roster, pct: days && roster ? onSite / days / roster * 100 : null };
-}
+/* Attendance is Staff → Overview's, by its own function (dash.js attPresenceForRange): Monday to Saturday, a half day
+   half, over the active roster's marks typed. Unmarked is not absent: a day nobody typed is a gap, never a day nobody
+   came. */
+function rptAttendance(from, to) { return attPresenceForRange(from, to); }
 function rptCuts(a, from, to) { return a.cuts.filter(function(c) { return c.date >= from && c.date <= to; }); }
 function rptCutSum(cuts) {
   return cuts.reduce(function(t, c) { t.n++; t.min += c.cost.inside || 0; t.cost += c.cost.total || 0; return t; }, { n: 0, min: 0, cost: 0 });
@@ -151,7 +142,7 @@ function rptRowFigures(ctx, from, to) {
   var inv = ctx.invs.filter(function(i) { return i.date >= from && i.date <= b; }), w = weighLines(inv);
   var pl = prodPlatedSummary(from, b), att = rptAttendance(from, b), cuts = rptCuts(ctx.power, from, b);
   var rec = powerRecordedDays(from, b);
-  return { inv: inv.length, taxable: sumTaxable(inv), kg: w.kg, real: w.kg > 0 ? w.revKnown / w.kg : null, rec: rptReceived(from, b),
+  return { inv: inv.length, taxable: sumTaxable(inv), kg: w.kg, revKnown: w.revKnown, real: w.kg > 0 ? w.revKnown / w.kg : null, rec: rptReceived(from, b),
     plated: pl, att: att, cuts: cuts.length, cutsKnown: cuts.length > 0 || rec.recorded > 0 };
 }
 
@@ -182,13 +173,15 @@ function rptHtml(kind, from, to) {
   var p = rptPeriodOf(kind, from);
   if (to) p.to = to;
   var today = localDateStr(), end = p.to > today ? today : p.to, open = p.to >= today, current = p.from <= today && p.to >= today;
-  var co = (S.company && S.company.name) || 'Soma Electro Products';
+  // Who issued it is read from S.company and nowhere else (CLAUDE.md: never freeze a copy of the company's identity into a
+  // document): a blank name prints none, rather than a name written into the build (QA5-14).
+  var co = String((S.company && S.company.name) || '').trim();
   var title = rptTitle(p);
   var build = typeof APP_BUILD === 'string' ? APP_BUILD : 'dev';
   var h = '<div class="inv-rpt-doc" data-rpt-doc data-kind="' + p.kind + '" data-from="' + p.from + '" data-to="' + p.to + '">' +
-    '<table class="inv-rpt-frame"><thead><tr><td class="inv-rpt-frame-head">' + escHtml(co) + ' · ' + escHtml(title) + '</td></tr></thead>' +
+    '<table class="inv-rpt-frame"><thead><tr><td class="inv-rpt-frame-head">' + escHtml([co, title].filter(Boolean).join(' · ')) + '</td></tr></thead>' +
     '<tfoot><tr><td class="inv-rpt-frame-foot"></td></tr></tfoot><tbody><tr><td class="inv-rpt-frame-body">' +
-    '<div class="inv-rpt-head"><div class="inv-rpt-co">' + escHtml(co) + '</div><h2 class="inv-rpt-title">' + escHtml(title) + '</h2>' +
+    '<div class="inv-rpt-head">' + (co ? '<div class="inv-rpt-co">' + escHtml(co) + '</div>' : '') + '<h2 class="inv-rpt-title">' + escHtml(title) + '</h2>' +
     '<div class="inv-rpt-meta">' + escHtml((p.from === p.to ? formatDate(p.from) : formatDate(p.from) + ' to ' + formatDate(p.to)) +
       (open ? ' · figures to ' + formatDate(end) : '')) + ' · generated ' + escHtml(formatDate(today)) + ' · build <span class="inv-rpt-id">' + escHtml(build) + '</span></div></div>';
   if (p.from > today) return h + rptNone('This period has not begun.') + '</td></tr></tbody></table></div>';
@@ -235,10 +228,11 @@ function rptHtml(kind, from, to) {
     ? rptTile('plated', 'Plated (floor)', escHtml(rptKg(plated.kg)), 'on ' + plated.days + ' complete day' + (plated.days === 1 ? '' : 's') + ' of ' + plated.working + ' working only',
       pplated ? dl(plated.kg / plated.days, pplated.kg / pplated.days, 'up').replace(/ on /, ' a day on ') : '')
     : rptTile('plated', 'Plated (floor)', '&mdash;', 'no complete day recorded (attendance and every staffed line)'));
-  tiles.push(att.days
-    ? rptTile('attendance', 'Attendance', figHtml(formatNum(att.avg, 1) + ' / ' + att.roster, figTonePct(att.pct, 90, 80)),
-      'on site a day, over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded' + (att.pct != null ? ' · ' + Math.round(att.pct) + '% of the roster' : ''), dl(att.avg, patt.avg, 'up'))
-    : rptTile('attendance', 'Attendance', '&mdash;', 'no day recorded'));
+  tiles.push(att.pct != null
+    ? rptTile('attendance', 'Attendance', figHtml(Math.round(att.pct) + '%', figTonePct(att.pct, 90, 80)),
+      'of the marks typed, Mon–Sat, a half day half, as Staff → Overview reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
+      dl(att.pct, patt.pct, 'up'))
+    : rptTile('attendance', 'Attendance', '&mdash;', att.days ? 'no mark of the active roster on the days recorded' : 'no working day recorded'));
   tiles.push(lab.total > 0
     ? rptTile('labour', 'Labour', rptMoney(lab.total), labV.ok ? figHtml(rptMoney(labV.perKg) + '/kg', figToneAgainst(labV.perKg, labourCfg().modelPerKg || 3.55, 10, true)) + ' against the model ' + rptMoney(labourCfg().modelPerKg || 3.55)
       : '₹/kg withheld: ' + labV.why, plab.total > 0 && Math.abs(lab.coverage - plab.coverage) < 0.1 ? dl(lab.total, plab.total, null) : '')
@@ -322,20 +316,26 @@ function rptBreakdownHtml(p, end, ctx) {
   } else {
     for (var m = p.from, k = 0; m <= p.to && k < 12; m = isoAddDays(payMonthEnd(m), 1), k++) subs.push({ from: m, to: payMonthEnd(m), label: insMonthLabel(m) + ' ' + m.slice(0, 4) });
   }
-  var tot = { inv: 0, kg: 0, rev: 0, rec: 0, nos: 0, pl: 0, cuts: 0 };
+  // The foot totals only what its rows carry (QA5-10): a column of dashes foots to a dash, never to a 0; ₹/kg is the
+  // weighed revenue over the weighed kilos of every row, and present the marks of every row, as each row reads them.
+  var tot = { inv: 0, kg: 0, revKnown: 0, rec: 0, nos: 0, pl: 0, plDays: 0, present: 0, marked: 0, cuts: 0, cutsKnown: false };
   var rows2 = subs.map(function(s) {
     var f = rptRowFigures(ctx, s.from, s.to);
     if (f.future) return [escHtml(s.label), '', '', '', '', '', '', ''];
-    tot.inv += f.taxable; tot.kg += f.kg; tot.rec += f.rec.kg; tot.nos += f.rec.nos; tot.pl += f.plated ? f.plated.kg : 0; tot.cuts += f.cuts;
+    tot.inv += f.taxable; tot.kg += f.kg; tot.revKnown += f.revKnown || 0; tot.rec += f.rec.kg; tot.nos += f.rec.nos;
+    if (f.plated) { tot.pl += f.plated.kg; tot.plDays += f.plated.days || 0; }
+    tot.present += f.att.present; tot.marked += f.att.marked;
+    if (f.cutsKnown) { tot.cuts += f.cuts; tot.cutsKnown = true; }
     return [escHtml(s.label), f.inv ? escHtml(finRs(f.taxable)) : '', f.kg > 0 ? rptInt(f.kg) : '', f.real != null ? formatNum(f.real, 2) : '',
       f.rec.n ? (f.rec.kg > 0 ? rptInt(f.rec.kg) : '') + (f.rec.nos > 0 ? (f.rec.kg > 0 ? ' · ' : '') + rptInt(f.rec.nos) + ' NOS' : '') : '',
-      f.plated ? rptInt(f.plated.kg) : '', f.att.days ? formatNum(f.att.avg, 1) : '', f.cutsKnown ? String(f.cuts) : ''];
+      f.plated ? rptInt(f.plated.kg) : '', f.att.pct != null ? Math.round(f.att.pct) + '%' : '', f.cutsKnown ? String(f.cuts) : ''];
   });
   var title = p.kind === 'weekly' ? 'By day' : p.kind === 'monthly' ? 'By pay week' : 'By month';
-  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is heads on site a recorded day. A dash is a stretch nobody recorded, not a zero.',
+  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is attendance as Staff → Overview reads it, the active roster’s marks typed Monday to Saturday, a half day half. A dash is a stretch nobody recorded, not a zero.',
     rptTable([[p.kind === 'weekly' ? 'Day' : p.kind === 'monthly' ? 'Week' : 'Month'], ['Invoiced', 1], ['kg', 1], ['₹/kg', 1], ['Received', 1], ['Plated kg', 1], ['Present', 1], ['Cuts', 1]], rows2,
-      ['Total', tot.inv ? escHtml(finRs(tot.inv)) : '', tot.kg ? rptInt(tot.kg) : '', tot.kg > 0 ? '' : '', tot.rec || tot.nos ? (tot.rec ? rptInt(tot.rec) : '') + (tot.nos ? (tot.rec ? ' · ' : '') + rptInt(tot.nos) + ' NOS' : '') : '',
-        tot.pl ? rptInt(tot.pl) : '', '', String(tot.cuts)], 'breakdown'));
+      ['Total', tot.inv ? escHtml(finRs(tot.inv)) : '', tot.kg > 0 ? rptInt(tot.kg) : '', tot.kg > 0 ? formatNum(tot.revKnown / tot.kg, 2) : '',
+        tot.rec || tot.nos ? (tot.rec ? rptInt(tot.rec) : '') + (tot.nos ? (tot.rec ? ' · ' : '') + rptInt(tot.nos) + ' NOS' : '') : '',
+        tot.plDays ? rptInt(tot.pl) : '', tot.marked ? Math.round(tot.present / tot.marked * 100) + '%' : '', tot.cutsKnown ? String(tot.cuts) : ''], 'breakdown'));
 }
 
 /* 3. Clients: the largest by revenue, concentration, and (a month or longer) contribution worst first at the live cost. */
@@ -516,9 +516,13 @@ function rptPowerHtml(p, end, cuts, cs, rec) {
   return rptSec('power', 'Power', cov, body);
 }
 
-/* 10. A day's invoices and challans, as lists. */
+/* 10. A day's invoices and challans, as lists. An invoice is listed as it was issued, at the taxable on its face: the
+   period's figures are net of credit notes (statsInvoices), a document is not (QA5-11). */
 function rptDayListsHtml(invs, rec) {
-  var a = invs.length ? rptTable([['Invoice'], ['Client'], ['Taxable', 1]], invs.map(function(i) {
+  var byId = {};
+  (S.invoices || []).forEach(function(i) { byId[i.id] = i; });
+  var a = invs.length ? rptTable([['Invoice'], ['Client'], ['Taxable', 1]], invs.map(function(n) {
+    var i = byId[n.id] || n;
     return [escHtml(i.displayNumber || i.invoiceNumber || ''), escHtml(i.clientName || ''), escHtml(formatCurrency(i.taxableValue || 0))];
   }), null, 'dayinvoices') : rptNone('No invoice issued.');
   var b = rec.n ? rptTable([['Challan'], ['Client'], ['Lines', 1], ['kg · NOS', 1]], rec.list.map(function(im) {
@@ -563,8 +567,11 @@ function renderReports() {
   if (p.kind === 'daily' || p.kind === 'weekly') pick = '<input type="date" class="inv-input inv-id" id="rptDay" value="' + escHtml(p.kind === 'daily' ? p.from : (p.to > today ? today : p.from)) + '" max="' + today + '" aria-label="' + (p.kind === 'daily' ? 'Day' : 'A day in the week') + '">';
   else if (p.kind === 'monthly') pick = '<input type="month" class="inv-input inv-id" id="rptMonth" value="' + p.from.slice(0, 7) + '" max="' + today.slice(0, 7) + '" aria-label="Month">';
   else {
-    var opts = [], fy = rptFy(today), first = (statsInvoices().map(function(i) { return i.date; }).filter(Boolean).sort()[0]) || today, fy0 = Math.min(rptFy(first), fy - 1);
-    for (var y = fy; y >= fy0 && opts.length < 40; y--) {
+    // Back to the book's first invoice, and always to the year shown: the stepper goes further back than the book, and the
+    // picker named another year than the document under it (QA5-14).
+    var opts = [], fy = rptFy(today), first = (statsInvoices().map(function(i) { return i.date; }).filter(Boolean).sort()[0]) || today;
+    var fy0 = Math.min(rptFy(first), fy - 1, rptFy(p.from));
+    for (var y = fy; y >= fy0 && opts.length < 400; y--) {
       if (p.kind === 'yearly') opts.push([y + '-04-01', rptFyLabel(y)]);
       else for (var q = 4; q >= 1; q--) { var qp = rptPeriodOf('quarterly', isoAddDays(y + '-04-01', (q - 1) * 92)); if (qp.from <= today) opts.push([qp.from, 'Q' + q + ' ' + rptFyLabel(y)]); }
     }
@@ -604,11 +611,13 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Stats → Overview → Make a report: the same period, as a report. */
+/* Stats → Overview → Make a report: the same period, as a report. Stats' All is the whole book, which no report covers
+   (a financial year at most): it opens the year to date and says so (QA5-14). */
 function rptFromStats() {
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
   rptSet(per === 'qtd' ? 'quarterly' : per === 'ytd' || per === 'all' ? 'yearly' : 'monthly', localDateStr());
   switchTab('pageReports');
+  if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book Stats showed. Step back a year with ‹.', 'info');
 }
 
 /* The address (nav.js): `kind/first-day`. */

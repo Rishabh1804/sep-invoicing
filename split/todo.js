@@ -298,6 +298,14 @@ function todoGoPage(go) {
   if (typeof isPageId === 'function' && isPageId(go.page)) return go.page;
   return typeof WS_GO_PAGE !== 'undefined' ? WS_GO_PAGE[go.kind] || null : null;
 }
+/* A jump this ID may not follow opens nothing and says so, as switchTab says it: true when refused. The page it would open,
+   else Pay without the wages. */
+function todoGoRefused(go) {
+  var page = todoGoPage(go);
+  if (page && typeof grdSees === 'function' && !grdSees(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return true; }
+  if (go && TODO_GO_WAGES[go.kind] && typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return true; }
+  return false;
+}
 /* The role signed in may follow this move. A kind no page is known for is the owner's. */
 function todoGoSees(go) {
   if (!go || !todoGuardOn()) return true;
@@ -677,15 +685,8 @@ function todoGo(go) {
   // it. switchTab refused the page and drew Home, and the jump went on to open its dialog there: the credit notes, the number
   // audit and its Record, an invoice with its Mark buttons, a client's rates (QA3-1, QA4-1). Said as switchTab says it.
   // Settings asks its own way (openSettings).
-  var page = { stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
-    bills: 'pageFinance', finance: 'pageFinance', cnList: 'pageRegister', cnBatch: 'pageRegister', regState: 'pageRegister',
-    audit: 'pageRegister', invoice: 'pageRegister', register: 'pageRegister', im: 'pageIM', challan: 'pageIM',
-    production: 'pageProduction', prodLines: 'pageProduction', stats: 'pageStats', liveCost: 'pageStats',
-    staffRoster: 'pageStaff', staffPaste: 'pageStaff', areas: 'pageStaff', payWages: 'pageStaff', payDue: 'pageStaff', payWeek: 'pageStaff',
-    power: 'pagePower', powerCase: 'pagePower', client: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', perf: 'pageClients',
-    createFor: 'pageCreate', report: 'pageReports' }[go.kind];
-  if (page && typeof grdSees === 'function' && !grdSees(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
-  if (/^pay(Wages|Due|Week)$/.test(go.kind) && typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
+  // The page each jump opens is workspace.js's one map (todoGoPage), which the To-do's own filter reads too.
+  if (todoGoRefused(go)) return;
   // Every dialog is shut on the way: one holding typed work asks first, as its × does (the client's edit sheet carries
   // Open in Finance, which dropped a typed GSTIN: the QA audit of 30 Sep 2026).
   if (dialogsTypedAsk(function() { todoGo(go); })) return;
@@ -758,7 +759,12 @@ function todoGo(go) {
 }
 function todoGoLink(id) {
   var t = todoData().tasks.find(function(x) { return x.id === id; });
-  if (t && !todoMineSees(t)) return;
+  // A task this ID does not follow (the To-do never lists one; a stale row or a launch may) opens nothing and says why, in
+  // todoGo's words: it went quiet, and the owner's rule is that nothing refused goes unsaid.
+  if (t && !todoMineSees(t)) {
+    if (!todoGoRefused(t.go || (t.link ? { kind: t.link.kind } : null))) showToast('That task is not one your ID opens', 'warning');
+    return;
+  }
   if (t && t.go) { todoGo(t.go); return; }
   if (!t || !t.link) return;
   var l = t.link;

@@ -144,6 +144,8 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
     await unlock(page, 'U-sup', PINS.super);
     await switchTab(page, 'pageStock');
     const nothing = async (expr: string, word: string) => {
+      // Each refusal says so itself: a toast left from the call before is no answer (it hid a silent refusal).
+      await g(page, `document.querySelectorAll('.inv-toast').forEach(function(t) { t.remove(); })`);
       await g(page, expr);
       await expect(page.locator('.inv-toast').last()).toHaveText('Your ID doesn’t open ' + word);
       await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);

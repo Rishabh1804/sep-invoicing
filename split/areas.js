@@ -922,9 +922,11 @@ function _areaExtraCard(stats) {
   }
 
   var share = (totalPaid + totalExtra) > 0 ? (totalExtra / (totalPaid + totalExtra)) * 100 : 0;
-  html += _labRow('Extra at the contract tier', formatCurrency(totalExtra * cfg.extraRate),
+  // The rupees are wages (the guard's "wages" setting): a role that may not see them sees the hours.
+  if (attSeesWages()) html += _labRow('Extra at the contract tier', formatCurrency(totalExtra * cfg.extraRate),
     formatNum(totalExtra, 1) + ' h &times; ' + formatCurrency(cfg.extraRate) + ' &middot; ' +
     formatNum(share, 1) + '% of paid hours');
+  else html += _labRow('Extra hours', formatNum(totalExtra, 1) + ' h', formatNum(share, 1) + '% of paid hours');
 
   // Three disagreements, kept apart because they mean different things.
   var atNorm = [], unbooked = [], mism = [];
@@ -1098,9 +1100,9 @@ function _areaFlagList(flags, detail, tone) {
 function _areaAbsorptionCard(stats) {
   var rows = stats.absorption;
   if (!rows || rows.length === 0) return '';
-  var cfg = labourCfg();
+  var cfg = labourCfg(), wages = attSeesWages();   // the shares in rupees are wages; a role that may not see them sees hours
   var total = rows.reduce(function(s, r) { return s + r.hours; }, 0);
-  var html = _labPanelHead('absorb', 'The extra, paid pro-rata', formatCurrency(gstRound(total * cfg.extraRate)), '', 'areaAbsorb') +
+  var html = _labPanelHead('absorb', 'The extra, paid pro-rata', wages ? formatCurrency(gstRound(total * cfg.extraRate)) : formatNum(total, 1) + ' h', '', 'areaAbsorb') +
     _labNote('The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
     'receive it pro-rata</strong> (owner, 28 Aug 2026). It stays under the <strong>EXTRA</strong> line of the ' +
     'bill &mdash; one pooled figure, <strong>disbursed by the supervisor on the floor</strong> &mdash; and these shares ' +
@@ -1113,7 +1115,7 @@ function _areaAbsorptionCard(stats) {
       '<span class="inv-row-meta inv-row-wrap">' + formatNum(r.hours, 1) + ' h &middot; ' +
       formatNum(r.perDay, 1) + ' h/day over ' + r.days + ' day' + (r.days === 1 ? '' : 's') + '</span></span>' +
       '<span class="inv-row-end">' + (r.implausible ? '<span class="inv-badge inv-badge-warning" data-implausible>More than a shift</span>' : '') +
-      '<span class="inv-num">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) + '</span></span></div>';
+      (wages ? '<span class="inv-num">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) + '</span>' : '') + '</span></div>';
   });
   if (flagged > 0) {
     html += _labCallout('Marked rows are paid more in a day than a body could stand on top ' +
@@ -1161,9 +1163,10 @@ function _areaRow(a) {
     (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span></span>' +
     '<span class="inv-row-end">' +
     '<span class="inv-row-stack"><span class="inv-dot inv-dot-' + tone + '">' + word + '</span>' +
-    '<span class="inv-num" title="All tiers, work done here: day and hour pay, OT, ' +
+    // Wages (the guard's "wages" setting): a role that may not see them sees the heads and hours above, not the rupees.
+    (attSeesWages() ? '<span class="inv-num" title="All tiers, work done here: day and hour pay, OT, ' +
     'and the extra booked to this area. Not the labour card’s variable-by-area figure.">' +
-    formatCurrency(a.cost) + '<span class="inv-unit">worked here</span></span></span>' +
+    formatCurrency(a.cost) + '<span class="inv-unit">worked here</span></span>' : '') + '</span>' +
     '<span class="inv-field"><label class="inv-field-label" for="areaTgt-' + a.id + '">Complement</label>' +
     '<input type="number" class="inv-input inv-input-sm inv-input-num" id="areaTgt-' + a.id +
     '" data-area-target data-area="' + a.id + '" step="1" min="0" placeholder="—" value="' +

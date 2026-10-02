@@ -512,6 +512,9 @@ function attFloorOk() {
   if (!document.querySelector('[data-ui-ask]')) grdGate('floor', 'enter attendance');
   return false;
 }
+/* Wages on the Staff page are the guard's "wages" setting: a role that may not see them sees hours and heads, never a ₹
+   figure (a day's cost with one hand per tier gives that hand's rate away). */
+function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWages(); }
 
 function _attEmptyRoster() {
   return '<div class="inv-panel"><div class="inv-empty">' +
@@ -588,7 +591,7 @@ function _attDayView() {
     html += attSheetEntryHtml(iso, rec, roster);
     html += _attNeedCard(iso, rec);
     html += _attExtraCard(iso, rec);
-    html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
+    html += _attDayCostCard(iso);
     return html;
   }
   var byArea = {}, absentees = [];
@@ -624,8 +627,13 @@ function _attDayView() {
 
   html += _attNeedCard(iso, rec);
   html += _attExtraCard(iso, rec);
-  html += uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false);
+  html += _attDayCostCard(iso);
   return html;
+}
+
+/* The day's cost, folded; none for a role that may not see wages (a day with one hand per tier gives each rate away). */
+function _attDayCostCard(iso) {
+  return attSeesWages() ? uiFoldCard('attDayCost', renderLabourCard(iso, iso, 'Day cost'), false) : '';
 }
 
 /* One hand on the board: the name (opens the area, hours and OT), what is recorded, and P / H / A. */
@@ -882,8 +890,8 @@ function _attExtraCard(iso, rec) {
     '<span class="inv-panel-title">Extra hours ' + (rows.length ? '<span class="inv-panel-count">' + rows.length + '</span>' : '') + '</span>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttAddExtra">Add</button></div>' +
     '<div class="inv-panel-body inv-note">Hours booked to an area block rather than to a named worker &mdash; ' +
-    'the <span class="inv-id">EXTRA n HOURS</span> lines on the daily sheet. Priced at the contract tier ' +
-    '(' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted in the bill. ' +
+    'the <span class="inv-id">EXTRA n HOURS</span> lines on the daily sheet. ' +
+    (attSeesWages() ? 'Priced at the contract tier (' + formatCurrency((S.labour && S.labour.extraRate) || 0) + '/h) and counted' : 'Counted') + ' in the bill. ' +
     'Both kinds are checked against the shortfall in the area that ran; they differ only in the ' +
     '<strong>multiplier</strong>. A general shift credits a missing hand a full eight hours. An ' +
     '<strong>OT block</strong> credits it the block&rsquo;s own length, so it needs its in and out ' +
@@ -989,7 +997,8 @@ function _attWeekView() {
       return '<td class="inv-num"' + (attParseIso(d).getDay() === 0 ? ' data-sun' : '') + '>' + n + '<span class="inv-unit">/' + roster.length + '</span></td>';
     }).join('') + '</tr></tfoot></table></div></div>';
 
-  html += renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost');
+  // A role that may not see wages sees the week's marks, never its cost (one hand per tier gives a rate away).
+  if (attSeesWages()) html += renderLabourCard(_attWeekStart, isoAddDays(_attWeekStart, 6), 'Week cost');
   return html;
 }
 
@@ -1636,6 +1645,8 @@ function _wfield(id, label, control, hint) {
 function _showWorkerOverlay(worker, isAdd) {
   var w = worker || _blankWorker();
   var marks = worker ? _attMarkCount(w.id) : 0;
+  // A role that may not see wages edits the worker without the rates: the fields are not drawn, and Save keeps them.
+  var wages = attSeesWages();
   var num = function(id, v, step) {
     return '<input class="inv-input inv-input-num" id="' + id + '" type="number" step="' + step + '" min="0" value="' + v + '">';
   };
@@ -1652,7 +1663,7 @@ function _showWorkerOverlay(worker, isAdd) {
     '<div class="inv-note inv-mb-16">' + COMP_CLASSES.map(function(c) {
       return '<strong>' + escHtml(c.label) + '</strong> &mdash; ' + escHtml(c.hint) + '.';
     }).join(' ') + '</div>' +
-    '<div class="inv-fields">' +
+    (wages ? '<div class="inv-fields">' +
     _wfield('wedDay', 'Day rate', num('wedDay', w.dayRate || 0, '0.01')) +
     _wfield('wedHour', 'Hour rate', num('wedHour', w.hourRate || 0, '0.01')) +
     '</div>' +
@@ -1663,7 +1674,8 @@ function _showWorkerOverlay(worker, isAdd) {
     _wfield('wedMonth', 'Contracted monthly wage (monthly tier only)', num('wedMonth', w.monthWage || 0, '1'),
       'Leave at zero for a monthly hand paid by the day. A contracted wage is paid as ' +
       '<span class="inv-id">wage ÷ days in the month</span> a day, its Sundays are not gated by attendance, and a ' +
-      'Sunday worked adds nothing &mdash; it is inside the wage.') +
+      'Sunday worked adds nothing &mdash; it is inside the wage.')
+      : '<div class="inv-note inv-mb-16" data-wages-hidden>The rates are not shown to your ID. Saving keeps them as they are; the owner sets them.</div>') +
     _wfield('wedSpell', 'Other spellings on the WhatsApp roll',
       '<input class="inv-input" id="wedSpell" value="' + escHtml((w.relayNames || []).join(', ')) + '" placeholder="e.g. SHARAT, SARAT MAHTO">',
       'Paste message reads these as this worker. A name you place on the check screen is added here.') +
@@ -1720,12 +1732,18 @@ function saveWorker(id, mode) {
   });
   if (dup) { showToast('Already on the roster: ' + dup.name, 'error'); return; }
 
+  // A rate field not drawn (a role that may not see wages) keeps what is stored: a new worker's starts at none.
+  var stored = mode === 'add' ? null : staffById(id);
+  var rateOf = function(elId, k) {
+    var el = document.getElementById(elId);
+    return el ? Math.max(0, parseFloat(el.value) || 0) : (stored ? Math.max(0, Number(stored[k]) || 0) : 0);
+  };
   var fields = {
     name: name,
     comp: comp,
-    dayRate: Math.max(0, parseFloat(document.getElementById('wedDay').value) || 0),
-    hourRate: Math.max(0, parseFloat(document.getElementById('wedHour').value) || 0),
-    monthWage: comp === 'monthly' ? Math.max(0, parseFloat((document.getElementById('wedMonth') || {}).value) || 0) : 0,
+    dayRate: rateOf('wedDay', 'dayRate'),
+    hourRate: rateOf('wedHour', 'hourRate'),
+    monthWage: comp === 'monthly' ? rateOf('wedMonth', 'monthWage') : 0,
     area: document.getElementById('wedArea').value,
     onFloor: document.getElementById('wedFloor').checked,
     active: document.getElementById('wedActive').checked

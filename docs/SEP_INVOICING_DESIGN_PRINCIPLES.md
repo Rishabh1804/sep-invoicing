@@ -570,9 +570,14 @@ wrapper between it and the page take the rest (`flex: 1 1 0`). The list and the 
 subtracted by hand. Content above the host taller than the screen squeezes it only to `--pane-host-min` (20rem), and past
 that the page scrolls like any long page. A host hidden under a form leaves the page an ordinary document.
 
-**Three columns on a wide screen.** `inv-panels` (Home's Pulse, Stats, Finance) is two columns on the desktop and three
-from a 100rem (about 1,600px) window; `inv-panels-wide` still spans the row. Every panel in the grid is a `panel-w`
-container, so a strip of tiles in a third of the row goes two across with an odd last tile taking the row, never a blank cell.
+**Three columns on a wide screen.** `inv-panels` is two columns on the desktop; `inv-panels inv-panels-3` (Pulse's
+questions and widgets, Stats, Finance's Overview) is three from a 100rem (about 1,600px) window, and only those: a grid of two
+lists or a few cards (To-do, Needs you, Create, Floor, Production, Stock, Power) left a column empty at three.
+`inv-panels-wide` still spans the row. Every panel in a grid is a `panel-w` container, so a strip of tiles in a third of the row
+goes two across with an odd last tile taking the row, never a blank cell.
+
+**A redraw keeps the scroll.** A screen drawn whole with its host in it draws through `paneScrollKeep(fn)`: the list's and the
+pane's `scrollTop` are put back after the swap, the pane's only while the host's `data-open` names the same record.
 
 ### 6.15 Forms — `inv-field`, `inv-input`, `inv-select`, `inv-actionbar`
 - `inv-field`: label **above** the control, `--t-label` `--text-2`, **sentence case** (DR-5); hint below

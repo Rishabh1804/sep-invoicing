@@ -107,7 +107,10 @@ reopened the tab last used); measure it at step 6.
      wages, in the table and on the phone's rows too (it was shown to every role that could open Staff).
    - **History**: every event opens, a void and a floor day included: the event whole (a change's every field), who and on
      which device, and the invoice or challan it names drawn as their own panes draw it, with *Open in Invoices / Challans*.
-   - **Three columns** from a 100rem window, and every grid panel lays its tiles out by its own width (a Stats story's three
-     tiles had left a blank cell at a third of the row).
+   - **Three columns** from a 100rem window on Pulse, Stats and Finance's Overview only (`inv-panels-3`), and every grid panel
+     lays its tiles out by its own width (a Stats story's three tiles had left a blank cell at a third of the row).
+   - **The QA chain of 2 Oct 2026** (P153): a redraw keeps the list and the pane where they were scrolled; History's event key
+     survives a rename and tells two alike apart; Cancel, Delete and Edit from History's pane act where they can be seen; an
+     address naming no client opens no pane; the roster's rate holds at 1280.
 
 Each step amends `SEP_INVOICING_DESIGN_PRINCIPLES.md` where it needs something the design system does not define.

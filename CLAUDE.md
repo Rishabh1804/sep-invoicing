@@ -205,11 +205,14 @@ them (the To-do's wage tasks go there too, `todoGo` kind `payWages`). The before
 **The desktop's list and pane reach four more screens, and a wide screen takes three columns** (UX overhaul 2, step 7, 2 Oct
 2026). Finance → Receivables, Production → Entries, Staff → Roster and History are a list beside the open record (`recvHost`,
 `prodEntriesHost`, `attRosterHost`, `historyHost`; the open one in `_bankOpen`, `_prodEntryOpen`, `_attRosterOpen`,
-`_historyOpen`, each the address's `id`, a History event's id its `historyEvKey`). The phone is unchanged: a client still opens
-under its row, a worker their sheet, a History row the invoice. **A role that may not see wages sees no rate on the roster**
-(`grdSeesWages`; the rows showed it to every role that could open Staff). Above a 100rem window `inv-panels` (Pulse, Stats,
-Finance) is three columns, and every panel in it is a `panel-w` container, so a strip of tiles never leaves a blank cell
-(the Home widgets' rule, now every panel's). P147, P80.
+`_historyOpen`, each the address's `id`, a History event's id its `historyEvKey`: what it is, when and the record it names, never a
+change's words, which name a user who can be renamed; two alike are numbered in order). A redraw keeps where the list and the open
+pane were scrolled (`paneScrollKeep`; the host's `data-open` says which record, and the pane keeps its place only while that record
+is open). The phone is unchanged: a client still opens under its row, a worker their sheet, a History row the invoice. **A role
+that may not see wages sees no rate on the roster** (`grdSeesWages`; the rows showed it to every role that could open Staff). Above
+a 100rem window the `inv-panels-3` grids (Pulse's questions and widgets, Stats, Finance's Overview) are three columns, and every
+panel in a grid is a `panel-w` container, so a strip of tiles never leaves a blank cell (the Home widgets' rule, now every
+panel's); every other grid stays two across, since three left a column empty or a lone card under a row. P147, P80, P153.
 
 **A figure says whether it is good** (owner, 29 Sep 2026: *"most numbers in our app don't convey any kind of meaning, as
 in is it a good number or is it something of an issue, all are in default black"*; the owner chose both of the options put to
@@ -1368,8 +1371,10 @@ the date GSTR-1 reports it under.
 ### History is the audit trail
 It was missing the two event kinds an audit goes looking for. A deleted invoice writes a
 tombstone to `S.voidedNumbers` with a required reason, and an accepted duplicate challan
-stamps `dupeAck` — neither appeared in the log. Both are now first-class events, and a void
-renders as non-tappable because the invoice it names no longer exists to open.
+stamps `dupeAck` — neither appeared in the log. Both are now first-class events. On the phone a
+void is a plain row, because the invoice it names no longer exists to open; on the desktop it opens
+in History's pane, which says where its record went (Invoices → Number audit), or, for a number
+accounted for, that no invoice was ever recorded under it.
 
 **The floor is in it too, and that puts TWO CLOCKS in one list.** An invoice event is dated by
 **when it was recorded** — every one carries a real `createdAt`. An attendance day has no such

@@ -279,7 +279,8 @@ function relayMatchName(words, idx, loose) {
 }
 
 /* Split a paste into WhatsApp messages. A paste of the roll alone (no header)
-   is one message. */
+   is one message. `wa` is the message's WhatsApp line before its text ("[1/10/26, 6:02 pm] Shyam: "), '' when it was
+   pasted without one: a part of it handed to another screen goes with who sent it and when (relayStockParts). */
 function relaySplit(text) {
   var msgs = [], cur = null;
   String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
@@ -289,7 +290,7 @@ function relaySplit(text) {
       // Copied timestamps follow the phone's locale: day-first unless impossible,
       // and the bracketed iOS export is month-first.
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
-      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), lines: [wa[5]] };
+      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), wa: line.slice(0, line.length - wa[5].length), lines: [wa[5]] };
       msgs.push(cur);
       return;
     }
@@ -299,7 +300,7 @@ function relaySplit(text) {
     // camical use"), and pasted after a roll it is a message of its own too.
     var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*((in|out)\s*-*\s*time|c[ae]mical|chemical)/i.test(line);
     if (!cur || (rollHead && cur.lines.some(function(l) { return l.trim(); }))) {
-      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, lines: [] };
+      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, wa: '', lines: [] };
       msgs.push(cur);
     }
     cur.lines.push(line);
@@ -308,16 +309,49 @@ function relaySplit(text) {
     .filter(function(m) { return m.text && !/^<Media omitted>$|omitted>$/i.test(m.text); });
 }
 
-/* What kind of message this is, from its first lines. */
+/* What kind of message this is, from its first lines. A roll's own dated head is a roll whatever follows it, the time
+   written straight after it included ("01/10/26/ in time6:00 am"): prodKind (prodparse.js) reads a paste with this, and its
+   own test of that head had read such a roll while this did not, so Add and Paste message said no roll was found, or sent
+   the whole paste to Production and the attendance was never read (QA3-5). Now the two agree by construction. */
+var RELAY_ROLL_HEAD_RE = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i;
 function relayKind(text) {
   var head = String(text || '').split('\n').slice(0, 2).join(' ');
+  var dh = RELAY_ROLL_HEAD_RE.exec(String(text || ''));
+  if (dh) return dh[1].toLowerCase();
   if (/c[ae]mical|chemical/i.test(head)) return 'stock';
-  var io = head.match(/\b(in|out)\s*-*\s*time\b/i);
+  var io = head.match(/\b(in|out)\s*-*\s*time(?![a-z])/i);
   if (io && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(head)) return io[1].toLowerCase();
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
   if (/c[ae]mical|chemical|stock/i.test(head)) return 'stock';
   if (/pickling\s*time/i.test(text)) return 'material';
   return 'other';
+}
+
+/* The chemical stock written into a roll under its own heading, no date ("camical use camical stock"): the roll ends there
+   (parseRelayRoll), and from that line on is a stock message. A roll stopped earlier by another message's dated line has
+   none. '' when there is none. */
+var RELAY_STOCK_HEAD_RE = /^c[ae]mical\s+(use|stock)\b|^chemical\s+(use|stock)\b/i;
+function relayStockTail(text) {
+  var lines = String(text || '').split('\n');
+  for (var i = 1; i < lines.length; i++) {
+    var bare = lines[i].trim().replace(/^[\s\-_=*.•]+|[\s\-_=*.•]+$/g, '').trim();
+    if (!bare) continue;
+    if (RELAY_STOCK_HEAD_RE.test(bare)) return lines.slice(i).join('\n').trim();
+    var dd = bare.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?\s*(.*)$/);
+    if (dd && isoFromDmy(dd[1], dd[2], dd[3]) && /c[ae]mical|chemical|stock|in\s*-*\s*time|out\s*-*\s*time/i.test(dd[4])) return '';
+  }
+  return '';
+}
+/* The stock in a paste, for Stock's own check: each stock message, and the stock under a roll, as it was sent (its WhatsApp
+   line kept, so the check reads who sent it and when). Rolls are read in Staff; their stock was dropped (QA3-10). */
+function relayStockParts(msgs) {
+  var out = [];
+  (msgs || []).forEach(function(m) {
+    var k = relayKind(m.text), tail = k === 'in' || k === 'out' ? relayStockTail(m.text) : '';
+    if (k === 'stock') out.push((m.wa || '') + m.text);
+    else if (tail) out.push((m.wa || '') + tail);
+  });
+  return out;
 }
 
 /* One roll → per-day records. Each line keeps what it was read as, so the
@@ -367,10 +401,11 @@ function parseRelayRoll(text, roster, sentOn) {
     out.lines.push(ln);
 
     // The chemical stock written into the same message, under its own heading
-    // and no date ("camical use camical stock"): the roll ends there.
-    if (/^c[ae]mical\s+(use|stock)\b|^chemical\s+(use|stock)\b/i.test(bare)) {
-      st.stop = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; paste it in More → Stock';
-      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. Paste it in More → Stock.' });
+    // and no date ("camical use camical stock"): the roll ends there, and the stock is Stock's (relayStockTail). More is
+    // retired: the stock is read in Stock (the review's Read in Stock hands it over).
+    if (RELAY_STOCK_HEAD_RE.test(bare)) {
+      st.stop = true; ln.role = 'note'; ln.read = 'The chemical stock starts here; it is read in Stock';
+      out.issues.push({ tone: 'info', n: ln.n, text: 'The chemical stock in this message starts here and was not read with the roll. It is read in Stock (Read in Stock, or Stock → Paste message).' });
       return;
     }
     // A date inside the roll: a holiday, or a second day's block ("16/08/26/ Sunday").
@@ -1017,6 +1052,15 @@ function relayLearntHtml() {
     '<div class="inv-panel-body inv-note">A heading you corrected on the Day view is read your way on every roll after it. Forget one to go back to how it is read by default.</div>' + rows + '</div>';
 }
 
+/* A stock message to Stock's own check (stock.js), as the paste box sends one. A role that may not open Stock is refused
+   there, with a word (switchTab), and nothing is read for it. */
+function relayOpenStock(text) {
+  _stockPasteDraft = text;
+  _stockView = 'paste';
+  switchTab('pageStock');
+  if (navPageOf() === 'pageStock') stockReadPaste();
+}
+
 function relayRead() {
   var ta = document.getElementById('relayPasteText');
   var text = ta ? ta.value : _relayDraft;
@@ -1034,18 +1078,15 @@ function relayRead() {
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
-  if (!rolls.length && stock.length) {
-    // A stock message belongs to Stock's own review.
-    _stockPasteDraft = text;
-    _stockView = 'paste';
-    switchTab('pageStock');
-    stockReadPaste();
-    return;
-  }
+  // A stock message belongs to Stock's own review.
+  if (!rolls.length && stock.length) { relayOpenStock(text); return; }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
   // Only a roll needs the roster: a stock message goes to Stock above whether or not anyone is on it yet.
   if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
-  _relay = { text: text, msgs: rolls, choices: {}, stock: stock.length, other: Math.max(0, other.length - prodLoose), prod: prod.length };
+  // The stock beside the rolls, its own messages and what was written under a roll, is kept for Read in Stock: it was
+  // dropped, with a word pointing at the retired More sheet (QA3-10).
+  var stockParts = relayStockParts(msgs);
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stockParts.length, stockText: stockParts.join('\n'), other: Math.max(0, other.length - prodLoose), prod: prod.length };
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
@@ -1074,7 +1115,13 @@ function relayRenderReview() {
   if (plan.dupes) h += '<div class="inv-callout inv-callout-danger inv-mb-8" id="relayDupNote">' + todoPlural(plan.dupes, 'message was', 'messages were') + ' already saved and ' + (plan.dupes === 1 ? 'is' : 'are') + ' left out: saving again would count every hour twice.</div>';
   if (plan.repeats) h += '<div class="inv-callout inv-callout-warning inv-mb-8" id="relayRepeatNote">' + todoPlural(plan.repeats, 'message repeats', 'messages repeat') +
     ' one earlier in ' + (rv.reread ? 'the day’s rolls' : 'this paste') + ' (a roll posted twice) and ' + (plan.repeats === 1 ? 'is' : 'are') + ' read once: read twice, its EXTRA would count twice.</div>';
-  if (rv.stock) h += '<div class="inv-callout inv-callout-warning inv-mb-8">The stock message in this paste was not read here. Paste it in More → Stock.</div>';
+  // The stock in the paste, read in Stock the way the production is read in Production: handed over whole, as it was sent.
+  if (rv.stock && rv.stockText) {
+    var stockOpens = typeof grdSees !== 'function' || grdSees('pageStock');
+    h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayStockNote"><div>' + (rv.stock === 1 ? 'The chemical stock in this paste is' : 'The chemical stock in ' + rv.stock + ' messages is') +
+      ' not attendance. Attendance is read here; the stock is read in Stock.</div>' +
+      (stockOpens ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToStock">Read in Stock</button>' : '') + '</div>';
+  }
   if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
   if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (notes) not read.</div>';
@@ -1288,6 +1335,8 @@ function relayAction(action, btn) {
   switch (action) {
     case 'invRelayRead': relayRead(); break;
     case 'invRelayToProd': prodOpenPaste(_relay ? _relay.text : _relayDraft); break;
+    // The stock part only: Stock's reader would take a roll's numbered lines for stock lines.
+    case 'invRelayToStock': if (_relay && _relay.stockText) relayOpenStock(_relay.stockText); break;
     case 'invRelayBack': _relayView = 'paste'; renderAttendance(); break;
     case 'invRelaySave': relaySave(); break;
     case 'invRelayReread': relayRereadOpen(_attDate); break;

@@ -278,6 +278,14 @@ function relayMatchName(words, idx, loose) {
   return null;
 }
 
+/* The minute a WhatsApp header says the message was sent ("02/10/26, 8:50 am - …" is 530), or null: prodSplit's reading.
+   The header line itself is not kept with a roll, so this is how the roll remembers when it came (Today reads it). */
+var RELAY_WA_AT_RE = /^\s*\[?\d{1,2}\/\d{1,2}\/\d{2,4},?\s+(\d{1,2}):(\d{2})(?::\d{2})?\s*([AaPp]\.?[Mm]\.?)?/;
+function relaySentAt(line) {
+  var t = String(line || '').match(RELAY_WA_AT_RE);
+  if (!t || +t[1] > 23 || +t[2] > 59) return null;
+  return t[3] ? (+t[1] % 12 + (/p/i.test(t[3]) ? 12 : 0)) * 60 + +t[2] : +t[1] * 60 + +t[2];
+}
 /* Split a paste into WhatsApp messages. A paste of the roll alone (no header)
    is one message. */
 function relaySplit(text) {
@@ -289,7 +297,7 @@ function relaySplit(text) {
       // Copied timestamps follow the phone's locale: day-first unless impossible,
       // and the bracketed iOS export is month-first.
       var monthFirst = /^\s*\[/.test(line) ? a <= 12 : (a <= 12 && b > 12);
-      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), lines: [wa[5]] };
+      cur = { sentBy: wa[4].trim(), sentOn: monthFirst ? isoFromDmy(b, a, wa[3]) : isoFromDmy(a, b, wa[3]), sentAt: relaySentAt(line), lines: [wa[5]] };
       msgs.push(cur);
       return;
     }
@@ -299,7 +307,7 @@ function relaySplit(text) {
     // camical use"), and pasted after a roll it is a message of its own too.
     var rollHead = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*((in|out)\s*-*\s*time|c[ae]mical|chemical)/i.test(line);
     if (!cur || (rollHead && cur.lines.some(function(l) { return l.trim(); }))) {
-      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, lines: [] };
+      cur = { sentBy: cur && rollHead ? cur.sentBy : '', sentOn: null, sentAt: null, lines: [] };
       msgs.push(cur);
     }
     cur.lines.push(line);
@@ -1220,8 +1228,10 @@ function relaySave() {
     var ds = m.parsed ? Object.keys(m.parsed.days).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }) : [];
     if (m.dup || m.repeat || !ds.length) return;
     // The days it saved (a roll can carry a second day's block): a day deleted by hand takes its rolls with it (attDeleteDay).
+    // When WhatsApp sent it (`sentAt`, minutes on `sentOn`): the text is the roll's body alone, so without it the roll read
+    // as arriving the minute it was pasted (Today, tdyArrival).
     relayPastes().push({ id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
-      sentBy: m.sentBy || '', sentOn: m.sentOn || '', kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
+      sentBy: m.sentBy || '', sentOn: m.sentOn || '', sentAt: m.sentAt != null ? m.sentAt : null, kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
   });
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
@@ -1266,7 +1276,7 @@ async function relayRereadOpen(iso) {
       'what was entered or corrected by hand is kept, and the day as it is now goes to the log.' });
   if (!ok) return;
   _relay = { text: rolls.map(function(p) { return p.text; }).join('\n\n'), reread: iso, choices: {}, stock: 0, other: 0, prod: 0,
-    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, text: p.text }; }) };
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text }; }) };
   _relayView = 'review';
   _relayShowLines = false;
   _attView = 'paste';

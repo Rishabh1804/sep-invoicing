@@ -4,6 +4,16 @@
 as a tool used to make decisions."* The chatbot is the next piece of work after this one, and it answers from what is built here
 (`docs/UX_OVERHAUL_2.md`: *"search now; a chatbot later, once a knowledge-base tab exists"*).
 
+**Where it is:** Insights → Knowledge (the sidebar), and the book in the top bar on every screen, which opens the guides for the
+screen on show. It is Insights' fourth view because a group of its own made the sidebar taller than a 1024 × 768 screen.
+
+## §0 What is built
+
+**K1–K4 are built (5 Oct 2026, one PR):** the store and page, writing and approval, versions, retire, roles, photos on the device,
+search, `sep-kb` export and import; the app's own guides and the links into a client, Performance, a part and a stock line; faults and
+incidents with the day's context; training paths, records and due-again; decisions with live figures and review; the three To-do rules.
+**K5:** 142 drafts handed to the owner as a private `sep-kb` file. **Not yet:** links on an area card and a production run; paths edited in the app (they arrive by import).
+
 ## The owner's decisions
 
 | Question | Ruling (5 Oct 2026) |
@@ -86,8 +96,7 @@ one (the old is kept in `versions`), the same is skipped, a local proposal is ke
 
 ## Screens
 
-**Knowledge**, a page of its own (`pageKnow`): in the desktop's sidebar as its own group; on the phone a door in the top bar beside
-search, and every *How* and *Why* link in the app. Five views:
+**Knowledge**, a page of its own (`pageKnow`), Insights' fourth view; on every screen the book in the top bar beside search. Five views:
 - **Start**: your path and what is due, proposals waiting for the owner, decisions due for review, the latest changes.
 - **Library**: every article the role may read, by kind, searchable; the article opens beside the list on the desktop.
 - **Troubleshoot**: faults by symptom; an incident is logged from here.

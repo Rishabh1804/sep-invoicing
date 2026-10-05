@@ -547,7 +547,7 @@ function kbArticleHtml(a) {
   if (a.pending && (kbIsOwner() || kbMine(a) || a.pending.byId === kbMe().id)) h += '<div class="inv-callout inv-callout-warning" data-kb-proposal>A change by ' + escHtml(a.pending.by || 'someone') + ' waits for approval' +
     (a.pending.at ? ' (' + escHtml(formatTimestamp(a.pending.at)) + ')' : '') + '. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbProposal" data-id="' + escHtml(a.id) + '">See the change</button></div>';
   if (a.kind === 'guide' && (a.quiz || []).length && kbLive(a)) h += '<div class="inv-panel inv-panel-flush" data-kb-quiz><div class="inv-panel-head"><span class="inv-panel-title">Check what was learnt <span class="inv-panel-count">' + a.quiz.length + '</span></span></div>' +
-    '<div class="inv-panel-body inv-note">Asked when training is recorded: ' + escHtml(a.quiz.map(function(q) { return q.q; }).join(' · ')) + '</div></div>';
+    '<div class="inv-panel-body inv-note">Asked when training is recorded from this article: ' + escHtml(a.quiz.map(function(q) { return q.q; }).join(' · ')) + '</div></div>';
   if ((a.versions || []).length) h += uiFoldHtml('kb-ver-' + a.id, '<span class="inv-panel-title">Earlier versions <span class="inv-panel-count">' + a.versions.length + '</span></span>', a.versions.slice().reverse().map(function(v) {
     return '<div class="inv-row"><button class="inv-row-main" data-action="invKbVersion" data-id="' + escHtml(a.id) + '" data-v="' + v.v + '"><span class="inv-row-title">Version ' + v.v + '</span>' +
       '<span class="inv-row-meta">' + escHtml([v.at ? formatTimestamp(v.at) : '', v.by ? 'by ' + v.by : ''].filter(Boolean).join(' · ')) + '</span></button></div>';
@@ -906,7 +906,7 @@ function kbShowVersion(id, v) {
   var a = kbFind(id), ver = a && (a.versions || []).find(function(x) { return String(x.v) === String(v); });
   if (!ver) return;
   var shown = Object.assign({}, a, ver, { versions: [], status: 'superseded', pending: null });
-  dialogOpen('<div class="inv-dialog inv-dialog-wide">' + dialogHeadHtml('Version ' + ver.v + ': ' + (ver.title || a.title)) + '<div class="inv-dialog-main">' +
+  dialogOpen('<div class="inv-dialog inv-dialog-wide">' + dialogHeadHtml(escHtml('Version ' + ver.v + ': ' + (ver.title || a.title))) + '<div class="inv-dialog-main">' +
     '<div class="inv-note">' + escHtml([ver.at ? formatTimestamp(ver.at) : '', ver.by ? 'by ' + ver.by : ''].filter(Boolean).join(' · ')) + '</div>' +
     (ver.summary ? '<p class="inv-kb-summary">' + escHtml(ver.summary) + '</p>' : '') + kbBodyHtml(ver.body) + (shown.causes && shown.kind === 'fault' ? '<div class="inv-note">' + escHtml(shown.causes.map(function(c) { return c.cause; }).join(' · ')) + '</div>' : '') +
     '</div><div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>', { dismiss: true });
@@ -915,7 +915,7 @@ function kbShowProposal(id) {
   var a = kbFind(id), p = a && a.pending;
   if (!p) return;
   var owner = kbIsOwner();
-  dialogOpen('<div class="inv-dialog inv-dialog-wide">' + dialogHeadHtml('A change to ' + a.title) + '<div class="inv-dialog-main">' +
+  dialogOpen('<div class="inv-dialog inv-dialog-wide">' + dialogHeadHtml(escHtml('A change to ' + a.title)) + '<div class="inv-dialog-main">' +
     '<div class="inv-note">' + escHtml('By ' + (p.by || 'someone') + ' · ' + formatTimestamp(p.at)) + '</div>' +
     (p.title !== a.title ? kbKvHtml([['Title now', a.title], ['Title proposed', p.title]]) : '') +
     (p.summary !== a.summary ? kbKvHtml([['In one line now', a.summary || '—'], ['Proposed', p.summary || '—']]) : '') +
@@ -944,16 +944,35 @@ function kbTrainOpen(articleId, staffId) {
       return '<label class="inv-field-check"><input type="checkbox" data-kb-train-a="' + escHtml(a.id) + '"' + (pick.indexOf(a.id) >= 0 ? ' checked' : '') + '> ' + escHtml(a.title) +
         (st === 'yes' ? ' · trained' : st === 'due' ? ' · due again' : '') + '</label>';
     }).join('') + '</div>' +
+    kbQuizHtml(articleId ? kbFind(articleId) : null) +
     '<label class="inv-field"><span class="inv-field-label">Score on the check, if one was asked</span><input class="inv-input" id="kbTrainScore" placeholder="2 of 3"></label>' +
     '<label class="inv-field"><span class="inv-field-label">Note</span><input class="inv-input" id="kbTrainNote"></label></div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invKbTrainSave">Save</button></div></div>', { dismiss: true });
+}
+/* A lesson's check, asked in the dialog: one question a fieldset of choices. The score is worked out on Save. */
+function kbQuizHtml(a) {
+  var qz = a && a.kind === 'guide' ? (a.quiz || []) : [];
+  if (!qz.length) return '';
+  return '<div class="inv-panel inv-panel-flush" data-kb-quiz-ask><div class="inv-panel-head"><span class="inv-panel-title">The check <span class="inv-panel-count">' + qz.length + '</span></span></div>' +
+    qz.map(function(q, i) {
+      return '<div class="inv-panel-body"><div class="inv-field-label">' + (i + 1) + '. ' + escHtml(q.q) + '</div>' + (q.options || []).map(function(o, j) {
+        return '<label class="inv-field-check"><input type="radio" name="kbQ' + i + '" value="' + j + '" data-kb-quiz="' + i + '"> ' + escHtml(o) + '</label>';
+      }).join('') + '</div>';
+    }).join('') + '</div>';
+}
+function kbQuizScore(a) {
+  var qz = a && a.kind === 'guide' ? (a.quiz || []) : [];
+  if (!qz.length || !document.querySelector('[data-kb-quiz]:checked')) return null;
+  var right = qz.filter(function(q, i) { var el = document.querySelector('[data-kb-quiz="' + i + '"]:checked'); return el && +el.value === q.answer; }).length;
+  return right + ' of ' + qz.length;
 }
 function kbTrainSave() {
   var who = (document.getElementById('kbTrainWho') || {}).value, w = who && staffById(who);
   var ids = Array.prototype.map.call(document.querySelectorAll('[data-kb-train-a]:checked'), function(el) { return el.getAttribute('data-kb-train-a'); });
   if (!w) { uiAlert({ title: 'Not saved', body: 'Pick who was trained.' }); return; }
   if (!ids.length) { uiAlert({ title: 'Not saved', body: 'Tick the lessons given.' }); return; }
-  var on = (document.getElementById('kbTrainOn') || {}).value || localDateStr(), score = String((document.getElementById('kbTrainScore') || {}).value || '').trim(), note = String((document.getElementById('kbTrainNote') || {}).value || '').trim();
+  var asked = ids.length === 1 ? kbQuizScore(kbFind(ids[0])) : null;
+  var on = (document.getElementById('kbTrainOn') || {}).value || localDateStr(), score = asked || String((document.getElementById('kbTrainScore') || {}).value || '').trim(), note = String((document.getElementById('kbTrainNote') || {}).value || '').trim();
   var me = kbMe();
   ids.forEach(function(id) {
     var a = kbFind(id);

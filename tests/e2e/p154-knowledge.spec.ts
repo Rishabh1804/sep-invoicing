@@ -162,6 +162,18 @@ test('sep-kb import adds drafts, skips the same version, and a newer version rep
   expect([k.version, k.body, k.versions.length, k.versions[0].body, k.images.length]).toEqual([2, 'Degrease, then acid.', 1, 'Acid first.', 0]);
 });
 
+test('a lesson’s check is asked when training is recorded from it, and its score kept', async ({ page }) => {
+  await loadAppWithState(page, book(kb([art('L2', 'guide', 'Gloves', { quiz: [{ q: 'Gloves at the acid tank?', options: ['Sometimes', 'Always'], answer: 1 }, { q: 'Rinse a splash with?', options: ['Water', 'Acid'], answer: 0 }] })])));
+  await page.evaluate(() => (window as any).kbOpenArticle('L2'));
+  await page.locator('#knowContent [data-action="invKbTrain"]').click();
+  await page.locator('#kbTrainWho').selectOption('2');
+  await page.locator('[data-kb-quiz="0"][value="1"]').check();
+  await page.locator('[data-kb-quiz="1"][value="1"]').check();
+  await page.locator('[data-action="invKbTrainSave"]').click();
+  const st: any = await readStoredState(page);
+  expect(st.kb.trained[0]).toMatchObject({ staffId: 2, articleId: 'L2', score: '1 of 2' });
+});
+
 test('training is recorded against the roster, and a lesson changed since makes it due again', async ({ page }) => {
   await loadAppWithState(page, book(kb([art('L1', 'guide', 'Safety at the acid tank')])));
   await openKnow(page);

@@ -71,6 +71,26 @@ test.describe('P139: keys and new windows on the desktop', () => {
     await expect(page.locator('[data-search]')).toBeVisible();
   });
 
+  // CI, 5 Oct 2026: on a slow runner the click below landed before Create's late focus (100 ms after it opens), which
+  // pulled the cursor back into the client search, so the C was typed there. The late focus is held back here past the
+  // click, as a slow machine holds it.
+  test('a click on the way out of Create keeps the cursor where it went: the late focus does not pull it back', async ({ page }) => {
+    await loadAppWithState(page, searchBook());
+    await page.evaluate(() => {
+      const w: any = window, st = w.setTimeout;
+      w.setTimeout = (f: any, ms?: number, ...a: any[]) => st(f, ms === 100 ? 600 : ms, ...a);
+    });
+    await page.locator('#topbarTitle').click();
+    await page.keyboard.press('n');
+    await expect(page.locator('#pageCreate')).toHaveClass(/inv-page-active/);
+    await page.locator('#topbarTitle').click();
+    await page.waitForTimeout(800);
+    await expect(page.locator('#invClientSearch')).not.toBeFocused();
+    await page.keyboard.press('c');
+    await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#imAddForm')).not.toBeEmpty();
+  });
+
   test('G then a letter jumps, as a step; N is a new invoice and C a new challan; ? lists every key', async ({ page }) => {
     await loadAppWithState(page, searchBook());
     await page.locator('#topbarTitle').click();

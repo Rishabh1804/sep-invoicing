@@ -147,7 +147,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,418 tests, both layouts
+pnpm exec playwright test          # 1,419 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2232,6 +2232,8 @@ on the build before. What it leaves as rules:
 - **On the desktop** one primary between the list and the open article (the toolbar's steps aside), the search and chips above the
   scrolling list, the open row `aria-current`, an article's row opening in a new window on a Ctrl+click (`kbLocOf`), and an article
   opened from Start or Training opens on its own list's view (`kbTabFor`).
+- **Create's late focus** (the client search, 100 ms after it opens) is skipped when a click or tap went elsewhere first: on a slow CI
+  runner it pulled the cursor back and P139's C was typed into the search.
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

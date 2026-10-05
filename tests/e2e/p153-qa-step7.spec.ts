@@ -132,6 +132,8 @@ test.describe('P153: what the builders left (phone)', () => {
     await unlock(page, 'U-sup', PINS.super);
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="areas"]').click();
+    // The sweep book's attendance is the twelve days before today: on a Monday this pay week holds none, so four weeks.
+    await page.locator('[data-action="invAreaSpan"][data-span="4"]').click();
     const field = page.locator('[data-area-target]').first();
     await expect(field).toBeDisabled();
     // The setter refuses too, whatever reaches it.
@@ -145,6 +147,7 @@ test.describe('P153: what the builders left (phone)', () => {
     await unlock(page, 'U-own', PINS.owner);
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="areas"]').click();
+    await page.locator('[data-action="invAreaSpan"][data-span="4"]').click();
     await windowGone(page);
     const field = page.locator('[data-area-target][data-area="vat-a1"]');
     await expect(field).toBeEnabled();

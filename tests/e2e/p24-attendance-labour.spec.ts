@@ -225,7 +225,9 @@ test('attendance below the gate credits no rest days at all', async ({ page }) =
   [days[0], days[days.length - 1]].forEach((d) => {
     attendance[d] = { marks: { [LEAD.id]: { st: 'P', ot: 0, hours: 0, area: 'vat-a1' } }, extra: [], note: '' };
   });
-  await loadAppWithState(page, staffState({ attendance }));
+  // A paid holiday is always paid, whatever the gate (BM, 10 Sep 2026), so none is set here: with 2 Oct in the span the
+  // card rightly credited it (₹500), and the spec failed every October.
+  await loadAppWithState(page, staffState({ attendance, labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, holidays: [] } }));
   await openStatsTab(page, 'cost');
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 

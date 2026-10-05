@@ -172,7 +172,17 @@ function nextWday(iso: string): string {
 
 test('the overtime a cut’s backlog took, above the usual, is its cost, and the output it made up is not lost as well', async ({ page }) => {
   // Owner, 30 Sep 2026: "also take into assumption OT that we had to do following the power cut due to the backlog".
-  const cutDay = wday(10), after = nextWday(cutDay);
+  // The baseline is the clean recorded days in the cut's own month, four at least: a cut at a month's end has too few after
+  // it, so the cut is placed where its month still has five working days after it before today (it failed on 5 Oct, when
+  // ten days back was 25 Sep).
+  let n = 10;
+  for (; n < 28; n++) {
+    const d = wday(n), m = d.slice(0, 7);
+    let later = 0;
+    for (let k = n - 1; k >= 1; k--) if (wday(k) !== d && wday(k).slice(0, 7) === m) later++;
+    if (later >= 6) break;
+  }
+  const cutDay = wday(n), after = nextWday(cutDay);
   const att: any = {};
   for (let n = 30; n >= 1; n--) {
     const d = wday(n);

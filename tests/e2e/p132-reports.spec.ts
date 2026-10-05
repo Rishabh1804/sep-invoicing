@@ -21,7 +21,7 @@ const doc = (page: Page) => page.locator('#rptSheet [data-rpt-doc]');
 test('Reports is in Insights, after Stats; each kind draws with its title and the open period reads "to date"', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await switchTab(page, 'pageStats');
-  await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Stats', 'Reports', 'History']);
+  await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Stats', 'Reports', 'History', 'Knowledge']);   // Knowledge since P154
   await page.locator('#wsTabs [data-tab="pageReports"]').click();
   await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
   await expect(page.locator('#topbarTitle')).toHaveText('Insights');

@@ -81,6 +81,10 @@ var CHG_TRACK = [
   { path: 'production.pastes', kind: 'raw', noun: 'production message', label: function(r) { return chgJoin(r.kind, r.day ? chgDay(r.day) : ''); } },
   { path: 'production.photos', kind: 'raw', noun: 'register photo', label: function(r) { return r.name; } },
   { path: 'production.learn', kind: 'skip' },
+  { path: 'kb.articles', kind: 'arr', noun: 'article', omit: ['versions'],
+    label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },
+  { path: 'kb.trained', kind: 'arr', noun: 'training record', label: function(r) { return chgJoin(r.name, r.on ? chgDay(r.on) : ''); } },
+  { path: 'kb.paths', kind: 'arr', noun: 'training path', label: function(r) { return r.title; } },
   { path: 'bank.rows', kind: 'rows', noun: 'statement row', proj: function(r) { return { set: r.set, clientId: r.clientId, notCost: r.notCost }; },
     label: function(r) { return chgJoin(r.date ? chgDay(r.date) : '', r.cr ? chgMoney(r.cr) + ' in' : r.dr ? chgMoney(r.dr) + ' out' : '', chgCut(r.narration, 40)); } },
   { path: 'bank.imports', kind: 'arr', noun: 'statement import', label: function(r) { return chgJoin(r.file, r.rows != null ? r.rows + ' rows' : '', r.from ? chgDay(r.from) + ' to ' + chgDay(r.to) : ''); } },
@@ -118,7 +122,7 @@ var CHG_TRACK = [
   { path: 'guardCfg', kind: 'cfg', sec: 'Users & access', dflt: function() { return getDefaultState().guardCfg || {}; } }
 ];
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
-var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1 };
+var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1 };
 // Never compared: the log itself (a key starting _ never is either).
 var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.

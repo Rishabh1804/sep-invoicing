@@ -38,7 +38,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 69 modules, ~49,300 lines total.
+Split-file PWA. 69 modules, ~49,900 lines total.
 
 ```
 split/
@@ -102,7 +102,7 @@ split/
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
 ├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
-├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,230 lines)
+├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,670 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -147,7 +147,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,368 tests, both layouts
+pnpm exec playwright test          # 1,418 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2171,10 +2171,12 @@ ground, a troubleshooting area, a record keeper, a tool used to make decisions"*
   which is kept in `versions`; nothing is deleted; photos never travel.
 - **Eight kinds** (`KB_KINDS`): how-to, process, part, client requirement, ruling, fault, incident, decision. Five views: Start, Library,
   Troubleshoot, Records, Training. The desktop's Library, Troubleshoot and Records are a list beside the open article (`kbHost`).
-- **Who reads**: an article names its roles (none = everyone, `kbCanRead`); Knowledge is every role's page (`grdSees`), search lists only
-  what the role reads. A draft or a proposal is its author's and the owner's.
+- **Who reads**: an article names its roles (`kbCanRead`): `[]` is everyone, `['owner']` the owner alone, else the owner and the roles
+  named. The form ticks the roles; all ticked is everyone, none ticked the owner only (`kbRolesFrom`). Knowledge is every role's page
+  (`grdSees`), search lists only what the role reads. A draft is its author's and the owner's; a proposed change its writer's and the owner's.
 - **Who writes**: anyone signed in. What anyone but the owner writes waits (`status: 'pending'`, or `pending` beside a published article);
-  the owner approves (the next `version`, the old one kept) or declines with a reason. With the guard off everyone is the owner.
+  the owner approves (the next `version`, the old one kept) or declines with a reason. With the guard off everyone is the owner. Who may
+  edit what is one rule (`kbCanEdit`), read by the button, the address and the save alike.
 - **Records**: a published article keeps every version; a ruling is never edited, a new ruling replaces it (`supersedes` /
   `supersededBy`, both kept); an article is retired with a reason, never deleted; only a draft never published is deleted.
 - **Photos stay on the device** (`sep-invoicing-media`, keyed by the SHA-256 of the shrunk JPEG, 1,600 px): never in the book, a backup or
@@ -2182,16 +2184,54 @@ ground, a troubleshooting area, a record keeper, a tool used to make decisions"*
 - **Troubleshooting**: a fault is the symptom and its causes in order, each with its check and fix; an incident names its day and fault and
   draws **that day as the book has it** (`kbDayContextHtml`: the plating of its part or line with the crew, the stock in and into the
   baths, power cuts, heads on site), read each time.
-- **Training** is recorded against the roster (most hands have no ID), against the version taught: a newer version makes it **due again**.
-  Paths are the book's, then the app's per role (`KB_APP_PATHS`).
+- **Training** is recorded against the roster (most hands have no ID), against the version the lesson was at on the day taught
+  (`kbVerOn`): a newer version makes it **due again**. A lesson is a live how-to, process or fault. Paths are the book's, and the app's
+  (`KB_APP_PATHS`) for a role the book has none for; a path counts the hands it is for (`kbPathWho`: floor or office by `onFloor`).
 - **Decisions** keep the figures they were taken on (`KB_FIGURES`, read live: realisation, a client's ₹/kg and tonnage share, revenue,
   tonnage, live cost, power cuts; money figures only for a role that sees money) beside *now*, and ask for a review on their day.
-- **Linked**: an article links to a client, part, area, line, stock line, screen, worker or article (by id, or by the name as written);
-  a client's detail, Performance, a part and a stock line show what is linked to them (`kbLinkedHtml`); the top bar's book opens the
-  guides for the screen on show (`kbHelp`).
+- **Linked**: an article links to a client, part, area, line, stock line, screen, worker or article (by id, or by the name as written,
+  matched on its letters and digits, `kbNameKey`); a client's detail, Performance, a part and a stock line show what is linked to them
+  (`kbLinkedHtml`); the top bar's book opens the guides for the screen on show (`kbHelp`), on the desktop too.
+- **Text**: paragraphs, `- ` lists, `1. ` numbered lists, `# ` heads and `**bold**`, every character through `escHtml` (`kbBodyHtml`).
 - **To-do**: `kbPending` (the owner's approvals), `kbReview` (a decision due), `kbTrainDue` (training due again).
 - **First content**: 142 drafts written from soma-internal (60 rulings, 24 client requirements, 14 parts, 31 process, 13 faults, 3 paths),
-  handed to the owner as a private `sep-kb` file; every article a draft, with its `srcRef`, for the owner to read and publish.
+  handed to the owner as a private `sep-kb` file; every article a draft, with its `srcRef`, for the owner to read and publish. Audited
+  the same day (51 findings: two figures a ruling had withdrawn, a rebate readable by every role, every date a year early) and handed
+  over again corrected (`sep-kb-2026-10-05-r2.json`), which replaces the first.
+
+**The QA chain of 5 Oct 2026** (owner: *"Run QA chain and merge when ready"*). Four audits (the guard and privacy, the store, the screens
+and navigation, the first content) and a harness pressing every action on both layouts; each finding has its test in P155, which fails
+on the build before. What it leaves as rules:
+- **Every move inside Knowledge is a step** (`kbGo`: the place left is read first, then the state the address does not carry is set,
+  then the step is pushed): view tabs, Write and Edit, the book, the drafts, a path, the To-do's jump. They had changed the state and
+  then opened the place, found themselves there, and wrote over the step they came from. A back button with no step before it (an
+  address opened as it is) closes to the view. The book asks before leaving a typed form (`NAV_LEAVE_ACTIONS`); a door to an article
+  from a dialog holding typed work asks first (`dialogsTypedAsk`); the form is left with its page (`kbLeave`, tabs.js), and belongs to
+  whoever opened it (`uid`, `kbFormOk`), never handed to the next to sign in.
+- **An address is no door around the rules**: the edit address opens a form only where `kbCanEdit` allows it, else the article.
+- **A save looks again** (`kbSave`): an article published, replaced, retired or deleted meanwhile, or someone else's change now waiting,
+  is said, never saved over; one changed meanwhile asks.
+- **A proposal never changes who reads**, names the version it was written on (`pending.v`; approving it over a later one asks), shows
+  every field it changes (`kbShowProposal`), and a second person's is refused while one waits. The owner's Edit is of the article as it
+  stands. A decline is shown to the owner and its writer, and goes when the article is published or changed. Retire takes the waiting
+  change with it.
+- **A ruling replacing one already replaced replaces the one in force** (`kbSupersede` follows the chain); a retired one stays retired.
+- **The decision picked is the option picked**, wherever blank options fall; a figure is read once, when it is put on the decision.
+- **An import is cleaned before it touches the book** (`kbCleanArticle`: every field as the app draws it, or left out; an id the app does
+  not make, or an app guide's, refused; a role written as text is that role), then merged: a status moves on at the same version; what
+  was retired, replaced or deleted here is not brought back (`S.kb.deleted`, a draft deleted here); a draft edited here since it came in
+  keeps the edit (`editedAt` after `importedAt`); training is matched to the roster by name; a ruling the file publishes over another
+  supersedes it.
+- **Owner-only**: approve, publish, retire (asked again with the PIN), a review, export, import (asked again), deleting another's draft
+  (asked again). Training is a floor entry made against the roster.
+- **What an article draws from the book follows the role's screens**: the roster and training log with People or Floor
+  (`kbSeesRoster`), an incident's plating with Production, its stock with Stock, its cuts with Power, a client's figures with Clients; the
+  link pickers likewise; an article's title only for a role that reads it (links, a fault, the ruling replaced, the training log, the
+  trail).
+- **The To-do's knowledge tasks are worked out for the whole book** and shown by need (`TODO_RULE_NEED`: `owner`, `floor`, `roster`).
+- **On the desktop** one primary between the list and the open article (the toolbar's steps aside), the search and chips above the
+  scrolling list, the open row `aria-current`, an article's row opening in a new window on a Ctrl+click (`kbLocOf`), and an article
+  opened from Start or Training opens on its own list's view (`kbTabFor`).
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

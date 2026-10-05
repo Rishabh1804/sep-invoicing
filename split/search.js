@@ -985,6 +985,8 @@ function srchEntryLoc(e) {
   if (!go) return null;
   if (go.kind === 'place') return go.loc;
   if (/^(invoice|challan|client|quote|stock)$/.test(go.kind)) return srchRecordLoc(go.kind, id);
+  // An article (knowledge.js): its own list's view, open beside it.
+  if (go.kind === 'kb') return typeof kbLocOf === 'function' ? kbLocOf(id) : null;
   var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'bills'],
     cnList: ['pageRegister', ''], audit: ['pageRegister', ''], cn: ['pageRegister', ''] }[go.kind];
   // A worker opens in the roster's pane on the desktop (step 7); the phone's roster has no pane and ignores the id.
@@ -1016,6 +1018,8 @@ function srchLocOf(el) {
     return page && isPageId(page.id) && key ? { tab: page.id, v: key, id: '' } : null;
   }
   if (SRCH_ROW_KINDS[act]) return srchRecordLoc(SRCH_ROW_KINDS[act], String(d.id));
+  // An article's row, wherever it is listed (Knowledge, a client's panel, a fault's incidents): a Ctrl+click moved this window.
+  if (act === 'invKbOpen') return typeof kbLocOf === 'function' ? kbLocOf(String(d.id)) : null;
   if (act === 'invSelectItemRow' || act === 'invEditItem') return { tab: 'pageClients', v: 'items', id: '' };
   if (act === 'invAttEditWorker') return { tab: 'pageStaff', v: 'roster', id: '' };
   // The desktop's panes of step 7 (UX overhaul 2): the row's record is the address's id.

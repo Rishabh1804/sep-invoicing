@@ -12,7 +12,9 @@ screen on show. It is Insights' fourth view because a group of its own made the 
 **K1–K4 are built (5 Oct 2026, one PR):** the store and page, writing and approval, versions, retire, roles, photos on the device,
 search, `sep-kb` export and import; the app's own guides and the links into a client, Performance, a part and a stock line; faults and
 incidents with the day's context; training paths, records and due-again; decisions with live figures and review; the three To-do rules.
-**K5:** 142 drafts handed to the owner as a private `sep-kb` file. **Not yet:** links on an area card and a production run; paths edited in the app (they arrive by import).
+**K5:** 142 drafts handed to the owner as a private `sep-kb` file, audited and handed over again corrected the same day
+(`sep-kb-2026-10-05-r2.json`, which replaces the first). **The QA chain of 5 Oct 2026** is folded in (P155; CLAUDE.md, *The knowledge
+base*). **Not yet:** links on an area card and a production run; paths edited in the app (they arrive by import).
 
 ## The owner's decisions
 
@@ -61,27 +63,34 @@ incidents with the day's context; training paths, records and due-again; decisio
 
 ## The data contract
 
-`S.kb = { articles: [], trained: [], paths: [] }` (a container in `STATE_CONTAINERS`, repaired by `kbData()`).
+`S.kb = { articles: [], trained: [], paths: [], deleted: [] }` (a container in `STATE_CONTAINERS`, repaired by `kbData()`).
+`deleted: [{id, at, by}]` names each draft deleted here, so an import of an older file does not bring it back.
 
 **An article**:
 - `id` (an import's ids are deterministic: `kb-` + a hash of its source), `kind`, `title`, `summary` (one line), `body`
   (the shop's own text: paragraphs, `-` lists, `#` heads, `**bold**`; drawn through `escHtml`, never as HTML), `tags`
 - `kind`: `guide` (a how-to or lesson) · `process` · `part` · `requirement` · `ruling` · `fault` · `incident` · `decision`
-- `links: [{type, id, label}]`, `type` one of `client`, `part`, `area`, `line`, `stock`, `screen`, `worker`, `invoice`,
-  `challan`, `article`; `label` is the name as written, so a link to a record this book does not hold still reads
-- `roles: []` (none = everyone); `status`: `draft` · `pending` · `published` · `superseded` · `retired`
-- `version`, `versions: [{v, at, by, title, summary, body, fields}]` (what each published version said)
-- `by`, `at`, `approvedBy`, `approvedAt`; `retiredAt`, `retireReason`
+- `links: [{type, id, label}]`, `type` one of `client`, `part`, `area`, `line`, `stock`, `screen`, `worker`, `article`;
+  `label` is the name as written, so a link to a record this book does not hold still reads (matched on its letters and digits).
+  An article link keeps no label: its title is read live, for a role that reads it
+- `roles`: `[]` everyone, `['owner']` the owner alone, else the owner and the roles named (`office`, `supervisor`, `floor`);
+  `status`: `draft` · `pending` · `published` · `superseded` · `retired`
+- `version`, `versions: [{v, at, by, title, summary, body, …the kind's fields}]` (what each published version said)
+- `by`, `byId`, `at`, `approvedBy`, `approvedAt`; `retiredAt`, `retireReason`; `editedAt` (saved here), `importedAt` (taken from a file)
 - `src`: `app` · `import` (with `srcRef`, where it came from in soma-internal)
 - `images: [{id, w, h, caption}]`: the picture is in the device's own store (below), the article holds only its id
 - by kind: `ruledBy`, `ruledOn`, `supersedes`, `supersededBy` (ruling); `symptom`, `causes: [{cause, check, fix}]` (fault);
   `on` (the day), `faultId`, `cause`, `fix` (incident); `question`, `options: [{label, case}]`, `chosen`, `reason`,
-  `figures: [{key, args, then}]`, `reviewOn`, `reviewed: [{at, by, note}]` (decision); `quiz: [{q, options, answer}]` (guide)
-- **A proposal** (a change by anyone but the owner): `pending: {by, at, title, summary, body, fields}` on a published article,
-  or a new article in `status: 'pending'`. The owner **Approves** (it becomes the next version) or **Declines** with a reason.
+  `figures: [{key, args, then, at}]` (each read once, when put on the decision), `reviewOn`, `reviewed: [{at, by, note}]`
+  (decision); `quiz: [{q, options, answer}]` (guide)
+- **A proposal** (a change by anyone but the owner): `pending: {by, byId, at, v, title, summary, body, fields}` on a published article
+  (`v` the version it was written on; it never carries who reads), or a new article in `status: 'pending'`. The owner **Approves** (it
+  becomes the next version; over a later version it asks first) or **Declines** with a reason (`declined`, shown to the owner and the
+  writer). One proposal at a time: another person's waits until it is approved or declined.
 
-**Training**: `S.kb.trained: [{id, staffId, name, articleId, v, at, by, score, note}]`. **Paths**: `S.kb.paths: [{id, title,
-role, articles: [ids]}]`.
+**Training**: `S.kb.trained: [{id, staffId, name, articleId, v, on, at, by, score, note}]`, `v` the version on the day `on`. A lesson is
+a live how-to, process or fault. **Paths**: `S.kb.paths: [{id, title, role, articles: [ids]}]`; a book's path for a role replaces the
+app's for that role.
 
 **Photos**: a database of their own, `sep-invoicing-media` (store `images`, keyed by the SHA-256 of the shrunk JPEG, 1,600 px at
 most). Never in the book, so never in a backup, a sync or the compile: on another device an article says *photo kept on another
@@ -91,8 +100,12 @@ device*.
 they move with it and can never be out of date; they hold no data of the shop. Read-only, `src: 'build'`, and counted in paths
 and training like any other lesson.
 
-**`sep-kb` v1 export and import**: articles, training records and paths. Import merges by id: a newer `version` replaces an older
-one (the old is kept in `versions`), the same is skipped, a local proposal is kept. Nothing is deleted.
+**`sep-kb` v1 export and import** (the owner's; import asks the PIN again): articles, training records, paths and `deleted`. The file
+is cleaned whole first (every field as the app draws it, or left out; ids the app does not make, and the app guides' ids, refused).
+Import merges by id: a newer `version` replaces an older one (the old is kept in `versions`); the same version moves a status on (a
+retirement, a replacement); what was retired, replaced or deleted here is not brought back, and a draft edited here keeps the edit; a
+local proposal is kept and a file's proposals stay on their device; training is matched to the roster by name; a published ruling
+that replaces another here supersedes it. Nothing is deleted.
 
 ## Screens
 

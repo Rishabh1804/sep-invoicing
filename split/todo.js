@@ -322,6 +322,11 @@ function todoSees(t) {
   var need = TODO_RULE_NEED[t.rule] || '';
   if (need.indexOf('money') >= 0 && !grdSeesMoney()) return false;
   if (need.indexOf('wages') >= 0 && !grdSeesWages()) return false;
+  // The knowledge base's (knowledge.js): an approval or a review is the owner's; training is a floor entry made against the
+  // roster, which People or Floor shows.
+  if (need.indexOf('owner') >= 0 && !grdIsOwner()) return false;
+  if (need.indexOf('floor') >= 0 && !grdCan('floor')) return false;
+  if (need.indexOf('roster') >= 0 && !(grdSees('pageStaff') || grdSees('pageFloor'))) return false;
   return todoGoSees(t.go);
 }
 /* A task of your own the role signed in may see: its move or its link where it has one; one made from a move needs the
@@ -692,7 +697,7 @@ function todoGo(go) {
   if (dialogsTypedAsk(function() { todoGo(go); })) return;
   closeOverlay();
   switch (go.kind) {
-    case 'kb': if (go.id) kbOpenArticle(go.id); else { kbSetTab(go.tab || 'start'); _kbOpen = null; _kbEdit = null; navOpen({ tab: 'pageKnow', v: _kbTab, id: '' }); } break;
+    case 'kb': if (go.id) kbOpenArticle(go.id); else kbGo({ tab: 'pageKnow', v: go.tab || 'start', id: '' }); break;
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'bills':

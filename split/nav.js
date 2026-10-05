@@ -305,7 +305,8 @@ function navLeaveOk() {
    a tap on another screen dropped a half-typed challan). On Leave the same tap runs again with nothing typed left to lose.
    Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
    layer over the screen and leave nothing. */
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1 };
+// The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -387,6 +388,10 @@ function navBarDraw() {
   for (var i = _navIdx - 1; i >= 0 && steps.length < NAV_TRAIL_SHOWN; i--) {
     var t = _navTrail[i];
     if (!t) continue;
+    // The trail is this window's, and the person at it may have changed (the lock): a step on a screen this role does not
+    // open is not shown, and a knowledge article is named as this role reads it (the last person's titles stayed).
+    if (typeof grdSees === 'function' && !grdSees(t.loc.tab)) continue;
+    if (t.loc.tab === 'pageKnow') t = Object.assign({ loc: t.loc }, navLabel(t.loc));
     var prev = steps.length ? steps[steps.length - 1].t : cur;
     if (prev && navKey(prev.loc) === navKey(t.loc)) continue;
     steps.push({ i: i, t: t });

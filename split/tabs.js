@@ -31,6 +31,8 @@ function switchTab(tabId) {
   if (currentPage) {
     _tabScroll[currentPage.id] = currentPage.scrollTop || window.scrollY;
   }
+  // Step 2b: a knowledge article's form is left with its page, and with a tap on the page itself (knowledge.js kbLeave).
+  if (currentPage && currentPage.id === 'pageKnow' && typeof kbLeave === 'function') kbLeave();
 
   // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
   _viewTopAt++;

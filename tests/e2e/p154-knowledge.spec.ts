@@ -22,7 +22,7 @@ function book(extra: any = {}): SepState {
   return Object.assign(s, extra) as SepState;
 }
 const kb = (articles: any[], more: any = {}) => ({ kb: { articles, trained: [], paths: [], ...more } });
-const openKnow = async (page: Page) => { await page.locator('.inv-topbar [data-action="invKbHelp"]').click(); await page.locator('#pageKnow.inv-page-active').waitFor(); };
+const openKnow = async (page: Page) => { await page.locator('.inv-topbar [data-action="invKbHelp"]:visible').click(); await page.locator('#pageKnow.inv-page-active').waitFor(); };
 const tab = (page: Page, t: string) => page.locator(`#knowContent [data-action="invKbTab"][data-tab="${t}"]`).click();
 const field = (page: Page, k: string) => page.locator(`#knowContent [data-kb-f="${k}"]`);
 

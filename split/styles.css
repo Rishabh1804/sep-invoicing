@@ -1960,7 +1960,7 @@ a.inv-btn { text-decoration: none; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
 body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
 /* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
-body:not(.inv-desktop) [data-action="invNewWindow"] { display: none; }
+body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn[data-action="invKbHelp"] { display: none; }
 
 /* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
    The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
@@ -2045,7 +2045,7 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
    paragraphs spaced, lists indented; nothing here is a figure. */
 .inv-kb-body { padding: var(--sp-8) var(--pad-x); font-size: var(--fs-14); line-height: 1.55; color: var(--text-1); overflow-wrap: anywhere; }
 .inv-kb-body p { margin: 0 0 var(--sp-10); }
-.inv-kb-body ul { margin: 0 0 var(--sp-10); padding-left: var(--sp-20); }
+.inv-kb-body :is(ul, ol) { margin: 0 0 var(--sp-10); padding-left: var(--sp-20); }
 .inv-kb-body li { margin-bottom: var(--sp-4); }
 .inv-kb-h { margin: var(--sp-12) 0 var(--sp-6); font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
 .inv-kb-summary { margin: var(--sp-8) 0 0; font-size: var(--fs-14); color: var(--text-2); line-height: 1.45; }

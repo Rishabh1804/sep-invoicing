@@ -145,6 +145,20 @@ export function sweepState(): SepState {
     { id: 'T1', text: 'Call Beta about the June payment', due: dayOff(-1), note: '', link: null, createdAt: recentTs(), doneAt: null },
     { id: 'T2', text: 'Order nitric acid', due: '', note: '', link: null, createdAt: recentTs(), doneAt: null },
     { id: 'T3', text: 'File the monthly return', due: '', note: '', link: null, createdAt: recentTs(), doneAt: Date.now() }], snoozes: {} };
+  // The knowledge base (P154): one of each kind the screens draw differently, a draft and a proposal waiting.
+  const ka = (id: string, kind: string, title: string, over: any = {}) => ({ id, kind, title, summary: 'One line about ' + title, body: 'A paragraph.\n\n- one\n- **two**',
+    tags: [], links: [], roles: [], status: 'published', version: 1, versions: [], src: 'app', by: 'Owner', at: recentTs(), ...over });
+  s.kb = { articles: [
+    ka('KG1', 'guide', 'Loading a rack', { links: [{ type: 'screen', id: 'pageStock', label: '' }], quiz: [{ q: 'Touching parts?', options: ['Yes', 'No'], answer: 1 }] }),
+    ka('KP1', 'process', 'Pickling basics', { versions: [{ v: 1, at: recentTs(), by: 'Owner', title: 'Pickling', body: 'Old.' }], version: 2, pending: { by: 'Supervisor', at: recentTs(), title: 'Pickling basics', summary: '', body: 'New.' } }),
+    ka('KF1', 'fault', 'Peeling', { symptom: 'The deposit peels off', causes: [{ cause: 'Oil left on', check: 'Water break', fix: 'Degrease again' }] }),
+    ka('KI1', 'incident', 'Peeling on brackets', { on: dayOff(-2), faultId: 'KF1', cause: 'Degreaser weak', fix: 'Made up fresh', links: [{ type: 'client', id: '1', label: CLIENTS[0].name }] }),
+    ka('KR1', 'ruling', 'Overtime rate', { ruledBy: 'Owner', ruledOn: dayOff(-30) }),
+    ka('KD1', 'decision', 'Second shift', { question: 'Run a second shift?', options: [{ label: 'Yes', case: 'Spare tonnage' }, { label: 'No', case: 'Labour' }], chosen: 0, reviewOn: dayOff(-1),
+      figures: [{ key: 'tonnage', args: {}, then: { v: 1, text: '1.00 t' } }] }),
+    ka('KQ1', 'requirement', 'Beta needs certificates', { links: [{ type: 'client', id: '2', label: CLIENTS[1].name }] }),
+    ka('KD2', 'part', 'Clamp gauges', { status: 'draft', src: 'import' })],
+    trained: [{ id: 'kt1', staffId: 1, name: 'x', articleId: 'KG1', v: 1, on: dayOff(-3), at: recentTs(), by: 'Owner' }], paths: [] };
   return s;
 }
 
@@ -291,7 +305,7 @@ export async function shot(page: Page, name: string) {
 }
 
 export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pageHistory',
-  'pageFloor', 'pagePipeline'];
+  'pageFloor', 'pagePipeline', 'pageKnow'];
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {

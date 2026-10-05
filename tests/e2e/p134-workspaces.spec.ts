@@ -45,7 +45,7 @@ const MAP: Record<string, string[]> = {
   office: ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageCreate'],
   floor: ['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'],
   money: ['pageFinance'],
-  insights: ['pageStats', 'pageReports', 'pageHistory'],
+  insights: ['pageStats', 'pageReports', 'pageHistory', 'pageKnow'],
 };
 
 test.describe('P134: workspaces on the phone', () => {
@@ -110,7 +110,7 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(row.locator('.inv-viewtab')).toHaveText(await labels(['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], ['Day', 'People', 'Production', 'Stock', 'Power']));
     await expect(page.locator('#topbarTitle')).toHaveText('Floor');
     await switchTab(page, 'pageStats');
-    await expect(row.locator('.inv-viewtab')).toHaveText(['Stats', 'Reports', 'History']);
+    await expect(row.locator('.inv-viewtab')).toHaveText(['Stats', 'Reports', 'History', 'Knowledge']);
     await expect(page.locator('#topbarTitle')).toHaveText('Insights');
     // Money is one view: no row, and its own six tabs are the only one.
     await switchTab(page, 'pageFinance');
@@ -230,10 +230,11 @@ test.describe('P134: workspaces on the phone', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the top bar: search, then Settings; two tab rows leave the page starting by 150px', async ({ page }) => {
+  test('the top bar: search, Knowledge, then Settings; two tab rows leave the page starting by 150px', async ({ page }) => {
     await loadAppWithState(page, state());
     const btns = page.locator('.inv-topbar > button:visible');
-    await expect(btns.nth(-2)).toHaveAttribute('data-action', 'invSearchOpen');
+    await expect(btns.nth(-3)).toHaveAttribute('data-action', 'invSearchOpen');
+    await expect(btns.nth(-2)).toHaveAttribute('data-action', 'invKbHelp');   // the knowledge base (P154)
     await expect(btns.nth(-1)).toHaveAttribute('data-action', 'invOpenSettings');
     for (const h of await btns.evaluateAll(els => els.map(e => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
     // Office → Challans and Floor → Production: the workspace's row, then the page's own; what follows starts by 150px.

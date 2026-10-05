@@ -43,7 +43,7 @@ var SRCH_KINDS = [
   ['screen', 'Screens', 'Screen', false], ['invoice', 'Invoices', 'Invoice', true], ['challan', 'Challans', 'Challan', true],
   ['client', 'Clients', 'Client', false], ['part', 'Parts', 'Part', true], ['worker', 'Workers', 'Worker', false],
   ['stock', 'Stock lines', 'Stock line', false], ['bank', 'Bank rows', 'Bank row', false],
-  ['quote', 'Quotations', 'Quotation', true], ['cn', 'Credit notes', 'Credit note', true]
+  ['quote', 'Quotations', 'Quotation', true], ['cn', 'Credit notes', 'Credit note', true], ['kb', 'Knowledge', 'Article', false]
 ];
 var _srchKindMap = null;
 function srchKindOf(k) {
@@ -55,7 +55,7 @@ function srchKindOf(k) {
 }
 /* Words a record answers to besides its own: "ch 834" is challan 834. */
 var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: 'client customer', part: 'part item',
-  worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn' };
+  worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn', kb: 'knowledge article how why' };
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
    that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). */
@@ -157,6 +157,11 @@ function srchScreens() {
     ['trends', 'Trends', 'Insights › Stats', 'trend chart top items', at('pageStats', 'trends')],
     ['reports', 'Reports', 'Insights', 'report daily weekly monthly quarterly yearly print', at('pageReports')],
     ['history', 'History', 'Insights', 'activity log audit trail events', at('pageHistory')],
+    ['know', 'Knowledge', 'Knowledge', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
+    ['know-lib', 'Library', 'Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
+    ['know-trouble', 'Troubleshoot', 'Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
+    ['know-records', 'Records', 'Knowledge', 'rulings decisions incidents record', at('pageKnow', 'records')],
+    ['know-train', 'Training', 'Knowledge', 'training lessons paths trained', at('pageKnow', 'training')],
     // Actions: each opens its place on the job.
     ['new-invoice', 'New invoice', 'Add', 'create invoice', act('invoice')],
     ['new-challan', 'New challan', 'Add', 'add challan incoming material', act('challan')],
@@ -211,6 +216,7 @@ function srchSees(e) {
     // Pay is wages: People opens without it to a role that does not see them (staff.js hides its tab and refuses it).
     return !(page === 'pageStaff' && go.kind === 'place' && /^pay\b/.test(go.loc.v || '') && !grdSeesWages());
   }
+  if (e.kind === 'kb') return typeof kbCanRead === 'function' && kbCanRead(kbFind(e.id));   // each article says who reads it
   var page = SRCH_KIND_PAGE[e.kind];
   if (page && !grdSees(page)) return false;
   if (e.kind === 'bank' && typeof grdSeesMoney === 'function' && !grdSeesMoney()) return false;
@@ -353,6 +359,17 @@ function srchData() {
         { title: cn.displayNumber, words: [cn.clientName, cnWhy(cn)], ids: [cn.displayNumber].concat(invs),
           nums: invs.map(function(n) { return srchNumsOf(n).pop() || ''; }), primary: [cn.cnNumber || srchNumsOf(cn.displayNumber)[0]],
           amounts: [cn.taxableValue, cn.grandTotal], dates: [cn.date], rank: (cn.date || '') + srchPad(cn.createdAt) });
+    });
+  });
+  each('knowledge', function() {
+    kbAll().forEach(function(a) {
+      var day = kbDayOf(a);
+      add({ kind: 'kb', id: a.id, title: a.title || '',
+        sub: [kbKindName(a.kind), a.summary || a.symptom || '', a.status === 'retired' || a.status === 'superseded' ? KB_STATUS[a.status][1] : ''].filter(Boolean).join(' · '),
+        text: kbKindName(a.kind) + ': ' + kbPlain(a),
+        go: { kind: 'kb', id: a.id } },
+        { title: a.title, words: [a.summary, a.symptom, a.question, kbKindName(a.kind)].concat(a.tags || []).concat((a.links || []).map(function(l) { return l.label; })).concat(String(a.body || '').split(/\s+/).slice(0, 400)),
+          dates: day ? [day] : [], rank: (a.status === 'published' || a.src === 'build' ? '1' : '0') + (day || '') });
     });
   });
   _srchCache = { s: S, w: _bookWrites, list: list, keys: keys, byKey: byKey, ms: performance.now() - t0, parts: parts };
@@ -821,6 +838,7 @@ function srchGo(go) {
     // A bill: Add → By hand → Bill's own opener, on the latest month with no electricity bill as it stands now (it opened
     // last month, whatever was entered: QA3-11).
     case 'bills': addBill(); return;
+    case 'kb': kbOpenArticle(id); return;
   }
   // A challan, a stock line, the credit notes, the number audit: the To-do's own jumps.
   todoGo(go);
@@ -967,6 +985,8 @@ function srchEntryLoc(e) {
   if (!go) return null;
   if (go.kind === 'place') return go.loc;
   if (/^(invoice|challan|client|quote|stock)$/.test(go.kind)) return srchRecordLoc(go.kind, id);
+  // An article (knowledge.js): its own list's view, open beside it.
+  if (go.kind === 'kb') return typeof kbLocOf === 'function' ? kbLocOf(id) : null;
   var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'bills'],
     cnList: ['pageRegister', ''], audit: ['pageRegister', ''], cn: ['pageRegister', ''] }[go.kind];
   // A worker opens in the roster's pane on the desktop (step 7); the phone's roster has no pane and ignores the id.
@@ -998,6 +1018,8 @@ function srchLocOf(el) {
     return page && isPageId(page.id) && key ? { tab: page.id, v: key, id: '' } : null;
   }
   if (SRCH_ROW_KINDS[act]) return srchRecordLoc(SRCH_ROW_KINDS[act], String(d.id));
+  // An article's row, wherever it is listed (Knowledge, a client's panel, a fault's incidents): a Ctrl+click moved this window.
+  if (act === 'invKbOpen') return typeof kbLocOf === 'function' ? kbLocOf(String(d.id)) : null;
   if (act === 'invSelectItemRow' || act === 'invEditItem') return { tab: 'pageClients', v: 'items', id: '' };
   if (act === 'invAttEditWorker') return { tab: 'pageStaff', v: 'roster', id: '' };
   // The desktop's panes of step 7 (UX overhaul 2): the row's record is the address's id.

@@ -736,6 +736,20 @@ function focusFirstInteractive(container, opts) {
     : 'button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
   if (el) { try { el.focus({ preventScroll: true }); } catch(e) {} }
 }
+/* The cursor put in a field a moment after a screen opens (Create's client search, the challan form's), unless meanwhile a
+   click or a tap went somewhere else, or another field took it: the late focus pulled the cursor back from where it had
+   been put, and on a slow machine the next key meant for the app was typed into the field (P139 on CI, 5 Oct 2026).
+   Typing meanwhile still lands in the field. */
+function focusSoon(el, ms) {
+  var pressed = false, mark = function() { pressed = true; };
+  document.addEventListener('pointerdown', mark, true);
+  setTimeout(function() {
+    document.removeEventListener('pointerdown', mark, true);
+    var a = document.activeElement;
+    if (pressed || !el || !el.isConnected || (a && a !== el && a.matches && a.matches('input, textarea, select'))) return;
+    el.focus();
+  }, ms == null ? 100 : ms);
+}
 /* A touch screen, where focusing a field raises the keyboard over the screen. */
 function touchScreen() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
 

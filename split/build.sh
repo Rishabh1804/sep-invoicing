@@ -77,6 +77,8 @@ JS_SOURCES=(
     "$DIR/today.js" \
     "$DIR/power.js" \
     "$DIR/report.js" \
+    "$DIR/kbguides.js" \
+    "$DIR/knowledge.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

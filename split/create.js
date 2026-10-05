@@ -266,7 +266,8 @@ function renderCreateForm() {
       res.innerHTML = clientMenuHtml(matches, 'invSelectClient', 'invClientOpt');
       cs.setAttribute('aria-expanded', 'true');
     });
-    setTimeout(() => cs.focus(), 100);
+    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap went elsewhere first.
+    focusSoon(cs);
   }
 }
 

@@ -320,6 +320,7 @@ function renderClientPerformance(container) {
     return;
   }
   html += finClientMoneyHtml(clientId);
+  html += kbLinkedHtml('client', clientId, ((S.clients || []).find(function(c) { return c.id === clientId; }) || {}).name, 'Knowledge');
 
   var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
   var today = localDateStr();

@@ -41,7 +41,8 @@ var WORKSPACES = [
     members: [] },
   { id: 'money', label: 'Money', icon: 'money', bar: true, views: [{ tab: 'pageFinance', label: 'Money' }], members: [] },
   { id: 'insights', label: 'Insights', icon: 'insights', bar: false,
-    views: [{ tab: 'pageStats', label: 'Stats' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pageHistory', label: 'History' }], members: [] }
+    // The knowledge base (knowledge.js) is Insights' fourth view; on the phone the top bar's book opens it too.
+    views: [{ tab: 'pageStats', label: 'Stats' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pageHistory', label: 'History' }, { tab: 'pageKnow', label: 'Knowledge' }], members: [] }
 ];
 
 function wsGet(id) { return WORKSPACES.filter(function(w) { return w.id === id; })[0] || null; }
@@ -261,7 +262,8 @@ var WS_GO_PAGE = {
   stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower',
   finance: 'pageFinance', bills: 'pageFinance',
-  stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports'
+  stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports',
+  kb: 'pageKnow'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;

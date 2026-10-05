@@ -136,7 +136,8 @@ function grdOk(group) {
 /* The role opens this page. Home always; while locked nobody is signed in and the lock covers the screen, so the page
    under it is checked again at the unlock (grdAfterUser), and nothing is drawn on it meanwhile (grdHeld). */
 function grdSees(tabId) {
-  if (!grdOn() || tabId === 'pageHome') return true;
+  // Knowledge is everyone's page: each article says which roles read it (knowledge.js kbCanRead).
+  if (!grdOn() || tabId === 'pageHome' || tabId === 'pageKnow') return true;
   var u = grdUser();
   if (!u || u.role === 'owner') return true;
   var r = grdRole(u.role);

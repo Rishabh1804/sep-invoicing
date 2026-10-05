@@ -3,7 +3,7 @@ const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
   pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
   pageFloor: 'Day', pagePipeline: 'Pipeline',
-  pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History'
+  pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History', pageKnow: 'Knowledge'
 };
 
 /* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
@@ -31,6 +31,8 @@ function switchTab(tabId) {
   if (currentPage) {
     _tabScroll[currentPage.id] = currentPage.scrollTop || window.scrollY;
   }
+  // Step 2b: a knowledge article's form is left with its page, and with a tap on the page itself (knowledge.js kbLeave).
+  if (currentPage && currentPage.id === 'pageKnow' && typeof kbLeave === 'function') kbLeave();
 
   // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
   _viewTopAt++;
@@ -155,6 +157,8 @@ function tabRender(tabId, isDirty) {
     renderReports();
   } else if (tabId === 'pageHistory') {
     renderHistory();
+  } else if (tabId === 'pageKnow') {
+    renderKnow();
   }
 }
 

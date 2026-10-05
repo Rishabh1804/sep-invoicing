@@ -189,6 +189,7 @@ const WS_OF: Record<string, string> = {
   pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
   pageFinance: 'money',
   pageStats: 'insights', pageReports: 'insights', pageHistory: 'insights',
+  pageKnow: 'insights',
 };
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {

@@ -186,6 +186,7 @@ function _renderItemDetail(itemId, skipMasterRefresh) {
       html += '<div class="inv-empty">Unused: on no invoice or challan.</div>';
     }
     html += '</div>';
+    html += kbLinkedHtml('part', item.id, item.partNumber, 'Knowledge');
 
     html += '<div class="inv-toolbar">' +
       '<button class="inv-btn inv-btn-primary" data-action="invEditItem" data-id="' + item.id + '">Edit</button>' +

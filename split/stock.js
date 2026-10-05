@@ -1156,7 +1156,7 @@ function stockItemBodyHtml(item) {
   h += '<div class="inv-panel inv-panel-flush" id="stockEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries <span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (!all.length) h += '<div class="inv-empty">Nothing recorded on this line yet.</div>';
   all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit); });
-  return h + '</div>';
+  return h + '</div>' + kbLinkedHtml('stock', item.id, item.name, 'Knowledge');
 }
 
 function stockEntryRowHtml(e, r, unit) {

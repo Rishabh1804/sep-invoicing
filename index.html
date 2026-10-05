@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="0ff8d8cb">
+<meta name="app-build" content="2b77f72f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -3023,6 +3023,20 @@ function focusFirstInteractive(container, opts) {
   var el = container.querySelector(opts && opts.noText ? 'button, select, [tabindex]:not([tabindex="-1"])'
     : 'button, input:not([type="hidden"]):not([readonly]), select, textarea, [tabindex]:not([tabindex="-1"])');
   if (el) { try { el.focus({ preventScroll: true }); } catch(e) {} }
+}
+/* The cursor put in a field a moment after a screen opens (Create's client search, the challan form's), unless meanwhile a
+   click or a tap went somewhere else, or another field took it: the late focus pulled the cursor back from where it had
+   been put, and on a slow machine the next key meant for the app was typed into the field (P139 on CI, 5 Oct 2026).
+   Typing meanwhile still lands in the field. */
+function focusSoon(el, ms) {
+  var pressed = false, mark = function() { pressed = true; };
+  document.addEventListener('pointerdown', mark, true);
+  setTimeout(function() {
+    document.removeEventListener('pointerdown', mark, true);
+    var a = document.activeElement;
+    if (pressed || !el || !el.isConnected || (a && a !== el && a.matches && a.matches('input, textarea, select'))) return;
+    el.focus();
+  }, ms == null ? 100 : ms);
 }
 /* A touch screen, where focusing a field raises the keyboard over the screen. */
 function touchScreen() { try { return window.matchMedia('(pointer: coarse)').matches; } catch (e) { return false; } }
@@ -9878,13 +9892,8 @@ function renderCreateForm() {
       res.innerHTML = clientMenuHtml(matches, 'invSelectClient', 'invClientOpt');
       cs.setAttribute('aria-expanded', 'true');
     });
-    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap has gone somewhere else
-    // first: the late focus pulled the cursor back from where it was put, and a key meant for the app was typed into the
-    // search (P139 on CI, 5 Oct 2026). Typing meanwhile still lands in the search.
-    let pressed = false;
-    const mark = () => { pressed = true; };
-    document.addEventListener('pointerdown', mark, true);
-    setTimeout(() => { document.removeEventListener('pointerdown', mark, true); if (!pressed && cs.isConnected) cs.focus(); }, 100);
+    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap went elsewhere first.
+    focusSoon(cs);
   }
 }
 
@@ -44758,11 +44767,9 @@ function renderAddChallanForm() {
   // Focus last, so nothing above can steal it back. Auto-focusing the client
   // search is only right on a fresh open — restoring beats it every other time.
   if (!_challanRestoreFocus(focusTarget) && cs) {
-    // Never from a field somebody is already in: a tap within the delay would have its typing moved to the search.
-    setTimeout(function() {
-      var a = document.activeElement;
-      if (cs.isConnected && !(a && a !== cs && a.matches && a.matches('input, textarea, select'))) cs.focus();
-    }, 100);
+    // Never from a field somebody is already in (a tap within the delay would have its typing moved to the search), nor
+    // after a click or a tap elsewhere (state.js focusSoon).
+    focusSoon(cs);
   }
 }
 

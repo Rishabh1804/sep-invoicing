@@ -266,13 +266,8 @@ function renderCreateForm() {
       res.innerHTML = clientMenuHtml(matches, 'invSelectClient', 'invClientOpt');
       cs.setAttribute('aria-expanded', 'true');
     });
-    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap has gone somewhere else
-    // first: the late focus pulled the cursor back from where it was put, and a key meant for the app was typed into the
-    // search (P139 on CI, 5 Oct 2026). Typing meanwhile still lands in the search.
-    let pressed = false;
-    const mark = () => { pressed = true; };
-    document.addEventListener('pointerdown', mark, true);
-    setTimeout(() => { document.removeEventListener('pointerdown', mark, true); if (!pressed && cs.isConnected) cs.focus(); }, 100);
+    // A moment after Create opens, the cursor goes to the client search, unless a click or a tap went elsewhere first.
+    focusSoon(cs);
   }
 }
 

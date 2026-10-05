@@ -2232,8 +2232,9 @@ on the build before. What it leaves as rules:
 - **On the desktop** one primary between the list and the open article (the toolbar's steps aside), the search and chips above the
   scrolling list, the open row `aria-current`, an article's row opening in a new window on a Ctrl+click (`kbLocOf`), and an article
   opened from Start or Training opens on its own list's view (`kbTabFor`).
-- **Create's late focus** (the client search, 100 ms after it opens) is skipped when a click or tap went elsewhere first: on a slow CI
-  runner it pulled the cursor back and P139's C was typed into the search.
+- **A late focus never pulls the cursor back** (`focusSoon`, state.js: Create's client search and the challan form's, 100 ms after
+  they open): skipped when a click or tap went elsewhere first, or another field took it. On a slow CI runner it pulled the cursor
+  back, and P139's C, then its ?, were typed into the search.
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

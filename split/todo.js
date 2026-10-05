@@ -692,6 +692,7 @@ function todoGo(go) {
   if (dialogsTypedAsk(function() { todoGo(go); })) return;
   closeOverlay();
   switch (go.kind) {
+    case 'kb': if (go.id) kbOpenArticle(go.id); else { kbSetTab(go.tab || 'start'); _kbOpen = null; _kbEdit = null; navOpen({ tab: 'pageKnow', v: _kbTab, id: '' }); } break;
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'bills':

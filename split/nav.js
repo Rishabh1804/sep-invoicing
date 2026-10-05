@@ -69,6 +69,7 @@ function navLoc() {
     case 'pageReports': v = rptNavV(); break;
     case 'pageFloor': d = flrNavD(); break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
+    case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
   }
   return { tab: tab, v: v || '', id: id || '', d: d || '' };
 }
@@ -136,6 +137,7 @@ function navLabel(loc) {
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
+    case 'pageKnow': { var kl = kbNavLabel(loc.v, loc.id); sub = sub.concat(kl.sub); rec = kl.rec; break; }
   }
   if (rec) sub.push(rec);
   // The page by its name in its workspace (Invoices, People, Money), with the workspace's.
@@ -210,6 +212,7 @@ function navApply(loc) {
       case 'pageReports': rptNavApply(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
+      case 'pageKnow': kbNavApply(loc && loc.v, id); break;
     }
     if (!same) switchTab(tab);
     else {

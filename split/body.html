@@ -17,6 +17,10 @@
   <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
   </button>
+  <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
+  <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
+  </button>
   <!-- This screen in a new window (search.js). The desktop's: hidden on the phone. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invNewWindow" aria-label="Open this screen in a new window" title="Open this screen in a new window">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
@@ -123,6 +127,10 @@
 <div id="pageProduction" class="inv-page">
   <div id="productionContent"></div>
   <div id="prodProcessing"></div>
+</div>
+
+<div id="pageKnow" class="inv-page">
+  <div id="knowContent"></div>
 </div>
 
 <div id="pagePower" class="inv-page">

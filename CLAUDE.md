@@ -44,7 +44,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 71 modules, ~49,900 lines total.
+Split-file PWA. 72 modules, ~50,500 lines total.
 
 ```
 split/
@@ -92,6 +92,7 @@ split/
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
 ├── add.js             ← Add: one door for everything that comes in (paste, clipboard, photo, file, by hand) (~400 lines)
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
+├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, photo, by hand (~600 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
@@ -125,7 +126,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -155,7 +156,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,453 tests, both layouts
+pnpm exec playwright test          # 1,460 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2869,6 +2870,30 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   roll to both readers (`relayKind`, `prodKind`), and an "Out time" heading with its time run on is
   still a heading.
 
+
+### The monthly register
+Staff → **Register** (`attreg.js`; owner, 6 Oct 2026: *"that's what I receive at the end of every month to make the attendance slips … I
+need this to be in the app … from next month I can start entering these into the app and cross check against the daily attendance"*). The
+supervisor's book, a page a month, a column a monthly hand, a row a day. P161.
+- **Kept as written, read in code** (`S.attRegister.months[YYYY-MM]`: columns as headed, each cell's raw text, the totals under the
+  columns, notes; `aregCell`): P, A, H, *P-8pm* (from the shift's start), *6Am-5pm*, *6Am* (to the shift's end), *6Am-12Am*, *P-6Am*
+  (overnight). On a Sunday or holiday line the letters spelt across are the line: an A there is SUNDAY's, never an absence.
+- **The hours are the roll's rule** (`relayHoursOf`: the span to the whole hour, OT past 8; a plain P is 8:30 AM to 5:00 PM). On the
+  owner's book it reproduces March's and June's written OT totals to the hour; August's totals add the Sunday hours in, which the OT
+  card counts apart and says.
+- **Set against the day** (`aregCompare`): each cell agrees, differs on the mark, differs on the OT (an hour or more), is only on the
+  register, or the day has a present mark the register left blank. Settled one cell at a time, either way: *Day takes the register's*
+  (the mark with its times, `src: 'register'`) or *Register takes the day's*. **Fill** puts every cell only on the register onto its day,
+  asked first; an unsure or unread cell is left out, and a mark already on a day is never touched.
+- **A corrected cell keeps what it said** (`edits`), on a page read from paper; a page started by hand is just being written. Mark
+  checked stamps `verifiedAt`; any later change clears it.
+- **A column's worker**: picked once, learnt for that heading (`S.attRegister.names`), else the roster's name as a roll reads it.
+- **Three doors**: Import (`sep-att-register` v1, also through Add → File; a month on record is kept, never replaced), **Read page photo**
+  (Gemini, the same shape, each unsure cell dashed; only facts about the photo are kept), and **Start this month** (a column per active
+  monthly hand, Sundays drawn), filled a cell at a time with *Next day*.
+- **Names never in the build**: the seven pages of March–September 2026 were transcribed from the owner's photos into a private
+  `sep-att-register` file, handed over to import and check. On that book, May–September agree on present / absent in all but 7 of about
+  1,000 cells; most differences are OT the daily records hold as 0.
 
 ### The attendance on paper
 Staff → Day → **Print sheets** (`attsheet.js`; owner, 29 Sep 2026: *"one for Shyam and one for Deepak aka Champai … a

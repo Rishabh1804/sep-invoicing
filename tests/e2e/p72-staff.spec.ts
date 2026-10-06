@@ -47,7 +47,7 @@ test.describe('P72: Staff', () => {
   test('view tabs: six, the open one selected and scrolled into view; one primary per view; no v1.0 class', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStaff');
-    await expect(page.locator('#attToolbar .inv-viewtabs[role="tablist"] .inv-viewtab')).toHaveText(['Overview', 'Day', 'Week', 'Pay', 'Areas', 'Roster']);
+    await expect(page.locator('#attToolbar .inv-viewtabs[role="tablist"] .inv-viewtab')).toHaveText(['Overview', 'Day', 'Week', 'Register', 'Pay', 'Areas', 'Roster']);
     await expect(tab(page, 'overview')).toHaveAttribute('aria-selected', 'true');
     await noV1(page, 1);
     for (const [v, primaries] of [['day', 1], ['week', 0], ['pay', 1], ['areas', 0], ['roster', 1]] as [string, number][]) {

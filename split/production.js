@@ -941,7 +941,7 @@ TODO_RULE_FNS.prodGaugeUnknown = function() {
   });
   return Object.keys(by).map(function(k) {
     var c = by[k], sizes = Object.keys(c.rounds).map(Number).sort(function(a, b) { return a - b; }).join(', ');
-    return { key: 'prodGaugeUnknown:' + k, rule: 'prodGaugeUnknown', tone: 'amber', title: (k === '-' ? 'No client' : prodClientName(k) || 'Client ' + k) + ': ' + todoPlural(c.n, 'run') + ' with the gauge unknown',
+    return { key: 'prodGaugeUnknown:' + k, rule: 'prodGaugeUnknown', tone: 'amber', clientId: k === '-' ? undefined : k, title: (k === '-' ? 'No client' : prodClientName(k) || 'Client ' + k) + ': ' + todoPlural(c.n, 'run') + ' with the gauge unknown',
       sub: 'Rounds of ' + sizes + ', none in the gauge rules', why: 'Production · a round of a size no gauge rule names',
       facts: [['Runs', String(c.n)], ['Rounds', sizes], ['Oldest', formatDate(c.oldest)]], clears: 'Pick the gauge on each run (Production → Entries → Gauge unknown → Pick gauge), or void it.',
       go: prodGo('entries', { flag: 'gauge' }), goLabel: 'Open the runs', sig: 'amber|' + k + '|' + c.n };
@@ -959,7 +959,7 @@ TODO_RULE_FNS.prodPickledNoChallan = function() {
   });
   var tasks = Object.keys(byClient).map(function(cid) {
     var c = byClient[cid], age = prodWorkingDaysBetween(c.oldest, today), tone = age >= 3 ? 'red' : 'amber';
-    return { key: 'prodPickledNoChallan:' + cid, rule: 'prodPickledNoChallan', tone: tone, title: (prodClientName(cid) || 'Client ' + cid) + ': ' + todoPlural(c.n, 'load') + ' pickled with no open challan',
+    return { key: 'prodPickledNoChallan:' + cid, rule: 'prodPickledNoChallan', tone: tone, clientId: cid, title: (prodClientName(cid) || 'Client ' + cid) + ': ' + todoPlural(c.n, 'load') + ' pickled with no open challan',
       sub: 'Oldest ' + formatDate(c.oldest), why: 'Production · pickled, and no challan of that part open on the day',
       facts: [['Loads', String(c.n)], ['Oldest', formatDate(c.oldest)]], clears: 'Enter the challan (Challans → Add challan), correct the load to the challan’s part (Production → Entries → Correct), or void the load.',
       go: prodGo('entries', { client: cid, flag: 'nochallan' }), goLabel: 'Open the loads', sig: tone + '|' + cid + '|' + c.oldest + '|' + c.n };

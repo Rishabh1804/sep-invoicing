@@ -972,7 +972,7 @@ TODO_CHECK_DEFAULTS.powerLoad = true;
 TODO_RULE_FNS.powerLoad = function() {
   var L = powerLoad();
   if (!L.pending) return [];
-  return [{ key: 'powerLoad', rule: 'powerLoad', tone: L.penaltySince > 0 ? 'red' : 'amber',
+  return [{ key: 'powerLoad', rule: 'powerLoad', tone: L.penaltySince > 0 ? 'red' : 'amber', amount: L.penaltySince,
     title: formatNum(L.approved, 0) + ' kVA approved, still billed at ' + formatNum(L.sanctioned, 0) + ' kVA',
     sub: 'Approved ' + formatDate(L.approvedOn) + ' · ' + formatCurrency(L.penaltySince) + ' over-limit penalty on the bills since',
     why: 'Power · the connection', facts: [['Approved', formatNum(L.approved, 0) + ' kVA, ' + formatDate(L.approvedOn)], ['Billed at', formatNum(L.sanctioned, 0) + ' kVA'], ['Penalty since', formatCurrency(L.penaltySince)]]

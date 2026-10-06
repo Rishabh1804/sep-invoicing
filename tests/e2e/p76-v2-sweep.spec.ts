@@ -66,7 +66,7 @@ test('a crore in a tile breaks after a comma group, and a cut meta line keeps it
   expect(lines[lines.length - 1]).toMatch(/^\d{3}\.\d\d$/);
   // Recent invoices: the date leads the meta line, so an 80-character name cannot push it out of sight, and the cut
   // line carries its full text.
-  const meta = page.locator('#pageHome .inv-row-meta', { hasText: 'ALPHA FORGINGS AND HEAVY' }).first();
+  const meta = page.locator('#pageHome [data-home-w="recent"] .inv-row-meta', { hasText: 'ALPHA FORGINGS AND HEAVY' }).first();
   await expect(meta).toHaveText(/^\d\d \w{3} \d{4} · ALPHA/);
   await expect(meta).toHaveAttribute('title', /UNIT II, GAMHARIA\)$/);
 });

@@ -319,6 +319,7 @@ function renderClientPerformance(container) {
     container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">No clients yet</div></div>';
     return;
   }
+  html += todoClientCardHtml(clientId, 'cpFlagged');
   html += finClientMoneyHtml(clientId);
   html += kbLinkedHtml('client', clientId, ((S.clients || []).find(function(c) { return c.id === clientId; }) || {}).name, 'Knowledge');
 

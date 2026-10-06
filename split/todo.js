@@ -105,14 +105,22 @@ var TODO_RULE_FNS = {
       if (st.tone !== 'red' && st.tone !== 'amber') return;
       var unit = it.unit || '';
       var rate = st.rate && st.rate.rate ? stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : '';
-      var sub = st.group === 'out' ? 'Out' + (rate ? ' · was using ' + rate : '')
-        : stockFmtQty(st.level) + ' ' + unit + ' left · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      // The level is the last figure's, and is said as of that day once it is old: "Out" on a count eight days back is a
+      // question to ask the floor, not a fact about today.
+      var lastFig = stockItemEntries(it.id).filter(function(e) { return e.kind !== 'bill'; }).pop();
+      var age = lastFig && lastFig.date < todoToday() ? stockWorkingDays(isoAddDays(lastFig.date, 1), todoToday()) : 0;
+      var asOf = age >= todoCfg().pasteDays ? ' on ' + stockShortDate(lastFig.date) + '\'s record' : '';
+      var sub = st.group === 'out' ? 'Out' + asOf + (rate ? ' · was using ' + rate : '')
+        : stockFmtQty(st.level) + ' ' + unit + ' left' + asOf + ' · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      var open = Object.keys(stockEntryChecks(it.id)).length;
+      var conf = open ? { level: 'check', say: todoPlural(open, 'entry', 'entries') + ' on this line to check' }
+        : asOf ? { level: 'stale', say: 'nothing recorded since ' + stockShortDate(lastFig.date) } : null;
       out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, itemId: it.id, title: 'Order ' + it.name, sub: sub,
         why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
         facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
           ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
         clears: 'Clears itself when a delivery or a count lifts the line out of ' + (st.tone === 'red' ? 'red' : 'amber') + '.',
-        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group });
+        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group, conf: conf });
     });
     return out;
   },
@@ -356,6 +364,23 @@ function todoMineSees(t) {
   return true;
 }
 
+/* How sure a finding is (the intelligence's second step, 6 Oct 2026). A rule says what its figures rest on (`conf`):
+   - stale: the record is older than the finding says in the present tense (a line "Out" on a count eight days old);
+   - early: too few days for the finding to be a pattern (a month five working days in);
+   - partial: the figures are partly measured, partly the model;
+   - check: an entry it reads is waiting to be checked (stock.js, stockEntryChecks).
+   A finding that is not firm is never red, and says why on its row and in its figures, so a red always means a fact.
+   Owner, 6 Oct 2026: the reddest task had rested on a stock record nobody had been asked about. */
+var TODO_CONF_WORD = { stale: 'An old record', early: 'Early', partial: 'Partly measured', check: 'An entry to check' };
+function todoConfApply(t) {
+  var c = t && t.conf;
+  if (!c || !TODO_CONF_WORD[c.level]) return t;
+  if (t.tone === 'red') { t.toneRead = 'red'; t.tone = 'amber'; }
+  if (c.say) t.sub = (t.sub ? t.sub + ' · ' : '') + c.say;
+  t.facts = (t.facts || []).concat([['How sure', TODO_CONF_WORD[c.level] + (c.say ? ': ' + c.say : '')]]);
+  return t;
+}
+
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
 function todoAppAll(only, ran) {
@@ -363,7 +388,7 @@ function todoAppAll(only, ran) {
   TODO_RULES.forEach(function(r) {
     if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
     // One rule failing on a shape nobody anticipated must not take the list with it.
-    try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
+    try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
   });
   return out.sort(function(a, b) { return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone]; });
 }

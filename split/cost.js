@@ -216,6 +216,29 @@ function costMonthShare(month, from, to) {
    only the measured part counts towards "measured". Reading an unrecorded
    stretch as zero made the plant look cheapest exactly where least was known:
    a quarter with one power bill read as a quarter that used one month's power. */
+/* Zinc from its bills: what was bought in the 90 days to `to`, per kg plated (weighed) over the same days. Null unless every
+   zinc bill in the window is priced and something was plated: a gap is filled at the model, never read as cheap. */
+function costZincByBills(to) {
+  var it = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  if (!it) return null;
+  // The window starts no earlier than the first zinc bill on record: before it, nothing was entered, which is not nothing
+  // bought (June read ₹0.93/kg over a window two-thirds before the bills began).
+  var all = stockPurchases(it.id), first = all.reduce(function(m, b) { return !m || b.date < m ? b.date : m; }, '');
+  var from = isoAddDays(to, -89);
+  if (!first || first > to) return null;
+  if (first > from) from = first;
+  if (isoDaysBetween(from, to) + 1 < 28) return null;
+  var qty = 0, amount = 0, bills = 0, unpriced = 0;
+  all.forEach(function(b) {
+    if (b.date < from || b.date > to) return;
+    bills++; qty += b.e.qty || 0;
+    if (b.e.price > 0) amount += b.e.price * (b.e.qty || 0); else unpriced++;
+  });
+  if (!bills || unpriced) return null;
+  var w = weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; }));
+  if (!(w.kg > 0)) return null;
+  return { from: from, to: to, qty: qty, amount: amount, bills: bills, kg: w.kg, perKg: amount / w.kg };
+}
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = isoDaysBetween(from, to) + 1, rows = [];
   // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
@@ -254,7 +277,7 @@ function liveCost(from, to, kg) {
     if (blNamed + blCash > 0) labFixed = { share: blNamed / (blNamed + blCash), from: 'bank' };
     var blDetail = bl.months.map(function(mo) {
       return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
-        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash, by pay week' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
     });
     if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),
@@ -288,13 +311,13 @@ function liveCost(from, to, kg) {
   // What was BOUGHT in the period, by bill date. Shown beside the figure for
   // reference and never used as it: a purchase is stock on the shelf, not use,
   // and a month that restocked would read as a month that consumed.
-  var bought = { zinc: { qty: 0, amount: 0, bills: 0 }, chem: { amount: 0, bills: 0 } };
+  var bought = { zinc: { qty: 0, amount: 0, bills: 0, unpriced: 0 }, chem: { amount: 0, bills: 0 } };
   stockData().items.forEach(function(it) {
     stockPurchases(it.id).forEach(function(b) {
       if (b.date < from || b.date > to) return;
       var t = it.key === 'ZINC' ? bought.zinc : bought.chem;
       t.amount += (b.e.price || 0) * (b.e.qty || 0); t.bills++;
-      if (it.key === 'ZINC') t.qty += b.e.qty || 0;
+      if (it.key === 'ZINC') { t.qty += b.e.qty || 0; if (!(b.e.price > 0)) t.unpriced++; }
     });
   });
   var boughtLine = function(t, what) {
@@ -340,9 +363,24 @@ function liveCost(from, to, kg) {
   // The share of the period zinc's own record does not speak for. A period with no zinc charged in it is not a
   // period that used none: it read ₹0 as "nothing recorded" (and said no rate was set when one was), and a charge
   // with no bill and no market rate read ₹0 as "market rate". Both are unrecorded, and filled at the model.
+  // Zinc goes into the bath as it arrives: the 24 Sep delivery of 495 kg was charged within four days (the owner's book,
+  // 6 Oct 2026). So a charge record that starts partway through a month is a lump, and filling the days before it at the
+  // model counts the month twice (September read ₹3.94/kg). Over a month or more, where the charge record does not cover the
+  // whole period and every zinc bill in it is priced, the period's zinc bills stand for its use (intelligence step I2).
+  // A month's bills are lumpy too (a delivery late in June is July's zinc), so they are read over the 90 days to the
+  // period's end, per kg plated over the same days, and set against the period's tonnage (costZincByBills).
+  var zWin = days >= 28 && (stockMissing > 0.001 || !(zinc.qty > 0)) ? costZincByBills(to) : null;
+  var zByBills = !!zWin;
   var zNoPrice = zinc.qty > 0 && !zinc.priced && !landed;
   var zMissing = zinc.qty > 0 && !zNoPrice ? stockMissing : 1, zWhat = zinc.qty > 0 ? stockWhat : coveredDays ? 'no zinc charged in this period' : 'zinc use';
-  if (zinc.qty > 0 && !zNoPrice) {
+  if (zByBills) {
+    var zbAmt = zWin.perKg * kg;
+    zDetail.push({ label: 'Bought over 90 days, per kg plated', amount: zbAmt,
+      sub: stockFmtQty(zWin.qty) + ' kg on ' + zWin.bills + ' bill line' + (zWin.bills === 1 ? '' : 's') + ', ' + formatCurrency(zWin.amount) + ', ' + stockShortDate(zWin.from) + ' – ' + stockShortDate(zWin.to) +
+        ' over ' + formatNum(zWin.kg / 1000, 1) + ' t plated = ' + formatCurrency(zWin.perKg) + '/kg · zinc goes into the bath as it arrives, so its bills are its use' +
+        (zinc.qty > 0 ? ' (' + stockFmtQty(zinc.qty) + ' kg charged since the record began ' + stockShortDate(firstStock) + ')' : '') });
+    zAmount = zbAmt; zMeasured = zbAmt; zMissing = 0;
+  } else if (zinc.qty > 0 && !zNoPrice) {
     var zAmt = zinc.priced ? zinc.amount : zinc.qty * landed;
     zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : ' × the market rate ' + formatCurrency(landed) + ' (no bill yet)'), amount: zAmt });
     zAmount += zAmt; zMeasured += zinc.priced ? zAmt : 0;
@@ -362,9 +400,10 @@ function liveCost(from, to, kg) {
     zAmount += cfg.zincPerKg * kg * zMissing;
   }
   push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zRate && zDetail.length === 1 ? 'rate' : null,
-    note: (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' + (zNoPrice ? ', no price' : '') : coveredDays ? 'no zinc charged in this period' : 'use not recorded') +
+    note: zByBills ? 'its bills over the 90 days to ' + stockShortDate(to) + ', ' + formatCurrency(zWin.perKg) + ' per kg plated'
+      : (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' + (zNoPrice ? ', no price' : '') : coveredDays ? 'no zinc charged in this period' : 'use not recorded') +
       (zinc.qty > 0 && !zNoPrice ? (zMissing > 0.001 ? ' · ' + (days - coveredDays) + ' days at the model' : '') : ' · filled at the model'),
-    detail: zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
+    detail: zByBills ? zDetail : zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
 
   // Power and other: each month's bill for its share of the period; a month
   // with no bill at the model rate, for its share of the tonnage.

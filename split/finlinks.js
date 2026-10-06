@@ -162,7 +162,7 @@ function finWagesHtml(cls, where) {
     return '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Wages paid, from the bank</span>' +
       '<span class="inv-row-meta">' + sum + '</span></span><span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button></span></div></div>';
   }
-  var h = '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
+  var h = '<div class="inv-panel-body inv-note">A cash draw (SELF, TO SELF, TO CASH) is wages and the owner\'s drawings: each pay week\'s cash counts as wages up to the payout recorded for that week, and what is drawn past it is drawings, never a cost. A week with no attendance recorded cannot be split. Transfers to a hand on the roster are set against the payroll as paid for the month before.</div>';
   if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
   // The latest three months; the rest one tap away.
   h += uiMoreHtml('pay-wages-months', months.map(function(m) {
@@ -190,7 +190,8 @@ function finWagesHtml(cls, where) {
     h += uiMoreHtml('pay-wages-weeks', wk.map(function(ws) {
       var pw = payWeek(ws), d = gstRound(weeks[ws] - pw.total);
       return '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
-        '<span class="inv-row-meta">payout ' + escHtml(formatCurrency(pw.total)) + (pw.recordedDays ? '' : ' (no attendance recorded)') + ' · ' + (d >= 0 ? 'drawn ' + formatCurrency(d) + ' more' : 'drawn ' + formatCurrency(-d) + ' less') + '</span></span>' +
+        '<span class="inv-row-meta">' + (pw.recordedDays ? 'payout ' + escHtml(formatCurrency(pw.total)) + ' · ' + (d >= 0 ? escHtml(formatCurrency(d)) + ' past it: drawings' : 'drawn ' + escHtml(formatCurrency(-d)) + ' less than the payout')
+          : 'no attendance recorded: wages or drawings') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(weeks[ws]) + '</span></div>';
     }), { n: 4, noun: 'weeks' });
   }

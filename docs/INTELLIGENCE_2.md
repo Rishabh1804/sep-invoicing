@@ -20,7 +20,7 @@ been asked about, and nothing on screen said so.
 | Step | What | State |
 |---|---|---|
 | I1 | **An entry is checked before it is believed.** Stock entries that do not fit; stock messages read differently now. | Built (P156) |
-| I2 | **Confidence on every finding.** How old and how complete its record is; a stale record is never red, an early month says so. Self draws: cash wages up to the week's payout, the rest drawings. Zinc charged in lumps measured against its bills. | Next |
+| I2 | **Confidence on every finding.** How old and how complete its record is; a stale record is never red, an early month says so. Self draws: cash wages up to the week's payout, the rest drawings. Zinc charged in lumps measured against its bills. | Built (P157) |
 | I3 | **One ranked list**: ₹ at stake × urgency × confidence; per-client tasks folded; one card per client. | |
 | I4 | **The change explained**: realisation, margin and cash moves broken into their causes, each with its ₹. | |
 | I5 | **Learning from responses**: snoozes, actions and ignores tune rank and thresholds, suggested, never silent. | |
@@ -53,3 +53,32 @@ question on its line, a save by hand or by paste says it at once, and the To-do 
 On the owner's book of 6 Oct: two messages read differently (the 28 Sep message, and a 24 Sep line whose basis changed and
 is not listed), seven entries to check. After the 28 Sep message is read again, the four zinc uses typed by hand are the
 only entries left to check.
+
+## I2: how sure a finding is
+
+**A finding that is not firm is never red, and says why** (`todoConfApply`, todo.js). A rule puts `conf: {level, say}` on its
+task; a red becomes amber (`toneRead` keeps what it would have been), `say` joins its line, and its figures gain *How sure*.
+
+| Level | Word | Raised by |
+|---|---|---|
+| `stale` | An old record | A stock line whose last figure is `pasteDays` working days old: *Out on 30 Sep's record* |
+| `early` | Early | The month realising low under 10 working days in (`INS_EARLY_DAYS`): to know, not amber |
+| `partial` | Partly measured | Below this month's variable cost but not below the six months' lowest |
+| `check` | An entry to check | A stock line with an entry to check (I1) |
+
+**Below its variable cost** is firm only where it holds at the **lowest variable cost of the six months to it**; the loss is
+said as a range, *at least* at that lowest, *up to* at this month's. On the owner's book: SSS Mehta, September, ₹5.29/kg,
+loses at least ₹9,207.83 (at ₹5.43) and up to ₹1,25,223.98.
+
+**Self draws are wages and drawings** (owner, 6 Oct 2026). As cost (`bankCostByMonth`), a pay week's cash is wages up to the
+payout recorded for it (`payWeek`) and drawings past it; a week whose payout is not fully recorded (no attendance, or hourly
+hands with no hours) is not split, and its month's labour is not known from the bank. `cashSwing` asks only when a week is
+drawn well short of its payout. On the owner's book June–August cannot be read from the bank now, so *recorded against paid*
+raises nothing, where it had said 58% apart.
+
+**Zinc from its bills** (`costZincByBills`): over a period of 28 days or more whose charge record does not cover it, the zinc
+bills of the 90 days to its end, per kg plated over the same days, from the first zinc bill on record. July–September read
+₹2.34, ₹2.37 and ₹2.21/kg; September had read ₹3.94.
+
+**Today learns an input's usual time from WhatsApp's send time only**: a roll pasted without its header carries the minute it
+was pasted, and *usually by 1:33 PM* was the owner's pasting hour. Until three rolls carry their header, the shop's own time.

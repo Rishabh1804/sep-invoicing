@@ -15,7 +15,8 @@
  * A category is WORKED OUT from the narration each time it is read, then overridden by what the
  * operator set: for one row (`row.set`) or for everybody paid under that name (`S.bank.parties`).
  * Every SELF / TO SELF / TO CASH draw is wages (owner, 26 Sep 2026: "All kind of Self should also
- * count towards wages, unless stated otherwise") — a row set to another category says otherwise.
+ * count towards wages, unless stated otherwise") — a row set to another category says otherwise. They are the owner's
+ * drawings too (owner, 6 Oct 2026): as cost, a pay week's cash is wages up to its payout, the rest drawings (bankCostByMonth).
  *
  * Owned by soma-internal like stock: this is a view and an input. Export hands the whole record
  * over for the compile.
@@ -591,7 +592,8 @@ function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d
 function bankCostByMonth(cls) {
   cls = cls || bankClassify();
   var cover = bankCover(), out = {};
-  var at = function(ym) { return out[ym] || (out[ym] = { labour: { amount: 0, named: 0, cash: 0, rows: [] }, power: { amount: 0, rows: [] }, other: { amount: 0, rows: [] }, supplies: { amount: 0, rows: [] }, unsorted: { amount: 0, rows: [] } }); };
+  var cashWeeks = {};
+  var at = function(ym) { return out[ym] || (out[ym] = { labour: { amount: 0, named: 0, cash: 0, drawings: 0, open: 0, rows: [] }, power: { amount: 0, rows: [] }, other: { amount: 0, rows: [] }, supplies: { amount: 0, rows: [] }, unsorted: { amount: 0, rows: [] } }); };
   cls.forEach(function(v) {
     if (!bankIsCost(v)) return;
     var r = v.row;
@@ -600,13 +602,9 @@ function bankCostByMonth(cls) {
         var L = at(bankPrevMonth(r.date)).labour;
         L.amount += r.dr; L.named += r.dr; L.rows.push(v);
       } else {
-        var ws = attWeekStartOf(r.date), seen = {};
-        for (var k = 0; k < 7; k++) {
-          var d = attParseIso(ws); d.setDate(d.getDate() + k);
-          var C = at(isoOf(d).slice(0, 7)).labour;
-          C.amount += r.dr / 7; C.cash += r.dr / 7;
-          if (!seen[isoOf(d).slice(0, 7)]) { seen[isoOf(d).slice(0, 7)] = 1; C.rows.push(v); }
-        }
+        var wk = attWeekStartOf(r.date);
+        (cashWeeks[wk] = cashWeeks[wk] || { amount: 0, rows: [] }).amount += r.dr;
+        cashWeeks[wk].rows.push(v);
       }
     } else if (v.cat === 'power') { var P = at(bankBillMonth(r)).power; P.amount += r.dr; P.rows.push(v); }
     else if (v.cat === 'supplier') { var U = at(r.date.slice(0, 7)).supplies; U.amount += r.dr; U.rows.push(v); }
@@ -615,7 +613,26 @@ function bankCostByMonth(cls) {
     else if (v.cat === 'other' && v.auto) { var X = at(r.date.slice(0, 7)).unsorted; X.amount += r.dr; X.rows.push(v); }
     else { var O = at(r.date.slice(0, 7)).other; O.amount += r.dr; O.rows.push(v); }
   });
-  return { months: out, cover: cover };
+  // Cash drawn is wages and the owner's drawings (owner, 6 Oct 2026: "Personal drawings as well, through self"). A pay
+  // week's cash is wages up to the payout recorded for that week (the weekly tiers and the EXTRA, payWeek) and drawings
+  // past it; a week with cash and no attendance recorded cannot be split, and its month's labour is not known from the
+  // bank (`open`). Each part is spread over the week's seven days, so a week across two months is split between them.
+  Object.keys(cashWeeks).forEach(function(ws) {
+    var c = cashWeeks[ws], pw = null;
+    try { pw = payWeek(ws); } catch (x) { pw = null; }
+    // A week whose hourly hands carry no hours (history imported without them) has a payout that reads near nothing:
+    // its cash would read as drawings, so it is not split.
+    var known = pw && pw.recordedDays > 0 && !(pw.lab && pw.lab.hourlessMarks > 0), wages = known ? Math.min(c.amount, Math.max(0, pw.total)) : 0;
+    c.wages = wages; c.drawings = known ? c.amount - wages : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null;
+    var seen = {};
+    for (var k = 0; k < 7; k++) {
+      var d = attParseIso(ws); d.setDate(d.getDate() + k);
+      var ym = isoOf(d).slice(0, 7), C = at(ym).labour;
+      C.amount += wages / 7; C.cash += wages / 7; C.drawings += c.drawings / 7; C.open += c.open / 7;
+      if (!seen[ym]) { seen[ym] = 1; c.rows.forEach(function(v) { C.rows.push(v); }); }
+    }
+  });
+  return { months: out, cover: cover, cashWeeks: cashWeeks };
 }
 /* Why the statement cannot speak for a month's k, or '' when it can. Three different reasons, said apart: a
    month the statement does not cover, one whose salaries it does not reach yet, and one it covers whole but whose
@@ -630,7 +647,10 @@ function bankMonthUnknown(bm, ym, k) {
   // Other and supplies speak for a month only once every payment in it is sorted: an unsorted one
   // could be either, and counting it as neither reads the month cheap.
   if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return BANK_UNSORTED_WHY;
-  return k === 'labour' && c.to < bankNextMonth(ym) + '-20' ? 'its salaries are not on the statement yet' : '';
+  if (k === 'labour' && c.to < bankNextMonth(ym) + '-20') return 'its salaries are not on the statement yet';
+  // Cash drawn in a week nobody recorded attendance for is wages or drawings, and the bank cannot say which.
+  if (k === 'labour' && e && e.labour.open >= 1) return 'cash drawn in a week whose payout is not fully recorded: wages or drawings';
+  return '';
 }
 function bankMonthKnown(bm, ym, k) { return !bankMonthUnknown(bm, ym, k); }
 
@@ -660,7 +680,8 @@ function bankCostForRange(from, to, byMonth) {
       if (why) { res[k].unknown.push({ month: ym, why: why }); return; }
       res[k].known += rangeShare;
       res[k].amount += (c ? c.amount : 0) * share;
-      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, rows: c ? c.rows : [] });
+      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0,
+        drawings: c && c.drawings || 0, rows: c ? c.rows : [] });
     });
   }
   return res;

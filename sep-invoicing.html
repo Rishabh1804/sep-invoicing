@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="38f0e064">
+<meta name="app-build" content="df04d9bc">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -25679,9 +25679,16 @@ function stockRereadDiff(p) {
   return { paste: p, drop: drop, add: addList };
 }
 /* Every message read differently now, newest first. Messages with no text (an import's) are left out. */
+/* Read afresh only when the record changes: the To-do asks on every redraw, and a message a day is 300 by the year's end. */
+var _stockRereadMemo = null;
 function stockRereadAll() {
-  return stockData().pastes.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); })
-    .map(stockRereadDiff).filter(Boolean);
+  var st = stockData(), voided = 0;
+  st.entries.forEach(function(e) { if (e.voided) voided++; });
+  var key = [st.entries.length, voided, st.pastes.length, st.items.map(function(i) { return i.id + ':' + i.key + ':' + stockAliases(i).join('/') + ':' + (i.lastPos || ''); }).join(',')].join('|');
+  if (_stockRereadMemo && _stockRereadMemo.st === st && _stockRereadMemo.key === key) return _stockRereadMemo.val;
+  var val = st.pastes.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); }).map(stockRereadDiff).filter(Boolean);
+  _stockRereadMemo = { st: st, key: key, val: val };
+  return val;
 }
 function stockRereadEntryText(e) {
   var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
@@ -26161,6 +26168,29 @@ function costMonthShare(month, from, to) {
    only the measured part counts towards "measured". Reading an unrecorded
    stretch as zero made the plant look cheapest exactly where least was known:
    a quarter with one power bill read as a quarter that used one month's power. */
+/* Zinc from its bills: what was bought in the 90 days to `to`, per kg plated (weighed) over the same days. Null unless every
+   zinc bill in the window is priced and something was plated: a gap is filled at the model, never read as cheap. */
+function costZincByBills(to) {
+  var it = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  if (!it) return null;
+  // The window starts no earlier than the first zinc bill on record: before it, nothing was entered, which is not nothing
+  // bought (June read ₹0.93/kg over a window two-thirds before the bills began).
+  var all = stockPurchases(it.id), first = all.reduce(function(m, b) { return !m || b.date < m ? b.date : m; }, '');
+  var from = isoAddDays(to, -89);
+  if (!first || first > to) return null;
+  if (first > from) from = first;
+  if (isoDaysBetween(from, to) + 1 < 28) return null;
+  var qty = 0, amount = 0, bills = 0, unpriced = 0;
+  all.forEach(function(b) {
+    if (b.date < from || b.date > to) return;
+    bills++; qty += b.e.qty || 0;
+    if (b.e.price > 0) amount += b.e.price * (b.e.qty || 0); else unpriced++;
+  });
+  if (!bills || unpriced) return null;
+  var w = weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; }));
+  if (!(w.kg > 0)) return null;
+  return { from: from, to: to, qty: qty, amount: amount, bills: bills, kg: w.kg, perKg: amount / w.kg };
+}
 function liveCost(from, to, kg) {
   var cfg = costModelCfg(), days = isoDaysBetween(from, to) + 1, rows = [];
   // What the bank paid, the second instrument (bank.js loads after this file; read at call time).
@@ -26199,7 +26229,7 @@ function liveCost(from, to, kg) {
     if (blNamed + blCash > 0) labFixed = { share: blNamed / (blNamed + blCash), from: 'bank' };
     var blDetail = bl.months.map(function(mo) {
       return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
-        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash, by pay week' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
     });
     if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),
@@ -26233,13 +26263,13 @@ function liveCost(from, to, kg) {
   // What was BOUGHT in the period, by bill date. Shown beside the figure for
   // reference and never used as it: a purchase is stock on the shelf, not use,
   // and a month that restocked would read as a month that consumed.
-  var bought = { zinc: { qty: 0, amount: 0, bills: 0 }, chem: { amount: 0, bills: 0 } };
+  var bought = { zinc: { qty: 0, amount: 0, bills: 0, unpriced: 0 }, chem: { amount: 0, bills: 0 } };
   stockData().items.forEach(function(it) {
     stockPurchases(it.id).forEach(function(b) {
       if (b.date < from || b.date > to) return;
       var t = it.key === 'ZINC' ? bought.zinc : bought.chem;
       t.amount += (b.e.price || 0) * (b.e.qty || 0); t.bills++;
-      if (it.key === 'ZINC') t.qty += b.e.qty || 0;
+      if (it.key === 'ZINC') { t.qty += b.e.qty || 0; if (!(b.e.price > 0)) t.unpriced++; }
     });
   });
   var boughtLine = function(t, what) {
@@ -26285,9 +26315,24 @@ function liveCost(from, to, kg) {
   // The share of the period zinc's own record does not speak for. A period with no zinc charged in it is not a
   // period that used none: it read ₹0 as "nothing recorded" (and said no rate was set when one was), and a charge
   // with no bill and no market rate read ₹0 as "market rate". Both are unrecorded, and filled at the model.
+  // Zinc goes into the bath as it arrives: the 24 Sep delivery of 495 kg was charged within four days (the owner's book,
+  // 6 Oct 2026). So a charge record that starts partway through a month is a lump, and filling the days before it at the
+  // model counts the month twice (September read ₹3.94/kg). Over a month or more, where the charge record does not cover the
+  // whole period and every zinc bill in it is priced, the period's zinc bills stand for its use (intelligence step I2).
+  // A month's bills are lumpy too (a delivery late in June is July's zinc), so they are read over the 90 days to the
+  // period's end, per kg plated over the same days, and set against the period's tonnage (costZincByBills).
+  var zWin = days >= 28 && (stockMissing > 0.001 || !(zinc.qty > 0)) ? costZincByBills(to) : null;
+  var zByBills = !!zWin;
   var zNoPrice = zinc.qty > 0 && !zinc.priced && !landed;
   var zMissing = zinc.qty > 0 && !zNoPrice ? stockMissing : 1, zWhat = zinc.qty > 0 ? stockWhat : coveredDays ? 'no zinc charged in this period' : 'zinc use';
-  if (zinc.qty > 0 && !zNoPrice) {
+  if (zByBills) {
+    var zbAmt = zWin.perKg * kg;
+    zDetail.push({ label: 'Bought over 90 days, per kg plated', amount: zbAmt,
+      sub: stockFmtQty(zWin.qty) + ' kg on ' + zWin.bills + ' bill line' + (zWin.bills === 1 ? '' : 's') + ', ' + formatCurrency(zWin.amount) + ', ' + stockShortDate(zWin.from) + ' – ' + stockShortDate(zWin.to) +
+        ' over ' + formatNum(zWin.kg / 1000, 1) + ' t plated = ' + formatCurrency(zWin.perKg) + '/kg · zinc goes into the bath as it arrives, so its bills are its use' +
+        (zinc.qty > 0 ? ' (' + stockFmtQty(zinc.qty) + ' kg charged since the record began ' + stockShortDate(firstStock) + ')' : '') });
+    zAmount = zbAmt; zMeasured = zbAmt; zMissing = 0;
+  } else if (zinc.qty > 0 && !zNoPrice) {
     var zAmt = zinc.priced ? zinc.amount : zinc.qty * landed;
     zDetail.push({ label: 'Charged', sub: stockFmtQty(zinc.qty) + ' kg' + (zinc.priced ? ' at the price paid' : ' × the market rate ' + formatCurrency(landed) + ' (no bill yet)'), amount: zAmt });
     zAmount += zAmt; zMeasured += zinc.priced ? zAmt : 0;
@@ -26307,9 +26352,10 @@ function liveCost(from, to, kg) {
     zAmount += cfg.zincPerKg * kg * zMissing;
   }
   push({ key: 'zinc', label: 'Zinc', amount: zAmount, measuredOverride: zMeasured, source: zRate && zDetail.length === 1 ? 'rate' : null,
-    note: (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' + (zNoPrice ? ', no price' : '') : coveredDays ? 'no zinc charged in this period' : 'use not recorded') +
+    note: zByBills ? 'its bills over the 90 days to ' + stockShortDate(to) + ', ' + formatCurrency(zWin.perKg) + ' per kg plated'
+      : (zinc.qty > 0 ? stockFmtQty(zinc.qty) + ' kg charged' + (zNoPrice ? ', no price' : '') : coveredDays ? 'no zinc charged in this period' : 'use not recorded') +
       (zinc.qty > 0 && !zNoPrice ? (zMissing > 0.001 ? ' · ' + (days - coveredDays) + ' days at the model' : '') : ' · filled at the model'),
-    detail: zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
+    detail: zByBills ? zDetail : zDetail.concat(boughtLine(bought.zinc, stockFmtQty(bought.zinc.qty) + ' kg')) });
 
   // Power and other: each month's bill for its share of the period; a month
   // with no bill at the model rate, for its share of the tonnage.
@@ -27587,7 +27633,8 @@ function _xlsxZip(files) {
  * A category is WORKED OUT from the narration each time it is read, then overridden by what the
  * operator set: for one row (`row.set`) or for everybody paid under that name (`S.bank.parties`).
  * Every SELF / TO SELF / TO CASH draw is wages (owner, 26 Sep 2026: "All kind of Self should also
- * count towards wages, unless stated otherwise") — a row set to another category says otherwise.
+ * count towards wages, unless stated otherwise") — a row set to another category says otherwise. They are the owner's
+ * drawings too (owner, 6 Oct 2026): as cost, a pay week's cash is wages up to its payout, the rest drawings (bankCostByMonth).
  *
  * Owned by soma-internal like stock: this is a view and an input. Export hands the whole record
  * over for the compile.
@@ -28163,7 +28210,8 @@ function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d
 function bankCostByMonth(cls) {
   cls = cls || bankClassify();
   var cover = bankCover(), out = {};
-  var at = function(ym) { return out[ym] || (out[ym] = { labour: { amount: 0, named: 0, cash: 0, rows: [] }, power: { amount: 0, rows: [] }, other: { amount: 0, rows: [] }, supplies: { amount: 0, rows: [] }, unsorted: { amount: 0, rows: [] } }); };
+  var cashWeeks = {};
+  var at = function(ym) { return out[ym] || (out[ym] = { labour: { amount: 0, named: 0, cash: 0, drawings: 0, open: 0, rows: [] }, power: { amount: 0, rows: [] }, other: { amount: 0, rows: [] }, supplies: { amount: 0, rows: [] }, unsorted: { amount: 0, rows: [] } }); };
   cls.forEach(function(v) {
     if (!bankIsCost(v)) return;
     var r = v.row;
@@ -28172,13 +28220,9 @@ function bankCostByMonth(cls) {
         var L = at(bankPrevMonth(r.date)).labour;
         L.amount += r.dr; L.named += r.dr; L.rows.push(v);
       } else {
-        var ws = attWeekStartOf(r.date), seen = {};
-        for (var k = 0; k < 7; k++) {
-          var d = attParseIso(ws); d.setDate(d.getDate() + k);
-          var C = at(isoOf(d).slice(0, 7)).labour;
-          C.amount += r.dr / 7; C.cash += r.dr / 7;
-          if (!seen[isoOf(d).slice(0, 7)]) { seen[isoOf(d).slice(0, 7)] = 1; C.rows.push(v); }
-        }
+        var wk = attWeekStartOf(r.date);
+        (cashWeeks[wk] = cashWeeks[wk] || { amount: 0, rows: [] }).amount += r.dr;
+        cashWeeks[wk].rows.push(v);
       }
     } else if (v.cat === 'power') { var P = at(bankBillMonth(r)).power; P.amount += r.dr; P.rows.push(v); }
     else if (v.cat === 'supplier') { var U = at(r.date.slice(0, 7)).supplies; U.amount += r.dr; U.rows.push(v); }
@@ -28187,7 +28231,26 @@ function bankCostByMonth(cls) {
     else if (v.cat === 'other' && v.auto) { var X = at(r.date.slice(0, 7)).unsorted; X.amount += r.dr; X.rows.push(v); }
     else { var O = at(r.date.slice(0, 7)).other; O.amount += r.dr; O.rows.push(v); }
   });
-  return { months: out, cover: cover };
+  // Cash drawn is wages and the owner's drawings (owner, 6 Oct 2026: "Personal drawings as well, through self"). A pay
+  // week's cash is wages up to the payout recorded for that week (the weekly tiers and the EXTRA, payWeek) and drawings
+  // past it; a week with cash and no attendance recorded cannot be split, and its month's labour is not known from the
+  // bank (`open`). Each part is spread over the week's seven days, so a week across two months is split between them.
+  Object.keys(cashWeeks).forEach(function(ws) {
+    var c = cashWeeks[ws], pw = null;
+    try { pw = payWeek(ws); } catch (x) { pw = null; }
+    // A week whose hourly hands carry no hours (history imported without them) has a payout that reads near nothing:
+    // its cash would read as drawings, so it is not split.
+    var known = pw && pw.recordedDays > 0 && !(pw.lab && pw.lab.hourlessMarks > 0), wages = known ? Math.min(c.amount, Math.max(0, pw.total)) : 0;
+    c.wages = wages; c.drawings = known ? c.amount - wages : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null;
+    var seen = {};
+    for (var k = 0; k < 7; k++) {
+      var d = attParseIso(ws); d.setDate(d.getDate() + k);
+      var ym = isoOf(d).slice(0, 7), C = at(ym).labour;
+      C.amount += wages / 7; C.cash += wages / 7; C.drawings += c.drawings / 7; C.open += c.open / 7;
+      if (!seen[ym]) { seen[ym] = 1; c.rows.forEach(function(v) { C.rows.push(v); }); }
+    }
+  });
+  return { months: out, cover: cover, cashWeeks: cashWeeks };
 }
 /* Why the statement cannot speak for a month's k, or '' when it can. Three different reasons, said apart: a
    month the statement does not cover, one whose salaries it does not reach yet, and one it covers whole but whose
@@ -28202,7 +28265,10 @@ function bankMonthUnknown(bm, ym, k) {
   // Other and supplies speak for a month only once every payment in it is sorted: an unsorted one
   // could be either, and counting it as neither reads the month cheap.
   if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return BANK_UNSORTED_WHY;
-  return k === 'labour' && c.to < bankNextMonth(ym) + '-20' ? 'its salaries are not on the statement yet' : '';
+  if (k === 'labour' && c.to < bankNextMonth(ym) + '-20') return 'its salaries are not on the statement yet';
+  // Cash drawn in a week nobody recorded attendance for is wages or drawings, and the bank cannot say which.
+  if (k === 'labour' && e && e.labour.open >= 1) return 'cash drawn in a week whose payout is not fully recorded: wages or drawings';
+  return '';
 }
 function bankMonthKnown(bm, ym, k) { return !bankMonthUnknown(bm, ym, k); }
 
@@ -28232,7 +28298,8 @@ function bankCostForRange(from, to, byMonth) {
       if (why) { res[k].unknown.push({ month: ym, why: why }); return; }
       res[k].known += rangeShare;
       res[k].amount += (c ? c.amount : 0) * share;
-      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0, rows: c ? c.rows : [] });
+      res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0,
+        drawings: c && c.drawings || 0, rows: c ? c.rows : [] });
     });
   }
   return res;
@@ -29394,14 +29461,22 @@ var TODO_RULE_FNS = {
       if (st.tone !== 'red' && st.tone !== 'amber') return;
       var unit = it.unit || '';
       var rate = st.rate && st.rate.rate ? stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : '';
-      var sub = st.group === 'out' ? 'Out' + (rate ? ' · was using ' + rate : '')
-        : stockFmtQty(st.level) + ' ' + unit + ' left · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      // The level is the last figure's, and is said as of that day once it is old: "Out" on a count eight days back is a
+      // question to ask the floor, not a fact about today.
+      var lastFig = stockItemEntries(it.id).filter(function(e) { return e.kind !== 'bill'; }).pop();
+      var age = lastFig && lastFig.date < todoToday() ? stockWorkingDays(isoAddDays(lastFig.date, 1), todoToday()) : 0;
+      var asOf = age >= todoCfg().pasteDays ? ' on ' + stockShortDate(lastFig.date) + '\'s record' : '';
+      var sub = st.group === 'out' ? 'Out' + asOf + (rate ? ' · was using ' + rate : '')
+        : stockFmtQty(st.level) + ' ' + unit + ' left' + asOf + ' · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      var open = Object.keys(stockEntryChecks(it.id)).length;
+      var conf = open ? { level: 'check', say: todoPlural(open, 'entry', 'entries') + ' on this line to check' }
+        : asOf ? { level: 'stale', say: 'nothing recorded since ' + stockShortDate(lastFig.date) } : null;
       out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, itemId: it.id, title: 'Order ' + it.name, sub: sub,
         why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
         facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
           ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
         clears: 'Clears itself when a delivery or a count lifts the line out of ' + (st.tone === 'red' ? 'red' : 'amber') + '.',
-        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group });
+        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group, conf: conf });
     });
     return out;
   },
@@ -29645,6 +29720,23 @@ function todoMineSees(t) {
   return true;
 }
 
+/* How sure a finding is (the intelligence's second step, 6 Oct 2026). A rule says what its figures rest on (`conf`):
+   - stale: the record is older than the finding says in the present tense (a line "Out" on a count eight days old);
+   - early: too few days for the finding to be a pattern (a month five working days in);
+   - partial: the figures are partly measured, partly the model;
+   - check: an entry it reads is waiting to be checked (stock.js, stockEntryChecks).
+   A finding that is not firm is never red, and says why on its row and in its figures, so a red always means a fact.
+   Owner, 6 Oct 2026: the reddest task had rested on a stock record nobody had been asked about. */
+var TODO_CONF_WORD = { stale: 'An old record', early: 'Early', partial: 'Partly measured', check: 'An entry to check' };
+function todoConfApply(t) {
+  var c = t && t.conf;
+  if (!c || !TODO_CONF_WORD[c.level]) return t;
+  if (t.tone === 'red') { t.toneRead = 'red'; t.tone = 'amber'; }
+  if (c.say) t.sub = (t.sub ? t.sub + ' · ' : '') + c.say;
+  t.facts = (t.facts || []).concat([['How sure', TODO_CONF_WORD[c.level] + (c.say ? ': ' + c.say : '')]]);
+  return t;
+}
+
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
 function todoAppAll(only, ran) {
@@ -29652,7 +29744,7 @@ function todoAppAll(only, ran) {
   TODO_RULES.forEach(function(r) {
     if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
     // One rule failing on a shape nobody anticipated must not take the list with it.
-    try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
+    try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
   });
   return out.sort(function(a, b) { return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone]; });
 }
@@ -35785,9 +35877,10 @@ TODO_RULE_FNS.insQuiet = function() {
   }).filter(Boolean);
 };
 
+var INS_EARLY_DAYS = 10;
 TODO_RULE_FNS.insRealLow = function() {
-  var today = localDateStr(), cur = today.slice(0, 7), prior = insMonthsBack(6);
-  if (statsWorkingDays(cur + '-01', today) < 5) return [];
+  var today = localDateStr(), cur = today.slice(0, 7), prior = insMonthsBack(6), wd = statsWorkingDays(cur + '-01', today);
+  if (wd < 5) return [];
   var mm = insMonthly(prior.concat([cur])), now = mm('', cur);
   var reals = prior.map(function(m) { return mm('', m).real; }).filter(function(v) { return v != null; });
   if (now.real == null || reals.length < 3 || now.real >= Math.min.apply(null, reals)) return [];
@@ -35798,7 +35891,11 @@ TODO_RULE_FNS.insRealLow = function() {
     var a = mm(String(c.id), cur).rev / (now.rev || 1), b = mm(String(c.id), prev).rev / (mm('', prev).rev || 1);
     if (!moved || Math.abs(a - b) > Math.abs(moved.d)) moved = { name: c.name, d: a - b, a: a, b: b };
   });
-  return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: 'amber', month: cur,
+  // Under ten working days the month is the few customers who happened to be billed (5 Oct 2026: one client at 25% of the
+  // revenue against its usual 3%): said as early, and only to know.
+  var early = wd < INS_EARLY_DAYS;
+  return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: early ? 'info' : 'amber', month: cur,
+    conf: early ? { level: 'early', say: todoPlural(wd, 'working day') + ' into the month' } : null,
     title: insMonthLabel(cur) + ' is realising ₹' + formatNum(now.real, 2) + '/kg, the lowest in ' + (reals.length + 1) + ' months',
     sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2) + (moved && Math.abs(moved.d) >= 0.05 ? ' · ' + moved.name + ' is ' + Math.round(moved.a * 100) + '% of revenue against ' + Math.round(moved.b * 100) + '%' : ''),
     why: 'Money · this month', go: insGo('overview'), goLabel: 'Open Stats',
@@ -35846,12 +35943,27 @@ TODO_RULE_FNS.insBelowVar = function() {
   var m = statsClientMargins(null, inv, weighLines(inv), { from: from, to: to });
   // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
   if (!m || m.varKg == null) return [];
+  // The variable cost of one month moves with what its record caught (a lump of zinc after a delivery, a fill at the model).
+  // So the finding is firm only where it holds against the LOWEST variable cost of the six months to it, and the loss is
+  // said from there ("at least"), with this month's figure beside it ("up to"). Below this month's cost alone it is said
+  // as partly measured, never red.
+  var lowVar = m.varKg;
+  insMonthsBack(6).forEach(function(mo) {
+    var f = mo + '-01', t = payMonthEnd(f), iv = insActive().filter(function(i) { return i.date >= f && i.date <= t; });
+    if (!iv.length) return;
+    try { var mm = statsClientMargins(null, iv, weighLines(iv), { from: f, to: t }); if (mm && mm.varKg != null && mm.varKg < lowVar) lowVar = mm.varKg; } catch (x) { /* a month that cannot be read is left out */ }
+  });
+  var measured = Math.round(m.c.measuredShare * 100);
   return m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1 && x.vsVar < 0; }).map(function(x) {
-    return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, fullKg: m.fullKg, kg: x.kg,
+    var firm = x.net < lowVar, least = gstRound((lowVar - x.net) * x.kg), most = gstRound(-x.vsVar * x.kg);
+    return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, lowVarKg: lowVar, fullKg: m.fullKg, kg: x.kg,
       title: x.name + ' is below its variable cost',
-      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · loses ' + formatCurrency(gstRound(-x.vsVar * x.kg)) + ' even with labour fixed',
+      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · ' +
+        (firm && least < most ? 'loses at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most)
+          : 'loses ' + formatCurrency(most)) + ' even with labour fixed',
+      conf: firm ? null : { level: 'partial', say: 'below this month\'s cost only, ' + measured + '% of it measured' },
       why: 'Money · margin', go: insGo('clients'), goLabel: 'Open contribution by client',
-      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
+      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
       clears: 'Clears itself when a month realises above the variable cost.', sig: last };
   });
 };
@@ -36209,7 +36321,7 @@ var FIN_RULES = [
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
   ['supplierNoBill', 'Finance: a supplier paid with no stock bill'],
   ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
-  ['cashSwing', 'Finance: a week’s cash drawn is far from its payout'],
+  ['cashSwing', 'Finance: a week’s cash drawn is well short of its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
   ['runway', 'Finance: the cash forecast goes below zero'],
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
@@ -36389,10 +36501,12 @@ TODO_RULE_FNS.cashSwing = function() {
     return s + (v.cat === 'wages' && (v.cash || v.staffId == null) && v.row.dr > 0 && attWeekStartOf(v.row.date) === ws ? v.row.dr : 0);
   }, 0));
   var pw = payWeek(ws);
-  if (!pw.recordedDays || !(pw.total > 0) || Math.abs(drawn - pw.total) < pw.total * 0.25) return [];
+  // Cash past the payout is the owner's drawings (owner, 6 Oct 2026), so only a week drawn well short of its payout asks:
+  // the wages were paid some other way, or the payout reads high.
+  if (!pw.recordedDays || !(pw.total > 0) || drawn >= pw.total * 0.75) return [];
   var d = gstRound(drawn - pw.total);
-  return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is ' + (d > 0 ? 'over' : 'under') + ' its payout',
-    sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total), why: 'Payments · cash by pay week',
+  return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is under its payout',
+    sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total) + ': paid some other way, or the payout reads high', why: 'Payments · cash by pay week',
     facts: [['Drawn', formatCurrency(drawn)], ['Payout', formatCurrency(pw.total)], ['Gap', (d > 0 ? '+' : '−') + formatCurrency(Math.abs(d))]],
     clears: 'Clears itself when the next week is within a quarter of its payout.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
 };
@@ -36601,7 +36715,7 @@ function finWagesHtml(cls, where) {
     return '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Wages paid, from the bank</span>' +
       '<span class="inv-row-meta">' + sum + '</span></span><span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button></span></div></div>';
   }
-  var h = '<div class="inv-panel-body inv-note">Every cash draw (SELF, TO SELF, TO CASH) counts as wages unless a row is set otherwise. Transfers to a hand on the roster are set against the payroll as paid for the month before; cash is set against the weekly payout.</div>';
+  var h = '<div class="inv-panel-body inv-note">A cash draw (SELF, TO SELF, TO CASH) is wages and the owner\'s drawings: each pay week\'s cash counts as wages up to the payout recorded for that week, and what is drawn past it is drawings, never a cost. A week with no attendance recorded cannot be split. Transfers to a hand on the roster are set against the payroll as paid for the month before.</div>';
   if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
   // The latest three months; the rest one tap away.
   h += uiMoreHtml('pay-wages-months', months.map(function(m) {
@@ -36629,7 +36743,8 @@ function finWagesHtml(cls, where) {
     h += uiMoreHtml('pay-wages-weeks', wk.map(function(ws) {
       var pw = payWeek(ws), d = gstRound(weeks[ws] - pw.total);
       return '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
-        '<span class="inv-row-meta">payout ' + escHtml(formatCurrency(pw.total)) + (pw.recordedDays ? '' : ' (no attendance recorded)') + ' · ' + (d >= 0 ? 'drawn ' + formatCurrency(d) + ' more' : 'drawn ' + formatCurrency(-d) + ' less') + '</span></span>' +
+        '<span class="inv-row-meta">' + (pw.recordedDays ? 'payout ' + escHtml(formatCurrency(pw.total)) + ' · ' + (d >= 0 ? escHtml(formatCurrency(d)) + ' past it: drawings' : 'drawn ' + escHtml(formatCurrency(-d)) + ' less than the payout')
+          : 'no attendance recorded: wages or drawings') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(weeks[ws]) + '</span></div>';
     }), { n: 4, noun: 'weeks' });
   }
@@ -40313,11 +40428,13 @@ function tdyUsual(k, day) {
   days.forEach(function(d) {
     var m = null;
     if (k === 'roll-in' || k === 'roll-out') {
-      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d, p); if (a != null && (m == null || a < m)) m = a; });
+      // Learnt only from the minute WhatsApp sent it: a roll pasted without its header carries only when it was pasted,
+      // and the owner's pasting hour read as "usually by 1:33 PM" for a roll sent before 9 (6 Oct 2026).
+      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, null, d, p); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'pickling') {
       prodDayLoads(d).forEach(function(e) { var a = relayParseHhmm(e.time); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'stock') {
-      tdyStockMsgs(d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d); if (a != null && (m == null || a < m)) m = a; });
+      tdyStockMsgs(d).forEach(function(p) { var a = tdyArrival(p.text, null, d); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'production') {
       // The day's records are in when the last line's is: the latest photo read that day (a photo has no header).
       ((S.production && S.production.photos) || []).forEach(function(p) { if (p && p.readDate === d && p.at && isoOf(new Date(p.at)) === d) { var a = tdyMinOfDay(p.at); if (m == null || a > m) m = a; } });

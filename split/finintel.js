@@ -269,7 +269,7 @@ var FIN_RULES = [
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
   ['supplierNoBill', 'Finance: a supplier paid with no stock bill'],
   ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
-  ['cashSwing', 'Finance: a week’s cash drawn is far from its payout'],
+  ['cashSwing', 'Finance: a week’s cash drawn is well short of its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
   ['runway', 'Finance: the cash forecast goes below zero'],
   ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
@@ -449,10 +449,12 @@ TODO_RULE_FNS.cashSwing = function() {
     return s + (v.cat === 'wages' && (v.cash || v.staffId == null) && v.row.dr > 0 && attWeekStartOf(v.row.date) === ws ? v.row.dr : 0);
   }, 0));
   var pw = payWeek(ws);
-  if (!pw.recordedDays || !(pw.total > 0) || Math.abs(drawn - pw.total) < pw.total * 0.25) return [];
+  // Cash past the payout is the owner's drawings (owner, 6 Oct 2026), so only a week drawn well short of its payout asks:
+  // the wages were paid some other way, or the payout reads high.
+  if (!pw.recordedDays || !(pw.total > 0) || drawn >= pw.total * 0.75) return [];
   var d = gstRound(drawn - pw.total);
-  return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is ' + (d > 0 ? 'over' : 'under') + ' its payout',
-    sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total), why: 'Payments · cash by pay week',
+  return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is under its payout',
+    sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total) + ': paid some other way, or the payout reads high', why: 'Payments · cash by pay week',
     facts: [['Drawn', formatCurrency(drawn)], ['Payout', formatCurrency(pw.total)], ['Gap', (d > 0 ? '+' : '−') + formatCurrency(Math.abs(d))]],
     clears: 'Clears itself when the next week is within a quarter of its payout.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
 };

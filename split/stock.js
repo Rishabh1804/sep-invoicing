@@ -1414,9 +1414,16 @@ function stockRereadDiff(p) {
   return { paste: p, drop: drop, add: addList };
 }
 /* Every message read differently now, newest first. Messages with no text (an import's) are left out. */
+/* Read afresh only when the record changes: the To-do asks on every redraw, and a message a day is 300 by the year's end. */
+var _stockRereadMemo = null;
 function stockRereadAll() {
-  return stockData().pastes.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); })
-    .map(stockRereadDiff).filter(Boolean);
+  var st = stockData(), voided = 0;
+  st.entries.forEach(function(e) { if (e.voided) voided++; });
+  var key = [st.entries.length, voided, st.pastes.length, st.items.map(function(i) { return i.id + ':' + i.key + ':' + stockAliases(i).join('/') + ':' + (i.lastPos || ''); }).join(',')].join('|');
+  if (_stockRereadMemo && _stockRereadMemo.st === st && _stockRereadMemo.key === key) return _stockRereadMemo.val;
+  var val = st.pastes.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); }).map(stockRereadDiff).filter(Boolean);
+  _stockRereadMemo = { st: st, key: key, val: val };
+  return val;
 }
 function stockRereadEntryText(e) {
   var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';

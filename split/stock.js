@@ -616,7 +616,7 @@ function stockCommitPaste(parsed, res, meta) {
   // the corrected paste as a duplicate of something that never landed.
   if (made) {
     st.pastes.push({ id: pasteId, at: at, by: meta.by || '', sentBy: meta.sentBy || '', from: res.from, to: res.to,
-      hash: stockHash(parsed.text || ''), text: parsed.text || '' });
+      hash: stockHash(parsed.text || ''), text: parsed.text || '', choices: meta.choices || {} });
   }
   return { entries: made, lines: lines, skipped: skipped, ids: ids };
 }
@@ -938,7 +938,7 @@ function stockSavePaste() {
   var res = resolveStockParse(rv.parsed, rv.choices);
   if (res.dup) { showToast('Already saved — nothing saved twice', 'error'); return; }
   var by = stockBy();
-  var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by });
+  var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by, choices: rv.choices });
   if (!out.entries) { showToast('Nothing to save: pick a line for each unnamed row', 'error'); return; }
   saveState();
   _stockReview = null; _stockPasteDraft = '';
@@ -1268,18 +1268,31 @@ function stockIsDraw(e) { return e.kind === 'used' || e.kind === 'charged'; }
 /* The days an entry speaks for: a use over several days covers its window. */
 function stockEntryWindow(e) { return [e.from && e.from < e.date ? e.from : e.date, e.date]; }
 /* What does not fit on one line, entry by entry: { id: [{ k, text }] }. Voided entries and those confirmed are left out. */
+/* Read afresh only when the record changes, and only for the last STOCK_CHECK_DAYS days: the list, the line, the callout
+   and two To-do rules all ask, and a check older than the To check page lists is one nobody could find. */
+var _stockChecksMemo = null;
 function stockEntryChecks(itemId) {
+  var st = stockData(), sig = 0;
+  st.entries.forEach(function(e) { if (e.voided) sig++; if (e.checkOk) sig += 1000; });
+  var key = st.entries.length + '|' + sig + '|' + localDateStr() + '|' + st.items.map(function(i) { return i.id + ':' + i.basis; }).join(',');
+  if (!_stockChecksMemo || _stockChecksMemo.st !== st || _stockChecksMemo.key !== key) _stockChecksMemo = { st: st, key: key, by: {} };
+  if (!_stockChecksMemo.by[itemId]) _stockChecksMemo.by[itemId] = _stockEntryChecks(itemId);
+  return _stockChecksMemo.by[itemId];
+}
+function _stockEntryChecks(itemId) {
+  var since = isoAddDays(localDateStr(), -STOCK_CHECK_DAYS);
   var it = stockItem(itemId), unit = it ? it.unit || '' : '', q = function(v) { return stockFmtQty(v) + (unit ? ' ' + unit : ''); };
   var list = stockItemEntries(itemId), rows = stockReplay(itemId).rows, byId = {}, out = {};
   rows.forEach(function(r) { byId[r.e.id] = r; });
   var add = function(e, k, text) { (out[e.id] = out[e.id] || []).push({ k: k, text: text }); };
   var dayRate = function(e) { return e.qty / Math.max(1, e.days || 1); };
   list.forEach(function(e) {
-    if (e.checkOk) return;
+    if (e.checkOk || e.date < since) return;
     if (stockIsDraw(e) && e.qty > 0) {
       var w = stockEntryWindow(e), seen = {};
       list.forEach(function(g) {
-        if (g === e || !stockIsDraw(g) || !(g.qty > 0)) return;
+        // The other side of a pair the owner kept as right is settled too.
+        if (g === e || !stockIsDraw(g) || !(g.qty > 0) || g.checkOk) return;
         var earlier = (g.at || 0) < (e.at || 0) || ((g.at || 0) === (e.at || 0) && g.date < e.date);
         // The same quantity from the other door within a few days: most often one use entered twice.
         if (earlier && g.source !== e.source && stockRound(g.qty) === stockRound(e.qty) && Math.abs(isoDaysBetween(g.date, e.date)) <= STOCK_TWICE_DAYS && !seen.same) {
@@ -1295,7 +1308,7 @@ function stockEntryChecks(itemId) {
       });
       // Pasted after uses were typed by hand for the days it covers.
       if (e.source === 'paste') {
-        var typed = list.filter(function(g) { return g.source === 'manual' && stockIsDraw(g) && g.qty > 0 && (g.at || 0) < (e.at || 0) && g.date >= w[0] && g.date <= w[1]; });
+        var typed = list.filter(function(g) { return g.source === 'manual' && !g.checkOk && stockIsDraw(g) && g.qty > 0 && (g.at || 0) < (e.at || 0) && g.date >= w[0] && g.date <= w[1]; });
         if (typed.length) add(e, 'typed', 'Uses were typed by hand for these days before this message was pasted (' + typed.map(function(g) { return q(g.qty); }).join(', ') + '): one of the two is a second record.');
       }
       var r = byId[e.id];
@@ -1386,30 +1399,51 @@ function stockRereadDiff(p) {
   parsed.text = p.text;
   if (!parsed.to) { parsed.from = p.from || null; parsed.to = p.to || null; }
   if (!parsed.to) return null;
-  var res = resolveStockParse(parsed, {});
-  var held = stockPasteHeld(p), fresh = [], items = {};
+  // The choices made at the review are the message's own (a balance picked, a nameless line placed): kept on the paste
+  // since 6 Oct 2026, and replayed. A message saved before carries none, so a line that needed one is left as it was.
+  var choices = p.choices || {};
+  var res = resolveStockParse(parsed, choices);
+  var held = stockPasteHeld(p), fresh = [], items = {}, stated = {}, freshOpen = {};
+  // A line the owner corrected by hand (a correction stands for the entry it replaced) is the owner's ruling: the whole
+  // line is left as it is, never voided under them.
+  var ruled = {};
+  held.forEach(function(h) { if (h.cur !== h.orig) ruled[h.orig.itemId] = true; });
   res.lines.forEach(function(r) {
-    if (r.skip || !r.item) return;   // a line the new reading cannot place, or one it would add: the old entries stand
+    if (r.skip || !r.item || ruled[r.item.id]) return;   // a line the new reading cannot place, or one it would add: the old entries stand
+    var hasChoice = choices['map' + r.idx] || choices['name' + r.idx];
+    if (r.via === 'position' && !hasChoice) return;   // placed by position, which moves with every later message
+    if (r.issues.some(function(i) { return i.code === 'balance'; }) && !choices['bal' + r.idx] && !p.choices) return;   // a balance the owner picked, not recorded
     items[r.item.id] = true;
+    stated[r.item.id] = r.O;
     r.entries.forEach(function(e) {
+      // An opening is saved only where it differs from what the app held before the message, which moves when an earlier
+      // message is read again; so openings are compared by the figure the message states, apart from the rest.
       var rec = { itemId: r.item.id, kind: e.kind, qty: e.qty, date: e.date, seq: e.seq, n: r.src.n, raw: r.src.raw };
       ['from', 'days', 'rate', 'note', 'unsettled'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
       if ((e.kind === 'used' || e.kind === 'charged') && !rec.days) rec.days = 1;
-      fresh.push(rec);
+      if (e.kind === 'count' && e.note === 'opening') freshOpen[r.item.id] = rec; else fresh.push(rec);
     });
   });
-  var oldKeys = {}, newKeys = {};
-  held.forEach(function(h) { if (items[h.cur.itemId]) { var k = stockRereadKey(h.cur); oldKeys[k] = (oldKeys[k] || 0) + 1; } });
-  fresh.forEach(function(e) { var k = stockRereadKey(e); newKeys[k] = (newKeys[k] || 0) + 1; });
-  var left = Object.assign({}, newKeys);
-  var drop = held.filter(function(h) {
-    if (!items[h.cur.itemId]) return false;
-    var k = stockRereadKey(h.cur);
-    if (left[k]) { left[k]--; return false; }
-    return h.live;
+  var mine = held.filter(function(h) { return items[h.orig.itemId] && !(h.orig.kind === 'count' && h.orig.note === 'opening'); });
+  var left = {};
+  fresh.forEach(function(e) { var k = stockRereadKey(e); left[k] = (left[k] || 0) + 1; });
+  // What the message held and still reads the same (live or voided by hand) is settled; what reads differently and is live
+  // is voided; what the new reading holds and nothing settled matches is added.
+  var drop = [];
+  mine.forEach(function(h) {
+    var k = stockRereadKey(h.orig);
+    if (left[k]) { left[k]--; return; }
+    if (h.live) drop.push(h);
   });
-  var taken = Object.assign({}, oldKeys);
-  var addList = fresh.filter(function(e) { var k = stockRereadKey(e); if (taken[k]) { taken[k]--; return false; } return true; });
+  var addList = [], need = Object.assign({}, left);
+  fresh.forEach(function(e) { var k = stockRereadKey(e); if (need[k]) { need[k]--; addList.push(e); } });
+  Object.keys(items).forEach(function(id) {
+    var O = stated[id], opens = held.filter(function(h) { return h.orig.itemId === id && h.orig.kind === 'count' && h.orig.note === 'opening'; });
+    var same = opens.filter(function(h) { return O != null && stockRound(h.orig.qty) === stockRound(O); });
+    opens.forEach(function(h) { if (same.indexOf(h) < 0 && h.live) drop.push(h); });
+    // Read 3 where the message states 54: the old opening goes, and the stated one is added where the app does not hold it.
+    if (!same.length && freshOpen[id]) addList.push(freshOpen[id]);
+  });
   if (!drop.length && !addList.length) return null;
   return { paste: p, drop: drop, add: addList };
 }

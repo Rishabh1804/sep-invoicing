@@ -190,8 +190,8 @@ function finWagesHtml(cls, where) {
     h += uiMoreHtml('pay-wages-weeks', wk.map(function(ws) {
       var pw = payWeek(ws), d = gstRound(weeks[ws] - pw.total);
       return '<div class="inv-row inv-row-2" data-cashweek="' + ws + '"><span class="inv-row-main"><span class="inv-row-title">Week to ' + escHtml(formatDate(pw.sat)) + '</span>' +
-        '<span class="inv-row-meta">' + (pw.recordedDays ? 'payout ' + escHtml(formatCurrency(pw.total)) + ' · ' + (d >= 0 ? escHtml(formatCurrency(d)) + ' past it: drawings' : 'drawn ' + escHtml(formatCurrency(-d)) + ' less than the payout')
-          : 'no attendance recorded: wages or drawings') + '</span></span>' +
+        '<span class="inv-row-meta">' + (bankCashWeekKnown(pw) ? 'payout ' + escHtml(formatCurrency(pw.total)) + ' · ' + (d >= 0 ? escHtml(formatCurrency(d)) + ' past it: drawings' : 'drawn ' + escHtml(formatCurrency(-d)) + ' less than the payout')
+          : 'payout not fully recorded: wages or drawings') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(weeks[ws]) + '</span></div>';
     }), { n: 4, noun: 'weeks' });
   }

@@ -456,7 +456,7 @@ TODO_RULE_FNS.cashSwing = function() {
   return [{ key: 'cashSwing:' + ws, rule: 'cashSwing', tone: 'amber', title: 'Cash drawn for the week to ' + formatDate(sat) + ' is under its payout',
     sub: formatCurrency(drawn) + ' drawn against a payout of ' + formatCurrency(pw.total) + ': paid some other way, or the payout reads high', why: 'Payments · cash by pay week',
     facts: [['Drawn', formatCurrency(drawn)], ['Payout', formatCurrency(pw.total)], ['Gap', (d > 0 ? '+' : '−') + formatCurrency(Math.abs(d))]],
-    clears: 'Clears itself when the next week is within a quarter of its payout.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
+    clears: 'Clears itself when a week\'s cash comes within a quarter of its payout.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: drawn + '|' + pw.total }];
 };
 TODO_RULE_FNS.costGap = function() {
   var closed = finClosedMonths(3);

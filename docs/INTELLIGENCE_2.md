@@ -45,7 +45,13 @@ now and compared with what it holds (a correction standing for the entry it corr
 line's basis can change). A message read differently is listed with both readings; **Use the new reading** voids what the
 old reading saved (`Read again on …`) and adds the new entries at the message's own time, so the day's order holds. A figure
 voided by hand stays voided; a line the new reading cannot place keeps its entries; entries typed by hand are never touched,
-so one the new reading made redundant shows as `overlap`.
+so one the new reading made redundant shows as `overlap`. **A line the owner corrected by hand is the owner's ruling and is
+left whole.** **The review's choices are kept on the message** (`paste.choices`, from 6 Oct 2026) and replayed; on a message
+saved before, a line placed by position or a balance the owner picked is left as it was. An opening is compared by the figure
+the message states, since whether one is saved at all depends on the level before it.
+
+Checks cover the last 60 days, are worked out again only when the record changes, and **It is right** on one side of a pair
+(entered twice, or by hand beside a message) settles the other.
 
 Stock → **To check** (`?tab=pageStock&v=check`) lists both; a callout on Overview and Lines leads there, each entry says its
 question on its line, a save by hand or by paste says it at once, and the To-do raises one task, `stockCheck`.
@@ -71,8 +77,10 @@ said as a range, *at least* at that lowest, *up to* at this month's. On the owne
 loses at least ₹9,207.83 (at ₹5.43) and up to ₹1,25,223.98.
 
 **Self draws are wages and drawings** (owner, 6 Oct 2026). As cost (`bankCostByMonth`), a pay week's cash is wages up to the
-payout recorded for it (`payWeek`) and drawings past it; a week whose payout is not fully recorded (no attendance, or hourly
-hands with no hours) is not split, and its month's labour is not known from the bank. `cashSwing` asks only when a week is
+payout recorded for it (`payWeek`) and drawings past it, once 90% of its working days are typed and no hourly hand lacks hours
+(`bankCashWeekKnown`). A week short of that is not split: under a quarter of its month's labour, its cash counts as wages (an
+upper bound, said on the row); past that, the month's labour is not known from the bank. A delivery of zinc with no price and
+no bill beside it keeps zinc off its bills for that window. `cashSwing` asks only when a week is
 drawn well short of its payout. On the owner's book June–August cannot be read from the bank now, so *recorded against paid*
 raises nothing, where it had said 58% apart.
 

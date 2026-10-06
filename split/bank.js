@@ -589,6 +589,11 @@ function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d
    A month is KNOWN when the statement covers what would pay for it: the whole month and the salary
    run after it for labour, the whole month for other and supplies, a payment attributed to it for
    electricity. Unknown is never zero. */
+/* Whether a pay week's payout is recorded well enough to split its cash into wages and drawings: 90% of its working days
+   typed, and no hourly hand without hours (the imported history). Read by the cost and by Staff → Pay alike. */
+function bankCashWeekKnown(pw) {
+  return !!(pw && pw.recordedDays > 0 && pw.recordedDays >= Math.ceil((pw.workingDays || 6) * 0.9) && !(pw.lab && pw.lab.hourlessMarks > 0));
+}
 function bankCostByMonth(cls) {
   cls = cls || bankClassify();
   var cover = bankCover(), out = {};
@@ -622,8 +627,10 @@ function bankCostByMonth(cls) {
     try { pw = payWeek(ws); } catch (x) { pw = null; }
     // A week whose hourly hands carry no hours (history imported without them) has a payout that reads near nothing:
     // its cash would read as drawings, so it is not split.
-    var known = pw && pw.recordedDays > 0 && !(pw.lab && pw.lab.hourlessMarks > 0), wages = known ? Math.min(c.amount, Math.max(0, pw.total)) : 0;
-    c.wages = wages; c.drawings = known ? c.amount - wages : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null;
+    // A week with only some of its days typed has a payout that reads small, and its cash would read as drawings: it is
+    // split only once 90% of its working days are recorded.
+    var known = bankCashWeekKnown(pw), wages = known ? Math.min(c.amount, Math.max(0, pw.total)) : 0;
+    c.wages = wages; c.drawings = known ? c.amount - wages : 0; c.open = known ? 0 : c.amount; c.payout = known ? pw.total : null; c.known = !!known;
     var seen = {};
     for (var k = 0; k < 7; k++) {
       var d = attParseIso(ws); d.setDate(d.getDate() + k);
@@ -631,6 +638,11 @@ function bankCostByMonth(cls) {
       C.amount += wages / 7; C.cash += wages / 7; C.drawings += c.drawings / 7; C.open += c.open / 7;
       if (!seen[ym]) { seen[ym] = 1; c.rows.forEach(function(v) { C.rows.push(v); }); }
     }
+  });
+  // A month whose open cash is under a quarter of its labour counts it as wages (bankMonthUnknown), said on the row.
+  Object.keys(out).forEach(function(ym) {
+    var L = out[ym].labour;
+    if (L.open >= 1 && L.open < (L.amount + L.open) * 0.25) { L.amount += L.open; L.cash += L.open; L.openCounted = L.open; }
   });
   return { months: out, cover: cover, cashWeeks: cashWeeks };
 }
@@ -648,8 +660,10 @@ function bankMonthUnknown(bm, ym, k) {
   // could be either, and counting it as neither reads the month cheap.
   if ((k === 'other' || k === 'supplies') && e && e.unsorted.amount >= 1) return BANK_UNSORTED_WHY;
   if (k === 'labour' && c.to < bankNextMonth(ym) + '-20') return 'its salaries are not on the statement yet';
-  // Cash drawn in a week nobody recorded attendance for is wages or drawings, and the bank cannot say which.
-  if (k === 'labour' && e && e.labour.open >= 1) return 'cash drawn in a week whose payout is not fully recorded: wages or drawings';
+  // Cash drawn in a week whose payout is not recorded is wages or drawings, and the bank cannot say which. Where it is under a
+  // quarter of the month's labour it is counted as wages (an upper bound: the month reads high, never cheap, and says so);
+  // past that the month is not known from the bank. One cash draw in a holiday week had made the whole month unknown.
+  if (k === 'labour' && e && e.labour.open >= 1 && e.labour.open >= (e.labour.amount + e.labour.open) * 0.25) return 'cash drawn in a week whose payout is not fully recorded: wages or drawings';
   return '';
 }
 function bankMonthKnown(bm, ym, k) { return !bankMonthUnknown(bm, ym, k); }
@@ -681,7 +695,7 @@ function bankCostForRange(from, to, byMonth) {
       res[k].known += rangeShare;
       res[k].amount += (c ? c.amount : 0) * share;
       res[k].months.push({ month: ym, share: share, rangeShare: rangeShare, amount: (c ? c.amount : 0) * share, whole: c ? c.amount : 0, named: c && c.named || 0, cash: c && c.cash || 0,
-        drawings: c && c.drawings || 0, rows: c ? c.rows : [] });
+        drawings: c && c.drawings || 0, openCounted: c && c.openCounted || 0, rows: c ? c.rows : [] });
     });
   }
   return res;

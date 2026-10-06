@@ -98,15 +98,33 @@ test.describe('P157 how sure a finding is', () => {
   test('cash drawn is wages up to the week\'s payout and drawings past it; a week not fully recorded is not split', async ({ page }) => {
     await loadAppWithState(page, book());
     const r: any = await g(page, `(function () {
-      payWeek = function (ws) { return ws === '2026-08-02' ? { recordedDays: 6, total: 30000, lab: { hourlessMarks: 0 } } : { recordedDays: 6, total: 30000, lab: { hourlessMarks: 4 } }; };
+      bankCover = function () { return { from: '2026-01-01', to: '2026-12-31' }; };
+      payWeek = function (ws) { return ws === '2026-08-02' ? { recordedDays: 6, workingDays: 6, total: 30000, lab: { hourlessMarks: 0 } }
+        : ws === '2026-08-16' ? { recordedDays: 2, workingDays: 6, total: 8000, lab: { hourlessMarks: 0 } }
+        : { recordedDays: 6, workingDays: 6, total: 30000, lab: { hourlessMarks: 4 } }; };
       var row = function (date, dr) { return { cat: 'wages', cash: true, staffId: null, row: { date: date, dr: dr, cr: 0 } }; };
-      var bm = bankCostByMonth([row('2026-08-03', 40000), row('2026-08-10', 25000)]);
-      var a = bm.cashWeeks['2026-08-02'], b = bm.cashWeeks['2026-08-09'];
-      return { a: [a.wages, a.drawings, a.open], b: [b.wages, b.drawings, b.open], open: bm.months['2026-08'].labour.open > 0 };
+      var bm = bankCostByMonth([row('2026-08-03', 40000), row('2026-08-10', 25000), row('2026-08-17', 30000)]);
+      var a = bm.cashWeeks['2026-08-02'], b = bm.cashWeeks['2026-08-09'], c = bm.cashWeeks['2026-08-16'];
+      return { a: [a.wages, a.drawings, a.open], b: [b.wages, b.drawings, b.open], c: [c.wages, c.drawings, c.open], why: bankMonthUnknown(bm, '2026-08', 'labour') };
     })()`);
     expect(r.a).toEqual([30000, 10000, 0]);
     expect(r.b).toEqual([0, 0, 25000]);
-    expect(r.open).toBe(true);
+    // Two of six days typed: its payout reads small, so its cash is not read as drawings.
+    expect(r.c).toEqual([0, 0, 30000]);
+    expect(r.why).toMatch(/wages or drawings/);
+  });
+
+  test('a little cash in a week not recorded is counted as wages, an upper bound, and the month stays known', async ({ page }) => {
+    await loadAppWithState(page, book());
+    const r: any = await g(page, `(function () {
+      bankCover = function () { return { from: '2026-01-01', to: '2026-12-31' }; };
+      payWeek = function (ws) { return ws === '2026-08-23' ? { recordedDays: 0, workingDays: 6, total: 0, lab: { hourlessMarks: 0 } } : { recordedDays: 6, workingDays: 6, total: 40000, lab: { hourlessMarks: 0 } }; };
+      var row = function (date, dr) { return { cat: 'wages', cash: true, staffId: null, row: { date: date, dr: dr, cr: 0 } }; };
+      var bm = bankCostByMonth([row('2026-08-03', 40000), row('2026-08-10', 40000), row('2026-08-24', 3000)]);
+      return { why: bankMonthUnknown(bm, '2026-08', 'labour'), counted: Math.round(bm.months['2026-08'].labour.openCounted) };
+    })()`);
+    expect(r.why).toBe('');
+    expect(r.counted).toBeGreaterThan(0);
   });
 
   test('zinc bills stand for its use over 90 days, per kg plated, from the first bill on record', async ({ page }) => {
@@ -123,6 +141,12 @@ test.describe('P157 how sure a finding is', () => {
     expect(z.amount).toBe(130000);
     expect(z.kg).toBe(50000);
     expect(z.perKg).toBeCloseTo(2.6, 6);
+    // A delivery pasted with no price and no bill beside it is zinc at an unknown price: the window is not read.
+    await g(page, `stockData().entries.push({ id: 'z3', itemId: 'Z', kind: 'received', qty: 300, date: '${iso(-30, to)}', source: 'paste', at: 3 })`);
+    expect(await g(page, `costZincByBills(localDateStr())`)).toBeNull();
+    // One whose bill was entered as its own line is that bill.
+    await g(page, `stockData().entries.find(function (e) { return e.id === 'z3'; }).date = '${iso(-8, to)}'; stockData().entries.find(function (e) { return e.id === 'z3'; }).qty = 200`);
+    expect(await g(page, `costZincByBills(localDateStr()).amount`)).toBe(130000);
     // A window under 28 days of bills is not read.
     expect(await g(page, `costZincByBills('${iso(-50, to)}')`)).toBeNull();
   });

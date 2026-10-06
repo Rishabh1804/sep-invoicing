@@ -234,6 +234,14 @@ function costZincByBills(to) {
     bills++; qty += b.e.qty || 0;
     if (b.e.price > 0) amount += b.e.price * (b.e.qty || 0); else unpriced++;
   });
+  // A delivery with no price and no bill beside it (a pasted "add 495 kg" whose bill was never entered) is zinc bought at
+  // an unknown price: the window would read cheap, so it is not read. One whose bill was entered as its own line (within a
+  // week, the same quantity within 5%) is that bill.
+  stockItemEntries(it.id).forEach(function(e) {
+    if (e.kind !== 'received' || e.price != null || e.date < from || e.date > to) return;
+    var billed = all.some(function(b) { return Math.abs(isoDaysBetween(b.date, e.date)) <= 7 && Math.abs((b.e.qty || 0) - e.qty) <= e.qty * 0.05; });
+    if (!billed) unpriced++;
+  });
   if (!bills || unpriced) return null;
   var w = weighLines(statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; }));
   if (!(w.kg > 0)) return null;
@@ -277,7 +285,7 @@ function liveCost(from, to, kg) {
     if (blNamed + blCash > 0) labFixed = { share: blNamed / (blNamed + blCash), from: 'bank' };
     var blDetail = bl.months.map(function(mo) {
       return { label: 'Paid for ' + billsMonthLabel(mo.month), bank: true, amount: mo.amount,
-        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
+        sub: [mo.named ? formatCurrency(mo.named) + ' to named hands, paid the month after' : '', mo.cash ? formatCurrency(mo.cash) + ' cash as wages, up to each week\'s payout' : '', mo.drawings >= 1 ? formatCurrency(mo.drawings) + ' cash past the payout: drawings, not counted' : '', mo.openCounted >= 1 ? formatCurrency(mo.openCounted) + ' cash in weeks whose payout is not recorded, counted as wages: an upper bound' : '', mo.share < 0.999 ? formatNum(mo.share * 100, 0) + '% of the month' : ''].filter(Boolean).join(' · ') || 'nothing paid' };
     });
     if (blMissing > 0.001) blDetail.push(fillLine(lm, blMissing, Math.round(blMissing * 100) + '% of the period the statement does not cover'));
     push({ key: 'labour', label: 'Labour', coverage: labCov, bankShare: bl.known, amount: bl.amount + (blMissing > 0.001 ? lm * kg * blMissing : 0),

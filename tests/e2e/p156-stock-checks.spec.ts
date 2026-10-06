@@ -43,7 +43,7 @@ function misread(): SepState {
   const old = [
     { id: 'O1', itemId: 'Z', kind: 'charged', qty: 2, date: iso(-1), seq: 2, days: 1, ...base(at1), raw: 'ZINK 444 KG use VAT A 2 …' },
     { id: 'O2', itemId: 'Z', kind: 'count', qty: 44, date: iso(-1), seq: 3, ...base(at1) },
-    { id: 'O3', itemId: 'M', kind: 'count', qty: 3, date: iso(-4), seq: 0, ...base(at1) },
+    { id: 'O3', itemId: 'M', kind: 'count', qty: 3, date: iso(-4), seq: 0, note: 'opening', ...base(at1) },
     { id: 'O4', itemId: 'M', kind: 'received', qty: 12, date: iso(-1), seq: 1, ...base(at1) },
     { id: 'O5', itemId: 'M', kind: 'used', qty: 54, date: iso(-1), from: iso(-4), days: 3, seq: 2, ...base(at1) },
     { id: 'O6', itemId: 'M', kind: 'count', qty: 39, date: iso(-1), seq: 3, ...base(at1) }
@@ -145,6 +145,48 @@ test.describe('P156 stock: an entry is checked before it is believed', () => {
     await expect(page.locator('.inv-toast').last()).toContainText('check it: 65 M: The same 6 L is in the message');
     const st: any = await readStoredState(page);
     expect(st.stock.entries.filter((e: any) => e.source === 'manual' && e.qty === 6).length).toBe(1);
+  });
+
+  test('reading again never undoes a correction: a line the owner corrected by hand is left as it is', async ({ page }) => {
+    const s: any = misread();
+    // The owner corrected the misread 65 M use of 54 to 15 by hand; the zinc line was never touched.
+    const o5 = s.stock.entries.find((e: any) => e.id === 'O5');
+    o5.voided = { at: Date.now(), by: 'Owner', reason: 'Corrected to 15 L', correctedBy: 'K5' };
+    s.stock.entries.push({ ...o5, id: 'K5', qty: 15, source: 'manual', corrects: { id: 'O5', qty: 54 }, voided: undefined });
+    await loadAppWithState(page, s);
+    const d: any = await g(page, `(function () { var d = stockRereadDiff(stockData().pastes[0]); return { drop: d.drop.map(function (h) { return h.cur.id; }), add: d.add.map(function (e) { return e.itemId + ' ' + e.kind + ' ' + e.qty; }) }; })()`);
+    expect(d.drop).toEqual(['O1']);
+    expect(d.add).toEqual(['Z charged 400']);
+  });
+
+  test('a balance picked at the review is kept on the message and read again the same way; an old message that needed one is left', async ({ page }) => {
+    const msg = `Camical use camical stock ${dmy(-1)}\n\n1) A SOLLT 48-12=30 LTR`;
+    const ents = [{ id: 'C0', itemId: 'A', kind: 'count', qty: 48, date: iso(-3), source: 'manual', at: 1 },
+      { id: 'U', itemId: 'A', kind: 'used', qty: 12, date: iso(-1), days: 1, source: 'paste', pasteId: 'P', at: 2, seq: 2 },
+      { id: 'C', itemId: 'A', kind: 'count', qty: 36, date: iso(-1), source: 'paste', pasteId: 'P', at: 2, seq: 3, note: 'message said 30' }];
+    const s = withStock([line('A', 'A Salt', 'A SALT', 'L')], ents, [{ id: 'P', at: 2, from: iso(-1), to: iso(-1), hash: 'h', text: msg, choices: { bal0: 'working' } }]);
+    await loadAppWithState(page, s);
+    expect(await g(page, `stockRereadDiff(stockData().pastes[0])`)).toBeNull();
+    await g(page, `delete stockData().pastes[0].choices`);
+    expect(await g(page, `stockRereadDiff(stockData().pastes[0])`)).toBeNull();
+    // A message saved from the review keeps its choices.
+    await g(page, `stockData().pastes = []; stockData().entries = stockData().entries.filter(function (e) { return e.id === 'C0'; })`);
+    await switchTab(page, 'pageStock');
+    await page.locator('[data-action="invStockPaste"]').first().click();
+    await page.locator('#stockPasteText').fill(msg);
+    await page.locator('[data-action="invStockRead"]').click();
+    await page.locator('[data-action="invStockBal"][data-v="working"]').click();
+    await page.locator('[data-action="invStockSavePaste"]').click();
+    expect(await g(page, `stockData().pastes[0].choices.bal0`)).toBe('working');
+  });
+
+  test('"It is right" on one side of a pair settles the other', async ({ page }) => {
+    const d = iso(-1);
+    const ents = [{ id: 'C0', itemId: 'M', kind: 'count', qty: 30, date: iso(-3), source: 'paste', at: 1 },
+      { id: 'P', itemId: 'M', kind: 'used', qty: 6, days: 1, date: d, source: 'paste', pasteId: 'X', at: 2, checkOk: { at: 1 } },
+      { id: 'H', itemId: 'M', kind: 'used', qty: 6, days: 1, date: d, source: 'manual', at: 3 }];
+    await loadAppWithState(page, withStock([M65], ents));
+    expect(await g(page, `stockEntryChecks('M').H`)).toBeUndefined();
   });
 
   test('an entry kept as right, and a voided one, are never asked about', async ({ page }) => {

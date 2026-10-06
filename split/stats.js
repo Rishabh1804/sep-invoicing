@@ -955,7 +955,10 @@ function renderStats() {
     // The questions first, each answered as a story (statsStoriesHtml); the figures behind them follow, and the whole
     // insight list closes the page (owner, 30 Sep 2026: it had led the page).
     // The questions work out their moves (advice.js), so they are drawn only while Overview is the tab shown.
-    sec.overview = (statsTab() === 'overview' ? statsStoriesHtml(_statsPeriod, filtered, prior, tonnage, periodCost) : '') + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) +
+    // Why it moved (why.js, I4): the change against the period before, broken into its causes.
+    var why = '';
+    if (statsTab() === 'overview') { try { why = whyHtml(_statsPeriod, filtered, prior); } catch (e) { why = ''; if (typeof errReport === 'function') errReport(e, 'render: Why it moved'); } }
+    sec.overview = (statsTab() === 'overview' ? statsStoriesHtml(_statsPeriod, filtered, prior, tonnage, periodCost) : '') + why + sec.overview + statsOverviewHtml(_statsPeriod, filtered, tonnage) +
       paceCardHtml() + statsMonthsHtml() + insightsCardHtml();
     sec.clients = statsMarginHtml(_statsPeriod, filtered, tonnage) + nextChallanCardHtml() + sec.clients;
   }

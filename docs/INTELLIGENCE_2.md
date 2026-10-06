@@ -22,7 +22,7 @@ been asked about, and nothing on screen said so.
 | I1 | **An entry is checked before it is believed.** Stock entries that do not fit; stock messages read differently now. | Built (P156) |
 | I2 | **Confidence on every finding.** How old and how complete its record is; a stale record is never red, an early month says so. Self draws: cash wages up to the week's payout, the rest drawings. Zinc charged in lumps measured against its bills. | Built (P157) |
 | I3 | **One ranked list**: ₹ at stake × urgency × confidence; per-client tasks folded; one card per client. | Built (P158) |
-| I4 | **The change explained**: realisation, margin and cash moves broken into their causes, each with its ₹. | |
+| I4 | **The change explained**: realisation, margin and cash moves broken into their causes, each with its ₹. | Built (P159) |
 | I5 | **Learning from responses**: snoozes, actions and ignores tune rank and thresholds, suggested, never silent. | |
 
 ## I1: an entry is checked before it is believed
@@ -111,3 +111,24 @@ raised about it, *Flagged*, before its money.
 On the owner's book of 6 Oct: 23 tasks drawn as 14 rows. SSS Mehta's loss (at least ₹9,207.83) and the power penalty (₹5,220)
 lead the reds; the three clients over 90 days are one amber row worth ₹50,984.03; six stock lines, all read off an old record,
 one row; three clients' challans one row worth ₹11,876.87.
+
+## I4: why it moved
+
+`why.js`. Stats → Overview → **Why it moved** sets the period shown against the one before it (Stats' own comparison) and breaks
+three figures into causes, each with its ₹, that **add up to the change exactly**. Nothing is a second arithmetic: realisation is
+`buildClientRollup`'s over the weighed lines, cost is `liveCost`'s rows, cash is the statement as `bankClassify` reads it.
+
+| Bridge | Causes | Identity |
+|---|---|---|
+| Realisation | each client's own rate; its share of the kilos (mix); a client new or gone | ΔR = Σ s₁(r₁ − r₀) + Σ (s₁ − s₀)(r₀ − R₀) |
+| Contribution | the price; each live-cost line per kg; the kilos | ΔC = ΔR·K₁ − Σ Δc·K₁ + (R₀ − c₀)(K₁ − K₀) |
+| Cash | money in by client (and with no client); money out by kind | the change in each month's net |
+
+The largest four or five causes are listed and the rest is one line; a cause that rounds to nothing is not. *What changed?* names
+realisation's largest cause. **How sure**: month to date under ten working days in is *Early* (I2's rule), and a cost under 90%
+measured on either side is *Partly measured*.
+
+On the owner's book of 6 Oct, the quarter to date against the same stretch last quarter: realisation ₹9.80 → ₹7.14/kg, of which
+SSS Mehta's share of the kilos (40% → 79% at ₹5.40) is −₹1.72/kg; contribution −₹46,319 on the period, mostly zinc and labour per
+kg, partly the model on five days of October. Cash, July to August: net −₹35,491 → +₹1,20,924, SSS Mehta's receipts +₹3,66,014.
+Month to date is five working days and says so.

@@ -23,7 +23,7 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **The intelligence is being refined — read `docs/INTELLIGENCE_2.md`** (owner, 6 Oct 2026: *"Let's refine the intelligence
 system"*, then *"Order works"*). Measured on the owner's book, the loudest findings rested on figures nobody had been asked
 about. Five steps, one PR each: I1 an entry checked before it is believed (built), I2 confidence on every finding (built), I3 one
-ranked list (built), I4 the change explained, I5 learning from responses. **Self draws are wages and personal drawings** (owner,
+ranked list (built), I4 the change explained (built), I5 learning from responses. **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
@@ -44,7 +44,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 69 modules, ~49,900 lines total.
+Split-file PWA. 70 modules, ~49,900 lines total.
 
 ```
 split/
@@ -96,6 +96,7 @@ split/
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
+├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
@@ -123,7 +124,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → stocksheet → prodparse → stats → intel → insights → finintel → finlinks → advice → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -153,7 +154,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,446 tests, both layouts
+pnpm exec playwright test          # 1,447 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2341,6 +2342,20 @@ stock lines and three clients' challans each a row of its own, in the rules' ord
 - **A client's page lists everything flagged about it** (`todoClientCardHtml`: the detail pane, the edit sheet and Performance),
   unfolded, each opening its task. The per-client rules carry `clientId` (credit note due, gauge unknown, pickled with no challan
   now too).
+
+### Why it moved
+Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Stats → Overview → **Why it moved**, under the questions, for the period shown
+against the one before (Stats' own: same days last month, quarter, year), and *What changed?* names realisation's largest cause.
+Every cause carries its ₹ and **the causes add up to the change exactly**; the top few are listed and the rest is one line.
+- **Realisation** (`whyRealisation`) over the weighed lines, the figure Stats shows: each client's own rate (its share now × its
+  change) and the mix (its change of share × its rate against the average before); a client new to the period or gone from it is
+  said as such. A cause that rounds to nothing is not listed.
+- **Contribution at the live cost** (`whyMargin`): the price (realisation's change × this period's kilos), each live-cost line's
+  change per kg × the same kilos (*partly the model* where either side is the model), and the kilos (their change × what a kilo
+  left before). *Partly measured* when either period's cost is under 90% measured.
+- **Cash** (`whyCash`): the two latest months the statement covers end to end, net in the month, money in by client (receipts
+  with no client said) and out by kind.
+- **Early**: month to date under ten working days in says so (`whyEarly`, I2's rule), and the sentence on *What changed?* is to know.
 
 ### Insights and predictions
 Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.js`.

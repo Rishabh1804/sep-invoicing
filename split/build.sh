@@ -66,6 +66,7 @@ JS_SOURCES=(
     "$DIR/prodparse.js" \
     "$DIR/stats.js" \
     "$DIR/intel.js" \
+    "$DIR/why.js" \
     "$DIR/insights.js" \
     "$DIR/finintel.js" \
     "$DIR/finlinks.js" \

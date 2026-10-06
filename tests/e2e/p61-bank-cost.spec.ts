@@ -47,9 +47,13 @@ function state(extra: any = {}): SepState {
   return Object.assign(s, extra);
 }
 const ev = (page: Page, js: string) => page.evaluate(src => (0, eval)(src), js);
+// Cash is wages up to its week's recorded payout and the owner's drawings past it (owner, 6 Oct 2026). These statements test
+// where a payment lands, so every week's payout is taken as recorded and above its cash: all of it is wages. P157 tests the split.
+const PAID = `payWeek = function () { return { recordedDays: 6, workingDays: 6, total: 1e9, lab: { hourlessMarks: 0 } }; }`;
 
 test('a salary leg pays the month before, cash its pay week, electricity its bill month; GST and drawings are not cost', async ({ page }) => {
   await loadAppWithState(page, state());
+  await ev(page, PAID);
   const m = await ev(page, `(function() { var b = bankCostByMonth().months, r = function(x) { return Math.round(x * 100) / 100; };
     return { julNamed: r(b['2026-07'].labour.named), julCash: r(b['2026-07'].labour.cash), augNamed: r(b['2026-08'].labour.named), augCash: r(b['2026-08'].labour.cash),
       julPower: b['2026-07'].power.amount, augPower: b['2026-08'].power.amount, augOther: b['2026-08'].other.amount }; })()`);
@@ -70,6 +74,7 @@ test('precedence: recorded at 90% or more, else the bank, else the model, and th
     if (new Date(iso + 'T00:00:00').getDay() !== 0) att[iso] = { marks: { 7: { st: 'P', ot: 0, hours: 8, area: 'vat-a1' } }, extra: [], note: '' };
   }
   await loadAppWithState(page, state());
+  await ev(page, PAID);
   const src = (from: string, to: string) => ev(page, `(function() { var c = liveCost('${from}', '${to}', 10000);
     var o = {}; c.rows.forEach(function(r) { o[r.key] = { source: r.source, amount: r.amount }; }); return o; })()`);
 
@@ -88,6 +93,7 @@ test('precedence: recorded at 90% or more, else the bank, else the model, and th
   expect(((await src('2026-05-01', '2026-05-31')) as any).labour.source).toBe('model');
 
   await loadAppWithState(page, state({ attendance: att, costBills: [{ id: 'CB1', kind: 'power', month: '2026-07', amount: 45000, units: null, note: '', at: 1 }] }));
+  await ev(page, PAID);
   aug = await src('2026-08-01', '2026-08-31');
   expect(aug.labour.source).toBe('measured');
   jul = await src('2026-07-01', '2026-07-31');
@@ -110,6 +116,7 @@ test('precedence: recorded at 90% or more, else the bank, else the model, and th
 
 test('a payment marked not a cost on the statement leaves the live cost', async ({ page }) => {
   await loadAppWithState(page, state());
+  await ev(page, PAID);
   await switchTab(page, 'pageFinance');
   await page.locator('[data-action="invFinTab"][data-tab="bank"]').click();
   const hw = page.locator('[data-bank-row] [data-action="invBankEdit"]', { hasText: 'HARDWARE MART' });

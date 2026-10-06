@@ -20,6 +20,12 @@ When in QA mode, switch to **Cipher** (The Codewright): precise, minimalist, cat
 dashboard, a live cost that uses the bank statement, the intelligence rules and forecast, and the tabs linked into
 one picture — in seven phases, one PR each. Its §0 says what is built.
 
+**The intelligence is being refined — read `docs/INTELLIGENCE_2.md`** (owner, 6 Oct 2026: *"Let's refine the intelligence
+system"*, then *"Order works"*). Measured on the owner's book, the loudest findings rested on figures nobody had been asked
+about. Five steps, one PR each: I1 an entry checked before it is believed (built), I2 confidence on every finding (built), I3 one
+ranked list, I4 the change explained, I5 learning from responses. **Self draws are wages and personal drawings** (owner,
+6 Oct 2026), which I2 builds on.
+
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
@@ -147,7 +153,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,419 tests, both layouts
+pnpm exec playwright test          # 1,436 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2059,7 +2065,13 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
   - *model*: a Settings fallback, used only where nothing is recorded.
   Opening a line shows its parts: labour by tier; chemicals line by line as quantity × price, with unpriced
   lines named; each power or other bill with its share of the month. **What was bought in the period is
-  shown for reference and never used as the figure**, because a purchase is stock on the shelf, not use.
+  shown for reference and never used as the figure**, because a purchase is stock on the shelf, not use. **Zinc is the
+  exception** (intelligence step I2, 6 Oct 2026): it goes into the bath as it arrives (the 24 Sep delivery of 495 kg
+  was charged within four days), so a charge record starting partway through a month is a lump, and the days before it
+  filled at the model counted September twice (₹3.94/kg). Over a period of 28 days or more whose charge record does
+  not cover it, zinc is **its bills over the 90 days to the period's end, per kg plated over the same days**
+  (`costZincByBills`), the window starting no earlier than the first zinc bill on record; on the owner's book
+  ₹2.21–2.37/kg, beside the model's ₹2.21.
   Modelled zinc is priced at the last price paid by the end of the period, then today's market rate, then
   the cost model's ₹2.21/kg.
 - 🔴 **An unrecorded stretch is FILLED at the model, never read as zero.** Each row is measured where the
@@ -2465,7 +2477,9 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   statements) is reported with its date and the figure expected.
 - **A category is worked out from the narration every time it is read**, then overridden: for a payee
   (`S.bank.parties`, keyed on the name) or for one row (`row.set`). **Every SELF / TO SELF / TO CASH draw is wages**
-  (owner, 26 Sep 2026: *"All kind of Self should also count towards wages, unless stated otherwise"*); a draw has
+  (owner, 26 Sep 2026: *"All kind of Self should also count towards wages, unless stated otherwise"*), **and the owner's
+  drawings** (owner, 6 Oct 2026: *"Personal drawings as well, through self"*): as cost, a pay week's cash is wages up to
+  that week's payout and drawings past it (below, *What the bank paid, as cost*); a draw has
   no payee, so a draw set otherwise is set on its row. A salary transfer is matched to the roster by the relay's
   own name matcher (either side of a dash, a unique first name, the spelling folds); a folded match reads `?`, and
   a payee that reads like a firm (`TRADERS`, `LTD`, `NIGAM` …) is never a person. On the real statement: 42 of
@@ -2542,7 +2556,11 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
 
 - **Every payment is set against the month it PAYS FOR.** A transfer to a named hand pays the month before, since
   salaries go out around the 14th for the month before. Cash pays the pay week it was drawn in, spread over that week's
-  seven days, so a week that straddles two months is split. Electricity pays its bill month (`bankBillMonth`).
+  seven days, so a week that straddles two months is split. **Cash is wages only up to that week's payout** (`payWeek`:
+  the weekly tiers and the EXTRA); past it, it is the owner's drawings, never a cost (owner, 6 Oct 2026). A week whose
+  payout is not fully recorded (no attendance, or hourly hands with no hours: the imported history) cannot be split,
+  and its month's labour is not known from the bank (`labour.open`). Every SELF draw had been wages, and June–August read
+  labour paid at ₹7.87L against ₹4.99L recorded. Electricity pays its bill month (`bankBillMonth`).
   Other costs and supplies pay the month they were paid in.
 - **Not every payment is a cost.** GST, income tax and a returned cheque never are. A payment the owner ticks
   **Not an operating cost** on the statement (drawings, a loan, a transfer) is kept off too: `notCost` on the
@@ -2590,7 +2608,7 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - `powerPaidNoBill`: one task naming the months;
   - `supplierNoBill`: no stock bill that month or the one before;
   - `wageVsSlip`: a named salary leg against the payroll as paid;
-  - `cashSwing`: last week's cash drawn is 25% off its payout;
+  - `cashSwing`: last week's cash drawn is a quarter or more short of its payout (past it is drawings, 6 Oct 2026);
   - `costGap`: recorded against paid over three closed months;
   - `runway`: the forecast goes below zero within 45 days;
   - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce.
@@ -2655,6 +2673,16 @@ sheets' page styles, each page one A4 sheet (P97):
 - **An earlier day with stock recorded prints the supervisor's sheet filled, as a worked example** (`stockSheetFillFor`):
   the window his message covered, and per line the opening, what was added, the use as *days × a day = total*, and what
   was available after.
+
+### Stock entries checked before believed
+Stock → **To check** (`stockEntryChecks`, `stockRereadDiff` in stock.js; intelligence step I1, 6 Oct 2026; P156). An entry
+that does not fit the record is said on its line, on the check and as one To-do task (`stockCheck`): the same quantity from
+the other door within 4 days (`twice`), a use typed by hand for days a pasted message covers (`overlap`, `typed`), a use past
+zero (`below`), over 4× the usual a day (`large`; a bath line is charged in lumps and not judged), a count 30% off the level
+(`count`). Warn, never block: **It is right** keeps it (`checkOk`). **A saved message is read again with the reader as it is
+now**, and one read differently is listed with both readings; *Use the new reading* voids what the old reading saved and adds
+the new entries at the message's own time (`reread` on the entries and the paste). A figure voided by hand stays voided, a line
+the new reading cannot place keeps its entries, and entries typed by hand are never touched. A use and a charge compare alike.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

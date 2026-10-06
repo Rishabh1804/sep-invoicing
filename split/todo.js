@@ -18,10 +18,11 @@
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
+  ['stockCheck', 'A stock entry does not fit the record, or a message reads differently now'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
   ['cnMatch', 'A credit note does not match its invoice'],
@@ -104,16 +105,39 @@ var TODO_RULE_FNS = {
       if (st.tone !== 'red' && st.tone !== 'amber') return;
       var unit = it.unit || '';
       var rate = st.rate && st.rate.rate ? stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : '';
-      var sub = st.group === 'out' ? 'Out' + (rate ? ' · was using ' + rate : '')
-        : stockFmtQty(st.level) + ' ' + unit + ' left · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      // The level is the last figure's, and is said as of that day once it is old: "Out" on a count eight days back is a
+      // question to ask the floor, not a fact about today.
+      var lastFig = stockItemEntries(it.id).filter(function(e) { return e.kind !== 'bill'; }).pop();
+      var age = lastFig && lastFig.date < todoToday() ? stockWorkingDays(isoAddDays(lastFig.date, 1), todoToday()) : 0;
+      var asOf = age >= todoCfg().pasteDays ? ' on ' + stockShortDate(lastFig.date) + '\'s record' : '';
+      var sub = st.group === 'out' ? 'Out' + asOf + (rate ? ' · was using ' + rate : '')
+        : stockFmtQty(st.level) + ' ' + unit + ' left' + asOf + ' · about ' + todoPlural(Math.max(0, Math.round(st.daysLeft * 10) / 10), 'day');
+      var open = Object.keys(stockEntryChecks(it.id)).length;
+      var conf = open ? { level: 'check', say: todoPlural(open, 'entry', 'entries') + ' on this line to check' }
+        : asOf ? { level: 'stale', say: 'nothing recorded since ' + stockShortDate(lastFig.date) } : null;
       out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, itemId: it.id, title: 'Order ' + it.name, sub: sub,
         why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
         facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
           ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
         clears: 'Clears itself when a delivery or a count lifts the line out of ' + (st.tone === 'red' ? 'red' : 'amber') + '.',
-        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group });
+        go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group, conf: conf });
     });
     return out;
+  },
+  // An entry is checked before it is believed: one task for every entry that does not fit and every message the reader
+  // now reads differently, since one wrong figure moves the days left, the live cost and every margin read from them.
+  stockCheck: function() {
+    var c = stockCheckCounts();
+    if (!c.entries && !c.messages) return [];
+    var parts = [];
+    if (c.messages) parts.push(todoPlural(c.messages, 'message') + ' read differently now');
+    if (c.entries) parts.push(todoPlural(c.entries, 'entry', 'entries') + ' not fitting the record');
+    return [{ key: 'stockCheck', rule: 'stockCheck', tone: 'amber', n: c.entries + c.messages,
+      title: 'Check ' + todoPlural(c.entries + c.messages, 'stock figure'), sub: parts.join(' · '),
+      why: 'Stock · a figure the days left and the live cost are read from',
+      facts: [['Messages read differently', String(c.messages)], ['Entries to check', String(c.entries)]],
+      clears: 'Clears itself when each is corrected, voided, read again or marked right.',
+      go: { kind: 'stockCheck' }, goLabel: 'Check them', sig: c.entries + '|' + c.messages }];
   },
   paste: function() {
     var st = stockData();
@@ -289,7 +313,7 @@ var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', in
 // Moves that open Staff → Pay, which a role opens only with the wages (staff.js).
 var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
 // A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
-var TODO_GO_FLOOR = { stock: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
+var TODO_GO_FLOOR = { stock: 1, stockCheck: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
   staffRoster: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
 function todoGuardOn() { return typeof grdOn === 'function' && grdOn(); }
 /* The page a move lands on (workspace.js WS_GO_PAGE; a move may name its page itself). */
@@ -340,6 +364,23 @@ function todoMineSees(t) {
   return true;
 }
 
+/* How sure a finding is (the intelligence's second step, 6 Oct 2026). A rule says what its figures rest on (`conf`):
+   - stale: the record is older than the finding says in the present tense (a line "Out" on a count eight days old);
+   - early: too few days for the finding to be a pattern (a month five working days in);
+   - partial: the figures are partly measured, partly the model;
+   - check: an entry it reads is waiting to be checked (stock.js, stockEntryChecks).
+   A finding that is not firm is never red, and says why on its row and in its figures, so a red always means a fact.
+   Owner, 6 Oct 2026: the reddest task had rested on a stock record nobody had been asked about. */
+var TODO_CONF_WORD = { stale: 'An old record', early: 'Early', partial: 'Partly measured', check: 'An entry to check' };
+function todoConfApply(t) {
+  var c = t && t.conf;
+  if (!c || !TODO_CONF_WORD[c.level]) return t;
+  if (t.tone === 'red') { t.toneRead = 'red'; t.tone = 'amber'; }
+  if (c.say) t.sub = (t.sub ? t.sub + ' · ' : '') + c.say;
+  t.facts = (t.facts || []).concat([['How sure', TODO_CONF_WORD[c.level] + (c.say ? ': ' + c.say : '')]]);
+  return t;
+}
+
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
 function todoAppAll(only, ran) {
@@ -347,7 +388,7 @@ function todoAppAll(only, ran) {
   TODO_RULES.forEach(function(r) {
     if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
     // One rule failing on a shape nobody anticipated must not take the list with it.
-    try { out = out.concat(TODO_RULE_FNS[r[0]]() || []); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
+    try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
   });
   return out.sort(function(a, b) { return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone]; });
 }
@@ -700,6 +741,7 @@ function todoGo(go) {
     case 'kb': if (go.id) kbOpenArticle(go.id); else kbGo({ tab: 'pageKnow', v: go.tab || 'start', id: '' }); break;
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
+    case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;
     case 'bills':
       finSetTab('bills');
       _costBillOpen = go.month ? { where: 'finance', month: go.month } : false;

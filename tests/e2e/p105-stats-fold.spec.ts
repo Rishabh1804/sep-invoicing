@@ -57,6 +57,8 @@ test.describe('S2: fixed and variable labour', () => {
     s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 2000, 10)], M + '-10')];
     s.invNextNum = 2;
     await loadAppWithState(page, s);
+    // The cash is the week's wages (its payout taken as recorded): drawings past a payout are P157's.
+    await g(page, `payWeek = function () { return { recordedDays: 6, workingDays: 6, total: 1e9, lab: { hourlessMarks: 0 } }; }`);
 
     const r: any = await g(page, `(function(){ var c = liveCost('${M}-01', '${monthEnd(M)}', 10000), lab = c.rows.find(function(x){ return x.key === 'labour'; });
       var sp = statsCostSplit(c); return { source: lab.source, amount: lab.amount, fixed: sp.fixed, variable: sp.variable, total: c.total, from: sp.from }; })()`);

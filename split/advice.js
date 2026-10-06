@@ -62,7 +62,7 @@ function advCtx(a) {
   // questions ask whatever the To-do's switches say).
   ctx.rule = function(name) {
     return once('rule:' + name, function() {
-      return todoCfg()[name] ? ctx.todo().filter(function(t) { return t.rule === name; }) : seen(TODO_RULE_FNS[name]() || []);
+      return todoCfg()[name] ? ctx.todo().filter(function(t) { return t.rule === name; }) : seen((TODO_RULE_FNS[name]() || []).map(todoConfApply));
     }) || [];
   };
   ctx.days = function(n) { return once('days' + n, function() { return advWindow(n); }); };

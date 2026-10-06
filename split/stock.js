@@ -583,7 +583,7 @@ function resolveStockParse(parsed, choices) {
    message itself is kept whole, so the export can always show its source. */
 function stockCommitPaste(parsed, res, meta) {
   var st = stockData(), at = Date.now(), pasteId = stockUid('SP');
-  var made = 0, lines = 0, skipped = 0;
+  var made = 0, lines = 0, skipped = 0, ids = [];
   res.lines.forEach(function(r) {
     if (r.skip || !r.entries.length) { if (r.skip) skipped++; return; }
     var item = r.item;
@@ -608,6 +608,7 @@ function stockCommitPaste(parsed, res, meta) {
       ['from', 'days', 'rate', 'note', 'unsettled'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
       if (e.kind === 'used' || e.kind === 'charged') { if (!rec.days) rec.days = 1; }
       st.entries.push(rec);
+      ids.push(rec.id);
       made++;
     });
   });
@@ -615,9 +616,9 @@ function stockCommitPaste(parsed, res, meta) {
   // the corrected paste as a duplicate of something that never landed.
   if (made) {
     st.pastes.push({ id: pasteId, at: at, by: meta.by || '', sentBy: meta.sentBy || '', from: res.from, to: res.to,
-      hash: stockHash(parsed.text || ''), text: parsed.text || '' });
+      hash: stockHash(parsed.text || ''), text: parsed.text || '', choices: meta.choices || {} });
   }
-  return { entries: made, lines: lines, skipped: skipped };
+  return { entries: made, lines: lines, skipped: skipped, ids: ids };
 }
 
 /* ---------- Screens ---------- */
@@ -705,6 +706,7 @@ function renderStock() {
   // On the desktop a line opens in the pane beside the table; on the phone it is a page of its own.
   else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = _isDesktop ? stockViewTabsHtml() + renderStockList(stockItem(_stockItemId)) : renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
+  else if (_stockView === 'check') el.innerHTML = renderStockCheck();
   else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockToolbarHtml() + stockOverviewHtml(); }
   else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(null); }
   updateStockBadge();
@@ -727,7 +729,7 @@ function renderStockList(open) {
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
   var h = '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + items.length + (items.length === 1 ? ' line' : ' lines') +
     (lastCount ? ' · last count ' + escHtml(stockShortDate(lastCount.date)) + (lastCount.sentBy ? ', ' + escHtml(lastCount.sentBy) : '') : '') + '</span></div>' +
-    stockToolbarHtml();
+    stockToolbarHtml() + stockCheckCalloutHtml();
 
   if (!items.length) {
     return h + '<div class="inv-panel"><div class="inv-empty">No stock recorded yet. Paste the supervisor\'s stock message: ' +
@@ -936,12 +938,14 @@ function stockSavePaste() {
   var res = resolveStockParse(rv.parsed, rv.choices);
   if (res.dup) { showToast('Already saved — nothing saved twice', 'error'); return; }
   var by = stockBy();
-  var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by });
+  var out = stockCommitPaste(rv.parsed, res, { sentBy: rv.sentBy, by: by, choices: rv.choices });
   if (!out.entries) { showToast('Nothing to save: pick a line for each unnamed row', 'error'); return; }
   saveState();
   _stockReview = null; _stockPasteDraft = '';
   stockSetView('list');
-  showToast(out.entries + ' entries saved from ' + out.lines + ' lines' + (out.skipped ? ' · ' + out.skipped + ' not saved' : ''));
+  var chk = stockChecksFor(out.ids || []);
+  showToast(out.entries + ' entries saved from ' + out.lines + ' lines' + (out.skipped ? ' · ' + out.skipped + ' not saved' : '') +
+    (chk.n ? ' · check ' + chk.n + ': ' + chk.first : ''), chk.n ? 'warning' : undefined);
 }
 
 // The hand form as it opens: its toolbar button, Home's Stock entry, and an address that names it (nav.js).
@@ -1046,7 +1050,7 @@ function stockSaveManual() {
     if (!m.supplier) { showToast('Enter the company that billed it', 'error'); return; }
     if (!m.billNo) { showToast('Enter the invoice number', 'error'); return; }
   }
-  var st = stockData(), at = Date.now(), by = stockBy(), n = 0, gaps = 0, unpriced = 0;
+  var st = stockData(), at = Date.now(), by = stockBy(), n = 0, gaps = 0, unpriced = 0, ids = [];
   Object.keys(m.vals).forEach(function(id) {
     var v = m.vals[id], q = parseFloat(v.qty);
     if (v.qty === '' || v.qty == null || isNaN(q) || q < 0) return;
@@ -1068,6 +1072,7 @@ function stockSaveManual() {
       if (before != null && stockRound(before) !== stockRound(q)) gaps++;
     }
     st.entries.push(rec);
+    ids.push(rec.id);
     n++;
   });
   if (!n) { showToast('Nothing filled in', 'error'); return; }
@@ -1079,8 +1084,11 @@ function stockSaveManual() {
   renderStock();
   var dayEl = document.getElementById('stockDayEntries');
   if (dayEl && dayEl.scrollIntoView) try { dayEl.scrollIntoView({ block: 'nearest' }); } catch (x) { /* a convenience */ }
-  showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '') +
-    (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), gaps || unpriced ? 'warning' : 'success');
+  // Saved as typed, and said at once when it does not fit (an entry checked before it is believed).
+  var chk = stockChecksFor(ids);
+  showToast(n + (n === 1 ? ' entry' : ' entries') + ' saved' + (chk.n ? ' · check ' + (chk.n === 1 ? 'it' : chk.n + ' of them') + ': ' + chk.first :
+    (gaps ? ' · ' + gaps + ' count' + (gaps === 1 ? ' differs' : 's differ') + ' from the app' : '')) +
+    (unpriced ? ' · ' + unpriced + ' without a price: add it on the line' : ''), chk.n || gaps || unpriced ? 'warning' : 'success');
 }
 
 function stockAddLine() {
@@ -1155,11 +1163,12 @@ function stockItemBodyHtml(item) {
   all = stockSortEntries(all).reverse();
   h += '<div class="inv-panel inv-panel-flush" id="stockEntries"><div class="inv-panel-head"><span class="inv-panel-title">Entries <span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (!all.length) h += '<div class="inv-empty">Nothing recorded on this line yet.</div>';
-  all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit); });
+  var checks = stockEntryChecks(item.id);
+  all.forEach(function(e) { h += stockEntryRowHtml(e, byId[e.id], unit, e.voided ? null : checks[e.id]); });
   return h + '</div>' + kbLinkedHtml('stock', item.id, item.name, 'Knowledge');
 }
 
-function stockEntryRowHtml(e, r, unit) {
+function stockEntryRowHtml(e, r, unit, checks) {
   var when = e.from && e.from !== e.date ? stockShortDate(e.from) + ' – ' + stockShortDate(e.date) : stockShortDate(e.date);
   var src = e.source === 'paste' ? 'pasted' + (e.sentBy ? ', sent by ' + e.sentBy : '') : e.source === 'import' ? 'imported' : 'by hand';
   if (e.by) src += ' · entered by ' + e.by;
@@ -1171,7 +1180,12 @@ function stockEntryRowHtml(e, r, unit) {
   }
   if (e.note) extra.push(e.note);
   var gap = '';
-  if (e.kind === 'count' && r && r.before != null && stockRound(r.before) !== stockRound(e.qty)) {
+  if (checks && checks.length) {
+    gap = checks.map(function(c) { return '<div class="inv-callout inv-callout-warning inv-mt-8" data-check="' + escHtml(c.k) + '">' + escHtml(c.text) + '</div>'; }).join('') +
+      '<button class="inv-btn inv-btn-sm inv-btn-ghost inv-mt-8" data-action="invStockCheckOk" data-id="' + escHtml(e.id) + '">It is right</button>';
+  } else if (e.checkOk && !e.voided) {
+    gap = '<div class="inv-row-meta">Checked: kept as entered' + (e.checkOk.by ? ' by ' + escHtml(e.checkOk.by) : '') + '</div>';
+  } else if (e.kind === 'count' && r && r.before != null && stockRound(r.before) !== stockRound(e.qty)) {
     var d = stockRound(e.qty - r.before);
     gap = '<div class="inv-callout inv-callout-warning inv-mt-8">The app expected ' + escHtml(stockFmtQty(r.before)) + ' (' + (d > 0 ? '+' : '') + escHtml(stockFmtQty(d)) + ' unexplained)</div>';
   }
@@ -1235,12 +1249,291 @@ async function stockCorrect(id) {
     if (derived) copy.price = Math.round(copy.amount / q * 10000) / 10000;
     else copy.amount = gstRound(copy.price * q);
   }
-  delete copy.raw; delete copy.pasteId; delete copy.unsettled;
+  delete copy.raw; delete copy.pasteId; delete copy.unsettled; delete copy.checkOk;
   e.voided = { at: at, by: by, reason: 'Corrected to ' + stockFmtQty(q) + ' ' + unit, correctedBy: copy.id };
   stockData().entries.push(copy);
   saveState();
   renderStock();
   showToast('Corrected: ' + stockFmtQty(e.qty) + ' → ' + stockFmtQty(q) + ' ' + unit, 'success');
+}
+
+/* ---------- An entry is checked before it is believed (the intelligence's first step, 6 Oct 2026) ----------
+   Owner, 6 Oct 2026: the reddest finding on the To-do rested on a stock record nobody had been asked about. A pasted
+   message misread by an older reader ("VAT A 2" read as 2 kg), the same use typed by hand beside the message that
+   already held it, a count that is really a use: each is read as fact by the live cost, the days left and every margin.
+   So an entry that does not fit is said where it is, and on the To-do, until it is corrected, voided or confirmed. Warn,
+   never block: a figure can look odd and be right (`checkOk`). */
+var STOCK_TWICE_DAYS = 4, STOCK_LARGE_X = 4, STOCK_COUNT_JUMP = 0.3, STOCK_CHECK_DAYS = 60;
+function stockIsDraw(e) { return e.kind === 'used' || e.kind === 'charged'; }
+/* The days an entry speaks for: a use over several days covers its window. */
+function stockEntryWindow(e) { return [e.from && e.from < e.date ? e.from : e.date, e.date]; }
+/* What does not fit on one line, entry by entry: { id: [{ k, text }] }. Voided entries and those confirmed are left out. */
+/* Read afresh only when the record changes, and only for the last STOCK_CHECK_DAYS days: the list, the line, the callout
+   and two To-do rules all ask, and a check older than the To check page lists is one nobody could find. */
+var _stockChecksMemo = null;
+function stockEntryChecks(itemId) {
+  var st = stockData(), parts = [localDateStr()];
+  st.items.forEach(function(i) { parts.push(i.id + ':' + i.basis); });
+  st.entries.forEach(function(e) { parts.push(e.id + ':' + e.qty + ':' + e.date + ':' + e.kind + ':' + (e.voided ? 1 : 0) + (e.checkOk ? 1 : 0)); });
+  var key = parts.join('|');
+  if (!_stockChecksMemo || _stockChecksMemo.st !== st || _stockChecksMemo.key !== key) _stockChecksMemo = { st: st, key: key, by: {} };
+  if (!_stockChecksMemo.by[itemId]) _stockChecksMemo.by[itemId] = _stockEntryChecks(itemId);
+  return _stockChecksMemo.by[itemId];
+}
+function _stockEntryChecks(itemId) {
+  var since = isoAddDays(localDateStr(), -STOCK_CHECK_DAYS);
+  var it = stockItem(itemId), unit = it ? it.unit || '' : '', q = function(v) { return stockFmtQty(v) + (unit ? ' ' + unit : ''); };
+  var list = stockItemEntries(itemId), rows = stockReplay(itemId).rows, byId = {}, out = {};
+  rows.forEach(function(r) { byId[r.e.id] = r; });
+  var add = function(e, k, text) { (out[e.id] = out[e.id] || []).push({ k: k, text: text }); };
+  var dayRate = function(e) { return e.qty / Math.max(1, e.days || 1); };
+  list.forEach(function(e) {
+    if (e.checkOk || e.date < since) return;
+    if (stockIsDraw(e) && e.qty > 0) {
+      var w = stockEntryWindow(e), seen = {};
+      list.forEach(function(g) {
+        // The other side of a pair the owner kept as right is settled too.
+        if (g === e || !stockIsDraw(g) || !(g.qty > 0) || g.checkOk) return;
+        var earlier = (g.at || 0) < (e.at || 0) || ((g.at || 0) === (e.at || 0) && g.date < e.date);
+        // The same quantity from the other door within a few days: most often one use entered twice.
+        if (earlier && g.source !== e.source && stockRound(g.qty) === stockRound(e.qty) && Math.abs(isoDaysBetween(g.date, e.date)) <= STOCK_TWICE_DAYS && !seen.same) {
+          seen.same = true;
+          add(e, 'twice', 'The same ' + q(e.qty) + ' is ' + (g.source === 'paste' ? 'in the message' : 'entered by hand') + ' for ' + stockShortDate(g.date) + ': entered twice?');
+        }
+        // A use typed by hand for days a pasted message also covers for this line.
+        var gw = stockEntryWindow(g);
+        if (e.source === 'manual' && g.source === 'paste' && e.date >= gw[0] && e.date <= gw[1] && stockRound(g.qty) !== stockRound(e.qty) && !seen.msg) {
+          seen.msg = true;
+          add(e, 'overlap', 'The message for ' + (gw[0] !== gw[1] ? stockShortDate(gw[0]) + ' – ' : '') + stockShortDate(gw[1]) + ' already records ' + q(g.qty) + ' used on this line: is this the same use?');
+        }
+      });
+      // Pasted after uses were typed by hand for the days it covers.
+      if (e.source === 'paste') {
+        var typed = list.filter(function(g) { return g.source === 'manual' && !g.checkOk && stockIsDraw(g) && g.qty > 0 && (g.at || 0) < (e.at || 0) && g.date >= w[0] && g.date <= w[1]; });
+        if (typed.length) add(e, 'typed', 'Uses were typed by hand for these days before this message was pasted (' + typed.map(function(g) { return q(g.qty); }).join(', ') + '): one of the two is a second record.');
+      }
+      var r = byId[e.id];
+      if (r && r.after != null && r.after < -Math.max(0.01, Math.abs(r.before || 0) * 0.005)) {
+        add(e, 'below', 'Takes the level below zero (' + q(r.after) + '): a figure misread, or a count or delivery not entered.');
+      }
+      // Far more than the line usually takes in a day. A bath line is charged in lumps after a delivery, so it is not judged.
+      if (it && it.basis !== 'charge') {
+        var prev = list.filter(function(g) { return stockIsDraw(g) && g.qty > 0 && g !== e && g.date < e.date && g.date >= isoAddDays(e.date, -STOCK_CHECK_DAYS); }).map(dayRate);
+        if (prev.length >= 5) {
+          var med = numMedian(prev);
+          if (med > 0 && dayRate(e) > STOCK_LARGE_X * med) add(e, 'large', q(stockRound(dayRate(e))) + ' a day, ' + Math.round(dayRate(e) / med) + ' times the usual ' + q(stockRound(med)) + ': a figure misread?');
+        }
+      }
+    }
+    if (e.kind === 'count') {
+      var c = byId[e.id];
+      if (c && c.before != null && c.before > 0) {
+        var gap = stockRound(e.qty - c.before);
+        if (Math.abs(gap) > Math.max(STOCK_COUNT_JUMP * c.before, 1)) {
+          add(e, 'count', 'Counted ' + q(e.qty) + ' where the app had ' + q(c.before) + (gap < 0 ? ': a use typed as a count, or a figure misread?' : ', with no delivery entered: a delivery missing, or a figure misread?'));
+        }
+      }
+    }
+  });
+  return out;
+}
+/* Every entry to check in the last STOCK_CHECK_DAYS days, newest first: [{ item, e, checks }]. */
+function stockChecksAll() {
+  var since = isoAddDays(localDateStr(), -STOCK_CHECK_DAYS), out = [];
+  stockData().items.forEach(function(it) {
+    if (it.active === false) return;
+    var ch = stockEntryChecks(it.id);
+    stockItemEntries(it.id).forEach(function(e) { if (ch[e.id] && e.date >= since) out.push({ item: it, e: e, checks: ch[e.id] }); });
+  });
+  return out.sort(function(a, b) { return a.e.date < b.e.date ? 1 : a.e.date > b.e.date ? -1 : 0; });
+}
+/* Confirmed as right: the entry keeps who said so and when, and is never asked about again. */
+function stockCheckOk(id) {
+  if (!grdGate('floor', 'confirm a stock entry', function() { stockCheckOk(id); })) return;
+  var e = stockData().entries.find(function(x) { return x.id === id; });
+  if (!e || e.voided) return;
+  e.checkOk = { at: Date.now(), by: stockBy() };
+  saveState();
+  renderStock();
+  showToast('Kept as entered');
+}
+
+/* The entries just saved that do not fit, for the save's own message: { n, first }. */
+function stockChecksFor(ids) {
+  var want = {}, n = 0, first = '';
+  ids.forEach(function(id) { want[id] = true; });
+  var items = {};
+  stockData().entries.forEach(function(e) { if (want[e.id]) items[e.itemId] = true; });
+  Object.keys(items).forEach(function(itemId) {
+    var ch = stockEntryChecks(itemId), it = stockItem(itemId);
+    Object.keys(ch).forEach(function(id) { if (want[id]) { n++; if (!first) first = (it ? it.name + ': ' : '') + ch[id][0].text; } });
+  });
+  return { n: n, first: first };
+}
+
+/* ---------- Reading the messages again ----------
+   A message is kept whole, so what an older reader made of it can be set beside what the reader makes of it now. The 28 Sep
+   message's "ZINK 444 KG use VAT A 2 / 25/09/26/ 150 kg …" was saved as 2 kg charged; "65 M 54 LTR use 3+3+9=15" as a count of
+   3 and a use of 54. A message read differently now is listed with both readings, and Use the new reading voids what the old
+   one saved and puts the new one in its place, at the message's own time, so the order of the day is kept. Nothing changes
+   until it is pressed. A figure the owner voided by hand stays voided, and a line the new reading cannot place keeps its
+   old entries. */
+// A use and a charge are one thing to the level and the cost: a line whose basis was changed since reads the same message
+// as the other kind, which is not a different reading.
+function stockRereadKey(e) { return [e.itemId, stockIsDraw(e) ? 'draw' : e.kind, stockRound(e.qty), e.date].join('|'); }
+/* What a message holds now: its entries, a correction standing for the entry it corrected. */
+function stockPasteHeld(p) {
+  var all = stockData().entries, byId = {};
+  all.forEach(function(e) { byId[e.id] = e; });
+  var own = all.filter(function(e) { return e.pasteId === p.id; });
+  return own.map(function(e) {
+    var cur = e;
+    for (var n = 0; cur.voided && cur.voided.correctedBy && byId[cur.voided.correctedBy] && n < 50; n++) cur = byId[cur.voided.correctedBy];
+    return { orig: e, cur: cur, live: !cur.voided, voidedByHand: !!(cur.voided && !cur.voided.correctedBy) };
+  });
+}
+function stockRereadDiff(p) {
+  if (!p || !p.text) return null;
+  var parsed;
+  try { parsed = parseStockMessage(p.text); } catch (x) { return null; }
+  if (!parsed.lines.length) return null;
+  parsed.text = p.text;
+  if (!parsed.to) { parsed.from = p.from || null; parsed.to = p.to || null; }
+  if (!parsed.to) return null;
+  // The choices made at the review are the message's own (a balance picked, a nameless line placed): kept on the paste
+  // since 6 Oct 2026, and replayed. A message saved before carries none, so a line that needed one is left as it was.
+  var choices = p.choices || {};
+  var res = resolveStockParse(parsed, choices);
+  var held = stockPasteHeld(p), fresh = [], items = {}, stated = {}, freshOpen = {};
+  // A line the owner corrected by hand (a correction stands for the entry it replaced) is the owner's ruling: the whole
+  // line is left as it is, never voided under them.
+  var ruled = {};
+  held.forEach(function(h) { if (h.cur !== h.orig) ruled[h.orig.itemId] = true; });
+  res.lines.forEach(function(r) {
+    if (r.skip || !r.item || ruled[r.item.id]) return;   // a line the new reading cannot place, or one it would add: the old entries stand
+    var hasChoice = choices['map' + r.idx] || choices['name' + r.idx];
+    if (r.via === 'position' && !hasChoice) return;   // placed by position, which moves with every later message
+    if (r.issues.some(function(i) { return i.code === 'balance'; }) && !choices['bal' + r.idx] && !p.choices) return;   // a balance the owner picked, not recorded
+    items[r.item.id] = true;
+    stated[r.item.id] = r.O;
+    r.entries.forEach(function(e) {
+      // An opening is saved only where it differs from what the app held before the message, which moves when an earlier
+      // message is read again; so openings are compared by the figure the message states, apart from the rest.
+      var rec = { itemId: r.item.id, kind: e.kind, qty: e.qty, date: e.date, seq: e.seq, n: r.src.n, raw: r.src.raw };
+      ['from', 'days', 'rate', 'note', 'unsettled'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
+      if ((e.kind === 'used' || e.kind === 'charged') && !rec.days) rec.days = 1;
+      if (e.kind === 'count' && e.note === 'opening') freshOpen[r.item.id] = rec; else fresh.push(rec);
+    });
+  });
+  var mine = held.filter(function(h) { return items[h.orig.itemId] && !(h.orig.kind === 'count' && h.orig.note === 'opening'); });
+  var left = {};
+  fresh.forEach(function(e) { var k = stockRereadKey(e); left[k] = (left[k] || 0) + 1; });
+  // What the message held and still reads the same (live or voided by hand) is settled; what reads differently and is live
+  // is voided; what the new reading holds and nothing settled matches is added.
+  var drop = [];
+  mine.forEach(function(h) {
+    var k = stockRereadKey(h.orig);
+    if (left[k]) { left[k]--; return; }
+    if (h.live) drop.push(h);
+  });
+  var addList = [], need = Object.assign({}, left);
+  fresh.forEach(function(e) { var k = stockRereadKey(e); if (need[k]) { need[k]--; addList.push(e); } });
+  Object.keys(items).forEach(function(id) {
+    var O = stated[id], opens = held.filter(function(h) { return h.orig.itemId === id && h.orig.kind === 'count' && h.orig.note === 'opening'; });
+    var same = opens.filter(function(h) { return O != null && stockRound(h.orig.qty) === stockRound(O); });
+    opens.forEach(function(h) { if (same.indexOf(h) < 0 && h.live) drop.push(h); });
+    // Read 3 where the message states 54: the old opening goes, and the stated one is added where the app does not hold it.
+    if (!same.length && freshOpen[id]) addList.push(freshOpen[id]);
+  });
+  if (!drop.length && !addList.length) return null;
+  return { paste: p, drop: drop, add: addList };
+}
+/* Every message read differently now, newest first. Messages with no text (an import's) are left out. */
+/* Read afresh only when the record changes: the To-do asks on every redraw, and a message a day is 300 by the year's end. */
+var _stockRereadMemo = null;
+function stockRereadAll() {
+  var st = stockData(), voided = 0;
+  st.entries.forEach(function(e) { if (e.voided) voided++; });
+  var key = [st.entries.length, voided, st.pastes.length, st.items.map(function(i) { return i.id + ':' + i.key + ':' + stockAliases(i).join('/') + ':' + (i.lastPos || ''); }).join(',')].join('|');
+  if (_stockRereadMemo && _stockRereadMemo.st === st && _stockRereadMemo.key === key) return _stockRereadMemo.val;
+  var val = st.pastes.slice().sort(function(a, b) { return (b.at || 0) - (a.at || 0); }).map(stockRereadDiff).filter(Boolean);
+  _stockRereadMemo = { st: st, key: key, val: val };
+  return val;
+}
+function stockRereadEntryText(e) {
+  var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
+  return (it ? it.name + ': ' : '') + (STOCK_KIND_LABEL[e.kind] || e.kind).toLowerCase() + ' ' + stockFmtQty(e.qty) + (unit ? ' ' + unit : '') + ' on ' + stockShortDate(e.date);
+}
+async function stockRereadApply(pasteId) {
+  if (!grdOk('floor') && !(await guardAsk('floor', 'read a stock message again'))) return;
+  var p = stockData().pastes.find(function(x) { return x.id === pasteId; });
+  var d = stockRereadDiff(p);
+  if (!d) { showToast('Nothing to change: it reads the same now'); renderStock(); return; }
+  var ok = await uiConfirm({ title: 'Use the new reading?', okLabel: 'Use the new reading',
+    body: (d.drop.length ? d.drop.length + (d.drop.length === 1 ? ' entry is' : ' entries are') + ' voided: ' + d.drop.map(function(h) { return stockRereadEntryText(h.cur); }).join('; ') + '. ' : '') +
+      (d.add.length ? d.add.length + (d.add.length === 1 ? ' entry is' : ' entries are') + ' added: ' + d.add.map(stockRereadEntryText).join('; ') + '.' : '') });
+  if (!ok) return;
+  d = stockRereadDiff(stockData().pastes.find(function(x) { return x.id === pasteId; }));
+  if (!d) { renderStock(); return; }
+  var at = Date.now(), by = stockBy(), when = new Date(at).toLocaleDateString('en-IN');
+  d.drop.forEach(function(h) { h.cur.voided = { at: at, by: by, reason: 'Read again on ' + when + ': the reader now reads this message differently' }; });
+  d.add.forEach(function(e) {
+    var rec = Object.assign({ id: stockUid('SE'), at: p.at || at, source: 'paste', pasteId: p.id, sentBy: p.sentBy || '', by: by, reread: at }, e);
+    stockData().entries.push(rec);
+  });
+  (p.reread = p.reread || []).push({ at: at, by: by, voided: d.drop.length, added: d.add.length });
+  saveState();
+  renderStock();
+  showToast('Read again: ' + d.drop.length + ' voided, ' + d.add.length + ' added', 'success');
+}
+
+/* Stock → To check: the entries that do not fit, and the messages read differently now. */
+function stockCheckCounts() {
+  var c = { entries: 0, messages: 0 };
+  try { c.entries = stockChecksAll().length; c.messages = stockRereadAll().length; } catch (x) { /* a check never breaks the page */ }
+  return c;
+}
+function stockCheckCalloutHtml() {
+  var c = stockCheckCounts();
+  if (!c.entries && !c.messages) return '';
+  var parts = [];
+  if (c.messages) parts.push(c.messages + (c.messages === 1 ? ' message reads' : ' messages read') + ' differently now');
+  if (c.entries) parts.push(c.entries + (c.entries === 1 ? ' entry does' : ' entries do') + ' not fit the record');
+  return '<div class="inv-callout inv-callout-warning inv-mb-8" id="stockCheckNote">' + escHtml(parts.join(' · ')) + '. Until checked, they count as entered in the days left and the live cost. ' +
+    '<button class="inv-btn-link" data-action="invStockCheckOpen">Check them</button></div>';
+}
+function renderStockCheck() {
+  var h = stockBackBar('Stock', 'To check');
+  var msgs = stockRereadAll(), list = stockChecksAll();
+  h += '<div class="inv-panel inv-panel-flush" id="stockReread"><div class="inv-panel-head"><span class="inv-panel-title">Messages read differently now <span class="inv-panel-count">' + msgs.length + '</span></span></div>';
+  if (!msgs.length) h += '<div class="inv-empty">Every saved message reads the same with the reader as it is now.</div>';
+  msgs.forEach(function(d) {
+    var p = d.paste;
+    h += '<div class="inv-row inv-row-auto inv-row-top inv-row-flow" data-paste="' + escHtml(p.id) + '"><div class="inv-row-main">' +
+      '<div class="inv-row-title">Message for ' + escHtml(p.from && p.from !== p.to ? stockShortDate(p.from) + ' – ' : '') + escHtml(p.to ? stockShortDate(p.to) : '') + '</div>' +
+      '<div class="inv-row-meta inv-row-wrap">Pasted ' + escHtml(new Date(p.at).toLocaleDateString('en-IN')) + (p.sentBy ? ' · sent by ' + escHtml(p.sentBy) : '') + '</div>';
+    if (d.drop.length) h += '<div class="inv-row-meta inv-row-wrap">Read then: ' + escHtml(d.drop.map(function(x) { return stockRereadEntryText(x.cur); }).join('; ')) + '</div>';
+    if (d.add.length) h += '<div class="inv-row-meta inv-row-wrap">Read now: ' + escHtml(d.add.map(stockRereadEntryText).join('; ')) + '</div>';
+    var raws = {};
+    d.drop.forEach(function(x) { if (x.orig.raw) raws[x.orig.raw] = 1; });
+    d.add.forEach(function(x) { if (x.raw) raws[x.raw] = 1; });
+    Object.keys(raws).forEach(function(r) { h += '<div class="inv-quote inv-mt-4">' + escHtml(r) + '</div>'; });
+    h += '</div><div class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invStockReread" data-id="' + escHtml(p.id) + '">Use the new reading</button></div></div>';
+  });
+  h += '</div>';
+  h += '<div class="inv-panel inv-panel-flush" id="stockChecks"><div class="inv-panel-head"><span class="inv-panel-title">Entries that do not fit <span class="inv-panel-count">' + list.length + '</span></span></div>';
+  if (!list.length) h += '<div class="inv-empty">No entry in the last ' + STOCK_CHECK_DAYS + ' days needs a second look.</div>';
+  list.forEach(function(x) {
+    var unit = x.item.unit || '';
+    h += '<div class="inv-row inv-row-auto inv-row-top inv-row-flow" data-entry="' + escHtml(x.e.id) + '"><div class="inv-row-main">' +
+      '<div class="inv-row-title">' + escHtml(x.item.name) + ' &middot; ' + escHtml(STOCK_KIND_LABEL[x.e.kind] || x.e.kind) + ' <strong class="inv-num">' + escHtml(stockFmtQty(x.e.qty) + (unit ? ' ' + unit : '')) + '</strong></div>' +
+      '<div class="inv-row-meta inv-row-wrap">' + escHtml(stockShortDate(x.e.date) + ' · ' + (x.e.source === 'paste' ? 'pasted' : x.e.source === 'import' ? 'imported' : 'by hand') + (x.e.by ? ' · entered by ' + x.e.by : '')) + '</div>' +
+      x.checks.map(function(c) { return '<div class="inv-callout inv-callout-warning inv-mt-8">' + escHtml(c.text) + '</div>'; }).join('') +
+      (x.e.raw ? '<div class="inv-quote inv-mt-4">' + escHtml(x.e.raw) + '</div>' : '') +
+      '</div><div class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight"><button class="inv-btn inv-btn-sm inv-btn-secondary" data-action="invStockOpen" data-id="' + escHtml(x.item.id) + '">Open the line</button>' +
+      '<button class="inv-btn inv-btn-sm inv-btn-ghost" data-action="invStockCheckOk" data-id="' + escHtml(x.e.id) + '">It is right</button></div></div>';
+  });
+  return h + '</div><div class="inv-note">Correct or void an entry on its line. A message read again keeps every entry typed by hand: an entry it made redundant shows here as entered twice.</div>';
 }
 
 /* ---------- Export and import ----------
@@ -1375,6 +1668,9 @@ function stockAction(action, btn) {
     case 'invStockBillSave': stockBillSave(); if (!_stockBill && _stockView === 'manual') _pageTyped = stockManualTyped(); break;
     case 'invStockBillCancel': _stockBill = null; renderStock(); if (_stockView === 'manual') _pageTyped = stockManualTyped(); break;
     case 'invStockImport': stockImport(); break;
+    case 'invStockCheckOpen': stockSetView('check'); break;
+    case 'invStockCheckOk': stockCheckOk(btn.dataset.id); break;
+    case 'invStockReread': stockRereadApply(btn.dataset.id); break;
   }
 }
 

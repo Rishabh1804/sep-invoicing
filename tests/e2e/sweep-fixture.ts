@@ -328,6 +328,7 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   await walkProduction(page, tag, stops);
   await walkQuoteForm(page, tag, stops);
   await walkZinc(page, tag, stops);
+  await walkStockCheck(page, tag, stops);
 }
 
 /* Stock → Overview's price trend on Zinc: the market against the bills, which the page opens on another line. Drawn as it
@@ -343,6 +344,22 @@ export async function walkZinc(page: Page, tag: string, stops: Stop[]) {
   await expect(page.locator('#dashPrice [data-zinc-bill]').first()).toBeVisible();
   stops.push(await sweep(page, 'pageStock › zinc market › a supplier open'));
   await shot(page, `${tag}-pageStock-zinc-supplier`);
+}
+
+/* Stock → To check, which no view tab reaches: an entry typed by hand beside the message holding it, so both lists draw rows. */
+export async function walkStockCheck(page: Page, tag: string, stops: Stop[]) {
+  await page.evaluate(() => {
+    const w: any = window, it = w.stockData().items.find((i: any) => i.active !== false);
+    if (!it) return;
+    const d = w.localDateStr(), at = Date.now();
+    w.stockData().entries.push({ id: 'SWP-P', itemId: it.id, kind: 'used', qty: 7, date: d, source: 'paste', pasteId: 'SWP', at: at - 2000, raw: '1) ' + it.name + ' use 7' },
+      { id: 'SWP-H', itemId: it.id, kind: 'used', qty: 7, date: d, source: 'manual', at: at - 1000 });
+  });
+  await page.evaluate(() => { (window as any)._stockView = 'check'; (window as any).switchTab('pageStock'); });
+  stops.push(await sweep(page, 'pageStock › to check'));
+  await shot(page, `${tag}-pageStock-check`);
+  // Taken out again before anything saves: the walk draws the book, it does not change it (P141 reads the change log).
+  await page.evaluate(() => { const st = (window as any).stockData(); st.entries = st.entries.filter((e: any) => e.id !== 'SWP-P' && e.id !== 'SWP-H'); });
 }
 
 /* Production's sub-views, which no view tab reaches: the paste check (a red row among them), the register photo's

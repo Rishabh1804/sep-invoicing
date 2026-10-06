@@ -81,11 +81,13 @@ function tdyUsual(k, day) {
   days.forEach(function(d) {
     var m = null;
     if (k === 'roll-in' || k === 'roll-out') {
-      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d, p); if (a != null && (m == null || a < m)) m = a; });
+      // Learnt only from the minute WhatsApp sent it: a roll pasted without its header carries only when it was pasted,
+      // and the owner's pasting hour read as "usually by 1:33 PM" for a roll sent before 9 (6 Oct 2026).
+      tdyRolls(k === 'roll-in' ? 'in' : 'out', d).forEach(function(p) { var a = tdyArrival(p.text, null, d, p); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'pickling') {
       prodDayLoads(d).forEach(function(e) { var a = relayParseHhmm(e.time); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'stock') {
-      tdyStockMsgs(d).forEach(function(p) { var a = tdyArrival(p.text, p.at, d); if (a != null && (m == null || a < m)) m = a; });
+      tdyStockMsgs(d).forEach(function(p) { var a = tdyArrival(p.text, null, d); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'production') {
       // The day's records are in when the last line's is: the latest photo read that day (a photo has no header).
       ((S.production && S.production.photos) || []).forEach(function(p) { if (p && p.readDate === d && p.at && isoOf(new Date(p.at)) === d) { var a = tdyMinOfDay(p.at); if (m == null || a > m) m = a; } });

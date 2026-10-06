@@ -212,9 +212,10 @@ TODO_RULE_FNS.insQuiet = function() {
   }).filter(Boolean);
 };
 
+var INS_EARLY_DAYS = 10;
 TODO_RULE_FNS.insRealLow = function() {
-  var today = localDateStr(), cur = today.slice(0, 7), prior = insMonthsBack(6);
-  if (statsWorkingDays(cur + '-01', today) < 5) return [];
+  var today = localDateStr(), cur = today.slice(0, 7), prior = insMonthsBack(6), wd = statsWorkingDays(cur + '-01', today);
+  if (wd < 5) return [];
   var mm = insMonthly(prior.concat([cur])), now = mm('', cur);
   var reals = prior.map(function(m) { return mm('', m).real; }).filter(function(v) { return v != null; });
   if (now.real == null || reals.length < 3 || now.real >= Math.min.apply(null, reals)) return [];
@@ -225,7 +226,11 @@ TODO_RULE_FNS.insRealLow = function() {
     var a = mm(String(c.id), cur).rev / (now.rev || 1), b = mm(String(c.id), prev).rev / (mm('', prev).rev || 1);
     if (!moved || Math.abs(a - b) > Math.abs(moved.d)) moved = { name: c.name, d: a - b, a: a, b: b };
   });
-  return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: 'amber', month: cur,
+  // Under ten working days the month is the few customers who happened to be billed (5 Oct 2026: one client at 25% of the
+  // revenue against its usual 3%): said as early, and only to know.
+  var early = wd < INS_EARLY_DAYS;
+  return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: early ? 'info' : 'amber', month: cur,
+    conf: early ? { level: 'early', say: todoPlural(wd, 'working day') + ' into the month' } : null,
     title: insMonthLabel(cur) + ' is realising ₹' + formatNum(now.real, 2) + '/kg, the lowest in ' + (reals.length + 1) + ' months',
     sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2) + (moved && Math.abs(moved.d) >= 0.05 ? ' · ' + moved.name + ' is ' + Math.round(moved.a * 100) + '% of revenue against ' + Math.round(moved.b * 100) + '%' : ''),
     why: 'Money · this month', go: insGo('overview'), goLabel: 'Open Stats',
@@ -273,12 +278,27 @@ TODO_RULE_FNS.insBelowVar = function() {
   var m = statsClientMargins(null, inv, weighLines(inv), { from: from, to: to });
   // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
   if (!m || m.varKg == null) return [];
+  // The variable cost of one month moves with what its record caught (a lump of zinc after a delivery, a fill at the model).
+  // So the finding is firm only where it holds against the LOWEST variable cost of the six months to it, and the loss is
+  // said from there ("at least"), with this month's figure beside it ("up to"). Below this month's cost alone it is said
+  // as partly measured, never red.
+  var lowVar = m.varKg;
+  insMonthsBack(6).forEach(function(mo) {
+    var f = mo + '-01', t = payMonthEnd(f), iv = insActive().filter(function(i) { return i.date >= f && i.date <= t; });
+    if (!iv.length) return;
+    try { var mm = statsClientMargins(null, iv, weighLines(iv), { from: f, to: t }); if (mm && mm.varKg != null && mm.varKg < lowVar) lowVar = mm.varKg; } catch (x) { /* a month that cannot be read is left out */ }
+  });
+  var measured = Math.round(m.c.measuredShare * 100);
   return m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1 && x.vsVar < 0; }).map(function(x) {
-    return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, fullKg: m.fullKg, kg: x.kg,
+    var firm = x.net < lowVar, least = gstRound((lowVar - x.net) * x.kg), most = gstRound(-x.vsVar * x.kg);
+    return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, lowVarKg: lowVar, fullKg: m.fullKg, kg: x.kg,
       title: x.name + ' is below its variable cost',
-      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · loses ' + formatCurrency(gstRound(-x.vsVar * x.kg)) + ' even with labour fixed',
+      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · ' +
+        (firm && least < most ? 'loses at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most)
+          : 'loses ' + formatCurrency(most)) + ' even with labour fixed',
+      conf: firm ? null : { level: 'partial', say: 'below this month\'s cost only, ' + measured + '% of it measured' },
       why: 'Money · margin', go: insGo('clients'), goLabel: 'Open contribution by client',
-      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
+      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
       clears: 'Clears itself when a month realises above the variable cost.', sig: last };
   });
 };

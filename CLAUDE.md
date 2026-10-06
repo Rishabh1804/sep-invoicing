@@ -115,8 +115,8 @@ split/
 ├── today.js           ← Today: Needs you (the day's inputs, the tasks Now / This week / Later) and Pulse (~320 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
-├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~560 lines)
-├── planview.js        ← The planner's screens: Play, Ledger, A day, Plant, Tech tree, Staff, Clients, Finance; registers; the report (~1,100 lines)
+├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~610 lines)
+├── planview.js        ← The planner's screens: Play, Ledger, A day, Plant, Tech tree, Staff, Clients, Finance; registers; the report (~990 lines)
 ├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
 ├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,670 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
@@ -163,7 +163,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,468 tests, both layouts
+pnpm exec playwright test          # 1,479 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -401,7 +401,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 528 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, the planner's 35 `inv-pl-*`: 563); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 589 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1872,19 +1872,24 @@ Insights → **Planner** (`planner.js`, `planview.js`; `docs/PLANNER.md`; owner,
 clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
 prototypes). P162.
 - **A month is built from the book's parts up** (`plnBase`, `plnMonth`): the last three full months' invoices by client and part
-  (`statsInvoices`, `lineWeightKg`, `cpPartIdentity`), each part on its client's usual line from the production record (else VAT A2,
-  said *assumed*). A line plates **kg a round every so many minutes** (VAT A1 from the register's rounds a day against the book's
-  kilos; a line with no register *assumed*), in the general shift, then the morning block, the evening, a night shift with a night
-  crew, less the Power tab's cut minutes in working hours; pickling feeds the busiest line's hours (assumed at today's kilos with a
-  tenth to spare until set). Costs are the live cost's own lines per kilo, labour as recorded, a fixed electricity part (assumed
+  (`statsInvoices`, `lineWeightKg`, `cpPartIdentity`), each part on its own usual line from the production record, else its client's,
+  else VAT A2 (*assumed*). A line plates **kg a round every so many minutes** (from the register's rounds a day against the book's
+  kilos; a line with no register *assumed*, and *fitted to the book* where the assumption could not have plated what was billed), in
+  the general shift, then the morning block, the evening, a night shift with a night crew, less the Power tab's cut minutes in working
+  hours; pickling runs as long as the lines need it within the day (assumed at today's kilos with a tenth to spare until set). Costs are the live cost's own lines per kilo, labour as recorded, a fixed electricity part (assumed
   ₹15k), ₹260 a new overtime line-hour (assumed). **As it runs reproduces the book's average month** (a spec checks it).
 - **A move changes an input, never a total**: an ask a part's rate (a ₹/kg where lower, a percentage on a piece client, or a rate
   typed on one part), held-back work new parts on a line, an upgrade a line's kg a round or minutes or pickling or the cut cover, a
-  hire a wage, a loan its amortised schedule. A move takes effect after what it needs (`plnReady`); one that never can is hatched.
+  hire a wage (paid from when it can start, never while it cannot take effect), a loan its amortised schedule. A move takes effect
+  after what it needs (`plnReady`); one that never can is hatched. Weighted by each chance, a move counts at its own chance times its
+  prerequisites' (`plnWeights`).
 - **The ledger adds up** (`plnAttribution`): today's margin, then each move in the order it takes effect, each the plan up to it
   against the plan before it, ending in the plan. If every move lands, or weighted by each chance.
 - **The trials** (600, seeded): each chance, CQI-11 up to three months late, the promotion's pass, each machine's risk until the
-  upgrade that `fixes` its station, a month's cuts at 0.6–1.5 times, a piece client refusing and sending less.
+  upgrade that `fixes` its station, a month's cuts at 0.6–1.5 times, a piece client refusing and sending less from the month after.
+- **The baseline is cached on the book's saves** (`_bookWrites` in `plnBaseKey`), so an edited rate or wage reaches it at once. A
+  figure typed on the page is saved on change and the page redrawn after the tap that left it has landed (`plnEditTyped`); a
+  sideways-scrolled ledger or board keeps its place across a redraw.
 - **The registers are records** (`S.planner`: machines, checklist, lenders, heard, heldBack), behind Settings' permission, retired
   with a reason, in the change log; **a scenario never writes the book** (`S.planner.scenarios`). The goal's margin is today's
   raised (₹45k Normal, ₹95k Hard), never a rupee figure written in. Costs of upgrades are estimates, each the owner's to set.

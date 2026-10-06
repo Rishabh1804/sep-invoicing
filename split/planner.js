@@ -4,7 +4,7 @@
    can run less the power cuts, fed by pickling; the month's kilos × each part's rate is the revenue; the cost lines follow the
    kilos, the hours and the hires; margin, the loan and the spend give the cash. A move changes an input, never a total.
 
-   NOTHING ABOUT THE SHOP IS IN THIS FILE. The baseline is read from the book on the device, over the last three full months,
+   NOTHING ABOUT THE SHOP'S CLIENTS, PEOPLE OR FIGURES IS IN THIS FILE. The baseline is read from the book on the device, over the last three full months,
    by the functions the book's own screens use (statsInvoices, lineWeightKg, liveCost, labourForRange, the Power tab's cuts, the
    production register, the bank statement). The catalogue below (the upgrade trees, the tech tree, the roles) is generic: its
    costs are starting estimates the owner can change, and every assumed figure says so where it is shown.
@@ -35,10 +35,10 @@ var PLN_STATIONS = [
     { id: 'a1Log', t: 'Rectifier and temperature logged', cost: 60000, say: 'the bath’s records keep themselves (bath analysis needs them)' },
     { id: 'a1Racks', t: 'Two more racks a round', cost: 100000, fx: { line: 'vat-a1', kgRound: 12 }, say: '12 kg more a round' }] },
   { id: 'vat-a2', name: 'VAT A2', levels: [{ t: 'As it runs' },
-    { id: 'a2Reline', t: 'Tank relined', cost: 80000, fixes: 'vat-a2', say: 'the tank’s risk on the machine register goes' },
+    { id: 'a2Reline', t: 'Tank repaired or relined', cost: 80000, fixes: 'vat-a2', say: 'the tank’s risk on the machine register goes' },
     { id: 'a2Rect', t: '1,000 A rectifier', cost: 180000, fx: { line: 'vat-a2', every: -6 }, say: 'a round 6 minutes sooner' }] },
   { id: 'barrel', name: 'Barrel', levels: [{ t: 'As it runs' },
-    { id: 'barrelFix', t: 'Drive and motor overhaul', cost: 45000, fixes: 'barrel', say: 'the drive’s risk on the machine register goes' },
+    { id: 'barrelFix', t: 'Barrel overhaul', cost: 45000, fixes: 'barrel', say: 'the drive’s risk on the machine register goes' },
     { id: 'barrel2', t: 'A second barrel', cost: 350000, fx: { line: 'barrel', kgRound: 60 }, needs: ['load50'], say: '60 kg more a load; needs the bigger load on the bill' }] },
   { id: 'lab', name: 'Lab', levels: [{ t: 'Nothing yet' },
     { id: 'lab1', t: 'Balance, glassware, Hull cell', cost: 30000, say: 'for daily bath analysis' },
@@ -47,7 +47,7 @@ var PLN_STATIONS = [
   { id: 'oven', name: 'Bake oven', levels: [{ t: 'None' },
     { id: 'oven1', t: 'Oven with recorder', cost: 150000, fx: { powerKg: 0.05 }, say: 'hydrogen relief for hard bolts; ₹0.05/kg more power' }] },
   { id: 'power', name: 'Power', levels: [{ t: 'As it runs' },
-    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, say: 'the excess-load charge stops (₹5,000 a month, estimate)' },
+    { id: 'load50', t: 'The approved load on the bill', cost: 0, fx: { powerSave: 5000 }, say: 'an excess-load charge on the bill stops (₹5,000 a month, an estimate to set)' },
     { id: 'inverter', t: 'Inverter', cost: 300000, fx: { cutCover: 0.85 }, say: 'carries 85% of the cut minutes in working hours' },
     { id: 'genset', t: 'Generator', cost: 600000, fx: { cutCover: 1, gensetRun: 4000 }, say: 'every cut covered, nights too; ₹4,000 a month diesel' }] },
   { id: 'etp', name: 'Effluent', levels: [{ t: 'As it runs' },
@@ -121,7 +121,7 @@ function plnPeriod() {
 var _plnBase = null;
 function plnBaseKey() {
   var pr = S.production && Array.isArray(S.production.entries) ? S.production.entries.length : 0;
-  return [plnPeriod().from, (S.invoices || []).length, (S.creditNotes || []).length, pr, (S.costBills || []).length, ((S.bank || {}).rows || []).length,
+  return [plnPeriod().from, typeof _bookWrites !== 'undefined' ? _bookWrites : 0, (S.invoices || []).length, (S.creditNotes || []).length, pr, (S.costBills || []).length, ((S.bank || {}).rows || []).length,
     Object.keys(S.attendance || {}).length, ((S.stock || {}).entries || []).length, JSON.stringify(plnRead().cfg || {})].join('|');
 }
 /* Rounds a day and minutes between them on a line, from the production register's rounds (days with 10+ rounds). */
@@ -154,20 +154,32 @@ function plnRegisterCadence(from, to) {
   });
   return out;
 }
-/* Each client's usual line, from plated entries whose line was written or set, by distinct days. */
+/* A part's key, the same on the invoice and the floor: its number or size and its gauge (cpPartIdentity, Performance's own). */
+function plnPartKey(partNumber, desc, gauge) {
+  var id = cpPartIdentity(partNumber || '', desc || ''), g = gauge || id.gauge;
+  return (id.base || rateKey(partNumber || desc)) + (g ? '|' + g : '');
+}
+/* Each part's usual line and each client's, from plated entries whose line was written or set, by distinct days: a part runs
+   on its own line where the record has it, else on its client's. */
 function plnClientLines() {
-  var days = {};
+  var days = {}, parts = {};
+  var add = function(map, k, e) { var c = map[k] || (map[k] = {}); (c[e.line] = c[e.line] || {})[e.date] = 1; };
   ((S.production && S.production.entries) || []).forEach(function(e) {
     if (!e || e.kind !== 'plated' || e.voidedAt || e.clientId == null || !e.line || (e.lineSrc !== 'written' && e.lineSrc !== 'set' && e.basis !== 'register')) return;
-    var c = days[e.clientId] || (days[e.clientId] = {});
-    (c[e.line] = c[e.line] || {})[e.date] = 1;
+    add(days, e.clientId, e);
+    if (e.partNumber || e.part) add(parts, e.clientId + '|' + plnPartKey(e.partNumber || e.part, e.part || '', e.gauge), e);
   });
-  var out = {};
-  Object.keys(days).forEach(function(cid) {
-    var best = null, bn = 0;
-    Object.keys(days[cid]).forEach(function(l) { var n = Object.keys(days[cid][l]).length; if (n > bn) { bn = n; best = l; } });
-    if (best) out[cid] = best;
-  });
+  var best = function(map) {
+    var out = {};
+    Object.keys(map).forEach(function(k) {
+      var b = null, bn = 0;
+      Object.keys(map[k]).forEach(function(l) { var n = Object.keys(map[k][l]).length; if (n > bn) { bn = n; b = l; } });
+      if (b) out[k] = b;
+    });
+    return out;
+  };
+  var out = best(days);
+  out.parts = best(parts);
   return out;
 }
 function plnBase() {
@@ -186,8 +198,8 @@ function plnBase() {
     var bc = byClient[cid] || (byClient[cid] = { id: cid, name: c ? c.name : (row.clientName || 'No client'), mode: c ? c.billingMode : '', parts: {}, kg: 0, rev: 0, revUnweighed: 0 });
     (row.items || []).forEach(function(it) {
       var w = lineWeightKg(it, c, row.date), amt = Number(it.amount) || 0;
-      if (!w.known) { bc.revUnweighed += amt; return; }
-      var id = cpPartIdentity(it.partNumber || '', it.desc || ''), pk = (id.base || rateKey(it.partNumber || it.desc)) + (id.gauge ? '|' + id.gauge : '');
+      if (!w.known || !(w.kg > 0)) { bc.revUnweighed += amt; return; }
+      var id = cpPartIdentity(it.partNumber || '', it.desc || ''), pk = plnPartKey(it.partNumber, it.desc);
       var p = bc.parts[pk] || (bc.parts[pk] = { id: pk, name: it.partNumber || it.desc || '—', desc: it.desc || '', gauge: id.gauge, unit: it.unit || 'KG', kg: 0, pcs: 0, rev: 0, rates: {} });
       p.kg += w.kg; p.rev += amt;
       if ((it.unit || 'KG') === 'NOS') p.pcs += Number(it.qty) || 0;
@@ -202,8 +214,9 @@ function plnBase() {
     var mk = function(p) {
       var rate = Object.keys(p.rates).sort(function(a, b) { return p.rates[b] - p.rates[a]; })[0];
       var mm = p.gauge ? +p.gauge.split('X')[1] : null;
+      var pl = clLine.parts[cid + '|' + p.id];
       return { id: p.id, name: p.name, desc: p.desc, unit: p.unit === 'NOS' && p.pcs > 0 ? 'NOS' : 'KG', rate: rate != null ? +rate : null, kg: p.kg / mo, pcs: p.pcs ? p.pcs / mo : null,
-        kgPc: p.unit === 'NOS' && p.pcs > 0 ? p.kg / p.pcs : null, rev: p.rev / mo, perKg: p.rev / p.kg, mm: mm, line: line || 'vat-a2', lineSrc: line ? 'record' : 'assumed', client: cid };
+        kgPc: p.unit === 'NOS' && p.pcs > 0 ? p.kg / p.pcs : null, rev: p.rev / mo, perKg: p.rev / p.kg, mm: mm, line: pl || line || 'vat-a2', lineSrc: pl ? 'record' : line ? 'client' : 'assumed', client: cid };
     };
     var out = top.map(mk);
     if (rest.length) {
@@ -223,7 +236,7 @@ function plnBase() {
       kgRound: set.kgRound > 0 ? +set.kgRound : mKg ? mKg : a.kgRound,
       every: set.every > 0 ? +set.every : c ? c.every : a.every,
       src: set.kgRound > 0 || set.every > 0 ? 'set' : c ? 'register' : 'assumed',
-      register: c || null
+      register: c || null, kgDay: kgDay
     };
   });
   // Costs: the live cost's own lines, per kilo or per month; labour by its own parts.
@@ -240,6 +253,16 @@ function plnBase() {
     var inside = (pa.cuts || []).filter(function(c) { return c.date >= per.from && c.date <= per.to; }).reduce(function(s, c) { return s + ((c.cost && c.cost.inside) || 0); }, 0);
     cutMin = wdTotal ? inside / wdTotal : 0;
   } catch (e) { cutMin = 0; }
+  // A line nothing measures is assumed; where the assumption could not have plated what the book billed in the general shift
+  // and the two OT blocks less the cuts, its kilos a round are raised until it could, and it says so (fitted): the plant as it
+  // runs must reproduce the book.
+  var availFit = PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening - cutMin / 60;
+  PLN_LINE_IDS.forEach(function(l) {
+    var L0 = lines[l];
+    if (L0.src !== 'assumed' || !(L0.kgDay > 0) || !(availFit > 0)) return;
+    var need = L0.kgDay / availFit * L0.every / 60;
+    if (need > L0.kgRound) { L0.kgRound = Math.ceil(need); L0.fitted = true; }
+  });
   // Cash: set by the owner, else the statement's last balance, else nothing known.
   var cash = cfg.cash != null && cfg.cash !== '' && isFinite(+cfg.cash) ? { v: +cfg.cash, src: 'set' } : null;
   if (!cash) { try { var fr = finCtx().rows; if (fr && fr.length) cash = { v: Number(fr[fr.length - 1].balance) || 0, src: 'statement', on: fr[fr.length - 1].date }; } catch (e) { /* no statement */ } }
@@ -315,7 +338,7 @@ function plnMoves(sc) {
   });
   return L;
 }
-function plnRoleChance(sc, r) { var o = (sc.chances || {})[r.id]; return o != null ? o : r.p; }
+function plnRoleChance(sc, r) { var o = ((sc && sc.chances) || {})[r.id]; return o != null ? o : r.p; }
 function plnClientShort(c) { var n = String(c.name || ''); var w = n.replace(/\b(PVT|PRIVATE|LTD|LIMITED|CO|CORPORATION|INDUSTRIES|P)\b\.?/gi, '').replace(/\s+/g, ' ').trim(); return w.length > 22 ? w.slice(0, 21) + '…' : w || n; }
 function plnClientNameOf(id) { var c = (S.clients || []).find(function(x) { return String(x.id) === String(id); }); return c ? plnClientShort(c) : 'A client'; }
 /* An ask's settings: what the scenario set, else a default from the client's billing (a piece client +5% at 3 in 10; a
@@ -353,12 +376,35 @@ function plnReady(L, luck) {
   return out;
 }
 
+/* Weighted by each chance: a move counts at its own chance times the chances of everything it needs (the likelier of two
+   alternatives; the specialist is certain once hired, else the promotion's chance). */
+function plnWeights(L) {
+  var by = {}, memo = {};
+  L.forEach(function(m) { by[m.key] = m; });
+  function wt(k, stack) {
+    if (k in memo) return memo[k];
+    if (k.indexOf('|') >= 0) return (memo[k] = Math.max.apply(null, k.split('|').map(function(x) { return wt(x, stack); })));
+    if (k === 'specialist') {
+      var hire = by.specialist ? (by.specialist.p != null ? by.specialist.p : 1) : 0, pr = by.promote && !stack.promote ? wt('promote', stack) : 0;
+      return (memo[k] = Math.max(hire, pr));
+    }
+    var m = by[k]; if (!m || stack[k]) return (memo[k] = 0);
+    stack[k] = 1;
+    var v = m.p != null ? m.p : 1;
+    m.needs.forEach(function(n) { v *= wt(n, stack); });
+    delete stack[k];
+    return (memo[k] = v);
+  }
+  var out = {}; L.forEach(function(m) { out[m.key] = wt(m.key, {}); });
+  return out;
+}
+
 /* ---------- One month, from parts to margin ---------- */
 function plnMonth(m, L, ready, opts) {
   var B = _plnBase, cfg = plnCfg();
   opts = opts || {};
   var live = function(mv) { var r = ready[mv.key]; return r != null && m >= r && !(opts.drop && opts.drop[mv.key]); };
-  var w = function(mv) { return opts.expected && mv.p != null ? mv.p : 1; };
+  var w = function(mv) { return !opts.expected ? 1 : opts.weights && opts.weights[mv.key] != null ? opts.weights[mv.key] : mv.p != null ? mv.p : 1; };
   var lines = {}, fx = { pickKgH: B.pick ? B.pick.kgH : 400, cutCover: 0, night: false, chemKg: 0, chemSave: 0, powerSave: 0, gensetRun: 0, otSave: 0, powerKg: 0, saveMo: 0 };
   PLN_LINE_IDS.forEach(function(k) { lines[k] = { kgRound: B.lines[k].kgRound, every: B.lines[k].every, demand: 0, down: 0 }; });
   L.forEach(function(mv) {
@@ -371,11 +417,14 @@ function plnMonth(m, L, ready, opts) {
     ['chemKg', 'chemSave', 'powerSave', 'gensetRun', 'otSave', 'powerKg', 'saveMo'].forEach(function(k) { if (f[k]) fx[k] += f[k] * s; });
   });
   // Demand by part, at its rate after any ask.
-  var rows = [];
+  var rows = [], uw = {}, uwDelta = 0;
   B.clients.forEach(function(c) {
     var ask = L.find(function(mv) { return mv.ask && mv.ask.client === c.id; });
     var askOn = ask && live(ask), s = askOn ? w(ask) : 0;
-    var cut = ask && ask.refuse && opts.refused && opts.refused[c.id] ? ask.refuse.cut : 0;
+    // A refusal sends less from the month after the ask, never before it.
+    var cut = ask && ask.refuse && opts.refused && opts.refused[c.id] && m >= Math.max(0, ask.at) + 1 ? ask.refuse.cut : 0;
+    // Lines with no weight are revenue without kilos: a percentage ask raises them, a refusal cuts them, like the rest.
+    if (c.revUnweighed) { uw[c.id] = c.revUnweighed * (1 + (askOn && ask.ask.pct ? ask.ask.pct / 100 * s : 0)) * (1 - cut); uwDelta += uw[c.id] - c.revUnweighed; }
     c.parts.forEach(function(p) {
       var perKg = p.perKg;
       if (askOn) {
@@ -407,8 +456,8 @@ function plnMonth(m, L, ready, opts) {
     l.plated = Math.min(l.demand, l.kgH * Math.max(0, l.hours - cutH));
     plated0 += l.plated;
   });
-  // Pickling feeds every line for the hours the busiest line runs.
-  var pickH = Math.max(0, Math.max.apply(null, PLN_LINE_IDS.map(function(k) { return lines[k].hours; })) - cutH);
+  // Pickling runs as long as the lines need it (at least the hours the busiest line runs), within the day's window.
+  var pickH = Math.max(0, Math.min(avail - cutH, Math.max(Math.max.apply(null, PLN_LINE_IDS.map(function(k) { return lines[k].hours; })) - cutH, fx.pickKgH > 0 ? plated0 / fx.pickKgH : 0)));
   var pickCap = fx.pickKgH * pickH, pickShare = plated0 > pickCap && plated0 > 0 ? pickCap / plated0 : 1;
   var otH = 0, nightH = 0;
   PLN_LINE_IDS.forEach(function(k) {
@@ -420,8 +469,8 @@ function plnMonth(m, L, ready, opts) {
     l.nightH = Math.max(0, l.hours - PLN_SHIFT.general - PLN_SHIFT.morning - PLN_SHIFT.evening);
     otH += l.ot; nightH += l.nightH;
   });
-  var plated = 0, rev = B.unweighed, byClient = {}, lost = 0;
-  B.clients.forEach(function(c) { if (c.revUnweighed) byClient[c.id] = c.revUnweighed; });
+  var plated = 0, rev = B.unweighed + uwDelta, byClient = {}, lost = 0;
+  Object.keys(uw).forEach(function(id) { byClient[id] = uw[id]; });
   rows.forEach(function(r) {
     var l = lines[r.line], kg = r.kgDay * l.share * Math.max(0, B.wd - (l.down || 0));
     r.kgMo = kg; r.revMo = kg * r.perKg;
@@ -430,11 +479,16 @@ function plnMonth(m, L, ready, opts) {
     byClient[r.client] = (byClient[r.client] || 0) + r.revMo;
   });
   var hires = 0;
-  L.forEach(function(mv) { if (mv.run && m >= Math.max(0, mv.at) && !(opts.drop && opts.drop[mv.key])) hires += mv.run; });
+  // A hire is paid from when it can start (its month, or once what it needs is ready), never while it cannot take effect.
+  L.forEach(function(mv) {
+    if (!mv.run || (opts.drop && opts.drop[mv.key])) return;
+    var from = mv.key === 'specialist' ? Math.max(0, mv.at) : ready[mv.key] != null ? Math.max(0, ready[mv.key] - (mv.months || 0)) : null;
+    if (from != null && m >= from) hires += mv.run;
+  });
   var C = B.cost, otBase = B.otBase != null ? B.otBase : otH;
   var cost = {
     labourFixed: C.labourFixed, labourPool: C.labourPool,
-    labourOt: Math.max(0, C.labourOt - fx.otSave) + C.labourOther + (otH - otBase) * B.wd * (+cfg.otLineHour || 0),
+    labourOt: Math.max(0, C.labourOt - fx.otSave + (otH - otBase) * B.wd * (+cfg.otLineHour || 0)) + C.labourOther,
     hires: hires, zinc: plated * C.zincKg, chem: plated * (C.chemKg + fx.chemKg) - fx.chemSave,
     power: C.powerFixed + plated * (C.powerKg + fx.powerKg) - fx.powerSave + fx.gensetRun, other: plated * C.otherKg - fx.saveMo
   };
@@ -475,7 +529,7 @@ function plnPlanned(mode) {
   var key = B.key + '|' + JSON.stringify(sc || {}) + '|' + (mode || 'all') + '|' + JSON.stringify(plnLive('heldBack')) + '|' + JSON.stringify(plnLive('machines'));
   if (_plnPlanned && _plnPlanned.key === key && _plnPlanned.B === B) return _plnPlanned;
   var L = plnMoves(sc), ready = plnReady(L, null);
-  _plnPlanned = { key: key, B: B, sc: sc, L: L, ready: ready, months: plnRunAll(L, ready, { expected: mode === 'expected' }), base: plnRunAll([], {}, {}) };
+  _plnPlanned = { key: key, B: B, sc: sc, L: L, ready: ready, months: plnRunAll(L, ready, { expected: mode === 'expected', weights: plnWeights(L) }), base: plnRunAll([], {}, {}) };
   return _plnPlanned;
 }
 /* What each move added to a month, one at a time in the order they take effect (a prerequisite before what it opens):
@@ -496,7 +550,7 @@ function plnAttribution(m, mode) {
   var prev = P.base[m], rows = [], sub = [];
   order.forEach(function(mv) {
     sub.push(mv);
-    var cur = plnMonth(m, sub, plnReady(sub, null), { expected: mode === 'expected' });
+    var cur = plnMonth(m, sub, plnReady(sub, null), { expected: mode === 'expected', weights: plnWeights(sub) });
     rows.push({ mv: mv, margin: cur.margin - prev.margin, kg: cur.plated - prev.plated, ready: P.ready[mv.key] });
     prev = cur;
   });
@@ -513,6 +567,7 @@ function plnTrials() {
   for (var t = 0; t < PLN_TRIALS; t++) {
     var draws = {}, luck = { cqi: Math.floor(r() * 4), promote: r() < plnRoleChance(sc, PLN_ROLES[1]), lands: function(k, p) { if (!(k in draws)) draws[k] = r() < p; return draws[k]; } };
     var ready = plnReady(L, luck), refused = {};
+    if (!luck.promote) ready.promote = null;   // a promotion that did not pass did not come through
     L.forEach(function(mv) { if (mv.refuse && ready[mv.key] == null && r() < mv.refuse.p) refused[mv.ask.client] = true; });
     var months = [], cash = B.cash.v, events = [];
     for (var m = 0; m < PLN_N; m++) {

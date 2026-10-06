@@ -1068,7 +1068,7 @@ function grdRolesGridHtml() {
   GRD_GROUPS.forEach(function(g) { h += row(g[1], 'data-grd-may="' + g[0] + '"', function(x) { return x.may.indexOf(g[0]) >= 0; }); });
   h += '<tr class="inv-table-group"><td colspan="4">What it sees</td></tr>' +
     row('Wages (Staff → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
-    row('Money (Finance, Stats, Reports)', 'data-grd-flag="finance"', function(x) { return x.finance; });
+    row('Money (Finance, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
   return h + '</tbody></table></div>';
 }
 function grdUsersBody() {

@@ -2059,7 +2059,8 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 
 /* The planner (planner.js, planview.js; docs/PLANNER.md): the plans as chips, the goal with its level, the strip with its
    month stepper and stars, a move's month with its arrows. Everything else is the shared components. */
-.inv-pl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); }
+.inv-pl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); min-width: 0; }
+.inv-pl-chips > .inv-chip { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-pl-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12); }
 .inv-pl-hud { margin-bottom: var(--sp-12); }
 .inv-pl-step { display: flex; align-items: center; gap: var(--sp-4); }

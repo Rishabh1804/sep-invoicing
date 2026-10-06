@@ -52,29 +52,35 @@ The prototypes taught that a lump sum on a card (*+₹15k a month*) cannot be ch
 and the day is the month divided by its working days.
 
 1. **Parts.** Each client's parts over the three months: kilos a month, pieces, the rate as billed (per kg or per piece), its
-   ₹/kg, its gauge's thickness, and its line (the production record's usual line where there is one, else the client's most
-   frequent line, else VAT A2, said as *assumed*). Past a client's eight largest parts the rest is one row. Lines with no weight
+   ₹/kg, its gauge's thickness, and its line: the part's own usual line on the production record (by part number or size and
+   gauge, Performance's identity), else the client's, else VAT A2, said as *assumed*. Past a client's eight largest parts the rest is one row. Lines with no weight
    are revenue without kilos, so the month's revenue is the book's to the rupee.
-2. **Lines.** A line plates **kg a round** every **so many minutes**. VAT A1's are measured: the register's rounds per day against
-   the book's kilos on A1. A line without a register says *assumed* and can be set. Hours needed = kilos a day ÷ kg an hour + the
+2. **Lines.** A line plates **kg a round** every **so many minutes**. A line with three days of register rounds is measured: the
+   register's rounds per day against the book's kilos on it. A line without a register says *assumed* and can be set; where the
+   assumption could not have plated what the book billed on it within the general shift and the two OT blocks less the cuts,
+   its kilos a round are raised until it could, and it says *fitted to the book*. Hours needed = kilos a day ÷ kg an hour + the
    day's cut minutes in working hours. The general shift runs first (8 h), then the morning block (6:00–8:30), then the evening
    (5–8 PM), then a night shift where the scenario has a night crew. Kilos past what a line can run are **left unplated**, and
    the ledger says what they were worth.
-3. **Pickling** feeds every line for the hours the busiest one runs, at a rate the owner sets (assumed until measured).
+3. **Pickling** runs as long as the lines need it, at least the hours the busiest line runs and never past the day's window, at a
+   rate the owner sets (assumed until measured: today's kilos over the busiest line's hours, with a tenth to spare).
 4. **The month**: each part's plated kilos × its rate; zinc, chemicals and upkeep per kilo plated (the live cost's own figures);
    electricity as a fixed part plus a rate per kilo; the monthly crew and the hourly pool as recorded; overtime and EXTRA as they
    run, plus a set cost for each new overtime line-hour; the hires; interest. **As it runs** must reproduce the book's average
    month: a spec checks it.
 5. **A move changes an input, never a total.** An ask changes a part's rate (per part, or by a percentage on a piece-billed
    client). Work held back adds parts on a line. A rack, rectifier or second barrel changes a line's kg a round or minutes. A
-   fourth pickling tank changes pickling's rate. Backup power changes the cut minutes. A night crew adds hours. A hire is a wage.
+   fourth pickling tank changes pickling's rate. Backup power changes the cut minutes. A night crew adds hours. A hire is a wage, paid from when it can start
+   (once what it needs is ready), never while it cannot take effect. Overtime saved never takes labour below nothing.
    A loan is its amount, rate, months and interest-only months, repaid by amortised instalment.
 6. **The ledger** lists every month (kilos, revenue, labour, hires, zinc and chemicals, power and other, interest, margin, spend,
    the loan, cash). A month opens to **how the margin adds up**: today's margin, then each move in the order it takes effect, each
    row what it added on top of the rows above, ending in the plan, so the rows sum to the plan. It reads **if every move lands**
-   or **weighted by each chance**.
-7. **The trials** (600, seeded): each chance, the CQI-11 date's slip of up to three months, each machine's risk until its fix
-   (days down and a bill), a month's cut minutes between 0.6 and 1.5 times the usual, a client refusing an ask and sending less.
+   or **weighted by each chance**. Weighted, a move counts at its own chance times the chances of what it needs
+   (the likelier of two alternatives; the specialist certain once hired, else the promotion's chance).
+7. **The trials** (600, seeded): each chance, the CQI-11 date's slip of up to three months, the promotion's pass (a failed one did
+   not come through), each machine's risk until its fix (days down and a bill), a month's cut minutes between 0.6 and 1.5 times the
+   usual, a client refusing an ask and sending less from the month after it, its revenue without kilos included.
    Each trial runs the same engine.
 
 ## 4. The Planner (Insights → Planner)
@@ -122,15 +128,16 @@ its source. The same pages drawn live, professional rather than playful.
 
 ```
 planner: {
-  cfg: {lines: {a1|a2|barrel: {kgRound, every}}, pickKgH, otLineHour, powerFixed},     // set by the owner; blank = measured or assumed
-  machines: [{id, item, line, state: good|fair|ageing|needs, age, needs, risk: {p, cost, days}, at, by, retiredAt?}],
-  checklist: [{id, ref, what, status: in|partly|missing, cost, owner, evidence, at, by}],
-  lenders: [{id, who, amount, rate, months, mor, ties, status: offered|asked|agreed|declined, at, by, retiredAt?}],
-  heard: [{id, what, from, value, unit, on, by}],
-  heldBack: [{id, clientId, why: cert|turnaround, kg, rate, line, chance, note, at, by, retiredAt?}],
-  scenarios: [{id, name, goal, plan: {moveKey: month}, asks: {clientId: {to|pct, chance, parts}}, loan, cards, at, by}],
+  cfg: {lines: {vat-a1|vat-a2|barrel: {kgRound, every}}, pickKgH, otLineHour, powerFixed, cash, costs: {moveId: ₹}},  // blank = measured or assumed
+  machines: [{id, item, station, line, state: good|fair|ageing|needs, age, needs, risk: {p, cost, days, say}, at, by}],
+  checklist: [{id, ref, what, status: in|partly|missing, cost, owner, due, evidence, at, by}],
+  lenders: [{id, who, amount, rate, months, mor, ties, status: offered|asked|agreed|declined, at, by}],
+  heard: [{id, what, from, value, unit, on, at, by}],
+  heldBack: [{id, clientId, why: cert|turnaround|approval|other, kg, rate, line, chance, note, at, by}],
+  scenarios: [{id, name, goal, plan: {moveKey: month}, asks: {clientId: {to|pct, p, parts}}, chances: {roleId: p}, loan, cards, at, by}],
   active
 }
+// every register record may carry retiredAt, retireReason, retiredBy: retired with a reason, never deleted
 ```
 
 Travels with the book (backups, GitHub, the compile); edits are in the change log. Nothing in it is written into the build.

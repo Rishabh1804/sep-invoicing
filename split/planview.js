@@ -39,21 +39,25 @@ function renderPlanner() {
     el.innerHTML = h + '<div class="inv-empty">The planner starts from the book: it needs invoices with weights in the last three full months (' +
       escHtml(B ? formatDate(B.period.from) + ' to ' + formatDate(B.period.to) : '') + '). There are none yet.</div>' + plnRegistersOnlyHtml();
     viewTabReveal(el.querySelector('.inv-viewtabs'));
+    _plnMoved = false;
     return;
   }
   var sc = plnScenario();
-  if (_plnResult && (!sc || _plnResult.key !== plnPlanned().key)) { _plnResult = null; _plnReplay = null; }
+  if (_plnResult && _plnResult.key !== plnPlanned().key) { _plnResult = null; _plnReplay = null; }
   h += plnToolbarHtml(sc) + plnGoalHtml(sc) + plnHudHtml();
   var body = { play: plnPlayHtml, ledger: plnLedgerHtml, day: plnDayHtml, plant: plnPlantHtml, tech: plnTechHtml, staff: plnStaffHtml, clients: plnClientsHtml, finance: plnFinanceHtml }[_plnView];
   h += body ? body() : '';
+  // A table scrolled sideways (the ledger, the board) stays where it was across a redraw: a month tapped stays in sight.
+  var sx = [].map.call(el.querySelectorAll('.inv-scroll-x'), function(x) { return x.scrollLeft; }), moved = _plnMoved;
   el.innerHTML = h;
+  if (!moved) [].forEach.call(el.querySelectorAll('.inv-scroll-x'), function(x, i) { if (sx[i]) x.scrollLeft = sx[i]; });
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   if (_plnMoved) { _plnMoved = false; viewTop(); }
   plnReportRedraw();
 }
 /* With no baseline, the registers are still the owner's to keep. */
 function plnRegistersOnlyHtml() {
-  return '<div class="inv-panels">' + plnMachinesHtml() + plnLendersHtml() + '</div>';
+  return '<div class="inv-panels">' + plnMachinesHtml() + plnChecklistHtml() + plnLendersHtml() + plnHeardHtml() + plnHeldHtml() + '</div>';
 }
 function plnToolbarHtml(sc) {
   var list = plnScenarios();
@@ -85,7 +89,7 @@ function plnHudHtml() {
     '<div class="inv-tile" data-pl-hud="month"><div class="inv-tile-label">Month</div><div class="inv-pl-step"><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invPlnMonth" data-step="-1" aria-label="Month before"' + (_plnMonth ? '' : ' disabled') + '>&lsaquo;</button>' +
       '<span class="inv-tile-value">' + escHtml(plnMonthLabel(_plnMonth)) + '</span><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invPlnMonth" data-step="1" aria-label="Month after"' + (_plnMonth < PLN_N - 1 ? '' : ' disabled') + '>&rsaquo;</button></div>' +
       '<div class="inv-tile-sub">turn ' + (_plnMonth + 1) + ' of ' + PLN_N + '</div></div>' +
-    tile('cash', 'Cash', figWrapHtml(escHtml(plnRs(mo.cash))), escHtml(B.cash.src === 'statement' ? 'from ' + plnRs(B.cash.v) + ' on the statement, ' + formatDate(B.cash.on) : B.cash.src === 'set' ? 'from ' + plnRs(B.cash.v) + ', set on Finance' : 'no statement: set the cash on Finance'), mo.cash < 0 ? 'danger' : mo.cash < Math.abs(base.margin) * 2 ? 'warning' : 'ok') +
+    tile('cash', 'Cash', figWrapHtml(escHtml(plnRs(mo.cash))), escHtml(B.cash.src === 'statement' ? 'from ' + plnRs(B.cash.v) + ' on the statement, ' + formatDate(B.cash.on) : B.cash.src === 'set' ? 'from ' + plnRs(B.cash.v) + ', as set in the assumptions' : 'no statement: counted from zero; set the cash now in Set the assumptions (Ledger or Plant)'), mo.cash < 0 ? 'danger' : mo.cash < Math.abs(base.margin) * 2 ? 'warning' : 'ok') +
     tile('margin', 'Margin a month', escHtml(plnSigned(mo.margin)), escHtml('as it runs ' + plnSigned(base.margin) + ' · over full cost'), plnTone(mo.margin)) +
     tile('plated', 'Plated a month', escHtml(plnKg(mo.plated)), escHtml(used + '% of what the lines can run' + (mo.lostRev > 500 ? ' · ' + plnRs(mo.lostRev) + ' left unplated' : '')), used > 95 || mo.lostRev > 500 ? 'danger' : used > 85 ? 'warning' : '') +
     tile('cqi', 'CQI-11', cqi != null ? escHtml(plnMonthLabel(Math.min(PLN_N - 1, cqi))) : '<span class="inv-tile-value-sm">Not in the plan</span>', cqi != null ? (cqi <= g.cqi ? 'within the goal, if every step lands' : 'later than the goal') : 'Tech tree: CQI-11 self-assessed', cqi != null && cqi <= g.cqi ? 'ok' : 'warning') +
@@ -261,13 +265,38 @@ function plnMoveCtlHtml(key, inPlan, dflt) {
     '<span class="inv-num">' + escHtml(at < 0 ? 'once ready' : plnMonthLabel(at)) + '</span><button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnShift" data-key="' + escHtml(key) + '" data-step="1" aria-label="Later">&rsaquo;</button>' +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnTake" data-key="' + escHtml(key) + '" aria-label="Take out">&times;</button></span>';
 }
-function plnEdit(fn) {
+/* A figure typed on the page is saved at once, and the page is redrawn after the tap or key that left the field has landed: a
+   change fires on the blur, between the press and the click, and a redraw then would replace the button under the tap. The
+   field that has focus after the redraw is the one that had it before. */
+var _plnPtr = false;
+document.addEventListener('pointerdown', function() { _plnPtr = true; }, true);
+document.addEventListener('pointerup', function() { setTimeout(function() { _plnPtr = false; }, 0); }, true);
+function plnEditTyped(fn) {
+  plnEdit(fn, true);
+  var done = false, go = function() { if (done) return; done = true; document.removeEventListener('click', go, true); setTimeout(plnRedrawKeepFocus, 0); };
+  if (_plnPtr) { document.addEventListener('click', go, true); setTimeout(go, 700); } else go();
+}
+function plnFocusKey(el) {
+  if (!el || !el.closest || !el.closest('#plannerContent')) return null;
+  if (el.id) return '#' + el.id;
+  var a = ['data-pl-ask', 'data-pl-part', 'data-pl-loan', 'data-pl-chance', 'data-client', 'data-action', 'data-key', 'data-id'].filter(function(n) { return el.hasAttribute(n); });
+  return a.length ? el.tagName.toLowerCase() + a.map(function(n) { return '[' + n + '="' + CSS.escape(el.getAttribute(n)) + '"]'; }).join('') : null;
+}
+function plnRedrawKeepFocus() {
+  var key = plnFocusKey(document.activeElement);
+  renderPlanner();
+  plnPinRefresh();
+  var el = key ? document.querySelector('#plannerContent ' + key) : null;
+  if (el) { try { el.focus({ preventScroll: true }); } catch (e) { el.focus(); } }
+}
+function plnEdit(fn, quiet) {
   var sc = plnScenarioEnsure();
   sc.plan = sc.plan || {}; sc.asks = sc.asks || {}; sc.cards = sc.cards || [];
   fn(sc);
   sc.at = Date.now();
   _plnResult = null; _plnReplay = null;
   saveState();
+  if (quiet) return;
   renderPlanner();
   plnPinRefresh();
 }
@@ -328,11 +357,11 @@ function plannerAction(action, btn) {
 function plannerOnChange(t) {
   if (!t || !t.dataset) return false;
   var d = t.dataset;
-  if (d.plAsk) { plnEdit(function(sc) { var o = sc.asks[d.client] || (sc.asks[d.client] = {}); var v = t.value === '' ? null : +t.value; if (d.plAsk === 'p') o.p = v == null ? null : Math.max(1, Math.min(10, v)) / 10; else o[d.plAsk] = v; }); return true; }
-  if (d.plPart) { plnEdit(function(sc) { var o = sc.asks[d.client] || (sc.asks[d.client] = {}); o.parts = o.parts || {}; if (t.value === '') delete o.parts[d.plPart]; else o.parts[d.plPart] = +t.value; }); return true; }
-  if (d.plLoan) { plnEdit(function(sc) { if (!sc.loan) return; var v = +t.value; sc.loan[d.plLoan] = isFinite(v) && v >= 0 ? v : 0; if (sc.loan.months <= sc.loan.mor) sc.loan.months = sc.loan.mor + 1; }); return true; }
-  if (d.plChance) { plnEdit(function(sc) { sc.chances = sc.chances || {}; var v = +t.value; sc.chances[d.plChance] = isFinite(v) ? Math.max(1, Math.min(10, v)) / 10 : null; }); return true; }
-  if (d.plCardKind) { var title = _plnVal('plnCTitle'); plnCardEdit(d.plCardId || '', t.value, title); return true; }
+  if (d.plAsk) { plnEditTyped(function(sc) { var o = sc.asks[d.client] || (sc.asks[d.client] = {}); var v = t.value === '' ? null : +t.value; if (d.plAsk === 'p') o.p = v == null ? null : Math.max(1, Math.min(10, v)) / 10; else o[d.plAsk] = v; }); return true; }
+  if (d.plPart) { plnEditTyped(function(sc) { var o = sc.asks[d.client] || (sc.asks[d.client] = {}); o.parts = o.parts || {}; if (t.value === '') delete o.parts[d.plPart]; else o.parts[d.plPart] = +t.value; }); return true; }
+  if (d.plLoan) { plnEditTyped(function(sc) { if (!sc.loan || t.value === '') return; var v = +t.value; if (isFinite(v) && v >= 0) sc.loan[d.plLoan] = v; if (sc.loan.months <= sc.loan.mor) sc.loan.months = sc.loan.mor + 1; }); return true; }
+  if (d.plChance) { plnEditTyped(function(sc) { sc.chances = sc.chances || {}; var v = +t.value; if (t.value === '' || !isFinite(v)) delete sc.chances[d.plChance]; else sc.chances[d.plChance] = Math.max(1, Math.min(10, v)) / 10; }); return true; }
+  if (d.plCardKind) { plnCardEdit(d.plCardId || '', t.value, plnCardTyped()); return true; }
   return false;
 }
 
@@ -340,7 +369,9 @@ function plannerOnChange(t) {
 function plnScenarioCopy() {
   var p = plnData(), cur = plnScenario();
   var s = cur ? JSON.parse(JSON.stringify(cur)) : { goal: 'normal', plan: {}, asks: {}, loan: null, cards: [] };
-  s.id = plnId('SC'); s.name = cur ? cur.name + ' (copy)' : 'My plan'; s.at = Date.now(); s.by = plnWho();
+  s.id = plnId('SC');
+  if (cur) { var stem = String(cur.name || 'My plan').replace(/ \(copy( \d+)?\)$/, '').slice(0, 30), n = 1, taken = function(nm) { return plnScenarios().some(function(x) { return x.name === nm; }); };
+    s.name = stem + ' (copy)'; while (taken(s.name)) s.name = stem + ' (copy ' + (++n) + ')'; } else s.name = 'My plan'; s.at = Date.now(); s.by = plnWho();
   p.scenarios.push(s); p.active = s.id;
   _plnResult = null;
   saveState();
@@ -429,7 +460,12 @@ function plnPinRefresh() {
   var d = document.querySelector('[data-pl-pin-dialog]');
   if (!d) return;
   var h = plnPinHtml(d.getAttribute('data-key'));
-  if (h) dialogOpen(h, { replace: true }); else closeOverlay();
+  if (!h) { closeOverlay(); return; }
+  var a = document.activeElement, step = a && d.contains(a) && a.dataset ? a.dataset.action + '|' + (a.dataset.step || '') : null;
+  dialogOpen(h, { replace: true });
+  var nd = document.querySelector('[data-pl-pin-dialog]'), to = null;
+  if (nd && step) [].some.call(nd.querySelectorAll('[data-action]'), function(b) { if (b.dataset.action + '|' + (b.dataset.step || '') === step) { to = b; return true; } return false; });
+  if (to && !to.disabled) to.focus(); else if (nd) nd.focus && nd.focus();
 }
 
 /* The outcome: the plan's margin against today's and the goal, the 8-in-10 band once rolled, the goal month's spread, achievements. */
@@ -503,9 +539,9 @@ function plnLedgerHtml() {
     ['Loan in or repaid', function(x) { return x.loanIn ? plnSigned(x.loanIn) : x.principal ? plnRs(-x.principal) : '—'; }],
     ['Cash', function(x) { return plnRs(x.cash); }, 'cash']];
   var tone = function(r, x) { return r[2] === 'margin' ? (x.margin < 0 ? ' inv-num-neg' : ' inv-num-pos') : r[2] === 'cash' && x.cash < 0 ? ' inv-num-neg' : ''; };
-  var h = '<div class="inv-panel inv-panel-flush" id="plnLedger"><div class="inv-panel-head"><span class="inv-panel-title">Month by month</span>' +
-    '<span class="inv-seg inv-seg-fit" role="group" aria-label="Read the plan"><button class="inv-seg-btn" aria-pressed="' + (_plnMode === 'all') + '" data-action="invPlnMode" data-id="all">If every move lands</button>' +
+  var h = '<div class="inv-toolbar"><span class="inv-seg inv-seg-fit" role="group" aria-label="Read the plan"><button class="inv-seg-btn" aria-pressed="' + (_plnMode === 'all') + '" data-action="invPlnMode" data-id="all">If every move lands</button>' +
     '<button class="inv-seg-btn" aria-pressed="' + (_plnMode === 'expected') + '" data-action="invPlnMode" data-id="expected">Weighted by each chance</button></span></div>' +
+    '<div class="inv-panel inv-panel-flush" id="plnLedger"><div class="inv-panel-head"><span class="inv-panel-title">Month by month</span></div>' +
     '<div class="inv-scroll-x"><table class="inv-table inv-table-grid inv-pl-ledger"><thead><tr><th scope="col">' + escHtml(B.wd + ' working days a month') + '</th><th scope="col">As it runs</th>' +
     P.months.map(function(x, i) { return '<th scope="col"' + (i === m ? ' aria-current="date"' : '') + '><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnLedgerMonth" data-m="' + i + '">' + escHtml(plnMonthLabel(i)) + '</button></th>'; }).join('') +
     '</tr></thead><tbody>' + rows.map(function(r) {
@@ -617,7 +653,7 @@ function plnDayHtml() {
 /* ---------- Plant: what each line can do, the machines, an upgrade tree per station ---------- */
 function plnPlantHtml() {
   var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], B = P.B, sc = P.sc;
-  var srcOf = function(l) { var L = B.lines[l]; return L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : 'assumed: no register read for this line'; };
+  var srcOf = function(l) { var L = B.lines[l]; return L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : L.fitted ? 'assumed, its kilos a round raised to what the book plated: no register read for this line' : 'assumed: no register read for this line'; };
   var h = '<div class="inv-panel inv-panel-flush" id="plnLines"><div class="inv-panel-head"><span class="inv-panel-title">What each line can do in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCfg">Set the assumptions</button></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kg a round</th><th class="inv-num">A round every</th><th class="inv-num">Kg an hour</th><th class="inv-num">Kilos a day</th><th class="inv-num">Hours a day</th></tr></thead><tbody>' +
     PLN_LINE_IDS.map(function(l) {
@@ -736,7 +772,7 @@ function plnClientsHtml() {
       var row = mo.rows.find(function(r) { return r.part === p; }), newKg = row ? row.perKg : p.perKg, eff = row ? row.kgMo * (newKg - p.perKg) : 0, o = askMv ? askMv.ask.parts[p.id] : null;
       var askCell = inPlan && a.pct == null ? '<input class="inv-input inv-input-num inv-pl-num" type="number" step="0.25" placeholder="' + formatNum(Math.max(a.to || 0, p.perKg), 2) + '" data-pl-part="' + escHtml(p.id) + '" data-client="' + cid + '" value="' + escHtml(o != null && o !== 'skip' ? String(o) : '') + '">' : escHtml(Math.abs(newKg - p.perKg) > 0.001 ? '₹' + formatNum(newKg, 2) : '—');
       return '<tr data-pl-part-row="' + escHtml(p.id) + '"><td>' + escHtml(p.name) + '<div class="inv-row-meta">' + escHtml([p.desc && p.desc !== p.name ? p.desc : '', p.mm ? p.mm + ' mm' : '', p.kgPc ? formatNum(p.kgPc, 3) + ' kg a piece' : ''].filter(Boolean).join(' · ')) + '</div></td>' +
-        '<td>' + escHtml(plnLineName(p.line)) + '<div class="inv-row-meta">' + escHtml(p.lineSrc === 'record' ? 'the record' : 'assumed') + '</div></td>' +
+        '<td>' + escHtml(plnLineName(p.line)) + '<div class="inv-row-meta">' + escHtml(p.lineSrc === 'record' ? 'the record' : p.lineSrc === 'client' ? 'the client’s usual line' : 'assumed') + '</div></td>' +
         '<td class="inv-num">' + escHtml(plnKg(p.kg)) + (p.pcs ? '<div class="inv-row-meta">' + escHtml(formatNum(p.pcs, 0) + ' pcs') + '</div>' : '') + '</td>' +
         '<td class="inv-num">' + escHtml(p.rate != null ? '₹' + formatNum(p.rate, 2) + (p.unit === 'NOS' ? '/pc' : '/kg') : '—') + '</td><td class="inv-num">₹' + formatNum(p.perKg, 2) + '</td>' +
         '<td class="inv-num">' + askCell + '</td><td class="inv-num' + (eff > 0 ? ' inv-num-pos' : '') + '">' + escHtml(Math.abs(eff) >= 1 ? plnSigned(eff, true) : '—') + '</td></tr>';
@@ -766,10 +802,11 @@ function plnFinanceHtml() {
 function plnRoll() {
   var P = plnPlanned(_plnMode);
   if (!P) return;
-  _plnResult = plnTrials(); _plnReplay = null;
+  var R = plnTrials();
+  _plnResult = R; _plnReplay = null;
   plnSetView('play'); _plnMoved = false;
   renderPlanner();
-  showToast(PLN_TRIALS + ' trials rolled: the goal in ' + Math.round(_plnResult.score * 100) + '%');
+  showToast(PLN_TRIALS + ' trials rolled: the goal in ' + Math.round(R.score * 100) + '%');
 }
 function plnReplayOne() {
   if (!_plnResult) return;
@@ -779,10 +816,10 @@ function plnReplayOne() {
 }
 /* A card of the owner's own: what it changes, its cost, its chance, what it needs first. Kept on the scenario. */
 var PLN_CARD_KINDS = [['volume', 'New work: tonnes at a rate, on a line'], ['line', 'A line: more kilos a round'], ['save', 'A cost: saves a sum a month']];
-function plnCardEdit(id, kind, title) {
+function plnCardEdit(id, kind, typed) {
   var sc = plnScenario(), k = id && sc ? (sc.cards || []).find(function(c) { return c.id === id; }) : null, v = Object.assign({}, k || { kind: 'volume', p: 0.7, lag: 1, line: 'vat-a2' });
   if (kind) v.kind = kind;
-  if (title != null) v.title = title;
+  if (typed) Object.keys(typed).forEach(function(f) { if (typed[f] != null) v[f] = typed[f]; });
   var needs = [['', 'Nothing']].concat(PLN_TECH.map(function(t) { return [t.id, t.t]; }), PLN_ROLES.map(function(r) { return [r.id, r.t]; }));
   var lineOpts = PLN_LINE_IDS.map(function(l) { return [l, plnLineName(l)]; });
   var body = v.kind === 'volume' ? _plnField('plnCTonnes', 'Tonnes a month', v.tonnes, 'number') + _plnField('plnCRate', 'At ₹ a kg', v.rate, 'number') + _plnSelect('plnCLine', 'On the line', lineOpts, v.line)
@@ -797,6 +834,14 @@ function plnCardEdit(id, kind, title) {
     '<div class="inv-dialog-foot">' + (k ? '<button class="inv-btn inv-btn-danger" data-action="invPlnCardRetire" data-id="' + escHtml(k.id) + '">Remove</button>' : '') +
     '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPlnCardSave"' + (k ? ' data-id="' + escHtml(k.id) + '"' : '') + '>' + (k ? 'Save' : 'Add to my cards') + '</button></div></div>';
   dialogOpen(html, { dismiss: true, replace: !!document.querySelector('[data-pl-card-dialog]') });
+}
+/* What is typed on the card dialog, so a change of kind redraws it without losing a figure (a field the kind does not show is
+   left as it was). */
+function plnCardTyped() {
+  var o = {}, f = { plnCTitle: 'title', plnCTonnes: 'tonnes', plnCRate: 'rate', plnCLine: 'line', plnCKgRound: 'kgRound', plnCGain: 'gain', plnCCost: 'cost', plnCRun: 'run', plnCLag: 'lag', plnCNeeds: 'needs', plnCWhy: 'why' };
+  Object.keys(f).forEach(function(id) { if (document.getElementById(id)) o[f[id]] = _plnVal(id); });
+  var pv = _plnNum('plnCP'); if (pv != null) o.p = Math.max(1, Math.min(10, pv)) / 10;
+  return o;
 }
 function plnCardSave(id) {
   var title = _plnVal('plnCTitle');
@@ -863,7 +908,7 @@ function plnReportHtml() {
       ' · ' + (_plnMode === 'expected' ? 'each move weighted by its chance' : 'every move landing')) + '</div></div>';
   h += '<div class="inv-rpt-tiles">' + tile('As it runs', formatCurrency(P.base[0].margin), 'margin a month over full cost, today') +
     tile('In a year', formatCurrency(m12.margin), 'margin a month, ' + plnMonthLabel(11)) + tile('In two years', formatCurrency(last.margin), plnMonthLabel(PLN_N - 1)) +
-    tile('Lowest cash', formatCurrency(low), 'from ' + formatCurrency(B.cash.v) + (B.cash.src === 'statement' ? ' on the statement' : B.cash.src === 'set' ? ', as set' : ', nothing known')) +
+    tile('Lowest cash', formatCurrency(low), (B.cash.src === 'none' ? 'counted from zero: no cash known' : 'from ' + formatCurrency(B.cash.v) + (B.cash.src === 'statement' ? ' on the statement' : ', as set'))) +
     tile('CQI-11', P.ready.cqi != null ? plnMonthLabel(Math.min(PLN_N - 1, P.ready.cqi)) : 'not in the plan', P.ready.cqi != null ? 'if each step lands' : '') +
     tile('The goal', R ? Math.round(R.score * 100) + '% of ' + PLN_TRIALS + ' trials' : 'not rolled', g.say) + '</div>';
   if (target != null) h += '<p class="inv-rpt-p">' + escHtml('The goal’s margin is ' + formatCurrency(target) + ' a month in ' + plnMonthLabel(g.at) + '.') + '</p>';
@@ -877,7 +922,7 @@ function plnReportHtml() {
   h += sec(plnMonthLabel(_plnMonth) + ': how the margin adds up') + table(['', 'Margin a month'], [['As it runs', formatCurrency(at.base)]].concat(at.rows.map(function(r) { return [r.mv.label, plnSigned(r.margin, true)]; }), [['The plan', formatCurrency(at.plan)]])) + '</div>';
   var mo = P.months[_plnMonth];
   h += sec('The lines in ' + plnMonthLabel(_plnMonth)) + table(['Line', 'Kg a round', 'A round every', 'Kilos a day', 'Hours a day', 'Where it comes from'], PLN_LINE_IDS.map(function(l) {
-    var x = mo.lines[l]; return [plnLineName(l), formatNum(x.kgRound, 0), formatNum(x.every, 0) + ' min', plnKg(x.plated), plnHm(x.hours), B.lines[l].src === 'register' ? 'the register' : B.lines[l].src === 'set' ? 'set' : 'assumed'];
+    var x = mo.lines[l]; return [plnLineName(l), formatNum(x.kgRound, 0), formatNum(x.every, 0) + ' min', plnKg(x.plated), plnHm(x.hours), B.lines[l].src === 'register' ? 'the register' : B.lines[l].src === 'set' ? 'set' : B.lines[l].fitted ? 'assumed, fitted to the book' : 'assumed'];
   })) + '</div>';
   if (R) h += sec('The trials') + '<p class="inv-rpt-p">' + escHtml(PLN_TRIALS + ' trials, seeded. Each draws whether each move comes through at its chance, CQI-11’s month (up to three months late), each machine’s risk until its fix, the month’s power cuts (0.6 to 1.5 times the usual) and a client refusing an ask. ' +
     'The goal is reached in ' + Math.round(R.score * 100) + '%; cash dips below zero in ' + Math.round(R.red * 100) + '%; CQI-11 is in time in ' + Math.round(R.cqiShare * 100) + '%. In ' + plnMonthLabel(PLN_N - 1) + ' the middle trial’s margin is ' +

@@ -59,7 +59,7 @@ function navLoc() {
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
       break;
     case 'pagePower': v = _powerTab; break;
-    case 'pageStaff': v = _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
+    case 'pageStaff': v = _attView === 'register' ? 'register/' + aregMonthShown() : _attView; if (_isDesktop && _attView === 'roster' && _attRosterOpen != null) id = String(_attRosterOpen); break;
     case 'pageStock':
       v = _stockView === 'review' ? 'paste' : _stockView;
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
@@ -195,6 +195,7 @@ function navApply(loc) {
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
         _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview';
+        if (parts[0] === 'register' && /^\d{4}-\d{2}$/.test(parts[1] || '')) _aregMonth = parts[1];
         if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
         break;
       case 'pageStock':

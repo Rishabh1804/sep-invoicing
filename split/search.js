@@ -130,6 +130,7 @@ function srchScreens() {
     ['people', 'People', 'Floor · was Staff', 'staff attendance overview', at('pageStaff', 'overview')],
     ['att-day', 'Attendance', 'Floor › People', 'day marks present absent', at('pageStaff', 'day')],
     ['att-week', 'Week', 'Floor › People', 'attendance week grid', at('pageStaff', 'week')],
+    ['att-register', 'Attendance register', 'Floor › People', 'monthly register book page ot totals check', at('pageStaff', 'register')],
     ['pay', 'Pay', 'Floor › People', 'payroll wages salary payout due advance', at('pageStaff', 'pay')],
     ['areas', 'Areas', 'Floor › People', 'staffing complement needed today extra hours', at('pageStaff', 'areas')],
     ['roster', 'Roster', 'Floor › People', 'workers staff list hands', at('pageStaff', 'roster')],

@@ -12,7 +12,7 @@
    - A photo: Production's register reader (prodPhotoFiles), which reads a register page or the power log, refuses
      anything else, and offers a customer's challan to the challan scanner.
    - A file: routed by what is in it, never by its name (addFileKind): the bank's Excel 97–2003 statement, or JSON by its
-     format (sep-stock, sep-production, sep-power, sep-payroll-paid), a roster, or a backup, which replaces the whole book
+     format (sep-stock, sep-production, sep-power, sep-payroll-paid, sep-att-register), a roster, or a backup, which replaces the whole book
      and so asks first exactly as Settings → Import does. Anything else is named, never guessed at.
    - By hand: each form opened on the job, through the openers the screens already have.
    Leaving the sheet for a route asks first about what was typed in it (the dialog guard) and about unsaved work on the
@@ -301,6 +301,7 @@ function addJsonWhat(obj) {
   if (f === 'sep-production') return obj.power && typeof obj.power === 'object' ? 'power' : 'production';
   if (f === 'sep-power') return 'power';
   if (f === 'sep-payroll-paid') return 'payroll';
+  if (f === 'sep-att-register') return 'register';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -316,6 +317,7 @@ var ADD_FILE_GUARD = {
   power: { grp: 'imports', what: 'import power history', page: 'pagePower' },
   payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
+  register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -345,12 +347,13 @@ async function addFileRoute(file, buf) {
     power: function() { powerSetTab('cuts'); switchTab('pagePower'); powerImportData(k.obj, name); },
     payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text); },
     roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
+    register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text); }
   }[what];
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls), a backup, or an export of stock, production, power, payroll or the roster.' });
+    '. Add takes a bank statement (.xls), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
 }
 /* What arrived, in words, for a file no import takes. */
 function addFileWords(k) {

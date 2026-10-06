@@ -1547,6 +1547,9 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 button.inv-cell { width: 100%; min-width: var(--touch); min-height: var(--ctl-h); gap: var(--sp-2); border: none; cursor: pointer; font-weight: 600; }
 button.inv-cell.inv-cell-empty { background: var(--surface); box-shadow: inset 0 0 0 var(--hair) var(--border); }
 button.inv-cell:hover { box-shadow: inset 0 0 0 var(--hair) var(--text-3); }
+/* A register cell the reading was unsure of: a dashed edge, inside the cell (Staff → Register). */
+button.inv-cell[data-unsure] { outline: var(--rule) dashed var(--warning); outline-offset: calc(-1 * var(--rule)); }
+button.inv-cell:not([class*="inv-cell-"]) { background: var(--surface); }
 body.inv-desktop button.inv-cell { min-width: var(--ctl-h); }
 /* A group heading inside a table (a status, a supplier), the row form of inv-row-group. */
 .inv-table tr.inv-table-group td { height: var(--sp-32); background: var(--bg); font-size: var(--fs-12); color: var(--text-3); }

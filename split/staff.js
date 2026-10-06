@@ -347,7 +347,7 @@ function _attRestoreFocus(sel) {
 /* The view tabs (§6.4). Paste message is not one of them: it is a sub-view with its own way back, opened by
    the page's one primary (Overview, Day) or from Home. */
 var _attRosterOpen = null;   // the worker open in the desktop's pane (Roster)
-var ATT_VIEWS = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster']];
+var ATT_VIEWS = [['overview', 'Overview'], ['day', 'Day'], ['week', 'Week'], ['register', 'Register'], ['pay', 'Pay'], ['areas', 'Areas'], ['roster', 'Roster']];
 var _attPrevView = 'overview';   // where Paste message's back button returns
 var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
 var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
@@ -423,6 +423,7 @@ function _attViewHtml() {
   if (_attView === 'pay') return _attPayView();
   if (_attView === 'overview') return _attPasteBar() + staffOverviewHtml();
   if (_attView === 'week') return _attWeekView();
+  if (_attView === 'register') return aregViewHtml();
   return _attDayView();
 }
 

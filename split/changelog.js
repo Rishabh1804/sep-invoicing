@@ -72,6 +72,8 @@ var CHG_TRACK = [
   { path: 'areaTargets', kind: 'cfg', sec: 'Staff → Areas → complements' },
   { path: 'relayPastes', kind: 'raw', noun: 'roll', label: function(r) { return chgJoin(r.kind === 'in' ? 'in-time' : r.kind === 'out' ? 'out-time' : r.kind, r.date ? chgDay(r.date) : ''); } },
   { path: 'relayLearn', kind: 'skip' },
+  { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
+  { path: 'attRegister.names', kind: 'map', noun: 'register column name', label: function(r, k) { return k; } },
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },

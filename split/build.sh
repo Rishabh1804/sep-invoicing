@@ -62,6 +62,7 @@ JS_SOURCES=(
     "$DIR/relay.js" \
     "$DIR/add.js" \
     "$DIR/attsheet.js" \
+    "$DIR/attreg.js" \
     "$DIR/stocksheet.js" \
     "$DIR/prodparse.js" \
     "$DIR/stats.js" \

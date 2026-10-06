@@ -34,6 +34,14 @@ function learnData() {
   return td;
 }
 
+/* The same, read without writing: drawing the To-do must never change the book (the change log would log it, P141). */
+function learnRead() {
+  var td = S.todo || {}, l = td.learn && typeof td.learn === 'object' ? td.learn : {};
+  return { resp: Array.isArray(td.resp) ? td.resp : [],
+    learn: { dismissed: l.dismissed && typeof l.dismissed === 'object' ? l.dismissed : {}, applied: Array.isArray(l.applied) ? l.applied : [],
+      lead: l.lead && typeof l.lead === 'object' ? l.lead : {} } };
+}
+
 /* ---------- Seen, on this device ---------- */
 function learnSeenRead() {
   try { var v = JSON.parse(localStorage.getItem(LEARN_SEEN_KEY) || '{}'); return v && typeof v === 'object' ? v : {}; } catch (e) { return {}; }
@@ -83,7 +91,7 @@ function learnRespondKey(key, act) {
 
 /* ---------- What it adds up to ---------- */
 function learnStats() {
-  var td = learnData(), from = Date.now() - LEARN_DAYS * 864e5, today = localDateStr(), out = {};
+  var td = learnRead(), from = Date.now() - LEARN_DAYS * 864e5, today = localDateStr(), out = {};
   var r = function(rule) { return out[rule] || (out[rule] = { go: 0, list: 0, snooze: 0, stale: 0, ages: [], answered: {}, once: {} }); };
   // Evidence a change was applied on is spent: a rule counts only what came after its latest change still in force, else
   // the same snoozes would ask to raise it again, and again.
@@ -118,7 +126,7 @@ function learnRuleLabel(rule) {
 }
 function learnSuggestions() {
   if (typeof grdOn === 'function' && grdOn() && !grdCan('settings')) return [];
-  var st = learnStats(), cfg = todoCfg(), td = learnData(), out = [];
+  var st = learnStats(), cfg = todoCfg(), td = learnRead(), out = [];
   Object.keys(st).forEach(function(rule) {
     if (rule === 'learn' || rule === 'fold' || !TODO_RULES.some(function(r) { return r[0] === rule; }) || !cfg[rule]) return;
     var s = st[rule], label = learnRuleLabel(rule), acted = s.go + s.list, quiet = s.snooze + s.stale;
@@ -186,7 +194,7 @@ function learnDismiss(key) {
 /* ---------- Drawing ---------- */
 /* The To-do's panel: what is suggested, then what was applied (the last five still in force), each with its way back. */
 function learnPanelHtml() {
-  var sug = [], td = learnData();
+  var sug = [], td = learnRead();
   try { sug = learnSuggestions(); } catch (e) { sug = []; }
   var applied = td.learn.applied.map(function(a, i) { return { a: a, i: i }; }).filter(function(x) { return !x.a.undoneAt; }).slice(-5).reverse();
   if (!sug.length && !applied.length) return '';

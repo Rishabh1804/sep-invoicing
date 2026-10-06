@@ -2373,6 +2373,8 @@ anything is suggested.
 - **Applied with a tap** behind Settings' permission and PIN (`grdGate('settings')`), recorded (`S.todo.learn.applied`: from,
   to) and **put back** with one. The evidence a change was applied on is spent: only answers after it count. *Not now* keeps a
   suggestion away until its figures change (`learn.dismissed`).
+- **Reading never writes** (`learnRead`): drawing the To-do changes nothing in the book. The change log skips `todo.resp` (a record
+  of use, like a push's stamp) and logs `todo.learn`, the owner's decisions.
 
 ### Insights and predictions
 Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.js`.

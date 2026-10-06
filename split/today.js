@@ -4,6 +4,7 @@
      - the day's inputs, each saying whether it is in and, if not, when it usually arrives, with the one tap that brings it
        (Add's paste box, the register photo);
      - on the desktop, the floor now;
+     - the last five invoices, each with its print button;
      - every open task, grouped Now / This week / Later, each with its one-tap move.
    - Pulse: the six questions with what to do (advice.js), then the widgets the owner arranged (tabs.js), with Edit.
 
@@ -298,7 +299,18 @@ function renderNeeds() {
   var day = localDateStr();
   var h = '<div class="inv-panels">' + tdyInputsHtml(day);
   if (_isDesktop && tdySees('pageFloor')) h += tdyFloorHtml(day);
-  el.innerHTML = h + tdyTasksHtml() + '</div>';
+  el.innerHTML = h + tdyRecentHtml() + tdyTasksHtml() + '</div>';
+}
+/* The last invoices made, each a tap from its print preview (owner, 6 Oct 2026: *"earlier we used to see the recently created
+   invoices for quick print, now to print a recent invoice is 4 clicks"*: the list had gone to Pulse, under the questions). */
+var TDY_RECENT = 5;
+function tdyRecentHtml() {
+  if (!tdySees('pageRegister')) return '';
+  var list = homeRecentInvoices(TDY_RECENT);
+  if (!list.length) return '';
+  return '<div class="inv-panel inv-panel-flush" data-card="recent"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div>' +
+    list.map(homeRecentRowHtml).join('') + '</div>';
 }
 /* Pulse: the questions, read for the period Stats shows (statsPulseArgs), then the widgets. Without the finance permission
    there are no questions: every one of them reads money. */

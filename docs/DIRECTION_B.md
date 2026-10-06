@@ -14,7 +14,7 @@ about it, worked out from the book, with a button to the place where it is done.
 
 ## The shape
 
-**Phone bar**: **Today · Office · Add · Floor · Money**. No More. Settings is the icon in the top bar (as now); search is
+**Phone bar**: **Today · Office · Add · Floor · Money** (Insights added as a sixth item, 6 Oct 2026). No More. Settings is the icon in the top bar (as now); search is
 the icon beside it.
 
 **Desktop sidebar**: **Add** (the one primary, key `A`) · **Search** (`Ctrl K`) · **Today** (Needs you, Pulse) · **Office**

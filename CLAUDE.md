@@ -163,7 +163,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,479 tests, both layouts
+pnpm exec playwright test          # 1,482 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2128,7 +2128,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
   (and `costBills`), merged by id. The file is built from the private records and never committed here.
 
-**The phone bar is Direction B's** (below): Today · Office · Add · Floor · Money, with no More. Each workspace carries a red
+**The phone bar is Direction B's** (below): Today · Office · Add · Floor · Money · Insights, with no More. Each workspace carries a red
 count of the red rows that jump into it (stock out, your own tasks overdue on Today). The test fixture's `switchTab` opens
 the target's workspace first when no door to it is on screen.
 
@@ -2180,18 +2180,21 @@ of things in the app that can answer itself but that linkage is missing."*). The
 
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
-- **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More. The desktop
+- **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money · Insights**, with no More. The desktop
   sidebar is Add · Search · each workspace with its views · Settings. A workspace is a layer over the pages that exist: every
   page keeps its id, its address and its own view tabs, and the workspace draws its views as a tab row above the page
   (`#wsTabs`; `WORKSPACES` is the one map). Office holds Pipeline, Challans (pageIM), Invoices (pageRegister) and Clients, with
   Create as a page it holds without a tab. Floor holds Day, People (pageStaff), Production, Stock and Power. Money is Finance.
-  Insights (Stats, Reports, History) has no bar item on the phone: it is reached from Pulse and from search. Opening a
+  Insights holds Stats, Reports, the Planner, History and Knowledge, and is the bar's last item (owner, 6 Oct 2026: *"Insights
+  has no direct link"*; reached only from Pulse and search, its five pages had no door on the phone; P164). Opening a
   workspace from the bar is a step of its own (its last view this session, else its first), so Back from Challans goes to
   the Office view it came from. Swiping stays inside the open workspace.
 - **Today** (`today.js`, P135) is pageHome, two views with addresses (`?tab=pageHome&v=needs|pulse`). **Needs you** (the
   default): the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records, the
   out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
-  the shop's own time), with its door; on the desktop, the floor now; then every open task grouped **Now** (red, and your
+  the shop's own time), with its door; on the desktop, the floor now; **the last five invoices, each with its print button**
+  (`tdyRecentHtml`, the Pulse widget's own rows, `homeRecentRowHtml`; owner, 6 Oct 2026: *"to print a recent invoice is 4
+  clicks"*: the list had been only on Pulse, under the questions; now Today → print → Print, P164); then every open task grouped **Now** (red, and your
   own due today or late), **This week** and **Later**, each with its one-tap move. **Pulse**: the questions with what to do
   (advice.js), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
   a spec reaching one opens Pulse first (`openPulse` in the fixtures).

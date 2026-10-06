@@ -248,7 +248,7 @@ test.describe('P39: stock', () => {
 
   test('the bar is the workspaces and Add: Floor holds People, Production, Stock and Power, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Today/, /Office/, /Add/, /Floor/, /Money/]);
+    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Today/, /Office/, /Add/, /Floor/, /Money/, /Insights/]);
     await expect(page.locator('.inv-navbar-more, #moreSheet')).toHaveCount(0);
     await page.locator('.inv-navbar-item[data-ws="floor"]').click();
     await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText([...(await page.locator('#pageFloor').count() ? ['Day'] : []), 'People', 'Production', 'Stock', 'Power']);

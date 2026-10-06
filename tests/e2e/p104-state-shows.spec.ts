@@ -19,7 +19,7 @@ const book = (o: any = {}): SepState => { const s: any = emptyState(); s.invoice
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 const stored = (p: Page) => g(p, '({ st: S.invoices[0].invoiceState || "created", printedAt: S.invoices[0].printedAt || null })');
 const step = (p: Page) => p.locator('[data-inv-detail="INV-1"] [aria-current="step"]');
-const homeRow = (p: Page) => p.locator('#pageHome .inv-row').filter({ has: p.locator('[data-id="INV-1"]') }).first();
+const homeRow = (p: Page) => p.locator('#homeWidgets .inv-row').filter({ has: p.locator('[data-id="INV-1"]') }).first();
 const regRow = (p: Page) => p.locator('#pageRegister .inv-page-active, #pageRegister').locator('[data-action="invViewInvoiceDetail"][data-id="INV-1"]').first();
 
 async function print(page: Page, from: string) {
@@ -37,7 +37,7 @@ test.describe('P104: a state shows the moment it changes', () => {
 
   test("Print from Home's row shows Printed on the row at once", async ({ page }) => {
     await expect(homeRow(page).locator('.inv-badge')).toHaveText('Created');
-    await print(page, '#pageHome [data-action="invPreviewInvoice"][data-id="INV-1"]');
+    await print(page, '#homeWidgets [data-action="invPreviewInvoice"][data-id="INV-1"]');
     expect((await stored(page)).st).toBe('printed');
     await expect(homeRow(page).locator('.inv-badge')).toHaveText('Printed');
   });
@@ -59,7 +59,7 @@ test.describe('P104: a state shows the moment it changes', () => {
   });
 
   test("Mark dispatched from Home's sheet moves the sheet and Home's row with it", async ({ page }) => {
-    await page.locator('#pageHome button.inv-row-main[data-id="INV-1"]').click();
+    await page.locator('#homeWidgets button.inv-row-main[data-id="INV-1"]').click();
     await page.locator('[data-inv-detail="INV-1"] [data-action="invAdvanceState"][data-state="dispatched"]').click();
     expect((await stored(page)).st).toBe('dispatched');
     // The sheet stays open on its new step, and focus is on the next one.

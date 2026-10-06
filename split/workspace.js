@@ -12,7 +12,7 @@
    fit in as they land. Today's two views, Needs you and Pulse, are pageHome's own `v`: drawn once pageHome says it has
    them (`homeViews`, the Today step's), and opened as places through nav.js (navOpen), which takes the step and applies
    the view. A page a workspace holds without a tab (Create in Office, the To-do in Today) lights its workspace and is
-   named in the top bar. Insights has no item on the phone bar: it is reached from Today → Pulse and from search. */
+   named in the top bar. Insights is the bar's last item (owner, 6 Oct 2026); it had none, and its five pages had no door. */
 
 var WS_ICONS = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -40,7 +40,7 @@ var WORKSPACES = [
     views: [{ tab: 'pageFloor', label: 'Day' }, { tab: 'pageStaff', label: 'People' }, { tab: 'pageProduction', label: 'Production' }, { tab: 'pageStock', label: 'Stock' }, { tab: 'pagePower', label: 'Power' }],
     members: [] },
   { id: 'money', label: 'Money', icon: 'money', bar: true, views: [{ tab: 'pageFinance', label: 'Money' }], members: [] },
-  { id: 'insights', label: 'Insights', icon: 'insights', bar: false,
+  { id: 'insights', label: 'Insights', icon: 'insights', bar: true,
     // The knowledge base (knowledge.js) is Insights' fourth view; on the phone the top bar's book opens it too.
     views: [{ tab: 'pageStats', label: 'Stats' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' }, { tab: 'pageKnow', label: 'Knowledge' }], members: [] }
 ];
@@ -139,7 +139,8 @@ function wsSwipeTarget(dir) {
 }
 
 /* ---------- Drawing ---------- */
-/* The phone bar, from the map: Today · Office · Add · Floor · Money. Add is the shell's one primary (data-shell-primary,
+/* The phone bar, from the map: Today · Office · Add · Floor · Money · Insights (owner, 6 Oct 2026: *"Insights has no direct
+   link"*; it had been reached only from Pulse and search, so Stats, Reports, the Planner, History and Knowledge had no door). Add is the shell's one primary (data-shell-primary,
    which P76's one-primary-per-view check knows is not a view's). Drawn at load: it needs no book. */
 function wsRenderBar() {
   var nav = document.querySelector('.inv-navbar');
@@ -249,8 +250,7 @@ function markSideActive(tabId) {
 /* ---------- The red counts ----------
    More carried every red row; the count moved to the bar (and the sidebar's heads). Each workspace carries the red app
    tasks whose jump lands in it; Today carries every red row, your own late tasks included (the old More count). A task
-   with no jump, or one landing nowhere a workspace holds (Settings), counts on Today alone. Insights has no bar item: its
-   tasks count on Today there, and on its head in the sidebar. */
+   with no jump, or one landing nowhere a workspace holds (Settings), counts on Today alone. */
 var WS_GO_PAGE = {
   home: 'pageHome',
   im: 'pageIM', challan: 'pageIM',

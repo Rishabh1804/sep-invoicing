@@ -182,7 +182,7 @@ export async function openStatsTab(page: Page, tab: string): Promise<void> {
 }
 
 /* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone
-   bar carries Today, Office, Floor and Money; Insights has no bar item. Create and the To-do are held without a tab. */
+   bar carries Today, Office, Floor, Money and Insights. Create and the To-do are held without a tab. */
 const WS_OF: Record<string, string> = {
   pageHome: 'today', pageTodo: 'today',
   pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',

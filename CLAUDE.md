@@ -26,6 +26,11 @@ about. Five steps, one PR each: I1 an entry checked before it is believed (built
 ranked list (built), I4 the change explained (built), I5 learning from responses (built). **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
+**The planner is being built — read `docs/PLANNER.md`** (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
+loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
+implementation … is done"*). One PR, steps PL1–PL5, then the QA chain. Nothing about the shop is written into the code: the
+baseline is read from the book on the device.
+
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 

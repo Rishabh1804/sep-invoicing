@@ -263,7 +263,7 @@ var WS_GO_PAGE = {
   power: 'pagePower', powerCase: 'pagePower',
   finance: 'pageFinance', bills: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports',
-  kb: 'pageKnow'
+  kb: 'pageKnow', todoLearn: 'pageTodo'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;

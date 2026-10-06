@@ -23,7 +23,7 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **The intelligence is being refined — read `docs/INTELLIGENCE_2.md`** (owner, 6 Oct 2026: *"Let's refine the intelligence
 system"*, then *"Order works"*). Measured on the owner's book, the loudest findings rested on figures nobody had been asked
 about. Five steps, one PR each: I1 an entry checked before it is believed (built), I2 confidence on every finding (built), I3 one
-ranked list (built), I4 the change explained (built), I5 learning from responses. **Self draws are wages and personal drawings** (owner,
+ranked list (built), I4 the change explained (built), I5 learning from responses (built). **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
@@ -44,7 +44,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 70 modules, ~49,900 lines total.
+Split-file PWA. 71 modules, ~49,900 lines total.
 
 ```
 split/
@@ -101,6 +101,7 @@ split/
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
+├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
@@ -124,7 +125,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -154,7 +155,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,447 tests, both layouts
+pnpm exec playwright test          # 1,453 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2356,6 +2357,24 @@ Every cause carries its ₹ and **the causes add up to the change exactly**; the
 - **Cash** (`whyCash`): the two latest months the statement covers end to end, net in the month, money in by client (receipts
   with no client said) and out by kind.
 - **Early**: month to date under ten working days in says so (`whyEarly`, I2's rule), and the sentence on *What changed?* is to know.
+
+### Learning from answers
+Intelligence step I5 (`learn.js`, 6 Oct 2026; P160). How the owner answers the tasks the app raises tunes what it raises and in
+what order: **suggested, never silent**. To-do → *Learnt from your answers*, and one To-do task (`learn`, the owner's) while
+anything is suggested.
+- **What is read**: a response, in the book (`S.todo.resp`, the last 400): a task's button followed, a move under it followed or
+  added to the list, a snooze, with the days the task had been showing. When each task was first and last shown and whether it
+  was opened, on this device only (`sep_inv_todo_seen`: what one screen showed is not a fact about the shop). A fold answered is
+  one decision for its members.
+- **What is suggested**, per rule over 90 days: **raise** its threshold to twice (challan, dispatch, paste, backup, plated not
+  invoiced; capped) or **switch it off** where it has none, when three or more of its tasks were snoozed or stayed on screen a
+  fortnight unopened and none was acted on; **lead** with it (first in its tone, after what is firm; `todoLeads`) when three or
+  more were acted on, typically within a day.
+- **Applied with a tap** behind Settings' permission and PIN (`grdGate('settings')`), recorded (`S.todo.learn.applied`: from,
+  to) and **put back** with one. The evidence a change was applied on is spent: only answers after it count. *Not now* keeps a
+  suggestion away until its figures change (`learn.dismissed`).
+- **Reading never writes** (`learnRead`): drawing the To-do changes nothing in the book. The change log skips `todo.resp` (a record
+  of use, like a push's stamp) and logs `todo.learn`, the owner's decisions.
 
 ### Insights and predictions
 Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.js`.

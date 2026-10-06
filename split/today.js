@@ -274,6 +274,7 @@ function tdyAppRowHtml(t) {
 function tdyTasks() { return todoRanked(); }
 function tdyTasksHtml() {
   var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
+  if (typeof learnSeen === 'function') learnSeen(rows.filter(function(r) { return r.app; }).map(function(r) { return r.app; }));
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
   var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" data-card="tasks"><div class="inv-panel-head"><span class="inv-panel-title">Needs you' +
     (rows.length ? ' <span class="inv-panel-count" data-tdy-count>' + rows.length + '</span>' : '') + '</span>' +

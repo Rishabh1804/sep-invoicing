@@ -421,8 +421,14 @@ function todoWorth(t) {
   }
   return 0;
 }
+/* A rule the owner chose to lead with (learn.js, I5: suggested from how they answer, applied by them) comes first in its
+   tone, after what is firm. */
+function todoLeads(t) {
+  var l = S.todo && S.todo.learn && S.todo.learn.lead;
+  return l && t && l[t.rule === 'fold' ? t.foldRule : t.rule] ? 1 : 0;
+}
 function todoAppCmp(a, b) {
-  return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone] || (a.conf ? 1 : 0) - (b.conf ? 1 : 0) || (b.worth || 0) - (a.worth || 0);
+  return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone] || (a.conf ? 1 : 0) - (b.conf ? 1 : 0) || todoLeads(b) - todoLeads(a) || (b.worth || 0) - (a.worth || 0);
 }
 
 /* Three or more tasks from one rule are one task (`fold:<rule>`): four clients owing over 90 days is one job, a list of
@@ -583,6 +589,8 @@ function renderTodo() {
   if (!app.length) h += '<div class="inv-empty">Nothing from your data needs you.</div>';
   app.forEach(function(t) { h += todoAppRowHtml(t); });
   h += '</div>';
+  if (typeof learnSeen === 'function') learnSeen(app);
+  if (typeof learnPanelHtml === 'function') h += learnPanelHtml();
 
   var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); }).concat(todoFolds().filter(todoIsSnoozed));
   if (snoozed.length) {
@@ -696,6 +704,7 @@ function todoOpenApp(key) {
   if (all && !todoSees(all)) { showToast('That task is not one your ID opens', 'warning'); return; }
   var t = all;
   if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
+  if (typeof learnOpened === 'function') learnOpened(t);
   var s = todoData().snoozes[key];
   // The task's head is a flush panel: its title, why it was raised, then the figures it was
   // raised on as rows (label, and the figure mono at the end). What clears it is a callout.
@@ -845,6 +854,7 @@ function todoSnooze(key, v) {
     if (!live[k] && ran[rule]) delete td.snoozes[k];
   });
   var rule = t.foldRule || t.rule;
+  if (typeof learnRespond === 'function') learnRespond(t, v === 'sig' ? 'snooze' : 'week');
   td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now(), rule: rule } : { sig: t.sig, until: isoAddDays(todoToday(), parseInt(v, 10) || 7), at: Date.now(), rule: rule };
   saveState();
   closeOverlay();
@@ -884,6 +894,13 @@ function todoGo(go) {
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
+    case 'todoLearn': {
+      _todoShowDone = false;
+      switchTab('pageTodo');
+      var tl = document.getElementById('todoLearn');
+      if (tl) uiRevealEl(tl);
+      break;
+    }
     case 'production':
       // A jump shows what it names: an entry left open in the desktop's pane would take the list's place below ~1100px (QA1-6).
       prodSetTab(go.tab || 'overview'); _prodView = 'main'; _prodEntryOpen = null;
@@ -1195,7 +1212,7 @@ function todoAction(action, btn) {
     case 'invTodoOpenApp': todoOpenApp(btn.dataset.key); break;
     case 'invTodoGoApp': {
       var t = todoAppFind(btn.dataset.key);
-      if (t) todoGo(t.go);
+      if (t) { if (typeof learnRespond === 'function') learnRespond(t, 'go'); todoGo(t.go); }
       break;
     }
     case 'invTodoGo': todoGoLink(btn.dataset.id); break;

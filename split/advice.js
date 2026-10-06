@@ -692,7 +692,7 @@ function advTaskMoves(t) {
 function advTaskMovesHtml(t) {
   var mv = advTaskMoves(t);
   if (!mv.length) return '';
-  return '<div class="inv-panel inv-panel-flush" data-adv-moves><div class="inv-panel-head"><span class="inv-panel-title">What you can do</span></div>' +
+  return '<div class="inv-panel inv-panel-flush" data-adv-moves data-adv-task="' + escHtml(t.key) + '"><div class="inv-panel-head"><span class="inv-panel-title">What you can do</span></div>' +
     advMovesHtml(mv, 'task-' + t.key) + '</div>';
 }
 /* An insight on What changed?: its moves under its row, indented as its own. Its best move shows, the rest one tap away,
@@ -815,6 +815,9 @@ function advGoTo(go) {
 }
 
 function advAction(action, btn) {
+  // A move under a task (its dialog, or its row on Today) answers that task (learn.js, I5).
+  var tk = (action === 'invAdvGo' || action === 'invAdvTask') && btn.closest && btn.closest('[data-adv-task], [data-tdy-task]');
+  if (tk && typeof learnRespondKey === 'function') learnRespondKey(tk.dataset.advTask || tk.dataset.tdyTask, action === 'invAdvGo' ? 'go' : 'list');
   if (action === 'invAdvGo') {
     var mv = (btn.dataset.advRow && _advRows[btn.dataset.advRow]) || _advMoves[btn.dataset.key];
     if (mv && mv.go) todoGo(mv.go); else showToast('That move has changed: open the card again', 'warning');

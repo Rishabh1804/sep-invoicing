@@ -23,7 +23,7 @@ been asked about, and nothing on screen said so.
 | I2 | **Confidence on every finding.** How old and how complete its record is; a stale record is never red, an early month says so. Self draws: cash wages up to the week's payout, the rest drawings. Zinc charged in lumps measured against its bills. | Built (P157) |
 | I3 | **One ranked list**: ₹ at stake × urgency × confidence; per-client tasks folded; one card per client. | Built (P158) |
 | I4 | **The change explained**: realisation, margin and cash moves broken into their causes, each with its ₹. | Built (P159) |
-| I5 | **Learning from responses**: snoozes, actions and ignores tune rank and thresholds, suggested, never silent. | |
+| I5 | **Learning from responses**: snoozes, actions and ignores tune rank and thresholds, suggested, never silent. | Built (P160) |
 
 ## I1: an entry is checked before it is believed
 
@@ -132,3 +132,23 @@ On the owner's book of 6 Oct, the quarter to date against the same stretch last 
 SSS Mehta's share of the kilos (40% → 79% at ₹5.40) is −₹1.72/kg; contribution −₹46,319 on the period, mostly zinc and labour per
 kg, partly the model on five days of October. Cash, July to August: net −₹35,491 → +₹1,20,924, SSS Mehta's receipts +₹3,66,014.
 Month to date is five working days and says so.
+
+## I5: learning from answers
+
+`learn.js`. What the owner does with each task is recorded, and a rule they keep putting off, or keep acting on, is offered a
+change. **Nothing changes by itself**: a suggestion is applied with a tap (Settings' permission and PIN) and put back with one.
+
+| Answer | Where it is kept |
+|---|---|
+| a task's button, or a move under it followed (`go`) or added to the list (`list`); a snooze (`snooze`, `week`) | the book, `S.todo.resp` (last 400), with the days the task had been showing |
+| when a task was first and last shown, and whether it was opened | this device, `sep_inv_todo_seen` |
+
+| Suggestion | When (per rule, last 90 days) |
+|---|---|
+| Raise the threshold to twice (challan, dispatch, paste, backup, plated not invoiced; capped) | 3+ tasks snoozed or a fortnight on screen unopened, none acted on |
+| Switch it off (a rule with no threshold) | the same |
+| Lead with it: first in its tone, after what is firm | 3+ acted on, the median within a day of showing |
+
+A fold answered is one decision; a task that cleared itself inside a fortnight was not ignored; the evidence a change was applied on
+is spent, so the same snoozes never ask twice; *Not now* holds until the figures change. On the owner's book of 6 Oct there are
+no answers yet, so nothing is suggested: it starts learning from today.

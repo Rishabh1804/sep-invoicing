@@ -94,6 +94,9 @@ var CHG_TRACK = [
   { path: 'bank.bounces', kind: 'map', noun: 'returned cheque', label: function(r, k) { return k; } },
   { path: 'todo.tasks', kind: 'arr', noun: 'task', label: function(r) { return r.text; } },
   { path: 'todo.snoozes', kind: 'map', noun: 'snooze', label: function(r, k) { return k; } },
+  // A task answered (learn.js, I5) is a record of use, not a change anybody made: kept quietly, as a push's stamp is.
+  { path: 'todo.resp', kind: 'skip' },
+  { path: 'todo.learn', kind: 'cfg', sec: 'To-do → Learnt from your answers' },
   { path: 'power.items', kind: 'map', noun: 'power open item', label: function(r, k) {
     var it = typeof POWER_ITEMS !== 'undefined' ? POWER_ITEMS.find(function(x) { return x[0] === k; }) : null;
     return it ? it[1] : k;

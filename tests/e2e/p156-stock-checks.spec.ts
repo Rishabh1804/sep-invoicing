@@ -21,7 +21,8 @@ const line = (id: string, name: string, key: string, unit: string, basis = 'draw
 function withStock(items: any[], entries: any[], pastes: any[] = []): SepState {
   const s: any = emptyState();
   s.incomingMaterial = noSeedIM();
-  s.stock = { items, entries, pastes };
+  // Copies: a test that changes a line (its basis) must not change the next test's.
+  s.stock = JSON.parse(JSON.stringify({ items, entries, pastes }));
   return s as SepState;
 }
 

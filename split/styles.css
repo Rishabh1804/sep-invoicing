@@ -2071,3 +2071,8 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-pl-ledger td, .inv-pl-ledger th[scope="col"] { white-space: nowrap; padding: var(--sp-4) var(--sp-8); }
 .inv-pl-ledger [aria-current="date"] { background: var(--accent-soft); }
 .inv-pl-ledger .inv-row-strong :is(th, td) { font-weight: 700; color: var(--text-1); }
+.inv-pl-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); font-size: var(--fs-13); color: var(--text-2); margin-top: var(--sp-4); }
+.inv-pl-num { width: var(--line-unit-w); min-height: var(--ctl-h-sm); }
+.inv-pl-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+body.inv-desktop .inv-pl-split { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
+.inv-pl-stack { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }

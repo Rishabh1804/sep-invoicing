@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="7a616c42">
+<meta name="app-build" content="5ef15886">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2093,6 +2093,11 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-pl-ledger td, .inv-pl-ledger th[scope="col"] { white-space: nowrap; padding: var(--sp-4) var(--sp-8); }
 .inv-pl-ledger [aria-current="date"] { background: var(--accent-soft); }
 .inv-pl-ledger .inv-row-strong :is(th, td) { font-weight: 700; color: var(--text-1); }
+.inv-pl-inline { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); font-size: var(--fs-13); color: var(--text-2); margin-top: var(--sp-4); }
+.inv-pl-num { width: var(--line-unit-w); min-height: var(--ctl-h-sm); }
+.inv-pl-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
+body.inv-desktop .inv-pl-split { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
+.inv-pl-stack { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
 </style>
 </head>
 <body>
@@ -44324,7 +44329,7 @@ function plnHeldRowHtml(x, named) {
   var meta = [named ? plnClientNameOf(x.clientId) : '', PLN_HELD_WHY[x.why] || '', plnKg(+x.kg || 0) + ' a month at ₹' + formatNum(+x.rate || 0, 2) + '/kg', plnLineName(x.line || 'vat-a2'), Math.round((x.chance != null ? x.chance : 0.5) * 10) + ' in 10', x.note || ''].filter(Boolean).join(' · ');
   var needs = (PLN_HELD_NEEDS[x.why] || []).map(plnNameOf).join(', ');
   return '<div class="inv-row inv-row-2" data-pl-held="' + escHtml(x.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PLN_HELD_WHY[x.why] || 'Held back') + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta + (needs ? ' · needs ' + needs : '')) + '</span></span>' +
-    '<span class="inv-row-end">' + (sc ? plnMoveCtlHtml(k, inPlan, -1) : '') + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="heldBack" data-id="' + escHtml(x.id) + '">Edit</button></span></div>';
+    '<span class="inv-row-end">' + plnMoveCtlHtml(k, inPlan, -1) + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="heldBack" data-id="' + escHtml(x.id) + '">Edit</button></span></div>';
 }
 
 /* One dialog per register: add or edit; retire with a reason (never deleted). */
@@ -44406,7 +44411,7 @@ function plnCheckSeed() {
 
 /* ---------- Scenario moves ---------- */
 function plnMoveCtlHtml(key, inPlan, dflt) {
-  var sc = plnScenario(), at = inPlan ? sc.plan[key] : null;
+  var sc = plnScenario(), at = inPlan && sc ? sc.plan[key] : null;
   if (!inPlan) return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPlnPlan" data-key="' + escHtml(key) + '" data-at="' + (dflt == null ? 1 : dflt) + '">Plan it</button>';
   return '<span class="inv-pl-when"><button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnShift" data-key="' + escHtml(key) + '" data-step="-1" aria-label="Earlier">&lsaquo;</button>' +
     '<span class="inv-num">' + escHtml(at < 0 ? 'once ready' : plnMonthLabel(at)) + '</span><button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnShift" data-key="' + escHtml(key) + '" data-step="1" aria-label="Later">&rsaquo;</button>' +
@@ -44467,6 +44472,7 @@ function plannerAction(action, btn) {
     case 'invPlnCardSave': plnCardSave(d.id); return true;
     case 'invPlnCardRetire': plnCardRemove(d.id); return true;
     case 'invPlnCfg': plnCfgEdit(); return true;
+    case 'invPlnCost': plnCostEdit(d.id); return true;
     case 'invPlnCfgSave': plnCfgSave(); return true;
     case 'invPlnReport': plnReportOpen(); return true;
   }
@@ -44591,11 +44597,156 @@ function plnCostRows(mo, b) {
     ['Consumables, effluent, upkeep', c.other, bc.other, '₹' + formatNum(C.otherKg, 2) + '/kg plated, ' + src('other')]];
 }
 function plnDayHtml() { return ''; }
-function plnPlantHtml() { return '<div class="inv-panels">' + plnMachinesHtml() + '</div>'; }
-function plnTechHtml() { return '<div class="inv-panels">' + plnChecklistHtml() + '</div>'; }
-function plnStaffHtml() { return ''; }
-function plnClientsHtml() { return '<div class="inv-panels">' + plnHeldHtml(null) + '</div>'; }
-function plnFinanceHtml() { return '<div class="inv-panels">' + plnLendersHtml() + plnHeardHtml() + '</div>'; }
+
+/* ---------- Plant: what each line can do, the machines, an upgrade tree per station ---------- */
+function plnPlantHtml() {
+  var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], B = P.B, sc = P.sc;
+  var srcOf = function(l) { var L = B.lines[l]; return L.src === 'register' ? 'the register: ' + formatNum(L.register.rounds, 0) + ' rounds a day over ' + L.register.days + ' days' : L.src === 'set' ? 'set by you' : 'assumed: no register read for this line'; };
+  var h = '<div class="inv-panel inv-panel-flush" id="plnLines"><div class="inv-panel-head"><span class="inv-panel-title">What each line can do in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCfg">Set the assumptions</button></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kg a round</th><th class="inv-num">A round every</th><th class="inv-num">Kg an hour</th><th class="inv-num">Kilos a day</th><th class="inv-num">Hours a day</th></tr></thead><tbody>' +
+    PLN_LINE_IDS.map(function(l) {
+      var x = mo.lines[l];
+      return '<tr data-pl-line="' + l + '"><td>' + escHtml(plnLineName(l)) + '<div class="inv-row-meta">' + escHtml(srcOf(l)) + '</div></td><td class="inv-num">' + formatNum(x.kgRound, 0) + '</td><td class="inv-num">' + formatNum(x.every, 0) + ' min</td>' +
+        '<td class="inv-num">' + formatNum(x.kgH, 0) + '</td><td class="inv-num">' + escHtml(plnKg(x.plated)) + (x.demand > x.plated + 1 ? '<div class="inv-row-meta inv-num-neg">' + escHtml('of ' + plnKg(x.demand)) + '</div>' : '') + '</td>' +
+        '<td class="inv-num">' + plnHm(x.hours) + (x.need > x.hours + 0.01 ? '<div class="inv-row-meta inv-num-neg">' + plnHm(x.need - x.hours) + ' short</div>' : '') + '</td></tr>';
+    }).join('') +
+    '<tr><td>Pickling<div class="inv-row-meta">' + escHtml(B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare') + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
+      '<td class="inv-num">' + escHtml(plnKg(mo.pickCap)) + ' it can feed</td><td class="inv-num">' + plnHm(mo.pickH) + '</td></tr>' +
+    '<tr><td>Power cuts<div class="inv-row-meta">' + escHtml(formatNum(B.cutMin, 0) + ' min a working day in working hours, the Power tab') + '</div></td><td class="inv-num" colspan="5">' + escHtml(formatNum(mo.cutH * 60, 0) + ' min a day lost') + '</td></tr></tbody></table></div></div>';
+  h += '<div class="inv-panels">' + plnMachinesHtml() + '</div>';
+  h += '<div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
+  return h;
+}
+function plnTreeHtml(st, sc, P) {
+  var plan = (sc && sc.plan) || {}, lvNow = 0;
+  st.levels.forEach(function(lv, i) { if (i && P.ready[lv.id] != null && P.ready[lv.id] <= _plnMonth) lvNow = i; });
+  var rows = st.levels.slice().reverse().map(function(lv, ri) {
+    var i = st.levels.length - 1 - ri;
+    if (!i) return '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">Lv 0 · ' + escHtml(lv.t) + '</span><span class="inv-row-meta">today</span></span><span class="inv-row-end"><span class="inv-dot inv-dot-ok">Today</span></span></div>';
+    var inPlan = plan[lv.id] != null, below = i === 1 || plan[st.levels[i - 1].id] != null;
+    var missing = (lv.needs || []).filter(function(n) { return plan[n] == null; });
+    var end = inPlan ? plnMoveCtlHtml(lv.id, true) : !below ? '<span class="inv-dot inv-dot-neutral">Level ' + (i - 1) + ' first</span>' : missing.length ? '<span class="inv-dot inv-dot-neutral">' + escHtml('Needs ' + missing.map(plnNameOf).join(', ')) + '</span>' : plnMoveCtlHtml(lv.id, false, 1);
+    var cost = plnUpgradeCost(lv);
+    return '<div class="inv-row inv-row-2" data-pl-level="' + escHtml(lv.id) + '"><span class="inv-row-main"><span class="inv-row-title">Lv ' + i + ' · ' + escHtml(lv.t) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml([cost ? formatCurrency(cost) : 'no cost', lv.say || '', P.ready[lv.id] != null ? 'in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+      '<span class="inv-row-end">' + end + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button></span></div>';
+  }).join('');
+  return '<div class="inv-panel inv-panel-flush" data-pl-tree="' + st.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(st.name) + ' <span class="inv-panel-count">Lv ' + lvNow + ' in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></span></div>' + rows + '</div>';
+}
+/* A level's or a node's cost is the owner's to set (a quote replaces the estimate). */
+function plnCostEdit(id) {
+  if (!plnRegGate(function() { plnCostEdit(id); })) return;
+  var lv = null; PLN_STATIONS.forEach(function(s) { s.levels.forEach(function(x) { if (x.id === id) lv = x; }); });
+  lv = lv || PLN_TECH.find(function(t) { return t.id === id; }) || PLN_ROLES.find(function(r) { return r.id === id; });
+  if (!lv) return;
+  uiPrompt({ title: 'What it costs: ' + lv.t, label: 'Rupees, once (blank for the estimate, ' + formatCurrency(lv.cost || 0) + ')', value: String((plnCfg().costs || {})[id] != null ? plnCfg().costs[id] : '') }).then(function(v) {
+    if (v == null) return;
+    var p = plnData(); p.cfg.costs = Object.assign({}, p.cfg.costs || {});
+    var n = String(v).replace(/[₹,\s]/g, '');
+    if (n === '') delete p.cfg.costs[id]; else if (isFinite(+n) && +n >= 0) p.cfg.costs[id] = +n; else return uiAlert({ title: 'Not a figure', body: 'Type the cost in rupees, or leave it blank for the estimate.' });
+    saveState(); renderPlanner();
+  });
+}
+
+/* ---------- Tech tree: tier by tier, each node with what it needs; the checklist under it ---------- */
+var PLN_TIERS = ['Records and training', 'In the lab', 'Certified', 'Approved', 'Further'];
+function plnTechHtml() {
+  var P = plnPlanned(_plnMode), sc = P.sc, plan = (sc && sc.plan) || {};
+  var have = function(n) { return n.split('|').some(function(x) { return x === 'specialist' ? plan.specialist != null || plan.promote != null : plan[x] != null; }); };
+  var h = '<div class="inv-panels">' + PLN_TIERS.map(function(name, tier) {
+    var nodes = PLN_TECH.filter(function(t) { return t.tier === tier; });
+    return '<div class="inv-panel inv-panel-flush" data-pl-tier="' + tier + '"><div class="inv-panel-head"><span class="inv-panel-title">' + (tier + 1) + ' · ' + escHtml(name) + '</span></div>' + nodes.map(function(t) {
+      var needs = (t.needs || []).map(function(n) { return (have(n) ? '✓ ' : '✗ ') + plnNameOf(n); });
+      var missing = (t.needs || []).filter(function(n) { return !have(n); });
+      var end = plan[t.id] != null ? plnMoveCtlHtml(t.id, true) : missing.length ? '<span class="inv-dot inv-dot-neutral">Locked</span>' : plnMoveCtlHtml(t.id, false, 1);
+      var cost = plnTechCost(t), r = P.ready[t.id];
+      return '<div class="inv-row inv-row-2" data-pl-node="' + t.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(t.t) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml([cost ? formatCurrency(cost) : '', t.months + ' month' + (t.months === 1 ? '' : 's'), t.say, r != null ? 'ready ' + plnMonthLabel(Math.min(PLN_N - 1, r)) + (t.id === 'cqi' ? ', if each step lands' : '') : plan[t.id] != null ? 'never ready: something it needs is missing' : ''].filter(Boolean).join(' · ')) + '</span>' +
+        (needs.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml('needs ' + needs.join(' · ')) + '</span>' : '') + '</span>' +
+        '<span class="inv-row-end">' + end + (t.cost ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + t.id + '">Cost</button>' : '') + '</span></div>';
+    }).join('') + '</div>';
+  }).join('') + plnChecklistHtml() + '</div>';
+  return h;
+}
+
+/* ---------- Staff: labour as the month pays it, and each role ---------- */
+function plnStaffHtml() {
+  var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], b = P.base[_plnMonth], sc = P.sc, plan = (sc && sc.plan) || {}, B = P.B;
+  var h = '<div class="inv-panels"><div class="inv-panel inv-panel-flush" id="plnLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></div>' +
+    plnCostRows(mo, b).slice(0, 4).map(function(r) {
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + r[0] + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r[3]) + '</span></span>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + escHtml(formatCurrency(r[1])) + '</span><span class="inv-row-meta">' + escHtml(Math.abs(r[1] - r[2]) >= 1 ? plnSigned(r[1] - r[2], true) : 'as now') + '</span></span></div>';
+    }).join('') +
+    '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Overtime line-hours a day</span><span class="inv-row-meta">' + escHtml('before 8:30 and after 5 on each line; today ' + formatNum(B.otBase, 1)) + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-num">' + formatNum(mo.otH, 1) + (mo.nightH ? ' · ' + formatNum(mo.nightH, 1) + ' night' : '') + '</span></span></div></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="plnRoles"><div class="inv-panel-head"><span class="inv-panel-title">Hire and train</span></div>' + PLN_ROLES.map(function(r) {
+    var missing = (r.needs || []).filter(function(n) { return !n.split('|').some(function(x) { return plan[x] != null; }); });
+    var opens = PLN_TECH.filter(function(t) { return (t.needs || []).indexOf(r.as || r.id) >= 0; }).map(function(t) { return t.t; });
+    if (r.id === 'turnHand') opens.push('work held back for turnaround');
+    var end = plan[r.id] != null ? plnMoveCtlHtml(r.id, true) : missing.length ? '<span class="inv-dot inv-dot-neutral">' + escHtml('Needs ' + missing.map(plnNameOf).join(', ')) + '</span>' : plnMoveCtlHtml(r.id, false, 1);
+    var chance = r.p != null ? '<label class="inv-pl-inline">chance <input class="inv-input inv-input-num inv-pl-num" type="number" min="1" max="10" data-pl-chance="' + r.id + '" value="' + Math.round(plnRoleChance(sc || {}, r) * 10) + '"> in 10</label>' : '';
+    return '<div class="inv-row inv-row-2" data-pl-role="' + r.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.t) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml([r.run ? formatCurrency(r.run) + ' a month' : '', r.cost ? formatCurrency(plnTechCost(r)) + ' once' : '', r.say].filter(Boolean).join(' · ')) + '</span>' +
+      (opens.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml('opens ' + opens.join(', ')) + '</span>' : '') + chance + '</span><span class="inv-row-end">' + end + '</span></div>';
+  }).join('') + '</div></div>';
+  return h;
+}
+
+/* ---------- Clients: each client's parts, its ask, the work it holds back ---------- */
+function plnClientsHtml() {
+  var P = plnPlanned(_plnMode), mo = P.months[_plnMonth], b = P.base[_plnMonth], sc = P.sc, B = P.B;
+  var open = B.clients.find(function(c) { return String(c.id) === String(_plnClient); }) || B.clients[0];
+  var list = '<div class="inv-panel inv-panel-flush" id="plnClientList"><div class="inv-panel-head"><span class="inv-panel-title">Clients <span class="inv-panel-count">' + B.clients.length + '</span></span><span class="inv-panel-count">a month, ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></div>' +
+    uiMoreHtml('pln-cl', B.clients.map(function(c) {
+      var a = mo.byClient[c.id] || 0, bb = b.byClient[c.id] || 0, moves = sc ? ['ask:' + c.id].concat(plnLive('heldBack').filter(function(x) { return String(x.clientId) === String(c.id); }).map(function(x) { return 'held:' + x.id; })).filter(function(k) { return (sc.plan || {})[k] != null; }).length : 0;
+      return '<div class="inv-row inv-row-2' + (c === open ? ' inv-row-selected' : '') + '" data-pl-client="' + escHtml(String(c.id)) + '"' + (c === open ? ' aria-current="true"' : '') + '><button class="inv-row-main" data-action="invPlnClient" data-id="' + escHtml(String(c.id)) + '"><span class="inv-row-title">' + escHtml(plnClientShort(c)) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(plnKg(c.kg) + ' a month · ₹' + formatNum(c.kg ? c.rev / c.kg : 0, 2) + '/kg' + (moves ? ' · ' + moves + ' in the plan' : '')) + '</span></button>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + escHtml(plnRs(a)) + '</span>' + (Math.abs(a - bb) >= 500 ? '<span class="inv-row-meta inv-num-pos">' + escHtml(plnSigned(a - bb)) + '</span>' : '') + '</span></div>';
+    }), { n: 12, noun: 'clients' }) + '</div>';
+  if (!open) return '<div class="inv-panels">' + list + '</div>';
+  var a = plnAskOf(sc || {}, open), askKey = 'ask:' + open.id, inPlan = sc && (sc.plan || {})[askKey] != null;
+  var askMv = plnPlanned(_plnMode).L.find(function(mv) { return mv.ask && String(mv.ask.client) === String(open.id); });
+  var cid = escHtml(String(open.id));
+  var ask = '<div class="inv-panel inv-panel-flush" id="plnAsk"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(plnClientShort(open)) + '</span><span class="inv-panel-count">' + escHtml(plnKg(open.kg) + ' · ' + formatCurrency(open.rev) + ' a month, as billed') + '</span></div>' +
+    '<div class="inv-row inv-row-2" data-pl-ask="' + cid + '"><span class="inv-row-main"><span class="inv-row-title">Ask a new rate</span>' +
+      ('<span class="inv-pl-inline">' + (a.pct != null ? '+<input class="inv-input inv-input-num inv-pl-num" type="number" step="0.5" data-pl-ask="pct" data-client="' + cid + '" value="' + escHtml(String(a.pct)) + '">% on every part' :
+        'to ₹<input class="inv-input inv-input-num inv-pl-num" type="number" step="0.25" data-pl-ask="to" data-client="' + cid + '" value="' + escHtml(String(a.to)) + '">/kg where lower') +
+        ' · chance <input class="inv-input inv-input-num inv-pl-num" type="number" min="1" max="10" data-pl-ask="p" data-client="' + cid + '" value="' + Math.round(a.p * 10) + '"> in 10</span>') +
+      (a.refuse ? '<span class="inv-row-meta">' + escHtml('If they refuse, 1 in 5 sends ' + Math.round(a.refuse.cut * 100) + '% less') + '</span>' : '') + '</span>' +
+      '<span class="inv-row-end">' + plnMoveCtlHtml(askKey, inPlan, 1) + '</span></div></div>';
+  var parts = '<div class="inv-panel inv-panel-flush" id="plnParts"><div class="inv-panel-head"><span class="inv-panel-title">Parts</span><span class="inv-panel-count">a month, over ' + escHtml(formatDate(B.period.from) + ' to ' + formatDate(B.period.to)) + '</span></div>' +
+    '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Part</th><th>Line</th><th class="inv-num">A month</th><th class="inv-num">Rate</th><th class="inv-num">₹/kg</th><th class="inv-num">₹/kg asked</th><th class="inv-num">A month more</th></tr></thead><tbody>' +
+    open.parts.map(function(p) {
+      var row = mo.rows.find(function(r) { return r.part === p; }), newKg = row ? row.perKg : p.perKg, eff = row ? row.kgMo * (newKg - p.perKg) : 0, o = askMv ? askMv.ask.parts[p.id] : null;
+      var askCell = inPlan && a.pct == null ? '<input class="inv-input inv-input-num inv-pl-num" type="number" step="0.25" placeholder="' + formatNum(Math.max(a.to || 0, p.perKg), 2) + '" data-pl-part="' + escHtml(p.id) + '" data-client="' + cid + '" value="' + escHtml(o != null && o !== 'skip' ? String(o) : '') + '">' : escHtml(Math.abs(newKg - p.perKg) > 0.001 ? '₹' + formatNum(newKg, 2) : '—');
+      return '<tr data-pl-part-row="' + escHtml(p.id) + '"><td>' + escHtml(p.name) + '<div class="inv-row-meta">' + escHtml([p.desc && p.desc !== p.name ? p.desc : '', p.mm ? p.mm + ' mm' : '', p.kgPc ? formatNum(p.kgPc, 3) + ' kg a piece' : ''].filter(Boolean).join(' · ')) + '</div></td>' +
+        '<td>' + escHtml(plnLineName(p.line)) + '<div class="inv-row-meta">' + escHtml(p.lineSrc === 'record' ? 'the record' : 'assumed') + '</div></td>' +
+        '<td class="inv-num">' + escHtml(plnKg(p.kg)) + (p.pcs ? '<div class="inv-row-meta">' + escHtml(formatNum(p.pcs, 0) + ' pcs') + '</div>' : '') + '</td>' +
+        '<td class="inv-num">' + escHtml(p.rate != null ? '₹' + formatNum(p.rate, 2) + (p.unit === 'NOS' ? '/pc' : '/kg') : '—') + '</td><td class="inv-num">₹' + formatNum(p.perKg, 2) + '</td>' +
+        '<td class="inv-num">' + askCell + '</td><td class="inv-num' + (eff > 0 ? ' inv-num-pos' : '') + '">' + escHtml(Math.abs(eff) >= 1 ? plnSigned(eff, true) : '—') + '</td></tr>';
+    }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">A piece part’s ₹/kg is its rate over its kg a piece. With the ask in the plan, a rate typed on a part asks that part apart. The effect is at ' + escHtml(plnMonthLabel(_plnMonth)) + ', every move landing.</div></div>';
+  return '<div class="inv-pl-split">' + list + '<div class="inv-pl-stack">' + ask + plnHeldHtml(open.id) + parts + '</div></div>';
+}
+
+/* ---------- Finance: the loan in play, the lenders, rates heard ---------- */
+function plnFinanceHtml() {
+  var sc = plnScenario(), h = '<div class="inv-panels">';
+  if (sc && sc.loan) {
+    var l = sc.loan, sch = plnLoanSchedule(l), first = sch.find(function(e) { return e.principal > 0; }), tot = sch.reduce(function(s, e) { return s + e.interest; }, 0);
+    h += '<div class="inv-panel inv-panel-flush" id="plnLoan"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml('The loan: ' + (l.who || 'a lender')) + '</span>' +
+      '<span class="inv-pl-when"><button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnLoanShift" data-step="-1" aria-label="Earlier">&lsaquo;</button><span class="inv-num">' + escHtml('taken ' + plnMonthLabel(l.at || 0)) + '</span>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnLoanShift" data-step="1" aria-label="Later">&rsaquo;</button></span></div>' +
+      '<div class="inv-panel-body"><div class="inv-fields">' + [['amt', 'Amount, ₹', l.amt], ['rate', 'Interest, % a year', l.rate], ['months', 'Months to repay', l.months], ['mor', 'Interest only first, months', l.mor]].map(function(f) {
+        return '<label class="inv-field"><span class="inv-field-label">' + f[1] + '</span><input class="inv-input inv-input-num" type="number" min="0" step="any" data-pl-loan="' + f[0] + '" value="' + escHtml(String(f[2] == null ? '' : f[2])) + '"></label>';
+      }).join('') + '</div><div class="inv-note">' + escHtml((first ? 'Instalment ' + formatCurrency(first.emi) + ' a month from ' + plnMonthLabel(sch.indexOf(first)) : 'No principal repaid inside the 24 months') + ' · interest in the 24 months ' + formatCurrency(tot) + (l.ties ? ' · ' + l.ties : '')) + '</div></div>' +
+      '<div class="inv-scroll-x"><table class="inv-table inv-table-grid inv-pl-ledger"><thead><tr><th scope="col">Month</th>' + sch.map(function(e, i) { return '<th scope="col">' + escHtml(plnMonthLabel(i)) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+      [['In', function(e) { return e.in ? plnRs(e.in) : '—'; }], ['Interest', function(e) { return e.interest ? plnRs(e.interest) : '—'; }], ['Principal', function(e) { return e.principal ? plnRs(e.principal) : '—'; }], ['Owed after', function(e) { return e.bal ? plnRs(e.bal) : '—'; }]].map(function(r) {
+        return '<tr><th scope="row">' + r[0] + '</th>' + sch.map(function(e) { return '<td class="inv-num">' + escHtml(r[1](e)) + '</td>'; }).join('') + '</tr>';
+      }).join('') + '</tbody></table></div></div>';
+  } else h += '<div class="inv-panel"><div class="inv-empty">No loan in this plan. Play a lender below; its terms are then the plan’s to change.</div></div>';
+  return h + plnLendersHtml() + plnHeardHtml() + '</div>';
+}
+
 function plnRoll() {}
 function plnReplayOne() {}
 function plnCardEdit() {}

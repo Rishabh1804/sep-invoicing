@@ -188,7 +188,7 @@ const WS_OF: Record<string, string> = {
   pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',
   pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
   pageFinance: 'money',
-  pageStats: 'insights', pageReports: 'insights', pageHistory: 'insights',
+  pageStats: 'insights', pageReports: 'insights', pagePlanner: 'insights', pageHistory: 'insights',
   pageKnow: 'insights',
 };
 

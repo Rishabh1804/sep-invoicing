@@ -22,8 +22,8 @@ the device when the planner opens, and every register is the owner's own record.
 | PL2 | The engine: the book’s month rebuilt from its parts; lines, pickling, cuts; the ledger | Built |
 | PL3 | The screens: Plant (upgrade trees), Tech tree and checklist, Staff, Clients, Finance | Built |
 | PL4 | Play: the board, goals, cards, new cards, the trials; the Ledger; A day | Built |
-| PL4b | The report: the scenario as printed pages | Not built |
-| PL5 | Links out: To-do, History, the knowledge base's how-to | Not built |
+| PL4b | The report: the scenario as printed pages | Built |
+| PL5 | Links out: To-do, History, the knowledge base's how-to | Built |
 
 One PR (owner, 6 Oct 2026: *"start implementation sequentially and run the QA chain once the entire implementation … is
 done"*), one commit per step, the QA chain at the end.

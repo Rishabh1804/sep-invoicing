@@ -26,7 +26,7 @@ about. Five steps, one PR each: I1 an entry checked before it is believed (built
 ranked list (built), I4 the change explained (built), I5 learning from responses (built). **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
-**The planner is being built — read `docs/PLANNER.md`** (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
+**The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
 implementation … is done"*). One PR, steps PL1–PL5, then the QA chain. Nothing about the shop is written into the code: the
 baseline is read from the book on the device.
@@ -49,7 +49,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 72 modules, ~50,500 lines total.
+Split-file PWA. 74 modules, ~52,300 lines total.
 
 ```
 split/
@@ -115,6 +115,8 @@ split/
 ├── today.js           ← Today: Needs you (the day's inputs, the tasks Now / This week / Later) and Pulse (~320 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
+├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~560 lines)
+├── planview.js        ← The planner's screens: Play, Ledger, A day, Plant, Tech tree, Staff, Clients, Finance; registers; the report (~1,100 lines)
 ├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
 ├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,670 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
@@ -131,7 +133,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → prodview → floor → today → power → report → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -161,7 +163,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,460 tests, both layouts
+pnpm exec playwright test          # 1,468 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -399,7 +401,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 528 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 528 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, the planner's 35 `inv-pl-*`: 563); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1864,6 +1866,30 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     plating of a part with its line, time and crew beside its challans and invoices.
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
+
+### The planner
+Insights → **Planner** (`planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
+clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
+prototypes). P162.
+- **A month is built from the book's parts up** (`plnBase`, `plnMonth`): the last three full months' invoices by client and part
+  (`statsInvoices`, `lineWeightKg`, `cpPartIdentity`), each part on its client's usual line from the production record (else VAT A2,
+  said *assumed*). A line plates **kg a round every so many minutes** (VAT A1 from the register's rounds a day against the book's
+  kilos; a line with no register *assumed*), in the general shift, then the morning block, the evening, a night shift with a night
+  crew, less the Power tab's cut minutes in working hours; pickling feeds the busiest line's hours (assumed at today's kilos with a
+  tenth to spare until set). Costs are the live cost's own lines per kilo, labour as recorded, a fixed electricity part (assumed
+  ₹15k), ₹260 a new overtime line-hour (assumed). **As it runs reproduces the book's average month** (a spec checks it).
+- **A move changes an input, never a total**: an ask a part's rate (a ₹/kg where lower, a percentage on a piece client, or a rate
+  typed on one part), held-back work new parts on a line, an upgrade a line's kg a round or minutes or pickling or the cut cover, a
+  hire a wage, a loan its amortised schedule. A move takes effect after what it needs (`plnReady`); one that never can is hatched.
+- **The ledger adds up** (`plnAttribution`): today's margin, then each move in the order it takes effect, each the plan up to it
+  against the plan before it, ending in the plan. If every move lands, or weighted by each chance.
+- **The trials** (600, seeded): each chance, CQI-11 up to three months late, the promotion's pass, each machine's risk until the
+  upgrade that `fixes` its station, a month's cuts at 0.6–1.5 times, a piece client refusing and sending less.
+- **The registers are records** (`S.planner`: machines, checklist, lenders, heard, heldBack), behind Settings' permission, retired
+  with a reason, in the change log; **a scenario never writes the book** (`S.planner.scenarios`). The goal's margin is today's
+  raised (₹45k Normal, ₹95k Hard), never a rupee figure written in. Costs of upgrades are estimates, each the owner's to set.
+- **Links**: To-do `plnCheck` (a checklist item due) and `plnMachine` (a machine needing work); Knowledge → *Using the app: the
+  planner*; **Make the report** prints the plan in the report generator's frame. A money page for the guard.
 
 ### Quotations
 Clients → **Quotations** (`quote.js`; owner, 1 Oct 2026: *"a quotation generator as well … I think we have the template for that

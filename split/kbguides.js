@@ -71,7 +71,19 @@ var KB_APP_GUIDES = [
     '- The book in the top bar opens the guides for the screen you are on.\n- **Write** an article: a how-to, a process, a part, a client requirement, a ruling, a fault, an incident or a decision.\n' +
     '- What anyone but the owner writes waits for the owner’s approval. A change to a published article waits beside it.\n' +
     '- **Troubleshoot**: find a fault by what you see; log an incident when something goes wrong, and the app shows that day as recorded.\n' +
-    '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.')
+    '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.'),
+  _kbg('planner', 'Using the app: the planner', 'Simulating machines, certification, staff, clients and a loan', ['pagePlanner'],
+    'Insights → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
+    '# Make a plan\n1. **Suggest a start** puts the CQI-11 path in at its earliest, or plan moves one by one: **Plant** (an upgrade tree per station), **Tech tree**, **Staff** (hires and training), **Clients** (ask a rate, plan the work a client holds back).\n' +
+    '2. A level or node opens once what it needs is planned. A move on the **board** (Play) is tapped to shift it a month or take it out.\n' +
+    '3. **Finance** → Lenders: play one loan; its amount, rate, months and interest-only months are then the plan’s to change.\n' +
+    '4. **New card** adds a move the planner does not know: new work at a rate on a line, more kilos a round, or a saving, with its cost and its chance.\n\n' +
+    '# Read it\n- **Ledger**: every month’s kilos, revenue, costs, margin, spend, loan and cash. Tap a month: today’s margin, then each move in the order it takes effect, adding up to the plan.\n' +
+    '- **A day**: each line’s rounds on the clock, with overtime, the power cut and pickling. The day times the working days is the month on the Ledger.\n' +
+    '- **Roll the trials**: 600 runs drawing every chance and risk. The score is the share that reach the goal (Easy, Normal or Hard). **Replay one run** tells one as a story.\n\n' +
+    '# Keep it true\n- The **registers** are records: machines and what they need, the CQI-11 checklist, lenders, rates heard, work held back. Keep them current.\n' +
+    '- **Set the assumptions** (Ledger or Plant) where the book measures nothing: a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill, the cash.\n' +
+    '- Upgrade costs are estimates until a quote replaces them: **Cost** on each level.\n- **Make the report** prints the plan for a lender or a meeting.')
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 var KB_APP_PATHS = [

@@ -45,7 +45,7 @@ const MAP: Record<string, string[]> = {
   office: ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageCreate'],
   floor: ['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'],
   money: ['pageFinance'],
-  insights: ['pageStats', 'pageReports', 'pageHistory', 'pageKnow'],
+  insights: ['pageStats', 'pageReports', 'pagePlanner', 'pageHistory', 'pageKnow'],
 };
 
 test.describe('P134: workspaces on the phone', () => {

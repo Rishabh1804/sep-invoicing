@@ -847,5 +847,95 @@ function plnCfgSave() {
   renderPlanner();
   showToast('Assumptions saved');
 }
-function plnReportOpen() {}
-function plnReportRedraw() {}
+/* ---------- The report: the plan as printed pages (the report generator's frame and type) ---------- */
+function plnReportHtml() {
+  var P = plnPlanned(_plnMode), B = P.B, sc = P.sc, g = plnGoal(sc), R = _plnResult, target = plnGoalMargin(g, B);
+  var co = String((S.company && S.company.name) || '').trim(), title = 'The plan: ' + (sc ? sc.name : 'nothing planned yet');
+  var tile = function(l, v, sub) { return '<div class="inv-rpt-tile"><div class="inv-rpt-tile-l">' + escHtml(l) + '</div><div class="inv-rpt-tile-v">' + escHtml(v) + '</div>' + (sub ? '<div class="inv-rpt-tile-s">' + escHtml(sub) + '</div>' : '') + '</div>'; };
+  var sec = function(t) { return '<div class="inv-rpt-sec"><h3 class="inv-rpt-h">' + escHtml(t) + '</h3>'; };
+  var table = function(head, rows) { return '<div class="inv-rpt-scroll"><table class="inv-rpt-table"><thead><tr>' + head.map(function(x, i) { return '<th' + (i ? ' class="inv-rpt-num"' : '') + '>' + escHtml(x) + '</th>'; }).join('') + '</tr></thead><tbody>' +
+    rows.map(function(r) { return '<tr>' + r.map(function(v, i) { return '<td' + (i ? ' class="inv-rpt-num"' : '') + '>' + escHtml(v) + '</td>'; }).join('') + '</tr>'; }).join('') + '</tbody></table></div>'; };
+  var last = P.months[PLN_N - 1], m12 = P.months[11], low = Math.min.apply(null, P.months.map(function(x) { return x.cash; }));
+  var h = '<div class="inv-rpt-doc" data-pl-report><table class="inv-rpt-frame"><thead><tr><td class="inv-rpt-frame-head">' + escHtml([co, title].filter(Boolean).join(' · ')) + '</td></tr></thead>' +
+    '<tfoot><tr><td class="inv-rpt-frame-foot"></td></tr></tfoot><tbody><tr><td class="inv-rpt-frame-body">' +
+    '<div class="inv-rpt-head">' + (co ? '<div class="inv-rpt-co">' + escHtml(co) + '</div>' : '') + '<h2 class="inv-rpt-title">' + escHtml(title) + '</h2>' +
+    '<div class="inv-rpt-meta">' + escHtml('A simulation over ' + PLN_N + ' months from ' + plnMonthLabel(0) + ', built on the book from ' + formatDate(B.period.from) + ' to ' + formatDate(B.period.to) + ' · generated ' + formatDate(localDateStr()) +
+      ' · ' + (_plnMode === 'expected' ? 'each move weighted by its chance' : 'every move landing')) + '</div></div>';
+  h += '<div class="inv-rpt-tiles">' + tile('As it runs', formatCurrency(P.base[0].margin), 'margin a month over full cost, today') +
+    tile('In a year', formatCurrency(m12.margin), 'margin a month, ' + plnMonthLabel(11)) + tile('In two years', formatCurrency(last.margin), plnMonthLabel(PLN_N - 1)) +
+    tile('Lowest cash', formatCurrency(low), 'from ' + formatCurrency(B.cash.v) + (B.cash.src === 'statement' ? ' on the statement' : B.cash.src === 'set' ? ', as set' : ', nothing known')) +
+    tile('CQI-11', P.ready.cqi != null ? plnMonthLabel(Math.min(PLN_N - 1, P.ready.cqi)) : 'not in the plan', P.ready.cqi != null ? 'if each step lands' : '') +
+    tile('The goal', R ? Math.round(R.score * 100) + '% of ' + PLN_TRIALS + ' trials' : 'not rolled', g.say) + '</div>';
+  if (target != null) h += '<p class="inv-rpt-p">' + escHtml('The goal’s margin is ' + formatCurrency(target) + ' a month in ' + plnMonthLabel(g.at) + '.') + '</p>';
+  h += sec('The moves') + (P.L.length ? table(['Move', 'From', 'In effect', 'Once', 'A month', 'Chance'], P.L.map(function(mv) {
+    return [mv.label, plnMonthLabel(Math.max(0, mv.at)), P.ready[mv.key] != null ? plnMonthLabel(Math.min(PLN_N - 1, P.ready[mv.key])) : 'never', mv.cost ? formatCurrency(mv.cost) : '—', mv.run ? formatCurrency(mv.run) : '—', mv.p != null ? Math.round(mv.p * 10) + ' in 10' : '—'];
+  })) : '<p class="inv-rpt-none">Nothing is planned.</p>') + '</div>';
+  h += sec('Month by month') + table(['Month', 'Plated', 'Revenue', 'Cost', 'Interest', 'Margin', 'Spend', 'Loan', 'Cash'], P.months.map(function(x, i) {
+    return [plnMonthLabel(i), plnKg(x.plated), formatCurrency(x.rev), formatCurrency(x.costTot), formatCurrency(x.interest), formatCurrency(x.margin), formatCurrency(x.capex), formatCurrency(x.loanIn - x.principal), formatCurrency(x.cash)];
+  })) + '</div>';
+  var at = plnAttribution(_plnMonth, _plnMode);
+  h += sec(plnMonthLabel(_plnMonth) + ': how the margin adds up') + table(['', 'Margin a month'], [['As it runs', formatCurrency(at.base)]].concat(at.rows.map(function(r) { return [r.mv.label, plnSigned(r.margin, true)]; }), [['The plan', formatCurrency(at.plan)]])) + '</div>';
+  var mo = P.months[_plnMonth];
+  h += sec('The lines in ' + plnMonthLabel(_plnMonth)) + table(['Line', 'Kg a round', 'A round every', 'Kilos a day', 'Hours a day', 'Where it comes from'], PLN_LINE_IDS.map(function(l) {
+    var x = mo.lines[l]; return [plnLineName(l), formatNum(x.kgRound, 0), formatNum(x.every, 0) + ' min', plnKg(x.plated), plnHm(x.hours), B.lines[l].src === 'register' ? 'the register' : B.lines[l].src === 'set' ? 'set' : 'assumed'];
+  })) + '</div>';
+  if (R) h += sec('The trials') + '<p class="inv-rpt-p">' + escHtml(PLN_TRIALS + ' trials, seeded. Each draws whether each move comes through at its chance, CQI-11’s month (up to three months late), each machine’s risk until its fix, the month’s power cuts (0.6 to 1.5 times the usual) and a client refusing an ask. ' +
+    'The goal is reached in ' + Math.round(R.score * 100) + '%; cash dips below zero in ' + Math.round(R.red * 100) + '%; CQI-11 is in time in ' + Math.round(R.cqiShare * 100) + '%. In ' + plnMonthLabel(PLN_N - 1) + ' the middle trial’s margin is ' +
+    formatCurrency(R.p50[PLN_N - 1]) + ', 8 in 10 between ' + formatCurrency(R.p10[PLN_N - 1]) + ' and ' + formatCurrency(R.p90[PLN_N - 1]) + '.') + '</p></div>';
+  var mach = plnLive('machines'), chk = plnLive('checklist'), len = plnLive('lenders');
+  h += sec('The records it stands on') + '<p class="inv-rpt-p">' + escHtml(mach.length + ' machines recorded, ' + mach.filter(function(x) { return x.state === 'needs'; }).length + ' needing work · CQI-11 checklist ' + chk.filter(function(x) { return x.status === 'in'; }).length + ' of ' + chk.length + ' in place · ' + len.length + ' lenders') + '</p>' +
+    (sc && sc.loan ? '<p class="inv-rpt-p">' + escHtml('The loan: ' + plnLoanLabel(sc.loan) + ' over ' + sc.loan.months + ' months, ' + (sc.loan.mor || 0) + ' interest only, taken ' + plnMonthLabel(sc.loan.at || 0) + (sc.loan.ties ? '; it ties ' + sc.loan.ties : '') + '.') + '</p>' : '') + '</div>';
+  var C = B.cost, cfg = plnCfg();
+  h += sec('What it assumes') + '<ul class="inv-rpt-list">' + [
+    'Each part’s kilos and rate are the book’s average month, ' + formatDate(B.period.from) + ' to ' + formatDate(B.period.to) + '; ' + Math.round(B.coverage * 100) + '% of revenue carries a weight.',
+    'Zinc ₹' + formatNum(C.zincKg, 2) + ', chemicals ₹' + formatNum(C.chemKg, 2) + ' and upkeep ₹' + formatNum(C.otherKg, 2) + ' a kilo plated, from the live cost; labour as recorded.',
+    'Electricity ' + formatCurrency(C.powerFixed) + ' a month fixed (' + (plnRead().cfg && plnRead().cfg.powerFixed != null ? 'set' : 'assumed') + ') and ₹' + formatNum(C.powerKg, 2) + ' a kilo.',
+    'A new overtime line-hour costs ' + formatCurrency(cfg.otLineHour) + '; pickling feeds ' + formatNum(B.pick.kgH, 0) + ' kg an hour (' + (B.pick.src === 'set' ? 'set' : 'assumed') + ').',
+    'Power cuts take ' + formatNum(B.cutMin, 0) + ' minutes a working day in working hours, from the Power tab.',
+    'Every chance is the owner’s read. Upgrade costs are estimates until a quote replaces them.'].map(function(x) { return '<li>' + escHtml(x) + '</li>'; }).join('') + '</ul></div>';
+  return h + '</td></tr></tbody></table></div>';
+}
+function plnReportOpen() {
+  var body = document.getElementById('invPrintBody');
+  if (!body || !plnPlanned(_plnMode)) return;
+  body.innerHTML = plnReportHtml();
+  document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  var sc = plnScenario();
+  document.title = 'SEP plan ' + (sc ? sc.name : '') + ' ' + localDateStr();
+}
+/* A report open in the print view follows the plan as it changes. */
+function plnReportRedraw() {
+  var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
+  if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-pl-report]')) { body.innerHTML = plnReportHtml(); printFit(); }
+}
+
+/* ---------- The To-do: the checklist and the machines are records, and they ask ---------- */
+TODO_RULES.push(['plnCheck', 'Planner: a CQI-11 checklist item missing and due']);
+TODO_CHECK_DEFAULTS.plnCheck = true;
+TODO_RULE_FNS.plnCheck = function() {
+  var today = localDateStr(), end = payMonthEnd(today.slice(0, 8) + '01');
+  var due = plnLive('checklist').filter(function(x) { return x.status !== 'in' && x.due && x.due <= end; });
+  if (!due.length) return [];
+  var late = due.filter(function(x) { return x.due < today; });
+  return [{ key: 'plnCheck', rule: 'plnCheck', tone: late.length ? 'red' : 'amber', title: due.length + ' CQI-11 checklist item' + (due.length === 1 ? '' : 's') + ' due' + (late.length ? ', ' + late.length + ' late' : ' this month'),
+    sub: due.slice(0, 3).map(function(x) { return (x.ref ? x.ref + ' ' : '') + x.what; }).join(' · '), why: 'Planner · the CQI-11 checklist',
+    facts: due.slice(0, 6).map(function(x) { return [(x.ref ? x.ref + ' · ' : '') + x.what, (x.status === 'partly' ? 'partly, ' : 'missing, ') + 'due ' + formatDate(x.due) + (x.owner ? ' · ' + x.owner : '')]; }),
+    clears: 'Clears itself when each item is marked in place, or its due date moves.', go: { kind: 'planner', v: 'tech' }, goLabel: 'Open the checklist',
+    sig: due.map(function(x) { return x.id + ':' + x.status + ':' + x.due; }).join('|') }];
+};
+TODO_RULES.push(['plnMachine', 'Planner: a machine recorded as needing work']);
+TODO_CHECK_DEFAULTS.plnMachine = true;
+TODO_RULE_FNS.plnMachine = function() {
+  var list = plnLive('machines').filter(function(x) { return x.state === 'needs'; });
+  if (!list.length) return [];
+  return [{ key: 'plnMachine', rule: 'plnMachine', tone: 'amber', title: list.length + ' machine' + (list.length === 1 ? '' : 's') + ' recorded as needing work',
+    sub: list.slice(0, 3).map(function(x) { return x.item + (x.needs ? ': ' + x.needs : ''); }).join(' · '), why: 'Planner · machines and infrastructure',
+    facts: list.slice(0, 6).map(function(x) { return [x.item, (x.needs || 'needs work') + (x.risk && x.risk.p ? ' · ' + Math.round(x.risk.p * 100) + '% a month it fails' : '')]; }),
+    clears: 'Clears itself when the machine’s state is changed.', go: { kind: 'planner', v: 'plant' }, goLabel: 'Open Plant', sig: list.map(function(x) { return x.id + ':' + x.state; }).join('|') }];
+};
+TODO_RULE_NEED.plnCheck = 'money';
+TODO_RULE_NEED.plnMachine = 'money';

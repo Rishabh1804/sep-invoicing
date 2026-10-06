@@ -484,13 +484,16 @@ function todoClientTasks(clientId) {
   if (clientId == null) return [];
   return todoAppAll().filter(function(t) { return t.clientId != null && String(t.clientId) === String(clientId) && !todoIsSnoozed(t) && todoSees(t); });
 }
-function todoClientCardHtml(clientId) {
+/* `fold`: a key to draw it folded to its head (open once, it stays open on the device), where the screen is measured for
+   length (Performance on the phone, P128). */
+function todoClientCardHtml(clientId, fold) {
   var list = [];
   try { list = todoClientTasks(clientId); } catch (e) { list = []; }
   if (!list.length) return '';
-  return '<div class="inv-panel inv-panel-flush" data-card="client-tasks"><div class="inv-panel-head"><span class="inv-panel-title">Flagged' +
+  var card = '<div class="inv-panel inv-panel-flush" data-card="client-tasks"><div class="inv-panel-head"><span class="inv-panel-title">Flagged' +
     ' <span class="inv-panel-count">' + list.length + '</span></span><span class="inv-badge">App</span></div>' +
     list.map(todoAppRowHtml).join('') + '</div>';
+  return fold ? uiFoldCard(fold, card, false) : card;
 }
 function todoIsSnoozed(t) {
   var s = todoData().snoozes[t.key];

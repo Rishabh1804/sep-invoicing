@@ -342,6 +342,10 @@ function statsStoryCards(a, ctx) {
   var p = null;
   try { p = predMonthPace(); } catch (e) { p = null; }
   if (p) body += say(c4, p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok', 'This month is heading for ' + formatCurrency(p.projRev) + ' at its pace (' + p.done + ' of ' + p.total + ' working days in), against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel + '.');
+  // Why realisation moved against the period before, its largest cause named (why.js, I4); the panel under the questions has the rest.
+  var ws = null;
+  try { ws = whySentence(filtered, prior, period); } catch (e) { ws = null; }
+  if (ws) body += say(c4, ws.tone, escHtml(ws.text));
   ins.slice(0, 3).forEach(function(t) { body += todoAppRowHtml(t) + (typeof advInsightMovesHtml === 'function' ? advInsightMovesHtml(t) : ''); });
   if (!body) body = say(c4, 'ok', 'Nothing stands out: no insight is raised on the book right now.');
   if (!c4.answer) c4.answer = { tone: uiTone(ins[0].tone), say: escHtml(ins[0].title) };

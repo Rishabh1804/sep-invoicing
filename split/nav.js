@@ -198,7 +198,7 @@ function navApply(loc) {
         if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
         break;
       case 'pageStock':
-        var sv = /^(overview|list|item|paste|manual|reorder)$/.test(parts[0]) ? parts[0] : 'overview';
+        var sv = /^(overview|list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'overview';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
         if (sv === 'item') _stockItemId = id;
         // Enter by hand and the reorder list are drawn from their own state: opened by an address it is made here, the

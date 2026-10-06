@@ -183,7 +183,7 @@ function dashUsedByWeek(n) {
 }
 
 function stockOverviewHtml() {
-  var h = '';
+  var h = stockCheckCalloutHtml();
   var dd = dashStockDays();
   h += _dashPanel('dashStockDays', 'Days left', chartRankedBars(dd.rows.map(function(r) {
     return { label: r.it.name, value: r.out ? 0 : Math.round(r.days * 10) / 10, display: r.out ? 'Out' : stockDaysText(r.days, r.tentative),

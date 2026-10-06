@@ -18,10 +18,11 @@
    queue the app applies. Both directions run on open AND on close: the queue is
    read when the app is shown, the payload is written when it is hidden. */
 
-var TODO_CHECK_DEFAULTS = { stock: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
+var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
   backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
+  ['stockCheck', 'A stock entry does not fit the record, or a message reads differently now'],
   ['paste', 'No stock message for a while'],
   ['cn', 'A credit-note batch reaches 7 days'],
   ['cnMatch', 'A credit note does not match its invoice'],
@@ -114,6 +115,21 @@ var TODO_RULE_FNS = {
         go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group });
     });
     return out;
+  },
+  // An entry is checked before it is believed: one task for every entry that does not fit and every message the reader
+  // now reads differently, since one wrong figure moves the days left, the live cost and every margin read from them.
+  stockCheck: function() {
+    var c = stockCheckCounts();
+    if (!c.entries && !c.messages) return [];
+    var parts = [];
+    if (c.messages) parts.push(todoPlural(c.messages, 'message') + ' read differently now');
+    if (c.entries) parts.push(todoPlural(c.entries, 'entry', 'entries') + ' not fitting the record');
+    return [{ key: 'stockCheck', rule: 'stockCheck', tone: 'amber', n: c.entries + c.messages,
+      title: 'Check ' + todoPlural(c.entries + c.messages, 'stock figure'), sub: parts.join(' · '),
+      why: 'Stock · a figure the days left and the live cost are read from',
+      facts: [['Messages read differently', String(c.messages)], ['Entries to check', String(c.entries)]],
+      clears: 'Clears itself when each is corrected, voided, read again or marked right.',
+      go: { kind: 'stockCheck' }, goLabel: 'Check them', sig: c.entries + '|' + c.messages }];
   },
   paste: function() {
     var st = stockData();
@@ -289,7 +305,7 @@ var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', in
 // Moves that open Staff → Pay, which a role opens only with the wages (staff.js).
 var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
 // A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
-var TODO_GO_FLOOR = { stock: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
+var TODO_GO_FLOOR = { stock: 1, stockCheck: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
   staffRoster: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
 function todoGuardOn() { return typeof grdOn === 'function' && grdOn(); }
 /* The page a move lands on (workspace.js WS_GO_PAGE; a move may name its page itself). */
@@ -700,6 +716,7 @@ function todoGo(go) {
     case 'kb': if (go.id) kbOpenArticle(go.id); else kbGo({ tab: 'pageKnow', v: go.tab || 'start', id: '' }); break;
     case 'stock': _stockItemId = go.id; _stockView = 'item'; switchTab('pageStock'); break;
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
+    case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;
     case 'bills':
       finSetTab('bills');
       _costBillOpen = go.month ? { where: 'finance', month: go.month } : false;

@@ -20,6 +20,12 @@ When in QA mode, switch to **Cipher** (The Codewright): precise, minimalist, cat
 dashboard, a live cost that uses the bank statement, the intelligence rules and forecast, and the tabs linked into
 one picture — in seven phases, one PR each. Its §0 says what is built.
 
+**The intelligence is being refined — read `docs/INTELLIGENCE_2.md`** (owner, 6 Oct 2026: *"Let's refine the intelligence
+system"*, then *"Order works"*). Measured on the owner's book, the loudest findings rested on figures nobody had been asked
+about. Five steps, one PR each: I1 an entry checked before it is believed (built), I2 confidence on every finding, I3 one
+ranked list, I4 the change explained, I5 learning from responses. **Self draws are wages and personal drawings** (owner,
+6 Oct 2026), which I2 builds on.
+
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
@@ -147,7 +153,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,419 tests, both layouts
+pnpm exec playwright test          # 1,425 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2655,6 +2661,16 @@ sheets' page styles, each page one A4 sheet (P97):
 - **An earlier day with stock recorded prints the supervisor's sheet filled, as a worked example** (`stockSheetFillFor`):
   the window his message covered, and per line the opening, what was added, the use as *days × a day = total*, and what
   was available after.
+
+### Stock entries checked before believed
+Stock → **To check** (`stockEntryChecks`, `stockRereadDiff` in stock.js; intelligence step I1, 6 Oct 2026; P156). An entry
+that does not fit the record is said on its line, on the check and as one To-do task (`stockCheck`): the same quantity from
+the other door within 4 days (`twice`), a use typed by hand for days a pasted message covers (`overlap`, `typed`), a use past
+zero (`below`), over 4× the usual a day (`large`; a bath line is charged in lumps and not judged), a count 30% off the level
+(`count`). Warn, never block: **It is right** keeps it (`checkOk`). **A saved message is read again with the reader as it is
+now**, and one read differently is listed with both readings; *Use the new reading* voids what the old reading saved and adds
+the new entries at the message's own time (`reread` on the entries and the paste). A figure voided by hand stays voided, a line
+the new reading cannot place keeps its entries, and entries typed by hand are never touched. A use and a charge compare alike.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

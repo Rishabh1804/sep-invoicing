@@ -259,7 +259,7 @@ var WS_GO_PAGE = {
   client: 'pageClients', perf: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients',
   staffRoster: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
   production: 'pageProduction', prodLines: 'pageProduction',
-  stock: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
+  stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower',
   finance: 'pageFinance', bills: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports',

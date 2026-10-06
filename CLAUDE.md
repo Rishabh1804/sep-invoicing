@@ -23,7 +23,7 @@ one picture — in seven phases, one PR each. Its §0 says what is built.
 **The intelligence is being refined — read `docs/INTELLIGENCE_2.md`** (owner, 6 Oct 2026: *"Let's refine the intelligence
 system"*, then *"Order works"*). Measured on the owner's book, the loudest findings rested on figures nobody had been asked
 about. Five steps, one PR each: I1 an entry checked before it is believed (built), I2 confidence on every finding (built), I3 one
-ranked list, I4 the change explained, I5 learning from responses. **Self draws are wages and personal drawings** (owner,
+ranked list (built), I4 the change explained, I5 learning from responses. **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
@@ -153,7 +153,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,436 tests, both layouts
+pnpm exec playwright test          # 1,446 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2325,6 +2325,22 @@ the device. `renderStats()` still draws every card; `take()` files each into its
   the table says: a thin clamp and a heavy bracket cost the same per kg there. On the real book for the
   quarter to 25 Sep: live cost ₹7.31/kg (40% measured) against ₹7.96 realised; SSS Mehta at ₹5.34 net is
   −₹0.87/kg even with labour fixed.
+
+### One ranked list
+Intelligence step I3 (`todo.js`, 6 Oct 2026; P158). The owner's To-do held 23 tasks, three clients owing over 90 days, six
+stock lines and three clients' challans each a row of its own, in the rules' order inside a tone.
+- **Inside a tone, a firm finding first, then the larger sum** (`todoAppCmp`). Tone already carries how soon and how sure
+  (a finding that is not firm is never red, I2). `todoWorth(t)` is the rupees the task names, read off its own figures: owed
+  over 90 days, receipts unplaced, the power penalty, a client's leak, its fall, a quiet client's month, the loss below the
+  six months' lowest variable cost, the forecast's low, a challan's open amount. A rule with no sum of its own is 0, never given one.
+- **Three or more tasks from one rule are one task** (`todoFoldList`, `fold:<rule>`): worst tone, the members' sum, the three
+  largest named, *How sure* when every member says it. Opening it lists each member, which opens as before; it snoozes as one
+  (its `sig` is every member's), and its button goes to the list they are worked from (`TODO_FOLD`). Only the shown list folds
+  (`todoApp()`, `todoRanked`): a screen's own tasks (`only`), the moves and the questions read every task as raised. The sum is
+  said only to a role that sees money. On the owner's book: 23 rows → 14.
+- **A client's page lists everything flagged about it** (`todoClientCardHtml`: the detail pane, the edit sheet and Performance),
+  unfolded, each opening its task. The per-client rules carry `clientId` (credit note due, gauge unknown, pickled with no challan
+  now too).
 
 ### Insights and predictions
 Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.js`.

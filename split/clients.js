@@ -141,7 +141,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   }
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
-    (isAdd ? '' : finClientMoneyHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
+    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
     _cfield('ceditGstin', 'GSTIN', _cinput('ceditGstin', c.gstin, 'inv-id', ' maxlength="15"')) +
@@ -462,6 +462,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
       (c.notes ? kv('Notes', escHtml(c.notes), true) : '') +
       '</div>';
 
+    html += todoClientCardHtml(c.id);
     html += finClientMoneyHtml(c.id);
     html += qtClientPanelHtml(c.id);
     html += kbLinkedHtml('client', c.id, c.name, 'Knowledge');

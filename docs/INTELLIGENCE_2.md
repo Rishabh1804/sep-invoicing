@@ -21,7 +21,7 @@ been asked about, and nothing on screen said so.
 |---|---|---|
 | I1 | **An entry is checked before it is believed.** Stock entries that do not fit; stock messages read differently now. | Built (P156) |
 | I2 | **Confidence on every finding.** How old and how complete its record is; a stale record is never red, an early month says so. Self draws: cash wages up to the week's payout, the rest drawings. Zinc charged in lumps measured against its bills. | Built (P157) |
-| I3 | **One ranked list**: ₹ at stake × urgency × confidence; per-client tasks folded; one card per client. | |
+| I3 | **One ranked list**: ₹ at stake × urgency × confidence; per-client tasks folded; one card per client. | Built (P158) |
 | I4 | **The change explained**: realisation, margin and cash moves broken into their causes, each with its ₹. | |
 | I5 | **Learning from responses**: snoozes, actions and ignores tune rank and thresholds, suggested, never silent. | |
 
@@ -90,3 +90,24 @@ bills of the 90 days to its end, per kg plated over the same days, from the firs
 
 **Today learns an input's usual time from WhatsApp's send time only**: a roll pasted without its header carries the minute it
 was pasted, and *usually by 1:33 PM* was the owner's pasting hour. Until three rolls carry their header, the shop's own time.
+
+## I3: one ranked list
+
+**Inside a tone, a firm finding first, then the larger sum** (`todoAppCmp`, todo.js). Tone is how soon and, since I2, how sure;
+`todoWorth(t)` adds what is at stake, read off the figures the task was raised on and never estimated: owed over 90 days, receipts
+not placed, the power penalty since approval, a client's leak and its fall, a quiet client's average month, the loss at the six
+months' lowest variable cost (the firm end of I2's range), the forecast's low, and a challan task's open amount (`imLineOpen`). A
+task naming no sum is 0 and keeps its rule's order.
+
+**Three or more tasks from one rule fold into one** (`todoFoldList`): *3 clients owe ₹50,984.03 over 90 days*, worst tone, the
+members' sum, the three largest named. It opens to its members, each opening as before; *Snooze all* snoozes it against every
+member's figures, so a new member brings it back; one member snoozed on its own leaves two, and two do not fold. Its button opens
+the list they are worked from (`TODO_FOLD`: Receivables, challans, stock lines), else the largest member's place. Only the list
+shown folds: the moves (advice.js), a screen's own tasks and the client card read every task as raised.
+
+**One card per client** (`todoClientCardHtml`): the client's detail, its edit sheet and Performance list every open task the app
+raised about it, *Flagged*, before its money.
+
+On the owner's book of 6 Oct: 23 tasks drawn as 14 rows. SSS Mehta's loss (at least ₹9,207.83) and the power penalty (₹5,220)
+lead the reds; the three clients over 90 days are one amber row worth ₹50,984.03; six stock lines, all read off an old record,
+one row; three clients' challans one row worth ₹11,876.87.

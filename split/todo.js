@@ -180,7 +180,7 @@ var TODO_RULE_FNS = {
       var pct = b.last.discountPct || CN_DEFAULT_PCT;
       var taxable = gstRound(pending.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0));
       var credit = gstRound(taxable * pct / 100);
-      out.push({ key: 'cn:' + cid, rule: 'cn', tone: 'amber', title: 'Credit note due: ' + (b.last.clientName || pending[0].clientName),
+      out.push({ key: 'cn:' + cid, rule: 'cn', tone: 'amber', clientId: cid, title: 'Credit note due: ' + (b.last.clientName || pending[0].clientName),
         sub: todoPlural(pending.length, 'invoice') + ' since ' + b.last.displayNumber + ' · ' + pct + '% ≈ ' + formatCurrency(credit),
         why: 'Batch spans ' + todoPlural(span, 'day') + ' · rule: ' + CN_BATCH_MIN_DAYS + ' or more',
         facts: [['Last note', b.last.displayNumber + (b.to ? ' · to ' + formatDate(b.to) : '')], ['Invoices since', String(pending.length)],
@@ -342,6 +342,8 @@ function todoGoSees(go) {
 /* An app task the role signed in may see: its rule's need, and its move. */
 function todoSees(t) {
   if (!t || !todoGuardOn()) return true;
+  // A fold is made of tasks this role sees already (todoFoldList is handed the shown list).
+  if (t.rule === 'fold') return !!grdUser();
   if (!grdUser()) return false;
   var need = TODO_RULE_NEED[t.rule] || '';
   if (need.indexOf('money') >= 0 && !grdSeesMoney()) return false;
@@ -390,7 +392,105 @@ function todoAppAll(only, ran) {
     // One rule failing on a shape nobody anticipated must not take the list with it.
     try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
   });
-  return out.sort(function(a, b) { return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone]; });
+  out.forEach(function(t) { t.worth = todoWorth(t); });
+  return out.sort(todoAppCmp);
+}
+
+/* ---------- One ranked list (docs/INTELLIGENCE_2.md, I3) ----------
+   Owner, 6 Oct 2026: the order agreed was the rupees at stake, how soon, and how sure. Tone carries how soon and how sure
+   (a finding that is not firm is never red, todoConfApply), so inside a tone a firm finding comes first, then the larger
+   sum. `worth` is the rupees a task names, read off the figures it was raised on; a task that names none is 0 and keeps
+   its rule's order. Never a guess: a rule with no sum of its own is not given one. */
+function todoWorth(t) {
+  var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
+  switch (t.rule) {
+    case 'owed90': case 'bankLoose': case 'powerLoad': return n(t.amount);
+    case 'insLeak': return n(t.gap);
+    case 'insClientDown': return n(t.fall);
+    case 'insQuiet': return n(t.rev3) / 3;
+    case 'insBelowVar': return n((Number(t.lowVarKg) - Number(t.net)) * Number(t.kg));
+    case 'runway': return n(-Number(t.low));
+    case 'challan': {
+      var ids = {};
+      (t.imIds || []).forEach(function(id) { ids[id] = true; });
+      return (S.incomingMaterial || []).reduce(function(s, im) {
+        return ids[im.id] ? s + (im.items || []).reduce(function(a, it) { return a + n(imLineOpen(it).amount); }, 0) : s;
+      }, 0);
+    }
+    case 'fold': return (t.members || []).reduce(function(s, m) { return s + (m.worth || 0); }, 0);
+  }
+  return 0;
+}
+function todoAppCmp(a, b) {
+  return TODO_TONE_RANK[a.tone] - TODO_TONE_RANK[b.tone] || (a.conf ? 1 : 0) - (b.conf ? 1 : 0) || (b.worth || 0) - (a.worth || 0);
+}
+
+/* Three or more tasks from one rule are one task (`fold:<rule>`): four clients owing over 90 days is one job, a list of
+   whom to call, not four rows pushing everything else down. Its tone is the worst of them, its worth their sum, its
+   figures the members by worth; opening it lists each, which opens as before. Only the shown list folds: the moves and
+   the questions (advice.js), a screen's own tasks (`only`) and the client card read every task as it was raised. */
+var TODO_FOLD_MIN = 3;
+var TODO_FOLD = {
+  owed90: { title: function(n, w) { return n + ' clients owe ' + (w ? formatCurrency(w) + ' ' : 'money ') + 'over 90 days'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
+  challan: { title: function(n, w) { return 'Bill ' + n + ' clients\u2019 challans' + (w ? ', ' + formatCurrency(w) + ' waiting' : ''); }, go: { kind: 'im' }, goLabel: 'Open challans' },
+  stock: { title: function(n) { return n + ' stock lines to order'; }, go: { kind: 'stockList' }, goLabel: 'Open stock lines' },
+  payingSlower: { title: function(n) { return n + ' clients are paying slower'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
+  insQuiet: { title: function(n) { return n + ' clients have gone quiet'; } },
+  insClientDown: { title: function(n) { return n + ' clients\u2019 billing is down three months running'; } },
+  insLeak: { title: function(n, w) { return n + ' clients realised under their usual rate' + (w ? ', ' + formatCurrency(w) + ' at stake' : ''); } },
+  insBelowVar: { title: function(n) { return n + ' large accounts are below their variable cost'; } }
+};
+function todoFoldName(t) {
+  var c = t.clientId != null && (S.clients || []).find(function(x) { return String(x.id) === String(t.clientId); });
+  if (c) return c.name;
+  var it = t.itemId != null && typeof stockData === 'function' && (stockData().items || []).find(function(x) { return x.id === t.itemId; });
+  return it ? it.name : t.title;
+}
+function todoFoldOf(rule, list) {
+  list = list.slice().sort(todoAppCmp);
+  var f = TODO_FOLD[rule] || {}, label = (TODO_RULES.find(function(r) { return r[0] === rule; }) || [rule, rule])[1];
+  // The sum is said only to a role that sees money (guard.js); the order by it holds for every role.
+  var money = !todoGuardOn() || grdSeesMoney();
+  var worth = list.reduce(function(s, m) { return s + (m.worth || 0); }, 0), w = money ? gstRound(worth) : 0;
+  var tone = list[0].tone, top = list[0];
+  var name = function(m) { return todoFoldName(m) + (money && m.worth ? ' ' + formatCurrency(gstRound(m.worth)) : ''); };
+  // How sure (todoConfApply): said once on the fold when every member says it, and the fold ranks as they do.
+  var conf = list.every(function(m) { return m.conf && TODO_CONF_WORD[m.conf.level]; }) ? { level: list[0].conf.level } : undefined;
+  return { key: 'fold:' + rule, rule: 'fold', foldRule: rule, members: list, tone: tone, worth: worth, conf: conf,
+    title: f.title ? f.title(list.length, w) : list.length + ' tasks: ' + label.charAt(0).toLowerCase() + label.slice(1),
+    sub: list.slice(0, 3).map(name).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : '') +
+      (conf ? ' · ' + TODO_CONF_WORD[conf.level] : ''),
+    why: top.why ? top.why.split(' · ')[0] + ' · ' + list.length + ' together' : list.length + ' together',
+    facts: list.map(function(m) { return [todoFoldName(m), money && m.worth ? formatCurrency(gstRound(m.worth)) : (TODO_TONE_WORD[m.tone] || 'To know')]; }),
+    clears: 'Each clears itself as before; this one goes when fewer than ' + TODO_FOLD_MIN + ' are left.',
+    go: f.go || top.go, goLabel: f.go ? f.goLabel : top.goLabel,
+    sig: list.map(function(m) { return m.key + '=' + m.sig; }).join(';') };
+}
+/* `list`: shown tasks (not snoozed, todoSees). Folds every rule with TODO_FOLD_MIN or more, keeps the rest. */
+function todoFoldList(list) {
+  var by = {}, out = [];
+  list.forEach(function(t) { (by[t.rule] || (by[t.rule] = [])).push(t); });
+  Object.keys(by).forEach(function(r) {
+    if (by[r].length >= TODO_FOLD_MIN) out.push(todoFoldOf(r, by[r])); else out = out.concat(by[r]);
+  });
+  return out.sort(todoAppCmp);
+}
+/* The folds the role signed in would see, snoozed or not: for opening one, and for the snoozed list. */
+function todoFolds() {
+  return todoFoldList(todoAppAll().filter(function(t) { return !todoIsSnoozed(t) && todoSees(t); })).filter(function(t) { return t.rule === 'fold'; });
+}
+/* Every open task the app raised about one client, as raised (unfolded): the client's card (clients.js, client-perf.js). */
+function todoClientTasks(clientId) {
+  if (clientId == null) return [];
+  return todoAppAll().filter(function(t) { return t.clientId != null && String(t.clientId) === String(clientId) && !todoIsSnoozed(t) && todoSees(t); });
+}
+function todoClientCardHtml(clientId) {
+  var list = [];
+  try { list = todoClientTasks(clientId); } catch (e) { list = []; }
+  if (!list.length) return '';
+  return '<div class="inv-panel inv-panel-flush" data-card="client-tasks"><div class="inv-panel-head"><span class="inv-panel-title">Flagged' +
+    ' <span class="inv-panel-count">' + list.length + '</span></span><span class="inv-badge">App</span></div>' +
+    list.map(todoAppRowHtml).join('') + '</div>';
 }
 function todoIsSnoozed(t) {
   var s = todoData().snoozes[t.key];
@@ -399,7 +499,10 @@ function todoIsSnoozed(t) {
   return s.sig === t.sig;
 }
 /* The tasks the role signed in sees: not snoozed, and its own (todoSees). */
-function todoApp(only) { return todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t) && todoSees(t); }); }
+function todoApp(only) {
+  var shown = todoAppAll(only).filter(function(t) { return !todoIsSnoozed(t) && todoSees(t); });
+  return only ? shown : todoFoldList(shown).filter(function(t) { return !todoIsSnoozed(t); });
+}
 /* Your own open tasks the role signed in sees. */
 function todoMineShown() { return todoMineOpen().filter(todoMineSees); }
 
@@ -408,7 +511,7 @@ function todoMineShown() { return todoMineOpen().filter(todoMineSees); }
    which the Windows widget shows (drawn by Windows outside the app and its lock, docs/GUARD.md, it would otherwise change
    with whoever signed in last). */
 function todoRanked(all) {
-  var app = all ? todoAppAll().filter(function(t) { return !todoIsSnoozed(t); }) : todoApp();
+  var app = all ? todoFoldList(todoAppAll().filter(function(t) { return !todoIsSnoozed(t); })).filter(function(t) { return !todoIsSnoozed(t); }) : todoApp();
   var rows = app.map(function(t) { return { app: t, tone: t.tone }; });
   (all ? todoMineOpen() : todoMineShown()).forEach(function(t) { rows.push({ mine: t, tone: todoMineTone(t) }); });
   // Your own tasks come before everything the app raised, bar what is already red (owner, 26 Sep 2026:
@@ -420,7 +523,7 @@ function todoRanked(all) {
     if (r) return r;
     if (!!a.app !== !!b.app) return a.app ? 1 : -1;
     if (a.mine && b.mine) return (a.mine.due || '9999').localeCompare(b.mine.due || '9999') || (a.mine.createdAt - b.mine.createdAt);
-    return 0;
+    return todoAppCmp(a.app, b.app);
   });
 }
 
@@ -478,7 +581,7 @@ function renderTodo() {
   app.forEach(function(t) { h += todoAppRowHtml(t); });
   h += '</div>';
 
-  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); });
+  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); }).concat(todoFolds().filter(todoIsSnoozed));
   if (snoozed.length) {
     h += '<div class="inv-panel inv-panel-flush inv-panels-wide" data-todo-sec="snoozed"><div class="inv-panel-head"><span class="inv-panel-title">Snoozed' +
       ' <span class="inv-panel-count">' + snoozed.length + '</span></span>' +
@@ -580,10 +683,12 @@ function todoOverlay(title, body) {
 
 /* An app task by its key (a row, the widget's launch): only one the role signed in sees. */
 function todoAppFind(key) {
+  if (String(key).indexOf('fold:') === 0) return todoFolds().find(function(x) { return x.key === key; }) || null;
   var t = todoAppAll().find(function(x) { return x.key === key; });
   return t && todoSees(t) ? t : null;
 }
 function todoOpenApp(key) {
+  if (String(key).indexOf('fold:') === 0) { todoOpenFold(key); return; }
   var all = todoAppAll().find(function(x) { return x.key === key; });
   if (all && !todoSees(all)) { showToast('That task is not one your ID opens', 'warning'); return; }
   var t = all;
@@ -606,6 +711,24 @@ function todoOpenApp(key) {
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div></div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel) + '</button></div>';
+  todoOverlay('From your data', h);
+}
+
+/* A folded task: its members as rows, each opening as before, a snooze for them together, and the place they are worked. */
+function todoOpenFold(key) {
+  var t = todoAppFind(key);
+  if (!t) { showToast('That has cleared itself'); todoRefreshViews(); return; }
+  var s = todoData().snoozes[key];
+  var h = '<div class="inv-panel inv-panel-flush" data-todo-fold="' + escHtml(t.foldRule) + '"><div class="inv-panel-head"><span class="inv-row-main">' +
+    '<span class="inv-panel-title">' + escHtml(t.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span></span>' +
+    '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + (TODO_TONE_WORD[t.tone] || 'To know') + '</span></div>' +
+    t.members.map(todoAppRowHtml).join('') + '</div>' +
+    '<div class="inv-callout inv-callout-info" data-todo-clears>' + escHtml(t.clears) + '</div>' +
+    (s && todoIsSnoozed(t) ? '<p class="inv-note inv-mt-8">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</p>' : '') +
+    '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze all ' + t.members.length + '</span><div class="inv-toolbar">' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="sig">Until the figures change</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoSnooze" data-key="' + escHtml(key) + '" data-v="7">1 week</button></div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invTodoGoApp" data-key="' + escHtml(key) + '">' + escHtml(t.goLabel || 'Open') + '</button></div>';
   todoOverlay('From your data', h);
 }
 
@@ -705,19 +828,21 @@ function todoToggle(id, by) {
 function todoSnooze(key, v) {
   // The book's whole list: a snooze on a task another role sees is not dropped as cleared because this one does not see it.
   var ran = {}, all = todoAppAll(null, ran);
-  var t = all.find(function(x) { return x.key === key; });
+  var t = String(key).indexOf('fold:') === 0 ? todoAppFind(key) : all.find(function(x) { return x.key === key; });
   if (!t || !todoSees(t)) return;
   var td = todoData();
   // A snooze whose task has cleared describes nothing; drop those while writing, but only where the task's rule ran
   // this time. A rule switched off, or one that failed on some shape of data, had every snooze of its dropped, and its
   // tasks were back the day it ran again (the QA sweep, 29 Sep 2026).
   var live = {};
-  all.forEach(function(x) { live[x.key] = true; });
+  // A fold lives while its rule raises anything: whether it folds turns on what else is snoozed.
+  all.forEach(function(x) { live[x.key] = true; live['fold:' + x.rule] = true; });
   Object.keys(td.snoozes).forEach(function(k) {
-    var s = td.snoozes[k], rule = (s && s.rule) || k.split(':')[0];
+    var s = td.snoozes[k], rule = (s && s.rule && s.rule !== 'fold') ? s.rule : k.indexOf('fold:') === 0 ? k.slice(5) : k.split(':')[0];
     if (!live[k] && ran[rule]) delete td.snoozes[k];
   });
-  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now(), rule: t.rule } : { sig: t.sig, until: isoAddDays(todoToday(), parseInt(v, 10) || 7), at: Date.now(), rule: t.rule };
+  var rule = t.foldRule || t.rule;
+  td.snoozes[key] = v === 'sig' ? { sig: t.sig, until: '', at: Date.now(), rule: rule } : { sig: t.sig, until: isoAddDays(todoToday(), parseInt(v, 10) || 7), at: Date.now(), rule: rule };
   saveState();
   closeOverlay();
   todoRefreshViews();

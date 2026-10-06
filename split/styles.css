@@ -2067,3 +2067,7 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-pl-star { fill: var(--surface-3); }
 .inv-pl-star-on { fill: var(--warning); }
 .inv-pl-when { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
+.inv-pl-ledger th[scope="row"] { text-align: left; white-space: nowrap; font-weight: 500; color: var(--text-2); min-width: var(--filter-w); }
+.inv-pl-ledger td, .inv-pl-ledger th[scope="col"] { white-space: nowrap; padding: var(--sp-4) var(--sp-8); }
+.inv-pl-ledger [aria-current="date"] { background: var(--accent-soft); }
+.inv-pl-ledger .inv-row-strong :is(th, td) { font-weight: 700; color: var(--text-1); }

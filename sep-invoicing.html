@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="4e07ec74">
+<meta name="app-build" content="7a616c42">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2089,6 +2089,10 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-pl-star { fill: var(--surface-3); }
 .inv-pl-star-on { fill: var(--warning); }
 .inv-pl-when { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }
+.inv-pl-ledger th[scope="row"] { text-align: left; white-space: nowrap; font-weight: 500; color: var(--text-2); min-width: var(--filter-w); }
+.inv-pl-ledger td, .inv-pl-ledger th[scope="col"] { white-space: nowrap; padding: var(--sp-4) var(--sp-8); }
+.inv-pl-ledger [aria-current="date"] { background: var(--accent-soft); }
+.inv-pl-ledger .inv-row-strong :is(th, td) { font-weight: 700; color: var(--text-1); }
 </style>
 </head>
 <body>
@@ -44519,7 +44523,73 @@ function plnLoanToggle(id) {
 
 /* ---------- The views (PL2–PL4 fill these) ---------- */
 function plnPlayHtml() { return '<div class="inv-panels">' + plnLendersHtml() + '</div>'; }
-function plnLedgerHtml() { return ''; }
+function plnLedgerHtml() {
+  var P = plnPlanned(_plnMode), m = _plnMonth, mo = P.months[m], b = P.base[m], B = P.B;
+  var rows = [
+    ['Plated', function(x) { return plnKg(x.plated); }],
+    ['Revenue', function(x) { return plnRs(x.rev); }],
+    ['Labour', function(x) { return plnRs(-(x.cost.labourFixed + x.cost.labourPool + x.cost.labourOt)); }],
+    ['New hires', function(x) { return x.cost.hires ? plnRs(-x.cost.hires) : '—'; }],
+    ['Zinc and chemicals', function(x) { return plnRs(-(x.cost.zinc + x.cost.chem)); }],
+    ['Power and upkeep', function(x) { return plnRs(-(x.cost.power + x.cost.other)); }],
+    ['Interest', function(x) { return x.interest ? plnRs(-x.interest) : '—'; }],
+    ['Margin', function(x) { return plnSigned(x.margin); }, 'margin'],
+    ['Spend', function(x) { return x.capex ? plnRs(-x.capex) : '—'; }],
+    ['Loan in or repaid', function(x) { return x.loanIn ? plnSigned(x.loanIn) : x.principal ? plnRs(-x.principal) : '—'; }],
+    ['Cash', function(x) { return plnRs(x.cash); }, 'cash']];
+  var tone = function(r, x) { return r[2] === 'margin' ? (x.margin < 0 ? ' inv-num-neg' : ' inv-num-pos') : r[2] === 'cash' && x.cash < 0 ? ' inv-num-neg' : ''; };
+  var h = '<div class="inv-panel inv-panel-flush" id="plnLedger"><div class="inv-panel-head"><span class="inv-panel-title">Month by month</span>' +
+    '<span class="inv-seg inv-seg-fit" role="group" aria-label="Read the plan"><button class="inv-seg-btn" aria-pressed="' + (_plnMode === 'all') + '" data-action="invPlnMode" data-id="all">If every move lands</button>' +
+    '<button class="inv-seg-btn" aria-pressed="' + (_plnMode === 'expected') + '" data-action="invPlnMode" data-id="expected">Weighted by each chance</button></span></div>' +
+    '<div class="inv-scroll-x"><table class="inv-table inv-table-grid inv-pl-ledger"><thead><tr><th scope="col">' + escHtml(B.wd + ' working days a month') + '</th><th scope="col">As it runs</th>' +
+    P.months.map(function(x, i) { return '<th scope="col"' + (i === m ? ' aria-current="date"' : '') + '><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnLedgerMonth" data-m="' + i + '">' + escHtml(plnMonthLabel(i)) + '</button></th>'; }).join('') +
+    '</tr></thead><tbody>' + rows.map(function(r) {
+      return '<tr' + (r[2] ? ' class="inv-row-strong"' : '') + '><th scope="row">' + r[0] + '</th><td class="inv-num">' + escHtml(r[1](P.base[0])) + '</td>' +
+        P.months.map(function(x, i) { return '<td class="inv-num' + tone(r, x) + '"' + (i === m ? ' aria-current="date"' : '') + '>' + escHtml(r[1](x)) + '</td>'; }).join('') + '</tr>';
+    }).join('') + '</tbody></table></div></div>';
+  var at = plnAttribution(m, _plnMode);
+  h += '<div class="inv-panels"><div class="inv-panel inv-panel-flush" id="plnBuild"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(plnMonthLabel(m)) + ': how the margin adds up</span>' +
+    '<span class="inv-panel-count">' + (_plnMode === 'expected' ? 'each move × its chance' : 'every move landing') + '</span></div>' +
+    plnBuildRow('As it runs', 'today’s average month, from the book', at.base, 'base') +
+    at.rows.map(function(r) { return plnBuildRow(r.mv.label, (Math.abs(r.kg) >= 1 ? (r.kg > 0 ? '+' : '−') + plnKg(Math.abs(r.kg)) + ' plated · ' : '') + (r.ready != null ? 'takes effect ' + plnMonthLabel(Math.min(PLN_N - 1, r.ready)) : 'never takes effect'), r.margin, r.mv.lane); }).join('') +
+    (at.idle.length ? '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">' + at.idle.length + ' more in the plan, nothing in this month’s margin</span><span class="inv-row-meta inv-row-wrap">' +
+      escHtml(at.idle.map(function(r) { return r.mv.label; }).join(', ')) + '</span></span><span class="inv-row-end"><span class="inv-num">₹0</span></span></div>' : '') +
+    plnBuildRow('The plan', 'the rows above, added up', at.plan, 'plan') +
+    '<div class="inv-panel-body inv-note">The moves are added one at a time, in the order they take effect: each row is what it added on top of the rows above, so they add up to the plan. A wage or upkeep shows where it starts; what it opens shows on the move it opens. One-off spend is on the table’s Spend row.</div></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="plnCosts"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(plnMonthLabel(m)) + ': the cost lines</span><span class="inv-panel-count">' + escHtml(plnKg(mo.plated)) + '</span></div>' +
+    plnCostRows(mo, b).map(function(r) {
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + r[0] + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r[3]) + '</span></span>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + escHtml(formatCurrency(r[1])) + '</span><span class="inv-row-meta">' + escHtml(Math.abs(r[1] - r[2]) >= 1 ? plnSigned(r[1] - r[2], true) : 'as now') + '</span></span></div>';
+    }).join('') + '<div class="inv-panel-body"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCfg">Set the assumptions</button></div></div>';
+  var clients = B.clients.concat([{ id: 'card', name: 'Your cards' }]);
+  h += '<div class="inv-panel inv-panel-flush" id="plnByClient"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(plnMonthLabel(m)) + ': revenue by client</span><span class="inv-panel-count">kilos plated × each part’s rate</span></div>' +
+    uiMoreHtml('pln-clients', clients.map(function(c) {
+      var a = mo.byClient[c.id] || 0, bb = b.byClient[c.id] || 0;
+      if (!a && !bb) return '';
+      var kg = mo.rows.filter(function(r) { return r.client === c.id; }).reduce(function(s, r) { return s + r.kgMo; }, 0);
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.id === 'card' ? c.name : plnClientShort(c)) + '</span><span class="inv-row-meta">' + escHtml(plnKg(kg) + (kg ? ' · ₹' + formatNum(a / kg, 2) + '/kg' : '')) + '</span></span>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + escHtml(formatCurrency(a)) + '</span><span class="inv-row-meta">' + escHtml(Math.abs(a - bb) >= 1 ? plnSigned(a - bb, true) : 'as now') + '</span></span></div>';
+    }).filter(Boolean), { n: 10, noun: 'clients' }) +
+    (B.unweighed > 0.5 ? '<div class="inv-panel-body inv-note">' + escHtml(formatCurrency(B.unweighed) + ' a month is billed on lines with no weight: revenue without kilos, kept as it is.') + '</div>' : '') + '</div></div>';
+  return h;
+}
+function plnBuildRow(title, meta, v, kind) {
+  var strong = kind === 'base' || kind === 'plan';
+  return '<div class="inv-row inv-row-2' + (strong ? ' inv-row-strong' : '') + '" data-pl-build="' + escHtml(kind) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span>' +
+    '<span class="inv-row-end"><span class="inv-num' + (strong ? '' : v < 0 ? ' inv-num-neg' : ' inv-num-pos') + '">' + escHtml(plnSigned(v, true)) + '</span></span></div>';
+}
+/* Each cost line of a month, against the same month as it runs, with what it is made of. */
+function plnCostRows(mo, b) {
+  var c = mo.cost, bc = b.cost, C = _plnBase.cost, cfg = plnCfg(), src = function(k) { var s = C.src[k]; return s === 'measured' ? 'measured' : s === 'model' ? 'the model' : s === 'bank' ? 'paid, bank' : 'part-recorded'; };
+  return [['Labour, monthly crew', c.labourFixed, bc.labourFixed, 'fixed: as recorded, ' + src('labour')],
+    ['Labour, the hourly pool', c.labourPool, bc.labourPool, 'the general shift as recorded'],
+    ['Overtime and EXTRA', c.labourOt, bc.labourOt, 'as it runs, plus ' + formatCurrency(cfg.otLineHour) + ' a new overtime line-hour (assumed)'],
+    ['New hires', c.hires, bc.hires, 'the plan’s wages (Staff)'],
+    ['Zinc', c.zinc, bc.zinc, '₹' + formatNum(C.zincKg, 2) + '/kg plated, ' + src('zinc')],
+    ['Chemicals', c.chem, bc.chem, '₹' + formatNum(C.chemKg, 2) + '/kg plated, ' + src('chem')],
+    ['Electricity', c.power, bc.power, formatCurrency(C.powerFixed) + ' fixed (assumed) + ₹' + formatNum(C.powerKg, 2) + '/kg, ' + src('power')],
+    ['Consumables, effluent, upkeep', c.other, bc.other, '₹' + formatNum(C.otherKg, 2) + '/kg plated, ' + src('other')]];
+}
 function plnDayHtml() { return ''; }
 function plnPlantHtml() { return '<div class="inv-panels">' + plnMachinesHtml() + '</div>'; }
 function plnTechHtml() { return '<div class="inv-panels">' + plnChecklistHtml() + '</div>'; }
@@ -44531,8 +44601,34 @@ function plnReplayOne() {}
 function plnCardEdit() {}
 function plnCardSave() {}
 function plnCardRemove() {}
-function plnCfgEdit() {}
-function plnCfgSave() {}
+/* The assumptions: whatever the book does not measure, the owner sets (blank = measured, else assumed). */
+function plnCfgEdit() {
+  if (!plnRegGate(plnCfgEdit)) return;
+  var c = plnRead().cfg || {}, B = plnBase();
+  var f = PLN_LINE_IDS.map(function(l) {
+    var L = B ? B.lines[l] : PLN_LINE_ASSUMED[l], set = (c.lines || {})[l] || {};
+    return _plnField('plnCKg_' + l, plnLineName(l) + ': kg a round', set.kgRound, 'number', ' placeholder="' + formatNum(L.kgRound, 0) + (L.src === 'register' ? ' (register)' : ' (assumed)') + '"') +
+      _plnField('plnCEv_' + l, plnLineName(l) + ': minutes a round', set.every, 'number', ' placeholder="' + formatNum(L.every, 0) + (L.src === 'register' ? ' (register)' : ' (assumed)') + '"');
+  }).join('');
+  f += _plnField('plnCPick', 'Pickling, kg an hour', c.pickKgH, 'number', ' placeholder="' + (B && B.pick ? B.pick.kgH + ' (assumed)' : '') + '"') +
+    _plnField('plnCOt', 'A new overtime line-hour, ₹', c.otLineHour, 'number', ' placeholder="' + PLN_CFG_DEFAULTS.otLineHour + ' (assumed)"') +
+    _plnField('plnCPow', 'The fixed part of the electricity bill, ₹ a month', c.powerFixed, 'number', ' placeholder="' + PLN_CFG_DEFAULTS.powerFixed + ' (assumed)"') +
+    _plnField('plnCCash', 'Cash now, ₹', c.cash, 'number', ' placeholder="' + (B && B.cash.src === 'statement' ? formatNum(B.cash.v, 0) + ' (statement)' : 'no statement') + '"');
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('The planner’s assumptions') + '<div class="inv-note">Blank reads the book where it measures the figure, else the assumption shown. A figure set here is used everywhere in the planner.</div><div class="inv-fields">' + f + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPlnCfgSave">Save</button></div></div>', { dismiss: true });
+}
+function plnCfgSave() {
+  if (!plnRegGate(plnCfgSave)) return;
+  var p = plnData(), c = Object.assign({}, p.cfg), pos = function(id) { var v = _plnNum(id); return v != null && v > 0 ? v : null; };
+  c.lines = {};
+  PLN_LINE_IDS.forEach(function(l) { var k = pos('plnCKg_' + l), e = pos('plnCEv_' + l); if (k || e) c.lines[l] = { kgRound: k, every: e }; });
+  c.pickKgH = pos('plnCPick'); c.otLineHour = pos('plnCOt'); c.powerFixed = _plnNum('plnCPow'); c.cash = _plnNum('plnCCash');
+  p.cfg = c;
+  closeOverlay();
+  saveState();
+  renderPlanner();
+  showToast('Assumptions saved');
+}
 function plnReportOpen() {}
 function plnReportRedraw() {}
 /* ===== THE APP'S OWN GUIDES (knowledge.js; docs/KNOWLEDGE_BASE.md) =====

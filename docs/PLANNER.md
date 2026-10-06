@@ -19,7 +19,7 @@ the device when the planner opens, and every register is the owner's own record.
 | Step | What | State |
 |---|---|---|
 | PL1 | The store and the registers: machines, the CQI-11 checklist, lenders, rates heard, work held back; the Planner page | Built |
-| PL2 | The engine: the book's month rebuilt from its parts; lines, pickling, cuts; the ledger | Not built |
+| PL2 | The engine: the book’s month rebuilt from its parts; lines, pickling, cuts; the ledger | Built |
 | PL3 | The screens: Plant (upgrade trees), Tech tree and checklist, Staff, Clients, Finance | Not built |
 | PL4 | Play: the board, goals, cards, new cards, the trials; the Ledger; A day | Not built |
 | PL4b | The report: the scenario as printed pages | Not built |

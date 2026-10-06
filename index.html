@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="5ef15886">
+<meta name="app-build" content="dfb6d2d9">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2098,6 +2098,34 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-pl-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 body.inv-desktop .inv-pl-split { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
 .inv-pl-stack { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+/* The board: a lane each, a move a button spanning its months. Lanes take the chart palette (§6.17). */
+body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.inv-pl-play > .inv-pl-wide, .inv-pl-play > #plnOutcome, .inv-pl-play > #plnDay, .inv-pl-play > #plnDayWhy { grid-column: 1 / -1; }
+.inv-pl-board { table-layout: fixed; min-width: calc(var(--content-max) * 0.8); }
+.inv-pl-board :is(thead th:first-child, tbody th[scope="row"]) { width: var(--filter-w); min-width: var(--filter-w); max-width: none; overflow: visible; white-space: normal; text-align: left; vertical-align: middle; font-weight: 600; color: var(--text-2); }
+.inv-pl-board thead th { vertical-align: top; }
+.inv-pl-board thead .inv-btn-link { padding: 0; min-height: var(--ctl-h-sm); }
+.inv-pl-board td { padding: var(--sp-2); height: auto; border-bottom: none; }
+.inv-pl-board tr[data-pl-lane] + tr[data-pl-lane]:has(> th) :is(th, td) { border-top: var(--hair) solid var(--border); }
+.inv-pl-board thead [aria-current="date"] { background: var(--accent-soft); }
+.inv-pl-pin { display: block; width: 100%; min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-md); color: var(--on-accent);
+  font: 600 var(--fs-12) var(--ff-base); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.inv-pl-pin:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-pl-lane-plant { background: var(--chart-2); } .inv-pl-lane-tech { background: var(--chart-6); } .inv-pl-lane-staff { background: var(--chart-7); }
+.inv-pl-lane-clients { background: var(--chart-1); } .inv-pl-lane-money { background: var(--chart-4); } .inv-pl-lane-custom { background: var(--chart-8); }
+.inv-pl-pin-never { opacity: 0.5; text-decoration: line-through; }
+.inv-pl-ach { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: var(--sp-8) 0; }
+/* A day on the clock: rounds coloured by client (inv-chart-c*), the overtime and night windows, waiting, lunch, the cut. */
+.inv-pl-day { display: block; width: 100%; min-width: calc(var(--content-max) * 0.6); height: auto; }
+.inv-pl-day-l { fill: var(--text-2); font: 600 var(--chart-fs-centre) var(--ff-base); }
+.inv-pl-day-ot { fill: var(--warning); opacity: 0.14; } .inv-pl-day-night { fill: var(--chart-6); opacity: 0.16; }
+.inv-pl-day-otr { opacity: 0.72; }
+.inv-pl-day-wait { fill: var(--warning); background: var(--warning); }
+.inv-pl-day-cut { fill: var(--danger); opacity: 0.18; background: var(--danger); }
+.inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
+.inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
+.inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
+body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
 </style>
 </head>
 <body>
@@ -44425,6 +44453,7 @@ function plnEdit(fn) {
   _plnResult = null; _plnReplay = null;
   saveState();
   renderPlanner();
+  plnPinRefresh();
 }
 function plnNameOf(k) {
   var r = null;
@@ -44467,6 +44496,7 @@ function plannerAction(action, btn) {
     case 'invPlnDayMode': _plnDayMode = d.id === 'now' ? 'now' : 'plan'; renderPlanner(); return true;
     case 'invPlnLedgerMonth': _plnMonth = +d.m; renderPlanner(); return true;
     case 'invPlnRoll': plnRoll(); return true;
+    case 'invPlnPin': plnPinOpen(d.key); return true;
     case 'invPlnReplay': plnReplayOne(); return true;
     case 'invPlnCard': plnCardEdit(d.id); return true;
     case 'invPlnCardSave': plnCardSave(d.id); return true;
@@ -44528,7 +44558,120 @@ function plnLoanToggle(id) {
 }
 
 /* ---------- The views (PL2–PL4 fill these) ---------- */
-function plnPlayHtml() { return '<div class="inv-panels">' + plnLendersHtml() + '</div>'; }
+/* ---------- Play: the board, the outcome, the lines this month, the hand ---------- */
+var PLN_LANES = [['plant', 'Plant'], ['tech', 'Tech'], ['staff', 'Staff'], ['clients', 'Clients'], ['money', 'Money'], ['custom', 'Your cards']];
+function plnPlayHtml() {
+  var P = plnPlanned(_plnMode);
+  return '<div class="inv-panels inv-pl-play">' + plnBoardHtml(P) + plnOutcomeHtml(P) + plnLinesNowHtml(P) + plnHandHtml(P) + (_plnReplay ? plnReplayHtml() : '') + '</div>';
+}
+/* The board: 24 months across, a lane each; a move is a button spanning its months, packed into rows so none overlap. */
+function plnBoardHtml(P) {
+  var head = '<tr><th scope="col">Lane</th>' + Array.apply(null, Array(PLN_N)).map(function(_, i) {
+    return '<th scope="col"' + (i === _plnMonth ? ' aria-current="date"' : '') + '><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnLedgerMonth" data-m="' + i + '" aria-label="' + escHtml(plnMonthLabel(i)) + '">' + escHtml(plnMonthLabel(i).split(' ')[0].slice(0, 3)) + '</button>' + (i === 0 || plnMonthLabel(i).indexOf('Jan') === 0 ? '<span class="inv-row-meta">' + escHtml('’' + plnMonthLabel(i).split(' ')[1]) + '</span>' : '') + '</th>';
+  }).join('') + '</tr>';
+  var body = PLN_LANES.map(function(lane) {
+    var pins = P.L.filter(function(mv) { return mv.lane === lane[0]; }).map(function(mv) { return { mv: mv, at: Math.max(0, mv.key === 'loan' ? mv.at : (mv.at < 0 ? (P.ready[mv.key] != null ? P.ready[mv.key] : 0) : mv.at)) }; })
+      .sort(function(a, b) { return a.at - b.at; });
+    var rows = [];
+    pins.forEach(function(pn) {
+      var w = Math.max(3, Math.min(PLN_N - pn.at, Math.ceil(pn.mv.label.length / 4))), r = 0;
+      while (rows[r] && rows[r].end > pn.at) r++;
+      rows[r] = rows[r] || { end: 0, cells: [] };
+      rows[r].cells.push({ at: pn.at, w: w, mv: pn.mv }); rows[r].end = pn.at + w;
+    });
+    if (!rows.length) rows.push({ end: 0, cells: [] });
+    return rows.map(function(r, ri) {
+      var tds = '', c = 0;
+      r.cells.forEach(function(cell) {
+        if (cell.at > c) tds += '<td colspan="' + (cell.at - c) + '"></td>';
+        var never = P.ready[cell.mv.key] == null, eff = P.ready[cell.mv.key];
+        tds += '<td colspan="' + cell.w + '"><button class="inv-pl-pin inv-pl-lane-' + lane[0] + (never ? ' inv-pl-pin-never' : '') + '" data-action="invPlnPin" data-key="' + escHtml(cell.mv.key) + '" title="' +
+          escHtml(cell.mv.label + (never ? ' · never takes effect: something it needs is not planned' : eff != null && eff > cell.at ? ' · takes effect ' + plnMonthLabel(Math.min(PLN_N - 1, eff)) : '')) + '">' + escHtml(cell.mv.label) + '</button></td>';
+        c = cell.at + cell.w;
+      });
+      if (c < PLN_N) tds += '<td colspan="' + (PLN_N - c) + '"></td>';
+      return '<tr data-pl-lane="' + lane[0] + '">' + (ri === 0 ? '<th scope="row" rowspan="' + rows.length + '">' + lane[1] + '</th>' : '') + tds + '</tr>';
+    }).join('');
+  }).join('');
+  return '<div class="inv-panel inv-panel-flush inv-pl-wide" id="plnBoard"><div class="inv-panel-head"><span class="inv-panel-title">The board <span class="inv-panel-count">' + P.L.length + ' moves</span></span>' +
+    '<span class="inv-panel-count">everything planned on every view · tap a move to shift it</span></div><div class="inv-scroll-x"><table class="inv-table inv-table-grid inv-pl-board"><thead>' + head + '</thead><tbody>' + body + '</tbody></table></div>' +
+    (P.L.length ? '' : '<div class="inv-empty">Nothing planned yet. Plan moves on Plant, Tech tree, Staff and Clients, play a loan or a card of your own, or Suggest a start (the CQI-11 path at its earliest).</div>') + '</div>';
+}
+function plnPinHtml(key) {
+  var P = plnPlanned(_plnMode), mv = P.L.find(function(x) { return x.key === key; });
+  if (!mv) return null;
+  var r = P.ready[key];
+  return '<div class="inv-dialog" data-pl-pin-dialog data-key="' + escHtml(key) + '">' + dialogHeadHtml(escHtml(mv.label)) + '<div class="inv-panel-body">' +
+    '<div class="inv-note">' + escHtml(r == null ? 'It never takes effect: something it needs is not planned (' + mv.needs.map(plnNameOf).join(', ') + ').' : 'Takes effect ' + plnMonthLabel(Math.min(PLN_N - 1, r)) + (mv.p != null ? ', if it comes through (' + Math.round(mv.p * 10) + ' in 10)' : '') + '.') + '</div>' +
+    '<div class="inv-toolbar">' + (key === 'loan' ? '<span class="inv-pl-when"><button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnLoanShift" data-step="-1" aria-label="Earlier">&lsaquo;</button><span class="inv-num">' + escHtml(plnMonthLabel(mv.at)) + '</span>' +
+      '<button class="inv-btn inv-btn-icon inv-btn-ghost inv-btn-sm" data-action="invPlnLoanShift" data-step="1" aria-label="Later">&rsaquo;</button></span>' : plnMoveCtlHtml(key, true)) + '</div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>';
+}
+function plnPinOpen(key) { var h = plnPinHtml(key); if (h) dialogOpen(h, { dismiss: true }); }
+/* After an edit, a pin's dialog shows its move as it is now, or shuts when the move went. */
+function plnPinRefresh() {
+  var d = document.querySelector('[data-pl-pin-dialog]');
+  if (!d) return;
+  var h = plnPinHtml(d.getAttribute('data-key'));
+  if (h) dialogOpen(h, { replace: true }); else closeOverlay();
+}
+
+/* The outcome: the plan's margin against today's and the goal, the 8-in-10 band once rolled, the goal month's spread, achievements. */
+function plnOutcomeHtml(P) {
+  var R = _plnResult, g = plnGoal(P.sc), target = plnGoalMargin(g, P.B), labels = P.months.map(function(_, i) { return plnMonthLabel(i); });
+  var series = [{ label: R ? 'The middle trial' : 'The plan, every move landing', values: R ? R.p50 : P.months.map(function(x) { return Math.round(x.margin); }) },
+    { label: 'As it runs', values: P.base.map(function(x) { return Math.round(x.margin); }), tone: 6, dashed: true }];
+  if (target != null) series.push({ label: 'The goal', values: P.months.map(function() { return Math.round(target); }), tone: 2, dashed: true });
+  var h = '<div class="inv-panel" id="plnOutcome"><div class="inv-panel-head"><span class="inv-panel-title">' + (R ? 'After ' + PLN_TRIALS + ' trials' : 'Margin a month') + '</span>' +
+    '<span class="inv-panel-count">' + escHtml(R ? Math.round(R.red * 100) + '% dip below zero · CQI-11 in time in ' + Math.round(R.cqiShare * 100) + '%' : 'roll the trials for the odds') + '</span></div>' +
+    chartLines(labels, series, { ariaLabel: 'Margin a month', band: R ? R.p10.map(function(v, i) { return { lo: v, hi: R.p90[i] }; }) : null, maxLabels: 6 });
+  if (R) {
+    var lo = Math.min.apply(null, R.atGoal), hi = Math.max.apply(null, R.atGoal), step = Math.max(10000, Math.ceil((hi - lo) / 10 / 10000) * 10000), from = Math.floor(lo / step) * step, bins = [];
+    for (var v = from; v <= hi; v += step) bins.push({ label: formatInrShort(v), value: R.atGoal.filter(function(x) { return x >= v && x < v + step; }).length });
+    h += '<div class="inv-note">' + escHtml('Margin in ' + plnMonthLabel(g.at) + ', every trial' + (target != null ? ' (the goal: ' + formatInrShort(target) + ')' : '')) + '</div>' + chartBars(bins, { unit: 'count', ariaLabel: 'Trials by margin' });
+    h += plnAchievementsHtml(P, R) + '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPlnReplay">Replay one run</button><button class="inv-btn inv-btn-ghost" data-action="invPlnView" data-v="ledger">How each month adds up</button></div>';
+  } else h += '<div class="inv-toolbar"><button class="inv-btn inv-btn-ghost" data-action="invPlnView" data-v="ledger">How each month adds up</button></div>';
+  return h + '</div>';
+}
+function plnAchievementsHtml(P, R) {
+  var list = [['Lab ready', P.ready.lab2 != null], ['A first rate rise', P.L.some(function(mv) { return mv.ask; })], ['CQI-11 in time, half the trials', R.cqiShare >= 0.5],
+    ['Never in the red, 9 in 10', R.red < 0.1], ['Margin up ₹50k a month', R.p50[PLN_N - 1] >= P.base[PLN_N - 1].margin + 50000],
+    ['No line left short', P.months.every(function(x) { return x.lostRev < 1000; })], ['Pickling keeps up', P.months.every(function(x) { return x.pickShare >= 0.999; })]];
+  return '<div class="inv-pl-ach">' + list.map(function(a) { return '<span class="inv-badge ' + (a[1] ? 'inv-badge-ok' : 'inv-badge-neutral') + '" data-pl-ach="' + (a[1] ? 'got' : 'not') + '">' + escHtml((a[1] ? '✓ ' : '') + a[0]) + '</span>'; }).join('') + '</div>';
+}
+function plnLinesNowHtml(P) {
+  var mo = P.months[_plnMonth], max = PLN_SHIFT.general + PLN_SHIFT.morning + PLN_SHIFT.evening;
+  return '<div class="inv-panel inv-panel-flush" id="plnLinesNow"><div class="inv-panel-head"><span class="inv-panel-title">The lines in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span><span class="inv-panel-count">hours a day each must run</span></div>' +
+    PLN_LINE_IDS.map(function(l) {
+      var x = mo.lines[l], tone = x.need > x.hours + 0.01 ? 'danger' : x.hours > max - 0.5 ? 'warning' : x.hours > PLN_SHIFT.general ? 'info' : 'ok';
+      var word = x.need > x.hours + 0.01 ? plnHm(x.need - x.hours) + ' short' : x.hours > PLN_SHIFT.general ? plnHm(x.hours - PLN_SHIFT.general) + ' overtime' : x.demand > 0 ? 'within the shift' : 'idle';
+      return '<div class="inv-row inv-row-2" data-pl-linenow="' + l + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(plnLineName(l)) + '</span><span class="inv-row-meta">' + escHtml(plnHm(x.hours) + ' h · ' + plnKg(x.plated) + ' a day') + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(word) + '</span></span></div>';
+    }).join('') + '</div>';
+}
+function plnHandHtml(P) {
+  var sc = P.sc, cards = (sc && sc.cards) || [];
+  return '<div class="inv-panel inv-panel-flush" id="plnHand"><div class="inv-panel-head"><span class="inv-panel-title">Your cards <span class="inv-panel-count">' + cards.length + '</span></span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCard">New card</button></div>' +
+    (cards.length ? cards.map(function(k) {
+      var key = 'card:' + k.id, inPlan = sc.plan && sc.plan[key] != null;
+      return '<div class="inv-row inv-row-2" data-pl-card="' + escHtml(k.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(plnCardSays(k)) + '</span></span>' +
+        '<span class="inv-row-end">' + plnMoveCtlHtml(key, inPlan, 1) + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCard" data-id="' + escHtml(k.id) + '">Edit</button></span></div>';
+    }).join('') : '<div class="inv-empty">A move the planner does not know: new work at a rate on a line, more kilos a round on a line, or a saving a month, with its cost and its chance. New card makes one.</div>') +
+    '<div class="inv-panel-body inv-note">The loan is played from Finance → Lenders, one at a time.</div></div>';
+}
+function plnCardSays(k) {
+  return [k.why || '', k.kind === 'volume' ? formatNum(+k.tonnes || 0, 1) + ' t a month at ₹' + formatNum(+k.rate || 0, 2) + '/kg on ' + plnLineName(k.line || 'vat-a2') : '',
+    k.kind === 'line' ? plnLineName(k.line || 'vat-a1') + ': ' + formatNum(+k.kgRound || 0, 0) + ' kg more a round' : '', k.kind === 'save' ? formatCurrency(+k.gain || 0) + ' a month saved' : '',
+    k.cost ? formatCurrency(k.cost) + ' once' : '', k.run ? formatCurrency(k.run) + ' a month' : '', Math.round((k.p != null ? k.p : 0.7) * 10) + ' in 10', k.needs ? 'needs ' + plnNameOf(k.needs) : ''].filter(Boolean).join(' · ');
+}
+function plnReplayHtml() {
+  var t = _plnReplay.t;
+  return '<div class="inv-panel inv-panel-flush" id="plnReplay"><div class="inv-panel-head"><span class="inv-panel-title">One run, played out</span><span class="inv-panel-count">' + escHtml('trial ' + _plnReplay.n + ' · lowest cash ' + formatInrShort(t.low)) + '</span></div>' +
+    (t.events.length ? t.events.slice(0, 14).map(function(e) {
+      return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (e[2] === 'ok' ? 'ok' : e[2] === 'danger' ? 'danger' : 'warning') + '">' + escHtml(e[1]) + '</span></span></span><span class="inv-row-end"><span class="inv-num">' + escHtml(plnMonthLabel(Math.min(PLN_N - 1, e[0]))) + '</span></span></div>';
+    }).join('') : '<div class="inv-empty">Nothing happened in this run that the plan did not already say.</div>') + '</div>';
+}
 function plnLedgerHtml() {
   var P = plnPlanned(_plnMode), m = _plnMonth, mo = P.months[m], b = P.base[m], B = P.B;
   var rows = [
@@ -44596,7 +44739,64 @@ function plnCostRows(mo, b) {
     ['Electricity', c.power, bc.power, formatCurrency(C.powerFixed) + ' fixed (assumed) + ₹' + formatNum(C.powerKg, 2) + '/kg, ' + src('power')],
     ['Consumables, effluent, upkeep', c.other, bc.other, '₹' + formatNum(C.otherKg, 2) + '/kg plated, ' + src('other')]];
 }
-function plnDayHtml() { return ''; }
+/* ---------- A day: the month divided by its working days, drawn on the clock ---------- */
+function plnDayHtml() {
+  var P = plnPlanned(_plnMode), mo = _plnDayMode === 'now' ? P.base[_plnMonth] : P.months[_plnMonth], B = P.B;
+  var X0 = 96, W = 1000, SPAN = 22, X = function(h) { return X0 + (h - 6) / SPAN * (W - X0 - 12); };
+  var rowH = 46, H = 30 + (PLN_LINE_IDS.length + 1) * rowH + 24;
+  var palette = {}; B.clients.forEach(function(c, i) { palette[c.id] = i % 8; }); palette.card = 7;
+  var s = '<svg class="inv-pl-day" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="An average day on the lines">';
+  for (var hh = 6; hh <= 28; hh += 2) s += '<line x1="' + X(hh) + '" x2="' + X(hh) + '" y1="20" y2="' + (H - 20) + '" class="inv-chart-grid"/><text x="' + X(hh) + '" y="14" text-anchor="' + (hh === 28 ? 'end' : 'middle') + '" class="inv-chart-grid-label">' + (hh % 24) + ':00</text>';
+  var cutAt = 12.25, cutLen = mo.cutH, rounds = 0;
+  PLN_LINE_IDS.forEach(function(k, li) {
+    var l = mo.lines[k], y = 26 + li * rowH;
+    s += '<text x="4" y="' + (y + 20) + '" class="inv-pl-day-l">' + escHtml(plnLineName(k)) + '</text><text x="4" y="' + (y + 33) + '" class="inv-chart-grid-label">' + escHtml(plnKg(l.plated)) + '</text>';
+    var need = l.hours, wins = [];
+    var g = Math.min(need, PLN_SHIFT.general); if (g > 0) wins.push([8.5, 8.5 + g + (g > 4.5 ? 0.5 : 0), 'gen']);
+    var mor = Math.min(Math.max(0, need - PLN_SHIFT.general), PLN_SHIFT.morning); if (mor > 0) wins.push([8.5 - mor, 8.5, 'ot']);
+    var eve = Math.min(Math.max(0, need - PLN_SHIFT.general - PLN_SHIFT.morning), PLN_SHIFT.evening); if (eve > 0) wins.push([17, 17 + eve, 'ot']);
+    var nt = Math.max(0, need - PLN_SHIFT.general - PLN_SHIFT.morning - PLN_SHIFT.evening); if (nt > 0) wins.push([20, 20 + nt, 'night']);
+    var mix = {}, tot = 0;
+    mo.rows.forEach(function(r) { if (r.line === k && r.kgMo > 0) { mix[r.client] = (mix[r.client] || 0) + r.kgMo; tot += r.kgMo; } });
+    var n = Math.round(l.plated / Math.max(1, l.kgRound)), seq = [], acc = {};
+    for (var q = 0; q < n; q++) { var best = null, bv = -1e9; Object.keys(mix).forEach(function(cid) { var v = (q + 1) * mix[cid] / tot - (acc[cid] || 0); if (v > bv) { bv = v; best = cid; } }); acc[best] = (acc[best] || 0) + 1; seq.push(best); }
+    var waitEvery = mo.pickShare < 0.999 ? Math.max(1, Math.round(1 / Math.max(0.05, 1 - mo.pickShare))) : 0, qi = 0, step = l.every / 60;
+    wins.sort(function(a, b) { return a[0] - b[0]; }).forEach(function(w) {
+      var t = w[0];
+      if (w[2] !== 'gen') s += '<rect x="' + X(w[0]) + '" y="' + (y + 2) + '" width="' + (X(w[1]) - X(w[0])) + '" height="36" rx="4" class="inv-pl-day-' + w[2] + '"/>';
+      var guard = 0;
+      while (qi < seq.length && t + step <= w[1] + 0.001 && guard++ < 400) {
+        if (w[2] === 'gen' && t >= 13 && t < 13.5) { t = 13.5; continue; }
+        if (cutLen > 0.01 && t + step > cutAt && t < cutAt + cutLen) { t = cutAt + cutLen; continue; }
+        if (waitEvery && qi > 0 && qi % waitEvery === 0 && !acc['w' + qi]) { acc['w' + qi] = 1; s += '<rect x="' + X(t) + '" y="' + (y + 6) + '" width="' + Math.max(1, X(t + step) - X(t) - 1) + '" height="28" class="inv-pl-day-wait"><title>Waiting for pickling</title></rect>'; t += step; continue; }
+        var cid = seq[qi++];
+        s += '<rect x="' + X(t) + '" y="' + (y + 6) + '" width="' + Math.max(1, X(t + step) - X(t) - 1.2) + '" height="28" rx="2" class="inv-chart-c' + (palette[cid] != null ? palette[cid] : 7) + (w[2] === 'gen' ? '' : ' inv-pl-day-otr') + '"><title>' + escHtml((cid === 'card' ? 'Your cards' : plnClientNameOf(cid)) + ' · ' + formatNum(l.kgRound, 0) + ' kg') + '</title></rect>';
+        rounds++; t += step;
+      }
+    });
+  });
+  var py = 26 + PLN_LINE_IDS.length * rowH;
+  s += '<text x="4" y="' + (py + 22) + '" class="inv-pl-day-l">Pickling</text><rect x="' + X(8.5) + '" y="' + (py + 10) + '" width="' + Math.max(2, X(8.5 + mo.pickH + mo.cutH) - X(8.5)) + '" height="18" rx="3" class="inv-pl-day-pick' + (mo.pickShare < 0.999 ? ' inv-pl-day-short' : '') + '"><title>' + escHtml(plnKg(mo.pickCap) + ' it can feed in ' + plnHm(mo.pickH) + ' h') + '</title></rect>';
+  s += '<rect x="' + X(13) + '" y="20" width="' + (X(13.5) - X(13)) + '" height="' + (H - 40) + '" class="inv-pl-day-lunch"/>';
+  if (cutLen > 0.01) s += '<rect x="' + X(cutAt) + '" y="20" width="' + Math.max(2, X(cutAt + cutLen) - X(cutAt)) + '" height="' + (H - 40) + '" class="inv-pl-day-cut"/><text x="' + X(cutAt + cutLen / 2) + '" y="' + (H - 6) + '" text-anchor="middle" class="inv-chart-grid-label">' + formatNum(cutLen * 60, 0) + ' min cut</text>';
+  s += '</svg>';
+  var dayKg = PLN_LINE_IDS.reduce(function(t, k) { return t + mo.lines[k].plated; }, 0);
+  var tile = function(label, value, sub) { return '<div class="inv-tile"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></div>'; };
+  var h = '<div class="inv-panel" id="plnDay"><div class="inv-panel-head"><span class="inv-panel-title">An average day in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span>' +
+    '<span class="inv-seg inv-seg-fit" role="group" aria-label="The day"><button class="inv-seg-btn" aria-pressed="' + (_plnDayMode === 'now') + '" data-action="invPlnDayMode" data-id="now">As it runs</button><button class="inv-seg-btn" aria-pressed="' + (_plnDayMode === 'plan') + '" data-action="invPlnDayMode" data-id="plan">With the plan</button></span></div>' +
+    '<div class="inv-tiles">' + tile('Plated in the day', escHtml(plnKg(dayKg)), escHtml(rounds + ' rounds on ' + PLN_LINE_IDS.length + ' lines')) +
+      tile('× ' + B.wd + ' working days', escHtml(plnKg(dayKg * B.wd)), escHtml('the month on the Ledger: ' + plnKg(mo.plated))) +
+      tile('Overtime', escHtml(formatNum(mo.otH, 1) + ' line-h'), escHtml('today ' + formatNum(B.otBase, 1) + (mo.nightH ? ' · night ' + formatNum(mo.nightH, 1) : ''))) +
+      tile('Lost', escHtml(formatNum(mo.cutH * 60, 0) + ' min'), escHtml(mo.pickShare < 0.999 ? 'to cuts · pickling feeds ' + Math.round(mo.pickShare * 100) + '% of what the lines could take' : 'to cuts · pickling keeps up')) + '</div>' +
+    '<div class="inv-scroll-x">' + s + '</div>' +
+    '<div class="inv-chart-keys">' + B.clients.filter(function(c) { return (mo.byClient[c.id] || 0) > 0; }).slice(0, 8).map(function(c) { return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-c' + palette[c.id] + '"></span>' + escHtml(plnClientShort(c)) + '</span>'; }).join('') +
+      '<span class="inv-chart-key"><span class="inv-chart-swatch inv-pl-day-wait"></span>Waiting for pickling</span><span class="inv-chart-key"><span class="inv-chart-swatch inv-pl-day-cut"></span>Power cut</span></div>' +
+    '<div class="inv-note">Each line runs the general shift first, then the morning block from 6:00, then the evening to 8 PM, then a night shift where the plan has a night crew: the hours its kilos need at its round. Rounds are coloured by client in proportion to the line’s work. The month stepper above moves the day.</div></div>';
+  h += '<div class="inv-panel inv-panel-flush" id="plnDayWhy"><div class="inv-panel-head"><span class="inv-panel-title">Why the day is as it is</span></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kilos to plate</th><th class="inv-num">Kg an hour</th><th class="inv-num">Hours needed</th><th class="inv-num">Hours run</th><th class="inv-num">Plated</th></tr></thead><tbody>' +
+    PLN_LINE_IDS.map(function(k) { var l = mo.lines[k]; return '<tr><td>' + escHtml(plnLineName(k)) + '<div class="inv-row-meta">' + escHtml(formatNum(l.kgRound, 0) + ' kg a round every ' + formatNum(l.every, 0) + ' min') + '</div></td><td class="inv-num">' + escHtml(plnKg(l.demand)) + '</td><td class="inv-num">' + formatNum(l.kgH, 0) + '</td>' +
+      '<td class="inv-num">' + plnHm(l.need) + '</td><td class="inv-num">' + plnHm(l.hours) + '</td><td class="inv-num">' + escHtml(plnKg(l.plated)) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
+  return '<div class="inv-panels inv-pl-play">' + h + '</div>';
+}
 
 /* ---------- Plant: what each line can do, the machines, an upgrade tree per station ---------- */
 function plnPlantHtml() {
@@ -44747,11 +44947,62 @@ function plnFinanceHtml() {
   return h + plnLendersHtml() + plnHeardHtml() + '</div>';
 }
 
-function plnRoll() {}
-function plnReplayOne() {}
-function plnCardEdit() {}
-function plnCardSave() {}
-function plnCardRemove() {}
+function plnRoll() {
+  var P = plnPlanned(_plnMode);
+  if (!P) return;
+  _plnResult = plnTrials(); _plnReplay = null;
+  plnSetView('play'); _plnMoved = false;
+  renderPlanner();
+  showToast(PLN_TRIALS + ' trials rolled: the goal in ' + Math.round(_plnResult.score * 100) + '%');
+}
+function plnReplayOne() {
+  if (!_plnResult) return;
+  var n = Math.floor(Math.random() * _plnResult.all.length);
+  _plnReplay = { n: n + 1, t: _plnResult.all[n] };
+  renderPlanner();
+}
+/* A card of the owner's own: what it changes, its cost, its chance, what it needs first. Kept on the scenario. */
+var PLN_CARD_KINDS = [['volume', 'New work: tonnes at a rate, on a line'], ['line', 'A line: more kilos a round'], ['save', 'A cost: saves a sum a month']];
+function plnCardEdit(id, kind, title) {
+  var sc = plnScenario(), k = id && sc ? (sc.cards || []).find(function(c) { return c.id === id; }) : null, v = Object.assign({}, k || { kind: 'volume', p: 0.7, lag: 1, line: 'vat-a2' });
+  if (kind) v.kind = kind;
+  if (title != null) v.title = title;
+  var needs = [['', 'Nothing']].concat(PLN_TECH.map(function(t) { return [t.id, t.t]; }), PLN_ROLES.map(function(r) { return [r.id, r.t]; }));
+  var lineOpts = PLN_LINE_IDS.map(function(l) { return [l, plnLineName(l)]; });
+  var body = v.kind === 'volume' ? _plnField('plnCTonnes', 'Tonnes a month', v.tonnes, 'number') + _plnField('plnCRate', 'At ₹ a kg', v.rate, 'number') + _plnSelect('plnCLine', 'On the line', lineOpts, v.line)
+    : v.kind === 'line' ? _plnSelect('plnCLine', 'The line', lineOpts, v.line || 'vat-a1') + _plnField('plnCKgRound', 'Kilos more a round', v.kgRound, 'number')
+    : _plnField('plnCGain', 'Saves a month, ₹', v.gain, 'number');
+  var html = '<div class="inv-dialog" data-pl-card-dialog>' + dialogHeadHtml(k ? 'Edit the card' : 'New card') + '<div class="inv-fields">' +
+    _plnField('plnCTitle', 'What it is', v.title) +
+    '<label class="inv-field"><span class="inv-field-label">What it changes</span><select class="inv-input" id="plnCKind" data-pl-card-kind="1" data-pl-card-id="' + escHtml(id || '') + '">' + PLN_CARD_KINDS.map(function(o) { return '<option value="' + o[0] + '"' + (o[0] === v.kind ? ' selected' : '') + '>' + o[1] + '</option>'; }).join('') + '</select></label>' +
+    body + _plnField('plnCCost', 'Costs once, ₹', v.cost, 'number') + _plnField('plnCRun', 'Costs a month, ₹', v.run, 'number') +
+    _plnField('plnCP', 'Chance it works, in 10', v.p != null ? Math.round(v.p * 10) : 7, 'number', ' min="1" max="10"') + _plnField('plnCLag', 'Months before it counts', v.lag != null ? v.lag : 1, 'number') +
+    _plnSelect('plnCNeeds', 'Needs first', needs, v.needs || '') + _plnField('plnCWhy', 'One line on why', v.why) + '</div>' +
+    '<div class="inv-dialog-foot">' + (k ? '<button class="inv-btn inv-btn-danger" data-action="invPlnCardRetire" data-id="' + escHtml(k.id) + '">Remove</button>' : '') +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPlnCardSave"' + (k ? ' data-id="' + escHtml(k.id) + '"' : '') + '>' + (k ? 'Save' : 'Add to my cards') + '</button></div></div>';
+  dialogOpen(html, { dismiss: true, replace: !!document.querySelector('[data-pl-card-dialog]') });
+}
+function plnCardSave(id) {
+  var title = _plnVal('plnCTitle');
+  if (!title) return uiAlert({ title: 'Name the card', body: 'A card needs to say what it is.' });
+  var kind = _plnVal('plnCKind'), num = function(x) { var v = _plnNum(x); return v != null && v >= 0 ? v : 0; };
+  var rec = { title: title.slice(0, 60), kind: kind, tonnes: num('plnCTonnes'), rate: num('plnCRate'), line: _plnVal('plnCLine') || 'vat-a2', kgRound: num('plnCKgRound'), gain: num('plnCGain'),
+    cost: num('plnCCost'), run: num('plnCRun'), p: Math.max(1, Math.min(10, num('plnCP') || 7)) / 10, lag: num('plnCLag'), needs: _plnVal('plnCNeeds'), why: _plnVal('plnCWhy') };
+  if (kind === 'volume' && !(rec.tonnes > 0 && rec.rate > 0)) return uiAlert({ title: 'Tonnes and a rate', body: 'New work needs its tonnes a month and the rate it comes at.' });
+  closeOverlay();
+  plnEdit(function(sc) {
+    var k = id ? sc.cards.find(function(c) { return c.id === id; }) : null;
+    if (k) Object.assign(k, rec); else sc.cards.push(Object.assign({ id: plnId('CD') }, rec));
+  });
+  showToast(id ? 'Card saved' : 'Card added: plan it from Your cards');
+}
+function plnCardRemove(id) {
+  uiConfirm({ title: 'Remove this card?', body: 'It leaves this plan; nothing else is touched.', okLabel: 'Remove', danger: true }).then(function(ok) {
+    if (!ok) return;
+    closeOverlay();
+    plnEdit(function(sc) { sc.cards = sc.cards.filter(function(c) { return c.id !== id; }); delete sc.plan['card:' + id]; });
+  });
+}
 /* The assumptions: whatever the book does not measure, the owner sets (blank = measured, else assumed). */
 function plnCfgEdit() {
   if (!plnRegGate(plnCfgEdit)) return;

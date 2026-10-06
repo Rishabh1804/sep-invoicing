@@ -2076,3 +2076,31 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-pl-split { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); }
 body.inv-desktop .inv-pl-split { grid-template-columns: minmax(0, 1fr) minmax(0, 2fr); align-items: start; }
 .inv-pl-stack { display: flex; flex-direction: column; gap: var(--gap); min-width: 0; }
+/* The board: a lane each, a move a button spanning its months. Lanes take the chart palette (§6.17). */
+body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.inv-pl-play > .inv-pl-wide, .inv-pl-play > #plnOutcome, .inv-pl-play > #plnDay, .inv-pl-play > #plnDayWhy { grid-column: 1 / -1; }
+.inv-pl-board { table-layout: fixed; min-width: calc(var(--content-max) * 0.8); }
+.inv-pl-board :is(thead th:first-child, tbody th[scope="row"]) { width: var(--filter-w); min-width: var(--filter-w); max-width: none; overflow: visible; white-space: normal; text-align: left; vertical-align: middle; font-weight: 600; color: var(--text-2); }
+.inv-pl-board thead th { vertical-align: top; }
+.inv-pl-board thead .inv-btn-link { padding: 0; min-height: var(--ctl-h-sm); }
+.inv-pl-board td { padding: var(--sp-2); height: auto; border-bottom: none; }
+.inv-pl-board tr[data-pl-lane] + tr[data-pl-lane]:has(> th) :is(th, td) { border-top: var(--hair) solid var(--border); }
+.inv-pl-board thead [aria-current="date"] { background: var(--accent-soft); }
+.inv-pl-pin { display: block; width: 100%; min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-md); color: var(--on-accent);
+  font: 600 var(--fs-12) var(--ff-base); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
+.inv-pl-pin:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-pl-lane-plant { background: var(--chart-2); } .inv-pl-lane-tech { background: var(--chart-6); } .inv-pl-lane-staff { background: var(--chart-7); }
+.inv-pl-lane-clients { background: var(--chart-1); } .inv-pl-lane-money { background: var(--chart-4); } .inv-pl-lane-custom { background: var(--chart-8); }
+.inv-pl-pin-never { opacity: 0.5; text-decoration: line-through; }
+.inv-pl-ach { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: var(--sp-8) 0; }
+/* A day on the clock: rounds coloured by client (inv-chart-c*), the overtime and night windows, waiting, lunch, the cut. */
+.inv-pl-day { display: block; width: 100%; min-width: calc(var(--content-max) * 0.6); height: auto; }
+.inv-pl-day-l { fill: var(--text-2); font: 600 var(--chart-fs-centre) var(--ff-base); }
+.inv-pl-day-ot { fill: var(--warning); opacity: 0.14; } .inv-pl-day-night { fill: var(--chart-6); opacity: 0.16; }
+.inv-pl-day-otr { opacity: 0.72; }
+.inv-pl-day-wait { fill: var(--warning); background: var(--warning); }
+.inv-pl-day-cut { fill: var(--danger); opacity: 0.18; background: var(--danger); }
+.inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
+.inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
+.inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
+body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }

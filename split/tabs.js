@@ -327,7 +327,7 @@ function renderHomeWidgets() {
 
   const el = document.getElementById('recentInvoices');
   if (!homeWidgetSeen('recent')) { el.innerHTML = ''; return; }
-  const recent = [...S.invoices].sort((a,b) => (b.createdAt||0) - (a.createdAt||0)).slice(0, 10);
+  const recent = homeRecentInvoices(10);
   if (recent.length === 0) {
     el.innerHTML = '<div class="inv-empty">' +
       '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
@@ -336,15 +336,20 @@ function renderHomeWidgets() {
       '</div>';
     return;
   }
-  el.innerHTML = recent.map(inv => {
-    return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '">' +
-      '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
-      '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
-      // The date leads: after a long client name it was the part cut off.
-      '<span class="inv-row-meta">' + escHtml(formatDate(inv.date)) + ' &middot; ' + escHtml(inv.clientName) + '</span></button>' +
-      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
-      '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print">' + ICON_PRINT + '</button></span></div>';
-  }).join('');
+  el.innerHTML = recent.map(homeRecentRowHtml).join('');
+}
+/* The invoices made last, newest first. */
+function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
+/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Today → Needs you and the
+   Pulse widget draw the same row). */
+function homeRecentRowHtml(inv) {
+  return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '" data-recent-inv="' + escHtml(inv.id) + '">' +
+    '<button class="inv-row-main" data-action="invViewInvoiceDetail" data-id="' + escHtml(inv.id) + '">' +
+    '<span class="inv-row-title inv-id">' + escHtml(inv.displayNumber) + '</span>' +
+    // The date leads: after a long client name it was the part cut off.
+    '<span class="inv-row-meta">' + escHtml(formatDate(inv.date)) + ' &middot; ' + escHtml(inv.clientName) + '</span></button>' +
+    '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(inv.grandTotal) + '</span>' + getStateBadgeHtml(inv) + '</span>' +
+    '<button class="inv-btn inv-btn-icon" data-action="invPreviewInvoice" data-id="' + escHtml(inv.id) + '" aria-label="Print ' + escHtml(inv.displayNumber) + '" title="Print">' + ICON_PRINT + '</button></span></div>';
 }
 
 

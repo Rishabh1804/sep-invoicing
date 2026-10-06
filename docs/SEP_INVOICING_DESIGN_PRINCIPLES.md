@@ -326,7 +326,7 @@ bar and the content, and is amended where marked.
   detour from every other tab). On the desktop Settings is the sidebar's last entry instead.
 - **Sub-tabs** sit directly under the top bar, inside the same surface (§6.4, underline tabs), and scroll
   horizontally when they do not fit — never cut off, never wrap.
-- **Bottom bar** (`--nav-h`): **Today · Office · Add · Floor · Money** (Direction B; there is no More), icon + `--t-micro`
+- **Bottom bar** (`--nav-h`): **Today · Office · Add · Floor · Money · Insights** (Direction B, Insights added 6 Oct 2026; there is no More), icon + `--t-micro`
   label; the active workspace is `--accent` with a 2px accent rule on its top edge; Add is the shell's primary. Each
   workspace carries the red count of the red rows that jump into it.
 - **No floating action button.** The primary action is in the top bar. (v1.0 had both on Clients and Items.)

@@ -49,12 +49,12 @@ const MAP: Record<string, string[]> = {
 };
 
 test.describe('P134: workspaces on the phone', () => {
-  test('the bar is Today · Office · Add · Floor · Money with no More, drawn from the map', async ({ page }) => {
+  test('the bar is Today · Office · Add · Floor · Money · Insights with no More, drawn from the map', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-navbar > .inv-navbar-item')).toHaveText([/^Today/, /^Office/, /^Add$/, /^Floor/, /^Money/]);
+    await expect(page.locator('.inv-navbar > .inv-navbar-item')).toHaveText([/^Today/, /^Office/, /^Add$/, /^Floor/, /^Money/, /^Insights/]);
     await expect(page.locator('.inv-navbar > .inv-navbar-item:nth-child(3)')).toHaveAttribute('data-action', 'invAddOpen');
     await expect(page.locator('.inv-navbar-add')).toHaveAttribute('data-shell-primary', '');
-    expect(await g(page, `WORKSPACES.filter(function(w){ return w.bar; }).map(function(w){ return w.label; })`)).toEqual(['Today', 'Office', 'Floor', 'Money']);
+    expect(await g(page, `WORKSPACES.filter(function(w){ return w.bar; }).map(function(w){ return w.label; })`)).toEqual(['Today', 'Office', 'Floor', 'Money', 'Insights']);
     // More is gone: its button, its sheet and the code behind them.
     await expect(page.locator('.inv-navbar-more, #moreSheet, .inv-sheet, #moreBadge')).toHaveCount(0);
     expect(await g(page, `[typeof openMoreSheet, typeof closeMoreSheet, typeof MORE_TABS, typeof sideGo]`)).toEqual(['undefined', 'undefined', 'undefined', 'undefined']);
@@ -62,17 +62,14 @@ test.describe('P134: workspaces on the phone', () => {
     for (const h of await page.locator('.inv-navbar > .inv-navbar-item').evaluateAll(els => els.map(e => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
   });
 
-  test('each workspace item opens its workspace and is on for every page it holds; Insights lights none', async ({ page }) => {
+  test('each workspace item opens its workspace and is on for every page it holds, Insights too', async ({ page }) => {
     await loadAppWithState(page, state());
     for (const [ws, ids] of Object.entries(MAP)) {
       for (const id of await present(page, ids)) {
         await g(page, `switchTab(${JSON.stringify(id)})`);
         await expect(page.locator(`#${id}`)).toHaveClass(/inv-page-active/);
-        if (ws === 'insights') await expect(page.locator('.inv-navbar-item-on')).toHaveCount(0);
-        else {
-          await expect(bar(page, ws)).toHaveClass(/inv-navbar-item-on/);
-          await expect(page.locator('.inv-navbar-item-on')).toHaveCount(1);
-        }
+        await expect(bar(page, ws)).toHaveClass(/inv-navbar-item-on/);
+        await expect(page.locator('.inv-navbar-item-on')).toHaveCount(1);
         expect(await g(page, `wsOf(${JSON.stringify(id)})`)).toBe(ws);
       }
     }

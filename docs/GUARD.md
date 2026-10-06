@@ -30,7 +30,8 @@ B's workspaces are where that lands: a role is a set of workspaces and views, an
 - **Roles** (the owner's three people, and the billing desk): **Owner** (everything; the admin), **Office** (Today, Office,
   Add for challans and invoices; no wages, bank or margins), **Supervisor** (Today, Floor, Add for the floor's inputs; no
   money), **Floor** (Today, Floor → Day and the entries they make; no money). Each role's workspaces, views, whether it sees
-  money, and what it may change are switches the owner sets.
+  money, and what it may change are switches the owner sets. Seeing money opens Finance, Stats, Reports and the Planner (the
+  Planner shows clients' ₹/kg, labour and lenders); its registers and assumptions are saved under the Settings permission.
 - **A PIN or password, 4 characters or more**, checked against a salted, slow hash (PBKDF2); never stored as itself, never
   in a file the app can read without it. Five wrong tries lock that ID for 30 seconds, doubling to 15 minutes; the others
   still unlock (counted per ID since the QA chain of 2 Oct 2026: one count for the device was cleared by any ID's right PIN).

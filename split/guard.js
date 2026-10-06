@@ -45,10 +45,10 @@ var GRD_GROUPS = [['billing', 'Invoices and credit notes'], ['rates', 'Rates and
 /* Every page a role may be given, in the bar's order; a page this build does not have (Direction B's Pipeline and Floor
    day) is kept in a role's list and skipped on screen. */
 var GRD_PAGE_IDS = ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
-  'pageStaff', 'pageProduction', 'pageStock', 'pagePower', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory'];
+  'pageStaff', 'pageProduction', 'pageStock', 'pagePower', 'pageFinance', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory'];
 var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor day' };
 /* Pages that are money: opened only by a role that sees money, whatever its page switches say. */
-var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1 };
+var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1, pagePlanner: 1 };
 
 /* The roles' defaults (docs/GUARD.md): the owner everything; Office the billing desk; Supervisor and Floor the floor. */
 function grdRoleDefaults() {
@@ -1068,7 +1068,7 @@ function grdRolesGridHtml() {
   GRD_GROUPS.forEach(function(g) { h += row(g[1], 'data-grd-may="' + g[0] + '"', function(x) { return x.may.indexOf(g[0]) >= 0; }); });
   h += '<tr class="inv-table-group"><td colspan="4">What it sees</td></tr>' +
     row('Wages (Staff → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
-    row('Money (Finance, Stats, Reports)', 'data-grd-flag="finance"', function(x) { return x.finance; });
+    row('Money (Finance, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
   return h + '</tbody></table></div>';
 }
 function grdUsersBody() {

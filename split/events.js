@@ -456,6 +456,7 @@ function onDocClick(e) {
       if (kbAction(action, btn)) break;
       if (qtAction(action, btn)) break;
       if (rptAction(action, btn)) break;
+      if (plannerAction(action, btn)) break;
       if (advAction(action, btn)) break;
       if (learnAction(action, btn)) break;
       if (aregAction(action, btn)) break;
@@ -525,6 +526,7 @@ function onDocChange(e) {
   if (todoOnChange(e.target)) return;
   if (relayOnChange(e.target)) return;
   if (aregOnChange(e.target)) return;
+  if (plannerOnChange(e.target)) return;
   if (prodOnChange(e.target)) return;
   if (qtOnChange(e.target)) return;
   // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an

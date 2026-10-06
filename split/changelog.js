@@ -74,6 +74,14 @@ var CHG_TRACK = [
   { path: 'relayLearn', kind: 'skip' },
   { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
   { path: 'attRegister.names', kind: 'map', noun: 'register column name', label: function(r, k) { return k; } },
+  { path: 'planner.active', kind: 'skip' },
+  { path: 'planner.scenarios', kind: 'arr', noun: 'planner scenario', label: function(r) { return r.name; } },
+  { path: 'planner.machines', kind: 'arr', noun: 'machine', label: function(r) { return r.item; } },
+  { path: 'planner.checklist', kind: 'arr', noun: 'checklist item', label: function(r) { return chgJoin(r.ref, r.what); } },
+  { path: 'planner.lenders', kind: 'arr', noun: 'lender', label: function(r) { return r.who; } },
+  { path: 'planner.heard', kind: 'arr', noun: 'rate heard', plural: 'rates heard', label: function(r) { return chgJoin(r.what, r.from); } },
+  { path: 'planner.heldBack', kind: 'arr', noun: 'work held back', plural: 'work held back', label: function(r) { return chgJoin(chgClientName(r.clientId), r.why); } },
+  { path: 'planner.cfg', kind: 'cfg', sec: 'Planner → assumptions' },
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
@@ -127,7 +135,7 @@ var CHG_TRACK = [
   { path: 'guardCfg', kind: 'cfg', sec: 'Users & access', dflt: function() { return getDefaultState().guardCfg || {}; } }
 ];
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
-var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1 };
+var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1 };
 // Never compared: the log itself (a key starting _ never is either).
 var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.
@@ -203,10 +211,15 @@ function chgScalars() {
   });
   return out;
 }
-// A parent's own figures (bank.account, say): one record.
+// A parent's own figures (bank.account, say): one record. A figure the track list skips (planner.active, the plan on show) is left out.
 function chgParentScalars(p) {
   var o = S[p], out = {}, any = false;
-  Object.keys(o).forEach(function(k) { var v = o[k]; if (k.charAt(0) !== '_' && (v === null || typeof v !== 'object')) { out[k] = v; any = true; } });
+  Object.keys(o).forEach(function(k) {
+    var v = o[k];
+    if (k.charAt(0) === '_' || (v !== null && typeof v === 'object')) return;
+    if (CHG_TRACK.some(function(sp) { return sp.path === p + '.' + k && sp.kind === 'skip'; })) return;
+    out[k] = v; any = true;
+  });
   return any ? out : undefined;
 }
 // Every store the book holds now, each with its spec.

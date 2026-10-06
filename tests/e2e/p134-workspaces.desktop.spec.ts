@@ -30,7 +30,7 @@ test.describe('P134: workspaces on the desktop', () => {
     const want = ['Add', 'Search', 'Today', ...(hv ? ['Needs you', 'Pulse'] : []),
       'Office', ...(await has('pagePipeline') ? ['Pipeline'] : []), 'Challans', 'Invoices', 'Clients',
       'Floor', ...(await has('pageFloor') ? ['Day'] : []), 'People', 'Production', 'Stock', 'Power',
-      'Money', 'Insights', 'Stats', 'Reports', 'History', 'Knowledge', 'Settings'];
+      'Money', 'Insights', 'Stats', 'Reports', 'Planner', 'History', 'Knowledge', 'Settings'];
     await expect(side(page).locator(':scope > button')).toHaveText(want.map(w => new RegExp('^' + w)));
     await expect(side(page).locator(':scope > :first-child')).toHaveClass(/inv-side-brand/);
     await expect(side(page).locator(':scope > button').last()).toHaveAttribute('data-action', 'invOpenSettings');

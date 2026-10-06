@@ -768,6 +768,7 @@ function advAddTask(key, ref) {
    set and nothing else carried over (the regJump / imJump rule). */
 function advGoTo(go) {
   switch (go && go.kind) {
+    case 'planner': plnSetView(go.v || 'play'); switchTab('pagePlanner'); return true;
     case 'quoteDraft': qtOpenDraft({ clientId: go.clientId, lines: go.lines, note: go.note }); return true;
     case 'quotes':
       _qtForm = null; _qtSearch = ''; _qtStatus = go.status || 'all'; _qtActiveId = null; _pageTyped = false;

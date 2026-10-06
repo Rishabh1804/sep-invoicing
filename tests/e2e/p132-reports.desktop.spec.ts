@@ -8,7 +8,7 @@ test('Reports is in the sidebar after Stats, and the report is an A4-wide sheet'
   await loadAppWithState(page, sweepState());
   const review = page.locator('#invSidebar .inv-side-item .inv-side-label');
   const labels = await review.allInnerTexts();
-  expect(labels.slice(labels.indexOf('Insights'), labels.indexOf('History') + 1)).toEqual(['Insights', 'Stats', 'Reports', 'History']);
+  expect(labels.slice(labels.indexOf('Insights'), labels.indexOf('History') + 1)).toEqual(['Insights', 'Stats', 'Reports', 'Planner', 'History']);
   await switchTab(page, 'pageReports');
   const docEl = page.locator('#rptSheet [data-rpt-doc]');
   await expect(docEl.locator('.inv-rpt-title')).toContainText('Monthly report');

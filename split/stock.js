@@ -1272,9 +1272,10 @@ function stockEntryWindow(e) { return [e.from && e.from < e.date ? e.from : e.da
    and two To-do rules all ask, and a check older than the To check page lists is one nobody could find. */
 var _stockChecksMemo = null;
 function stockEntryChecks(itemId) {
-  var st = stockData(), sig = 0;
-  st.entries.forEach(function(e) { if (e.voided) sig++; if (e.checkOk) sig += 1000; });
-  var key = st.entries.length + '|' + sig + '|' + localDateStr() + '|' + st.items.map(function(i) { return i.id + ':' + i.basis; }).join(',');
+  var st = stockData(), parts = [localDateStr()];
+  st.items.forEach(function(i) { parts.push(i.id + ':' + i.basis); });
+  st.entries.forEach(function(e) { parts.push(e.id + ':' + e.qty + ':' + e.date + ':' + e.kind + ':' + (e.voided ? 1 : 0) + (e.checkOk ? 1 : 0)); });
+  var key = parts.join('|');
   if (!_stockChecksMemo || _stockChecksMemo.st !== st || _stockChecksMemo.key !== key) _stockChecksMemo = { st: st, key: key, by: {} };
   if (!_stockChecksMemo.by[itemId]) _stockChecksMemo.by[itemId] = _stockEntryChecks(itemId);
   return _stockChecksMemo.by[itemId];

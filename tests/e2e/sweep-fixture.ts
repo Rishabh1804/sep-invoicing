@@ -358,6 +358,8 @@ export async function walkStockCheck(page: Page, tag: string, stops: Stop[]) {
   await page.evaluate(() => { (window as any)._stockView = 'check'; (window as any).switchTab('pageStock'); });
   stops.push(await sweep(page, 'pageStock › to check'));
   await shot(page, `${tag}-pageStock-check`);
+  // Taken out again before anything saves: the walk draws the book, it does not change it (P141 reads the change log).
+  await page.evaluate(() => { const st = (window as any).stockData(); st.entries = st.entries.filter((e: any) => e.id !== 'SWP-P' && e.id !== 'SWP-H'); });
 }
 
 /* Production's sub-views, which no view tab reaches: the paste check (a red row among them), the register photo's

@@ -71,6 +71,7 @@ JS_SOURCES=(
     "$DIR/finintel.js" \
     "$DIR/finlinks.js" \
     "$DIR/advice.js" \
+    "$DIR/learn.js" \
     "$DIR/dash.js" \
     "$DIR/production.js" \
     "$DIR/prodview.js" \

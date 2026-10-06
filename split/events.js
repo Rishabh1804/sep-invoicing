@@ -457,6 +457,7 @@ function onDocClick(e) {
       if (qtAction(action, btn)) break;
       if (rptAction(action, btn)) break;
       if (advAction(action, btn)) break;
+      if (learnAction(action, btn)) break;
       if (addAction(action, btn)) break;
       if (flrAction(action, btn)) break;
       if (tdyAction(action, btn)) break;

@@ -80,6 +80,8 @@ JS_SOURCES=(
     "$DIR/today.js" \
     "$DIR/power.js" \
     "$DIR/report.js" \
+    "$DIR/planner.js" \
+    "$DIR/planview.js" \
     "$DIR/kbguides.js" \
     "$DIR/knowledge.js" \
     "$DIR/client-perf.js" \

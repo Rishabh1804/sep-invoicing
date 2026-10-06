@@ -3,7 +3,7 @@ const PAGE_TITLES = {
   pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
   pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
   pageFloor: 'Day', pagePipeline: 'Pipeline',
-  pageStats: 'Stats', pageReports: 'Reports', pageHistory: 'History', pageKnow: 'Knowledge'
+  pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
 };
 
 /* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
@@ -155,6 +155,8 @@ function tabRender(tabId, isDirty) {
     renderStats();
   } else if (tabId === 'pageReports') {
     renderReports();
+  } else if (tabId === 'pagePlanner') {
+    renderPlanner();
   } else if (tabId === 'pageHistory') {
     renderHistory();
   } else if (tabId === 'pageKnow') {

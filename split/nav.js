@@ -67,6 +67,7 @@ function navLoc() {
     case 'pageHome': v = tdyView(); break;
     case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
+    case 'pagePlanner': v = _plnView; break;
     case 'pageFloor': d = flrNavD(); break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
     case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
@@ -134,6 +135,7 @@ function navLabel(loc) {
       break;
     case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
+    case 'pagePlanner': sub.push(_navFind(PLN_VIEWS, parts[0])); break;
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
@@ -211,6 +213,7 @@ function navApply(loc) {
       case 'pageHome': tdySetView(parts[0]); break;
       case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
+      case 'pagePlanner': plnSetView(parts[0]); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
       case 'pageKnow': kbNavApply(loc && loc.v, id); break;

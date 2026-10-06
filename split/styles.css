@@ -2056,3 +2056,14 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-kb-fig { margin: var(--sp-8) var(--pad-x) var(--sp-12); }
 .inv-kb-img { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); border: var(--hair) solid var(--border); background: var(--surface-2); }
 .inv-kb-actions { padding-top: var(--sp-12); }
+
+/* The planner (planner.js, planview.js; docs/PLANNER.md): the plans as chips, the goal with its level, the strip with its
+   month stepper and stars, a move's month with its arrows. Everything else is the shared components. */
+.inv-pl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); }
+.inv-pl-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12); }
+.inv-pl-hud { margin-bottom: var(--sp-12); }
+.inv-pl-step { display: flex; align-items: center; gap: var(--sp-4); }
+.inv-pl-stars { width: calc(var(--sp-16) * 3); height: var(--sp-16); vertical-align: middle; margin-right: var(--sp-4); }
+.inv-pl-star { fill: var(--surface-3); }
+.inv-pl-star-on { fill: var(--warning); }
+.inv-pl-when { display: inline-flex; align-items: center; gap: var(--sp-2); white-space: nowrap; }

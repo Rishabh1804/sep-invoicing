@@ -110,7 +110,7 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(row.locator('.inv-viewtab')).toHaveText(await labels(['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], ['Day', 'People', 'Production', 'Stock', 'Power']));
     await expect(page.locator('#topbarTitle')).toHaveText('Floor');
     await switchTab(page, 'pageStats');
-    await expect(row.locator('.inv-viewtab')).toHaveText(['Stats', 'Reports', 'History', 'Knowledge']);
+    await expect(row.locator('.inv-viewtab')).toHaveText(['Stats', 'Reports', 'Planner', 'History', 'Knowledge']);
     await expect(page.locator('#topbarTitle')).toHaveText('Insights');
     // Money is one view: no row, and its own six tabs are the only one.
     await switchTab(page, 'pageFinance');

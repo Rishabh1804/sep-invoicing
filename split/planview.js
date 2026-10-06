@@ -65,11 +65,14 @@ function plnToolbarHtml(sc) {
     '<button class="inv-btn inv-btn-primary" data-action="invPlnRoll">' + (_plnResult ? 'Roll again' : 'Roll the trials') + '</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invPlnCard">New card</button>' +
     '<button class="inv-btn inv-btn-ghost" data-action="invPlnReport">Make the report</button>' +
-    '<span class="inv-pl-chips">' + list.map(function(s) {
+    // The same controls before the first plan exists as after (the plan to be is a chip, Rename and Start over wait for it), so
+    // the first move made never pushes the page down under the finger.
+    '<span class="inv-pl-chips">' + (list.length ? list.map(function(s) {
       return '<button class="inv-chip" aria-pressed="' + (sc && s.id === sc.id) + '" data-action="invPlnScenario" data-id="' + escHtml(s.id) + '">' + escHtml(s.name) + '</button>';
-    }).join('') + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCopy">' + (list.length ? 'Copy' : 'Start a plan') + '</button>' +
-    (sc ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRename">Rename</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnStart">Suggest a start</button>' +
-      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnClear">Start over</button>' : '') + '</span></div>';
+    }).join('') : '<button class="inv-chip" aria-pressed="true" data-action="invPlnFirst">My plan</button>') +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCopy">Copy</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRename"' + (sc ? '' : ' disabled') + '>Rename</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnStart">Suggest a start</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnClear"' + (sc ? '' : ' disabled') + '>Start over</button></span></div>';
 }
 function plnGoalHtml(sc) {
   var g = plnGoal(sc);
@@ -318,7 +321,7 @@ function plannerAction(action, btn) {
     case 'invPlnMonth': _plnMonth = Math.max(0, Math.min(PLN_N - 1, _plnMonth + (+d.step || 0))); renderPlanner(); return true;
     case 'invPlnGoal': plnEdit(function(sc) { sc.goal = d.id; }); return true;
     case 'invPlnScenario': plnData().active = d.id; _plnResult = null; _plnReplay = null; saveState(); renderPlanner(); return true;
-    case 'invPlnCopy': plnScenarioCopy(); return true;
+    case 'invPlnCopy': case 'invPlnFirst': plnScenarioCopy(); return true;
     case 'invPlnRename': plnScenarioRename(); return true;
     case 'invPlnClear': plnScenarioClear(); return true;
     case 'invPlnStart': plnEdit(plnSuggestStart); return true;
@@ -645,7 +648,7 @@ function plnDayHtml() {
       '<span class="inv-chart-key"><span class="inv-chart-swatch inv-pl-day-wait"></span>Waiting for pickling</span><span class="inv-chart-key"><span class="inv-chart-swatch inv-pl-day-cut"></span>Power cut</span></div>' +
     '<div class="inv-note">Each line runs the general shift first, then the morning block from 6:00, then the evening to 8 PM, then a night shift where the plan has a night crew: the hours its kilos need at its round. Rounds are coloured by client in proportion to the line’s work. The month stepper above moves the day.</div></div>';
   h += '<div class="inv-panel inv-panel-flush" id="plnDayWhy"><div class="inv-panel-head"><span class="inv-panel-title">Why the day is as it is</span></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kilos to plate</th><th class="inv-num">Kg an hour</th><th class="inv-num">Hours needed</th><th class="inv-num">Hours run</th><th class="inv-num">Plated</th></tr></thead><tbody>' +
-    PLN_LINE_IDS.map(function(k) { var l = mo.lines[k]; return '<tr><td>' + escHtml(plnLineName(k)) + '<div class="inv-row-meta">' + escHtml(formatNum(l.kgRound, 0) + ' kg a round every ' + formatNum(l.every, 0) + ' min') + '</div></td><td class="inv-num">' + escHtml(plnKg(l.demand)) + '</td><td class="inv-num">' + formatNum(l.kgH, 0) + '</td>' +
+    PLN_LINE_IDS.map(function(k) { var l = mo.lines[k]; return '<tr><td>' + escHtml(plnLineName(k)) + '<div class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(l.kgRound, 0) + ' kg a round every ' + formatNum(l.every, 0) + ' min') + '</div></td><td class="inv-num">' + escHtml(plnKg(l.demand)) + '</td><td class="inv-num">' + formatNum(l.kgH, 0) + '</td>' +
       '<td class="inv-num">' + plnHm(l.need) + '</td><td class="inv-num">' + plnHm(l.hours) + '</td><td class="inv-num">' + escHtml(plnKg(l.plated)) + '</td></tr>'; }).join('') + '</tbody></table></div></div>';
   return '<div class="inv-panels inv-pl-play">' + h + '</div>';
 }
@@ -658,13 +661,13 @@ function plnPlantHtml() {
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnCfg">Set the assumptions</button></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kg a round</th><th class="inv-num">A round every</th><th class="inv-num">Kg an hour</th><th class="inv-num">Kilos a day</th><th class="inv-num">Hours a day</th></tr></thead><tbody>' +
     PLN_LINE_IDS.map(function(l) {
       var x = mo.lines[l];
-      return '<tr data-pl-line="' + l + '"><td>' + escHtml(plnLineName(l)) + '<div class="inv-row-meta">' + escHtml(srcOf(l)) + '</div></td><td class="inv-num">' + formatNum(x.kgRound, 0) + '</td><td class="inv-num">' + formatNum(x.every, 0) + ' min</td>' +
-        '<td class="inv-num">' + formatNum(x.kgH, 0) + '</td><td class="inv-num">' + escHtml(plnKg(x.plated)) + (x.demand > x.plated + 1 ? '<div class="inv-row-meta inv-num-neg">' + escHtml('of ' + plnKg(x.demand)) + '</div>' : '') + '</td>' +
-        '<td class="inv-num">' + plnHm(x.hours) + (x.need > x.hours + 0.01 ? '<div class="inv-row-meta inv-num-neg">' + plnHm(x.need - x.hours) + ' short</div>' : '') + '</td></tr>';
+      return '<tr data-pl-line="' + l + '"><td>' + escHtml(plnLineName(l)) + '<div class="inv-row-meta inv-row-wrap">' + escHtml(srcOf(l)) + '</div></td><td class="inv-num">' + formatNum(x.kgRound, 0) + '</td><td class="inv-num">' + formatNum(x.every, 0) + ' min</td>' +
+        '<td class="inv-num">' + formatNum(x.kgH, 0) + '</td><td class="inv-num">' + escHtml(plnKg(x.plated)) + (x.demand > x.plated + 1 ? '<div class="inv-row-meta inv-row-wrap inv-num-neg">' + escHtml('of ' + plnKg(x.demand)) + '</div>' : '') + '</td>' +
+        '<td class="inv-num">' + plnHm(x.hours) + (x.need > x.hours + 0.01 ? '<div class="inv-row-meta inv-row-wrap inv-num-neg">' + plnHm(x.need - x.hours) + ' short</div>' : '') + '</td></tr>';
     }).join('') +
-    '<tr><td>Pickling<div class="inv-row-meta">' + escHtml(B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare') + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
+    '<tr><td>Pickling<div class="inv-row-meta inv-row-wrap">' + escHtml(B.pick.src === 'set' ? 'set by you' : 'assumed: today’s kilos with a tenth to spare') + '</div></td><td class="inv-num" colspan="2">' + escHtml(formatNum(mo.pickH > 0 ? mo.pickCap / mo.pickH : B.pick.kgH, 0) + ' kg an hour') + '</td><td></td>' +
       '<td class="inv-num">' + escHtml(plnKg(mo.pickCap)) + ' it can feed</td><td class="inv-num">' + plnHm(mo.pickH) + '</td></tr>' +
-    '<tr><td>Power cuts<div class="inv-row-meta">' + escHtml(formatNum(B.cutMin, 0) + ' min a working day in working hours, the Power tab') + '</div></td><td class="inv-num" colspan="5">' + escHtml(formatNum(mo.cutH * 60, 0) + ' min a day lost') + '</td></tr></tbody></table></div></div>';
+    '<tr><td>Power cuts<div class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(B.cutMin, 0) + ' min a working day in working hours, the Power tab') + '</div></td><td class="inv-num" colspan="5">' + escHtml(formatNum(mo.cutH * 60, 0) + ' min a day lost') + '</td></tr></tbody></table></div></div>';
   h += '<div class="inv-panels">' + plnMachinesHtml() + '</div>';
   h += '<div class="inv-panels">' + PLN_STATIONS.map(function(st) { return plnTreeHtml(st, sc, P); }).join('') + '</div>';
   return h;
@@ -771,9 +774,9 @@ function plnClientsHtml() {
     open.parts.map(function(p) {
       var row = mo.rows.find(function(r) { return r.part === p; }), newKg = row ? row.perKg : p.perKg, eff = row ? row.kgMo * (newKg - p.perKg) : 0, o = askMv ? askMv.ask.parts[p.id] : null;
       var askCell = inPlan && a.pct == null ? '<input class="inv-input inv-input-num inv-pl-num" type="number" step="0.25" placeholder="' + formatNum(Math.max(a.to || 0, p.perKg), 2) + '" data-pl-part="' + escHtml(p.id) + '" data-client="' + cid + '" value="' + escHtml(o != null && o !== 'skip' ? String(o) : '') + '">' : escHtml(Math.abs(newKg - p.perKg) > 0.001 ? '₹' + formatNum(newKg, 2) : '—');
-      return '<tr data-pl-part-row="' + escHtml(p.id) + '"><td>' + escHtml(p.name) + '<div class="inv-row-meta">' + escHtml([p.desc && p.desc !== p.name ? p.desc : '', p.mm ? p.mm + ' mm' : '', p.kgPc ? formatNum(p.kgPc, 3) + ' kg a piece' : ''].filter(Boolean).join(' · ')) + '</div></td>' +
-        '<td>' + escHtml(plnLineName(p.line)) + '<div class="inv-row-meta">' + escHtml(p.lineSrc === 'record' ? 'the record' : p.lineSrc === 'client' ? 'the client’s usual line' : 'assumed') + '</div></td>' +
-        '<td class="inv-num">' + escHtml(plnKg(p.kg)) + (p.pcs ? '<div class="inv-row-meta">' + escHtml(formatNum(p.pcs, 0) + ' pcs') + '</div>' : '') + '</td>' +
+      return '<tr data-pl-part-row="' + escHtml(p.id) + '"><td>' + escHtml(p.name) + '<div class="inv-row-meta inv-row-wrap">' + escHtml([p.desc && p.desc !== p.name ? p.desc : '', p.mm ? p.mm + ' mm' : '', p.kgPc ? formatNum(p.kgPc, 3) + ' kg a piece' : ''].filter(Boolean).join(' · ')) + '</div></td>' +
+        '<td>' + escHtml(plnLineName(p.line)) + '<div class="inv-row-meta inv-row-wrap">' + escHtml(p.lineSrc === 'record' ? 'the record' : p.lineSrc === 'client' ? 'the client’s usual line' : 'assumed') + '</div></td>' +
+        '<td class="inv-num">' + escHtml(plnKg(p.kg)) + (p.pcs ? '<div class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(p.pcs, 0) + ' pcs') + '</div>' : '') + '</td>' +
         '<td class="inv-num">' + escHtml(p.rate != null ? '₹' + formatNum(p.rate, 2) + (p.unit === 'NOS' ? '/pc' : '/kg') : '—') + '</td><td class="inv-num">₹' + formatNum(p.perKg, 2) + '</td>' +
         '<td class="inv-num">' + askCell + '</td><td class="inv-num' + (eff > 0 ? ' inv-num-pos' : '') + '">' + escHtml(Math.abs(eff) >= 1 ? plnSigned(eff, true) : '—') + '</td></tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">A piece part’s ₹/kg is its rate over its kg a piece. With the ask in the plan, a rate typed on a part asks that part apart. The effect is at ' + escHtml(plnMonthLabel(_plnMonth)) + ', every move landing.</div></div>';

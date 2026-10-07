@@ -42,6 +42,8 @@ function pltNameCmp(a, b) { return String(a.name || '').localeCompare(String(b.n
 function pltUnits(station) {
   return pltRead().units.filter(function(u) { return u && !u.retiredAt && (!station || u.station === station); }).sort(pltNameCmp);
 }
+/* The day a unit was retired (stamped as a time, or a day on an imported unit). */
+function pltRetiredDay(u) { var r = u.retiredAt; return !r ? '' : typeof r === 'number' ? localDateStr(new Date(r)) : String(r).slice(0, 10); }
 function pltUnitById(id) { return pltRead().units.find(function(u) { return u && u.id === id; }) || null; }
 function pltStationName(id) { var s = PLT_STATIONS.find(function(x) { return x[0] === id; }); return s ? s[1] : id || 'Other'; }
 function pltIsLine(id) { var s = PLT_STATIONS.find(function(x) { return x[0] === id; }); return !!(s && s[2]); }
@@ -50,12 +52,19 @@ function pltAvailable(status) { return status === 'run' || status === 'standby';
 function pltWho() { return typeof grdUser === 'function' && grdUser() ? grdUser().name : ''; }
 function pltId(pre) { return pre + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6); }
 
-/* The unit's status on a day, read off its log (the last change on or before the day); before its first line, its status now. */
+/* The unit's status on a day, read off its log (the last change on or before the day); before its first line, what that line
+   changed from (running, for a unit added that day); a unit with no line at all, its status now. */
 function pltStatusOn(u, iso) {
-  var lines = pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.to !== 'retired' && l.date && l.date <= iso; });
-  if (!lines.length) return u.status || 'run';
-  lines.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0); });
-  return lines[lines.length - 1].to;
+  var all = pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.to !== 'retired' && l.date; });
+  if (!all.length) return u.status || 'run';
+  all.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0); });
+  var on = all.filter(function(l) { return l.date <= iso; });
+  if (!on.length) return all[0].from && pltStatus(all[0].from)[0] === all[0].from ? all[0].from : 'run';
+  return on[on.length - 1].to;
+}
+/* The day of a unit's latest status line, or ''. */
+function pltLastLogDate(u) {
+  return pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.date; }).reduce(function(m, l) { return l.date > m ? l.date : m; }, '');
 }
 /* Days a unit stood down or under repair between two days (inclusive), from its log. */
 function pltDownDays(u, from, to) {
@@ -69,7 +78,9 @@ function pltDaysIn(u) { return u.since ? Math.max(0, isoDaysBetween(u.since, loc
 /* What a line can do on a day: its units side by side.
    {units, n, nAvail, down: [units], byKg, kgTotal, kgAvail, pct, note, used: {kgRound, pct, why}} */
 function pltCapacity(station, iso) {
-  var day = iso || localDateStr(), units = pltUnits(station).filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day; });
+  var day = iso || localDateStr();
+  var units = (iso ? pltRead().units.filter(function(u) { return u && u.station === station && (!u.retiredAt || pltRetiredDay(u) > day); }).sort(pltNameCmp) : pltUnits(station))
+    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day; });
   var st = function(u) { return iso ? pltStatusOn(u, day) : u.status || 'run'; };
   var avail = units.filter(function(u) { return pltAvailable(st(u)); });
   var withKg = units.filter(function(u) { return +u.kgRound > 0; });
@@ -117,14 +128,14 @@ function pltBarHtml(cap) {
 function pltTileHtml(u, iso) {
   var s = pltStatus(iso ? pltStatusOn(u, iso) : u.status), days = iso ? null : pltDaysIn(u);
   var sub = [+u.kgRound > 0 ? formatNum(+u.kgRound, 0) + ' kg a round' : 'kg a round not set', s[0] !== 'run' && days != null ? (days ? days + ' day' + (days === 1 ? '' : 's') : 'today') : ''].filter(Boolean).join(' · ');
-  return '<button type="button" class="inv-unit" data-status="' + s[0] + '" data-action="invPltEdit" data-id="' + escHtml(u.id) + '" data-plt-unit="' + escHtml(u.id) + '"' +
+  return '<button type="button" class="inv-plt-unit" data-status="' + s[0] + '" data-action="invPltEdit" data-id="' + escHtml(u.id) + '" data-plt-unit="' + escHtml(u.id) + '"' +
     ' aria-label="' + escHtml(u.name + ': ' + s[1] + (u.reason && s[0] !== 'run' ? ', ' + u.reason : '')) + '">' +
     '<span class="inv-unit-name">' + escHtml(u.name) + '</span>' + uiDot(s[2], s[1]) + '<span class="inv-unit-sub">' + escHtml(sub) + '</span></button>';
 }
 /* A small square per unit, coloured by its status: the strip at a glance (Overview, Floor → Day). */
 function pltPipsHtml(cap, iso) {
   return '<span class="inv-unit-pips" aria-hidden="true">' + cap.units.map(function(u) {
-    return '<span class="inv-unit-pip" data-status="' + (iso ? pltStatusOn(u, iso) : u.status || 'run') + '"></span>';
+    return '<span class="inv-unit-pip" data-status="' + pltStatus(iso ? pltStatusOn(u, iso) : u.status || 'run')[0] + '"></span>';
   }).join('') + '</span>';
 }
 /* A line's panel: its name, how much of it works, the bar, and its units. */
@@ -184,7 +195,7 @@ function pltGlanceHtml() {
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdTab" data-tab="equipment">Equipment</button></div>' +
     PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) {
       var cap = pltCapacity(s[0]);
-      return '<div class="inv-row inv-row-2" data-plt-glance="' + s[0] + '"><button class="inv-row-main" data-action="invProdTab" data-tab="equipment"><span class="inv-row-title">' + escHtml(s[1]) + '</span>' +
+      return '<div class="inv-row inv-row-2" data-plt-glance="' + s[0] + '"><button class="inv-row-main" data-action="invPltOpen"><span class="inv-row-title">' + escHtml(s[1]) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(pltCapWords(cap)) + '</span></button><span class="inv-row-end">' + (cap.n ? pltPipsHtml(cap) : '') + pltCapDot(cap) + '</span></div>';
     }).join('') + '</div>';
 }
@@ -192,7 +203,7 @@ function pltGlanceHtml() {
 function pltFloorRowHtml(lineId, day) {
   var station = lineId === 'pickling' ? 'pick' : lineId, cap = pltCapacity(station, day);
   if (!cap.n) return '';
-  return '<div class="inv-row inv-row-2" data-flr-units><button class="inv-row-main" data-action="invProdTab" data-tab="equipment"><span class="inv-row-title">' + escHtml(pltCapWords(cap)) + '</span>' +
+  return '<div class="inv-row inv-row-2" data-flr-units><button class="inv-row-main" data-action="invPltOpen"><span class="inv-row-title">' + escHtml(pltCapWords(cap)) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.down.length ? cap.down.map(function(u) { return u.name + ' ' + pltStatus(pltStatusOn(u, day))[1].toLowerCase(); }).join(' · ') : 'every unit working') + '</span></button>' +
     '<span class="inv-row-end">' + pltPipsHtml(cap, day) + '</span></div>';
 }
@@ -227,6 +238,7 @@ function pltEdit(id, station) {
     _pltField('pltRiskP', 'Chance it fails in a month, %', risk.p != null ? Math.round(risk.p * 1000) / 10 : '', 'number', ' min="0" max="100" step="any"') +
     _pltField('pltRiskCost', 'What a failure costs, ₹', risk.cost, 'number', ' min="0" step="any"') +
     _pltField('pltRiskDays', 'Days the line is down', risk.days, 'number', ' min="0" step="any"') +
+    _pltSelect('pltLine', 'Line it stops when it fails', [['', 'None']].concat(PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) { return [s[0], s[1]]; })), pltLineOf(v)) +
     _pltField('pltRiskSay', 'What failing means', risk.say) + '</div></div></details>';
   dialogOpen('<div class="inv-dialog" data-plt-dialog="' + escHtml(u ? u.id : '') + '">' + dialogHeadHtml(u ? escHtml(u.name) + ' · ' + escHtml(pltStationName(u.station)) : 'Add a unit') +
     '<div class="inv-fields">' + f + '</div>' + (u ? pltUnitHistoryHtml(u) : '') +
@@ -254,16 +266,25 @@ function pltSave(id) {
   var p = pltData(), u = id ? p.units.find(function(x) { return x.id === id; }) : null, now = Date.now(), who = pltWho();
   var pr = _pltNum('pltRiskP');
   var rec = { name: name, station: _pltVal('pltStation') || 'other', kind: _pltVal('pltKind') || 'tank', kgRound: _pltNum('pltKg'), condition: _pltVal('pltCond') || 'fair',
-    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'),
+    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'),
     risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _pltNum('pltRiskCost') || 0, days: _pltNum('pltRiskDays') || 0, say: _pltVal('pltRiskSay') } : null };
   if (!u) {
     u = Object.assign({ id: pltId('PU'), status: status, since: since, reason: status === 'run' ? '' : reason, addedOn: since }, rec, { at: now, by: who });
     p.units.push(u);
     p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: null, to: status, reason: status === 'run' ? '' : reason, at: now, by: who });
   } else {
-    var moved = u.status !== status;
+    var moved = u.status !== status, last = pltLastLogDate(u);
+    // A change dated before the last one on record would leave the log saying otherwise: the log is read by date.
+    if (moved && last && since < last) return uiAlert({ title: 'Before its last change', body: u.name + '’s last change is dated ' + formatDate(last) + '. A new status begins on that day or later.' });
     if (moved) p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: u.status || 'run', to: status, reason: reason, at: now, by: who });
-    Object.assign(u, rec, { status: status, since: moved ? since : u.since || since, reason: status === 'run' ? '' : reason, at: now, by: who });
+    else if (since !== u.since) {
+      // Only the day corrected: the line that began this status moves with it, never before the change before it.
+      var mine = p.log.filter(function(l) { return l.unitId === u.id && l.to === u.status && l.date === u.since; }).pop();
+      var before = p.log.filter(function(l) { return l.unitId === u.id && l !== mine && l.date; }).reduce(function(m, l) { return l.date > m ? l.date : m; }, '');
+      if (before && since < before) return uiAlert({ title: 'Before its last change', body: 'The change before this one is dated ' + formatDate(before) + '.' });
+      if (mine) mine.date = since;
+    }
+    Object.assign(u, rec, { status: status, since: since || u.since, reason: status === 'run' ? '' : reason, at: now, by: who });
   }
   closeOverlay();
   saveState();
@@ -302,6 +323,7 @@ document.addEventListener('change', function(e) {
 
 function pltAction(action, btn) {
   switch (action) {
+    case 'invPltOpen': prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); return true;
     case 'invPltEdit': pltEdit(btn.dataset.id || null, btn.dataset.station || null); return true;
     case 'invPltSave': pltSave(btn.dataset.id || null); return true;
     case 'invPltRetire': pltRetire(btn.dataset.id); return true;
@@ -317,10 +339,12 @@ function pltAction(action, btn) {
 }
 
 /* ---------- One register with the planner ---------- */
+/* The line a unit stops when it fails: as set, else its own line for a unit on one, else none. */
+function pltLineOf(u) { return u.line !== undefined && u.line !== null ? u.line || '' : PLT_LINE_STATIONS[u.station] ? u.station : ''; }
 /* The planner's machines, read from the units (its trials draw a unit's risk until the upgrade that fixes its station). */
 function pltMachines() {
   return pltUnits().map(function(u) {
-    return { id: u.id, item: u.name, station: u.station, line: PLT_LINE_STATIONS[u.station] ? u.station : (u.line || null), state: u.condition || 'fair',
+    return { id: u.id, item: u.name, station: u.station, line: pltLineOf(u) || null, state: u.condition || 'fair',
       age: u.age || '', needs: u.needs || '', risk: u.risk || null, status: u.status || 'run' };
   });
 }
@@ -349,7 +373,7 @@ TODO_RULE_FNS.plantDown = function() {
       title: u.name + ' (' + pltStationName(u.station) + ') ' + s[1].toLowerCase() + ' ' + d + ' days', sub: u.reason || 'no reason written', why: 'Plant register',
       facts: [['Status', s[1] + ' since ' + formatDate(u.since)], ['Why', u.reason || 'not written'], [pltStationName(u.station), pltCapWords(cap)]],
       clears: 'Clears itself when the unit is set running or on standby, or retired.', go: { kind: 'production', tab: 'equipment' }, goLabel: 'Open Equipment',
-      sig: u.id + ':' + u.status + ':' + u.since };
+      sig: u.id + ':' + u.status + ':' + u.since + ':' + (d >= PLT_DOWN_RED ? 'red' : 'amber') };
   });
 };
 
@@ -364,7 +388,7 @@ function pltExport() {
 }
 function pltMergeImport(obj) {
   if (!obj || obj.format !== 'sep-plant' || !Array.isArray(obj.units)) return { ok: false };
-  var p = pltData(), added = 0, kept = 0, bad = 0, logs = 0, today = localDateStr(), now = Date.now(), who = pltWho();
+  var p = pltData(), added = 0, kept = 0, bad = 0, logs = 0, dropped = 0, today = localDateStr(), now = Date.now(), who = pltWho();
   var key = function(u) { return u.station + '|' + String(u.name || '').trim().toLowerCase(); };
   obj.units.forEach(function(r) {
     if (!r || !String(r.name || '').trim() || !PLT_STATIONS.some(function(s) { return s[0] === r.station; })) { bad++; return; }
@@ -372,15 +396,25 @@ function pltMergeImport(obj) {
     var status = PLT_STATUS.some(function(s) { return s[0] === r.status; }) ? r.status : 'run', since = /^\d{4}-\d{2}-\d{2}$/.test(r.since || '') && r.since <= today ? r.since : today;
     var u = { id: r.id || pltId('PU'), name: String(r.name).trim(), station: r.station, kind: PLT_KINDS.some(function(k) { return k[0] === r.kind; }) ? r.kind : (r.station === 'barrel' ? 'barrel' : 'tank'),
       kgRound: +r.kgRound > 0 ? +r.kgRound : null, status: status, since: since, reason: status === 'run' ? '' : String(r.reason || ''), addedOn: since,
-      condition: r.condition || 'fair', age: String(r.age || ''), needs: String(r.needs || ''), note: String(r.note || ''), risk: r.risk && +r.risk.p > 0 ? r.risk : null,
+      condition: r.condition || 'fair', age: String(r.age || ''), needs: String(r.needs || ''), note: String(r.note || ''), risk: pltRiskClean(r.risk),
       retiredAt: r.retiredAt || null, retireReason: r.retireReason || '', at: now, by: who };
     p.units.push(u);
     added++;
     var own = Array.isArray(obj.log) ? obj.log.filter(function(l) { return l && l.unitId === u.id; }) : [];
-    if (own.length) own.forEach(function(l) { if (!p.log.some(function(x) { return x.id === l.id; })) { p.log.push(l); logs++; } });
+    var okLog = function(l) { return (l.to === 'retired' || PLT_STATUS.some(function(x) { return x[0] === l.to; })) && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || '')) && l.date <= today &&
+      (l.from == null || PLT_STATUS.some(function(x) { return x[0] === l.from; })); };
+    var fine = own.filter(okLog);
+    dropped += own.length - fine.length;
+    if (fine.length) fine.forEach(function(l) { if (!p.log.some(function(x) { return x.id === l.id; })) { p.log.push({ id: String(l.id || pltId('PL')), unitId: u.id, date: l.date, from: l.from || null, to: l.to, reason: String(l.reason || ''), at: +l.at || now, by: String(l.by || '') }); logs++; } });
     else p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: null, to: status, reason: u.reason, at: now, by: who });
   });
-  return { ok: true, added: added, kept: kept, bad: bad, logs: logs };
+  return { ok: true, added: added, kept: kept, bad: bad, logs: logs, dropped: dropped };
+}
+/* A unit's risk as the trials read it: a chance 0–1 (a figure over 1 read as a percentage), a cost and days of 0 or more. */
+function pltRiskClean(r) {
+  if (!r || !(+r.p > 0)) return null;
+  var p = +r.p > 1 ? +r.p / 100 : +r.p;
+  return { p: Math.min(1, p), cost: Math.max(0, +r.cost || 0), days: Math.max(0, +r.days || 0), say: String(r.say || '') };
 }
 function pltImportText(text) {
   if (!pltOwnerOk(function() { pltImportText(text); })) return;
@@ -390,7 +424,7 @@ function pltImportText(text) {
   if (!r.ok) { uiAlert({ title: 'Not a plant file', body: 'A plant register file is marked sep-plant and carries a list of units.' }); return; }
   saveState();
   pltRedraw();
-  showToast(r.added + ' unit' + (r.added === 1 ? '' : 's') + ' added' + (r.kept ? ' · ' + r.kept + ' already held, kept' : '') + (r.bad ? ' · ' + r.bad + ' without a name or a known line' : ''), r.bad ? 'warning' : 'success');
+  showToast(r.added + ' unit' + (r.added === 1 ? '' : 's') + ' added' + (r.kept ? ' · ' + r.kept + ' already held, kept' : '') + (r.bad ? ' · ' + r.bad + ' without a name or a known line' : '') + (r.dropped ? ' · ' + r.dropped + ' status lines not readable, left out' : ''), r.bad || r.dropped ? 'warning' : 'success');
 }
 document.addEventListener('change', function(e) {
   var t = e.target;

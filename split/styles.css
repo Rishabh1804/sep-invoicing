@@ -2115,14 +2115,14 @@ body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
    what is used of it. The bar is an SVG, so its widths are attributes, never a style. */
 .inv-unit-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: var(--sp-8); margin-top: var(--sp-10); }
 body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.inv-unit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); min-width: 0; min-height: var(--touch); padding: var(--sp-8) var(--sp-10);
+.inv-plt-unit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); min-width: 0; min-height: var(--touch); padding: var(--sp-8) var(--sp-10);
   border: var(--hair) solid var(--border); border-left: var(--sp-4) solid var(--text-3); border-radius: var(--r-md); background: var(--surface); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; }
-.inv-unit:hover { background: var(--surface-2); }
-.inv-unit:focus-visible { box-shadow: var(--focus-ring); outline: none; }
-.inv-unit[data-status="run"] { border-left-color: var(--ok); }
-.inv-unit[data-status="standby"] { border-left-color: var(--info); }
-.inv-unit[data-status="repair"] { border-left-color: var(--warning); background: var(--warning-bg); }
-.inv-unit[data-status="down"] { border-left-color: var(--danger); background: var(--danger-bg); }
+.inv-plt-unit:hover { background: var(--surface-2); }
+.inv-plt-unit:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-plt-unit[data-status="run"] { border-left-color: var(--ok); }
+.inv-plt-unit[data-status="standby"] { border-left-color: var(--info); }
+.inv-plt-unit[data-status="repair"] { border-left-color: var(--warning); background: var(--warning-bg); }
+.inv-plt-unit[data-status="down"] { border-left-color: var(--danger); background: var(--danger-bg); }
 .inv-unit-name { max-width: 100%; overflow-wrap: anywhere; font-size: var(--fs-14); font-weight: 600; }
 .inv-unit-sub { font-size: var(--fs-12); color: var(--text-3); }
 .inv-unit-cap { display: flex; flex-direction: column; gap: var(--sp-4); }

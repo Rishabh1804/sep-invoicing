@@ -361,6 +361,7 @@ function onDocClick(e) {
     // GitHub sync
     case 'invGhPush': if (!ghFieldsUnsaved()) ghPushLocked(); break;
     case 'invGhPull': if (!ghFieldsUnsaved()) ghPull(); break;
+      case 'invGhReplace': if (!ghFieldsUnsaved()) ghPull({ replace: true }); break;
     case 'invToggleGhToken': {
       var gtEl = document.getElementById('setGhToken');
       if (gtEl) gtEl.type = gtEl.type === 'password' ? 'text' : 'password';
@@ -446,6 +447,7 @@ function onDocClick(e) {
       if (bankAction(action, btn)) break;
       if (soaAction(action, btn)) break;
       if (psAction(action)) break;
+      if (mrgAction(action, btn)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
       if (pipeAction(action, btn)) break;

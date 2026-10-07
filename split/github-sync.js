@@ -246,6 +246,29 @@ function ghForgetSha() {
   if (c && c.sha) { c.sha = null; setGhConfig(c); }
 }
 
+/* ===== THE MERGE (merge.js, G4) =====
+   GitHub moved since this device last exchanged with it, and this device holds the copy it last exchanged (the base, kept
+   with the SHA it was exchanged at): the two are merged rather than one replacing the other. Without a base for the SHA
+   this device remembers (the first sync after this build, an import, another target) there is nothing to merge from, and
+   null says so: the old questions are asked. */
+async function ghMergeRemote(cfg, remote) {
+  if (typeof mrgMerge !== 'function' || !cfg.sha || bookStandIn()) return null;
+  var base = await mrgBaseGet();
+  if (!base || !base.state || base.sha !== cfg.sha) return null;
+  var env = remote && remote.envelope;
+  if (!env || env.app !== 'sep-invoicing' || !env.state || !env.state.company || !env.state.clients || env.schema > GH_SCHEMA) return null;
+  var from = (env._device && env._device.name) || env.device || 'GitHub';
+  var res = mrgMerge(base.state, S, env.state, { baseAt: base.at, from: from, prefer: mrgPrefer() });
+  mrgAdopt(res, from);
+  var landed = await saveState();
+  if (typeof tabRedrawActive === 'function') { try { tabRedrawActive(); } catch (e) { /* drawn at the next move */ } }
+  return { res: res, landed: landed, from: from };
+}
+function ghMergeText(m) {
+  return 'Merged with ' + m.from + ': ' + m.res.taken + ' change' + (m.res.taken === 1 ? '' : 's') + ' taken' +
+    (m.res.held.length ? ', ' + m.res.held.length + ' held for the owner' : '') + '.';
+}
+
 /* ===== PUSH ===== */
 async function ghPush(opts) {
   var silent = opts && opts.silent;
@@ -271,6 +294,7 @@ async function ghPush(opts) {
   }
 
   ghSetBusy(true, 'Pushing');
+  var mergedNote = '', pushedStr = null;
   try {
     // The stand-in's question names GitHub's copy, so it is read whole; otherwise the SHA is enough.
     var remote = await ghGetRemote(cfg, standIn ? null : { body: false });
@@ -286,16 +310,27 @@ async function ghPush(opts) {
     // Never resolve that quietly — the operator is the only one who knows
     // which copy is the real one.
     else if (remote && remote.sha && remote.sha !== cfg.sha) {
-      // Only now is the other copy worth downloading: to say whose it is.
+      // Only now is the other copy worth downloading: to merge it, or to say whose it is.
       if (!remote.envelope) remote = await ghGetRemote(cfg) || remote;
-      if (silent) {
+      var merged = await ghMergeRemote(cfg, remote);
+      if (merged && !merged.landed) {
+        ghSetBusy(false);
+        ghSetStatus('Merged, but NOT saved on this device: ' + saveFailText() + '. Not pushed.');
+        if (!silent) showToast('Merged, but not saved: not pushed', 'error');
+        return false;
+      }
+      if (merged) {
+        mergedNote = ghMergeText(merged);
+        if (merged.res.held.length) showToast(mergedNote, 'warning');
+      }
+      else if (silent) {
         ghSetBusy(false);
         ghSetStatus('Auto-push paused: GitHub has a newer copy (' + ghDescribeEnvelope(remote.envelope) + '). Push or pull by hand.');
         return false;
       }
-      var ok = await uiConfirm({ title: 'GitHub has a copy this device has not seen', body: 'GitHub already holds a copy this device has not seen — ' +
+      if (!merged) { var ok = await uiConfirm({ title: 'GitHub has a copy this device has not seen', body: 'GitHub already holds a copy this device has not seen — ' +
         ghDescribeEnvelope(remote.envelope) + '.\n\nPushing replaces it with this device\'s data. Continue?', okLabel: 'Push and replace', danger: true });
-      if (!ok) { ghSetBusy(false); ghSetStatus('Push cancelled.'); return false; }
+      if (!ok) { ghSetBusy(false); ghSetStatus('Push cancelled.'); return false; } }
     }
 
     var envelope = ghBuildEnvelope(cfg);
@@ -311,6 +346,8 @@ async function ghPush(opts) {
         content: ghEncode(JSON.stringify(envelope, null, 2)),
         branch: cfg.branch
       };
+      // What went up is the base the next merge reads from (merge.js).
+      pushedStr = JSON.stringify(envelope.state);
     } finally { if (dp) dp.restore(); }
     if (remote && remote.sha) body.sha = remote.sha;
 
@@ -320,14 +357,18 @@ async function ghPush(opts) {
     // did not reach this device's disk: after a reload the device holds an older book than the one sent, and auto-push
     // would send it over GitHub's unasked. Without the SHA the next push asks. A stand-in pushed is no backup either.
     var ours = !standIn && _storageHealth.lastSaveOk !== false;
-    if (ours) ghRecord(cfg, { sha: result && result.content ? result.content.sha : null, lastPushAt: pushedAt });
+    if (ours) {
+      var newSha = result && result.content ? result.content.sha : null;
+      ghRecord(cfg, { sha: newSha, lastPushAt: pushedAt });
+      if (typeof mrgBasePut === 'function' && newSha && pushedStr) await mrgBasePut(pushedStr, newSha);
+    }
     else if (!standIn) ghRecord(cfg, { lastPushAt: pushedAt });
     if (pushedRev && ours) bookPost({ type: 'pushed', rev: pushedRev });
     // The device's row keeps the push it carried (devices.js), saved quietly so it arms no push of its own.
     if (dp) dp.done();
     ghSetBusy(false);
     ghSetStatus(standIn ? 'Pushed the stand-in ' + formatTimestamp(pushedAt) + '.'
-      : 'Pushed ' + formatTimestamp(pushedAt) + '.' + (ours ? '' : ' This device\'s last save did not land, so the next push asks first.'));
+      : (mergedNote ? mergedNote + ' ' : '') + 'Pushed ' + formatTimestamp(pushedAt) + '.' + (ours ? '' : ' This device\'s last save did not land, so the next push asks first.'));
     ghRenderCard();
     if (!silent) showToast(standIn ? 'Pushed the stand-in to GitHub' : 'Pushed to GitHub');
     return true;
@@ -340,9 +381,8 @@ async function ghPush(opts) {
 }
 
 /* ===== PULL ===== */
-async function ghPull() {
-  // P1 (guard.js): a pull replaces the book and its IDs with it, so it is the owner's alone (grdBookAsk).
-  if (!grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
+async function ghPull(opts) {
+  var replace = !!(opts && opts.replace);
   var cfg = getGhConfig();
   // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
   var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
@@ -375,6 +415,26 @@ async function ghPull() {
       showToast('Backup is from a newer app version', 'error');
       return false;
     }
+    // Merged into this device's book where it can be (merge.js): nothing of this device's is lost, so it is not the owner's
+    // alone. GitHub's copy becomes the base the next merge reads from; the merged book goes up with the next push.
+    if (!replace) {
+      var merged = await ghMergeRemote(cfg, remote);
+      if (merged) {
+        if (merged.landed) {
+          ghRecord(cfg, { sha: remote.sha, lastPullAt: Date.now() });
+          await mrgBasePut(JSON.stringify(env.state), remote.sha);
+        }
+        ghSetBusy(false);
+        var note = ghMergeText(merged);
+        ghSetStatus(merged.landed ? note : 'Merged, but NOT saved on this device: ' + saveFailText() + '.');
+        showToast(merged.landed ? note : 'Merged, but not saved', merged.landed ? (merged.res.held.length ? 'warning' : 'success') : 'error');
+        return merged.landed;
+      }
+    }
+    // Replacing the book: the owner's alone (guard.js grdBookAsk), since it takes the book's IDs with it.
+    ghSetBusy(false);
+    if (!grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
+    ghSetBusy(true, 'Pulling');
 
     if (!(await uiConfirm({ title: 'Replace all data on this device?', body: 'Replace ALL data on this device with ' + ghDescribeEnvelope(env) + '?\n\n' +
         (bookStandIn() ? bookStandInReplaceText() : 'This device currently holds ' + ghCountsText() + '. That is discarded.'), okLabel: 'Replace', danger: true }))) {
@@ -407,7 +467,10 @@ async function ghPull() {
     var landed = await saveState();
 
     var pulledAt = Date.now();
-    if (landed) ghRecord(cfg, { sha: remote.sha, lastPullAt: pulledAt });
+    if (landed) {
+      ghRecord(cfg, { sha: remote.sha, lastPullAt: pulledAt });
+      if (typeof mrgBasePut === 'function') await mrgBasePut(JSON.stringify(env.state), remote.sha);
+    }
 
     ghSetBusy(false);
     ghSetStatus(landed ? 'Pulled ' + formatTimestamp(pulledAt) + '.' : 'Pulled, but NOT saved on this device: ' + saveFailText() + '.');
@@ -467,6 +530,13 @@ function ghPushLocked(opts) {
 function ghCancelPending() { clearTimeout(_ghPushTimer); _ghPushTimer = null; }
 
 /* ===== STATUS SURFACE ===== */
+/* What a merge held for the owner (merge.js), under the sync buttons; redrawn with the status. */
+function ghHeldHtml() {
+  var n = typeof mrgHeldOpen === 'function' ? mrgHeldOpen().length : 0;
+  return n ? '<div class="inv-callout inv-callout-warning inv-mt-8" data-mrg-count>' + todoPlural(n, 'change') + ' held for the owner from a merge. ' +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invMrgOpen">Held for you</button></div>' : '';
+}
+function ghHeldSync() { document.querySelectorAll('[data-mrg-host]').forEach(function(h) { h.innerHTML = ghHeldHtml(); }); }
 var _ghStatusText = '';
 var _ghBusy = false;
 
@@ -474,6 +544,7 @@ function ghSetStatus(text) {
   _ghStatusText = text || '';
   var el = document.getElementById('ghSyncStatus');
   if (el) el.textContent = _ghStatusText;
+  ghHeldSync();
   ghRenderCard();
 }
 
@@ -484,7 +555,7 @@ function ghSetBusy(busy, label) {
   if (el && busy) el.textContent = (label || 'Working') + '…';
   // A device the guard keeps from syncing keeps its buttons off (devices.js).
   var blocked = typeof devSyncBlocked === 'function' && !!devSyncBlocked();
-  ['ghPushBtn', 'ghPullBtn'].forEach(function(id) {
+  ['ghPushBtn', 'ghPullBtn', 'ghReplaceBtn'].forEach(function(id) {
     var b = document.getElementById(id);
     if (b) b.disabled = busy || blocked;
   });
@@ -582,7 +653,10 @@ function renderGhSyncFields() {
     '<div class="inv-toolbar inv-toolbar-flush">' +
       '<button class="inv-btn inv-btn-secondary" id="ghPushBtn" data-action="invGhPush"' + off + '>Push to GitHub</button>' +
       '<button class="inv-btn inv-btn-secondary" id="ghPullBtn" data-action="invGhPull"' + off + '>Pull from GitHub</button>' +
+      (grdIsOwner() || !grdOn() ? '<button class="inv-btn inv-btn-secondary" id="ghReplaceBtn" data-action="invGhReplace"' + off + '>Replace from GitHub</button>' : '') +
     '</div>' +
+    '<div class="inv-field-hint">A push or a pull merges: what each device changed since the last copy both saw is kept, and where two changed one thing it is held for the owner. Replace takes GitHub\'s copy whole.</div>' +
+    '<div data-mrg-host>' + ghHeldHtml() + '</div>' +
     '<div class="inv-callout inv-callout-neutral inv-mt-8" id="ghSyncStatus">' +
       escHtml(_ghStatusText || (last ? 'Last synced ' + ghRelTime(last) + '.' : 'Not synced yet.')) +
     '</div>';

@@ -48,12 +48,12 @@ B's workspaces are where that lands: a role is a set of workspaces and views, an
   PIN would lock the books: one's own PIN is changed only with the PIN it has, never reset from a signed-in window, and a new
   recovery code asks the owner's PIN whatever the re-ask window.
 - **Every change is logged with who made it**: worked out at each save, record by record (what was added, changed, removed,
-  each changed field from → to), and shown in History. The same log is what the merge (G4) will sync.
+  each changed field from → to), and shown in History. The merge (G4) reads it to say whose change stands.
 
 ## The steps
 
-**Built** (1 Oct 2026): G1 (the gate, the change log), G2 (devices) and G3 (role views on the workspace shell). G4, the merge, waits
-until more than one person enters data on their own device.
+**Built** (1 Oct 2026): G1 (the gate, the change log), G2 (devices) and G3 (role views on the workspace shell). **G4, the merge, built
+7 Oct 2026** (owner: *"start with 3 and 4"*; `merge.js`, P175).
 
 1. **G1 · The gate** (P140): users and roles, the lock screen, sessions and the background lock, the recovery code, the
    P1 re-ask, Settings → Users & access, and what each role may open (the pages it may not are refused with a word).
@@ -63,9 +63,14 @@ until more than one person enters data on their own device.
    pull; it can only import. The token is stored locked to the device, one token per device advised, so a lost phone is
    cut off on GitHub without touching the others. A device removed from the list stops syncing and forgets its token.
 4. **G3 · Role views** on Direction B's shell: each role's workspaces and views, and money hidden where it may not see it.
-5. **G4 · The merge**: other IDs' changes, synced as the change log, applied to the owner's copy without overwriting; a
-   change to something the owner changed since is held for the owner, and logged. Built when more than one person enters
-   data on their own device.
+5. **G4 · The merge** (P175): a push that finds GitHub moved, and a pull, merge the two books against the copy both last saw
+   (kept on the device with its SHA) rather than one replacing the other. A change on one side is taken; where both changed
+   one thing the owner's change stands (read off each side's change log), else the later one, and the other is held for the
+   owner (Settings → GitHub sync → *Held for you*, To-do `mergeHeld`), who keeps it or uses the one held. A record removed
+   on one side and changed on the other is kept, the removal held; two records carrying one number are held; a series takes
+   the higher next number. Without a base (the first sync after the build) the old questions are asked. A merge is anyone's,
+   since nothing is lost; **Replace from GitHub** stays the owner's. Built as a three-way merge of the book, not a replay of
+   the change log: the log is trimmed, and the book is what both devices hold.
 
 ## What it cannot do
 

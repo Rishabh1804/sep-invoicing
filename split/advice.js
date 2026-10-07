@@ -814,6 +814,8 @@ function advGoTo(go) {
     case 'prodLines': prodSetTab('lines'); _prodLine = PROD_LINES.indexOf(go.line) >= 0 || go.line === 'pickling' ? go.line : 'vat-a1'; _prodDay = go.day || null; _prodView = 'main';
       switchTab('pageProduction'); return true;
     case 'createFor': createForClient(go.clientId, go.ims); return true;
+    // What a merge held for the owner (merge.js).
+    case 'mergeHeld': mrgHeldOpenDialog(); return true;
     // The statement and reminder dialog, over the client's receivables.
     case 'soa':
       finSetTab('receipts'); _bankOpen = go.client != null ? String(go.client) : null; switchTab('pageFinance');

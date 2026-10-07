@@ -142,7 +142,7 @@ var CHG_TRACK = [
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
 var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1 };
 // Never compared: the log itself (a key starting _ never is either).
-var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
+var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1, mergeHeld: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.
 var CHG_SCALARS = { invPrefix: 'invoice', invNextNum: 'invoice', invNextSetAt: 'invoice', cnNextNum: 'cn', bankDetails: 'bank',
   defaultCostPerKg: 'fullCost', companyLogo: 'logo' };

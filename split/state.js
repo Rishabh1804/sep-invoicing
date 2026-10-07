@@ -36,6 +36,7 @@ function getDefaultState() {
     attendanceDeletes: [],
     // Every save, record by record, with who made it and on which device (changelog.js): History → Changes.
     changeLog: [],
+    mergeHeld: [],
     // Workforce. The roster ships empty: names and wages are payroll data and
     // this repo is public, so the owner enters them once on the device. Areas
     // and comp classes are structure, not data, and live in staff.js.

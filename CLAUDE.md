@@ -53,7 +53,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 81 modules, ~55,500 lines total.
+Split-file PWA. 82 modules, ~56,000 lines total.
 
 ```
 split/
@@ -100,6 +100,7 @@ split/
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
+├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
 ├── add.js             ← Add: one door for everything that comes in (paste, clipboard, photo, file, by hand) (~400 lines)
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
@@ -144,7 +145,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -2390,11 +2391,24 @@ on the build before. What it leaves as rules:
   (`attSeesWages`); a To-do jump to a page the role does not open opens nothing (`todoGo`).
 - **The change log** (`changelog.js`, P141): every save compared with the book before it, record by record, each changed
   field from → to, tagged with who was signed in and the device; kept in the book (`S.changeLog`), shown in History →
-  Changes. It is what the merge (G4, not built) will sync.
+  Changes. The merge (below) reads it to say whose change stands.
 - **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
   can only import. The token is kept encrypted under a key that cannot leave the device. A device the owner removes stops
   syncing and forgets its token at its next load. With the guard off, sync is unchanged.
+- **The merge** (`merge.js`, P175; G4, owner 7 Oct 2026: *"start with 3 and 4"*). Sync had been one book written whole: a push over a
+  copy not seen replaced the other device's work, a pull replaced this one's. Now each is a three-way merge against **the copy both
+  last saw** (IndexedDB key `synced` beside `current`, with its SHA; `mrgBasePut` after every push and pull that lands), store by store
+  as the change log tracks them (`CHG_TRACK`), record by record and field by field. A change on one side is taken; **both changed one
+  thing: the owner's stands** (whose is read off each side's change log since the base), else the later, else this device's when the
+  owner is signed in here and GitHub's otherwise (`mrgPrefer`), and **the other is held** (`S.mergeHeld`: Settings → GitHub sync →
+  *Held for you*, To-do `mergeHeld`, red where two records carry one number); the owner keeps it or uses the one held (`grdGate('users')`).
+  A record removed on one side and changed on the other is kept and the removal held; a series' next number takes the higher
+  (`MRG_MAX`); a push stamp, LME history and what a challan has billed take this device's, filled from the other (`MRG_QUIET`). The
+  change logs are unioned and one line says what was taken and held. The merged book is migrated as a pull's is. **Only where the base
+  is the copy at this device's SHA** (`ghMergeRemote`): else the old questions are asked, so the first sync after the build replaces or
+  asks as before. A merge is anyone's (nothing is lost); **Replace from GitHub** stays the owner's (`grdBookAsk`). Auto-push merges
+  where it used to pause. Not a replay of the change log: the log is trimmed at 90 days and 5,000 entries; the book is complete.
 - **Every door to a P1 change asks, wherever it is** (the review of 1 Oct 2026, P146): Add → File asks what its screen's own
   Import asks (an import, the payroll as a payment, a backup the owner's) and refuses a file for a screen the role does not
   open; search lists only what the role's screens show (`srchSees`: an invoice, a credit note, a client, a challan, a bank row,

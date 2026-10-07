@@ -1032,7 +1032,8 @@ function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
   return relayBackBar('invAttView', 'Staff', 'Paste message') +
     '<div class="inv-panel">' +
-    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">The message</span>' + waLinksHtml('paste') + '</div>' +
+    '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +
     '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
     escHtml(_relayDraft) + '</textarea></div>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +

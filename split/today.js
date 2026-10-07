@@ -179,6 +179,10 @@ function tdyInputsHtml(day) {
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(r.text) + '</span></button>' +
       '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' + uiDot(dot[0], dot[1]) + btn + '</span></div>';
   });
+  // The messages these rows wait for come in on WhatsApp: open it from here (add.js).
+  h += '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-wa><span class="inv-row-main"><span class="inv-row-title">WhatsApp</span>' +
+    '<span class="inv-row-meta inv-row-wrap">Copy a message there, then Paste on its row</span></span>' +
+    '<span class="inv-row-end inv-row-actions">' + waLinksHtml('today') + '</span></div>';
   return h + '</div>';
 }
 /* The first VAT line with no record (the register photo is theirs); else VAT A1. */

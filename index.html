@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="7eb97c8a">
+<meta name="app-build" content="f1577805">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1971,6 +1971,9 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 
 /* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */
 a.inv-btn { text-decoration: none; }
+/* WhatsApp, opened beside a paste box (add.js): its links keep their words on one line and their size in a head. */
+[data-wa] .inv-btn { white-space: nowrap; flex: 0 0 auto; }
+[data-wa] { flex-wrap: wrap; justify-content: flex-end; }
 /* A move's sentence keeps room to read: in a half-width card its buttons take the line under it rather than squeezing it. */
 .inv-row-flow[data-adv-move] > .inv-row-main { flex-basis: calc(var(--col-sm-w) * 2); }
 
@@ -31770,7 +31773,8 @@ function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
   return relayBackBar('invAttView', 'Staff', 'Paste message') +
     '<div class="inv-panel">' +
-    '<div class="inv-field"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">The message</span>' + waLinksHtml('paste') + '</div>' +
+    '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +
     '<textarea id="relayPasteText" class="inv-textarea inv-textarea-mono" rows="12" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine.">' +
     escHtml(_relayDraft) + '</textarea></div>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invRelayRead">Read message</button>' +
@@ -32164,6 +32168,49 @@ var ADD_HAND = [
   ['task', 'Task', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>']
 ];
 
+/* ---------- WhatsApp, opened where its messages are pasted ----------
+   Owner, 7 Oct 2026: "When connected to the internet let's have a webpage loader in the app where it can directly open
+   the web.whatsapp.com page or the installed app for us." WhatsApp Web cannot be shown inside the app: it answers
+   `frame-ancestors https://*.whatsapp.com`, so a browser refuses to draw it in any other site's frame. So it opens in a
+   window of its own (one, named, so a second tap returns to it rather than opening another) or in the installed app,
+   from beside each paste box: Add, Staff → Paste message, and Today's inputs. Online only: offline the links are hidden
+   and a line says why, and the online and offline events switch them in place. */
+var WA_WEB = 'https://web.whatsapp.com/';
+var WA_WINDOW = 'sepWhatsApp';
+/* The phone this is: Android opens the app by its package (Chrome goes to the Play Store when it is not installed), an
+   iPhone by WhatsApp's own scheme; anything else is a computer, which has the web page and, on Windows or a Mac with
+   the desktop app installed, the app by the same scheme. */
+function waDevice() {
+  var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  if (/Android/i.test(ua)) return 'android';
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  return 'desktop';
+}
+function waLinks() {
+  var d = waDevice();
+  if (d === 'android') return [['app', 'Open WhatsApp', 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.whatsapp;end']];
+  if (d === 'ios') return [['app', 'Open WhatsApp', 'whatsapp://']];
+  return [['web', 'WhatsApp Web', WA_WEB], ['app', 'Desktop app', 'whatsapp://']];
+}
+function waOnline() { return typeof navigator === 'undefined' || navigator.onLine !== false; }
+function waLinksHtml(where) {
+  var on = waOnline();
+  return '<span class="inv-toolbar inv-toolbar-tight" data-wa="' + escHtml(where) + '">' + waLinks().map(function(l) {
+    return '<a class="inv-btn inv-btn-secondary inv-btn-sm' + (on ? '' : ' inv-hidden') + '" data-wa-go="' + l[0] + '" href="' + escHtml(l[2]) + '"' +
+      (l[0] === 'web' ? ' target="' + WA_WINDOW + '"' : '') + '>' + escHtml(l[1]) + '</a>';
+  }).join('') + '<span class="inv-row-meta' + (on ? ' inv-hidden' : '') + '" data-wa-off>Offline: WhatsApp opens once you are online</span></span>';
+}
+function waSync() {
+  var on = waOnline();
+  document.querySelectorAll('[data-wa]').forEach(function(box) {
+    box.querySelectorAll('[data-wa-go]').forEach(function(a) { a.classList.toggle('inv-hidden', !on); });
+    var off = box.querySelector('[data-wa-off]');
+    if (off) off.classList.toggle('inv-hidden', on);
+  });
+}
+window.addEventListener('online', waSync);
+window.addEventListener('offline', waSync);
+
 /* ---------- The sheet ---------- */
 function addOpen() {
   if (document.querySelector('[data-add-sheet]')) return;
@@ -32176,7 +32223,7 @@ function addOpen() {
   var h = '<div class="inv-dialog" data-add-sheet role="dialog" aria-modal="true" aria-labelledby="addTitle">' +
     dialogHeadHtml('<span id="addTitle">Add</span>') +
     // 1. A WhatsApp message, for the one paste box.
-    '<div class="inv-panel" data-add-sec="paste"><div class="inv-panel-head"><span class="inv-panel-title">Paste a WhatsApp message</span></div>' +
+    '<div class="inv-panel" data-add-sec="paste"><div class="inv-panel-head"><span class="inv-panel-title">Paste a WhatsApp message</span>' + waLinksHtml('add') + '</div>' +
     '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="addPasteText">Rolls, stock, pickling loads, production, power cuts</label>' +
     '<textarea id="addPasteText" class="inv-textarea inv-textarea-mono" rows="4" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine."></textarea>' +
     '<div class="inv-field-error inv-hidden" id="addPasteErr">Paste the message first.</div></div>' +
@@ -41850,6 +41897,10 @@ function tdyInputsHtml(day) {
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(r.text) + '</span></button>' +
       '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' + uiDot(dot[0], dot[1]) + btn + '</span></div>';
   });
+  // The messages these rows wait for come in on WhatsApp: open it from here (add.js).
+  h += '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-wa><span class="inv-row-main"><span class="inv-row-title">WhatsApp</span>' +
+    '<span class="inv-row-meta inv-row-wrap">Copy a message there, then Paste on its row</span></span>' +
+    '<span class="inv-row-end inv-row-actions">' + waLinksHtml('today') + '</span></div>';
   return h + '</div>';
 }
 /* The first VAT line with no record (the register photo is theirs); else VAT A1. */

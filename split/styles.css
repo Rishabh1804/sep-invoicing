@@ -1949,6 +1949,9 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 
 /* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */
 a.inv-btn { text-decoration: none; }
+/* WhatsApp, opened beside a paste box (add.js): its links keep their words on one line and their size in a head. */
+[data-wa] .inv-btn { white-space: nowrap; flex: 0 0 auto; }
+[data-wa] { flex-wrap: wrap; justify-content: flex-end; }
 /* A move's sentence keeps room to read: in a half-width card its buttons take the line under it rather than squeezing it. */
 .inv-row-flow[data-adv-move] > .inv-row-main { flex-basis: calc(var(--col-sm-w) * 2); }
 

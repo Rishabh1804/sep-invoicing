@@ -53,7 +53,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 79 modules, ~55,000 lines total.
+Split-file PWA. 81 modules, ~55,500 lines total.
 
 ```
 split/
@@ -97,6 +97,8 @@ split/
 ├── xlsx.js            ← .xlsx writer: typed cells, dates, number formats, frozen header, filter; a stored zip (~170 lines)
 ├── bank.js            ← Finance → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
+├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
+├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
 ├── add.js             ← Add: one door for everything that comes in (paste, clipboard, photo, file, by hand) (~400 lines)
@@ -142,7 +144,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -172,7 +174,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,535 tests, both layouts
+pnpm exec playwright test          # 1,541 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -410,7 +412,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 639 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 639 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2755,6 +2757,22 @@ figure is the strongest evidence this repo has; this gives the live cost a secon
   - Offered, never applied, the same as the zinc uplift.
   - On the real statement: electricity ₹0.80/kg against the ₹0.81 model; labour ₹3.46 against ₹3.55.
 
+### Statement of account and payment reminders
+Finance → Receivables → a client → **Statement and reminder** (`statement.js`; owner, 7 Oct 2026: *"Start with 1 and 2"*, the first
+being a statement of account and payment reminders). P173.
+- **One arithmetic**: every figure is Receivables' own (`bankReceivables`): its start, opening, invoices, credit notes, the receipts
+  placed on the client and what each paid, and the paise an exact match settled (*Settled to the rupee*). **The closing balance is what
+  Receivables says is owed, to the paisa** (`soaCompute`), from any first day: what came before it is *Balance brought forward*.
+- **The printed statement** (`soaDocHtml`) is on the quotation's paper (`.inv-qt-doc`, its frame and letterhead) with its own table
+  (`inv-soa-*`): dated lines with a running balance (Dr / Cr), the open invoices aged 0–30 / 31–60 / 61–90 / over 90 days, where to
+  pay (`S.bankDetails`), and the day the bank statement ends: a payment after it is not on it.
+- **The reminder** is a message from the same figures (the total and the oldest eight open invoices), editable, sent on WhatsApp to the
+  client's mobile (`soaWaNumber`: the first Indian mobile on the client, else WhatsApp opens to pick the chat) or copied. **A reminder sent
+  is recorded** (`S.bank.reminders`: client, when, amount, how; in the change log, not in the `sep-bank` export), said on the client's
+  Receivables row and on the over-90-days chase, which gains a move, *Send a reminder* (`advRemindMove`, jump `soa`).
+- **Said before anything goes out**: a bank statement ending more than three days ago, receipts with no client, an opening not set or
+  set against another day. Statements show money: a role that does not see money is refused.
+
 ### The statement as intelligence
 Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
 
@@ -3151,6 +3169,17 @@ to the rupee for 8 of 9 hands off the imported marks; the ninth, the gate hand, 
   adds nothing. 22 + 1 + 5 = 28 × 9000/31 = ₹8,129.03, the ruled figure. The worker's total is rounded once
   from the unrounded parts, or 28 days reads a paisa high.
 - Over a range shorter than a month the gate is judged on the part of the month the range covers, as before.
+
+### Pay slips
+Staff → Pay → Due by worker → **Pay slips** (`payslip.js`; owner, 7 Oct 2026, the second of *"Start with 1 and 2"*). P174.
+- **A slip is Pay's own row** (`payDue` for the week on screen): the worker's own period (the week for the weekly tiers, the month of the
+  week's Sunday for the monthly), earned (`labourForRange().byWorker`), each payment and advance Pay counts for the period
+  (`psPayments`, `payPaidFor`'s own reading), the balance brought forward (`payCarried`) and what is due. **It foots**: earned − paid ±
+  brought forward = due, as Pay shows it. A month on record as paid prints the payroll's row and reads settled.
+- It shows attendance (present, half, absent in the period), the earnings line by line (days × the day rate, rest days, overtime hours, or
+  hours × the hour rate), the worker's card, designation, area, tier and rate. The EXTRA pool is not on it, and a weekly slip says so.
+- **Two to an A4 page** with a line to cut along (`inv-ps-*`, its sizes declared once); the reference is derived (`PS/<period>/<card or
+  id>`), so a reprint is the same slip and nothing is written when one is printed. Only a role that opens Pay reaches it.
 
 ### The monthly payroll AS PAID
 A closed month is not a thing to re-derive: somebody was paid against a slip, and the slip is the fact. The

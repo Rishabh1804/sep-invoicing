@@ -76,6 +76,7 @@ JS_SOURCES=(
     "$DIR/dash.js" \
     "$DIR/production.js" \
     "$DIR/plant.js" \
+    "$DIR/people.js" \
     "$DIR/prodview.js" \
     "$DIR/floor.js" \
     "$DIR/today.js" \

@@ -1095,7 +1095,8 @@ function _attWorkerPaneHtml(w, wages) {
       '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
   } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
   h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
-  return h;
+  // Their record (people.js): tenure, reliability, consistency, workload, skills, ties; the owner's alone, motivation and details.
+  return h + pplRecordHtml(w);
 }
 
 /* The hourly rate a worker's overtime is paid at.
@@ -1654,6 +1655,8 @@ function _showWorkerOverlay(worker, isAdd) {
   };
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add worker' : 'Edit worker')) +
+    // Their record first (people.js): what the book says of them, then the fields that set them.
+    (isAdd ? '' : '<div data-ppl-sheet="' + escHtml(String(w.id)) + '">' + pplRecordHtml(w) + '</div>') +
     _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
     '<div class="inv-fields">' +
     _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
@@ -1785,6 +1788,12 @@ function saveWorker(id, mode) {
     // A renamed worker keeps the old name as a spelling, as a merge keeps the retired row's: rolls and payroll slips
     // written under it are matched by name alone, and a rename cut the worker off from every slip (the review, 30 Sep 2026).
     var oldName = w.name;
+    // A rate changed is kept with its day (people.js reads "no rise in a year" off it).
+    if (wageSet && (num(w.dayRate) || num(w.hourRate) || num(w.monthWage))) {
+      w.rateHistory = Array.isArray(w.rateHistory) ? w.rateHistory : [];
+      w.rateHistory.push({ on: localDateStr(), from: { dayRate: num(w.dayRate), hourRate: num(w.hourRate), monthWage: num(w.monthWage) },
+        to: { dayRate: fields.dayRate, hourRate: fields.hourRate, monthWage: fields.monthWage } });
+    }
     Object.keys(fields).forEach(function(k) { w[k] = fields[k]; });
     if (oldName && relayKey(oldName) && relayKey(oldName) !== relayKey(w.name)) {
       w.relayNames = w.relayNames || [];
@@ -1834,6 +1843,8 @@ function importRosterText(text) {
   var data;
   try { data = JSON.parse(text); }
   catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
+  // A file of workers' details (people.js) is the owner's, checked row by row before anything is kept.
+  if (data && data.format === 'sep-people') { pplImportData(data); return; }
   var res = applyRosterImport(data);
   if (res.error) { showToast(res.error, 'error'); return; }
   saveState();

@@ -60,7 +60,9 @@ var CHG_TRACK = [
   { path: 'extraExceptions', kind: 'arr', noun: 'explained exception', key: function(r) { return 'X:' + [r.iso, r.scope, r.key, r.at].join('|'); },
     label: function(r) { return chgJoin(r.label || r.key, r.iso ? chgDay(r.iso) : ''); } },
   { path: 'attendanceDeletes', kind: 'arr', noun: 'deleted attendance day', label: function(r) { return chgJoin(r.iso ? chgDay(r.iso) : r.key, r.reason); } },
-  { path: 'staff', kind: 'arr', noun: 'worker', label: function(r) { return r.name; } },
+  // A worker's personal details are the owner's alone (people.js): never compared, so History never shows them.
+  { path: 'staff', kind: 'arr', noun: 'worker', omit: ['profile'], label: function(r) { return r.name; } },
+  { path: 'peopleCheckins', kind: 'arr', noun: 'check-in', omit: ['score', 'note'], label: function(r) { return chgJoin(chgStaffName(r.staffId), r.on ? chgDay(r.on) : ''); } },
   { path: 'staffPayments', kind: 'arr', noun: 'payment', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.kind, chgMoney(r.amount), r.date ? chgDay(r.date) : ''); } },
   { path: 'payCarryClears', kind: 'arr', noun: 'cleared balance', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.through ? 'to ' + chgDay(r.through) : '', r.reason); } },
   { path: 'costBills', kind: 'arr', noun: 'bill',

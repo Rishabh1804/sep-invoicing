@@ -83,6 +83,8 @@ function getDefaultState() {
     planner: { cfg: {}, machines: [], checklist: [], lenders: [], heard: [], heldBack: [], scenarios: [] },
     // The plant register (plant.js): every barrel and tank, its status, and each change of status with its day.
     plant: { units: [], log: [] },
+    // The owner's monthly check-in on each worker (people.js): half the motivation index.
+    peopleCheckins: [],
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
     payCarryClears: [],

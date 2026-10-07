@@ -345,6 +345,7 @@ function addJsonWhat(obj) {
   if (f === 'sep-power') return 'power';
   if (f === 'sep-payroll-paid') return 'payroll';
   if (f === 'sep-att-register') return 'register';
+  if (f === 'sep-people') return 'people';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -361,6 +362,7 @@ var ADD_FILE_GUARD = {
   payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
+  people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -391,6 +393,7 @@ async function addFileRoute(file, buf) {
     payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text); },
     roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
     register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
+    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text); }
   }[what];

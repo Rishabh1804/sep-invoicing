@@ -79,6 +79,20 @@ Their answers to the four questions put to them, the same day:
 - **Import templates**: `sep-plant` v1 (units, merged by id) and the roster's profiles through Staff → Roster → Import (merged by name,
   as the roster always is), so the owner can fill both in a spreadsheet.
 
+## W4 · ID cards and the scanner
+
+Owner, 7 Oct 2026: *"Every employee must also have an ID Card, which I can take a print out later, if needed. That becomes a tag
+that every worker gets, we will have a QR code scanner in it that should be linked and scannable to the attendance logger in the app."*
+
+- **A card per worker** (`idcard.js`): a card number (`w.card`, *SEP-0007*, given once and never reused) and a QR code of
+  `SEP1:W:<card>:<check>`, drawn by the app's own encoder (no library, no network). Printed through the one print view: the
+  company, the name, the designation, the card number, the blood group, the QR, credit-card size, ten to an A4 sheet.
+- **The scanner** (Staff → Day → **Scan cards**): the phone's camera reads a card (the browser's `BarcodeDetector`; where a
+  browser has none, the card number is typed). The first scan of a day is the in-time, the next the out-time; each is a mark
+  the worker's own (`src: 'scan'`), so a roll never rewrites it, and a scan within two minutes of the last is the same scan.
+  Every scan is listed on the screen as it lands, with Undo. A card retired or a worker inactive is refused and said.
+- A floor entry for the guard (`attFloorOk`); printing the cards is the owner's.
+
 ## Order
 
-W1, then W2, then W3: one PR each.
+W1, then W2, then W3, then W4, in one PR, one commit each; the QA chain before the merge (owner, 7 Oct 2026).

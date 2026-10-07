@@ -2136,3 +2136,14 @@ body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax
 .inv-unit-pip[data-status="standby"] { background: var(--info); }
 .inv-unit-pip[data-status="repair"] { background: var(--warning); }
 .inv-unit-pip[data-status="down"] { background: var(--danger); }
+
+/* A worker's record (people.js): skill dots out of five, and a short bar for a figure out of 100 in its status's tone. */
+.inv-skill { display: inline-flex; gap: var(--sp-2); }
+.inv-skill-dot { width: var(--sp-8); height: var(--sp-8); border-radius: 50%; background: var(--surface-3); }
+.inv-skill-dot[data-on] { background: var(--accent); }
+.inv-stat-bar { display: block; width: 100%; height: var(--sp-4); border-radius: var(--r-full); overflow: hidden; }
+.inv-stat-bar-track { fill: var(--surface-3); }
+.inv-stat-bar-fill { fill: var(--text-3); }
+.inv-stat-bar-fill[data-tone="ok"] { fill: var(--ok); }
+.inv-stat-bar-fill[data-tone="warning"] { fill: var(--warning); }
+.inv-stat-bar-fill[data-tone="danger"] { fill: var(--danger); }

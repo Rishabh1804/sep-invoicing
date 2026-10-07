@@ -163,7 +163,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,482 tests, both layouts
+pnpm exec playwright test          # 1,486 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2200,6 +2200,12 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   a spec reaching one opens Pulse first (`openPulse` in the fixtures).
 - **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
   by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
+- **WhatsApp, opened from beside each paste box** (`waLinksHtml`, add.js; owner, 7 Oct 2026: *"directly open the web.whatsapp.com
+  page or the installed app"*): Add, Staff → Paste message and Today's inputs. WhatsApp Web answers `frame-ancestors
+  https://*.whatsapp.com`, so no site can show it in a frame: the phone opens the installed app (Android by its package, Chrome
+  going to the Play Store when it is missing; an iPhone by `whatsapp://`), a computer WhatsApp Web in one named window
+  (`sepWhatsApp`, so a second tap returns to it) and the desktop app by `whatsapp://`. Offline the links hide and say why;
+  the online and offline events switch them in place (`waSync`). P165.
 - **Office → Pipeline** (`pipeline.js`, P137): awaiting invoice → created → printed → dispatched → delivered → owed to us,
   each a count, an amount and a tone by age, read off the function its own screen uses; a stage opens its list and its
   action goes through the screen that owns it. *Owed to us* is money: a role that does not see money has no such stage.

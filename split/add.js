@@ -42,6 +42,49 @@ var ADD_HAND = [
   ['task', 'Task', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>']
 ];
 
+/* ---------- WhatsApp, opened where its messages are pasted ----------
+   Owner, 7 Oct 2026: "When connected to the internet let's have a webpage loader in the app where it can directly open
+   the web.whatsapp.com page or the installed app for us." WhatsApp Web cannot be shown inside the app: it answers
+   `frame-ancestors https://*.whatsapp.com`, so a browser refuses to draw it in any other site's frame. So it opens in a
+   window of its own (one, named, so a second tap returns to it rather than opening another) or in the installed app,
+   from beside each paste box: Add, Staff → Paste message, and Today's inputs. Online only: offline the links are hidden
+   and a line says why, and the online and offline events switch them in place. */
+var WA_WEB = 'https://web.whatsapp.com/';
+var WA_WINDOW = 'sepWhatsApp';
+/* The phone this is: Android opens the app by its package (Chrome goes to the Play Store when it is not installed), an
+   iPhone by WhatsApp's own scheme; anything else is a computer, which has the web page and, on Windows or a Mac with
+   the desktop app installed, the app by the same scheme. */
+function waDevice() {
+  var ua = (typeof navigator !== 'undefined' && navigator.userAgent) || '';
+  if (/Android/i.test(ua)) return 'android';
+  if (/iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)) return 'ios';
+  return 'desktop';
+}
+function waLinks() {
+  var d = waDevice();
+  if (d === 'android') return [['app', 'Open WhatsApp', 'intent:#Intent;action=android.intent.action.MAIN;category=android.intent.category.LAUNCHER;package=com.whatsapp;end']];
+  if (d === 'ios') return [['app', 'Open WhatsApp', 'whatsapp://']];
+  return [['web', 'WhatsApp Web', WA_WEB], ['app', 'Desktop app', 'whatsapp://']];
+}
+function waOnline() { return typeof navigator === 'undefined' || navigator.onLine !== false; }
+function waLinksHtml(where) {
+  var on = waOnline();
+  return '<span class="inv-toolbar inv-toolbar-tight" data-wa="' + escHtml(where) + '">' + waLinks().map(function(l) {
+    return '<a class="inv-btn inv-btn-secondary inv-btn-sm' + (on ? '' : ' inv-hidden') + '" data-wa-go="' + l[0] + '" href="' + escHtml(l[2]) + '"' +
+      (l[0] === 'web' ? ' target="' + WA_WINDOW + '"' : '') + '>' + escHtml(l[1]) + '</a>';
+  }).join('') + '<span class="inv-row-meta' + (on ? ' inv-hidden' : '') + '" data-wa-off>Offline: WhatsApp opens once you are online</span></span>';
+}
+function waSync() {
+  var on = waOnline();
+  document.querySelectorAll('[data-wa]').forEach(function(box) {
+    box.querySelectorAll('[data-wa-go]').forEach(function(a) { a.classList.toggle('inv-hidden', !on); });
+    var off = box.querySelector('[data-wa-off]');
+    if (off) off.classList.toggle('inv-hidden', on);
+  });
+}
+window.addEventListener('online', waSync);
+window.addEventListener('offline', waSync);
+
 /* ---------- The sheet ---------- */
 function addOpen() {
   if (document.querySelector('[data-add-sheet]')) return;
@@ -54,7 +97,7 @@ function addOpen() {
   var h = '<div class="inv-dialog" data-add-sheet role="dialog" aria-modal="true" aria-labelledby="addTitle">' +
     dialogHeadHtml('<span id="addTitle">Add</span>') +
     // 1. A WhatsApp message, for the one paste box.
-    '<div class="inv-panel" data-add-sec="paste"><div class="inv-panel-head"><span class="inv-panel-title">Paste a WhatsApp message</span></div>' +
+    '<div class="inv-panel" data-add-sec="paste"><div class="inv-panel-head"><span class="inv-panel-title">Paste a WhatsApp message</span>' + waLinksHtml('add') + '</div>' +
     '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="addPasteText">Rolls, stock, pickling loads, production, power cuts</label>' +
     '<textarea id="addPasteText" class="inv-textarea inv-textarea-mono" rows="4" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine."></textarea>' +
     '<div class="inv-field-error inv-hidden" id="addPasteErr">Paste the message first.</div></div>' +

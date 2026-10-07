@@ -81,7 +81,8 @@ function pplStats(w) {
   var lateShare = timed ? late / timed : 0, earlyShare = timed ? early / timed : 0;
   var rel = presence == null ? null : Math.round(100 * presence * (1 - 0.5 * lateShare - 0.5 * earlyShare));
   var sdIn = pplSd(inMins), sdH = pplSd(hours), nAreas = Object.keys(areas).length;
-  var cons = inMins.length + hours.length >= 5 ? Math.max(0, Math.min(100, Math.round(100 - sdIn * 2 - sdH * 5 - Math.max(0, nAreas - 2) * 5))) : null;
+  // Steady is about times: with fewer than five in-times recorded it is not worked out (hours alone would read steady on nothing).
+  var cons = inMins.length >= 5 ? Math.max(0, Math.min(100, Math.round(100 - sdIn * 2 - sdH * 5 - Math.max(0, nAreas - 2) * 5))) : null;
   var besideTop = Object.keys(beside).sort(function(a, b) { return beside[b] - beside[a]; }).slice(0, 3).map(function(k) { var o = staffById(k); return o ? { name: o.name, days: beside[k] } : null; }).filter(Boolean);
   return { marked: marked, firm: marked >= PPL_FIRM_DAYS, n: n, presence: presence, late: late, early: early, timed: timed, reliability: rel,
     sdIn: sdIn, sdHours: sdH, areas: areas, nAreas: nAreas, consistency: cons, ot28: ot28, sun28: sun28, otWeeks: otWeeks.reverse(),
@@ -127,8 +128,13 @@ function pplMotivation(w, st, labMemo) {
     if (peer) add('peer', 'paid less than ' + peer.name + ', on the same tier with less service', 15);
   }
   if (st.abs30 >= 3 && st.abs30 > st.absPrior / 2 + 1) add('absent', st.abs30 + ' absences in 30 days, against ' + st.absPrior + ' in the 60 before', 15);
-  var hist = (w.rateHistory || []).filter(function(h) { return h && h.on; }).sort(function(a, b) { return a.on < b.on ? 1 : -1; });
-  if (tw != null && tw >= 365 && (!hist.length || isoDaysBetween(hist[0].on, today) > 365)) add('noRise', hist.length ? 'no rise since ' + formatDate(hist[0].on) : 'no rise recorded in a year', 10);
+  // A rise is a rate that went up; it is judged only on a year of history kept (the history starts when rates were first
+  // recorded here, so a worker typed in as long-serving is not read as never raised).
+  var hist = (w.rateHistory || []).filter(function(h) { return h && h.on; }).sort(function(a, b) { return a.on < b.on ? -1 : 1; });
+  var rose = function(h) { var f = h.from || {}, t = h.to || {}; return ['dayRate', 'hourRate', 'monthWage'].some(function(k) { return (+t[k] || 0) > (+f[k] || 0) && (+f[k] || 0) > 0; }); };
+  var rises = hist.filter(rose), lastRise = rises.length ? rises[rises.length - 1].on : null;
+  if (tw != null && tw >= 365 && hist.length && isoDaysBetween(hist[0].on, today) >= 365 && (!lastRise || isoDaysBetween(lastRise, today) > 365))
+    add('noRise', lastRise ? 'no rise since ' + formatDate(lastRise) : 'no rise in a year of rates recorded', 10);
   var signals = Math.max(0, 100 - pen), ci = pplLastCheckin(w), ciFresh = ci && isoDaysBetween(ci.on, today) <= PPL_CHECKIN_DAYS;
   var score = ciFresh ? Math.round(0.5 * signals + 0.5 * ((ci.score - 1) / 4 * 100)) : signals;
   var firm = !!(st.firm && ciFresh);
@@ -156,7 +162,7 @@ function pplRecordHtml(w, opts) {
   opts = opts || {};
   var st = pplStats(w), owner = pplOwner(), id = escHtml(String(w.id));
   var h = '<div class="inv-tiles" data-ppl-record="' + id + '">' +
-    pplTile('Tenure', escHtml(pplTenureWords(st.tenure)), st.tenure ? (st.tenure.src === 'joined' ? 'joined ' : 'first marked ') + formatDate(st.tenure.from) : 'no joining date or mark', '', 'tenure') +
+    pplTile('Tenure', escHtml(pplTenureWords(st.tenure)), st.tenure ? (st.tenure.src === 'joined' ? (owner ? 'joined ' + formatDate(st.tenure.from) : 'from the joining date') : 'first marked ' + formatDate(st.tenure.from)) : 'no joining date or mark', '', 'tenure') +
     pplTile('Reliability', st.reliability == null ? '&mdash;' : st.reliability + '', pplRelWords(st), pplScoreTone(st.reliability, st.firm), 'reliability') +
     pplTile('Consistency', st.consistency == null ? '&mdash;' : st.consistency + '', pplConsWords(st), pplScoreTone(st.consistency, st.firm), 'consistency') +
     pplTile('Workload', escHtml(formatNum(st.ot28, 0)) + ' h', 'OT in 4 weeks' + (st.sun28 ? ', ' + st.sun28 + ' Sunday' + (st.sun28 === 1 ? '' : 's') : ''), pplWorkTone(st), 'workload') + '</div>';
@@ -213,7 +219,7 @@ function _pplF(id, label, v, type, extra) {
   return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><input class="inv-input" id="' + id + '" type="' + (type || 'text') + '" value="' + escHtml(v == null ? '' : String(v)) + '"' + (extra || '') + '></div>';
 }
 function _pplSel(id, label, list, v) {
-  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><select class="inv-input" id="' + id + '">' +
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><select class="inv-select" id="' + id + '">' +
     list.map(function(o) { return '<option value="' + escHtml(String(o[0])) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>'; }).join('') + '</select></div>';
 }
 var _pplFrom = null;   // the worker's edit sheet the dialog was opened over, to come back to it
@@ -240,8 +246,8 @@ function pplEdit(id) {
       return '<div class="inv-fields">' + _pplSel('pplTieKind' + i, 'Relationship ' + (i + 1), [['', 'None']].concat(PPL_TIES), t.kind || '') +
         _pplSel('pplTieWho' + i, 'Worker', workers, t.staffId != null ? t.staffId : '') + _pplF('pplTieName' + i, 'Or a name', t.staffId != null ? '' : t.name) + '</div>';
     }).join('') + '</div></div>';
-  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + ': details, skills and ties') + f +
-    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
+  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + ': details, skills and ties', 'invCloseConfirm') + f +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
 }
 function _pplV(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
 function pplSave(id) {
@@ -259,8 +265,12 @@ function pplSave(id) {
     var kind = _pplV('pplTieKind' + i), who = _pplV('pplTieWho' + i), name = _pplV('pplTieName' + i);
     if (!kind || (!who && !name)) continue;
     var o = who ? staffById(who) : null;
-    ties.push(o ? { kind: kind, staffId: o.id } : { kind: kind, name: name });
+    var tie = o ? { kind: kind, staffId: o.id } : { kind: kind, name: name }, was = (w.ties || [])[i];
+    // A tie's note (from a file) is kept while the tie is the same one.
+    if (was && was.note && was.kind === tie.kind && (o ? String(was.staffId) === String(o.id) : was.name === tie.name)) tie.note = was.note;
+    ties.push(tie);
   }
+  ties = ties.concat((w.ties || []).slice(3));   // the form shows three; the rest are kept as they are
   w.profile = prof; w.skills = skills; w.ties = ties;
   saveState();
   pplBack(id);
@@ -271,13 +281,13 @@ function pplCheckinOpen(id) {
   var w = staffById(id);
   if (!w) return;
   _pplFrom = document.querySelector('[data-ppl-sheet]') ? id : null;
-  dialogOpen('<div class="inv-dialog" data-ppl-checkin-form="' + escHtml(String(w.id)) + '">' + dialogHeadHtml('Check in: ' + escHtml(w.name)) +
+  dialogOpen('<div class="inv-dialog" data-ppl-checkin-form="' + escHtml(String(w.id)) + '">' + dialogHeadHtml('Check in: ' + escHtml(w.name), 'invCloseConfirm') +
     '<div class="inv-note">How they seem this month, in your words: 1 is low, 5 is driven. It is half their motivation index.</div>' +
     '<div class="inv-seg inv-mt-8" role="group" aria-label="How they seem">' + PPL_SCORES.map(function(s) {
       return '<button type="button" class="inv-seg-btn" data-action="invPplScore" data-score="' + s[0] + '" aria-pressed="false">' + s[0] + ' · ' + escHtml(s[1]) + '</button>';
     }).join('') + '</div>' +
     _pplF('pplCiOn', 'On', localDateStr(), 'date') + _pplF('pplCiNote', 'What was said or seen (recommended)', '') +
-    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplCheckinSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplCheckinSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
 }
 function pplCheckinSave(id) {
   if (!pplOwnerOk(function() { pplCheckinSave(id); })) return;
@@ -292,11 +302,14 @@ function pplCheckinSave(id) {
   pplBack(id);
   showToast('Checked in');
 }
-/* Back where the dialog was opened: the worker's sheet on the phone, else the page redrawn. */
+/* Back where the dialog was opened: only this dialog shuts, and the worker's sheet under it keeps what was typed on it, its
+   record redrawn in place; else the page redrawn. */
 function pplBack(id) {
-  closeOverlay();
-  if (_pplFrom != null && typeof openWorkerEdit === 'function') { var f = _pplFrom; _pplFrom = null; openWorkerEdit(f); }
-  if (typeof renderAttendance === 'function' && navPageOf() === 'pageStaff') renderAttendance();
+  closeTopOverlay();
+  var sheet = _pplFrom != null ? document.querySelector('[data-ppl-sheet]') : null, w = staffById(id);
+  _pplFrom = null;
+  if (sheet && w) sheet.innerHTML = pplRecordHtml(w);
+  else if (typeof renderAttendance === 'function' && navPageOf() === 'pageStaff') renderAttendance();
 }
 function pplAction(action, btn) {
   switch (action) {
@@ -308,6 +321,7 @@ function pplAction(action, btn) {
     case 'invPplScore': {
       var seg = btn.closest('.inv-seg');
       if (seg) seg.querySelectorAll('[data-action="invPplScore"]').forEach(function(b) { b.setAttribute('aria-pressed', String(b === btn)); });
+      var scrim = btn.closest('.inv-scrim-dialog'); if (scrim) scrim.dataset.typed = '1';   // a score picked is work a tap outside must not throw away
       return true;
     }
   }
@@ -323,13 +337,25 @@ function pplAction(action, btn) {
 var PPL_IMPORT_FIELDS = ['designation', 'phone', 'address', 'guardian', 'bloodGroup', 'dob', 'joined', 'languages', 'notes', 'idLast4', 'bankLast4'];
 var _pplImport = null;   // {rows: [{row, match: {id, sure}}]}
 /* The row's name, else one of its other spellings (`aliases`): a sure match on any wins over a spelling read as. */
+/* Sure only when the whole name written is the worker's (their name, a spelling kept on them, an alias): a first name alone
+   picks out a roll's hand, never whose phone and address these are. Anything less is a guess, shown and not picked. */
 function pplImportMatch(name, aliases) {
-  var idx = relayRosterIndex(S.staff || []), best = null;
-  [name].concat(Array.isArray(aliases) ? aliases : []).forEach(function(n) {
+  var idx = relayRosterIndex(S.staff || []), best = null, written = [name].concat(Array.isArray(aliases) ? aliases : []);
+  var whole = function(w) { var ks = [w.name].concat(w.relayNames || [], w.aliases || []).map(relayKey); return written.some(function(n) { return ks.indexOf(relayKey(n)) >= 0; }); };
+  var exact = (S.staff || []).filter(whole);
+  if (exact.length === 1) return { id: exact[0].id, sure: true };
+  written.forEach(function(n) {
     var words = String(n || '').trim().split(/\s+/).filter(Boolean), m = words.length ? relayMatchName(words, idx, false) : null;
-    if (m && (!best || (m.sure && !best.sure))) best = m;
+    if (m && !best) best = m;
   });
-  return best ? { id: best.w.id, sure: best.sure } : { id: null, sure: false };
+  return best ? { id: best.w.id, sure: false } : { id: null, sure: false };
+}
+/* A date from a file, as the app keeps it: ISO, or day first; '' when it is not a date or is still to come. */
+function pplImportDate(v) {
+  var t = String(v || '').trim(), m;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t <= localDateStr() ? t : '';
+  if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/.exec(t))) { var iso = isoFromDmy(m[1], m[2], m[3]); return iso && iso <= localDateStr() ? iso : ''; }
+  return '';
 }
 function pplImportData(data) {
   if (!data || data.format !== 'sep-people' || !Array.isArray(data.people)) { uiAlert({ title: 'Not a details file', body: 'A file of workers’ details is marked sep-people and carries a list of people.' }); return; }
@@ -348,17 +374,17 @@ function pplImportReview() {
   var opts = [['', 'Leave out']].concat((S.staff || []).slice().sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(w) { return [w.id, w.name + (w.active === false ? ' (inactive)' : '')]; }));
   var rows = R.rows.map(function(x, i) {
     var r = x.row, has = PPL_IMPORT_FIELDS.filter(function(f) { return r[f]; }).length + (r.emergency && (r.emergency.phone || r.emergency.name) ? 1 : 0) + ((r.ties || []).length ? 1 : 0);
-    var tone = x.match.id == null ? 'neutral' : x.match.sure ? 'ok' : 'warning';
+    var tone = x.match.id == null ? 'neutral' : x.match.sure ? 'ok' : 'warning', guess = !x.match.sure && x.match.id != null ? staffById(x.match.id) : null;
     return '<div class="inv-row inv-row-2 inv-row-flow" data-ppl-import-row="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.name) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(has + ' detail' + (has === 1 ? '' : 's') + (r.designation ? ' · ' + r.designation : '')) + '</span></span>' +
-      '<span class="inv-row-end inv-row-actions">' + uiDot(tone, x.match.id == null ? 'Not found' : x.match.sure ? 'Found' : 'Read as') +
-      '<select class="inv-input" data-ppl-import-pick="' + i + '" aria-label="' + escHtml('Worker for ' + r.name) + '">' + opts.map(function(o) {
-        return '<option value="' + escHtml(String(o[0])) + '"' + (String(o[0]) === String(x.match.id == null ? '' : x.match.id) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(has + ' detail' + (has === 1 ? '' : 's') + (r.designation ? ' · ' + r.designation : '') + (guess ? ' · could be ' + guess.name + ': pick to keep' : '')) + '</span></span>' +
+      '<span class="inv-row-end inv-row-actions">' + uiDot(tone, x.match.id == null ? 'Not found' : x.match.sure ? 'Found' : 'Could be') +
+      '<select class="inv-select" data-ppl-import-pick="' + i + '" aria-label="' + escHtml('Worker for ' + r.name) + '">' + opts.map(function(o) {
+        return '<option value="' + escHtml(String(o[0])) + '"' + (String(o[0]) === String(x.match.sure ? x.match.id : '') ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
       }).join('') + '</select></span></div>';
   }).join('');
   var unsure = R.rows.filter(function(x) { return x.match.id != null && !x.match.sure; }).length, none = R.rows.filter(function(x) { return x.match.id == null; }).length;
   dialogOpen('<div class="inv-dialog inv-dialog-wide" data-ppl-import>' + dialogHeadHtml('Workers’ details: check who is who') +
-    '<div class="inv-note">' + escHtml(R.rows.length + ' row' + (R.rows.length === 1 ? '' : 's') + ' in the file. ' + (unsure ? unsure + ' read as a spelling of a worker: check each. ' : '') +
+    '<div class="inv-note">' + escHtml(R.rows.length + ' row' + (R.rows.length === 1 ? '' : 's') + ' in the file. ' + (unsure ? unsure + ' could be a worker but the name is not theirs in full: pick the worker to keep each. ' : '') +
       (none ? none + ' match nobody on the roster and are left out unless you pick a worker. ' : '') + 'Only what a row carries is written; nothing is kept until you say so.') + '</div>' +
     '<div class="inv-panel inv-panel-flush inv-mt-8">' + rows + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplImportKeep">Keep the details</button></div></div>', { dismiss: true });
@@ -369,14 +395,17 @@ function pplImportKeep() {
   if (!R) return;
   var picks = {};
   document.querySelectorAll('[data-ppl-import-pick]').forEach(function(sel) { picks[sel.dataset.pplImportPick] = sel.value; });
-  var kept = 0, left = 0, twice = 0, seen = {}, idx = relayRosterIndex(S.staff || []);
+  var count = {};
+  Object.keys(picks).forEach(function(i) { if (picks[i]) count[picks[i]] = (count[picks[i]] || 0) + 1; });
+  var dup = Object.keys(count).filter(function(id) { return count[id] > 1; }).map(function(id) { return (staffById(id) || {}).name; });
+  if (dup.length) { uiAlert({ title: 'Two rows on one worker', body: dup.join(', ') + (dup.length === 1 ? ' is' : ' are') + ' picked for more than one row. Pick one row for each, or leave the others out.' }); return; }
+  var badDates = 0, kept = 0, left = 0, idx = relayRosterIndex(S.staff || []);
   R.rows.forEach(function(x, i) {
     var w = picks[i] ? staffById(picks[i]) : null;
     if (!w) { left++; return; }
-    if (seen[w.id]) twice++;
-    seen[w.id] = true;
     var r = x.row, p = Object.assign({}, w.profile || {});
     PPL_IMPORT_FIELDS.forEach(function(f) { if (r[f] != null && String(r[f]).trim() !== '') p[f] = String(r[f]).trim(); });
+    ['dob', 'joined'].forEach(function(f) { if (r[f] != null && String(r[f]).trim() !== '') { var d = pplImportDate(r[f]); if (d) p[f] = d; else { delete p[f]; if ((w.profile || {})[f]) p[f] = w.profile[f]; badDates++; } } });
     if (p.idLast4) p.idLast4 = String(p.idLast4).replace(/\D/g, '').slice(-4);
     if (p.bankLast4) p.bankLast4 = String(p.bankLast4).replace(/\D/g, '').slice(-4);
     if (r.emergency && typeof r.emergency === 'object') {
@@ -388,7 +417,7 @@ function pplImportKeep() {
     if (Array.isArray(r.ties) && r.ties.length) {
       var ties = Array.isArray(w.ties) ? w.ties.slice() : [];
       r.ties.forEach(function(t) {
-        if (!t || !t.kind || !t.name) return;
+        if (!t || !t.kind || !t.name || !PPL_TIES.some(function(k) { return k[0] === t.kind; })) return;
         var m = relayMatchName(String(t.name).trim().split(/\s+/), idx, false), o = m && m.sure ? m.w : null;
         var tie = o ? { kind: t.kind, staffId: o.id } : { kind: t.kind, name: String(t.name).trim() };
         if (t.note) tie.note = String(t.note);
@@ -402,7 +431,7 @@ function pplImportKeep() {
   saveState();
   closeOverlay();
   if (navPageOf() === 'pageStaff') renderAttendance();
-  showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (twice ? ' · ' + twice + ' row' + (twice === 1 ? '' : 's') + ' on a worker another row also named' : ''), left || twice ? 'warning' : 'success');
+  showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (badDates ? ' · ' + badDates + ' date' + (badDates === 1 ? '' : 's') + ' not readable or still to come, left out' : ''), left || badDates ? 'warning' : 'success');
 }
 
 /* ---------- At a glance: the roster's row (W3, the 6-second rule) ---------- */
@@ -451,7 +480,7 @@ TODO_RULE_FNS.pplWatch = function() {
   var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   return (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) { return { w: w, mo: pplMotivation(w, null, memo) }; })
     .filter(function(x) { return x.mo.firm && x.mo.score < 50; }).map(function(x) {
-      return { key: 'pplWatch:' + x.w.id, rule: 'pplWatch', tone: x.mo.score < 35 ? 'red' : 'amber', title: x.w.name + ': motivation ' + x.mo.score,
+      return { key: 'pplWatch:' + x.w.id, rule: 'pplWatch', tone: 'red', title: x.w.name + ': motivation ' + x.mo.score,
         sub: x.mo.sig.length ? x.mo.sig[0].word : 'the check-in', why: 'People · the motivation index',
         facts: x.mo.sig.map(function(s) { return [s.word, '−' + s.weight]; }).concat(x.mo.checkin ? [['Check-in ' + formatDate(x.mo.checkin.on), x.mo.checkin.score + ' of 5' + (x.mo.checkin.note ? ': ' + x.mo.checkin.note : '')]] : []),
         clears: 'Clears itself when the index is 50 or more: a signal resolved, or a better check-in.', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',

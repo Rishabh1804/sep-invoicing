@@ -1,6 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { withUsers, unlock, PINS } from './p140-guard.fixture';
 
 // P171: the QA chain over the workers and the plant (W1–W5, 7 Oct 2026). Each test fails on the build before its fix.
 // Made-up names, numbers and places only.
@@ -196,5 +197,70 @@ test.describe('P171 W5: the office QR check-in', () => {
     const saved: any = await g(page, `(function () { _ckRows = ckReview(ckFromText(${JSON.stringify(later)})); _ckRows[0].tick = true; ckSave();
       var sc = attDay('${day(0)}').scans[2][0]; return [sc.checks, sc.notes.length > 0, sc.ackAt > 0]; })()`);
     expect(saved).toEqual(['danger', true, true]);
+  });
+});
+
+test.describe('P171 W2: worker records', () => {
+  function people(): SepState {
+    const s: any = book();
+    s.staff = [{ id: 1, name: 'Sarat Mahato', comp: 'daily', dayRate: 450, area: 'vat-a1', active: true },
+      { id: 2, name: 'Uday Kumar', comp: 'monthly', dayRate: 500, area: 'barrel', active: true, profile: { joined: day(-800), phone: '90000 11111' } }];
+    return s;
+  }
+  test('a details file: a first name alone is a guess, never picked; one worker on two rows is refused; dates read', async ({ page }) => {
+    await loadAppWithState(page, people());
+    await g(page, `pplImportData({ format: 'sep-people', version: 1, people: [{ name: 'Sarat Kumar', phone: '1' }, { name: 'Uday Kumar', dob: '12/03/1990', joined: '01/01/2099' }, { name: 'Uday K', phone: '2' }] })`);
+    const dlg = page.locator('[data-ppl-import]');
+    await expect(dlg.locator('[data-ppl-import-pick="0"]')).toHaveValue('');
+    await expect(dlg.locator('[data-ppl-import-row="0"]')).toContainText('could be Sarat Mahato');
+    await expect(dlg.locator('[data-ppl-import-pick="1"]')).toHaveValue('2');
+    await dlg.locator('[data-ppl-import-pick="2"]').selectOption('2');
+    await dlg.locator('[data-action="invPplImportKeep"]').click();
+    await expect(page.locator('.inv-dialog', { hasText: 'Two rows on one worker' })).toBeVisible();
+    expect(await g(page, `staffById(1).profile`)).toBeUndefined();
+    await page.locator('.inv-dialog', { hasText: 'Two rows on one worker' }).locator('button').last().click();
+    await dlg.locator('[data-ppl-import-pick="2"]').selectOption('');
+    await dlg.locator('[data-action="invPplImportKeep"]').click();
+    expect(await g(page, `[staffById(2).profile.dob, staffById(2).profile.joined]`)).toEqual(['1990-03-12', day(-800)]);
+  });
+
+  test('a check-in cancelled over the worker’s sheet keeps what was typed on the sheet', async ({ page }) => {
+    await loadAppWithState(page, people());
+    await switchTab(page, 'pageStaff');
+    await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
+    await page.locator('[data-action="invAttEditWorker"][data-id="1"]').first().click();
+    const rate = page.locator('#wedName');
+    await rate.fill('Sarat M');
+    await page.locator('[data-ppl-sheet="1"] [data-action="invPplCheckin"]').click();
+    await page.locator('[data-ppl-checkin-form] [data-action="invCloseConfirm"]').last().click();
+    await expect(page.locator('[data-ppl-sheet="1"]')).toBeVisible();
+    await expect(rate).toHaveValue('Sarat M');
+  });
+
+  test('no rise is judged on a year of rates kept, a cut is no rise; steady needs times', async ({ page }) => {
+    const s: any = people();
+    s.staff[1].rateHistory = [{ on: day(-500), from: { dayRate: 450 }, to: { dayRate: 500 } }, { on: day(-100), from: { dayRate: 500 }, to: { dayRate: 480 } }];
+    s.attendance = {};
+    for (let i = 1; i <= 20; i++) s.attendance[day(-i)] = { marks: { 1: { st: 'P', area: 'vat-a1', hours: 8, ot: 0 } }, extra: [] };
+    await loadAppWithState(page, s);
+    const r: any = await g(page, `[pplMotivation(staffById(2)).sig.map(function (x) { return x.word; }).filter(function (w) { return /rise/.test(w); }), pplStats(staffById(1)).consistency]`);
+    expect(r[0]).toEqual(['no rise since ' + await g(page, `formatDate('${day(-500)}')`)]);
+    expect(r[1]).toBeNull();
+  });
+
+  test('a role that does not see details: no joining date, no card code, and an export without them', async ({ page }) => {
+    const s: any = people();
+    s.staff[1].card = 'SEP-0001';
+    s.peopleCheckins = [{ id: 'C1', staffId: 2, on: day(-1), score: 2, note: 'private', at: 1 }];
+    await loadAppWithState(page, s);
+    await withUsers(page);
+    await unlock(page, 'U-sup', PINS.super);
+    const r: any = await g(page, `(function () { var h = pplRecordHtml(staffById(2)) + idcRecordHtml(staffById(2)); return [/joined /.test(h), /inv-qr/.test(h)]; })()`);
+    expect(r).toEqual([false, false]);
+    const [dl] = await Promise.all([page.waitForEvent('download'), g(page, `exportData()`)]);
+    const body = JSON.parse(require('fs').readFileSync(await dl.path(), 'utf8'));
+    expect(dl.suggestedFilename()).toContain('without-details');
+    expect(body.staff[1].profile).toBeUndefined();
+    expect(body.peopleCheckins).toEqual([]);
   });
 });

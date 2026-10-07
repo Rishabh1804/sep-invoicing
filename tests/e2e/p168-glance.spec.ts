@@ -54,12 +54,13 @@ test.describe('P168 at a glance', () => {
     const s: any = book();
     s.peopleCheckins = [{ id: 'C1', staffId: 2, on: day(-3), score: 1, note: 'quiet', at: 1 }];
     s.staff[1].profile = { joined: day(-500) };
+    s.staff[1].rateHistory = [{ on: day(-400), from: { dayRate: 450 }, to: { dayRate: 500 } }];
     await loadAppWithState(page, s);
     const r: any = await g(page, `({ ci: TODO_RULE_FNS.pplCheckin().map(function (t) { return t.facts.map(function (f) { return f[0]; }); })[0],
       watch: TODO_RULE_FNS.pplWatch().map(function (t) { return t.key + ':' + t.tone; }) })`);
     expect(r.ci).toEqual(['Asha Kumari']);
-    // Bina: no rise recorded in a year (−10), check-in 1 of 5: 0.5 × 90 + 0 = 45, firm.
-    expect(r.watch).toEqual(['pplWatch:2:amber']);
+    // Bina: a year of rates recorded with no rise (−10), check-in 1 of 5: 0.5 × 90 + 0 = 45, firm; under 50 is Low, red, as on her record.
+    expect(r.watch).toEqual(['pplWatch:2:red']);
   });
 
   test('the plant register as a file: exported whole, imported by id, a unit held kept as it is', async ({ page }) => {

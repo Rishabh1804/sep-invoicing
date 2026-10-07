@@ -59,9 +59,10 @@ test.describe('P167 a worker’s record', () => {
     await loadAppWithState(page, s);
     const mo: any = await g(page, `(function () { var m = pplMotivation(staffById(1)); return { keys: m.sig.map(function (x) { return x.key; }).sort(), firm: m.firm, score: m.score }; })()`);
     // Her three absences are all in the last 30 days, and 27 days at ₹450 less ₹1,500 of advances are owed.
-    expect(mo.keys).toEqual(['absent', 'advance', 'noRise', 'owed', 'peer']);
+    // No rise is judged only on a year of rates recorded (the QA chain, 7 Oct 2026): none is kept yet, so it is not said.
+    expect(mo.keys).toEqual(['absent', 'advance', 'owed', 'peer']);
     expect(mo.firm).toBe(false);   // no check-in yet
-    expect(mo.score).toBe(30);     // 100 − 15 − 10 − 10 − 20 − 15
+    expect(mo.score).toBe(40);     // 100 − 15 − 10 − 20 − 15
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
     await page.locator('[data-action="invAttEditWorker"][data-id="1"]').first().click();
@@ -69,9 +70,9 @@ test.describe('P167 a worker’s record', () => {
     await page.locator('[data-action="invPplScore"][data-score="2"]').click();
     await page.fill('#pplCiNote', 'wants more hours');
     await page.locator('[data-action="invPplCheckinSave"]').click();
-    // Back on the sheet: 0.5 × 30 + 0.5 × 25 = 27.5, firm now, so red.
+    // Back on the sheet: 0.5 × 40 + 0.5 × 25 = 32.5, firm now, so red.
     const m = page.locator('[data-ppl-sheet="1"] [data-ppl-motivation]');
-    await expect(m.locator('.inv-panel-count')).toHaveText('28');
+    await expect(m.locator('.inv-panel-count')).toHaveText('33');
     await expect(m).toContainText('Low');
     await expect(m).toContainText('wants more hours');
   });
@@ -115,18 +116,20 @@ test.describe('P167 a worker’s record', () => {
     expect(await g(page, `pplEdit(1); !!document.getElementById('pplPhone')`)).toBe(false);
   });
 
-  test('a details file is checked row by row: a short name found, a spelling read as, nobody made up', async ({ page }) => {
+  test('a details file is checked row by row: a whole name found, a spelling only offered, nobody made up', async ({ page }) => {
     await loadAppWithState(page, book());
     await page.evaluate(() => (0, eval)(`pplImportData({ format: 'sep-people', version: 1, people: [
-      { name: 'Asha', designation: 'Line technician', phone: '90000 22222', guardian: 'Ravi Kumar', bloodGroup: 'B+', emergency: { relation: 'Brother', phone: '90000 33333' },
+      { name: 'Asha Kumari', designation: 'Line technician', phone: '90000 22222', guardian: 'Ravi Kumar', bloodGroup: 'B+', emergency: { relation: 'Brother', phone: '90000 33333' },
         ties: [{ kind: 'family', name: 'Bina Devi', note: 'same father' }] },
       { name: 'Beena', phone: '90000 44444' },
       { name: 'Chandan Oraon', phone: '90000 55555' }] })`));
     const dlg = page.locator('[data-ppl-import]');
     await expect(dlg.locator('[data-ppl-import-row="0"]')).toContainText('Found');
     await expect(dlg.locator('[data-ppl-import-pick="0"]')).toHaveValue('1');
-    await expect(dlg.locator('[data-ppl-import-row="1"]')).toContainText('Read as');
-    await expect(dlg.locator('[data-ppl-import-pick="1"]')).toHaveValue('2');
+    // A spelling is a guess: said, never picked; the owner picks it to keep it.
+    await expect(dlg.locator('[data-ppl-import-row="1"]')).toContainText('could be Bina Devi');
+    await expect(dlg.locator('[data-ppl-import-pick="1"]')).toHaveValue('');
+    await dlg.locator('[data-ppl-import-pick="1"]').selectOption('2');
     await expect(dlg.locator('[data-ppl-import-row="2"]')).toContainText('Not found');
     await dlg.locator('[data-action="invPplImportKeep"]').click();
     const st = await readStoredState(page);

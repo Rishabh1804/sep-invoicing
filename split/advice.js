@@ -514,7 +514,19 @@ function advOwedMove(t) {
     basis: todoPlural(t.n, 'invoice') + ', the oldest ' + formatDate(t.oldest) + ' · owed in all ' + advRs(t.owed),
     go: { kind: 'finance', tab: 'receipts', client: t.clientId }, goLabel: 'Receivables', task: say };
   if (ct) { mv.href = ct.href; mv.hrefLabel = ct.label; }
+  var last = typeof soaLastReminder === 'function' ? soaLastReminder(t.clientId) : null;
+  if (last) mv.basis += ' · reminded ' + formatDate(isoOf(new Date(last.at)));
   return mv;
+}
+/* The reminder and the statement that goes with it (statement.js): a message from the same figures, sent from the dialog. */
+function advRemindMove(t) {
+  var c = advClient(t.clientId), name = advNameOf(c, '');
+  if (!c) return null;
+  var last = typeof soaLastReminder === 'function' ? soaLastReminder(t.clientId) : null;
+  var say = 'Send ' + name + ' a reminder and its statement of account';
+  return { key: 'remind:' + t.clientId, tone: t.tone, say: say, worth: null,
+    basis: last ? 'last reminded ' + formatDate(isoOf(new Date(last.at))) + ' for ' + advRs(last.amount || 0) : 'no reminder sent yet',
+    go: { kind: 'soa', client: t.clientId }, goLabel: 'Statement and reminder', task: say };
 }
 function advSlowerMove(t) {
   var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c);
@@ -663,7 +675,7 @@ var ADV_TASK_MOVES = {
   bankStale: function(t) {
     return [{ key: 'statement', tone: t.tone, say: 'Import the bank statement: ' + advLower(t.sub), worth: null, basis: t.why, go: { kind: 'finance', tab: 'bank' }, goLabel: 'Bank', task: 'Import the bank statement' }];
   },
-  owed90: function(t) { return [advOwedMove(t)]; },
+  owed90: function(t) { return [advOwedMove(t), advRemindMove(t)].filter(Boolean); },
   payingSlower: function(t) { return [advSlowerMove(t)]; },
   bankLoose: function(t) { return [advLooseMove(t)]; },
   runway: function(t) { return [advRunwayMove(t)]; },
@@ -802,6 +814,10 @@ function advGoTo(go) {
     case 'prodLines': prodSetTab('lines'); _prodLine = PROD_LINES.indexOf(go.line) >= 0 || go.line === 'pickling' ? go.line : 'vat-a1'; _prodDay = go.day || null; _prodView = 'main';
       switchTab('pageProduction'); return true;
     case 'createFor': createForClient(go.clientId, go.ims); return true;
+    // The statement and reminder dialog, over the client's receivables.
+    case 'soa':
+      finSetTab('receipts'); _bankOpen = go.client != null ? String(go.client) : null; switchTab('pageFinance');
+      soaOpen(go.client); return true;
     case 'register': regJump({ clientId: go.clientId, month: go.month }); return true;
     // A report of a kind on the period holding `from`, at a section (an insight's month, QA5-12).
     case 'report': {

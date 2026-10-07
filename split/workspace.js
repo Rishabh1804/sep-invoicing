@@ -261,7 +261,7 @@ var WS_GO_PAGE = {
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower',
-  finance: 'pageFinance', bills: 'pageFinance',
+  finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
   kb: 'pageKnow', todoLearn: 'pageTodo'
 };

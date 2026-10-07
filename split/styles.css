@@ -1947,6 +1947,20 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
   .inv-qt-frame-foot { height: var(--qt-gutter-bottom); }
 }
 
+/* The statement of account (statement.js) is printed on the quotation's paper: its tokens, frame, letterhead and signature.
+   Its own table carries five columns, dates and money in fixed widths, rows that never split. */
+.inv-soa-table { width: 100%; border-collapse: collapse; margin: var(--qt-gap-sm) 0; table-layout: fixed; }
+.inv-soa-table th { background: var(--qt-accent); color: var(--qt-head-ink); font-size: var(--qt-fs-sm); text-align: left; padding: var(--qt-cell); }
+.inv-soa-table td { border: var(--qt-rule) solid var(--qt-cell-rule); padding: var(--qt-cell); vertical-align: top; overflow-wrap: anywhere; }
+.inv-soa-table tr { break-inside: avoid; page-break-inside: avoid; }
+.inv-soa-table th:nth-child(1) { width: 16%; }
+.inv-soa-table th:nth-child(2) { width: 36%; }
+.inv-soa-table th:nth-child(n+3) { width: 16%; }
+.inv-soa-open th:nth-child(2) { width: 18%; }
+.inv-soa-open th:nth-child(1) { width: 34%; }
+.inv-soa-age th:nth-child(n) { width: 25%; }
+.inv-soa-total td { font-weight: 700; border-top: var(--qt-band) solid var(--qt-accent); }
+
 /* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */
 a.inv-btn { text-decoration: none; }
 /* WhatsApp, opened beside a paste box (add.js): its links keep their words on one line and their size in a head. */

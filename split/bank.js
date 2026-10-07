@@ -800,7 +800,11 @@ async function bankRemoveImport(id) {
 /* One client's receivables: what was owed at the start, each receipt and what it paid, the cheques, what is open.
    The phone draws it under the client's row; the desktop in the pane beside the list (UX overhaul 2, step 7). */
 function _bankRecvDetailHtml(r, fromTxt, cls) {
-  var h = '';
+  // The statement of account and the reminder, from the same figures (statement.js).
+  var rem = soaLastText(r.client.id);
+  var h = '<div class="inv-row" data-soa-row-btn="' + escHtml(String(r.client.id)) + '"><span class="inv-row-main inv-row-meta">' +
+    (rem ? escHtml(rem.charAt(0).toUpperCase() + rem.slice(1)) : r.owed > 0.005 ? 'No reminder sent yet' : 'Nothing owed') + '</span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSoaOpen" data-client="' + escHtml(String(r.client.id)) + '">Statement and reminder</button></span></div>';
   if (r.openingStale) h += '<div class="inv-callout inv-callout-warning" data-opening-stale>' + escHtml(formatCurrency(r.openingStale.amount)) + ' was set as owed at ' +
     escHtml(formatDate(r.openingStale.date)) + ', but receivables start at ' + fromTxt + ' now, so it is not counted. Set what was owed on ' + fromTxt + '.</div>';
   else if (r.carried > 0.005) h += '<div class="inv-callout inv-callout-info" data-on-account>' + escHtml(formatCurrency(r.carried)) + ' came in with more than was open to pay on the day it arrived, and settles the invoices raised after it, oldest first' +
@@ -858,7 +862,7 @@ function _bankReceiptsHtml(cls) {
       (_isDesktop ? '"' : ' inv-row-expander" aria-expanded="' + open + '"') + ' data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta inv-row-wrap">' +
       escHtml(formatCurrency(r.invoiced)) + ' invoiced' + (r.notes ? ' · ' + escHtml(formatCurrency(r.notes)) + ' credited' : '') + ' · ' + escHtml(formatCurrency(r.received)) + ' received' +
-      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (Math.abs(r.rounding) > 0.005 ? ' · ' + escHtml(formatCurrency(Math.abs(r.rounding))) + ' rounded off' : '') + (r.openingSuggest ? ' · owed at start not set' : '') +
+      (r.open.length ? ' · oldest open ' + r.oldestDays + ' d' : '') + (r.onAccount > 0.005 ? ' · ' + escHtml(formatCurrency(r.onAccount)) + ' on account' : '') + (Math.abs(r.rounding) > 0.005 ? ' · ' + escHtml(formatCurrency(Math.abs(r.rounding))) + ' rounded off' : '') + (r.openingSuggest ? ' · owed at start not set' : '') + (soaLastText(r.client.id) ? ' · ' + escHtml(soaLastText(r.client.id)) : '') +
       (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) + (dtp.n < 3 ? ' (' + dtp.n + ' receipt' + (dtp.n === 1 ? '' : 's') + ')' : '') : '') + '</span></button>' +
       // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +

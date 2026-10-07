@@ -444,6 +444,7 @@ function onDocClick(e) {
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
+      if (soaAction(action, btn)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
       if (pipeAction(action, btn)) break;
@@ -700,6 +701,8 @@ function onDocChange(e) {
     _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }
+  // A statement's first day (statement.js)
+  if (e.target.id === 'soaFrom') { soaFromChanged(e.target.value); return; }
   // Who made it (the change log, changelog.js)
   if (e.target.id === 'historyWho') {
     _historyWho = e.target.value;

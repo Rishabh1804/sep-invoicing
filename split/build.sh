@@ -58,6 +58,7 @@ JS_SOURCES=(
     "$DIR/xlsx.js" \
     "$DIR/bank.js" \
     "$DIR/finance.js" \
+    "$DIR/statement.js" \
     "$DIR/todo.js" \
     "$DIR/relay.js" \
     "$DIR/add.js" \

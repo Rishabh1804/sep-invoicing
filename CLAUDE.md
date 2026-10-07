@@ -172,7 +172,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,513 tests, both layouts
+pnpm exec playwright test          # 1,530 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1906,6 +1906,20 @@ workers and every personal detail are the book's; the owner's private files (`se
   and opens WhatsApp to the office; the chat pasted into the paste box opens a review where each check-in shows its checks: a live card,
   the code, the worker's own phone, inside the radius, sent as made, the shop's hours, one phone one worker a day. Red is left unticked.
   It cannot stop a faked location or a photographed sheet, and the setup says so. `checkin.html` is hand-written and not built.
+- **The QA chain of 7 Oct 2026** (owner: *"run QA chain before the final merge"*). Four audits (plant, worker records, ID cards, the
+  office QR), the mechanical sweeps, a harness pressing every new action on both layouts (130 presses, no error), each fix with its
+  test in P171, which fails on the build before. What it leaves as rules:
+  - **A scan or a check-in lands on the day of its own time** (`isoOf`, never `localDateStr`, which ignores its argument); a time
+    before noon for a hand whose day before has only an in from 4 PM is that day's out, past midnight (+1440). A scan widens the
+    day (a roll's 6 AM in is kept), and hours follow the Day screen's rule (`attTimesApply`).
+  - **The plant tile is `inv-plt-unit`**: `inv-unit` is the label after a figure, and the tile had boxed every one. A unit's status
+    before its first log line is what that line changed from; a status is never dated before its last change.
+  - **A details file matches only on the whole name** (or a spelling kept on the worker); a first name is a guess, shown, never
+    picked; one worker on two rows is refused. A role that does not see details exports without them, and the export says so.
+  - **The office check-in's code covers the place and the phone's own card**; an edited message is red; no place, or a sender
+    nobody knows, is left unticked; one phone, one worker a day across every paste. The limits are said as they are: the sender
+    check proves which phone sent it, not where it was.
+  - Card numbers never return (`S.cardSeq`); ten cards fit one A4 page (measured under print media).
 
 ### The planner
 Insights → **Planner** (`planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,

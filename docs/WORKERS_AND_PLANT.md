@@ -111,13 +111,19 @@ ways put to them the owner chose **WhatsApp with checks**.
   Save puts the ticked ones into the day as a card scan does (`idcApply`, `via: 'checkin'`): the earliest time the in, the latest the
   out, whatever order they arrive in, and a repeat already in the day is said, never saved twice. Beside a roll, the roll's check offers
   **Read the check-ins**.
-- **The checks against a proxy**, each said on its row (`ckReview`): a live card; the code (a message typed or changed by hand fails);
-  the sender is the worker's own phone (the number on their record, or a contact named as them; another worker's phone is red); the
-  place inside the radius (outside it by more than the fix's accuracy is red); sent when it says it was made (10 minutes); within the
-  shop's hours; one phone, one worker a day (the phone's own worker stays, the others are red). A red row is left unticked; the owner may
-  tick it. Warn, never block.
-- **What it cannot stop**, said on the setup: a phone that fakes its location, and a sheet photographed and used elsewhere (the key is
-  in the link). The office number and the sender check are the strong part.
+- **The checks against a proxy**, each said on its row (`ckReview`): a live card; the code, worked over the card, the time, the
+  place and the phone's own card, so a message typed or changed by hand fails it (a message edited after sending is red too); the
+  sender is the worker's own phone (the number on their record, or a contact named as them; another worker's phone, or a number on
+  two other workers' records, is red); the place inside the radius (outside it by more than the fix's accuracy is red); sent when it
+  says it was made (10 minutes); within the shop's hours; one phone, one worker a day, across every paste of the day; the card the
+  phone was first set up with (another card typed on it is red). A red row, and one with no place shared or from a phone nobody
+  knows, is left unticked; the owner may tick it, and a check-in saved past a check keeps what it failed and when (`notes`, `ackAt`).
+  Warn, never block.
+- **What it cannot stop**, said on the setup: a phone that fakes its location, and a check-in made at the plant on someone else's
+  card and passed to them to send from their own phone (the sender check proves which phone sent it, not where it was). The code is
+  no secret from anyone holding the sheet: the key is in its link. Ask for a live location in the chat when one looks wrong.
+- **The day a time belongs to** (the QA chain, 7 Oct 2026): a scan or a check-in lands on its own day, never the day it is read; a
+  time before noon for a hand whose day before has only an in from 4 PM is that day's out, past midnight (`idcApply`).
 
 ## Order
 

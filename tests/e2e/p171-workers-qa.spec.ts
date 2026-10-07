@@ -79,3 +79,122 @@ test.describe('P171 W1: the plant register', () => {
     expect(red).toContain('red');
   });
 });
+
+function crew(): SepState {
+  const s: any = book();
+  s.company = Object.assign({}, s.company || {}, { name: 'TEST WORKS' });
+  s.staff = [{ id: 1, name: 'Asha Kumari', comp: 'daily', dayRate: 450, area: 'vat-a1', active: true, card: 'SEP-0001', profile: { phone: '98765 43210' } },
+    { id: 2, name: 'Bina Devi', comp: 'daily', dayRate: 500, area: 'barrel', active: true, card: 'SEP-0002', profile: { phone: '91234 56780' } }];
+  s.checkinCfg = { office: '919000000001', lat: 22.8001, lng: 86.1501, radius: 150, key: 'TESTK1', keyOn: todayIso() };
+  return s;
+}
+const at = (iso: string, h: number, m: number) => { const d = new Date(iso + 'T00:00:00'); d.setHours(h, m, 0, 0); return d.getTime(); };
+
+test.describe('P171 W4: the card scan into the day', () => {
+  test('a time is put on its own day; a night out past midnight closes the evening before', async ({ page }) => {
+    await loadAppWithState(page, crew());
+    const r: any = await g(page, `(function () {
+      var w = staffById(1), b = staffById(2);
+      idcApply(w, 'SEP-0001', new Date(${at(day(-2), 9, 0)}), 'scan');
+      idcApply(b, 'SEP-0002', new Date(${at(day(-1), 20, 0)}), 'scan');
+      idcApply(b, 'SEP-0002', new Date(${at(day(0), 6, 0)}), 'scan');
+      var y = attDay('${day(-1)}').marks[2];
+      return { two: !!attDay('${day(-2)}').marks[1], todayA: !!(attDay('${day(0)}') && attDay('${day(0)}').marks[1]),
+        night: [y.inMin, y.outMin, y.hours], todayB: !!(attDay('${day(0)}') && attDay('${day(0)}').marks[2]) };
+    })()`);
+    expect(r.two).toBe(true);
+    expect(r.todayA).toBe(false);
+    expect(r.night).toEqual([1200, 1800, 10]);
+    expect(r.todayB).toBe(false);
+  });
+
+  test('a roll’s earlier in-time is kept; a half day scanned once is four hours', async ({ page }) => {
+    const s: any = crew();
+    s.attendance = { [day(0)]: { marks: { 1: { st: 'P', area: 'vat-a1', inMin: 360, outMin: 1020, outKnown: false, hours: 11, ot: 3, src: 'relay' }, 2: { st: 'H', area: 'barrel', hours: 4, ot: 0 } }, extra: [] } };
+    await loadAppWithState(page, s);
+    const r: any = await g(page, `(function () {
+      idcApply(staffById(1), 'SEP-0001', new Date(${at(day(0), 8, 40)}), 'scan');
+      idcApply(staffById(2), 'SEP-0002', new Date(${at(day(0), 8, 30)}), 'scan');
+      var d = attDay('${day(0)}'); return [d.marks[1].inMin, d.marks[2].hours];
+    })()`);
+    expect(r).toEqual([360, 4]);
+  });
+
+  test('a card number is never given again, a merged hand’s scans go with them, ten cards fit one A4 page', async ({ page }) => {
+    const s: any = crew();
+    s.staff.push({ id: 3, name: 'Chandan Oraon', comp: 'daily', dayRate: 400, area: 'flex', active: true });
+    for (let i = 4; i <= 12; i++) s.staff.push({ id: i, name: 'Hand ' + i, comp: 'daily', dayRate: 400, area: 'flex', active: true });
+    s.attendance = { [day(-1)]: { marks: { 3: { st: 'P', area: 'flex', hours: 8, ot: 0 } }, extra: [], scans: { 3: [{ min: 510, at: at(day(-1), 8, 30), card: 'SEP-0003' }] } } };
+    await loadAppWithState(page, s);
+    const r: any = await g(page, `(function () {
+      var c = staffById(3); idcEnsure(c); var card = c.card;
+      mergeWorkers(3, 1);
+      var w = { id: 99, name: 'New hand' }; S.staff.push(w); idcEnsure(w);
+      return { card: card, next: w.card, moved: (attDay('${day(-1)}').scans[1] || []).length };
+    })()`);
+    expect(r.card).toBe('SEP-0003');
+    expect(r.next).toBe('SEP-0004');
+    expect(r.moved).toBe(1);
+    await switchTab(page, 'pageStaff');
+    await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
+    await page.locator('#pageStaff [data-action="invIdcPrint"]').first().click();
+    await page.locator('[data-action="invIdcPreview"]').click();
+    await page.emulateMedia({ media: 'print' });
+    const fit: any = await g(page, `(function () { var sh = document.querySelector('.inv-idc-sheet'), cs = sh.querySelectorAll('.inv-idc');
+      var mm = 96 / 25.4; return { n: cs.length, bottom: Math.round((cs[cs.length - 1].getBoundingClientRect().bottom - sh.getBoundingClientRect().top) / mm) }; })()`);
+    expect(fit.n).toBe(10);
+    expect(fit.bottom).toBeLessThanOrEqual(297);
+  });
+});
+
+test.describe('P171 W5: the office QR check-in', () => {
+  const dmy = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + iso.slice(0, 4);
+  async function ck(page: Page, o: { iso?: string; hhmm: string; card: string; head?: string; place?: string; edit?: boolean; code?: string; noPlace?: boolean }) {
+    const iso = o.iso || day(0), [h, m] = o.hhmm.split(':').map(Number);
+    const place = o.noPlace ? '' : (o.place || '22.800100,86.150100');
+    const code = o.code || await g(page, `ckCode('TESTK1', '${o.card}', '${iso}', ${h * 60 + m}, '${o.noPlace ? '' : '22.800100,86.150100'}', '')`);
+    return (o.head === undefined ? `${dmy(iso)}, ${(h % 12) || 12}:${o.hhmm.split(':')[1]} ${h < 12 ? 'am' : 'pm'} - +91 98765 43210: ` : o.head) +
+      `SEP check-in\nCard ${o.card}\nTime ${dmy(iso)} ${o.hhmm}\n${o.noPlace ? 'Place not shared (refused)' : 'Place ' + place + ' ±12 m'}\nCode ${code}` + (o.edit ? ' <This message was edited>' : '');
+  }
+  const rows = (page: Page, t: string) => g(page, `ckReview(ckFromText(${JSON.stringify(t)})).map(function (r) { return { iso: r.iso, tone: r.tone, tick: r.tick, notes: r.notes.map(function (n) { return n[1]; }).join(' | ') }; })`) as Promise<any[]>;
+
+  test('yesterday’s check-in pasted today lands on yesterday', async ({ page }) => {
+    await loadAppWithState(page, crew());
+    await g(page, `_ckRows = ckReview(ckFromText(${JSON.stringify(await ck(page, { iso: day(-1), hhmm: '08:20', card: 'SEP-0001' }))})); ckSave()`);
+    expect(await g(page, `[!!(attDay('${day(-1)}') && attDay('${day(-1)}').marks[1]), !!(attDay('${day(0)}') && attDay('${day(0)}').marks[1])]`)).toEqual([true, false]);
+  });
+
+  test('a place changed by hand fails the code; an edited message is red; no place shared is left unticked', async ({ page }) => {
+    await loadAppWithState(page, crew());
+    const t = [await ck(page, { hhmm: '08:20', card: 'SEP-0001', place: '22.800200,86.150100' }),
+      await ck(page, { hhmm: '08:21', card: 'SEP-0002', head: `${dmy(day(0))}, 8:21 am - +91 91234 56780: `, edit: true }),
+      await ck(page, { hhmm: '17:00', card: 'SEP-0002', head: `${dmy(day(0))}, 5:00 pm - +91 91234 56780: `, noPlace: true })].join('\n');
+    const r = await rows(page, t);
+    expect(r[0].notes).toContain('The code does not match');
+    expect(r[1].notes).toContain('Edited after it was sent.');
+    expect(r[1].tone).toBe('danger');
+    expect([r[2].tone, r[2].tick]).toEqual(['warning', false]);
+    expect(r[2].notes).toContain('did not share its location (refused).');
+  });
+
+  test('an iPhone export’s date, a number in direction marks, and check-ins pasted without their WhatsApp lines', async ({ page }) => {
+    await loadAppWithState(page, crew());
+    const iso = '2026-03-05';
+    const ios = (await ck(page, { iso, hhmm: '08:27', card: 'SEP-0001', head: '[05/03/26, 8:27:13 AM] ‪+91 98765 43210‬: ' }));
+    const r = await rows(page, ios);
+    expect([r[0].tone, r[0].notes]).toEqual(['ok', '']);
+    const bare = [await ck(page, { hhmm: '08:20', card: 'SEP-0001', head: '' }), await ck(page, { hhmm: '08:22', card: 'SEP-0002', head: '' })].join('\n');
+    expect((await rows(page, bare)).length).toBe(2);
+  });
+
+  test('one phone, one worker a day across pastes; a red one saved keeps what it failed', async ({ page }) => {
+    await loadAppWithState(page, crew());
+    await g(page, `_ckRows = ckReview(ckFromText(${JSON.stringify(await ck(page, { hhmm: '08:20', card: 'SEP-0001' }))})); ckSave()`);
+    const later = await ck(page, { hhmm: '08:40', card: 'SEP-0002' });   // Bina's card, from Asha's phone, in a later paste
+    const r = await rows(page, later);
+    expect(r[0].notes).toContain('The same phone checked in Asha Kumari that day.');
+    const saved: any = await g(page, `(function () { _ckRows = ckReview(ckFromText(${JSON.stringify(later)})); _ckRows[0].tick = true; ckSave();
+      var sc = attDay('${day(0)}').scans[2][0]; return [sc.checks, sc.notes.length > 0, sc.ackAt > 0]; })()`);
+    expect(saved).toEqual(['danger', true, true]);
+  });
+});

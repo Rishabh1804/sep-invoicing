@@ -29,14 +29,14 @@ function idcPayload(card) { return 'SEP1:W:' + card + ':' + idcCheck(card); }
 function idcNum(card) { var m = /^SEP-(\d+)$/.exec(String(card || '')); return m ? +m[1] : 0; }
 /* The next number: past every card ever given, retired ones included. */
 function idcNext() {
-  var hi = 0;
+  var hi = +S.cardSeq || 0;   // the highest ever given: a worker deleted or merged away takes no number back
   (S.staff || []).forEach(function(w) {
     hi = Math.max(hi, idcNum(w.card));
     (w.cardsRetired || []).forEach(function(r) { hi = Math.max(hi, idcNum(r.card)); });
   });
   return 'SEP-' + String(hi + 1).padStart(4, '0');
 }
-function idcEnsure(w) { if (!w.card) w.card = idcNext(); return w.card; }
+function idcEnsure(w) { if (!w.card) { w.card = idcNext(); S.cardSeq = Math.max(+S.cardSeq || 0, idcNum(w.card)); } return w.card; }
 /* Who a scan or a typed number names: {w} or {why}. */
 function idcResolve(raw) {
   var s = String(raw || '').trim().toUpperCase(), card = null, m = IDC_RE.exec(s);
@@ -58,26 +58,37 @@ function idcScan(raw, at) {
   if (res.ok) saveState();
   return res;
 }
-/* A card's time into the day, a scan's or an office check-in's (checkin.js). The day's earliest time is the in, its latest
-   the out, whatever order they arrive in: a check-in read from a chat later than a scan still lands where its time puts it. */
+/* A card's time into the day, a scan's or an office check-in's (checkin.js), on the day the time belongs to (never the day it
+   was read). The day's earliest time is the in, its latest the out, whatever order they arrive in, and a time already on the
+   mark (a roll's 6 AM block, an out typed) is kept beside the scans: a scan widens the day, never narrows it. A time before noon
+   for a hand whose day before has only an in from 4 PM on (an evening block, the night hold) is that day's out, past midnight
+   (+1440, the Day screen's convention). Hours follow the Day screen's rule (attTimesApply). */
+var IDC_NIGHT_IN = 960, IDC_NIGHT_OUT = 720, IDC_SPAN_MAX = 16 * 60;
 function idcApply(w, card, now, via, extra) {
-  var iso = localDateStr(now), min = now.getHours() * 60 + now.getMinutes(), id = w.id;
+  var iso = isoOf(now), min = now.getHours() * 60 + now.getMinutes(), id = w.id;
+  if (min < IDC_NIGHT_OUT) {
+    var yIso = isoAddDays(iso, -1), yRec = typeof attDay === 'function' ? attDay(yIso, false) : null, yList = yRec && yRec.scans && yRec.scans[id];
+    if (yList && yList.length === 1 && yList[0].min >= IDC_NIGHT_IN && min + 1440 - yList[0].min <= IDC_SPAN_MAX) { iso = yIso; min += 1440; }
+  }
   var rec = attDay(iso, true);
   rec.scans = rec.scans || {};
   var list = rec.scans[id] || [];
   var near = list.find(function(x) { return Math.abs(now.getTime() - x.at) < IDC_SAME_MS; });
   if (near) return { ok: false, why: w.name + ' was scanned a moment ago.', w: w, same: true };
   var prev = rec.marks[id] ? JSON.parse(JSON.stringify(rec.marks[id])) : null, prevScans = list.slice();
-  // A mark already on the day (a roll's, one typed) takes the scanned time; an absence or no mark becomes present.
-  var m = rec.marks[id] && rec.marks[id].st !== 'A' ? rec.marks[id] : { st: 'P', area: (rec.marks[id] && rec.marks[id].area) || w.area || 'flex' };
+  // A mark already on the day (a roll's, one typed) keeps its times; an absence or no mark becomes present.
+  var had = rec.marks[id] && rec.marks[id].st !== 'A' ? rec.marks[id] : null;
+  var m = had || { st: 'P', area: (rec.marks[id] && rec.marks[id].area) || w.area || 'flex' };
   var scan = Object.assign({ min: min, at: now.getTime(), card: card }, via && via !== 'scan' ? { via: via } : {}, extra || {});
-  var all = list.concat([scan]).sort(function(a, b) { return a.at - b.at; });
-  var kind = all[0] === scan ? 'in' : 'out';
-  m.inMin = all[0].min;
-  if (all.length > 1) m.outMin = all[all.length - 1].min;
-  var area = m.area, out = m.outMin != null ? m.outMin : (area === 'gate' ? 1140 : 1020);
-  var hr = relayHoursOf(m.inMin, out > m.inMin ? out : null, w, area);
-  m.hours = hr.hours; m.ot = hr.ot;
+  var all = list.concat([scan]).sort(function(a, b) { return a.min - b.min || a.at - b.at; });
+  var times = all.map(function(x) { return x.min; });
+  if (had && had.inMin != null && !list.length) times.push(had.inMin);
+  if (had && had.outMin != null && (had.src === 'relay' ? had.outKnown : had.outKnown !== false)) times.push(had.outMin);
+  var lo = Math.min.apply(null, times), hi = Math.max.apply(null, times);
+  var kind = all[0] === scan && min === lo ? 'in' : 'out';
+  m.inMin = lo;
+  if (hi > lo) { m.outMin = hi; m.outKnown = true; } else delete m.outMin;
+  attTimesApply(m, w);
   delete m.src;   // the hand's own: a roll never rewrites it
   rec.marks[id] = m;
   rec.scans[id] = all;
@@ -85,6 +96,7 @@ function idcApply(w, card, now, via, extra) {
   return { ok: true, w: w, kind: kind, min: min, iso: iso };
 }
 function idcUndo() {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return;
   var x = _idcLog.shift();
   if (!x) return;
   var rec = attDay(x.iso, false);
@@ -94,6 +106,7 @@ function idcUndo() {
   if (x.prevScans.length) rec.scans[x.staffId] = x.prevScans; else delete rec.scans[x.staffId];
   saveState();
   idcLogDraw('Undone: ' + x.name + ' ' + (x.kind === 'in' ? 'in' : 'out') + ' at ' + relayClockLabel(x.min));
+  if (navPageOf() === 'pageStaff' && typeof renderAttendance === 'function') renderAttendance();
 }
 
 /* ---------- The scanner ---------- */
@@ -114,11 +127,15 @@ function idcScanOpen() {
   else { var t = document.getElementById('idcType'); if (t && !touchScreen()) t.focus(); }
 }
 function idcCameraStart() {
+  var det;
+  try { det = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+  catch (e) { idcSay('This browser cannot read QR codes with the camera: type the number on the card.', 'warning'); return; }
+  idcCameraStop();
   navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function(stream) {
     var v = document.getElementById('idcVideo');
-    if (!v) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
-    _idcStream = stream; v.srcObject = stream; v.play();
-    var det = new window.BarcodeDetector({ formats: ['qr_code'] });
+    if (!v || _idcStream) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+    _idcStream = stream; v.srcObject = stream;
+    var pl = v.play(); if (pl && pl.catch) pl.catch(function() {});
     _idcTimer = setInterval(function() {
       var vv = document.getElementById('idcVideo');
       if (!vv) { idcCameraStop(); return; }
@@ -145,6 +162,20 @@ function idcFromScan(raw) {
   if (r.ok) { idcSay((r.kind === 'in' ? 'In: ' : 'Out: ') + r.w.name + ' at ' + relayClockLabel(r.min), 'ok'); idcLogDraw(); if (navPageOf() === 'pageStaff' && typeof renderAttendance === 'function') renderAttendance(); }
   else if (!r.same) idcSay(r.why, 'warning');
 }
+/* A number typed carries no check characters, so a slip (17 for 7) would log the wrong hand: the name is said first, and the
+   same number logged on the second tap. A full code typed or read is logged at once. */
+var _idcTypedCard = null;
+function idcTyped(t) {
+  if (!t || !t.value.trim()) return;
+  var raw = t.value.trim();
+  if (!IDC_RE.test(raw.toUpperCase())) {
+    var r = idcResolve(raw);
+    if (r.w && _idcTypedCard !== r.card) { _idcTypedCard = r.card; idcSay(r.card + ' is ' + r.w.name + '. Log it again to log them.', 'info'); return; }
+  }
+  _idcTypedCard = null;
+  idcFromScan(raw);
+  t.value = '';
+}
 function idcLogDraw(note) {
   var el = document.getElementById('idcLog');
   if (!el) return;
@@ -155,7 +186,11 @@ function idcLogDraw(note) {
         '<span class="inv-row-end">' + uiDot(x.kind === 'in' ? 'ok' : 'info', (x.kind === 'in' ? 'In ' : 'Out ') + escHtml(relayClockLabel(x.min))) + '</span></div>';
     }).join('') : '<div class="inv-empty">Nothing scanned yet.</div>');
 }
-/* The dialog shut any way: the camera goes off with it. */
+/* The dialog shut any way, or the app put in the background: the camera goes off with it. */
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) { if (_idcStream || _idcTimer) idcCameraStop(); }
+  else if (document.getElementById('idcVideo') && !_idcStream) idcCameraStart();
+});
 new MutationObserver(function() { if ((_idcStream || _idcTimer) && !document.getElementById('idcVideo')) idcCameraStop(); }).observe(document.documentElement, { childList: true, subtree: true });
 
 /* ---------- The cards, printed (the owner's) ---------- */
@@ -225,7 +260,7 @@ function idcRecordHtml(w) {
   if (!w.card && !owner) return '';
   return '<div class="inv-panel inv-panel-flush" data-idc-record="' + escHtml(String(w.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">ID card</span>' +
     '<span class="inv-row-meta">' + escHtml(w.card || 'none yet') + '</span></div>' +
-    (w.card ? '<div class="inv-panel-body inv-idc-small">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div>' : '') +
+    (w.card && owner ? '<div class="inv-panel-body inv-idc-small">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div>' : '') +
     (owner ? '<div class="inv-toolbar inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invIdcPrint" data-id="' + escHtml(String(w.id)) + '">' + (w.card ? 'Print the card' : 'Give a card') + '</button>' +
       (w.card ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invIdcReplace" data-id="' + escHtml(String(w.id)) + '">Replace the card</button>' : '') + '</div>' : '') + '</div>';
 }
@@ -234,8 +269,7 @@ function idcAction(action, btn) {
   switch (action) {
     case 'invIdcScan': idcScanOpen(); return true;
     case 'invIdcType': {
-      var t = document.getElementById('idcType');
-      if (t && t.value.trim()) { idcFromScan(t.value); t.value = ''; }
+      idcTyped(document.getElementById('idcType'));
       return true;
     }
     case 'invIdcUndo': idcUndo(); return true;
@@ -246,5 +280,5 @@ function idcAction(action, btn) {
   return false;
 }
 document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter' && e.target && e.target.id === 'idcType') { e.preventDefault(); var t = e.target; if (t.value.trim()) { idcFromScan(t.value); t.value = ''; } }
+  if (e.key === 'Enter' && e.target && e.target.id === 'idcType') { e.preventDefault(); idcTyped(e.target); }
 });

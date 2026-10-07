@@ -291,7 +291,7 @@ function relaySentAt(line) {
    pasted without one: a part of it handed to another screen goes with who sent it and when (relayStockParts). */
 function relaySplit(text) {
   var msgs = [], cur = null;
-  String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
+  String(text || '').replace(/\r/g, '').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').split('\n').forEach(function(line) {
     var wa = line.match(RELAY_WA_RE);
     if (wa) {
       var a = +wa[1], b = +wa[2];
@@ -313,7 +313,7 @@ function relaySplit(text) {
     }
     cur.lines.push(line);
   });
-  return msgs.map(function(m) { m.text = m.lines.join('\n').replace(/<This message was edited>/gi, '').trim(); delete m.lines; return m; })
+  return msgs.map(function(m) { var t = m.lines.join('\n'); if (/<This message was edited>/i.test(t)) m.edited = true; m.text = t.replace(/<This message was edited>/gi, '').trim(); delete m.lines; return m; })
     .filter(function(m) { return m.text && !/^<Media omitted>$|omitted>$/i.test(m.text); });
 }
 
@@ -1093,7 +1093,7 @@ function relayRead() {
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
   // Check-ins from the office QR (checkin.js) have a review of their own; beside rolls, the roll's check offers it.
-  if (!rolls.length && checkins) { ckReviewOpen(text); return; }
+  if (!rolls.length && checkins) { ckReviewOpen(text, { prod: prod.length, stock: stock.length }); return; }
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
   // A stock message belongs to Stock's own review.
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }

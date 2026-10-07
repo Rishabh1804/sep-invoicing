@@ -77,6 +77,10 @@ test.describe('P169 ID cards and the scanner', () => {
     const card: string = await g(page, `staffById(2).card`);
     await page.fill('#idcType', card);
     await page.keyboard.press('Enter');
+    // A number typed carries no check: the name is said first, and logged on the second.
+    await expect(page.locator('#idcSay')).toContainText(card + ' is Bina Devi');
+    await expect(page.locator('#idcLog [data-idc-row]')).toHaveCount(0);
+    await page.keyboard.press('Enter');
     await expect(page.locator('#idcSay')).toContainText('In: Bina Devi');
     await expect(page.locator('#idcLog [data-idc-row]')).toHaveCount(1);
   });

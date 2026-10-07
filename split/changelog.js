@@ -68,7 +68,7 @@ var CHG_TRACK = [
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
   { path: 'payrollPaid', kind: 'arr', noun: 'payroll as paid', plural: 'payrolls as paid', label: function(r) { return chgJoin(r.month, r.source); } },
-  { path: 'attendance', kind: 'map', noun: 'attendance', plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
+  { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'Staff → Areas → complements' },

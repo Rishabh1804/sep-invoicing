@@ -2337,6 +2337,11 @@ function mergeWorkers(fromId, intoId) {
       if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
       crews++;
     });
+    // Their card scans go with them, merged by time.
+    if (rec.scans && rec.scans[fromId]) {
+      rec.scans[intoId] = (rec.scans[intoId] || []).concat(rec.scans[fromId]).sort(function(p, q) { return p.min - q.min || p.at - q.at; });
+      delete rec.scans[fromId];
+    }
     // The hand's own slot picks go with them; the survivor's own pick for a slot wins.
     var picks = rec.slotHand && rec.slotHand[String(fromId)];
     if (picks) {

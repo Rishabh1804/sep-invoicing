@@ -24,9 +24,10 @@ const dmy = (iso: string) => iso.slice(8, 10) + '/' + iso.slice(5, 7) + '/' + is
 /* A check-in as the worker's page writes it, with its WhatsApp line; `code` overrides the worked code (a hand-made one). */
 async function msg(page: Page, o: { from: string; card: string; hhmm: string; sent?: string; lat?: number; lng?: number; code?: string }) {
   const iso = todayIso(), [h, m] = o.hhmm.split(':').map(Number);
-  const code = o.code || await g(page, `ckCode('${KEY}', '${o.card}', '${iso}', ${h * 60 + m})`);
+  const lat = (o.lat ?? PLANT.lat).toFixed(6), lng = (o.lng ?? PLANT.lng).toFixed(6);
+  const code = o.code || await g(page, `ckCode('${KEY}', '${o.card}', '${iso}', ${h * 60 + m}, '${lat},${lng}', '')`);
   const sent = o.sent || o.hhmm, sh = +sent.split(':')[0], clock = (sh % 12 || 12) + ':' + sent.split(':')[1] + (sh < 12 ? ' am' : ' pm');
-  return `${dmy(iso)}, ${clock} - ${o.from}: SEP check-in\nCard ${o.card}\nTime ${dmy(iso)} ${o.hhmm}\nPlace ${(o.lat ?? PLANT.lat).toFixed(6)},${(o.lng ?? PLANT.lng).toFixed(6)} ±12 m\nCode ${code}`;
+  return `${dmy(iso)}, ${clock} - ${o.from}: SEP check-in\nCard ${o.card}\nTime ${dmy(iso)} ${o.hhmm}\nPlace ${lat},${lng} ±12 m\nCode ${code}`;
 }
 
 test.describe('P170 the office QR', () => {

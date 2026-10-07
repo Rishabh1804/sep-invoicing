@@ -58,9 +58,9 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
   'use strict';
   // A new sheet scanned into the same tab changes only the fragment: read it afresh.
   window.addEventListener('hashchange', function () { location.reload(); });
-  // The same code as split/checkin.js's ckCode: FNV-1a over key|card|day|minute, four base-36 characters.
-  function ckCode(key, card, iso, min) {
-    var s = String(key) + '|' + String(card) + '|' + String(iso) + '|' + String(min), h = 0x811c9dc5;
+  // The same code as split/checkin.js's ckCode: FNV-1a over key|card|day|minute|place|the phone's card, four base-36 characters.
+  function ckCode(key, card, iso, min, place, phone) {
+    var s = String(key) + '|' + String(card) + '|' + String(iso) + '|' + String(min) + '|' + String(place || 'none') + '|' + String(phone || ''), h = 0x811c9dc5;
     for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
     return ('0000' + (h % 1679616).toString(36).toUpperCase()).slice(-4);
   }
@@ -72,7 +72,7 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
   var p = {};
   String(location.hash || '').replace(/^#/, '').split('&').forEach(function (kv) {
     var i = kv.indexOf('=');
-    if (i > 0) p[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' '));
+    if (i > 0) { try { p[kv.slice(0, i)] = decodeURIComponent(kv.slice(i + 1).replace(/\+/g, ' ')); } catch (e) { /* a broken part is left out */ } }
   });
   var office = String(p.o || '').replace(/\D/g, ''), la = parseFloat(p.la), lo = parseFloat(p.lo), rad = parseInt(p.r, 10) || 150, key = p.k || '';
   var $ = function (id) { return document.getElementById(id); };
@@ -91,11 +91,15 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
     return m ? 'SEP-' + String(+m[1]).padStart(4, '0') : null;
   }
   function pad(n) { return String(n).padStart(2, '0'); }
+  // The card this phone was first set up with: another typed on it is written into the check-in, and the office sees it.
   function write(card, pos, why) {
+    var own = store.get();
+    if (!own) { store.set(card); own = card; }
     var now = new Date(), iso = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate()), min = now.getHours() * 60 + now.getMinutes();
     var lines = ['SEP check-in', 'Card ' + card, 'Time ' + pad(now.getDate()) + '/' + pad(now.getMonth() + 1) + '/' + now.getFullYear() + ' ' + pad(now.getHours()) + ':' + pad(now.getMinutes())];
+    var place = pos ? pos.coords.latitude.toFixed(6) + ',' + pos.coords.longitude.toFixed(6) : '', phone = own !== card ? own : '';
     if (pos) {
-      lines.push('Place ' + pos.coords.latitude.toFixed(6) + ',' + pos.coords.longitude.toFixed(6) + ' ±' + Math.round(pos.coords.accuracy) + ' m');
+      lines.push('Place ' + place + ' ±' + Math.round(pos.coords.accuracy) + ' m');
       var d = metres(la, lo, pos.coords.latitude, pos.coords.longitude);
       if (d > rad) say('Your phone says it is ' + d + ' m from the plant. The office will see this.', 'warning');
       else say('At the plant. Now send it.', 'ok');
@@ -103,7 +107,11 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
       lines.push('Place not shared (' + why + ')');
       say('The location was not shared (' + why + '). The office will see this.', 'warning');
     }
-    lines.push('Code ' + ckCode(key, card, iso, min));
+    if (phone) {
+      lines.push('Phone ' + phone);
+      say('This phone is set up for ' + phone + '. The office will see that it sent ' + card + '.', 'warning');
+    }
+    lines.push('Code ' + ckCode(key, card, iso, min, place, phone));
     var text = lines.join('\n');
     $('ckMsg').textContent = text;
     $('ckSend').href = 'https://wa.me/' + office + '?text=' + encodeURIComponent(text);
@@ -114,7 +122,6 @@ body { margin: 0; background: var(--bg); color: var(--text); font-family: var(--
     var card = cardOf($('ckCard').value);
     if (!card) { say('Type the number on your card, like SEP-0007.', 'danger'); return; }
     $('ckCard').value = card;
-    store.set(card);
     $('ckGo').disabled = true;
     if (!navigator.geolocation) { write(card, null, 'this phone cannot'); return; }
     say('Finding where the phone is…');

@@ -180,7 +180,8 @@ function pplRecordHtml(w, opts) {
   }
   // Skills: the owner's rating beside the days the book shows in each area.
   var areas = STAFF_AREAS.filter(function(a) { return (w.skills && w.skills[a.id] > 0) || st.areas[a.id]; });
-  h += '<div class="inv-panel inv-panel-flush" data-ppl-skills="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Skills</span></div>' +
+  var change = function(part) { return owner ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPplEdit" data-part="' + part + '" data-id="' + id + '">Change</button>' : ''; };
+  h += '<div class="inv-panel inv-panel-flush" data-ppl-skills="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Skills</span>' + change('skills') + '</div>' +
     (areas.length ? areas.map(function(a) {
       var s = w.skills && w.skills[a.id] > 0 ? +w.skills[a.id] : 0, d = st.areas[a.id] || 0;
       return '<div class="inv-row inv-row-2" data-ppl-skill="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span><span class="inv-row-meta">' +
@@ -190,11 +191,11 @@ function pplRecordHtml(w, opts) {
     (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
   // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
   if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
-  var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name); });
-  if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div>' +
+  var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name || t.owner); });
+  if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span>' + change('ties') + '</div>' +
     (ties.length ? ties.map(function(t) {
       var o = t.staffId != null ? staffById(t.staffId) : null, k = PPL_TIES.find(function(x) { return x[0] === t.kind; });
-      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (o ? o.name : t.name)) + '</span>' +
+      return '<div class="inv-row inv-row-2" data-ppl-tie="' + escHtml(t.kind || '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (t.owner ? pplOwnerName() : o ? o.name : t.name)) + '</span>' +
         (t.note ? '<span class="inv-row-meta">' + escHtml(t.note) + '</span>' : '') + '</span></div>';
     }).join('') : '<div class="inv-empty">None recorded.</div>') + '</div>';
   if (owner) {
@@ -223,30 +224,39 @@ function _pplSel(id, label, list, v) {
     list.map(function(o) { return '<option value="' + escHtml(String(o[0])) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>'; }).join('') + '</select></div>';
 }
 var _pplFrom = null;   // the worker's edit sheet the dialog was opened over, to come back to it
-function pplEdit(id) {
-  if (!pplOwnerOk(function() { pplEdit(id); })) return;
+/* The owner, as a tie names them: their ID's name where the guard is on, else "you (the owner)". */
+function pplOwnerName() {
+  var o = (typeof grdActiveUsers === 'function' ? grdActiveUsers() : []).find(function(u) { return u && u.role === 'owner'; });
+  return o && o.name ? o.name + ' (the owner)' : 'you (the owner)';
+}
+/* `part`: 'skills' or 'ties' opens that part alone (from its panel's Change); none opens all of it. */
+function pplEdit(id, part) {
+  if (!pplOwnerOk(function() { pplEdit(id, part); })) return;
   var w = staffById(id);
   if (!w) return;
   _pplFrom = document.querySelector('[data-ppl-sheet]') ? id : null;
   var p = w.profile || {}, em = p.emergency || {}, ties = (w.ties || []).slice(0, 3);
   while (ties.length < 3) ties.push({});
-  var workers = [['', 'Someone not on the roster']].concat((S.staff || []).filter(function(o) { return o !== w; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(o) { return [o.id, o.name]; }));
-  var f = '<div class="inv-fields">' + _pplF('pplDesig', 'Designation', p.designation) + _pplF('pplPhone', 'Phone', p.phone, 'tel') + _pplF('pplGuard', 'Son or daughter of', p.guardian) +
+  var workers = [['', 'Someone not on the roster'], ['owner', 'Me (the owner)']].concat((S.staff || []).filter(function(o) { return o !== w; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(o) { return [o.id, o.name]; }));
+  var fDetails = '<div class="inv-fields">' + _pplF('pplDesig', 'Designation', p.designation) + _pplF('pplPhone', 'Phone', p.phone, 'tel') + _pplF('pplGuard', 'Son or daughter of', p.guardian) +
     _pplF('pplBlood', 'Blood group', p.bloodGroup) + _pplF('pplDob', 'Born', p.dob, 'date') + _pplF('pplJoined', 'Joined', p.joined, 'date') +
     _pplF('pplLang', 'Languages', p.languages) + _pplF('pplId4', 'ID, last four digits', p.idLast4, 'text', ' inputmode="numeric"') +
     _pplF('pplBank4', 'Bank account, last four digits', p.bankLast4, 'text', ' inputmode="numeric"') + '</div>' +
     _pplF('pplAddr', 'Address', p.address) +
     '<div class="inv-fields">' + _pplF('pplEmName', 'In an emergency: name', em.name) + _pplF('pplEmRel', 'Relation', em.relation) + _pplF('pplEmPhone', 'Their phone', em.phone, 'tel') + '</div>' +
-    _pplF('pplNotes', 'Notes', p.notes) +
+    _pplF('pplNotes', 'Notes', p.notes);
+  var fSkills = '' +
     '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Skills, 0 to 5</span></div><div class="inv-panel-body"><div class="inv-fields">' +
     STAFF_AREAS.map(function(a) { return _pplSel('pplSkill-' + a.id, a.label, [[0, 'Not rated'], [1, '1 · learning'], [2, '2'], [3, '3 · on their own'], [4, '4'], [5, '5 · can teach it']], (w.skills || {})[a.id] || 0); }).join('') +
-    '</div></div></div>' +
+    '</div></div></div>';
+  var fTies = '' +
     '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div><div class="inv-panel-body">' +
     ties.map(function(t, i) {
       return '<div class="inv-fields">' + _pplSel('pplTieKind' + i, 'Relationship ' + (i + 1), [['', 'None']].concat(PPL_TIES), t.kind || '') +
-        _pplSel('pplTieWho' + i, 'Worker', workers, t.staffId != null ? t.staffId : '') + _pplF('pplTieName' + i, 'Or a name', t.staffId != null ? '' : t.name) + '</div>';
+        _pplSel('pplTieWho' + i, 'Worker', workers, t.owner ? 'owner' : t.staffId != null ? t.staffId : '') + _pplF('pplTieName' + i, 'Or a name', t.staffId != null || t.owner ? '' : t.name) + '</div>';
     }).join('') + '</div></div>';
-  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + ': details, skills and ties', 'invCloseConfirm') + f +
+  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + (part === 'skills' ? ': skills' : part === 'ties' ? ': relationships' : ': details, skills and ties'), 'invCloseConfirm') +
+    (part === 'skills' ? fSkills : part === 'ties' ? fTies : fDetails + fSkills + fTies) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
 }
 function _pplV(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
@@ -254,24 +264,28 @@ function pplSave(id) {
   if (!pplOwnerOk(function() { pplSave(id); })) return;
   var w = staffById(id);
   if (!w) return;
+  var has = function(elId) { return !!document.getElementById(elId); };
   var four = function(v) { var d = String(v).replace(/\D/g, ''); return d ? d.slice(-4) : ''; };
   var prof = { designation: _pplV('pplDesig'), guardian: _pplV('pplGuard'), bloodGroup: _pplV('pplBlood'), phone: _pplV('pplPhone'), dob: _pplV('pplDob'), joined: _pplV('pplJoined'), languages: _pplV('pplLang'), idLast4: four(_pplV('pplId4')), bankLast4: four(_pplV('pplBank4')),
     address: _pplV('pplAddr'), notes: _pplV('pplNotes'), emergency: { name: _pplV('pplEmName'), relation: _pplV('pplEmRel'), phone: _pplV('pplEmPhone') } };
-  if (prof.joined && prof.joined > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The joining date is a day up to today.' });
+  if (has('pplDesig') && prof.joined && prof.joined > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The joining date is a day up to today.' });
   var skills = {};
   STAFF_AREAS.forEach(function(a) { var v = parseInt(_pplV('pplSkill-' + a.id), 10); if (v > 0) skills[a.id] = Math.min(5, v); });
   var ties = [];
   for (var i = 0; i < 3; i++) {
     var kind = _pplV('pplTieKind' + i), who = _pplV('pplTieWho' + i), name = _pplV('pplTieName' + i);
     if (!kind || (!who && !name)) continue;
-    var o = who ? staffById(who) : null;
-    var tie = o ? { kind: kind, staffId: o.id } : { kind: kind, name: name }, was = (w.ties || [])[i];
+    var o = who && who !== 'owner' ? staffById(who) : null;
+    var tie = who === 'owner' ? { kind: kind, owner: true } : o ? { kind: kind, staffId: o.id } : { kind: kind, name: name }, was = (w.ties || [])[i];
     // A tie's note (from a file) is kept while the tie is the same one.
-    if (was && was.note && was.kind === tie.kind && (o ? String(was.staffId) === String(o.id) : was.name === tie.name)) tie.note = was.note;
+    if (was && was.note && was.kind === tie.kind && (tie.owner ? was.owner : o ? String(was.staffId) === String(o.id) : was.name === tie.name)) tie.note = was.note;
     ties.push(tie);
   }
   ties = ties.concat((w.ties || []).slice(3));   // the form shows three; the rest are kept as they are
-  w.profile = prof; w.skills = skills; w.ties = ties;
+  // Only what the dialog held is written: a dialog opened on the skills alone leaves the details and ties as they are.
+  if (has('pplDesig')) w.profile = prof;
+  if (has('pplSkill-' + STAFF_AREAS[0].id)) w.skills = skills;
+  if (has('pplTieKind0')) w.ties = ties;
   saveState();
   pplBack(id);
   showToast('Saved');
@@ -313,7 +327,7 @@ function pplBack(id) {
 }
 function pplAction(action, btn) {
   switch (action) {
-    case 'invPplEdit': pplEdit(btn.dataset.id); return true;
+    case 'invPplEdit': pplEdit(btn.dataset.id, btn.dataset.part || null); return true;
     case 'invPplSave': pplSave(btn.dataset.id); return true;
     case 'invPplCheckin': pplCheckinOpen(btn.dataset.id); return true;
     case 'invPplCheckinSave': pplCheckinSave(btn.dataset.id); return true;
@@ -417,7 +431,8 @@ function pplImportKeep() {
     if (Array.isArray(r.ties) && r.ties.length) {
       var ties = Array.isArray(w.ties) ? w.ties.slice() : [];
       r.ties.forEach(function(t) {
-        if (!t || !t.kind || !t.name || !PPL_TIES.some(function(k) { return k[0] === t.kind; })) return;
+        if (!t || !t.kind || (!t.name && !t.owner) || !PPL_TIES.some(function(k) { return k[0] === t.kind; })) return;
+        if (t.owner) { if (!ties.some(function(e) { return e.kind === t.kind && e.owner; })) ties.push({ kind: t.kind, owner: true }); return; }
         var m = relayMatchName(String(t.name).trim().split(/\s+/), idx, false), o = m && m.sure ? m.w : null;
         var tie = o ? { kind: t.kind, staffId: o.id } : { kind: t.kind, name: String(t.name).trim() };
         if (t.note) tie.note = String(t.note);

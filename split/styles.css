@@ -2165,21 +2165,34 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-idc-small { max-width: calc(var(--sp-32) * 4); }
 .inv-idc-video { display: block; width: 100%; max-height: calc(var(--sp-32) * 8); border-radius: var(--r-md); background: var(--surface-3); object-fit: cover; }
 .inv-idc-sheet {
-  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 2mm; --idc-pad: 3.5mm; --idc-qr: 30mm; --idc-fs: 8pt; --idc-fs-name: 12pt; --idc-fs-co: 8.5pt; --idc-rule: 0.4pt;
-  --idc-radius: 3mm; --idc-line: 1mm; --idc-lh-name: 1.15; --idc-ink-2: #444;
+  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 2mm; --idc-pad: 3mm; --idc-qr: 24mm; --idc-fs: 7pt; --idc-fs-sm: 5.6pt; --idc-fs-name: 11pt; --idc-fs-co: 8pt; --idc-rule: 0.4pt;
+  --idc-radius: 3mm; --idc-line: 0.8mm; --idc-lh: 1.25; --idc-lh-name: 1.1; --idc-track: 0.02em; --idc-ink-2: #444; --idc-band: #12343b; --idc-band-ink: #fff; --idc-accent: #e0a526;
   --idc-sheet-w: 210mm; --idc-sheet-h: 297mm; --idc-margin: 9mm 18.4mm;
   display: grid; grid-template-columns: repeat(2, var(--idc-w)); grid-auto-rows: var(--idc-h); gap: var(--idc-gap);
   width: var(--idc-sheet-w); min-height: var(--idc-sheet-h); padding: var(--idc-margin); margin: 0 auto var(--sp-16);
   background: #fff; color: #000; font-family: var(--ff-base); page-break-after: always; break-after: page; border: var(--hair) solid var(--border);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .inv-idc-sheet:last-child { page-break-after: auto; break-after: auto; }
-.inv-idc { display: flex; gap: var(--idc-pad); padding: var(--idc-pad); border: var(--idc-rule) solid #000; border-radius: var(--idc-radius); overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
-.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--idc-line); font-size: var(--idc-fs); }
-.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; border-bottom: var(--idc-rule) solid #000; padding-bottom: var(--idc-line); }
-.inv-idc-label { font-size: var(--idc-fs); color: var(--idc-ink-2); }
+.inv-idc { display: flex; flex-direction: column; border: var(--idc-rule) solid #000; border-radius: var(--idc-radius); overflow: hidden; break-inside: avoid; page-break-inside: avoid; font-size: var(--idc-fs); line-height: var(--idc-lh); }
+.inv-idc-band { background: var(--idc-band); color: var(--idc-band-ink); padding: var(--idc-line) var(--idc-pad); border-bottom: var(--idc-line) solid var(--idc-accent); }
+.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; letter-spacing: var(--idc-track); }
+.inv-idc-addr { font-size: var(--idc-fs-sm); }
+.inv-idc-body { flex: 1 1 auto; display: flex; gap: var(--idc-pad); padding: var(--idc-line) var(--idc-pad); min-height: 0; }
+.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--idc-line); }
 .inv-idc-name { font-size: var(--idc-fs-name); font-weight: 700; line-height: var(--idc-lh-name); overflow-wrap: anywhere; }
-.inv-idc-row { font-size: var(--idc-fs); }
+.inv-idc-desig { color: var(--idc-ink-2); }
+.inv-idc-kv { display: grid; grid-template-columns: auto 1fr; gap: 0 var(--idc-pad); margin: 0; }
+.inv-idc-kv dt { color: var(--idc-ink-2); }
+.inv-idc-kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
+.inv-idc-foot { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 var(--idc-pad) var(--idc-line); font-size: var(--idc-fs-sm); color: var(--idc-ink-2); text-transform: uppercase; }
+.inv-idc-sign { border-top: var(--idc-rule) solid #000; padding-top: var(--idc-line); text-transform: none; }
+.inv-idc-back { padding: var(--idc-pad); gap: var(--idc-line); }
+.inv-idc-btitle { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; color: var(--idc-band); border-bottom: var(--idc-line) solid var(--idc-accent); padding-bottom: var(--idc-line); }
+.inv-idc-rules { flex: 1 1 auto; margin: 0; padding-left: var(--idc-pad); font-size: var(--idc-fs-sm); }
+.inv-idc-bfoot { font-size: var(--idc-fs-sm); color: var(--idc-ink-2); border-top: var(--idc-rule) solid #000; padding-top: var(--idc-line); }
+.inv-idc-blank { visibility: hidden; }
 @media print { .inv-idc-sheet { border: none; margin: 0; } }
 /* The office check-in sheet (checkin.js): one A4 page, a large QR and three steps. A printed form: its sizes declared once. */
 .inv-ck-sheet {

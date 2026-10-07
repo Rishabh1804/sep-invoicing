@@ -31,6 +31,10 @@ loan, played as a game whose every figure adds up; *"start implementation sequen
 implementation … is done"*). One PR, steps PL1–PL5, then the QA chain. Nothing about the shop is written into the code: the
 baseline is read from the book on the device.
 
+**The workers and the plant are built — read `docs/WORKERS_AND_PLANT.md`** and *Workers and the plant* below (owner, 7 Oct 2026: the
+roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
+ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
+
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
@@ -49,7 +53,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 74 modules, ~52,300 lines total.
+Split-file PWA. 79 modules, ~55,000 lines total.
 
 ```
 split/
@@ -110,6 +114,11 @@ split/
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
+├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity, sep-plant files (~400 lines)
+├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
+├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
+├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
+├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
 ├── floor.js           ← Floor → Day: a card per line, heads against the number, running, plated, crew, EXTRA (~240 lines)
 ├── today.js           ← Today: Needs you (the day's inputs, the tasks Now / This week / Later) and Pulse (~320 lines)
@@ -133,7 +142,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → todo → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -163,7 +172,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,486 tests, both layouts
+pnpm exec playwright test          # 1,513 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -401,7 +410,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 589 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 628 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1866,6 +1875,37 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     plating of a part with its line, time and crew beside its challans and invoices.
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
+
+### Workers and the plant
+`docs/WORKERS_AND_PLANT.md` (owner, 7 Oct 2026), steps W1–W5. P166–P170. **Nothing about the shop is in the build**: the units, the
+workers and every personal detail are the book's; the owner's private files (`sep-people`, `sep-plant`) are imported, never committed.
+- **The plant register** (`plant.js`, `S.plant = {units, log}`): every tank, barrel and supporting machine on its station (the planner's
+  ids), run · standby · repair · down, with a dated log of every change and a reason. **A line's units work side by side, each in kg a
+  round** (owner): available = the kg a round of the units running or on standby over all of them (by count, and said, where no kg is
+  typed); used is what the register measures a line plating a round (`plnBase().lines`), *not measured* without one. Production →
+  **Equipment**, a strip per line leading Production's Overview, Floor → Day's line cards (*1 of 4 down*). The planner's machines are
+  units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
+- **Worker records** (`people.js`): typed by the owner (`w.profile`: designation, guardian, phone, address, date of birth, joining date,
+  blood group, emergency contact, the last four of an ID and a bank account, languages, notes; `w.skills` 0–5 per area; `w.ties` up to
+  three), and **worked out each time** over 90 days (`pplStats`): tenure, reliability (present on the days expected, late past 8:40,
+  leaving early), consistency (how the in-time and the hours vary), workload (OT and Sundays in four weeks), days per area, who they work
+  beside. **Firm from 14 days marked.** **The motivation index** (owner: *"instead of happiness index it becomes motivation index"*) is
+  signals, each with its reason (pay owed, advances, OT climbing, a newer hand of the tier paid more, absences rising, no rise in a year),
+  and the owner's monthly **check-in** (1–5, `S.peopleCheckins`) weighs half; not firm without a check-in in 60 days, and never red
+  unless firm. **Personal details and motivation are the owner's alone**; the change log never compares a profile, a check-in's score or
+  note. The roster row carries three bars (reliability, consistency, workload) and the top skills (P168). To-do `pplCheckin`, `pplWatch`.
+  `sep-people` v1 through Staff → Roster → Import or Add → File: matched by name like a roll, each match checked before a field is written.
+- **ID cards** (`qr.js`, `idcard.js`): a card number given once and never reused (`w.card`, `SEP-0007`; a replaced card goes to
+  `cardsRetired` with a reason and is refused), its QR `SEP1:W:<card>:<check>` drawn by the app's own encoder (no library, no network;
+  checked by decoding with OpenCV). Printed ten to an A4 sheet, the owner's. **Staff → Day → Scan cards**: the camera
+  (`BarcodeDetector`) or the number typed; the day's earliest time is the in, its latest the out, two minutes apart or it is the same
+  scan, the mark the hand's own (a roll never rewrites it), Undo on screen (`idcApply`).
+- **The office QR** (`checkin.js`, `checkin.html`; owner: *"a universal QR Code … we would need safeguards for proxy"*, WhatsApp with
+  checks chosen): the sheet links to `checkin.html` with the office number, the plant's place and radius, a key and the name in its
+  fragment (never sent to a server, never in the repo). The worker's phone writes a check-in (card, time, place, a code from the key)
+  and opens WhatsApp to the office; the chat pasted into the paste box opens a review where each check-in shows its checks: a live card,
+  the code, the worker's own phone, inside the radius, sent as made, the shop's hours, one phone one worker a day. Red is left unticked.
+  It cannot stop a faked location or a photographed sheet, and the setup says so. `checkin.html` is hand-written and not built.
 
 ### The planner
 Insights → **Planner** (`planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,

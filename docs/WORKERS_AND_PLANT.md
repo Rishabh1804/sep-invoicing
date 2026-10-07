@@ -93,6 +93,32 @@ that every worker gets, we will have a QR code scanner in it that should be link
   Every scan is listed on the screen as it lands, with Undo. A card retired or a worker inactive is refused and said.
 - A floor entry for the guard (`attFloorOk`); printing the cards is the owner's.
 
+## W5 · The office QR
+
+Owner, 7 Oct 2026: *"a universal QR Code that I can print and keep in the office which workers can scan via their camera and
+open a link and mark attendance, we would need safeguards for proxy"*. The app has no server to receive a check-in, so of the
+ways put to them the owner chose **WhatsApp with checks**.
+
+- **The sheet** (Staff → Roster → **Office QR**, the owner's; `checkin.js`): the office's WhatsApp number, the plant's latitude and
+  longitude (typed, or *Use where this device is now*), a radius (150 m), and a key made on the first save (`S.checkinCfg`). Printed
+  through the one print view as one A4 page: a large QR and three steps. *New key* makes every sheet printed before it fail the code.
+- **The link** is `checkin.html` beside the app, with everything in its fragment (`#o=…&la=…&lo=…&r=…&k=…&n=…`), which no server
+  sees: nothing of the shop is in the repo. `checkin.html` is hand-written, not built, and registers no service worker.
+- **The worker's phone**: the card number (asked once, kept on that phone), **Check in**, the location allowed, then **Send on
+  WhatsApp**, which opens a chat to the office number with the message written: the card, the time, the place with its accuracy, and
+  a code worked from the key, the card and the minute (`ckCode`, the same arithmetic on both sides).
+- **The office reads the chat** through the one paste box (or Add). A check-in has its own review: every one beside its checks, and
+  Save puts the ticked ones into the day as a card scan does (`idcApply`, `via: 'checkin'`): the earliest time the in, the latest the
+  out, whatever order they arrive in, and a repeat already in the day is said, never saved twice. Beside a roll, the roll's check offers
+  **Read the check-ins**.
+- **The checks against a proxy**, each said on its row (`ckReview`): a live card; the code (a message typed or changed by hand fails);
+  the sender is the worker's own phone (the number on their record, or a contact named as them; another worker's phone is red); the
+  place inside the radius (outside it by more than the fix's accuracy is red); sent when it says it was made (10 minutes); within the
+  shop's hours; one phone, one worker a day (the phone's own worker stays, the others are red). A red row is left unticked; the owner may
+  tick it. Warn, never block.
+- **What it cannot stop**, said on the setup: a phone that fakes its location, and a sheet photographed and used elsewhere (the key is
+  in the link). The office number and the sender check are the strong part.
+
 ## Order
 
-W1, then W2, then W3, then W4, in one PR, one commit each; the QA chain before the merge (owner, 7 Oct 2026).
+W1, then W2, then W3, then W4, then W5, in one PR, one commit each; the QA chain before the merge (owner, 7 Oct 2026).

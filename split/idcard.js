@@ -54,25 +54,35 @@ function idcScan(raw, at) {
   if (typeof attFloorOk === 'function' && !attFloorOk()) return { ok: false, why: 'Your ID does not enter attendance.' };
   var r = idcResolve(raw);
   if (!r.w) return { ok: false, why: r.why };
-  var now = at ? new Date(at) : new Date(), iso = localDateStr(now), min = now.getHours() * 60 + now.getMinutes(), w = r.w;
-  var rec = attDay(iso, true), id = w.id;
+  var res = idcApply(r.w, r.card, at ? new Date(at) : new Date(), 'scan');
+  if (res.ok) saveState();
+  return res;
+}
+/* A card's time into the day, a scan's or an office check-in's (checkin.js). The day's earliest time is the in, its latest
+   the out, whatever order they arrive in: a check-in read from a chat later than a scan still lands where its time puts it. */
+function idcApply(w, card, now, via, extra) {
+  var iso = localDateStr(now), min = now.getHours() * 60 + now.getMinutes(), id = w.id;
+  var rec = attDay(iso, true);
   rec.scans = rec.scans || {};
-  var list = rec.scans[id] || [], last = list[list.length - 1];
-  if (last && now.getTime() - last.at < IDC_SAME_MS) return { ok: false, why: w.name + ' was scanned a moment ago.', w: w, same: true };
+  var list = rec.scans[id] || [];
+  var near = list.find(function(x) { return Math.abs(now.getTime() - x.at) < IDC_SAME_MS; });
+  if (near) return { ok: false, why: w.name + ' was scanned a moment ago.', w: w, same: true };
   var prev = rec.marks[id] ? JSON.parse(JSON.stringify(rec.marks[id])) : null, prevScans = list.slice();
   // A mark already on the day (a roll's, one typed) takes the scanned time; an absence or no mark becomes present.
   var m = rec.marks[id] && rec.marks[id].st !== 'A' ? rec.marks[id] : { st: 'P', area: (rec.marks[id] && rec.marks[id].area) || w.area || 'flex' };
-  var kind = list.length ? 'out' : 'in';
-  if (kind === 'in') m.inMin = min; else m.outMin = min;
+  var scan = Object.assign({ min: min, at: now.getTime(), card: card }, via && via !== 'scan' ? { via: via } : {}, extra || {});
+  var all = list.concat([scan]).sort(function(a, b) { return a.at - b.at; });
+  var kind = all[0] === scan ? 'in' : 'out';
+  m.inMin = all[0].min;
+  if (all.length > 1) m.outMin = all[all.length - 1].min;
   var area = m.area, out = m.outMin != null ? m.outMin : (area === 'gate' ? 1140 : 1020);
   var hr = relayHoursOf(m.inMin, out > m.inMin ? out : null, w, area);
   m.hours = hr.hours; m.ot = hr.ot;
   delete m.src;   // the hand's own: a roll never rewrites it
   rec.marks[id] = m;
-  rec.scans[id] = list.concat([{ min: min, at: now.getTime(), card: r.card }]);
+  rec.scans[id] = all;
   _idcLog.unshift({ iso: iso, staffId: id, name: w.name, kind: kind, min: min, prev: prev, prevScans: prevScans });
-  saveState();
-  return { ok: true, w: w, kind: kind, min: min };
+  return { ok: true, w: w, kind: kind, min: min, iso: iso };
 }
 function idcUndo() {
   var x = _idcLog.shift();

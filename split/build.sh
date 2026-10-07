@@ -79,6 +79,7 @@ JS_SOURCES=(
     "$DIR/people.js" \
     "$DIR/qr.js" \
     "$DIR/idcard.js" \
+    "$DIR/checkin.js" \
     "$DIR/prodview.js" \
     "$DIR/floor.js" \
     "$DIR/today.js" \

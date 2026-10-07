@@ -323,6 +323,7 @@ function relaySplit(text) {
    the whole paste to Production and the attendance was never read (QA3-5). Now the two agree by construction. */
 var RELAY_ROLL_HEAD_RE = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i;
 function relayKind(text) {
+  if (typeof CK_HEAD_RE !== 'undefined' && CK_HEAD_RE.test(String(text || '').split('\n')[0])) return 'checkin';
   var head = String(text || '').split('\n').slice(0, 2).join(' ');
   var dh = RELAY_ROLL_HEAD_RE.exec(String(text || ''));
   if (dh) return dh[1].toLowerCase();
@@ -1080,9 +1081,10 @@ function relayRead() {
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
   var msgs = relaySplit(text);
-  var rolls = [], stock = [], other = [];
+  var rolls = [], stock = [], other = [], checkins = 0;
   msgs.forEach(function(m) {
     var k = relayKind(m.text);
+    if (k === 'checkin') { checkins++; return; }
     if (k === 'in' || k === 'out') rolls.push(m);
     else if (k === 'stock') stock.push(m);
     else other.push(m);
@@ -1090,6 +1092,8 @@ function relayRead() {
   // Production: the pickling hand's loads, the barrel list, a roll's production block (production.js reads them).
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
+  // Check-ins from the office QR (checkin.js) have a review of their own; beside rolls, the roll's check offers it.
+  if (!rolls.length && checkins) { ckReviewOpen(text); return; }
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
   // A stock message belongs to Stock's own review.
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }
@@ -1099,7 +1103,7 @@ function relayRead() {
   // The stock beside the rolls, its own messages and what was written under a roll, is kept for Read in Stock: it was
   // dropped, with a word pointing at the retired More sheet (QA3-10).
   var stockParts = relayStockParts(msgs);
-  _relay = { text: text, msgs: rolls, choices: {}, stock: stockParts.length, stockText: stockParts.join('\n'), other: Math.max(0, other.length - prodLoose), prod: prod.length };
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stockParts.length, stockText: stockParts.join('\n'), other: Math.max(0, other.length - prodLoose), prod: prod.length, checkins: checkins };
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
@@ -1137,6 +1141,8 @@ function relayRenderReview() {
   }
   if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
+  if (rv.checkins) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayCkNote"><div>' + todoPlural(rv.checkins, 'check-in') + ' from the office QR, each read with its own checks.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invCkFromRelay">Read the check-ins</button></div>';
   if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (notes) not read.</div>';
   h += '<div class="inv-tiles inv-tiles-3" id="relayReviewTiles">' +
     '<div class="inv-tile' + (plan.counts.red ? ' inv-tile-danger' : '') + '" data-tile="red"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + plan.counts.red + '</div></div>' +

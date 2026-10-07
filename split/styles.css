@@ -2180,3 +2180,15 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-idc-row { font-size: var(--idc-fs); }
 .inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
 @media print { .inv-idc-sheet { border: none; margin: 0; } }
+/* The office check-in sheet (checkin.js): one A4 page, a large QR and three steps. A printed form: its sizes declared once. */
+.inv-ck-sheet {
+  --ck-sheet-w: 210mm; --ck-sheet-h: 297mm; --ck-pad: 22mm 20mm; --ck-qr: 120mm; --ck-fs: 13pt; --ck-fs-co: 16pt; --ck-fs-title: 28pt; --ck-fs-foot: 9.5pt; --ck-gap: 8mm; --ck-indent: 7mm; --ck-steps-w: 150mm; --ck-foot-w: 160mm;
+  display: flex; flex-direction: column; align-items: center; gap: var(--ck-gap); width: var(--ck-sheet-w); min-height: var(--ck-sheet-h);
+  padding: var(--ck-pad); margin: 0 auto; background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--ck-fs); border: var(--hair) solid var(--border);
+}
+.inv-ck-co { font-size: var(--ck-fs-co); font-weight: 700; text-transform: uppercase; text-align: center; }
+.inv-ck-title { font-size: var(--ck-fs-title); font-weight: 700; text-align: center; }
+.inv-ck-qr { width: var(--ck-qr); }
+.inv-ck-steps { margin: 0; padding-left: var(--ck-indent); line-height: 1.5; max-width: var(--ck-steps-w); }
+.inv-ck-foot { margin-top: auto; font-size: var(--ck-fs-foot); color: #333; text-align: center; max-width: var(--ck-foot-w); }
+@media print { .inv-ck-sheet { border: none; } }

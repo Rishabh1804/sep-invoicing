@@ -221,9 +221,10 @@ var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel productio
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
   var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
-  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text);
+  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text), cks = [];
   msgs.forEach(function(m) {
     var k = relayKind(m.text);
+    if (k === 'checkin') { var c = ckParse(m.text); if (c) cks.push(c); return; }
     if (k === 'in' || k === 'out') {
       rolls++;
       roster = roster || relayRoster({});
@@ -245,7 +246,8 @@ function addDescribe(text) {
     m.read.items.forEach(function(it) { g.counts[it.kind] = (g.counts[it.kind] || 0) + 1; });
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
-  d.where = rolls ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  if (cks.length) d.items.push({ kind: 'checkin', title: 'Office QR check-ins', meta: addWhen(cks.map(function(c) { return c.iso; })) + ' · ' + todoPlural(cks.length, 'check-in') });
+  d.where = rolls || cks.length ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
   // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
   // and the stock beside a roll was never read (QA3-10).
   if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);

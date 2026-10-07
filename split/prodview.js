@@ -4,7 +4,7 @@
  * a way back and end in the action bar, and draw no toolbar (DR-3).
  */
 var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
-var PROD_TABS = [['overview', 'Overview'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
+var PROD_TABS = [['overview', 'Overview'], ['equipment', 'Equipment'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _prodTabMoved = false;
 var _prodView = 'main';          // main · paste · review · photo · hand
@@ -57,7 +57,9 @@ function renderProduction() {
     if (_prodPhotoQueue.length) h += '<div class="inv-callout inv-callout-info" id="prodPhotoWaiting">' + escHtml(todoPlural(_prodPhotoQueue.length, 'register photo') + ' picked with the challan sent to the scanner ' + (_prodPhotoQueue.length === 1 ? 'is' : 'are') + ' waiting to be read.') +
       '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdPhotoNext">Read the next</button></div></div>';
     var p = prodData();
-    if (!p.entries.length && _prodTab !== 'plant') h += '<div class="inv-empty">No production recorded yet. Paste a pickling or production message, read a register photo, or import the history from soma-internal.</div>';
+    // The plant register (plant.js) needs no production record: a unit is the shop's, before anything is plated on it.
+    if (_prodTab === 'equipment') h += pltEquipmentHtml();
+    else if (!p.entries.length && _prodTab !== 'plant') h += pltGlanceHtml() + '<div class="inv-empty">No production recorded yet. Paste a pickling or production message, read a register photo, or import the history from soma-internal.</div>';
     else if (_prodTab === 'plant') h += prodPlantHtml();
     else if (_prodTab === 'lines') h += prodLinesHtml();
     else if (_prodTab === 'entries') h += prodEntriesHtml();
@@ -89,7 +91,8 @@ function prodOverviewHtml() {
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-prod-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
-  var h = '<div class="inv-tiles">' +
+  // The plant at a glance leads: whether each line can run today, before what it plated (plant.js).
+  var h = pltGlanceHtml() + '<div class="inv-tiles">' +
     tile('Plated, last recorded day', !lastDay ? '&mdash;' : escHtml(lp.text),
       !lastDay ? 'nothing recorded' : escHtml(lastWhere + ' · ' + (lastWhole ? Math.round(lastNos).toLocaleString('en-IN') + ' NOS'
         : formatNum(lastKg / 1000, 2) + ' t known, ' + Math.round(lastShare * 100) + '% of the pieces weighed')), '', 'last') +

@@ -2109,3 +2109,30 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
 body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
+
+/* The plant register (plant.js, owner 7 Oct 2026): a line's units side by side, each a tile edged in its status's colour and
+   named in a word beside its dot (DR-1, DR-8); a pip per unit where the line is one row; a bar for what is available and
+   what is used of it. The bar is an SVG, so its widths are attributes, never a style. */
+.inv-unit-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: var(--sp-8); margin-top: var(--sp-10); }
+body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inv-unit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); min-width: 0; min-height: var(--touch); padding: var(--sp-8) var(--sp-10);
+  border: var(--hair) solid var(--border); border-left: var(--sp-4) solid var(--text-3); border-radius: var(--r-md); background: var(--surface); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; }
+.inv-unit:hover { background: var(--surface-2); }
+.inv-unit:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-unit[data-status="run"] { border-left-color: var(--ok); }
+.inv-unit[data-status="standby"] { border-left-color: var(--info); }
+.inv-unit[data-status="repair"] { border-left-color: var(--warning); background: var(--warning-bg); }
+.inv-unit[data-status="down"] { border-left-color: var(--danger); background: var(--danger-bg); }
+.inv-unit-name { max-width: 100%; overflow-wrap: anywhere; font-size: var(--fs-14); font-weight: 600; }
+.inv-unit-sub { font-size: var(--fs-12); color: var(--text-3); }
+.inv-unit-cap { display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-unit-cap-words { font-size: var(--fs-14); font-weight: 600; }
+.inv-unit-bar { display: block; width: 100%; height: var(--sp-8); border-radius: var(--r-full); overflow: hidden; }
+.inv-unit-bar-track { fill: var(--surface-3); }
+.inv-unit-bar-avail { fill: var(--ok); opacity: 0.35; }
+.inv-unit-bar-used { fill: var(--ok); }
+.inv-unit-pips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); max-width: calc(var(--sp-12) * 6); }
+.inv-unit-pip { width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-sm); background: var(--ok); }
+.inv-unit-pip[data-status="standby"] { background: var(--info); }
+.inv-unit-pip[data-status="repair"] { background: var(--warning); }
+.inv-unit-pip[data-status="down"] { background: var(--danger); }

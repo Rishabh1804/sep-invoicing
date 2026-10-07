@@ -82,6 +82,8 @@ var CHG_TRACK = [
   { path: 'planner.heard', kind: 'arr', noun: 'rate heard', plural: 'rates heard', label: function(r) { return chgJoin(r.what, r.from); } },
   { path: 'planner.heldBack', kind: 'arr', noun: 'work held back', plural: 'work held back', label: function(r) { return chgJoin(chgClientName(r.clientId), r.why); } },
   { path: 'planner.cfg', kind: 'cfg', sec: 'Planner → assumptions' },
+  { path: 'plant.units', kind: 'arr', noun: 'plant unit', label: function(r) { return chgJoin(r.name, typeof pltStationName === 'function' ? pltStationName(r.station) : r.station); } },
+  { path: 'plant.log', kind: 'arr', noun: 'plant status change', label: function(r) { return chgJoin(r.to, r.date ? chgDay(r.date) : ''); } },
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
@@ -135,7 +137,7 @@ var CHG_TRACK = [
   { path: 'guardCfg', kind: 'cfg', sec: 'Users & access', dflt: function() { return getDefaultState().guardCfg || {}; } }
 ];
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
-var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1 };
+var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1 };
 // Never compared: the log itself (a key starting _ never is either).
 var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.

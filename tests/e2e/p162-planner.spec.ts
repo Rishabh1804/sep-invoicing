@@ -74,23 +74,25 @@ test.describe('P162 the planner', () => {
   });
 
   test('a machine needing work is a record: it raises a task, and is retired with a reason', async ({ page }) => {
+    // The machines are the plant register's units (plant.js, P166): added and edited in its editor, from the planner too.
     await loadAppWithState(page, book());
     await switchTab(page, 'pagePlanner');
     await page.locator('#pagePlanner [data-action="invPlnView"][data-v="plant"]').click();
-    await page.locator('#plnMachines [data-action="invPlnRegEdit"]').click();
-    await page.fill('#plnRItem', 'Rectifier 2');
-    await page.selectOption('#plnRState', 'needs');
-    await page.fill('#plnRNeeds', 'new diodes');
-    await page.locator('[data-action="invPlnRegSave"]').click();
+    await page.locator('#plnMachines [data-action="invPltEdit"]').click();
+    await page.fill('#pltName', 'Rectifier 2');
+    await page.selectOption('#pltStation', 'vat-a2');
+    await page.selectOption('#pltCond', 'needs');
+    await page.fill('#pltNeeds', 'new diodes');
+    await page.locator('[data-action="invPltSave"]').click();
     await expect(page.locator('[data-pl-machine]')).toHaveCount(1);
     expect(await g(page, `todoApp().filter(function (t) { return t.rule === 'plnMachine'; }).length`)).toBe(1);
-    await page.locator('[data-pl-machine] [data-action="invPlnRegEdit"]').click();
-    await page.locator('[data-action="invPlnRegRetire"]').click();
+    await page.locator('[data-pl-machine] [data-action="invPltEdit"]').click();
+    await page.locator('[data-action="invPltRetire"]').click();
     await answerAsk(page, 'ok', 'sold');
     await expect(page.locator('[data-pl-machine]')).toHaveCount(0);
     const stored = await readStoredState(page);
-    expect(stored.planner.machines[0].retiredAt).toBeTruthy();
-    expect(stored.planner.machines[0].retireReason).toBe('sold');
+    expect(stored.plant.units[0].retiredAt).toBeTruthy();
+    expect(stored.plant.units[0].retireReason).toBe('sold');
   });
 
   test('a plan is played: the CQI-11 path, the trials, the board and the report', async ({ page }) => {

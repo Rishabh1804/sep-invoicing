@@ -639,6 +639,15 @@ if (!S._cnSeriesStart1) {
   }
 })();
 
+/* The planner's machines are the plant register's units (plant.js, owner 7 Oct 2026): moved once, their ids kept. Structural
+   (it moves records the book holds), so it runs on a pull and an import as well. */
+(function() {
+  if (typeof pltFromMachines === 'function' && pltFromMachines()) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] the planner’s machines moved into the plant register');
+  }
+})();
+
 
 }
 

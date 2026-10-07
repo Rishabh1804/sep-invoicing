@@ -99,7 +99,11 @@ function plnData() {
 /* Read without writing (drawing never changes the book). */
 function plnRead() { return S && S.planner && typeof S.planner === 'object' ? S.planner : {}; }
 function plnList(k) { var p = plnRead(); return Array.isArray(p[k]) ? p[k] : []; }
-function plnLive(k) { return plnList(k).filter(function(r) { return r && !r.retiredAt; }); }
+// The machines are the plant register's units (plant.js): one register, read here as the planner always read its own.
+function plnLive(k) {
+  if (k === 'machines' && typeof pltMachines === 'function') return pltMachines();
+  return plnList(k).filter(function(r) { return r && !r.retiredAt; });
+}
 function plnCfg() {
   var c = plnRead().cfg || {}, o = Object.assign({}, PLN_CFG_DEFAULTS);
   Object.keys(c).forEach(function(k) { if (c[k] !== '' && c[k] != null) o[k] = c[k]; });

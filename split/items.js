@@ -49,6 +49,12 @@ function renderClientsPage() {
     qtRenderView(container, _buildSubViewToggle('quotes'));
     return;
   }
+  // Prospects (prospects.js): firms not yet clients, against the spare capacity.
+  if (subView === 'prospects') {
+    _clientsActiveId = null; _itemsActiveId = null;
+    prsRenderView(container, _buildSubViewToggle('prospects'));
+    return;
+  }
   if (subView === 'performance') {
     container.innerHTML = _buildSubViewToggle('performance') + '<div id="clientPerfArea"></div>';
     renderClientPerformance(document.getElementById('clientPerfArea'));
@@ -128,7 +134,7 @@ function _buildSubViewToggle(active) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + l + '</button>';
   };
   return '<div class="inv-viewtabs" role="tablist" aria-label="Clients">' +
-    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + tab('quotes', 'Quotations') + '</div>';
+    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + tab('quotes', 'Quotations') + tab('prospects', 'Prospects') + '</div>';
 }
 
 /* ===== CLIENTS/ITEMS DESKTOP: LIST AND PANE =====

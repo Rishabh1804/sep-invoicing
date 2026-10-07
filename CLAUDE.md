@@ -53,7 +53,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 82 modules, ~56,000 lines total.
+Split-file PWA. 83 modules, ~56,300 lines total.
 
 ```
 split/
@@ -101,6 +101,7 @@ split/
 ├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
 ├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
+├── prospects.js       ← Clients → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
 ├── add.js             ← Add: one door for everything that comes in (paste, clipboard, photo, file, by hand) (~400 lines)
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
@@ -145,7 +146,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -2001,6 +2002,23 @@ layout of its issued quotations; both are read-only references, and nothing of t
   against the recipient's own paper.
 - A client's detail lists its quotations; History logs issued, revised, superseded, voided, accepted and declined.
 - **Left open:** a per-kg quotation for "all components" (no part number) is not posted to the ₹/kg ladder; it says to set it by hand.
+
+### Prospects
+Clients → **Prospects** (`prospects.js`, P176; owner, 7 Oct 2026: *"start with 3 and 4"*). The plant runs about three quarters full (~24 t
+a month spare), and nothing kept who was approached, what they were offered or when to call again.
+- **A prospect** (`S.prospects`): the firm, a contact, phone and e-mail, the work (process and parts), tonnes a month as estimated, a
+  target ₹/kg, a stage (**new · contacted · sample · quoted · won · lost**), the next follow-up, notes, and a dated log of each stage.
+  Lost needs a reason; a name already on the list is refused. In the change log.
+- **The list** is the fifth view tab: search, a stage `<select>` (Open by default), **Add prospect** the one primary; the follow-ups due
+  first, most late first. Four tiles: open (and how many due), the **pipeline** (tonnes a month weighted by a chance per stage: new 10%,
+  contacted 20%, sample 40%, quoted 60%, said on the screen as a working assumption, beside the tonnes if all came), the **spare** (the
+  last 90 days' invoiced tonnes against ~2 t a shift, two shifts, Stats' capacity), and what share of the spare the pipeline fills.
+- **Its quotations are the Quotations' own**: *Draft quotation* opens one addressed to the prospect at its target rate per kg
+  (`qtOpenDraft` with `to` and `prospectId`); one issued makes the prospect read *quoted* (`prsStage`) until it is moved on.
+- **Won makes the client**: the client form opens filled from the prospect; saving it links the two (`clientId`, `prsClientAdded`) and
+  gives its quotations the client, so accepting one can post its rates.
+- **To-do `prospectFollow`**: a follow-up due amber, a week late red. **Pulse → Is the plant full?** names the pipeline against the
+  spare with what it would bill a month, weighted (`prsPlantMove`). Search finds the screen.
 
 ### Reports
 Review → **Reports** (sidebar, after Stats) and More → Reports (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly

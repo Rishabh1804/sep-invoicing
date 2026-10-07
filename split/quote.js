@@ -410,6 +410,9 @@ function qtOpenDraft(prefill) {
   var lines = (prefill.lines || []).filter(Boolean).map(function(l) { return Object.assign(qtBlankLine(), l); });
   if (lines.length) q.lines = lines;
   if (prefill.note) q.draftNote = String(prefill.note);
+  // A prospect's quotation (prospects.js): addressed to a firm not in the book, and linked back to it.
+  if (prefill.to && !c) q.to = Object.assign(q.to, prefill.to);
+  if (prefill.prospectId) q.prospectId = prefill.prospectId;
   qtOpenForm(null, q);
 }
 function qtCloseForm() {

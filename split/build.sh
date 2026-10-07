@@ -62,6 +62,7 @@ JS_SOURCES=(
     "$DIR/payslip.js" \
     "$DIR/todo.js" \
     "$DIR/merge.js" \
+    "$DIR/prospects.js" \
     "$DIR/relay.js" \
     "$DIR/add.js" \
     "$DIR/attsheet.js" \

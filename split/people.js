@@ -97,7 +97,6 @@ function pplConsWords(st) {
   if (st.consistency == null) return 'too few times recorded';
   return (st.timed ? 'in-time varies ' + Math.round(st.sdIn) + ' min' : 'no in-time recorded') + ' · ' + st.nAreas + ' area' + (st.nAreas === 1 ? '' : 's');
 }
-function pplWorkWords(st) { return formatNum(st.ot28, 0) + ' h OT in 4 weeks' + (st.sun28 ? ' · ' + st.sun28 + ' Sunday' + (st.sun28 === 1 ? '' : 's') : ''); }
 
 /* A worker's rate, for comparing with another of the same tier. */
 function pplRate(w) { return w.comp === 'hourly' ? +w.hourRate || 0 : w.monthWage > 0 ? (+w.monthWage) / 26 : +w.dayRate || 0; }

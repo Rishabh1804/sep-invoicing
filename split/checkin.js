@@ -198,7 +198,6 @@ function ckUrl(cfg, withName) {
   if (withName !== false && co) p.push('n=' + encodeURIComponent(co));
   return base.origin + base.pathname + '#' + p.join('&');
 }
-function ckReady(cfg) { return ckDigits(cfg.office).length >= 10 && cfg.lat != null && cfg.lng != null && cfg.key; }
 function ckSetupOpen() {
   if (!ckOwnerOk(ckSetupOpen)) return;
   var c = ckCfg();

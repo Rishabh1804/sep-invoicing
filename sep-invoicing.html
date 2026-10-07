@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="ce80703f">
+<meta name="app-build" content="59f8b7b7">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -41008,7 +41008,6 @@ function pplConsWords(st) {
   if (st.consistency == null) return 'too few times recorded';
   return (st.timed ? 'in-time varies ' + Math.round(st.sdIn) + ' min' : 'no in-time recorded') + ' · ' + st.nAreas + ' area' + (st.nAreas === 1 ? '' : 's');
 }
-function pplWorkWords(st) { return formatNum(st.ot28, 0) + ' h OT in 4 weeks' + (st.sun28 ? ' · ' + st.sun28 + ' Sunday' + (st.sun28 === 1 ? '' : 's') : ''); }
 
 /* A worker's rate, for comparing with another of the same tier. */
 function pplRate(w) { return w.comp === 'hourly' ? +w.hourRate || 0 : w.monthWage > 0 ? (+w.monthWage) / 26 : +w.dayRate || 0; }
@@ -41983,7 +41982,6 @@ function ckUrl(cfg, withName) {
   if (withName !== false && co) p.push('n=' + encodeURIComponent(co));
   return base.origin + base.pathname + '#' + p.join('&');
 }
-function ckReady(cfg) { return ckDigits(cfg.office).length >= 10 && cfg.lat != null && cfg.lng != null && cfg.key; }
 function ckSetupOpen() {
   if (!ckOwnerOk(ckSetupOpen)) return;
   var c = ckCfg();

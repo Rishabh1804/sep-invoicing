@@ -124,6 +124,7 @@ function srchScreens() {
     ['items', 'Items', 'Office › Clients', 'parts items master part numbers weights', at('pageClients', 'items')],
     ['performance', 'Performance', 'Office › Clients', 'client performance materials worked by the hour stopped parts', at('pageClients', 'performance')],
     ['quotes', 'Quotations', 'Office › Clients', 'quotation quote qtn rates', at('pageClients', 'quotes')],
+    ['prospects', 'Prospects', 'Office › Clients', 'prospect lead enquiry new customer spare capacity', at('pageClients', 'prospects')],
     ['cn-list', 'Credit notes', 'Office › Invoices', 'credit note cn rebate', { kind: 'cnList' }],
     ['audit', 'Number audit', 'Office › Invoices', 'void voided gaps serial numbers missing', { kind: 'audit' }],
     ['floor', 'Day', 'Floor', 'floor lines heads crew', at('pageFloor')],

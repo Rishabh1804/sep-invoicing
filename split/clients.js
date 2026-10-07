@@ -84,6 +84,8 @@ function openClientEdit(clientId) {
 }
 
 function openClientAdd() {
+  // A plain Add is no prospect's (prospects.js prsWin opens the form itself).
+  if (typeof _prsWinning !== 'undefined') _prsWinning = null;
   _showClientOverlay(null, true);
 }
 
@@ -336,6 +338,8 @@ function addClient() {
   }
 
   S.clients.push(c);
+  // A prospect won (prospects.js): the client made from it is linked back.
+  if (typeof prsClientAdded === 'function') prsClientAdded(c);
   saveState();
   closeOverlay();
   // Clear the filter so the new client is never rendered out of view

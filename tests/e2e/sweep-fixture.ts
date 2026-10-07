@@ -446,6 +446,8 @@ export const DIALOGS: Array<[string, string]> = [
   // A client's statement and reminder (P173) and the pay slips (P174).
   ['statement', `soaOpen((bankReceivables()[0] || { client: { id: 1 } }).client.id)`],
   ['pay-slips', `_attWeekStart = attWeekStartOf(localDateStr()); psOpen()`],
+  ['merge-held', `S.mergeHeld = [{ id: 'MH-sweep', at: Date.now(), coll: 'clients', rid: '1', field: 'phone', label: 'a client', why: 'both', kept: { side: 'm', v: '1111' }, other: { side: 't', v: '2222' }, status: 'open', from: 'Office PC' }]; mrgHeldOpenDialog()`],
+  ['prospect-form', `prsFormOpen(null)`],
   ['checkin-review', `S.staff[0].card = 'SEP-0001'; ckReviewOpen(${JSON.stringify(`SEP check-in\nCard SEP-0001\nTime ${todayIso().split('-').reverse().join('/')} 08:20\nPlace 22.800100,86.150100 ±12 m\nCode ABCD`)})`],
 ];
 

@@ -178,7 +178,7 @@ function navApply(loc) {
       // A stage that is no longer there (or none) opens the default as the page is drawn.
       case 'pagePipeline': _pipeStage = pipeStageKey(parts[0]); break;
       case 'pageClients':
-        setItemsSubView(/^(clients|items|performance|quotes)$/.test(parts[0]) ? parts[0] : 'clients');
+        setItemsSubView(/^(clients|items|performance|quotes|prospects)$/.test(parts[0]) ? parts[0] : 'clients');
         // The quotation form is a sub-view: forward into it opens a new one; anywhere else leaves it.
         if (parts[0] === 'quotes' && parts[1] === 'form') { if (!_qtForm) { _qtForm = { q: qtBlank(), termsAuto: true }; _qtForm.q.terms = qtTermsFor(_qtForm.q); } }
         else _qtForm = null;

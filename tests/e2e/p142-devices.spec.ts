@@ -51,7 +51,7 @@ test.describe('P142: devices, with the guard off', () => {
     gh.setEnvelope(envelopeOf({ ...book(), clients: [{ id: 9, name: 'PULLED CLIENT', billingMode: 'kg', gstType: 'intra' }] }));
     await openSettingsAt(page, 'sync');
     await expect(page.locator('details[data-sec="sync"] [data-token-state]')).toContainText('Locked to this device');
-    await page.locator('#ghPullBtn').click();
+    await page.locator('#ghReplaceBtn').click();
     expect(await answerAsk(page, 'ok')).toContain('Replace ALL data');
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
     expect(await g(page, 'S.clients[0].name')).toBe('PULLED CLIENT');
@@ -83,8 +83,8 @@ test.describe('P142: devices, with the guard off', () => {
     gh.setEnvelope(envelopeOf(book()));
     await openSettingsAt(page, 'sync');
     await expect(page.locator('[data-sync-blocked]')).toHaveCount(0);
-    await expect(page.locator('#ghPullBtn')).toBeEnabled();
-    await page.locator('#ghPullBtn').click();
+    await expect(page.locator('#ghReplaceBtn')).toBeEnabled();
+    await page.locator('#ghReplaceBtn').click();
     await answerAsk(page, 'ok');
     await expect(page.locator('.inv-toast')).toContainText('Pulled from GitHub');
     // The device section says the guard is off, and offers nothing to register.

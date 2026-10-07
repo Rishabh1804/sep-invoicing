@@ -55,6 +55,7 @@ var CHG_TRACK = [
   { path: 'creditNotes', kind: 'arr', noun: 'credit note', label: function(r) { return chgJoin(r.displayNumber, r.clientName || chgClientName(r.clientId)); } },
   { path: 'quotations', kind: 'arr', noun: 'quotation',
     label: function(r) { return chgJoin(r.displayNumber ? r.displayNumber + (r.rev ? ' Rev ' + r.rev : '') : 'draft', r.to && r.to.name); } },
+  { path: 'prospects', kind: 'arr', noun: 'prospect', label: function(r) { return r.name; } },
   { path: 'voidedNumbers', kind: 'arr', noun: 'deleted number', key: function(r) { return 'V:' + (r.displayNumber || r.invoiceNumber || '') + '@' + (r.voidedAt || ''); },
     label: function(r) { return chgJoin(r.displayNumber || r.invoiceNumber, r.reason); } },
   { path: 'extraExceptions', kind: 'arr', noun: 'explained exception', key: function(r) { return 'X:' + [r.iso, r.scope, r.key, r.at].join('|'); },
@@ -142,7 +143,7 @@ var CHG_TRACK = [
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
 var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1 };
 // Never compared: the log itself (a key starting _ never is either).
-var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
+var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1, mergeHeld: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.
 var CHG_SCALARS = { invPrefix: 'invoice', invNextNum: 'invoice', invNextSetAt: 'invoice', cnNextNum: 'cn', bankDetails: 'bank',
   defaultCostPerKg: 'fullCost', companyLogo: 'logo' };

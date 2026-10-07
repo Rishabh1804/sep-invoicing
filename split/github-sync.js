@@ -251,6 +251,12 @@ function ghForgetSha() {
    with the SHA it was exchanged at): the two are merged rather than one replacing the other. Without a base for the SHA
    this device remembers (the first sync after this build, an import, another target) there is nothing to merge from, and
    null says so: the old questions are asked. */
+/* Whether this device holds the copy it last exchanged at the SHA it remembers: a pull can then merge. */
+async function ghMergeBaseReady(cfg) {
+  if (typeof mrgBaseGet !== 'function' || !cfg || !cfg.sha || bookStandIn()) return false;
+  var base = await mrgBaseGet();
+  return !!(base && base.state && base.sha === cfg.sha);
+}
 async function ghMergeRemote(cfg, remote) {
   if (typeof mrgMerge !== 'function' || !cfg.sha || bookStandIn()) return null;
   var base = await mrgBaseGet();
@@ -384,6 +390,10 @@ async function ghPush(opts) {
 async function ghPull(opts) {
   var replace = !!(opts && opts.replace);
   var cfg = getGhConfig();
+  // A pull that can only replace the book (no copy both last saw to merge from, or Replace asked for) is the owner's alone,
+  // asked before anything is fetched; one that will merge is anyone's (merge.js).
+  var mergeable = !replace && typeof ghMergeBaseReady === 'function' && (await ghMergeBaseReady(cfg));
+  if (!mergeable && !grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
   // The guard on and this device not registered (or removed): it views the data by importing a backup (devices.js).
   var held = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
   if (held) { ghSetStatus(held); showToast(held, 'error'); return false; }
@@ -431,10 +441,13 @@ async function ghPull(opts) {
         return merged.landed;
       }
     }
-    // Replacing the book: the owner's alone (guard.js grdBookAsk), since it takes the book's IDs with it.
-    ghSetBusy(false);
-    if (!grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
-    ghSetBusy(true, 'Pulling');
+    // Replacing the book: the owner's alone (guard.js grdBookAsk), since it takes the book's IDs with it. Asked above unless a
+    // merge was expected and could not be made (GitHub's copy unreadable as a merge).
+    if (mergeable) {
+      ghSetBusy(false);
+      if (!grdOk('users') && !(await grdBookAsk('pull from GitHub'))) return false;
+      ghSetBusy(true, 'Pulling');
+    }
 
     if (!(await uiConfirm({ title: 'Replace all data on this device?', body: 'Replace ALL data on this device with ' + ghDescribeEnvelope(env) + '?\n\n' +
         (bookStandIn() ? bookStandInReplaceText() : 'This device currently holds ' + ghCountsText() + '. That is discarded.'), okLabel: 'Replace', danger: true }))) {

@@ -221,9 +221,10 @@ var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel productio
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
   var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
-  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text);
+  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text), cks = [];
   msgs.forEach(function(m) {
     var k = relayKind(m.text);
+    if (k === 'checkin') { var c = ckParse(m.text); if (c) cks.push(c); return; }
     if (k === 'in' || k === 'out') {
       rolls++;
       roster = roster || relayRoster({});
@@ -245,7 +246,8 @@ function addDescribe(text) {
     m.read.items.forEach(function(it) { g.counts[it.kind] = (g.counts[it.kind] || 0) + 1; });
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
-  d.where = rolls ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  if (cks.length) d.items.push({ kind: 'checkin', title: 'Office QR check-ins', meta: addWhen(cks.map(function(c) { return c.iso; })) + ' · ' + todoPlural(cks.length, 'check-in') });
+  d.where = rolls || cks.length ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
   // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
   // and the stock beside a roll was never read (QA3-10).
   if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);
@@ -345,6 +347,8 @@ function addJsonWhat(obj) {
   if (f === 'sep-power') return 'power';
   if (f === 'sep-payroll-paid') return 'payroll';
   if (f === 'sep-att-register') return 'register';
+  if (f === 'sep-people') return 'people';
+  if (f === 'sep-plant') return 'plant';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -361,6 +365,8 @@ var ADD_FILE_GUARD = {
   payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
+  people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
+  plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -391,6 +397,8 @@ async function addFileRoute(file, buf) {
     payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text); },
     roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
     register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
+    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
+    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text); }
   }[what];

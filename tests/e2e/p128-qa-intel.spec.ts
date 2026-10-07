@@ -182,6 +182,8 @@ test.describe('P128: Clients → Performance', () => {
     expect(screens).toBeLessThan(2.4);
     // The fold is the device's: opened once, it stays open.
     await openCard(page, 'worked');
+    // The fold is kept on the details' toggle event, a task of its own: a reload straight after the click can beat it.
+    await expect.poll(() => page.evaluate(() => localStorage.getItem('sep_inv_folds') || '')).toContain('"cp-worked":true');
     await page.reload();
     await page.waitForSelector('body.inv-booted');
     await expect(page.locator('[data-card="worked"]')).toHaveJSProperty('open', true);

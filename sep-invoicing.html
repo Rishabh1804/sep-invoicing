@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="f1577805">
+<meta name="app-build" content="8d3233f7">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2131,6 +2131,90 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
 body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
+
+/* The plant register (plant.js, owner 7 Oct 2026): a line's units side by side, each a tile edged in its status's colour and
+   named in a word beside its dot (DR-1, DR-8); a pip per unit where the line is one row; a bar for what is available and
+   what is used of it. The bar is an SVG, so its widths are attributes, never a style. */
+.inv-unit-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: var(--sp-8); margin-top: var(--sp-10); }
+body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inv-plt-unit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); min-width: 0; min-height: var(--touch); padding: var(--sp-8) var(--sp-10);
+  border: var(--hair) solid var(--border); border-left: var(--sp-4) solid var(--text-3); border-radius: var(--r-md); background: var(--surface); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; }
+.inv-plt-unit:hover { background: var(--surface-2); }
+.inv-plt-unit:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-plt-unit[data-status="run"] { border-left-color: var(--ok); }
+.inv-plt-unit[data-status="standby"] { border-left-color: var(--info); }
+.inv-plt-unit[data-status="repair"] { border-left-color: var(--warning); background: var(--warning-bg); }
+.inv-plt-unit[data-status="down"] { border-left-color: var(--danger); background: var(--danger-bg); }
+.inv-unit-name { max-width: 100%; overflow-wrap: anywhere; font-size: var(--fs-14); font-weight: 600; }
+.inv-unit-sub { font-size: var(--fs-12); color: var(--text-3); }
+.inv-unit-cap { display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-unit-cap-words { font-size: var(--fs-14); font-weight: 600; }
+.inv-unit-bar { display: block; width: 100%; height: var(--sp-8); border-radius: var(--r-full); overflow: hidden; }
+.inv-unit-bar-track { fill: var(--surface-3); }
+.inv-unit-bar-avail { fill: var(--ok); opacity: 0.35; }
+.inv-unit-bar-used { fill: var(--ok); }
+.inv-unit-pips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); max-width: calc(var(--sp-12) * 6); }
+.inv-unit-pip { width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-sm); background: var(--ok); }
+.inv-unit-pip[data-status="standby"] { background: var(--info); }
+.inv-unit-pip[data-status="repair"] { background: var(--warning); }
+.inv-unit-pip[data-status="down"] { background: var(--danger); }
+
+/* A worker's record (people.js): skill dots out of five, and a short bar for a figure out of 100 in its status's tone. */
+.inv-skill { display: inline-flex; gap: var(--sp-2); }
+.inv-skill-dot { width: var(--sp-8); height: var(--sp-8); border-radius: 50%; background: var(--surface-3); }
+.inv-skill-dot[data-on] { background: var(--accent); }
+.inv-stat-bar { display: block; width: 100%; height: var(--sp-4); border-radius: var(--r-full); overflow: hidden; }
+.inv-stat-bar-track { fill: var(--surface-3); }
+.inv-stat-bar-fill { fill: var(--text-3); }
+.inv-stat-bar-fill[data-tone="ok"] { fill: var(--ok); }
+.inv-stat-bar-fill[data-tone="warning"] { fill: var(--warning); }
+.inv-stat-bar-fill[data-tone="danger"] { fill: var(--danger); }
+/* A worker at a glance on the roster (people.js): three short labelled bars with their figures, side by side. */
+.inv-wstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-10); margin-top: var(--sp-4); width: 100%; }
+.inv-wstat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-4); min-width: 0; font-size: var(--fs-12); }
+.inv-wstat-k { color: var(--text-3); white-space: nowrap; }
+.inv-wstat-v { font-family: var(--ff-mono); color: var(--text-2); white-space: nowrap; }
+/* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
+body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
+.inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }
+
+/* ===== ID CARDS (idcard.js) and every QR code (qr.js). A QR is an instrument read by a camera: black on white in either
+   theme, so its two colours are declared once here like a printed document's paper and ink. The cards are printed forms,
+   the HR-6 print exception: credit-card size in mm, ten to an A4 sheet, declared once in the sheet's token block. ===== */
+.inv-qr { --qr-paper: #fff; --qr-ink: #000; display: block; width: 100%; height: auto; }
+.inv-qr-bg { fill: var(--qr-paper); }
+.inv-qr-fg { fill: var(--qr-ink); }
+.inv-idc-small { max-width: calc(var(--sp-32) * 4); }
+.inv-idc-video { display: block; width: 100%; max-height: calc(var(--sp-32) * 8); border-radius: var(--r-md); background: var(--surface-3); object-fit: cover; }
+.inv-idc-sheet {
+  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 2mm; --idc-pad: 3.5mm; --idc-qr: 30mm; --idc-fs: 8pt; --idc-fs-name: 12pt; --idc-fs-co: 8.5pt; --idc-rule: 0.4pt;
+  --idc-radius: 3mm; --idc-line: 1mm; --idc-lh-name: 1.15; --idc-ink-2: #444;
+  --idc-sheet-w: 210mm; --idc-sheet-h: 297mm; --idc-margin: 9mm 18.4mm;
+  display: grid; grid-template-columns: repeat(2, var(--idc-w)); grid-auto-rows: var(--idc-h); gap: var(--idc-gap);
+  width: var(--idc-sheet-w); min-height: var(--idc-sheet-h); padding: var(--idc-margin); margin: 0 auto var(--sp-16);
+  background: #fff; color: #000; font-family: var(--ff-base); page-break-after: always; break-after: page; border: var(--hair) solid var(--border);
+}
+.inv-idc-sheet:last-child { page-break-after: auto; break-after: auto; }
+.inv-idc { display: flex; gap: var(--idc-pad); padding: var(--idc-pad); border: var(--idc-rule) solid #000; border-radius: var(--idc-radius); overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--idc-line); font-size: var(--idc-fs); }
+.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; border-bottom: var(--idc-rule) solid #000; padding-bottom: var(--idc-line); }
+.inv-idc-label { font-size: var(--idc-fs); color: var(--idc-ink-2); }
+.inv-idc-name { font-size: var(--idc-fs-name); font-weight: 700; line-height: var(--idc-lh-name); overflow-wrap: anywhere; }
+.inv-idc-row { font-size: var(--idc-fs); }
+.inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
+@media print { .inv-idc-sheet { border: none; margin: 0; } }
+/* The office check-in sheet (checkin.js): one A4 page, a large QR and three steps. A printed form: its sizes declared once. */
+.inv-ck-sheet {
+  --ck-sheet-w: 210mm; --ck-sheet-h: 297mm; --ck-pad: 22mm 20mm; --ck-qr: 120mm; --ck-fs: 13pt; --ck-fs-co: 16pt; --ck-fs-title: 28pt; --ck-fs-foot: 9.5pt; --ck-gap: 8mm; --ck-indent: 7mm; --ck-steps-w: 150mm; --ck-foot-w: 160mm;
+  display: flex; flex-direction: column; align-items: center; gap: var(--ck-gap); width: var(--ck-sheet-w); min-height: var(--ck-sheet-h);
+  padding: var(--ck-pad); margin: 0 auto; background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--ck-fs); border: var(--hair) solid var(--border);
+}
+.inv-ck-co { font-size: var(--ck-fs-co); font-weight: 700; text-transform: uppercase; text-align: center; }
+.inv-ck-title { font-size: var(--ck-fs-title); font-weight: 700; text-align: center; }
+.inv-ck-qr { width: var(--ck-qr); }
+.inv-ck-steps { margin: 0; padding-left: var(--ck-indent); line-height: 1.5; max-width: var(--ck-steps-w); }
+.inv-ck-foot { margin-top: auto; font-size: var(--ck-fs-foot); color: #333; text-align: center; max-width: var(--ck-foot-w); }
+@media print { .inv-ck-sheet { border: none; } }
 </style>
 </head>
 <body>
@@ -2429,6 +2513,10 @@ function getDefaultState() {
     attRegister: { months: {}, names: {} },
     // The planner (planner.js): its registers and scenarios. A scenario never writes the book.
     planner: { cfg: {}, machines: [], checklist: [], lenders: [], heard: [], heldBack: [], scenarios: [] },
+    // The plant register (plant.js): every barrel and tank, its status, and each change of status with its day.
+    plant: { units: [], log: [] },
+    // The owner's monthly check-in on each worker (people.js): half the motivation index.
+    peopleCheckins: [],
     // Payments and advances made to workers, voided with a reason, never deleted.
     staffPayments: [],
     payCarryClears: [],
@@ -4754,13 +4842,15 @@ var CHG_TRACK = [
   { path: 'extraExceptions', kind: 'arr', noun: 'explained exception', key: function(r) { return 'X:' + [r.iso, r.scope, r.key, r.at].join('|'); },
     label: function(r) { return chgJoin(r.label || r.key, r.iso ? chgDay(r.iso) : ''); } },
   { path: 'attendanceDeletes', kind: 'arr', noun: 'deleted attendance day', label: function(r) { return chgJoin(r.iso ? chgDay(r.iso) : r.key, r.reason); } },
-  { path: 'staff', kind: 'arr', noun: 'worker', label: function(r) { return r.name; } },
+  // A worker's personal details are the owner's alone (people.js): never compared, so History never shows them.
+  { path: 'staff', kind: 'arr', noun: 'worker', omit: ['profile'], label: function(r) { return r.name; } },
+  { path: 'peopleCheckins', kind: 'arr', noun: 'check-in', omit: ['score', 'note'], label: function(r) { return chgJoin(chgStaffName(r.staffId), r.on ? chgDay(r.on) : ''); } },
   { path: 'staffPayments', kind: 'arr', noun: 'payment', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.kind, chgMoney(r.amount), r.date ? chgDay(r.date) : ''); } },
   { path: 'payCarryClears', kind: 'arr', noun: 'cleared balance', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.through ? 'to ' + chgDay(r.through) : '', r.reason); } },
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
   { path: 'payrollPaid', kind: 'arr', noun: 'payroll as paid', plural: 'payrolls as paid', label: function(r) { return chgJoin(r.month, r.source); } },
-  { path: 'attendance', kind: 'map', noun: 'attendance', plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
+  { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'Staff → Areas → complements' },
@@ -4776,6 +4866,8 @@ var CHG_TRACK = [
   { path: 'planner.heard', kind: 'arr', noun: 'rate heard', plural: 'rates heard', label: function(r) { return chgJoin(r.what, r.from); } },
   { path: 'planner.heldBack', kind: 'arr', noun: 'work held back', plural: 'work held back', label: function(r) { return chgJoin(chgClientName(r.clientId), r.why); } },
   { path: 'planner.cfg', kind: 'cfg', sec: 'Planner → assumptions' },
+  { path: 'plant.units', kind: 'arr', noun: 'plant unit', label: function(r) { return chgJoin(r.name, typeof pltStationName === 'function' ? pltStationName(r.station) : r.station); } },
+  { path: 'plant.log', kind: 'arr', noun: 'plant status change', label: function(r) { return chgJoin(r.to, r.date ? chgDay(r.date) : ''); } },
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
@@ -4829,7 +4921,7 @@ var CHG_TRACK = [
   { path: 'guardCfg', kind: 'cfg', sec: 'Users & access', dflt: function() { return getDefaultState().guardCfg || {}; } }
 ];
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
-var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1 };
+var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1 };
 // Never compared: the log itself (a key starting _ never is either).
 var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.
@@ -11556,12 +11648,23 @@ function exportData() {
   // A stand-in (bookStandIn) is still exported, since anything typed this session lives only here, but as what it is: it
   // was saved as a dated backup and reset the To-do's backup reminder (the QA audit of 30 Sep 2026).
   var standIn = bookStandIn();
-  const blob = new Blob([JSON.stringify(S, null, 2)], {type:'application/json'});
+  // Workers' personal details, the motivation check-ins and the office QR's key are the owner's alone (people.js,
+  // checkin.js): another role's export leaves them out, says so, and is not counted as the book's backup.
+  var partial = typeof grdIsOwner === 'function' && !grdIsOwner(), out = S;
+  if (partial) {
+    out = JSON.parse(JSON.stringify(S));
+    (out.staff || []).forEach(function(w) { delete w.profile; });
+    out.peopleCheckins = [];
+    delete out.checkinCfg;
+    out._partial = 'personal details left out: exported by a role that does not see them';
+  }
+  const blob = new Blob([JSON.stringify(out, null, 2)], {type:'application/json'});
   const a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
-  a.download = 'sep-invoicing-' + (standIn ? 'stand-in-' : 'backup-') + localDateStr() + '.json';
+  a.download = 'sep-invoicing-' + (standIn ? 'stand-in-' : partial ? 'without-details-' : 'backup-') + localDateStr() + '.json';
   a.click();
   if (standIn) { showToast('Exported this window\'s stand-in. It is not this device\'s book, so it does not count as a backup.', 'warning'); return; }
+  if (partial) { showToast('Exported without workers\' personal details, which are the owner\'s. It does not count as a backup.', 'warning'); return; }
   todoNoteExport();
   showToast('Data exported');
 }
@@ -19880,7 +19983,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invIdcScan">Scan cards</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
       // The day's rolls, read again by the reader as it reads now (relay.js, relayRereadOpen).
       (relayDayHasRolls(iso) ? '<button class="inv-btn inv-btn-secondary" data-action="invRelayReread">Read the rolls again</button>' : '') +
       (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
@@ -20341,7 +20445,8 @@ function _attRosterView() {
 
   var html = '<div class="inv-toolbar">' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button></div>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button>' +
+    (typeof pplOwner !== 'function' || pplOwner() ? '<button class="inv-btn inv-btn-ghost" data-action="invIdcPrint">ID cards</button><button class="inv-btn inv-btn-ghost" data-action="invCkSetup">Office QR</button>' : '') + '</div>' +
     '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount is this number.</span></div>';
 
@@ -20352,12 +20457,16 @@ function _attRosterView() {
     '<span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
 
+  // Each worker at a glance (people.js, the 6-second rule): tenure, reliability, consistency and workload as short bars with
+  // their figures, the top skills, and for the owner the motivation index.
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var cls = compClass(w.comp);
     var inactive = w.active === false;
     html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') + '</span>' +
+      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') +
+      (inactive ? '' : pplGlanceHtml(w, memo)) + '</span>' +
       '<span class="inv-row-end">' +
       '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
@@ -20375,10 +20484,11 @@ function _attRosterDesktop(all, wages) {
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
     '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
     '<th>Area</th><th>Status</th></tr></thead><tbody>';
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var inactive = w.active === false, id = escHtml(String(w.id));
     h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
-      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
+      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button>' + (inactive ? '' : pplGlanceHtml(w, memo)) + '</td>' +
       '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
       (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
       '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
@@ -20416,7 +20526,8 @@ function _attWorkerPaneHtml(w, wages) {
       '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
   } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
   h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
-  return h;
+  // Their record (people.js): tenure, reliability, consistency, workload, skills, ties; the owner's alone, motivation and details.
+  return h + pplRecordHtml(w);
 }
 
 /* The hourly rate a worker's overtime is paid at.
@@ -20975,6 +21086,8 @@ function _showWorkerOverlay(worker, isAdd) {
   };
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add worker' : 'Edit worker')) +
+    // Their record first (people.js): what the book says of them, then the fields that set them.
+    (isAdd ? '' : '<div data-ppl-sheet="' + escHtml(String(w.id)) + '">' + pplRecordHtml(w) + '</div>') +
     _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
     '<div class="inv-fields">' +
     _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
@@ -21106,6 +21219,12 @@ function saveWorker(id, mode) {
     // A renamed worker keeps the old name as a spelling, as a merge keeps the retired row's: rolls and payroll slips
     // written under it are matched by name alone, and a rename cut the worker off from every slip (the review, 30 Sep 2026).
     var oldName = w.name;
+    // A rate changed is kept with its day (people.js reads "no rise in a year" off it).
+    if (wageSet && (num(w.dayRate) || num(w.hourRate) || num(w.monthWage))) {
+      w.rateHistory = Array.isArray(w.rateHistory) ? w.rateHistory : [];
+      w.rateHistory.push({ on: localDateStr(), from: { dayRate: num(w.dayRate), hourRate: num(w.hourRate), monthWage: num(w.monthWage) },
+        to: { dayRate: fields.dayRate, hourRate: fields.hourRate, monthWage: fields.monthWage } });
+    }
     Object.keys(fields).forEach(function(k) { w[k] = fields[k]; });
     if (oldName && relayKey(oldName) && relayKey(oldName) !== relayKey(w.name)) {
       w.relayNames = w.relayNames || [];
@@ -21155,6 +21274,8 @@ function importRosterText(text) {
   var data;
   try { data = JSON.parse(text); }
   catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
+  // A file of workers' details (people.js) is the owner's, checked row by row before anything is kept.
+  if (data && data.format === 'sep-people') { pplImportData(data); return; }
   var res = applyRosterImport(data);
   if (res.error) { showToast(res.error, 'error'); return; }
   saveState();
@@ -21640,6 +21761,11 @@ function mergeWorkers(fromId, intoId) {
       if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
       crews++;
     });
+    // Their card scans go with them, merged by time.
+    if (rec.scans && rec.scans[fromId]) {
+      rec.scans[intoId] = (rec.scans[intoId] || []).concat(rec.scans[fromId]).sort(function(p, q) { return p.min - q.min || p.at - q.at; });
+      delete rec.scans[fromId];
+    }
     // The hand's own slot picks go with them; the survivor's own pick for a slot wins.
     var picks = rec.slotHand && rec.slotHand[String(fromId)];
     if (picks) {
@@ -31032,7 +31158,7 @@ function relaySentAt(line) {
    pasted without one: a part of it handed to another screen goes with who sent it and when (relayStockParts). */
 function relaySplit(text) {
   var msgs = [], cur = null;
-  String(text || '').replace(/\r/g, '').replace(/‎|‏/g, '').split('\n').forEach(function(line) {
+  String(text || '').replace(/\r/g, '').replace(/[\u200e\u200f\u202a-\u202e\u2066-\u2069]/g, '').split('\n').forEach(function(line) {
     var wa = line.match(RELAY_WA_RE);
     if (wa) {
       var a = +wa[1], b = +wa[2];
@@ -31054,7 +31180,7 @@ function relaySplit(text) {
     }
     cur.lines.push(line);
   });
-  return msgs.map(function(m) { m.text = m.lines.join('\n').replace(/<This message was edited>/gi, '').trim(); delete m.lines; return m; })
+  return msgs.map(function(m) { var t = m.lines.join('\n'); if (/<This message was edited>/i.test(t)) m.edited = true; m.text = t.replace(/<This message was edited>/gi, '').trim(); delete m.lines; return m; })
     .filter(function(m) { return m.text && !/^<Media omitted>$|omitted>$/i.test(m.text); });
 }
 
@@ -31064,6 +31190,7 @@ function relaySplit(text) {
    the whole paste to Production and the attendance was never read (QA3-5). Now the two agree by construction. */
 var RELAY_ROLL_HEAD_RE = /^\s*\d{1,2}\/\d{1,2}\/\d{2,4}\/*\s*(in|out)\s*-*\s*time/i;
 function relayKind(text) {
+  if (typeof CK_HEAD_RE !== 'undefined' && CK_HEAD_RE.test(String(text || '').split('\n')[0])) return 'checkin';
   var head = String(text || '').split('\n').slice(0, 2).join(' ');
   var dh = RELAY_ROLL_HEAD_RE.exec(String(text || ''));
   if (dh) return dh[1].toLowerCase();
@@ -31821,9 +31948,10 @@ function relayRead() {
   _relayDraft = text;
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
   var msgs = relaySplit(text);
-  var rolls = [], stock = [], other = [];
+  var rolls = [], stock = [], other = [], checkins = 0;
   msgs.forEach(function(m) {
     var k = relayKind(m.text);
+    if (k === 'checkin') { checkins++; return; }
     if (k === 'in' || k === 'out') rolls.push(m);
     else if (k === 'stock') stock.push(m);
     else other.push(m);
@@ -31831,6 +31959,8 @@ function relayRead() {
   // Production: the pickling hand's loads, the barrel list, a roll's production block (production.js reads them).
   var prod = typeof parseProdPaste === 'function' ? parseProdPaste(text, prodCtx()).filter(function(m) { return m.read.items.length; }) : [];
   var prodLoose = prod.filter(function(m) { return m.kind !== 'roll'; }).length;
+  // Check-ins from the office QR (checkin.js) have a review of their own; beside rolls, the roll's check offers it.
+  if (!rolls.length && checkins) { ckReviewOpen(text, { prod: prod.length, stock: stock.length }); return; }
   if (!rolls.length && prod.length) { prodOpenPaste(text); return; }
   // A stock message belongs to Stock's own review.
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }
@@ -31840,7 +31970,7 @@ function relayRead() {
   // The stock beside the rolls, its own messages and what was written under a roll, is kept for Read in Stock: it was
   // dropped, with a word pointing at the retired More sheet (QA3-10).
   var stockParts = relayStockParts(msgs);
-  _relay = { text: text, msgs: rolls, choices: {}, stock: stockParts.length, stockText: stockParts.join('\n'), other: Math.max(0, other.length - prodLoose), prod: prod.length };
+  _relay = { text: text, msgs: rolls, choices: {}, stock: stockParts.length, stockText: stockParts.join('\n'), other: Math.max(0, other.length - prodLoose), prod: prod.length, checkins: checkins };
   _relayView = 'review';
   _relayShowLines = false;
   renderAttendance();
@@ -31878,6 +32008,8 @@ function relayRenderReview() {
   }
   if (rv.prod) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayProdNote"><div>' + todoPlural(rv.prod, 'message carries', 'messages carry') + ' production (pickling loads, the barrel list, a production block). Attendance is read here; the production is read in Production.</div>' +
     '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invRelayToProd">Read in Production</button></div>';
+  if (rv.checkins) h += '<div class="inv-callout inv-callout-info inv-mb-8" id="relayCkNote"><div>' + todoPlural(rv.checkins, 'check-in') + ' from the office QR, each read with its own checks.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invCkFromRelay">Read the check-ins</button></div>';
   if (rv.other) h += '<div class="inv-callout inv-callout-warning inv-mb-8">' + todoPlural(rv.other, 'other message') + ' (notes) not read.</div>';
   h += '<div class="inv-tiles inv-tiles-3" id="relayReviewTiles">' +
     '<div class="inv-tile' + (plan.counts.red ? ' inv-tile-danger' : '') + '" data-tile="red"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + plan.counts.red + '</div></div>' +
@@ -32347,9 +32479,10 @@ var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel productio
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
   var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
-  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text);
+  var rolls = 0, stock = 0, prod = 0, rollProd = 0, roster = null, groups = {}, msgs = relaySplit(text), cks = [];
   msgs.forEach(function(m) {
     var k = relayKind(m.text);
+    if (k === 'checkin') { var c = ckParse(m.text); if (c) cks.push(c); return; }
     if (k === 'in' || k === 'out') {
       rolls++;
       roster = roster || relayRoster({});
@@ -32371,7 +32504,8 @@ function addDescribe(text) {
     m.read.items.forEach(function(it) { g.counts[it.kind] = (g.counts[it.kind] || 0) + 1; });
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
-  d.where = rolls ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  if (cks.length) d.items.push({ kind: 'checkin', title: 'Office QR check-ins', meta: addWhen(cks.map(function(c) { return c.iso; })) + ' · ' + todoPlural(cks.length, 'check-in') });
+  d.where = rolls || cks.length ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
   // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
   // and the stock beside a roll was never read (QA3-10).
   if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);
@@ -32471,6 +32605,8 @@ function addJsonWhat(obj) {
   if (f === 'sep-power') return 'power';
   if (f === 'sep-payroll-paid') return 'payroll';
   if (f === 'sep-att-register') return 'register';
+  if (f === 'sep-people') return 'people';
+  if (f === 'sep-plant') return 'plant';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -32487,6 +32623,8 @@ var ADD_FILE_GUARD = {
   payroll: { grp: 'payments', what: 'import the payroll as paid', page: 'pageStaff' },
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
+  people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
+  plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -32517,6 +32655,8 @@ async function addFileRoute(file, buf) {
     payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text); },
     roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
     register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
+    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
+    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text); }
   }[what];
@@ -40384,13 +40524,1733 @@ function prodMergeImport(obj, fileName) {
   prodTouch();
   return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad };
 }
+/* ===== THE PLANT: every barrel and tank, its status, and what each line can do =====
+   Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W1): *"a complete breakdown of the production area, like in Barrel - we have 3
+   barrels operational, 3 barrels are not-operational. In VAT A1 - we have 4 tanks out of which 3 are operational and one is not,
+   combined capacity of 100% running at 75%"*. The units of a line work side by side and each is measured in kg a round (owner).
+
+   - A unit (`S.plant.units`) is a record of the shop, never of the build: its station (the planner's own ids: `vat-a1`, `vat-a2`,
+     `barrel`, `pick`, and the supporting `lab`, `oven`, `power`, `etp`, `other`), its kg a round, its status (running, standby,
+     down, under repair) since a day, why, its condition, what it needs, and a risk the planner's trials draw.
+   - Every status change is a dated line in `S.plant.log`, so the days a unit stood down are measured, and the status on any
+     past day is read back (`pltStatusOn`). A unit is retired with a reason, never deleted.
+   - A line's capacity (`pltCapacity`): the units side by side, so what is available is the kg a round of the units running or
+     on standby over all of them; with no kg a round typed on every unit it is by count, and says so. What the line actually
+     plates a round is the planner's reading of the register (`plnBase().lines`), set against the available kg a round; a line
+     with no register read says so, never a zero.
+   - One register with the planner: its machines are units (`pltFromMachines` moves them once, their ids kept), and the planner
+     reads them through `plnLive('machines')` (`pltMachines`).
+   - The owner's alone to change (owner, 7 Oct 2026: *"me"*). */
+
+var PLT_STATIONS = [['vat-a1', 'VAT A1', true], ['vat-a2', 'VAT A2', true], ['barrel', 'Barrel', true], ['pick', 'Pickling', true],
+  ['lab', 'Lab', false], ['oven', 'Bake oven', false], ['power', 'Power', false], ['etp', 'Effluent', false], ['other', 'Other', false]];
+var PLT_STATUS = [['run', 'Running', 'ok'], ['standby', 'Standby', 'info'], ['repair', 'Under repair', 'warning'], ['down', 'Down', 'danger']];
+var PLT_KINDS = [['tank', 'Tank'], ['barrel', 'Barrel'], ['rectifier', 'Rectifier'], ['other', 'Other']];
+// The planner's line ids, for a unit's risk: the line it stops when it fails.
+var PLT_LINE_STATIONS = { 'vat-a1': 1, 'vat-a2': 1, barrel: 1 };
+var PLT_DOWN_AMBER = 3, PLT_DOWN_RED = 7;
+
+if (typeof STATE_CONTAINERS !== 'undefined' && STATE_CONTAINERS.indexOf('plant') < 0) STATE_CONTAINERS.push('plant');
+
+/* ---------- The store ---------- */
+function pltData() {
+  if (!S.plant || typeof S.plant !== 'object' || Array.isArray(S.plant)) S.plant = {};
+  if (!Array.isArray(S.plant.units)) S.plant.units = [];
+  if (!Array.isArray(S.plant.log)) S.plant.log = [];
+  return S.plant;
+}
+/* Read without writing: drawing never changes the book. */
+function pltRead() {
+  var p = S && S.plant && typeof S.plant === 'object' ? S.plant : {};
+  return { units: Array.isArray(p.units) ? p.units : [], log: Array.isArray(p.log) ? p.log : [] };
+}
+function pltNameCmp(a, b) { return String(a.name || '').localeCompare(String(b.name || ''), 'en', { numeric: true }); }
+function pltUnits(station) {
+  return pltRead().units.filter(function(u) { return u && !u.retiredAt && (!station || u.station === station); }).sort(pltNameCmp);
+}
+/* The day a unit was retired (stamped as a time, or a day on an imported unit). */
+function pltRetiredDay(u) { var r = u.retiredAt; return !r ? '' : typeof r === 'number' ? localDateStr(new Date(r)) : String(r).slice(0, 10); }
+function pltUnitById(id) { return pltRead().units.find(function(u) { return u && u.id === id; }) || null; }
+function pltStationName(id) { var s = PLT_STATIONS.find(function(x) { return x[0] === id; }); return s ? s[1] : id || 'Other'; }
+function pltIsLine(id) { var s = PLT_STATIONS.find(function(x) { return x[0] === id; }); return !!(s && s[2]); }
+function pltStatus(s) { return PLT_STATUS.find(function(x) { return x[0] === s; }) || PLT_STATUS[0]; }
+function pltAvailable(status) { return status === 'run' || status === 'standby'; }
+function pltWho() { return typeof grdUser === 'function' && grdUser() ? grdUser().name : ''; }
+function pltId(pre) { return pre + '-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6); }
+
+/* The unit's status on a day, read off its log (the last change on or before the day); before its first line, what that line
+   changed from (running, for a unit added that day); a unit with no line at all, its status now. */
+function pltStatusOn(u, iso) {
+  var all = pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.to !== 'retired' && l.date; });
+  if (!all.length) return u.status || 'run';
+  all.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0); });
+  var on = all.filter(function(l) { return l.date <= iso; });
+  if (!on.length) return all[0].from && pltStatus(all[0].from)[0] === all[0].from ? all[0].from : 'run';
+  return on[on.length - 1].to;
+}
+/* The day of a unit's latest status line, or ''. */
+function pltLastLogDate(u) {
+  return pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.date; }).reduce(function(m, l) { return l.date > m ? l.date : m; }, '');
+}
+/* Days a unit stood down or under repair between two days (inclusive), from its log. */
+function pltDownDays(u, from, to) {
+  var n = 0;
+  for (var d = from; d <= to; d = isoAddDays(d, 1)) if (!pltAvailable(pltStatusOn(u, d))) n++;
+  return n;
+}
+/* Days in the status it is in now. */
+function pltDaysIn(u) { return u.since ? Math.max(0, isoDaysBetween(u.since, localDateStr())) : null; }
+
+/* What a line can do on a day: its units side by side.
+   {units, n, nAvail, down: [units], byKg, kgTotal, kgAvail, pct, note, used: {kgRound, pct, why}} */
+function pltCapacity(station, iso) {
+  var day = iso || localDateStr();
+  var units = (iso ? pltRead().units.filter(function(u) { return u && u.station === station && (!u.retiredAt || pltRetiredDay(u) > day); }).sort(pltNameCmp) : pltUnits(station))
+    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day; });
+  var st = function(u) { return iso ? pltStatusOn(u, day) : u.status || 'run'; };
+  var avail = units.filter(function(u) { return pltAvailable(st(u)); });
+  var withKg = units.filter(function(u) { return +u.kgRound > 0; });
+  var byKg = units.length > 0 && withKg.length === units.length;
+  var kgTotal = withKg.reduce(function(s, u) { return s + (+u.kgRound); }, 0);
+  var kgAvail = avail.filter(function(u) { return +u.kgRound > 0; }).reduce(function(s, u) { return s + (+u.kgRound); }, 0);
+  var pct = !units.length ? null : byKg ? (kgTotal ? kgAvail / kgTotal : 0) : avail.length / units.length;
+  var note = !units.length ? 'no unit recorded' : byKg ? 'by kg a round' : withKg.length ? 'by count: kg a round set on ' + withKg.length + ' of ' + units.length : 'by count: no kg a round set';
+  var cap = { units: units, n: units.length, nAvail: avail.length, down: units.filter(function(u) { return !pltAvailable(st(u)); }), byKg: byKg, kgTotal: kgTotal, kgAvail: kgAvail, pct: pct, note: note, used: null };
+  cap.used = pltUsed(station, cap);
+  return cap;
+}
+/* What the line actually plates a round, against what is available: the planner's reading of the register over its three
+   months, never a guess. */
+function pltUsed(station, cap) {
+  if (!PLT_LINE_STATIONS[station]) return { kgRound: null, pct: null, why: station === 'pick' ? 'pickling is not timed a round' : 'not a plating line' };
+  if (!cap.byKg) return { kgRound: null, pct: null, why: 'set the kg a round of every unit to compare' };
+  var L = null;
+  try { var B = typeof plnBase === 'function' ? plnBase() : null; L = B && B.lines ? B.lines[station] : null; } catch (e) { L = null; }
+  if (!L || L.src !== 'register') return { kgRound: null, pct: null, why: 'not measured: no register read for this line' };
+  return { kgRound: L.kgRound, pct: cap.kgAvail > 0 ? L.kgRound / cap.kgAvail : null, why: 'the register’s rounds against the book’s kilos, ' + L.register.days + ' days' };
+}
+function pltCapWords(cap) {
+  if (!cap.n) return 'No unit recorded';
+  var noun = cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrel' : cap.units.every(function(u) { return u.kind === 'tank'; }) ? 'tank' : 'unit';
+  return cap.nAvail + ' of ' + cap.n + ' ' + noun + (cap.n === 1 ? '' : 's') + ' working · ' + Math.round(cap.pct * 100) + '% available' +
+    (cap.used && cap.used.pct != null ? ' · running at ' + Math.round(cap.used.pct * 100) + '%' : '');
+}
+function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
+function pltCapDot(cap) {
+  var t = pltCapTone(cap);
+  return uiDot(t, !cap.n ? 'None recorded' : t === 'ok' ? 'All working' : t === 'danger' ? 'Nothing working' : cap.down.length + ' not working');
+}
+
+/* ---------- Drawn ---------- */
+/* A capacity bar: the share available, and what is used of it where measured. An SVG, so its widths are attributes. */
+function pltBarHtml(cap) {
+  if (!cap.n) return '';
+  var a = Math.max(0, Math.min(100, Math.round(cap.pct * 100))), u = cap.used && cap.used.pct != null ? Math.max(0, Math.min(a, Math.round(cap.used.pct * cap.pct * 100))) : null;
+  return '<svg class="inv-unit-bar" viewBox="0 0 100 6" preserveAspectRatio="none" role="img" aria-label="' + escHtml(pltCapWords(cap)) + '">' +
+    '<rect class="inv-unit-bar-track" x="0" y="0" width="100" height="6"></rect><rect class="inv-unit-bar-avail" x="0" y="0" width="' + a + '" height="6"></rect>' +
+    (u != null ? '<rect class="inv-unit-bar-used" x="0" y="0" width="' + u + '" height="6"></rect>' : '') + '</svg>';
+}
+/* One unit as a tile: its name, its status in a word and a colour, its kg a round and how long it has been so. */
+function pltTileHtml(u, iso) {
+  var s = pltStatus(iso ? pltStatusOn(u, iso) : u.status), days = iso ? null : pltDaysIn(u);
+  var sub = [+u.kgRound > 0 ? formatNum(+u.kgRound, 0) + ' kg a round' : 'kg a round not set', s[0] !== 'run' && days != null ? (days ? days + ' day' + (days === 1 ? '' : 's') : 'today') : ''].filter(Boolean).join(' · ');
+  return '<button type="button" class="inv-plt-unit" data-status="' + s[0] + '" data-action="invPltEdit" data-id="' + escHtml(u.id) + '" data-plt-unit="' + escHtml(u.id) + '"' +
+    ' aria-label="' + escHtml(u.name + ': ' + s[1] + (u.reason && s[0] !== 'run' ? ', ' + u.reason : '')) + '">' +
+    '<span class="inv-unit-name">' + escHtml(u.name) + '</span>' + uiDot(s[2], s[1]) + '<span class="inv-unit-sub">' + escHtml(sub) + '</span></button>';
+}
+/* A small square per unit, coloured by its status: the strip at a glance (Overview, Floor → Day). */
+function pltPipsHtml(cap, iso) {
+  return '<span class="inv-unit-pips" aria-hidden="true">' + cap.units.map(function(u) {
+    return '<span class="inv-unit-pip" data-status="' + pltStatus(iso ? pltStatusOn(u, iso) : u.status || 'run')[0] + '"></span>';
+  }).join('') + '</span>';
+}
+/* A line's panel: its name, how much of it works, the bar, and its units. */
+function pltStationHtml(station) {
+  var cap = pltCapacity(station), name = pltStationName(station);
+  var h = '<div class="inv-panel inv-panel-flush" data-plt-station="' + station + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(name) +
+    ' <span class="inv-panel-count">' + (cap.n ? cap.nAvail + ' of ' + cap.n : 'none') + '</span></span>' + pltCapDot(cap) + '</div>';
+  if (!cap.n) return h + '<div class="inv-empty">No unit recorded for ' + escHtml(name) + '.' + (pltCanEdit() ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button>' : '') + '</div></div>';
+  h += '<div class="inv-panel-body"><div class="inv-unit-cap" data-plt-cap><span class="inv-unit-cap-words">' + escHtml(pltCapWords(cap)) + '</span>' + pltBarHtml(cap) +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '') +
+    (cap.used && cap.used.kgRound != null ? ' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round (' + cap.used.why + ')' : cap.used && PLT_LINE_STATIONS[station] ? ' · ' + cap.used.why : '')) + '</span></div>' +
+    '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
+  return h + '</div>';
+}
+/* The supporting stations (lab, oven, power, effluent, other): rows, since they are not side by side. */
+function pltSupportHtml() {
+  var units = pltUnits().filter(function(u) { return !pltIsLine(u.station); });
+  if (!units.length) return '';
+  return '<div class="inv-panel inv-panel-flush" data-plt-station="support"><div class="inv-panel-head"><span class="inv-panel-title">Supporting equipment <span class="inv-panel-count">' + units.length + '</span></span></div>' +
+    units.map(function(u) {
+      var s = pltStatus(u.status), cond = typeof PLN_MACHINE_STATES !== 'undefined' ? PLN_MACHINE_STATES.find(function(x) { return x[0] === u.condition; }) : null;
+      var meta = [pltStationName(u.station), cond ? cond[1] : '', u.needs || '', u.reason && u.status !== 'run' ? u.reason : ''].filter(Boolean).join(' · ');
+      return '<div class="inv-row inv-row-2" data-plt-unit="' + escHtml(u.id) + '"><button class="inv-row-main" data-action="invPltEdit" data-id="' + escHtml(u.id) + '"><span class="inv-row-title">' + escHtml(u.name) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + uiDot(s[2], s[1]) + '</span></div>';
+    }).join('') + '</div>';
+}
+/* The status changes, newest first. */
+function pltLogHtml() {
+  var log = pltRead().log.slice().sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
+  if (!log.length) return '';
+  var rows = log.map(function(l) {
+    var u = pltUnitById(l.unitId), to = l.to === 'retired' ? ['retired', 'Retired', 'neutral'] : pltStatus(l.to);
+    var meta = [formatDate(l.date), l.from ? 'was ' + (l.from === 'retired' ? 'retired' : pltStatus(l.from)[1].toLowerCase()) : 'added', l.reason || '', l.by || ''].filter(Boolean).join(' · ');
+    return '<div class="inv-row inv-row-2" data-plt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml((u ? u.name + ' · ' + pltStationName(u.station) : 'A unit')) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
+  });
+  return '<div class="inv-panel inv-panel-flush" id="pltLog"><div class="inv-panel-head"><span class="inv-panel-title">Status changes <span class="inv-panel-count">' + log.length + '</span></span></div>' +
+    uiMoreHtml('pltLog', rows, { noun: 'change' }) + '</div>';
+}
+/* Production → Equipment. */
+function pltEquipmentHtml() {
+  var h = pltCanEdit() ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPltEdit">Add a unit</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invPltExport">Export</button><button class="inv-btn inv-btn-ghost" data-action="invPltImport">Import</button>' +
+    '<input type="file" accept=".json,application/json" id="pltFileInput" class="inv-hidden"></div>' : '';
+  if (!pltUnits().length) {
+    return h + '<div class="inv-empty" id="pltEmpty">No unit recorded yet. Add each barrel and tank: its line, its kg a round and whether it is working. ' +
+      'The line’s capacity is worked out from them, and every change of status is kept with its day.</div>';
+  }
+  h += '<div class="inv-panels">' + PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) { return pltStationHtml(s[0]); }).join('') + '</div>';
+  h += '<div class="inv-panels">' + pltSupportHtml() + pltLogHtml() + '</div>';
+  return h;
+}
+/* The plant at a glance: a row per line (Production → Overview's first panel). */
+function pltGlanceHtml() {
+  if (!pltUnits().length) return '';
+  return '<div class="inv-panel inv-panel-flush" id="pltGlance"><div class="inv-panel-head"><span class="inv-panel-title">The plant now</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdTab" data-tab="equipment">Equipment</button></div>' +
+    PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) {
+      var cap = pltCapacity(s[0]);
+      return '<div class="inv-row inv-row-2" data-plt-glance="' + s[0] + '"><button class="inv-row-main" data-action="invPltOpen"><span class="inv-row-title">' + escHtml(s[1]) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(pltCapWords(cap)) + '</span></button><span class="inv-row-end">' + (cap.n ? pltPipsHtml(cap) : '') + pltCapDot(cap) + '</span></div>';
+    }).join('') + '</div>';
+}
+/* Floor → Day: the line's units on the day shown, one row under its card. */
+function pltFloorRowHtml(lineId, day) {
+  var station = lineId === 'pickling' ? 'pick' : lineId, cap = pltCapacity(station, day);
+  if (!cap.n) return '';
+  return '<div class="inv-row inv-row-2" data-flr-units><button class="inv-row-main" data-action="invPltOpen"><span class="inv-row-title">' + escHtml(pltCapWords(cap)) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.down.length ? cap.down.map(function(u) { return u.name + ' ' + pltStatus(pltStatusOn(u, day))[1].toLowerCase(); }).join(' · ') : 'every unit working') + '</span></button>' +
+    '<span class="inv-row-end">' + pltPipsHtml(cap, day) + '</span></div>';
+}
+
+/* ---------- Changed by the owner alone ---------- */
+function pltCanEdit() { return typeof grdIsOwner !== 'function' || grdIsOwner(); }
+function pltOwnerOk(again) {
+  if (!pltCanEdit()) { uiAlert({ title: 'The owner’s to change', body: 'The plant register is changed by the owner alone.' }); return false; }
+  return typeof grdGate !== 'function' || grdGate('settings', 'Change the plant register', again);
+}
+function _pltOpts(list, v) { return list.map(function(o) { return '<option value="' + escHtml(o[0]) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>'; }).join(''); }
+function _pltField(id, label, v, type, extra) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><input class="inv-input" id="' + id + '" type="' + (type || 'text') + '" value="' + escHtml(v == null ? '' : String(v)) + '"' + (extra || '') + '></div>';
+}
+function _pltSelect(id, label, list, v) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><select class="inv-input" id="' + id + '">' + _pltOpts(list, v) + '</select></div>';
+}
+function pltEdit(id, station) {
+  if (!pltOwnerOk(function() { pltEdit(id, station); })) return;
+  var u = id ? pltUnitById(id) : null, v = u || { station: station || 'vat-a1', kind: station === 'barrel' ? 'barrel' : 'tank', status: 'run', since: localDateStr(), condition: 'fair' };
+  var risk = v.risk || {};
+  var f = _pltField('pltName', 'Name', v.name, 'text', ' placeholder="Tank 3, Barrel 2"') +
+    _pltSelect('pltStation', 'Line or station', PLT_STATIONS.map(function(s) { return [s[0], s[1]]; }), v.station) +
+    _pltSelect('pltKind', 'Kind', PLT_KINDS, v.kind || 'tank') +
+    _pltField('pltKg', 'Kg a round', v.kgRound, 'number', ' min="0" step="any" inputmode="decimal"') +
+    _pltSelect('pltStatus', 'Status', PLT_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'run') +
+    _pltField('pltSince', 'Since', v.since || localDateStr(), 'date') +
+    _pltField('pltReason', 'Why (when not running)', v.reason) +
+    _pltSelect('pltCond', 'Condition', typeof PLN_MACHINE_STATES !== 'undefined' ? PLN_MACHINE_STATES.map(function(s) { return [s[0], s[1]]; }) : [['fair', 'Fair']], v.condition || 'fair') +
+    _pltField('pltAge', 'Age', v.age) + _pltField('pltNeeds', 'What it needs', v.needs) + _pltField('pltNote', 'Note', v.note) +
+    '<details class="inv-panel inv-panel-flush inv-panel-fold inv-mt-8"><summary class="inv-panel-head"><span class="inv-panel-title">If it fails (the planner’s trials)</span></summary><div class="inv-panel-body"><div class="inv-fields">' +
+    _pltField('pltRiskP', 'Chance it fails in a month, %', risk.p != null ? Math.round(risk.p * 1000) / 10 : '', 'number', ' min="0" max="100" step="any"') +
+    _pltField('pltRiskCost', 'What a failure costs, ₹', risk.cost, 'number', ' min="0" step="any"') +
+    _pltField('pltRiskDays', 'Days the line is down', risk.days, 'number', ' min="0" step="any"') +
+    _pltSelect('pltLine', 'Line it stops when it fails', [['', 'None']].concat(PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) { return [s[0], s[1]]; })), pltLineOf(v)) +
+    _pltField('pltRiskSay', 'What failing means', risk.say) + '</div></div></details>';
+  dialogOpen('<div class="inv-dialog" data-plt-dialog="' + escHtml(u ? u.id : '') + '">' + dialogHeadHtml(u ? escHtml(u.name) + ' · ' + escHtml(pltStationName(u.station)) : 'Add a unit') +
+    '<div class="inv-fields">' + f + '</div>' + (u ? pltUnitHistoryHtml(u) : '') +
+    '<div class="inv-dialog-foot">' + (u ? '<button class="inv-btn inv-btn-danger" data-action="invPltRetire" data-id="' + escHtml(u.id) + '">Retire</button>' : '') +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPltSave"' + (u ? ' data-id="' + escHtml(u.id) + '"' : '') + '>Save</button></div></div>', { dismiss: true });
+}
+/* A unit's own history: its last status changes, and its days down over 90. */
+function pltUnitHistoryHtml(u) {
+  var today = localDateStr(), log = pltRead().log.filter(function(l) { return l.unitId === u.id; }).sort(function(a, b) { return a.date < b.date ? 1 : -1; }).slice(0, 5);
+  var down = pltDownDays(u, isoAddDays(today, -89), today);
+  return '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Its record</span><span class="inv-panel-count">' + escHtml(down + ' day' + (down === 1 ? '' : 's') + ' not working in 90') + '</span></div>' +
+    log.map(function(l) {
+      var to = l.to === 'retired' ? ['retired', 'Retired', 'neutral'] : pltStatus(l.to);
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(l.date)) + '</span><span class="inv-row-meta">' + escHtml(l.reason || (l.from ? '' : 'added')) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
+    }).join('') + '</div>';
+}
+function _pltVal(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
+function _pltNum(id) { var v = _pltVal(id); if (v === '') return null; var n = parseFloat(v); return isFinite(n) && n >= 0 ? n : null; }
+function pltSave(id) {
+  if (!pltOwnerOk(function() { pltSave(id); })) return;
+  var name = _pltVal('pltName');
+  if (!name) return uiAlert({ title: 'Name the unit', body: 'A unit needs a name: Tank 3, Barrel 2.' });
+  var status = _pltVal('pltStatus') || 'run', since = _pltVal('pltSince') || localDateStr(), reason = _pltVal('pltReason');
+  if (since > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The status begins on a day up to today.' });
+  var p = pltData(), u = id ? p.units.find(function(x) { return x.id === id; }) : null, now = Date.now(), who = pltWho();
+  var pr = _pltNum('pltRiskP');
+  var rec = { name: name, station: _pltVal('pltStation') || 'other', kind: _pltVal('pltKind') || 'tank', kgRound: _pltNum('pltKg'), condition: _pltVal('pltCond') || 'fair',
+    age: _pltVal('pltAge'), needs: _pltVal('pltNeeds'), note: _pltVal('pltNote'), line: _pltVal('pltLine'),
+    risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _pltNum('pltRiskCost') || 0, days: _pltNum('pltRiskDays') || 0, say: _pltVal('pltRiskSay') } : null };
+  if (!u) {
+    u = Object.assign({ id: pltId('PU'), status: status, since: since, reason: status === 'run' ? '' : reason, addedOn: since }, rec, { at: now, by: who });
+    p.units.push(u);
+    p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: null, to: status, reason: status === 'run' ? '' : reason, at: now, by: who });
+  } else {
+    var moved = u.status !== status, last = pltLastLogDate(u);
+    // A change dated before the last one on record would leave the log saying otherwise: the log is read by date.
+    if (moved && last && since < last) return uiAlert({ title: 'Before its last change', body: u.name + '’s last change is dated ' + formatDate(last) + '. A new status begins on that day or later.' });
+    if (moved) p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: u.status || 'run', to: status, reason: reason, at: now, by: who });
+    else if (since !== u.since) {
+      // Only the day corrected: the line that began this status moves with it, never before the change before it.
+      var mine = p.log.filter(function(l) { return l.unitId === u.id && l.to === u.status && l.date === u.since; }).pop();
+      var before = p.log.filter(function(l) { return l.unitId === u.id && l !== mine && l.date; }).reduce(function(m, l) { return l.date > m ? l.date : m; }, '');
+      if (before && since < before) return uiAlert({ title: 'Before its last change', body: 'The change before this one is dated ' + formatDate(before) + '.' });
+      if (mine) mine.date = since;
+    }
+    Object.assign(u, rec, { status: status, since: since || u.since, reason: status === 'run' ? '' : reason, at: now, by: who });
+  }
+  closeOverlay();
+  saveState();
+  pltRedraw();
+  showToast(id ? 'Saved' : 'Added');
+}
+function pltRetire(id) {
+  if (!pltOwnerOk(function() { pltRetire(id); })) return;
+  var u = pltUnitById(id);
+  if (!u) return;
+  uiPrompt({ title: 'Retire ' + u.name, label: 'Why it is retired (kept with its record)', required: true }).then(function(why) {
+    if (why == null || !String(why).trim()) return;
+    var p = pltData(), x = p.units.find(function(r) { return r.id === id; }), now = Date.now();
+    if (!x) return;
+    x.retiredAt = now; x.retireReason = String(why).trim();
+    p.log.push({ id: pltId('PL'), unitId: x.id, date: localDateStr(), from: x.status || 'run', to: 'retired', reason: x.retireReason, at: now, by: pltWho() });
+    closeOverlay();
+    saveState();
+    pltRedraw();
+    showToast('Retired');
+  });
+}
+function pltRedraw() {
+  var page = typeof navPageOf === 'function' ? navPageOf() : '';
+  if (page === 'pageProduction' && typeof renderProduction === 'function') renderProduction();
+  else if (page === 'pagePlanner' && typeof renderPlanner === 'function') renderPlanner();
+  else if (page === 'pageFloor' && typeof renderFloor === 'function') renderFloor();
+}
+/* A status changed in the form: the day it began is today, unless typed. */
+document.addEventListener('change', function(e) {
+  var t = e.target;
+  if (!t || t.id !== 'pltStatus') return;
+  var dlg = t.closest('[data-plt-dialog]'), u = dlg && dlg.dataset.pltDialog ? pltUnitById(dlg.dataset.pltDialog) : null, since = document.getElementById('pltSince');
+  if (u && since && t.value !== u.status) since.value = localDateStr();
+});
+
+function pltAction(action, btn) {
+  switch (action) {
+    case 'invPltOpen': prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); return true;
+    case 'invPltEdit': pltEdit(btn.dataset.id || null, btn.dataset.station || null); return true;
+    case 'invPltSave': pltSave(btn.dataset.id || null); return true;
+    case 'invPltRetire': pltRetire(btn.dataset.id); return true;
+    case 'invPltExport': pltExport(); return true;
+    case 'invPltImport': {
+      if (!pltOwnerOk(function() { var i = document.getElementById('pltFileInput'); if (i) i.click(); })) return true;
+      var inp = document.getElementById('pltFileInput');
+      if (inp) inp.click();
+      return true;
+    }
+  }
+  return false;
+}
+
+/* ---------- One register with the planner ---------- */
+/* The line a unit stops when it fails: as set, else its own line for a unit on one, else none. */
+function pltLineOf(u) { return u.line !== undefined && u.line !== null ? u.line || '' : PLT_LINE_STATIONS[u.station] ? u.station : ''; }
+/* The planner's machines, read from the units (its trials draw a unit's risk until the upgrade that fixes its station). */
+function pltMachines() {
+  return pltUnits().map(function(u) {
+    return { id: u.id, item: u.name, station: u.station, line: pltLineOf(u) || null, state: u.condition || 'fair',
+      age: u.age || '', needs: u.needs || '', risk: u.risk || null, status: u.status || 'run' };
+  });
+}
+/* The planner's machines move into the register once, their ids kept, so the change log and the trials know them. */
+function pltFromMachines() {
+  if (!S || !S.planner || !Array.isArray(S.planner.machines) || !S.planner.machines.length) return false;
+  var p = pltData(), today = localDateStr();
+  S.planner.machines.forEach(function(m) {
+    if (!m || p.units.some(function(u) { return u.id === m.id; })) return;
+    var station = PLT_STATIONS.some(function(s) { return s[0] === m.station; }) ? m.station : 'other';
+    p.units.push({ id: m.id || pltId('PU'), name: m.item || 'Machine', station: station, kind: station === 'barrel' ? 'barrel' : 'other', kgRound: null,
+      status: 'run', since: today, reason: '', condition: m.state || 'fair', age: m.age || '', needs: m.needs || '', risk: m.risk || null, line: m.line || null,
+      note: '', at: m.at || Date.now(), by: m.by || '', retiredAt: m.retiredAt || null, retireReason: m.retireReason || '', from: 'planner' });
+  });
+  S.planner.machines = [];
+  return true;
+}
+
+/* ---------- The To-do: a unit down ---------- */
+TODO_RULES.push(['plantDown', 'Plant: a unit down or under repair for days']);
+TODO_CHECK_DEFAULTS.plantDown = true;
+TODO_RULE_FNS.plantDown = function() {
+  return pltUnits().filter(function(u) { return !pltAvailable(u.status) && (pltDaysIn(u) || 0) >= PLT_DOWN_AMBER; }).map(function(u) {
+    var d = pltDaysIn(u), s = pltStatus(u.status), cap = pltCapacity(u.station);
+    return { key: 'plantDown:' + u.id, rule: 'plantDown', tone: d >= PLT_DOWN_RED ? 'red' : 'amber',
+      title: u.name + ' (' + pltStationName(u.station) + ') ' + s[1].toLowerCase() + ' ' + d + ' days', sub: u.reason || 'no reason written', why: 'Plant register',
+      facts: [['Status', s[1] + ' since ' + formatDate(u.since)], ['Why', u.reason || 'not written'], [pltStationName(u.station), pltCapWords(cap)]],
+      clears: 'Clears itself when the unit is set running or on standby, or retired.', go: { kind: 'production', tab: 'equipment' }, goLabel: 'Open Equipment',
+      sig: u.id + ':' + u.status + ':' + u.since + ':' + (d >= PLT_DOWN_RED ? 'red' : 'amber') };
+  });
+};
+
+/* ---------- The register as a file: sep-plant v1 ----------
+   Export is whole (the units and the log); import merges by id and never overwrites a unit already held, so the owner can
+   fill the units in a spreadsheet, or move the register to another device. A unit with no id is new; one with the same
+   name on the same line as a unit held is the same unit, and is left as it is. */
+function pltExport() {
+  var p = pltRead(), meta = document.querySelector('meta[name="app-build"]');
+  downloadJson('sep-plant-' + localDateStr() + '.json', { format: 'sep-plant', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
+    units: p.units, log: p.log }, 1);
+}
+function pltMergeImport(obj) {
+  if (!obj || obj.format !== 'sep-plant' || !Array.isArray(obj.units)) return { ok: false };
+  var p = pltData(), added = 0, kept = 0, bad = 0, logs = 0, dropped = 0, today = localDateStr(), now = Date.now(), who = pltWho();
+  var key = function(u) { return u.station + '|' + String(u.name || '').trim().toLowerCase(); };
+  obj.units.forEach(function(r) {
+    if (!r || !String(r.name || '').trim() || !PLT_STATIONS.some(function(s) { return s[0] === r.station; })) { bad++; return; }
+    if ((r.id && p.units.some(function(u) { return u.id === r.id; })) || p.units.some(function(u) { return !u.retiredAt && key(u) === key(r); })) { kept++; return; }
+    var status = PLT_STATUS.some(function(s) { return s[0] === r.status; }) ? r.status : 'run', since = /^\d{4}-\d{2}-\d{2}$/.test(r.since || '') && r.since <= today ? r.since : today;
+    var u = { id: r.id || pltId('PU'), name: String(r.name).trim(), station: r.station, kind: PLT_KINDS.some(function(k) { return k[0] === r.kind; }) ? r.kind : (r.station === 'barrel' ? 'barrel' : 'tank'),
+      kgRound: +r.kgRound > 0 ? +r.kgRound : null, status: status, since: since, reason: status === 'run' ? '' : String(r.reason || ''), addedOn: since,
+      condition: r.condition || 'fair', age: String(r.age || ''), needs: String(r.needs || ''), note: String(r.note || ''), risk: pltRiskClean(r.risk),
+      retiredAt: r.retiredAt || null, retireReason: r.retireReason || '', at: now, by: who };
+    p.units.push(u);
+    added++;
+    var own = Array.isArray(obj.log) ? obj.log.filter(function(l) { return l && l.unitId === u.id; }) : [];
+    var okLog = function(l) { return (l.to === 'retired' || PLT_STATUS.some(function(x) { return x[0] === l.to; })) && /^\d{4}-\d{2}-\d{2}$/.test(String(l.date || '')) && l.date <= today &&
+      (l.from == null || PLT_STATUS.some(function(x) { return x[0] === l.from; })); };
+    var fine = own.filter(okLog);
+    dropped += own.length - fine.length;
+    if (fine.length) fine.forEach(function(l) { if (!p.log.some(function(x) { return x.id === l.id; })) { p.log.push({ id: String(l.id || pltId('PL')), unitId: u.id, date: l.date, from: l.from || null, to: l.to, reason: String(l.reason || ''), at: +l.at || now, by: String(l.by || '') }); logs++; } });
+    else p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: null, to: status, reason: u.reason, at: now, by: who });
+  });
+  return { ok: true, added: added, kept: kept, bad: bad, logs: logs, dropped: dropped };
+}
+/* A unit's risk as the trials read it: a chance 0–1 (a figure over 1 read as a percentage), a cost and days of 0 or more. */
+function pltRiskClean(r) {
+  if (!r || !(+r.p > 0)) return null;
+  var p = +r.p > 1 ? +r.p / 100 : +r.p;
+  return { p: Math.min(1, p), cost: Math.max(0, +r.cost || 0), days: Math.max(0, +r.days || 0), say: String(r.say || '') };
+}
+function pltImportText(text) {
+  if (!pltOwnerOk(function() { pltImportText(text); })) return;
+  var obj;
+  try { obj = JSON.parse(text); } catch (e) { showToast('Not valid JSON: ' + e.message, 'error'); return; }
+  var r = pltMergeImport(obj);
+  if (!r.ok) { uiAlert({ title: 'Not a plant file', body: 'A plant register file is marked sep-plant and carries a list of units.' }); return; }
+  saveState();
+  pltRedraw();
+  showToast(r.added + ' unit' + (r.added === 1 ? '' : 's') + ' added' + (r.kept ? ' · ' + r.kept + ' already held, kept' : '') + (r.bad ? ' · ' + r.bad + ' without a name or a known line' : '') + (r.dropped ? ' · ' + r.dropped + ' status lines not readable, left out' : ''), r.bad || r.dropped ? 'warning' : 'success');
+}
+document.addEventListener('change', function(e) {
+  var t = e.target;
+  if (!t || t.id !== 'pltFileInput' || !t.files || !t.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) { pltImportText(ev.target.result); };
+  reader.readAsText(t.files[0]);
+  t.value = '';
+});
+/* ===== PEOPLE: each worker's record, worked out from the book, and the owner's notes on them =====
+   Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W2): *"Every worker will be assigned details, skill level, personal details,
+   tenure, happiness index (derived from a combination of factors), reliability, consistency, relationships"*; then, asked:
+   personal details are the owner's alone, and the index is a **motivation index** built from signals and a monthly check-in.
+
+   - Worked out every time it is drawn, never stored (`pplStats`): tenure, reliability (present on the days marked, late,
+     leaving early), consistency (how the in-time and the hours vary, how many areas), workload (OT and Sundays, four weeks),
+     the days in each area and who they stand beside. Each figure says the days it rests on and is not firm under a fortnight.
+   - The motivation index (`pplMotivation`): signals, each a reason and its figure, and the owner's monthly check-in, which
+     weighs half. Not firm without a check-in in 60 days or a fortnight of record; a figure not firm is never red (I2).
+   - Typed by the owner: `w.profile` (personal details, owner-only, kept out of the change log's values), `w.skills` (0–5 an
+     area), `w.ties` (relationships), and the check-ins in `S.peopleCheckins`. A rate changed on the worker is kept in
+     `w.rateHistory` (staff.js), so "no rise in a year" is read off the record. */
+
+var PPL_LATE_MIN = 520;      // an in-time after 8:40 on the 8:30 shift
+var PPL_EARLY_MIN = 1010;    // an out-time before 4:50 on a full day
+var PPL_FIRM_DAYS = 14;
+var PPL_CHECKIN_DAYS = 60;
+var PPL_TIES = [['reportsTo', 'Reports to'], ['referredBy', 'Referred by'], ['family', 'Family of'], ['friend', 'Friend of']];
+var PPL_SCORES = [[1, 'Low'], [2, 'Flat'], [3, 'Steady'], [4, 'Keen'], [5, 'Driven']];
+
+if (typeof STATE_CONTAINERS !== 'undefined' && STATE_CONTAINERS.indexOf('peopleCheckins') < 0) STATE_CONTAINERS.push('peopleCheckins');
+
+function pplCheckins() { return S && Array.isArray(S.peopleCheckins) ? S.peopleCheckins : []; }
+function pplLastCheckin(w) {
+  return pplCheckins().filter(function(c) { return c && !c.voidedAt && String(c.staffId) === String(w.id); })
+    .sort(function(a, b) { return a.on < b.on ? 1 : a.on > b.on ? -1 : (b.at || 0) - (a.at || 0); })[0] || null;
+}
+function pplOwner() { return typeof grdIsOwner !== 'function' || grdIsOwner(); }
+function pplSd(xs) {
+  if (xs.length < 2) return 0;
+  var m = xs.reduce(function(s, x) { return s + x; }, 0) / xs.length;
+  return Math.sqrt(xs.reduce(function(s, x) { return s + (x - m) * (x - m); }, 0) / (xs.length - 1));
+}
+function pplDow(iso) { return new Date(iso + 'T00:00:00').getDay(); }
+
+/* When they joined: typed, else the first day the book marks them. */
+function pplTenure(w) {
+  var p = w.profile || {};
+  if (p.joined) return { from: p.joined, src: 'joined' };
+  var first = null;
+  Object.keys(S.attendance || {}).forEach(function(iso) {
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(iso) || (first && iso >= first)) return;
+    var rec = S.attendance[iso], m = rec && rec.marks && rec.marks[w.id];
+    if (m && (m.st === 'P' || m.st === 'H')) first = iso;
+  });
+  return first ? { from: first, src: 'marked' } : null;
+}
+function pplTenureWords(t) {
+  if (!t) return 'not known';
+  var d = isoDaysBetween(t.from, localDateStr()), y = Math.floor(d / 365), m = Math.floor((d % 365) / 30.4);
+  return (y ? y + ' yr' + (m ? ' ' + m + ' mo' : '') : m ? m + ' mo' : d + ' day' + (d === 1 ? '' : 's'));
+}
+
+/* The figures, read off the marks: the last 90 days, workload over the last 28. */
+function pplStats(w) {
+  var today = localDateStr(), id = w.id, n = { P: 0, H: 0, A: 0 }, late = 0, early = 0, timed = 0, inMins = [], hours = [], areas = {}, beside = {};
+  var ot28 = 0, sun28 = 0, otWeeks = [0, 0, 0, 0], abs30 = 0, absPrior = 0;
+  for (var i = 0; i < 90; i++) {
+    var iso = isoAddDays(today, -i), rec = attDay(iso, false), m = rec && rec.marks ? rec.marks[id] : null;
+    if (!m || !n.hasOwnProperty(m.st)) continue;
+    var sun = pplDow(iso) === 0;
+    if (m.st === 'A') { if (!sun) { n.A++; if (i < 30) abs30++; else absPrior++; } continue; }
+    if (i < 28) { ot28 += +m.ot || 0; if (sun) sun28++; otWeeks[Math.floor(i / 7)] += +m.ot || 0; }
+    if (sun) continue;   // a Sunday worked is workload, not the presence a week is judged on
+    n[m.st]++;
+    if (m.area) areas[m.area] = (areas[m.area] || 0) + 1;
+    if (+m.hours > 0) hours.push(+m.hours);
+    if (m.area !== 'gate' && m.inMin != null && m.inMin >= 420 && m.inMin <= 720) {
+      timed++; inMins.push(m.inMin);
+      if (m.inMin > PPL_LATE_MIN) late++;
+      if (m.st === 'P' && m.outMin != null && m.outMin > 720 && m.outMin < PPL_EARLY_MIN) early++;
+    }
+    if (m.area && rec.marks) Object.keys(rec.marks).forEach(function(k) {
+      var o = rec.marks[k];
+      if (String(k) !== String(id) && o && (o.st === 'P' || o.st === 'H') && o.area === m.area) beside[k] = (beside[k] || 0) + 1;
+    });
+  }
+  var marked = n.P + n.H + n.A, present = n.P + n.H * 0.5;
+  var presence = marked ? present / marked : null;
+  var lateShare = timed ? late / timed : 0, earlyShare = timed ? early / timed : 0;
+  var rel = presence == null ? null : Math.round(100 * presence * (1 - 0.5 * lateShare - 0.5 * earlyShare));
+  var sdIn = pplSd(inMins), sdH = pplSd(hours), nAreas = Object.keys(areas).length;
+  // Steady is about times: with fewer than five in-times recorded it is not worked out (hours alone would read steady on nothing).
+  var cons = inMins.length >= 5 ? Math.max(0, Math.min(100, Math.round(100 - sdIn * 2 - sdH * 5 - Math.max(0, nAreas - 2) * 5))) : null;
+  var besideTop = Object.keys(beside).sort(function(a, b) { return beside[b] - beside[a]; }).slice(0, 3).map(function(k) { var o = staffById(k); return o ? { name: o.name, days: beside[k] } : null; }).filter(Boolean);
+  return { marked: marked, firm: marked >= PPL_FIRM_DAYS, n: n, presence: presence, late: late, early: early, timed: timed, reliability: rel,
+    sdIn: sdIn, sdHours: sdH, areas: areas, nAreas: nAreas, consistency: cons, ot28: ot28, sun28: sun28, otWeeks: otWeeks.reverse(),
+    abs30: abs30, absPrior: absPrior, beside: besideTop, tenure: pplTenure(w) };
+}
+function pplScoreTone(v, firm) { if (v == null) return 'neutral'; var t = v >= 70 ? 'ok' : v >= 50 ? 'warning' : 'danger'; return !firm && t === 'danger' ? 'warning' : t; }
+function pplWorkTone(st) { return st.ot28 >= 48 || st.sun28 >= 4 ? 'danger' : st.ot28 >= 24 || st.sun28 >= 3 ? 'warning' : 'ok'; }
+function pplRelWords(st) {
+  if (st.presence == null) return 'no day marked in 90';
+  return 'present ' + Math.round(st.presence * 100) + '% of ' + st.marked + ' days marked' + (st.late ? ' · late ' + st.late : '') + (st.early ? ' · left early ' + st.early : '');
+}
+function pplConsWords(st) {
+  if (st.consistency == null) return 'too few times recorded';
+  return (st.timed ? 'in-time varies ' + Math.round(st.sdIn) + ' min' : 'no in-time recorded') + ' · ' + st.nAreas + ' area' + (st.nAreas === 1 ? '' : 's');
+}
+
+/* A worker's rate, for comparing with another of the same tier. */
+function pplRate(w) { return w.comp === 'hourly' ? +w.hourRate || 0 : w.monthWage > 0 ? (+w.monthWage) / 26 : +w.dayRate || 0; }
+
+/* The motivation index: signals, each a reason and its figure, and the owner's monthly check-in (half the index). */
+function pplMotivation(w, st, labMemo) {
+  st = st || pplStats(w);
+  var sig = [], today = localDateStr(), pen = 0;
+  var add = function(key, word, weight) { sig.push({ key: key, word: word, weight: weight }); pen += weight; };
+  try {
+    var carry = payCarried(w, payPeriodOf(w, today), labMemo || payLabMemo());
+    if (carry.amount >= 1) add('owed', formatCurrency(carry.amount) + ' owed, carried from ' + (carry.periods || 1) + ' period' + (carry.periods === 1 ? '' : 's'), 20);
+  } catch (e) { /* a pay record that will not read says nothing here */ }
+  var wk = attWeekStartOf(today), adv = 0;
+  for (var k = 0; k < 4; k++) {
+    var ws = isoAddDays(wk, -7 * k), we = isoAddDays(ws, 6);
+    if (staffPayments().some(function(p) { return !p.voidedAt && p.kind === 'advance' && String(p.staffId) === String(w.id) && p.date >= ws && p.date <= we; })) adv++;
+  }
+  if (adv >= 3) add('advance', 'an advance in ' + adv + ' of the last 4 weeks', 10);
+  var ow = st.otWeeks;
+  if (ow[3] >= 8 && ow[0] < ow[1] && ow[1] < ow[2] && ow[2] < ow[3]) add('otClimb', 'OT up four weeks running, ' + formatNum(ow[3], 0) + ' h last week', 10);
+  var tw = st.tenure ? isoDaysBetween(st.tenure.from, today) : null, mine = pplRate(w);
+  if (mine > 0 && tw != null) {
+    var peer = (S.staff || []).find(function(o) {
+      if (o === w || o.active === false || o.comp !== w.comp || !(pplRate(o) > mine + 0.5)) return false;
+      var t = pplTenure(o); return t && isoDaysBetween(t.from, today) < tw;
+    });
+    if (peer) add('peer', 'paid less than ' + peer.name + ', on the same tier with less service', 15);
+  }
+  if (st.abs30 >= 3 && st.abs30 > st.absPrior / 2 + 1) add('absent', st.abs30 + ' absences in 30 days, against ' + st.absPrior + ' in the 60 before', 15);
+  // A rise is a rate that went up; it is judged only on a year of history kept (the history starts when rates were first
+  // recorded here, so a worker typed in as long-serving is not read as never raised).
+  var hist = (w.rateHistory || []).filter(function(h) { return h && h.on; }).sort(function(a, b) { return a.on < b.on ? -1 : 1; });
+  var rose = function(h) { var f = h.from || {}, t = h.to || {}; return ['dayRate', 'hourRate', 'monthWage'].some(function(k) { return (+t[k] || 0) > (+f[k] || 0) && (+f[k] || 0) > 0; }); };
+  var rises = hist.filter(rose), lastRise = rises.length ? rises[rises.length - 1].on : null;
+  if (tw != null && tw >= 365 && hist.length && isoDaysBetween(hist[0].on, today) >= 365 && (!lastRise || isoDaysBetween(lastRise, today) > 365))
+    add('noRise', lastRise ? 'no rise since ' + formatDate(lastRise) : 'no rise in a year of rates recorded', 10);
+  var signals = Math.max(0, 100 - pen), ci = pplLastCheckin(w), ciFresh = ci && isoDaysBetween(ci.on, today) <= PPL_CHECKIN_DAYS;
+  var score = ciFresh ? Math.round(0.5 * signals + 0.5 * ((ci.score - 1) / 4 * 100)) : signals;
+  var firm = !!(st.firm && ciFresh);
+  return { score: score, signals: signals, sig: sig, checkin: ci, fresh: !!ciFresh, firm: firm, tone: pplScoreTone(score, firm),
+    why: !st.firm ? 'under ' + PPL_FIRM_DAYS + ' days marked' : !ciFresh ? (ci ? 'last check-in ' + formatDate(ci.on) : 'no check-in yet') : '' };
+}
+
+/* ---------- Drawn ---------- */
+function pplDotsHtml(n) {
+  var v = Math.max(0, Math.min(5, Math.round(+n || 0))), h = '<span class="inv-skill" role="img" aria-label="' + v + ' of 5">';
+  for (var i = 1; i <= 5; i++) h += '<span class="inv-skill-dot"' + (i <= v ? ' data-on' : '') + '></span>';
+  return h + '</span>';
+}
+/* A short bar for a figure out of 100, its tone the status's (an SVG: the width is an attribute). */
+function pplBarHtml(v, tone, label) {
+  var w = v == null ? 0 : Math.max(0, Math.min(100, Math.round(v)));
+  return '<svg class="inv-stat-bar" viewBox="0 0 100 4" preserveAspectRatio="none" role="img" aria-label="' + escHtml(label) + '"><rect class="inv-stat-bar-track" x="0" y="0" width="100" height="4"></rect>' +
+    '<rect class="inv-stat-bar-fill" data-tone="' + tone + '" x="0" y="0" width="' + w + '" height="4"></rect></svg>';
+}
+function pplTile(label, value, sub, tone, key) {
+  return '<div class="inv-tile" data-ppl-tile="' + key + '"><div class="inv-tile-label">' + escHtml(label) + '</div><div class="inv-tile-value' + (tone && tone !== 'neutral' ? ' inv-fig-' + tone : '') + '">' + value + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
+}
+/* The record: what the book says of them, the motivation index (the owner's), their skills, ties and details. */
+function pplRecordHtml(w, opts) {
+  opts = opts || {};
+  var st = pplStats(w), owner = pplOwner(), id = escHtml(String(w.id));
+  var h = '<div class="inv-tiles" data-ppl-record="' + id + '">' +
+    pplTile('Tenure', escHtml(pplTenureWords(st.tenure)), st.tenure ? (st.tenure.src === 'joined' ? (owner ? 'joined ' + formatDate(st.tenure.from) : 'from the joining date') : 'first marked ' + formatDate(st.tenure.from)) : 'no joining date or mark', '', 'tenure') +
+    pplTile('Reliability', st.reliability == null ? '&mdash;' : st.reliability + '', pplRelWords(st), pplScoreTone(st.reliability, st.firm), 'reliability') +
+    pplTile('Consistency', st.consistency == null ? '&mdash;' : st.consistency + '', pplConsWords(st), pplScoreTone(st.consistency, st.firm), 'consistency') +
+    pplTile('Workload', escHtml(formatNum(st.ot28, 0)) + ' h', 'OT in 4 weeks' + (st.sun28 ? ', ' + st.sun28 + ' Sunday' + (st.sun28 === 1 ? '' : 's') : ''), pplWorkTone(st), 'workload') + '</div>';
+  if (!st.firm) h += '<div class="inv-note" data-ppl-unfirm>' + escHtml(st.marked + ' day' + (st.marked === 1 ? '' : 's') + ' marked in 90: the figures firm up at ' + PPL_FIRM_DAYS + '.') + '</div>';
+  if (owner) {
+    var mo = pplMotivation(w, st, opts.labMemo);
+    h += '<div class="inv-panel inv-panel-flush" data-ppl-motivation="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Motivation ' +
+      '<span class="inv-panel-count">' + mo.score + '</span></span>' + uiDot(mo.tone, mo.firm ? (mo.tone === 'ok' ? 'Good' : mo.tone === 'warning' ? 'Watch' : 'Low') : escHtml('Not firm: ' + mo.why)) + '</div>' +
+      (mo.sig.length ? mo.sig.map(function(s) {
+        return '<div class="inv-row inv-row-2" data-ppl-signal="' + s.key + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(s.word) + '</span></span><span class="inv-row-end inv-num">−' + s.weight + '</span></div>';
+      }).join('') : '<div class="inv-panel-body inv-note">No signal against them: nothing owed, no run of advances, OT steady, paid in line with the tier.</div>') +
+      '<div class="inv-row inv-row-2" data-ppl-checkin><span class="inv-row-main"><span class="inv-row-title">' + (mo.checkin ? escHtml('Check-in ' + formatDate(mo.checkin.on) + ': ' + mo.checkin.score + ' of 5, ' + PPL_SCORES[mo.checkin.score - 1][1].toLowerCase()) : 'No check-in yet') + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml((mo.checkin && mo.checkin.note ? mo.checkin.note + ' · ' : '') + 'the check-in is half the index; the signals the other half') + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPplCheckin" data-id="' + id + '">Check in</button></span></div></div>';
+  }
+  // Skills: the owner's rating beside the days the book shows in each area.
+  var areas = STAFF_AREAS.filter(function(a) { return (w.skills && w.skills[a.id] > 0) || st.areas[a.id]; });
+  h += '<div class="inv-panel inv-panel-flush" data-ppl-skills="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Skills</span></div>' +
+    (areas.length ? areas.map(function(a) {
+      var s = w.skills && w.skills[a.id] > 0 ? +w.skills[a.id] : 0, d = st.areas[a.id] || 0;
+      return '<div class="inv-row inv-row-2" data-ppl-skill="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span><span class="inv-row-meta">' +
+        escHtml(d ? d + ' day' + (d === 1 ? '' : 's') + ' there in 90' : 'no day there in 90') + (s && !d ? ' · <span class="inv-fig-warning">rated, never worked there lately</span>' : '') + '</span></span>' +
+        '<span class="inv-row-end">' + (s ? pplDotsHtml(s) : '<span class="inv-row-meta">not rated</span>') + '</span></div>';
+    }).join('') : '<div class="inv-empty">No area worked or rated yet.</div>') +
+    (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
+  // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
+  if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
+  var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name); });
+  if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div>' +
+    (ties.length ? ties.map(function(t) {
+      var o = t.staffId != null ? staffById(t.staffId) : null, k = PPL_TIES.find(function(x) { return x[0] === t.kind; });
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (o ? o.name : t.name)) + '</span>' +
+        (t.note ? '<span class="inv-row-meta">' + escHtml(t.note) + '</span>' : '') + '</span></div>';
+    }).join('') : '<div class="inv-empty">None recorded.</div>') + '</div>';
+  if (owner) {
+    var p = w.profile || {}, em = p.emergency || {};
+    var kv = [['Designation', p.designation], ['Phone', p.phone], ['Son or daughter of', p.guardian], ['Address', p.address], ['Blood group', p.bloodGroup], ['Born', p.dob ? formatDate(p.dob) : ''], ['Joined', p.joined ? formatDate(p.joined) : ''],
+      ['In an emergency', [em.name, em.relation, em.phone].filter(Boolean).join(' · ')], ['ID', p.idLast4 ? '•••• ' + p.idLast4 : ''], ['Bank', p.bankLast4 ? '•••• ' + p.bankLast4 : ''],
+      ['Languages', p.languages], ['Notes', p.notes]].filter(function(x) { return x[1]; });
+    h += '<div class="inv-panel inv-panel-flush" data-ppl-personal="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Personal details</span><span class="inv-row-meta">the owner’s alone</span></div>' +
+      (kv.length ? '<div class="inv-panel-body"><div class="inv-kv">' + kv.map(function(x) { return '<div' + (x[0] === 'Address' || x[0] === 'Notes' ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(x[0]) + '</div><div>' + escHtml(x[1]) + '</div></div>'; }).join('') + '</div></div>'
+        : '<div class="inv-empty">None recorded.</div>') +
+      '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPplEdit" data-id="' + id + '">Details, skills and ties</button></div>';
+  }
+  return h;
+}
+
+/* ---------- The owner's edits ---------- */
+function pplOwnerOk(again) {
+  if (!pplOwner()) { uiAlert({ title: 'The owner’s to change', body: 'A worker’s details, skills, relationships and check-ins are the owner’s alone.' }); return false; }
+  return typeof grdGate !== 'function' || grdGate('payments', 'Change a worker’s record', again);
+}
+function _pplF(id, label, v, type, extra) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><input class="inv-input" id="' + id + '" type="' + (type || 'text') + '" value="' + escHtml(v == null ? '' : String(v)) + '"' + (extra || '') + '></div>';
+}
+function _pplSel(id, label, list, v) {
+  return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(label) + '</label><select class="inv-select" id="' + id + '">' +
+    list.map(function(o) { return '<option value="' + escHtml(String(o[0])) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>'; }).join('') + '</select></div>';
+}
+var _pplFrom = null;   // the worker's edit sheet the dialog was opened over, to come back to it
+function pplEdit(id) {
+  if (!pplOwnerOk(function() { pplEdit(id); })) return;
+  var w = staffById(id);
+  if (!w) return;
+  _pplFrom = document.querySelector('[data-ppl-sheet]') ? id : null;
+  var p = w.profile || {}, em = p.emergency || {}, ties = (w.ties || []).slice(0, 3);
+  while (ties.length < 3) ties.push({});
+  var workers = [['', 'Someone not on the roster']].concat((S.staff || []).filter(function(o) { return o !== w; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(o) { return [o.id, o.name]; }));
+  var f = '<div class="inv-fields">' + _pplF('pplDesig', 'Designation', p.designation) + _pplF('pplPhone', 'Phone', p.phone, 'tel') + _pplF('pplGuard', 'Son or daughter of', p.guardian) +
+    _pplF('pplBlood', 'Blood group', p.bloodGroup) + _pplF('pplDob', 'Born', p.dob, 'date') + _pplF('pplJoined', 'Joined', p.joined, 'date') +
+    _pplF('pplLang', 'Languages', p.languages) + _pplF('pplId4', 'ID, last four digits', p.idLast4, 'text', ' inputmode="numeric"') +
+    _pplF('pplBank4', 'Bank account, last four digits', p.bankLast4, 'text', ' inputmode="numeric"') + '</div>' +
+    _pplF('pplAddr', 'Address', p.address) +
+    '<div class="inv-fields">' + _pplF('pplEmName', 'In an emergency: name', em.name) + _pplF('pplEmRel', 'Relation', em.relation) + _pplF('pplEmPhone', 'Their phone', em.phone, 'tel') + '</div>' +
+    _pplF('pplNotes', 'Notes', p.notes) +
+    '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Skills, 0 to 5</span></div><div class="inv-panel-body"><div class="inv-fields">' +
+    STAFF_AREAS.map(function(a) { return _pplSel('pplSkill-' + a.id, a.label, [[0, 'Not rated'], [1, '1 · learning'], [2, '2'], [3, '3 · on their own'], [4, '4'], [5, '5 · can teach it']], (w.skills || {})[a.id] || 0); }).join('') +
+    '</div></div></div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div><div class="inv-panel-body">' +
+    ties.map(function(t, i) {
+      return '<div class="inv-fields">' + _pplSel('pplTieKind' + i, 'Relationship ' + (i + 1), [['', 'None']].concat(PPL_TIES), t.kind || '') +
+        _pplSel('pplTieWho' + i, 'Worker', workers, t.staffId != null ? t.staffId : '') + _pplF('pplTieName' + i, 'Or a name', t.staffId != null ? '' : t.name) + '</div>';
+    }).join('') + '</div></div>';
+  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + ': details, skills and ties', 'invCloseConfirm') + f +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
+}
+function _pplV(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
+function pplSave(id) {
+  if (!pplOwnerOk(function() { pplSave(id); })) return;
+  var w = staffById(id);
+  if (!w) return;
+  var four = function(v) { var d = String(v).replace(/\D/g, ''); return d ? d.slice(-4) : ''; };
+  var prof = { designation: _pplV('pplDesig'), guardian: _pplV('pplGuard'), bloodGroup: _pplV('pplBlood'), phone: _pplV('pplPhone'), dob: _pplV('pplDob'), joined: _pplV('pplJoined'), languages: _pplV('pplLang'), idLast4: four(_pplV('pplId4')), bankLast4: four(_pplV('pplBank4')),
+    address: _pplV('pplAddr'), notes: _pplV('pplNotes'), emergency: { name: _pplV('pplEmName'), relation: _pplV('pplEmRel'), phone: _pplV('pplEmPhone') } };
+  if (prof.joined && prof.joined > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The joining date is a day up to today.' });
+  var skills = {};
+  STAFF_AREAS.forEach(function(a) { var v = parseInt(_pplV('pplSkill-' + a.id), 10); if (v > 0) skills[a.id] = Math.min(5, v); });
+  var ties = [];
+  for (var i = 0; i < 3; i++) {
+    var kind = _pplV('pplTieKind' + i), who = _pplV('pplTieWho' + i), name = _pplV('pplTieName' + i);
+    if (!kind || (!who && !name)) continue;
+    var o = who ? staffById(who) : null;
+    var tie = o ? { kind: kind, staffId: o.id } : { kind: kind, name: name }, was = (w.ties || [])[i];
+    // A tie's note (from a file) is kept while the tie is the same one.
+    if (was && was.note && was.kind === tie.kind && (o ? String(was.staffId) === String(o.id) : was.name === tie.name)) tie.note = was.note;
+    ties.push(tie);
+  }
+  ties = ties.concat((w.ties || []).slice(3));   // the form shows three; the rest are kept as they are
+  w.profile = prof; w.skills = skills; w.ties = ties;
+  saveState();
+  pplBack(id);
+  showToast('Saved');
+}
+function pplCheckinOpen(id) {
+  if (!pplOwnerOk(function() { pplCheckinOpen(id); })) return;
+  var w = staffById(id);
+  if (!w) return;
+  _pplFrom = document.querySelector('[data-ppl-sheet]') ? id : null;
+  dialogOpen('<div class="inv-dialog" data-ppl-checkin-form="' + escHtml(String(w.id)) + '">' + dialogHeadHtml('Check in: ' + escHtml(w.name), 'invCloseConfirm') +
+    '<div class="inv-note">How they seem this month, in your words: 1 is low, 5 is driven. It is half their motivation index.</div>' +
+    '<div class="inv-seg inv-mt-8" role="group" aria-label="How they seem">' + PPL_SCORES.map(function(s) {
+      return '<button type="button" class="inv-seg-btn" data-action="invPplScore" data-score="' + s[0] + '" aria-pressed="false">' + s[0] + ' · ' + escHtml(s[1]) + '</button>';
+    }).join('') + '</div>' +
+    _pplF('pplCiOn', 'On', localDateStr(), 'date') + _pplF('pplCiNote', 'What was said or seen (recommended)', '') +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplCheckinSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
+}
+function pplCheckinSave(id) {
+  if (!pplOwnerOk(function() { pplCheckinSave(id); })) return;
+  var on = document.querySelector('[data-ppl-checkin-form] [data-action="invPplScore"][aria-pressed="true"]');
+  if (!on) return uiAlert({ title: 'How do they seem?', body: 'Pick 1 to 5 first.' });
+  var day = _pplV('pplCiOn') || localDateStr();
+  if (day > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'A check-in is on a day up to today.' });
+  if (!Array.isArray(S.peopleCheckins)) S.peopleCheckins = [];
+  S.peopleCheckins.push({ id: 'CI-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 6), staffId: staffById(id).id, on: day, score: +on.dataset.score,
+    note: _pplV('pplCiNote'), at: Date.now(), by: typeof grdUser === 'function' && grdUser() ? grdUser().name : '' });
+  saveState();
+  pplBack(id);
+  showToast('Checked in');
+}
+/* Back where the dialog was opened: only this dialog shuts, and the worker's sheet under it keeps what was typed on it, its
+   record redrawn in place; else the page redrawn. */
+function pplBack(id) {
+  closeTopOverlay();
+  var sheet = _pplFrom != null ? document.querySelector('[data-ppl-sheet]') : null, w = staffById(id);
+  _pplFrom = null;
+  if (sheet && w) sheet.innerHTML = pplRecordHtml(w);
+  else if (typeof renderAttendance === 'function' && navPageOf() === 'pageStaff') renderAttendance();
+}
+function pplAction(action, btn) {
+  switch (action) {
+    case 'invPplEdit': pplEdit(btn.dataset.id); return true;
+    case 'invPplSave': pplSave(btn.dataset.id); return true;
+    case 'invPplCheckin': pplCheckinOpen(btn.dataset.id); return true;
+    case 'invPplCheckinSave': pplCheckinSave(btn.dataset.id); return true;
+    case 'invPplImportKeep': pplImportKeep(); return true;
+    case 'invPplScore': {
+      var seg = btn.closest('.inv-seg');
+      if (seg) seg.querySelectorAll('[data-action="invPplScore"]').forEach(function(b) { b.setAttribute('aria-pressed', String(b === btn)); });
+      var scrim = btn.closest('.inv-scrim-dialog'); if (scrim) scrim.dataset.typed = '1';   // a score picked is work a tap outside must not throw away
+      return true;
+    }
+  }
+  return false;
+}
+
+/* ---------- A file of details: sep-people v1, checked before anything is kept ----------
+   The owner's spreadsheets of names, phones, addresses and emergency contacts (owner, 7 Oct 2026) arrive as one file, never
+   in the build. Each row is matched to the roster the way a roll's names are (relayMatchName: the name, a spelling kept on
+   the worker, a first name nobody else has, a folded spelling), shown beside the worker it was matched to, and saved only on
+   Keep: a short or misspelt name must never put one person's details on another. A row matching nobody is left out, never
+   made a worker (a worker with no tier or rate reads the labour short). Only the fields a row carries are written. */
+var PPL_IMPORT_FIELDS = ['designation', 'phone', 'address', 'guardian', 'bloodGroup', 'dob', 'joined', 'languages', 'notes', 'idLast4', 'bankLast4'];
+var _pplImport = null;   // {rows: [{row, match: {id, sure}}]}
+/* The row's name, else one of its other spellings (`aliases`): a sure match on any wins over a spelling read as. */
+/* Sure only when the whole name written is the worker's (their name, a spelling kept on them, an alias): a first name alone
+   picks out a roll's hand, never whose phone and address these are. Anything less is a guess, shown and not picked. */
+function pplImportMatch(name, aliases) {
+  var idx = relayRosterIndex(S.staff || []), best = null, written = [name].concat(Array.isArray(aliases) ? aliases : []);
+  var whole = function(w) { var ks = [w.name].concat(w.relayNames || [], w.aliases || []).map(relayKey); return written.some(function(n) { return ks.indexOf(relayKey(n)) >= 0; }); };
+  var exact = (S.staff || []).filter(whole);
+  if (exact.length === 1) return { id: exact[0].id, sure: true };
+  written.forEach(function(n) {
+    var words = String(n || '').trim().split(/\s+/).filter(Boolean), m = words.length ? relayMatchName(words, idx, false) : null;
+    if (m && !best) best = m;
+  });
+  return best ? { id: best.w.id, sure: false } : { id: null, sure: false };
+}
+/* A date from a file, as the app keeps it: ISO, or day first; '' when it is not a date or is still to come. */
+function pplImportDate(v) {
+  var t = String(v || '').trim(), m;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(t)) return t <= localDateStr() ? t : '';
+  if ((m = /^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{2,4})$/.exec(t))) { var iso = isoFromDmy(m[1], m[2], m[3]); return iso && iso <= localDateStr() ? iso : ''; }
+  return '';
+}
+function pplImportData(data) {
+  if (!data || data.format !== 'sep-people' || !Array.isArray(data.people)) { uiAlert({ title: 'Not a details file', body: 'A file of workers’ details is marked sep-people and carries a list of people.' }); return; }
+  if (!pplOwnerOk(function() { pplImportData(data); })) return;
+  _pplImport = { rows: data.people.filter(function(r) { return r && r.name; }).map(function(r) { return { row: r, match: pplImportMatch(r.name, r.aliases) }; }) };
+  pplImportReview();
+}
+function pplImportText(text) {
+  var d;
+  try { d = JSON.parse(text); } catch (e) { showToast('Not valid JSON: ' + e.message, 'error'); return; }
+  pplImportData(d);
+}
+function pplImportReview() {
+  var R = _pplImport;
+  if (!R) return;
+  var opts = [['', 'Leave out']].concat((S.staff || []).slice().sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(w) { return [w.id, w.name + (w.active === false ? ' (inactive)' : '')]; }));
+  var rows = R.rows.map(function(x, i) {
+    var r = x.row, has = PPL_IMPORT_FIELDS.filter(function(f) { return r[f]; }).length + (r.emergency && (r.emergency.phone || r.emergency.name) ? 1 : 0) + ((r.ties || []).length ? 1 : 0);
+    var tone = x.match.id == null ? 'neutral' : x.match.sure ? 'ok' : 'warning', guess = !x.match.sure && x.match.id != null ? staffById(x.match.id) : null;
+    return '<div class="inv-row inv-row-2 inv-row-flow" data-ppl-import-row="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.name) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(has + ' detail' + (has === 1 ? '' : 's') + (r.designation ? ' · ' + r.designation : '') + (guess ? ' · could be ' + guess.name + ': pick to keep' : '')) + '</span></span>' +
+      '<span class="inv-row-end inv-row-actions">' + uiDot(tone, x.match.id == null ? 'Not found' : x.match.sure ? 'Found' : 'Could be') +
+      '<select class="inv-select" data-ppl-import-pick="' + i + '" aria-label="' + escHtml('Worker for ' + r.name) + '">' + opts.map(function(o) {
+        return '<option value="' + escHtml(String(o[0])) + '"' + (String(o[0]) === String(x.match.sure ? x.match.id : '') ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
+      }).join('') + '</select></span></div>';
+  }).join('');
+  var unsure = R.rows.filter(function(x) { return x.match.id != null && !x.match.sure; }).length, none = R.rows.filter(function(x) { return x.match.id == null; }).length;
+  dialogOpen('<div class="inv-dialog inv-dialog-wide" data-ppl-import>' + dialogHeadHtml('Workers’ details: check who is who') +
+    '<div class="inv-note">' + escHtml(R.rows.length + ' row' + (R.rows.length === 1 ? '' : 's') + ' in the file. ' + (unsure ? unsure + ' could be a worker but the name is not theirs in full: pick the worker to keep each. ' : '') +
+      (none ? none + ' match nobody on the roster and are left out unless you pick a worker. ' : '') + 'Only what a row carries is written; nothing is kept until you say so.') + '</div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8">' + rows + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplImportKeep">Keep the details</button></div></div>', { dismiss: true });
+}
+function pplImportKeep() {
+  if (!pplOwnerOk(pplImportKeep)) return;
+  var R = _pplImport;
+  if (!R) return;
+  var picks = {};
+  document.querySelectorAll('[data-ppl-import-pick]').forEach(function(sel) { picks[sel.dataset.pplImportPick] = sel.value; });
+  var count = {};
+  Object.keys(picks).forEach(function(i) { if (picks[i]) count[picks[i]] = (count[picks[i]] || 0) + 1; });
+  var dup = Object.keys(count).filter(function(id) { return count[id] > 1; }).map(function(id) { return (staffById(id) || {}).name; });
+  if (dup.length) { uiAlert({ title: 'Two rows on one worker', body: dup.join(', ') + (dup.length === 1 ? ' is' : ' are') + ' picked for more than one row. Pick one row for each, or leave the others out.' }); return; }
+  var badDates = 0, kept = 0, left = 0, idx = relayRosterIndex(S.staff || []);
+  R.rows.forEach(function(x, i) {
+    var w = picks[i] ? staffById(picks[i]) : null;
+    if (!w) { left++; return; }
+    var r = x.row, p = Object.assign({}, w.profile || {});
+    PPL_IMPORT_FIELDS.forEach(function(f) { if (r[f] != null && String(r[f]).trim() !== '') p[f] = String(r[f]).trim(); });
+    ['dob', 'joined'].forEach(function(f) { if (r[f] != null && String(r[f]).trim() !== '') { var d = pplImportDate(r[f]); if (d) p[f] = d; else { delete p[f]; if ((w.profile || {})[f]) p[f] = w.profile[f]; badDates++; } } });
+    if (p.idLast4) p.idLast4 = String(p.idLast4).replace(/\D/g, '').slice(-4);
+    if (p.bankLast4) p.bankLast4 = String(p.bankLast4).replace(/\D/g, '').slice(-4);
+    if (r.emergency && typeof r.emergency === 'object') {
+      var em = Object.assign({}, p.emergency || {});
+      ['name', 'relation', 'phone'].forEach(function(f) { if (r.emergency[f]) em[f] = String(r.emergency[f]).trim(); });
+      p.emergency = em;
+    }
+    w.profile = p;
+    if (Array.isArray(r.ties) && r.ties.length) {
+      var ties = Array.isArray(w.ties) ? w.ties.slice() : [];
+      r.ties.forEach(function(t) {
+        if (!t || !t.kind || !t.name || !PPL_TIES.some(function(k) { return k[0] === t.kind; })) return;
+        var m = relayMatchName(String(t.name).trim().split(/\s+/), idx, false), o = m && m.sure ? m.w : null;
+        var tie = o ? { kind: t.kind, staffId: o.id } : { kind: t.kind, name: String(t.name).trim() };
+        if (t.note) tie.note = String(t.note);
+        if (!ties.some(function(e) { return e.kind === tie.kind && (o ? String(e.staffId) === String(o.id) : e.name === tie.name); })) ties.push(tie);
+      });
+      w.ties = ties;
+    }
+    kept++;
+  });
+  _pplImport = null;
+  saveState();
+  closeOverlay();
+  if (navPageOf() === 'pageStaff') renderAttendance();
+  showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (badDates ? ' · ' + badDates + ' date' + (badDates === 1 ? '' : 's') + ' not readable or still to come, left out' : ''), left || badDates ? 'warning' : 'success');
+}
+
+/* ---------- At a glance: the roster's row (W3, the 6-second rule) ---------- */
+/* Three short bars with their figures (reliability, consistency, workload), the tenure, the two strongest skills, and for the
+   owner the motivation index: one look says who is steady, who is stretched, and who to talk to. */
+function pplGlanceHtml(w, memo) {
+  var st = pplStats(w), wt = pplWorkTone(st), stat = function(k, label, v, tone, word) {
+    return '<span class="inv-wstat" data-ppl-glance="' + k + '"><span class="inv-wstat-k">' + label + '</span>' + pplBarHtml(v, tone, label + ': ' + word) + '<span class="inv-wstat-v">' + escHtml(word) + '</span></span>';
+  };
+  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 2);
+  var h = '<span class="inv-wstats">' +
+    stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
+    stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
+    stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
+  var meta = [pplTenureWords(st.tenure), skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', '), st.firm ? '' : st.marked + ' days marked'].filter(Boolean).join(' · ');
+  if (pplOwner()) {
+    var mo = pplMotivation(w, st, memo);
+    meta += ' · ';
+    h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>';
+  } else h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + '</span>';
+  return h;
+}
+
+/* ---------- The To-do: a check-in due, a worker to talk to (the owner's) ---------- */
+TODO_RULES.push(['pplCheckin', 'People: a monthly check-in due']);
+TODO_CHECK_DEFAULTS.pplCheckin = true;
+TODO_RULE_NEED.pplCheckin = 'owner';
+TODO_RULE_FNS.pplCheckin = function() {
+  var today = localDateStr();
+  var due = (S.staff || []).filter(function(w) {
+    if (w.active === false) return false;
+    var ci = pplLastCheckin(w);
+    return (!ci || isoDaysBetween(ci.on, today) > 45) && pplStats(w).firm;
+  });
+  if (!due.length) return [];
+  return [{ key: 'pplCheckin', rule: 'pplCheckin', tone: 'info', title: due.length + ' worker' + (due.length === 1 ? '' : 's') + ' due a check-in',
+    sub: due.slice(0, 4).map(function(w) { return w.name; }).join(', ') + (due.length > 4 ? ' and ' + (due.length - 4) + ' more' : ''), why: 'People · the motivation index',
+    facts: due.slice(0, 8).map(function(w) { var ci = pplLastCheckin(w); return [w.name, ci ? 'last ' + formatDate(ci.on) : 'never']; }),
+    clears: 'Clears itself as each is checked in (their record, Check in).', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
+    sig: due.map(function(w) { return w.id; }).join(',') }];
+};
+TODO_RULES.push(['pplWatch', 'People: motivation low, on firm figures']);
+TODO_CHECK_DEFAULTS.pplWatch = true;
+TODO_RULE_NEED.pplWatch = 'owner';
+TODO_RULE_FNS.pplWatch = function() {
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
+  return (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) { return { w: w, mo: pplMotivation(w, null, memo) }; })
+    .filter(function(x) { return x.mo.firm && x.mo.score < 50; }).map(function(x) {
+      return { key: 'pplWatch:' + x.w.id, rule: 'pplWatch', tone: 'red', title: x.w.name + ': motivation ' + x.mo.score,
+        sub: x.mo.sig.length ? x.mo.sig[0].word : 'the check-in', why: 'People · the motivation index',
+        facts: x.mo.sig.map(function(s) { return [s.word, '−' + s.weight]; }).concat(x.mo.checkin ? [['Check-in ' + formatDate(x.mo.checkin.on), x.mo.checkin.score + ' of 5' + (x.mo.checkin.note ? ': ' + x.mo.checkin.note : '')]] : []),
+        clears: 'Clears itself when the index is 50 or more: a signal resolved, or a better check-in.', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
+        sig: x.w.id + ':' + x.mo.score };
+    });
+};
+/* ===== QR CODES, made here: no library, no network =====
+   The ID cards (idcard.js) and the office check-in sheet carry a QR code (owner, 7 Oct 2026). A library would be a second
+   copy of code to keep, and a service would send a worker's card number off the device, so the app draws its own: byte
+   mode, error correction M (15% of the code may be lost: a card in a pocket), versions 1 to 10 (up to 213 bytes, the office
+   check-in link included). `qrMatrix(text)` gives the modules, `qrSvg(text)` an SVG whose squares are attributes, never a
+   style. Checked by decoding what it draws (P169). */
+
+// Per version (1–10), error correction M: [ec codewords a block, [blocks, data codewords]...].
+var QR_EC_M = [null, [10, [1, 16]], [16, [1, 28]], [26, [1, 44]], [18, [2, 32]], [24, [2, 43]], [16, [4, 27]], [18, [4, 31]],
+  [22, [2, 38], [2, 39]], [22, [3, 36], [2, 37]], [26, [4, 43], [1, 44]]];
+var QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+
+/* Arithmetic in GF(256), polynomial 0x11d. */
+var QR_EXP = [], QR_LOG = [];
+(function() { var x = 1; for (var i = 0; i < 255; i++) { QR_EXP[i] = x; QR_LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11d; } for (var j = 255; j < 512; j++) QR_EXP[j] = QR_EXP[j - 255]; })();
+function qrMul(a, b) { return a && b ? QR_EXP[QR_LOG[a] + QR_LOG[b]] : 0; }
+/* The Reed–Solomon remainder of `data` for `n` error correction codewords. */
+function qrRs(data, n) {
+  var gen = [1];
+  for (var i = 0; i < n; i++) {
+    var next = [];
+    for (var j = 0; j <= gen.length; j++) next[j] = (j < gen.length ? gen[j] : 0) ^ (j > 0 ? qrMul(gen[j - 1], QR_EXP[i]) : 0);
+    gen = next;
+  }
+  var res = data.slice().concat(new Array(n).fill(0));
+  for (var k = 0; k < data.length; k++) {
+    var c = res[k];
+    if (c) for (var m = 1; m < gen.length; m++) res[k + m] ^= qrMul(gen[m], c);
+  }
+  return res.slice(data.length);
+}
+function qrUtf8(text) {
+  var s = unescape(encodeURIComponent(String(text))), out = [];
+  for (var i = 0; i < s.length; i++) out.push(s.charCodeAt(i));
+  return out;
+}
+function qrDataCw(v) { var t = QR_EC_M[v]; return t.slice(1).reduce(function(s, g) { return s + g[0] * g[1]; }, 0); }
+/* The codewords: mode, count, the bytes, terminator, padding; then split into blocks, each with its remainder, interleaved. */
+function qrCodewords(bytes, v) {
+  var bits = [], put = function(val, len) { for (var i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+  put(4, 4); put(bytes.length, v < 10 ? 8 : 16);
+  bytes.forEach(function(b) { put(b, 8); });
+  var cap = qrDataCw(v) * 8;
+  for (var t = 0; t < 4 && bits.length < cap; t++) bits.push(0);
+  while (bits.length % 8) bits.push(0);
+  var cw = [];
+  for (var i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (var p = 0; cw.length < cap / 8; p++) cw.push(p % 2 ? 0x11 : 0xEC);
+  var ec = QR_EC_M[v][0], blocks = [], at = 0;
+  QR_EC_M[v].slice(1).forEach(function(g) { for (var b = 0; b < g[0]; b++) { var d = cw.slice(at, at + g[1]); at += g[1]; blocks.push({ d: d, e: qrRs(d, ec) }); } });
+  var out = [], max = Math.max.apply(null, blocks.map(function(b) { return b.d.length; }));
+  for (var x = 0; x < max; x++) blocks.forEach(function(b) { if (x < b.d.length) out.push(b.d[x]); });
+  for (var y = 0; y < ec; y++) blocks.forEach(function(b) { out.push(b.e[y]); });
+  return out;
+}
+function qrBch(val, poly, polyBits) {
+  var v = val << (polyBits - 1);
+  for (var i = 31; i >= polyBits - 1; i--) if ((v >> i) & 1) v ^= poly << (i - polyBits + 1);
+  return v;
+}
+var QR_MASKS = [
+  function(r, c) { return (r + c) % 2 === 0; }, function(r) { return r % 2 === 0; }, function(r, c) { return c % 3 === 0; },
+  function(r, c) { return (r + c) % 3 === 0; }, function(r, c) { return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0; },
+  function(r, c) { return (r * c) % 2 + (r * c) % 3 === 0; }, function(r, c) { return ((r * c) % 2 + (r * c) % 3) % 2 === 0; },
+  function(r, c) { return ((r + c) % 2 + (r * c) % 3) % 2 === 0; }];
+
+/* The modules of `text`, a square of true (dark) and false, or null when it is past version 10. */
+function qrMatrix(text) {
+  var bytes = qrUtf8(text), v = 1;
+  while (v <= 10 && bytes.length + (v < 10 ? 2 : 3) > qrDataCw(v)) v++;
+  if (v > 10) return null;
+  var n = 17 + 4 * v, m = [], fn = [];
+  for (var r = 0; r < n; r++) { m.push(new Array(n).fill(false)); fn.push(new Array(n).fill(false)); }
+  var set = function(r, c, d) { m[r][c] = d; fn[r][c] = true; };
+  var finder = function(r0, c0) {
+    for (var r = -1; r <= 7; r++) for (var c = -1; c <= 7; c++) {
+      var rr = r0 + r, cc = c0 + c;
+      if (rr < 0 || cc < 0 || rr >= n || cc >= n) continue;
+      set(rr, cc, r >= 0 && r <= 6 && c >= 0 && c <= 6 && (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)));
+    }
+  };
+  finder(0, 0); finder(0, n - 7); finder(n - 7, 0);
+  for (var i = 8; i < n - 8; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  var al = QR_ALIGN[v];
+  al.forEach(function(ar) { al.forEach(function(ac) {
+    if ((ar === 6 && ac === 6) || (ar === 6 && ac === n - 7) || (ar === n - 7 && ac === 6)) return;
+    for (var r = -2; r <= 2; r++) for (var c = -2; c <= 2; c++) set(ar + r, ac + c, Math.max(Math.abs(r), Math.abs(c)) !== 1);
+  }); });
+  // Reserve the format areas (written per mask below) and the dark module; the version areas from version 7.
+  for (var f = 0; f < 9; f++) { fn[8][f] = true; fn[f][8] = true; }
+  for (var g = 0; g < 8; g++) { fn[8][n - 1 - g] = true; fn[n - 1 - g][8] = true; }
+  set(n - 8, 8, true);
+  if (v >= 7) {
+    var vb = (v << 12) | qrBch(v, 0x1F25, 13);
+    for (var b = 0; b < 18; b++) { var dk = ((vb >> b) & 1) === 1, a = Math.floor(b / 3), cc2 = n - 11 + b % 3; set(a, cc2, dk); set(cc2, a, dk); }
+  }
+  // The data, up and down in two-column strips from the bottom right, skipping the timing column.
+  var cw = qrCodewords(bytes, v), bits = [];
+  cw.forEach(function(x) { for (var k = 7; k >= 0; k--) bits.push((x >> k) & 1); });
+  var idx = 0, up = true;
+  for (var col = n - 1; col > 0; col -= 2) {
+    if (col === 6) col--;
+    for (var s = 0; s < n; s++) {
+      var row = up ? n - 1 - s : s;
+      for (var d = 0; d < 2; d++) { var c = col - d; if (!fn[row][c]) { m[row][c] = idx < bits.length ? bits[idx] === 1 : false; idx++; } }
+    }
+    up = !up;
+  }
+  // The mask that leaves the fewest penalties.
+  var best = null, bestScore = Infinity;
+  for (var k2 = 0; k2 < 8; k2++) {
+    var t = m.map(function(row2) { return row2.slice(); });
+    for (var r2 = 0; r2 < n; r2++) for (var c3 = 0; c3 < n; c3++) if (!fn[r2][c3] && QR_MASKS[k2](r2, c3)) t[r2][c3] = !t[r2][c3];
+    qrFormat(t, n, k2);
+    var sc = qrPenalty(t, n);
+    if (sc < bestScore) { bestScore = sc; best = t; }
+  }
+  return best;
+}
+/* The format bits (level M, the mask), twice: round the top-left finder, and split between the other two. */
+function qrFormat(t, n, mask) {
+  var data = (0 << 3) | mask, bits = ((data << 10) | qrBch(data, 0x537, 11)) ^ 0x5412;
+  for (var i = 0; i < 15; i++) {
+    var dk = ((bits >> i) & 1) === 1;
+    if (i < 6) t[i][8] = dk; else if (i === 6) t[7][8] = dk; else if (i === 7) t[8][8] = dk; else if (i === 8) t[8][7] = dk; else t[8][14 - i] = dk;
+    if (i < 8) t[8][n - 1 - i] = dk; else t[n - 15 + i][8] = dk;
+  }
+  t[n - 8][8] = true;
+}
+function qrPenalty(t, n) {
+  var p = 0, r, c, run, dark = 0;
+  for (r = 0; r < n; r++) {
+    for (var dir = 0; dir < 2; dir++) {
+      run = 1;
+      for (c = 1; c < n; c++) {
+        var a = dir ? t[c][r] : t[r][c], b = dir ? t[c - 1][r] : t[r][c - 1];
+        if (a === b) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1;
+      }
+    }
+  }
+  for (r = 0; r < n - 1; r++) for (c = 0; c < n - 1; c++) { var q = t[r][c]; if (q === t[r + 1][c] && q === t[r][c + 1] && q === t[r + 1][c + 1]) p += 3; }
+  var pat = [true, false, true, true, true, false, true];
+  var at = function(rr, cc, h) { return h ? t[rr][cc] : t[cc][rr]; };
+  for (r = 0; r < n; r++) for (c = 0; c + 6 < n; c++) for (var h = 0; h < 2; h++) {
+    var ok = true;
+    for (var k = 0; k < 7 && ok; k++) ok = at(r, c + k, h) === pat[k];
+    if (!ok) continue;
+    var light = function(from, to) { for (var x = from; x < to; x++) { if (x < 0 || x >= n) continue; if (at(r, x, h)) return false; } return true; };
+    if (light(c - 4, c) || light(c + 7, c + 11)) p += 40;
+  }
+  for (r = 0; r < n; r++) for (c = 0; c < n; c++) if (t[r][c]) dark++;
+  p += Math.floor(Math.abs(dark * 100 / (n * n) - 50) / 5) * 10;
+  return p;
+}
+/* An SVG of the code with its quiet zone: one path of dark squares, its size set by the stylesheet. */
+function qrSvg(text, label) {
+  var mx = qrMatrix(text);
+  if (!mx) return '';
+  var n = mx.length, q = 4, d = '';
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (mx[r][c]) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
+  return '<svg class="inv-qr" viewBox="0 0 ' + (n + 2 * q) + ' ' + (n + 2 * q) + '" shape-rendering="crispEdges" role="img" aria-label="' + escHtml(label || 'QR code') + '">' +
+    '<rect class="inv-qr-bg" width="' + (n + 2 * q) + '" height="' + (n + 2 * q) + '"></rect><path class="inv-qr-fg" d="' + d + '"></path></svg>';
+}
+/* ===== ID CARDS, and the scanner that reads them into the day =====
+   Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W4): *"Every employee must also have an ID Card, which I can take a print out
+   later, if needed. That becomes a tag that every worker gets, we will have a QR code scanner in it that should be linked and
+   scannable to the attendance logger in the app."*
+
+   - A card number per worker (`w.card`, SEP-0007), given the first time a card is printed and never given again: a worker who
+     leaves keeps theirs, and a card replaced (lost, damaged) moves the old number to `w.cardsRetired` with a reason, so the
+     old card is refused when scanned. The QR carries `SEP1:W:<card>:<check>`; the check is two characters worked from the
+     card number, so a misread or a typed slip is caught. It identifies; the scanner's hand in front of the worker is the
+     safeguard, as a signature on the roll is.
+   - The cards print through the one print view: the company, the name, the designation, the card number, the blood group and
+     the QR, credit-card size, ten to an A4 sheet. The owner's alone.
+   - The scanner (Staff → Day → Scan cards): the camera reads a card where the browser can (BarcodeDetector), else the card
+     number is typed. The first scan of a worker's day is the in-time, every later one the out-time; the mark is the hand's own
+     (no `src: 'relay'`), so a roll never rewrites it, and hours follow the one rule (relayHoursOf). A scan within two minutes
+     of the worker's last is the same scan. Each scan lands on the screen at once with Undo. A floor entry for the guard. */
+
+var IDC_RE = /^SEP1:W:(SEP-\d{4,}):([0-9A-Z]{2})$/;
+var IDC_SAME_MS = 2 * 60000;
+var _idcLog = [];           // this sitting's scans, newest first: {iso, staffId, name, kind, min, prev, prevScans}
+var _idcStream = null, _idcTimer = null, _idcBusy = false;
+
+function idcCheck(card) {
+  var s = String(card), n = 0;
+  for (var i = 0; i < s.length; i++) n += s.charCodeAt(i) * (i + 1);
+  return ('0' + (n % 1296).toString(36).toUpperCase()).slice(-2);
+}
+function idcPayload(card) { return 'SEP1:W:' + card + ':' + idcCheck(card); }
+function idcNum(card) { var m = /^SEP-(\d+)$/.exec(String(card || '')); return m ? +m[1] : 0; }
+/* The next number: past every card ever given, retired ones included. */
+function idcNext() {
+  var hi = +S.cardSeq || 0;   // the highest ever given: a worker deleted or merged away takes no number back
+  (S.staff || []).forEach(function(w) {
+    hi = Math.max(hi, idcNum(w.card));
+    (w.cardsRetired || []).forEach(function(r) { hi = Math.max(hi, idcNum(r.card)); });
+  });
+  return 'SEP-' + String(hi + 1).padStart(4, '0');
+}
+function idcEnsure(w) { if (!w.card) { w.card = idcNext(); S.cardSeq = Math.max(+S.cardSeq || 0, idcNum(w.card)); } return w.card; }
+/* Who a scan or a typed number names: {w} or {why}. */
+function idcResolve(raw) {
+  var s = String(raw || '').trim().toUpperCase(), card = null, m = IDC_RE.exec(s);
+  if (m) { if (idcCheck(m[1]) !== m[2]) return { why: 'The code did not read cleanly: scan it again.' }; card = m[1]; }
+  else if (/^(SEP-?)?\d{1,6}$/.test(s)) card = 'SEP-' + String(+s.replace(/\D/g, '')).padStart(4, '0');
+  else return { why: 'Not one of this shop’s cards.' };
+  var w = (S.staff || []).find(function(x) { return x.card === card; });
+  if (w) return w.active === false ? { why: w.name + ' is not on the active roster.' } : { w: w, card: card };
+  var old = (S.staff || []).find(function(x) { return (x.cardsRetired || []).some(function(r) { return r.card === card; }); });
+  return { why: old ? 'Card ' + card + ' was replaced: ' + old.name + ' carries ' + (old.card || 'a new card') + ' now.' : 'No worker holds card ' + card + '.' };
+}
+
+/* One scan into the day: the first the in-time, a later one the out-time. */
+function idcScan(raw, at) {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return { ok: false, why: 'Your ID does not enter attendance.' };
+  var r = idcResolve(raw);
+  if (!r.w) return { ok: false, why: r.why };
+  var res = idcApply(r.w, r.card, at ? new Date(at) : new Date(), 'scan');
+  if (res.ok) saveState();
+  return res;
+}
+/* A card's time into the day, a scan's or an office check-in's (checkin.js), on the day the time belongs to (never the day it
+   was read). The day's earliest time is the in, its latest the out, whatever order they arrive in, and a time already on the
+   mark (a roll's 6 AM block, an out typed) is kept beside the scans: a scan widens the day, never narrows it. A time before noon
+   for a hand whose day before has only an in from 4 PM on (an evening block, the night hold) is that day's out, past midnight
+   (+1440, the Day screen's convention). Hours follow the Day screen's rule (attTimesApply). */
+var IDC_NIGHT_IN = 960, IDC_NIGHT_OUT = 720, IDC_SPAN_MAX = 16 * 60;
+function idcApply(w, card, now, via, extra) {
+  var iso = isoOf(now), min = now.getHours() * 60 + now.getMinutes(), id = w.id;
+  if (min < IDC_NIGHT_OUT) {
+    var yIso = isoAddDays(iso, -1), yRec = typeof attDay === 'function' ? attDay(yIso, false) : null, yList = yRec && yRec.scans && yRec.scans[id];
+    if (yList && yList.length === 1 && yList[0].min >= IDC_NIGHT_IN && min + 1440 - yList[0].min <= IDC_SPAN_MAX) { iso = yIso; min += 1440; }
+  }
+  var rec = attDay(iso, true);
+  rec.scans = rec.scans || {};
+  var list = rec.scans[id] || [];
+  var near = list.find(function(x) { return Math.abs(now.getTime() - x.at) < IDC_SAME_MS; });
+  if (near) return { ok: false, why: w.name + ' was scanned a moment ago.', w: w, same: true };
+  var prev = rec.marks[id] ? JSON.parse(JSON.stringify(rec.marks[id])) : null, prevScans = list.slice();
+  // A mark already on the day (a roll's, one typed) keeps its times; an absence or no mark becomes present.
+  var had = rec.marks[id] && rec.marks[id].st !== 'A' ? rec.marks[id] : null;
+  var m = had || { st: 'P', area: (rec.marks[id] && rec.marks[id].area) || w.area || 'flex' };
+  var scan = Object.assign({ min: min, at: now.getTime(), card: card }, via && via !== 'scan' ? { via: via } : {}, extra || {});
+  var all = list.concat([scan]).sort(function(a, b) { return a.min - b.min || a.at - b.at; });
+  var times = all.map(function(x) { return x.min; });
+  if (had && had.inMin != null && !list.length) times.push(had.inMin);
+  if (had && had.outMin != null && (had.src === 'relay' ? had.outKnown : had.outKnown !== false)) times.push(had.outMin);
+  var lo = Math.min.apply(null, times), hi = Math.max.apply(null, times);
+  var kind = all[0] === scan && min === lo ? 'in' : 'out';
+  m.inMin = lo;
+  if (hi > lo) { m.outMin = hi; m.outKnown = true; } else delete m.outMin;
+  attTimesApply(m, w);
+  delete m.src;   // the hand's own: a roll never rewrites it
+  rec.marks[id] = m;
+  rec.scans[id] = all;
+  _idcLog.unshift({ iso: iso, staffId: id, name: w.name, kind: kind, min: min, prev: prev, prevScans: prevScans });
+  return { ok: true, w: w, kind: kind, min: min, iso: iso };
+}
+function idcUndo() {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return;
+  var x = _idcLog.shift();
+  if (!x) return;
+  var rec = attDay(x.iso, false);
+  if (!rec) return;
+  if (x.prev) rec.marks[x.staffId] = x.prev; else delete rec.marks[x.staffId];
+  rec.scans = rec.scans || {};
+  if (x.prevScans.length) rec.scans[x.staffId] = x.prevScans; else delete rec.scans[x.staffId];
+  saveState();
+  idcLogDraw('Undone: ' + x.name + ' ' + (x.kind === 'in' ? 'in' : 'out') + ' at ' + relayClockLabel(x.min));
+  if (navPageOf() === 'pageStaff' && typeof renderAttendance === 'function') renderAttendance();
+}
+
+/* ---------- The scanner ---------- */
+function idcScanOpen() {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return;
+  _idcLog = [];
+  var can = typeof window.BarcodeDetector === 'function' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  dialogOpen('<div class="inv-dialog" data-idc-scanner>' + dialogHeadHtml('Scan cards') +
+    (can ? '<video id="idcVideo" class="inv-idc-video" playsinline muted aria-label="Camera"></video>' : '') +
+    '<div class="inv-callout inv-callout-info" id="idcSay" aria-live="polite">' + (can ? 'Hold a card’s code in front of the camera. The first scan of the day is the in-time, the next the out-time.'
+      : 'This browser cannot read codes with the camera: type the number on the card.') + '</div>' +
+    '<div class="inv-toolbar inv-mt-8"><input class="inv-input" id="idcType" placeholder="Card number, SEP-0007" inputmode="text" autocomplete="off" aria-label="Card number">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invIdcType">Log it</button></div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8" id="idcLog"></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invIdcUndo">Undo the last</button><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true });
+  idcLogDraw();
+  if (can) idcCameraStart();
+  else { var t = document.getElementById('idcType'); if (t && !touchScreen()) t.focus(); }
+}
+function idcCameraStart() {
+  var det;
+  try { det = new window.BarcodeDetector({ formats: ['qr_code'] }); }
+  catch (e) { idcSay('This browser cannot read QR codes with the camera: type the number on the card.', 'warning'); return; }
+  idcCameraStop();
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function(stream) {
+    var v = document.getElementById('idcVideo');
+    if (!v || _idcStream) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+    _idcStream = stream; v.srcObject = stream;
+    var pl = v.play(); if (pl && pl.catch) pl.catch(function() {});
+    _idcTimer = setInterval(function() {
+      var vv = document.getElementById('idcVideo');
+      if (!vv) { idcCameraStop(); return; }
+      if (_idcBusy || vv.readyState < 2) return;
+      _idcBusy = true;
+      det.detect(vv).then(function(codes) { _idcBusy = false; if (codes && codes.length) idcFromScan(codes[0].rawValue); }).catch(function() { _idcBusy = false; });
+    }, 350);
+  }).catch(function(e) {
+    idcSay('The camera could not be opened (' + (e && e.name || 'refused') + '): type the number on the card.', 'warning');
+  });
+}
+function idcCameraStop() {
+  if (_idcTimer) { clearInterval(_idcTimer); _idcTimer = null; }
+  if (_idcStream) { _idcStream.getTracks().forEach(function(t) { t.stop(); }); _idcStream = null; }
+}
+function idcSay(text, tone) {
+  var el = document.getElementById('idcSay');
+  if (!el) return;
+  el.className = 'inv-callout inv-callout-' + (tone || 'info');
+  el.textContent = text;
+}
+function idcFromScan(raw) {
+  var r = idcScan(raw);
+  if (r.ok) { idcSay((r.kind === 'in' ? 'In: ' : 'Out: ') + r.w.name + ' at ' + relayClockLabel(r.min), 'ok'); idcLogDraw(); if (navPageOf() === 'pageStaff' && typeof renderAttendance === 'function') renderAttendance(); }
+  else if (!r.same) idcSay(r.why, 'warning');
+}
+/* A number typed carries no check characters, so a slip (17 for 7) would log the wrong hand: the name is said first, and the
+   same number logged on the second tap. A full code typed or read is logged at once. */
+var _idcTypedCard = null;
+function idcTyped(t) {
+  if (!t || !t.value.trim()) return;
+  var raw = t.value.trim();
+  if (!IDC_RE.test(raw.toUpperCase())) {
+    var r = idcResolve(raw);
+    if (r.w && _idcTypedCard !== r.card) { _idcTypedCard = r.card; idcSay(r.card + ' is ' + r.w.name + '. Log it again to log them.', 'info'); return; }
+  }
+  _idcTypedCard = null;
+  idcFromScan(raw);
+  t.value = '';
+}
+function idcLogDraw(note) {
+  var el = document.getElementById('idcLog');
+  if (!el) return;
+  if (note) idcSay(note, 'info');
+  el.innerHTML = '<div class="inv-panel-head"><span class="inv-panel-title">Logged here <span class="inv-panel-count">' + _idcLog.length + '</span></span></div>' +
+    (_idcLog.length ? _idcLog.map(function(x) {
+      return '<div class="inv-row inv-row-2" data-idc-row><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.iso)) + '</span></span>' +
+        '<span class="inv-row-end">' + uiDot(x.kind === 'in' ? 'ok' : 'info', (x.kind === 'in' ? 'In ' : 'Out ') + escHtml(relayClockLabel(x.min))) + '</span></div>';
+    }).join('') : '<div class="inv-empty">Nothing scanned yet.</div>');
+}
+/* The dialog shut any way, or the app put in the background: the camera goes off with it. */
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) { if (_idcStream || _idcTimer) idcCameraStop(); }
+  else if (document.getElementById('idcVideo') && !_idcStream) idcCameraStart();
+});
+new MutationObserver(function() { if ((_idcStream || _idcTimer) && !document.getElementById('idcVideo')) idcCameraStop(); }).observe(document.documentElement, { childList: true, subtree: true });
+
+/* ---------- The cards, printed (the owner's) ---------- */
+function idcOwnerOk(again) {
+  if (typeof pplOwner === 'function' && !pplOwner()) { uiAlert({ title: 'The owner’s to print', body: 'ID cards are printed by the owner.' }); return false; }
+  return typeof grdGate !== 'function' || grdGate('payments', 'Print ID cards', again);
+}
+function idcPrintOpen(onlyId) {
+  if (!idcOwnerOk(function() { idcPrintOpen(onlyId); })) return;
+  var list = (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
+  if (!list.length) return uiAlert({ title: 'Nobody on the roster', body: 'Add the workers first; each gets a card.' });
+  dialogOpen('<div class="inv-dialog" data-idc-print>' + dialogHeadHtml('ID cards') +
+    '<div class="inv-note">Ten to an A4 sheet, credit-card size. A worker printed for the first time is given the next card number; it is theirs for good.</div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8">' + list.map(function(w) {
+      return '<label class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span><span class="inv-row-meta">' + escHtml(w.card || 'no card yet') + '</span></span>' +
+        '<span class="inv-row-end"><input type="checkbox" class="inv-check" data-idc-pick="' + escHtml(String(w.id)) + '"' + (onlyId == null || String(onlyId) === String(w.id) ? ' checked' : '') + '></span></label>';
+    }).join('') + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invIdcPreview">Preview</button></div></div>', { dismiss: true });
+}
+function idcCardHtml(w) {
+  var co = (S.company && (S.company.name || S.company.companyName)) || '', p = w.profile || {};
+  return '<div class="inv-idc" data-idc-card="' + escHtml(w.card) + '"><div class="inv-idc-main"><div class="inv-idc-co">' + escHtml(co) + '</div><div class="inv-idc-label">Identity card</div>' +
+    '<div class="inv-idc-name">' + escHtml(w.name) + '</div>' + (p.designation ? '<div class="inv-idc-row">' + escHtml(p.designation) + '</div>' : '') +
+    '<div class="inv-idc-row"><b>' + escHtml(w.card) + '</b>' + (p.bloodGroup ? ' · Blood ' + escHtml(p.bloodGroup) : '') + '</div>' +
+    (p.joined ? '<div class="inv-idc-row">Since ' + escHtml(formatDate(p.joined)) + '</div>' : '') + '</div>' +
+    '<div class="inv-idc-qr">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div></div>';
+}
+function idcPreview() {
+  if (!idcOwnerOk(idcPreview)) return;
+  var ids = [];
+  document.querySelectorAll('[data-idc-pick]').forEach(function(el) { if (el.checked) ids.push(el.dataset.idcPick); });
+  var ws = ids.map(staffById).filter(Boolean);
+  if (!ws.length) { showToast('Pick at least one worker', 'error'); return; }
+  var given = 0;
+  ws.forEach(function(w) { if (!w.card) { idcEnsure(w); given++; } });
+  if (given) saveState();
+  var h = '';
+  for (var i = 0; i < ws.length; i += 10) h += '<div class="inv-idc-sheet">' + ws.slice(i, i + 10).map(idcCardHtml).join('') + '</div>';
+  closeOverlay();
+  document.getElementById('invPrintBody').innerHTML = h;
+  document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  document.title = 'ID cards';
+}
+/* A card lost or damaged: a new number, the old one refused from now on. */
+function idcReplace(id) {
+  if (!idcOwnerOk(function() { idcReplace(id); })) return;
+  var w = staffById(id);
+  if (!w || !w.card) return;
+  uiPrompt({ title: 'Replace ' + w.name + '’s card', label: 'Why (lost, damaged…): the old card is refused from now on', required: true }).then(function(why) {
+    if (why == null || !String(why).trim()) return;
+    w.cardsRetired = Array.isArray(w.cardsRetired) ? w.cardsRetired : [];
+    w.cardsRetired.push({ card: w.card, on: localDateStr(), why: String(why).trim() });
+    w.card = null;
+    idcEnsure(w);
+    saveState();
+    closeOverlay();
+    showToast(w.name + ' now carries ' + w.card + ': print the new card');
+  });
+}
+/* On the worker's record: the card and its code, and for the owner print and replace. */
+function idcRecordHtml(w) {
+  var owner = typeof pplOwner !== 'function' || pplOwner();
+  if (!w.card && !owner) return '';
+  return '<div class="inv-panel inv-panel-flush" data-idc-record="' + escHtml(String(w.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">ID card</span>' +
+    '<span class="inv-row-meta">' + escHtml(w.card || 'none yet') + '</span></div>' +
+    (w.card && owner ? '<div class="inv-panel-body inv-idc-small">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div>' : '') +
+    (owner ? '<div class="inv-toolbar inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invIdcPrint" data-id="' + escHtml(String(w.id)) + '">' + (w.card ? 'Print the card' : 'Give a card') + '</button>' +
+      (w.card ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invIdcReplace" data-id="' + escHtml(String(w.id)) + '">Replace the card</button>' : '') + '</div>' : '') + '</div>';
+}
+
+function idcAction(action, btn) {
+  switch (action) {
+    case 'invIdcScan': idcScanOpen(); return true;
+    case 'invIdcType': {
+      idcTyped(document.getElementById('idcType'));
+      return true;
+    }
+    case 'invIdcUndo': idcUndo(); return true;
+    case 'invIdcPrint': idcPrintOpen(btn.dataset.id != null ? btn.dataset.id : null); return true;
+    case 'invIdcPreview': idcPreview(); return true;
+    case 'invIdcReplace': idcReplace(btn.dataset.id); return true;
+  }
+  return false;
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target && e.target.id === 'idcType') { e.preventDefault(); idcTyped(e.target); }
+});
+/* ===== THE OFFICE QR: a worker checks in from their own phone =====
+   Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W5): *"a universal QR Code that I can print and keep in the office which
+   workers can scan via their camera and open a link and mark attendance, we would need safeguards for proxy"*; they chose
+   the WhatsApp route with checks, since the app has no server to receive a check-in.
+
+   - **The sheet** (Staff → Roster → Office QR, the owner's): one QR of a link to `checkin.html`, carrying in its fragment
+     (never sent to any server) the office's WhatsApp number, the plant's location and radius, a key and the company's name.
+     None of it is in the build: it is the book's (`S.checkinCfg`), drawn into the sheet when it is printed.
+   - **The worker's phone** opens checkin.html: the card number (remembered on that phone), the time, the phone's location,
+     and a code worked from the key, the card and the time (`ckCode`, the same arithmetic on both sides). One tap opens
+     WhatsApp to the office number with the message written; the worker sends it.
+   - **The office reads the chat** through the one paste box, like a roll: every check-in is shown with its checks before
+     anything is saved (`ckReview`), and saved as a card scan is (`idcApply`, `via: 'checkin'`).
+   - **The checks against a proxy**, each said on its row: the card is a live card; the code matches (a message typed or
+     changed by hand does not); it came from the worker's own phone (the number on their record, or a contact named as
+     them); the phone was inside the plant's radius; it was sent when it says it was made; the time is within the shop's
+     hours; one phone checked in one worker that day. A row failing one is red and left unticked; the owner may still tick it.
+     Warn, never block; a check-in with no place shared or from a phone nobody knows is left unticked. **What it cannot stop**,
+     and the setup says so: a phone that fakes its location, and a check-in made at the plant on another's card and passed to
+     them to send (the sender check proves which phone sent it, not where it was). The code covers the card, the time, the
+     place and the phone's own card, so changing any of them by hand fails it; it is not a secret from anyone holding the sheet. */
+
+var CK_HEAD_RE = /^\s*\*?sep\s*check-?\s*in\*?\s*$/i;
+var CK_LATE_MIN = 10;          // sent this long after the time it carries: made earlier, sent later
+var CK_ROUGH_M = 150;          // a location rougher than this is said
+var CK_HOURS = [300, 1440 + 60];   // 5 AM to 1 AM: outside it a check-in is asked about
+
+/* The code: FNV-1a over key|card|day|minute|place|the phone's own card, four base-36 characters, so the place line and the
+   phone line cannot be changed without it failing. checkin.html carries the same function. */
+function ckCode(key, card, iso, min, place, phone) {
+  var s = String(key) + '|' + String(card) + '|' + String(iso) + '|' + String(min) + '|' + String(place || 'none') + '|' + String(phone || ''), h = 0x811c9dc5;
+  for (var i = 0; i < s.length; i++) { h ^= s.charCodeAt(i); h = Math.imul(h, 0x01000193) >>> 0; }
+  return ('0000' + (h % 1679616).toString(36).toUpperCase()).slice(-4);
+}
+function ckCfg() { return S.checkinCfg || {}; }
+function ckDigits(s) { return String(s || '').replace(/\D/g, ''); }
+function ckMetres(la1, lo1, la2, lo2) {
+  var r = Math.PI / 180, a = Math.sin((la2 - la1) * r / 2), b = Math.sin((lo2 - lo1) * r / 2);
+  var h = a * a + Math.cos(la1 * r) * Math.cos(la2 * r) * b * b;
+  return Math.round(2 * 6371000 * Math.asin(Math.min(1, Math.sqrt(h))));
+}
+
+/* A check-in message as checkin.html writes it, or null:
+     SEP check-in / Card SEP-0007 / Time 07/10/2026 08:27 / Place 22.801230,86.150120 ±12 m / Code 4F7K */
+function ckParse(text) {
+  var lines = String(text || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean);
+  if (!lines.length || !CK_HEAD_RE.test(lines[0])) return null;
+  var r = { card: null, iso: null, min: null, lat: null, lng: null, acc: null, place: '', placeRaw: '', phoneCard: '', code: '' };
+  lines.slice(1).forEach(function(l) {
+    var m;
+    if ((m = /^card\s+(?:SEP-?)?(\d{1,6})\b/i.exec(l))) r.card = 'SEP-' + String(+m[1]).padStart(4, '0');
+    else if ((m = /^time\s+(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})\b/i.exec(l))) { r.iso = isoFromDmy(m[1], m[2], m[3]); r.min = +m[4] * 60 + +m[5]; if (+m[4] > 23 || +m[5] > 59) r.min = null; }
+    else if ((m = /^place\s+(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)(?:\s*±\s*(\d+)\s*m)?/i.exec(l))) { r.lat = +m[1]; r.lng = +m[2]; r.acc = m[3] != null ? +m[3] : null; r.placeRaw = m[1] + ',' + m[2]; }
+    else if ((m = /^phone\s+(?:SEP-?)?(\d{1,6})\b/i.exec(l))) r.phoneCard = 'SEP-' + String(+m[1]).padStart(4, '0');
+    else if ((m = /^place\s+(.*)$/i.exec(l))) r.place = m[1];
+    else if ((m = /^code\s+([0-9A-Z]{4})\b/i.exec(l))) r.code = m[1].toUpperCase();
+  });
+  return r;
+}
+/* The check-ins in a paste: its messages, each with what was read. Check-ins pasted without their WhatsApp lines arrive as one
+   message: each head starts one of its own. A bracketed (iPhone) date read month-first is turned round when the other way
+   is the nearer to the day the check-in carries. */
+function ckFromText(text) {
+  var out = [];
+  relaySplit(text).forEach(function(m) {
+    var parts = [], cur = null;
+    m.text.split('\n').forEach(function(l) { if (CK_HEAD_RE.test(l)) { cur = [l]; parts.push(cur); } else if (cur) cur.push(l); });
+    parts.forEach(function(p, i) {
+      var read = ckParse(p.join('\n'));
+      if (!read) return;
+      var msg = Object.assign({}, m, { text: p.join('\n') });
+      if (msg.sentOn && read.iso) {
+        var d = msg.sentOn.split('-'), alt = +d[2] <= 12 ? d[0] + '-' + d[2] + '-' + d[1] : null;
+        if (alt && alt !== msg.sentOn && Math.abs(isoDaysBetween(read.iso, alt)) < Math.abs(isoDaysBetween(read.iso, msg.sentOn))) msg.sentOn = alt;
+      }
+      out.push({ msg: msg, read: read });
+    });
+  });
+  return out;
+}
+/* The ten-digit tails of the numbers on a worker's record (two may be written, with or without a separator). */
+function ckPhones(phone) {
+  var out = [];
+  (String(phone || '').match(/\+?\d[\d\s\-]{8,}\d/g) || []).forEach(function(run) {
+    var d = ckDigits(run);
+    if (d.length >= 20) { for (var i = 0; i + 10 <= d.length; i += 10) out.push(d.slice(i, i + 10)); out.push(d.slice(-10)); }
+    else if (d.length >= 10) out.push(d.slice(-10));
+  });
+  return out;
+}
+/* A sender as one key, to tell one phone from another. */
+function ckSenderKey(sentBy) { var d = ckDigits(sentBy); return d.length >= 10 ? d.slice(-10) : relayKey(sentBy); }
+
+/* Whose phone a sender is: the worker whose record holds its number, or who is named as the contact. {w} or {none} or {unknown}. */
+function ckSender(sentBy) {
+  var s = String(sentBy || '').trim();
+  if (!s) return { unknown: true };
+  var d = ckDigits(s);
+  var staff = (S.staff || []).filter(function(w) { return w.active !== false; });
+  if (d.length >= 10 && d.length >= s.replace(/[\s+()\-]/g, '').length - 1) {
+    var tail = d.slice(-10);
+    var hit = staff.filter(function(w) { return ckPhones((w.profile || {}).phone).indexOf(tail) >= 0; });
+    return hit.length === 1 ? { w: hit[0], by: 'number' } : hit.length ? { shared: hit } : { none: true, number: true };
+  }
+  var k = relayKey(s);
+  var named = staff.filter(function(w) {
+    return [w.name].concat(w.relayNames || [], w.aliases || []).some(function(n) { return relayKey(n) === k; }) || relayKey(String(w.name).split(/\s+/)[0]) === k;
+  });
+  return named.length === 1 ? { w: named[0], by: 'name' } : { none: true };
+}
+
+/* Every check-in with its checks: {x, w, card, at, tone, notes: [[tone, text]], tick, done}. Pure but for the book. */
+function ckReview(items, cfg) {
+  cfg = cfg || ckCfg();
+  var out = items.map(function(x) {
+    var r = x.read, m = x.msg, notes = [], red = function(t) { notes.push(['danger', t]); }, amber = function(t) { notes.push(['warning', t]); };
+    var row = { x: x, notes: notes, w: null, card: r.card, iso: r.iso, min: r.min, sender: ckSender(m.sentBy), done: false, weak: false };
+    if (!r.card || !r.iso || r.min == null) { red('Not a whole check-in: the card or the time is missing.'); return row; }
+    var who = idcResolve(r.card);
+    if (!who.w) red(who.why); else row.w = who.w;
+    var d = new Date(r.iso + 'T00:00:00'); d.setMinutes(r.min);
+    row.at = d.getTime();
+    // The code: what the office sheet's page worked out, or a message typed or changed by hand.
+    if (!cfg.key) amber('The office QR has no key yet: the code cannot be checked.');
+    else if (r.code !== ckCode(cfg.key, r.card, r.iso, r.min, r.placeRaw, r.phoneCard)) red('The code does not match: typed or changed by hand (the place included), or from an old sheet.');
+    if (m.edited) red('Edited after it was sent.');
+    // The phone's own card: the card this phone was first set up with, when another was typed on it.
+    if (r.phoneCard && r.phoneCard !== r.card) { var pw = idcResolve(r.phoneCard).w; red('This phone is set up for ' + (pw ? pw.name + ' (' + r.phoneCard + ')' : r.phoneCard) + '.'); }
+    // Whose phone.
+    var sd = row.sender;
+    if (sd.unknown) { amber('Who sent it is not shown: paste it with its WhatsApp line.'); row.weak = true; }
+    else if (sd.w && row.w && sd.w !== row.w) red('Sent from ' + sd.w.name + '’s phone.');
+    else if (sd.shared) {
+      if (row.w && sd.shared.indexOf(row.w) < 0) red('Sent from a number on ' + sd.shared.map(function(w) { return w.name; }).join(' and ') + '’s records.');
+      else amber('Sent from a number two workers’ records share.');
+    } else if (sd.none) { amber('Sent from ' + (sd.number ? 'a number' : 'a contact') + ' not on ' + (row.w ? row.w.name + '’s' : 'any worker’s') + ' record: ' + m.sentBy + '.'); row.weak = true; }
+    // Where.
+    if (cfg.lat == null || cfg.lng == null) amber('The plant’s location is not set: Office QR.');
+    else if (r.lat == null) { var why = /\(([^)]*)\)/.exec(r.place || ''); amber('The phone did not share its location' + (why ? ' (' + why[1] + ')' : '') + '.'); row.weak = true; }
+    else {
+      var dist = ckMetres(cfg.lat, cfg.lng, r.lat, r.lng), rad = +cfg.radius || 150, acc = r.acc || 0;
+      row.dist = dist;
+      if (dist - Math.min(acc, CK_ROUGH_M) > rad) red(ckDistWords(dist) + ' from the plant.');
+      else if (dist > rad) amber(ckDistWords(dist) + ' from the plant, inside how rough the phone’s fix was (±' + acc + ' m).');
+      else if (acc > CK_ROUGH_M) amber('At the plant, on a rough fix (±' + acc + ' m).');
+    }
+    // When: sent as made, and within the shop's hours.
+    if (m.sentOn && m.sentAt != null) {
+      var late = isoDaysBetween(r.iso, m.sentOn) * 1440 + m.sentAt - r.min;
+      if (late > CK_LATE_MIN) amber('Sent ' + ckLateWords(late) + ' after the time it carries.');
+      else if (late < -2) red('Sent before the time it carries.');
+    }
+    if (r.min < CK_HOURS[0] && r.min + 1440 > CK_HOURS[1]) amber('At ' + relayClockLabel(r.min) + ', outside the shop’s hours.');
+    // Already in the day.
+    var rec = row.w && typeof attDay === 'function' ? attDay(r.iso, false) : null;
+    var yRec = row.w && typeof attDay === 'function' ? attDay(isoAddDays(r.iso, -1), false) : null;
+    var had = ((rec && rec.scans && rec.scans[row.w.id]) || []).concat((yRec && yRec.scans && yRec.scans[row.w.id]) || []);
+    if (had.some(function(s) { return Math.abs(s.at - row.at) < IDC_SAME_MS; })) { row.done = true; notes.push(['neutral', 'Already in the day.']); }
+    // One phone, one worker: a check-in saved earlier that day from the same phone for someone else.
+    if (rec && rec.scans && m.sentBy) {
+      var key = ckSenderKey(m.sentBy), other = Object.keys(rec.scans).find(function(sid) {
+        return String(sid) !== String(row.w.id) && rec.scans[sid].some(function(sc) { return sc.from && ckSenderKey(sc.from) === key; });
+      });
+      if (other) red('The same phone checked in ' + ((staffById(+other) || staffById(other) || {}).name || 'another worker') + ' that day.');
+    }
+    return row;
+  });
+  // One phone, one worker a day: a sender who checked in more than one card. The phone's own worker stays; the others are red.
+  var bySender = {};
+  out.forEach(function(row) {
+    if (!row.w || !row.x.msg.sentBy) return;
+    var k = row.iso + '|' + ckSenderKey(row.x.msg.sentBy);
+    (bySender[k] = bySender[k] || []).push(row);
+  });
+  Object.keys(bySender).forEach(function(k) {
+    var rows = bySender[k], ids = rows.map(function(r) { return r.w.id; }).filter(function(v, i, a) { return a.indexOf(v) === i; });
+    if (ids.length < 2) return;
+    var own = rows[0].sender.w ? rows[0].sender.w.id : rows[0].w.id;
+    rows.forEach(function(r) { if (r.w.id !== own) r.notes.push(['danger', 'The same phone checked in ' + (staffById(own) || {}).name + ' that day.']); });
+  });
+  out.forEach(function(row) {
+    row.tone = row.notes.some(function(n) { return n[0] === 'danger'; }) ? 'danger' : row.notes.some(function(n) { return n[0] === 'warning'; }) ? 'warning' : 'ok';
+    // Ticked only on positive evidence: a red check, no place shared, or a sender nobody knows leaves it for the owner.
+    row.tick = !!row.w && !row.done && row.tone !== 'danger' && !row.weak;
+  });
+  return out.sort(function(a, b) { return (a.at || 0) - (b.at || 0); });
+}
+function ckDistWords(m) { return m >= 1000 ? (Math.round(m / 100) / 10) + ' km' : m + ' m'; }
+function ckLateWords(min) { return min >= 120 ? Math.round(min / 60) + ' hours' : min + ' minutes'; }
+
+/* ---------- The review: every check-in beside its checks; Save puts the ticked ones into the day ---------- */
+var _ckRows = null, _ckText = '';
+function ckReviewOpen(text, also) {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return;
+  var items = ckFromText(text);
+  if (!items.length) { showToast('No check-in found in that text', 'error'); return; }
+  _ckRows = ckReview(items);
+  _ckText = text;
+  also = also || {};
+  var more = (also.prod ? '<div class="inv-callout inv-callout-info inv-mt-8" id="ckProdNote"><div>' + todoPlural(also.prod, 'message carries', 'messages carry') + ' production: read in Production.</div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-mt-8" data-action="invCkProd">Read in Production</button></div>' : '') +
+    (also.stock ? '<div class="inv-callout inv-callout-info inv-mt-8" id="ckStockNote">' + todoPlural(also.stock, 'stock message') + ' in this paste: paste it in Stock.</div>' : '');
+  dialogOpen('<div class="inv-dialog" data-ck-review>' + dialogHeadHtml('Check-ins from the office QR') + '<div id="ckBody">' + ckReviewHtml() + '</div>' + more +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invCkSave" id="ckSaveBtn">' + ckSaveLabel() + '</button></div></div>', { dismiss: true });
+}
+function ckSaveLabel() { var n = (_ckRows || []).filter(function(r) { return r.tick; }).length; return n ? 'Save ' + todoPlural(n, 'check-in') : 'Nothing to save'; }
+function ckReviewHtml() {
+  var rows = _ckRows || [], red = rows.filter(function(r) { return r.tone === 'danger'; }).length;
+  return '<div class="inv-note">Each check-in as the worker’s phone sent it, with what the office sheet can check. A red one is left unticked; tick it if you know why.</div>' +
+    (red ? '<div class="inv-callout inv-callout-danger inv-mt-8" id="ckRedNote">' + todoPlural(red, 'check-in fails', 'check-ins fail') + ' a check against a proxy.</div>' : '') +
+    '<div class="inv-panel inv-panel-flush inv-mt-8">' + rows.map(function(r, i) {
+      var title = r.w ? r.w.name : (r.card || 'No card');
+      var meta = (r.card || '') + (r.iso ? ' · ' + formatDate(r.iso) + ' ' + relayClockLabel(r.min) : '') + (r.x.msg.sentBy ? ' · from ' + r.x.msg.sentBy : '');
+      return '<label class="inv-row inv-row-2" data-ck-row="' + i + '" data-tone="' + r.tone + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(meta) + '</span>' +
+        (r.notes.length ? r.notes.map(function(n) { return '<span class="inv-note" data-ck-note>' + uiDot(n[0], escHtml(n[1])) + '</span>'; }).join('') : '<span class="inv-note" data-ck-note>' + uiDot('ok', 'Every check passes') + '</span>') +
+        '</span><span class="inv-row-end">' + (r.w && !r.done ? '<input type="checkbox" class="inv-check" data-ck-pick="' + i + '"' + (r.tick ? ' checked' : '') + ' aria-label="Save this check-in">' : '') + '</span></label>';
+    }).join('') + '</div>';
+}
+function ckSave() {
+  if (!_ckRows) return;
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return;
+  var saved = 0, said = [];
+  _ckRows.filter(function(r) { return r.tick && r.w && !r.done; }).forEach(function(r) {
+    var extra = { from: String(r.x.msg.sentBy || ''), checks: r.tone };
+    // Saved past a check that failed or was weak: what it failed, and when it was accepted.
+    if (r.tone !== 'ok') { extra.notes = r.notes.map(function(n) { return n[1]; }); extra.ackAt = Date.now(); }
+    var res = idcApply(r.w, r.card, new Date(r.at), 'checkin', extra);
+    if (res.ok) saved++; else said.push(res.why);
+  });
+  _ckRows = null;
+  if (saved) saveState();
+  closeOverlay();
+  showToast(saved ? todoPlural(saved, 'check-in') + ' saved into the day' + (said.length ? '; ' + said.length + ' already there' : '') : 'Nothing saved');
+  if (navPageOf() === 'pageStaff' && typeof renderAttendance === 'function') renderAttendance();
+}
+
+/* ---------- The sheet (the owner's): the number, the place, the key, and the printed QR ---------- */
+function ckOwnerOk(again) {
+  if (typeof pplOwner === 'function' && !pplOwner()) { uiAlert({ title: 'The owner’s to set', body: 'The office QR is set up by the owner.' }); return false; }
+  return typeof grdGate !== 'function' || grdGate('settings', 'Set up the office QR', again);
+}
+function ckNewKey() {
+  var a = new Uint8Array(6);
+  (window.crypto || {}).getRandomValues ? window.crypto.getRandomValues(a) : a.forEach(function(v, i) { a[i] = Math.floor(Math.random() * 256); });
+  return Array.prototype.map.call(a, function(b) { return (b % 36).toString(36); }).join('').toUpperCase();
+}
+/* The link the QR carries: checkin.html beside the app, the settings in its fragment. */
+function ckUrl(cfg, withName) {
+  var base = new URL('checkin.html', location.href);
+  var p = ['o=' + ckDigits(cfg.office), 'la=' + (+cfg.lat).toFixed(5), 'lo=' + (+cfg.lng).toFixed(5), 'r=' + (+cfg.radius || 150), 'k=' + encodeURIComponent(cfg.key || '')];
+  var co = (S.company && (S.company.name || S.company.companyName)) || '';
+  if (withName !== false && co) p.push('n=' + encodeURIComponent(co));
+  return base.origin + base.pathname + '#' + p.join('&');
+}
+function ckSetupOpen() {
+  if (!ckOwnerOk(ckSetupOpen)) return;
+  var c = ckCfg();
+  dialogOpen('<div class="inv-dialog" data-ck-setup>' + dialogHeadHtml('Office QR') +
+    '<div class="inv-note">One sheet in the office. A worker scans it with their own phone, and WhatsApp sends the office a check-in with their card, the time and where the phone was. Paste the chat in the paste box to read them, each with its checks.</div>' +
+    '<label class="inv-field inv-mt-8"><span class="inv-field-label">The office’s WhatsApp number, with the country code</span><input class="inv-input" id="ckOffice" inputmode="tel" value="' + escHtml(c.office || '') + '" placeholder="91 98xxx xxxxx"></label>' +
+    '<div class="inv-fields"><label class="inv-field"><span class="inv-field-label">Plant latitude</span><input class="inv-input" id="ckLat" inputmode="decimal" value="' + escHtml(c.lat != null ? String(c.lat) : '') + '"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Longitude</span><input class="inv-input" id="ckLng" inputmode="decimal" value="' + escHtml(c.lng != null ? String(c.lng) : '') + '"></label></div>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCkHere">Use where this device is now</button>' +
+    '<label class="inv-field inv-mt-8"><span class="inv-field-label">Radius, metres: a check-in farther than this is red</span><input class="inv-input" id="ckRadius" inputmode="numeric" value="' + escHtml(String(c.radius || 150)) + '"></label>' +
+    '<div class="inv-callout inv-callout-info inv-mt-8">What it checks: a live card; the code, which covers the card, the time and the place, so a check-in typed or changed by hand fails; the sending phone against the number on the worker’s record; the place; the time; one phone, one worker a day; a phone set up for another card. A check-in with no place or from an unknown phone is left for you to tick. ' +
+    'What it cannot stop: a phone that fakes its location, and a check-in made at the plant on someone else’s card and passed to them to send: the sender check proves which phone sent it, not where that phone was. Ask for a live location in the chat when one looks wrong. A new key makes every sheet printed before it fail the code.</div>' +
+    (c.key ? '<div class="inv-note inv-mt-8" id="ckKeyNote">Key ' + escHtml(c.key.slice(0, 2)) + '…, made ' + escHtml(c.keyOn ? formatDate(c.keyOn) : '') + '. <button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCkRekey">New key</button></div>' : '') +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-secondary" data-action="invCkSaveCfg">Save</button><button class="inv-btn inv-btn-primary" data-action="invCkPrint">Save and print</button></div></div>', { dismiss: true });
+}
+function ckHere() {
+  if (!navigator.geolocation) { showToast('This device cannot share its location', 'error'); return; }
+  navigator.geolocation.getCurrentPosition(function(p) {
+    var la = document.getElementById('ckLat'), lo = document.getElementById('ckLng');
+    if (!la || !lo) return;
+    la.value = p.coords.latitude.toFixed(6); lo.value = p.coords.longitude.toFixed(6);
+    la.dispatchEvent(new Event('input', { bubbles: true }));
+    showToast('Location taken, ±' + Math.round(p.coords.accuracy) + ' m');
+  }, function(e) { showToast('Location refused: ' + (e && e.message || 'type it in'), 'error'); }, { enableHighAccuracy: true, timeout: 15000 });
+}
+/* The fields read and kept; false (and said) when one is not usable. */
+function ckSaveCfg() {
+  if (!ckOwnerOk(ckSaveCfg)) return false;
+  var v = function(id) { var el = document.getElementById(id); return el ? el.value.trim() : ''; };
+  var office = ckDigits(v('ckOffice')), lat = parseFloat(v('ckLat')), lng = parseFloat(v('ckLng')), rad = parseInt(v('ckRadius'), 10);
+  if (office.length < 10) { showToast('The office number needs its country code: 91 and ten digits', 'error'); return false; }
+  if (!isFinite(lat) || !isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) { showToast('Set the plant’s latitude and longitude', 'error'); return false; }
+  var c = S.checkinCfg = Object.assign({}, ckCfg(), { office: office, lat: lat, lng: lng, radius: isFinite(rad) && rad >= 20 ? rad : 150 });
+  if (!c.key) { c.key = ckNewKey(); c.keyOn = localDateStr(); }
+  saveState();
+  return true;
+}
+function ckRekey() {
+  if (!ckOwnerOk(ckRekey)) return;
+  uiConfirm({ title: 'Make a new key?', body: 'Every office sheet printed before it will fail the code from now on: print the new sheet and take the old one down.', okLabel: 'New key', danger: true }).then(function(ok) {
+    if (!ok) return;
+    S.checkinCfg = Object.assign({}, ckCfg(), { key: ckNewKey(), keyOn: localDateStr() });
+    saveState();
+    closeOverlay();
+    ckSetupOpen();
+    showToast('New key made: print the sheet');
+  });
+}
+function ckSheetHtml(cfg) {
+  var url = ckUrl(cfg), svg = qrSvg(url, 'Office check-in');
+  if (!svg) { url = ckUrl(cfg, false); svg = qrSvg(url, 'Office check-in'); }
+  var co = (S.company && (S.company.name || S.company.companyName)) || '';
+  return '<div class="inv-ck-sheet" data-ck-sheet><div class="inv-ck-co">' + escHtml(co) + '</div><div class="inv-ck-title">Mark your attendance</div>' +
+    '<div class="inv-ck-qr">' + svg + '</div>' +
+    '<ol class="inv-ck-steps"><li>Open your phone’s camera and point it at the code.</li><li>Open the link, type your card number the first time, tap <b>Check in</b> and allow the location.</li>' +
+    '<li>Tap <b>Send on WhatsApp</b> and send the message as it is. Once as you arrive, once as you leave.</li></ol>' +
+    '<div class="inv-ck-foot">From your own phone, at the plant, with your own card. A check-in from another phone, from outside the plant, for another card, or changed before it is sent is flagged. Sheet ' + escHtml(String(cfg.key || '').slice(0, 2)) + ' · ' + escHtml(formatDate(localDateStr())) + '</div></div>';
+}
+function ckPrint() {
+  if (!ckSaveCfg()) return;
+  var cfg = ckCfg();
+  closeOverlay();
+  document.getElementById('invPrintBody').innerHTML = ckSheetHtml(cfg);
+  document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  document.title = 'Office QR';
+}
+
+function ckAction(action, btn) {
+  switch (action) {
+    case 'invCkSetup': ckSetupOpen(); return true;
+    case 'invCkHere': ckHere(); return true;
+    case 'invCkSaveCfg': if (ckSaveCfg()) { closeOverlay(); showToast('Office QR saved'); } return true;
+    case 'invCkPrint': ckPrint(); return true;
+    case 'invCkRekey': ckRekey(); return true;
+    case 'invCkSave': ckSave(); return true;
+    case 'invCkProd': { var t = _ckText; closeOverlay(); if (typeof prodOpenPaste === 'function') prodOpenPaste(t); return true; }
+    case 'invCkFromRelay': ckReviewOpen((typeof _relay !== 'undefined' && _relay && _relay.text) || ''); return true;
+  }
+  return false;
+}
+/* A tick changes what Save will do: the label follows. */
+document.addEventListener('change', function(e) {
+  var el = e.target && e.target.closest && e.target.closest('[data-ck-pick]');
+  if (!el || !_ckRows) return;
+  var r = _ckRows[+el.dataset.ckPick];
+  if (r) r.tick = el.checked;
+  var b = document.getElementById('ckSaveBtn');
+  if (b) b.textContent = ckSaveLabel();
+});
 /* ===== PRODUCTION — the page (Floor → Production) =====
  * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
  * a way back and end in the action bar, and draw no toolbar (DR-3).
  */
 var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
-var PROD_TABS = [['overview', 'Overview'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
+var PROD_TABS = [['overview', 'Overview'], ['equipment', 'Equipment'], ['plant', 'In plant'], ['lines', 'Lines'], ['entries', 'Entries']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _prodTabMoved = false;
 var _prodView = 'main';          // main · paste · review · photo · hand
@@ -40443,7 +42303,9 @@ function renderProduction() {
     if (_prodPhotoQueue.length) h += '<div class="inv-callout inv-callout-info" id="prodPhotoWaiting">' + escHtml(todoPlural(_prodPhotoQueue.length, 'register photo') + ' picked with the challan sent to the scanner ' + (_prodPhotoQueue.length === 1 ? 'is' : 'are') + ' waiting to be read.') +
       '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdPhotoNext">Read the next</button></div></div>';
     var p = prodData();
-    if (!p.entries.length && _prodTab !== 'plant') h += '<div class="inv-empty">No production recorded yet. Paste a pickling or production message, read a register photo, or import the history from soma-internal.</div>';
+    // The plant register (plant.js) needs no production record: a unit is the shop's, before anything is plated on it.
+    if (_prodTab === 'equipment') h += pltEquipmentHtml();
+    else if (!p.entries.length && _prodTab !== 'plant') h += pltGlanceHtml() + '<div class="inv-empty">No production recorded yet. Paste a pickling or production message, read a register photo, or import the history from soma-internal.</div>';
     else if (_prodTab === 'plant') h += prodPlantHtml();
     else if (_prodTab === 'lines') h += prodLinesHtml();
     else if (_prodTab === 'entries') h += prodEntriesHtml();
@@ -40475,7 +42337,8 @@ function prodOverviewHtml() {
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-prod-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
-  var h = '<div class="inv-tiles">' +
+  // The plant at a glance leads: whether each line can run today, before what it plated (plant.js).
+  var h = pltGlanceHtml() + '<div class="inv-tiles">' +
     tile('Plated, last recorded day', !lastDay ? '&mdash;' : escHtml(lp.text),
       !lastDay ? 'nothing recorded' : escHtml(lastWhere + ' · ' + (lastWhole ? Math.round(lastNos).toLocaleString('en-IN') + ' NOS'
         : formatNum(lastKg / 1000, 2) + ' t known, ' + Math.round(lastShare * 100) + '% of the pieces weighed')), '', 'last') +
@@ -41665,6 +43528,8 @@ function flrCardHtml(day, isToday, ln, byArea, marked) {
   var cr = last ? prodCrew(last) : prodCrew(ln.id === 'pickling' ? { date: day, kind: 'pickled' } : { date: day, kind: 'plated', line: ln.id, slot: 'general' });
   var crew = last ? (cr.known ? (cr.src === 'block' ? 'OT crew: ' : 'Crew: ') + cr.names.join(', ') : 'Crew not known: ' + cr.why)
     : cr.known ? 'On the line: ' + cr.names.join(', ') : cr.why.charAt(0).toUpperCase() + cr.why.slice(1);
+  // The line's units on the day shown (plant.js): what of it could run.
+  h += pltFloorRowHtml(ln.id, day);
   h += '<div class="inv-row inv-row-auto" data-flr-crew><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(crew) + '</span></span></div>';
   return h + '</div>';
 }
@@ -43809,7 +45674,11 @@ function plnData() {
 /* Read without writing (drawing never changes the book). */
 function plnRead() { return S && S.planner && typeof S.planner === 'object' ? S.planner : {}; }
 function plnList(k) { var p = plnRead(); return Array.isArray(p[k]) ? p[k] : []; }
-function plnLive(k) { return plnList(k).filter(function(r) { return r && !r.retiredAt; }); }
+// The machines are the plant register's units (plant.js): one register, read here as the planner always read its own.
+function plnLive(k) {
+  if (k === 'machines' && typeof pltMachines === 'function') return pltMachines();
+  return plnList(k).filter(function(r) { return r && !r.retiredAt; });
+}
 function plnCfg() {
   var c = plnRead().cfg || {}, o = Object.assign({}, PLN_CFG_DEFAULTS);
   Object.keys(c).forEach(function(k) { if (c[k] !== '' && c[k] != null) o[k] = c[k]; });
@@ -44437,18 +46306,19 @@ function plnRegFind(k, id) { return plnList(k).find(function(r) { return r && r.
 function plnStationOpts() { return PLN_STATIONS.map(function(s) { return [s.id, s.name]; }); }
 function plnClientOpts() { return (S.clients || []).map(function(c) { return [c.id, c.name]; }).sort(function(a, b) { return String(a[1]).localeCompare(String(b[1])); }); }
 
-/* Machines and infrastructure: item, station, state, age, what it needs, and a risk the trials draw until its station's fix. */
+/* Machines and infrastructure: the plant register's units (plant.js), each with its status, condition, what it needs, and a risk
+   the trials draw until its station's fix. Added and changed there, the owner's. */
 function plnMachinesHtml() {
   var list = plnLive('machines');
   var st = function(s) { return PLN_MACHINE_STATES.find(function(x) { return x[0] === s; }) || PLN_MACHINE_STATES[1]; };
   return '<div class="inv-panel inv-panel-flush" id="plnMachines"><div class="inv-panel-head"><span class="inv-panel-title">Machines and infrastructure <span class="inv-panel-count">' + list.length + '</span></span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnRegEdit" data-k="machines">Add</button></div>' +
+    (pltCanEdit() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit">Add</button>' : '') + '</div>' +
     (list.length ? list.map(function(x) {
-      var s = st(x.state), stn = PLN_STATIONS.find(function(y) { return y.id === x.station; });
-      var meta = [stn ? stn.name : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''].filter(Boolean).join(' · ');
+      var s = st(x.state), stn = PLN_STATIONS.find(function(y) { return y.id === x.station; }), run = pltStatus(x.status);
+      var meta = [stn ? stn.name : pltStationName(x.station), run[0] !== 'run' ? run[1] : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''].filter(Boolean).join(' · ');
       return '<div class="inv-row inv-row-2" data-pl-machine="' + escHtml(x.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.item) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="machines" data-id="' + escHtml(x.id) + '">Edit</button></span></div>';
-    }).join('') : '<div class="inv-empty">No machine recorded. Each machine’s state and what it needs is a record of the shop; one that may break down carries a risk the trials draw, until the upgrade that fixes it.</div>') + '</div>';
+        '<span class="inv-row-end"><span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPltEdit" data-id="' + escHtml(x.id) + '">Edit</button></span></div>';
+    }).join('') : '<div class="inv-empty">No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.</div>') + '</div>';
 }
 function plnChecklistHtml() {
   var list = plnLive('checklist'), done = list.filter(function(x) { return x.status === 'in'; }).length;
@@ -44502,14 +46372,11 @@ function plnHeldRowHtml(x, named) {
 /* One dialog per register: add or edit; retire with a reason (never deleted). */
 var PLN_REG_NOUN = { machines: 'machine', checklist: 'checklist item', lenders: 'lender', heard: 'rate heard', heldBack: 'work held back' };
 function plnRegEdit(k, id, clientId) {
+  // A machine is a unit of the plant register (plant.js): changed there, the owner's.
+  if (k === 'machines') return pltEdit(id);
   if (!plnRegGate(function() { plnRegEdit(k, id, clientId); })) return;
   var x = id ? plnRegFind(k, id) : null, v = x || {}, f = '';
-  if (k === 'machines') f = _plnField('plnRItem', 'Machine or item', v.item) + _plnSelect('plnRStation', 'Station', plnStationOpts(), v.station) +
-    _plnSelect('plnRLine', 'Line it stops when it fails', [['', 'None']].concat(PLN_LINE_IDS.map(function(l) { return [l, plnLineName(l)]; })), v.line) +
-    _plnSelect('plnRState', 'State', PLN_MACHINE_STATES.map(function(s) { return [s[0], s[1]]; }), v.state || 'fair') + _plnField('plnRAge', 'Age', v.age) + _plnField('plnRNeeds', 'What it needs', v.needs) +
-    _plnField('plnRRiskP', 'Chance it fails in a month, %', v.risk && v.risk.p != null ? Math.round(v.risk.p * 1000) / 10 : '', 'number') + _plnField('plnRRiskCost', 'What a failure costs, ₹', v.risk ? v.risk.cost : '', 'number') +
-    _plnField('plnRRiskDays', 'Days the line is down', v.risk ? v.risk.days : '', 'number') + _plnField('plnRRiskSay', 'What failing means', v.risk ? v.risk.say : '');
-  else if (k === 'checklist') f = _plnField('plnRRef', 'Reference', v.ref) + _plnField('plnRWhat', 'What it asks', v.what) + _plnSelect('plnRStatus', 'Status', PLN_CHECK_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'missing') +
+  if (k === 'checklist') f = _plnField('plnRRef', 'Reference', v.ref) + _plnField('plnRWhat', 'What it asks', v.what) + _plnSelect('plnRStatus', 'Status', PLN_CHECK_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'missing') +
     _plnField('plnRCost', 'Cost to close, ₹', v.cost, 'number') + _plnField('plnROwner', 'Who owns it', v.owner) + _plnField('plnRDue', 'Due', v.due, 'date') + _plnField('plnREvidence', 'Evidence', v.evidence);
   else if (k === 'lenders') f = _plnField('plnRWho', 'Who', v.who) + _plnField('plnRAmount', 'Amount, ₹', v.amount, 'number') + _plnField('plnRRate', 'Interest, % a year', v.rate, 'number') +
     _plnField('plnRMonths', 'Months to repay', v.months, 'number') + _plnField('plnRMor', 'Interest-only months first', v.mor, 'number') + _plnField('plnRTies', 'What it ties (a rate held, set-off)', v.ties) +
@@ -44525,12 +46392,7 @@ function plnRegEdit(k, id, clientId) {
 function plnRegSave(k, id) {
   if (!plnRegGate(function() { plnRegSave(k, id); })) return;
   var p = plnData(), list = p[k], x = id ? list.find(function(r) { return r.id === id; }) : null, rec = {};
-  if (k === 'machines') {
-    var pr = _plnNum('plnRRiskP');
-    rec = { item: _plnVal('plnRItem'), station: _plnVal('plnRStation'), line: _plnVal('plnRLine') || null, state: _plnVal('plnRState'), age: _plnVal('plnRAge'), needs: _plnVal('plnRNeeds'),
-      risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _plnNum('plnRRiskCost') || 0, days: _plnNum('plnRRiskDays') || 0, say: _plnVal('plnRRiskSay') } : null };
-    if (!rec.item) return uiAlert({ title: 'Name the machine', body: 'A machine needs a name.' });
-  } else if (k === 'checklist') {
+  if (k === 'checklist') {
     rec = { ref: _plnVal('plnRRef'), what: _plnVal('plnRWhat'), status: _plnVal('plnRStatus'), cost: _plnNum('plnRCost'), owner: _plnVal('plnROwner'), due: _plnVal('plnRDue') || null, evidence: _plnVal('plnREvidence') };
     if (!rec.what) return uiAlert({ title: 'Say what it asks', body: 'A checklist item needs what it asks.' });
   } else if (k === 'lenders') {
@@ -49751,6 +51613,10 @@ function onDocClick(e) {
       if (navAction(action, btn)) break;
       if (wsAction(action, btn)) break;
       if (prodAction(action, btn)) break;
+      if (pltAction(action, btn)) break;
+      if (pplAction(action, btn)) break;
+      if (idcAction(action, btn)) break;
+      if (ckAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (kbAction(action, btn)) break;
@@ -52939,6 +54805,15 @@ if (!S._cnSeriesStart1) {
   if (stamped) {
     saveJSON(STORAGE_KEY, S);
     console.log('[migrate] ' + stamped + ' zero-billed line(s) stamped replating (owner ruling 24 Sep 2026)');
+  }
+})();
+
+/* The planner's machines are the plant register's units (plant.js, owner 7 Oct 2026): moved once, their ids kept. Structural
+   (it moves records the book holds), so it runs on a pull and an import as well. */
+(function() {
+  if (typeof pltFromMachines === 'function' && pltFromMachines()) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] the planner’s machines moved into the plant register');
   }
 })();
 

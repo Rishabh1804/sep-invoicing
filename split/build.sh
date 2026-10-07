@@ -75,6 +75,11 @@ JS_SOURCES=(
     "$DIR/learn.js" \
     "$DIR/dash.js" \
     "$DIR/production.js" \
+    "$DIR/plant.js" \
+    "$DIR/people.js" \
+    "$DIR/qr.js" \
+    "$DIR/idcard.js" \
+    "$DIR/checkin.js" \
     "$DIR/prodview.js" \
     "$DIR/floor.js" \
     "$DIR/today.js" \

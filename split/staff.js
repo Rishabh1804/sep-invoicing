@@ -559,7 +559,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invIdcScan">Scan cards</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
       // The day's rolls, read again by the reader as it reads now (relay.js, relayRereadOpen).
       (relayDayHasRolls(iso) ? '<button class="inv-btn inv-btn-secondary" data-action="invRelayReread">Read the rolls again</button>' : '') +
       (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
@@ -1020,7 +1021,8 @@ function _attRosterView() {
 
   var html = '<div class="inv-toolbar">' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button></div>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button>' +
+    (typeof pplOwner !== 'function' || pplOwner() ? '<button class="inv-btn inv-btn-ghost" data-action="invIdcPrint">ID cards</button><button class="inv-btn inv-btn-ghost" data-action="invCkSetup">Office QR</button>' : '') + '</div>' +
     '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount is this number.</span></div>';
 
@@ -1031,12 +1033,16 @@ function _attRosterView() {
     '<span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
 
+  // Each worker at a glance (people.js, the 6-second rule): tenure, reliability, consistency and workload as short bars with
+  // their figures, the top skills, and for the owner the motivation index.
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var cls = compClass(w.comp);
     var inactive = w.active === false;
     html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') + '</span>' +
+      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') +
+      (inactive ? '' : pplGlanceHtml(w, memo)) + '</span>' +
       '<span class="inv-row-end">' +
       '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
@@ -1054,10 +1060,11 @@ function _attRosterDesktop(all, wages) {
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
     '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
     '<th>Area</th><th>Status</th></tr></thead><tbody>';
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var inactive = w.active === false, id = escHtml(String(w.id));
     h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
-      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
+      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button>' + (inactive ? '' : pplGlanceHtml(w, memo)) + '</td>' +
       '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
       (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
       '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
@@ -1095,7 +1102,8 @@ function _attWorkerPaneHtml(w, wages) {
       '</div>' + (where ? '<div class="inv-panel-body inv-note">Stood in ' + escHtml(where) + '. Last marked ' + escHtml(formatDate(last)) + '.</div>' : '');
   } else h += '<div class="inv-empty">No day in the last 28 marks this worker.</div>';
   h += '</div><div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invAttEditWorker" data-id="' + escHtml(String(w.id)) + '">Edit</button></div>';
-  return h;
+  // Their record (people.js): tenure, reliability, consistency, workload, skills, ties; the owner's alone, motivation and details.
+  return h + pplRecordHtml(w);
 }
 
 /* The hourly rate a worker's overtime is paid at.
@@ -1654,6 +1662,8 @@ function _showWorkerOverlay(worker, isAdd) {
   };
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add worker' : 'Edit worker')) +
+    // Their record first (people.js): what the book says of them, then the fields that set them.
+    (isAdd ? '' : '<div data-ppl-sheet="' + escHtml(String(w.id)) + '">' + pplRecordHtml(w) + '</div>') +
     _wfield('wedName', 'Name', '<input class="inv-input" id="wedName" value="' + escHtml(w.name) + '">') +
     '<div class="inv-fields">' +
     _wfield('wedComp', 'Comp class', '<select class="inv-select" id="wedComp">' +
@@ -1785,6 +1795,12 @@ function saveWorker(id, mode) {
     // A renamed worker keeps the old name as a spelling, as a merge keeps the retired row's: rolls and payroll slips
     // written under it are matched by name alone, and a rename cut the worker off from every slip (the review, 30 Sep 2026).
     var oldName = w.name;
+    // A rate changed is kept with its day (people.js reads "no rise in a year" off it).
+    if (wageSet && (num(w.dayRate) || num(w.hourRate) || num(w.monthWage))) {
+      w.rateHistory = Array.isArray(w.rateHistory) ? w.rateHistory : [];
+      w.rateHistory.push({ on: localDateStr(), from: { dayRate: num(w.dayRate), hourRate: num(w.hourRate), monthWage: num(w.monthWage) },
+        to: { dayRate: fields.dayRate, hourRate: fields.hourRate, monthWage: fields.monthWage } });
+    }
     Object.keys(fields).forEach(function(k) { w[k] = fields[k]; });
     if (oldName && relayKey(oldName) && relayKey(oldName) !== relayKey(w.name)) {
       w.relayNames = w.relayNames || [];
@@ -1834,6 +1850,8 @@ function importRosterText(text) {
   var data;
   try { data = JSON.parse(text); }
   catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
+  // A file of workers' details (people.js) is the owner's, checked row by row before anything is kept.
+  if (data && data.format === 'sep-people') { pplImportData(data); return; }
   var res = applyRosterImport(data);
   if (res.error) { showToast(res.error, 'error'); return; }
   saveState();
@@ -2319,6 +2337,11 @@ function mergeWorkers(fromId, intoId) {
       if (x.crew.indexOf(intoId) === -1) x.crew.push(intoId); // dedupe: one head, not two
       crews++;
     });
+    // Their card scans go with them, merged by time.
+    if (rec.scans && rec.scans[fromId]) {
+      rec.scans[intoId] = (rec.scans[intoId] || []).concat(rec.scans[fromId]).sort(function(p, q) { return p.min - q.min || p.at - q.at; });
+      delete rec.scans[fromId];
+    }
     // The hand's own slot picks go with them; the survivor's own pick for a slot wins.
     var picks = rec.slotHand && rec.slotHand[String(fromId)];
     if (picks) {

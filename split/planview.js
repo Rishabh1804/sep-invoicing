@@ -121,18 +121,19 @@ function plnRegFind(k, id) { return plnList(k).find(function(r) { return r && r.
 function plnStationOpts() { return PLN_STATIONS.map(function(s) { return [s.id, s.name]; }); }
 function plnClientOpts() { return (S.clients || []).map(function(c) { return [c.id, c.name]; }).sort(function(a, b) { return String(a[1]).localeCompare(String(b[1])); }); }
 
-/* Machines and infrastructure: item, station, state, age, what it needs, and a risk the trials draw until its station's fix. */
+/* Machines and infrastructure: the plant register's units (plant.js), each with its status, condition, what it needs, and a risk
+   the trials draw until its station's fix. Added and changed there, the owner's. */
 function plnMachinesHtml() {
   var list = plnLive('machines');
   var st = function(s) { return PLN_MACHINE_STATES.find(function(x) { return x[0] === s; }) || PLN_MACHINE_STATES[1]; };
   return '<div class="inv-panel inv-panel-flush" id="plnMachines"><div class="inv-panel-head"><span class="inv-panel-title">Machines and infrastructure <span class="inv-panel-count">' + list.length + '</span></span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPlnRegEdit" data-k="machines">Add</button></div>' +
+    (pltCanEdit() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit">Add</button>' : '') + '</div>' +
     (list.length ? list.map(function(x) {
-      var s = st(x.state), stn = PLN_STATIONS.find(function(y) { return y.id === x.station; });
-      var meta = [stn ? stn.name : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''].filter(Boolean).join(' · ');
+      var s = st(x.state), stn = PLN_STATIONS.find(function(y) { return y.id === x.station; }), run = pltStatus(x.status);
+      var meta = [stn ? stn.name : pltStationName(x.station), run[0] !== 'run' ? run[1] : '', x.age ? x.age : '', x.needs || '', x.risk && +x.risk.p > 0 ? Math.round(x.risk.p * 100) + '% a month: ' + (x.risk.say || 'breaks down') + (x.risk.cost ? ', ' + formatCurrency(x.risk.cost) : '') + (x.risk.days ? ', ' + x.risk.days + ' days down' : '') : ''].filter(Boolean).join(' · ');
       return '<div class="inv-row inv-row-2" data-pl-machine="' + escHtml(x.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.item) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span>' +
-        '<span class="inv-row-end"><span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnRegEdit" data-k="machines" data-id="' + escHtml(x.id) + '">Edit</button></span></div>';
-    }).join('') : '<div class="inv-empty">No machine recorded. Each machine’s state and what it needs is a record of the shop; one that may break down carries a risk the trials draw, until the upgrade that fixes it.</div>') + '</div>';
+        '<span class="inv-row-end"><span class="inv-dot inv-dot-' + s[2] + '">' + s[1] + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPltEdit" data-id="' + escHtml(x.id) + '">Edit</button></span></div>';
+    }).join('') : '<div class="inv-empty">No machine recorded. Each barrel, tank and machine is a unit of the plant register (Production → Equipment): its status, condition and what it needs, and a risk the trials draw until the upgrade that fixes it.</div>') + '</div>';
 }
 function plnChecklistHtml() {
   var list = plnLive('checklist'), done = list.filter(function(x) { return x.status === 'in'; }).length;
@@ -186,14 +187,11 @@ function plnHeldRowHtml(x, named) {
 /* One dialog per register: add or edit; retire with a reason (never deleted). */
 var PLN_REG_NOUN = { machines: 'machine', checklist: 'checklist item', lenders: 'lender', heard: 'rate heard', heldBack: 'work held back' };
 function plnRegEdit(k, id, clientId) {
+  // A machine is a unit of the plant register (plant.js): changed there, the owner's.
+  if (k === 'machines') return pltEdit(id);
   if (!plnRegGate(function() { plnRegEdit(k, id, clientId); })) return;
   var x = id ? plnRegFind(k, id) : null, v = x || {}, f = '';
-  if (k === 'machines') f = _plnField('plnRItem', 'Machine or item', v.item) + _plnSelect('plnRStation', 'Station', plnStationOpts(), v.station) +
-    _plnSelect('plnRLine', 'Line it stops when it fails', [['', 'None']].concat(PLN_LINE_IDS.map(function(l) { return [l, plnLineName(l)]; })), v.line) +
-    _plnSelect('plnRState', 'State', PLN_MACHINE_STATES.map(function(s) { return [s[0], s[1]]; }), v.state || 'fair') + _plnField('plnRAge', 'Age', v.age) + _plnField('plnRNeeds', 'What it needs', v.needs) +
-    _plnField('plnRRiskP', 'Chance it fails in a month, %', v.risk && v.risk.p != null ? Math.round(v.risk.p * 1000) / 10 : '', 'number') + _plnField('plnRRiskCost', 'What a failure costs, ₹', v.risk ? v.risk.cost : '', 'number') +
-    _plnField('plnRRiskDays', 'Days the line is down', v.risk ? v.risk.days : '', 'number') + _plnField('plnRRiskSay', 'What failing means', v.risk ? v.risk.say : '');
-  else if (k === 'checklist') f = _plnField('plnRRef', 'Reference', v.ref) + _plnField('plnRWhat', 'What it asks', v.what) + _plnSelect('plnRStatus', 'Status', PLN_CHECK_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'missing') +
+  if (k === 'checklist') f = _plnField('plnRRef', 'Reference', v.ref) + _plnField('plnRWhat', 'What it asks', v.what) + _plnSelect('plnRStatus', 'Status', PLN_CHECK_STATUS.map(function(s) { return [s[0], s[1]]; }), v.status || 'missing') +
     _plnField('plnRCost', 'Cost to close, ₹', v.cost, 'number') + _plnField('plnROwner', 'Who owns it', v.owner) + _plnField('plnRDue', 'Due', v.due, 'date') + _plnField('plnREvidence', 'Evidence', v.evidence);
   else if (k === 'lenders') f = _plnField('plnRWho', 'Who', v.who) + _plnField('plnRAmount', 'Amount, ₹', v.amount, 'number') + _plnField('plnRRate', 'Interest, % a year', v.rate, 'number') +
     _plnField('plnRMonths', 'Months to repay', v.months, 'number') + _plnField('plnRMor', 'Interest-only months first', v.mor, 'number') + _plnField('plnRTies', 'What it ties (a rate held, set-off)', v.ties) +
@@ -209,12 +207,7 @@ function plnRegEdit(k, id, clientId) {
 function plnRegSave(k, id) {
   if (!plnRegGate(function() { plnRegSave(k, id); })) return;
   var p = plnData(), list = p[k], x = id ? list.find(function(r) { return r.id === id; }) : null, rec = {};
-  if (k === 'machines') {
-    var pr = _plnNum('plnRRiskP');
-    rec = { item: _plnVal('plnRItem'), station: _plnVal('plnRStation'), line: _plnVal('plnRLine') || null, state: _plnVal('plnRState'), age: _plnVal('plnRAge'), needs: _plnVal('plnRNeeds'),
-      risk: pr > 0 ? { p: Math.min(100, pr) / 100, cost: _plnNum('plnRRiskCost') || 0, days: _plnNum('plnRRiskDays') || 0, say: _plnVal('plnRRiskSay') } : null };
-    if (!rec.item) return uiAlert({ title: 'Name the machine', body: 'A machine needs a name.' });
-  } else if (k === 'checklist') {
+  if (k === 'checklist') {
     rec = { ref: _plnVal('plnRRef'), what: _plnVal('plnRWhat'), status: _plnVal('plnRStatus'), cost: _plnNum('plnRCost'), owner: _plnVal('plnROwner'), due: _plnVal('plnRDue') || null, evidence: _plnVal('plnREvidence') };
     if (!rec.what) return uiAlert({ title: 'Say what it asks', body: 'A checklist item needs what it asks.' });
   } else if (k === 'lenders') {

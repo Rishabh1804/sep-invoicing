@@ -2109,3 +2109,87 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
 body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
+
+/* The plant register (plant.js, owner 7 Oct 2026): a line's units side by side, each a tile edged in its status's colour and
+   named in a word beside its dot (DR-1, DR-8); a pip per unit where the line is one row; a bar for what is available and
+   what is used of it. The bar is an SVG, so its widths are attributes, never a style. */
+.inv-unit-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: var(--sp-8); margin-top: var(--sp-10); }
+body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.inv-plt-unit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); min-width: 0; min-height: var(--touch); padding: var(--sp-8) var(--sp-10);
+  border: var(--hair) solid var(--border); border-left: var(--sp-4) solid var(--text-3); border-radius: var(--r-md); background: var(--surface); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; }
+.inv-plt-unit:hover { background: var(--surface-2); }
+.inv-plt-unit:focus-visible { box-shadow: var(--focus-ring); outline: none; }
+.inv-plt-unit[data-status="run"] { border-left-color: var(--ok); }
+.inv-plt-unit[data-status="standby"] { border-left-color: var(--info); }
+.inv-plt-unit[data-status="repair"] { border-left-color: var(--warning); background: var(--warning-bg); }
+.inv-plt-unit[data-status="down"] { border-left-color: var(--danger); background: var(--danger-bg); }
+.inv-unit-name { max-width: 100%; overflow-wrap: anywhere; font-size: var(--fs-14); font-weight: 600; }
+.inv-unit-sub { font-size: var(--fs-12); color: var(--text-3); }
+.inv-unit-cap { display: flex; flex-direction: column; gap: var(--sp-4); }
+.inv-unit-cap-words { font-size: var(--fs-14); font-weight: 600; }
+.inv-unit-bar { display: block; width: 100%; height: var(--sp-8); border-radius: var(--r-full); overflow: hidden; }
+.inv-unit-bar-track { fill: var(--surface-3); }
+.inv-unit-bar-avail { fill: var(--ok); opacity: 0.35; }
+.inv-unit-bar-used { fill: var(--ok); }
+.inv-unit-pips { display: inline-flex; flex-wrap: wrap; gap: var(--sp-2); max-width: calc(var(--sp-12) * 6); }
+.inv-unit-pip { width: var(--sp-10); height: var(--sp-10); border-radius: var(--r-sm); background: var(--ok); }
+.inv-unit-pip[data-status="standby"] { background: var(--info); }
+.inv-unit-pip[data-status="repair"] { background: var(--warning); }
+.inv-unit-pip[data-status="down"] { background: var(--danger); }
+
+/* A worker's record (people.js): skill dots out of five, and a short bar for a figure out of 100 in its status's tone. */
+.inv-skill { display: inline-flex; gap: var(--sp-2); }
+.inv-skill-dot { width: var(--sp-8); height: var(--sp-8); border-radius: 50%; background: var(--surface-3); }
+.inv-skill-dot[data-on] { background: var(--accent); }
+.inv-stat-bar { display: block; width: 100%; height: var(--sp-4); border-radius: var(--r-full); overflow: hidden; }
+.inv-stat-bar-track { fill: var(--surface-3); }
+.inv-stat-bar-fill { fill: var(--text-3); }
+.inv-stat-bar-fill[data-tone="ok"] { fill: var(--ok); }
+.inv-stat-bar-fill[data-tone="warning"] { fill: var(--warning); }
+.inv-stat-bar-fill[data-tone="danger"] { fill: var(--danger); }
+/* A worker at a glance on the roster (people.js): three short labelled bars with their figures, side by side. */
+.inv-wstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-10); margin-top: var(--sp-4); width: 100%; }
+.inv-wstat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-4); min-width: 0; font-size: var(--fs-12); }
+.inv-wstat-k { color: var(--text-3); white-space: nowrap; }
+.inv-wstat-v { font-family: var(--ff-mono); color: var(--text-2); white-space: nowrap; }
+/* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
+body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
+.inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }
+
+/* ===== ID CARDS (idcard.js) and every QR code (qr.js). A QR is an instrument read by a camera: black on white in either
+   theme, so its two colours are declared once here like a printed document's paper and ink. The cards are printed forms,
+   the HR-6 print exception: credit-card size in mm, ten to an A4 sheet, declared once in the sheet's token block. ===== */
+.inv-qr { --qr-paper: #fff; --qr-ink: #000; display: block; width: 100%; height: auto; }
+.inv-qr-bg { fill: var(--qr-paper); }
+.inv-qr-fg { fill: var(--qr-ink); }
+.inv-idc-small { max-width: calc(var(--sp-32) * 4); }
+.inv-idc-video { display: block; width: 100%; max-height: calc(var(--sp-32) * 8); border-radius: var(--r-md); background: var(--surface-3); object-fit: cover; }
+.inv-idc-sheet {
+  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 2mm; --idc-pad: 3.5mm; --idc-qr: 30mm; --idc-fs: 8pt; --idc-fs-name: 12pt; --idc-fs-co: 8.5pt; --idc-rule: 0.4pt;
+  --idc-radius: 3mm; --idc-line: 1mm; --idc-lh-name: 1.15; --idc-ink-2: #444;
+  --idc-sheet-w: 210mm; --idc-sheet-h: 297mm; --idc-margin: 9mm 18.4mm;
+  display: grid; grid-template-columns: repeat(2, var(--idc-w)); grid-auto-rows: var(--idc-h); gap: var(--idc-gap);
+  width: var(--idc-sheet-w); min-height: var(--idc-sheet-h); padding: var(--idc-margin); margin: 0 auto var(--sp-16);
+  background: #fff; color: #000; font-family: var(--ff-base); page-break-after: always; break-after: page; border: var(--hair) solid var(--border);
+}
+.inv-idc-sheet:last-child { page-break-after: auto; break-after: auto; }
+.inv-idc { display: flex; gap: var(--idc-pad); padding: var(--idc-pad); border: var(--idc-rule) solid #000; border-radius: var(--idc-radius); overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--idc-line); font-size: var(--idc-fs); }
+.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; border-bottom: var(--idc-rule) solid #000; padding-bottom: var(--idc-line); }
+.inv-idc-label { font-size: var(--idc-fs); color: var(--idc-ink-2); }
+.inv-idc-name { font-size: var(--idc-fs-name); font-weight: 700; line-height: var(--idc-lh-name); overflow-wrap: anywhere; }
+.inv-idc-row { font-size: var(--idc-fs); }
+.inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
+@media print { .inv-idc-sheet { border: none; margin: 0; } }
+/* The office check-in sheet (checkin.js): one A4 page, a large QR and three steps. A printed form: its sizes declared once. */
+.inv-ck-sheet {
+  --ck-sheet-w: 210mm; --ck-sheet-h: 297mm; --ck-pad: 22mm 20mm; --ck-qr: 120mm; --ck-fs: 13pt; --ck-fs-co: 16pt; --ck-fs-title: 28pt; --ck-fs-foot: 9.5pt; --ck-gap: 8mm; --ck-indent: 7mm; --ck-steps-w: 150mm; --ck-foot-w: 160mm;
+  display: flex; flex-direction: column; align-items: center; gap: var(--ck-gap); width: var(--ck-sheet-w); min-height: var(--ck-sheet-h);
+  padding: var(--ck-pad); margin: 0 auto; background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--ck-fs); border: var(--hair) solid var(--border);
+}
+.inv-ck-co { font-size: var(--ck-fs-co); font-weight: 700; text-transform: uppercase; text-align: center; }
+.inv-ck-title { font-size: var(--ck-fs-title); font-weight: 700; text-align: center; }
+.inv-ck-qr { width: var(--ck-qr); }
+.inv-ck-steps { margin: 0; padding-left: var(--ck-indent); line-height: 1.5; max-width: var(--ck-steps-w); }
+.inv-ck-foot { margin-top: auto; font-size: var(--ck-fs-foot); color: #333; text-align: center; max-width: var(--ck-foot-w); }
+@media print { .inv-ck-sheet { border: none; } }

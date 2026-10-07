@@ -60,13 +60,15 @@ var CHG_TRACK = [
   { path: 'extraExceptions', kind: 'arr', noun: 'explained exception', key: function(r) { return 'X:' + [r.iso, r.scope, r.key, r.at].join('|'); },
     label: function(r) { return chgJoin(r.label || r.key, r.iso ? chgDay(r.iso) : ''); } },
   { path: 'attendanceDeletes', kind: 'arr', noun: 'deleted attendance day', label: function(r) { return chgJoin(r.iso ? chgDay(r.iso) : r.key, r.reason); } },
-  { path: 'staff', kind: 'arr', noun: 'worker', label: function(r) { return r.name; } },
+  // A worker's personal details are the owner's alone (people.js): never compared, so History never shows them.
+  { path: 'staff', kind: 'arr', noun: 'worker', omit: ['profile'], label: function(r) { return r.name; } },
+  { path: 'peopleCheckins', kind: 'arr', noun: 'check-in', omit: ['score', 'note'], label: function(r) { return chgJoin(chgStaffName(r.staffId), r.on ? chgDay(r.on) : ''); } },
   { path: 'staffPayments', kind: 'arr', noun: 'payment', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.kind, chgMoney(r.amount), r.date ? chgDay(r.date) : ''); } },
   { path: 'payCarryClears', kind: 'arr', noun: 'cleared balance', label: function(r) { return chgJoin(chgStaffName(r.staffId), r.through ? 'to ' + chgDay(r.through) : '', r.reason); } },
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
   { path: 'payrollPaid', kind: 'arr', noun: 'payroll as paid', plural: 'payrolls as paid', label: function(r) { return chgJoin(r.month, r.source); } },
-  { path: 'attendance', kind: 'map', noun: 'attendance', plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
+  { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
   { path: 'areaTargets', kind: 'cfg', sec: 'Staff → Areas → complements' },
@@ -82,6 +84,8 @@ var CHG_TRACK = [
   { path: 'planner.heard', kind: 'arr', noun: 'rate heard', plural: 'rates heard', label: function(r) { return chgJoin(r.what, r.from); } },
   { path: 'planner.heldBack', kind: 'arr', noun: 'work held back', plural: 'work held back', label: function(r) { return chgJoin(chgClientName(r.clientId), r.why); } },
   { path: 'planner.cfg', kind: 'cfg', sec: 'Planner → assumptions' },
+  { path: 'plant.units', kind: 'arr', noun: 'plant unit', label: function(r) { return chgJoin(r.name, typeof pltStationName === 'function' ? pltStationName(r.station) : r.station); } },
+  { path: 'plant.log', kind: 'arr', noun: 'plant status change', label: function(r) { return chgJoin(r.to, r.date ? chgDay(r.date) : ''); } },
   { path: 'stock.items', kind: 'arr', noun: 'stock line', omit: ['lastPos'], label: function(r) { return r.name; } },
   { path: 'stock.entries', kind: 'arr', noun: 'stock entry', plural: 'stock entries',
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
@@ -135,7 +139,7 @@ var CHG_TRACK = [
   { path: 'guardCfg', kind: 'cfg', sec: 'Users & access', dflt: function() { return getDefaultState().guardCfg || {}; } }
 ];
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
-var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1 };
+var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1 };
 // Never compared: the log itself (a key starting _ never is either).
 var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.

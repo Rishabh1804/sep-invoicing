@@ -436,6 +436,14 @@ export const DIALOGS: Array<[string, string]> = [
   ['search', `searchOpen()`],
   ['search-results', `searchOpen('alpha')`],
   ['keys', `srchKeysOpen()`],
+  // Workers and the plant (P166–P170): a unit, a worker's record and check-in, the ID cards, the scanner, the office QR and its review.
+  ['plant-unit', `pltEdit(null, 'vat-a1')`],
+  ['worker-record', `pplEdit(1)`],
+  ['worker-checkin', `pplCheckinOpen(1)`],
+  ['idcards', `idcPrintOpen()`],
+  ['idc-scan', `idcScanOpen()`],
+  ['office-qr', `ckSetupOpen()`],
+  ['checkin-review', `S.staff[0].card = 'SEP-0001'; ckReviewOpen(${JSON.stringify(`SEP check-in\nCard SEP-0001\nTime ${todayIso().split('-').reverse().join('/')} 08:20\nPlace 22.800100,86.150100 ±12 m\nCode ABCD`)})`],
 ];
 
 export async function walkDialogs(page: Page, tag: string, stops: Stop[]) {

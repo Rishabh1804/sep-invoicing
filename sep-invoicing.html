@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="650bcf15">
+<meta name="app-build" content="153ef650">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2169,6 +2169,14 @@ body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax
 .inv-stat-bar-fill[data-tone="ok"] { fill: var(--ok); }
 .inv-stat-bar-fill[data-tone="warning"] { fill: var(--warning); }
 .inv-stat-bar-fill[data-tone="danger"] { fill: var(--danger); }
+/* A worker at a glance on the roster (people.js): three short labelled bars with their figures, side by side. */
+.inv-wstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-10); margin-top: var(--sp-4); width: 100%; }
+.inv-wstat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-4); min-width: 0; font-size: var(--fs-12); }
+.inv-wstat-k { color: var(--text-3); white-space: nowrap; }
+.inv-wstat-v { font-family: var(--ff-mono); color: var(--text-2); white-space: nowrap; }
+/* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
+body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
+.inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }
 </style>
 </head>
 <body>
@@ -20398,12 +20406,16 @@ function _attRosterView() {
     '<span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
 
+  // Each worker at a glance (people.js, the 6-second rule): tenure, reliability, consistency and workload as short bars with
+  // their figures, the top skills, and for the owner the motivation index.
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var cls = compClass(w.comp);
     var inactive = w.active === false;
     html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') + '</span>' +
+      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') +
+      (inactive ? '' : pplGlanceHtml(w, memo)) + '</span>' +
       '<span class="inv-row-end">' +
       '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
@@ -20421,10 +20433,11 @@ function _attRosterDesktop(all, wages) {
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
     '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
     '<th>Area</th><th>Status</th></tr></thead><tbody>';
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var inactive = w.active === false, id = escHtml(String(w.id));
     h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
-      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
+      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button>' + (inactive ? '' : pplGlanceHtml(w, memo)) + '</td>' +
       '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
       (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
       '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +
@@ -32529,6 +32542,7 @@ function addJsonWhat(obj) {
   if (f === 'sep-payroll-paid') return 'payroll';
   if (f === 'sep-att-register') return 'register';
   if (f === 'sep-people') return 'people';
+  if (f === 'sep-plant') return 'plant';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -32546,6 +32560,7 @@ var ADD_FILE_GUARD = {
   roster: { grp: 'imports', what: 'import a roster', page: 'pageStaff' },
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
+  plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -32577,6 +32592,7 @@ async function addFileRoute(file, buf) {
     roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
     register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
     people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
+    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text); }
   }[what];
@@ -40612,7 +40628,9 @@ function pltLogHtml() {
 }
 /* Production → Equipment. */
 function pltEquipmentHtml() {
-  var h = pltCanEdit() ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPltEdit">Add a unit</button></div>' : '';
+  var h = pltCanEdit() ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPltEdit">Add a unit</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invPltExport">Export</button><button class="inv-btn inv-btn-ghost" data-action="invPltImport">Import</button>' +
+    '<input type="file" accept=".json,application/json" id="pltFileInput" class="inv-hidden"></div>' : '';
   if (!pltUnits().length) {
     return h + '<div class="inv-empty" id="pltEmpty">No unit recorded yet. Add each barrel and tank: its line, its kg a round and whether it is working. ' +
       'The line’s capacity is worked out from them, and every change of status is kept with its day.</div>';
@@ -40749,6 +40767,13 @@ function pltAction(action, btn) {
     case 'invPltEdit': pltEdit(btn.dataset.id || null, btn.dataset.station || null); return true;
     case 'invPltSave': pltSave(btn.dataset.id || null); return true;
     case 'invPltRetire': pltRetire(btn.dataset.id); return true;
+    case 'invPltExport': pltExport(); return true;
+    case 'invPltImport': {
+      if (!pltOwnerOk(function() { var i = document.getElementById('pltFileInput'); if (i) i.click(); })) return true;
+      var inp = document.getElementById('pltFileInput');
+      if (inp) inp.click();
+      return true;
+    }
   }
   return false;
 }
@@ -40789,6 +40814,54 @@ TODO_RULE_FNS.plantDown = function() {
       sig: u.id + ':' + u.status + ':' + u.since };
   });
 };
+
+/* ---------- The register as a file: sep-plant v1 ----------
+   Export is whole (the units and the log); import merges by id and never overwrites a unit already held, so the owner can
+   fill the units in a spreadsheet, or move the register to another device. A unit with no id is new; one with the same
+   name on the same line as a unit held is the same unit, and is left as it is. */
+function pltExport() {
+  var p = pltRead(), meta = document.querySelector('meta[name="app-build"]');
+  downloadJson('sep-plant-' + localDateStr() + '.json', { format: 'sep-plant', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
+    units: p.units, log: p.log }, 1);
+}
+function pltMergeImport(obj) {
+  if (!obj || obj.format !== 'sep-plant' || !Array.isArray(obj.units)) return { ok: false };
+  var p = pltData(), added = 0, kept = 0, bad = 0, logs = 0, today = localDateStr(), now = Date.now(), who = pltWho();
+  var key = function(u) { return u.station + '|' + String(u.name || '').trim().toLowerCase(); };
+  obj.units.forEach(function(r) {
+    if (!r || !String(r.name || '').trim() || !PLT_STATIONS.some(function(s) { return s[0] === r.station; })) { bad++; return; }
+    if ((r.id && p.units.some(function(u) { return u.id === r.id; })) || p.units.some(function(u) { return !u.retiredAt && key(u) === key(r); })) { kept++; return; }
+    var status = PLT_STATUS.some(function(s) { return s[0] === r.status; }) ? r.status : 'run', since = /^\d{4}-\d{2}-\d{2}$/.test(r.since || '') && r.since <= today ? r.since : today;
+    var u = { id: r.id || pltId('PU'), name: String(r.name).trim(), station: r.station, kind: PLT_KINDS.some(function(k) { return k[0] === r.kind; }) ? r.kind : (r.station === 'barrel' ? 'barrel' : 'tank'),
+      kgRound: +r.kgRound > 0 ? +r.kgRound : null, status: status, since: since, reason: status === 'run' ? '' : String(r.reason || ''), addedOn: since,
+      condition: r.condition || 'fair', age: String(r.age || ''), needs: String(r.needs || ''), note: String(r.note || ''), risk: r.risk && +r.risk.p > 0 ? r.risk : null,
+      retiredAt: r.retiredAt || null, retireReason: r.retireReason || '', at: now, by: who };
+    p.units.push(u);
+    added++;
+    var own = Array.isArray(obj.log) ? obj.log.filter(function(l) { return l && l.unitId === u.id; }) : [];
+    if (own.length) own.forEach(function(l) { if (!p.log.some(function(x) { return x.id === l.id; })) { p.log.push(l); logs++; } });
+    else p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: null, to: status, reason: u.reason, at: now, by: who });
+  });
+  return { ok: true, added: added, kept: kept, bad: bad, logs: logs };
+}
+function pltImportText(text) {
+  if (!pltOwnerOk(function() { pltImportText(text); })) return;
+  var obj;
+  try { obj = JSON.parse(text); } catch (e) { showToast('Not valid JSON: ' + e.message, 'error'); return; }
+  var r = pltMergeImport(obj);
+  if (!r.ok) { uiAlert({ title: 'Not a plant file', body: 'A plant register file is marked sep-plant and carries a list of units.' }); return; }
+  saveState();
+  pltRedraw();
+  showToast(r.added + ' unit' + (r.added === 1 ? '' : 's') + ' added' + (r.kept ? ' · ' + r.kept + ' already held, kept' : '') + (r.bad ? ' · ' + r.bad + ' without a name or a known line' : ''), r.bad ? 'warning' : 'success');
+}
+document.addEventListener('change', function(e) {
+  var t = e.target;
+  if (!t || t.id !== 'pltFileInput' || !t.files || !t.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) { pltImportText(ev.target.result); };
+  reader.readAsText(t.files[0]);
+  t.value = '';
+});
 /* ===== PEOPLE: each worker's record, worked out from the book, and the owner's notes on them =====
    Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W2): *"Every worker will be assigned details, skill level, personal details,
    tenure, happiness index (derived from a combination of factors), reliability, consistency, relationships"*; then, asked:
@@ -41194,6 +41267,60 @@ function pplImportKeep() {
   if (navPageOf() === 'pageStaff') renderAttendance();
   showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (twice ? ' · ' + twice + ' row' + (twice === 1 ? '' : 's') + ' on a worker another row also named' : ''), left || twice ? 'warning' : 'success');
 }
+
+/* ---------- At a glance: the roster's row (W3, the 6-second rule) ---------- */
+/* Three short bars with their figures (reliability, consistency, workload), the tenure, the two strongest skills, and for the
+   owner the motivation index: one look says who is steady, who is stretched, and who to talk to. */
+function pplGlanceHtml(w, memo) {
+  var st = pplStats(w), wt = pplWorkTone(st), stat = function(k, label, v, tone, word) {
+    return '<span class="inv-wstat" data-ppl-glance="' + k + '"><span class="inv-wstat-k">' + label + '</span>' + pplBarHtml(v, tone, label + ': ' + word) + '<span class="inv-wstat-v">' + escHtml(word) + '</span></span>';
+  };
+  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 2);
+  var h = '<span class="inv-wstats">' +
+    stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
+    stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
+    stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
+  var meta = [pplTenureWords(st.tenure), skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', '), st.firm ? '' : st.marked + ' days marked'].filter(Boolean).join(' · ');
+  if (pplOwner()) {
+    var mo = pplMotivation(w, st, memo);
+    meta += ' · ';
+    h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>';
+  } else h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + '</span>';
+  return h;
+}
+
+/* ---------- The To-do: a check-in due, a worker to talk to (the owner's) ---------- */
+TODO_RULES.push(['pplCheckin', 'People: a monthly check-in due']);
+TODO_CHECK_DEFAULTS.pplCheckin = true;
+TODO_RULE_NEED.pplCheckin = 'owner';
+TODO_RULE_FNS.pplCheckin = function() {
+  var today = localDateStr();
+  var due = (S.staff || []).filter(function(w) {
+    if (w.active === false) return false;
+    var ci = pplLastCheckin(w);
+    return (!ci || isoDaysBetween(ci.on, today) > 45) && pplStats(w).firm;
+  });
+  if (!due.length) return [];
+  return [{ key: 'pplCheckin', rule: 'pplCheckin', tone: 'info', title: due.length + ' worker' + (due.length === 1 ? '' : 's') + ' due a check-in',
+    sub: due.slice(0, 4).map(function(w) { return w.name; }).join(', ') + (due.length > 4 ? ' and ' + (due.length - 4) + ' more' : ''), why: 'People · the motivation index',
+    facts: due.slice(0, 8).map(function(w) { var ci = pplLastCheckin(w); return [w.name, ci ? 'last ' + formatDate(ci.on) : 'never']; }),
+    clears: 'Clears itself as each is checked in (their record, Check in).', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
+    sig: due.map(function(w) { return w.id; }).join(',') }];
+};
+TODO_RULES.push(['pplWatch', 'People: motivation low, on firm figures']);
+TODO_CHECK_DEFAULTS.pplWatch = true;
+TODO_RULE_NEED.pplWatch = 'owner';
+TODO_RULE_FNS.pplWatch = function() {
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
+  return (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) { return { w: w, mo: pplMotivation(w, null, memo) }; })
+    .filter(function(x) { return x.mo.firm && x.mo.score < 50; }).map(function(x) {
+      return { key: 'pplWatch:' + x.w.id, rule: 'pplWatch', tone: x.mo.score < 35 ? 'red' : 'amber', title: x.w.name + ': motivation ' + x.mo.score,
+        sub: x.mo.sig.length ? x.mo.sig[0].word : 'the check-in', why: 'People · the motivation index',
+        facts: x.mo.sig.map(function(s) { return [s.word, '−' + s.weight]; }).concat(x.mo.checkin ? [['Check-in ' + formatDate(x.mo.checkin.on), x.mo.checkin.score + ' of 5' + (x.mo.checkin.note ? ': ' + x.mo.checkin.note : '')]] : []),
+        clears: 'Clears itself when the index is 50 or more: a signal resolved, or a better check-in.', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
+        sig: x.w.id + ':' + x.mo.score };
+    });
+};
 /* ===== PRODUCTION — the page (Floor → Production) =====
  * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with

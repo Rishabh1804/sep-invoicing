@@ -2147,3 +2147,11 @@ body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax
 .inv-stat-bar-fill[data-tone="ok"] { fill: var(--ok); }
 .inv-stat-bar-fill[data-tone="warning"] { fill: var(--warning); }
 .inv-stat-bar-fill[data-tone="danger"] { fill: var(--danger); }
+/* A worker at a glance on the roster (people.js): three short labelled bars with their figures, side by side. */
+.inv-wstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-4) var(--sp-10); margin-top: var(--sp-4); width: 100%; }
+.inv-wstat { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: var(--sp-4); min-width: 0; font-size: var(--fs-12); }
+.inv-wstat-k { color: var(--text-3); white-space: nowrap; }
+.inv-wstat-v { font-family: var(--ff-mono); color: var(--text-2); white-space: nowrap; }
+/* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
+body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
+.inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }

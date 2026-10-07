@@ -403,3 +403,57 @@ function pplImportKeep() {
   if (navPageOf() === 'pageStaff') renderAttendance();
   showToast(kept + ' worker' + (kept === 1 ? '' : 's') + '’ details kept' + (left ? ' · ' + left + ' left out' : '') + (twice ? ' · ' + twice + ' row' + (twice === 1 ? '' : 's') + ' on a worker another row also named' : ''), left || twice ? 'warning' : 'success');
 }
+
+/* ---------- At a glance: the roster's row (W3, the 6-second rule) ---------- */
+/* Three short bars with their figures (reliability, consistency, workload), the tenure, the two strongest skills, and for the
+   owner the motivation index: one look says who is steady, who is stretched, and who to talk to. */
+function pplGlanceHtml(w, memo) {
+  var st = pplStats(w), wt = pplWorkTone(st), stat = function(k, label, v, tone, word) {
+    return '<span class="inv-wstat" data-ppl-glance="' + k + '"><span class="inv-wstat-k">' + label + '</span>' + pplBarHtml(v, tone, label + ': ' + word) + '<span class="inv-wstat-v">' + escHtml(word) + '</span></span>';
+  };
+  var skills = Object.keys(w.skills || {}).filter(function(a) { return w.skills[a] > 0; }).sort(function(a, b) { return w.skills[b] - w.skills[a]; }).slice(0, 2);
+  var h = '<span class="inv-wstats">' +
+    stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
+    stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
+    stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
+  var meta = [pplTenureWords(st.tenure), skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', '), st.firm ? '' : st.marked + ' days marked'].filter(Boolean).join(' · ');
+  if (pplOwner()) {
+    var mo = pplMotivation(w, st, memo);
+    meta += ' · ';
+    h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>';
+  } else h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + '</span>';
+  return h;
+}
+
+/* ---------- The To-do: a check-in due, a worker to talk to (the owner's) ---------- */
+TODO_RULES.push(['pplCheckin', 'People: a monthly check-in due']);
+TODO_CHECK_DEFAULTS.pplCheckin = true;
+TODO_RULE_NEED.pplCheckin = 'owner';
+TODO_RULE_FNS.pplCheckin = function() {
+  var today = localDateStr();
+  var due = (S.staff || []).filter(function(w) {
+    if (w.active === false) return false;
+    var ci = pplLastCheckin(w);
+    return (!ci || isoDaysBetween(ci.on, today) > 45) && pplStats(w).firm;
+  });
+  if (!due.length) return [];
+  return [{ key: 'pplCheckin', rule: 'pplCheckin', tone: 'info', title: due.length + ' worker' + (due.length === 1 ? '' : 's') + ' due a check-in',
+    sub: due.slice(0, 4).map(function(w) { return w.name; }).join(', ') + (due.length > 4 ? ' and ' + (due.length - 4) + ' more' : ''), why: 'People · the motivation index',
+    facts: due.slice(0, 8).map(function(w) { var ci = pplLastCheckin(w); return [w.name, ci ? 'last ' + formatDate(ci.on) : 'never']; }),
+    clears: 'Clears itself as each is checked in (their record, Check in).', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
+    sig: due.map(function(w) { return w.id; }).join(',') }];
+};
+TODO_RULES.push(['pplWatch', 'People: motivation low, on firm figures']);
+TODO_CHECK_DEFAULTS.pplWatch = true;
+TODO_RULE_NEED.pplWatch = 'owner';
+TODO_RULE_FNS.pplWatch = function() {
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
+  return (S.staff || []).filter(function(w) { return w.active !== false; }).map(function(w) { return { w: w, mo: pplMotivation(w, null, memo) }; })
+    .filter(function(x) { return x.mo.firm && x.mo.score < 50; }).map(function(x) {
+      return { key: 'pplWatch:' + x.w.id, rule: 'pplWatch', tone: x.mo.score < 35 ? 'red' : 'amber', title: x.w.name + ': motivation ' + x.mo.score,
+        sub: x.mo.sig.length ? x.mo.sig[0].word : 'the check-in', why: 'People · the motivation index',
+        facts: x.mo.sig.map(function(s) { return [s.word, '−' + s.weight]; }).concat(x.mo.checkin ? [['Check-in ' + formatDate(x.mo.checkin.on), x.mo.checkin.score + ' of 5' + (x.mo.checkin.note ? ': ' + x.mo.checkin.note : '')]] : []),
+        clears: 'Clears itself when the index is 50 or more: a signal resolved, or a better check-in.', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
+        sig: x.w.id + ':' + x.mo.score };
+    });
+};

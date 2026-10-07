@@ -1031,12 +1031,16 @@ function _attRosterView() {
     '<span class="inv-panel-count">' + all.length + '</span></span></div>';
   if (all.length === 0) return html + '<div class="inv-empty">Nobody on file yet</div></div>';
 
+  // Each worker at a glance (people.js, the 6-second rule): tenure, reliability, consistency and workload as short bars with
+  // their figures, the top skills, and for the owner the motivation index.
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var cls = compClass(w.comp);
     var inactive = w.active === false;
     html += '<button class="inv-row inv-row-2 inv-row-flow' + (inactive ? ' inv-row-muted' : '') + '" data-action="invAttEditWorker" data-id="' + w.id + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') + '</span>' +
+      (wages ? '<span class="inv-row-meta inv-id">' + escHtml(workerRateLabel(w)) + '</span>' : '') +
+      (inactive ? '' : pplGlanceHtml(w, memo)) + '</span>' +
       '<span class="inv-row-end">' +
       '<span class="inv-badge">' + escHtml(cls.label) + '</span>' +
       '<span class="inv-badge">' + escHtml(areaLabel(w.area)) + '</span>' +
@@ -1054,10 +1058,11 @@ function _attRosterDesktop(all, wages) {
   var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="attRosterHost" data-open="' + (open ? escHtml(String(open.id)) : '') + '"><div class="inv-pane-list">' +
     '<table class="inv-table" id="attRosterTable"><thead><tr><th class="inv-col-grow">Name</th><th>Tier</th>' + (wages ? '<th class="inv-col-opt3">Rate</th>' : '') +
     '<th>Area</th><th>Status</th></tr></thead><tbody>';
+  var memo = typeof payLabMemo === 'function' ? payLabMemo() : null;
   all.forEach(function(w) {
     var inactive = w.active === false, id = escHtml(String(w.id));
     h += '<tr data-action="invAttRosterOpen" data-id="' + id + '"' + (inactive ? ' class="inv-row-muted"' : '') + (open && String(open.id) === String(w.id) ? ' aria-current="true"' : '') + '>' +
-      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button></td>' +
+      '<td class="inv-col-grow"><button class="inv-btn-link" data-action="invAttRosterOpen" data-id="' + id + '">' + escHtml(w.name) + '</button>' + (inactive ? '' : pplGlanceHtml(w, memo)) + '</td>' +
       '<td>' + escHtml(compClass(w.comp).label) + '</td>' +
       (wages ? '<td class="inv-col-opt3 inv-id" title="' + escHtml(workerRateLabel(w)) + '">' + escHtml(workerRateLabel(w)) + '</td>' : '') +
       '<td>' + escHtml(areaLabel(w.area)) + (w.onFloor === false ? ' <span class="inv-badge inv-badge-info">Off floor</span>' : '') + '</td>' +

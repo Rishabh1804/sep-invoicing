@@ -166,7 +166,9 @@ function pltLogHtml() {
 }
 /* Production → Equipment. */
 function pltEquipmentHtml() {
-  var h = pltCanEdit() ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPltEdit">Add a unit</button></div>' : '';
+  var h = pltCanEdit() ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPltEdit">Add a unit</button>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invPltExport">Export</button><button class="inv-btn inv-btn-ghost" data-action="invPltImport">Import</button>' +
+    '<input type="file" accept=".json,application/json" id="pltFileInput" class="inv-hidden"></div>' : '';
   if (!pltUnits().length) {
     return h + '<div class="inv-empty" id="pltEmpty">No unit recorded yet. Add each barrel and tank: its line, its kg a round and whether it is working. ' +
       'The line’s capacity is worked out from them, and every change of status is kept with its day.</div>';
@@ -303,6 +305,13 @@ function pltAction(action, btn) {
     case 'invPltEdit': pltEdit(btn.dataset.id || null, btn.dataset.station || null); return true;
     case 'invPltSave': pltSave(btn.dataset.id || null); return true;
     case 'invPltRetire': pltRetire(btn.dataset.id); return true;
+    case 'invPltExport': pltExport(); return true;
+    case 'invPltImport': {
+      if (!pltOwnerOk(function() { var i = document.getElementById('pltFileInput'); if (i) i.click(); })) return true;
+      var inp = document.getElementById('pltFileInput');
+      if (inp) inp.click();
+      return true;
+    }
   }
   return false;
 }
@@ -343,3 +352,51 @@ TODO_RULE_FNS.plantDown = function() {
       sig: u.id + ':' + u.status + ':' + u.since };
   });
 };
+
+/* ---------- The register as a file: sep-plant v1 ----------
+   Export is whole (the units and the log); import merges by id and never overwrites a unit already held, so the owner can
+   fill the units in a spreadsheet, or move the register to another device. A unit with no id is new; one with the same
+   name on the same line as a unit held is the same unit, and is left as it is. */
+function pltExport() {
+  var p = pltRead(), meta = document.querySelector('meta[name="app-build"]');
+  downloadJson('sep-plant-' + localDateStr() + '.json', { format: 'sep-plant', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
+    units: p.units, log: p.log }, 1);
+}
+function pltMergeImport(obj) {
+  if (!obj || obj.format !== 'sep-plant' || !Array.isArray(obj.units)) return { ok: false };
+  var p = pltData(), added = 0, kept = 0, bad = 0, logs = 0, today = localDateStr(), now = Date.now(), who = pltWho();
+  var key = function(u) { return u.station + '|' + String(u.name || '').trim().toLowerCase(); };
+  obj.units.forEach(function(r) {
+    if (!r || !String(r.name || '').trim() || !PLT_STATIONS.some(function(s) { return s[0] === r.station; })) { bad++; return; }
+    if ((r.id && p.units.some(function(u) { return u.id === r.id; })) || p.units.some(function(u) { return !u.retiredAt && key(u) === key(r); })) { kept++; return; }
+    var status = PLT_STATUS.some(function(s) { return s[0] === r.status; }) ? r.status : 'run', since = /^\d{4}-\d{2}-\d{2}$/.test(r.since || '') && r.since <= today ? r.since : today;
+    var u = { id: r.id || pltId('PU'), name: String(r.name).trim(), station: r.station, kind: PLT_KINDS.some(function(k) { return k[0] === r.kind; }) ? r.kind : (r.station === 'barrel' ? 'barrel' : 'tank'),
+      kgRound: +r.kgRound > 0 ? +r.kgRound : null, status: status, since: since, reason: status === 'run' ? '' : String(r.reason || ''), addedOn: since,
+      condition: r.condition || 'fair', age: String(r.age || ''), needs: String(r.needs || ''), note: String(r.note || ''), risk: r.risk && +r.risk.p > 0 ? r.risk : null,
+      retiredAt: r.retiredAt || null, retireReason: r.retireReason || '', at: now, by: who };
+    p.units.push(u);
+    added++;
+    var own = Array.isArray(obj.log) ? obj.log.filter(function(l) { return l && l.unitId === u.id; }) : [];
+    if (own.length) own.forEach(function(l) { if (!p.log.some(function(x) { return x.id === l.id; })) { p.log.push(l); logs++; } });
+    else p.log.push({ id: pltId('PL'), unitId: u.id, date: since, from: null, to: status, reason: u.reason, at: now, by: who });
+  });
+  return { ok: true, added: added, kept: kept, bad: bad, logs: logs };
+}
+function pltImportText(text) {
+  if (!pltOwnerOk(function() { pltImportText(text); })) return;
+  var obj;
+  try { obj = JSON.parse(text); } catch (e) { showToast('Not valid JSON: ' + e.message, 'error'); return; }
+  var r = pltMergeImport(obj);
+  if (!r.ok) { uiAlert({ title: 'Not a plant file', body: 'A plant register file is marked sep-plant and carries a list of units.' }); return; }
+  saveState();
+  pltRedraw();
+  showToast(r.added + ' unit' + (r.added === 1 ? '' : 's') + ' added' + (r.kept ? ' · ' + r.kept + ' already held, kept' : '') + (r.bad ? ' · ' + r.bad + ' without a name or a known line' : ''), r.bad ? 'warning' : 'success');
+}
+document.addEventListener('change', function(e) {
+  var t = e.target;
+  if (!t || t.id !== 'pltFileInput' || !t.files || !t.files[0]) return;
+  var reader = new FileReader();
+  reader.onload = function(ev) { pltImportText(ev.target.result); };
+  reader.readAsText(t.files[0]);
+  t.value = '';
+});

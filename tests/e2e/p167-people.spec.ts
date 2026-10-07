@@ -82,7 +82,7 @@ test.describe('P167 a worker’s record', () => {
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
     await page.locator('[data-action="invAttEditWorker"][data-id="1"]').first().click();
-    await page.locator('[data-ppl-sheet="1"] [data-action="invPplEdit"]').click();
+    await page.locator('[data-ppl-sheet="1"] [data-action="invPplEdit"]:not([data-part])').click();
     await page.fill('#pplPhone', '90000 11111');
     await page.fill('#pplId4', '1234-5678-9012');
     await page.selectOption('#pplSkill-vat-a1', '4');

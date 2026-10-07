@@ -172,7 +172,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,530 tests, both layouts
+pnpm exec playwright test          # 1,535 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -410,7 +410,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 628 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 639 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1895,9 +1895,19 @@ workers and every personal detail are the book's; the owner's private files (`se
   unless firm. **Personal details and motivation are the owner's alone**; the change log never compares a profile, a check-in's score or
   note. The roster row carries three bars (reliability, consistency, workload) and the top skills (P168). To-do `pplCheckin`, `pplWatch`.
   `sep-people` v1 through Staff → Roster → Import or Add → File: matched by name like a roll, each match checked before a field is written.
+  **Skills and relationships each have a Change on their own panel** (owner: *"once I set the skill there is no way to change the skill
+  level"*: the only door was *Details, skills and ties* at the foot of the record); a dialog opened on one part writes only that part.
+  **Reports to can name the owner** (`{kind: 'reportsTo', owner: true}`, said as the owner's ID name, else *you (the owner)*).
 - **ID cards** (`qr.js`, `idcard.js`): a card number given once and never reused (`w.card`, `SEP-0007`; a replaced card goes to
   `cardsRetired` with a reason and is refused), its QR `SEP1:W:<card>:<check>` drawn by the app's own encoder (no library, no network;
-  checked by decoding with OpenCV). Printed ten to an A4 sheet, the owner's. **Staff → Day → Scan cards**: the camera
+  checked by decoding with OpenCV). Printed ten to an A4 sheet, the owner's. **A number is given when the sheet is printed, never
+  at preview** (owner, 7 Oct 2026: *"Previewing assigns ID number which holds"*): the preview shows the next numbers in turn
+  (`_idcPending`), the print view's Print or the browser's own (`beforeprint`) gives them (`idcPrintCommit`), closing it gives none.
+  **Two sides** (owner: *"too simple … doesn't carry the address of the plant and the back side should be safety and hazard
+  guidelines for a Zinc plating plant"*): the front a band with the company, the plant's address and phone, the name, designation and
+  area, the card, blood group, joining date and emergency phone, the QR and a signatory line; the back the safety rules (`IDC_RULES`,
+  rewritten by the owner on the print dialog, `S.idcCfg.rules`) and *If found, return to* the plant. A sheet of backs follows each sheet of
+  fronts, each row's two swapped, so a page printed on both sides flipped on the long edge puts every back behind its own front. **Staff → Day → Scan cards**: the camera
   (`BarcodeDetector`) or the number typed; the day's earliest time is the in, its latest the out, two minutes apart or it is the same
   scan, the mark the hand's own (a roll never rewrites it), Undo on screen (`idcApply`).
 - **The office QR** (`checkin.js`, `checkin.html`; owner: *"a universal QR Code … we would need safeguards for proxy"*, WhatsApp with

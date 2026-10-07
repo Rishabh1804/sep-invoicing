@@ -92,6 +92,9 @@ that every worker gets, we will have a QR code scanner in it that should be link
   the worker's own (`src: 'scan'`), so a roll never rewrites it, and a scan within two minutes of the last is the same scan.
   Every scan is listed on the screen as it lands, with Undo. A card retired or a worker inactive is refused and said.
 - A floor entry for the guard (`attFloorOk`); printing the cards is the owner's.
+- **Changed the same day (owner, 7 Oct 2026)**: a number is given when the sheet is printed, never at preview; the card has two sides,
+  the front carrying the plant's address and phone, the back the safety rules of a zinc plating floor (rewritable on the print dialog)
+  and where to return a found card, printed as a sheet of backs after each sheet of fronts for double-sided printing. P172.
 
 ## W5 · The office QR
 

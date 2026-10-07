@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="8d3233f7">
+<meta name="app-build" content="869baee7">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2187,21 +2187,34 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-idc-small { max-width: calc(var(--sp-32) * 4); }
 .inv-idc-video { display: block; width: 100%; max-height: calc(var(--sp-32) * 8); border-radius: var(--r-md); background: var(--surface-3); object-fit: cover; }
 .inv-idc-sheet {
-  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 2mm; --idc-pad: 3.5mm; --idc-qr: 30mm; --idc-fs: 8pt; --idc-fs-name: 12pt; --idc-fs-co: 8.5pt; --idc-rule: 0.4pt;
-  --idc-radius: 3mm; --idc-line: 1mm; --idc-lh-name: 1.15; --idc-ink-2: #444;
+  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 2mm; --idc-pad: 3mm; --idc-qr: 24mm; --idc-fs: 7pt; --idc-fs-sm: 5.6pt; --idc-fs-name: 11pt; --idc-fs-co: 8pt; --idc-rule: 0.4pt;
+  --idc-radius: 3mm; --idc-line: 0.8mm; --idc-lh: 1.25; --idc-lh-name: 1.1; --idc-track: 0.02em; --idc-ink-2: #444; --idc-band: #12343b; --idc-band-ink: #fff; --idc-accent: #e0a526;
   --idc-sheet-w: 210mm; --idc-sheet-h: 297mm; --idc-margin: 9mm 18.4mm;
   display: grid; grid-template-columns: repeat(2, var(--idc-w)); grid-auto-rows: var(--idc-h); gap: var(--idc-gap);
   width: var(--idc-sheet-w); min-height: var(--idc-sheet-h); padding: var(--idc-margin); margin: 0 auto var(--sp-16);
   background: #fff; color: #000; font-family: var(--ff-base); page-break-after: always; break-after: page; border: var(--hair) solid var(--border);
+  -webkit-print-color-adjust: exact; print-color-adjust: exact;
 }
 .inv-idc-sheet:last-child { page-break-after: auto; break-after: auto; }
-.inv-idc { display: flex; gap: var(--idc-pad); padding: var(--idc-pad); border: var(--idc-rule) solid #000; border-radius: var(--idc-radius); overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
-.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--idc-line); font-size: var(--idc-fs); }
-.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; border-bottom: var(--idc-rule) solid #000; padding-bottom: var(--idc-line); }
-.inv-idc-label { font-size: var(--idc-fs); color: var(--idc-ink-2); }
+.inv-idc { display: flex; flex-direction: column; border: var(--idc-rule) solid #000; border-radius: var(--idc-radius); overflow: hidden; break-inside: avoid; page-break-inside: avoid; font-size: var(--idc-fs); line-height: var(--idc-lh); }
+.inv-idc-band { background: var(--idc-band); color: var(--idc-band-ink); padding: var(--idc-line) var(--idc-pad); border-bottom: var(--idc-line) solid var(--idc-accent); }
+.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; letter-spacing: var(--idc-track); }
+.inv-idc-addr { font-size: var(--idc-fs-sm); }
+.inv-idc-body { flex: 1 1 auto; display: flex; gap: var(--idc-pad); padding: var(--idc-line) var(--idc-pad); min-height: 0; }
+.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--idc-line); }
 .inv-idc-name { font-size: var(--idc-fs-name); font-weight: 700; line-height: var(--idc-lh-name); overflow-wrap: anywhere; }
-.inv-idc-row { font-size: var(--idc-fs); }
+.inv-idc-desig { color: var(--idc-ink-2); }
+.inv-idc-kv { display: grid; grid-template-columns: auto 1fr; gap: 0 var(--idc-pad); margin: 0; }
+.inv-idc-kv dt { color: var(--idc-ink-2); }
+.inv-idc-kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
 .inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
+.inv-idc-foot { display: flex; justify-content: space-between; align-items: flex-end; padding: 0 var(--idc-pad) var(--idc-line); font-size: var(--idc-fs-sm); color: var(--idc-ink-2); text-transform: uppercase; }
+.inv-idc-sign { border-top: var(--idc-rule) solid #000; padding-top: var(--idc-line); text-transform: none; }
+.inv-idc-back { padding: var(--idc-pad); gap: var(--idc-line); }
+.inv-idc-btitle { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; color: var(--idc-band); border-bottom: var(--idc-line) solid var(--idc-accent); padding-bottom: var(--idc-line); }
+.inv-idc-rules { flex: 1 1 auto; margin: 0; padding-left: var(--idc-pad); font-size: var(--idc-fs-sm); }
+.inv-idc-bfoot { font-size: var(--idc-fs-sm); color: var(--idc-ink-2); border-top: var(--idc-rule) solid #000; padding-top: var(--idc-line); }
+.inv-idc-blank { visibility: hidden; }
 @media print { .inv-idc-sheet { border: none; margin: 0; } }
 /* The office check-in sheet (checkin.js): one A4 page, a large QR and three steps. A printed form: its sizes declared once. */
 .inv-ck-sheet {
@@ -16583,6 +16596,7 @@ function printMarkPrinted() {
 
 function closePrintPreview() {
   _printInvId = null;
+  if (typeof idcPrintDiscard === 'function') idcPrintDiscard();   // ID card numbers previewed and not printed are not given
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
   document.body.style.overflow = '';
   // Restore page title
@@ -41142,7 +41156,8 @@ function pplRecordHtml(w, opts) {
   }
   // Skills: the owner's rating beside the days the book shows in each area.
   var areas = STAFF_AREAS.filter(function(a) { return (w.skills && w.skills[a.id] > 0) || st.areas[a.id]; });
-  h += '<div class="inv-panel inv-panel-flush" data-ppl-skills="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Skills</span></div>' +
+  var change = function(part) { return owner ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPplEdit" data-part="' + part + '" data-id="' + id + '">Change</button>' : ''; };
+  h += '<div class="inv-panel inv-panel-flush" data-ppl-skills="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Skills</span>' + change('skills') + '</div>' +
     (areas.length ? areas.map(function(a) {
       var s = w.skills && w.skills[a.id] > 0 ? +w.skills[a.id] : 0, d = st.areas[a.id] || 0;
       return '<div class="inv-row inv-row-2" data-ppl-skill="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span><span class="inv-row-meta">' +
@@ -41152,11 +41167,11 @@ function pplRecordHtml(w, opts) {
     (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
   // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
   if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
-  var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name); });
-  if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div>' +
+  var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name || t.owner); });
+  if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span>' + change('ties') + '</div>' +
     (ties.length ? ties.map(function(t) {
       var o = t.staffId != null ? staffById(t.staffId) : null, k = PPL_TIES.find(function(x) { return x[0] === t.kind; });
-      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (o ? o.name : t.name)) + '</span>' +
+      return '<div class="inv-row inv-row-2" data-ppl-tie="' + escHtml(t.kind || '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((k ? k[1] : 'Linked to') + ' ' + (t.owner ? pplOwnerName() : o ? o.name : t.name)) + '</span>' +
         (t.note ? '<span class="inv-row-meta">' + escHtml(t.note) + '</span>' : '') + '</span></div>';
     }).join('') : '<div class="inv-empty">None recorded.</div>') + '</div>';
   if (owner) {
@@ -41185,30 +41200,39 @@ function _pplSel(id, label, list, v) {
     list.map(function(o) { return '<option value="' + escHtml(String(o[0])) + '"' + (String(v) === String(o[0]) ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>'; }).join('') + '</select></div>';
 }
 var _pplFrom = null;   // the worker's edit sheet the dialog was opened over, to come back to it
-function pplEdit(id) {
-  if (!pplOwnerOk(function() { pplEdit(id); })) return;
+/* The owner, as a tie names them: their ID's name where the guard is on, else "you (the owner)". */
+function pplOwnerName() {
+  var o = (typeof grdActiveUsers === 'function' ? grdActiveUsers() : []).find(function(u) { return u && u.role === 'owner'; });
+  return o && o.name ? o.name + ' (the owner)' : 'you (the owner)';
+}
+/* `part`: 'skills' or 'ties' opens that part alone (from its panel's Change); none opens all of it. */
+function pplEdit(id, part) {
+  if (!pplOwnerOk(function() { pplEdit(id, part); })) return;
   var w = staffById(id);
   if (!w) return;
   _pplFrom = document.querySelector('[data-ppl-sheet]') ? id : null;
   var p = w.profile || {}, em = p.emergency || {}, ties = (w.ties || []).slice(0, 3);
   while (ties.length < 3) ties.push({});
-  var workers = [['', 'Someone not on the roster']].concat((S.staff || []).filter(function(o) { return o !== w; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(o) { return [o.id, o.name]; }));
-  var f = '<div class="inv-fields">' + _pplF('pplDesig', 'Designation', p.designation) + _pplF('pplPhone', 'Phone', p.phone, 'tel') + _pplF('pplGuard', 'Son or daughter of', p.guardian) +
+  var workers = [['', 'Someone not on the roster'], ['owner', 'Me (the owner)']].concat((S.staff || []).filter(function(o) { return o !== w; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); }).map(function(o) { return [o.id, o.name]; }));
+  var fDetails = '<div class="inv-fields">' + _pplF('pplDesig', 'Designation', p.designation) + _pplF('pplPhone', 'Phone', p.phone, 'tel') + _pplF('pplGuard', 'Son or daughter of', p.guardian) +
     _pplF('pplBlood', 'Blood group', p.bloodGroup) + _pplF('pplDob', 'Born', p.dob, 'date') + _pplF('pplJoined', 'Joined', p.joined, 'date') +
     _pplF('pplLang', 'Languages', p.languages) + _pplF('pplId4', 'ID, last four digits', p.idLast4, 'text', ' inputmode="numeric"') +
     _pplF('pplBank4', 'Bank account, last four digits', p.bankLast4, 'text', ' inputmode="numeric"') + '</div>' +
     _pplF('pplAddr', 'Address', p.address) +
     '<div class="inv-fields">' + _pplF('pplEmName', 'In an emergency: name', em.name) + _pplF('pplEmRel', 'Relation', em.relation) + _pplF('pplEmPhone', 'Their phone', em.phone, 'tel') + '</div>' +
-    _pplF('pplNotes', 'Notes', p.notes) +
+    _pplF('pplNotes', 'Notes', p.notes);
+  var fSkills = '' +
     '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Skills, 0 to 5</span></div><div class="inv-panel-body"><div class="inv-fields">' +
     STAFF_AREAS.map(function(a) { return _pplSel('pplSkill-' + a.id, a.label, [[0, 'Not rated'], [1, '1 · learning'], [2, '2'], [3, '3 · on their own'], [4, '4'], [5, '5 · can teach it']], (w.skills || {})[a.id] || 0); }).join('') +
-    '</div></div></div>' +
+    '</div></div></div>';
+  var fTies = '' +
     '<div class="inv-panel inv-panel-flush inv-mt-8"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div><div class="inv-panel-body">' +
     ties.map(function(t, i) {
       return '<div class="inv-fields">' + _pplSel('pplTieKind' + i, 'Relationship ' + (i + 1), [['', 'None']].concat(PPL_TIES), t.kind || '') +
-        _pplSel('pplTieWho' + i, 'Worker', workers, t.staffId != null ? t.staffId : '') + _pplF('pplTieName' + i, 'Or a name', t.staffId != null ? '' : t.name) + '</div>';
+        _pplSel('pplTieWho' + i, 'Worker', workers, t.owner ? 'owner' : t.staffId != null ? t.staffId : '') + _pplF('pplTieName' + i, 'Or a name', t.staffId != null || t.owner ? '' : t.name) + '</div>';
     }).join('') + '</div></div>';
-  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + ': details, skills and ties', 'invCloseConfirm') + f +
+  dialogOpen('<div class="inv-dialog" data-ppl-edit="' + escHtml(String(w.id)) + '">' + dialogHeadHtml(escHtml(w.name) + (part === 'skills' ? ': skills' : part === 'ties' ? ': relationships' : ': details, skills and ties'), 'invCloseConfirm') +
+    (part === 'skills' ? fSkills : part === 'ties' ? fTies : fDetails + fSkills + fTies) +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPplSave" data-id="' + escHtml(String(w.id)) + '">Save</button></div></div>', { dismiss: true });
 }
 function _pplV(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
@@ -41216,24 +41240,28 @@ function pplSave(id) {
   if (!pplOwnerOk(function() { pplSave(id); })) return;
   var w = staffById(id);
   if (!w) return;
+  var has = function(elId) { return !!document.getElementById(elId); };
   var four = function(v) { var d = String(v).replace(/\D/g, ''); return d ? d.slice(-4) : ''; };
   var prof = { designation: _pplV('pplDesig'), guardian: _pplV('pplGuard'), bloodGroup: _pplV('pplBlood'), phone: _pplV('pplPhone'), dob: _pplV('pplDob'), joined: _pplV('pplJoined'), languages: _pplV('pplLang'), idLast4: four(_pplV('pplId4')), bankLast4: four(_pplV('pplBank4')),
     address: _pplV('pplAddr'), notes: _pplV('pplNotes'), emergency: { name: _pplV('pplEmName'), relation: _pplV('pplEmRel'), phone: _pplV('pplEmPhone') } };
-  if (prof.joined && prof.joined > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The joining date is a day up to today.' });
+  if (has('pplDesig') && prof.joined && prof.joined > localDateStr()) return uiAlert({ title: 'A day not yet come', body: 'The joining date is a day up to today.' });
   var skills = {};
   STAFF_AREAS.forEach(function(a) { var v = parseInt(_pplV('pplSkill-' + a.id), 10); if (v > 0) skills[a.id] = Math.min(5, v); });
   var ties = [];
   for (var i = 0; i < 3; i++) {
     var kind = _pplV('pplTieKind' + i), who = _pplV('pplTieWho' + i), name = _pplV('pplTieName' + i);
     if (!kind || (!who && !name)) continue;
-    var o = who ? staffById(who) : null;
-    var tie = o ? { kind: kind, staffId: o.id } : { kind: kind, name: name }, was = (w.ties || [])[i];
+    var o = who && who !== 'owner' ? staffById(who) : null;
+    var tie = who === 'owner' ? { kind: kind, owner: true } : o ? { kind: kind, staffId: o.id } : { kind: kind, name: name }, was = (w.ties || [])[i];
     // A tie's note (from a file) is kept while the tie is the same one.
-    if (was && was.note && was.kind === tie.kind && (o ? String(was.staffId) === String(o.id) : was.name === tie.name)) tie.note = was.note;
+    if (was && was.note && was.kind === tie.kind && (tie.owner ? was.owner : o ? String(was.staffId) === String(o.id) : was.name === tie.name)) tie.note = was.note;
     ties.push(tie);
   }
   ties = ties.concat((w.ties || []).slice(3));   // the form shows three; the rest are kept as they are
-  w.profile = prof; w.skills = skills; w.ties = ties;
+  // Only what the dialog held is written: a dialog opened on the skills alone leaves the details and ties as they are.
+  if (has('pplDesig')) w.profile = prof;
+  if (has('pplSkill-' + STAFF_AREAS[0].id)) w.skills = skills;
+  if (has('pplTieKind0')) w.ties = ties;
   saveState();
   pplBack(id);
   showToast('Saved');
@@ -41275,7 +41303,7 @@ function pplBack(id) {
 }
 function pplAction(action, btn) {
   switch (action) {
-    case 'invPplEdit': pplEdit(btn.dataset.id); return true;
+    case 'invPplEdit': pplEdit(btn.dataset.id, btn.dataset.part || null); return true;
     case 'invPplSave': pplSave(btn.dataset.id); return true;
     case 'invPplCheckin': pplCheckinOpen(btn.dataset.id); return true;
     case 'invPplCheckinSave': pplCheckinSave(btn.dataset.id); return true;
@@ -41379,7 +41407,8 @@ function pplImportKeep() {
     if (Array.isArray(r.ties) && r.ties.length) {
       var ties = Array.isArray(w.ties) ? w.ties.slice() : [];
       r.ties.forEach(function(t) {
-        if (!t || !t.kind || !t.name || !PPL_TIES.some(function(k) { return k[0] === t.kind; })) return;
+        if (!t || !t.kind || (!t.name && !t.owner) || !PPL_TIES.some(function(k) { return k[0] === t.kind; })) return;
+        if (t.owner) { if (!ties.some(function(e) { return e.kind === t.kind && e.owner; })) ties.push({ kind: t.kind, owner: true }); return; }
         var m = relayMatchName(String(t.name).trim().split(/\s+/), idx, false), o = m && m.sure ? m.w : null;
         var tie = o ? { kind: t.kind, staffId: o.id } : { kind: t.kind, name: String(t.name).trim() };
         if (t.note) tie.note = String(t.note);
@@ -41812,25 +41841,69 @@ function idcOwnerOk(again) {
   if (typeof pplOwner === 'function' && !pplOwner()) { uiAlert({ title: 'The owner’s to print', body: 'ID cards are printed by the owner.' }); return false; }
   return typeof grdGate !== 'function' || grdGate('payments', 'Print ID cards', again);
 }
+/* The back of every card: the rules a zinc plating floor lives by, one a line. The owner may rewrite them on the print dialog
+   (`S.idcCfg.rules`); these stand until then. Nothing of the shop is in them. */
+var IDC_RULES = [
+  'Wear gloves, goggles, apron and gumboots at the tanks; a face shield for acid or cyanide.',
+  'Never let acid meet cyanide: together they give a poison gas. Rinse between tanks.',
+  'Add acid to water, never water to acid.',
+  'No eating, drinking, smoking or chewing in the plant. Wash before you eat.',
+  'Splash on skin or in the eyes: wash in running water for 15 minutes, then tell the supervisor.',
+  'Switch off a rectifier before touching a bar or a clamp. Keep hands and tools dry.',
+  'Keep floors dry and drains clear. Report a spill, a leak or a smell at once.',
+  'Know the eye-wash, the first-aid box and the way out. Never work alone at the tanks.'];
+function idcRules() { var r = S.idcCfg && Array.isArray(S.idcCfg.rules) ? S.idcCfg.rules.filter(function(x) { return String(x).trim(); }) : null; return r && r.length ? r : IDC_RULES; }
+var _idcPending = null;   // the numbers a preview shows for workers with no card yet: given only when the sheet is printed
+
 function idcPrintOpen(onlyId) {
   if (!idcOwnerOk(function() { idcPrintOpen(onlyId); })) return;
   var list = (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
   if (!list.length) return uiAlert({ title: 'Nobody on the roster', body: 'Add the workers first; each gets a card.' });
   dialogOpen('<div class="inv-dialog" data-idc-print>' + dialogHeadHtml('ID cards') +
-    '<div class="inv-note">Ten to an A4 sheet, credit-card size. A worker printed for the first time is given the next card number; it is theirs for good.</div>' +
+    '<div class="inv-note">Ten to an A4 sheet, credit-card size. A worker printed for the first time is given the next card number when the sheet is printed, not when it is previewed; it is theirs for good.</div>' +
     '<div class="inv-panel inv-panel-flush inv-mt-8">' + list.map(function(w) {
       return '<label class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span><span class="inv-row-meta">' + escHtml(w.card || 'no card yet') + '</span></span>' +
         '<span class="inv-row-end"><input type="checkbox" class="inv-check" data-idc-pick="' + escHtml(String(w.id)) + '"' + (onlyId == null || String(onlyId) === String(w.id) ? ' checked' : '') + '></span></label>';
     }).join('') + '</div>' +
+    '<label class="inv-row inv-row-2 inv-mt-8"><span class="inv-row-main"><span class="inv-row-title">Print the back too</span><span class="inv-row-meta">a sheet of backs after each sheet of fronts: print on both sides, flipping on the long edge</span></span>' +
+    '<span class="inv-row-end"><input type="checkbox" class="inv-check" id="idcBacks" checked></span></label>' +
+    '<label class="inv-field inv-mt-8"><span class="inv-field-label">The back: safety rules, one a line</span><textarea class="inv-textarea" id="idcRules" rows="8">' + escHtml(idcRules().join('\n')) + '</textarea></label>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invIdcPreview">Preview</button></div></div>', { dismiss: true });
 }
-function idcCardHtml(w) {
-  var co = (S.company && (S.company.name || S.company.companyName)) || '', p = w.profile || {};
-  return '<div class="inv-idc" data-idc-card="' + escHtml(w.card) + '"><div class="inv-idc-main"><div class="inv-idc-co">' + escHtml(co) + '</div><div class="inv-idc-label">Identity card</div>' +
-    '<div class="inv-idc-name">' + escHtml(w.name) + '</div>' + (p.designation ? '<div class="inv-idc-row">' + escHtml(p.designation) + '</div>' : '') +
-    '<div class="inv-idc-row"><b>' + escHtml(w.card) + '</b>' + (p.bloodGroup ? ' · Blood ' + escHtml(p.bloodGroup) : '') + '</div>' +
-    (p.joined ? '<div class="inv-idc-row">Since ' + escHtml(formatDate(p.joined)) + '</div>' : '') + '</div>' +
-    '<div class="inv-idc-qr">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div></div>';
+/* The plant's address as the invoice prints it. */
+function idcAddress() { var c = S.company || {}; return [c.add1, c.add2, c.add3].filter(function(x) { return String(x || '').trim(); }).join(', '); }
+function idcCardHtml(w, card) {
+  var c = S.company || {}, co = c.name || c.companyName || '', p = w.profile || {}, em = p.emergency || {};
+  var rows = [['Card', card], ['Blood group', p.bloodGroup], ['Joined', p.joined ? formatDate(p.joined) : ''], ['Emergency', em.phone ? (em.relation ? em.relation + ' ' : '') + em.phone : '']]
+    .filter(function(r) { return r[1]; });
+  return '<div class="inv-idc" data-idc-card="' + escHtml(card) + '">' +
+    '<div class="inv-idc-band"><div class="inv-idc-co">' + escHtml(co) + '</div><div class="inv-idc-addr">' + escHtml(idcAddress()) + (c.phone ? ' · ' + escHtml(c.phone) : '') + '</div></div>' +
+    '<div class="inv-idc-body"><div class="inv-idc-main"><div class="inv-idc-name">' + escHtml(w.name) + '</div>' +
+    '<div class="inv-idc-desig">' + escHtml([p.designation, w.area && typeof areaLabel === 'function' && w.area !== 'flex' ? areaLabel(w.area) : ''].filter(Boolean).join(' · ') || 'Worker') + '</div>' +
+    '<dl class="inv-idc-kv">' + rows.map(function(r) { return '<dt>' + escHtml(r[0]) + '</dt><dd>' + escHtml(r[1]) + '</dd>'; }).join('') + '</dl></div>' +
+    '<div class="inv-idc-qr">' + qrSvg(idcPayload(card), 'Card ' + card) + '</div></div>' +
+    '<div class="inv-idc-foot"><span>Identity card</span><span class="inv-idc-sign">Authorised signatory</span></div></div>';
+}
+function idcBackHtml() {
+  var c = S.company || {};
+  return '<div class="inv-idc inv-idc-back"><div class="inv-idc-btitle">Safety at the plant</div><ol class="inv-idc-rules">' +
+    idcRules().map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ol>' +
+    '<div class="inv-idc-bfoot">' + (c.phone ? 'Emergency: ' + escHtml(c.phone) + ' · ' : '') + 'If found, return to ' + escHtml(c.name || 'the plant') + ', ' + escHtml(idcAddress()) + '</div></div>';
+}
+/* Ten to a sheet; the backs on the next sheet, each row's two swapped, so a page printed on both sides (flipped on the long
+   edge) puts every back behind its own front. */
+function idcSheetsHtml(cards, backs) {
+  var h = '';
+  for (var i = 0; i < cards.length; i += 10) {
+    var page = cards.slice(i, i + 10);
+    h += '<div class="inv-idc-sheet" data-idc-sheet="front">' + page.map(function(x) { return idcCardHtml(x.w, x.card); }).join('') + '</div>';
+    if (backs) {
+      var cells = [];
+      for (var r = 0; r < page.length; r += 2) cells.push(page[r + 1] ? idcBackHtml() : '<div class="inv-idc-blank"></div>', idcBackHtml());
+      h += '<div class="inv-idc-sheet" data-idc-sheet="back">' + cells.join('') + '</div>';
+    }
+  }
+  return h;
 }
 function idcPreview() {
   if (!idcOwnerOk(idcPreview)) return;
@@ -41838,20 +41911,49 @@ function idcPreview() {
   document.querySelectorAll('[data-idc-pick]').forEach(function(el) { if (el.checked) ids.push(el.dataset.idcPick); });
   var ws = ids.map(staffById).filter(Boolean);
   if (!ws.length) { showToast('Pick at least one worker', 'error'); return; }
-  var given = 0;
-  ws.forEach(function(w) { if (!w.card) { idcEnsure(w); given++; } });
-  if (given) saveState();
-  var h = '';
-  for (var i = 0; i < ws.length; i += 10) h += '<div class="inv-idc-sheet">' + ws.slice(i, i + 10).map(idcCardHtml).join('') + '</div>';
+  var backsEl = document.getElementById('idcBacks'), rulesEl = document.getElementById('idcRules'), backs = !backsEl || backsEl.checked;
+  if (rulesEl) {
+    var lines = rulesEl.value.split('\n').map(function(x) { return x.trim(); }).filter(Boolean);
+    var same = lines.join('\n') === IDC_RULES.join('\n');
+    var was = S.idcCfg && S.idcCfg.rules ? S.idcCfg.rules.join('\n') : '';
+    if ((same ? '' : lines.join('\n')) !== was) { S.idcCfg = Object.assign({}, S.idcCfg || {}, { rules: same ? null : lines }); saveState(); }
+  }
+  // Numbers for the workers without one are shown, not given: the next numbers in turn, kept only if the sheet is printed.
+  var next = idcNum(idcNext()), given = [];
+  var cards = ws.map(function(w) {
+    if (w.card) return { w: w, card: w.card };
+    var c = 'SEP-' + String(next++).padStart(4, '0');
+    given.push({ id: w.id, card: c });
+    return { w: w, card: c };
+  });
+  _idcPending = given.length ? given : null;
   closeOverlay();
-  document.getElementById('invPrintBody').innerHTML = h;
+  document.getElementById('invPrintBody').innerHTML = idcSheetsHtml(cards, backs);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
   printFit();
   document.body.style.overflow = 'hidden';
   document._savedTitle = document.title;
   document.title = 'ID cards';
+  if (given.length) showToast(todoPlural(given.length, 'new card number') + ' shown: kept only when you print');
 }
+/* Printed: the numbers the preview showed are given (unless a card was given meanwhile, when the number moves on). */
+function idcPrintCommit() {
+  if (!_idcPending) return;
+  var any = false;
+  _idcPending.forEach(function(x) {
+    var w = staffById(x.id);
+    if (!w || w.card) return;
+    var taken = (S.staff || []).some(function(o) { return o.card === x.card || (o.cardsRetired || []).some(function(r) { return r.card === x.card; }); }) || idcNum(x.card) <= (+S.cardSeq || 0);
+    w.card = taken ? idcNext() : x.card;
+    S.cardSeq = Math.max(+S.cardSeq || 0, idcNum(w.card));
+    any = true;
+  });
+  _idcPending = null;
+  if (any) saveState();
+}
+function idcPrintDiscard() { _idcPending = null; }
+window.addEventListener('beforeprint', function() { idcPrintCommit(); });
 /* A card lost or damaged: a new number, the old one refused from now on. */
 function idcReplace(id) {
   if (!idcOwnerOk(function() { idcReplace(id); })) return;
@@ -51399,7 +51501,7 @@ function onDocClick(e) {
     case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invStockSheetOpen': stockSheetOpen(); break;
     case 'invStockSheetPreview': stockSheetPreview(); break;
-    case 'invPrint': printMarkPrinted(); window.print(); break;
+    case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;

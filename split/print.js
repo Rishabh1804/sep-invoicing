@@ -287,6 +287,7 @@ function printMarkPrinted() {
 
 function closePrintPreview() {
   _printInvId = null;
+  if (typeof idcPrintDiscard === 'function') idcPrintDiscard();   // ID card numbers previewed and not printed are not given
   document.getElementById('invPrintView').classList.remove('inv-print-view-active');
   document.body.style.overflow = '';
   // Restore page title

@@ -85,18 +85,24 @@ test.describe('P169 ID cards and the scanner', () => {
     await expect(page.locator('#idcLog [data-idc-row]')).toHaveCount(1);
   });
 
-  test('the owner prints the cards: a number given once, ten to a sheet, each with its code', async ({ page }) => {
+  test('the owner prints the cards: a number given once, on print, ten to a sheet, each with its code', async ({ page }) => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
     await page.locator('#pageStaff [data-action="invIdcPrint"]').first().click();
     await page.locator('[data-action="invIdcPreview"]').click();
     const cards = page.locator('#invPrintBody .inv-idc');
-    await expect(cards).toHaveCount(2);
-    await expect(cards.first()).toContainText('TEST WORKS');
-    await expect(cards.first()).toContainText('Asha Kumari');
-    await expect(cards.first()).toContainText('Blood B+');
-    await expect(cards.first().locator('svg.inv-qr path')).toHaveCount(1);
+    const fronts = page.locator('#invPrintBody [data-idc-card]');
+    await expect(cards).toHaveCount(4);   // two fronts and their two backs
+    await expect(fronts.first()).toContainText('TEST WORKS');
+    await expect(fronts.first()).toContainText('Asha Kumari');
+    await expect(fronts.first()).toContainText('Blood group');
+    await expect(fronts.first()).toContainText('B+');
+    await expect(fronts.first().locator('svg.inv-qr path')).toHaveCount(1);
+    // A number is shown at preview and given only when the sheet is printed.
+    expect(await g(page, `[staffById(1).card || null, staffById(2).card || null]`)).toEqual([null, null]);
+    await g(page, `window.print = function () {}`);
+    await page.locator('#invPrintView [data-action="invPrint"]').click();
     expect(await g(page, `[staffById(1).card, staffById(2).card]`)).toEqual(['SEP-0004', 'SEP-0005']);
   });
 

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="153ef650">
+<meta name="app-build" content="e0dd180a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2177,6 +2177,31 @@ body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax
 /* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
 body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }
+
+/* ===== ID CARDS (idcard.js) and every QR code (qr.js). A QR is an instrument read by a camera: black on white in either
+   theme, so its two colours are declared once here like a printed document's paper and ink. The cards are printed forms,
+   the HR-6 print exception: credit-card size in mm, ten to an A4 sheet, declared once in the sheet's token block. ===== */
+.inv-qr { --qr-paper: #fff; --qr-ink: #000; display: block; width: 100%; height: auto; }
+.inv-qr-bg { fill: var(--qr-paper); }
+.inv-qr-fg { fill: var(--qr-ink); }
+.inv-idc-small { max-width: calc(var(--sp-32) * 4); }
+.inv-idc-video { display: block; width: 100%; max-height: calc(var(--sp-32) * 8); border-radius: var(--r-md); background: var(--surface-3); object-fit: cover; }
+.inv-idc-sheet {
+  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 4mm; --idc-pad: 3.5mm; --idc-qr: 30mm; --idc-fs: 8pt; --idc-fs-name: 12pt; --idc-fs-co: 8.5pt; --idc-rule: 0.4pt;
+  --idc-sheet-w: 210mm; --idc-sheet-h: 297mm; --idc-margin: 12mm 15.4mm;
+  display: grid; grid-template-columns: repeat(2, var(--idc-w)); grid-auto-rows: var(--idc-h); gap: var(--idc-gap);
+  width: var(--idc-sheet-w); min-height: var(--idc-sheet-h); padding: var(--idc-margin); margin: 0 auto var(--sp-16);
+  background: #fff; color: #000; font-family: var(--ff-base); page-break-after: always; break-after: page; border: var(--hair) solid var(--border);
+}
+.inv-idc-sheet:last-child { page-break-after: auto; break-after: auto; }
+.inv-idc { display: flex; gap: var(--idc-pad); padding: var(--idc-pad); border: var(--idc-rule) solid #000; border-radius: 3mm; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1mm; font-size: var(--idc-fs); }
+.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; border-bottom: var(--idc-rule) solid #000; padding-bottom: 1mm; }
+.inv-idc-label { font-size: var(--idc-fs); color: #444; }
+.inv-idc-name { font-size: var(--idc-fs-name); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.inv-idc-row { font-size: var(--idc-fs); }
+.inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
+@media print { .inv-idc-sheet { border: none; margin: 0; } }
 </style>
 </head>
 <body>
@@ -19934,7 +19959,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invIdcScan">Scan cards</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
       // The day's rolls, read again by the reader as it reads now (relay.js, relayRereadOpen).
       (relayDayHasRolls(iso) ? '<button class="inv-btn inv-btn-secondary" data-action="invRelayReread">Read the rolls again</button>' : '') +
       (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
@@ -20395,7 +20421,8 @@ function _attRosterView() {
 
   var html = '<div class="inv-toolbar">' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button></div>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button>' +
+    (typeof pplOwner !== 'function' || pplOwner() ? '<button class="inv-btn inv-btn-ghost" data-action="invIdcPrint">ID cards</button>' : '') + '</div>' +
     '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount is this number.</span></div>';
 
@@ -41047,6 +41074,8 @@ function pplRecordHtml(w, opts) {
         '<span class="inv-row-end">' + (s ? pplDotsHtml(s) : '<span class="inv-row-meta">not rated</span>') + '</span></div>';
     }).join('') : '<div class="inv-empty">No area worked or rated yet.</div>') +
     (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
+  // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
+  if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
   var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name); });
   if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div>' +
     (ties.length ? ties.map(function(t) {
@@ -41321,6 +41350,409 @@ TODO_RULE_FNS.pplWatch = function() {
         sig: x.w.id + ':' + x.mo.score };
     });
 };
+/* ===== QR CODES, made here: no library, no network =====
+   The ID cards (idcard.js) and the office check-in sheet carry a QR code (owner, 7 Oct 2026). A library would be a second
+   copy of code to keep, and a service would send a worker's card number off the device, so the app draws its own: byte
+   mode, error correction M (15% of the code may be lost: a card in a pocket), versions 1 to 10 (up to 213 bytes, the office
+   check-in link included). `qrMatrix(text)` gives the modules, `qrSvg(text)` an SVG whose squares are attributes, never a
+   style. Checked by decoding what it draws (P169). */
+
+// Per version (1–10), error correction M: [ec codewords a block, [blocks, data codewords]...].
+var QR_EC_M = [null, [10, [1, 16]], [16, [1, 28]], [26, [1, 44]], [18, [2, 32]], [24, [2, 43]], [16, [4, 27]], [18, [4, 31]],
+  [22, [2, 38], [2, 39]], [22, [3, 36], [2, 37]], [26, [4, 43], [1, 44]]];
+var QR_ALIGN = [null, [], [6, 18], [6, 22], [6, 26], [6, 30], [6, 34], [6, 22, 38], [6, 24, 42], [6, 26, 46], [6, 28, 50]];
+
+/* Arithmetic in GF(256), polynomial 0x11d. */
+var QR_EXP = [], QR_LOG = [];
+(function() { var x = 1; for (var i = 0; i < 255; i++) { QR_EXP[i] = x; QR_LOG[x] = i; x <<= 1; if (x & 256) x ^= 0x11d; } for (var j = 255; j < 512; j++) QR_EXP[j] = QR_EXP[j - 255]; })();
+function qrMul(a, b) { return a && b ? QR_EXP[QR_LOG[a] + QR_LOG[b]] : 0; }
+/* The Reed–Solomon remainder of `data` for `n` error correction codewords. */
+function qrRs(data, n) {
+  var gen = [1];
+  for (var i = 0; i < n; i++) {
+    var next = [];
+    for (var j = 0; j <= gen.length; j++) next[j] = (j < gen.length ? gen[j] : 0) ^ (j > 0 ? qrMul(gen[j - 1], QR_EXP[i]) : 0);
+    gen = next;
+  }
+  var res = data.slice().concat(new Array(n).fill(0));
+  for (var k = 0; k < data.length; k++) {
+    var c = res[k];
+    if (c) for (var m = 1; m < gen.length; m++) res[k + m] ^= qrMul(gen[m], c);
+  }
+  return res.slice(data.length);
+}
+function qrUtf8(text) {
+  var s = unescape(encodeURIComponent(String(text))), out = [];
+  for (var i = 0; i < s.length; i++) out.push(s.charCodeAt(i));
+  return out;
+}
+function qrDataCw(v) { var t = QR_EC_M[v]; return t.slice(1).reduce(function(s, g) { return s + g[0] * g[1]; }, 0); }
+/* The codewords: mode, count, the bytes, terminator, padding; then split into blocks, each with its remainder, interleaved. */
+function qrCodewords(bytes, v) {
+  var bits = [], put = function(val, len) { for (var i = len - 1; i >= 0; i--) bits.push((val >> i) & 1); };
+  put(4, 4); put(bytes.length, v < 10 ? 8 : 16);
+  bytes.forEach(function(b) { put(b, 8); });
+  var cap = qrDataCw(v) * 8;
+  for (var t = 0; t < 4 && bits.length < cap; t++) bits.push(0);
+  while (bits.length % 8) bits.push(0);
+  var cw = [];
+  for (var i = 0; i < bits.length; i += 8) cw.push(parseInt(bits.slice(i, i + 8).join(''), 2));
+  for (var p = 0; cw.length < cap / 8; p++) cw.push(p % 2 ? 0x11 : 0xEC);
+  var ec = QR_EC_M[v][0], blocks = [], at = 0;
+  QR_EC_M[v].slice(1).forEach(function(g) { for (var b = 0; b < g[0]; b++) { var d = cw.slice(at, at + g[1]); at += g[1]; blocks.push({ d: d, e: qrRs(d, ec) }); } });
+  var out = [], max = Math.max.apply(null, blocks.map(function(b) { return b.d.length; }));
+  for (var x = 0; x < max; x++) blocks.forEach(function(b) { if (x < b.d.length) out.push(b.d[x]); });
+  for (var y = 0; y < ec; y++) blocks.forEach(function(b) { out.push(b.e[y]); });
+  return out;
+}
+function qrBch(val, poly, polyBits) {
+  var v = val << (polyBits - 1);
+  for (var i = 31; i >= polyBits - 1; i--) if ((v >> i) & 1) v ^= poly << (i - polyBits + 1);
+  return v;
+}
+var QR_MASKS = [
+  function(r, c) { return (r + c) % 2 === 0; }, function(r) { return r % 2 === 0; }, function(r, c) { return c % 3 === 0; },
+  function(r, c) { return (r + c) % 3 === 0; }, function(r, c) { return (Math.floor(r / 2) + Math.floor(c / 3)) % 2 === 0; },
+  function(r, c) { return (r * c) % 2 + (r * c) % 3 === 0; }, function(r, c) { return ((r * c) % 2 + (r * c) % 3) % 2 === 0; },
+  function(r, c) { return ((r + c) % 2 + (r * c) % 3) % 2 === 0; }];
+
+/* The modules of `text`, a square of true (dark) and false, or null when it is past version 10. */
+function qrMatrix(text) {
+  var bytes = qrUtf8(text), v = 1;
+  while (v <= 10 && bytes.length + (v < 10 ? 2 : 3) > qrDataCw(v)) v++;
+  if (v > 10) return null;
+  var n = 17 + 4 * v, m = [], fn = [];
+  for (var r = 0; r < n; r++) { m.push(new Array(n).fill(false)); fn.push(new Array(n).fill(false)); }
+  var set = function(r, c, d) { m[r][c] = d; fn[r][c] = true; };
+  var finder = function(r0, c0) {
+    for (var r = -1; r <= 7; r++) for (var c = -1; c <= 7; c++) {
+      var rr = r0 + r, cc = c0 + c;
+      if (rr < 0 || cc < 0 || rr >= n || cc >= n) continue;
+      set(rr, cc, r >= 0 && r <= 6 && c >= 0 && c <= 6 && (r === 0 || r === 6 || c === 0 || c === 6 || (r >= 2 && r <= 4 && c >= 2 && c <= 4)));
+    }
+  };
+  finder(0, 0); finder(0, n - 7); finder(n - 7, 0);
+  for (var i = 8; i < n - 8; i++) { set(6, i, i % 2 === 0); set(i, 6, i % 2 === 0); }
+  var al = QR_ALIGN[v];
+  al.forEach(function(ar) { al.forEach(function(ac) {
+    if ((ar === 6 && ac === 6) || (ar === 6 && ac === n - 7) || (ar === n - 7 && ac === 6)) return;
+    for (var r = -2; r <= 2; r++) for (var c = -2; c <= 2; c++) set(ar + r, ac + c, Math.max(Math.abs(r), Math.abs(c)) !== 1);
+  }); });
+  // Reserve the format areas (written per mask below) and the dark module; the version areas from version 7.
+  for (var f = 0; f < 9; f++) { fn[8][f] = true; fn[f][8] = true; }
+  for (var g = 0; g < 8; g++) { fn[8][n - 1 - g] = true; fn[n - 1 - g][8] = true; }
+  set(n - 8, 8, true);
+  if (v >= 7) {
+    var vb = (v << 12) | qrBch(v, 0x1F25, 13);
+    for (var b = 0; b < 18; b++) { var dk = ((vb >> b) & 1) === 1, a = Math.floor(b / 3), cc2 = n - 11 + b % 3; set(a, cc2, dk); set(cc2, a, dk); }
+  }
+  // The data, up and down in two-column strips from the bottom right, skipping the timing column.
+  var cw = qrCodewords(bytes, v), bits = [];
+  cw.forEach(function(x) { for (var k = 7; k >= 0; k--) bits.push((x >> k) & 1); });
+  var idx = 0, up = true;
+  for (var col = n - 1; col > 0; col -= 2) {
+    if (col === 6) col--;
+    for (var s = 0; s < n; s++) {
+      var row = up ? n - 1 - s : s;
+      for (var d = 0; d < 2; d++) { var c = col - d; if (!fn[row][c]) { m[row][c] = idx < bits.length ? bits[idx] === 1 : false; idx++; } }
+    }
+    up = !up;
+  }
+  // The mask that leaves the fewest penalties.
+  var best = null, bestScore = Infinity;
+  for (var k2 = 0; k2 < 8; k2++) {
+    var t = m.map(function(row2) { return row2.slice(); });
+    for (var r2 = 0; r2 < n; r2++) for (var c3 = 0; c3 < n; c3++) if (!fn[r2][c3] && QR_MASKS[k2](r2, c3)) t[r2][c3] = !t[r2][c3];
+    qrFormat(t, n, k2);
+    var sc = qrPenalty(t, n);
+    if (sc < bestScore) { bestScore = sc; best = t; }
+  }
+  return best;
+}
+/* The format bits (level M, the mask), twice: round the top-left finder, and split between the other two. */
+function qrFormat(t, n, mask) {
+  var data = (0 << 3) | mask, bits = ((data << 10) | qrBch(data, 0x537, 11)) ^ 0x5412;
+  for (var i = 0; i < 15; i++) {
+    var dk = ((bits >> i) & 1) === 1;
+    if (i < 6) t[i][8] = dk; else if (i === 6) t[7][8] = dk; else if (i === 7) t[8][8] = dk; else if (i === 8) t[8][7] = dk; else t[8][14 - i] = dk;
+    if (i < 8) t[8][n - 1 - i] = dk; else t[n - 15 + i][8] = dk;
+  }
+  t[n - 8][8] = true;
+}
+function qrPenalty(t, n) {
+  var p = 0, r, c, run, dark = 0;
+  for (r = 0; r < n; r++) {
+    for (var dir = 0; dir < 2; dir++) {
+      run = 1;
+      for (c = 1; c < n; c++) {
+        var a = dir ? t[c][r] : t[r][c], b = dir ? t[c - 1][r] : t[r][c - 1];
+        if (a === b) { run++; if (run === 5) p += 3; else if (run > 5) p++; } else run = 1;
+      }
+    }
+  }
+  for (r = 0; r < n - 1; r++) for (c = 0; c < n - 1; c++) { var q = t[r][c]; if (q === t[r + 1][c] && q === t[r][c + 1] && q === t[r + 1][c + 1]) p += 3; }
+  var pat = [true, false, true, true, true, false, true];
+  var at = function(rr, cc, h) { return h ? t[rr][cc] : t[cc][rr]; };
+  for (r = 0; r < n; r++) for (c = 0; c + 6 < n; c++) for (var h = 0; h < 2; h++) {
+    var ok = true;
+    for (var k = 0; k < 7 && ok; k++) ok = at(r, c + k, h) === pat[k];
+    if (!ok) continue;
+    var light = function(from, to) { for (var x = from; x < to; x++) { if (x < 0 || x >= n) continue; if (at(r, x, h)) return false; } return true; };
+    if (light(c - 4, c) || light(c + 7, c + 11)) p += 40;
+  }
+  for (r = 0; r < n; r++) for (c = 0; c < n; c++) if (t[r][c]) dark++;
+  p += Math.floor(Math.abs(dark * 100 / (n * n) - 50) / 5) * 10;
+  return p;
+}
+/* An SVG of the code with its quiet zone: one path of dark squares, its size set by the stylesheet. */
+function qrSvg(text, label) {
+  var mx = qrMatrix(text);
+  if (!mx) return '';
+  var n = mx.length, q = 4, d = '';
+  for (var r = 0; r < n; r++) for (var c = 0; c < n; c++) if (mx[r][c]) d += 'M' + (c + q) + ' ' + (r + q) + 'h1v1h-1z';
+  return '<svg class="inv-qr" viewBox="0 0 ' + (n + 2 * q) + ' ' + (n + 2 * q) + '" shape-rendering="crispEdges" role="img" aria-label="' + escHtml(label || 'QR code') + '">' +
+    '<rect class="inv-qr-bg" width="' + (n + 2 * q) + '" height="' + (n + 2 * q) + '"></rect><path class="inv-qr-fg" d="' + d + '"></path></svg>';
+}
+/* ===== ID CARDS, and the scanner that reads them into the day =====
+   Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W4): *"Every employee must also have an ID Card, which I can take a print out
+   later, if needed. That becomes a tag that every worker gets, we will have a QR code scanner in it that should be linked and
+   scannable to the attendance logger in the app."*
+
+   - A card number per worker (`w.card`, SEP-0007), given the first time a card is printed and never given again: a worker who
+     leaves keeps theirs, and a card replaced (lost, damaged) moves the old number to `w.cardsRetired` with a reason, so the
+     old card is refused when scanned. The QR carries `SEP1:W:<card>:<check>`; the check is two characters worked from the
+     card number, so a misread or a typed slip is caught. It identifies; the scanner's hand in front of the worker is the
+     safeguard, as a signature on the roll is.
+   - The cards print through the one print view: the company, the name, the designation, the card number, the blood group and
+     the QR, credit-card size, ten to an A4 sheet. The owner's alone.
+   - The scanner (Staff → Day → Scan cards): the camera reads a card where the browser can (BarcodeDetector), else the card
+     number is typed. The first scan of a worker's day is the in-time, every later one the out-time; the mark is the hand's own
+     (no `src: 'relay'`), so a roll never rewrites it, and hours follow the one rule (relayHoursOf). A scan within two minutes
+     of the worker's last is the same scan. Each scan lands on the screen at once with Undo. A floor entry for the guard. */
+
+var IDC_RE = /^SEP1:W:(SEP-\d{4,}):([0-9A-Z]{2})$/;
+var IDC_SAME_MS = 2 * 60000;
+var _idcLog = [];           // this sitting's scans, newest first: {iso, staffId, name, kind, min, prev, prevScans}
+var _idcStream = null, _idcTimer = null, _idcBusy = false;
+
+function idcCheck(card) {
+  var s = String(card), n = 0;
+  for (var i = 0; i < s.length; i++) n += s.charCodeAt(i) * (i + 1);
+  return ('0' + (n % 1296).toString(36).toUpperCase()).slice(-2);
+}
+function idcPayload(card) { return 'SEP1:W:' + card + ':' + idcCheck(card); }
+function idcNum(card) { var m = /^SEP-(\d+)$/.exec(String(card || '')); return m ? +m[1] : 0; }
+/* The next number: past every card ever given, retired ones included. */
+function idcNext() {
+  var hi = 0;
+  (S.staff || []).forEach(function(w) {
+    hi = Math.max(hi, idcNum(w.card));
+    (w.cardsRetired || []).forEach(function(r) { hi = Math.max(hi, idcNum(r.card)); });
+  });
+  return 'SEP-' + String(hi + 1).padStart(4, '0');
+}
+function idcEnsure(w) { if (!w.card) w.card = idcNext(); return w.card; }
+/* Who a scan or a typed number names: {w} or {why}. */
+function idcResolve(raw) {
+  var s = String(raw || '').trim().toUpperCase(), card = null, m = IDC_RE.exec(s);
+  if (m) { if (idcCheck(m[1]) !== m[2]) return { why: 'The code did not read cleanly: scan it again.' }; card = m[1]; }
+  else if (/^(SEP-?)?\d{1,6}$/.test(s)) card = 'SEP-' + String(+s.replace(/\D/g, '')).padStart(4, '0');
+  else return { why: 'Not one of this shop’s cards.' };
+  var w = (S.staff || []).find(function(x) { return x.card === card; });
+  if (w) return w.active === false ? { why: w.name + ' is not on the active roster.' } : { w: w, card: card };
+  var old = (S.staff || []).find(function(x) { return (x.cardsRetired || []).some(function(r) { return r.card === card; }); });
+  return { why: old ? 'Card ' + card + ' was replaced: ' + old.name + ' carries ' + (old.card || 'a new card') + ' now.' : 'No worker holds card ' + card + '.' };
+}
+
+/* One scan into the day: the first the in-time, a later one the out-time. */
+function idcScan(raw, at) {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return { ok: false, why: 'Your ID does not enter attendance.' };
+  var r = idcResolve(raw);
+  if (!r.w) return { ok: false, why: r.why };
+  var now = at ? new Date(at) : new Date(), iso = localDateStr(now), min = now.getHours() * 60 + now.getMinutes(), w = r.w;
+  var rec = attDay(iso, true), id = w.id;
+  rec.scans = rec.scans || {};
+  var list = rec.scans[id] || [], last = list[list.length - 1];
+  if (last && now.getTime() - last.at < IDC_SAME_MS) return { ok: false, why: w.name + ' was scanned a moment ago.', w: w, same: true };
+  var prev = rec.marks[id] ? JSON.parse(JSON.stringify(rec.marks[id])) : null, prevScans = list.slice();
+  // A mark already on the day (a roll's, one typed) takes the scanned time; an absence or no mark becomes present.
+  var m = rec.marks[id] && rec.marks[id].st !== 'A' ? rec.marks[id] : { st: 'P', area: (rec.marks[id] && rec.marks[id].area) || w.area || 'flex' };
+  var kind = list.length ? 'out' : 'in';
+  if (kind === 'in') m.inMin = min; else m.outMin = min;
+  var area = m.area, out = m.outMin != null ? m.outMin : (area === 'gate' ? 1140 : 1020);
+  var hr = relayHoursOf(m.inMin, out > m.inMin ? out : null, w, area);
+  m.hours = hr.hours; m.ot = hr.ot;
+  delete m.src;   // the hand's own: a roll never rewrites it
+  rec.marks[id] = m;
+  rec.scans[id] = list.concat([{ min: min, at: now.getTime(), card: r.card }]);
+  _idcLog.unshift({ iso: iso, staffId: id, name: w.name, kind: kind, min: min, prev: prev, prevScans: prevScans });
+  saveState();
+  return { ok: true, w: w, kind: kind, min: min };
+}
+function idcUndo() {
+  var x = _idcLog.shift();
+  if (!x) return;
+  var rec = attDay(x.iso, false);
+  if (!rec) return;
+  if (x.prev) rec.marks[x.staffId] = x.prev; else delete rec.marks[x.staffId];
+  rec.scans = rec.scans || {};
+  if (x.prevScans.length) rec.scans[x.staffId] = x.prevScans; else delete rec.scans[x.staffId];
+  saveState();
+  idcLogDraw('Undone: ' + x.name + ' ' + (x.kind === 'in' ? 'in' : 'out') + ' at ' + relayClockLabel(x.min));
+}
+
+/* ---------- The scanner ---------- */
+function idcScanOpen() {
+  if (typeof attFloorOk === 'function' && !attFloorOk()) return;
+  _idcLog = [];
+  var can = typeof window.BarcodeDetector === 'function' && navigator.mediaDevices && navigator.mediaDevices.getUserMedia;
+  dialogOpen('<div class="inv-dialog" data-idc-scanner>' + dialogHeadHtml('Scan cards') +
+    (can ? '<video id="idcVideo" class="inv-idc-video" playsinline muted aria-label="Camera"></video>' : '') +
+    '<div class="inv-callout inv-callout-info" id="idcSay" aria-live="polite">' + (can ? 'Hold a card’s code in front of the camera. The first scan of the day is the in-time, the next the out-time.'
+      : 'This browser cannot read codes with the camera: type the number on the card.') + '</div>' +
+    '<div class="inv-toolbar inv-mt-8"><input class="inv-input" id="idcType" placeholder="Card number, SEP-0007" inputmode="text" autocomplete="off" aria-label="Card number">' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invIdcType">Log it</button></div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8" id="idcLog"></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invIdcUndo">Undo the last</button><button class="inv-btn inv-btn-primary" data-action="invCloseOverlay">Done</button></div></div>', { dismiss: true });
+  idcLogDraw();
+  if (can) idcCameraStart();
+  else { var t = document.getElementById('idcType'); if (t && !touchScreen()) t.focus(); }
+}
+function idcCameraStart() {
+  navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' }, audio: false }).then(function(stream) {
+    var v = document.getElementById('idcVideo');
+    if (!v) { stream.getTracks().forEach(function(t) { t.stop(); }); return; }
+    _idcStream = stream; v.srcObject = stream; v.play();
+    var det = new window.BarcodeDetector({ formats: ['qr_code'] });
+    _idcTimer = setInterval(function() {
+      var vv = document.getElementById('idcVideo');
+      if (!vv) { idcCameraStop(); return; }
+      if (_idcBusy || vv.readyState < 2) return;
+      _idcBusy = true;
+      det.detect(vv).then(function(codes) { _idcBusy = false; if (codes && codes.length) idcFromScan(codes[0].rawValue); }).catch(function() { _idcBusy = false; });
+    }, 350);
+  }).catch(function(e) {
+    idcSay('The camera could not be opened (' + (e && e.name || 'refused') + '): type the number on the card.', 'warning');
+  });
+}
+function idcCameraStop() {
+  if (_idcTimer) { clearInterval(_idcTimer); _idcTimer = null; }
+  if (_idcStream) { _idcStream.getTracks().forEach(function(t) { t.stop(); }); _idcStream = null; }
+}
+function idcSay(text, tone) {
+  var el = document.getElementById('idcSay');
+  if (!el) return;
+  el.className = 'inv-callout inv-callout-' + (tone || 'info');
+  el.textContent = text;
+}
+function idcFromScan(raw) {
+  var r = idcScan(raw);
+  if (r.ok) { idcSay((r.kind === 'in' ? 'In: ' : 'Out: ') + r.w.name + ' at ' + relayClockLabel(r.min), 'ok'); idcLogDraw(); if (navPageOf() === 'pageStaff' && typeof renderAttendance === 'function') renderAttendance(); }
+  else if (!r.same) idcSay(r.why, 'warning');
+}
+function idcLogDraw(note) {
+  var el = document.getElementById('idcLog');
+  if (!el) return;
+  if (note) idcSay(note, 'info');
+  el.innerHTML = '<div class="inv-panel-head"><span class="inv-panel-title">Logged here <span class="inv-panel-count">' + _idcLog.length + '</span></span></div>' +
+    (_idcLog.length ? _idcLog.map(function(x) {
+      return '<div class="inv-row inv-row-2" data-idc-row><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.iso)) + '</span></span>' +
+        '<span class="inv-row-end">' + uiDot(x.kind === 'in' ? 'ok' : 'info', (x.kind === 'in' ? 'In ' : 'Out ') + escHtml(relayClockLabel(x.min))) + '</span></div>';
+    }).join('') : '<div class="inv-empty">Nothing scanned yet.</div>');
+}
+/* The dialog shut any way: the camera goes off with it. */
+new MutationObserver(function() { if ((_idcStream || _idcTimer) && !document.getElementById('idcVideo')) idcCameraStop(); }).observe(document.documentElement, { childList: true, subtree: true });
+
+/* ---------- The cards, printed (the owner's) ---------- */
+function idcOwnerOk(again) {
+  if (typeof pplOwner === 'function' && !pplOwner()) { uiAlert({ title: 'The owner’s to print', body: 'ID cards are printed by the owner.' }); return false; }
+  return typeof grdGate !== 'function' || grdGate('payments', 'Print ID cards', again);
+}
+function idcPrintOpen(onlyId) {
+  if (!idcOwnerOk(function() { idcPrintOpen(onlyId); })) return;
+  var list = (S.staff || []).filter(function(w) { return w.active !== false; }).sort(function(a, b) { return String(a.name).localeCompare(String(b.name)); });
+  if (!list.length) return uiAlert({ title: 'Nobody on the roster', body: 'Add the workers first; each gets a card.' });
+  dialogOpen('<div class="inv-dialog" data-idc-print>' + dialogHeadHtml('ID cards') +
+    '<div class="inv-note">Ten to an A4 sheet, credit-card size. A worker printed for the first time is given the next card number; it is theirs for good.</div>' +
+    '<div class="inv-panel inv-panel-flush inv-mt-8">' + list.map(function(w) {
+      return '<label class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) + '</span><span class="inv-row-meta">' + escHtml(w.card || 'no card yet') + '</span></span>' +
+        '<span class="inv-row-end"><input type="checkbox" class="inv-check" data-idc-pick="' + escHtml(String(w.id)) + '"' + (onlyId == null || String(onlyId) === String(w.id) ? ' checked' : '') + '></span></label>';
+    }).join('') + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invIdcPreview">Preview</button></div></div>', { dismiss: true });
+}
+function idcCardHtml(w) {
+  var co = (S.company && (S.company.name || S.company.companyName)) || '', p = w.profile || {};
+  return '<div class="inv-idc" data-idc-card="' + escHtml(w.card) + '"><div class="inv-idc-main"><div class="inv-idc-co">' + escHtml(co) + '</div><div class="inv-idc-label">Identity card</div>' +
+    '<div class="inv-idc-name">' + escHtml(w.name) + '</div>' + (p.designation ? '<div class="inv-idc-row">' + escHtml(p.designation) + '</div>' : '') +
+    '<div class="inv-idc-row"><b>' + escHtml(w.card) + '</b>' + (p.bloodGroup ? ' · Blood ' + escHtml(p.bloodGroup) : '') + '</div>' +
+    (p.joined ? '<div class="inv-idc-row">Since ' + escHtml(formatDate(p.joined)) + '</div>' : '') + '</div>' +
+    '<div class="inv-idc-qr">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div></div>';
+}
+function idcPreview() {
+  if (!idcOwnerOk(idcPreview)) return;
+  var ids = [];
+  document.querySelectorAll('[data-idc-pick]').forEach(function(el) { if (el.checked) ids.push(el.dataset.idcPick); });
+  var ws = ids.map(staffById).filter(Boolean);
+  if (!ws.length) { showToast('Pick at least one worker', 'error'); return; }
+  var given = 0;
+  ws.forEach(function(w) { if (!w.card) { idcEnsure(w); given++; } });
+  if (given) saveState();
+  var h = '';
+  for (var i = 0; i < ws.length; i += 10) h += '<div class="inv-idc-sheet">' + ws.slice(i, i + 10).map(idcCardHtml).join('') + '</div>';
+  closeOverlay();
+  document.getElementById('invPrintBody').innerHTML = h;
+  document.getElementById('invPrintView').classList.add('inv-print-view-active');
+  _printInvId = null;
+  printFit();
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  document.title = 'ID cards';
+}
+/* A card lost or damaged: a new number, the old one refused from now on. */
+function idcReplace(id) {
+  if (!idcOwnerOk(function() { idcReplace(id); })) return;
+  var w = staffById(id);
+  if (!w || !w.card) return;
+  uiPrompt({ title: 'Replace ' + w.name + '’s card', label: 'Why (lost, damaged…): the old card is refused from now on', required: true }).then(function(why) {
+    if (why == null || !String(why).trim()) return;
+    w.cardsRetired = Array.isArray(w.cardsRetired) ? w.cardsRetired : [];
+    w.cardsRetired.push({ card: w.card, on: localDateStr(), why: String(why).trim() });
+    w.card = null;
+    idcEnsure(w);
+    saveState();
+    closeOverlay();
+    showToast(w.name + ' now carries ' + w.card + ': print the new card');
+  });
+}
+/* On the worker's record: the card and its code, and for the owner print and replace. */
+function idcRecordHtml(w) {
+  var owner = typeof pplOwner !== 'function' || pplOwner();
+  if (!w.card && !owner) return '';
+  return '<div class="inv-panel inv-panel-flush" data-idc-record="' + escHtml(String(w.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">ID card</span>' +
+    '<span class="inv-row-meta">' + escHtml(w.card || 'none yet') + '</span></div>' +
+    (w.card ? '<div class="inv-panel-body inv-idc-small">' + qrSvg(idcPayload(w.card), 'Card ' + w.card) + '</div>' : '') +
+    (owner ? '<div class="inv-toolbar inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invIdcPrint" data-id="' + escHtml(String(w.id)) + '">' + (w.card ? 'Print the card' : 'Give a card') + '</button>' +
+      (w.card ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invIdcReplace" data-id="' + escHtml(String(w.id)) + '">Replace the card</button>' : '') + '</div>' : '') + '</div>';
+}
+
+function idcAction(action, btn) {
+  switch (action) {
+    case 'invIdcScan': idcScanOpen(); return true;
+    case 'invIdcType': {
+      var t = document.getElementById('idcType');
+      if (t && t.value.trim()) { idcFromScan(t.value); t.value = ''; }
+      return true;
+    }
+    case 'invIdcUndo': idcUndo(); return true;
+    case 'invIdcPrint': idcPrintOpen(btn.dataset.id != null ? btn.dataset.id : null); return true;
+    case 'invIdcPreview': idcPreview(); return true;
+    case 'invIdcReplace': idcReplace(btn.dataset.id); return true;
+  }
+  return false;
+}
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter' && e.target && e.target.id === 'idcType') { e.preventDefault(); var t = e.target; if (t.value.trim()) { idcFromScan(t.value); t.value = ''; } }
+});
 /* ===== PRODUCTION — the page (Floor → Production) =====
  * Overview · In plant · Lines · Entries, over one record (production.js). Paste message is the page's one primary;
  * reading a register photo and entering by hand sit beside it. The sub-views (paste, review, photo, hand) lead with
@@ -50692,6 +51124,7 @@ function onDocClick(e) {
       if (prodAction(action, btn)) break;
       if (pltAction(action, btn)) break;
       if (pplAction(action, btn)) break;
+      if (idcAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (kbAction(action, btn)) break;

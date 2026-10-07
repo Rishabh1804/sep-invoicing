@@ -183,6 +183,8 @@ function pplRecordHtml(w, opts) {
         '<span class="inv-row-end">' + (s ? pplDotsHtml(s) : '<span class="inv-row-meta">not rated</span>') + '</span></div>';
     }).join('') : '<div class="inv-empty">No area worked or rated yet.</div>') +
     (st.beside.length ? '<div class="inv-panel-body inv-note" data-ppl-beside>Stands beside ' + escHtml(st.beside.map(function(b) { return b.name + ' (' + b.days + ' days)'; }).join(', ')) + '.</div>' : '') + '</div>';
+  // Their ID card (idcard.js): the number, its code, and for the owner print and replace.
+  if (typeof idcRecordHtml === 'function') h += idcRecordHtml(w);
   var ties = (w.ties || []).filter(function(t) { return t && (t.staffId != null || t.name); });
   if (ties.length || owner) h += '<div class="inv-panel inv-panel-flush" data-ppl-ties="' + id + '"><div class="inv-panel-head"><span class="inv-panel-title">Relationships</span></div>' +
     (ties.length ? ties.map(function(t) {

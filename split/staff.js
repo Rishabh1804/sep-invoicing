@@ -559,7 +559,8 @@ function _attDayView() {
     '<span class="inv-stepper-sub">' + attDayName(iso) + '</span>',
     'invAttToday', 'Today', 'Previous day', 'Next day') +
     // Paste message stays the one primary; the paper forms for the day sit beside it (attsheet.js).
-    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
+    _attPasteBar().replace('</div>', '<button class="inv-btn inv-btn-secondary" data-action="invIdcScan">Scan cards</button>' +
+      '<button class="inv-btn inv-btn-secondary" data-action="invAttSheetOpen">Print sheets</button>' +
       // The day's rolls, read again by the reader as it reads now (relay.js, relayRereadOpen).
       (relayDayHasRolls(iso) ? '<button class="inv-btn inv-btn-secondary" data-action="invRelayReread">Read the rolls again</button>' : '') +
       (rec ? '<button class="inv-btn inv-btn-danger" data-action="invAttDayDelete">Delete this day</button>' : '') + '</div>');
@@ -1020,7 +1021,8 @@ function _attRosterView() {
 
   var html = '<div class="inv-toolbar">' +
     '<button class="inv-btn inv-btn-primary" data-action="invAttAddWorker">Add worker</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button></div>' +
+    '<button class="inv-btn inv-btn-ghost" data-action="invAttImportRoster">Import</button>' +
+    (typeof pplOwner !== 'function' || pplOwner() ? '<button class="inv-btn inv-btn-ghost" data-action="invIdcPrint">ID cards</button>' : '') + '</div>' +
     '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + activeCount + ' active of ' + all.length + ' on file. ' +
     'The denominator on every headcount is this number.</span></div>';
 

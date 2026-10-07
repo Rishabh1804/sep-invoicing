@@ -2155,3 +2155,28 @@ body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax
 /* On the phone the three stack, each a full line, so the bars have room beside the row's badges. */
 body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-wstat-k { min-width: calc(var(--sp-16) * 3.5); }
+
+/* ===== ID CARDS (idcard.js) and every QR code (qr.js). A QR is an instrument read by a camera: black on white in either
+   theme, so its two colours are declared once here like a printed document's paper and ink. The cards are printed forms,
+   the HR-6 print exception: credit-card size in mm, ten to an A4 sheet, declared once in the sheet's token block. ===== */
+.inv-qr { --qr-paper: #fff; --qr-ink: #000; display: block; width: 100%; height: auto; }
+.inv-qr-bg { fill: var(--qr-paper); }
+.inv-qr-fg { fill: var(--qr-ink); }
+.inv-idc-small { max-width: calc(var(--sp-32) * 4); }
+.inv-idc-video { display: block; width: 100%; max-height: calc(var(--sp-32) * 8); border-radius: var(--r-md); background: var(--surface-3); object-fit: cover; }
+.inv-idc-sheet {
+  --idc-w: 85.6mm; --idc-h: 54mm; --idc-gap: 4mm; --idc-pad: 3.5mm; --idc-qr: 30mm; --idc-fs: 8pt; --idc-fs-name: 12pt; --idc-fs-co: 8.5pt; --idc-rule: 0.4pt;
+  --idc-sheet-w: 210mm; --idc-sheet-h: 297mm; --idc-margin: 12mm 15.4mm;
+  display: grid; grid-template-columns: repeat(2, var(--idc-w)); grid-auto-rows: var(--idc-h); gap: var(--idc-gap);
+  width: var(--idc-sheet-w); min-height: var(--idc-sheet-h); padding: var(--idc-margin); margin: 0 auto var(--sp-16);
+  background: #fff; color: #000; font-family: var(--ff-base); page-break-after: always; break-after: page; border: var(--hair) solid var(--border);
+}
+.inv-idc-sheet:last-child { page-break-after: auto; break-after: auto; }
+.inv-idc { display: flex; gap: var(--idc-pad); padding: var(--idc-pad); border: var(--idc-rule) solid #000; border-radius: 3mm; overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+.inv-idc-main { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: 1mm; font-size: var(--idc-fs); }
+.inv-idc-co { font-size: var(--idc-fs-co); font-weight: 700; text-transform: uppercase; border-bottom: var(--idc-rule) solid #000; padding-bottom: 1mm; }
+.inv-idc-label { font-size: var(--idc-fs); color: #444; }
+.inv-idc-name { font-size: var(--idc-fs-name); font-weight: 700; line-height: 1.15; overflow-wrap: anywhere; }
+.inv-idc-row { font-size: var(--idc-fs); }
+.inv-idc-qr { flex: 0 0 var(--idc-qr); align-self: center; }
+@media print { .inv-idc-sheet { border: none; margin: 0; } }

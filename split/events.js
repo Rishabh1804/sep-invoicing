@@ -453,6 +453,7 @@ function onDocClick(e) {
       if (prodAction(action, btn)) break;
       if (pltAction(action, btn)) break;
       if (pplAction(action, btn)) break;
+      if (idcAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (kbAction(action, btn)) break;

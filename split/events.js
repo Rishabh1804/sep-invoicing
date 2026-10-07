@@ -445,6 +445,7 @@ function onDocClick(e) {
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (soaAction(action, btn)) break;
+      if (psAction(action)) break;
       if (financeAction(action, btn)) break;
       if (finLinkAction(action, btn)) break;
       if (pipeAction(action, btn)) break;

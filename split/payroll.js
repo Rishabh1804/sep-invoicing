@@ -265,7 +265,9 @@ function _payForecastCard(ws) {
 function _payDueCard(ws) {
   var d = payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-  var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
+  // The slips are printed from the same rows (payslip.js).
+  var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue').replace(/<\/div>$/,
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPsOpen">Pay slips</button></div>');
   var group = function(title, rows) {
     if (!rows.length) return '';
     // What is due and what was advanced are two figures: netting one hand's advance against another's due read low.

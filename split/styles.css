@@ -1961,6 +1961,42 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 .inv-soa-age th:nth-child(n) { width: 25%; }
 .inv-soa-total td { font-weight: 700; border-top: var(--qt-band) solid var(--qt-accent); }
 
+/* Pay slips (payslip.js): two to an A4 page, each half the sheet, a dashed line to cut along between them. A printed form:
+   its sizes declared once here (HR-6's print exception), ink pinned on paper in dark mode too. */
+.inv-ps-sheet {
+  --ps-sheet-w: 210mm; --ps-sheet-h: 297mm; --ps-pad: 10mm 13mm; --ps-slip-h: 132mm; --ps-gap: 2.5mm; --ps-gap-sm: 1.2mm; --ps-cell: 1.2mm 2mm;
+  --ps-fs: 9pt; --ps-fs-sm: 7.8pt; --ps-fs-co: 13pt; --ps-fs-title: 12pt; --ps-rule: 0.5pt; --ps-band: 1.5pt; --ps-sig-gap: 10mm; --ps-cut: 0.6pt;
+  --ps-ink: #1a1a1a; --ps-paper: #fff; --ps-accent: #1f3a5f; --ps-muted: #444; --ps-cell-rule: #c9d2de; --ps-head-ink: #fff; --ps-track: 1.2pt;
+  display: flex; flex-direction: column; justify-content: space-between; width: var(--ps-sheet-w); min-height: var(--ps-sheet-h); padding: var(--ps-pad);
+  margin: 0 auto var(--sp-16); background: var(--ps-paper); color: var(--ps-ink); font-family: var(--ff-base); font-size: var(--ps-fs); line-height: 1.3;
+  border: var(--hair) solid var(--border); page-break-after: always; break-after: page; -webkit-print-color-adjust: exact; print-color-adjust: exact;
+}
+.inv-ps-sheet:last-child { page-break-after: auto; break-after: auto; }
+.inv-ps-slip { height: var(--ps-slip-h); display: flex; flex-direction: column; gap: var(--ps-gap-sm); overflow: hidden; break-inside: avoid; page-break-inside: avoid; }
+.inv-ps-cut { border-top: var(--ps-cut) dashed var(--ps-muted); }
+.inv-ps-head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--ps-gap); border-bottom: var(--ps-band) solid var(--ps-accent); padding-bottom: var(--ps-gap-sm); }
+.inv-ps-co { font-size: var(--ps-fs-co); font-weight: 700; color: var(--ps-accent); }
+.inv-ps-sub { font-size: var(--ps-fs-sm); color: var(--ps-muted); }
+.inv-ps-title { text-align: right; flex-shrink: 0; }
+.inv-ps-title-t { font-size: var(--ps-fs-title); font-weight: 700; color: var(--ps-accent); letter-spacing: var(--ps-track); }
+.inv-ps-body { display: flex; justify-content: space-between; gap: var(--ps-gap); }
+.inv-ps-kv { display: grid; grid-template-columns: auto 1fr; gap: 0 var(--ps-gap); margin: 0; }
+.inv-ps-kv dt { color: var(--ps-muted); }
+.inv-ps-kv dd { margin: 0; font-weight: 600; overflow-wrap: anywhere; }
+.inv-ps-att { text-align: right; }
+.inv-ps-lbl { font-size: var(--ps-fs-sm); text-transform: uppercase; letter-spacing: var(--ps-track); color: var(--ps-muted); }
+.inv-ps-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.inv-ps-table th { background: var(--ps-accent); color: var(--ps-head-ink); font-size: var(--ps-fs-sm); text-align: left; padding: var(--ps-cell); }
+.inv-ps-table th:nth-child(1) { width: 46%; }
+.inv-ps-table th:nth-child(n+2) { width: 18%; }
+.inv-ps-table td { border: var(--ps-rule) solid var(--ps-cell-rule); padding: var(--ps-cell); overflow-wrap: anywhere; }
+.inv-ps-n { text-align: right; font-variant-numeric: tabular-nums; }
+.inv-ps-strong td { font-weight: 700; }
+.inv-ps-due td { border-top: var(--ps-band) solid var(--ps-accent); }
+.inv-ps-sign { display: flex; justify-content: space-between; gap: var(--ps-gap); margin-top: auto; }
+.inv-ps-line { border-top: var(--ps-rule) solid var(--ps-ink); padding-top: var(--ps-gap-sm); margin-top: var(--ps-sig-gap); font-size: var(--ps-fs-sm); min-width: 40%; }
+@media print { .inv-ps-sheet { border: none; margin: 0; } }
+
 /* A move's call (advice.js) is a real tel: or mailto: link drawn as a button: a button carries no underline. */
 a.inv-btn { text-decoration: none; }
 /* WhatsApp, opened beside a paste box (add.js): its links keep their words on one line and their size in a head. */

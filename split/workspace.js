@@ -204,9 +204,11 @@ function renderSidebar() {
   if (existing) existing.remove();
   if (!_isDesktop) return;
   var door = function(x) { return 'data-action="invSwitchTab" data-tab="' + x.tab + '"' + (x.v ? ' data-v="' + x.v + '"' : ''); };
-  var html = '<div class="inv-side-brand"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
+  // The brand, mark and name, opens Today → Pulse (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on
+  // the top left of the screen should take us back to the pulse screen, as today takes us to the needs you screen").
+  var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Pulse"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
     '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg>' +
-    '<span>Soma Electro</span></div>' +
+    '<span>Soma Electro</span></button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invAddOpen" data-shell-primary aria-keyshortcuts="A">' + wsSvg('add') +
     '<span class="inv-side-label">Add</span><kbd class="inv-kbd">A</kbd></button>' +
     '<button class="inv-side-item" data-action="invSearchOpen" aria-keyshortcuts="Control+K">' + wsSvg('search') +
@@ -260,7 +262,7 @@ var WS_GO_PAGE = {
   staffRoster: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
-  power: 'pagePower', powerCase: 'pagePower',
+  power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
   finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
   kb: 'pageKnow', todoLearn: 'pageTodo'
@@ -308,5 +310,7 @@ function wsRedraw() {
 /* A workspace's door. Add and search answer in their own modules (add.js, events.js). */
 function wsAction(action, btn) {
   if (action === 'invWsGo') { wsGo(btn.dataset.ws); return true; }
+  // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
+  if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
   return false;
 }

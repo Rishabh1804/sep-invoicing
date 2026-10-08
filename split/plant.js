@@ -148,6 +148,8 @@ function pltStationHtml(station) {
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '') +
     (cap.used && cap.used.kgRound != null ? ' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round (' + cap.used.why + ')' : cap.used && PLT_LINE_STATIONS[station] ? ' · ' + cap.used.why : '')) + '</span></div>' +
     '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
+  // The power cuts that hit this line (powercause.js), when any were tied to it.
+  if (typeof pcsStationNote === 'function') h += pcsStationNote(station);
   return h + '</div>';
 }
 /* The supporting stations (lab, oven, power, effluent, other): rows, since they are not side by side. */
@@ -253,7 +255,7 @@ function pltUnitHistoryHtml(u) {
     log.map(function(l) {
       var to = l.to === 'retired' ? ['retired', 'Retired', 'neutral'] : pltStatus(l.to);
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(l.date)) + '</span><span class="inv-row-meta">' + escHtml(l.reason || (l.from ? '' : 'added')) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
-    }).join('') + '</div>';
+    }).join('') + (typeof pcsUnitHtml === 'function' ? pcsUnitHtml(u) : '') + '</div>';
 }
 function _pltVal(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
 function _pltNum(id) { var v = _pltVal(id); if (v === '') return null; var n = parseFloat(v); return isFinite(n) && n >= 0 ? n : null; }

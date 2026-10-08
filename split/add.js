@@ -106,11 +106,11 @@ function addOpen() {
     // the panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
     '<div class="inv-panel inv-panel-flush">' +
     '<input type="file" id="addPhotoInput" class="inv-hidden" accept="image/*" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
-    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.json,application/vnd.ms-excel,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
+    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
     row('clipboard', 'invAddClip', ADD_ICON.clipboard, 'Check the clipboard', 'What you copied, read only when you tap here') +
     '<div class="inv-panel-body inv-hidden" id="addClipOut" aria-live="polite"></div>' +
     row('photo', 'invAddPhoto', ADD_ICON.photo, 'Photo', 'A challan or a register page: read by Gemini, checked by you') +
-    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls), a backup, or an export of stock, production, power, payroll or the roster') +
+    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
     '</div>' +
     // 5. By hand: every form, opened on the job.
     '<div class="inv-panel" data-add-sec="hand"><div class="inv-panel-head"><span class="inv-panel-title">By hand</span></div>' +
@@ -321,7 +321,8 @@ function addFileKind(buf) {
   var u8 = new Uint8Array(buf, 0, Math.min(buf.byteLength, 16));
   var at = function(sig, from) { from = from || 0; return u8.length >= from + sig.length && sig.every(function(b, i) { return u8[from + i] === b; }); };
   if (at(ADD_OLE_SIG)) return { kind: 'xls' };
-  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: 'zip' };
+  // A zip is an .xlsx when it holds a workbook: a statement saved from Excel (owner, 8 Oct 2026), read as the .xls is.
+  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf) ? 'xls' : 'zip' };
   if (at([0x25, 0x50, 0x44, 0x46])) return { kind: 'pdf' };
   if (at([0xFF, 0xD8, 0xFF]) || at([0x89, 0x50, 0x4E, 0x47]) || at([0x47, 0x49, 0x46, 0x38]) || (at([0x52, 0x49, 0x46, 0x46]) && at([0x57, 0x45, 0x42, 0x50], 8)) ||
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
@@ -404,7 +405,7 @@ async function addFileRoute(file, buf) {
   }[what];
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
+    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
 }
 /* What arrived, in words, for a file no import takes. */
 function addFileWords(k) {
@@ -416,7 +417,7 @@ function addFileWords(k) {
     return 'a JSON file' + (f ? ' marked ' + f : '') + (keys.length ? ' with keys ' + keys.slice(0, 8).join(', ') + (keys.length > 8 ? ' and ' + (keys.length - 8) + ' more' : '') : ', empty') + ', not one the app imports';
   }
   return {
-    zip: 'an Excel workbook (.xlsx) or another zip file; the bank statement is read as the Excel 97–2003 file (.xls) the bank exports',
+    zip: 'a zip file with no Excel workbook in it; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
     pdf: 'a PDF; a photo of the page can be read with Photo',
     html: 'a web page (HTML), not the bank’s Excel 97–2003 statement',
     badjson: 'JSON that could not be read (' + (k.error || 'not valid') + ')',

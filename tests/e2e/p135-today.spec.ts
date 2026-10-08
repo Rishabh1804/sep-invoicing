@@ -47,9 +47,9 @@ test('Today opens on Needs you: the day’s inputs, then the tasks grouped by wh
   const groups = await page.locator('[data-tdy-group]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyGroup));
   expect(groups.indexOf('now')).toBeLessThan(groups.indexOf('week'));
   await expect(page.locator('[data-card="tasks"]')).toContainText('Call the drum supplier');
-  // The app task carries one move to where it is made.
+  // The app task carries one move to where it is made, at the foot of its card.
   const app = page.locator('[data-tdy-task]').first();
-  await expect(app.locator('.inv-row-actions button, .inv-row-actions a')).toHaveCount(1);
+  await expect(app.locator('.inv-deck-foot button, .inv-deck-foot a')).toHaveCount(1);
 });
 
 test('Pulse is the second view; each view has its address and Back walks between them', async ({ page }) => {

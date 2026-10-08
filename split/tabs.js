@@ -245,6 +245,24 @@ function renderHomeTiles(active) {
   // Only what there is, joined: with nothing weighed on the same days last month the line ended on a bare " · ".
   set('mtdPerKgDelta', real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '',
     preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '));
+  // Each figure's last six full months as a line under it (owner, 8 Oct 2026: the data on Today "still primitive"): the month
+  // so far is the tile's own figure, so the line stops at the last month that ended.
+  var hist = homeMonthsBack(6), labels = hist.map(function(x) { return x.label; });
+  set('mtdCountViz', chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') }));
+  set('mtdRevenueViz', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }));
+  set('mtdKgViz', chartSpark(hist.map(function(x) { return x.kg > 0 ? gstRound(x.kg / 1000) : null; }), { labels: labels, unit: 'count', dot: false,
+    title: 'Tonnes by month: ' + hist.map(function(x) { return x.label + ' ' + formatNum(x.kg / 1000, 1) + ' t'; }).join(' · ') }));
+  set('mtdPerKgViz', chartSpark(hist.map(function(x) { return x.real; }), { ref: hist.map(function(x) { return x.cost; }), labels: labels, unit: 'rate', dot: false }));
+}
+/* The last n months that have ended, oldest first, as Stats reads them (statsMonthRows: realisation over the weighed lines,
+   at each month's own live cost), with the invoices counted. */
+function homeMonthsBack(n) {
+  var rows = typeof statsMonthRows === 'function' ? statsMonthRows(n + 1) : [], cur = localDateStr().slice(0, 7);
+  var count = {};
+  statsInvoices().forEach(function(i) { if (i.date) count[i.date.slice(0, 7)] = (count[i.date.slice(0, 7)] || 0) + 1; });
+  return rows.filter(function(r) { return r.month !== cur; }).slice(-n).map(function(r) {
+    return { label: r.label, n: count[r.month] || 0, rev: gstRound(r.rev), kg: r.kg, real: r.real != null ? gstRound(r.real) : null, cost: r.cost != null ? gstRound(r.cost) : null };
+  });
 }
 
 /* Last month's invoices over the same days this month has run (the 1st to today's date, capped at last month's length),
@@ -419,6 +437,8 @@ function homeApplyLayout() {
     el.classList.toggle('inv-hidden', !!l.hidden[k] || !homeWidgetSeen(k));
     el.classList.toggle('inv-panels-wide', !!l.wide[k]);
   });
+  // Packed with no gaps on the desktop (§6.25): a short widget no longer leaves its row's height empty beside it.
+  if (_isDesktop) uiMasonry(host); else if (host.classList.contains('inv-masonry-on')) uiMasonry(host);
   var area = document.getElementById('homeEditArea'), bar = document.getElementById('homeEditBar');
   if (area) area.innerHTML = _homeEdit ? homeEditHtml(l) : '';
   if (bar) bar.classList.toggle('inv-hidden', _homeEdit);

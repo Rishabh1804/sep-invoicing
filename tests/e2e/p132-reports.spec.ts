@@ -88,7 +88,10 @@ test('the figures are the app\'s own: invoiced equals Stats\' headline for the m
   if (await page.locator('[data-action="invRptNow"]').isEnabled()) await page.locator('[data-action="invRptNow"]').click();
   const wf = (await doc(page).getAttribute('data-from'))!;
   if (dayOff(-2) >= wf) {
-    await expect(doc(page).locator('[data-rpt-tile="power"] .inv-rpt-tile-v')).toHaveText('1');
+    // The week's cuts as Power counts them (the sweep book has a second, still open, the day before).
+    const wt = (await doc(page).getAttribute('data-to'))!;
+    const n = await g(page, `String(powerCuts('${wf}', '${wt}' > localDateStr() ? localDateStr() : '${wt}').length)`);
+    await expect(doc(page).locator('[data-rpt-tile="power"] .inv-rpt-tile-v')).toHaveText(n as string);
     const dmg = await g(page, `formatCurrency(powerAnalysis().cuts.find(c => c.date === '${dayOff(-2)}').cost.total)`);
     await expect(doc(page).locator('[data-rpt-table="cuts"] tbody')).toContainText(dmg as string);
   }

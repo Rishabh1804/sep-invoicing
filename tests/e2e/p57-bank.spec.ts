@@ -91,7 +91,7 @@ test('a file that is not a statement is refused with a reason', async ({ page })
   await openBank(page);
   const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
   await chooser.setFiles({ name: 'notes.xls', mimeType: 'application/vnd.ms-excel', buffer: Buffer.from('not a spreadsheet') });
-  await expect(page.locator('.inv-toast').last()).toContainText('Not an Excel 97–2003 file');
+  await expect(page.locator('.inv-toast').last()).toContainText('Not an Excel file');
   expect((await readStoredState(page)).bank?.rows || []).toHaveLength(0);
 });
 

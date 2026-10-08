@@ -224,7 +224,7 @@ test.describe('P136: Add, the one door', () => {
     expect(said).toContain('notes.json is a JSON file with keys hello, world, not one the app imports');
     await expect(page.locator('[data-add-sheet]')).toBeVisible();
     await pickFile(page, { name: 'register.xlsx', mimeType: 'application/zip', buffer: Buffer.from([0x50, 0x4B, 0x03, 0x04, 0, 0]) });
-    expect(await answerAsk(page, 'ok')).toContain('an Excel workbook (.xlsx)');
+    expect(await answerAsk(page, 'ok')).toContain('a zip file with no Excel workbook in it');
   });
 
   test('every other import is reached by what its file holds: the roster, production, the power history, payroll as paid', async ({ page }) => {

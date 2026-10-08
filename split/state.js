@@ -822,6 +822,17 @@ function uiMoreHtml(key, rows, opts) {
   return out + (opts.tr ? '<tr data-more-btn="' + escHtml(key) + '"><td colspan="' + opts.tr + '">' + btn + '</td></tr>'
     : '<div class="inv-row" data-more-btn="' + escHtml(key) + '">' + btn + '</div>');
 }
+/* A deck (§6.22) showing its first n cards and the rest one tap away. The rest are drawn hidden inside the deck and the
+   button sits under it, outside the grid, so it never holds a column open beside the cards. */
+function uiMoreDeckHtml(key, cards, opts) {
+  opts = opts || {};
+  var n = opts.n != null ? opts.n : UI_MORE_ROWS, attrs = opts.attrs || '';
+  if (cards.length <= n || _uiMoreShown[key]) return '<div class="inv-deck"' + attrs + '>' + cards.join('') + '</div>';
+  var hide = function(h) { return h.replace(/^(\s*<[a-z]+)(\s|>)/i, '$1 data-more-of="' + escHtml(key) + '" hidden$2'); };
+  return '<div class="inv-deck"' + attrs + '>' + cards.map(function(c, i) { return i < n ? c : hide(c); }).join('') + '</div>' +
+    '<div class="inv-deck-more" data-more-btn="' + escHtml(key) + '"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invShowMore" data-key="' + escHtml(key) + '">Show ' +
+    (cards.length - n) + ' more' + (opts.noun ? ' ' + opts.noun : '') + ' · ' + cards.length + ' in all</button></div>';
+}
 function uiShowMore(key) {
   _uiMoreShown[key] = true;
   document.querySelectorAll('[data-more-of="' + key + '"]').forEach(function(el) { el.hidden = false; });
@@ -851,6 +862,49 @@ function uiFoldCard(key, card, dflt) {
   var rest = card.slice(m[0].length).replace(/<\/div>\s*$/, '');
   return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
+}
+/* A hero card (§6.21): a <details> that folds open to its body, or a plain card where it has none. `o`: tone (a status tone
+   word, else the theme's gradient), eyebrow / title / fig / sub / viz / body (HTML: the caller escapes what came from the
+   user), open (its default), fold (the key its open or shut is remembered under on the device; none, it opens as drawn),
+   vital (a question tile: one column, the figure first), attrs (more attributes). */
+function uiHeroHtml(o) {
+  var tone = o.tone && /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? ' inv-hero-' + o.tone : '';
+  var cls = 'inv-hero' + tone + (o.vital ? ' inv-hero-vital' : '') + (o.cls ? ' ' + o.cls : '');
+  var head = (o.eyebrow ? '<span class="inv-hero-eyebrow">' + o.eyebrow + '</span>' : '') +
+    (o.vital ? (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '') + (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '')
+      : (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '') + (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '')) +
+    (o.sub ? '<span class="inv-hero-sub">' + o.sub + '</span>' : '') + (o.viz ? '<span class="inv-hero-viz">' + o.viz + '</span>' : '');
+  if (o.body == null) return '<div class="' + cls + '"' + (o.attrs || '') + '><div class="inv-hero-head">' + head + '</div></div>';
+  var open = o.fold ? uiFoldOpen(o.fold, o.open) : !!o.open;
+  return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
+    '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div></details>';
+}
+/* A grid packed with no gaps (§6.25): each child spans as many of the grid's small rows as its own height takes. Only where
+   the grid has two columns or more; packed again whenever a child changes height (a fold opened, a chart drawn). */
+var _masonryObs = typeof ResizeObserver === 'function' ? new ResizeObserver(function(entries) {
+  var seen = [];
+  entries.forEach(function(en) { var g = en.target.parentElement; if (g && seen.indexOf(g) < 0) seen.push(g); });
+  seen.forEach(function(g) { if (g.classList.contains('inv-masonry-on')) uiMasonryPack(g); });
+}) : null;
+function uiMasonry(el) {
+  if (!el) return;
+  var cols = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
+  if (cols < 2) {
+    el.classList.remove('inv-masonry-on');
+    Array.prototype.forEach.call(el.children, function(c) { c.style.removeProperty('--rows'); });
+    return;
+  }
+  el.classList.add('inv-masonry-on');
+  uiMasonryPack(el);
+  if (_masonryObs) Array.prototype.forEach.call(el.children, function(c) { _masonryObs.observe(c); });
+}
+function uiMasonryPack(el) {
+  var cs = getComputedStyle(el), row = parseFloat(cs.gridAutoRows) || 4, gap = parseFloat(cs.rowGap) || 0;
+  Array.prototype.forEach.call(el.children, function(c) {
+    var h = c.getBoundingClientRect().height;
+    var n = h > 0 ? Math.max(1, Math.ceil((h + gap) / (row + gap))) : 1;
+    if (c.style.getPropertyValue('--rows') !== String(n)) c.style.setProperty('--rows', String(n));
+  });
 }
 document.addEventListener('toggle', function(e) {
   var d = e.target;

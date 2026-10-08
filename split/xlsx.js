@@ -1,4 +1,4 @@
-/* ===== XLSX WRITER =====
+/* ===== XLSX WRITER (the reader follows it) =====
  * A clean Excel workbook without a library (owner, 26 Sep 2026: "BANK Statement export should be a
  * clean sorted excel file"). An .xlsx is a zip of XML parts; this writes the fewest parts Excel,
  * LibreOffice and Google Sheets all open without a repair prompt, zipped STORED (no compression,
@@ -145,4 +145,107 @@ function _xlsxZip(files) {
   var out = new Uint8Array(all.reduce(function(s, c) { return s + c.length; }, 0)), p = 0;
   all.forEach(function(c) { out.set(c, p); p += c.length; });
   return out;
+}
+
+/* ===== XLSX READER =====
+ * A statement saved as .xlsx, read without a library (owner, 8 Oct 2026: the statement saved from Excel as .xlsx was
+ * refused as "not an Excel file"). An .xlsx is a zip of XML parts, deflated as Excel writes it: the zip's own directory
+ * says where each part starts, the browser's DecompressionStream inflates it, DOMParser reads it. Only what an import
+ * needs: the first sheet's cell values, a string from the shared table or written in the cell, a number as a number, a
+ * formula by the result Excel kept.
+ *
+ * xlsxRead(ArrayBuffer) → Promise<{ sheet: name, rows: [[value, ...], ...] }>, the shape xlsRead returns (missing cells
+ * undefined). It rejects with a plain message on anything it cannot read.
+ */
+function _xlsxZipDir(buf) {
+  var dv = new DataView(buf), n = buf.byteLength, eocd = -1;
+  for (var i = n - 22; i >= 0 && i >= n - 22 - 65535; i--) if (dv.getUint32(i, true) === 0x06054B50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Not an Excel workbook: the zip it should be is incomplete');
+  var count = dv.getUint16(eocd + 10, true), off = dv.getUint32(eocd + 16, true), dir = {}, dec = new TextDecoder('utf-8');
+  for (var k = 0; k < count; k++) {
+    if (off + 46 > n || dv.getUint32(off, true) !== 0x02014B50) throw new Error('Not an Excel workbook: its list of parts cannot be read');
+    var nl = dv.getUint16(off + 28, true), xl = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true);
+    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), at: dv.getUint32(off + 42, true) };
+    off += 46 + nl + xl + cl;
+  }
+  return dir;
+}
+/* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
+function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
+async function _xlsxPart(buf, dir, name) {
+  var e = dir[name];
+  if (!e) return null;
+  var dv = new DataView(buf);
+  if (e.at + 30 > buf.byteLength || dv.getUint32(e.at, true) !== 0x04034B50) throw new Error('The workbook is damaged (' + name + ' cannot be found)');
+  var start = e.at + 30 + dv.getUint16(e.at + 26, true) + dv.getUint16(e.at + 28, true);
+  if (start + e.size > buf.byteLength) throw new Error('The workbook is damaged (' + name + ' runs past the end)');
+  var raw = new Uint8Array(buf, start, e.size), bytes = raw;
+  if (e.method === 8) {
+    if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open an .xlsx: import the statement as the .xls the bank exports');
+    bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  } else if (e.method !== 0) throw new Error('The workbook is packed in a way the app does not read (method ' + e.method + ')');
+  return new TextDecoder('utf-8').decode(bytes);
+}
+function _xlsxXml(text, name) {
+  var doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('The workbook is damaged (' + name + ' is not readable)');
+  return doc;
+}
+/* Elements by their own name, whatever prefix the writer gave the namespace. */
+function _xlsxEls(node, tag) { return Array.prototype.slice.call(node.getElementsByTagNameNS('*', tag)); }
+/* A string item's text: its <t>, or its runs' <t> joined; a phonetic reading (<rPh>) is not the text. */
+function _xlsxSiText(si) {
+  var out = '';
+  Array.prototype.forEach.call(si.childNodes, function(ch) {
+    if (ch.localName === 't') out += ch.textContent;
+    else if (ch.localName === 'r') _xlsxEls(ch, 't').forEach(function(t) { out += t.textContent; });
+  });
+  return out;
+}
+/* "AB12" → 27 (the column, from 0). */
+function _xlsxColIdx(ref) {
+  var m = /^([A-Z]+)/i.exec(ref || ''), n = 0;
+  if (!m) return -1;
+  for (var i = 0; i < m[1].length; i++) n = n * 26 + (m[1].toUpperCase().charCodeAt(i) - 64);
+  return n - 1;
+}
+async function xlsxRead(buf) {
+  var dir = _xlsxZipDir(buf);
+  var wbText = await _xlsxPart(buf, dir, 'xl/workbook.xml');
+  if (wbText == null) throw new Error('Not an Excel workbook: the zip holds no xl/workbook.xml');
+  var wb = _xlsxXml(wbText, 'the workbook'), first = _xlsxEls(wb, 'sheet')[0];
+  if (!first) throw new Error('The workbook has no sheet');
+  // The first sheet's part, through the workbook's relationships; a workbook that names none is read at its first sheet part.
+  var rid = first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || first.getAttribute('r:id'), path = '';
+  var relsText = await _xlsxPart(buf, dir, 'xl/_rels/workbook.xml.rels');
+  if (relsText != null && rid) {
+    var rel = _xlsxEls(_xlsxXml(relsText, 'the workbook’s links'), 'Relationship').find(function(r) { return r.getAttribute('Id') === rid; });
+    var target = rel ? String(rel.getAttribute('Target') || '') : '';
+    if (target) path = target.charAt(0) === '/' ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+  }
+  if (!dir[path]) path = Object.keys(dir).filter(function(k) { return /^xl\/worksheets\/[^/]+\.xml$/.test(k); }).sort()[0] || '';
+  if (!path) throw new Error('The workbook has no sheet');
+  var sst = [], sstText = await _xlsxPart(buf, dir, 'xl/sharedStrings.xml');
+  if (sstText != null) sst = _xlsxEls(_xlsxXml(sstText, 'the shared strings'), 'si').map(_xlsxSiText);
+  var sheet = _xlsxXml(await _xlsxPart(buf, dir, path), 'the sheet'), rows = [], next = 0;
+  _xlsxEls(sheet, 'row').forEach(function(rowEl) {
+    var r = parseInt(rowEl.getAttribute('r'), 10);
+    r = isFinite(r) && r > 0 ? r - 1 : next;
+    next = r + 1;
+    var row = rows[r] || (rows[r] = []), col = 0;
+    _xlsxEls(rowEl, 'c').forEach(function(c) {
+      var ci = _xlsxColIdx(c.getAttribute('r'));
+      if (ci < 0) ci = col;
+      col = ci + 1;
+      var t = c.getAttribute('t') || 'n', vEl = _xlsxEls(c, 'v')[0], v = vEl ? vEl.textContent : null, val;
+      if (t === 's') val = v == null ? undefined : sst[parseInt(v, 10)];
+      else if (t === 'inlineStr') { var is = _xlsxEls(c, 'is')[0]; val = is ? _xlsxSiText(is) : undefined; }
+      else if (t === 'str' || t === 'e' || t === 'd') val = v == null ? undefined : v;
+      else if (t === 'b') val = v == null ? undefined : v === '1' ? 1 : 0;
+      else if (v != null && v !== '') { var num = Number(v); val = isFinite(num) ? num : v; }
+      if (val !== undefined && val !== '') row[ci] = val;
+    });
+  });
+  for (var i = 0; i < rows.length; i++) if (!rows[i]) rows[i] = [];
+  return { sheet: first.getAttribute('name') || '', rows: rows };
 }

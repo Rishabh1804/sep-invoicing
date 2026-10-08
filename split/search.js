@@ -144,6 +144,7 @@ function srchScreens() {
     ['reorder', 'Reorder list', 'Floor › Stock', 'order purchase buy', at('pageStock', 'reorder')],
     ['power', 'Power', 'Floor', 'power cuts electricity outage', at('pagePower', 'overview')],
     ['power-cuts', 'Power cuts', 'Floor › Power', 'cuts outages damage', at('pagePower', 'cuts')],
+    ['power-causes', 'Power causes', 'Floor › Power', 'why power cut reason fix cause breaker feeder trip restore', at('pagePower', 'causes')],
     ['power-load', 'Load & bills', 'Floor › Power', 'load kva sanctioned connection electricity bills', at('pagePower', 'load')],
     ['power-case', 'Power case', 'Floor › Power', 'case for backup generator inverter tsuisl payback', at('pagePower', 'case')],
     ['money', 'Money', 'Money · was Finance', 'finance cash overview balance', at('pageFinance', 'overview')],

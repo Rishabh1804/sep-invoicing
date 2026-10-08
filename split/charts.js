@@ -506,3 +506,53 @@ function chartShowRead(el) {
   box.querySelectorAll('.inv-chart-read-on').forEach(function(n) { n.classList.remove('inv-chart-read-on'); });
   el.classList.add('inv-chart-read-on');
 }
+
+/* ===== SMALL CHARTS FOR CARDS (§6.24; owner, 8 Oct 2026: Today's "data presentation is still primitive") =====
+   A sparkline: a figure's last months as one line, with a second measure dashed beside it where there is one (a price
+   against its cost), and the latest point marked in the accent (the current period, DR-2). No axes: the card's figure says
+   what the line is of, and the <title> carries every value. Stretched to its box, the stroke kept even (non-scaling). */
+function chartSpark(values, opts) {
+  opts = opts || {};
+  var vals = (values || []).map(function(v) { return v == null || !isFinite(v) ? null : Number(v); });
+  var ref = Array.isArray(opts.ref) ? opts.ref.map(function(v) { return v == null || !isFinite(v) ? null : Number(v); }) : null;
+  var all = vals.concat(ref || []).filter(function(v) { return v != null; });
+  if (vals.filter(function(v) { return v != null; }).length < 2) return '';
+  var W = 100, H = 30, P = 3, lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+  if (opts.zero && lo > 0) lo = 0;
+  if (hi === lo) { hi += 1; lo -= 1; }
+  var x = function(i) { return vals.length < 2 ? W / 2 : P + i * (W - 2 * P) / (vals.length - 1); };
+  var y = function(v) { return H - P - (v - lo) / (hi - lo) * (H - 2 * P); };
+  var path = function(list) {
+    var d = '', pen = false;
+    list.forEach(function(v, i) { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(2) + ' ' + y(v).toFixed(2); pen = true; });
+    return d;
+  };
+  var last = -1;
+  vals.forEach(function(v, i) { if (v != null) last = i; });
+  var labels = opts.labels || [];
+  var title = opts.title || vals.map(function(v, i) { return (labels[i] ? labels[i] + ': ' : '') + (v == null ? '—' : chartFull(v, opts.unit || 'money')); }).filter(Boolean).join(' · ');
+  return '<svg class="inv-spark' + (opts.tone ? ' inv-spark-' + escHtml(opts.tone) : '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + escHtml(title) + '">' +
+    '<title>' + escHtml(title) + '</title>' +
+    (ref ? '<path class="inv-spark-ref" d="' + path(ref) + '"/>' : '') +
+    '<path class="inv-spark-line" d="' + path(vals) + '"/>' +
+    (last >= 0 && opts.dot !== false ? '<path class="inv-spark-dot" d="M' + x(last).toFixed(2) + ' ' + y(vals[last]).toFixed(2) + 'l0 0"/>' : '') + '</svg>';
+}
+/* A meter: shares of one whole as a bar, each part in its tone (a status tone, or neutral), with a mark where the figure is
+   judged (80% of the plant's capacity, last month's revenue). `parts` [{v, tone}], `opts.max` the whole (else their sum),
+   `opts.mark` a value on the same scale, `opts.title` what it says in words, which a screen reader reads. */
+function chartMeter(parts, opts) {
+  opts = opts || {};
+  var list = (parts || []).filter(function(p) { return p && p.v > 0; });
+  var sum = list.reduce(function(s, p) { return s + p.v; }, 0), max = opts.max > 0 ? Math.max(opts.max, sum) : sum;
+  if (!(max > 0)) return '';
+  var at = 0, rects = list.map(function(p) {
+    var w = p.v / max * 100, r = '<rect class="inv-meter-' + escHtml(p.tone || 'neutral') + '" x="' + at.toFixed(2) + '" y="0" width="' + Math.max(0, w).toFixed(2) + '" height="8"></rect>';
+    at += w;
+    return r;
+  }).join('');
+  var mark = opts.mark != null && opts.mark > 0 ? Math.min(99.4, opts.mark / max * 100) : null;
+  return '<svg class="inv-meter" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="' + escHtml(opts.title || '') + '">' +
+    (opts.title ? '<title>' + escHtml(opts.title) + '</title>' : '') +
+    '<rect class="inv-meter-track" x="0" y="0" width="100" height="8"></rect>' + rects +
+    (mark != null ? '<rect class="inv-meter-mark" x="' + mark.toFixed(2) + '" y="0" width="0.6" height="8"></rect>' : '') + '</svg>';
+}

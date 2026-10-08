@@ -130,9 +130,17 @@ export function sweepState(): SepState {
     pe.push({ id: 'PP' + k, kind: 'pickled', date: d, time: '08:40', clientId: 1, client: 'ALPHA FORGINGS', part: 'BRKT-1', qty: 400, unit: 'NOS',
       basis: 'pickling', src: 'paste', raw: 'BRKT-1--400 nos', at: 1 });
   }
-  pe.push({ id: 'PD1', kind: 'downtime', date: dayOff(-2), time: '10:55', to: '11:15', downtime: { cause: 'power' }, basis: 'pickling', src: 'paste', at: 1 });
+  // A cut with its reason, where it hit and what brought it back (P177), and one with no time back yet.
+  pe.push({ id: 'PD1', kind: 'downtime', date: dayOff(-2), time: '10:55', to: '11:15',
+    downtime: { cause: 'power', reason: 'PCS-R1', fix: 'PCS-F1', where: 'vat-a1', unitId: 'U-R1', setAt: 1, setBy: 'Owner' }, basis: 'pickling', src: 'paste', at: 1 });
+  pe.push({ id: 'PD2', kind: 'downtime', date: dayOff(-1), time: '14:10', downtime: { cause: 'power', open: true }, basis: 'relay', src: 'paste', at: 1 });
   pe.push({ id: 'PX1', kind: 'pickled', date: dayOff(-1), time: '10:40', client: 'SIYA ENTERPRISES', part: 'Buckle hook', qty: 200, unit: 'NOS', basis: 'pickling', src: 'paste', at: 1 });
   s.production = { entries: pe, pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
+  s.power = { causes: [
+    { id: 'PCS-R1', kind: 'reason', name: 'Rectifier breaker trip', aliases: ['RECTIFIER BREAKER TRIPPED'], scope: 'plant', at: 1, by: 'Owner' },
+    { id: 'PCS-R2', kind: 'reason', name: 'Feeder trip at the substation', aliases: [], scope: 'grid', at: 1, by: 'Owner' },
+    { id: 'PCS-F1', kind: 'fix', name: 'Reset the breaker', aliases: [], at: 1, by: 'Owner' }] };
+  s.plant = { units: [{ id: 'U-R1', name: 'Rectifier 1', station: 'vat-a1', kind: 'rectifier', kgRound: 25, status: 'run', since: dayOff(-30), reason: '', condition: 'fair' }], log: [] };
   // Quotations (P131): a draft, a live one and a superseded one, so Clients → Quotations has every group to draw.
   const qt = (id: string, over: any) => ({ id, num: null, fy: null, displayNumber: null, rev: 0, revOf: null, revReason: '', date: dayOff(-3), clientId: 1,
     to: { name: CLIENTS[0].name, address: 'Plot 1\nAdityapur', gstin: '20ABCDE1234F1Z5', state: '(20) JHARKHAND', attn: 'The Director' }, intro: 'Further to our discussions.',
@@ -448,6 +456,10 @@ export const DIALOGS: Array<[string, string]> = [
   ['pay-slips', `_attWeekStart = attWeekStartOf(localDateStr()); psOpen()`],
   ['merge-held', `S.mergeHeld = [{ id: 'MH-sweep', at: Date.now(), coll: 'clients', rid: '1', field: 'phone', label: 'a client', why: 'both', kept: { side: 'm', v: '1111' }, other: { side: 't', v: '2222' }, status: 'open', from: 'Office PC' }]; mrgHeldOpenDialog()`],
   ['prospect-form', `prsFormOpen(null)`],
+  // A power cut completed (P177): the time back, why it went, where it hit, what brought it back; and a reason on the list.
+  ['power-cut', `pcsOpen('PD2')`],
+  ['power-cut-reason', `pcsOpen('PD1')`],
+  ['power-cause-edit', `pcsEditOpen('PCS-R1')`],
   ['checkin-review', `S.staff[0].card = 'SEP-0001'; ckReviewOpen(${JSON.stringify(`SEP check-in\nCard SEP-0001\nTime ${todayIso().split('-').reverse().join('/')} 08:20\nPlace 22.800100,86.150100 ±12 m\nCode ABCD`)})`],
 ];
 

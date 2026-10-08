@@ -53,7 +53,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 83 modules, ~56,300 lines total.
+Split-file PWA. 84 modules, ~58,100 lines total.
 
 ```
 split/
@@ -62,7 +62,7 @@ split/
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells (1,064 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid (~2,250 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History → Changes (~670 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
@@ -85,7 +85,7 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── quote.js           ← Quotations: Clients → Quotations, a number at issue, revisions, the printed quotation (~790 lines)
-├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars (243 lines)
+├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars, and a card's sparkline and meter (~560 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
@@ -94,7 +94,7 @@ split/
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── bills.js           ← Finance → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
-├── xlsx.js            ← .xlsx writer: typed cells, dates, number formats, frozen header, filter; a stored zip (~170 lines)
+├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
 ├── bank.js            ← Finance → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
@@ -125,8 +125,9 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
 ├── floor.js           ← Floor → Day: a card per line, heads against the number, running, plated, crew, EXTRA (~240 lines)
-├── today.js           ← Today: Needs you (the day's inputs, the tasks Now / This week / Later) and Pulse (~320 lines)
+├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks) and Pulse (the questions) (~440 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
+├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
 ├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~610 lines)
 ├── planview.js        ← The planner's screens: Play, Ledger, A day, Plant, Tech tree, Staff, Clients, Finance; registers; the report (~990 lines)
@@ -146,7 +147,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -176,7 +177,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,541 tests, both layouts
+pnpm exec playwright test          # 1,574 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -264,6 +265,10 @@ uncoloured. The judgements are in one place, state.js (`figToneAgainst`, `figTon
 - **Clients → Performance**: the change lines and the latest month's realisation against the cost.
 - **Finance → Receivables and Overview**: what a client owes by the age of its oldest open invoice (*owed, over 90 d*),
   and *pays in N d*.
+- **Today's cards** (8 Oct 2026; owner: *"Hero cards should have gradient colour filling as per the theme, make sure the colours
+  are coded"*): a hero is filled in its status tone's gradient (`--grad-*`, built of the tones above, design §3.3 *Fills*): a
+  task group by its worst task, a question by its answer, the day's inputs by whether one is late, a power cause by where it
+  starts. The coding was there; the fill reads it. P178.
 P102.
 
 **The QA sweep of 29–30 Sep 2026** (owner: *"sweep the codebase for dead and redundant code … sweep the app for bugs and
@@ -414,7 +419,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 639 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 717 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1734,7 +1739,7 @@ actually happening in the plant daily"*). What each line (VAT A1, VAT A2, barrel
 before it, and **material in the plant two ways** — by the book and by the floor. `prodparse.js` reads the messages
 (pure), `production.js` holds the store and everything derived from it, `prodview.js` draws the page, `vision.js`
 reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an input; Entries → Export writes
-`sep-production` v1 whole, Import merges by id and never overwrites.
+`sep-production` v1 whole (with the power causes its cuts name, `powerCauses`), Import merges by id and never overwrites.
 
 - **Three voices, three doors.** The pickling hand's loads (*"SSS MEHTA / CLAMP133×83(35×6)-774 nos / PICKLING TIME
   9:00AM"*, incoming material under its own head) and the supervisor's barrel list and a roll's `----production----`
@@ -2051,13 +2056,38 @@ quarterly and a yearly follow the monthly's shape. P132.
 
 ### Power
 More → **Power** (sidebar Floor → Power; `power.js`; owner, 30 Sep 2026: *"Make a power cut tab, we have built a business
-case for power cut and how to resolve it, find it, read it and update it"*). Four views: **Overview · Cuts · Load & bills ·
-Case**. The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
+case for power cut and how to resolve it, find it, read it and update it"*). Five views: **Overview · Cuts · Causes · Load &
+bills · Case**. The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
 keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is the dated refresh.
 
 - **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
   and the history imported from soma-internal's power-cut log. The same cut reported twice is one (`prodDowntimeDay`); a
   power-back earlier on the clock than the cut ran overnight. Enter a cut opens Production's hand form on a power cut.
+- **A cut is completed where it is shown** (`powercause.js`, P177; owner, 8 Oct 2026: *"If we enter a power cut and save it
+  without giving an out time, there is no option readily available to fill in in time and the reason + solution. For reasons and
+  solutions, start remembering them and present them as a list … store them in uniform format, no matter how the input text is.
+  Use the intelligence system to tie this to the plant and present it in a visual form"*). One dialog (`pcsOpen`) from Power's
+  Overview and Cuts, Production's entry, Today and the To-do: the power-in time, why it went, where it hit (the whole plant, a
+  station, or a unit of the plant register) and what brought it back, written on every report of the cut with who and when
+  (`downtime.reason`, `fix`, `where`, `unitId`, `note`, `setAt`, `setBy`; a time typed here `closedHow: 'hand'`). A time the
+  register or a message wrote is the record's and is never typed over; one the record only bounded, inferred or was typed here
+  can be set. Completing an open cut in place follows the paste that closes one (`closedBy`): an open cut waits for its end.
+- **Reasons and fixes are a list the book keeps** (`S.power.causes`, in the change log and the merge), started from nothing.
+  Each has one name written one way (`pcsCanon`: sentence case; spaces, punctuation and "sub station" evened; the shop's codes
+  and a 2–3 letter code typed in capitals kept in capitals, kVA and VAT A2 as written; common misspellings fixed) and keeps every
+  spelling typed for it. What is typed is matched first (`pcsKey`: the words in any order and case, endings and a typing slip
+  folded; near where most words are shared or every word of the shorter is in the longer): *Read as …* with **Keep as new**,
+  never taken unseen. The list shows as chips, the most used first, a fix the reason was brought back by before leading; a
+  reason's usual place moves *Where it hit* until it is picked. A reason says where it starts: **the grid**, **the plant** or not
+  known. The owner renames, places and merges (a merged entry points at the one it joined, so every cut keeps its reason).
+- **Power → Causes** reads it for the plant: what causes the cuts ranked by what they cost (each cut's damage), coded by where
+  they start (red: in the plant three times in 30 days; amber: in the plant; blue: the grid; grey: not placed); where they hit,
+  a tile per station; what brings the power back, fastest first; the lists. The plant register says the cuts tied to a unit
+  and a line (`pcsUnitHtml`, `pcsStationNote`). To-do **`powerComplete`** (a cut with no time back in 30 days, amber, or no reason
+  in 14; imported history never asked) and **`powerCause`** (a cause not from the grid 3+ times in 30 days, red at 5; one from the grid at 5, amber),
+  whose moves get the unit checked or take the supply's case up.
+- **The production export carries the list** (`powerCauses` in `sep-production`): its cuts name reasons by id. An import merges
+  it by id, never writing over; one written the same way as an entry here joins it (`pcsMergeImport`).
 - **What a cut costs is its damage, not its price** (Iuno's audit of the 30 Sep refresh, H-1; owner, 30 Sep 2026: *"also
   take into assumption OT that we had to do following the power cut due to the backlog of material it creates"*). The work a
   cut stops is either made up in overtime or never made. Made up, the cut cost that overtime; never made, it cost the
@@ -2283,6 +2313,16 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   own due today or late), **This week** and **Later**, each with its one-tap move. **Pulse**: the questions with what to do
   (advice.js), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
   a spec reaching one opens Pulse first (`openPulse` in the fixtures).
+- **Today is cards** (owner, 8 Oct 2026: *"need the pulse screen and needs you screen to have less cognitive load, data
+  presentation on these screens are still primitive"*; *"If it is in list form, it should be presented better, maybe as a card or
+  atleast an expandable hero card"*; design §6.21–6.25, P178). Needs you: the day's inputs a hero (*N of 5 in*, a meter, the next
+  due) opening to steps; the tasks three heroes, Now open with its worth, This week and Later folded to a line naming what is in
+  them, each a deck of cards whose face opens the task and whose foot is its move; the recent invoices a hero opening to their
+  rows. On the desktop the tasks go across the top and the other cards are packed under them (`uiMasonry`). Pulse: each question
+  a hero that leads with its answer as a figure, a word and a sparkline or meter (`vital`, intel.js `statsStoryCards`), opening
+  across its row to the story and *What you can do* as cards (`advMovesDeckHtml`); then **Do first**, the three moves worth most
+  across the questions; the month's tiles each carry a sparkline of the months before (`homeMonthsBack`). **The sidebar's name
+  and mark open Pulse** (`invGoPulse`), where Today's own item opens Needs you; the phone's bar has no name or mark.
 - **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
   by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
 - **WhatsApp, opened from beside each paste box** (`waLinksHtml`, add.js; owner, 7 Oct 2026: *"directly open the web.whatsapp.com
@@ -2666,6 +2706,15 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   cell for cell against `xlrd` on the real statement: **7,018 cells, 0 different.** Columns are found by their
   labels; the bank writes newest first and `dayIdx` keeps its order inside a day (soma-internal's 20-Aug ingest
   sorted by date alone and published a closing balance ₹1,20,000 wrong).
+- **Or saved from Excel as .xlsx, and past the page's foot** (owner, 8 Oct 2026: *"When uploading the bank statement in xlsx
+  format we get an error Row 50: page 2 cannot be read or not an excel file"*). A statement of two pages ends in the bank's foot:
+  the time it was made under TRAN DATE (a date and time, as a number, which reads as a date) and *Page 2 of* under BALANCE,
+  read as a transaction whose balance could not be read. A row with no amount and no balance is passed over; one with an
+  amount whose balance cannot be read is still refused by its row. An .xlsx is read by `xlsx.js` (`xlsxRead`: the zip's
+  directory, the browser's own `DecompressionStream('deflate-raw')`, `DOMParser`; shared strings, rich text, a formula's kept
+  result), chosen by the file's bytes (`bankReadSheet`), from Finance's Import and Add → File (a zip holding
+  `xl/workbook.xml`). On the owner's statement of 5 Sep – 6 Oct both files read as the same 34 rows, every balance following
+  (checked, never committed); the specs read fake twins made by `tests/fixtures/make-bank-sep.py`. P179.
 - **Rows merge by id** — a hash of the row's own fields, balance included — so an overlapping statement adds only
   what is new. **Every balance is checked against the row before it**; a break (rows missing between two
   statements) is reported with its date and the figure expected.

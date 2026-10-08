@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="e285660e">
+<meta name="app-build" content="ca8f36db">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -96,6 +96,20 @@
   --warning: light-dark(#8a5700, #e8b95c); --warning-bg: light-dark(#fcf1d9, #352911);
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
+
+  /* Hero cards (§6.21; owner, 8 Oct 2026: "hero cards should have gradient colour filling as per the theme, make sure the
+     colours are coded"). The colour code is the one above, nothing new: the palette's accent where a card states no
+     status, a status tone where it does, from its colour in the top corner into the surface. Every stop is a token, so
+     each follows the palette and the theme. */
+  --grad-accent: linear-gradient(135deg, color-mix(in oklab, var(--accent) 22%, var(--accent-soft)) 0%, var(--accent-soft) 40%, var(--surface) 100%);
+  --grad-danger: linear-gradient(135deg, color-mix(in oklab, var(--danger) 18%, var(--danger-bg)) 0%, var(--danger-bg) 40%, var(--surface) 100%);
+  --grad-warning: linear-gradient(135deg, color-mix(in oklab, var(--warning) 18%, var(--warning-bg)) 0%, var(--warning-bg) 40%, var(--surface) 100%);
+  --grad-ok: linear-gradient(135deg, color-mix(in oklab, var(--ok) 18%, var(--ok-bg)) 0%, var(--ok-bg) 40%, var(--surface) 100%);
+  --grad-info: linear-gradient(135deg, color-mix(in oklab, var(--info) 18%, var(--info-bg)) 0%, var(--info-bg) 40%, var(--surface) 100%);
+  --grad-neutral: linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%);
+  /* Today's cards: a card in a deck at least this wide; a sparkline's and a meter's height; a step's node; the small row a
+     packed grid counts in. */
+  --deck-min: 15rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
@@ -930,6 +944,8 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-fill-danger { fill: var(--danger); }
 .inv-chart-ranked-fill-warning { fill: var(--warning); }
 .inv-chart-ranked-fill-good { fill: var(--ok); }
+.inv-chart-ranked-fill-info { fill: var(--info); }
+.inv-chart-ranked-fill-neutral { fill: var(--text-3); }
 .inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
 .inv-chart-ranked-sub { font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
 
@@ -1902,6 +1918,143 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
   body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
+/* ===== TODAY'S CARDS (§6.21–6.25; owner, 8 Oct 2026) =====
+   "If it is in list form, it should be presented better, maybe as a card or at least an expandable hero card. Right now we
+   have empty spaces, and inefficient layout." Needs you and Pulse are built of these; any screen may use them. */
+
+/* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
+   tone, and, as a <details>, folds open to what is under it. Filled with the theme's gradient, or its status tone's. */
+.inv-hero {
+  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--accent) 30%, var(--border));
+  position: relative; display: block; min-width: 0; background: var(--grad-accent); border: var(--hair) solid var(--hero-line);
+  border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
+}
+.inv-hero-danger { --hero-tone: var(--danger); --hero-line: color-mix(in oklab, var(--danger) 32%, var(--border)); background: var(--grad-danger); }
+.inv-hero-warning { --hero-tone: var(--warning); --hero-line: color-mix(in oklab, var(--warning) 32%, var(--border)); background: var(--grad-warning); }
+.inv-hero-ok { --hero-tone: var(--ok); --hero-line: color-mix(in oklab, var(--ok) 32%, var(--border)); background: var(--grad-ok); }
+.inv-hero-info { --hero-tone: var(--info); --hero-line: color-mix(in oklab, var(--info) 32%, var(--border)); background: var(--grad-info); }
+.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); background: var(--grad-neutral); }
+.inv-hero-head {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
+  padding: var(--sp-12) var(--sp-16); list-style: none;
+}
+summary.inv-hero-head { cursor: pointer; position: relative; padding-right: calc(var(--sp-16) + var(--sp-16)); }
+summary.inv-hero-head::-webkit-details-marker { display: none; }
+summary.inv-hero-head::after { content: ''; position: absolute; right: var(--sp-16); top: var(--sp-20); width: var(--sp-6); height: var(--sp-6);
+  border-right: var(--rule) solid var(--text-2); border-bottom: var(--rule) solid var(--text-2); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
+details.inv-hero[open] > summary.inv-hero-head::after { transform: translateY(-25%) rotate(225deg); }
+summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-xl); }
+.inv-hero-eyebrow { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+.inv-hero-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; color: var(--text-1); }
+.inv-hero-fig { font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--hero-tone); text-align: right; overflow-wrap: anywhere; }
+body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
+.inv-hero-fig .inv-tile-of { color: var(--text-2); }
+.inv-hero-sub { grid-column: 1 / -1; min-width: 0; font-size: var(--fs-13); line-height: 1.4; color: var(--text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+.inv-hero-viz { grid-column: 1 / -1; min-width: 0; margin-top: var(--sp-4); }
+.inv-hero-body { padding: 0 var(--sp-12) var(--sp-12); }
+/* What a hero opens to, where it is not a deck: one surface inside the fill (a question's story, a list of rows). */
+.inv-hero-sheet { background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
+.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; }
+/* On the phone the sheet reaches the card's edges: a row inside keeps the width a flush panel's row has. */
+body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); border-left: none; border-right: none; border-radius: 0; }
+body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); border-bottom: none; border-radius: 0 0 calc(var(--r-xl) - var(--hair)) calc(var(--r-xl) - var(--hair)); }
+/* A question tile (Pulse): one column, the figure first, the answer under it. */
+.inv-hero-vital > .inv-hero-head { grid-template-columns: minmax(0, 1fr); }
+.inv-hero-vital .inv-hero-fig { text-align: left; }
+.inv-hero-vital .inv-hero-title { font-size: var(--fs-14); }
+/* Heroes side by side (Pulse's questions): two across on the phone, three on the desktop; one opened takes its row. */
+.inv-heroes { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); grid-auto-flow: row dense; margin-bottom: var(--gap); }
+body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
+.inv-heroes > .inv-hero { margin-bottom: 0; }
+.inv-heroes > details.inv-hero[open] { grid-column: 1 / -1; }
+
+/* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. */
+.inv-hero-stack > .inv-hero:last-child, .inv-panels > .inv-hero { margin-bottom: 0; }
+/* What can be done, under a question's story in its hero. */
+.inv-hero-moves { padding-top: var(--sp-4); }
+
+/* §6.22 Card deck: things to act on as cards, as many across as fit. The card opens what it names (its main is a button
+   stretched over it); its own move sits at its foot, above the stretch. */
+/* auto-fit: the cards there are take the row between them, so two or three never leave a blank column beside them. */
+.inv-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--deck-min)), 1fr)); gap: var(--sp-8); }
+.inv-deck-item {
+  position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
+  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-lg); transition: border-color var(--dur-1);
+}
+.inv-deck-item:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--border)); }
+.inv-deck-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
+.inv-deck-word { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.inv-deck-fig { font-family: var(--ff-mono); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
+.inv-deck-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.inv-deck-main::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-lg); }
+/* A card that is not itself a door (a move: its button is at its foot). */
+.inv-deck-body { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
+/* "Show N more" under a deck, outside its grid (uiMoreDeckHtml). */
+.inv-deck-more { padding-top: var(--sp-4); }
+.inv-deck-main:focus-visible { outline: none; box-shadow: none; }
+.inv-deck-main:focus-visible::after { box-shadow: var(--focus-ring); }
+.inv-deck-title { font-size: var(--fs-14); font-weight: 600; line-height: 1.35; color: var(--text-1);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+.inv-deck-sub { font-size: var(--fs-12); line-height: 1.4; color: var(--text-2);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+.inv-deck-foot { position: relative; z-index: 1; margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding-top: var(--sp-4); }
+.inv-deck-head > .inv-row-tick { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch); margin: calc(-1 * var(--sp-12)) 0 calc(-1 * var(--sp-12)) calc(-1 * var(--sp-12)); }
+.inv-deck-item.inv-row-done .inv-deck-title { text-decoration: line-through; color: var(--text-3); }
+
+/* §6.23 Steps: what arrives in a day, each a node on one rail, in the order it comes; the node says where it stands. */
+.inv-steps { display: flex; flex-direction: column; }
+.inv-step { position: relative; display: grid; grid-template-columns: var(--step-node) minmax(0, 1fr) auto; column-gap: var(--sp-12); align-items: center; min-height: var(--row-h-2); }
+.inv-step::before { content: ''; position: absolute; left: calc(var(--step-node) / 2 - var(--hair)); top: 0; bottom: 0; width: var(--rule); background: var(--border); }
+.inv-step:first-child::before { top: 50%; }
+.inv-step:last-child::before { bottom: 50%; }
+.inv-step-node {
+  position: relative; z-index: 1; display: grid; place-items: center; width: var(--step-node); height: var(--step-node);
+  border-radius: var(--r-full); border: var(--rule) solid var(--border); background: var(--surface); color: var(--text-3);
+  font-family: var(--ff-mono); font-size: var(--fs-12); font-weight: 600;
+}
+.inv-step-node svg { width: var(--sp-12); height: var(--sp-12); }
+.inv-step[data-state="in"] .inv-step-node { background: var(--ok); border-color: var(--ok); color: var(--surface); }
+.inv-step[data-state="late"] .inv-step-node { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
+.inv-step[data-state="part"] .inv-step-node { border-color: var(--ok); color: var(--ok); }
+.inv-step[data-state="off"] .inv-step-node { border-style: dashed; }
+.inv-step-main { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: var(--touch); padding: var(--sp-4) 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
+.inv-step-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-step-meta { font-size: var(--fs-12); color: var(--text-2); }
+.inv-step[data-state="late"] .inv-step-meta { color: var(--warning); }
+
+/* §6.24 Sparkline and meter: a figure's last months as a line (the current month's point in the accent, §DR-2), a share
+   as a bar in its tone with a mark at the line it is judged by. Drawn small, inside a card; every one carries its <title>. */
+.inv-spark { display: block; width: 100%; height: var(--spark-h); overflow: visible; }
+.inv-spark-line { fill: none; stroke: var(--text-2); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.inv-spark-ref { fill: none; stroke: var(--text-3); stroke-width: var(--hair); stroke-dasharray: var(--sp-4) var(--sp-4); vector-effect: non-scaling-stroke; }
+.inv-spark-dot { fill: none; stroke: var(--accent); stroke-width: var(--sp-6); stroke-linecap: round; vector-effect: non-scaling-stroke; }
+.inv-spark-danger .inv-spark-line { stroke: var(--danger); }
+.inv-spark-warning .inv-spark-line { stroke: var(--warning); }
+.inv-spark-ok .inv-spark-line { stroke: var(--ok); }
+.inv-spark-info .inv-spark-line { stroke: var(--info); }
+.inv-meter { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; }
+.inv-meter-track { fill: var(--surface-3); }
+.inv-meter-danger { fill: var(--danger); }
+.inv-meter-warning { fill: var(--warning); }
+.inv-meter-ok { fill: var(--ok); }
+.inv-meter-info { fill: var(--info); }
+.inv-meter-neutral { fill: var(--text-3); }
+.inv-meter-neutral-2 { fill: color-mix(in oklab, var(--text-3) 55%, var(--surface-3)); }
+.inv-meter-mark { fill: var(--text-1); }
+/* A tile's line under its figure (Pulse's month to date). */
+.inv-tile-viz { margin-top: var(--sp-6); }
+.inv-tile-viz:empty { display: none; }
+
+/* §6.25 A grid packed with no gaps (Needs you and Pulse's widgets on the desktop): each card spans as many small rows as its
+   height takes (uiMasonry, state.js), so a short card no longer leaves its row's height empty beside it. One column, nothing to pack. */
+.inv-masonry-on { grid-auto-rows: var(--masonry-row); align-items: start; }
+.inv-masonry-on > * { grid-row-end: span var(--rows, 1); }
+
+/* The sidebar's brand opens Today → Pulse (owner, 8 Oct 2026). */
+button.inv-side-brand { width: 100%; border: none; background: none; font-family: inherit; text-align: left; cursor: pointer; border-radius: var(--r-md); }
+button.inv-side-brand:hover { background: var(--surface-2); }
+
 /* ===== QUOTATION (quote.js) =====
    A document handed to a counterparty, on its own point scale like the credit note and the certificate (HR-6's print
    exception: the type, rules and gutters declared once here in pt and mm and read as var() below), ink pinned on paper.
@@ -2330,10 +2483,10 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
   <div class="inv-panels inv-panels-3" id="homeWidgets">
     <div data-home-w="mtd" class="inv-panels-wide">
       <div class="inv-tiles" id="homeTiles">
-        <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div></div>
-        <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div></div>
-        <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div></div>
-        <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div></div>
+        <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div><div class="inv-tile-viz" id="mtdCountViz"></div></div>
+        <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div><div class="inv-tile-viz" id="mtdRevenueViz"></div></div>
+        <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div><div class="inv-tile-viz" id="mtdKgViz"></div></div>
+        <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div><div class="inv-tile-viz" id="mtdPerKgViz"></div></div>
       </div>
     </div>
     <div data-home-w="quick" class="inv-panels-wide">
@@ -3317,6 +3470,17 @@ function uiMoreHtml(key, rows, opts) {
   return out + (opts.tr ? '<tr data-more-btn="' + escHtml(key) + '"><td colspan="' + opts.tr + '">' + btn + '</td></tr>'
     : '<div class="inv-row" data-more-btn="' + escHtml(key) + '">' + btn + '</div>');
 }
+/* A deck (§6.22) showing its first n cards and the rest one tap away. The rest are drawn hidden inside the deck and the
+   button sits under it, outside the grid, so it never holds a column open beside the cards. */
+function uiMoreDeckHtml(key, cards, opts) {
+  opts = opts || {};
+  var n = opts.n != null ? opts.n : UI_MORE_ROWS, attrs = opts.attrs || '';
+  if (cards.length <= n || _uiMoreShown[key]) return '<div class="inv-deck"' + attrs + '>' + cards.join('') + '</div>';
+  var hide = function(h) { return h.replace(/^(\s*<[a-z]+)(\s|>)/i, '$1 data-more-of="' + escHtml(key) + '" hidden$2'); };
+  return '<div class="inv-deck"' + attrs + '>' + cards.map(function(c, i) { return i < n ? c : hide(c); }).join('') + '</div>' +
+    '<div class="inv-deck-more" data-more-btn="' + escHtml(key) + '"><button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invShowMore" data-key="' + escHtml(key) + '">Show ' +
+    (cards.length - n) + ' more' + (opts.noun ? ' ' + opts.noun : '') + ' · ' + cards.length + ' in all</button></div>';
+}
 function uiShowMore(key) {
   _uiMoreShown[key] = true;
   document.querySelectorAll('[data-more-of="' + key + '"]').forEach(function(el) { el.hidden = false; });
@@ -3346,6 +3510,49 @@ function uiFoldCard(key, card, dflt) {
   var rest = card.slice(m[0].length).replace(/<\/div>\s*$/, '');
   return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
+}
+/* A hero card (§6.21): a <details> that folds open to its body, or a plain card where it has none. `o`: tone (a status tone
+   word, else the theme's gradient), eyebrow / title / fig / sub / viz / body (HTML: the caller escapes what came from the
+   user), open (its default), fold (the key its open or shut is remembered under on the device; none, it opens as drawn),
+   vital (a question tile: one column, the figure first), attrs (more attributes). */
+function uiHeroHtml(o) {
+  var tone = o.tone && /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? ' inv-hero-' + o.tone : '';
+  var cls = 'inv-hero' + tone + (o.vital ? ' inv-hero-vital' : '') + (o.cls ? ' ' + o.cls : '');
+  var head = (o.eyebrow ? '<span class="inv-hero-eyebrow">' + o.eyebrow + '</span>' : '') +
+    (o.vital ? (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '') + (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '')
+      : (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '') + (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '')) +
+    (o.sub ? '<span class="inv-hero-sub">' + o.sub + '</span>' : '') + (o.viz ? '<span class="inv-hero-viz">' + o.viz + '</span>' : '');
+  if (o.body == null) return '<div class="' + cls + '"' + (o.attrs || '') + '><div class="inv-hero-head">' + head + '</div></div>';
+  var open = o.fold ? uiFoldOpen(o.fold, o.open) : !!o.open;
+  return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
+    '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div></details>';
+}
+/* A grid packed with no gaps (§6.25): each child spans as many of the grid's small rows as its own height takes. Only where
+   the grid has two columns or more; packed again whenever a child changes height (a fold opened, a chart drawn). */
+var _masonryObs = typeof ResizeObserver === 'function' ? new ResizeObserver(function(entries) {
+  var seen = [];
+  entries.forEach(function(en) { var g = en.target.parentElement; if (g && seen.indexOf(g) < 0) seen.push(g); });
+  seen.forEach(function(g) { if (g.classList.contains('inv-masonry-on')) uiMasonryPack(g); });
+}) : null;
+function uiMasonry(el) {
+  if (!el) return;
+  var cols = getComputedStyle(el).gridTemplateColumns.split(' ').filter(Boolean).length;
+  if (cols < 2) {
+    el.classList.remove('inv-masonry-on');
+    Array.prototype.forEach.call(el.children, function(c) { c.style.removeProperty('--rows'); });
+    return;
+  }
+  el.classList.add('inv-masonry-on');
+  uiMasonryPack(el);
+  if (_masonryObs) Array.prototype.forEach.call(el.children, function(c) { _masonryObs.observe(c); });
+}
+function uiMasonryPack(el) {
+  var cs = getComputedStyle(el), row = parseFloat(cs.gridAutoRows) || 4, gap = parseFloat(cs.rowGap) || 0;
+  Array.prototype.forEach.call(el.children, function(c) {
+    var h = c.getBoundingClientRect().height;
+    var n = h > 0 ? Math.max(1, Math.ceil((h + gap) / (row + gap))) : 1;
+    if (c.style.getPropertyValue('--rows') !== String(n)) c.style.setProperty('--rows', String(n));
+  });
 }
 document.addEventListener('toggle', function(e) {
   var d = e.target;
@@ -4964,6 +5171,7 @@ var CHG_TRACK = [
     var it = typeof POWER_ITEMS !== 'undefined' ? POWER_ITEMS.find(function(x) { return x[0] === k; }) : null;
     return it ? it[1] : k;
   } },
+  { path: 'power.causes', kind: 'arr', noun: 'power cause', label: function(r) { return chgJoin(r.kind === 'fix' ? 'fix' : 'reason', r.name); } },
   { path: 'power.load', kind: 'cfg', sec: 'Power → the connection' },
   { path: 'power.cfg', kind: 'cfg', sec: 'Power → the options’ figures' },
   { path: 'users', kind: 'arr', noun: 'user', label: function(r) { return chgJoin(r.name, r.role); } },
@@ -7522,6 +7730,24 @@ function renderHomeTiles(active) {
   // Only what there is, joined: with nothing weighed on the same days last month the line ended on a bare " · ".
   set('mtdPerKgDelta', real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '',
     preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '));
+  // Each figure's last six full months as a line under it (owner, 8 Oct 2026: the data on Today "still primitive"): the month
+  // so far is the tile's own figure, so the line stops at the last month that ended.
+  var hist = homeMonthsBack(6), labels = hist.map(function(x) { return x.label; });
+  set('mtdCountViz', chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') }));
+  set('mtdRevenueViz', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }));
+  set('mtdKgViz', chartSpark(hist.map(function(x) { return x.kg > 0 ? gstRound(x.kg / 1000) : null; }), { labels: labels, unit: 'count', dot: false,
+    title: 'Tonnes by month: ' + hist.map(function(x) { return x.label + ' ' + formatNum(x.kg / 1000, 1) + ' t'; }).join(' · ') }));
+  set('mtdPerKgViz', chartSpark(hist.map(function(x) { return x.real; }), { ref: hist.map(function(x) { return x.cost; }), labels: labels, unit: 'rate', dot: false }));
+}
+/* The last n months that have ended, oldest first, as Stats reads them (statsMonthRows: realisation over the weighed lines,
+   at each month's own live cost), with the invoices counted. */
+function homeMonthsBack(n) {
+  var rows = typeof statsMonthRows === 'function' ? statsMonthRows(n + 1) : [], cur = localDateStr().slice(0, 7);
+  var count = {};
+  statsInvoices().forEach(function(i) { if (i.date) count[i.date.slice(0, 7)] = (count[i.date.slice(0, 7)] || 0) + 1; });
+  return rows.filter(function(r) { return r.month !== cur; }).slice(-n).map(function(r) {
+    return { label: r.label, n: count[r.month] || 0, rev: gstRound(r.rev), kg: r.kg, real: r.real != null ? gstRound(r.real) : null, cost: r.cost != null ? gstRound(r.cost) : null };
+  });
 }
 
 /* Last month's invoices over the same days this month has run (the 1st to today's date, capped at last month's length),
@@ -7696,6 +7922,8 @@ function homeApplyLayout() {
     el.classList.toggle('inv-hidden', !!l.hidden[k] || !homeWidgetSeen(k));
     el.classList.toggle('inv-panels-wide', !!l.wide[k]);
   });
+  // Packed with no gaps on the desktop (§6.25): a short widget no longer leaves its row's height empty beside it.
+  if (_isDesktop) uiMasonry(host); else if (host.classList.contains('inv-masonry-on')) uiMasonry(host);
   var area = document.getElementById('homeEditArea'), bar = document.getElementById('homeEditBar');
   if (area) area.innerHTML = _homeEdit ? homeEditHtml(l) : '';
   if (bar) bar.classList.toggle('inv-hidden', _homeEdit);
@@ -19590,6 +19818,56 @@ function chartShowRead(el) {
   box.querySelectorAll('.inv-chart-read-on').forEach(function(n) { n.classList.remove('inv-chart-read-on'); });
   el.classList.add('inv-chart-read-on');
 }
+
+/* ===== SMALL CHARTS FOR CARDS (§6.24; owner, 8 Oct 2026: Today's "data presentation is still primitive") =====
+   A sparkline: a figure's last months as one line, with a second measure dashed beside it where there is one (a price
+   against its cost), and the latest point marked in the accent (the current period, DR-2). No axes: the card's figure says
+   what the line is of, and the <title> carries every value. Stretched to its box, the stroke kept even (non-scaling). */
+function chartSpark(values, opts) {
+  opts = opts || {};
+  var vals = (values || []).map(function(v) { return v == null || !isFinite(v) ? null : Number(v); });
+  var ref = Array.isArray(opts.ref) ? opts.ref.map(function(v) { return v == null || !isFinite(v) ? null : Number(v); }) : null;
+  var all = vals.concat(ref || []).filter(function(v) { return v != null; });
+  if (vals.filter(function(v) { return v != null; }).length < 2) return '';
+  var W = 100, H = 30, P = 3, lo = Math.min.apply(null, all), hi = Math.max.apply(null, all);
+  if (opts.zero && lo > 0) lo = 0;
+  if (hi === lo) { hi += 1; lo -= 1; }
+  var x = function(i) { return vals.length < 2 ? W / 2 : P + i * (W - 2 * P) / (vals.length - 1); };
+  var y = function(v) { return H - P - (v - lo) / (hi - lo) * (H - 2 * P); };
+  var path = function(list) {
+    var d = '', pen = false;
+    list.forEach(function(v, i) { if (v == null) { pen = false; return; } d += (pen ? 'L' : 'M') + x(i).toFixed(2) + ' ' + y(v).toFixed(2); pen = true; });
+    return d;
+  };
+  var last = -1;
+  vals.forEach(function(v, i) { if (v != null) last = i; });
+  var labels = opts.labels || [];
+  var title = opts.title || vals.map(function(v, i) { return (labels[i] ? labels[i] + ': ' : '') + (v == null ? '—' : chartFull(v, opts.unit || 'money')); }).filter(Boolean).join(' · ');
+  return '<svg class="inv-spark' + (opts.tone ? ' inv-spark-' + escHtml(opts.tone) : '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + escHtml(title) + '">' +
+    '<title>' + escHtml(title) + '</title>' +
+    (ref ? '<path class="inv-spark-ref" d="' + path(ref) + '"/>' : '') +
+    '<path class="inv-spark-line" d="' + path(vals) + '"/>' +
+    (last >= 0 && opts.dot !== false ? '<path class="inv-spark-dot" d="M' + x(last).toFixed(2) + ' ' + y(vals[last]).toFixed(2) + 'l0 0"/>' : '') + '</svg>';
+}
+/* A meter: shares of one whole as a bar, each part in its tone (a status tone, or neutral), with a mark where the figure is
+   judged (80% of the plant's capacity, last month's revenue). `parts` [{v, tone}], `opts.max` the whole (else their sum),
+   `opts.mark` a value on the same scale, `opts.title` what it says in words, which a screen reader reads. */
+function chartMeter(parts, opts) {
+  opts = opts || {};
+  var list = (parts || []).filter(function(p) { return p && p.v > 0; });
+  var sum = list.reduce(function(s, p) { return s + p.v; }, 0), max = opts.max > 0 ? Math.max(opts.max, sum) : sum;
+  if (!(max > 0)) return '';
+  var at = 0, rects = list.map(function(p) {
+    var w = p.v / max * 100, r = '<rect class="inv-meter-' + escHtml(p.tone || 'neutral') + '" x="' + at.toFixed(2) + '" y="0" width="' + Math.max(0, w).toFixed(2) + '" height="8"></rect>';
+    at += w;
+    return r;
+  }).join('');
+  var mark = opts.mark != null && opts.mark > 0 ? Math.min(99.4, opts.mark / max * 100) : null;
+  return '<svg class="inv-meter" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="' + escHtml(opts.title || '') + '">' +
+    (opts.title ? '<title>' + escHtml(opts.title) + '</title>' : '') +
+    '<rect class="inv-meter-track" x="0" y="0" width="100" height="8"></rect>' + rects +
+    (mark != null ? '<rect class="inv-meter-mark" x="' + mark.toFixed(2) + '" y="0" width="0.6" height="8"></rect>' : '') + '</svg>';
+}
 /* ===== STAFF & ATTENDANCE =====
 
    Labour is the largest line in this business — ₹3.55/kg of an ₹8.55 cost, 42%
@@ -27779,6 +28057,8 @@ function _xlsCfbStream(buf, want) {
   var root = entries.find(function(e) { return e.type === 5; });
   var ent = null;
   for (i = 0; i < want.length && !ent; i++) ent = entries.find(function(e) { return e.type === 2 && e.name === want[i]; }) || null;
+  // An .xlsx saved with a password is a compound file holding the encrypted package, not a workbook.
+  if (!ent && entries.some(function(e) { return e.name === 'EncryptedPackage'; })) throw new Error('The file is password-protected; save it again without a password');
   if (!ent) throw new Error('No workbook inside the file');
   if (ent.size >= cutoff) return readChain(ent.start, ent.size);
   // A small stream lives in the mini stream, cut into 64-byte sectors with its own table.
@@ -27897,7 +28177,7 @@ function xlsRead(buf) {
   for (i = 0; i < rows.length; i++) rows[i] = rows[i] || [];
   return { sheet: sheet.name, rows: rows };
 }
-/* ===== XLSX WRITER =====
+/* ===== XLSX WRITER (the reader follows it) =====
  * A clean Excel workbook without a library (owner, 26 Sep 2026: "BANK Statement export should be a
  * clean sorted excel file"). An .xlsx is a zip of XML parts; this writes the fewest parts Excel,
  * LibreOffice and Google Sheets all open without a repair prompt, zipped STORED (no compression,
@@ -28045,6 +28325,109 @@ function _xlsxZip(files) {
   all.forEach(function(c) { out.set(c, p); p += c.length; });
   return out;
 }
+
+/* ===== XLSX READER =====
+ * A statement saved as .xlsx, read without a library (owner, 8 Oct 2026: the statement saved from Excel as .xlsx was
+ * refused as "not an Excel file"). An .xlsx is a zip of XML parts, deflated as Excel writes it: the zip's own directory
+ * says where each part starts, the browser's DecompressionStream inflates it, DOMParser reads it. Only what an import
+ * needs: the first sheet's cell values, a string from the shared table or written in the cell, a number as a number, a
+ * formula by the result Excel kept.
+ *
+ * xlsxRead(ArrayBuffer) → Promise<{ sheet: name, rows: [[value, ...], ...] }>, the shape xlsRead returns (missing cells
+ * undefined). It rejects with a plain message on anything it cannot read.
+ */
+function _xlsxZipDir(buf) {
+  var dv = new DataView(buf), n = buf.byteLength, eocd = -1;
+  for (var i = n - 22; i >= 0 && i >= n - 22 - 65535; i--) if (dv.getUint32(i, true) === 0x06054B50) { eocd = i; break; }
+  if (eocd < 0) throw new Error('Not an Excel workbook: the zip it should be is incomplete');
+  var count = dv.getUint16(eocd + 10, true), off = dv.getUint32(eocd + 16, true), dir = {}, dec = new TextDecoder('utf-8');
+  for (var k = 0; k < count; k++) {
+    if (off + 46 > n || dv.getUint32(off, true) !== 0x02014B50) throw new Error('Not an Excel workbook: its list of parts cannot be read');
+    var nl = dv.getUint16(off + 28, true), xl = dv.getUint16(off + 30, true), cl = dv.getUint16(off + 32, true);
+    dir[dec.decode(new Uint8Array(buf, off + 46, nl))] = { method: dv.getUint16(off + 10, true), size: dv.getUint32(off + 20, true), at: dv.getUint32(off + 42, true) };
+    off += 46 + nl + xl + cl;
+  }
+  return dir;
+}
+/* Whether a zip is an Excel workbook, from its list of parts alone (Add → File asks before it reads). */
+function xlsxIsWorkbook(buf) { try { return !!_xlsxZipDir(buf)['xl/workbook.xml']; } catch (e) { return false; } }
+async function _xlsxPart(buf, dir, name) {
+  var e = dir[name];
+  if (!e) return null;
+  var dv = new DataView(buf);
+  if (e.at + 30 > buf.byteLength || dv.getUint32(e.at, true) !== 0x04034B50) throw new Error('The workbook is damaged (' + name + ' cannot be found)');
+  var start = e.at + 30 + dv.getUint16(e.at + 26, true) + dv.getUint16(e.at + 28, true);
+  if (start + e.size > buf.byteLength) throw new Error('The workbook is damaged (' + name + ' runs past the end)');
+  var raw = new Uint8Array(buf, start, e.size), bytes = raw;
+  if (e.method === 8) {
+    if (typeof DecompressionStream !== 'function') throw new Error('This browser cannot open an .xlsx: import the statement as the .xls the bank exports');
+    bytes = new Uint8Array(await new Response(new Blob([raw]).stream().pipeThrough(new DecompressionStream('deflate-raw'))).arrayBuffer());
+  } else if (e.method !== 0) throw new Error('The workbook is packed in a way the app does not read (method ' + e.method + ')');
+  return new TextDecoder('utf-8').decode(bytes);
+}
+function _xlsxXml(text, name) {
+  var doc = new DOMParser().parseFromString(text, 'application/xml');
+  if (doc.getElementsByTagName('parsererror').length) throw new Error('The workbook is damaged (' + name + ' is not readable)');
+  return doc;
+}
+/* Elements by their own name, whatever prefix the writer gave the namespace. */
+function _xlsxEls(node, tag) { return Array.prototype.slice.call(node.getElementsByTagNameNS('*', tag)); }
+/* A string item's text: its <t>, or its runs' <t> joined; a phonetic reading (<rPh>) is not the text. */
+function _xlsxSiText(si) {
+  var out = '';
+  Array.prototype.forEach.call(si.childNodes, function(ch) {
+    if (ch.localName === 't') out += ch.textContent;
+    else if (ch.localName === 'r') _xlsxEls(ch, 't').forEach(function(t) { out += t.textContent; });
+  });
+  return out;
+}
+/* "AB12" → 27 (the column, from 0). */
+function _xlsxColIdx(ref) {
+  var m = /^([A-Z]+)/i.exec(ref || ''), n = 0;
+  if (!m) return -1;
+  for (var i = 0; i < m[1].length; i++) n = n * 26 + (m[1].toUpperCase().charCodeAt(i) - 64);
+  return n - 1;
+}
+async function xlsxRead(buf) {
+  var dir = _xlsxZipDir(buf);
+  var wbText = await _xlsxPart(buf, dir, 'xl/workbook.xml');
+  if (wbText == null) throw new Error('Not an Excel workbook: the zip holds no xl/workbook.xml');
+  var wb = _xlsxXml(wbText, 'the workbook'), first = _xlsxEls(wb, 'sheet')[0];
+  if (!first) throw new Error('The workbook has no sheet');
+  // The first sheet's part, through the workbook's relationships; a workbook that names none is read at its first sheet part.
+  var rid = first.getAttributeNS('http://schemas.openxmlformats.org/officeDocument/2006/relationships', 'id') || first.getAttribute('r:id'), path = '';
+  var relsText = await _xlsxPart(buf, dir, 'xl/_rels/workbook.xml.rels');
+  if (relsText != null && rid) {
+    var rel = _xlsxEls(_xlsxXml(relsText, 'the workbook’s links'), 'Relationship').find(function(r) { return r.getAttribute('Id') === rid; });
+    var target = rel ? String(rel.getAttribute('Target') || '') : '';
+    if (target) path = target.charAt(0) === '/' ? target.slice(1) : 'xl/' + target.replace(/^\.\//, '');
+  }
+  if (!dir[path]) path = Object.keys(dir).filter(function(k) { return /^xl\/worksheets\/[^/]+\.xml$/.test(k); }).sort()[0] || '';
+  if (!path) throw new Error('The workbook has no sheet');
+  var sst = [], sstText = await _xlsxPart(buf, dir, 'xl/sharedStrings.xml');
+  if (sstText != null) sst = _xlsxEls(_xlsxXml(sstText, 'the shared strings'), 'si').map(_xlsxSiText);
+  var sheet = _xlsxXml(await _xlsxPart(buf, dir, path), 'the sheet'), rows = [], next = 0;
+  _xlsxEls(sheet, 'row').forEach(function(rowEl) {
+    var r = parseInt(rowEl.getAttribute('r'), 10);
+    r = isFinite(r) && r > 0 ? r - 1 : next;
+    next = r + 1;
+    var row = rows[r] || (rows[r] = []), col = 0;
+    _xlsxEls(rowEl, 'c').forEach(function(c) {
+      var ci = _xlsxColIdx(c.getAttribute('r'));
+      if (ci < 0) ci = col;
+      col = ci + 1;
+      var t = c.getAttribute('t') || 'n', vEl = _xlsxEls(c, 'v')[0], v = vEl ? vEl.textContent : null, val;
+      if (t === 's') val = v == null ? undefined : sst[parseInt(v, 10)];
+      else if (t === 'inlineStr') { var is = _xlsxEls(c, 'is')[0]; val = is ? _xlsxSiText(is) : undefined; }
+      else if (t === 'str' || t === 'e' || t === 'd') val = v == null ? undefined : v;
+      else if (t === 'b') val = v == null ? undefined : v === '1' ? 1 : 0;
+      else if (v != null && v !== '') { var num = Number(v); val = isFinite(num) ? num : v; }
+      if (val !== undefined && val !== '') row[ci] = val;
+    });
+  });
+  for (var i = 0; i < rows.length; i++) if (!rows[i]) rows[i] = [];
+  return { sheet: first.getAttribute('name') || '', rows: rows };
+}
 /* ===== BANK (Finance → Receivables, Payments, Bank) =====
  * The bank statement read in the app (owner, 26 Sep 2026: "We have the bank statement as well
  * right? There is no way to read it in the app yet"). Three jobs, all three asked for:
@@ -28054,7 +28437,7 @@ function _xlsxZip(files) {
  *   - STATEMENT: the ledger itself, every row with a category.
  *
  * The file is the bank's own export (Bank of Baroda OpTransactionHistoryUX5.xls), read as it is
- * by xls.js. Rows are kept in S.bank.rows, merged by id — a hash of the row's own fields, balance
+ * by xls.js, or the same statement saved from Excel as .xlsx (xlsx.js; owner, 8 Oct 2026). Rows are kept in S.bank.rows, merged by id — a hash of the row's own fields, balance
  * included, so the same row in two overlapping statements is one row. The bank writes newest
  * first; `dayIdx` keeps its order inside a day, because two rows of one day sorted by amount
  * would publish the wrong closing balance (soma-internal's 20-Aug ingest did, by ₹1,20,000).
@@ -28140,10 +28523,13 @@ function bankParseSheet(rows) {
   for (r = h + 1; r < rows.length; r++) {
     var row = rows[r] || [], date = bankIso(row[col.date]);
     if (!date) continue;
-    var bal = bankBalance(row[col.balance]);
+    var dr = bankAmount(row[col.dr]), cr = bankAmount(row[col.cr]), bal = bankBalance(row[col.balance]);
+    // A page's foot is not a transaction: the bank prints the time the statement was made under TRAN DATE and "Page 2 of"
+    // under BALANCE, with no amount (owner, 8 Oct 2026: a two-page statement stopped at "Row 50: … cannot be read").
+    if (!dr && !cr && bal == null) continue;
     if (bal == null) throw new Error('Row ' + (r + 1) + ': the balance "' + row[col.balance] + '" cannot be read');
     out.push({ date: date, valueDate: bankIso(row[col.valueDate]) || date, narration: String(row[col.narration] || '').trim(),
-      chq: String(row[col.chq] == null ? '' : row[col.chq]).trim(), dr: bankAmount(row[col.dr]), cr: bankAmount(row[col.cr]), balance: bal });
+      chq: String(row[col.chq] == null ? '' : row[col.chq]).trim(), dr: dr, cr: cr, balance: bal });
   }
   // A row with no date is a footer or a note and is passed over; a statement where every row was passed over
   // said "0 rows added" and nothing else. It says what the first date cell held instead.
@@ -29232,11 +29618,18 @@ function bankImportFile() {
   };
   inp.click();
 }
+/* A statement's cells, from the bank's own .xls or the same statement saved as .xlsx: known by its bytes, never its name. */
+async function bankReadSheet(buf) {
+  var u8 = new Uint8Array(buf, 0, Math.min(buf.byteLength, 8));
+  if (u8.length >= 4 && u8[0] === 0x50 && u8[1] === 0x4B && u8[2] === 0x03 && u8[3] === 0x04) return xlsxRead(buf);
+  if (u8.length === 8 && u8[0] === 0xD0 && u8[1] === 0xCF && u8[2] === 0x11 && u8[3] === 0xE0) return xlsRead(buf);
+  throw new Error('Not an Excel file: import the statement as the bank exports it (.xls), or saved from Excel (.xlsx)');
+}
 /* A statement's bytes, from Finance's Import or from Add → File (add.js). */
 async function bankImportBuf(buf, name) {
   var res, parsed, b;
   try {
-    parsed = bankParseSheet(xlsRead(buf).rows);
+    parsed = bankParseSheet((await bankReadSheet(buf)).rows);
     b = bankData();
   } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
   if (b.account && parsed.account && parsed.account !== b.account &&
@@ -29432,7 +29825,7 @@ function renderFinance() {
   var tab = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (_finTab === k) + '" data-action="invFinTab" data-tab="' + k + '">' + l +
     (k === 'receipts' && looseN ? ' <span class="inv-badge inv-badge-warning" title="Receipts with no client">' + looseN + '</span>' : '') + '</button>'; };
   var h = '<div class="inv-viewtabs" role="tablist" aria-label="Finance">' + FIN_TABS.map(function(t) { return tab(t[0], t[1]); }).join('') + '</div>' +
-    '<input type="file" accept=".xls,application/vnd.ms-excel" id="bankFileInput" class="inv-hidden">';
+    '<input type="file" accept=".xls,.xlsx,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" id="bankFileInput" class="inv-hidden">';
   if (_finTab === 'bills') h += renderBillsNotes();
   else if (_finTab === 'gst') h += finGstHtml(12);
   else if (_finTab === 'overview') h += finOverviewHtml();
@@ -30608,14 +31001,25 @@ function todoConfApply(t) {
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
 function todoAppAll(only, ran) {
-  var cfg = todoCfg(), out = [];
-  TODO_RULES.forEach(function(r) {
-    if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
-    // One rule failing on a shape nobody anticipated must not take the list with it.
-    try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
-  });
+  var cfg = todoCfg(), out = [], outer = _todoPass;
+  if (!outer) _todoPass = {};
+  try {
+    TODO_RULES.forEach(function(r) {
+      if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
+      // One rule failing on a shape nobody anticipated must not take the list with it.
+      try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
+    });
+  } finally { if (!outer) _todoPass = null; }
   out.forEach(function(t) { t.worth = todoWorth(t); });
   return out.sort(todoAppCmp);
+}
+/* What several rules read alike, worked out once in one pass over the rules (the power analysis two rules read). Outside a
+   pass it is worked out each time: a rule run on its own reads the book as it is. */
+var _todoPass = null;
+function todoPassMemo(k, f) {
+  if (!_todoPass) return f();
+  if (!Object.prototype.hasOwnProperty.call(_todoPass, k)) _todoPass[k] = f();
+  return _todoPass[k];
 }
 
 /* ---------- One ranked list (docs/INTELLIGENCE_2.md, I3) ----------
@@ -30626,7 +31030,7 @@ function todoAppAll(only, ran) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;
@@ -33697,11 +34101,11 @@ function addOpen() {
     // the panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
     '<div class="inv-panel inv-panel-flush">' +
     '<input type="file" id="addPhotoInput" class="inv-hidden" accept="image/*" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
-    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.json,application/vnd.ms-excel,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
+    '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
     row('clipboard', 'invAddClip', ADD_ICON.clipboard, 'Check the clipboard', 'What you copied, read only when you tap here') +
     '<div class="inv-panel-body inv-hidden" id="addClipOut" aria-live="polite"></div>' +
     row('photo', 'invAddPhoto', ADD_ICON.photo, 'Photo', 'A challan or a register page: read by Gemini, checked by you') +
-    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls), a backup, or an export of stock, production, power, payroll or the roster') +
+    row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
     '</div>' +
     // 5. By hand: every form, opened on the job.
     '<div class="inv-panel" data-add-sec="hand"><div class="inv-panel-head"><span class="inv-panel-title">By hand</span></div>' +
@@ -33912,7 +34316,8 @@ function addFileKind(buf) {
   var u8 = new Uint8Array(buf, 0, Math.min(buf.byteLength, 16));
   var at = function(sig, from) { from = from || 0; return u8.length >= from + sig.length && sig.every(function(b, i) { return u8[from + i] === b; }); };
   if (at(ADD_OLE_SIG)) return { kind: 'xls' };
-  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: 'zip' };
+  // A zip is an .xlsx when it holds a workbook: a statement saved from Excel (owner, 8 Oct 2026), read as the .xls is.
+  if (at([0x50, 0x4B, 0x03, 0x04])) return { kind: typeof xlsxIsWorkbook === 'function' && xlsxIsWorkbook(buf) ? 'xls' : 'zip' };
   if (at([0x25, 0x50, 0x44, 0x46])) return { kind: 'pdf' };
   if (at([0xFF, 0xD8, 0xFF]) || at([0x89, 0x50, 0x4E, 0x47]) || at([0x47, 0x49, 0x46, 0x38]) || (at([0x52, 0x49, 0x46, 0x46]) && at([0x57, 0x45, 0x42, 0x50], 8)) ||
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
@@ -33995,7 +34400,7 @@ async function addFileRoute(file, buf) {
   }[what];
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
+    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
 }
 /* What arrived, in words, for a file no import takes. */
 function addFileWords(k) {
@@ -34007,7 +34412,7 @@ function addFileWords(k) {
     return 'a JSON file' + (f ? ' marked ' + f : '') + (keys.length ? ' with keys ' + keys.slice(0, 8).join(', ') + (keys.length > 8 ? ' and ' + (keys.length - 8) + ' more' : '') : ', empty') + ', not one the app imports';
   }
   return {
-    zip: 'an Excel workbook (.xlsx) or another zip file; the bank statement is read as the Excel 97–2003 file (.xls) the bank exports',
+    zip: 'a zip file with no Excel workbook in it; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
     pdf: 'a PDF; a photo of the page can be read with Photo',
     html: 'a web page (HTML), not the bank’s Excel 97–2003 statement',
     badjson: 'JSON that could not be read (' + (k.error || 'not valid') + ')',
@@ -37993,6 +38398,13 @@ function statsStoryCards(a, ctx) {
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
     : say(c1, 'danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
+  // The card as a tile on Today → Pulse (§6.21): the figure that answers it, its words, the six months as a line.
+  c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
+    title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
+    sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
+    viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
+      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: contrib != null && contrib < 0 ? 'danger' : contrib != null ? 'ok' : '' }) : '',
+    tone: contrib == null ? 'neutral' : contrib >= 0 ? 'ok' : 'danger' };
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
@@ -38020,7 +38432,15 @@ function statsStoryCards(a, ctx) {
   if (!body) body = say(c2, 'neutral', 'No weighed billing in the period to rank the clients by.');
   if (!c2.answer) c2.answer = { tone: 'neutral', say: 'No large account is below the full cost, and no client moved against the period before.' };
   c2.html = body;
-  c2.worst = worst && worst.vsFull < 0 ? worst : null;
+  var big = m && m.ranked.length ? m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }) : [];
+  var lead = c2.worst = worst && worst.vsFull < 0 ? worst : null;
+  var vc = lead || big[0];
+  c2.vital = vc ? { fig: Math.round(vc.kg / m.kg * 100) + '%', title: escHtml(vc.name),
+      sub: escHtml(lead ? 'of the plant at ' + formatCurrency(lead.net) + '/kg, ' + formatCurrency(-lead.vsFull) + ' under the full cost' : 'of the plant, the largest by tonnage'),
+      viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? 'danger' : i % 2 ? 'neutral-2' : 'neutral' }; }),
+        { max: m.kg, title: big.slice(0, 4).map(function(x) { return x.name + ' ' + Math.round(x.kg / m.kg * 100) + '%'; }).join(' · ') }),
+      tone: lead ? 'danger' : 'ok' }
+    : { fig: '&mdash;', title: 'No weighed billing', sub: '', viz: '', tone: 'neutral' };
   c2.mover = mover;
   cards.clients = c2;
 
@@ -38036,6 +38456,12 @@ function statsStoryCards(a, ctx) {
     : capPct >= 0.8 ? say(c3, 'ok', 'Busy: ' + Math.round(capPct * 100) + '% of two shifts. Growth now needs more hours or better-paying work, not more of the same.')
     : say(c3, capPct >= 0.6 ? 'warning' : 'danger', formatNum((cap - kg) / 1000, 1) + ' t of the two shifts went unused' + (avg ? ': at ₹13/kg that is ' + formatCurrency(gstRound((cap - kg) * 13)) + ' of work the plant could have taken on its fixed cost' : '') + '.');
   c3.html = body;
+  c3.vital = { fig: capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
+    title: capPct == null ? 'Nothing weighed' : capPct >= 0.8 ? 'Busy' : escHtml(formatNum((cap - kg) / 1000, 1) + ' t spare'),
+    sub: escHtml(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t, two shifts'),
+    viz: cap > 0 ? chartMeter([{ v: kg, tone: capPct != null ? figToneCapacity(capPct * 100) : 'neutral' }], { max: cap, mark: cap * 0.8,
+      title: Math.round((capPct || 0) * 100) + '% of two shifts used; the mark is 80%' }) : '',
+    tone: capPct == null ? 'neutral' : figToneCapacity(capPct * 100) };
   c3.cap = cap;
   c3.capPct = capPct;
   cards.plant = c3;
@@ -38059,6 +38485,13 @@ function statsStoryCards(a, ctx) {
   if (!body) body = say(c4, 'ok', 'Nothing stands out: no insight is raised on the book right now.');
   if (!c4.answer) c4.answer = { tone: uiTone(ins[0].tone), say: escHtml(ins[0].title) };
   c4.html = body;
+  c4.vital = p ? { fig: figWrapHtml(formatCurrency(p.projRev)), title: 'This month is heading for',
+      sub: escHtml('at its pace, ' + p.done + ' of ' + p.total + ' working days in, against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel),
+      viz: chartMeter([{ v: p.projRev, tone: p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok' }], { max: Math.max(p.projRev, p.prevRev), mark: p.prevRev,
+        title: formatCurrency(p.projRev) + ' at its pace against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel }),
+      tone: p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok' }
+    : ins.length ? { fig: String(ins.length), title: ins.length === 1 ? 'insight raised' : 'insights raised', sub: escHtml(ins[0].title), viz: '', tone: uiTone(ins[0].tone) }
+    : { fig: '&mdash;', title: 'Nothing stands out', sub: '', viz: '', tone: 'ok' };
   c4.ins = ins;
   if (ins.length > 3) { c4.go = { action: 'invStatsInsightsAll' }; c4.goLabel = 'All ' + ins.length + ' insights'; }
   cards.changed = c4;
@@ -38073,6 +38506,12 @@ function statsStoryCards(a, ctx) {
         statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
       body += say(c5, bBook && bBook.median > 60 ? 'warning' : 'ok', 'Owed ' + formatCurrency(owed) + (bBook ? ', arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
+      var ages = finAgeing(recv), ageTone = ['ok', 'ok', 'warning', 'danger'];
+      c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
+        sub: escHtml('in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
+        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: ageTone[i] || 'danger' }; }),
+          { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
+        tone: bLast.balance < 0 ? 'danger' : bBook && bBook.median > 60 ? 'warning' : 'ok' };
       cards.cash = c5;
     } catch (e) { /* no cash story without a readable statement */ }
   }
@@ -39668,7 +40107,15 @@ function advQSmooth(ctx) {
     ? { tone: uiTone(worst === 'ok' ? 'info' : worst), say: escHtml(todoPlural(moves.length, 'thing') + ' could stop it: ' + moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ') +
       (moves.length > 3 ? ' and ' + (moves.length - 3) + ' more' : '') + '.') }
     : { tone: 'ok', say: 'Yes: nothing stands in the way this week.' };
-  return { key: 'smooth', q: 'Is the plant running smoothly?', html: advSmoothTiles(ctx.seen) + statsStorySay(answer.tone, answer.say), answer: answer,
+  var byTone = { red: 0, amber: 0, info: 0 };
+  moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
+  // The card as a tile on Today → Pulse (§6.21): how many things could stop the plant, coded by how soon.
+  var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
+    sub: escHtml(moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ')),
+    viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
+      { title: [byTone.red ? byTone.red + ' to act on now' : '', byTone.amber ? byTone.amber + ' soon' : '', byTone.info ? byTone.info + ' to know' : ''].filter(Boolean).join(' · ') }) : '',
+    tone: moves.length ? uiTone(worst === 'ok' ? 'info' : worst) : 'ok' };
+  return { key: 'smooth', q: 'Is the plant running smoothly?', html: advSmoothTiles(ctx.seen) + statsStorySay(answer.tone, answer.say), answer: answer, vital: vital,
     moves: moves, sorted: true,
     none: 'A move appears here when a stock line runs low, a power cut is recorded, an area runs short of its number, the week’s payout falls due or the backup is a week old.' };
 }
@@ -40065,6 +40512,30 @@ var ADV_TASK_MOVES = {
   },
   powerLoad: function(t) {
     return [{ key: 'powerCase', tone: 'info', say: 'Read the power case: the approved load comes first', worth: null, basis: t.sub, go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Get the approved load onto the bill' }];
+  },
+  // A cut to complete (powercause.js): each one opens on its own dialog, the oldest with no time back first.
+  powerComplete: function(t) {
+    var idx = prodIndex();
+    return (t.cuts || []).slice(0, 3).map(function(id) {
+      var c = pcsCutOf(id);
+      if (!c || !idx.byId[id]) return null;
+      var nd = pcsNeeds(c);
+      return { key: 'pcsDo:' + id, tone: nd.time ? 'amber' : 'info', say: 'Complete the cut of ' + pcsCutWhen(c), worth: null,
+        basis: [nd.time ? 'no time back, so its cost reads the typical length' : '', nd.reason ? 'no reason, so it is not on the causes' : ''].filter(Boolean).join(' · '),
+        go: { kind: 'powerCut', id: id }, goLabel: 'Complete', task: 'Complete the power cut of ' + stockShortDate(c.date) };
+    }).concat([{ key: 'pcsCuts', tone: 'info', say: 'See every cut on Power → Cuts', worth: null, basis: 'each with what it cost and why it went', go: { kind: 'power', tab: 'cuts' }, goLabel: 'Cuts',
+      task: 'Complete the power cuts' }]);
+  },
+  // A cause that keeps cutting the power: in the plant, get it checked where it hit; from the grid, the power case.
+  powerCause: function(t) {
+    var name = pcsName(t.reasonId) || 'the cause', u = t.unitId && typeof pltUnitById === 'function' ? pltUnitById(t.unitId) : null;
+    var worth = t.amount > 0 ? { amount: t.amount, sign: -1, label: 'in damage over 30 days' } : null;
+    if (t.scope === 'grid') return [{ key: 'pcsGrid:' + t.reasonId, tone: 'amber', say: 'Take “' + name + '” up with the supplier, and read the power case', worth: worth, basis: t.sub,
+      go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Take “' + name + '” up with the supplier' }];
+    return [{ key: 'pcsCheck:' + t.reasonId, tone: t.tone, say: 'Get “' + name + '” checked' + (u ? ' on ' + u.name : ''), worth: worth, basis: t.sub,
+      go: u ? { kind: 'plantUnit', id: u.id } : { kind: 'power', tab: 'causes' }, goLabel: u ? 'The unit' : 'Causes', task: 'Get “' + name + '” checked' },
+      { key: 'pcsCauses', tone: 'info', say: 'See what causes the cuts and what brings the power back', worth: null, basis: 'Power → Causes', go: { kind: 'power', tab: 'causes' }, goLabel: 'Causes',
+        task: 'Read the power causes' }];
   }
 };
 function advTaskMoves(t) {
@@ -40114,6 +40585,25 @@ function advMoveRowHtml(mv, listed) {
 function advMovesHtml(moves, listKey, n) {
   var listed = advListedKeys();
   return uiMoreHtml('adv-' + listKey, moves.map(function(mv) { return advMoveRowHtml(mv, listed); }), { n: n || ADV_SHOW, noun: moves.length - (n || ADV_SHOW) === 1 ? 'move' : 'moves' });
+}
+/* A move as a card (§6.22, Today → Pulse): its mark and what it answers in the head with its worth, the move and what it
+   rests on, its button and Add to my list at the foot. The same keys and refs as its row, so a tap acts as the row's does. */
+function advMoveCardHtml(mv, listed, word) {
+  var ref = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"';
+  var btn = mv.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(mv.key) + '"' + ref + '>' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invAdvTask" data-key="' + escHtml(mv.key) + '"' + ref + '>Add to my list</button>';
+  return '<article class="inv-deck-item" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
+    '<div class="inv-deck-head">' + todoGlyph(mv.tone) + '<span class="inv-deck-word">' + escHtml(word || (mv.tone === 'red' || mv.tone === 'amber' ? TODO_TONE_WORD[mv.tone] : 'To know')) + '</span>' +
+    (mv.worth && mv.worth.amount > 0.005 ? '<span class="inv-deck-fig">' + figHtml('<span class="inv-num" data-adv-worth>' + (mv.worth.sign < 0 ? '&minus;' : '+') + escHtml(advRs(mv.worth.amount)) + '</span>', mv.worth.sign < 0 ? 'danger' : 'ok') + '</span>' : '') + '</div>' +
+    '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(mv.say) + '</span>' +
+    ((mv.worth && mv.worth.amount > 0.005 && advWorthLabel(mv.worth)) || mv.basis ? '<span class="inv-deck-sub">' + escHtml([mv.worth && mv.worth.amount > 0.005 ? advWorthLabel(mv.worth) : '', mv.basis || ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>' +
+    '<div class="inv-deck-foot">' + btn + add + '</div></article>';
+}
+/* Moves as a deck: the first `n` (all where none is given), the rest one tap away. */
+function advMovesDeckHtml(moves, listKey, n, word) {
+  var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
+  return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
 /* A question's foot: What you can do, its moves, and what would make one appear where there is none. An insight's moves
    are drawn under its row (`inline`), so What changed? draws a foot only to say there is none. */
@@ -40173,6 +40663,10 @@ function advGoTo(go) {
     }
     case 'reorder': _stockReorder = { qty: {} }; _stockView = 'reorder'; switchTab('pageStock'); return true;
     case 'powerCase': powerSetTab('case'); switchTab('pagePower'); return true;
+    // A power cut to complete (powercause.js): Power → Cuts, with its dialog open over it.
+    case 'powerCut': powerSetTab('cuts'); switchTab('pagePower'); if (go.id) pcsOpen(go.id); return true;
+    // A unit of the plant register: Production → Equipment, its record open.
+    case 'plantUnit': prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); if (go.id && typeof pltEdit === 'function') pltEdit(go.id); return true;
     case 'areas': _attView = 'areas'; _attDate = localDateStr(); switchTab('pageStaff'); return true;
     case 'payWeek': _attView = 'pay'; _attDate = go.day || localDateStr(); switchTab('pageStaff'); return true;
     case 'liveCost': {
@@ -41817,7 +42311,9 @@ function prodExport() {
   var p = prodData();
   var meta = document.querySelector('meta[name="app-build"]');
   var obj = { format: 'sep-production', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
-    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn };
+    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn,
+    // The reasons and fixes a cut names by id (powercause.js): without them a cut's reason is an id nobody can read.
+    powerCauses: typeof pcsList === 'function' ? pcsList() : [] };
   downloadJson('sep-production-' + localDateStr() + '.json', obj, 1);
 }
 /* Merge by id, never overwrite. A client is kept by id only when the book holds that id under the same name;
@@ -41876,10 +42372,12 @@ function prodMergeImport(obj, fileName) {
     var cid = key.split('|')[0];
     if (trusted[cid] && heldOf(cid) && fromL.parts[key] && typeof fromL.parts[key] === 'object') p.learn.parts[key] = fromL.parts[key];
   });
+  var causes = typeof pcsMergeImport === 'function' ? pcsMergeImport(src.powerCauses) : 0;
   imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad };
-  if (added) p.imports.push(imp);
+  if (causes) imp.counts.causes = causes;   // the power causes the file brought (powercause.js), only where it brought any
+  if (added || causes) p.imports.push(imp);
   prodTouch();
-  return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad };
+  return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad, causes: causes };
 }
 /* ===== THE PLANT: every barrel and tank, its status, and what each line can do =====
    Owner, 7 Oct 2026 (docs/WORKERS_AND_PLANT.md, W1): *"a complete breakdown of the production area, like in Barrel - we have 3
@@ -42031,6 +42529,8 @@ function pltStationHtml(station) {
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '') +
     (cap.used && cap.used.kgRound != null ? ' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round (' + cap.used.why + ')' : cap.used && PLT_LINE_STATIONS[station] ? ' · ' + cap.used.why : '')) + '</span></div>' +
     '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
+  // The power cuts that hit this line (powercause.js), when any were tied to it.
+  if (typeof pcsStationNote === 'function') h += pcsStationNote(station);
   return h + '</div>';
 }
 /* The supporting stations (lab, oven, power, effluent, other): rows, since they are not side by side. */
@@ -42136,7 +42636,7 @@ function pltUnitHistoryHtml(u) {
     log.map(function(l) {
       var to = l.to === 'retired' ? ['retired', 'Retired', 'neutral'] : pltStatus(l.to);
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(l.date)) + '</span><span class="inv-row-meta">' + escHtml(l.reason || (l.from ? '' : 'added')) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
-    }).join('') + '</div>';
+    }).join('') + (typeof pcsUnitHtml === 'function' ? pcsUnitHtml(u) : '') + '</div>';
 }
 function _pltVal(id) { var el = document.getElementById(id); return el ? String(el.value).trim() : ''; }
 function _pltNum(id) { var v = _pltVal(id); if (v === '') return null; var n = parseFloat(v); return isFinite(n) && n >= 0 ? n : null; }
@@ -44019,6 +44519,13 @@ function prodEntryDetailHtml(e, idx) {
     kv.push(['Quantity', prodQtyText(e.qty, e.unit) + (e.qty2 != null ? ' · ' + prodQtyText(e.qty2, e.unit2) : '')]);
     if (e.rackSize) kv.push(['Rack', e.rackSize + (e.racks ? ' × ' + e.racks : '')]);
   }
+  if (e.kind === 'downtime' && e.downtime && typeof pcsName === 'function') {
+    var dtr = e.downtime;
+    if (dtr.reason) kv.push(['Why it went', pcsName(dtr.reason)]);
+    if (dtr.where || dtr.unitId) kv.push(['Where it hit', pcsWhereWord(dtr.where, dtr.unitId)]);
+    if (dtr.fix) kv.push(['What brought it back', pcsName(dtr.fix)]);
+    if (dtr.closedHow === 'hand') kv.push(['Power in', 'typed' + (dtr.closedBy ? ' by ' + dtr.closedBy : '') + (dtr.closedAt ? ', ' + formatTimestamp(dtr.closedAt) : '')]);
+  }
   kv.push(['Source', prodSrcWord(e) + (e.basis && e.basis !== e.src ? ' · ' + e.basis : '')]);
   if (e.sentBy) kv.push(['Sent by', e.sentBy]);
   if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
@@ -44051,6 +44558,7 @@ function prodEntryRowHtml(e, idx) {
   var meta = [kindWord, e.time ? e.time + (e.to ? '–' + e.to : '') : '', e.kind === 'plated' ? prodLineName(e.line) : line ? (line.line ? prodLineName(line.line) + (line.how === 'plating' ? ' (from plating)' : '') : line.how === 'split' ? 'split' : 'line unknown') : '',
     prodSrcWord(e), e.rework ? 'rework' : '', idx.replaced[e.id] ? 'corrected' : '', e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !idx.replaced[e.id] ? 'also reported' : ''].filter(Boolean).join(' · ');
   var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
+  var why = e.kind === 'downtime' && e.downtime && e.downtime.reason && typeof pcsName === 'function' ? pcsName(e.downtime.reason) : '';
   // What the floor name was matched to, the gauges a round's size allows, and a name no challan part answers to.
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
   if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
@@ -44065,6 +44573,8 @@ function prodEntryRowHtml(e, idx) {
     (_isDesktop ? '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' : '<span class="inv-row-main">') + '<span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
     (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
+    // A power cut's reason, on a line of its own (powercause.js).
+    (why ? '<span class="inv-row-meta inv-row-wrap" data-prod-why>' + escHtml('Why: ' + why) + '</span>' : '') +
     (_isDesktop ? '</button>' : '</span>') + '<span class="inv-row-end">' +
     (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '') + prodEntryActionsHtml(e, idx);
   return h + '</span></div>';
@@ -44079,6 +44589,11 @@ function prodEntryActionsHtml(e, idx) {
   if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
   if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
   if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
+  // A power cut is completed in place: its power-in time, why it went and what brought it back (powercause.js).
+  if (e.kind === 'downtime') {
+    var dt = e.downtime || {};
+    h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(e.id) + '">' + (dt.open ? 'Complete' : dt.reason ? 'Edit reason' : 'Add reason') + '</button>';
+  }
   return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
 }
 
@@ -44681,7 +45196,9 @@ function prodImportText(text, name) {
   if (!res.ok) { uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
   saveState();
   renderProduction();
-  showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') : 'Nothing new in that file', res.added ? 'success' : 'warning');
+  var causes = res.causes ? ' · ' + todoPlural(res.causes, 'power cause') + ' added to the list' : '';
+  showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') + causes
+    : res.causes ? causes.slice(3) : 'Nothing new in that file', res.added || res.causes ? 'success' : 'warning');
 }
 
 /* ---------- Events ---------- */
@@ -45175,7 +45692,10 @@ function tdyInput(def, day) {
   o.usual = u.min;
   if (off) { o.state = 'off'; o.text = 'Not expected: ' + (new Date(day + 'T00:00:00').getDay() === 0 ? 'Sunday' : 'a paid holiday'); return o; }
   var due = Math.max(def.from || 0, 0);
-  if (isToday && now < due) { o.state = o.state === 'part' ? 'part' : 'wait'; o.text = o.text || 'After ' + relayClockLabel(due); return o; }
+  // What the step says in a line (tdyStepMeta) is read from these: the part already in, when one is first looked for,
+  // and whether the usual minute is the record's or the shop's own.
+  o.detail = o.text; o.shop = u.seen < TDY_MIN_SEEN;
+  if (isToday && now < due) { o.state = o.state === 'part' ? 'part' : 'wait'; o.after = due; o.text = o.text || 'After ' + relayClockLabel(due); return o; }
   var late = now > u.min + TDY_LATE_MIN;
   var usualText = 'usually by ' + relayClockLabel(u.min) + (u.seen >= TDY_MIN_SEEN ? '' : ' (the shop’s usual time)');
   o.text = (o.text ? o.text + ' · ' : 'Not in yet · ') + usualText;
@@ -45184,34 +45704,53 @@ function tdyInput(def, day) {
   return o;
 }
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
-
+var TDY_INPUT_SHORT = { 'roll-in': 'In-time roll', pickling: 'Pickling loads', stock: 'Stock message', production: 'Production records', 'roll-out': 'Out-time roll' };
+var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+/* An input's line on its step: what came, or when it is looked for (owner, 8 Oct 2026: less to read). */
+function tdyStepMeta(r) {
+  if (r.state === 'in' || r.state === 'off') return r.text;
+  if (r.after != null) return 'After ' + relayClockLabel(r.after);
+  var by = r.usual != null ? 'by ' + relayClockLabel(r.usual) : '';
+  if (r.state === 'part') return [r.detail, by].filter(Boolean).join(' · ');
+  return r.state === 'late' ? 'Late' + (by ? ' · ' + by : '') : by ? by.charAt(0).toUpperCase() + by.slice(1) : 'Not yet';
+}
+/* The day's inputs (§6.21, §6.23): a hero that says how many are in and what comes next, opening to the day as a rail of
+   steps, each with the one tap that brings it in. Open while anything is still to come; shut once all are in. */
 function tdyInputsHtml(day) {
   var defs = tdyInputsSeen();
   // A role that takes none of the floor's inputs (the office) has no card of them.
   if (!defs.length) return '';
   var rows = defs.map(function(def) { return tdyInput(def, day); });
-  var n = rows.filter(function(r) { return r.state === 'in'; }).length;
-  var h = '<div class="inv-panel inv-panel-flush" data-card="inputs"><div class="inv-panel-head"><span class="inv-panel-title">The day&rsquo;s inputs ' +
-    '<span class="inv-panel-count" data-tdy-in>' + n + ' of ' + rows.length + ' in</span></span>' +
-    '<span class="inv-row-meta">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span></div>';
-  rows.forEach(function(r) {
-    var dot = TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait;
+  var n = rows.filter(function(r) { return r.state === 'in'; }).length, done = rows.filter(function(r) { return r.state === 'in' || r.state === 'off'; }).length;
+  var late = rows.filter(function(r) { return r.state === 'late'; }), next = late[0] || rows.find(function(r) { return r.state === 'wait' || r.state === 'part'; });
+  var shop = rows.some(function(r) { return r.state !== 'in' && r.state !== 'off' && r.shop; });
+  var steps = rows.map(function(r, i) {
     var btn = '';
     if (r.state !== 'in' && r.state !== 'off') {
       btn = r.move === 'photo'
         ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPhoto" data-line="' + escHtml(tdyFirstMissingLine(r)) + '">Photo</button>'
         : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPaste">Paste</button>';
     }
-    h += '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-input="' + r.k + '" data-state="' + r.state + '">' +
-      '<button class="inv-row-main" data-action="invTdyInput" data-k="' + r.k + '"><span class="inv-row-title">' + escHtml(r.title) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(r.text) + '</span></button>' +
-      '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' + uiDot(dot[0], dot[1]) + btn + '</span></div>';
-  });
-  // The messages these rows wait for come in on WhatsApp: open it from here (add.js).
-  h += '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-wa><span class="inv-row-main"><span class="inv-row-title">WhatsApp</span>' +
-    '<span class="inv-row-meta inv-row-wrap">Copy a message there, then Paste on its row</span></span>' +
+    var node = r.state === 'in' ? TDY_CHECK_SVG : r.state === 'late' ? '!' : String(i + 1);
+    return '<div class="inv-step" data-tdy-input="' + r.k + '" data-state="' + r.state + '">' +
+      '<span class="inv-step-node" aria-hidden="true">' + node + '</span>' +
+      '<button class="inv-step-main" data-action="invTdyInput" data-k="' + r.k + '" aria-label="' + escHtml(r.title + ': ' + (TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait)[1] + ', ' + tdyStepMeta(r)) + '">' +
+      '<span class="inv-step-title">' + escHtml(r.title) + '</span><span class="inv-step-meta">' + escHtml(tdyStepMeta(r)) + '</span></button>' +
+      '<span class="inv-row-end">' + btn + '</span></div>';
+  }).join('');
+  // The messages these steps wait for come in on WhatsApp: open it from here (add.js).
+  var wa = '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-wa><span class="inv-row-main"><span class="inv-row-title">WhatsApp</span>' +
+    '<span class="inv-row-meta inv-row-wrap">Copy a message there, then Paste on its step</span></span>' +
     '<span class="inv-row-end inv-row-actions">' + waLinksHtml('today') + '</span></div>';
-  return h + '</div>';
+  var meter = chartMeter(rows.map(function(r) { return { v: 1, tone: r.state === 'in' ? 'ok' : r.state === 'late' ? 'warning' : r.state === 'part' ? 'info' : 'neutral-2' }; }),
+    { title: rows.map(function(r) { return r.title + ': ' + (TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait)[1]; }).join(' · ') });
+  var sub = done === rows.length ? 'Everything the floor sends is in' : next ? (TDY_INPUT_SHORT[next.k] || next.title) + ' ' + (next.state === 'late' ? 'is late, ' + tdyStepMeta(next).replace(/^Late · /, '') : tdyStepMeta(next).toLowerCase()) : '';
+  return uiHeroHtml({ tone: late.length ? 'warning' : done === rows.length ? 'ok' : '', eyebrow: '<span>The day’s inputs</span><span class="inv-panel-count">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>',
+    title: '<span data-tdy-in>' + (n === rows.length ? 'All ' + n + ' in' : n + ' of ' + rows.length + ' in') + '</span>',
+    fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length,
+    body: '<div class="inv-hero-sheet"><div class="inv-panel-body inv-steps" data-tdy-steps>' + steps + '</div>' + wa +
+      (shop ? '<div class="inv-panel-body inv-note">A time with no four weeks of record behind it is the shop’s usual one.</div>' : '') + '</div>',
+    attrs: ' data-card="inputs"' });
 }
 /* The first VAT line with no record (the register photo is theirs); else VAT A1. */
 function tdyFirstMissingLine(r) {
@@ -45232,26 +45771,28 @@ function tdyOpenInput(k) {
 }
 
 /* ---------- The floor now (the desktop) ----------
-   Floor → Day in three lines and the power, as the mockup's desktop Today draws it: each line's staffing word, what it is
-   running and what it has plated; the day's cuts. Read from floor.js' own functions. */
+   Floor → Day in four tiles, as the mockup's desktop Today draws it: each line's staffing word, what it has plated and what it
+   is running; the day's cuts. Read from floor.js' own functions. */
 function tdyFloorHtml(day) {
-  var att = attDaySummary(day), stats = areaStats(day, day), byArea = {};
+  var att = attDaySummary(day), stats = areaStats(day, day), byArea = {}, worst = '';
   stats.rows.forEach(function(a) { byArea[a.id] = a; });
-  var h = '<div class="inv-panel inv-panel-flush" data-card="floor"><div class="inv-panel-head"><span class="inv-panel-title">Floor now</span>' +
-    '<button class="inv-btn-link" data-action="invTdyFloor">Open Floor</button></div>';
-  FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).forEach(function(ln) {
+  var tiles = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).map(function(ln) {
     var st = flrStaffing(day, ln, byArea, att.marked), r = prodDayLine(day, ln.id), last = flrLatest(r.entries);
-    var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '';
-    h += '<div class="inv-row inv-row-2" data-tdy-line="' + ln.id + '"><button class="inv-row-main" data-action="invTdyFloor">' +
-      '<span class="inv-row-title">' + escHtml(flrLineName(ln.id)) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(last ? prodEntryTitle(last) : 'No record yet today') + '</span></button>' +
-      '<span class="inv-row-end inv-row-stack">' + uiDot(st.tone, escHtml(st.word)) + (fig ? '<span class="inv-num">' + escHtml(fig) + '</span>' : '') + '</span></div>';
+    if (st.tone === 'warning') worst = 'warning';
+    var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '&mdash;';
+    return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
+      '<div class="inv-tile-value inv-tile-value-sm">' + fig + '</div><div class="inv-tile-sub">' + uiDot(st.tone, escHtml(st.word)) + '</div>' +
+      '<div class="inv-tile-sub">' + escHtml(last ? prodEntryTitle(last) : 'No record yet today') + '</div></button>';
   });
-  var cuts = powerCuts(day, day), mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0);
-  h += '<div class="inv-row inv-row-2" data-tdy-line="power"><button class="inv-row-main" data-action="invTdyPower"><span class="inv-row-title">Power</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cuts.length ? cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ', no time back'); }).join(', ') : 'No cut reported') + '</span></button>' +
-    '<span class="inv-row-end inv-row-stack">' + (cuts.length ? uiDot('warning', todoPlural(cuts.length, 'cut')) + (mins ? '<span class="inv-num">' + escHtml(powerDur(mins)) + '</span>' : '') : uiDot('ok', 'None')) + '</span></div>';
-  return h + '</div>';
+  var cuts = powerCuts(day, day), mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), open = cuts.filter(function(c) { return c.open; }).length;
+  tiles.push('<button type="button" class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '" data-tdy-line="power" data-action="invTdyPower"><div class="inv-tile-label">Power</div>' +
+    '<div class="inv-tile-value inv-tile-value-sm">' + (cuts.length ? escHtml(todoPlural(cuts.length, 'cut')) : 'No cut') + '</div>' +
+    '<div class="inv-tile-sub">' + (cuts.length ? uiDot(open ? 'warning' : 'neutral', escHtml(open ? open + ' with no time back' : powerDur(mins) + ' dark')) : uiDot('ok', 'None reported')) + '</div>' +
+    '<div class="inv-tile-sub">' + escHtml(cuts.length ? cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ''); }).join(', ') : 'today') + '</div></button>');
+  var staffed = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).filter(function(ln) { var st = flrStaffing(day, ln, byArea, att.marked); return st.heads > 0; }).length;
+  return uiHeroHtml({ tone: worst || (open ? 'warning' : ''), eyebrow: '<span>Floor now</span>', title: att.marked ? escHtml(todoPlural(staffed, 'line') + ' staffed') : 'No attendance yet today',
+    sub: escHtml(att.marked ? (att.p + att.half) + ' on site · ' + att.absent.length + ' absent' : 'The in-time roll says who stands where'), fold: 'tdy-floor', open: true,
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div></div>', attrs: ' data-card="floor"' });
 }
 
 /* ---------- The tasks ----------
@@ -45293,69 +45834,134 @@ function tdyTaskMoveHtml(t) {
   }
   return t.goLabel ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGoApp" data-key="' + escHtml(t.key) + '">' + escHtml(t.goLabel) + '</button>' : '';
 }
-function tdyAppRowHtml(t) {
-  var ws = tdyTaskWs(t);
-  return '<div class="inv-row inv-row-2 inv-row-flow" data-todo="app" data-tdy-task="' + escHtml(t.key) + '" data-tone="' + escHtml(t.tone || '') + '">' +
-    '<span class="inv-row-lead">' + todoGlyph(t.tone) + '</span>' +
-    '<button class="inv-row-main" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '"><span class="inv-row-title inv-row-wrap">' + escHtml(t.title) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml([t.sub, ws].filter(Boolean).join(' · ')) + '</span></button>' +
-    '<span class="inv-row-end inv-row-actions">' + tdyTaskMoveHtml(t) + '</span></div>';
+/* A task as a card (§6.22): its mark and where it lands in the head with the rupees it names, the task and its figures,
+   and its one move at the foot. The card opens the task, with every move it has. */
+function tdyAppCardHtml(t) {
+  var money = tdySeesMoney() && t.worth > 0.005;
+  return '<article class="inv-deck-item" data-todo="app" data-tdy-task="' + escHtml(t.key) + '" data-tone="' + escHtml(t.tone || '') + '">' +
+    '<div class="inv-deck-head">' + todoGlyph(t.tone) + '<span class="inv-deck-word">' + escHtml(tdyTaskWs(t) || TODO_TONE_WORD[t.tone] || 'To know') + '</span>' +
+    (money ? '<span class="inv-deck-fig">' + figHtml(escHtml(formatCurrency(gstRound(t.worth))), t.tone === 'red' ? 'danger' : t.tone === 'amber' ? 'warning' : '') + '</span>' : '') + '</div>' +
+    '<button class="inv-deck-main" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '"><span class="inv-deck-title">' + escHtml(t.title) + '</span>' +
+    (t.sub ? '<span class="inv-deck-sub">' + escHtml(t.sub) + '</span>' : '') + '</button>' +
+    '<div class="inv-deck-foot">' + tdyTaskMoveHtml(t) + '</div></article>';
+}
+/* A task of your own as a card: its tick box and its due date in the head, its words, the place it was added from. */
+function tdyMineCardHtml(t) {
+  var tone = todoMineTone(t), go = '';
+  if (t.go) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(t.goLabel || 'Open') + '</button>';
+  else if (t.link) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
+  return '<article class="inv-deck-item" data-todo="mine" data-tone="' + escHtml(tone) + '">' +
+    '<div class="inv-deck-head"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
+    '<span class="inv-deck-word">Yours</span>' + (t.due ? uiDot(tone ? uiTone(tone) : 'neutral', escHtml(todoDueLabel(t.due))) : '') + '</div>' +
+    '<button class="inv-deck-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-deck-title">' + escHtml(t.text) + '</span>' +
+    (t.note ? '<span class="inv-deck-sub">' + escHtml(t.note) + '</span>' : '') + '</button>' + (go ? '<div class="inv-deck-foot">' + go + '</div>' : '') + '</article>';
 }
 /* The To-do's own list for the role signed in (todo.js todoRanked → todoSees, todoMineSees): a task whose move lands on a
    page the role does not open, on Pay without the wages or on Settings without the settings, or whose figures are money
    or wages it may not read, is not here. One list for Needs you, the To-do and the bar's counts (workspace.js). */
 function tdyTasks() { return todoRanked(); }
+/* The tasks as three hero cards (§6.21): Now (red, and your own due), This week and Later, each coded in its tone and
+   opening to its deck. Now opens by itself; This week opens where Now is empty; Later stays shut until opened. */
+var TDY_GROUP_TONE = { now: 'danger', week: 'warning', later: 'info' };
 function tdyTasksHtml() {
   var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
   if (typeof learnSeen === 'function') learnSeen(rows.filter(function(r) { return r.app; }).map(function(r) { return r.app; }));
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
-  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" data-card="tasks"><div class="inv-panel-head"><span class="inv-panel-title">Needs you' +
-    (rows.length ? ' <span class="inv-panel-count" data-tdy-count>' + rows.length + '</span>' : '') + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (rows.length ? 'To-do list' : 'Add a task') + '</button></div>';
-  if (!rows.length) return h + '<div class="inv-row" data-tdy-none><span class="inv-row-main">' + uiDot('ok', 'Nothing needs you') + '</span></div></div>';
-  TDY_GROUPS.forEach(function(g) {
-    var list = groups[g[0]];
+  var money = tdySeesMoney();
+  var worth = function(list) { return gstRound(list.reduce(function(s, r) { return s + (r.app && r.app.worth > 0 ? r.app.worth : 0); }, 0)); };
+  var card = function(r) { return r.app ? tdyAppCardHtml(r.app) : tdyMineCardHtml(r.mine); };
+  var deck = function(g, list) { return uiMoreDeckHtml('tdy-' + g, list.map(card), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' }); };
+  var titles = function(list) { return list.slice(0, 3).map(function(r) { return r.app ? r.app.title : r.mine.text; }).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : ''); };
+  var counts = function(list, g) { return '<span>' + TDY_GROUPS.filter(function(x) { return x[0] === g; })[0][1] + '</span><span class="inv-panel-count" data-tdy-count>' + list.length + '</span>'; };
+  var h = '';
+  var now = groups.now, wN = worth(now);
+  var meter = rows.length ? chartMeter([{ v: groups.now.length, tone: 'danger' }, { v: groups.week.length, tone: 'warning' }, { v: groups.later.length, tone: 'info' }],
+    { title: groups.now.length + ' now · ' + groups.week.length + ' this week · ' + groups.later.length + ' later' }) : '';
+  var rest = [groups.week.length ? groups.week.length + ' this week' : '', groups.later.length ? groups.later.length + ' to know' : ''].filter(Boolean).join(' · ');
+  h += uiHeroHtml({ tone: now.length ? (now.some(function(r) { return r.tone === 'red'; }) ? 'danger' : 'warning') : 'ok',
+    eyebrow: counts(now, 'now'), title: now.length ? escHtml(todoPlural(now.length, 'thing needs', 'things need') + ' you now') : 'Nothing needs you now',
+    fig: money && wN > 0 ? figWrapHtml(escHtml(formatCurrency(wN))) : '', sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
+    viz: meter, open: true, body: now.length ? deck('now', now) : null, attrs: ' data-tdy-group="now"' });
+  [['week', groups.week], ['later', groups.later]].forEach(function(p) {
+    var g = p[0], list = p[1];
     if (!list.length) return;
-    h += '<div class="inv-row-group" data-tdy-group="' + g[0] + '"><span>' + g[1] + '</span><span class="inv-num">' + list.length + '</span></div>';
-    h += uiMoreHtml('tdy-' + g[0], list.map(function(r) { return r.app ? tdyAppRowHtml(r.app) : todoMineRowHtml(r.mine); }), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' });
+    var w = worth(list);
+    h += uiHeroHtml({ tone: TDY_GROUP_TONE[g], eyebrow: counts(list, g), title: escHtml(g === 'week' ? todoPlural(list.length, 'task') + ' for this week' : todoPlural(list.length, 'thing') + ' to know'),
+      fig: money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) : '', sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
+      body: deck(g, list), attrs: ' data-tdy-group="' + g + '"' });
   });
-  return h + '</div>';
+  return '<div class="inv-hero-stack" data-card="tasks">' + h + '</div>';
 }
 
 /* ---------- Drawing ---------- */
+/* Needs you: on the phone a column of cards (the day's inputs, then the tasks, then the recent invoices); on the desktop
+   the tasks across the top and the day, the floor and the invoices packed under them with no gap (§6.25). */
 function renderNeeds() {
   var el = document.getElementById('homeNeeds');
   if (!el) return;
   // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
   if (typeof grdHeld === 'function' && grdHeld()) return;
   var day = localDateStr();
-  var h = '<div class="inv-panels">' + tdyInputsHtml(day);
-  if (_isDesktop && tdySees('pageFloor')) h += tdyFloorHtml(day);
-  el.innerHTML = h + tdyRecentHtml() + tdyTasksHtml() + '</div>';
+  var inputs = tdyInputsHtml(day), tasks = tdyTasksHtml(), recent = tdyRecentHtml();
+  if (_isDesktop) {
+    var floor = tdySees('pageFloor') ? tdyFloorHtml(day) : '';
+    el.innerHTML = '<div class="inv-panels inv-panels-3" data-tdy-grid>' + tasks.replace('class="inv-hero-stack"', 'class="inv-hero-stack inv-panels-wide"') + inputs + floor + recent + '</div>';
+    uiMasonry(el.querySelector('[data-tdy-grid]'));
+  } else el.innerHTML = inputs + tasks + recent;
 }
 /* The last invoices made, each a tap from its print preview (owner, 6 Oct 2026: *"earlier we used to see the recently created
-   invoices for quick print, now to print a recent invoice is 4 clicks"*: the list had gone to Pulse, under the questions). */
+   invoices for quick print, now to print a recent invoice is 4 clicks"*: the list had gone to Pulse, under the questions). A hero
+   in the theme's colour: the latest invoice and its figure, opening to the five with their print buttons. */
 var TDY_RECENT = 5;
 function tdyRecentHtml() {
   if (!tdySees('pageRegister')) return '';
   var list = homeRecentInvoices(TDY_RECENT);
   if (!list.length) return '';
-  return '<div class="inv-panel inv-panel-flush" data-card="recent"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div>' +
-    list.map(homeRecentRowHtml).join('') + '</div>';
+  var last = list[0];
+  return uiHeroHtml({ eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
+    title: '<span class="inv-id">' + escHtml(last.displayNumber) + '</span>', fig: figWrapHtml(escHtml(formatCurrency(last.grandTotal))),
+    sub: escHtml([formatDate(last.date), last.clientName].filter(Boolean).join(' · ')), fold: 'tdy-recent', open: true,
+    body: '<div class="inv-hero-sheet">' + list.map(homeRecentRowHtml).join('') +
+      '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div></div>',
+    attrs: ' data-card="recent"' });
 }
-/* Pulse: the questions, read for the period Stats shows (statsPulseArgs), then the widgets. Without the finance permission
-   there are no questions: every one of them reads money. */
+/* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
+   figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
+   moves worth most across every question. Without the finance permission there are no questions: every one reads money. */
+var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
 function renderPulseQuestions() {
   var el = document.getElementById('homeQuestions');
   if (!el) return;
   if (!tdySeesMoney()) { el.innerHTML = ''; return; }
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  var html = '';
-  try { html = advPulseHtml(per); } catch (e) { html = ''; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
+  var qs = [];
+  try { qs = advQuestions(per); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
-    (html ? '<div class="inv-panels inv-panels-3" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+    (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
+      : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+}
+function tdyQuestionHtml(x) {
+  var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };
+  var moves = '';
+  if (!x.inline || !x.moves.length) {
+    moves = '<div class="inv-hero-moves" data-tdy-moves>' + (x.moves.length ? '<div class="inv-hero-eyebrow inv-mt-8 inv-mb-8">What you can do <span class="inv-panel-count">' + x.moves.length + '</span></div>' +
+      advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note inv-mt-8">' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
+      (x.hints || []).map(function(t) { return '<div class="inv-note inv-mt-8" data-adv-hint>' + escHtml(t) + '</div>'; }).join('') + '</div>';
+  }
+  return uiHeroHtml({ tone: v.tone || 'neutral', vital: true, eyebrow: '<span>' + escHtml(x.q) + '</span>', fig: v.fig || '', title: v.title || '', sub: v.sub || '', viz: v.viz || '',
+    fold: 'tdy-q-' + x.key, open: false, body: '<div class="inv-hero-sheet">' + x.html + '</div>' + moves, attrs: ' data-tdy-q="' + escHtml(x.key) + '"' });
+}
+/* The moves worth most across every question, as cards: what to do first, before reading any answer. */
+function tdyFirstHtml(qs) {
+  var from = {}, all = [];
+  qs.forEach(function(q) { if (!q.inline) (q.moves || []).forEach(function(mv) { if (!from[mv.key]) { from[mv.key] = q.key; all.push(mv); } }); });
+  var top = advRank(all, null).slice(0, 3);
+  if (!top.length) return '';
+  var listed = advListedKeys();
+  return uiHeroHtml({ eyebrow: '<span>Do first</span><span class="inv-panel-count">' + top.length + '</span>', title: 'The moves worth most',
+    sub: 'Across every question above, by what each is worth a month; each question opens to its own', fold: 'tdy-first', open: true, attrs: ' data-card="first"',
+    body: '<div class="inv-deck" data-adv-deck="first">' + top.map(function(mv) { return advMoveCardHtml(mv, listed, TDY_Q_WORD[from[mv.key]]); }).join('') + '</div>' });
 }
 /* The view on screen: one of the two blocks shown. */
 function tdyApplyView() {
@@ -45400,7 +46006,7 @@ function tdyAction(action, btn) {
 
 /* The areas whose line stops when the power goes: their hands are the lower end of the idle wages. */
 var POWER_PLATING_AREAS = ['vat-a1', 'vat-a2', 'barrel'];
-var POWER_TABS = [['overview', 'Overview'], ['cuts', 'Cuts'], ['load', 'Load & bills'], ['case', 'Case']];
+var POWER_TABS = [['overview', 'Overview'], ['cuts', 'Cuts'], ['causes', 'Causes'], ['load', 'Load & bills'], ['case', 'Case']];
 var _powerTab = (function() { try { var t = localStorage.getItem('sep_inv_power_tab'); return POWER_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _powerTabMoved = false;
 
@@ -45439,6 +46045,8 @@ function powerData() {
   if (!p.load || typeof p.load !== 'object') p.load = {};
   if (!p.cfg || typeof p.cfg !== 'object') p.cfg = {};
   if (!p.items || typeof p.items !== 'object') p.items = {};
+  // Why a cut came and what brought the power back, the list the book keeps (powercause.js).
+  if (!Array.isArray(p.causes)) p.causes = [];
   return p;
 }
 function powerCfg() {
@@ -45482,13 +46090,15 @@ function powerCuts(from, to) {
       var ents = c.ids.map(function(id) { return byId[id]; }).filter(Boolean);
       var basis = {};
       ents.forEach(function(e) { basis[e.basis || e.src || 'hand'] = true; });
-      out.push({ date: date, from: a, to: b, min: b == null ? null : Math.max(0, b - a), open: b == null, overnight: overnight,
+      out.push(Object.assign({ date: date, from: a, to: b, min: b == null ? null : Math.max(0, b - a), open: b == null, overnight: overnight,
         reports: c.reports, basis: Object.keys(basis), ids: c.ids, note: (ents.find(function(e) { return e.note; }) || {}).note || '',
         // The log sometimes has only a bound for the power-back ("after 6:59 PM"): the time is the earliest it can be.
         atLeast: ents.some(function(e) { return e.downtime && e.downtime.atLeast; }),
         // A close the record did not see (the day ended early): counted as timed, and said.
         inferred: ents.some(function(e) { return e.downtime && e.downtime.inferred; }),
-        phase: (ents.find(function(e) { return e.downtime && e.downtime.phase; }) || { downtime: {} }).downtime.phase || null });
+        phase: (ents.find(function(e) { return e.downtime && e.downtime.phase; }) || { downtime: {} }).downtime.phase || null },
+        // Why it went, where it hit and what brought it back, as completed (powercause.js).
+        typeof pcsCutFields === 'function' ? pcsCutFields(ents) : {}));
     });
   });
   return out;
@@ -45898,6 +46508,7 @@ function renderPower() {
     (_powerTab === 'load' ? '<button class="inv-btn inv-btn-secondary" data-action="invPowerLoadEdit">Edit load</button>' : '') +
     (_powerTab === 'cuts' ? '<button class="inv-btn inv-btn-ghost" data-action="invPowerImport">Import history</button>' : '') + '</div>';
   if (_powerTab === 'cuts') h += powerCutsHtml(a);
+  else if (_powerTab === 'causes') h += pcsCausesHtml(a);
   else if (_powerTab === 'load') h += powerLoadHtml(a);
   else if (_powerTab === 'case') h += '<div class="inv-scroll-x" data-power-case-wrap>' + powerCaseHtml(a) + '</div>';
   else h += powerOverviewHtml(a);
@@ -45923,13 +46534,18 @@ function powerOverviewHtml(a) {
     _powerTile('Load', L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '&mdash;',
       L.pending ? escHtml(formatNum(L.approved, 0) + ' kVA approved, not yet billed · ' + formatCurrency(L.penaltySince) + ' penalty since') : L.sanctioned ? 'as billed' : 'not recorded yet', L.pending ? 'danger' : '', 'load') +
     '</div>';
+  // What is left to complete (a time back, a reason), and why the cuts come (powercause.js).
+  var z = pcsAnalysis(a);
+  h += pcsCompleteHtml(z);
   h += '<div class="inv-panels"><div class="inv-panel" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div>' +
     chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record' }) +
     '<div class="inv-note">Cuts recorded each month. A month with gaps in the record reads low: the Cuts tab gives each month&rsquo;s recorded days.</div></div>';
   h += '<div class="inv-panel" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div>' +
     chartBars(a.hours.map(function(n, i) { return { label: (i % 12 || 12) + (i < 12 ? 'a' : 'p'), value: n }; }).slice(5, 23), { unit: 'count', ariaLabel: 'Cuts by the hour they began', emptyText: 'No cut on record' }) +
     '<div class="inv-note">By the hour each cut began, 5 AM to 10 PM. ' + escHtml(a.bands.map(function(b) { return b.label + ' ' + b.cuts; }).join(' · ')) + '.</div></div>';
-  var raised = todoApp(['powerLoad']);
+  h += pcsOverviewHtml(z);
+  // The To-do's power tasks; a cut to complete is the panel above.
+  var raised = todoApp(['powerLoad', 'powerCause']);
   h += '<div class="inv-panel inv-panel-flush" id="powerRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
     (raised.length ? raised.map(function(t) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + escHtml(t.title) + '</span></span><span class="inv-row-meta">' + escHtml(t.sub || '') + '</span></span></div>';
@@ -45942,7 +46558,7 @@ function powerCutsHtml(a) {
   // A cut is one line (the day and the clock, how long, the damage and its status) that opens to what the damage is
   // made of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass: this list
   // ran 21.6 phone screens on the real book, a paragraph of arithmetic under every cut).
-  var h = '<div class="inv-panels">';
+  var h = pcsCompleteHtml(pcsAnalysis(a)) + '<div class="inv-panels">';
   a.months.slice().reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
     var rows = list.map(function(c) {
@@ -45964,10 +46580,12 @@ function powerCutsHtml(a) {
         k.inside ? (c.min != null && k.inside >= c.min ? 'all in working hours' : powerDur(k.inside) + ' in working hours') + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours',
         k.hands ? k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ' idle' : '', c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ');
       return '<details class="inv-row-fold" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
-        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span>' +
+        // Why it went, on a line of its own (powercause.js): the meta's two lines are the cut's own figures.
+        (c.reason && pcsName(c.reason) ? '<span class="inv-row-meta inv-row-wrap" data-power-cut-why>' + escHtml('Why: ' + pcsName(c.reason)) + '</span>' : '') + '</span>' +
         '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' +
         (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></summary>' +
-        (parts.length ? '<div class="inv-row-children">' + parts.join('') + '</div>' : '') + '</details>';
+        '<div class="inv-row-children">' + pcsCutWhyHtml(c) + parts.join('') + '</div></details>';
     });
     var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
       '<span class="inv-num">' + formatCurrency(m.cost) + '</span>';
@@ -46356,6 +46974,811 @@ TODO_RULE_FNS.powerLoad = function() {
     clears: 'Clears itself when a bill is billed at the approved load, or the load record says it is.', go: { kind: 'power', tab: 'load' }, goLabel: 'Open Power',
     sig: L.sanctioned + '|' + L.approved + '|' + L.penaltySince }];
 };
+/* ===== POWER: WHY A CUT CAME, AND WHAT BROUGHT THE POWER BACK =====
+   Owner, 8 Oct 2026: "If we enter a power cut and save it without giving an out time, there is no option readily available to
+   fill in in time and the reason + solution. For reasons and solutions, start remembering them and present them as a list
+   once they start being entered and store them in uniform format, no matter how the input text is. Use the intelligence
+   system to tie this to the plant and present it in a visual form."
+
+   - **A cut is completed where it is shown**: Power → Cuts and Overview, Production's entries and its hand form, Today and the
+     To-do. One dialog (pcsOpen) takes the time the power came back in, why it went, where it hit and what brought it back.
+     It is written on every report of the cut (the register and a message can report one cut twice), with who and when. A
+     power-in time the register or a message wrote is the record's and is never typed over; one the record only bounded
+     ("after 7:16 PM"), inferred, or one typed here before, can be set.
+   - **Reasons and fixes are a list the book keeps** (`S.power.causes`), started from nothing and learnt as they are typed.
+     Each entry has one name written one way (pcsCanon: spaces, case and punctuation evened, the shop's codes in capitals:
+     MCB, JBVNL, VAT A2, kVA) and keeps every spelling ever typed for it (`aliases`). What is typed is matched to the list
+     first (pcsKey: the same words in any order and any case, the common endings and a typing slip folded), so
+     "TRANSFORMER TRIPPED", "transformer trip" and "tripped transformer" are one reason. A near match is said ("read as …",
+     with Keep as new), never taken without showing it. The list is shown as chips the moment it has an entry, the most used
+     first, and filters as one types.
+   - **A reason says where it starts**: the grid (the supply: the feeder, the substation, a shutdown), the plant (our own
+     panel, a breaker, a unit), or not known. **A cut says where it hit**: the whole plant, a line or station, or one unit of
+     the plant register (plant.js).
+   - **Read for the plant** (Power → Causes): what causes the cuts, ranked by what they cost (each cut's damage, powerCutCost),
+     coded by where they start; where they hit, station by station; what brings the power back and how fast; and the list
+     itself, renamed or merged by the owner (a merged entry points at the one it joined, so every cut keeps its reason).
+   - **The To-do**: a cut to complete (no time back, or no reason), and a cause that keeps cutting the power, with what to do
+     about it (advice.js moves). The plant register's unit says the cuts tied to it. */
+
+var PCS_NEAR = 0.8;          // two names sharing this much of their words (Dice, typing slips allowed) are read as one
+var PCS_ALIASES_MAX = 24;    // spellings kept per entry
+var PCS_CHIPS = 8;           // chips shown under a field
+var PCS_RECUR = 3;           // a cause this many times in 30 days is a To-do task; five, red
+var PCS_RECUR_RED = 5;
+var PCS_ASK_DAYS = 14;       // a recent cut with no reason is asked about this long
+var PCS_OPEN_DAYS = 30;      // a cut with no time back is asked about this long (imported history is never asked)
+var PCS_SCOPES = [['grid', 'The grid', 'the supply: the feeder, the substation, a shutdown'], ['plant', 'In the plant', 'our own panel, a breaker, a unit'],
+  ['', 'Not sure', '']];
+/* The shop's codes, written in capitals whatever case they are typed in; and the few written their own way. */
+var PCS_CAPS = { jbvnl: 1, tsuisl: 1, jseb: 1, dvc: 1, mcb: 1, mccb: 1, elcb: 1, rccb: 1, rcbo: 1, acb: 1, vcb: 1, ocb: 1, dg: 1, lt: 1, ht: 1,
+  db: 1, pdb: 1, mdb: 1, ups: 1, eb: 1, ac: 1, dc: 1, pf: 1, apfc: 1, ct: 1, pt: 1, etp: 1, plc: 1, vfd: 1, olr: 1, smps: 1, vat: 1, cqi: 1 };
+var PCS_FORMS = { kva: 'kVA', kw: 'kW', kv: 'kV', kwh: 'kWh', kvah: 'kVAh' };
+/* Words that carry nothing for matching: every reason here is about a power cut. */
+var PCS_STOP = { the: 1, a: 1, an: 1, of: 1, on: 1, in: 1, at: 1, to: 1, due: 1, because: 1, by: 1, from: 1, for: 1, was: 1, were: 1, is: 1,
+  are: 1, be: 1, been: 1, got: 1, get: 1, has: 1, had: 1, have: 1, and: 1, or: 1, it: 1, its: 1, our: 1, we: 1, there: 1, this: 1, that: 1,
+  with: 1, power: 1, cut: 1, cuts: 1, light: 1, lights: 1, bijli: 1 };
+/* Short words that are words, not codes, when typed in capitals among lower-case ones. */
+var PCS_WORDS = { no: 1, not: 1, off: 1, out: 1, up: 1, all: 1, but: 1, can: 1, did: 1, yes: 1, any: 1, new: 1, old: 1, one: 1, two: 1, low: 1,
+  hot: 1, wet: 1, set: 1, run: 1, ran: 1, put: 1, day: 1, now: 1, too: 1, may: 1, see: 1, saw: 1, let: 1, try: 1, bad: 1, big: 1, end: 1,
+  few: 1, fix: 1, how: 1, top: 1, use: 1, via: 1, why: 1, who: 1, ago: 1, air: 1, fan: 1, fit: 1, gas: 1, hit: 1, key: 1, lot: 1, mix: 1,
+  pin: 1, tap: 1, oil: 1, far: 1, own: 1, per: 1, so: 1, as: 1, if: 1, go: 1, me: 1, he: 1, us: 1 };
+/* Words that end their own way, and the common misspellings of one. */
+var PCS_STEM = { broke: 'break', broken: 'break', failure: 'fail', failed: 'fail', failing: 'fail', fails: 'fail', faulty: 'fault',
+  tripped: 'trip', tripping: 'trip', trips: 'trip', burnt: 'burn', burned: 'burn', blown: 'blow', blew: 'blow', reseted: 'reset',
+  resetted: 'reset', restored: 'restore', came: 'come', went: 'go', gone: 'go', maintainance: 'maintenance', mantainance: 'maintenance',
+  maintanance: 'maintenance', maintenence: 'maintenance', maintanence: 'maintenance', switched: 'switch', switching: 'switch' };
+/* The common misspellings, written right in the name (the key folds them as well). */
+var PCS_SPELL = { maintainance: 'maintenance', mantainance: 'maintenance', maintanance: 'maintenance', maintenence: 'maintenance', maintanence: 'maintenance',
+  tranformer: 'transformer', transfomer: 'transformer', transfromer: 'transformer', trasformer: 'transformer', transformar: 'transformer', breakar: 'breaker', brekar: 'breaker',
+  suply: 'supply', supplly: 'supply', voltege: 'voltage', voltag: 'voltage', flactuation: 'fluctuation', flucuation: 'fluctuation',
+  fuze: 'fuse', cabel: 'cable', cabal: 'cable', sheduled: 'scheduled', scheduld: 'scheduled', shedule: 'schedule' };
+/* Two words written as one, and one written as two. */
+var PCS_PHRASES = [[/\bshut\s*-?\s*down\b/g, 'shutdown'], [/\bbreak\s*-?\s*down\b/g, 'breakdown'], [/\bsub\s*-?\s*station\b/g, 'substation'],
+  [/\bover\s*-?\s*load/g, 'overload'], [/\bre\s*-?\s*set\b/g, 'reset'], [/\bstand\s*-?\s*by\b/g, 'standby']];
+
+/* ---------- The list ---------- */
+/* Read without writing: drawing never changes the book. */
+function pcsList() { return S && S.power && Array.isArray(S.power.causes) ? S.power.causes : []; }
+function pcsStore() { var p = powerData(); if (!Array.isArray(p.causes)) p.causes = []; return p.causes; }
+function pcsUid() { return 'PCS-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+/* An entry by its id, following a merge to the entry it joined. */
+function pcsGet(id) {
+  if (!id) return null;
+  var list = pcsList(), c = list.find(function(x) { return x && x.id === id; }), hops = 0;
+  while (c && c.mergedInto && hops++ < 12) c = list.find(function(x) { return x && x.id === c.mergedInto; }) || c;
+  return c || null;
+}
+function pcsName(id) { var c = pcsGet(id); return c ? c.name : ''; }
+/* The entries of a kind still in use: not merged into another, not retired. */
+function pcsLive(kind) { return pcsList().filter(function(c) { return c && c.kind === kind && !c.mergedInto && !c.retiredAt; }); }
+function pcsScopeWord(scope) { return scope === 'grid' ? 'from the grid' : scope === 'plant' ? 'in the plant' : 'where it starts not known'; }
+/* The tone a cause is coded in (the status tones, §3.3): one that keeps coming in the plant is ours to stop (danger); one in
+   the plant is ours to check (warning); one from the grid is the supply's (info); one not placed says nothing yet. */
+function pcsTone(scope, n30) { return scope === 'plant' ? (n30 >= PCS_RECUR ? 'danger' : 'warning') : scope === 'grid' ? 'info' : 'neutral'; }
+
+/* ---------- One way of writing a name ---------- */
+function pcsClean(text) {
+  return String(text == null ? '' : text).replace(/[‘’]/g, "'").replace(/[“”]/g, '"').replace(/[–—]/g, '-')
+    .replace(/^\s*(?:\d+[.)]|[-*•·]+)\s+/, '').replace(/\s+/g, ' ').replace(/^["'\s]+|["'\s]+$/g, '').replace(/[\s.,;:!?-]+$/, '').trim();
+}
+/* The uniform name: sentence case, the shop's codes in capitals, a code with a figure in it (A2, 11kV) written as such, a word the
+   owner typed in capitals among lower-case ones kept as typed. "TRANSFORMER TRIPPED AT jbvnl sub station" → "Transformer tripped
+   at JBVNL substation". */
+function pcsCanon(text) {
+  var s = pcsClean(text);
+  if (!s) return '';
+  // One word written as two is written as one ("sub station", "shut down"), in the name as in the key.
+  PCS_PHRASES.forEach(function(p) { s = s.replace(new RegExp(p[0].source, 'gi'), p[1]); });
+  // Typed mostly in capitals, the capitals say nothing: only the shop's codes stay in them. Typed in lower case with a word of
+  // two or three capitals among it (a code the list does not know: "RMU", "LA"), that word is kept as typed; a longer one
+  // ("LINE TRIP at the feeder") is a word written loud.
+  var letters = s.replace(/[^A-Za-z]/g, ''), upper = s.replace(/[^A-Z]/g, '');
+  var shout = letters.length > 0 && upper.length / letters.length > 0.5;
+  var words = s.split(' ').map(function(w) {
+    var m = /^([^A-Za-z0-9]*)([A-Za-z0-9][A-Za-z0-9/&'.-]*?)([^A-Za-z0-9]*)$/.exec(w);
+    if (!m) return w;
+    var core = m[2], low = core.toLowerCase(), out;
+    var unit = /^(\d+(?:\.\d+)?)(kva|kw|kv|kwh|kvah)$/.exec(low);
+    if (PCS_FORMS[low]) out = PCS_FORMS[low];
+    else if (unit) out = unit[1] + PCS_FORMS[unit[2]];
+    else if (PCS_CAPS[low]) out = core.toUpperCase();
+    else if (/\d/.test(core) && /[a-z]/i.test(core) && core.length <= 6) out = core.toUpperCase();
+    else if (!shout && core.length >= 2 && core.length <= 3 && !PCS_STOP[low] && !PCS_WORDS[low] && core === core.toUpperCase() && /[A-Z]/.test(core)) out = core;
+    else out = PCS_SPELL[low] || low;
+    return m[1] + out + m[3];
+  });
+  var first = words[0];
+  words[0] = first.charAt(0).toUpperCase() + first.slice(1);
+  return words.join(' ');
+}
+function pcsStem(w) {
+  if (PCS_STEM[w]) return PCS_STEM[w];
+  var s = w;
+  if (/^\d+$/.test(s)) return s;
+  if (s.length > 5 && /ing$/.test(s)) s = s.slice(0, -3);
+  else if (s.length > 4 && /ed$/.test(s)) s = s.slice(0, -2);
+  else if (s.length > 3 && /s$/.test(s) && !/ss$/.test(s)) s = s.slice(0, -1);
+  if (s.length > 3 && /e$/.test(s)) s = s.slice(0, -1);
+  return s.replace(/([a-z])\1+/g, '$1');
+}
+/* The key two names are matched on: lower case, the words that carry nothing left out, each word's ending folded, the
+   words in order. "Tripped transformer" and "TRANSFORMER TRIPPING" share "transformer trip". */
+function pcsKey(text) {
+  var s = pcsClean(text).toLowerCase();
+  PCS_PHRASES.forEach(function(p) { s = s.replace(p[0], p[1]); });
+  var seen = {};
+  return s.split(/[^a-z0-9]+/).filter(function(t) { return t && !PCS_STOP[t]; }).map(function(t) { return pcsStem(PCS_SPELL[t] || t); })
+    .filter(function(t) { if (!t || seen[t]) return false; seen[t] = true; return true; }).sort().join(' ');
+}
+function pcsLev(a, b) {
+  var prev = [], cur, i, j;
+  for (j = 0; j <= b.length; j++) prev[j] = j;
+  for (i = 1; i <= a.length; i++) {
+    cur = [i];
+    for (j = 1; j <= b.length; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+    prev = cur;
+  }
+  return prev[b.length];
+}
+/* Two words are one where they are equal, one begins the other (transform, transformer), or a long word is a slip away. A
+   short word (MCB, DG) must be equal. */
+function pcsTokSame(a, b) {
+  if (a === b) return true;
+  var n = Math.min(a.length, b.length);
+  if (n >= 5 && (a.indexOf(b) === 0 || b.indexOf(a) === 0)) return true;
+  if (n < 5) return false;
+  return pcsLev(a, b) <= (n >= 8 ? 2 : 1);
+}
+/* The words two keys share: {m, a, b} (each word counted once, typing slips allowed). */
+function pcsOverlap(k1, k2) {
+  var A = k1 ? k1.split(' ') : [], B = k2 ? k2.split(' ') : [], used = {}, m = 0;
+  A.forEach(function(a) { for (var i = 0; i < B.length; i++) if (!used[i] && pcsTokSame(a, B[i])) { used[i] = 1; m++; break; } });
+  return { m: m, a: A.length, b: B.length };
+}
+function pcsDice(k1, k2) { var o = pcsOverlap(k1, k2); return o.a && o.b ? 2 * o.m / (o.a + o.b) : 0; }
+/* Near: most words shared, or every word of the shorter one in the longer ("tripped transformer" in "Transformer tripped at
+   the substation") where the shorter has two or more and is half the longer or more. */
+function pcsNearScore(k1, k2) {
+  var o = pcsOverlap(k1, k2), lo = Math.min(o.a, o.b), d = o.a && o.b ? 2 * o.m / (o.a + o.b) : 0;
+  if (d >= PCS_NEAR) return d;
+  return lo >= 2 && o.m === lo && lo * 2 >= Math.max(o.a, o.b) ? Math.max(d, PCS_NEAR) : 0;
+}
+/* What a typed name is on the list: {c, how: 'exact' | 'near', score}, or null. */
+function pcsMatch(text, kind) {
+  var key = pcsKey(text);
+  if (!key) return null;
+  var best = null;
+  pcsLive(kind).forEach(function(c) {
+    [c.name].concat(c.aliases || []).forEach(function(n) {
+      if (best && best.how === 'exact') return;
+      var k = pcsKey(n);
+      if (k === key) { best = { c: c, how: 'exact', score: 1 }; return; }
+      var d = pcsNearScore(key, k);
+      if (d && (!best || d > best.score)) best = { c: c, how: 'near', score: d };
+    });
+  });
+  return best;
+}
+/* A name onto the list: the entry it is, its spelling kept; or a new entry written the one way. Returns the entry's id. */
+function pcsLearn(kind, text, opts) {
+  opts = opts || {};
+  var clean = pcsClean(text);
+  if (!clean) return null;
+  var list = pcsStore(), hit = opts.id ? pcsGet(opts.id) : null;
+  if (!hit && !opts.keepNew) { var m = pcsMatch(clean, kind); if (m) hit = m.c; }
+  if (!hit && opts.keepNew) { var ex = pcsMatch(clean, kind); if (ex && ex.how === 'exact') hit = ex.c; }
+  var now = Date.now(), by = pcsWho();
+  if (hit) {
+    var low = clean.toLowerCase();
+    if (hit.name.toLowerCase() !== low && !(hit.aliases || []).some(function(a) { return a.toLowerCase() === low; })) {
+      hit.aliases = (hit.aliases || []).concat([clean]).slice(-PCS_ALIASES_MAX);
+    }
+    return hit.id;
+  }
+  var c = { id: pcsUid(), kind: kind, name: pcsCanon(clean), aliases: pcsCanon(clean) === clean ? [] : [clean], at: now, by: by };
+  if (kind === 'reason') c.scope = opts.scope === 'grid' || opts.scope === 'plant' ? opts.scope : '';
+  list.push(c);
+  return c.id;
+}
+function pcsWho() { return (typeof grdUser === 'function' && grdUser() ? grdUser().name : '') || (typeof stockBy === 'function' ? stockBy() : '') || ''; }
+/* The list from another book (a sep-production file's `powerCauses`), merged by id and never written over. Each is cleaned
+   as the app writes one; one written the same way as an entry here joins it (its cuts read the entry here, its spellings are
+   kept there). Returns how many were added. */
+function pcsMergeImport(list) {
+  if (!Array.isArray(list)) return 0;
+  var have = {}, n = 0, store = null;
+  pcsList().forEach(function(c) { if (c && c.id) have[c.id] = true; });
+  list.forEach(function(c0) {
+    if (!c0 || typeof c0 !== 'object' || typeof c0.id !== 'string' || !/^PCS-[A-Za-z0-9_-]{1,40}$/.test(c0.id) || have[c0.id]) return;
+    if (c0.kind !== 'reason' && c0.kind !== 'fix') return;
+    var name = pcsCanon(typeof c0.name === 'string' ? c0.name : '');
+    if (!name) return;
+    var spell = (Array.isArray(c0.aliases) ? c0.aliases : []).filter(function(a) { return typeof a === 'string'; }).map(pcsClean).filter(Boolean);
+    var c = { id: c0.id, kind: c0.kind, name: name, aliases: spell.slice(-PCS_ALIASES_MAX), at: Number(c0.at) || Date.now(), by: typeof c0.by === 'string' ? c0.by : '' };
+    if (c.kind === 'reason') c.scope = c0.scope === 'grid' || c0.scope === 'plant' ? c0.scope : '';
+    if (typeof c0.mergedInto === 'string' && /^PCS-/.test(c0.mergedInto)) c.mergedInto = c0.mergedInto;
+    var same = !c.mergedInto && pcsLive(c.kind).find(function(x) { return pcsKey(x.name) === pcsKey(name); });
+    if (same) {
+      c.mergedInto = same.id; c.mergedAt = Date.now(); c.mergedBy = 'import';
+      same.aliases = (same.aliases || []).concat([name], spell).filter(function(a, i, arr) {
+        return a.toLowerCase() !== same.name.toLowerCase() && arr.findIndex(function(z) { return z.toLowerCase() === a.toLowerCase(); }) === i;
+      }).slice(-PCS_ALIASES_MAX);
+    }
+    (store || (store = pcsStore())).push(c);
+    have[c.id] = true; n++;
+  });
+  return n;
+}
+
+/* ---------- The cut ---------- */
+/* What the reports of one cut say of its reason, fix and where, the latest set winning; read by powerCuts. */
+function pcsCutFields(ents) {
+  var set = ents.filter(function(e) { return e.downtime && e.downtime.setAt; }).sort(function(a, b) { return b.downtime.setAt - a.downtime.setAt; })[0];
+  var d = set ? set.downtime : {};
+  var closed = ents.find(function(e) { return e.downtime && e.downtime.closedHow; });
+  return { reason: d.reason || null, fix: d.fix || null, where: d.where || null, unitId: d.unitId || null, cnote: d.note || '', setAt: d.setAt || null,
+    setBy: d.setBy || '', closedHow: closed ? closed.downtime.closedHow : null, closedBy: closed ? closed.downtime.closedBy || '' : '',
+    imported: ents.length > 0 && ents.every(function(e) { return e.src === 'import'; }) };
+}
+/* The cut an entry is a report of, as Power reads it (powerCuts: the same cut reported twice is one). */
+function pcsCutOf(entryId) {
+  var e = prodIndex().byId[entryId];
+  if (!e || e.kind !== 'downtime') return null;
+  return powerCuts(e.date, e.date).find(function(c) { return c.ids.indexOf(entryId) >= 0; }) || null;
+}
+/* Where a cut hit, in words. */
+function pcsWhereWord(where, unitId) {
+  var u = unitId && typeof pltUnitById === 'function' ? pltUnitById(unitId) : null;
+  if (u) return u.name + ' · ' + pltStationName(u.station);
+  if (!where) return '';
+  return where === 'all' ? 'the whole plant' : pltStationName(where);
+}
+/* A cut's state: what it still needs. */
+function pcsNeeds(c) { return { time: !!c.open, reason: !c.reason }; }
+function pcsCutWhen(c) {
+  var at = powerClock(c.from);
+  return stockShortDate(c.date) + ' · ' + (c.to == null ? at + ', no time back' : at + ' – ' + powerClock(c.to) + (c.overnight ? ' next day' : ''));
+}
+
+/* ---------- The dialog ---------- */
+var _pcs = null;
+function pcsOpen(entryId) {
+  var c = pcsCutOf(entryId);
+  if (!c) { showToast('That power cut is no longer on the record', 'warning'); return; }
+  var idx = prodIndex(), ents = c.ids.map(function(id) { return idx.byId[id]; }).filter(Boolean);
+  // The power-in time can be set where the record has none, only bounds it, inferred it, or where it was typed here.
+  var editable = c.open || c.atLeast || c.inferred || c.closedHow === 'hand';
+  var basis = ents.map(function(e) { return e.basis || e.src || 'hand'; });
+  var r = c.reason ? pcsGet(c.reason) : null, f = c.fix ? pcsGet(c.fix) : null;
+  _pcs = { ids: c.ids.slice(), date: c.date, from: c.from, toMin: c.to, editable: editable, basis: basis, open: c.open,
+    to: editable && c.to != null && !c.open ? prodHhmm(c.to % 1440) : '',
+    reason: { text: r ? r.name : '', id: r ? r.id : null, keepNew: false, touched: false },
+    fix: { text: f ? f.name : '', id: f ? f.id : null, keepNew: false, touched: false },
+    // A cut that says nothing of where it hit is taken to have stopped the whole plant, as a cut of the supply does; a reason
+    // known for one place moves it there (pcsSync) until it is picked by hand.
+    scope: '', where: c.unitId ? 'u:' + c.unitId : c.where || 'all', whereTouched: !!(c.where || c.unitId), note: c.cnote || '', was: { where: c.unitId ? 'u:' + c.unitId : c.where || '', note: c.cnote || '' } };
+  dialogOpen(pcsDialogHtml(), { dismiss: true });
+  var first = document.getElementById(editable && c.open ? 'pcsTo' : 'pcsReason');
+  if (first && !touchScreen()) try { first.focus(); } catch (e) { /* focus is a convenience */ }
+}
+function pcsDialogHtml() {
+  var f = _pcs, cut = { date: f.date, from: f.from, to: f.toMin, overnight: f.toMin != null && f.toMin >= 1440 };
+  var src = f.basis.indexOf('register') >= 0 ? 'the register' : f.basis.indexOf('relay') >= 0 || f.basis.indexOf('pickling') >= 0 ? 'the message' : 'the record';
+  var h = '<div class="inv-dialog" data-pcs-dialog="' + escHtml(f.ids[0]) + '">' + dialogHeadHtml('Power cut · ' + escHtml(attDayName(f.date) + ' ' + formatDate(f.date)) + ', ' + escHtml(powerClock(f.from)));
+  h += '<div class="inv-fields">';
+  if (f.editable) {
+    h += '<div class="inv-field"><label class="inv-field-label" for="pcsTo">Power in at</label><input type="time" id="pcsTo" class="inv-input" data-pcs-in="to" value="' + escHtml(f.to) + '">' +
+      '<span class="inv-note">' + (f.open ? 'When the power came back in.' : 'The record only bounded or inferred this time: set it if it is known.') + '</span></div>';
+  } else {
+    h += '<div class="inv-field"><span class="inv-field-label">Power in at</span><div class="inv-row-title" data-pcs-to-fixed>' + escHtml(pcsCutWhen(cut).split(' · ')[1]) + '</div>' +
+      '<span class="inv-note">As ' + src + ' wrote it: corrected by voiding the entry in Production and entering it again.</span></div>';
+  }
+  h += '</div>' + pcsKindHtml('reason') + '<div class="inv-fields">' + pcsWhereFieldHtml() + '</div>' + pcsKindHtml('fix');
+  h += '<div class="inv-field"><label class="inv-field-label" for="pcsNote">Note</label><input id="pcsNote" class="inv-input" data-pcs-in="note" value="' + escHtml(f.note) + '" placeholder="Anything more (optional)" autocomplete="off"></div>';
+  h += '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPcsSave">Save</button></div></div>';
+  return h;
+}
+var PCS_KIND_WORDS = { reason: { label: 'Why it went', ph: 'e.g. Feeder trip at the substation', id: 'pcsReason' }, fix: { label: 'What brought it back', ph: 'e.g. Waited for the supply', id: 'pcsFix' } };
+function pcsKindHtml(kind) {
+  var w = PCS_KIND_WORDS[kind], t = _pcs[kind];
+  return '<div class="inv-field" data-pcs-field="' + kind + '"><label class="inv-field-label" for="' + w.id + '">' + w.label + '</label>' +
+    '<div class="inv-toolbar" role="group" aria-label="' + w.label + ', known" data-pcs-chips="' + kind + '">' + pcsChipsHtml(kind) + '</div>' +
+    '<input id="' + w.id + '" class="inv-input" data-pcs-in="' + kind + '" value="' + escHtml(t.text) + '" placeholder="' + escHtml(w.ph) + '" autocomplete="off">' +
+    '<div data-pcs-read="' + kind + '">' + pcsReadHtml(kind) + '</div></div>';
+}
+/* How often each entry has been used, by its id (merges followed): {id: {n, last, with: {id: n}, where: {k: n}}}. */
+function pcsUseCounts(cuts) {
+  var out = {};
+  (cuts || powerCuts()).forEach(function(c) {
+    var r = c.reason ? pcsGet(c.reason) : null, f = c.fix ? pcsGet(c.fix) : null;
+    [r, f].forEach(function(x, i) {
+      if (!x) return;
+      var u = out[x.id] || (out[x.id] = { n: 0, last: '', with: {}, where: {} });
+      u.n++;
+      if (c.date > u.last) u.last = c.date;
+      var other = i === 0 ? f : r;
+      if (other) u.with[other.id] = (u.with[other.id] || 0) + 1;
+      var wk = c.unitId ? 'u:' + c.unitId : c.where;
+      if (wk && i === 0) u.where[wk] = (u.where[wk] || 0) + 1;
+    });
+  });
+  return out;
+}
+/* The chips under a field: the list as it is, the most used first, filtered by what is typed; a fix the reason picked was
+   brought back by before leads. */
+function pcsChipsHtml(kind) {
+  var t = _pcs[kind], uses = _pcs.uses || (_pcs.uses = pcsUseCounts());
+  var list = pcsLive(kind);
+  if (!list.length) return '<span class="inv-note" data-pcs-empty>Nothing on the list yet: what is typed here starts it.</span>';
+  var key = pcsKey(t.text), r = kind === 'fix' ? pcsReadState('reason') : null;
+  var withR = r && r.c && uses[r.c.id] ? uses[r.c.id].with : {};
+  var score = function(c) {
+    if (!key || (t.id && t.id === c.id)) return 1;
+    return [c.name].concat(c.aliases || []).reduce(function(m, n) { var k = pcsKey(n); return Math.max(m, k.indexOf(key) >= 0 || key.indexOf(k) >= 0 ? 1 : pcsDice(key, k)); }, 0);
+  };
+  var shown = list.map(function(c) { return { c: c, s: score(c), n: (uses[c.id] || {}).n || 0, w: withR[c.id] || 0 }; })
+    .filter(function(x) { return x.s >= 0.5; })
+    .sort(function(a, b) { return b.w - a.w || b.s - a.s || b.n - a.n || a.c.name.localeCompare(b.c.name); }).slice(0, PCS_CHIPS);
+  if (!shown.length) return '<span class="inv-note">None on the list like it: it is saved as a new one.</span>';
+  return shown.map(function(x) {
+    return '<button type="button" class="inv-chip" data-action="invPcsPick" data-kind="' + kind + '" data-id="' + escHtml(x.c.id) + '" aria-pressed="' + (t.id === x.c.id) + '">' +
+      escHtml(x.c.name) + (x.n ? ' <span class="inv-panel-count">' + x.n + '</span>' : '') + '</button>';
+  }).join('');
+}
+/* What the typed name will be saved as: {state: 'empty' | 'known' | 'near' | 'new', c, name}. */
+function pcsReadState(kind) {
+  var t = _pcs && _pcs[kind];
+  if (!t || !pcsClean(t.text)) return { state: 'empty' };
+  if (t.id) { var p = pcsGet(t.id); if (p && pcsKey(p.name) === pcsKey(t.text)) return { state: 'known', c: p }; }
+  var m = pcsMatch(t.text, kind);
+  if (m && m.how === 'exact') return { state: 'known', c: m.c };
+  if (m && !t.keepNew) return { state: 'near', c: m.c };
+  return { state: 'new', name: pcsCanon(t.text) };
+}
+function pcsReadHtml(kind) {
+  var st = pcsReadState(kind), uses = (_pcs.uses || {});
+  if (st.state === 'empty') return '';
+  if (st.state === 'known') {
+    var n = (uses[st.c.id] || {}).n || 0;
+    return '<div class="inv-note" data-pcs-state="known">Saved as <strong>' + escHtml(st.c.name) + '</strong>' +
+      (kind === 'reason' ? ' · ' + escHtml(pcsScopeWord(st.c.scope)) : '') + (n ? ' · ' + todoPlural(n, 'cut') + ' before' : '') + '</div>';
+  }
+  if (st.state === 'near') {
+    return '<div class="inv-note" data-pcs-state="near">Read as <strong>' + escHtml(st.c.name) + '</strong>, already on the list. ' +
+      '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invPcsKeepNew" data-kind="' + kind + '">Keep as new</button></div>';
+  }
+  var h = '<div class="inv-note" data-pcs-state="new">New: <strong>' + escHtml(st.name) + '</strong>, added to the list as written here.</div>';
+  if (kind === 'reason') {
+    h += '<div class="inv-field-label inv-mt-8">Where does it start?</div><div class="inv-seg inv-seg-fit" role="group" aria-label="Where it starts" data-pcs-scope>' +
+      PCS_SCOPES.map(function(s) { return '<button type="button" class="inv-seg-btn" data-action="invPcsScope" data-scope="' + s[0] + '" aria-pressed="' + (_pcs.scope === s[0]) + '"' + (s[2] ? ' title="' + escHtml(s[2]) + '"' : '') + '>' + s[1] + '</button>'; }).join('') + '</div>';
+  }
+  return h;
+}
+function pcsWhereFieldHtml() {
+  var f = _pcs, units = typeof pltUnits === 'function' ? pltUnits() : [];
+  var opt = function(v, label) { return '<option value="' + escHtml(v) + '"' + (f.where === v ? ' selected' : '') + '>' + escHtml(label) + '</option>'; };
+  var h = '<div class="inv-field"><label class="inv-field-label" for="pcsWhere">Where it hit</label><select id="pcsWhere" class="inv-select" data-pcs-in="where">' +
+    opt('', 'Not said') + opt('all', 'The whole plant');
+  PLT_STATIONS.forEach(function(s) {
+    var mine = units.filter(function(u) { return u.station === s[0]; });
+    h += opt(s[0], s[1] + (s[0] === 'power' ? ' (the panel and supply equipment)' : ''));
+    if (mine.length) h += '<optgroup label="' + escHtml(s[1] + ': a unit') + '">' + mine.map(function(u) { return opt('u:' + u.id, u.name + ' · ' + s[1]); }).join('') + '</optgroup>';
+  });
+  return h + '</select></div>';
+}
+/* A field's chips and its reading, drawn again as it is typed in; the field itself is never replaced. */
+function pcsSync(kind) {
+  var dlg = document.querySelector('[data-pcs-dialog]');
+  if (!dlg || !_pcs) return;
+  var ch = dlg.querySelector('[data-pcs-chips="' + kind + '"]'), rd = dlg.querySelector('[data-pcs-read="' + kind + '"]');
+  if (ch) ch.innerHTML = pcsChipsHtml(kind);
+  if (rd) rd.innerHTML = pcsReadHtml(kind);
+  if (kind === 'reason') {
+    pcsSync('fix');
+    // A reason known for where it hits: Where it hit follows it, until it is picked by hand.
+    var st = pcsReadState('reason'), u = st.c && (_pcs.uses || {})[st.c.id];
+    if (!_pcs.whereTouched && u) {
+      var top = Object.keys(u.where).sort(function(a, b) { return u.where[b] - u.where[a]; })[0];
+      var sel = dlg.querySelector('#pcsWhere');
+      if (top && sel && Array.prototype.some.call(sel.options, function(o) { return o.value === top; })) { sel.value = top; _pcs.where = top; }
+    }
+  }
+}
+function pcsOnInput(t) {
+  if (!_pcs || !t || !t.dataset || !t.dataset.pcsIn) return false;
+  var k = t.dataset.pcsIn;
+  if (k === 'reason' || k === 'fix') {
+    var f = _pcs[k];
+    f.text = t.value; f.touched = true; f.keepNew = false;
+    if (f.id) { var p = pcsGet(f.id); if (!p || pcsKey(p.name) !== pcsKey(f.text)) f.id = null; }
+    pcsSync(k);
+  } else if (k === 'to') _pcs.to = t.value;
+  else if (k === 'note') _pcs.note = t.value;
+  return true;
+}
+function pcsOnChange(t) {
+  if (!_pcs || !t || !t.dataset || !t.dataset.pcsIn) return false;
+  if (t.dataset.pcsIn === 'where') { _pcs.where = t.value; _pcs.whereTouched = true; return true; }
+  if (t.dataset.pcsIn === 'to') { _pcs.to = t.value; return true; }
+  return t.dataset.pcsIn === 'reason' || t.dataset.pcsIn === 'fix' || t.dataset.pcsIn === 'note';
+}
+function pcsPick(kind, id) {
+  var c = pcsGet(id);
+  if (!_pcs || !c) return;
+  var f = _pcs[kind];
+  // A chip pressed again lets it go.
+  if (f.id === c.id && pcsKey(f.text) === pcsKey(c.name)) { f.id = null; f.text = ''; }
+  else { f.id = c.id; f.text = c.name; }
+  f.touched = true; f.keepNew = false;
+  var inp = document.getElementById(PCS_KIND_WORDS[kind].id);
+  if (inp) inp.value = f.text;
+  pcsSync(kind);
+}
+/* The name a field will be saved under: {id} known, {text, keepNew, scope} new, null when empty. */
+function pcsFieldResult(kind) {
+  var st = pcsReadState(kind), f = _pcs[kind];
+  if (st.state === 'empty') return null;
+  if (st.state === 'known' || st.state === 'near') return { id: st.c.id, text: f.text };
+  return { text: f.text, keepNew: true };
+}
+async function pcsSave() {
+  var f = _pcs;
+  if (!f) return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'complete a power cut'))) return;   // the guard (guard.js): a floor entry
+  if (_pcs !== f) return;
+  var to = f.editable ? String(f.to || '').trim() : '';
+  var toMin = to ? relayParseHhmm(to) : null;
+  if (to && toMin == null) { showToast('Enter the power-in time as hh:mm', 'error'); return; }
+  if (toMin != null && toMin === f.from % 1440) { showToast('The power came back the minute it went: check the time', 'error'); return; }
+  // A power back earlier on the clock than the cut ran overnight, or is a slip: asked, never assumed (as the hand form asks).
+  if (toMin != null && toMin < f.from % 1440) {
+    var ok = await uiConfirm({ title: 'Did the power stay off overnight?', body: 'The power came back at ' + relayClockLabel(toMin) + ', earlier on the clock than the cut at ' +
+      relayClockLabel(f.from) + '. Saved as it is, the cut ran overnight: ' + powerDur(toMin + 1440 - f.from % 1440) + '. Check the time if it did not.', okLabel: 'Yes, overnight' });
+    if (!ok || _pcs !== f) return;
+  }
+  var r = pcsFieldResult('reason'), x = pcsFieldResult('fix');
+  var whereNow = f.where || '', note = pcsClean(f.note);
+  // Where it hit counts as a change only once picked: its default (the whole plant) is saved with something else, never alone.
+  var changed = toMin != null || f.reason.touched || f.fix.touched || (f.whereTouched && whereNow !== f.was.where) || note !== pcsClean(f.was.note);
+  if (!changed) { showToast('Nothing to save: enter the power-in time, why it went or what brought it back', 'warning'); return; }
+  var by = pcsWho(), now = Date.now();
+  var rid = r ? (r.id ? pcsLearn('reason', r.text, { id: r.id }) : pcsLearn('reason', r.text, { keepNew: true, scope: f.scope })) : null;
+  var fid = x ? (x.id ? pcsLearn('fix', x.text, { id: x.id }) : pcsLearn('fix', x.text, { keepNew: true })) : null;
+  var unitId = whereNow.indexOf('u:') === 0 ? whereNow.slice(2) : null;
+  var u = unitId && typeof pltUnitById === 'function' ? pltUnitById(unitId) : null;
+  var where = u ? u.station : whereNow || null;
+  var idx = prodIndex(), n = 0;
+  f.ids.forEach(function(id) {
+    var e = idx.byId[id];
+    if (!e || e.voidedAt) return;
+    var d = Object.assign({ cause: 'power' }, e.downtime || {});
+    if (toMin != null) {
+      e.to = prodHhmm(toMin);
+      d.open = false; delete d.atLeast; delete d.inferred;
+      d.closedAt = now; d.closedBy = by; d.closedHow = 'hand';
+    }
+    if (f.reason.touched) { if (rid) d.reason = rid; else delete d.reason; }
+    if (f.fix.touched) { if (fid) d.fix = fid; else delete d.fix; }
+    if (where) d.where = where; else delete d.where;
+    if (unitId) d.unitId = unitId; else delete d.unitId;
+    if (note) d.note = note; else delete d.note;
+    d.setAt = now; d.setBy = by;
+    e.downtime = d;
+    n++;
+  });
+  if (!n) { showToast('That power cut is no longer on the record', 'warning'); closeOverlay(); _pcs = null; return; }
+  _pcs = null;
+  prodTouch();
+  saveState();
+  closeOverlay();
+  tabRedrawActive();
+  showToast(toMin != null ? 'Power cut completed: back at ' + relayClockLabel(toMin) : 'Saved', 'success');
+}
+
+/* ---------- Read for the plant ---------- */
+/* Every cause, fix and place over the record, with what each cost (powerAnalysis' cuts carry their damage). */
+function pcsAnalysis(a) {
+  a = a || powerAnalysis();
+  var today = localDateStr(), from30 = isoAddDays(today, -29), from14 = isoAddDays(today, -(PCS_ASK_DAYS - 1));
+  var reasons = {}, fixes = {}, places = {}, t = { cuts: a.cuts.length, reasoned: 0, open: 0, grid: 0, plant: 0, unplaced: 0, dmgReasoned: 0, dmgNone: 0, none: 0, minNone: 0 };
+  var bandOf = function(c) { var b = a.bands.find(function(x) { return c.from >= x.from && c.from < x.to; }); return b ? b.label : ''; };
+  var complete = [];
+  a.cuts.forEach(function(c) {
+    var dmg = c.cost ? c.cost.total : 0, r = c.reason ? pcsGet(c.reason) : null, f = c.fix ? pcsGet(c.fix) : null, in30 = c.date >= from30;
+    if (c.open) t.open++;
+    if (r) {
+      t.reasoned++; t.dmgReasoned += dmg;
+      if (r.scope === 'grid') t.grid++; else if (r.scope === 'plant') t.plant++; else t.unplaced++;
+      var e = reasons[r.id] || (reasons[r.id] = { c: r, n: 0, n30: 0, dmg: 0, dmg30: 0, min: 0, open: 0, bands: {}, fixes: {}, where: {}, last: '' });
+      e.n++; e.dmg += dmg; e.min += c.min || 0; if (c.open) e.open++;
+      if (in30) { e.n30++; e.dmg30 += dmg; }
+      if (c.date > e.last) e.last = c.date;
+      var bd = bandOf(c); if (bd) e.bands[bd] = (e.bands[bd] || 0) + 1;
+      if (f) e.fixes[f.id] = (e.fixes[f.id] || 0) + 1;
+      var wk = c.unitId ? 'u:' + c.unitId : c.where;
+      if (wk) e.where[wk] = (e.where[wk] || 0) + 1;
+    } else { t.none++; t.dmgNone += dmg; t.minNone += c.min || 0; }
+    if (f) {
+      var x = fixes[f.id] || (fixes[f.id] = { c: f, n: 0, mins: [], reasons: {} });
+      x.n++;
+      if (c.min != null && !c.atLeast) x.mins.push(c.min);
+      if (r) x.reasons[r.id] = (x.reasons[r.id] || 0) + 1;
+    }
+    var pk = c.where || (c.unitId ? 'unit' : null);
+    if (pk) {
+      var st = c.unitId && typeof pltUnitById === 'function' && pltUnitById(c.unitId) ? pltUnitById(c.unitId).station : c.where;
+      var p = places[st] || (places[st] = { key: st, n: 0, n30: 0, plant30: 0, dmg: 0, min: 0, units: {} });
+      p.n++; p.dmg += dmg; p.min += c.min || 0;
+      if (in30) { p.n30++; if (r && r.scope !== 'grid') p.plant30++; }
+      if (c.unitId) p.units[c.unitId] = (p.units[c.unitId] || 0) + 1;
+    }
+    var needs = pcsNeeds(c);
+    if (!c.imported && ((needs.time && c.date >= isoAddDays(today, -(PCS_OPEN_DAYS - 1))) || (needs.reason && c.date >= from14))) complete.push(c);
+  });
+  var rlist = Object.keys(reasons).map(function(k) { var e = reasons[k]; e.dmg = gstRound(e.dmg); e.dmg30 = gstRound(e.dmg30); e.tone = pcsTone(e.c.scope, e.n30); return e; })
+    .sort(function(p, q) { return q.dmg - p.dmg || q.n - p.n; });
+  var flist = Object.keys(fixes).map(function(k) { var x = fixes[k]; x.median = x.mins.length ? numMedian(x.mins) : null; return x; })
+    .sort(function(p, q) { return (p.median == null ? 1e9 : p.median) - (q.median == null ? 1e9 : q.median) || q.n - p.n; });
+  var plist = Object.keys(places).map(function(k) { var p = places[k]; p.dmg = gstRound(p.dmg); return p; });
+  // Every open cut, newest first, and a recent one with no reason: what Complete asks for.
+  var openAll = a.cuts.filter(function(c) { return c.open; });
+  return { a: a, t: t, reasons: rlist, fixes: flist, places: plist, complete: complete.reverse(), openAll: openAll.reverse(), from30: from30 };
+}
+
+/* ---------- Drawn ---------- */
+/* The cuts to complete: a row each with its Complete. `list` is cuts (powerCuts' shape). */
+function pcsCompleteRowsHtml(list) {
+  return list.map(function(c) {
+    var needs = pcsNeeds(c), r = c.reason ? pcsGet(c.reason) : null;
+    var meta = [needs.time ? 'no time back' : powerDur(c.min), r ? r.name : 'no reason', c.imported ? 'from the imported log' : ''].filter(Boolean).join(' · ');
+    return '<div class="inv-row inv-row-2 inv-row-flow" data-pcs-cut="' + escHtml(c.ids[0]) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(pcsCutWhen(c)) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + uiDot(needs.time ? 'warning' : 'info', escHtml(meta)) + '</span></span><span class="inv-row-end inv-row-actions">' +
+      '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(c.ids[0]) + '">Complete</button></span></div>';
+  });
+}
+/* Under a cut on Power → Cuts: why it went, where it hit and what brought it back, with the one button that completes it. */
+function pcsCutWhyHtml(c) {
+  var r = c.reason ? pcsGet(c.reason) : null, f = c.fix ? pcsGet(c.fix) : null, where = pcsWhereWord(c.where, c.unitId);
+  var bits = [r ? r.name + ' (' + pcsScopeWord(r.scope) + ')' : 'no reason given', where ? 'hit ' + where : '', f ? 'brought back by ' + f.name : '', c.cnote || ''].filter(Boolean);
+  var label = c.open ? 'Complete' : r || f ? 'Edit' : 'Add reason';
+  return '<div class="inv-row inv-row-2 inv-row-flow" data-pcs-why="' + escHtml(c.ids[0]) + '"><span class="inv-row-main"><span class="inv-row-title">' + (c.open ? 'No time back yet' : 'Why it went') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span><span class="inv-row-end">' +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(c.ids[0]) + '">' + label + '</button></span></div>';
+}
+/* Power → Overview and Cuts: what is left to complete, led by the cuts with no time back. Nothing when nothing is. */
+function pcsCompleteHtml(z) {
+  var seen = {}, list = [];
+  z.openAll.concat(z.complete).forEach(function(c) { var k = c.ids[0]; if (!seen[k]) { seen[k] = true; list.push(c); } });
+  if (!list.length) return '';
+  return '<div class="inv-panel inv-panel-flush" id="pcsComplete"><div class="inv-panel-head"><span class="inv-panel-title">To complete <span class="inv-panel-count">' + list.length + '</span></span></div>' +
+    uiMoreHtml('pcs-complete', pcsCompleteRowsHtml(list), { n: 5, noun: 'cuts' }) + '</div>';
+}
+/* A cause's ranked bar: what it cost, its count and dark time, where it starts, when it comes and what brought it back. */
+function pcsReasonRow(e) {
+  var band = Object.keys(e.bands).sort(function(p, q) { return e.bands[q] - e.bands[p]; })[0];
+  var fx = Object.keys(e.fixes).sort(function(p, q) { return e.fixes[q] - e.fixes[p]; })[0];
+  var where = Object.keys(e.where).sort(function(p, q) { return e.where[q] - e.where[p]; })[0];
+  var sub = [todoPlural(e.n, 'cut') + (e.n30 ? ' (' + e.n30 + ' in 30 days)' : ''), powerHours(e.min) + ' dark', pcsScopeWord(e.c.scope),
+    where ? 'hit ' + pcsWhereWord(where.indexOf('u:') === 0 ? null : where, where.indexOf('u:') === 0 ? where.slice(2) : null) : '',
+    band ? 'mostly ' + band.charAt(0).toLowerCase() + band.slice(1) : '', fx ? 'brought back by ' + pcsName(fx) : ''].filter(Boolean).join(' · ');
+  return { label: e.c.name, value: e.dmg > 0 ? e.dmg : e.n, display: e.dmg > 0 ? formatCurrency(e.dmg) : todoPlural(e.n, 'cut'), sub: sub, tone: e.tone === 'neutral' ? 'neutral' : e.tone === 'ok' ? 'good' : e.tone };
+}
+/* Power → Overview: the causes at a glance. */
+function pcsOverviewHtml(z) {
+  if (!z.t.reasoned) return '';
+  return '<div class="inv-panel" id="pcsWhy"><div class="inv-panel-head"><span class="inv-panel-title">Why they come</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTab" data-tab="causes">Causes</button></div>' +
+    chartRankedBars(z.reasons.slice(0, 5).map(pcsReasonRow), { unit: 'money' }) +
+    '<div class="inv-note inv-mt-8">' + escHtml(z.t.reasoned + ' of ' + todoPlural(z.t.cuts, 'cut') + (z.t.reasoned === 1 ? ' has' : ' have') + ' a reason; each bar is what its cuts cost.') + '</div></div>';
+}
+/* Power → Causes. */
+function pcsCausesHtml(a) {
+  var z = pcsAnalysis(a), t = z.t;
+  var share = function(n) { return t.reasoned ? Math.round(n / t.reasoned * 100) + '%' : '—'; };
+  var top = z.reasons[0];
+  var h = '<div class="inv-tiles inv-tiles-4" data-pcs-tiles>' +
+    _powerTile('With a reason', t.reasoned + '<span class="inv-tile-of">/' + t.cuts + '</span>', t.cuts ? escHtml(Math.round(t.reasoned / t.cuts * 100) + '% of the cuts on record') : 'no cut on record', '', 'reasoned') +
+    _powerTile('To complete', String(z.complete.length + z.openAll.filter(function(c) { return z.complete.indexOf(c) < 0; }).length),
+      escHtml(t.open ? t.open + ' with no time back' : 'every cut has its time back'), t.open ? 'warning' : '', 'complete') +
+    _powerTile('From the grid', share(t.grid), escHtml(t.reasoned ? t.plant + ' in the plant · ' + t.unplaced + ' not placed' : 'no reason recorded yet'), t.grid ? 'info' : '', 'grid') +
+    _powerTile('Costliest cause', top ? figWrapHtml(formatCurrency(top.dmg)) : '&mdash;', top ? escHtml(top.c.name + ' · ' + todoPlural(top.n, 'cut')) : 'none recorded yet', top ? (top.tone === 'neutral' ? '' : top.tone) : '', 'top') + '</div>';
+  h += pcsCompleteHtml(z);
+  if (!t.reasoned) {
+    return h + '<div class="inv-empty" data-pcs-none>No cut has a reason yet. Complete a cut (the time the power came back, why it went, what brought it back) ' +
+      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.</div>';
+  }
+  h += '<div class="inv-panels">';
+  h += '<div class="inv-panel" id="pcsReasons"><div class="inv-panel-head"><span class="inv-panel-title">What causes them <span class="inv-note">by what they cost</span></span></div>' +
+    chartRankedBars(z.reasons.map(pcsReasonRow), { unit: 'money' }) +
+    '<div class="inv-note inv-mt-8">' + escHtml('Coded by where it starts: red, in the plant and three times or more in 30 days; amber, in the plant; blue, from the grid; grey, not placed. ' +
+      (t.none ? todoPlural(t.none, 'cut') + ' with no reason (' + formatCurrency(gstRound(t.dmgNone)) + ') ' + (t.none === 1 ? 'is' : 'are') + ' not drawn.' : '')) + '</div></div>';
+  h += pcsPlantMapHtml(z);
+  h += '<div class="inv-panel" id="pcsFixes"><div class="inv-panel-head"><span class="inv-panel-title">What brings it back <span class="inv-note">fastest first</span></span></div>' +
+    (z.fixes.length ? chartRankedBars(z.fixes.map(function(x) {
+      var rs = Object.keys(x.reasons).sort(function(p, q) { return x.reasons[q] - x.reasons[p]; }).slice(0, 2).map(function(id) { return pcsName(id) + ' (' + x.reasons[id] + ')'; });
+      return { label: x.c.name, value: x.median != null ? x.median : 0, display: x.median != null ? 'back in ' + powerDur(Math.round(x.median)) : 'no time back yet',
+        sub: [todoPlural(x.n, 'cut'), rs.length ? 'for ' + rs.join(', ') : ''].filter(Boolean).join(' · '), tone: 'neutral' };
+    }), { unit: 'count' }) + '<div class="inv-note inv-mt-8">The middle of the minutes from the cut to the power in, over the cuts each fix brought back.</div>'
+      : '<div class="inv-empty">No fix recorded yet: what brought the power back is asked with the reason.</div>') + '</div>';
+  h += pcsListHtml('reason') + pcsListHtml('fix');
+  return h + '</div>';
+}
+/* Where the cuts hit, station by station, in the plant's order: the whole plant first (a cut of the supply stops everything),
+   then the lines, then the supporting stations. Coded by the cuts in the last 30 days that started in the plant. */
+function pcsPlantMapHtml(z) {
+  var by = {};
+  z.places.forEach(function(p) { by[p.key] = p; });
+  var keys = ['all'].concat(PLT_STATIONS.map(function(s) { return s[0]; })).filter(function(k) {
+    return by[k] || (PLT_LINE_STATIONS[k] || k === 'pick');
+  });
+  var tiles = keys.map(function(k) {
+    var p = by[k] || { n: 0, n30: 0, plant30: 0, dmg: 0, min: 0, units: {} };
+    var tone = k === 'all' ? (p.n30 ? 'info' : 'ok') : p.plant30 >= PCS_RECUR ? 'danger' : p.plant30 ? 'warning' : 'ok';
+    var units = Object.keys(p.units).map(function(id) { var u = typeof pltUnitById === 'function' ? pltUnitById(id) : null; return (u ? u.name : 'a unit') + ' ' + p.units[id] + '×'; });
+    var sub = p.n ? [p.n30 + ' in 30 days', powerHours(p.min) + ' dark', p.dmg ? formatCurrency(p.dmg) : ''].concat(units).filter(Boolean).join(' · ') : 'no cut tied to it';
+    return '<div class="inv-tile' + (p.n ? ' inv-tile-' + tone : '') + '" data-pcs-place="' + k + '"><div class="inv-tile-label">' + escHtml(k === 'all' ? 'The whole plant' : pltStationName(k)) + '</div>' +
+      '<div class="inv-tile-value">' + p.n + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
+  });
+  var untied = z.t.reasoned - z.places.reduce(function(s, p) { return s + p.n; }, 0);
+  return '<div class="inv-panel inv-panel-flush" id="pcsPlaces"><div class="inv-panel-head"><span class="inv-panel-title">Where they hit</span>' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltOpen">The plant</button></div>' +
+    '<div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div>' +
+    '<div class="inv-panel-body inv-note">' + escHtml('Cuts tied to each place. A line is red where three or more cuts started in the plant in 30 days, amber for one or two; ' +
+      'the whole plant is blue, the supply’s. ' + (untied > 0 ? todoPlural(untied, 'cut') + ' with a reason ' + (untied === 1 ? 'does' : 'do') + ' not say where it hit.' : '')) + '</div></div>';
+}
+/* The list itself: each entry, its uses and spellings; renamed, placed or merged by the owner. */
+function pcsListHtml(kind) {
+  var list = pcsLive(kind), uses = pcsUseCounts();
+  if (!list.length) return '';
+  var rows = list.map(function(c) { return { c: c, u: uses[c.id] || { n: 0, last: '' } }; }).sort(function(p, q) { return q.u.n - p.u.n || p.c.name.localeCompare(q.c.name); }).map(function(x) {
+    var c = x.c, sp = (c.aliases || []).length;
+    var meta = [todoPlural(x.u.n, 'cut'), x.u.last ? 'last ' + stockShortDate(x.u.last) : '', kind === 'reason' ? pcsScopeWord(c.scope) : '', sp ? todoPlural(sp, 'spelling') + ' kept' : ''].filter(Boolean).join(' · ');
+    return '<div class="inv-row inv-row-2" data-pcs-entry="' + escHtml(c.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap"' + (sp ? ' title="' + escHtml('Typed as: ' + c.aliases.join(' · ')) + '"' : '') + '>' + escHtml(meta) + '</span></span>' +
+      '<span class="inv-row-end">' + (kind === 'reason' ? uiDot(pcsTone(c.scope, 0), escHtml(c.scope === 'grid' ? 'Grid' : c.scope === 'plant' ? 'Plant' : 'Not placed')) : '') +
+      (pcsCanEdit() ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPcsEdit" data-id="' + escHtml(c.id) + '">Edit</button>' : '') + '</span></div>';
+  });
+  return '<div class="inv-panel inv-panel-flush" id="pcsList-' + kind + '"><div class="inv-panel-head"><span class="inv-panel-title">' + (kind === 'reason' ? 'Reasons' : 'Fixes') +
+    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + uiMoreHtml('pcs-list-' + kind, rows, { n: 10, noun: kind === 'reason' ? 'reasons' : 'fixes' }) + '</div>';
+}
+
+/* ---------- The list, edited by the owner ---------- */
+function pcsCanEdit() { return typeof grdIsOwner !== 'function' || !grdOn() || grdIsOwner(); }
+function pcsEditOpen(id) {
+  if (!pcsCanEdit()) { uiAlert({ title: 'The owner’s to change', body: 'The list of reasons and fixes is renamed and merged by the owner.' }); return; }
+  if (!grdGate('settings', 'edit the power causes', function() { pcsEditOpen(id); })) return;
+  var c = pcsGet(id);
+  if (!c) return;
+  var others = pcsLive(c.kind).filter(function(x) { return x.id !== c.id; }).sort(function(p, q) { return p.name.localeCompare(q.name); });
+  var h = '<div class="inv-dialog" data-pcs-edit="' + escHtml(c.id) + '">' + dialogHeadHtml(c.kind === 'reason' ? 'A reason' : 'A fix') + '<div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="pcsEditName">Name</label><input id="pcsEditName" class="inv-input" value="' + escHtml(c.name) + '" autocomplete="off">' +
+    '<span class="inv-note">Written the one way when saved; the old name is kept as a spelling.</span></div>';
+  if (c.kind === 'reason') h += '<div class="inv-field"><label class="inv-field-label" for="pcsEditScope">Where it starts</label><select id="pcsEditScope" class="inv-select">' +
+    PCS_SCOPES.map(function(s) { return '<option value="' + s[0] + '"' + ((c.scope || '') === s[0] ? ' selected' : '') + '>' + s[1] + (s[2] ? ': ' + s[2] : '') + '</option>'; }).join('') + '</select></div>';
+  if (others.length) h += '<div class="inv-field"><label class="inv-field-label" for="pcsEditMerge">Merge into</label><select id="pcsEditMerge" class="inv-select"><option value="">Keep it on its own</option>' +
+    others.map(function(x) { return '<option value="' + escHtml(x.id) + '">' + escHtml(x.name) + '</option>'; }).join('') + '</select>' +
+    '<span class="inv-note">Every cut that named it reads the one it joins, and its spellings go with it.</span></div>';
+  h += '</div>' + ((c.aliases || []).length ? '<div class="inv-note">Typed as: ' + escHtml(c.aliases.join(' · ')) + '</div>' : '') +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPcsEditSave" data-id="' + escHtml(c.id) + '">Save</button></div></div>';
+  dialogOpen(h, { dismiss: true });
+}
+function pcsEditSave(id) {
+  if (!pcsCanEdit() || !grdGate('settings', 'edit the power causes', function() { pcsEditSave(id); })) return;
+  var c = pcsGet(id);
+  if (!c) { closeOverlay(); return; }
+  var v = function(k) { var el = document.getElementById(k); return el ? el.value : ''; };
+  var into = v('pcsEditMerge'), name = pcsCanon(v('pcsEditName'));
+  if (!name) { showToast('A name is needed', 'error'); return; }
+  if (into) {
+    var b = pcsGet(into);
+    if (!b || b.id === c.id) return;
+    b.aliases = (b.aliases || []).concat([c.name], c.aliases || []).filter(function(a, i, arr) {
+      return a.toLowerCase() !== b.name.toLowerCase() && arr.findIndex(function(z) { return z.toLowerCase() === a.toLowerCase(); }) === i;
+    }).slice(-PCS_ALIASES_MAX);
+    if (c.kind === 'reason' && !b.scope && c.scope) b.scope = c.scope;
+    c.mergedInto = b.id; c.mergedAt = Date.now(); c.mergedBy = pcsWho();
+    closeOverlay(); saveState(); tabRedrawActive();
+    showToast('Merged into ' + b.name, 'success');
+    return;
+  }
+  var clash = pcsLive(c.kind).find(function(x) { return x.id !== c.id && pcsKey(x.name) === pcsKey(name); });
+  if (clash) { uiAlert({ title: 'Already on the list', body: '“' + clash.name + '” is on the list. Pick it under Merge into to join the two.' }); return; }
+  if (name !== c.name) {
+    c.aliases = (c.aliases || []).concat([c.name]).filter(function(a, i, arr) {
+      return a.toLowerCase() !== name.toLowerCase() && arr.findIndex(function(z) { return z.toLowerCase() === a.toLowerCase(); }) === i;
+    }).slice(-PCS_ALIASES_MAX);
+    c.name = name;
+  }
+  if (c.kind === 'reason') { var sc = v('pcsEditScope'); c.scope = sc === 'grid' || sc === 'plant' ? sc : ''; }
+  c.editedAt = Date.now(); c.editedBy = pcsWho();
+  closeOverlay(); saveState(); tabRedrawActive();
+  showToast('Saved', 'success');
+}
+
+/* ---------- The plant register's side ---------- */
+/* The cuts tied to a unit, and to a station, over 90 days. */
+function pcsTiedTo(match) {
+  var today = localDateStr(), from = isoAddDays(today, -89), n = 0, min = 0, last = '', reasons = {};
+  powerCuts(from, today).forEach(function(c) {
+    if (!match(c)) return;
+    n++; min += c.min || 0; if (c.date > last) last = c.date;
+    if (c.reason) { var r = pcsGet(c.reason); if (r) reasons[r.name] = (reasons[r.name] || 0) + 1; }
+  });
+  return { n: n, min: min, last: last, reasons: Object.keys(reasons).sort(function(p, q) { return reasons[q] - reasons[p]; }) };
+}
+function pcsUnitHtml(u) {
+  var s = pcsTiedTo(function(c) { return c.unitId === u.id; });
+  if (!s.n) return '';
+  return '<div class="inv-row inv-row-2" data-pcs-unit><span class="inv-row-main"><span class="inv-row-title">' + escHtml(todoPlural(s.n, 'power cut') + ' tied to it in 90 days') + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml([powerHours(s.min) + ' dark', 'last ' + formatDate(s.last), s.reasons.length ? s.reasons.slice(0, 2).join(', ') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+    '<span class="inv-row-end">' + uiDot(s.n >= PCS_RECUR ? 'danger' : 'warning', s.n >= PCS_RECUR ? 'Keeps cutting' : 'Cut') + '</span></div>';
+}
+function pcsStationNote(station) {
+  var s = pcsTiedTo(function(c) { return c.where === station || (c.unitId && typeof pltUnitById === 'function' && pltUnitById(c.unitId) && pltUnitById(c.unitId).station === station); });
+  if (!s.n) return '';
+  return '<div class="inv-panel-body inv-note" data-pcs-station="' + station + '">' + escHtml(todoPlural(s.n, 'power cut') + ' hit ' + pltStationName(station) + ' in 90 days' +
+    (s.reasons.length ? ': ' + s.reasons.slice(0, 2).join(', ') : '') + '.') +
+    ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTabGo" data-tab="causes">Causes</button></div>';
+}
+
+/* ---------- The To-do ---------- */
+TODO_RULES.push(['powerComplete', 'Power: a cut with no time back, or no reason']);
+TODO_CHECK_DEFAULTS.powerComplete = true;
+TODO_RULE_FNS.powerComplete = function() {
+  var z = todoPassMemo('pcsAnalysis', function() { return pcsAnalysis(); });
+  var list = z.complete;
+  if (!list.length) return [];
+  var noTime = list.filter(function(c) { return c.open; }), noWhy = list.filter(function(c) { return !c.reason; });
+  var first = noTime[0] || list[0];
+  return [{ key: 'powerComplete', rule: 'powerComplete', tone: noTime.length ? 'amber' : 'info',
+    title: list.length === 1 ? 'Complete the power cut of ' + stockShortDate(first.date) + ', ' + powerClock(first.from) : 'Complete ' + list.length + ' power cuts',
+    sub: [noTime.length ? 'no time back on ' + noTime.length : '', noWhy.length ? 'no reason on ' + noWhy.length : ''].filter(Boolean).join(' · '),
+    why: 'Power · the cuts', cuts: list.map(function(c) { return c.ids[0]; }),
+    facts: list.slice(0, 6).map(function(c) { var nd = pcsNeeds(c); return [pcsCutWhen(c), [nd.time ? 'no time back' : '', nd.reason ? 'no reason' : ''].filter(Boolean).join(', ')]; })
+      .concat(list.length > 6 ? [['And', (list.length - 6) + ' more']] : []),
+    clears: 'Clears itself when each cut has its time back (in the last ' + PCS_OPEN_DAYS + ' days) and a reason (in the last ' + PCS_ASK_DAYS + ' days). History imported from the log is never asked.',
+    go: { kind: 'powerCut', id: first.ids[0] }, goLabel: 'Complete',
+    sig: list.map(function(c) { return c.ids[0] + (c.open ? 'o' : '') + (c.reason ? '' : 'r'); }).join(',') + '|' + (noTime.length ? 'amber' : 'info') }];
+};
+TODO_RULES.push(['powerCause', 'Power: one cause keeps cutting the power']);
+TODO_CHECK_DEFAULTS.powerCause = true;
+TODO_RULE_FNS.powerCause = function() {
+  var z = todoPassMemo('pcsAnalysis', function() { return pcsAnalysis(); });
+  return z.reasons.filter(function(e) { return e.c.scope === 'grid' ? e.n30 >= PCS_RECUR_RED : e.n30 >= PCS_RECUR; }).map(function(e) {
+    var grid = e.c.scope === 'grid', fx = Object.keys(e.fixes).sort(function(p, q) { return e.fixes[q] - e.fixes[p]; })[0];
+    var where = Object.keys(e.where).sort(function(p, q) { return e.where[q] - e.where[p]; })[0];
+    var whereWord = where ? pcsWhereWord(where.indexOf('u:') === 0 ? null : where, where.indexOf('u:') === 0 ? where.slice(2) : null) : '';
+    return { key: 'powerCause:' + e.c.id, rule: 'powerCause', tone: !grid && e.n30 >= PCS_RECUR_RED ? 'red' : 'amber', amount: e.dmg30, reasonId: e.c.id,
+      unitId: where && where.indexOf('u:') === 0 ? where.slice(2) : null, scope: e.c.scope || '',
+      title: '“' + e.c.name + '” cut the power ' + e.n30 + ' times in 30 days',
+      sub: [e.dmg30 ? formatCurrency(e.dmg30) + ' in damage' : '', pcsScopeWord(e.c.scope), whereWord ? 'hit ' + whereWord : '', fx ? 'brought back by ' + pcsName(fx) : ''].filter(Boolean).join(' · '),
+      why: 'Power · the causes',
+      facts: [['Cuts in 30 days', String(e.n30)], ['Damage in 30 days', formatCurrency(e.dmg30)], ['Where it starts', pcsScopeWord(e.c.scope)]]
+        .concat(whereWord ? [['Where it hit', whereWord]] : []).concat(fx ? [['What brought it back', pcsName(fx)]] : []),
+      clears: 'Clears itself once it has come fewer than ' + (grid ? PCS_RECUR_RED : PCS_RECUR) + ' times in the last 30 days.',
+      go: { kind: 'power', tab: 'causes' }, goLabel: 'Causes', sig: e.c.id + '|' + e.n30 + '|' + (!grid && e.n30 >= PCS_RECUR_RED ? 'red' : 'amber') };
+  });
+};
+
+function pcsAction(action, btn) {
+  switch (action) {
+    case 'invPcsOpen': pcsOpen(btn.dataset.id); return true;
+    case 'invPcsPick': pcsPick(btn.dataset.kind, btn.dataset.id); return true;
+    case 'invPcsKeepNew': if (_pcs && _pcs[btn.dataset.kind]) { _pcs[btn.dataset.kind].keepNew = true; pcsSync(btn.dataset.kind); } return true;
+    case 'invPcsScope':
+      if (_pcs) {
+        _pcs.scope = btn.dataset.scope || '';
+        document.querySelectorAll('[data-pcs-scope] [data-action="invPcsScope"]').forEach(function(b) { b.setAttribute('aria-pressed', String((b.dataset.scope || '') === _pcs.scope)); });
+      }
+      return true;
+    case 'invPcsSave': pcsSave(); return true;
+    case 'invPcsEdit': pcsEditOpen(btn.dataset.id); return true;
+    case 'invPcsEditSave': pcsEditSave(btn.dataset.id); return true;
+    case 'invPowerTabGo': powerSetTab(btn.dataset.tab); switchTab('pagePower'); return true;
+  }
+  return false;
+}
 /* ===== REPORTS (Insights → Reports; on the phone from Pulse and search) =====
    Owner, 1 Oct 2026: "I would also like to have a daily weekly and a monthly quarterly yearly report generator". A report
    is a document drawn from the data every time it is shown or printed, the Power case's contract (power.js): rptHtml()
@@ -53069,6 +54492,7 @@ function onDocClick(e) {
       if (ckAction(action, btn)) break;
       if (homeAction(action, btn)) break;
       if (powerAction(action, btn)) break;
+      if (pcsAction(action, btn)) break;
       if (kbAction(action, btn)) break;
       if (qtAction(action, btn)) break;
       if (rptAction(action, btn)) break;
@@ -53144,7 +54568,7 @@ function onDocChange(e) {
   if (aregOnChange(e.target)) return;
   if (plannerOnChange(e.target)) return;
   if (prodOnChange(e.target)) return;
-  if (qtOnChange(e.target) || prsOnChange(e.target)) return;
+  if (qtOnChange(e.target) || prsOnChange(e.target) || pcsOnChange(e.target)) return;
   // A line's fields answer to their data-action; its unit <select> to data-change, since a select carrying an
   // action would run it on the click that opens it.
   const el = e.target.closest('[data-action="invUpdateLine"], [data-change="invUpdateLine"]');
@@ -53353,7 +54777,7 @@ document.addEventListener('input', function(e) {
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
   if (prodOnInput(e.target)) return;
-  if (qtOnInput(e.target) || qtSearchInput(e.target) || prsOnInput(e.target)) return;
+  if (qtOnInput(e.target) || qtSearchInput(e.target) || prsOnInput(e.target) || pcsOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);
   }
@@ -53927,9 +55351,11 @@ function renderSidebar() {
   if (existing) existing.remove();
   if (!_isDesktop) return;
   var door = function(x) { return 'data-action="invSwitchTab" data-tab="' + x.tab + '"' + (x.v ? ' data-v="' + x.v + '"' : ''); };
-  var html = '<div class="inv-side-brand"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
+  // The brand, mark and name, opens Today → Pulse (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on
+  // the top left of the screen should take us back to the pulse screen, as today takes us to the needs you screen").
+  var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Pulse"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
     '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg>' +
-    '<span>Soma Electro</span></div>' +
+    '<span>Soma Electro</span></button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-block" data-action="invAddOpen" data-shell-primary aria-keyshortcuts="A">' + wsSvg('add') +
     '<span class="inv-side-label">Add</span><kbd class="inv-kbd">A</kbd></button>' +
     '<button class="inv-side-item" data-action="invSearchOpen" aria-keyshortcuts="Control+K">' + wsSvg('search') +
@@ -53983,7 +55409,7 @@ var WS_GO_PAGE = {
   staffRoster: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
-  power: 'pagePower', powerCase: 'pagePower',
+  power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
   finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
   kb: 'pageKnow', todoLearn: 'pageTodo'
@@ -54031,6 +55457,8 @@ function wsRedraw() {
 /* A workspace's door. Add and search answer in their own modules (add.js, events.js). */
 function wsAction(action, btn) {
   if (action === 'invWsGo') { wsGo(btn.dataset.ws); return true; }
+  // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
+  if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
   return false;
 }
 /* ===== SWIPE NAVIGATION ===== */
@@ -54681,6 +56109,7 @@ function srchScreens() {
     ['reorder', 'Reorder list', 'Floor › Stock', 'order purchase buy', at('pageStock', 'reorder')],
     ['power', 'Power', 'Floor', 'power cuts electricity outage', at('pagePower', 'overview')],
     ['power-cuts', 'Power cuts', 'Floor › Power', 'cuts outages damage', at('pagePower', 'cuts')],
+    ['power-causes', 'Power causes', 'Floor › Power', 'why power cut reason fix cause breaker feeder trip restore', at('pagePower', 'causes')],
     ['power-load', 'Load & bills', 'Floor › Power', 'load kva sanctioned connection electricity bills', at('pagePower', 'load')],
     ['power-case', 'Power case', 'Floor › Power', 'case for backup generator inverter tsuisl payback', at('pagePower', 'case')],
     ['money', 'Money', 'Money · was Finance', 'finance cash overview balance', at('pageFinance', 'overview')],

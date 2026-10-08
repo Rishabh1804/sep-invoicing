@@ -284,6 +284,13 @@ function statsStoryCards(a, ctx) {
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
     : say(c1, 'danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
+  // The card as a tile on Today → Pulse (§6.21): the figure that answers it, its words, the six months as a line.
+  c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
+    title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
+    sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
+    viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
+      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: contrib != null && contrib < 0 ? 'danger' : contrib != null ? 'ok' : '' }) : '',
+    tone: contrib == null ? 'neutral' : contrib >= 0 ? 'ok' : 'danger' };
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
@@ -311,7 +318,15 @@ function statsStoryCards(a, ctx) {
   if (!body) body = say(c2, 'neutral', 'No weighed billing in the period to rank the clients by.');
   if (!c2.answer) c2.answer = { tone: 'neutral', say: 'No large account is below the full cost, and no client moved against the period before.' };
   c2.html = body;
-  c2.worst = worst && worst.vsFull < 0 ? worst : null;
+  var big = m && m.ranked.length ? m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }) : [];
+  var lead = c2.worst = worst && worst.vsFull < 0 ? worst : null;
+  var vc = lead || big[0];
+  c2.vital = vc ? { fig: Math.round(vc.kg / m.kg * 100) + '%', title: escHtml(vc.name),
+      sub: escHtml(lead ? 'of the plant at ' + formatCurrency(lead.net) + '/kg, ' + formatCurrency(-lead.vsFull) + ' under the full cost' : 'of the plant, the largest by tonnage'),
+      viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? 'danger' : i % 2 ? 'neutral-2' : 'neutral' }; }),
+        { max: m.kg, title: big.slice(0, 4).map(function(x) { return x.name + ' ' + Math.round(x.kg / m.kg * 100) + '%'; }).join(' · ') }),
+      tone: lead ? 'danger' : 'ok' }
+    : { fig: '&mdash;', title: 'No weighed billing', sub: '', viz: '', tone: 'neutral' };
   c2.mover = mover;
   cards.clients = c2;
 
@@ -327,6 +342,12 @@ function statsStoryCards(a, ctx) {
     : capPct >= 0.8 ? say(c3, 'ok', 'Busy: ' + Math.round(capPct * 100) + '% of two shifts. Growth now needs more hours or better-paying work, not more of the same.')
     : say(c3, capPct >= 0.6 ? 'warning' : 'danger', formatNum((cap - kg) / 1000, 1) + ' t of the two shifts went unused' + (avg ? ': at ₹13/kg that is ' + formatCurrency(gstRound((cap - kg) * 13)) + ' of work the plant could have taken on its fixed cost' : '') + '.');
   c3.html = body;
+  c3.vital = { fig: capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
+    title: capPct == null ? 'Nothing weighed' : capPct >= 0.8 ? 'Busy' : escHtml(formatNum((cap - kg) / 1000, 1) + ' t spare'),
+    sub: escHtml(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t, two shifts'),
+    viz: cap > 0 ? chartMeter([{ v: kg, tone: capPct != null ? figToneCapacity(capPct * 100) : 'neutral' }], { max: cap, mark: cap * 0.8,
+      title: Math.round((capPct || 0) * 100) + '% of two shifts used; the mark is 80%' }) : '',
+    tone: capPct == null ? 'neutral' : figToneCapacity(capPct * 100) };
   c3.cap = cap;
   c3.capPct = capPct;
   cards.plant = c3;
@@ -350,6 +371,13 @@ function statsStoryCards(a, ctx) {
   if (!body) body = say(c4, 'ok', 'Nothing stands out: no insight is raised on the book right now.');
   if (!c4.answer) c4.answer = { tone: uiTone(ins[0].tone), say: escHtml(ins[0].title) };
   c4.html = body;
+  c4.vital = p ? { fig: figWrapHtml(formatCurrency(p.projRev)), title: 'This month is heading for',
+      sub: escHtml('at its pace, ' + p.done + ' of ' + p.total + ' working days in, against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel),
+      viz: chartMeter([{ v: p.projRev, tone: p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok' }], { max: Math.max(p.projRev, p.prevRev), mark: p.prevRev,
+        title: formatCurrency(p.projRev) + ' at its pace against ' + formatCurrency(p.prevRev) + ' in ' + p.prevLabel }),
+      tone: p.prevRev > 0 && p.projRev < p.prevRev ? 'warning' : 'ok' }
+    : ins.length ? { fig: String(ins.length), title: ins.length === 1 ? 'insight raised' : 'insights raised', sub: escHtml(ins[0].title), viz: '', tone: uiTone(ins[0].tone) }
+    : { fig: '&mdash;', title: 'Nothing stands out', sub: '', viz: '', tone: 'ok' };
   c4.ins = ins;
   if (ins.length > 3) { c4.go = { action: 'invStatsInsightsAll' }; c4.goLabel = 'All ' + ins.length + ' insights'; }
   cards.changed = c4;
@@ -364,6 +392,12 @@ function statsStoryCards(a, ctx) {
         statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
       body += say(c5, bBook && bBook.median > 60 ? 'warning' : 'ok', 'Owed ' + formatCurrency(owed) + (bBook ? ', arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
+      var ages = finAgeing(recv), ageTone = ['ok', 'ok', 'warning', 'danger'];
+      c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
+        sub: escHtml('in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
+        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: ageTone[i] || 'danger' }; }),
+          { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
+        tone: bLast.balance < 0 ? 'danger' : bBook && bBook.median > 60 ? 'warning' : 'ok' };
       cards.cash = c5;
     } catch (e) { /* no cash story without a readable statement */ }
   }

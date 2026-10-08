@@ -7,7 +7,7 @@
  *   - STATEMENT: the ledger itself, every row with a category.
  *
  * The file is the bank's own export (Bank of Baroda OpTransactionHistoryUX5.xls), read as it is
- * by xls.js. Rows are kept in S.bank.rows, merged by id — a hash of the row's own fields, balance
+ * by xls.js, or the same statement saved from Excel as .xlsx (xlsx.js; owner, 8 Oct 2026). Rows are kept in S.bank.rows, merged by id — a hash of the row's own fields, balance
  * included, so the same row in two overlapping statements is one row. The bank writes newest
  * first; `dayIdx` keeps its order inside a day, because two rows of one day sorted by amount
  * would publish the wrong closing balance (soma-internal's 20-Aug ingest did, by ₹1,20,000).
@@ -93,10 +93,13 @@ function bankParseSheet(rows) {
   for (r = h + 1; r < rows.length; r++) {
     var row = rows[r] || [], date = bankIso(row[col.date]);
     if (!date) continue;
-    var bal = bankBalance(row[col.balance]);
+    var dr = bankAmount(row[col.dr]), cr = bankAmount(row[col.cr]), bal = bankBalance(row[col.balance]);
+    // A page's foot is not a transaction: the bank prints the time the statement was made under TRAN DATE and "Page 2 of"
+    // under BALANCE, with no amount (owner, 8 Oct 2026: a two-page statement stopped at "Row 50: … cannot be read").
+    if (!dr && !cr && bal == null) continue;
     if (bal == null) throw new Error('Row ' + (r + 1) + ': the balance "' + row[col.balance] + '" cannot be read');
     out.push({ date: date, valueDate: bankIso(row[col.valueDate]) || date, narration: String(row[col.narration] || '').trim(),
-      chq: String(row[col.chq] == null ? '' : row[col.chq]).trim(), dr: bankAmount(row[col.dr]), cr: bankAmount(row[col.cr]), balance: bal });
+      chq: String(row[col.chq] == null ? '' : row[col.chq]).trim(), dr: dr, cr: cr, balance: bal });
   }
   // A row with no date is a footer or a note and is passed over; a statement where every row was passed over
   // said "0 rows added" and nothing else. It says what the first date cell held instead.
@@ -1185,11 +1188,18 @@ function bankImportFile() {
   };
   inp.click();
 }
+/* A statement's cells, from the bank's own .xls or the same statement saved as .xlsx: known by its bytes, never its name. */
+async function bankReadSheet(buf) {
+  var u8 = new Uint8Array(buf, 0, Math.min(buf.byteLength, 8));
+  if (u8.length >= 4 && u8[0] === 0x50 && u8[1] === 0x4B && u8[2] === 0x03 && u8[3] === 0x04) return xlsxRead(buf);
+  if (u8.length === 8 && u8[0] === 0xD0 && u8[1] === 0xCF && u8[2] === 0x11 && u8[3] === 0xE0) return xlsRead(buf);
+  throw new Error('Not an Excel file: import the statement as the bank exports it (.xls), or saved from Excel (.xlsx)');
+}
 /* A statement's bytes, from Finance's Import or from Add → File (add.js). */
 async function bankImportBuf(buf, name) {
   var res, parsed, b;
   try {
-    parsed = bankParseSheet(xlsRead(buf).rows);
+    parsed = bankParseSheet((await bankReadSheet(buf)).rows);
     b = bankData();
   } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
   if (b.account && parsed.account && parsed.account !== b.account &&

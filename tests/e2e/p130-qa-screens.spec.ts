@@ -74,7 +74,8 @@ test('Power → Cuts: a cut is one line that opens to its damage, the newest mon
   await expect(row3.locator('.inv-row-children')).toBeVisible();
   const sum = await row3.evaluate(el => {
     const num = (t: string) => Number(t.replace(/[^\d.-]/g, ''));
-    const parts = Array.from(el.querySelectorAll('.inv-row-children .inv-row')).filter(r => !/Fixed charge/.test(r.textContent || ''));
+    // The parts are the rows with a figure: why the cut came (P177, `data-pcs-why`) leads them and is not a part of its damage.
+    const parts = Array.from(el.querySelectorAll('.inv-row-children .inv-row')).filter(r => !/Fixed charge/.test(r.textContent || '') && !r.matches('[data-pcs-why]'));
     return { total: num(el.querySelector('summary .inv-num')!.textContent || ''), parts: parts.reduce((s, r) => s + num(r.querySelector('.inv-num')!.textContent || ''), 0),
       labels: Array.from(el.querySelectorAll('.inv-row-children .inv-row-title')).map(t => t.textContent) };
   });

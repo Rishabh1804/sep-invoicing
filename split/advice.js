@@ -299,7 +299,15 @@ function advQSmooth(ctx) {
     ? { tone: uiTone(worst === 'ok' ? 'info' : worst), say: escHtml(todoPlural(moves.length, 'thing') + ' could stop it: ' + moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ') +
       (moves.length > 3 ? ' and ' + (moves.length - 3) + ' more' : '') + '.') }
     : { tone: 'ok', say: 'Yes: nothing stands in the way this week.' };
-  return { key: 'smooth', q: 'Is the plant running smoothly?', html: advSmoothTiles(ctx.seen) + statsStorySay(answer.tone, answer.say), answer: answer,
+  var byTone = { red: 0, amber: 0, info: 0 };
+  moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
+  // The card as a tile on Today → Pulse (§6.21): how many things could stop the plant, coded by how soon.
+  var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
+    sub: escHtml(moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ')),
+    viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
+      { title: [byTone.red ? byTone.red + ' to act on now' : '', byTone.amber ? byTone.amber + ' soon' : '', byTone.info ? byTone.info + ' to know' : ''].filter(Boolean).join(' · ') }) : '',
+    tone: moves.length ? uiTone(worst === 'ok' ? 'info' : worst) : 'ok' };
+  return { key: 'smooth', q: 'Is the plant running smoothly?', html: advSmoothTiles(ctx.seen) + statsStorySay(answer.tone, answer.say), answer: answer, vital: vital,
     moves: moves, sorted: true,
     none: 'A move appears here when a stock line runs low, a power cut is recorded, an area runs short of its number, the week’s payout falls due or the backup is a week old.' };
 }
@@ -696,6 +704,30 @@ var ADV_TASK_MOVES = {
   },
   powerLoad: function(t) {
     return [{ key: 'powerCase', tone: 'info', say: 'Read the power case: the approved load comes first', worth: null, basis: t.sub, go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Get the approved load onto the bill' }];
+  },
+  // A cut to complete (powercause.js): each one opens on its own dialog, the oldest with no time back first.
+  powerComplete: function(t) {
+    var idx = prodIndex();
+    return (t.cuts || []).slice(0, 3).map(function(id) {
+      var c = pcsCutOf(id);
+      if (!c || !idx.byId[id]) return null;
+      var nd = pcsNeeds(c);
+      return { key: 'pcsDo:' + id, tone: nd.time ? 'amber' : 'info', say: 'Complete the cut of ' + pcsCutWhen(c), worth: null,
+        basis: [nd.time ? 'no time back, so its cost reads the typical length' : '', nd.reason ? 'no reason, so it is not on the causes' : ''].filter(Boolean).join(' · '),
+        go: { kind: 'powerCut', id: id }, goLabel: 'Complete', task: 'Complete the power cut of ' + stockShortDate(c.date) };
+    }).concat([{ key: 'pcsCuts', tone: 'info', say: 'See every cut on Power → Cuts', worth: null, basis: 'each with what it cost and why it went', go: { kind: 'power', tab: 'cuts' }, goLabel: 'Cuts',
+      task: 'Complete the power cuts' }]);
+  },
+  // A cause that keeps cutting the power: in the plant, get it checked where it hit; from the grid, the power case.
+  powerCause: function(t) {
+    var name = pcsName(t.reasonId) || 'the cause', u = t.unitId && typeof pltUnitById === 'function' ? pltUnitById(t.unitId) : null;
+    var worth = t.amount > 0 ? { amount: t.amount, sign: -1, label: 'in damage over 30 days' } : null;
+    if (t.scope === 'grid') return [{ key: 'pcsGrid:' + t.reasonId, tone: 'amber', say: 'Take “' + name + '” up with the supplier, and read the power case', worth: worth, basis: t.sub,
+      go: { kind: 'powerCase' }, goLabel: 'Power case', task: 'Take “' + name + '” up with the supplier' }];
+    return [{ key: 'pcsCheck:' + t.reasonId, tone: t.tone, say: 'Get “' + name + '” checked' + (u ? ' on ' + u.name : ''), worth: worth, basis: t.sub,
+      go: u ? { kind: 'plantUnit', id: u.id } : { kind: 'power', tab: 'causes' }, goLabel: u ? 'The unit' : 'Causes', task: 'Get “' + name + '” checked' },
+      { key: 'pcsCauses', tone: 'info', say: 'See what causes the cuts and what brings the power back', worth: null, basis: 'Power → Causes', go: { kind: 'power', tab: 'causes' }, goLabel: 'Causes',
+        task: 'Read the power causes' }];
   }
 };
 function advTaskMoves(t) {
@@ -745,6 +777,25 @@ function advMoveRowHtml(mv, listed) {
 function advMovesHtml(moves, listKey, n) {
   var listed = advListedKeys();
   return uiMoreHtml('adv-' + listKey, moves.map(function(mv) { return advMoveRowHtml(mv, listed); }), { n: n || ADV_SHOW, noun: moves.length - (n || ADV_SHOW) === 1 ? 'move' : 'moves' });
+}
+/* A move as a card (§6.22, Today → Pulse): its mark and what it answers in the head with its worth, the move and what it
+   rests on, its button and Add to my list at the foot. The same keys and refs as its row, so a tap acts as the row's does. */
+function advMoveCardHtml(mv, listed, word) {
+  var ref = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"';
+  var btn = mv.href ? '<a class="inv-btn inv-btn-secondary inv-btn-sm" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAdvGo" data-key="' + escHtml(mv.key) + '"' + ref + '>' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invAdvTask" data-key="' + escHtml(mv.key) + '"' + ref + '>Add to my list</button>';
+  return '<article class="inv-deck-item" data-adv-move="' + escHtml(mv.key) + '" data-tone="' + escHtml(mv.tone) + '">' +
+    '<div class="inv-deck-head">' + todoGlyph(mv.tone) + '<span class="inv-deck-word">' + escHtml(word || (mv.tone === 'red' || mv.tone === 'amber' ? TODO_TONE_WORD[mv.tone] : 'To know')) + '</span>' +
+    (mv.worth && mv.worth.amount > 0.005 ? '<span class="inv-deck-fig">' + figHtml('<span class="inv-num" data-adv-worth>' + (mv.worth.sign < 0 ? '&minus;' : '+') + escHtml(advRs(mv.worth.amount)) + '</span>', mv.worth.sign < 0 ? 'danger' : 'ok') + '</span>' : '') + '</div>' +
+    '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(mv.say) + '</span>' +
+    ((mv.worth && mv.worth.amount > 0.005 && advWorthLabel(mv.worth)) || mv.basis ? '<span class="inv-deck-sub">' + escHtml([mv.worth && mv.worth.amount > 0.005 ? advWorthLabel(mv.worth) : '', mv.basis || ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>' +
+    '<div class="inv-deck-foot">' + btn + add + '</div></article>';
+}
+/* Moves as a deck: the first `n` (all where none is given), the rest one tap away. */
+function advMovesDeckHtml(moves, listKey, n, word) {
+  var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
+  return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
 /* A question's foot: What you can do, its moves, and what would make one appear where there is none. An insight's moves
    are drawn under its row (`inline`), so What changed? draws a foot only to say there is none. */
@@ -804,6 +855,10 @@ function advGoTo(go) {
     }
     case 'reorder': _stockReorder = { qty: {} }; _stockView = 'reorder'; switchTab('pageStock'); return true;
     case 'powerCase': powerSetTab('case'); switchTab('pagePower'); return true;
+    // A power cut to complete (powercause.js): Power → Cuts, with its dialog open over it.
+    case 'powerCut': powerSetTab('cuts'); switchTab('pagePower'); if (go.id) pcsOpen(go.id); return true;
+    // A unit of the plant register: Production → Equipment, its record open.
+    case 'plantUnit': prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); if (go.id && typeof pltEdit === 'function') pltEdit(go.id); return true;
     case 'areas': _attView = 'areas'; _attDate = localDateStr(); switchTab('pageStaff'); return true;
     case 'payWeek': _attView = 'pay'; _attDate = go.day || localDateStr(); switchTab('pageStaff'); return true;
     case 'liveCost': {

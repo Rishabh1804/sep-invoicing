@@ -60,6 +60,8 @@ function _xlsCfbStream(buf, want) {
   var root = entries.find(function(e) { return e.type === 5; });
   var ent = null;
   for (i = 0; i < want.length && !ent; i++) ent = entries.find(function(e) { return e.type === 2 && e.name === want[i]; }) || null;
+  // An .xlsx saved with a password is a compound file holding the encrypted package, not a workbook.
+  if (!ent && entries.some(function(e) { return e.name === 'EncryptedPackage'; })) throw new Error('The file is password-protected; save it again without a password');
   if (!ent) throw new Error('No workbook inside the file');
   if (ent.size >= cutoff) return readChain(ent.start, ent.size);
   // A small stream lives in the mini stream, cut into 64-byte sectors with its own table.

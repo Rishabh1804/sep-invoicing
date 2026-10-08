@@ -978,7 +978,9 @@ function prodExport() {
   var p = prodData();
   var meta = document.querySelector('meta[name="app-build"]');
   var obj = { format: 'sep-production', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
-    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn };
+    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn,
+    // The reasons and fixes a cut names by id (powercause.js): without them a cut's reason is an id nobody can read.
+    powerCauses: typeof pcsList === 'function' ? pcsList() : [] };
   downloadJson('sep-production-' + localDateStr() + '.json', obj, 1);
 }
 /* Merge by id, never overwrite. A client is kept by id only when the book holds that id under the same name;
@@ -1037,8 +1039,10 @@ function prodMergeImport(obj, fileName) {
     var cid = key.split('|')[0];
     if (trusted[cid] && heldOf(cid) && fromL.parts[key] && typeof fromL.parts[key] === 'object') p.learn.parts[key] = fromL.parts[key];
   });
+  var causes = typeof pcsMergeImport === 'function' ? pcsMergeImport(src.powerCauses) : 0;
   imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad };
-  if (added) p.imports.push(imp);
+  if (causes) imp.counts.causes = causes;   // the power causes the file brought (powercause.js), only where it brought any
+  if (added || causes) p.imports.push(imp);
   prodTouch();
-  return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad };
+  return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad, causes: causes };
 }

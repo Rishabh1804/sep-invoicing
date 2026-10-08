@@ -1279,6 +1279,12 @@ body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; 
   box-shadow: inset 0 -1px 0 var(--border);
 }
 .inv-viewtabs::-webkit-scrollbar { display: none; }
+/* A page's tab row that runs past the screen fades on the side with more, as a table does (§6.11; uiOverflowCues sets data-more
+   on render and on scroll), so a view out of sight reads as further along, not missing. The workspace's row has no fade: the
+   name of the group beyond its edge is its cue (Office's Insights, below), and a fade would wash that name out. */
+.inv-viewtabs:not(.inv-ws-tabs)[data-more="end"] { mask-image: linear-gradient(to right, var(--text-1) calc(100% - var(--fade-w)), transparent); }
+.inv-viewtabs:not(.inv-ws-tabs)[data-more="start"] { mask-image: linear-gradient(to right, transparent, var(--text-1) var(--fade-w)); }
+.inv-viewtabs:not(.inv-ws-tabs)[data-more="both"] { mask-image: linear-gradient(to right, transparent, var(--text-1) var(--fade-w), var(--text-1) calc(100% - var(--fade-w)), transparent); }
 .inv-viewtab {
   flex: 0 0 auto; min-height: var(--touch); padding: 0 var(--sp-12);
   border: none; border-radius: 0; background: none; box-shadow: none; cursor: pointer;
@@ -2336,8 +2342,24 @@ body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-toast, .inv-update-bar, .inv-
 body.inv-desktop:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-toast, .inv-update-bar, .inv-storage-bar, .inv-notice-bar) { top: calc(var(--bar-h-desk) + var(--ctl-h) + var(--sp-8)); }
 /* The list-and-pane screens fill the room under the bar and the row (P80): the row is one tab tall, --ctl-h. */
 body.inv-desktop:has(> .inv-ws-tabs:not(.inv-hidden)) { --fill-h: calc(100dvh - var(--bar-h-desk) - var(--ctl-h)); }
-/* A group of a workspace's views (Office's review) follows a divider. */
-.inv-viewtab-sep { flex: 0 0 auto; align-self: center; width: var(--hair); height: var(--sp-16); margin: 0 var(--sp-6); background: var(--border); }
+/* A group of a workspace's views is headed by its name (Office's Insights). On the phone the row runs past the screen, and the
+   name is sticky at the row's right edge, on the row's own colour with a short fade at its left, until the group comes into
+   view; a tap on it brings the group in (wsGroupReveal). Owner, 8 Oct 2026: "Insights seems to be missing on mobile?": Office's
+   row ran past the phone's edge and nothing named what lay beyond. The row's rule is drawn under it too. On the desktop, where
+   the row fits, a hairline sets the group off. */
+.inv-viewtab-group {
+  position: sticky; right: 0; z-index: 1; flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: var(--touch); padding: 0 var(--sp-6) 0 var(--sp-10);
+  background: linear-gradient(to right, transparent, var(--surface) var(--sp-8)); box-shadow: inset 0 -1px 0 var(--border);
+  color: var(--text-3); font-size: var(--fs-12); font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.inv-viewtab-group::after { content: '\203A'; font-size: var(--fs-16); line-height: 1; }
+body.inv-desktop .inv-viewtab-group { min-height: var(--ctl-h); cursor: default; }
+body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); height: var(--sp-16); margin-right: var(--sp-6); background: var(--border); }
+/* So the name stands after Clients rather than over it, the phone draws that row's tabs a step tighter, and a step more on a
+   narrow phone (a 360 px screen). */
+body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
+@media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
 /* Under it, a page that opens on its own tabs: that row sits flush under the first, a step smaller (the secondary row). */
 body:has(> .inv-ws-tabs:not(.inv-hidden)) .inv-page:has(> .inv-viewtabs:first-child, > :first-child > .inv-viewtabs:first-child) { padding-top: 0; }
 body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) { margin-bottom: var(--sp-8); }

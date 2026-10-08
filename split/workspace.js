@@ -33,17 +33,17 @@ function wsSvg(k) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
 }
 
-/* The map. `views` are the tabs, in order: {tab, v?, label, group?}; a view carrying `group` starts a group of its own, drawn
-   after a divider (Office's review). `members` are pages held without a tab. `bar`: a door on the phone bar and the desktop
-   rail (Add stands between Office and Floor, the bar's centre). */
+/* The map. `views` are the tabs, in order: {tab, v?, label, group?}; a view carrying `group` starts a group of its own, headed
+   in the row by the group's name (Office's Insights). `members` are pages held without a tab. `bar`: a door on the phone bar and
+   the desktop rail (Add stands between Office and Floor, the bar's centre). */
 var WORKSPACES = [
   { id: 'today', label: 'Today', icon: 'today', bar: true,
     views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' }], members: ['pageTodo'] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
-    // The office's work, then its review: what was Insights (the knowledge base, knowledge.js, last; the top bar's book opens
-    // it on every screen too).
+    // The office's work, then its Insights, the workspace that was (the knowledge base, knowledge.js, last; the top bar's book
+    // opens it on every screen too).
     views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' }, { tab: 'pageClients', label: 'Clients' },
-      { tab: 'pageStats', label: 'Stats', group: 'Review' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' },
+      { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' },
       { tab: 'pageKnow', label: 'Knowledge' }],
     members: ['pageCreate'] },
   { id: 'floor', label: 'Floor', icon: 'floor', bar: true,
@@ -186,8 +186,10 @@ function wsShellDraw(tabId) {
   if (w) wsLastPut(w.id, { tab: tabId, v: on >= 0 ? views[on].v : '' });
 }
 /* The tab row of a workspace of two or more views (Money has none), under the top bar on both layouts (§4.2): the second of
-   the three levels. A view starting a group of its own (Office's review) follows a divider. Each tab is a door the fixtures'
-   switchTab finds (invSwitchTab, data-tab, data-v for Today's). */
+   the three levels. A view starting a group of its own follows the group's name (Office's Insights, `inv-viewtab-group`): on
+   the phone the row runs past the screen, and the name waits at its right edge until the group is in view (sticky, §6.4); a
+   tap on it brings the group in. Each tab is a door the fixtures' switchTab finds (invSwitchTab, data-tab, data-v for
+   Today's). */
 function wsDrawRow(w, views, on) {
   var row = document.getElementById('wsTabs'), bar = document.querySelector('.inv-topbar');
   if (!row || !bar) return;
@@ -197,7 +199,7 @@ function wsDrawRow(w, views, on) {
   if (sig !== _wsRowSig) {
     _wsRowSig = sig;
     row.innerHTML = show ? views.map(function(x, i) {
-      return (x.group && i ? '<span class="inv-viewtab-sep" role="presentation" title="' + escHtml(x.group) + '"></span>' : '') +
+      return (x.group && i ? '<span class="inv-viewtab-group" role="presentation" data-action="invWsGroup">' + escHtml(x.group) + '</span>' : '') +
         '<button class="inv-viewtab" role="tab" aria-selected="' + (i === on) + '" data-action="invSwitchTab" data-tab="' + x.tab + '"' +
         (x.v ? ' data-v="' + x.v + '"' : '') + '>' + escHtml(x.label) + '</button>';
     }).join('') : '';
@@ -302,9 +304,21 @@ function wsRedraw() {
   _wsRowSig = null;
   wsShellDraw();
 }
+/* A group's name in the row brings the group into view: the row scrolls until the name stands at its left edge, the group's
+   views after it (owner, 8 Oct 2026: "Insights seems to be missing on mobile?": Office's row ran past the phone's edge and
+   nothing named what lay beyond). Where the row fits (the desktop) nothing moves. */
+function wsGroupReveal(el) {
+  var row = el.closest('.inv-viewtabs'), first = el.nextElementSibling;
+  if (!row || !first) return;
+  // The name is sticky, so where it is drawn is not where it stands in the row: the group's first tab says that.
+  var left = Math.max(0, first.offsetLeft - el.offsetWidth - (parseFloat(getComputedStyle(row).paddingLeft) || 0));
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  row.scrollTo({ left: left, behavior: still ? 'auto' : 'smooth' });
+}
 /* A workspace's door. Add and search answer in their own modules (add.js, events.js). */
 function wsAction(action, btn) {
   if (action === 'invWsGo') { wsGo(btn.dataset.ws); return true; }
+  if (action === 'invWsGroup') { wsGroupReveal(btn); return true; }
   // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
   if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
   return false;

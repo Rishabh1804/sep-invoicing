@@ -1461,7 +1461,8 @@ function figWrapHtml(html) {
      data-auto-title so it is dropped again when the text fits; a title a template wrote is never touched.
    - a table wrapper that scrolls sideways (`inv-scroll-x`) carries data-more = start | end | both, which fades that
      edge, and while it overflows a note under it reads "Scroll for more". A grid with a sticky name column fades at
-     its end only. The note stays while the table overflows: removing it on a scroll would move the page.
+     its end only. The note stays while the table overflows: removing it on a scroll would move the page. A tab row
+     (`inv-viewtabs`) carries the same data-more, with no note.
    The pass reads the stylesheet once for which selectors ellipsise, so a new one is covered without a list here. */
 var _ovEllipsisSel = '';
 function _ovEllipsisSelector() {
@@ -1479,9 +1480,11 @@ function _ovEllipsisSelector() {
   return _ovEllipsisSel;
 }
 
-function _ovScrollCue(sc) {
+/* Which sides of a sideways scroller have more past them, as data-more = start | end | both (none: the attribute goes).
+   Returns whether it overflows at all. */
+function _ovMoreSet(sc) {
   var w = sc.clientWidth;
-  if (!w) return;
+  if (!w) return null;
   var max = sc.scrollWidth - w, over = max > 1, more = '';
   if (over) {
     var l = sc.scrollLeft > 1 && !sc.querySelector('.inv-table-grid'), r = sc.scrollLeft < max - 1;
@@ -1489,6 +1492,11 @@ function _ovScrollCue(sc) {
   }
   if (more) { if (sc.getAttribute('data-more') !== more) sc.setAttribute('data-more', more); }
   else if (sc.hasAttribute('data-more')) sc.removeAttribute('data-more');
+  return over;
+}
+function _ovScrollCue(sc) {
+  var over = _ovMoreSet(sc);
+  if (over == null) return;
   var next = sc.nextElementSibling, has = !!(next && next.classList.contains('inv-scroll-hint'));
   if (over && !has) sc.insertAdjacentHTML('afterend', '<p class="inv-note inv-scroll-hint">Scroll for more &rarr;</p>');
   else if (!over && has) next.remove();
@@ -1510,6 +1518,9 @@ function uiOverflowCues() {
     } else if (auto) { el.removeAttribute('title'); el.removeAttribute('data-auto-title'); }
   });
   document.querySelectorAll('.inv-scroll-x').forEach(_ovScrollCue);
+  // A tab row that runs past the screen: the side with more fades (§6.4), with no note under it (owner, 8 Oct 2026: a view
+  // past the phone's edge read as missing).
+  document.querySelectorAll('.inv-viewtabs').forEach(_ovMoreSet);
 }
 
 var _ovObserver = null;
@@ -1526,6 +1537,7 @@ function uiOverflowCuesStart() {
   document.addEventListener('scroll', function(e) {
     var t = e.target;
     if (t && t.classList && t.classList.contains('inv-scroll-x')) _ovScrollCue(t);
+    else if (t && t.classList && t.classList.contains('inv-viewtabs')) _ovMoreSet(t);
   }, true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
   run();

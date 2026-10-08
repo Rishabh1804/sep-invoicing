@@ -4,8 +4,8 @@
 as a tool used to make decisions."* The chatbot is the next piece of work after this one, and it answers from what is built here
 (`docs/UX_OVERHAUL_2.md`: *"search now; a chatbot later, once a knowledge-base tab exists"*).
 
-**Where it is:** Office → Knowledge (the last of Office's review; Insights → Knowledge until 8 Oct 2026, when Insights became
-Office's review and the desktop's sidebar a rail of the workspaces alone), and the book in the top bar on every screen, which opens
+**Where it is:** Office → Knowledge (the last of Office's Insights; Insights → Knowledge until 8 Oct 2026, when Insights became
+a group in Office's row and the desktop's sidebar a rail of the workspaces alone), and the book in the top bar on every screen, which opens
 the guides for the screen on show. It was Insights' fourth view because a group of its own made the sidebar taller than a
 1024 × 768 screen.
 

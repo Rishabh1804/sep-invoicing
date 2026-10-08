@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="6e91116a">
+<meta name="app-build" content="35511486">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1301,6 +1301,12 @@ body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; 
   box-shadow: inset 0 -1px 0 var(--border);
 }
 .inv-viewtabs::-webkit-scrollbar { display: none; }
+/* A page's tab row that runs past the screen fades on the side with more, as a table does (§6.11; uiOverflowCues sets data-more
+   on render and on scroll), so a view out of sight reads as further along, not missing. The workspace's row has no fade: the
+   name of the group beyond its edge is its cue (Office's Insights, below), and a fade would wash that name out. */
+.inv-viewtabs:not(.inv-ws-tabs)[data-more="end"] { mask-image: linear-gradient(to right, var(--text-1) calc(100% - var(--fade-w)), transparent); }
+.inv-viewtabs:not(.inv-ws-tabs)[data-more="start"] { mask-image: linear-gradient(to right, transparent, var(--text-1) var(--fade-w)); }
+.inv-viewtabs:not(.inv-ws-tabs)[data-more="both"] { mask-image: linear-gradient(to right, transparent, var(--text-1) var(--fade-w), var(--text-1) calc(100% - var(--fade-w)), transparent); }
 .inv-viewtab {
   flex: 0 0 auto; min-height: var(--touch); padding: 0 var(--sp-12);
   border: none; border-radius: 0; background: none; box-shadow: none; cursor: pointer;
@@ -2358,8 +2364,24 @@ body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-toast, .inv-update-bar, .inv-
 body.inv-desktop:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-toast, .inv-update-bar, .inv-storage-bar, .inv-notice-bar) { top: calc(var(--bar-h-desk) + var(--ctl-h) + var(--sp-8)); }
 /* The list-and-pane screens fill the room under the bar and the row (P80): the row is one tab tall, --ctl-h. */
 body.inv-desktop:has(> .inv-ws-tabs:not(.inv-hidden)) { --fill-h: calc(100dvh - var(--bar-h-desk) - var(--ctl-h)); }
-/* A group of a workspace's views (Office's review) follows a divider. */
-.inv-viewtab-sep { flex: 0 0 auto; align-self: center; width: var(--hair); height: var(--sp-16); margin: 0 var(--sp-6); background: var(--border); }
+/* A group of a workspace's views is headed by its name (Office's Insights). On the phone the row runs past the screen, and the
+   name is sticky at the row's right edge, on the row's own colour with a short fade at its left, until the group comes into
+   view; a tap on it brings the group in (wsGroupReveal). Owner, 8 Oct 2026: "Insights seems to be missing on mobile?": Office's
+   row ran past the phone's edge and nothing named what lay beyond. The row's rule is drawn under it too. On the desktop, where
+   the row fits, a hairline sets the group off. */
+.inv-viewtab-group {
+  position: sticky; right: 0; z-index: 1; flex: 0 0 auto; display: inline-flex; align-items: center; gap: var(--sp-2);
+  min-height: var(--touch); padding: 0 var(--sp-6) 0 var(--sp-10);
+  background: linear-gradient(to right, transparent, var(--surface) var(--sp-8)); box-shadow: inset 0 -1px 0 var(--border);
+  color: var(--text-3); font-size: var(--fs-12); font-weight: 600; white-space: nowrap; cursor: pointer;
+}
+.inv-viewtab-group::after { content: '\203A'; font-size: var(--fs-16); line-height: 1; }
+body.inv-desktop .inv-viewtab-group { min-height: var(--ctl-h); cursor: default; }
+body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); height: var(--sp-16); margin-right: var(--sp-6); background: var(--border); }
+/* So the name stands after Clients rather than over it, the phone draws that row's tabs a step tighter, and a step more on a
+   narrow phone (a 360 px screen). */
+body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
+@media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
 /* Under it, a page that opens on its own tabs: that row sits flush under the first, a step smaller (the secondary row). */
 body:has(> .inv-ws-tabs:not(.inv-hidden)) .inv-page:has(> .inv-viewtabs:first-child, > :first-child > .inv-viewtabs:first-child) { padding-top: 0; }
 body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) { margin-bottom: var(--sp-8); }
@@ -4199,7 +4221,8 @@ function figWrapHtml(html) {
      data-auto-title so it is dropped again when the text fits; a title a template wrote is never touched.
    - a table wrapper that scrolls sideways (`inv-scroll-x`) carries data-more = start | end | both, which fades that
      edge, and while it overflows a note under it reads "Scroll for more". A grid with a sticky name column fades at
-     its end only. The note stays while the table overflows: removing it on a scroll would move the page.
+     its end only. The note stays while the table overflows: removing it on a scroll would move the page. A tab row
+     (`inv-viewtabs`) carries the same data-more, with no note.
    The pass reads the stylesheet once for which selectors ellipsise, so a new one is covered without a list here. */
 var _ovEllipsisSel = '';
 function _ovEllipsisSelector() {
@@ -4217,9 +4240,11 @@ function _ovEllipsisSelector() {
   return _ovEllipsisSel;
 }
 
-function _ovScrollCue(sc) {
+/* Which sides of a sideways scroller have more past them, as data-more = start | end | both (none: the attribute goes).
+   Returns whether it overflows at all. */
+function _ovMoreSet(sc) {
   var w = sc.clientWidth;
-  if (!w) return;
+  if (!w) return null;
   var max = sc.scrollWidth - w, over = max > 1, more = '';
   if (over) {
     var l = sc.scrollLeft > 1 && !sc.querySelector('.inv-table-grid'), r = sc.scrollLeft < max - 1;
@@ -4227,6 +4252,11 @@ function _ovScrollCue(sc) {
   }
   if (more) { if (sc.getAttribute('data-more') !== more) sc.setAttribute('data-more', more); }
   else if (sc.hasAttribute('data-more')) sc.removeAttribute('data-more');
+  return over;
+}
+function _ovScrollCue(sc) {
+  var over = _ovMoreSet(sc);
+  if (over == null) return;
   var next = sc.nextElementSibling, has = !!(next && next.classList.contains('inv-scroll-hint'));
   if (over && !has) sc.insertAdjacentHTML('afterend', '<p class="inv-note inv-scroll-hint">Scroll for more &rarr;</p>');
   else if (!over && has) next.remove();
@@ -4248,6 +4278,9 @@ function uiOverflowCues() {
     } else if (auto) { el.removeAttribute('title'); el.removeAttribute('data-auto-title'); }
   });
   document.querySelectorAll('.inv-scroll-x').forEach(_ovScrollCue);
+  // A tab row that runs past the screen: the side with more fades (§6.4), with no note under it (owner, 8 Oct 2026: a view
+  // past the phone's edge read as missing).
+  document.querySelectorAll('.inv-viewtabs').forEach(_ovMoreSet);
 }
 
 var _ovObserver = null;
@@ -4264,6 +4297,7 @@ function uiOverflowCuesStart() {
   document.addEventListener('scroll', function(e) {
     var t = e.target;
     if (t && t.classList && t.classList.contains('inv-scroll-x')) _ovScrollCue(t);
+    else if (t && t.classList && t.classList.contains('inv-viewtabs')) _ovMoreSet(t);
   }, true);
   if (document.fonts && document.fonts.ready) document.fonts.ready.then(later);
   run();
@@ -55391,17 +55425,17 @@ function wsSvg(k) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
 }
 
-/* The map. `views` are the tabs, in order: {tab, v?, label, group?}; a view carrying `group` starts a group of its own, drawn
-   after a divider (Office's review). `members` are pages held without a tab. `bar`: a door on the phone bar and the desktop
-   rail (Add stands between Office and Floor, the bar's centre). */
+/* The map. `views` are the tabs, in order: {tab, v?, label, group?}; a view carrying `group` starts a group of its own, headed
+   in the row by the group's name (Office's Insights). `members` are pages held without a tab. `bar`: a door on the phone bar and
+   the desktop rail (Add stands between Office and Floor, the bar's centre). */
 var WORKSPACES = [
   { id: 'today', label: 'Today', icon: 'today', bar: true,
     views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' }], members: ['pageTodo'] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
-    // The office's work, then its review: what was Insights (the knowledge base, knowledge.js, last; the top bar's book opens
-    // it on every screen too).
+    // The office's work, then its Insights, the workspace that was (the knowledge base, knowledge.js, last; the top bar's book
+    // opens it on every screen too).
     views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' }, { tab: 'pageClients', label: 'Clients' },
-      { tab: 'pageStats', label: 'Stats', group: 'Review' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' },
+      { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' },
       { tab: 'pageKnow', label: 'Knowledge' }],
     members: ['pageCreate'] },
   { id: 'floor', label: 'Floor', icon: 'floor', bar: true,
@@ -55544,8 +55578,10 @@ function wsShellDraw(tabId) {
   if (w) wsLastPut(w.id, { tab: tabId, v: on >= 0 ? views[on].v : '' });
 }
 /* The tab row of a workspace of two or more views (Money has none), under the top bar on both layouts (§4.2): the second of
-   the three levels. A view starting a group of its own (Office's review) follows a divider. Each tab is a door the fixtures'
-   switchTab finds (invSwitchTab, data-tab, data-v for Today's). */
+   the three levels. A view starting a group of its own follows the group's name (Office's Insights, `inv-viewtab-group`): on
+   the phone the row runs past the screen, and the name waits at its right edge until the group is in view (sticky, §6.4); a
+   tap on it brings the group in. Each tab is a door the fixtures' switchTab finds (invSwitchTab, data-tab, data-v for
+   Today's). */
 function wsDrawRow(w, views, on) {
   var row = document.getElementById('wsTabs'), bar = document.querySelector('.inv-topbar');
   if (!row || !bar) return;
@@ -55555,7 +55591,7 @@ function wsDrawRow(w, views, on) {
   if (sig !== _wsRowSig) {
     _wsRowSig = sig;
     row.innerHTML = show ? views.map(function(x, i) {
-      return (x.group && i ? '<span class="inv-viewtab-sep" role="presentation" title="' + escHtml(x.group) + '"></span>' : '') +
+      return (x.group && i ? '<span class="inv-viewtab-group" role="presentation" data-action="invWsGroup">' + escHtml(x.group) + '</span>' : '') +
         '<button class="inv-viewtab" role="tab" aria-selected="' + (i === on) + '" data-action="invSwitchTab" data-tab="' + x.tab + '"' +
         (x.v ? ' data-v="' + x.v + '"' : '') + '>' + escHtml(x.label) + '</button>';
     }).join('') : '';
@@ -55660,9 +55696,21 @@ function wsRedraw() {
   _wsRowSig = null;
   wsShellDraw();
 }
+/* A group's name in the row brings the group into view: the row scrolls until the name stands at its left edge, the group's
+   views after it (owner, 8 Oct 2026: "Insights seems to be missing on mobile?": Office's row ran past the phone's edge and
+   nothing named what lay beyond). Where the row fits (the desktop) nothing moves. */
+function wsGroupReveal(el) {
+  var row = el.closest('.inv-viewtabs'), first = el.nextElementSibling;
+  if (!row || !first) return;
+  // The name is sticky, so where it is drawn is not where it stands in the row: the group's first tab says that.
+  var left = Math.max(0, first.offsetLeft - el.offsetWidth - (parseFloat(getComputedStyle(row).paddingLeft) || 0));
+  var still = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  row.scrollTo({ left: left, behavior: still ? 'auto' : 'smooth' });
+}
 /* A workspace's door. Add and search answer in their own modules (add.js, events.js). */
 function wsAction(action, btn) {
   if (action === 'invWsGo') { wsGo(btn.dataset.ws); return true; }
+  if (action === 'invWsGroup') { wsGroupReveal(btn); return true; }
   // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
   if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
   return false;
@@ -56230,7 +56278,7 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
    that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). Insights is
-   Office's review since 8 Oct 2026. */
+   a group in Office's row since 8 Oct 2026. */
 var SRCH_SPACES = [
   ['t', 'Today', ['needs', 'pulse', 'todo']],
   ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'stats', 'reports', 'history']],

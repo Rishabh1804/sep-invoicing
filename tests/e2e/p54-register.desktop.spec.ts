@@ -81,9 +81,13 @@ test('the pane opens from the keyboard and says the state once', async ({ page }
   await expect(page.locator('#regDetail [data-line]')).toHaveCount(1);
 });
 
-for (const width of [1440, 1024]) {
-  test(`at ${width}px the keyboard keeps its place when the table is redrawn`, async ({ page }) => {
+// The pane covers the list where its host is under 50rem. Since the rail (8 Oct 2026) a 1024px window leaves the host 54.5rem, so
+// the pane sits beside the list there too; a larger font (the browser's text size raised) narrows the room in rems and the pane
+// covers the list, which the third case keeps tested.
+for (const [width, root] of [[1440, 0], [1024, 0], [1024, 20]] as const) {
+  test(`at ${width}px${root ? ` with a ${root}px font` : ''} the keyboard keeps its place when the table is redrawn`, async ({ page }) => {
     await page.setViewportSize({ width, height: 900 });
+    if (root) await page.addInitScript(px => { document.addEventListener('DOMContentLoaded', () => { document.documentElement.style.fontSize = px + 'px'; }); }, root);
     await loadAppWithState(page, state());
     await switchTab(page, 'pageRegister');
     const row = (id: string) => page.locator(`#regMaster button[data-invnum][data-id="${id}"]`);
@@ -94,7 +98,9 @@ for (const width of [1440, 1024]) {
     await page.keyboard.press('Enter');
     await expect(page.locator('#regDetail')).toContainText('Grand total');
     // Beside the list, focus stays on the row; where the pane covers the list, it moves into the pane.
-    if (width >= 1280) await expect(row(id)).toBeFocused();
+    const covers = await page.locator('#regMaster').evaluate(el => getComputedStyle(el).display === 'none');
+    expect(covers).toBe(root > 0);
+    if (!covers) await expect(row(id)).toBeFocused();
     else await expect(page.locator('[data-action="invRegClosePane"]')).toBeFocused();
 
     await page.locator('[data-action="invRegClosePane"]').focus();

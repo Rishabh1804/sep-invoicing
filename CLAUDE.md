@@ -182,7 +182,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,580 tests, both layouts
+pnpm exec playwright test          # 1,582 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1474,6 +1474,10 @@ captured and restored across the re-render** — that focus drop, not the dropdo
 really ended the keyboard path mid-entry. `Alt+N` adds a line, `Ctrl+Enter` saves, and buttons
 marked `data-kbd-ring` join the Enter-to-next-field chain (a line's remove `×` deliberately
 does not).
+
+**A part field left closes its own list, a moment later** (200 ms, so a tap on one of its options lands first), and never
+another's: it used to close every list on the page, and a client search opened inside that moment, on another screen, was
+hidden under the cursor (CI caught it on P141 on a busy runner). P181.
 
 ### Items Master
 Part number registry with weights, gauge, descriptions, and merge capability.

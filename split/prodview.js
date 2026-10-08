@@ -328,6 +328,13 @@ function prodEntryDetailHtml(e, idx) {
     kv.push(['Quantity', prodQtyText(e.qty, e.unit) + (e.qty2 != null ? ' · ' + prodQtyText(e.qty2, e.unit2) : '')]);
     if (e.rackSize) kv.push(['Rack', e.rackSize + (e.racks ? ' × ' + e.racks : '')]);
   }
+  if (e.kind === 'downtime' && e.downtime && typeof pcsName === 'function') {
+    var dtr = e.downtime;
+    if (dtr.reason) kv.push(['Why it went', pcsName(dtr.reason)]);
+    if (dtr.where || dtr.unitId) kv.push(['Where it hit', pcsWhereWord(dtr.where, dtr.unitId)]);
+    if (dtr.fix) kv.push(['What brought it back', pcsName(dtr.fix)]);
+    if (dtr.closedHow === 'hand') kv.push(['Power in', 'typed' + (dtr.closedBy ? ' by ' + dtr.closedBy : '') + (dtr.closedAt ? ', ' + formatTimestamp(dtr.closedAt) : '')]);
+  }
   kv.push(['Source', prodSrcWord(e) + (e.basis && e.basis !== e.src ? ' · ' + e.basis : '')]);
   if (e.sentBy) kv.push(['Sent by', e.sentBy]);
   if (e.at > 946684800000) kv.push(['Entered', formatTimestamp(e.at) + (e.by ? ' · ' + e.by : '')]);   // a stamp, not a placeholder
@@ -360,6 +367,7 @@ function prodEntryRowHtml(e, idx) {
   var meta = [kindWord, e.time ? e.time + (e.to ? '–' + e.to : '') : '', e.kind === 'plated' ? prodLineName(e.line) : line ? (line.line ? prodLineName(line.line) + (line.how === 'plating' ? ' (from plating)' : '') : line.how === 'split' ? 'split' : 'line unknown') : '',
     prodSrcWord(e), e.rework ? 'rework' : '', idx.replaced[e.id] ? 'corrected' : '', e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt && !idx.replaced[e.id] ? 'also reported' : ''].filter(Boolean).join(' · ');
   var title = e.kind === 'downtime' ? (e.downtime && e.downtime.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
+  var why = e.kind === 'downtime' && e.downtime && e.downtime.reason && typeof pcsName === 'function' ? pcsName(e.downtime.reason) : '';
   // What the floor name was matched to, the gauges a round's size allows, and a name no challan part answers to.
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
   if (alias && alias.pn) meta += ' · = ' + alias.pn + (alias.how === 'rack' && e.partRack ? ' by the round of ' + e.partRack : '');
@@ -374,6 +382,8 @@ function prodEntryRowHtml(e, idx) {
     (_isDesktop ? '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' : '<span class="inv-row-main">') + '<span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta + (e.voidedAt ? ' · void: ' + (e.voidReason || '') : '')) + '</span>' +
     (crew ? '<span class="inv-row-meta inv-row-wrap" data-prod-crew>' + escHtml(crew.known ? (crew.src === 'block' ? 'OT crew: ' : 'Crew: ') + crew.names.join(', ') : 'Crew not known: ' + crew.why) + '</span>' : '') +
+    // A power cut's reason, on a line of its own (powercause.js).
+    (why ? '<span class="inv-row-meta inv-row-wrap" data-prod-why>' + escHtml('Why: ' + why) + '</span>' : '') +
     (_isDesktop ? '</button>' : '</span>') + '<span class="inv-row-end">' +
     (e.kind !== 'downtime' ? '<span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' : '') + prodEntryActionsHtml(e, idx);
   return h + '</span></div>';
@@ -388,6 +398,11 @@ function prodEntryActionsHtml(e, idx) {
   if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
   if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
   if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
+  // A power cut is completed in place: its power-in time, why it went and what brought it back (powercause.js).
+  if (e.kind === 'downtime') {
+    var dt = e.downtime || {};
+    h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(e.id) + '">' + (dt.open ? 'Complete' : dt.reason ? 'Edit reason' : 'Add reason') + '</button>';
+  }
   return h + '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdVoid" data-id="' + escHtml(e.id) + '">Void</button>';
 }
 
@@ -990,7 +1005,9 @@ function prodImportText(text, name) {
   if (!res.ok) { uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
   saveState();
   renderProduction();
-  showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') : 'Nothing new in that file', res.added ? 'success' : 'warning');
+  var causes = res.causes ? ' · ' + todoPlural(res.causes, 'power cause') + ' added to the list' : '';
+  showToast(res.added ? todoPlural(res.added, 'entry', 'entries') + ' added' + (res.skipped ? ' · ' + res.skipped + ' already held' : '') + (res.unknown ? ' · ' + res.unknown + ' name a client this book does not hold' : '') + (res.bad ? ' · ' + res.bad + ' refused' : '') + causes
+    : res.causes ? causes.slice(3) : 'Nothing new in that file', res.added || res.causes ? 'success' : 'warning');
 }
 
 /* ---------- Events ---------- */

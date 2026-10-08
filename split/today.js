@@ -147,7 +147,10 @@ function tdyInput(def, day) {
   o.usual = u.min;
   if (off) { o.state = 'off'; o.text = 'Not expected: ' + (new Date(day + 'T00:00:00').getDay() === 0 ? 'Sunday' : 'a paid holiday'); return o; }
   var due = Math.max(def.from || 0, 0);
-  if (isToday && now < due) { o.state = o.state === 'part' ? 'part' : 'wait'; o.text = o.text || 'After ' + relayClockLabel(due); return o; }
+  // What the step says in a line (tdyStepMeta) is read from these: the part already in, when one is first looked for,
+  // and whether the usual minute is the record's or the shop's own.
+  o.detail = o.text; o.shop = u.seen < TDY_MIN_SEEN;
+  if (isToday && now < due) { o.state = o.state === 'part' ? 'part' : 'wait'; o.after = due; o.text = o.text || 'After ' + relayClockLabel(due); return o; }
   var late = now > u.min + TDY_LATE_MIN;
   var usualText = 'usually by ' + relayClockLabel(u.min) + (u.seen >= TDY_MIN_SEEN ? '' : ' (the shop’s usual time)');
   o.text = (o.text ? o.text + ' · ' : 'Not in yet · ') + usualText;
@@ -156,34 +159,53 @@ function tdyInput(def, day) {
   return o;
 }
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
-
+var TDY_INPUT_SHORT = { 'roll-in': 'In-time roll', pickling: 'Pickling loads', stock: 'Stock message', production: 'Production records', 'roll-out': 'Out-time roll' };
+var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+/* An input's line on its step: what came, or when it is looked for (owner, 8 Oct 2026: less to read). */
+function tdyStepMeta(r) {
+  if (r.state === 'in' || r.state === 'off') return r.text;
+  if (r.after != null) return 'After ' + relayClockLabel(r.after);
+  var by = r.usual != null ? 'by ' + relayClockLabel(r.usual) : '';
+  if (r.state === 'part') return [r.detail, by].filter(Boolean).join(' · ');
+  return r.state === 'late' ? 'Late' + (by ? ' · ' + by : '') : by ? by.charAt(0).toUpperCase() + by.slice(1) : 'Not yet';
+}
+/* The day's inputs (§6.21, §6.23): a hero that says how many are in and what comes next, opening to the day as a rail of
+   steps, each with the one tap that brings it in. Open while anything is still to come; shut once all are in. */
 function tdyInputsHtml(day) {
   var defs = tdyInputsSeen();
   // A role that takes none of the floor's inputs (the office) has no card of them.
   if (!defs.length) return '';
   var rows = defs.map(function(def) { return tdyInput(def, day); });
-  var n = rows.filter(function(r) { return r.state === 'in'; }).length;
-  var h = '<div class="inv-panel inv-panel-flush" data-card="inputs"><div class="inv-panel-head"><span class="inv-panel-title">The day&rsquo;s inputs ' +
-    '<span class="inv-panel-count" data-tdy-in>' + n + ' of ' + rows.length + ' in</span></span>' +
-    '<span class="inv-row-meta">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span></div>';
-  rows.forEach(function(r) {
-    var dot = TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait;
+  var n = rows.filter(function(r) { return r.state === 'in'; }).length, done = rows.filter(function(r) { return r.state === 'in' || r.state === 'off'; }).length;
+  var late = rows.filter(function(r) { return r.state === 'late'; }), next = late[0] || rows.find(function(r) { return r.state === 'wait' || r.state === 'part'; });
+  var shop = rows.some(function(r) { return r.state !== 'in' && r.state !== 'off' && r.shop; });
+  var steps = rows.map(function(r, i) {
     var btn = '';
     if (r.state !== 'in' && r.state !== 'off') {
       btn = r.move === 'photo'
         ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPhoto" data-line="' + escHtml(tdyFirstMissingLine(r)) + '">Photo</button>'
         : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPaste">Paste</button>';
     }
-    h += '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-input="' + r.k + '" data-state="' + r.state + '">' +
-      '<button class="inv-row-main" data-action="invTdyInput" data-k="' + r.k + '"><span class="inv-row-title">' + escHtml(r.title) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(r.text) + '</span></button>' +
-      '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' + uiDot(dot[0], dot[1]) + btn + '</span></div>';
-  });
-  // The messages these rows wait for come in on WhatsApp: open it from here (add.js).
-  h += '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-wa><span class="inv-row-main"><span class="inv-row-title">WhatsApp</span>' +
-    '<span class="inv-row-meta inv-row-wrap">Copy a message there, then Paste on its row</span></span>' +
+    var node = r.state === 'in' ? TDY_CHECK_SVG : r.state === 'late' ? '!' : String(i + 1);
+    return '<div class="inv-step" data-tdy-input="' + r.k + '" data-state="' + r.state + '">' +
+      '<span class="inv-step-node" aria-hidden="true">' + node + '</span>' +
+      '<button class="inv-step-main" data-action="invTdyInput" data-k="' + r.k + '" aria-label="' + escHtml(r.title + ': ' + (TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait)[1] + ', ' + tdyStepMeta(r)) + '">' +
+      '<span class="inv-step-title">' + escHtml(r.title) + '</span><span class="inv-step-meta">' + escHtml(tdyStepMeta(r)) + '</span></button>' +
+      '<span class="inv-row-end">' + btn + '</span></div>';
+  }).join('');
+  // The messages these steps wait for come in on WhatsApp: open it from here (add.js).
+  var wa = '<div class="inv-row inv-row-2 inv-row-flow" data-tdy-wa><span class="inv-row-main"><span class="inv-row-title">WhatsApp</span>' +
+    '<span class="inv-row-meta inv-row-wrap">Copy a message there, then Paste on its step</span></span>' +
     '<span class="inv-row-end inv-row-actions">' + waLinksHtml('today') + '</span></div>';
-  return h + '</div>';
+  var meter = chartMeter(rows.map(function(r) { return { v: 1, tone: r.state === 'in' ? 'ok' : r.state === 'late' ? 'warning' : r.state === 'part' ? 'info' : 'neutral-2' }; }),
+    { title: rows.map(function(r) { return r.title + ': ' + (TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait)[1]; }).join(' · ') });
+  var sub = done === rows.length ? 'Everything the floor sends is in' : next ? (TDY_INPUT_SHORT[next.k] || next.title) + ' ' + (next.state === 'late' ? 'is late, ' + tdyStepMeta(next).replace(/^Late · /, '') : tdyStepMeta(next).toLowerCase()) : '';
+  return uiHeroHtml({ tone: late.length ? 'warning' : done === rows.length ? 'ok' : '', eyebrow: '<span>The day’s inputs</span><span class="inv-panel-count">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>',
+    title: '<span data-tdy-in>' + (n === rows.length ? 'All ' + n + ' in' : n + ' of ' + rows.length + ' in') + '</span>',
+    fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length,
+    body: '<div class="inv-hero-sheet"><div class="inv-panel-body inv-steps" data-tdy-steps>' + steps + '</div>' + wa +
+      (shop ? '<div class="inv-panel-body inv-note">A time with no four weeks of record behind it is the shop’s usual one.</div>' : '') + '</div>',
+    attrs: ' data-card="inputs"' });
 }
 /* The first VAT line with no record (the register photo is theirs); else VAT A1. */
 function tdyFirstMissingLine(r) {
@@ -204,26 +226,28 @@ function tdyOpenInput(k) {
 }
 
 /* ---------- The floor now (the desktop) ----------
-   Floor → Day in three lines and the power, as the mockup's desktop Today draws it: each line's staffing word, what it is
-   running and what it has plated; the day's cuts. Read from floor.js' own functions. */
+   Floor → Day in four tiles, as the mockup's desktop Today draws it: each line's staffing word, what it has plated and what it
+   is running; the day's cuts. Read from floor.js' own functions. */
 function tdyFloorHtml(day) {
-  var att = attDaySummary(day), stats = areaStats(day, day), byArea = {};
+  var att = attDaySummary(day), stats = areaStats(day, day), byArea = {}, worst = '';
   stats.rows.forEach(function(a) { byArea[a.id] = a; });
-  var h = '<div class="inv-panel inv-panel-flush" data-card="floor"><div class="inv-panel-head"><span class="inv-panel-title">Floor now</span>' +
-    '<button class="inv-btn-link" data-action="invTdyFloor">Open Floor</button></div>';
-  FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).forEach(function(ln) {
+  var tiles = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).map(function(ln) {
     var st = flrStaffing(day, ln, byArea, att.marked), r = prodDayLine(day, ln.id), last = flrLatest(r.entries);
-    var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '';
-    h += '<div class="inv-row inv-row-2" data-tdy-line="' + ln.id + '"><button class="inv-row-main" data-action="invTdyFloor">' +
-      '<span class="inv-row-title">' + escHtml(flrLineName(ln.id)) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(last ? prodEntryTitle(last) : 'No record yet today') + '</span></button>' +
-      '<span class="inv-row-end inv-row-stack">' + uiDot(st.tone, escHtml(st.word)) + (fig ? '<span class="inv-num">' + escHtml(fig) + '</span>' : '') + '</span></div>';
+    if (st.tone === 'warning') worst = 'warning';
+    var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '&mdash;';
+    return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
+      '<div class="inv-tile-value inv-tile-value-sm">' + fig + '</div><div class="inv-tile-sub">' + uiDot(st.tone, escHtml(st.word)) + '</div>' +
+      '<div class="inv-tile-sub">' + escHtml(last ? prodEntryTitle(last) : 'No record yet today') + '</div></button>';
   });
-  var cuts = powerCuts(day, day), mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0);
-  h += '<div class="inv-row inv-row-2" data-tdy-line="power"><button class="inv-row-main" data-action="invTdyPower"><span class="inv-row-title">Power</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cuts.length ? cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ', no time back'); }).join(', ') : 'No cut reported') + '</span></button>' +
-    '<span class="inv-row-end inv-row-stack">' + (cuts.length ? uiDot('warning', todoPlural(cuts.length, 'cut')) + (mins ? '<span class="inv-num">' + escHtml(powerDur(mins)) + '</span>' : '') : uiDot('ok', 'None')) + '</span></div>';
-  return h + '</div>';
+  var cuts = powerCuts(day, day), mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), open = cuts.filter(function(c) { return c.open; }).length;
+  tiles.push('<button type="button" class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '" data-tdy-line="power" data-action="invTdyPower"><div class="inv-tile-label">Power</div>' +
+    '<div class="inv-tile-value inv-tile-value-sm">' + (cuts.length ? escHtml(todoPlural(cuts.length, 'cut')) : 'No cut') + '</div>' +
+    '<div class="inv-tile-sub">' + (cuts.length ? uiDot(open ? 'warning' : 'neutral', escHtml(open ? open + ' with no time back' : powerDur(mins) + ' dark')) : uiDot('ok', 'None reported')) + '</div>' +
+    '<div class="inv-tile-sub">' + escHtml(cuts.length ? cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ''); }).join(', ') : 'today') + '</div></button>');
+  var staffed = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).filter(function(ln) { var st = flrStaffing(day, ln, byArea, att.marked); return st.heads > 0; }).length;
+  return uiHeroHtml({ tone: worst || (open ? 'warning' : ''), eyebrow: '<span>Floor now</span>', title: att.marked ? escHtml(todoPlural(staffed, 'line') + ' staffed') : 'No attendance yet today',
+    sub: escHtml(att.marked ? (att.p + att.half) + ' on site · ' + att.absent.length + ' absent' : 'The in-time roll says who stands where'), fold: 'tdy-floor', open: true,
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div></div>', attrs: ' data-card="floor"' });
 }
 
 /* ---------- The tasks ----------
@@ -265,69 +289,134 @@ function tdyTaskMoveHtml(t) {
   }
   return t.goLabel ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGoApp" data-key="' + escHtml(t.key) + '">' + escHtml(t.goLabel) + '</button>' : '';
 }
-function tdyAppRowHtml(t) {
-  var ws = tdyTaskWs(t);
-  return '<div class="inv-row inv-row-2 inv-row-flow" data-todo="app" data-tdy-task="' + escHtml(t.key) + '" data-tone="' + escHtml(t.tone || '') + '">' +
-    '<span class="inv-row-lead">' + todoGlyph(t.tone) + '</span>' +
-    '<button class="inv-row-main" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '"><span class="inv-row-title inv-row-wrap">' + escHtml(t.title) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml([t.sub, ws].filter(Boolean).join(' · ')) + '</span></button>' +
-    '<span class="inv-row-end inv-row-actions">' + tdyTaskMoveHtml(t) + '</span></div>';
+/* A task as a card (§6.22): its mark and where it lands in the head with the rupees it names, the task and its figures,
+   and its one move at the foot. The card opens the task, with every move it has. */
+function tdyAppCardHtml(t) {
+  var money = tdySeesMoney() && t.worth > 0.005;
+  return '<article class="inv-deck-item" data-todo="app" data-tdy-task="' + escHtml(t.key) + '" data-tone="' + escHtml(t.tone || '') + '">' +
+    '<div class="inv-deck-head">' + todoGlyph(t.tone) + '<span class="inv-deck-word">' + escHtml(tdyTaskWs(t) || TODO_TONE_WORD[t.tone] || 'To know') + '</span>' +
+    (money ? '<span class="inv-deck-fig">' + figHtml(escHtml(formatCurrency(gstRound(t.worth))), t.tone === 'red' ? 'danger' : t.tone === 'amber' ? 'warning' : '') + '</span>' : '') + '</div>' +
+    '<button class="inv-deck-main" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '"><span class="inv-deck-title">' + escHtml(t.title) + '</span>' +
+    (t.sub ? '<span class="inv-deck-sub">' + escHtml(t.sub) + '</span>' : '') + '</button>' +
+    '<div class="inv-deck-foot">' + tdyTaskMoveHtml(t) + '</div></article>';
+}
+/* A task of your own as a card: its tick box and its due date in the head, its words, the place it was added from. */
+function tdyMineCardHtml(t) {
+  var tone = todoMineTone(t), go = '';
+  if (t.go) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(t.goLabel || 'Open') + '</button>';
+  else if (t.link) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
+  return '<article class="inv-deck-item" data-todo="mine" data-tone="' + escHtml(tone) + '">' +
+    '<div class="inv-deck-head"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
+    '<span class="inv-deck-word">Yours</span>' + (t.due ? uiDot(tone ? uiTone(tone) : 'neutral', escHtml(todoDueLabel(t.due))) : '') + '</div>' +
+    '<button class="inv-deck-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-deck-title">' + escHtml(t.text) + '</span>' +
+    (t.note ? '<span class="inv-deck-sub">' + escHtml(t.note) + '</span>' : '') + '</button>' + (go ? '<div class="inv-deck-foot">' + go + '</div>' : '') + '</article>';
 }
 /* The To-do's own list for the role signed in (todo.js todoRanked → todoSees, todoMineSees): a task whose move lands on a
    page the role does not open, on Pay without the wages or on Settings without the settings, or whose figures are money
    or wages it may not read, is not here. One list for Needs you, the To-do and the bar's counts (workspace.js). */
 function tdyTasks() { return todoRanked(); }
+/* The tasks as three hero cards (§6.21): Now (red, and your own due), This week and Later, each coded in its tone and
+   opening to its deck. Now opens by itself; This week opens where Now is empty; Later stays shut until opened. */
+var TDY_GROUP_TONE = { now: 'danger', week: 'warning', later: 'info' };
 function tdyTasksHtml() {
   var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
   if (typeof learnSeen === 'function') learnSeen(rows.filter(function(r) { return r.app; }).map(function(r) { return r.app; }));
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
-  var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" data-card="tasks"><div class="inv-panel-head"><span class="inv-panel-title">Needs you' +
-    (rows.length ? ' <span class="inv-panel-count" data-tdy-count>' + rows.length + '</span>' : '') + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (rows.length ? 'To-do list' : 'Add a task') + '</button></div>';
-  if (!rows.length) return h + '<div class="inv-row" data-tdy-none><span class="inv-row-main">' + uiDot('ok', 'Nothing needs you') + '</span></div></div>';
-  TDY_GROUPS.forEach(function(g) {
-    var list = groups[g[0]];
+  var money = tdySeesMoney();
+  var worth = function(list) { return gstRound(list.reduce(function(s, r) { return s + (r.app && r.app.worth > 0 ? r.app.worth : 0); }, 0)); };
+  var card = function(r) { return r.app ? tdyAppCardHtml(r.app) : tdyMineCardHtml(r.mine); };
+  var deck = function(g, list) { return uiMoreDeckHtml('tdy-' + g, list.map(card), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' }); };
+  var titles = function(list) { return list.slice(0, 3).map(function(r) { return r.app ? r.app.title : r.mine.text; }).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : ''); };
+  var counts = function(list, g) { return '<span>' + TDY_GROUPS.filter(function(x) { return x[0] === g; })[0][1] + '</span><span class="inv-panel-count" data-tdy-count>' + list.length + '</span>'; };
+  var h = '';
+  var now = groups.now, wN = worth(now);
+  var meter = rows.length ? chartMeter([{ v: groups.now.length, tone: 'danger' }, { v: groups.week.length, tone: 'warning' }, { v: groups.later.length, tone: 'info' }],
+    { title: groups.now.length + ' now · ' + groups.week.length + ' this week · ' + groups.later.length + ' later' }) : '';
+  var rest = [groups.week.length ? groups.week.length + ' this week' : '', groups.later.length ? groups.later.length + ' to know' : ''].filter(Boolean).join(' · ');
+  h += uiHeroHtml({ tone: now.length ? (now.some(function(r) { return r.tone === 'red'; }) ? 'danger' : 'warning') : 'ok',
+    eyebrow: counts(now, 'now'), title: now.length ? escHtml(todoPlural(now.length, 'thing needs', 'things need') + ' you now') : 'Nothing needs you now',
+    fig: money && wN > 0 ? figWrapHtml(escHtml(formatCurrency(wN))) : '', sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
+    viz: meter, open: true, body: now.length ? deck('now', now) : null, attrs: ' data-tdy-group="now"' });
+  [['week', groups.week], ['later', groups.later]].forEach(function(p) {
+    var g = p[0], list = p[1];
     if (!list.length) return;
-    h += '<div class="inv-row-group" data-tdy-group="' + g[0] + '"><span>' + g[1] + '</span><span class="inv-num">' + list.length + '</span></div>';
-    h += uiMoreHtml('tdy-' + g[0], list.map(function(r) { return r.app ? tdyAppRowHtml(r.app) : todoMineRowHtml(r.mine); }), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' });
+    var w = worth(list);
+    h += uiHeroHtml({ tone: TDY_GROUP_TONE[g], eyebrow: counts(list, g), title: escHtml(g === 'week' ? todoPlural(list.length, 'task') + ' for this week' : todoPlural(list.length, 'thing') + ' to know'),
+      fig: money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) : '', sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
+      body: deck(g, list), attrs: ' data-tdy-group="' + g + '"' });
   });
-  return h + '</div>';
+  return '<div class="inv-hero-stack" data-card="tasks">' + h + '</div>';
 }
 
 /* ---------- Drawing ---------- */
+/* Needs you: on the phone a column of cards (the day's inputs, then the tasks, then the recent invoices); on the desktop
+   the tasks across the top and the day, the floor and the invoices packed under them with no gap (§6.25). */
 function renderNeeds() {
   var el = document.getElementById('homeNeeds');
   if (!el) return;
   // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
   if (typeof grdHeld === 'function' && grdHeld()) return;
   var day = localDateStr();
-  var h = '<div class="inv-panels">' + tdyInputsHtml(day);
-  if (_isDesktop && tdySees('pageFloor')) h += tdyFloorHtml(day);
-  el.innerHTML = h + tdyRecentHtml() + tdyTasksHtml() + '</div>';
+  var inputs = tdyInputsHtml(day), tasks = tdyTasksHtml(), recent = tdyRecentHtml();
+  if (_isDesktop) {
+    var floor = tdySees('pageFloor') ? tdyFloorHtml(day) : '';
+    el.innerHTML = '<div class="inv-panels inv-panels-3" data-tdy-grid>' + tasks.replace('class="inv-hero-stack"', 'class="inv-hero-stack inv-panels-wide"') + inputs + floor + recent + '</div>';
+    uiMasonry(el.querySelector('[data-tdy-grid]'));
+  } else el.innerHTML = inputs + tasks + recent;
 }
 /* The last invoices made, each a tap from its print preview (owner, 6 Oct 2026: *"earlier we used to see the recently created
-   invoices for quick print, now to print a recent invoice is 4 clicks"*: the list had gone to Pulse, under the questions). */
+   invoices for quick print, now to print a recent invoice is 4 clicks"*: the list had gone to Pulse, under the questions). A hero
+   in the theme's colour: the latest invoice and its figure, opening to the five with their print buttons. */
 var TDY_RECENT = 5;
 function tdyRecentHtml() {
   if (!tdySees('pageRegister')) return '';
   var list = homeRecentInvoices(TDY_RECENT);
   if (!list.length) return '';
-  return '<div class="inv-panel inv-panel-flush" data-card="recent"><div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div>' +
-    list.map(homeRecentRowHtml).join('') + '</div>';
+  var last = list[0];
+  return uiHeroHtml({ eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
+    title: '<span class="inv-id">' + escHtml(last.displayNumber) + '</span>', fig: figWrapHtml(escHtml(formatCurrency(last.grandTotal))),
+    sub: escHtml([formatDate(last.date), last.clientName].filter(Boolean).join(' · ')), fold: 'tdy-recent', open: true,
+    body: '<div class="inv-hero-sheet">' + list.map(homeRecentRowHtml).join('') +
+      '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div></div>',
+    attrs: ' data-card="recent"' });
 }
-/* Pulse: the questions, read for the period Stats shows (statsPulseArgs), then the widgets. Without the finance permission
-   there are no questions: every one of them reads money. */
+/* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
+   figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
+   moves worth most across every question. Without the finance permission there are no questions: every one reads money. */
+var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
 function renderPulseQuestions() {
   var el = document.getElementById('homeQuestions');
   if (!el) return;
   if (!tdySeesMoney()) { el.innerHTML = ''; return; }
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  var html = '';
-  try { html = advPulseHtml(per); } catch (e) { html = ''; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
+  var qs = [];
+  try { qs = advQuestions(per); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
     '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
-    (html ? '<div class="inv-panels inv-panels-3" data-tdy-questions>' + html + '</div>' : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+    (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
+      : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+}
+function tdyQuestionHtml(x) {
+  var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };
+  var moves = '';
+  if (!x.inline || !x.moves.length) {
+    moves = '<div class="inv-hero-moves" data-tdy-moves>' + (x.moves.length ? '<div class="inv-hero-eyebrow inv-mt-8 inv-mb-8">What you can do <span class="inv-panel-count">' + x.moves.length + '</span></div>' +
+      advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note inv-mt-8">' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
+      (x.hints || []).map(function(t) { return '<div class="inv-note inv-mt-8" data-adv-hint>' + escHtml(t) + '</div>'; }).join('') + '</div>';
+  }
+  return uiHeroHtml({ tone: v.tone || 'neutral', vital: true, eyebrow: '<span>' + escHtml(x.q) + '</span>', fig: v.fig || '', title: v.title || '', sub: v.sub || '', viz: v.viz || '',
+    fold: 'tdy-q-' + x.key, open: false, body: '<div class="inv-hero-sheet">' + x.html + '</div>' + moves, attrs: ' data-tdy-q="' + escHtml(x.key) + '"' });
+}
+/* The moves worth most across every question, as cards: what to do first, before reading any answer. */
+function tdyFirstHtml(qs) {
+  var from = {}, all = [];
+  qs.forEach(function(q) { if (!q.inline) (q.moves || []).forEach(function(mv) { if (!from[mv.key]) { from[mv.key] = q.key; all.push(mv); } }); });
+  var top = advRank(all, null).slice(0, 3);
+  if (!top.length) return '';
+  var listed = advListedKeys();
+  return uiHeroHtml({ eyebrow: '<span>Do first</span><span class="inv-panel-count">' + top.length + '</span>', title: 'The moves worth most',
+    sub: 'Across every question above, by what each is worth a month; each question opens to its own', fold: 'tdy-first', open: true, attrs: ' data-card="first"',
+    body: '<div class="inv-deck" data-adv-deck="first">' + top.map(function(mv) { return advMoveCardHtml(mv, listed, TDY_Q_WORD[from[mv.key]]); }).join('') + '</div>' });
 }
 /* The view on screen: one of the two blocks shown. */
 function tdyApplyView() {

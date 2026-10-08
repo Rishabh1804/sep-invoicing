@@ -117,6 +117,7 @@ var CHG_TRACK = [
     var it = typeof POWER_ITEMS !== 'undefined' ? POWER_ITEMS.find(function(x) { return x[0] === k; }) : null;
     return it ? it[1] : k;
   } },
+  { path: 'power.causes', kind: 'arr', noun: 'power cause', label: function(r) { return chgJoin(r.kind === 'fix' ? 'fix' : 'reason', r.name); } },
   { path: 'power.load', kind: 'cfg', sec: 'Power → the connection' },
   { path: 'power.cfg', kind: 'cfg', sec: 'Power → the options’ figures' },
   { path: 'users', kind: 'arr', noun: 'user', label: function(r) { return chgJoin(r.name, r.role); } },

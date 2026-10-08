@@ -169,6 +169,15 @@ sheet they print on and the PDF they save as.
 `--neutral` is `--text-3` on `--surface-2` (created, filed, model, no data). **The v1.0 domain colours
 (`--attend`, `--cost`, `--prod`, `--neutral`, `--todo`, `--cw`, `--perm`) are retired** into these five.
 
+**Fills** (8 Oct 2026; owner: *"Hero cards should have gradient colour filling as per the theme, make sure the colours are
+coded - also check if colour coding already exists"*). The coding existed: these status tones, and the figure judgements
+that pick one (`figTone*`, CLAUDE.md *A figure says whether it is good*). A hero card (§6.21) is filled from them, so it
+needs no colour of its own: `--grad-danger`, `--grad-warning`, `--grad-ok` and `--grad-info` run at 135° from the tone mixed
+18% into its `-bg` (in oklab), through the `-bg` at 40%, to `--surface`; `--grad-accent` does the same with the palette's
+accent over `--accent-soft`, for a card with no status; `--grad-neutral` is `--surface-2` to `--surface`. Built of tokens that
+switch with the theme and the palette, they follow both, and DR-1 holds: a fill's colour is its status, and its words say
+which (the card's title, its figure in the tone). No other surface takes a gradient.
+
 **Chart series** (`--chart-1…8`, `--chart-other`) stay for categorical charts (pies, stacked bars), redrawn
 from this palette in both themes. A single-series chart uses `--surface-3` bars with the current/selected bar
 in `--accent` (§6.17).
@@ -271,6 +280,8 @@ which read `var()` for every colour. Anything else raw is a defect. Two things a
 else: a container query's width (`@container list (max-width: 70rem)` — a query's condition cannot read a custom property),
 and the viewport itself (`100vh`), which is not a design value. *Confirmed in step 4 (26 Sep 2026) by sweeping
 `styles.css` for raw px, rem, em, ms, hex and rgb outside the printed documents: these are the only ones.*
+Two custom properties are set from code on an element, never a style in a template (HR-1): the print view's zoom
+(`--pp-zoom`, `printFit`) and a packed grid's row span (`--rows`, §6.25), each a count the layout measures.
 
 ### 3.10 Contrast (measured, WCAG 2.x)
 
@@ -571,8 +582,9 @@ subtracted by hand. Content above the host taller than the screen squeezes it on
 that the page scrolls like any long page. A host hidden under a form leaves the page an ordinary document.
 
 **Three columns on a wide screen.** `inv-panels` is two columns on the desktop; `inv-panels inv-panels-3` (Pulse's
-questions and widgets, Stats, Finance's Overview) is three from a 100rem (about 1,600px) window, and only those: a grid of two
-lists or a few cards (To-do, Needs you, Create, Floor, Production, Stock, Power) left a column empty at three.
+questions and widgets, Stats, Finance's Overview, Needs you) is three from a 100rem (about 1,600px) window, and only those: a
+grid of two lists or a few cards (To-do, Create, Floor, Production, Stock, Power) left a column empty at three. Needs you and
+Pulse's widgets are packed (§6.25), so cards of different heights leave no hole under the shorter.
 `inv-panels-wide` still spans the row. Every panel in a grid is a `panel-w` container, so a strip of tiles in a third of the row
 goes two across with an odd last tile taking the row, never a blank cell.
 
@@ -702,6 +714,49 @@ only), and five margins on the spacing scale: `inv-mt-4`, `inv-mt-8`, `inv-mt-16
 a spacing a component needs belongs to the component. Status is a dot and a word through `uiDot(tone, word)` (`tabs.js`),
 its tone through `uiTone()`, which also maps the red / amber / info words the rules and parsers speak.
 
+### 6.21 Hero card — `inv-hero` (`uiHeroHtml`, state.js)
+A card that leads with what it is about and says it in a line, for a screen read at a glance (Today; owner, 8 Oct 2026:
+*"If it is in list form, it should be presented better, maybe as a card or at least an expandable hero card. Right now we
+have empty spaces, and inefficient layout"*). Anatomy, in `inv-hero-head`: the eyebrow (`inv-hero-eyebrow`: what it is, a
+count `inv-panel-count`), the title (`inv-hero-title`, one sentence), the figure (`inv-hero-fig`, mono, in the card's tone),
+a sub line (`inv-hero-sub`, two lines at most) and a small drawing (`inv-hero-viz`: a sparkline or a meter, §6.24). Filled
+with its tone's gradient (§3.3 *Fills*: `inv-hero-danger|warning|ok|info|neutral`, the accent with none), its border the
+tone mixed into `--border`. With a body it is a `<details>` whose `summary` is the head (a chevron at its right) and whose
+`inv-hero-body` holds a deck (§6.22), steps (§6.23) or an `inv-hero-sheet`: one `--surface` sheet of rows, tiles or a
+question's story, which on the phone reaches the card's edges so its rows keep a flush panel's width. A fold the owner opens
+or shuts is remembered per device (`fold`, as `uiFoldHtml`). `inv-hero-vital` puts the figure first, for a question's answer.
+`inv-heroes` sets heroes side by side (two on the phone, three on the desktop; one opened takes its row); `inv-hero-stack`
+stacks them with the grid's gap only.
+
+### 6.22 Card deck — `inv-deck`, `inv-deck-item`
+Things to act on as cards, as many across as fit (`auto-fit` at `--deck-min`, so two or three cards share the row and never
+leave a blank column). A card: `inv-deck-head` (a glyph or tick, a word for where it lands or how sure, its figure mono at the
+end), then either `inv-deck-main`, a button whose `::after` covers the card so the whole face opens what it names (its focus
+ring drawn on the card), or `inv-deck-body` for a card that is not itself a door; `inv-deck-title` and `inv-deck-sub` two
+lines each; `inv-deck-foot` its one move, above the stretched button. *Show N more* sits under the deck, outside its grid
+(`uiMoreDeckHtml`, `inv-deck-more`), so the rest open in place without a gap in the row. Today's tasks (`tdyAppCardHtml`,
+`tdyMineCardHtml`) and every move (`advMoveCardHtml`) are cards.
+
+### 6.23 Steps — `inv-steps`, `inv-step`
+What arrives in a day, in the order it comes, on one rail: each `inv-step` a node (`inv-step-node`, its number or a tick),
+`inv-step-main` (a button: `inv-step-title` over `inv-step-meta`) and its door at the end. The node says where it stands by
+`data-state`: `in` filled ok, `part` ok outline, `late` warning, `off` dashed, waiting plain; a late step's meta is in the
+warning tone. Today's five inputs.
+
+### 6.24 Sparkline and meter — `chartSpark`, `chartMeter` (charts.js)
+Drawings small enough for a card's head or a tile. `chartSpark(values, {ref, tone, dot})`: a line over the values
+(`inv-spark-line`, in a tone with `inv-spark-<tone>`), a dashed reference (`inv-spark-ref`: the cost under realisation, last
+month's pace), the last value a dot; a gap is a gap. `chartMeter(parts, {max, mark})`: one bar of parts in their tones
+(`inv-meter-<tone>` on `inv-meter-track`; `neutral-2` a second grey, so two neutral parts side by side read as two), a mark
+where a target sits (`inv-meter-mark`). Both carry a `<title>` with the
+figures and stretch to their box (`--spark-h`, `--meter-h`). A tile takes one in `inv-tile-viz` (the month's tiles on Pulse).
+
+### 6.25 Packed grid — `uiMasonry(el)` (state.js)
+A grid of cards of different heights packed with no hole (Needs you and Pulse's widgets on the desktop). Where the grid has
+two columns or more it is `inv-masonry-on` (`grid-auto-rows: --masonry-row`), and each child spans as many of those rows as
+its own height takes (`--rows`, set from code, §3.9); a `ResizeObserver` packs it again when a card opens, shuts or draws a
+chart. One column, or the phone, is left an ordinary grid. `inv-panels-wide` still spans the row.
+
 ---
 
 ## 7. How each screen is assembled
@@ -709,6 +764,9 @@ its tone through `uiTone()`, which also maps the red / amber / info words the ru
 | Screen | Phone | Desktop |
 |---|---|---|
 | Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · Money (`button.inv-tile` ×4 into Finance: balance, owed, pays in, runway; *Import statement* in its head) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
+| Today → Needs you | the day's inputs as a hero (*N of 5 in*, a meter, the next due) opening to steps (§6.23), each with its Paste or Photo, then WhatsApp · the tasks as three heroes, **Now** (red or amber, open, its worth), **This week** and **Later** (folded to a line naming what is in them), each a deck of cards with the move at the foot · the recent invoices as a hero (the latest and its figure) opening to rows with their print buttons | the tasks across the top, the inputs, *Floor now* (a tile per line and Power) and the recent invoices packed under them (§6.25), three across from 100rem |
+| Today → Pulse | the period head · the questions as `inv-heroes`, two across: each its question, its answer as a figure and a word in the tone, a sparkline or meter, folded; opened it takes the row with the story and *What you can do* as a deck · **Do first**: the three moves worth most across the questions, as cards · the widgets the owner arranged (the month's tiles each with a sparkline of the months before) | the questions three across, the widgets packed. The sidebar's name and mark open Pulse (`invGoPulse`) |
+| Power → Causes, and a cut completed | the fifth view tab · tiles (with a reason, to complete, from the grid, the costliest cause) · *To complete*: a row per cut with no time back or no reason, **Complete** at its end · what causes them, `chartRankedBars` by what each cost, coded by where it starts (danger: in the plant three times in 30 days; warning: in the plant; info: the grid; neutral: not placed) · where they hit, a tile per station in the plant's order · what brings it back, fastest first · the lists of reasons and fixes, **Edit** for the owner · the cut a dialog (§6.16): *Power in at* (a time field, or the record's time read-only), *Why it went* and *What brought it back* each a field over `inv-chip`s of the list (the most used first, filtered as typed) with what it will be saved as said under it (*Saved as …*, *Read as … · Keep as new*, *New: …* with where it starts as an `inv-seg`), *Where it hit* a `<select>` of the whole plant, the stations and their units | the same, panels two across |
 | Create | fields · unbilled-challan rows with checkboxes (ticking one brings its open lines in) · line editor · collapsible optional details (`inv-panel-fold`) · action bar (grand total, Clear, Create invoice) | same, two-column fields, lines as a table. *Built.* The add/edit challan form is assembled the same way, on the same line editor. |
 | IM | view tabs *Awaiting invoice* (the default) · *Invoiced*, each with its count · toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons; the status filter only on Awaiting) · on Invoiced a month `inv-stepper` (the latest month first, back a month at a time) · the tab's challans grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
 | Register | toolbar (search + filter selects; `inv-token` filters to come) · rows grouped by day with subtotal · selection bar | table (invoice, client, date, challans, kg, taxable, GST, total, state) · selection bar · detail pane. *Built.* |

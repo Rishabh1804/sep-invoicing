@@ -23,10 +23,10 @@ function book(extra: any = {}): SepState {
   return Object.assign(s, extra) as SepState;
 }
 
-test('Power opens from More, with four views, and says where cuts come from when there are none', async ({ page }) => {
+test('Power opens from More, with five views, and says where cuts come from when there are none', async ({ page }) => {
   await loadAppWithState(page, book());
   await switchTab(page, 'pagePower');
-  await expect(page.locator('#pagePower [data-action="invPowerTab"]')).toHaveText(['Overview', 'Cuts', 'Load & bills', 'Case']);
+  await expect(page.locator('#pagePower [data-action="invPowerTab"]')).toHaveText(['Overview', 'Cuts', 'Causes', 'Load & bills', 'Case']);
   await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
   await expect(page.locator('#powerContent')).toContainText('No power cut on record');
   await page.locator('[data-action="invPowerTab"][data-tab="case"]').click();

@@ -24,7 +24,7 @@
 
 /* The areas whose line stops when the power goes: their hands are the lower end of the idle wages. */
 var POWER_PLATING_AREAS = ['vat-a1', 'vat-a2', 'barrel'];
-var POWER_TABS = [['overview', 'Overview'], ['cuts', 'Cuts'], ['load', 'Load & bills'], ['case', 'Case']];
+var POWER_TABS = [['overview', 'Overview'], ['cuts', 'Cuts'], ['causes', 'Causes'], ['load', 'Load & bills'], ['case', 'Case']];
 var _powerTab = (function() { try { var t = localStorage.getItem('sep_inv_power_tab'); return POWER_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
 var _powerTabMoved = false;
 
@@ -63,6 +63,8 @@ function powerData() {
   if (!p.load || typeof p.load !== 'object') p.load = {};
   if (!p.cfg || typeof p.cfg !== 'object') p.cfg = {};
   if (!p.items || typeof p.items !== 'object') p.items = {};
+  // Why a cut came and what brought the power back, the list the book keeps (powercause.js).
+  if (!Array.isArray(p.causes)) p.causes = [];
   return p;
 }
 function powerCfg() {
@@ -106,13 +108,15 @@ function powerCuts(from, to) {
       var ents = c.ids.map(function(id) { return byId[id]; }).filter(Boolean);
       var basis = {};
       ents.forEach(function(e) { basis[e.basis || e.src || 'hand'] = true; });
-      out.push({ date: date, from: a, to: b, min: b == null ? null : Math.max(0, b - a), open: b == null, overnight: overnight,
+      out.push(Object.assign({ date: date, from: a, to: b, min: b == null ? null : Math.max(0, b - a), open: b == null, overnight: overnight,
         reports: c.reports, basis: Object.keys(basis), ids: c.ids, note: (ents.find(function(e) { return e.note; }) || {}).note || '',
         // The log sometimes has only a bound for the power-back ("after 6:59 PM"): the time is the earliest it can be.
         atLeast: ents.some(function(e) { return e.downtime && e.downtime.atLeast; }),
         // A close the record did not see (the day ended early): counted as timed, and said.
         inferred: ents.some(function(e) { return e.downtime && e.downtime.inferred; }),
-        phase: (ents.find(function(e) { return e.downtime && e.downtime.phase; }) || { downtime: {} }).downtime.phase || null });
+        phase: (ents.find(function(e) { return e.downtime && e.downtime.phase; }) || { downtime: {} }).downtime.phase || null },
+        // Why it went, where it hit and what brought it back, as completed (powercause.js).
+        typeof pcsCutFields === 'function' ? pcsCutFields(ents) : {}));
     });
   });
   return out;
@@ -522,6 +526,7 @@ function renderPower() {
     (_powerTab === 'load' ? '<button class="inv-btn inv-btn-secondary" data-action="invPowerLoadEdit">Edit load</button>' : '') +
     (_powerTab === 'cuts' ? '<button class="inv-btn inv-btn-ghost" data-action="invPowerImport">Import history</button>' : '') + '</div>';
   if (_powerTab === 'cuts') h += powerCutsHtml(a);
+  else if (_powerTab === 'causes') h += pcsCausesHtml(a);
   else if (_powerTab === 'load') h += powerLoadHtml(a);
   else if (_powerTab === 'case') h += '<div class="inv-scroll-x" data-power-case-wrap>' + powerCaseHtml(a) + '</div>';
   else h += powerOverviewHtml(a);
@@ -547,13 +552,18 @@ function powerOverviewHtml(a) {
     _powerTile('Load', L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '&mdash;',
       L.pending ? escHtml(formatNum(L.approved, 0) + ' kVA approved, not yet billed · ' + formatCurrency(L.penaltySince) + ' penalty since') : L.sanctioned ? 'as billed' : 'not recorded yet', L.pending ? 'danger' : '', 'load') +
     '</div>';
+  // What is left to complete (a time back, a reason), and why the cuts come (powercause.js).
+  var z = pcsAnalysis(a);
+  h += pcsCompleteHtml(z);
   h += '<div class="inv-panels"><div class="inv-panel" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div>' +
     chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record' }) +
     '<div class="inv-note">Cuts recorded each month. A month with gaps in the record reads low: the Cuts tab gives each month&rsquo;s recorded days.</div></div>';
   h += '<div class="inv-panel" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div>' +
     chartBars(a.hours.map(function(n, i) { return { label: (i % 12 || 12) + (i < 12 ? 'a' : 'p'), value: n }; }).slice(5, 23), { unit: 'count', ariaLabel: 'Cuts by the hour they began', emptyText: 'No cut on record' }) +
     '<div class="inv-note">By the hour each cut began, 5 AM to 10 PM. ' + escHtml(a.bands.map(function(b) { return b.label + ' ' + b.cuts; }).join(' · ')) + '.</div></div>';
-  var raised = todoApp(['powerLoad']);
+  h += pcsOverviewHtml(z);
+  // The To-do's power tasks; a cut to complete is the panel above.
+  var raised = todoApp(['powerLoad', 'powerCause']);
   h += '<div class="inv-panel inv-panel-flush" id="powerRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
     (raised.length ? raised.map(function(t) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + escHtml(t.title) + '</span></span><span class="inv-row-meta">' + escHtml(t.sub || '') + '</span></span></div>';
@@ -566,7 +576,7 @@ function powerCutsHtml(a) {
   // A cut is one line (the day and the clock, how long, the damage and its status) that opens to what the damage is
   // made of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass: this list
   // ran 21.6 phone screens on the real book, a paragraph of arithmetic under every cut).
-  var h = '<div class="inv-panels">';
+  var h = pcsCompleteHtml(pcsAnalysis(a)) + '<div class="inv-panels">';
   a.months.slice().reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
     var rows = list.map(function(c) {
@@ -588,10 +598,12 @@ function powerCutsHtml(a) {
         k.inside ? (c.min != null && k.inside >= c.min ? 'all in working hours' : powerDur(k.inside) + ' in working hours') + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours',
         k.hands ? k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ' idle' : '', c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ');
       return '<details class="inv-row-fold" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
-        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span>' +
+        // Why it went, on a line of its own (powercause.js): the meta's two lines are the cut's own figures.
+        (c.reason && pcsName(c.reason) ? '<span class="inv-row-meta inv-row-wrap" data-power-cut-why>' + escHtml('Why: ' + pcsName(c.reason)) + '</span>' : '') + '</span>' +
         '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' +
         (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></summary>' +
-        (parts.length ? '<div class="inv-row-children">' + parts.join('') + '</div>' : '') + '</details>';
+        '<div class="inv-row-children">' + pcsCutWhyHtml(c) + parts.join('') + '</div></details>';
     });
     var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
       '<span class="inv-num">' + formatCurrency(m.cost) + '</span>';

@@ -386,14 +386,25 @@ function todoConfApply(t) {
 /* `only` (optional): the rule ids to run, for a screen that shows a few of them — every rule reads the
    whole book, and the finance ones classify the statement and run the forecast. */
 function todoAppAll(only, ran) {
-  var cfg = todoCfg(), out = [];
-  TODO_RULES.forEach(function(r) {
-    if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
-    // One rule failing on a shape nobody anticipated must not take the list with it.
-    try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
-  });
+  var cfg = todoCfg(), out = [], outer = _todoPass;
+  if (!outer) _todoPass = {};
+  try {
+    TODO_RULES.forEach(function(r) {
+      if (!cfg[r[0]] || (only && only.indexOf(r[0]) < 0)) return;
+      // One rule failing on a shape nobody anticipated must not take the list with it.
+      try { out = out.concat((TODO_RULE_FNS[r[0]]() || []).map(todoConfApply)); if (ran) ran[r[0]] = true; } catch (e) { /* skipped */ }
+    });
+  } finally { if (!outer) _todoPass = null; }
   out.forEach(function(t) { t.worth = todoWorth(t); });
   return out.sort(todoAppCmp);
+}
+/* What several rules read alike, worked out once in one pass over the rules (the power analysis two rules read). Outside a
+   pass it is worked out each time: a rule run on its own reads the book as it is. */
+var _todoPass = null;
+function todoPassMemo(k, f) {
+  if (!_todoPass) return f();
+  if (!Object.prototype.hasOwnProperty.call(_todoPass, k)) _todoPass[k] = f();
+  return _todoPass[k];
 }
 
 /* ---------- One ranked list (docs/INTELLIGENCE_2.md, I3) ----------
@@ -404,7 +415,7 @@ function todoAppAll(only, ran) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;

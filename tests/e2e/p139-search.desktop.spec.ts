@@ -199,14 +199,18 @@ test.describe('P139: keys and new windows on the desktop', () => {
     await expect.poll(() => where(page)).toEqual(['pageRegister', '', 'INV-834']);
   });
 
-  test('Ctrl+click or a middle click on a sidebar item, a view tab or a row opens it in a new window, and nothing moves here', async ({ page }) => {
+  test("Ctrl+click or a middle click on the rail's door, a workspace's tab, a view tab or a row opens it in a new window, and nothing moves here", async ({ page }) => {
     await loadAppWithState(page, searchBook());
     await stubOpen(page);
-    // The sidebar: its pages (Items and Pay are views inside Clients and People on the workspace sidebar).
-    await page.locator('#invSidebar [data-tab="pageRegister"]').click({ modifiers: ['Control'] });
-    await page.locator('#invSidebar [data-tab="pageClients"]').click({ button: 'middle' });
-    await page.locator('#invSidebar [data-tab="pageStaff"]').click({ modifiers: ['Control'] });
+    // The rail: a workspace's door opens the workspace's first screen (Floor's Day). The workspace's tab row: its pages.
+    await page.locator('#invSidebar [data-action="invWsGo"][data-ws="floor"]').click({ modifiers: ['Control'] });
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await page.locator('#invSidebar [data-ws="office"]').click();
+    const here = await page.evaluate(() => (document.querySelector('.inv-page-active') as HTMLElement).id);
+    await page.locator('#wsTabs [data-tab="pageRegister"]').click({ modifiers: ['Control'] });
+    await page.locator('#wsTabs [data-tab="pageClients"]').click({ button: 'middle' });
+    await page.locator('#wsTabs [data-tab="pageHistory"]').click({ modifiers: ['Control'] });
+    await expect(page.locator('#' + here)).toHaveClass(/inv-page-active/);
     // A view tab: its page at that view.
     await switchTab(page, 'pageStats');
     await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click({ modifiers: ['Control'] });
@@ -221,12 +225,12 @@ test.describe('P139: keys and new windows on the desktop', () => {
     // The top bar's New window: the place on screen.
     await page.locator('.inv-topbar [data-action="invNewWindow"]').click();
     expect(await opened(page)).toEqual([
-      ['pageRegister', '', '', '_blank'], ['pageClients', '', '', '_blank'], ['pageStaff', '', '', '_blank'],
+      ['pageFloor', '', '', '_blank'], ['pageRegister', '', '', '_blank'], ['pageClients', '', '', '_blank'], ['pageHistory', '', '', '_blank'],
       ['pageStats', 'cost', '', '_blank'], ['pageRegister', '', 'INV-900', '_blank'], ['pageIM', 'awaiting', 'IM-8341', '_blank'],
       ['pageIM', 'awaiting', '', '_blank'],
     ]);
     // A plain click still does what it always did.
-    await page.locator('#invSidebar [data-tab="pageRegister"]').click();
+    await page.locator('#wsTabs [data-tab="pageRegister"]').click();
     await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
   });
 

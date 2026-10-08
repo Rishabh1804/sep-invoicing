@@ -18,13 +18,15 @@ async function openReports(page: Page, kind?: string) {
 }
 const doc = (page: Page) => page.locator('#rptSheet [data-rpt-doc]');
 
-test('Reports is in Insights, after Stats; each kind draws with its title and the open period reads "to date"', async ({ page }) => {
+test("Reports is in Office's review, after Stats; each kind draws with its title and the open period reads \"to date\"", async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await switchTab(page, 'pageStats');
-  await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Stats', 'Reports', 'Planner', 'History', 'Knowledge']);   // Knowledge since P154
+  // Office's review (Insights' views until 8 Oct 2026; Knowledge since P154).
+  const labels = await page.locator('#wsTabs .inv-viewtab').allInnerTexts();
+  expect(labels.slice(labels.indexOf('Stats'))).toEqual(['Stats', 'Reports', 'Planner', 'History', 'Knowledge']);
   await page.locator('#wsTabs [data-tab="pageReports"]').click();
   await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
-  await expect(page.locator('#topbarTitle')).toHaveText('Insights');
+  await expect(page.locator('#topbarTitle')).toHaveText('Office');
   await expect(page.locator('#wsTabs [data-tab="pageReports"]')).toHaveAttribute('aria-selected', 'true');
   const t = todayIso(), d = new Date(t + 'T00:00:00');
   const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1, fyl = `FY ${fy}-${String(fy + 1).slice(2)}`;

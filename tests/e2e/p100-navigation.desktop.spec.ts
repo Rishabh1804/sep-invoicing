@@ -4,7 +4,8 @@ import { imState } from './im-fixture';
 
 // P100 desktop: a record open in the pane is a place with an address, and the top bar carries the trail beside the arrow,
 // each earlier step a link back to it. The top bar names the workspace, then the page, its view and the record
-// (DIRECTION_B: "Office › Challans · Awaiting invoice"); a step names its workspace where the next is in another.
+// (DIRECTION_B: "Office › Challans · Awaiting invoice"); a step names its workspace where the next is in another. Since the
+// rail (8 Oct 2026) the way to Challans from Today is the rail's Office (its first view, Pipeline, a step) and then its tab.
 
 test('the trail names the earlier steps; a step opens where it was; a record reopens by its address', async ({ page }) => {
   await page.setViewportSize({ width: 1280, height: 800 });
@@ -14,10 +15,10 @@ test('the trail names the earlier steps; a step opens where it was; a record reo
   await expect.poll(() => new URL(page.url()).searchParams.get('id')).toBe('IM-102');
   await expect(page.locator('#topbarTitle')).toHaveText('Office');
   await expect(page.locator('#topbarCtx')).toHaveText('Challans · Awaiting invoice · Ch. 102');
-  await switchTab(page, 'pageStats');
+  await switchTab(page, 'pageFinance');
   const trail = page.locator('#navTrail [data-action="invNavGo"]');
-  await expect(trail).toHaveText(['Today › Needs you', 'Awaiting invoice', 'Office › Challans · Awaiting invoice · Ch. 102']);
-  await expect(page.locator('#topbarTitle')).toHaveText('Insights');
+  await expect(trail).toHaveText(['Pipeline · Awaiting invoice', 'Awaiting invoice', 'Office › Challans · Awaiting invoice · Ch. 102']);
+  await expect(page.locator('#topbarTitle')).toHaveText('Money');
   await expect(page.locator('#navBack')).toBeVisible();
   await trail.nth(1).click();
   await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);

@@ -83,7 +83,7 @@ and the day is the month divided by its working days.
    usual, a client refusing an ask and sending less from the month after it, its revenue without kilos included.
    Each trial runs the same engine.
 
-## 4. The Planner (Insights → Planner)
+## 4. The Planner (Office → Planner; Insights → Planner until 8 Oct 2026)
 
 View tabs: **Play · Ledger · A day · Plant · Tech tree · Staff · Clients · Finance**. Each has its address
 (`?tab=pagePlanner&v=…`). One primary on Play: **Roll the trials**. Every view carries the heads-up strip: the month (a slider

@@ -42,10 +42,10 @@ test.describe('P151 on the desktop', () => {
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
   });
 
-  test('QA3-7: Ctrl+click Pulse, in the sidebar or the tab row, opens Pulse in a new window', async ({ page }) => {
+  test("QA3-7: Ctrl+click Pulse, the rail's mark or the tab row, opens Pulse in a new window", async ({ page }) => {
     await loadAppWithState(page, searchBook());
     await stubOpen(page);
-    await page.locator('#invSidebar [data-action="invSwitchTab"][data-tab="pageHome"][data-v="pulse"]').click({ modifiers: ['Control'] });
+    await page.locator('#invSidebar .inv-side-brand[data-action="invGoPulse"]').click({ modifiers: ['Control'] });
     await page.locator('#wsTabs [data-tab="pageHome"][data-v="pulse"]').click({ button: 'middle' });
     await page.locator('#wsTabs [data-tab="pageHome"][data-v="needs"]').click({ modifiers: ['Control'] });
     expect(await opened(page)).toEqual([['pageHome', 'pulse', '', '_blank'], ['pageHome', 'pulse', '', '_blank'], ['pageHome', 'needs', '', '_blank']]);

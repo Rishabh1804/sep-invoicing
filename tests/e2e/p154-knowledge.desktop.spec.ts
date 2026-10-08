@@ -19,7 +19,8 @@ test('the Library is a list beside the open article; the article has an address 
   await page.setViewportSize({ width: 1280, height: 800 });
   await loadAppWithState(page, book());
   await switchTab(page, 'pageKnow');
-  await expect(page.locator('#invSidebar [data-tab="pageKnow"]')).toHaveText(/Knowledge/);
+  await expect(page.locator('#wsTabs [data-tab="pageKnow"]')).toHaveText('Knowledge');
+  await expect(page.locator('#wsTabs [data-tab="pageKnow"]')).toHaveAttribute('aria-selected', 'true');
   await page.locator('#knowContent [data-action="invKbTab"][data-tab="library"]').click();
   await page.locator('[data-kb-row="A3"] [data-action="invKbOpen"]').click();
   await expect(page.locator('#kbHost')).toHaveClass(/inv-pane-open/);

@@ -407,9 +407,9 @@ function renderPulseQuestions() {
   var qs = [];
   try { qs = advQuestions(per); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Stats</button></div>' +
     (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
-      : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+      : '<div class="inv-empty">The questions could not be worked out: Office → Stats has the figures.</div>');
 }
 function tdyQuestionHtml(x) {
   var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };

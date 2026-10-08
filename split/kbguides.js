@@ -14,7 +14,7 @@ var KB_APP_GUIDES = [
     '- Then every open task, grouped **Now**, **This week** and **Later**. Tap a task to see why it was raised and what clears it.\n- A red task is late or wrong; amber needs a look soon.\n\n' +
     '# Pulse\n- The owner’s questions (is the plant running smoothly, are we making money, is cash coming in), each with what to do.\n- Below them, the widgets. **Edit Home** at the foot chooses which show and where.'),
   _kbg('add', 'Using the app: the Add button', 'One door for everything that comes in', ['pageHome', 'pageStaff', 'pageStock', 'pageProduction'],
-    'Everything that comes into the app goes through **Add** (the round button in the middle of the phone bar, or the key A on a computer).\n\n' +
+    'Everything that comes into the app goes through **Add** (the filled button in the middle of the phone bar, at the top of the rail on a computer, or the key A).\n\n' +
     '- **Paste**: a WhatsApp message (an attendance roll, the stock message, pickling loads, a production list). The app reads it and shows every line beside what it read, before anything is saved.\n' +
     '- **Photo**: a register page or a challan.\n- **File**: a backup, a bank statement, an import from soma-internal.\n- **By hand**: every form, when there is nothing to paste.\n\n' +
     'Nothing is saved until you press Save on the check that follows.'),
@@ -73,7 +73,7 @@ var KB_APP_GUIDES = [
     '- **Troubleshoot**: find a fault by what you see; log an incident when something goes wrong, and the app shows that day as recorded.\n' +
     '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.'),
   _kbg('planner', 'Using the app: the planner', 'Simulating machines, certification, staff, clients and a loan', ['pagePlanner'],
-    'Insights → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
+    'Office → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
     '# Make a plan\n1. **Suggest a start** puts the CQI-11 path in at its earliest, or plan moves one by one: **Plant** (an upgrade tree per station), **Tech tree**, **Staff** (hires and training), **Clients** (ask a rate, plan the work a client holds back).\n' +
     '2. A level or node opens once what it needs is planned. A move on the **board** (Play) is tapped to shift it a month or take it out.\n' +
     '3. **Finance** → Lenders: play one loan; its amount, rate, months and interest-only months are then the plan’s to change.\n' +

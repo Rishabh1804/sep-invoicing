@@ -18,7 +18,7 @@ Where a mock-up and this document disagree, **this document wins**.
   design away. Screens keep their data; "modern" comes from the chrome, the type and the discipline of
   colour. *(Research, 25 Sep 2026: expert daily users tolerate and prefer density — agency consensus,
   consistent with NN/g.)*
-- **Quiet chrome, loud status.** No coloured header bar, no drop shadows on content, no decorative boxes.
+- **Quiet chrome, loud status.** No coloured header bar, no drop shadows on content (a tile's lift aside, DR-6), no decorative boxes.
   Hierarchy comes from type weight, spacing and hairlines. Colour is spent on **meaning** — red, amber,
   green, blue — and on the one accent that marks what is interactive or selected.
 - **Tables are first-class.** A register, a stock list and a week grid are tables. They are drawn as
@@ -56,7 +56,7 @@ And the v2.0 rules, which carry the same weight:
 | DR-3 | **One primary button per view.** Everything else is secondary, ghost or link. |
 | DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. |
 | DR-5 | **Sentence case everywhere** — titles, labels, buttons, column heads, tabs. No uppercase letter-spaced labels. |
-| DR-6 | **No shadows on content.** Surfaces are separated by a 1px `--border` hairline or by the surface tier. Shadows exist only on floating layers (menus, dialogs, toasts). |
+| DR-6 | **No shadows on content, but a tile's lift.** Surfaces are separated by a 1px `--border` hairline or by the surface tier. Shadows exist on floating layers (menus, dialogs, toasts, the phone's bar) and, since 8 Oct 2026, on a tile and a card in a deck, lifted by `--shadow-tile` (owner: *"Let's give our tiles elevation as well"*): the boxes a reader reads a figure off or taps. A panel, a hero, a row, a sheet and a control stay flat. |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |
 | DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). |
 
@@ -222,7 +222,7 @@ fallback stacks are chosen to hold layout. Fraunces, Inter and IBM Plex Mono are
 | `--t-body-strong` | as body | | 500–600 | base | a row's primary line |
 | `--t-label` | 0.75rem (12) | 1.35 | 500 | base | field labels, column heads, tabs on desktop, tile labels |
 | `--t-caption` | 0.75rem (12) | 1.4 | 400 | base | meta lines, hints, footnotes (`--text-3`) |
-| `--t-micro` | 0.6875rem (11) | 1.3 | 500 | base | nav labels, counts in the sidebar, key hints |
+| `--t-micro` | 0.6875rem (11) | 1.3 | 500 | base | nav labels, counts on the bar and the rail, key hints |
 | `--t-num` | as body | | 400/600 | mono | any figure in a row or table |
 | `--t-stat` | 1.1875rem (19) phone / 1.375rem (22) desktop | 1.15 | 600 | mono | stat tiles (§6.9); letter-spacing `--ls-tight` |
 | `--t-hero` | 1.5rem (24) | 1.1 | 600 | mono | the single headline figure of a view, at most one |
@@ -257,8 +257,10 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 - Radius: `--r-sm 0.25rem (4)` chips, cells, checkboxes · `--r-md 0.375rem (6)` buttons, inputs, tokens ·
   `--r-lg 0.5rem (8)` panels, tiles · `--r-xl 0.625rem (10)` phone panels, dialogs · `--r-full`.
-- Elevation (DR-6): `--shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14)` for menus and toasts,
-  `--shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28)` for dialogs. Nothing else casts a shadow.
+- Elevation (DR-6): `--shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14)` for menus, toasts and the phone's bar,
+  `--shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28)` for dialogs, and `--shadow-tile` (two soft shadows, a tight one under the
+  edge and a wide one under the box, each `light-dark()`: a 7–8% tinted shadow in light, 32–45% black in dark, where a light one
+  is not seen) for a tile and a deck card (owner, 8 Oct 2026). Nothing else casts a shadow.
 - Scrim: `--scrim: rgb(0 0 0 / 0.45)` (one token; v1.0 had four raw values).
 - Hairlines (§5.2): `--hair: 1px` every divider, control edge and tile gap · `--rule: 2px` an accent rule, a chevron's stroke.
 - Motion: `--dur-1: 120ms` (hover, press, toggle) · `--dur-2: 200ms` (panels, dialogs, tab switch, a two-faced dialog
@@ -273,8 +275,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 ### 3.7 Layout tokens
 
-`--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--fill-h: calc(100dvh - --bar-h-desk)` the room under the desktop bar · `--pane-host-min: 20rem` the least a list-and-pane host is squeezed to · `--nav-h: 3.625rem (58)` phone bottom
-bar · `--side-w: 13.5rem (216)` desktop sidebar · `--content-max: 80rem` desktop content cap ·
+`--bar-h: 3.25rem (52)` phone top bar · `--bar-h-desk: 3rem (48)` · `--fill-h: calc(100dvh - --bar-h-desk)` the room under the desktop bar (less `--ctl-h`, one tab, where the workspace's row shows) · `--pane-host-min: 20rem` the least a list-and-pane host is squeezed to · `--nav-h: 4rem (64)` phone bottom
+bar · `--nav-gap` the bar's float · `--door-w: 3.5rem (56)` / `--door-h: 2rem (32)` a door's mark (§6.1) · `--side-w: 5.5rem (88)` the desktop's rail · `--content-max: 80rem` desktop content cap ·
 `--max-w: 32.5rem (520)` phone column (unchanged) · `--pane-w: 22rem` desktop detail pane · `--filter-w: 9rem`
 a toolbar filter's basis · `--fade-w: var(--sp-24)` the edge fade of a sideways-scrolling table · `--col-sm-w: 8rem` a short ellipsized table column (`inv-col-grow-sm`) · `--scroll-max: 55vh`
 a list scrolling inside a dialog · `--line-fig-w: 7rem` / `--line-unit-w: 5.5rem` the line editor's columns · `--menu-max: 17.5rem`
@@ -328,7 +330,7 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 (`icons/icon-teal.svg`, `icon-zinc.svg`, `icon-terracotta.svg`), with PNG exports at 192 and 512;
 `icon-192.png` / `icon-512.png` at the root are the Teal exports the manifest names.
 
-- **In the app** — the browser tab icon, the Apple touch icon and the sidebar brand mark — the icon follows
+- **In the app** — the browser tab icon, the Apple touch icon and the rail's brand mark — the icon follows
   the device's palette at runtime.
 - ⚠ **The installed home-screen / Start-menu icon cannot follow it.** It is read from `manifest.json`, one
   file served to every device, and the browser fixes it at install and refreshes it only from that file. So
@@ -340,11 +342,17 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 ## 4. Information architecture
 
 **Direction B (owner, 1 Oct 2026; `docs/DIRECTION_B.md`) replaces the bottom bar and the sidebar below.** Workspaces are a layer
-over the pages: **Today** (Needs you · Pulse), **Office** (Pipeline · Challans · Invoices · Clients), **Add** (one sheet, not a
-page), **Floor** (Day · People · Production · Stock · Power), **Money** (Finance) and, on the desktop sidebar and from search,
-**Insights** (Stats · Reports · History). A workspace draws its views as a tab row (`#wsTabs`, the §6.4 underline tabs) above
-the page's own view tabs. What follows in 4.1 and 4.2 still holds for the back trail, the top bar, sub-tabs, the action
-bar and the content, and is amended where marked.
+over the pages: **Today** (Needs you · Pulse), **Office** (Pipeline · Challans · Invoices · Clients, then its review: Stats ·
+Reports · Planner · History · Knowledge), **Add** (one sheet, not a page), **Floor** (Day · People · Production · Stock · Power)
+and **Money** (Finance). The review was a workspace of its own, Insights, until 8 Oct 2026 (owner: *"Move insights into office
+tab, that way we have 5 icons again, which can be arranged in a better way"*).
+
+**Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
+that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
+understand the hierarchy"*): a **workspace** is a door on the phone's bar or the desktop's rail, and nothing under it is
+listed there; its **views** are a tab row under the top bar (`#wsTabs`, the §6.4 underline tabs, a group after a divider); a
+**page's own views** are the row under that, a step smaller. What follows in 4.1 and 4.2 still holds for the back trail, the
+top bar, sub-tabs, the action bar and the content, and is amended where marked.
 
 ### 4.1 Phone and tablet
 
@@ -357,33 +365,34 @@ bar and the content, and is amended where marked.
 - **Top bar** (`--bar-h`, `--surface`, bottom hairline): page title (`--t-title`), then at most **two**
   actions on the right — the view's primary action and one secondary (or an icon button) — then the
   Settings icon button, on every screen (built 26 Sep 2026; a Settings reachable from Home only cost a
-  detour from every other tab). On the desktop Settings is the sidebar's last entry instead.
+  detour from every other tab). On the desktop Settings is the rail's last door instead.
 - **Sub-tabs** sit directly under the top bar, inside the same surface (§6.4, underline tabs), and scroll
   horizontally when they do not fit — never cut off, never wrap.
-- **Bottom bar** (`--nav-h`): **Today · Office · Add · Floor · Money · Insights** (Direction B, Insights added 6 Oct 2026; there is no More), icon + `--t-micro`
-  label; the active workspace is `--accent` with a 2px accent rule on its top edge; Add is the shell's primary. Each
-  workspace carries the red count of the red rows that jump into it.
+- **Bottom bar** (`--nav-h`, §6.1): **Today · Office · Add · Floor · Money** (Direction B; Insights was its sixth from 6 to 8 Oct
+  2026, and Add stood off its centre; there is no More), five doors, Add the centre one; each a mark over a `--t-micro`
+  word; the workspace on screen fills its mark's pill in `--accent-soft`, Add in the accent; Add is the shell's primary. Each
+  workspace carries the red count of the red rows that jump into it, on its mark's corner.
 - **No floating action button.** The primary action is in the top bar. (v1.0 had both on Clients and Items.)
 - **Sticky action bar** (§6.15) at the bottom of forms, above the bottom bar, carrying the total and Save.
 
 ### 4.2 Desktop
 
-- **Sidebar** (`--side-w`, `--bg`, right hairline), labelled, grouped, always expanded (Direction B):
-  - brand mark + "Soma Electro"
-  - **Add** (the shell's one primary, key `A`) · **Search** (`Ctrl K`)
-  - **Today** — Needs you · Pulse
-  - **Office** — Pipeline · Challans · Invoices · Clients
-  - **Floor** — Day · People · Production · Stock · Power
-  - **Money**
-  - **Insights** — Stats · Reports · History
+- **Rail** (`--side-w`, `--surface`, right hairline): the phone's bar stood on its side (owner, 8 Oct 2026, above), the same
+  doors drawn the same way:
+  - the brand mark (it opens Today → Pulse; *Soma Electro* is its label and title)
+  - **Add** (the shell's one primary, key `A`)
+  - **Today** · **Office** · **Floor** · **Money**, each with its red count
   - Settings, pinned to the bottom.
-  Items and Pay are view tabs inside Clients and People, not sidebar entries. A role's doors it may not open are hidden
-  (the guard, `docs/GUARD.md`). Counts are `--t-micro` mono; a count is toned only
-  when it is a problem count.
+  No view of a workspace is listed: the views are the tab row under the top bar, as on the phone. Search is the top bar's field
+  (`Ctrl K`). A role's doors it may not open are hidden (the guard, `docs/GUARD.md`), a workspace whose views it opens none of
+  included. Until 8 Oct 2026 this was a labelled sidebar (13.5rem) listing every workspace's views under it, which put each view
+  beside the workspaces as though it were one of them.
+- **Workspace row**: under the top bar, in its surface and staying with it, one tab (`--ctl-h`) tall; `--fill-h` takes it off
+  the room a list-and-pane screen fills.
 - **Top bar** (`--bar-h-desk`): the back arrow · the trail (`inv-topbar-trail`: up to three earlier steps, each a
   link back to it, `Home › Challans · Awaiting invoice ›`) · title (`--t-title-desk`) · `/` · context (the view and the
-  record open: *Awaiting invoice · Ch. 102*) · underline tabs inline when the view has them · spacer · search ·
-  secondary actions · one primary.
+  record open: *Awaiting invoice · Ch. 102*) · spacer · search · secondary actions · one primary. The workspace's tabs stood in
+  the bar until 8 Oct 2026; with Office's nine they have the row under it.
 - **Content** fills the rest; tables run edge to edge of the content area; a detail pane (§6.14) may take
   the right 22rem. The old 64px icon rail is retired.
 
@@ -433,15 +442,22 @@ chevrons, settings sliders).
 Each entry gives the class, the anatomy, and what it replaces. Modifiers are `inv-<component>-<mod>`.
 
 ### 6.1 App shell — `inv-shell`, `inv-topbar`, `inv-side`, `inv-navbar`
-As §4. `inv-topbar-title`, `inv-topbar-ctx`, `inv-topbar-actions`; `inv-side-group`, `inv-side-item`
-(`-on`), `inv-side-count` (`-warning`/`-danger`); `inv-navbar-item` (`-on`), `inv-navbar-count`.
-Replaces `inv-header`, `inv-tabs`/`inv-tab` (the old bottom bar — which is why view tabs are `inv-viewtab`), `inv-sidebar*`, `inv-fab`.
-**The phone bar is a dock** (owner, 8 Oct 2026: *"the bottom bar … doesn't look quite nice with how the app is designed now"*): a
-card floating `--nav-gap` above the screen's foot (above the safe area), `--r-xl`, filled with the theme's card fill (the accent 12%
-into `--accent-soft`, into the surface), edged in the accent, casting `--shadow-pop` as the floating layer it is (DR-6). The workspace
-on screen (`inv-navbar-item-on`) is a pill behind its icon in the accent's colour, its word in `--accent-soft-text`; Add
-(`inv-navbar-add-mark`) the accent disc raised out of the dock, ringed in `--bg`; a red count a pill ringed in the dock's colour.
-`--nav-space` (the dock and its gap) is what the page keeps clear at its foot and where a sticky selection or action bar stands.
+As §4. `inv-topbar-title`, `inv-topbar-ctx`, `inv-topbar-actions`; the rail `inv-side` of `inv-side-item` (`-on`) doors, its mark
+`inv-side-brand`; the bar `inv-navbar` of `inv-navbar-item` (`-on`) doors. Replaces `inv-header`, `inv-tabs`/`inv-tab` (the old
+bottom bar — which is why view tabs are `inv-viewtab`), `inv-sidebar*`, `inv-fab`, the sidebar's `inv-side-item-sub` and
+`inv-side-count`, the dock's `inv-navbar-add-mark`.
+**A door** (`wsDoorHtml`, workspace.js) is one geometry on the bar and the rail (owner, 8 Oct 2026: *"The bottom bar still doesn't
+look right … that way we have 5 icons again, which can be arranged in a better way"*): its mark (`inv-navbar-mark`, the icon in a
+`--door-w` × `--door-h` pill) over its `--t-micro` word, so the five words share one line; the workspace on screen fills its pill
+in `--accent-soft` (its word `--accent-soft-text`, 600); **Add** (`inv-navbar-add`, the centre door) fills its pill in the
+accent: the same shape, the strongest fill, never raised out of the bar; a red count (`inv-navbar-count`) is a pill on the
+mark's top corner, ringed in the surface. **The phone's bar** floats `--nav-gap` above the screen's foot (above the safe area),
+the surface's colour, `--r-xl`, edged by a hairline and casting `--shadow-pop` as the floating layer it is (DR-6); on a tablet it
+keeps the phone's width, centred. **Under it the page fades into its own colour** (`body::after`, a gradient from clear to
+`--bg` over `--nav-gap`, under the bar and never printed), so nothing scrolled beneath shows as a line cut in the gap.
+`--nav-space` (the bar and its gap) is what the page keeps clear at its foot and where a sticky selection or action bar stands.
+The 8 Oct morning's dock (an accent-tinted card, Add a disc raised out of it ringed in `--bg`) is retired: with six doors Add
+stood off the bar's centre and its word off the others' line.
 
 ### 6.2 Page head (phone, in-content) — `inv-pagehead`
 Used only where a view has a summary line worth more than the top bar: `inv-pagehead-meta`
@@ -467,7 +483,8 @@ Underline tabs: `inv-viewtab` (`role=tab`, `aria-selected`), `--t-label` desktop
 control for switching views** — Clients/Items/Performance, Staff Day/Week/Pay/Areas/Roster, Stats
 Overview/Clients/Cost/Billing/Trends, Stock views. Replaces `inv-subview-toggle`, `inv-stats-tabs`, the chip
 rows used as tabs (`inv-stats-chips` + `inv-chip` in staff.js), `inv-set-nav-btn` (Settings keeps its two-pane
-layout, drawn with `inv-side-item`).
+layout, drawn with `inv-side-item`). **A group of a workspace's views** (Office's review) follows a divider,
+`inv-viewtab-sep` (a hairline a step tall, `role=presentation`, the group's name in its title).
 
 ### 6.5 Segmented control — `inv-seg`
 Joined buttons in one bordered box, the "on" segment `--surface-2` + 600 (desktop) or `--accent-soft`
@@ -505,14 +522,18 @@ Replaces `inv-card`, `inv-card-list`, `inv-stats-card`, `inv-im-challan`, `inv-s
 `inv-set-sec`'s box, `inv-dupe-group`, `inv-td-facts`, `inv-rl-rows`.
 
 ### 6.9 Stat strip — `inv-tiles`, `inv-tile`
-A grid of tiles separated by 1px gaps on a `--border` background inside one bordered box.
+A grid of **raised tiles** (owner, 8 Oct 2026: *"Let's give our tiles elevation as well"*): each tile a box of its own, `--surface`
+(its box tier inside a card, §6.26), a hairline edge, `--r-md`, lifted by `--shadow-tile` (DR-6); the strip lays them out with a
+`--sp-8` gap and draws nothing itself. Until 8 Oct 2026 the tiles were one bordered box divided by 1px gaps on `--border`.
 `inv-tile-label` (`--t-label` `--text-3`), `inv-tile-value` (`--t-stat`), `inv-tile-sub` (`--t-caption`; a value too long for its tile — a crore on a phone — wraps rather than being cut by the tile;
 toned only when it states a status). A tile that filters its list is a `<button>`. Tone modifiers
 `inv-tile-danger|warning|ok|info` colour the **value only**. 2 columns on the phone, up to 5 on the desktop.
-A tile that filters is pressed with `aria-pressed` (`--accent-soft`, an accent rule under it) and
-pressed again to let every row back. `inv-tiles-3` keeps three counts on one row on the phone too. In the desktop pane
+A tile that filters is pressed with `aria-pressed` (`--accent-soft`, edged in the accent, an accent rule
+under it and no lift: it is let down) and pressed again to let every row back. `inv-tiles-3` keeps three counts on one row on the phone too. In the desktop pane
 a strip is two across. `inv-tile-of` is the quiet denominator or unit after a value (`15/21`, `/kg`). `inv-tiles-flush` is a strip inside
-a flush panel: the panel draws the box, the strip only its dividers.
+a flush panel: the panel draws the box; the strip keeps `--pad-x` round its tiles and a divider under it. In a grid of panels
+(`panel-w`) the strip goes two across under 32.5rem and four only from 43rem (three tiles and their gaps, then four, with a
+panel's padding), so the last row never leaves a blank cell.
 Replaces `inv-kpi*`, `inv-ov-tile`, `inv-stk-tile`, `inv-stat-label/value`, `inv-lab-half`, `inv-lab-perkg`,
 `inv-area-stat`, `inv-stats-metric-value`, `inv-att-count-value`, `inv-flip-kpi`.
 
@@ -767,7 +788,7 @@ leave a blank column). A card: `inv-deck-head` (a glyph or tick, a word for wher
 end), then either `inv-deck-main`, a button whose `::after` covers the card so the whole face opens what it names (its focus
 ring drawn on the card), or `inv-deck-body` for a card that is not itself a door; `inv-deck-title` and `inv-deck-sub` two
 lines each; `inv-deck-foot` its one move, above the stretched button. Each card is a box (§6.26) in its own tone, its left edge
-the tone (`--rule`), so the code reads at a glance. *Show N more* sits under the deck, outside its grid
+the tone (`--rule`), so the code reads at a glance, and lifted as a tile is (`--shadow-tile`). *Show N more* sits under the deck, outside its grid
 (`uiMoreDeckHtml`, `inv-deck-more`), so the rest open in place without a gap in the row. Today's tasks (`tdyAppCardHtml`,
 `tdyMineCardHtml`) and every move (`advMoveCardHtml`) are cards.
 
@@ -790,7 +811,8 @@ A box inside a hero: its sheet (`inv-hero-sheet`), a card in its deck (`inv-deck
 tone (§3.3, the box tier): lighter than the card around it, so it reads as laid on it, coded by its own status where it has one
 and by its card's where it has none, except a tile, which is plain where it states nothing. A panel or a strip inside a sheet
 draws no fill or box of its own; its hairlines take the card's tone; a secondary button in it is the control tier. The owner
-(8 Oct 2026): *"the boxes inside the cards are still just white instead of colour coded gradients"*.
+(8 Oct 2026): *"the boxes inside the cards are still just white instead of colour coded gradients"*. A sheet holding a strip of
+tiles alone draws no box: the tiles are the boxes, laid on the card, each edged in its tone and lifted (§6.9).
 
 ### 6.25 Packed grid — `uiMasonry(el)` (state.js)
 A grid of cards of different heights packed with no hole (Needs you and Pulse's widgets on the desktop). Where the grid has
@@ -825,7 +847,7 @@ chart. One column, or the phone, is left an ordinary grid. `inv-panels-wide` sti
 | Staff | tabs Overview / Day / Week / Pay / Areas / Roster (scrolling sideways, the open one scrolled into view), opening on Overview (today's attendance panel, attendance % by week, labour ₹/kg by month recorded / paid / model, OT and EXTRA by area stacked, payroll against the bank grouped, raised tasks) · **Paste message** the one primary on Overview and Day, a sub-view with its way back · Day: `inv-stepper`, stat strip (on site, half day, absent, unmarked; the hours), an area board of cards, a line per hand with P/H/A `inv-seg` in its tone at the row's end, Extra hours as rows (a block's areas and crew as `inv-chip`s, its check a callout) · Week: grid (`inv-table-grid`) · Pay: stepper, the payout as tiles and rows, due by worker as row buttons under `inv-row-group`s, the payment form an `inv-panel-body` · Areas: stepper, span `inv-seg`, hours by area, the extra checked (tiles, rows, flags as rows with a dot and a word), staffing rows with their complement, the pro-rata split · Roster: toolbar (**Add worker**, Import), rows with badges · the labour card a flush panel (total in the head, Fixed / Variable / ₹/kg tiles, a row per tier, notes and callouts between) | same; the Day row's controls beside the name. *Built.* |
 | Stats | view tabs Overview / Clients / Cost / Billing / Trends (the open one scrolled into view) · period `inv-seg` (MTD / QTD / YTD / All) · the Overview's six questions, each ending in *What you can do*: an `inv-row-group` head, then a row per move (a dot in its tone, the move as the title, its worth and basis as the meta, one secondary button at the end — a call an `a.inv-btn` to `tel:` — and *Add to my list* as a link; on the phone the end drops under the title as `inv-row-actions`), three shown and the rest behind `uiMoreHtml` · every card a flush panel named by `data-card`, its qualifier an `inv-note` in the title: the headline as four tiles with the change in words ("+12.3% on same days last month"), below cost a danger callout; In one line and the pace as tiles and rows; six months and contribution by client as `inv-table`s scrolling sideways, signed figures `inv-num-pos/-neg`, the worst account settled under an `inv-row-group`; revenue by client `chartRankedBars` or `chartPie` (Ranked / Share an `inv-seg-fit` in the head); realisation by client as drill-through rows, below cost a dot and a word, the unranked under their own group; unbilled ageing `inv-tiles-4`; the invoice states as tiles with a dot and a word; insights the To-do's rows; the live cost's components `inv-row-fold`s with the source an `inv-badge`, the bills as rows with the form in an `inv-panel-body` · the client drill-down: tiles and state dots on the front, rows and the one primary on the back | same, two-column panel grid (`inv-panels-dense`). *Built.* |
 | History | toolbar (search, client `<select>` on `change`, From / To as labelled `inv-field`s) · the kind of event as `inv-chip`s (`aria-pressed`: All · Invoices · Challans · Status · Floor · Audit), wrapping at a chip's own height · a flush panel (*Activity log* and its count, *Export CSV* in the head, the total shown an `inv-note`) of rows grouped by day (`inv-row-group` with the day's count), each led by its event icon, the sentence wrapping, the time mono with `floor day` or `recorded` after it, and a dot and a word in its end (a deletion or cancellation danger, an accepted duplicate, an explained exception or a corrected challan warning, a status ok) · a row that opens is a `button.inv-row`; a void, whose invoice is gone, a plain row · empty: an `inv-empty` saying whether the filters or the book are why | the same toolbar · the log as an `inv-table` (modifier `inv-table-history`: time, event, kind, amount) grouped by day (`tr.inv-table-group`); an event that opens is an `inv-btn-link`, so it opens from the keyboard. *Built.* |
-| Insights → Knowledge | view tabs Start · Library · Troubleshoot · Records · Training (the open one kept per device) · toolbar (**Write** the one primary; on Troubleshoot **Log an incident**, on Training **Record training**; on Library Export and Import for the owner) · Start: flush panels of rows (waiting for approval, drafts, decisions to review, Start here paths, Latest) and a warning callout for training due again · Library and Records: `inv-search`, kind `inv-chip`s (`aria-pressed`), rows grouped by kind or month (`inv-row-group`), a status `inv-badge` at the end where not published · an article: kind and status badges, the summary (`inv-kb-summary`), the kind's facts as `inv-kv`, a fault's causes and an incident's day as flush panels of rows, a decision's figures then and now as an `inv-table`, the text (`inv-kb-body`: paragraphs, lists and numbered lists, `inv-kb-h` heads, all escaped), photos (`inv-kb-fig`), links as `inv-chip`s, earlier versions folded, its actions an `inv-toolbar` (`inv-kb-actions`) · the form a sub-view with the back head and the action bar (Save draft, **Publish** or **Send for approval**) | Library, Troubleshoot and Records are a list beside the open article (`kbHost`, `inv-pane`), the search and chips above it, the open row `aria-current`; with an article open its own primary is the view's one, the toolbar's steps aside (QA chain, 5 Oct 2026); Start and Training stay documents. The book is in the top bar on both layouts (an `inv-btn-icon` on the desktop) |
+| Office → Knowledge | view tabs Start · Library · Troubleshoot · Records · Training (the open one kept per device) · toolbar (**Write** the one primary; on Troubleshoot **Log an incident**, on Training **Record training**; on Library Export and Import for the owner) · Start: flush panels of rows (waiting for approval, drafts, decisions to review, Start here paths, Latest) and a warning callout for training due again · Library and Records: `inv-search`, kind `inv-chip`s (`aria-pressed`), rows grouped by kind or month (`inv-row-group`), a status `inv-badge` at the end where not published · an article: kind and status badges, the summary (`inv-kb-summary`), the kind's facts as `inv-kv`, a fault's causes and an incident's day as flush panels of rows, a decision's figures then and now as an `inv-table`, the text (`inv-kb-body`: paragraphs, lists and numbered lists, `inv-kb-h` heads, all escaped), photos (`inv-kb-fig`), links as `inv-chip`s, earlier versions folded, its actions an `inv-toolbar` (`inv-kb-actions`) · the form a sub-view with the back head and the action bar (Save draft, **Publish** or **Send for approval**) | Library, Troubleshoot and Records are a list beside the open article (`kbHost`, `inv-pane`), the search and chips above it, the open row `aria-current`; with an article open its own primary is the view's one, the toolbar's steps aside (QA chain, 5 Oct 2026); Start and Training stay documents. The book is in the top bar on both layouts (an `inv-btn-icon` on the desktop) |
 | Settings | an `inv-dialog-wide` whose head stays put · groups stacked, each under its title · sections as `inv-panel-fold`s whose head says what each is set to, `● Unsaved` while edited · fields `inv-field` / `inv-input` (`-num` for figures, `inv-id` for identifiers), tick boxes `inv-field-check`, a key with its show button, derivations in a callout, How this is used a fold, Save per section | two-pane: the groups as `inv-side-item`s (`aria-current`, `● Unsaved`) beside one group. *Built.* |
 
 **Paste message** (stock and attendance rolls) keeps its review contract — every line beside what it was

@@ -7,6 +7,20 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 8 Oct 2026, the third: five doors, the rail, Insights in Office, raised tiles (read this first)
+
+The owner, on the same PR: *"The bottom bar still doesn't look right. Let's give our tiles elevation as well. Move insights into
+office tab, that way we have 5 icons again, which can be arranged in a better way. Also, in the desktop view we have many tabs that
+are actually tabs that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user
+will not understand the hierarchy. What do you think?"* **Three levels, the same on both layouts** (design §4): a workspace is a
+door on the phone's bar or the desktop's **rail** (the bar stood on its side, 5.5rem: the mark, Add, Today, Office, Floor, Money,
+Settings), and nothing under it is listed there; its views are the tab row **under** the top bar on the desktop too; a page's own
+views the row under that. **Insights is Office's review** after a divider (Stats, Reports, Planner, History, Knowledge); G then I
+still opens Stats. **The phone bar**: five doors of one geometry (a mark over its word, the words on one line), Add the filled
+centre one, never raised; the page fades into its own colour under it. **Tiles are raised** (`--shadow-tile`, DR-6 amended),
+deck cards too. P182 pins it; P134, P58, P53, P100, P103, P132, P139, P140, P151, P154, P164, P39 and P42 follow the new doors.
+**No data flow changed.** Still the owner's: the order of the survey's steps, and Pulse's defaults.
+
 ## Built 8 Oct 2026, the second: HR-9 no white, Today's coded boxes, Pulse as cards, the dock (read this first)
 
 The owner, after #141 merged: *"In needs you and pulse, the boxes inside the cards are still just white instead of colour coded

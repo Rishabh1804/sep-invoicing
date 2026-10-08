@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="ca8f36db">
+<meta name="app-build" content="7188a8b7">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -27,31 +27,33 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
-/* Palettes (§3.1): primitives only. No surface is pure white (owner, 26 Sep 2026: "nothing in absolute
-   white — it puts a lot of stress on our eyes"); the lightest is an off-white a step below #fff.
+/* Palettes (§3.1): primitives only. Nothing on screen is white (HR-9; owner, 26 Sep 2026: "nothing in absolute white — it
+   puts a lot of stress on our eyes", and 8 Oct 2026: "we will be avoiding pure white everywhere in the app, this should be an
+   HR"). The off-white of 26 Sep (#f8fafa, lightness 98%) still read as white beside the coloured cards, so every light fill is
+   a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.93. Paper is the one exception (§8).
    Nothing but the aliases below reads a --c-* token. */
 :root, :root[data-palette="teal"] {
-  --c-bg: light-dark(#eef2f3, #0d1213); --c-surface: light-dark(#f8fafa, #131a1b);
-  --c-surface-2: light-dark(#e6ecee, #1a2224); --c-surface-3: light-dark(#dbe3e6, #222c2e);
-  --c-border: light-dark(#d3dcdf, #293537);
-  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#58686e, #7d8f91);
+  --c-bg: light-dark(#e1ebed, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
+  --c-surface-2: light-dark(#dae6e7, #1a2224); --c-surface-3: light-dark(#cfdddf, #222c2e);
+  --c-border: light-dark(#c7d6d7, #293537);
+  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#57676d, #7d8f91);
   --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
   --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
 }
 :root[data-palette="zinc"] {
-  --c-bg: light-dark(#eff0f2, #0e1114); --c-surface: light-dark(#f8f9fa, #15191d);
-  --c-surface-2: light-dark(#e6e9ec, #1c2126); --c-surface-3: light-dark(#dde1e5, #242a30);
-  --c-border: light-dark(#d5dadf, #2b323a);
-  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5e6974, #86919c);
+  --c-bg: light-dark(#e6eaee, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
+  --c-surface-2: light-dark(#dfe3e9, #1c2126); --c-surface-3: light-dark(#d5dbe1, #242a30);
+  --c-border: light-dark(#cdd3da, #2b323a);
+  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5a6570, #86919c);
   --c-accent: light-dark(#8a5d0c, #dcaa4c); --c-on-accent: light-dark(#fbf7ef, #1b1204);
   --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
 }
 :root[data-palette="terracotta"] {
-  --c-bg: light-dark(#f3f0ea, #141311); --c-surface: light-dark(#fbf9f5, #1c1b18);
-  --c-surface-2: light-dark(#ebe6dd, #24221e); --c-surface-3: light-dark(#e2dbcf, #2d2a25);
-  --c-border: light-dark(#ddd6c8, #36322c);
-  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#6a6459, #948d80);
-  --c-accent: light-dark(#ad4f2c, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
+  --c-bg: light-dark(#eee8df, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
+  --c-surface-2: light-dark(#e9e2d6, #24221e); --c-surface-3: light-dark(#e2d9ca, #2d2a25);
+  --c-border: light-dark(#dbd1c1, #36322c);
+  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#696358, #948d80);
+  --c-accent: light-dark(#a94b28, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
   --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
 }
 
@@ -97,22 +99,12 @@
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
 
-  /* Hero cards (§6.21; owner, 8 Oct 2026: "hero cards should have gradient colour filling as per the theme, make sure the
-     colours are coded"). The colour code is the one above, nothing new: the palette's accent where a card states no
-     status, a status tone where it does, from its colour in the top corner into the surface. Every stop is a token, so
-     each follows the palette and the theme. */
-  --grad-accent: linear-gradient(135deg, color-mix(in oklab, var(--accent) 22%, var(--accent-soft)) 0%, var(--accent-soft) 40%, var(--surface) 100%);
-  --grad-danger: linear-gradient(135deg, color-mix(in oklab, var(--danger) 18%, var(--danger-bg)) 0%, var(--danger-bg) 40%, var(--surface) 100%);
-  --grad-warning: linear-gradient(135deg, color-mix(in oklab, var(--warning) 18%, var(--warning-bg)) 0%, var(--warning-bg) 40%, var(--surface) 100%);
-  --grad-ok: linear-gradient(135deg, color-mix(in oklab, var(--ok) 18%, var(--ok-bg)) 0%, var(--ok-bg) 40%, var(--surface) 100%);
-  --grad-info: linear-gradient(135deg, color-mix(in oklab, var(--info) 18%, var(--info-bg)) 0%, var(--info-bg) 40%, var(--surface) 100%);
-  --grad-neutral: linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%);
   /* Today's cards: a card in a deck at least this wide; a sparkline's and a meter's height; a step's node; the small row a
      packed grid counts in. */
   --deck-min: 15rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
@@ -154,7 +146,7 @@
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-family: var(--ff-base); font-size: 100%; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: slashed-zero tabular-nums lining-nums; }
-body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--nav-h) + var(--sp-16)); }
+body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--nav-space) + var(--sp-16)); }
 input, select, textarea, button { font-family: inherit; font-size: var(--fs-14); }
 
 /* ===== APP SHELL (design system §4, §6.1) ===== */
@@ -190,20 +182,27 @@ body.inv-desktop .inv-topbar-trail { display: flex; align-items: center; gap: va
 body.inv-desktop .inv-topbar-trail:empty { display: none; }
 .inv-topbar-trail .inv-btn-link { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 400; }
 
+/* The phone bar is a dock in the card language (owner, 8 Oct 2026: "the bottom bar ... doesn't look quite nice with how the app
+   is designed now"): floating a step above the screen's foot (--nav-space is the room it takes there), filled with the theme's
+   card fill at a quiet strength (§3.3), rounded as a card. The workspace on screen is a pill in the accent's colour behind its
+   icon, its word in the accent's text; Add is the accent disc raised out of the dock, ringed in the page's colour; a red count
+   is a pill ringed in the dock's. It floats over the page, so it casts the floating layers' shadow (DR-6). */
 .inv-navbar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-bar);
-  display: flex; height: var(--nav-h);
-  background: var(--surface); border-top: var(--hair) solid var(--border);
-  max-width: var(--max-w); margin: 0 auto;
+  position: fixed; left: var(--nav-gap); right: var(--nav-gap); bottom: max(var(--nav-gap), env(safe-area-inset-bottom)); z-index: var(--z-bar);
+  display: flex; align-items: stretch; height: var(--nav-h); padding: 0 var(--sp-4);
+  max-width: calc(var(--max-w) - var(--nav-gap) - var(--nav-gap)); margin: 0 auto;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 12%, var(--accent-soft)) 0%, color-mix(in oklab, var(--accent-soft) 70%, var(--surface)) 100%);
+  border: var(--hair) solid color-mix(in oklab, var(--accent) 28%, var(--border)); border-radius: var(--r-xl); box-shadow: var(--shadow-pop);
 }
 .inv-navbar-item {
   flex: 1; position: relative; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: var(--sp-2); border: none; background: none;
-  color: var(--text-3); font-size: var(--fs-11); font-weight: 500;
+  justify-content: center; gap: var(--sp-2); min-width: 0; border: none; background: none;
+  color: var(--text-2); font-size: var(--fs-11); font-weight: 500;
   cursor: pointer; min-height: var(--touch); transition: color var(--dur-1);
 }
-.inv-navbar-item svg { width: 20px; height: 20px; }
-.inv-navbar-item-on { color: var(--accent); box-shadow: inset 0 var(--rule) 0 var(--accent); }
+.inv-navbar-item svg { width: 20px; height: 20px; box-sizing: content-box; padding: var(--sp-2) var(--sp-12); border-radius: var(--r-full); transition: background var(--dur-1); }
+.inv-navbar-item-on { color: var(--accent-soft-text); font-weight: 700; }
+.inv-navbar-item-on svg { background: color-mix(in oklab, var(--accent) 22%, var(--accent-soft)); }
 
 /* ===== PAGES ===== */
 .inv-page { display: none; padding: var(--sp-16); }
@@ -1041,7 +1040,7 @@ body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; conta
 /* A list's selection bar stays in view at the foot of the page: above the bottom bar on the phone, at the edge on the
    desktop. The bar inside is sticky too, but its wrapper is only as tall as the bar, so it held nothing up: on the
    phone Create invoice drew after the last of 1,163 invoiced challans, 97 screens down (owner, 28 Sep 2026). */
-:is(#regSelBar, #imSelBar) { position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); }
+:is(#regSelBar, #imSelBar) { position: sticky; bottom: var(--nav-space); z-index: var(--z-bar); }
 body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 
 /* Tablet and desktop: the column is uncapped and the page has more air. */
@@ -1210,9 +1209,10 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 
 /* ===== THE BAR'S RED COUNTS (a workspace's red rows) ===== */
 .inv-navbar-count {
-  position: absolute; top: var(--sp-4); left: calc(50% + var(--sp-6));
+  position: absolute; top: var(--sp-2); left: calc(50% + var(--sp-8));
   min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
+  outline: var(--rule) solid color-mix(in oklab, var(--accent-soft) 70%, var(--surface));
   font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
 
@@ -1460,7 +1460,25 @@ body:not(.inv-desktop) .inv-row-meta:not(.inv-row-wrap) {
 /* A task ticked done: still listed (never deleted), its text struck through. */
 .inv-row-done .inv-row-title { color: var(--text-2); text-decoration: line-through; }
 .inv-row-strong { font-weight: 600; }
-.inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+/* A tick box (and a radio) the app draws itself (HR-9): the browser paints an unticked box white whatever the theme. Ticked,
+   it takes the accent with the tick cut out of --on-accent; a radio's mark is a dot. Focus is the shared ring (§3.6). */
+.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]) {
+  appearance: none; -webkit-appearance: none; display: inline-grid; place-content: center; margin: 0;
+  width: var(--sp-20); height: var(--sp-20); flex-shrink: 0; cursor: pointer; color: var(--on-accent);
+  background: var(--surface); border: var(--rule) solid var(--text-3); border-radius: var(--r-sm);
+  transition: background var(--dur-1), border-color var(--dur-1);
+}
+.inv-check[type="radio"], .inv-field-check > input[type="radio"] { border-radius: var(--r-full); }
+.inv-check:hover, .inv-field-check > input:is([type="checkbox"], [type="radio"]):hover { border-color: var(--accent); }
+.inv-check:checked, .inv-field-check > input:is([type="checkbox"], [type="radio"]):checked { background: var(--accent); border-color: var(--accent); }
+.inv-check:not([type="radio"]):checked::before, .inv-field-check > input[type="checkbox"]:checked::before {
+  content: ''; width: var(--sp-12); height: var(--sp-12); background: currentColor;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+}
+.inv-check[type="radio"]:checked::before, .inv-field-check > input[type="radio"]:checked::before {
+  content: ''; width: var(--sp-8); height: var(--sp-8); border-radius: var(--r-full); background: currentColor;
+}
+.inv-check:disabled, .inv-field-check > input:is([type="checkbox"], [type="radio"]):disabled { opacity: 0.55; cursor: not-allowed; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
 .inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 /* In a row that sizes to its content (a task), the tick box and the task's button still reach the row's edges, and the
@@ -1698,7 +1716,7 @@ body.inv-desktop .inv-pipe-rail { flex: 0 0 var(--pane-w); min-width: 0; overflo
 .inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
 body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr)); }
 .inv-actionbar {
-  position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); display: flex; align-items: center; gap: var(--sp-8);
+  position: sticky; bottom: var(--nav-space); z-index: var(--z-bar); display: flex; align-items: center; gap: var(--sp-8);
   min-height: calc(var(--row-h) + var(--sp-16)); padding: var(--sp-8) var(--sp-12);
   background: var(--surface); border-top: var(--hair) solid var(--border);
 }
@@ -1918,22 +1936,41 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
   body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ===== TODAY'S CARDS (§6.21–6.25; owner, 8 Oct 2026) =====
+/* ===== TODAY'S CARDS (§6.21–6.26; owner, 8 Oct 2026) =====
    "If it is in list form, it should be presented better, maybe as a card or at least an expandable hero card. Right now we
-   have empty spaces, and inefficient layout." Needs you and Pulse are built of these; any screen may use them. */
+   have empty spaces, and inefficient layout." Needs you and Pulse are built of these; any screen may use them.
+
+   Coded fills (§3.3 Fills, HR-9; owner, 8 Oct 2026: "the boxes inside the cards are still just white instead of colour coded
+   gradients"). A coded block names its tone in two variables, --tone (the strong colour) and --tone-bg (its soft background),
+   and its fill and every box inside it are mixed from those two: the card strongest, a box in it lighter, a control in a box
+   lighter again, and none of them lighter than --surface. A block that states no status takes the theme's accent; a box that
+   has a status of its own (a task, a move, a tile, a step) names its own tone and keeps it inside a card of another. The
+   tones are the status tones, nothing new (DR-1): the colour is the status, and the card's words say which. */
+:root { --tone: var(--accent); --tone-bg: var(--accent-soft); }
+/* A box names its tone by its tone class (a tile's inv-tile-<tone>, which also colours its figure) or by data-tone (the fill
+   alone: a task's or a move's tone word, a tile whose figure is a plain fact but whose change has a direction). A tile that
+   names none is a plain fact (a balance, a count): it is drawn plain, so the coded tiles beside it stand out, never in the
+   card's tone, which would say the fact is the card's verdict. */
+:is(.inv-hero, .inv-coded) .inv-tile { --tone: var(--text-3); --tone-bg: var(--surface); }
+.inv-hero-danger, .inv-deck-item:is([data-tone="red"], [data-tone="danger"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-danger, [data-tone="red"], [data-tone="danger"]) { --tone: var(--danger); --tone-bg: var(--danger-bg); }
+.inv-hero-warning, .inv-deck-item:is([data-tone="amber"], [data-tone="warning"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-warning, [data-tone="amber"], [data-tone="warning"]) { --tone: var(--warning); --tone-bg: var(--warning-bg); }
+.inv-hero-ok, .inv-deck-item:is([data-tone="green"], [data-tone="ok"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-ok, [data-tone="green"], [data-tone="ok"]) { --tone: var(--ok); --tone-bg: var(--ok-bg); }
+.inv-hero-info, .inv-deck-item[data-tone="info"], :is(.inv-hero, .inv-coded) :is(.inv-tile-info, [data-tone="info"]) { --tone: var(--info); --tone-bg: var(--info-bg); }
+.inv-hero-neutral, :is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
 
 /* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
-   tone, and, as a <details>, folds open to what is under it. Filled with the theme's gradient, or its status tone's. */
+   tone, and, as a <details>, folds open to what is under it. Its fill runs from its tone into its tone's background and
+   stays in it: the corner it starts from is the strongest, and no part of it is the plain surface. */
 .inv-hero {
-  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--accent) 30%, var(--border));
-  position: relative; display: block; min-width: 0; background: var(--grad-accent); border: var(--hair) solid var(--hero-line);
-  border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
+  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--border));
+  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--tone) 18%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone) 8%, var(--tone-bg)) 55%, color-mix(in oklab, var(--tone) 4%, var(--tone-bg)) 100%);
 }
-.inv-hero-danger { --hero-tone: var(--danger); --hero-line: color-mix(in oklab, var(--danger) 32%, var(--border)); background: var(--grad-danger); }
-.inv-hero-warning { --hero-tone: var(--warning); --hero-line: color-mix(in oklab, var(--warning) 32%, var(--border)); background: var(--grad-warning); }
-.inv-hero-ok { --hero-tone: var(--ok); --hero-line: color-mix(in oklab, var(--ok) 32%, var(--border)); background: var(--grad-ok); }
-.inv-hero-info { --hero-tone: var(--info); --hero-line: color-mix(in oklab, var(--info) 32%, var(--border)); background: var(--grad-info); }
-.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); background: var(--grad-neutral); }
+.inv-hero-danger { --hero-tone: var(--danger); }
+.inv-hero-warning { --hero-tone: var(--warning); }
+.inv-hero-ok { --hero-tone: var(--ok); }
+.inv-hero-info { --hero-tone: var(--info); }
+.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); }
 .inv-hero-head {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
   padding: var(--sp-12) var(--sp-16); list-style: none;
@@ -1945,6 +1982,8 @@ summary.inv-hero-head::after { content: ''; position: absolute; right: var(--sp-
 details.inv-hero[open] > summary.inv-hero-head::after { transform: translateY(-25%) rotate(225deg); }
 summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-xl); }
 .inv-hero-eyebrow { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+/* The eyebrow sits on the fill's strongest corner, where --text-3 falls under 4.5:1 (§3.10): its count reads --text-2. */
+.inv-hero-eyebrow .inv-panel-count { color: var(--text-2); }
 .inv-hero-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; color: var(--text-1); }
 .inv-hero-fig { font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--hero-tone); text-align: right; overflow-wrap: anywhere; }
 body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
@@ -1953,12 +1992,36 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .inv-hero-viz { grid-column: 1 / -1; min-width: 0; margin-top: var(--sp-4); }
 .inv-hero-body { padding: 0 var(--sp-12) var(--sp-12); }
-/* What a hero opens to, where it is not a deck: one surface inside the fill (a question's story, a list of rows). */
-.inv-hero-sheet { background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
-.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; }
+/* A hero's own links and buttons (Import statement, Refresh, Back up now), under its head or its body. */
+.inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
+.inv-hero-body + .inv-hero-foot { padding-top: 0; }
+
+/* §6.26 A box inside a card: what a hero opens to (a sheet of rows or tiles, a question's story), a card in its deck, a tile
+   in its strip. Its fill is its tone's background with a little of the tone in the corner it starts from, lightening into
+   the surface: lighter than the card around it, so it reads as laid on it, and coded by its own status where it has one. */
+.inv-hero-sheet, .inv-deck-item, .inv-hero .inv-tile, .inv-coded .inv-tile {
+  background: linear-gradient(150deg, color-mix(in oklab, var(--tone) 5%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone-bg) 45%, var(--surface)) 100%);
+}
+.inv-hero-sheet { border: var(--hair) solid color-mix(in oklab, var(--tone) 22%, var(--border)); border-radius: var(--r-lg); overflow: hidden; }
+/* What a sheet holds is drawn on the sheet: a panel or a strip inside it has no fill or box of its own, and its hairlines
+   take the card's tone. */
+.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; }
+.inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero .inv-tiles { background: color-mix(in oklab, var(--tone) 16%, var(--border)); border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+/* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
+.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)), .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
+  background: color-mix(in oklab, var(--tone-bg) 55%, var(--surface)); border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
+}
+.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover, .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* On the phone the sheet reaches the card's edges: a row inside keeps the width a flush panel's row has. */
 body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); border-left: none; border-right: none; border-radius: 0; }
 body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); border-bottom: none; border-radius: 0 0 calc(var(--r-xl) - var(--hair)) calc(var(--r-xl) - var(--hair)); }
+/* A strip of tiles as a sheet's only content fills it edge to edge, its tiles each coded. */
+.inv-hero-sheet > .inv-tiles { border: none; border-radius: 0; margin-bottom: 0; }
+/* On the desktop the sheet is its strip's container (panel-w, above), so the tiles lay out by the room the sheet has: measured
+   from the widget around the card, Money's tiles left a blank cell at 1280. */
+body.inv-desktop .inv-hero-sheet { container: panel-w / inline-size; }
 /* A question tile (Pulse): one column, the figure first, the answer under it. */
 .inv-hero-vital > .inv-hero-head { grid-template-columns: minmax(0, 1fr); }
 .inv-hero-vital .inv-hero-fig { text-align: left; }
@@ -1969,20 +2032,25 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 .inv-heroes > .inv-hero { margin-bottom: 0; }
 .inv-heroes > details.inv-hero[open] { grid-column: 1 / -1; }
 
-/* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. */
+/* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. A stack
+   in a column of cards (the phone) keeps the gap under it, as every card has. */
 .inv-hero-stack > .inv-hero:last-child, .inv-panels > .inv-hero { margin-bottom: 0; }
+.inv-hero-stack { margin-bottom: var(--gap); }
+.inv-panels > .inv-hero-stack { margin-bottom: 0; }
 /* What can be done, under a question's story in its hero. */
 .inv-hero-moves { padding-top: var(--sp-4); }
 
 /* §6.22 Card deck: things to act on as cards, as many across as fit. The card opens what it names (its main is a button
-   stretched over it); its own move sits at its foot, above the stretch. */
+   stretched over it); its own move sits at its foot, above the stretch. Each card is a box (§6.26) in its own tone, its
+   edge marked in the tone so the code reads at a glance. */
 /* auto-fit: the cards there are take the row between them, so two or three never leave a blank column beside them. */
 .inv-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--deck-min)), 1fr)); gap: var(--sp-8); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-lg); transition: border-color var(--dur-1);
+  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--border)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
+  border-radius: var(--r-lg); transition: border-color var(--dur-1);
 }
-.inv-deck-item:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--border)); }
+.inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
 .inv-deck-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
 .inv-deck-word { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-deck-fig { font-family: var(--ff-mono); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
@@ -2002,21 +2070,22 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 .inv-deck-head > .inv-row-tick { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch); margin: calc(-1 * var(--sp-12)) 0 calc(-1 * var(--sp-12)) calc(-1 * var(--sp-12)); }
 .inv-deck-item.inv-row-done .inv-deck-title { text-decoration: line-through; color: var(--text-3); }
 
-/* §6.23 Steps: what arrives in a day, each a node on one rail, in the order it comes; the node says where it stands. */
+/* §6.23 Steps: what arrives in a day, each a node on one rail, in the order it comes; the node says where it stands, in its
+   tone: in, a filled tick; part, the ok outline; late, the warning; waiting, the card's own tint. */
 .inv-steps { display: flex; flex-direction: column; }
 .inv-step { position: relative; display: grid; grid-template-columns: var(--step-node) minmax(0, 1fr) auto; column-gap: var(--sp-12); align-items: center; min-height: var(--row-h-2); }
-.inv-step::before { content: ''; position: absolute; left: calc(var(--step-node) / 2 - var(--hair)); top: 0; bottom: 0; width: var(--rule); background: var(--border); }
+.inv-step::before { content: ''; position: absolute; left: calc(var(--step-node) / 2 - var(--hair)); top: 0; bottom: 0; width: var(--rule); background: color-mix(in oklab, var(--tone) 22%, var(--border)); }
 .inv-step:first-child::before { top: 50%; }
 .inv-step:last-child::before { bottom: 50%; }
 .inv-step-node {
   position: relative; z-index: 1; display: grid; place-items: center; width: var(--step-node); height: var(--step-node);
-  border-radius: var(--r-full); border: var(--rule) solid var(--border); background: var(--surface); color: var(--text-3);
+  border-radius: var(--r-full); border: var(--rule) solid color-mix(in oklab, var(--tone) 30%, var(--border)); background: color-mix(in oklab, var(--tone-bg) 60%, var(--surface)); color: var(--text-2);
   font-family: var(--ff-mono); font-size: var(--fs-12); font-weight: 600;
 }
 .inv-step-node svg { width: var(--sp-12); height: var(--sp-12); }
 .inv-step[data-state="in"] .inv-step-node { background: var(--ok); border-color: var(--ok); color: var(--surface); }
 .inv-step[data-state="late"] .inv-step-node { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
-.inv-step[data-state="part"] .inv-step-node { border-color: var(--ok); color: var(--ok); }
+.inv-step[data-state="part"] .inv-step-node { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
 .inv-step[data-state="off"] .inv-step-node { border-style: dashed; }
 .inv-step-main { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: var(--touch); padding: var(--sp-4) 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .inv-step-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
@@ -2253,15 +2322,17 @@ body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-ch
    ellipsises with its full text in a title). */
 body.inv-desktop .inv-topbar > .inv-ws-tabs { align-self: stretch; flex: 0 0 auto; max-width: 60%; margin-left: var(--sp-8); background: none; box-shadow: none; }
 body.inv-desktop .inv-topbar-trail { flex-shrink: 4; }
-/* Add: the shell's one primary, the bar's centre, an accent disc over its word. The disc stands where an icon does, so
-   its word lines up with the others'. */
+/* Add: the shell's one primary, the dock's centre, an accent disc raised out of it over its word, ringed in the page's colour
+   so it reads as standing on the dock. */
 .inv-navbar-add { color: var(--text-2); }
 .inv-navbar-add-mark {
   display: flex; align-items: center; justify-content: center;
-  width: calc(var(--sp-24) + var(--sp-4)); height: calc(var(--sp-24) + var(--sp-4));
-  margin-top: calc(var(--sp-20) - var(--sp-24) - var(--sp-4));
+  width: calc(var(--sp-32) + var(--sp-8)); height: calc(var(--sp-32) + var(--sp-8));
+  margin-top: calc(-1 * var(--sp-20));
   border-radius: var(--r-full); background: var(--accent); color: var(--on-accent);
+  border: var(--sp-4) solid var(--bg); box-shadow: var(--shadow-pop);
 }
+.inv-navbar-add-mark svg { padding: 0; background: none; }
 .inv-navbar-add:active .inv-navbar-add-mark { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
 /* Search on the desktop: a button drawn as the search field, with its key. The phone has the top bar's icon. */
 .inv-ws-search { display: none; }
@@ -2481,16 +2552,9 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
   <div id="homeQuestions"></div>
   <div id="homeEditArea"></div>
   <div class="inv-panels inv-panels-3" id="homeWidgets">
-    <div data-home-w="mtd" class="inv-panels-wide">
-      <div class="inv-tiles" id="homeTiles">
-        <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div><div class="inv-tile-viz" id="mtdCountViz"></div></div>
-        <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div><div class="inv-tile-viz" id="mtdRevenueViz"></div></div>
-        <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div><div class="inv-tile-viz" id="mtdKgViz"></div></div>
-        <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div><div class="inv-tile-viz" id="mtdPerKgViz"></div></div>
-      </div>
-    </div>
+    <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
     <div data-home-w="quick" class="inv-panels-wide">
-      <div class="inv-btn-grid" role="group" aria-label="Quick actions">
+      <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
         <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
         <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
         <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
@@ -2508,10 +2572,7 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
     <div data-home-w="stock" id="homeStockCard"></div>
     <div data-home-w="sync" id="homeSyncCard"></div>
     <div data-home-w="zinc" id="homeZincCard"></div>
-    <div data-home-w="recent" class="inv-panel inv-panel-flush inv-panels-wide">
-      <div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>
-      <div id="recentInvoices"></div>
-    </div>
+    <div data-home-w="recent" class="inv-panels-wide" id="homeRecentCard"></div>
   </div>
   <div class="inv-toolbar" id="homeEditBar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>
   </div>
@@ -3514,7 +3575,7 @@ function uiFoldCard(key, card, dflt) {
 /* A hero card (§6.21): a <details> that folds open to its body, or a plain card where it has none. `o`: tone (a status tone
    word, else the theme's gradient), eyebrow / title / fig / sub / viz / body (HTML: the caller escapes what came from the
    user), open (its default), fold (the key its open or shut is remembered under on the device; none, it opens as drawn),
-   vital (a question tile: one column, the figure first), attrs (more attributes). */
+   vital (a question tile: one column, the figure first), foot (its own links and buttons, HTML), attrs (more attributes). */
 function uiHeroHtml(o) {
   var tone = o.tone && /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? ' inv-hero-' + o.tone : '';
   var cls = 'inv-hero' + tone + (o.vital ? ' inv-hero-vital' : '') + (o.cls ? ' ' + o.cls : '');
@@ -3522,10 +3583,12 @@ function uiHeroHtml(o) {
     (o.vital ? (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '') + (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '')
       : (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '') + (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '')) +
     (o.sub ? '<span class="inv-hero-sub">' + o.sub + '</span>' : '') + (o.viz ? '<span class="inv-hero-viz">' + o.viz + '</span>' : '');
-  if (o.body == null) return '<div class="' + cls + '"' + (o.attrs || '') + '><div class="inv-hero-head">' + head + '</div></div>';
+  // A hero's own links and buttons (`foot`): under its head, or under its body where it folds (shut, the head says enough).
+  var foot = o.foot ? '<div class="inv-hero-foot">' + o.foot + '</div>' : '';
+  if (o.body == null) return '<div class="' + cls + '"' + (o.attrs || '') + '><div class="inv-hero-head">' + head + '</div>' + foot + '</div>';
   var open = o.fold ? uiFoldOpen(o.fold, o.open) : !!o.open;
   return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
-    '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div></details>';
+    '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div>' + foot + '</details>';
 }
 /* A grid packed with no gaps (§6.25): each child spans as many of the grid's small rows as its own height takes. Only where
    the grid has two columns or more; packed again whenever a child changes height (a fold opened, a chart drawn). */
@@ -4068,6 +4131,13 @@ function figHtml(html, tone) { return tone ? '<span class="inv-fig-' + tone + '"
 /* A change against the period before in words (§5.4), "+12.3% on Aug", coloured by whether it moved the good way:
    better 'up' (revenue, tonnage, realisation) or 'down' (cost, days to pay); null leaves it uncoloured (a count).
    Level within FIG_FLAT_PCT; the wrong way is warning up to FIG_BAD_PCT and danger past it. Against nothing it says so. */
+/* The tone figDeltaHtml colours a change in: null where it says no figure or level, or where up and down are neither. */
+function figDeltaTone(cur, prev, better) {
+  if (!better || prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return null;
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(pct) <= FIG_FLAT_PCT) return null;
+  return (better === 'up' ? pct > 0 : pct < 0) ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger';
+}
 function figDeltaHtml(cur, prev, label, better) {
   if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return 'no figure for ' + escHtml(label);
   var pct = ((cur - prev) / Math.abs(prev)) * 100;
@@ -7133,24 +7203,24 @@ function zincAgeDays() {
   return Math.max(0, isoDaysBetween(isoOf(new Date(z.updatedAt)), localDateStr()));
 }
 
+/* Pulse's Zinc as a hero: the landed rate a kg, the market's last refreshes as a line (S.zinc.lmeHistory, landed at the uplift
+   and premium set now, as the price trend draws it), coded warning once the rate is out of date; the derivation under it. */
 function renderZincCard() {
   var el = document.getElementById('homeZincCard');
   if (!el) return;
   var z = getZinc();
   var landed = zincLandedRate();
-  var head = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Zinc</span>';
+  var refresh = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>';
 
   if (landed == null) {
     // Adding the key does not fetch anything by itself, so the empty state has
     // to carry the Refresh button too. Without it, setting a key left the card
     // still asking for a key and no way to act on it.
     var hasKey = !!getMetalsKey();
-    el.innerHTML = head + (hasKey ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') + '</div>' +
-      '<div class="inv-empty">' +
-      (hasKey
-        ? 'No rate recorded yet. Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
-        : 'No rate recorded. Set it in Settings, or add a metals.dev API key there to pull it from the market.') +
-      '</div></div>';
+    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Zinc</span>', title: 'No rate recorded',
+      sub: hasKey ? 'Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
+        : 'Set it in Settings, or add a metals.dev API key there to pull it from the market.',
+      attrs: ' data-card="zinc"', foot: hasKey ? refresh : '' });
     return;
   }
 
@@ -7159,9 +7229,12 @@ function renderZincCard() {
   var ageText = age == null ? 'never updated'
     : age === 0 ? 'updated today'
     : 'updated ' + age + ' day' + (age !== 1 ? 's' : '') + ' ago';
+  // The market's last 30 refreshes, landed as a bill is priced (zinc.js zincTrend's rule), oldest first.
+  var hist = z.lmeHistory || {}, days = Object.keys(hist).sort().slice(-30), up = z.upliftPct || 0, prem = z.premiumPerKg || 0;
+  var line = days.length >= 3 ? chartSpark(days.map(function(d) { return gstRound(hist[d] * (1 + up / 100) + prem); }), { labels: days.map(function(d) { return formatDate(d); }), unit: 'rate', dot: true,
+    title: 'Landed zinc at each refresh: ' + days.slice(-6).map(function(d) { return formatDate(d) + ' ' + formatCurrency(gstRound(hist[d] * (1 + up / 100) + prem)); }).join(' · ') }) : '';
 
-  el.innerHTML = head + '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button></div>' +
-    '<div class="inv-tiles inv-tiles-flush">' +
+  var body = '<div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(landed)) + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">' + (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
     '<div class="inv-tile-value inv-tile-value-sm">' + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
@@ -7173,7 +7246,10 @@ function renderZincCard() {
         ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' + formatCurrency(zincMcxRate()) + '</span>'
       : '') +
     '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
-    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div></div>';
+    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div>';
+  el.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : '', eyebrow: '<span>Zinc</span><span class="inv-panel-count">' + escHtml(ageText) + '</span>',
+    title: 'Landed a kg', fig: figWrapHtml(escHtml(formatCurrency(landed))), sub: escHtml((z.basis === 'lme' ? 'MCX est. ' : 'MCX ') + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + ' premium'),
+    viz: line, fold: 'pulse-zinc', open: true, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh });
 }
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the
@@ -7683,61 +7759,71 @@ var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 var ICON_CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
 var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 
-/* The stat strip for a role without money: its tiles say nothing, rather than another role's month left in them. */
-function homeBlankTiles() {
-  ['mtdCount', 'mtdRevenue', 'mtdKg', 'mtdPerKg'].forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = '&mdash;'; });
-  ['mtdCountSub', 'mtdRevenueSub', 'mtdKgSub', 'mtdPerKgSub', 'mtdCountDelta', 'mtdRevenueDelta', 'mtdKgDelta', 'mtdPerKgDelta'].forEach(function(id) {
-    var e = document.getElementById(id); if (e) e.innerHTML = '';
-  });
-  var tile = document.getElementById('mtdPerKgTile');
-  if (tile) tile.className = 'inv-tile';
-}
-/* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
+/* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
+function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
+/* Home's month so far as a hero (§6.21): the month's billing against the same days last month, realisation against the
+   cost, and the four tiles under it, each with the tonnage behind the revenue (What Stats measures) and a line of the months
+   before. A tile whose change has a direction is coded in it (§6.26: data-tone, its figure a plain fact); realisation, which
+   the app judges against the cost, is coloured as well (inv-tile-<tone>). */
 function renderHomeTiles(active) {
-  var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
+  var host = document.getElementById('homeMtdCard');
+  if (!host) return;
   var w = weighLines(active);
   // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
   var month = TREND_MONTH_LABELS[new Date().getMonth()];
-  set('mtdCount', String(active.length));
-  set('mtdCountSub', escHtml(month) + ' to date');
-  set('mtdRevenue', figWrapHtml(formatCurrency(sumTaxable(active))));
+  var rev = sumTaxable(active);
   // Net of credit notes, as Stats is (owner, 30 Sep 2026: "yes, it should and it should be mentioned").
   var credited = gstRound(active.reduce(function(s, i) { return s + (i._credit || 0); }, 0));
-  set('mtdRevenueSub', credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes');
-  // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
-  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
-  set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
-  set('mtdPerKg', w.kg > 0 ? figWrapHtml(formatCurrency(w.revKnown / w.kg)) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
-  // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
-  // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
-  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
-    : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
-
   // Whether each is good (owner, 29 Sep 2026): against the same days last month, and realisation against the month's
   // live cost, the cost Stats judges it by.
   var p = homePriorSameDays(), pw = weighLines(p.invoices), lbl = 'same days last month';
   var real = w.kg > 0 ? w.revKnown / w.kg : null, preal = pw.kg > 0 ? pw.revKnown / pw.kg : null;
-  var has = p.invoices.length > 0;
-  set('mtdCountDelta', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '');
-  set('mtdRevenueDelta', has ? figDeltaHtml(sumTaxable(active), sumTaxable(p.invoices), lbl, 'up') : '');
-  set('mtdKgDelta', has && w.kg > 0 && pw.kg > 0 ? figDeltaHtml(w.kg, pw.kg, lbl, 'up') : '');
+  var has = p.invoices.length > 0, prev = sumTaxable(p.invoices);
   var cost = null;
   if (real != null) { try { var lc = liveCost(p.monthStart, localDateStr(), w.kg); cost = lc && lc.perKg > 0 ? lc.perKg : null; } catch (e) { cost = null; } }
   if (cost == null && S.defaultCostPerKg > 0) cost = S.defaultCostPerKg;
-  var tone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
-  var tileEl = document.getElementById('mtdPerKgTile');
-  if (tileEl) tileEl.className = 'inv-tile' + (tone ? ' inv-tile-' + tone : '');
-  // Only what there is, joined: with nothing weighed on the same days last month the line ended on a bare " · ".
-  set('mtdPerKgDelta', real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '',
-    preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '));
+  var realTone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
+  var revTone = has ? figDeltaTone(rev, prev, 'up') : null, kgTone = has && w.kg > 0 && pw.kg > 0 ? figDeltaTone(w.kg, pw.kg, 'up') : null;
   // Each figure's last six full months as a line under it (owner, 8 Oct 2026: the data on Today "still primitive"): the month
   // so far is the tile's own figure, so the line stops at the last month that ended.
   var hist = homeMonthsBack(6), labels = hist.map(function(x) { return x.label; });
-  set('mtdCountViz', chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') }));
-  set('mtdRevenueViz', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }));
-  set('mtdKgViz', chartSpark(hist.map(function(x) { return x.kg > 0 ? gstRound(x.kg / 1000) : null; }), { labels: labels, unit: 'count', dot: false,
-    title: 'Tonnes by month: ' + hist.map(function(x) { return x.label + ' ' + formatNum(x.kg / 1000, 1) + ' t'; }).join(' · ') }));
-  set('mtdPerKgViz', chartSpark(hist.map(function(x) { return x.real; }), { ref: hist.map(function(x) { return x.cost; }), labels: labels, unit: 'rate', dot: false }));
+  var tile = function(key, label, value, sub, delta, viz, o) {
+    o = o || {};
+    return '<div class="inv-tile' + (o.cls ? ' inv-tile-' + o.cls : '') + '"' + (o.id ? ' id="' + o.id + '"' : '') + (o.tone ? ' data-tone="' + o.tone + '"' : '') + '>' +
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value" id="mtd' + key + '">' + value + '</div>' +
+      '<div class="inv-tile-sub" id="mtd' + key + 'Sub">' + sub + '</div><div class="inv-tile-sub" id="mtd' + key + 'Delta">' + delta + '</div>' +
+      '<div class="inv-tile-viz" id="mtd' + key + 'Viz">' + viz + '</div></div>';
+  };
+  var tiles = tile('Count', 'Invoices', String(active.length), escHtml(month) + ' to date', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '',
+      chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') })) +
+    tile('Revenue', 'Revenue', figWrapHtml(formatCurrency(rev)),
+      credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes',
+      has ? figDeltaHtml(rev, prev, lbl, 'up') : '', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }), { tone: revTone }) +
+    // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
+    tile('Kg', 'Tonnage billed', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet',
+      has && w.kg > 0 && pw.kg > 0 ? figDeltaHtml(w.kg, pw.kg, lbl, 'up') : '',
+      chartSpark(hist.map(function(x) { return x.kg > 0 ? gstRound(x.kg / 1000) : null; }), { labels: labels, unit: 'count', dot: false,
+        title: 'Tonnes by month: ' + hist.map(function(x) { return x.label + ' ' + formatNum(x.kg / 1000, 1) + ' t'; }).join(' · ') }), { tone: kgTone }) +
+    // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end. "All" only when
+    // nothing priced is unweighed, and a partial share never rounds up to 100%. Only what there is is joined: with nothing
+    // weighed on the same days last month the line ended on a bare " · ".
+    tile('PerKg', 'Realisation', w.kg > 0 ? figWrapHtml(formatCurrency(w.revKnown / w.kg)) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+      !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed' : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed',
+      real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '', preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '),
+      chartSpark(hist.map(function(x) { return x.real; }), { ref: hist.map(function(x) { return x.cost; }), labels: labels, unit: 'rate', dot: false }),
+      { id: 'mtdPerKgTile', cls: realTone });
+  // What the month says, in words: the billing against the same days last month, and realisation against the cost. The card
+  // is coded by the worse of the two.
+  var pct = has && prev > 0 ? (rev - prev) / prev * 100 : null;
+  var title = !active.length ? 'Nothing billed yet this month' : pct == null ? 'The month’s first invoices'
+    : Math.abs(pct) <= FIG_FLAT_PCT ? 'Billing level with the same days last month'
+    : 'Billing ' + formatNum(Math.abs(pct), 1) + '% ' + (pct > 0 ? 'ahead of' : 'behind') + ' the same days last month';
+  var sub = real == null ? (active.length ? 'Nothing weighed yet, so no realisation' : '')
+    : 'Realising ' + formatCurrency(real) + ' a kg' + (cost != null ? (real >= cost ? ', clearing the cost of ' : ' against a cost of ') + formatCurrency(cost) : '');
+  var rank = { danger: 3, warning: 2, ok: 1 }, worst = [revTone, realTone].filter(Boolean).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
+  host.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
+    title: escHtml(title), sub: escHtml(sub), fold: 'pulse-mtd', open: true, attrs: ' data-card="mtd"',
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' });
 }
 /* The last n months that have ended, oldest first, as Stats reads them (statsMonthRows: realisation over the weighed lines,
    at each month's own live cost), with the invoices counted. */
@@ -7791,55 +7877,66 @@ function renderHomeWidgets() {
   if (homeWidgetSeen('attendance')) renderAttHomeCard(); else homeWidgetBlank(['homeAttCard']);
   updateStockBadge();
   if (homeWidgetSeen('sync')) ghRenderCard(); else homeWidgetBlank(['homeSyncCard']);
+  renderHomeUnbilledCard();
+  renderHomeRecentCard();
+  // Laid out once every card is drawn: the packed grid measures their heights (§6.25).
   homeApplyLayout();
-
-  var unbilledEl = document.getElementById('homeUnbilledCard');
-  if (unbilledEl && !homeWidgetSeen('unbilled')) unbilledEl.innerHTML = '';
-  else if (unbilledEl) {
-    var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null;
-    (S.incomingMaterial || []).forEach(function(im) {
-      var hasPending = false;
-      im.items.forEach(function(it) {
-        if (!it.invoiced) { hasPending = true; pendingAmount += imLineOpen(it).amount; pendingItemCount++; }
-      });
-      if (hasPending) pendingChallans++;
-      if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
+}
+/* Unbilled material as a hero: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline codes its
+   first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
+function renderHomeUnbilledCard() {
+  var el = document.getElementById('homeUnbilledCard');
+  if (!el) return;
+  if (!homeWidgetSeen('unbilled')) { el.innerHTML = ''; return; }
+  var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null, oldest = null;
+  (S.incomingMaterial || []).forEach(function(im) {
+    var hasPending = false;
+    im.items.forEach(function(it) {
+      if (!it.invoiced) { hasPending = true; pendingAmount += imLineOpen(it).amount; pendingItemCount++; }
     });
-    if (pendingChallans > 0 || latestChallan) {
-      var ub = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Unbilled material</span>' +
-        '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageIM">View challans</button></div>';
-      if (pendingChallans > 0) {
-        ub += '<div class="inv-tiles inv-tiles-flush">' +
-          '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
-          '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
-          '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(pendingAmount)) + '</div>' +
-          '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
-      } else {
-        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
-      }
-      if (latestChallan) {
-        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
-          '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
-      }
-      unbilledEl.innerHTML = ub + '</div>';
-    } else {
-      unbilledEl.innerHTML = '';
-    }
+    if (hasPending) { pendingChallans++; if (im.challanDate && (!oldest || im.challanDate < oldest)) oldest = im.challanDate; }
+    if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
+  });
+  if (!pendingChallans && !latestChallan) { el.innerHTML = ''; return; }
+  var age = oldest ? isoDaysBetween(oldest, localDateStr()) : 0, amberD = todoCfg().challanDays;
+  var tone = !pendingChallans ? 'ok' : age >= amberD * 2 ? 'danger' : age >= amberD ? 'warning' : '';
+  var body = '';
+  if (pendingChallans > 0) {
+    body += '<div class="inv-tiles inv-tiles-flush">' +
+      '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
+      '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(pendingAmount)) + '</div>' +
+      '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
+  } else {
+    body += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
   }
-
-  const el = document.getElementById('recentInvoices');
-  if (!homeWidgetSeen('recent')) { el.innerHTML = ''; return; }
-  const recent = homeRecentInvoices(10);
-  if (recent.length === 0) {
-    el.innerHTML = '<div class="inv-empty">' +
-      '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
-      '<div>No invoices yet</div>' +
-      '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
-      '</div>';
-    return;
+  if (latestChallan) {
+    body += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
+      '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
+      escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
   }
-  el.innerHTML = recent.map(homeRecentRowHtml).join('');
+  el.innerHTML = uiHeroHtml({ tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
+    title: pendingChallans ? escHtml(todoPlural(pendingChallans, 'challan') + ' to invoice') : 'Everything received is invoiced',
+    fig: pendingChallans ? figWrapHtml(escHtml(formatCurrency(pendingAmount))) : '',
+    sub: pendingChallans && oldest ? escHtml('The oldest from ' + formatDate(oldest) + (age > 0 ? ', ' + todoPlural(age, 'day') + ' ago' : ', today')) : '',
+    fold: 'pulse-unbilled', open: true, attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' });
+}
+/* The recent invoices as a hero, as Needs you draws them (tdyRecentHtml), ten of them: the latest and its figure, opening to
+   the rows with their print buttons. With none yet, the way to the first. */
+function renderHomeRecentCard() {
+  var host = document.getElementById('homeRecentCard');
+  if (!host) return;
+  if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
+  var recent = homeRecentInvoices(10);
+  var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
+    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+    '<div>No invoices yet</div>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
+    '</div>';
+  host.innerHTML = uiHeroHtml(Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
+    fold: 'pulse-recent', open: true, attrs: ' data-card="recent-pulse"',
+    body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' }));
 }
 /* The invoices made last, newest first. */
 function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
@@ -7973,30 +8070,31 @@ function homeShowToggle(el) {
   homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
 }
 
-/* The three widgets Home had no card for. Each is drawn only while shown, to a role that sees it (homeWidgetSeen), and says
-   nothing rather than a zero. */
+/* The three widgets Home had no card for, as heroes. Each is drawn only while shown, to a role that sees it (homeWidgetSeen),
+   and says nothing rather than a zero. */
 function renderHomeExtraCards() {
   var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
-  var head = function(title, go, label) { return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="' + go + '">' + label + '</button></div>'; };
+  var open = function(go) { return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="' + go + '">Open</button>'; };
   // Production: the last day with plating on record, by line.
   if (!l.hidden.production && homeWidgetSeen('production')) {
     var h = '';
     try {
       var last = null;
       prodIndex().counted.forEach(function(e) { if (!last || e.date > last) last = e.date; });
-      h = head('Production', 'pageProduction', 'Open');
-      if (!last) h += '<div class="inv-empty">No plating on record yet.</div>';
-      else {
-        h += '<div class="inv-row-group"><span>' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span></div>';
-        PROD_LINES.forEach(function(ln) {
-          var r = prodDayLine(last, ln);
-          if (!r.entries.length) return;
-          h += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
-            (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
-        });
-      }
-      h += '</div>';
+      var rows = '', kg = 0, nos = 0, lines = 0;
+      if (last) PROD_LINES.forEach(function(ln) {
+        var r = prodDayLine(last, ln);
+        if (!r.entries.length) return;
+        lines++; kg += r.kg; nos += r.nos;
+        rows += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
+          (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
+      });
+      var lag = last ? isoDaysBetween(last, localDateStr()) : null;
+      h = uiHeroHtml({ tone: last == null ? 'neutral' : lag > 2 ? 'warning' : '', eyebrow: '<span>Production</span>' + (last ? '<span class="inv-panel-count">' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span>' : ''),
+        title: last ? escHtml('Plated on ' + todoPlural(lines, 'line')) : 'No plating on record yet',
+        fig: last && kg > 0 ? escHtml(cpNum(kg) + ' kg') : last && nos > 0 ? escHtml(cpNum(nos) + ' NOS') : '',
+        sub: last ? escHtml(lag === 0 ? 'The last day on record is today' : 'The last day on record, ' + todoPlural(lag, 'day') + ' ago') : '',
+        fold: 'pulse-production', open: true, attrs: ' data-card="production"', body: last ? '<div class="inv-hero-sheet">' + rows + '</div>' : null, foot: open('pageProduction') });
     } catch (e) { h = ''; }
     set('homeProdCard', h);
   } else set('homeProdCard', '');
@@ -8006,10 +8104,16 @@ function renderHomeExtraCards() {
     try {
       var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
       var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
-      ph = head('Power cuts', 'pagePower', 'Open') + '<div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
-        '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
-        '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
-        '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>';
+      var openCuts = cuts.filter(function(c) { return c.open; }).length;
+      ph = uiHeroHtml({ tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
+        title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
+        fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
+        fold: 'pulse-power', open: true, attrs: ' data-card="power"',
+        body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
+          '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
+          '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
+          '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>',
+        foot: open('pagePower') });
     } catch (e) { ph = ''; }
     set('homePowerCard', ph);
   } else set('homePowerCard', '');
@@ -8017,11 +8121,17 @@ function renderHomeExtraCards() {
   if (!l.hidden.stock && homeWidgetSeen('stock')) {
     var sh = '';
     try {
-      var rows = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
+      var low = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
         .filter(function(x) { return x.s.tone === 'red' || x.s.tone === 'amber'; }).sort(function(a, b) { return (a.s.daysLeft == null ? -1 : a.s.daysLeft) - (b.s.daysLeft == null ? -1 : b.s.daysLeft); });
-      sh = head('Stock running low', 'pageStock', 'Open') + (rows.length ? rows.slice(0, 5).map(function(x) {
-        return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
-      }).join('') + (rows.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (rows.length - 5) + ' more</span></div>' : '') : '<div class="inv-empty">No line is running low.</div>') + '</div>';
+      var red = low.filter(function(x) { return x.s.tone === 'red'; }).length;
+      sh = uiHeroHtml({ tone: red ? 'danger' : low.length ? 'warning' : 'ok', eyebrow: '<span>Stock running low</span>' + (low.length ? '<span class="inv-panel-count">' + low.length + '</span>' : ''),
+        title: low.length ? escHtml(todoPlural(low.length, 'line') + ' running low') : 'No line is running low',
+        sub: low.length ? escHtml(low.slice(0, 3).map(function(x) { return x.i.name; }).join(' · ') + (low.length > 3 ? ' · and ' + (low.length - 3) + ' more' : '')) : '',
+        fold: 'pulse-stock', open: true, attrs: ' data-card="stock-low"',
+        body: low.length ? '<div class="inv-hero-sheet">' + low.slice(0, 5).map(function(x) {
+          return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
+        }).join('') + (low.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (low.length - 5) + ' more</span></div>' : '') + '</div>' : null,
+        foot: open('pageStock') });
     } catch (e) { sh = ''; }
     set('homeStockCard', sh);
   } else set('homeStockCard', '');
@@ -12654,7 +12764,7 @@ function ghRelTime(ts) {
 
 /* Home card. A backup whose state you cannot see is a backup you will not
    trust, so the last sync time sits on the first screen rather than three
-   taps into Settings. */
+   taps into Settings. A hero (§6.21): when it last went, coded by whether a working day has passed since, with its button. */
 function ghRenderCard() {
   var host = document.getElementById('homeSyncCard');
   if (!host) return;
@@ -12667,11 +12777,8 @@ function ghRenderCard() {
     var removed = typeof devRemovedRow === 'function' && !!devRemovedRow();
     // Removed: the whole sentence, who and when and why. Not registered: the few words, with the way to fix it beside.
     var why = removed ? devSyncBlocked() : blockedShort.charAt(0).toUpperCase() + blockedShort.slice(1);
-    host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
-      '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
-        '<span class="inv-row-meta">' + uiDot(removed ? 'danger' : 'warning', escHtml(why)) + '</span></span>' +
-      (removed ? '' : '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button></span>') +
-      '</div></div>';
+    host.innerHTML = uiHeroHtml({ tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
+      attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' });
     return;
   }
   if (!ghIsConfigured()) { host.innerHTML = ''; return; }
@@ -12681,16 +12788,12 @@ function ghRenderCard() {
   // Anything past a working day without a push is worth flagging on a device
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
-
-  // The status leads the meta line: it ellipsizes at its end, and a long repo
-  // name must not push the stale warning out of sight on a phone.
-  var when = 'Last synced ' + escHtml(ghRelTime(last));
-  host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
-    '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
-      '<span class="inv-row-meta">' + (stale ? '<span class="inv-dot inv-dot-warning">' + when + '</span>' : when) +
-      ' · <span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span></span></span>' +
-    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
-      (_ghBusy ? 'Syncing…' : 'Back up now') + '</button></span></div></div>';
+  var when = 'Last synced ' + ghRelTime(last);
+  host.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
+    // The status is a dot and a word (DR-8), the title the time; the repository under it.
+    title: stale ? uiDot('warning', escHtml(when)) : escHtml(when), sub: '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>',
+    attrs: ' data-card="sync"',
+    foot: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' + (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' });
 }
 
 /* ===== SETTINGS SECTION ===== */
@@ -24892,9 +24995,10 @@ function attDaySummary(day) {
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;
 }
+/* The day's attendance as a panel. headBtn: the head's link; null, no head (a hero card above it says what the head would). */
 function attDayPanelHtml(d, headBtn, id) {
-  var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
-    '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
+  var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '>' + (headBtn === null ? '' : '<div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
+    '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>');
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
   // On site against the roster, judged at the rest-day gate's 90% and 80% (a day nobody typed judges nothing).
   var onPct = d.roster.length && !d.unmarked ? (d.p + d.half) / d.roster.length * 100 : null, onTone = figTonePct(onPct, 90, 80);
@@ -24921,11 +25025,25 @@ function attDayPanelHtml(d, headBtn, id) {
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';
 }
+/* Pulse's Attendance as a hero: who is on site against the roster, judged at the rest-day gate's 90% and 80%, the floor
+   against its number, the day as a bar of present, half, absent and unmarked; the panel's tiles and rows under it. */
 function renderAttHomeCard() {
   var el = document.getElementById('homeAttCard');
   if (!el) return;
   if (!staffActive().length) { el.innerHTML = ''; return; }
-  el.innerHTML = attDayPanelHtml(attDaySummary(), '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button>', 'homeAtt');
+  var d = attDaySummary(), n = d.roster.length, on = d.p + d.half;
+  var pct = n && d.marked && !d.unmarked ? on / n * 100 : null, tone = figTonePct(pct, 90, 80);
+  if (d.short && tone !== 'danger') tone = 'warning';
+  var meter = d.marked ? chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
+    { title: d.p + ' present · ' + d.half + ' half day · ' + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') }) : '';
+  var floor = d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' + (d.short ? ', ' + (d.complement - d.floorHeads) + ' short' : '') : '';
+  el.innerHTML = uiHeroHtml({ tone: d.marked ? tone || 'ok' : 'neutral',
+    eyebrow: '<span>Attendance</span><span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span>',
+    title: d.marked ? escHtml(on + ' of ' + n + ' on site') : 'Nothing recorded yet',
+    sub: escHtml([floor, d.marked ? todoPlural(d.absent.length, 'absent', 'absent') : ''].filter(Boolean).join(' · ')), viz: meter,
+    fold: 'pulse-attendance', open: true, attrs: ' data-card="attendance"',
+    body: d.marked ? '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'homeAtt') + '</div>' : null,
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' });
 }
 /* ===== STOCK =====
    Chemical stock, owned by soma-internal (owner's ruling, 24 Sep 2026): this
@@ -31274,33 +31392,48 @@ function todoMineRowHtml(t) {
     (end ? '<span class="inv-row-end inv-row-stack">' + end + '</span>' : '') + '</div>';
 }
 
-/* Home: the top three, both kinds, labelled. */
+/* Pulse: the To-do as a hero, grouped as Needs you groups it (Now, this week, to know: today.js tdyGroupOf), coded by its worst
+   task, with the top three as rows, both kinds labelled. */
 function renderTodoHomeCard() {
   var el = document.getElementById('homeTodoCard');
   if (!el) return;
   if (typeof grdHeld === 'function' && grdHeld()) return;
-  var ranked = todoRanked();
-  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
-    (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button></div>';
-  if (!ranked.length) h += '<div class="inv-empty">Nothing due</div>';
+  var ranked = todoRanked(), groups = { now: 0, week: 0, later: 0 }, worth = 0;
+  ranked.forEach(function(r) {
+    var g = typeof tdyGroupOf === 'function' ? tdyGroupOf(r) : r.tone === 'red' ? 'now' : r.tone === 'amber' ? 'week' : 'later';
+    groups[g]++;
+    if (g === 'now' && r.app && r.app.worth > 0) worth += r.app.worth;
+  });
+  var rows = '';
+  if (!ranked.length) rows = '<div class="inv-empty">Nothing due</div>';
   ranked.slice(0, 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
-      h += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
+      rows += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
         // The tone travels with a symbol, never colour alone (DR-1): the To-do screen's own ! / i glyph.
         '<span class="inv-row-lead">' + todoGlyph(r.app.tone) + '</span>' +
-        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta">' + escHtml(r.app.sub) + '</span></span>' +
+        // The task's figures in full: a fold names its three largest (owed over 90 days by three clients), which cut at two lines.
+        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.app.sub) + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {
       var t = r.mine;
-      h += '<div class="inv-row inv-row-2" data-todo="mine"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
+      rows += '<div class="inv-row inv-row-2" data-todo="mine"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
         '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title">' + escHtml(t.text) + '</span>' +
         (t.due ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(todoDueLabel(t.due)) + '</span></span>' : '') + '</button>' +
         '<span class="inv-row-end"><span class="inv-badge">Mine</span></span></div>';
     }
   });
-  el.innerHTML = h + '</div>';
+  var red = ranked.some(function(r) { return r.tone === 'red'; }), amber = ranked.some(function(r) { return r.tone === 'amber'; });
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var meter = ranked.length ? chartMeter([{ v: groups.now, tone: 'danger' }, { v: groups.week, tone: 'warning' }, { v: groups.later, tone: 'info' }],
+    { title: groups.now + ' now · ' + groups.week + ' this week · ' + groups.later + ' later' }) : '';
+  el.innerHTML = uiHeroHtml({ tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
+    eyebrow: '<span>To-do</span>' + (ranked.length ? '<span class="inv-panel-count">' + ranked.length + '</span>' : ''),
+    title: escHtml(!ranked.length ? 'Nothing due' : groups.now ? todoPlural(groups.now, 'thing needs', 'things need') + ' you now' : todoPlural(ranked.length, 'task') + ' open, none urgent'),
+    fig: money && worth > 0.005 ? figWrapHtml(escHtml(formatCurrency(gstRound(worth)))) : '',
+    sub: escHtml([groups.week ? groups.week + ' this week' : '', groups.later ? groups.later + ' to know' : ''].filter(Boolean).join(' · ')),
+    viz: meter, fold: 'pulse-todo', open: true, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' });
 }
 
 function todoRefreshViews() {
@@ -38504,14 +38637,21 @@ function statsStoryCards(a, ctx) {
       var bBook = bankBookDaysToPay(bankPayHistory(recv));
       body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
         statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
-      body += say(c5, bBook && bBook.median > 60 ? 'warning' : 'ok', 'Owed ' + formatCurrency(owed) + (bBook ? ', arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
+      // Judged as Pulse's Money card judges it (finlinks.js renderFinHomeCard), so the two never disagree on one figure (the
+      // survey of 8 Oct 2026: owed read green here and red there): overdrawn is danger; what is owed past 90 days danger, unless a
+      // receipt is still unplaced (that money may be in), past 60 warning; and how fast clients pay (figTonePaysIn).
+      var ages = finAgeing(recv), old90 = ages[3] ? ages[3].amount : 0, old60 = ages[2] ? ages[2].amount : 0;
+      var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
+      var cashRank = { danger: 3, warning: 2, ok: 1 }, cashTone = [bLast.balance < 0 ? 'danger' : 'ok', old90 > 0.5 ? (loose ? 'warning' : 'danger') : old60 > 0.5 ? 'warning' : 'ok',
+        bBook ? figTonePaysIn(Math.round(bBook.median)) : null].filter(Boolean).sort(function(x, y) { return cashRank[y] - cashRank[x]; })[0] || 'ok';
+      body += say(c5, cashTone, 'Owed ' + formatCurrency(owed) + (old90 > 0.5 ? ', ' + formatCurrency(old90) + ' of it over 90 days' : old60 > 0.5 ? ', ' + formatCurrency(old60) + ' of it over 60 days' : '') +
+        (bBook ? '; arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
-      var ages = finAgeing(recv), ageTone = ['ok', 'ok', 'warning', 'danger'];
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
-        sub: escHtml('in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
-        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: ageTone[i] || 'danger' }; }),
+        sub: escHtml((old90 > 0.5 ? formatCurrency(old90) + ' over 90 days · ' : '') + 'in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
+        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'danger' }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
-        tone: bLast.balance < 0 ? 'danger' : bBook && bBook.median > 60 ? 'warning' : 'ok' };
+        tone: cashTone };
       cards.cash = c5;
     } catch (e) { /* no cash story without a readable statement */ }
   }
@@ -39682,14 +39822,22 @@ function finSupplierPaid(name) {
 }
 
 /* ---------- Home ---------- */
+/* What is owed, by age, as a bar's tones: within a month fresh, a second month plain, then warning and danger (figToneAge's
+   60 and 90 days). Pulse's Money card and the cash question draw the one bar (intel.js). */
+var FIN_AGE_TONE = ['ok', 'neutral', 'warning', 'danger'];
+/* Pulse's Money as a hero: what is owed past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance
+   (balance, owed, pays in, runway), each coded in its own tone. Coded by the worst of them. */
 function renderFinHomeCard() {
   var el = document.getElementById('homeFinCard');
   if (!el) return;
   // Pulse's Money widget is the finance permission's: for another role it is not drawn at all (tabs.js homeWidgetSeen).
   if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) { el.innerHTML = ''; return; }
-  var h ='<div class="inv-panel inv-panel-flush" id="homeFin"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button></div>';
-  if (!finHasBank()) { el.innerHTML = h + '<div class="inv-empty">No bank statement yet. Import the bank’s .xls to see the balance, what is owed and the forecast.</div></div>'; return; }
+  var imp = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button>';
+  if (!finHasBank()) {
+    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet',
+      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp });
+    return;
+  }
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
   var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   var book = bankBookDaysToPay(bankPayHistory(recv));
@@ -39697,17 +39845,21 @@ function renderFinHomeCard() {
   var age = isoDaysBetween(last.date, localDateStr());
   // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
   var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
+  var tones = [];
   var tile = function(tab, anchor, label, value, sub, tone) {
+    if (tone) tones.push(tone);
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
-  h += '<div class="inv-tiles inv-tiles-flush">' +
+  var pays = book && book.median != null ? figTonePaysIn(book.median) : null;
+  if (pays) tones.push(pays);
+  var tiles = '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
       // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
       loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
-    (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
+    (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
     // Overdrawn on the statement says so; counting outflows only (no receipt yet says when clients pay) is a warning, said.
@@ -39715,7 +39867,13 @@ function renderFinHomeCard() {
       : (fc.noInflow ? 'outflows only · ' : '') + (fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date))),
       !fc ? '' : fc.overdrawn ? 'danger' : fc.cross ? (fc.noInflow ? 'warning' : 'danger') : '') +
     '</div>';
-  el.innerHTML = h + '</div>';
+  var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
+  var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
+  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+    { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
+  el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
+    title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
+    viz: meter, fold: 'pulse-money', open: true, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp });
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */
@@ -45716,7 +45874,8 @@ function tdyStepMeta(r) {
 }
 /* The day's inputs (§6.21, §6.23): a hero that says how many are in and what comes next, opening to the day as a rail of
    steps, each with the one tap that brings it in. Open while anything is still to come; shut once all are in. */
-function tdyInputsHtml(day) {
+function tdyInputsHtml(day, o) {
+  o = o || {};
   var defs = tdyInputsSeen();
   // A role that takes none of the floor's inputs (the office) has no card of them.
   if (!defs.length) return '';
@@ -45747,7 +45906,9 @@ function tdyInputsHtml(day) {
   var sub = done === rows.length ? 'Everything the floor sends is in' : next ? (TDY_INPUT_SHORT[next.k] || next.title) + ' ' + (next.state === 'late' ? 'is late, ' + tdyStepMeta(next).replace(/^Late · /, '') : tdyStepMeta(next).toLowerCase()) : '';
   return uiHeroHtml({ tone: late.length ? 'warning' : done === rows.length ? 'ok' : '', eyebrow: '<span>The day’s inputs</span><span class="inv-panel-count">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>',
     title: '<span data-tdy-in>' + (n === rows.length ? 'All ' + n + ' in' : n + ' of ' + rows.length + ' in') + '</span>',
-    fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length,
+    // Open while something is still to come, except on the phone while a red task waits: the head says what is late, and the
+    // red tasks under it are what needs the owner first (the survey of 8 Oct 2026).
+    fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length && !o.shut,
     body: '<div class="inv-hero-sheet"><div class="inv-panel-body inv-steps" data-tdy-steps>' + steps + '</div>' + wa +
       (shop ? '<div class="inv-panel-body inv-note">A time with no four weeks of record behind it is the shop’s usual one.</div>' : '') + '</div>',
     attrs: ' data-card="inputs"' });
@@ -45780,7 +45941,8 @@ function tdyFloorHtml(day) {
     var st = flrStaffing(day, ln, byArea, att.marked), r = prodDayLine(day, ln.id), last = flrLatest(r.entries);
     if (st.tone === 'warning') worst = 'warning';
     var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '&mdash;';
-    return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
+    // The tile is coded by its staffing (§6.26), the word under its figure saying which.
+    return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor" data-tone="' + escHtml(st.tone || 'neutral') + '"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + fig + '</div><div class="inv-tile-sub">' + uiDot(st.tone, escHtml(st.word)) + '</div>' +
       '<div class="inv-tile-sub">' + escHtml(last ? prodEntryTitle(last) : 'No record yet today') + '</div></button>';
   });
@@ -45863,8 +46025,9 @@ function tdyTasks() { return todoRanked(); }
 /* The tasks as three hero cards (§6.21): Now (red, and your own due), This week and Later, each coded in its tone and
    opening to its deck. Now opens by itself; This week opens where Now is empty; Later stays shut until opened. */
 var TDY_GROUP_TONE = { now: 'danger', week: 'warning', later: 'info' };
-function tdyTasksHtml() {
-  var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
+function tdyTasksHtml(rows) {
+  rows = rows || tdyTasks();
+  var groups = { now: [], week: [], later: [] };
   if (typeof learnSeen === 'function') learnSeen(rows.filter(function(r) { return r.app; }).map(function(r) { return r.app; }));
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
   var money = tdySeesMoney();
@@ -45873,6 +46036,8 @@ function tdyTasksHtml() {
   var deck = function(g, list) { return uiMoreDeckHtml('tdy-' + g, list.map(card), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' }); };
   var titles = function(list) { return list.slice(0, 3).map(function(r) { return r.app ? r.app.title : r.mine.text; }).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : ''); };
   var counts = function(list, g) { return '<span>' + TDY_GROUPS.filter(function(x) { return x[0] === g; })[0][1] + '</span><span class="inv-panel-count" data-tdy-count>' + list.length + '</span>'; };
+  // A group's figure is the rupees its tasks name, said as such: unlabelled, it read as a total owed (the survey of 8 Oct 2026).
+  var stake = function(w) { return money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) + '<span class="inv-tile-of"> at stake</span>' : ''; };
   var h = '';
   var now = groups.now, wN = worth(now);
   var meter = rows.length ? chartMeter([{ v: groups.now.length, tone: 'danger' }, { v: groups.week.length, tone: 'warning' }, { v: groups.later.length, tone: 'info' }],
@@ -45880,14 +46045,14 @@ function tdyTasksHtml() {
   var rest = [groups.week.length ? groups.week.length + ' this week' : '', groups.later.length ? groups.later.length + ' to know' : ''].filter(Boolean).join(' · ');
   h += uiHeroHtml({ tone: now.length ? (now.some(function(r) { return r.tone === 'red'; }) ? 'danger' : 'warning') : 'ok',
     eyebrow: counts(now, 'now'), title: now.length ? escHtml(todoPlural(now.length, 'thing needs', 'things need') + ' you now') : 'Nothing needs you now',
-    fig: money && wN > 0 ? figWrapHtml(escHtml(formatCurrency(wN))) : '', sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
+    fig: stake(wN), sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
     viz: meter, open: true, body: now.length ? deck('now', now) : null, attrs: ' data-tdy-group="now"' });
   [['week', groups.week], ['later', groups.later]].forEach(function(p) {
     var g = p[0], list = p[1];
     if (!list.length) return;
     var w = worth(list);
     h += uiHeroHtml({ tone: TDY_GROUP_TONE[g], eyebrow: counts(list, g), title: escHtml(g === 'week' ? todoPlural(list.length, 'task') + ' for this week' : todoPlural(list.length, 'thing') + ' to know'),
-      fig: money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) : '', sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
+      fig: stake(w), sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
       body: deck(g, list), attrs: ' data-tdy-group="' + g + '"' });
   });
   return '<div class="inv-hero-stack" data-card="tasks">' + h + '</div>';
@@ -45901,8 +46066,9 @@ function renderNeeds() {
   if (!el) return;
   // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
   if (typeof grdHeld === 'function' && grdHeld()) return;
-  var day = localDateStr();
-  var inputs = tdyInputsHtml(day), tasks = tdyTasksHtml(), recent = tdyRecentHtml();
+  var day = localDateStr(), rows = tdyTasks();
+  var tasks = tdyTasksHtml(rows), recent = tdyRecentHtml();
+  var inputs = tdyInputsHtml(day, { shut: !_isDesktop && rows.some(function(r) { return r.tone === 'red'; }) });
   if (_isDesktop) {
     var floor = tdySees('pageFloor') ? tdyFloorHtml(day) : '';
     el.innerHTML = '<div class="inv-panels inv-panels-3" data-tdy-grid>' + tasks.replace('class="inv-hero-stack"', 'class="inv-hero-stack inv-panels-wide"') + inputs + floor + recent + '</div>';
@@ -45917,13 +46083,20 @@ function tdyRecentHtml() {
   if (!tdySees('pageRegister')) return '';
   var list = homeRecentInvoices(TDY_RECENT);
   if (!list.length) return '';
-  var last = list[0];
-  return uiHeroHtml({ eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
-    title: '<span class="inv-id">' + escHtml(last.displayNumber) + '</span>', fig: figWrapHtml(escHtml(formatCurrency(last.grandTotal))),
-    sub: escHtml([formatDate(last.date), last.clientName].filter(Boolean).join(' · ')), fold: 'tdy-recent', open: true,
+  return uiHeroHtml(Object.assign(tdyRecentHead(list), { fold: 'tdy-recent', open: true,
     body: '<div class="inv-hero-sheet">' + list.map(homeRecentRowHtml).join('') +
       '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div></div>',
-    attrs: ' data-card="recent"' });
+    attrs: ' data-card="recent"' }));
+}
+/* The head of a card of recent invoices: what was made today and its total, else when the last was made. The rows under it name
+   each invoice, the newest first, so the head does not name the newest again (the survey of 8 Oct 2026). */
+function tdyRecentHead(list) {
+  // Every invoice dated today, not only those listed: the card lists five, and a day can make more.
+  var today = localDateStr(), made = (S.invoices || []).filter(function(i) { return i.date === today && i.status !== 'cancelled'; });
+  var sum = gstRound(made.reduce(function(t, i) { return t + (i.grandTotal || 0); }, 0)), last = list[0];
+  return { eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
+    title: escHtml(made.length ? todoPlural(made.length, 'invoice') + ' made today' : last ? 'The last made ' + formatDate(last.date) : 'No invoices yet'),
+    fig: made.length && tdySeesMoney() ? figWrapHtml(escHtml(formatCurrency(sum))) : '' };
 }
 /* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
    figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the

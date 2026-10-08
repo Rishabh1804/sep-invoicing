@@ -75,6 +75,8 @@ test('an input not in yet offers its door, and a row opens where it lands', asyn
   const stock = page.locator('[data-tdy-input="stock"]');
   await expect(stock).not.toHaveAttribute('data-state', 'in');
   await expect(stock.locator('[data-action="invTdyPaste"]')).toHaveCount(1);
+  // On the phone the card is shut while a red task waits (the stock line out); a tap opens it.
+  await page.locator('#homeNeeds [data-card="inputs"] > summary').click();
   await page.locator('[data-tdy-input="roll-in"] [data-action="invTdyInput"]').click();
   await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
   expect(await g(page, '_attView')).toBe('day');

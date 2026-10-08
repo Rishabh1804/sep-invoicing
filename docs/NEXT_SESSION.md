@@ -7,6 +7,22 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 8 Oct 2026, the second: HR-9 no white, Today's coded boxes, Pulse as cards, the dock (read this first)
+
+The owner, after #141 merged: *"In needs you and pulse, the boxes inside the cards are still just white instead of colour coded
+gradients, we will be avoiding pure white everywhere in the app, this should be an HR. Then we will extend this UI to other tabs
+sequentially … Pulse still holds generic cards as well, so it looks like a half designed space"*, then the phone's bottom bar
+*"doesn't look quite nice with how the app is designed now"*, and a survey of every screen against the cognitive-load rules.
+**HR-9** (CLAUDE.md, design §3.1): no fill lighter than OKLab L 0.97; every palette's light ramp a tinted step down, measured;
+the app draws its own tick boxes; P76's sweep enforces it on every screen, view and dialog (it now sweeps Pulse, which it never
+reached), P180 proves the instrument. **Coded fills** (design §3.3, §6.26): `--tone` / `--tone-bg` on a block, the card, its boxes
+and its controls mixed from them. **Pulse**: every widget a hero. **The dock** (design §6.1). **The survey** (owner's ask):
+`docs/COGNITIVE_LOAD_SURVEY.md`, every screen on both layouts scored against the rules (61 views), with what this PR already
+changed on Today (the cash question judged as the Money card is, the phone's inputs card folded while a red task waits, a task
+group's figure *at stake*, the recent invoices' head saying what was made today) and **the proposed order for the rest, one PR
+each: the owner's to set**. One call in it is the owner's alone: Pulse's default widgets could drop To-do and Recent invoices,
+which Needs you already shows. **No data flow changed.**
+
 ## Built 8 Oct 2026: power causes, Today as cards, the .xlsx statement (read this first)
 
 Three asks of the owner's, one PR. **Power causes** (`powercause.js`, P177): a cut saved with no time back is completed where it

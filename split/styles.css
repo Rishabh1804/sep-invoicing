@@ -5,31 +5,33 @@
 :root[data-theme="light"] { color-scheme: light; }
 :root[data-theme="dark"] { color-scheme: dark; }
 
-/* Palettes (§3.1): primitives only. No surface is pure white (owner, 26 Sep 2026: "nothing in absolute
-   white — it puts a lot of stress on our eyes"); the lightest is an off-white a step below #fff.
+/* Palettes (§3.1): primitives only. Nothing on screen is white (HR-9; owner, 26 Sep 2026: "nothing in absolute white — it
+   puts a lot of stress on our eyes", and 8 Oct 2026: "we will be avoiding pure white everywhere in the app, this should be an
+   HR"). The off-white of 26 Sep (#f8fafa, lightness 98%) still read as white beside the coloured cards, so every light fill is
+   a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.93. Paper is the one exception (§8).
    Nothing but the aliases below reads a --c-* token. */
 :root, :root[data-palette="teal"] {
-  --c-bg: light-dark(#eef2f3, #0d1213); --c-surface: light-dark(#f8fafa, #131a1b);
-  --c-surface-2: light-dark(#e6ecee, #1a2224); --c-surface-3: light-dark(#dbe3e6, #222c2e);
-  --c-border: light-dark(#d3dcdf, #293537);
-  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#58686e, #7d8f91);
+  --c-bg: light-dark(#e1ebed, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
+  --c-surface-2: light-dark(#dae6e7, #1a2224); --c-surface-3: light-dark(#cfdddf, #222c2e);
+  --c-border: light-dark(#c7d6d7, #293537);
+  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#57676d, #7d8f91);
   --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
   --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
 }
 :root[data-palette="zinc"] {
-  --c-bg: light-dark(#eff0f2, #0e1114); --c-surface: light-dark(#f8f9fa, #15191d);
-  --c-surface-2: light-dark(#e6e9ec, #1c2126); --c-surface-3: light-dark(#dde1e5, #242a30);
-  --c-border: light-dark(#d5dadf, #2b323a);
-  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5e6974, #86919c);
+  --c-bg: light-dark(#e6eaee, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
+  --c-surface-2: light-dark(#dfe3e9, #1c2126); --c-surface-3: light-dark(#d5dbe1, #242a30);
+  --c-border: light-dark(#cdd3da, #2b323a);
+  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5a6570, #86919c);
   --c-accent: light-dark(#8a5d0c, #dcaa4c); --c-on-accent: light-dark(#fbf7ef, #1b1204);
   --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
 }
 :root[data-palette="terracotta"] {
-  --c-bg: light-dark(#f3f0ea, #141311); --c-surface: light-dark(#fbf9f5, #1c1b18);
-  --c-surface-2: light-dark(#ebe6dd, #24221e); --c-surface-3: light-dark(#e2dbcf, #2d2a25);
-  --c-border: light-dark(#ddd6c8, #36322c);
-  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#6a6459, #948d80);
-  --c-accent: light-dark(#ad4f2c, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
+  --c-bg: light-dark(#eee8df, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
+  --c-surface-2: light-dark(#e9e2d6, #24221e); --c-surface-3: light-dark(#e2d9ca, #2d2a25);
+  --c-border: light-dark(#dbd1c1, #36322c);
+  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#696358, #948d80);
+  --c-accent: light-dark(#a94b28, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
   --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
 }
 
@@ -75,22 +77,12 @@
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
 
-  /* Hero cards (§6.21; owner, 8 Oct 2026: "hero cards should have gradient colour filling as per the theme, make sure the
-     colours are coded"). The colour code is the one above, nothing new: the palette's accent where a card states no
-     status, a status tone where it does, from its colour in the top corner into the surface. Every stop is a token, so
-     each follows the palette and the theme. */
-  --grad-accent: linear-gradient(135deg, color-mix(in oklab, var(--accent) 22%, var(--accent-soft)) 0%, var(--accent-soft) 40%, var(--surface) 100%);
-  --grad-danger: linear-gradient(135deg, color-mix(in oklab, var(--danger) 18%, var(--danger-bg)) 0%, var(--danger-bg) 40%, var(--surface) 100%);
-  --grad-warning: linear-gradient(135deg, color-mix(in oklab, var(--warning) 18%, var(--warning-bg)) 0%, var(--warning-bg) 40%, var(--surface) 100%);
-  --grad-ok: linear-gradient(135deg, color-mix(in oklab, var(--ok) 18%, var(--ok-bg)) 0%, var(--ok-bg) 40%, var(--surface) 100%);
-  --grad-info: linear-gradient(135deg, color-mix(in oklab, var(--info) 18%, var(--info-bg)) 0%, var(--info-bg) 40%, var(--surface) 100%);
-  --grad-neutral: linear-gradient(135deg, var(--surface-2) 0%, var(--surface) 100%);
   /* Today's cards: a card in a deck at least this wide; a sparkline's and a meter's height; a step's node; the small row a
      packed grid counts in. */
   --deck-min: 15rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
 
   /* Layout (§3.7) */
-  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
+  --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 3.625rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --side-w: 13.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
@@ -132,7 +124,7 @@
 /* ===== RESET ===== */
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html { font-family: var(--ff-base); font-size: 100%; background: var(--bg); color: var(--text-1); -webkit-tap-highlight-color: transparent; font-variant-numeric: slashed-zero tabular-nums lining-nums; }
-body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--nav-h) + var(--sp-16)); }
+body { max-width: var(--max-w); margin: 0 auto; min-height: 100vh; background: var(--bg); padding-bottom: calc(var(--nav-space) + var(--sp-16)); }
 input, select, textarea, button { font-family: inherit; font-size: var(--fs-14); }
 
 /* ===== APP SHELL (design system §4, §6.1) ===== */
@@ -168,20 +160,27 @@ body.inv-desktop .inv-topbar-trail { display: flex; align-items: center; gap: va
 body.inv-desktop .inv-topbar-trail:empty { display: none; }
 .inv-topbar-trail .inv-btn-link { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); font-weight: 400; }
 
+/* The phone bar is a dock in the card language (owner, 8 Oct 2026: "the bottom bar ... doesn't look quite nice with how the app
+   is designed now"): floating a step above the screen's foot (--nav-space is the room it takes there), filled with the theme's
+   card fill at a quiet strength (§3.3), rounded as a card. The workspace on screen is a pill in the accent's colour behind its
+   icon, its word in the accent's text; Add is the accent disc raised out of the dock, ringed in the page's colour; a red count
+   is a pill ringed in the dock's. It floats over the page, so it casts the floating layers' shadow (DR-6). */
 .inv-navbar {
-  position: fixed; bottom: 0; left: 0; right: 0; z-index: var(--z-bar);
-  display: flex; height: var(--nav-h);
-  background: var(--surface); border-top: var(--hair) solid var(--border);
-  max-width: var(--max-w); margin: 0 auto;
+  position: fixed; left: var(--nav-gap); right: var(--nav-gap); bottom: max(var(--nav-gap), env(safe-area-inset-bottom)); z-index: var(--z-bar);
+  display: flex; align-items: stretch; height: var(--nav-h); padding: 0 var(--sp-4);
+  max-width: calc(var(--max-w) - var(--nav-gap) - var(--nav-gap)); margin: 0 auto;
+  background: linear-gradient(135deg, color-mix(in oklab, var(--accent) 12%, var(--accent-soft)) 0%, color-mix(in oklab, var(--accent-soft) 70%, var(--surface)) 100%);
+  border: var(--hair) solid color-mix(in oklab, var(--accent) 28%, var(--border)); border-radius: var(--r-xl); box-shadow: var(--shadow-pop);
 }
 .inv-navbar-item {
   flex: 1; position: relative; display: flex; flex-direction: column; align-items: center;
-  justify-content: center; gap: var(--sp-2); border: none; background: none;
-  color: var(--text-3); font-size: var(--fs-11); font-weight: 500;
+  justify-content: center; gap: var(--sp-2); min-width: 0; border: none; background: none;
+  color: var(--text-2); font-size: var(--fs-11); font-weight: 500;
   cursor: pointer; min-height: var(--touch); transition: color var(--dur-1);
 }
-.inv-navbar-item svg { width: 20px; height: 20px; }
-.inv-navbar-item-on { color: var(--accent); box-shadow: inset 0 var(--rule) 0 var(--accent); }
+.inv-navbar-item svg { width: 20px; height: 20px; box-sizing: content-box; padding: var(--sp-2) var(--sp-12); border-radius: var(--r-full); transition: background var(--dur-1); }
+.inv-navbar-item-on { color: var(--accent-soft-text); font-weight: 700; }
+.inv-navbar-item-on svg { background: color-mix(in oklab, var(--accent) 22%, var(--accent-soft)); }
 
 /* ===== PAGES ===== */
 .inv-page { display: none; padding: var(--sp-16); }
@@ -1019,7 +1018,7 @@ body.inv-desktop .inv-pane-list { flex: 1; min-width: 0; overflow-y: auto; conta
 /* A list's selection bar stays in view at the foot of the page: above the bottom bar on the phone, at the edge on the
    desktop. The bar inside is sticky too, but its wrapper is only as tall as the bar, so it held nothing up: on the
    phone Create invoice drew after the last of 1,163 invoiced challans, 97 screens down (owner, 28 Sep 2026). */
-:is(#regSelBar, #imSelBar) { position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); }
+:is(#regSelBar, #imSelBar) { position: sticky; bottom: var(--nav-space); z-index: var(--z-bar); }
 body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
 
 /* Tablet and desktop: the column is uncapped and the page has more air. */
@@ -1188,9 +1187,10 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 
 /* ===== THE BAR'S RED COUNTS (a workspace's red rows) ===== */
 .inv-navbar-count {
-  position: absolute; top: var(--sp-4); left: calc(50% + var(--sp-6));
+  position: absolute; top: var(--sp-2); left: calc(50% + var(--sp-8));
   min-width: var(--sp-16); height: var(--sp-16); padding: 0 var(--sp-4);
   border-radius: var(--r-full); background: var(--danger); color: var(--surface);
+  outline: var(--rule) solid color-mix(in oklab, var(--accent-soft) 70%, var(--surface));
   font-size: var(--fs-11); font-weight: 700; line-height: var(--sp-16); text-align: center;
 }
 
@@ -1438,7 +1438,25 @@ body:not(.inv-desktop) .inv-row-meta:not(.inv-row-wrap) {
 /* A task ticked done: still listed (never deleted), its text struck through. */
 .inv-row-done .inv-row-title { color: var(--text-2); text-decoration: line-through; }
 .inv-row-strong { font-weight: 600; }
-.inv-check { width: var(--sp-20); height: var(--sp-20); accent-color: var(--accent); cursor: pointer; flex-shrink: 0; }
+/* A tick box (and a radio) the app draws itself (HR-9): the browser paints an unticked box white whatever the theme. Ticked,
+   it takes the accent with the tick cut out of --on-accent; a radio's mark is a dot. Focus is the shared ring (§3.6). */
+.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]) {
+  appearance: none; -webkit-appearance: none; display: inline-grid; place-content: center; margin: 0;
+  width: var(--sp-20); height: var(--sp-20); flex-shrink: 0; cursor: pointer; color: var(--on-accent);
+  background: var(--surface); border: var(--rule) solid var(--text-3); border-radius: var(--r-sm);
+  transition: background var(--dur-1), border-color var(--dur-1);
+}
+.inv-check[type="radio"], .inv-field-check > input[type="radio"] { border-radius: var(--r-full); }
+.inv-check:hover, .inv-field-check > input:is([type="checkbox"], [type="radio"]):hover { border-color: var(--accent); }
+.inv-check:checked, .inv-field-check > input:is([type="checkbox"], [type="radio"]):checked { background: var(--accent); border-color: var(--accent); }
+.inv-check:not([type="radio"]):checked::before, .inv-field-check > input[type="checkbox"]:checked::before {
+  content: ''; width: var(--sp-12); height: var(--sp-12); background: currentColor;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
+}
+.inv-check[type="radio"]:checked::before, .inv-field-check > input[type="radio"]:checked::before {
+  content: ''; width: var(--sp-8); height: var(--sp-8); border-radius: var(--r-full); background: currentColor;
+}
+.inv-check:disabled, .inv-field-check > input:is([type="checkbox"], [type="radio"]):disabled { opacity: 0.55; cursor: not-allowed; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
 .inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 /* In a row that sizes to its content (a task), the tick box and the task's button still reach the row's edges, and the
@@ -1676,7 +1694,7 @@ body.inv-desktop .inv-pipe-rail { flex: 0 0 var(--pane-w); min-width: 0; overflo
 .inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
 body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr)); }
 .inv-actionbar {
-  position: sticky; bottom: var(--nav-h); z-index: var(--z-bar); display: flex; align-items: center; gap: var(--sp-8);
+  position: sticky; bottom: var(--nav-space); z-index: var(--z-bar); display: flex; align-items: center; gap: var(--sp-8);
   min-height: calc(var(--row-h) + var(--sp-16)); padding: var(--sp-8) var(--sp-12);
   background: var(--surface); border-top: var(--hair) solid var(--border);
 }
@@ -1896,22 +1914,41 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
   body.inv-desktop .inv-tiles:has(> .inv-tile:nth-child(4):last-child) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-/* ===== TODAY'S CARDS (§6.21–6.25; owner, 8 Oct 2026) =====
+/* ===== TODAY'S CARDS (§6.21–6.26; owner, 8 Oct 2026) =====
    "If it is in list form, it should be presented better, maybe as a card or at least an expandable hero card. Right now we
-   have empty spaces, and inefficient layout." Needs you and Pulse are built of these; any screen may use them. */
+   have empty spaces, and inefficient layout." Needs you and Pulse are built of these; any screen may use them.
+
+   Coded fills (§3.3 Fills, HR-9; owner, 8 Oct 2026: "the boxes inside the cards are still just white instead of colour coded
+   gradients"). A coded block names its tone in two variables, --tone (the strong colour) and --tone-bg (its soft background),
+   and its fill and every box inside it are mixed from those two: the card strongest, a box in it lighter, a control in a box
+   lighter again, and none of them lighter than --surface. A block that states no status takes the theme's accent; a box that
+   has a status of its own (a task, a move, a tile, a step) names its own tone and keeps it inside a card of another. The
+   tones are the status tones, nothing new (DR-1): the colour is the status, and the card's words say which. */
+:root { --tone: var(--accent); --tone-bg: var(--accent-soft); }
+/* A box names its tone by its tone class (a tile's inv-tile-<tone>, which also colours its figure) or by data-tone (the fill
+   alone: a task's or a move's tone word, a tile whose figure is a plain fact but whose change has a direction). A tile that
+   names none is a plain fact (a balance, a count): it is drawn plain, so the coded tiles beside it stand out, never in the
+   card's tone, which would say the fact is the card's verdict. */
+:is(.inv-hero, .inv-coded) .inv-tile { --tone: var(--text-3); --tone-bg: var(--surface); }
+.inv-hero-danger, .inv-deck-item:is([data-tone="red"], [data-tone="danger"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-danger, [data-tone="red"], [data-tone="danger"]) { --tone: var(--danger); --tone-bg: var(--danger-bg); }
+.inv-hero-warning, .inv-deck-item:is([data-tone="amber"], [data-tone="warning"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-warning, [data-tone="amber"], [data-tone="warning"]) { --tone: var(--warning); --tone-bg: var(--warning-bg); }
+.inv-hero-ok, .inv-deck-item:is([data-tone="green"], [data-tone="ok"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-ok, [data-tone="green"], [data-tone="ok"]) { --tone: var(--ok); --tone-bg: var(--ok-bg); }
+.inv-hero-info, .inv-deck-item[data-tone="info"], :is(.inv-hero, .inv-coded) :is(.inv-tile-info, [data-tone="info"]) { --tone: var(--info); --tone-bg: var(--info-bg); }
+.inv-hero-neutral, :is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
 
 /* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
-   tone, and, as a <details>, folds open to what is under it. Filled with the theme's gradient, or its status tone's. */
+   tone, and, as a <details>, folds open to what is under it. Its fill runs from its tone into its tone's background and
+   stays in it: the corner it starts from is the strongest, and no part of it is the plain surface. */
 .inv-hero {
-  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--accent) 30%, var(--border));
-  position: relative; display: block; min-width: 0; background: var(--grad-accent); border: var(--hair) solid var(--hero-line);
-  border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
+  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--border));
+  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
+  background: linear-gradient(135deg, color-mix(in oklab, var(--tone) 18%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone) 8%, var(--tone-bg)) 55%, color-mix(in oklab, var(--tone) 4%, var(--tone-bg)) 100%);
 }
-.inv-hero-danger { --hero-tone: var(--danger); --hero-line: color-mix(in oklab, var(--danger) 32%, var(--border)); background: var(--grad-danger); }
-.inv-hero-warning { --hero-tone: var(--warning); --hero-line: color-mix(in oklab, var(--warning) 32%, var(--border)); background: var(--grad-warning); }
-.inv-hero-ok { --hero-tone: var(--ok); --hero-line: color-mix(in oklab, var(--ok) 32%, var(--border)); background: var(--grad-ok); }
-.inv-hero-info { --hero-tone: var(--info); --hero-line: color-mix(in oklab, var(--info) 32%, var(--border)); background: var(--grad-info); }
-.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); background: var(--grad-neutral); }
+.inv-hero-danger { --hero-tone: var(--danger); }
+.inv-hero-warning { --hero-tone: var(--warning); }
+.inv-hero-ok { --hero-tone: var(--ok); }
+.inv-hero-info { --hero-tone: var(--info); }
+.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); }
 .inv-hero-head {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
   padding: var(--sp-12) var(--sp-16); list-style: none;
@@ -1923,6 +1960,8 @@ summary.inv-hero-head::after { content: ''; position: absolute; right: var(--sp-
 details.inv-hero[open] > summary.inv-hero-head::after { transform: translateY(-25%) rotate(225deg); }
 summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-xl); }
 .inv-hero-eyebrow { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+/* The eyebrow sits on the fill's strongest corner, where --text-3 falls under 4.5:1 (§3.10): its count reads --text-2. */
+.inv-hero-eyebrow .inv-panel-count { color: var(--text-2); }
 .inv-hero-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; color: var(--text-1); }
 .inv-hero-fig { font-family: var(--ff-mono); font-size: var(--fs-19); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.2; color: var(--hero-tone); text-align: right; overflow-wrap: anywhere; }
 body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
@@ -1931,12 +1970,36 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .inv-hero-viz { grid-column: 1 / -1; min-width: 0; margin-top: var(--sp-4); }
 .inv-hero-body { padding: 0 var(--sp-12) var(--sp-12); }
-/* What a hero opens to, where it is not a deck: one surface inside the fill (a question's story, a list of rows). */
-.inv-hero-sheet { background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-lg); overflow: hidden; }
-.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; }
+/* A hero's own links and buttons (Import statement, Refresh, Back up now), under its head or its body. */
+.inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
+.inv-hero-body + .inv-hero-foot { padding-top: 0; }
+
+/* §6.26 A box inside a card: what a hero opens to (a sheet of rows or tiles, a question's story), a card in its deck, a tile
+   in its strip. Its fill is its tone's background with a little of the tone in the corner it starts from, lightening into
+   the surface: lighter than the card around it, so it reads as laid on it, and coded by its own status where it has one. */
+.inv-hero-sheet, .inv-deck-item, .inv-hero .inv-tile, .inv-coded .inv-tile {
+  background: linear-gradient(150deg, color-mix(in oklab, var(--tone) 5%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone-bg) 45%, var(--surface)) 100%);
+}
+.inv-hero-sheet { border: var(--hair) solid color-mix(in oklab, var(--tone) 22%, var(--border)); border-radius: var(--r-lg); overflow: hidden; }
+/* What a sheet holds is drawn on the sheet: a panel or a strip inside it has no fill or box of its own, and its hairlines
+   take the card's tone. */
+.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; }
+.inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero .inv-tiles { background: color-mix(in oklab, var(--tone) 16%, var(--border)); border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
+/* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
+.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)), .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
+  background: color-mix(in oklab, var(--tone-bg) 55%, var(--surface)); border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
+}
+.inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover, .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* On the phone the sheet reaches the card's edges: a row inside keeps the width a flush panel's row has. */
 body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); border-left: none; border-right: none; border-radius: 0; }
 body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); border-bottom: none; border-radius: 0 0 calc(var(--r-xl) - var(--hair)) calc(var(--r-xl) - var(--hair)); }
+/* A strip of tiles as a sheet's only content fills it edge to edge, its tiles each coded. */
+.inv-hero-sheet > .inv-tiles { border: none; border-radius: 0; margin-bottom: 0; }
+/* On the desktop the sheet is its strip's container (panel-w, above), so the tiles lay out by the room the sheet has: measured
+   from the widget around the card, Money's tiles left a blank cell at 1280. */
+body.inv-desktop .inv-hero-sheet { container: panel-w / inline-size; }
 /* A question tile (Pulse): one column, the figure first, the answer under it. */
 .inv-hero-vital > .inv-hero-head { grid-template-columns: minmax(0, 1fr); }
 .inv-hero-vital .inv-hero-fig { text-align: left; }
@@ -1947,20 +2010,25 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 .inv-heroes > .inv-hero { margin-bottom: 0; }
 .inv-heroes > details.inv-hero[open] { grid-column: 1 / -1; }
 
-/* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. */
+/* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. A stack
+   in a column of cards (the phone) keeps the gap under it, as every card has. */
 .inv-hero-stack > .inv-hero:last-child, .inv-panels > .inv-hero { margin-bottom: 0; }
+.inv-hero-stack { margin-bottom: var(--gap); }
+.inv-panels > .inv-hero-stack { margin-bottom: 0; }
 /* What can be done, under a question's story in its hero. */
 .inv-hero-moves { padding-top: var(--sp-4); }
 
 /* §6.22 Card deck: things to act on as cards, as many across as fit. The card opens what it names (its main is a button
-   stretched over it); its own move sits at its foot, above the stretch. */
+   stretched over it); its own move sits at its foot, above the stretch. Each card is a box (§6.26) in its own tone, its
+   edge marked in the tone so the code reads at a glance. */
 /* auto-fit: the cards there are take the row between them, so two or three never leave a blank column beside them. */
 .inv-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--deck-min)), 1fr)); gap: var(--sp-8); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-lg); transition: border-color var(--dur-1);
+  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--border)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
+  border-radius: var(--r-lg); transition: border-color var(--dur-1);
 }
-.inv-deck-item:hover { border-color: color-mix(in oklab, var(--accent) 45%, var(--border)); }
+.inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
 .inv-deck-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
 .inv-deck-word { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-deck-fig { font-family: var(--ff-mono); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
@@ -1980,21 +2048,22 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 .inv-deck-head > .inv-row-tick { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch); margin: calc(-1 * var(--sp-12)) 0 calc(-1 * var(--sp-12)) calc(-1 * var(--sp-12)); }
 .inv-deck-item.inv-row-done .inv-deck-title { text-decoration: line-through; color: var(--text-3); }
 
-/* §6.23 Steps: what arrives in a day, each a node on one rail, in the order it comes; the node says where it stands. */
+/* §6.23 Steps: what arrives in a day, each a node on one rail, in the order it comes; the node says where it stands, in its
+   tone: in, a filled tick; part, the ok outline; late, the warning; waiting, the card's own tint. */
 .inv-steps { display: flex; flex-direction: column; }
 .inv-step { position: relative; display: grid; grid-template-columns: var(--step-node) minmax(0, 1fr) auto; column-gap: var(--sp-12); align-items: center; min-height: var(--row-h-2); }
-.inv-step::before { content: ''; position: absolute; left: calc(var(--step-node) / 2 - var(--hair)); top: 0; bottom: 0; width: var(--rule); background: var(--border); }
+.inv-step::before { content: ''; position: absolute; left: calc(var(--step-node) / 2 - var(--hair)); top: 0; bottom: 0; width: var(--rule); background: color-mix(in oklab, var(--tone) 22%, var(--border)); }
 .inv-step:first-child::before { top: 50%; }
 .inv-step:last-child::before { bottom: 50%; }
 .inv-step-node {
   position: relative; z-index: 1; display: grid; place-items: center; width: var(--step-node); height: var(--step-node);
-  border-radius: var(--r-full); border: var(--rule) solid var(--border); background: var(--surface); color: var(--text-3);
+  border-radius: var(--r-full); border: var(--rule) solid color-mix(in oklab, var(--tone) 30%, var(--border)); background: color-mix(in oklab, var(--tone-bg) 60%, var(--surface)); color: var(--text-2);
   font-family: var(--ff-mono); font-size: var(--fs-12); font-weight: 600;
 }
 .inv-step-node svg { width: var(--sp-12); height: var(--sp-12); }
 .inv-step[data-state="in"] .inv-step-node { background: var(--ok); border-color: var(--ok); color: var(--surface); }
 .inv-step[data-state="late"] .inv-step-node { background: var(--warning-bg); border-color: var(--warning); color: var(--warning); }
-.inv-step[data-state="part"] .inv-step-node { border-color: var(--ok); color: var(--ok); }
+.inv-step[data-state="part"] .inv-step-node { background: var(--ok-bg); border-color: var(--ok); color: var(--ok); }
 .inv-step[data-state="off"] .inv-step-node { border-style: dashed; }
 .inv-step-main { display: flex; flex-direction: column; justify-content: center; min-width: 0; min-height: var(--touch); padding: var(--sp-4) 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
 .inv-step-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
@@ -2231,15 +2300,17 @@ body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-ch
    ellipsises with its full text in a title). */
 body.inv-desktop .inv-topbar > .inv-ws-tabs { align-self: stretch; flex: 0 0 auto; max-width: 60%; margin-left: var(--sp-8); background: none; box-shadow: none; }
 body.inv-desktop .inv-topbar-trail { flex-shrink: 4; }
-/* Add: the shell's one primary, the bar's centre, an accent disc over its word. The disc stands where an icon does, so
-   its word lines up with the others'. */
+/* Add: the shell's one primary, the dock's centre, an accent disc raised out of it over its word, ringed in the page's colour
+   so it reads as standing on the dock. */
 .inv-navbar-add { color: var(--text-2); }
 .inv-navbar-add-mark {
   display: flex; align-items: center; justify-content: center;
-  width: calc(var(--sp-24) + var(--sp-4)); height: calc(var(--sp-24) + var(--sp-4));
-  margin-top: calc(var(--sp-20) - var(--sp-24) - var(--sp-4));
+  width: calc(var(--sp-32) + var(--sp-8)); height: calc(var(--sp-32) + var(--sp-8));
+  margin-top: calc(-1 * var(--sp-20));
   border-radius: var(--r-full); background: var(--accent); color: var(--on-accent);
+  border: var(--sp-4) solid var(--bg); box-shadow: var(--shadow-pop);
 }
+.inv-navbar-add-mark svg { padding: 0; background: none; }
 .inv-navbar-add:active .inv-navbar-add-mark { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
 /* Search on the desktop: a button drawn as the search field, with its key. The phone has the top bar's icon. */
 .inv-ws-search { display: none; }

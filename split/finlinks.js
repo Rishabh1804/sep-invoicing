@@ -93,14 +93,22 @@ function finSupplierPaid(name) {
 }
 
 /* ---------- Home ---------- */
+/* What is owed, by age, as a bar's tones: within a month fresh, a second month plain, then warning and danger (figToneAge's
+   60 and 90 days). Pulse's Money card and the cash question draw the one bar (intel.js). */
+var FIN_AGE_TONE = ['ok', 'neutral', 'warning', 'danger'];
+/* Pulse's Money as a hero: what is owed past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance
+   (balance, owed, pays in, runway), each coded in its own tone. Coded by the worst of them. */
 function renderFinHomeCard() {
   var el = document.getElementById('homeFinCard');
   if (!el) return;
   // Pulse's Money widget is the finance permission's: for another role it is not drawn at all (tabs.js homeWidgetSeen).
   if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) { el.innerHTML = ''; return; }
-  var h ='<div class="inv-panel inv-panel-flush" id="homeFin"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button></div>';
-  if (!finHasBank()) { el.innerHTML = h + '<div class="inv-empty">No bank statement yet. Import the bank’s .xls to see the balance, what is owed and the forecast.</div></div>'; return; }
+  var imp = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button>';
+  if (!finHasBank()) {
+    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet',
+      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp });
+    return;
+  }
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
   var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   var book = bankBookDaysToPay(bankPayHistory(recv));
@@ -108,17 +116,21 @@ function renderFinHomeCard() {
   var age = isoDaysBetween(last.date, localDateStr());
   // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
   var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
+  var tones = [];
   var tile = function(tab, anchor, label, value, sub, tone) {
+    if (tone) tones.push(tone);
     return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
   };
-  h += '<div class="inv-tiles inv-tiles-flush">' +
+  var pays = book && book.median != null ? figTonePaysIn(book.median) : null;
+  if (pays) tones.push(pays);
+  var tiles = '<div class="inv-tiles inv-tiles-flush">' +
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
       // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
       loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
-    (book && book.median != null ? '<button class="inv-tile' + (figTonePaysIn(book.median) ? ' inv-tile-' + figTonePaysIn(book.median) : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
+    (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
     // Overdrawn on the statement says so; counting outflows only (no receipt yet says when clients pay) is a warning, said.
@@ -126,7 +138,13 @@ function renderFinHomeCard() {
       : (fc.noInflow ? 'outflows only · ' : '') + (fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date))),
       !fc ? '' : fc.overdrawn ? 'danger' : fc.cross ? (fc.noInflow ? 'warning' : 'danger') : '') +
     '</div>';
-  el.innerHTML = h + '</div>';
+  var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
+  var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
+  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+    { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
+  el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
+    title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
+    viz: meter, fold: 'pulse-money', open: true, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp });
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */

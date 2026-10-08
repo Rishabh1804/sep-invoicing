@@ -390,14 +390,21 @@ function statsStoryCards(a, ctx) {
       var bBook = bankBookDaysToPay(bankPayHistory(recv));
       body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
         statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
-      body += say(c5, bBook && bBook.median > 60 ? 'warning' : 'ok', 'Owed ' + formatCurrency(owed) + (bBook ? ', arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
+      // Judged as Pulse's Money card judges it (finlinks.js renderFinHomeCard), so the two never disagree on one figure (the
+      // survey of 8 Oct 2026: owed read green here and red there): overdrawn is danger; what is owed past 90 days danger, unless a
+      // receipt is still unplaced (that money may be in), past 60 warning; and how fast clients pay (figTonePaysIn).
+      var ages = finAgeing(recv), old90 = ages[3] ? ages[3].amount : 0, old60 = ages[2] ? ages[2].amount : 0;
+      var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
+      var cashRank = { danger: 3, warning: 2, ok: 1 }, cashTone = [bLast.balance < 0 ? 'danger' : 'ok', old90 > 0.5 ? (loose ? 'warning' : 'danger') : old60 > 0.5 ? 'warning' : 'ok',
+        bBook ? figTonePaysIn(Math.round(bBook.median)) : null].filter(Boolean).sort(function(x, y) { return cashRank[y] - cashRank[x]; })[0] || 'ok';
+      body += say(c5, cashTone, 'Owed ' + formatCurrency(owed) + (old90 > 0.5 ? ', ' + formatCurrency(old90) + ' of it over 90 days' : old60 > 0.5 ? ', ' + formatCurrency(old60) + ' of it over 60 days' : '') +
+        (bBook ? '; arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
-      var ages = finAgeing(recv), ageTone = ['ok', 'ok', 'warning', 'danger'];
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
-        sub: escHtml('in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
-        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: ageTone[i] || 'danger' }; }),
+        sub: escHtml((old90 > 0.5 ? formatCurrency(old90) + ' over 90 days · ' : '') + 'in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
+        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'danger' }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
-        tone: bLast.balance < 0 ? 'danger' : bBook && bBook.median > 60 ? 'warning' : 'ok' };
+        tone: cashTone };
       cards.cash = c5;
     } catch (e) { /* no cash story without a readable statement */ }
   }

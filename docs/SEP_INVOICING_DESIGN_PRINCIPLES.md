@@ -45,6 +45,7 @@ all of them with the components in §6.
 | HR-6 | Tokens only: no raw `px`/`rem`/hex/timing in rules. Exceptions are listed in §3.9 and may not grow. |
 | HR-7 | Every element works in light **and** dark (§3.2). |
 | HR-8 | `gstRound()` for all currency; `formatCurrency()` for display. |
+| HR-9 | **No white.** No fill on screen is lighter than OKLab L 0.97 (§3.1): pure white never, and no off-white that reads as it. Paper is the one exception (§3.1). Measured by P76's sweep and P180. |
 
 And the v2.0 rules, which carry the same weight:
 
@@ -78,14 +79,14 @@ plus its row in §3.10; nothing else changes.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` | `#eef2f3` | `#0d1213` |
-| `--c-surface` | `#f8fafa` | `#131a1b` |
-| `--c-surface-2` | `#e6ecee` | `#1a2224` |
-| `--c-surface-3` | `#dbe3e6` | `#222c2e` |
-| `--c-border` | `#d3dcdf` | `#293537` |
+| `--c-bg` | `#e1ebed` | `#0d1213` |
+| `--c-surface` | `#ecf4f5` | `#131a1b` |
+| `--c-surface-2` | `#dae6e7` | `#1a2224` |
+| `--c-surface-3` | `#cfdddf` | `#222c2e` |
+| `--c-border` | `#c7d6d7` | `#293537` |
 | `--c-text-1` | `#11191c` | `#ecf2f2` |
 | `--c-text-2` | `#4a585e` | `#a6b6b8` |
-| `--c-text-3` | `#58686e` | `#7d8f91` |
+| `--c-text-3` | `#57676d` | `#7d8f91` |
 | `--c-accent` | `#0d6b63` | `#4fc1b3` |
 | `--c-on-accent` | `#f6faf9` | `#04211d` |
 | `--c-accent-soft` | `#dcefec` | `#15302d` |
@@ -95,10 +96,10 @@ plus its row in §3.10; nothing else changes.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` / `--c-surface` | `#eff0f2` / `#f8f9fa` | `#0e1114` / `#15191d` |
-| `--c-surface-2` / `--c-surface-3` | `#e6e9ec` / `#dde1e5` | `#1c2126` / `#242a30` |
-| `--c-border` | `#d5dadf` | `#2b323a` |
-| `--c-text-1` / `-2` / `-3` | `#14191e` / `#4d5761` / `#5e6974` | `#edf0f3` / `#a9b3bd` / `#86919c` |
+| `--c-bg` / `--c-surface` | `#e6eaee` / `#eff3f6` | `#0e1114` / `#15191d` |
+| `--c-surface-2` / `--c-surface-3` | `#dfe3e9` / `#d5dbe1` | `#1c2126` / `#242a30` |
+| `--c-border` | `#cdd3da` | `#2b323a` |
+| `--c-text-1` / `-2` / `-3` | `#14191e` / `#4d5761` / `#5a6570` | `#edf0f3` / `#a9b3bd` / `#86919c` |
 | `--c-accent` / `--c-on-accent` | `#8a5d0c` / `#fbf7ef` | `#dcaa4c` / `#1b1204` |
 | `--c-accent-soft` / `-text` | `#f5ead3` / `#6a4606` | `#33291a` / `#ecc983` |
 
@@ -106,20 +107,28 @@ plus its row in §3.10; nothing else changes.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` / `--c-surface` | `#f3f0ea` / `#fbf9f5` | `#141311` / `#1c1b18` |
-| `--c-surface-2` / `--c-surface-3` | `#ebe6dd` / `#e2dbcf` | `#24221e` / `#2d2a25` |
-| `--c-border` | `#ddd6c8` | `#36322c` |
-| `--c-text-1` / `-2` / `-3` | `#1b1916` / `#58534b` / `#6a6459` | `#f3f0ea` / `#bcb6aa` / `#948d80` |
-| `--c-accent` / `--c-on-accent` | `#ad4f2c` / `#fbf6f2` | `#e98c64` / `#1f0e06` |
+| `--c-bg` / `--c-surface` | `#eee8df` / `#f7f2ea` | `#141311` / `#1c1b18` |
+| `--c-surface-2` / `--c-surface-3` | `#e9e2d6` / `#e2d9ca` | `#24221e` / `#2d2a25` |
+| `--c-border` | `#dbd1c1` | `#36322c` |
+| `--c-text-1` / `-2` / `-3` | `#1b1916` / `#58534b` / `#696358` | `#f3f0ea` / `#bcb6aa` / `#948d80` |
+| `--c-accent` / `--c-on-accent` | `#a94b28` / `#fbf6f2` | `#e98c64` / `#1f0e06` |
 | `--c-accent-soft` / `-text` | `#f6e6dc` / `#7e3418` | `#3b2419` / `#f2b89c` |
 
 The status tones (§3.3) are **shared by every palette**: red must mean the same thing whichever accent is on.
 
-**No pure white anywhere in the interface** (owner, 26 Sep 2026: *"make sure that nothing is in absolute
-white colour as that puts a lot of stress at our eyes"*). The lightest surface in every palette is an
-off-white a step below `#fff`, text on the accent is off-white too, and the app icons use the same. The one
-exception is **paper**: the printed documents and their on-screen previews stay `#fff`, because that is the
-sheet they print on and the PDF they save as.
+**No white anywhere in the interface: HR-9** (owner, 26 Sep 2026: *"make sure that nothing is in absolute white colour as
+that puts a lot of stress at our eyes"*; 8 Oct 2026: *"we will be avoiding pure white everywhere in the app, this should be
+an HR"*). The 26 Sep surface was an off-white a step below `#fff` (`#f8fafa`, OKLab L 0.984), and beside the coloured cards
+it still read as white: the owner called the boxes in Today's cards *"just white"*. So the rule is a measured ceiling, not
+the hex `#fff`: **no fill on screen is lighter than OKLab L 0.97.** Every light ramp was taken down a step and given its
+palette's hue, the surface at L 0.96 and the page at 0.93, each tier keeping its distance from the next; text-3 was darkened
+a shade where it fell under 4.5:1 on `--surface-2`, and Terracotta's accent where it fell under it on the page (§3.10). Text
+on the accent is off-white (ink, not a fill), and the app icons use the same. **The one exception is paper**: the printed
+documents, their on-screen previews (a report, the power case) and a QR code, which a camera reads black on white, stay
+`#fff`, because that is the sheet they print on and the PDF they save as. **The instrument**: P76's sweep reads every screen,
+view and dialog, both themes and both layouts, and fails on any element outside paper whose computed fill, a gradient's
+stops included, is lighter than the ceiling, and on any tick box the browser draws (it paints white whatever its computed fill
+says); P180 proves the sweep fails on the 26 Sep surface, and reads the stylesheet for white outside the paper blocks.
 
 ### 3.2 Theme: light, dark, and following the system
 
@@ -170,13 +179,24 @@ sheet they print on and the PDF they save as.
 (`--attend`, `--cost`, `--prod`, `--neutral`, `--todo`, `--cw`, `--perm`) are retired** into these five.
 
 **Fills** (8 Oct 2026; owner: *"Hero cards should have gradient colour filling as per the theme, make sure the colours are
-coded - also check if colour coding already exists"*). The coding existed: these status tones, and the figure judgements
-that pick one (`figTone*`, CLAUDE.md *A figure says whether it is good*). A hero card (§6.21) is filled from them, so it
-needs no colour of its own: `--grad-danger`, `--grad-warning`, `--grad-ok` and `--grad-info` run at 135° from the tone mixed
-18% into its `-bg` (in oklab), through the `-bg` at 40%, to `--surface`; `--grad-accent` does the same with the palette's
-accent over `--accent-soft`, for a card with no status; `--grad-neutral` is `--surface-2` to `--surface`. Built of tokens that
-switch with the theme and the palette, they follow both, and DR-1 holds: a fill's colour is its status, and its words say
-which (the card's title, its figure in the tone). No other surface takes a gradient.
+coded - also check if colour coding already exists"*, then *"the boxes inside the cards are still just white instead of colour
+coded gradients"*). The coding existed: these status tones, and the figure judgements that pick one (`figTone*`, CLAUDE.md *A
+figure says whether it is good*). A coded block names its tone in two variables, **`--tone`** (the strong colour) and
+**`--tone-bg`** (its soft background), and every fill in it is mixed from those two in oklab, on the element itself, so it follows
+the theme and the palette and DR-1 holds (a fill's colour is its status, and its words say which):
+
+| Tier | What | Fill |
+|---|---|---|
+| Card | a hero (§6.21) | 135°: the tone 18% into its background, 8% at 55%, 4% at the end; it stays in its tone, never the plain surface |
+| Box | what a card holds (§6.26): a sheet, a card in a deck, a tile | 150°: the tone 5% into its background, lightening to that background 45% into the surface; lighter than the card it is on |
+| Control | a secondary or icon button in a coded block | the tone's background 55% into the surface, its edge the tone 28% into `--border` |
+
+A hero is `inv-hero-danger|warning|ok|info|neutral`, the accent with none. A box names its own tone by its tone class
+(`inv-tile-<tone>`, which also colours its figure) or by `data-tone` (the fill alone: a task's `red|amber|info`, a move's
+`danger|warning|ok|info`, a tile whose figure is a plain fact but whose change has a direction); a card in a deck with none takes
+the card's. **A tile that names none is a plain fact** and is drawn plain (`--text-3` over `--surface`), never in its card's tone,
+which would say the fact is the card's verdict. `inv-coded` codes a block that is not a card (Pulse's quick actions). No other
+surface takes a gradient.
 
 **Chart series** (`--chart-1…8`, `--chart-other`) stay for categorical charts (pies, stacked bars), redrawn
 from this palette in both themes. A single-series chart uses `--surface-3` bars with the current/selected bar
@@ -287,12 +307,15 @@ Two custom properties are set from code on an element, never a style in a templa
 
 Teal:
 
-Light: text-3 ≥ 4.9 on every surface · text-2 ≥ 6.2 · accent/surface 6.1 · on-accent/accent 6.1 ·
-danger/danger-bg 5.8 · warning 5.4 · ok 5.5 · info 5.7; every tone ≥ 5.0 as text on any surface. Dark: text-1 15.6 · text-2 8.4 · text-3 ≥ 4.8 on
-every surface · accent 8.1 · on-accent/accent 7.8 · tones 6.6–7.8.
-Zinc & brass: text-3 ≥ 4.6 light / 5.0 dark on every surface · accent 5.5 / 8.3 · on-accent 5.4 · accent-soft text 7.1 / 9.0.
-Terracotta: text-3 ≥ 4.7 light / 4.8 dark · accent 5.1 / 6.9 · on-accent 5.0 · accent-soft text 7.2 / 8.3.
-(Both alternates' `--c-text-3` were darkened from the mock-ups, which failed 4.5:1 on `--surface-2`.)
+Light (re-measured 8 Oct 2026 for HR-9's ramps): text-1 ≥ 13.9 · text-2 ≥ 5.8 · text-3 ≥ 4.6 on the page, the surface and
+`--surface-2` · accent/surface 5.7, accent/page 5.2 · on-accent/accent 6.0 · accent-soft text 8.1 · danger/danger-bg 5.8 · warning 5.4 ·
+ok 5.5 · info 5.7; every tone ≥ 4.8 as text on any surface. Dark (unchanged): text-1 15.6 · text-2 8.4 · text-3 ≥ 4.8 on every
+surface · accent 8.1 · on-accent/accent 7.8 · tones 6.6–7.8.
+Zinc & brass: text-3 ≥ 4.6 light / 5.0 dark on every surface · accent 5.2 on the surface, 4.8 on the page / 8.3 · on-accent 5.4 · accent-soft text 7.1 / 9.0.
+Terracotta: text-3 ≥ 4.6 light / 4.8 dark · accent 5.1 on the surface, 4.6 on the page / 6.9 · on-accent 5.3 · accent-soft text 7.2 / 8.3.
+(Both alternates' `--c-text-3` were darkened from the mock-ups, which failed 4.5:1 on `--surface-2`; HR-9 darkened all three a
+shade again, and Terracotta's accent from `#ad4f2c` to `#a94b28`. P180 measures every row in the browser.) A hero's eyebrow
+sits on its fill's strongest corner, where `--text-3` falls to about 3.9:1, so a count in it reads `--text-2`.
 **A new or changed palette must re-measure its row before it merges.**
 
 ### 3.11 App icon
@@ -370,7 +393,8 @@ bar and the content, and is amended where marked.
 
 ### 5.1 Surfaces
 Page `--bg`; every block of content is a **panel** on `--surface` with a 1px `--border` and `--r-lg`
-(`--r-xl` on the phone). A panel never sits inside another panel; group with a hairline instead.
+(`--r-xl` on the phone). A panel never sits inside another panel; group with a hairline instead. Both are tinted under HR-9's
+ceiling (§3.1). On a screen built of cards (Today) a block is a hero instead, and what it holds is a coded box (§6.26).
 
 ### 5.2 Hairlines
 Row dividers are `1px solid var(--border)`. The last row in a panel has none. Header bands use `--surface-2`
@@ -412,6 +436,12 @@ Each entry gives the class, the anatomy, and what it replaces. Modifiers are `in
 As §4. `inv-topbar-title`, `inv-topbar-ctx`, `inv-topbar-actions`; `inv-side-group`, `inv-side-item`
 (`-on`), `inv-side-count` (`-warning`/`-danger`); `inv-navbar-item` (`-on`), `inv-navbar-count`.
 Replaces `inv-header`, `inv-tabs`/`inv-tab` (the old bottom bar — which is why view tabs are `inv-viewtab`), `inv-sidebar*`, `inv-fab`.
+**The phone bar is a dock** (owner, 8 Oct 2026: *"the bottom bar … doesn't look quite nice with how the app is designed now"*): a
+card floating `--nav-gap` above the screen's foot (above the safe area), `--r-xl`, filled with the theme's card fill (the accent 12%
+into `--accent-soft`, into the surface), edged in the accent, casting `--shadow-pop` as the floating layer it is (DR-6). The workspace
+on screen (`inv-navbar-item-on`) is a pill behind its icon in the accent's colour, its word in `--accent-soft-text`; Add
+(`inv-navbar-add-mark`) the accent disc raised out of the dock, ringed in `--bg`; a red count a pill ringed in the dock's colour.
+`--nav-space` (the dock and its gap) is what the page keeps clear at its foot and where a sticky selection or action bar stands.
 
 ### 6.2 Page head (phone, in-content) — `inv-pagehead`
 Used only where a view has a summary line worth more than the top bar: `inv-pagehead-meta`
@@ -725,6 +755,9 @@ tone mixed into `--border`. With a body it is a `<details>` whose `summary` is t
 `inv-hero-body` holds a deck (§6.22), steps (§6.23) or an `inv-hero-sheet`: one `--surface` sheet of rows, tiles or a
 question's story, which on the phone reaches the card's edges so its rows keep a flush panel's width. A fold the owner opens
 or shuts is remembered per device (`fold`, as `uiFoldHtml`). `inv-hero-vital` puts the figure first, for a question's answer.
+`inv-hero-foot` holds the card's own links and buttons (`foot`: *Import statement*, *Refresh*, *Back up now*), under its head
+or, where it folds, under its body. The sheet is a box (§6.26), its rows' hairlines the card's tone; on the desktop it is its
+strip's container (`panel-w`), so a strip of tiles lays out by the sheet's width.
 `inv-heroes` sets heroes side by side (two on the phone, three on the desktop; one opened takes its row); `inv-hero-stack`
 stacks them with the grid's gap only.
 
@@ -733,15 +766,16 @@ Things to act on as cards, as many across as fit (`auto-fit` at `--deck-min`, so
 leave a blank column). A card: `inv-deck-head` (a glyph or tick, a word for where it lands or how sure, its figure mono at the
 end), then either `inv-deck-main`, a button whose `::after` covers the card so the whole face opens what it names (its focus
 ring drawn on the card), or `inv-deck-body` for a card that is not itself a door; `inv-deck-title` and `inv-deck-sub` two
-lines each; `inv-deck-foot` its one move, above the stretched button. *Show N more* sits under the deck, outside its grid
+lines each; `inv-deck-foot` its one move, above the stretched button. Each card is a box (§6.26) in its own tone, its left edge
+the tone (`--rule`), so the code reads at a glance. *Show N more* sits under the deck, outside its grid
 (`uiMoreDeckHtml`, `inv-deck-more`), so the rest open in place without a gap in the row. Today's tasks (`tdyAppCardHtml`,
 `tdyMineCardHtml`) and every move (`advMoveCardHtml`) are cards.
 
 ### 6.23 Steps — `inv-steps`, `inv-step`
 What arrives in a day, in the order it comes, on one rail: each `inv-step` a node (`inv-step-node`, its number or a tick),
 `inv-step-main` (a button: `inv-step-title` over `inv-step-meta`) and its door at the end. The node says where it stands by
-`data-state`: `in` filled ok, `part` ok outline, `late` warning, `off` dashed, waiting plain; a late step's meta is in the
-warning tone. Today's five inputs.
+`data-state`: `in` filled ok, `part` ok over its background, `late` warning, `off` dashed, waiting in the card's own tint; a
+late step's meta is in the warning tone. The rail is the card's tone mixed into `--border`. Today's five inputs.
 
 ### 6.24 Sparkline and meter — `chartSpark`, `chartMeter` (charts.js)
 Drawings small enough for a card's head or a tile. `chartSpark(values, {ref, tone, dot})`: a line over the values
@@ -750,6 +784,13 @@ month's pace), the last value a dot; a gap is a gap. `chartMeter(parts, {max, ma
 (`inv-meter-<tone>` on `inv-meter-track`; `neutral-2` a second grey, so two neutral parts side by side read as two), a mark
 where a target sits (`inv-meter-mark`). Both carry a `<title>` with the
 figures and stretch to their box (`--spark-h`, `--meter-h`). A tile takes one in `inv-tile-viz` (the month's tiles on Pulse).
+
+### 6.26 Coded box — what a card holds (styles.css, §3.3 *Fills*)
+A box inside a hero: its sheet (`inv-hero-sheet`), a card in its deck (`inv-deck-item`), a tile in its strip. Filled from its
+tone (§3.3, the box tier): lighter than the card around it, so it reads as laid on it, coded by its own status where it has one
+and by its card's where it has none, except a tile, which is plain where it states nothing. A panel or a strip inside a sheet
+draws no fill or box of its own; its hairlines take the card's tone; a secondary button in it is the control tier. The owner
+(8 Oct 2026): *"the boxes inside the cards are still just white instead of colour coded gradients"*.
 
 ### 6.25 Packed grid — `uiMasonry(el)` (state.js)
 A grid of cards of different heights packed with no hole (Needs you and Pulse's widgets on the desktop). Where the grid has
@@ -765,7 +806,7 @@ chart. One column, or the phone, is left an ordinary grid. `inv-panels-wide` sti
 |---|---|---|
 | Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · Money (`button.inv-tile` ×4 into Finance: balance, owed, pays in, runway; *Import statement* in its head) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
 | Today → Needs you | the day's inputs as a hero (*N of 5 in*, a meter, the next due) opening to steps (§6.23), each with its Paste or Photo, then WhatsApp · the tasks as three heroes, **Now** (red or amber, open, its worth), **This week** and **Later** (folded to a line naming what is in them), each a deck of cards with the move at the foot · the recent invoices as a hero (the latest and its figure) opening to rows with their print buttons | the tasks across the top, the inputs, *Floor now* (a tile per line and Power) and the recent invoices packed under them (§6.25), three across from 100rem |
-| Today → Pulse | the period head · the questions as `inv-heroes`, two across: each its question, its answer as a figure and a word in the tone, a sparkline or meter, folded; opened it takes the row with the story and *What you can do* as a deck · **Do first**: the three moves worth most across the questions, as cards · the widgets the owner arranged (the month's tiles each with a sparkline of the months before) | the questions three across, the widgets packed. The sidebar's name and mark open Pulse (`invGoPulse`) |
+| Today → Pulse | the period head · the questions as `inv-heroes`, two across: each its question, its answer as a figure and a word in the tone, a sparkline or meter, folded; opened it takes the row with the story and *What you can do* as a deck · **Do first**: the three moves worth most across the questions, as cards · the widgets the owner arranged, **each a hero** (8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed space"*): its eyebrow, a one-line verdict, its figure where the line is not one, a meter or sparkline, coded by the worst of what it holds, opening (remembered per device, open at first) to its tiles and rows as coded boxes with its links in its foot — Month to date (billing against the same days last month, realisation against the cost, the four tiles with their lines), Money (owed past 60 and 90 days, the ageing as a meter, the four tiles into Finance), To-do (grouped as Needs you groups it, the top three), Attendance (on site against the roster, the day as a meter), Unbilled (coded as Pipeline's first stage), Production, Power cuts, Stock running low, GitHub backup, Zinc (the landed rate, the market's last refreshes as a line), Recent invoices; the quick actions an `inv-coded` grid | the questions three across, the widgets packed. The sidebar's name and mark open Pulse (`invGoPulse`) |
 | Power → Causes, and a cut completed | the fifth view tab · tiles (with a reason, to complete, from the grid, the costliest cause) · *To complete*: a row per cut with no time back or no reason, **Complete** at its end · what causes them, `chartRankedBars` by what each cost, coded by where it starts (danger: in the plant three times in 30 days; warning: in the plant; info: the grid; neutral: not placed) · where they hit, a tile per station in the plant's order · what brings it back, fastest first · the lists of reasons and fixes, **Edit** for the owner · the cut a dialog (§6.16): *Power in at* (a time field, or the record's time read-only), *Why it went* and *What brought it back* each a field over `inv-chip`s of the list (the most used first, filtered as typed) with what it will be saved as said under it (*Saved as …*, *Read as … · Keep as new*, *New: …* with where it starts as an `inv-seg`), *Where it hit* a `<select>` of the whole plant, the stations and their units | the same, panels two across |
 | Create | fields · unbilled-challan rows with checkboxes (ticking one brings its open lines in) · line editor · collapsible optional details (`inv-panel-fold`) · action bar (grand total, Clear, Create invoice) | same, two-column fields, lines as a table. *Built.* The add/edit challan form is assembled the same way, on the same line editor. |
 | IM | view tabs *Awaiting invoice* (the default) · *Invoiced*, each with its count · toolbar (filters, Duplicate check, Scan, **Add challan** — the page's one primary, replacing the floating buttons; the status filter only on Awaiting) · on Invoiced a month `inv-stepper` (the latest month first, back a month at a time) · the tab's challans grouped by date with the day's value; a challan expands to its lines · selection bar | table (challan, client, date, vehicle, items, amount, status) + detail pane, as the Register. *Built.* The add/edit challan form moves with Create, whose line editor it shares. |
@@ -835,6 +876,13 @@ phone and desktop.
    list/pane container, the chart parts — moved onto §6; every dialog is one shell (§6.16); the §3.9 exceptions were
    confirmed as the only raw values; CLAUDE.md's class count is measured (427, every one `inv-`). P76 sweeps every
    screen, view tab and dialog on the phone and the desktop, light and dark, and fails on any retired or unstyled class.
+
+5. **Coded fills, screen by screen** — *Today built 8 Oct 2026* (owner: *"first let's work on needs you and pulse tabs, then we
+   can see what the baseline is and how to implement it in other tabs too"*). HR-9 already holds on every screen through the
+   tokens (§3.1); what moves screen by screen is the card language: a block that is read for its verdict becomes a hero coded by
+   its status, what it holds coded boxes, its controls tinted; a list's rows stay rows on a tinted panel, with only its head and
+   summary as cards. **The order is in `docs/COGNITIVE_LOAD_SURVEY.md`** (every screen measured against the cognitive-load rules,
+   8 Oct 2026), one PR each, for the owner to set. A screen that is a document (a report, the power case) stays paper.
 
 **Route 3 (a framework build) is a separate app** in its own folder of this repo, built to this same
 document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe while both run.

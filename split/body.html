@@ -47,16 +47,9 @@
   <div id="homeQuestions"></div>
   <div id="homeEditArea"></div>
   <div class="inv-panels inv-panels-3" id="homeWidgets">
-    <div data-home-w="mtd" class="inv-panels-wide">
-      <div class="inv-tiles" id="homeTiles">
-        <div class="inv-tile"><div class="inv-tile-label">Invoices</div><div class="inv-tile-value" id="mtdCount">0</div><div class="inv-tile-sub" id="mtdCountSub">&nbsp;</div><div class="inv-tile-sub" id="mtdCountDelta"></div><div class="inv-tile-viz" id="mtdCountViz"></div></div>
-        <div class="inv-tile"><div class="inv-tile-label">Revenue</div><div class="inv-tile-value" id="mtdRevenue">&#8377;0</div><div class="inv-tile-sub" id="mtdRevenueSub">taxable</div><div class="inv-tile-sub" id="mtdRevenueDelta"></div><div class="inv-tile-viz" id="mtdRevenueViz"></div></div>
-        <div class="inv-tile"><div class="inv-tile-label">Tonnage billed</div><div class="inv-tile-value" id="mtdKg">&mdash;</div><div class="inv-tile-sub" id="mtdKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdKgDelta"></div><div class="inv-tile-viz" id="mtdKgViz"></div></div>
-        <div class="inv-tile" id="mtdPerKgTile"><div class="inv-tile-label">Realisation</div><div class="inv-tile-value" id="mtdPerKg">&mdash;</div><div class="inv-tile-sub" id="mtdPerKgSub">&nbsp;</div><div class="inv-tile-sub" id="mtdPerKgDelta"></div><div class="inv-tile-viz" id="mtdPerKgViz"></div></div>
-      </div>
-    </div>
+    <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
     <div data-home-w="quick" class="inv-panels-wide">
-      <div class="inv-btn-grid" role="group" aria-label="Quick actions">
+      <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
         <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
         <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
         <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
@@ -74,10 +67,7 @@
     <div data-home-w="stock" id="homeStockCard"></div>
     <div data-home-w="sync" id="homeSyncCard"></div>
     <div data-home-w="zinc" id="homeZincCard"></div>
-    <div data-home-w="recent" class="inv-panel inv-panel-flush inv-panels-wide">
-      <div class="inv-panel-head"><span class="inv-panel-title">Recent invoices</span></div>
-      <div id="recentInvoices"></div>
-    </div>
+    <div data-home-w="recent" class="inv-panels-wide" id="homeRecentCard"></div>
   </div>
   <div class="inv-toolbar" id="homeEditBar"><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>
   </div>

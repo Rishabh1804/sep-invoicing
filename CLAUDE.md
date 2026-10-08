@@ -38,6 +38,11 @@ ID cards with a QR and a scanner; one office QR for checking in from a worker's 
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
+**The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
+sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
+(the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9), with
+the order proposed for taking Today's card language to the other tabs, one PR each. **The order is the owner's to set.**
+
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
 later), keyboard shortcuts, a pass on the screens that scroll too far, and desktop layouts — one PR each, in its order.
@@ -177,7 +182,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,574 tests, both layouts
+pnpm exec playwright test          # 1,580 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -266,9 +271,12 @@ uncoloured. The judgements are in one place, state.js (`figToneAgainst`, `figTon
 - **Finance → Receivables and Overview**: what a client owes by the age of its oldest open invoice (*owed, over 90 d*),
   and *pays in N d*.
 - **Today's cards** (8 Oct 2026; owner: *"Hero cards should have gradient colour filling as per the theme, make sure the colours
-  are coded"*): a hero is filled in its status tone's gradient (`--grad-*`, built of the tones above, design §3.3 *Fills*): a
-  task group by its worst task, a question by its answer, the day's inputs by whether one is late, a power cause by where it
-  starts. The coding was there; the fill reads it. P178.
+  are coded"*, then *"the boxes inside the cards are still just white instead of colour coded gradients"*): a coded block names its
+  tone in `--tone` and `--tone-bg` (design §3.3 *Fills*), and its fill and every box in it are mixed from them on the element: a
+  hero strongest (a task group by its worst task, a question by its answer, the day's inputs by whether one is late, a widget by the
+  worst of what it holds), a box in it lighter and in its own tone (a task or move card by its tone, edged in it; a tile by
+  `inv-tile-<tone>` or `data-tone`; a tile stating nothing drawn plain), a control in it lighter again. The coding was there; the
+  fills read it. P178, P180.
 P102.
 
 **The QA sweep of 29–30 Sep 2026** (owner: *"sweep the codebase for dead and redundant code … sweep the app for bugs and
@@ -419,12 +427,16 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 717 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 719 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
 | HR-7 | Dark mode coverage on every new element — by reading tokens, which switch with `color-scheme`. No `.dark` class exists. |
 | HR-8 | gstRound() for all currency: to the paisa on the figure as written, half away from zero (read to 15 significant digits, shifted two places in decimal, rounded, shifted back). Never Math.floor for financials. GST rules require proper rounding. It was `Math.round(val * 100) / 100` until 30 Sep 2026, which rounded the binary copy: 1.005 gave 1.00 and 2.675 gave 2.67 (owner: *"change it"*). |
+| HR-9 | **No white.** No fill on screen is lighter than OKLab L 0.97: pure white never, and no off-white that reads as white (owner, 8 Oct 2026: *"we will be avoiding pure white everywhere in the app, this should be an HR"*). The 26 Sep surface `#f8fafa` (L 0.984) read as white beside the coloured cards, so every light ramp was taken down a tinted step (surface 0.96, page 0.93; design principles §3.1). A tick box or radio is drawn by the app (`appearance: none`), since the browser paints its box white. P76's sweep fails on any fill over the ceiling, a gradient's stops included, on every screen, view and dialog, both themes and layouts; P180 proves it sees the 26 Sep surface and reads the stylesheet for white outside paper. |
+
+**Known HR-9 exceptions (do not expand):** paper, which prints white: the printed documents, their on-screen previews (a report,
+the power case, the print view) and a QR code, which a camera reads black on white. They are `PAPER` in `tests/e2e/sweep-fixture.ts`.
 
 **Known HR-6 exceptions (do not expand):** 44px min touch targets (WCAG), 20px SVG icons, print CSS
 raw colors, and the printed documents' physical measurements (mm/pt) — all three declare their type
@@ -444,7 +456,8 @@ is a dot or badge plus a word).
 
 **Step 1 of the migration is built (26 Sep 2026):** the v2.0 tokens with three palettes (Teal default,
 Zinc & brass, Terracotta), theme following the phone, density, **no pure white anywhere in the interface**
-(owner: *"it puts a lot of stress at our eyes"* — paper is the one exception), the top bar naming each
+(owner: *"it puts a lot of stress at our eyes"* — paper is the one exception; a hard rule since 8 Oct 2026, HR-9, with every
+light surface a tinted step under OKLab L 0.97), the top bar naming each
 screen, the grouped labelled sidebar, the nut icon in the palette, and Settings → Data & device →
 Appearance. **There is no `.dark` class any more** (removed 26 Sep 2026): its 147 v1.0 rules restated tokens
 that now switch by themselves, and some of them repainted selected states in the background colour — Staff →
@@ -2323,6 +2336,29 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   across its row to the story and *What you can do* as cards (`advMovesDeckHtml`); then **Do first**, the three moves worth most
   across the questions; the month's tiles each carry a sparkline of the months before (`homeMonthsBack`). **The sidebar's name
   and mark open Pulse** (`invGoPulse`), where Today's own item opens Needs you; the phone's bar has no name or mark.
+- **Pulse's widgets are cards too** (owner, 8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed
+  space"*; P180). Each is a hero with its eyebrow, a one-line verdict, its figure where the line is not one, a meter or sparkline,
+  coded by the worst of what it holds, open at first and remembered per device (`fold: 'pulse-<widget>'`), its links in its foot
+  (`inv-hero-foot`): Month to date (`homeMtdCard`: billing against the same days last month, realisation against the cost, the
+  tiles coded by their change, `figDeltaTone`), Money (owed past 60 and 90 days, the ageing as a meter, `FIN_AGE_TONE`), To-do
+  (grouped as Needs you groups it), Attendance (on site, the day as a meter; `attDayPanelHtml(d, null, …)` draws the panel with no
+  head), Unbilled (coded as Pipeline's first stage), Production, Power cuts, Stock running low, GitHub backup, Zinc (the market's
+  last refreshes as a line), Recent invoices (`homeRecentCard`, ten rows). The quick actions are an `inv-coded` grid. Every hook a
+  spec reads is kept: `#homeFin [data-home-fin]`, `#homeAtt`, `#homeAttOnSite`, `#homeTiles`, the `#mtd*` ids, `#recentInvoices`,
+  `[data-card="sync"]`, `[data-zinc-age]`. **A card's `data-card` names it across the whole app**: Pulse's Unbilled and Recent are
+  `unbilled-pulse` and `recent-pulse`, since Stats' Unbilled and Needs you's Recent hold the plain names (a spec reading Stats'
+  card found two). On the desktop a card's sheet is its tile strip's container (`panel-w`), so the strip lays out by the sheet's
+  width: measured from the widget, Money's four tiles left a blank cell at 1280.
+- **What the survey changed on Today** (8 Oct 2026, `docs/COGNITIVE_LOAD_SURVEY.md`): on the phone the day's inputs open shut while
+  a red task waits (`tdyInputsHtml(day, {shut})`), so the red tasks lead and the head still says how many are in; a task group's
+  figure reads *at stake* (the rupees its tasks name, never a total owed); the recent invoices' head says what was made today and
+  its total (`tdyRecentHead`, Pulse's card too), not the newest row a second time; the cash question is judged as Pulse's Money
+  card is (overdrawn danger, owed past 90 days danger unless a receipt is unplaced, past 60 warning, how fast clients pay), and
+  both draw the one age bar (`FIN_AGE_TONE`): it had read green beside a red Money card.
+- **The phone bar is a dock** (owner, 8 Oct 2026: *"the bottom bar … doesn't look quite nice with how the app is designed now"*): a
+  rounded card floating a step above the screen's foot (`--nav-space` is the room it takes; the sticky selection and action bars sit
+  on it), filled with the theme's card fill, the workspace on screen a pill behind its icon, Add the accent disc raised out of it,
+  the red counts ringed pills.
 - **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
   by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
 - **WhatsApp, opened from beside each paste box** (`waLinksHtml`, add.js; owner, 7 Oct 2026: *"directly open the web.whatsapp.com

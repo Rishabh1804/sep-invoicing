@@ -342,10 +342,10 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 ## 4. Information architecture
 
 **Direction B (owner, 1 Oct 2026; `docs/DIRECTION_B.md`) replaces the bottom bar and the sidebar below.** Workspaces are a layer
-over the pages: **Today** (Needs you · Pulse), **Office** (Pipeline · Challans · Invoices · Clients, then its review: Stats ·
+over the pages: **Today** (Needs you · Pulse), **Office** (Pipeline · Challans · Invoices · Clients, then its Insights: Stats ·
 Reports · Planner · History · Knowledge), **Add** (one sheet, not a page), **Floor** (Day · People · Production · Stock · Power)
-and **Money** (Finance). The review was a workspace of its own, Insights, until 8 Oct 2026 (owner: *"Move insights into office
-tab, that way we have 5 icons again, which can be arranged in a better way"*).
+and **Money** (Finance). Insights was a workspace of its own until 8 Oct 2026 (owner: *"Move insights into office tab, that way
+we have 5 icons again, which can be arranged in a better way"*), and is a group in Office's row, named there (§6.4).
 
 **Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
 that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
@@ -483,8 +483,13 @@ Underline tabs: `inv-viewtab` (`role=tab`, `aria-selected`), `--t-label` desktop
 control for switching views** — Clients/Items/Performance, Staff Day/Week/Pay/Areas/Roster, Stats
 Overview/Clients/Cost/Billing/Trends, Stock views. Replaces `inv-subview-toggle`, `inv-stats-tabs`, the chip
 rows used as tabs (`inv-stats-chips` + `inv-chip` in staff.js), `inv-set-nav-btn` (Settings keeps its two-pane
-layout, drawn with `inv-side-item`). **A group of a workspace's views** (Office's review) follows a divider,
-`inv-viewtab-sep` (a hairline a step tall, `role=presentation`, the group's name in its title).
+layout, drawn with `inv-side-item`). **A group of a workspace's views** (Office's Insights) follows its name,
+`inv-viewtab-group` (`role=presentation`, `--fs-12` 600 in `--text-3`, a › after it), which is sticky at the row's right edge, on
+the row's colour with a short fade at its left, until the group comes into view; a tap on it scrolls the group in and picks no
+view (owner, 8 Oct 2026: *"Insights seems to be missing on mobile?"*). That row's tabs are `--sp-10` a side on the phone and
+`--sp-6` under 24rem, so the name stands after the last tab of the first group, never over its word; on the desktop a hairline
+sets the name off. **A page's own tab row that runs past the screen fades** on the side with more, the table's cue (§6.11)
+without its note (`data-more` start | end | both); the workspace's row never fades, its cue being the group's name.
 
 ### 6.5 Segmented control — `inv-seg`
 Joined buttons in one bordered box, the "on" segment `--surface-2` + 600 (desktop) or `--accent-soft`

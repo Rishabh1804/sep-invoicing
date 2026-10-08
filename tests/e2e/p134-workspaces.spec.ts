@@ -94,9 +94,9 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(row.locator('.inv-viewtab[role="tab"]')).toHaveText(await labels(
       ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory', 'pageKnow'],
       ['Pipeline', 'Challans', 'Invoices', 'Clients', 'Stats', 'Reports', 'Planner', 'History', 'Knowledge']));
-    // Office's review follows a divider: one, just before Stats.
-    await expect(row.locator('.inv-viewtab-sep')).toHaveCount(1);
-    expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-sep').nextElementSibling.dataset.tab`)).toBe('pageStats');
+    // Office's Insights follow their name: one, just before Stats.
+    await expect(row.locator('.inv-viewtab-group')).toHaveText('Insights');
+    expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-group').nextElementSibling.dataset.tab`)).toBe('pageStats');
     await expect(row.locator('[aria-selected="true"]')).toHaveText('Challans');
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
     // Each tab is a door: the action and the page, so a jump, a link and the fixtures land on the same place.

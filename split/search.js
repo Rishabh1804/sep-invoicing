@@ -59,7 +59,7 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
    that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). Insights is
-   Office's review since 8 Oct 2026. */
+   a group in Office's row since 8 Oct 2026. */
 var SRCH_SPACES = [
   ['t', 'Today', ['needs', 'pulse', 'todo']],
   ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'stats', 'reports', 'history']],

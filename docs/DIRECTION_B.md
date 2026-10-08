@@ -15,7 +15,7 @@ about it, worked out from the book, with a button to the place where it is done.
 ## The shape
 
 **Phone bar**: **Today · Office · Add · Floor · Money** (Insights was added as a sixth item on 6 Oct 2026 and folded into Office
-as its review on 8 Oct: *"Move insights into office tab, that way we have 5 icons again"*). No More. Settings is the icon in the
+as its Insights group on 8 Oct: *"Move insights into office tab, that way we have 5 icons again"*). No More. Settings is the icon in the
 top bar (as now); search is the icon beside it.
 
 **Desktop rail** (since 8 Oct 2026; the owner: a view listed in the sidebar hid which workspace it was under): the mark (it opens
@@ -41,7 +41,7 @@ To-do jump (`todoGo`), a bookmark and every spec that opens `pageIM` still lands
 | Staff (Overview · Day · Week · Pay · Areas · Roster) | Floor → **People** |
 | — | Floor → **Day** (new): a card per line (VAT A1, VAT A2, Barrel, Pickling): heads against the day's number, what it is running, what it has plated, the crew, the EXTRA; tiles for on site, plated, power |
 | Production · Stock · Power | Floor → **Production** · **Stock** · **Power** |
-| Stats · Reports · History | **Office** → Stats · Reports · History, its review (Insights until 8 Oct 2026) |
+| Stats · Reports · History | **Office** → Stats · Reports · History, its Insights group (a workspace until 8 Oct 2026) |
 | Home's quick actions, Paste message | **Add** |
 
 **Add is one door for everything that comes in**: paste a WhatsApp message (rolls, stock, pickling loads, production,

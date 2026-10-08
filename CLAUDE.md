@@ -182,7 +182,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,590 tests, both layouts
+pnpm exec playwright test          # 1,594 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -427,7 +427,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 717 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 717 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1958,7 +1958,7 @@ workers and every personal detail are the book's; the owner's private files (`se
   - Card numbers never return (`S.cardSeq`); ten cards fit one A4 page (measured under print media).
 
 ### The planner
-Office → **Planner** (its review; Insights' until 8 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
+Office → **Planner** (in its Insights; the Insights workspace's until 8 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
 clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
 prototypes). P162.
 - **A month is built from the book's parts up** (`plnBase`, `plnMonth`): the last three full months' invoices by client and part
@@ -2043,7 +2043,7 @@ a month spare), and nothing kept who was approached, what they were offered or w
   spare with what it would bill a month, weighted (`prsPlantMove`). Search finds the screen.
 
 ### Reports
-Office → **Reports** (its review, after Stats; Insights' until 8 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
+Office → **Reports** (in its Insights, after Stats; the Insights workspace's until 8 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
 quarterly yearly report generator"*). Shaped on soma-internal's hand-compiled daily, weekly and monthly reports (`reports/`); a
 quarterly and a yearly follow the monthly's shape. P132.
 - **Kinds and periods**: Daily · Weekly · Monthly · Quarterly · Yearly; a day, the pay week Sun–Sat numbered by its Saturday's ISO week,
@@ -2316,10 +2316,10 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   rail is the same doors (the mark, Add, the four workspaces, Settings). A workspace is a layer over the pages that exist: every
   page keeps its id, its address and its own view tabs, and the workspace draws its views as a tab row under the top bar
   (`#wsTabs`; `WORKSPACES` is the one map). Office holds Pipeline, Challans (pageIM), Invoices (pageRegister) and Clients, then
-  its review after a divider: Stats, Reports, the Planner, History and Knowledge; Create is a page it holds without a tab. Floor
+  its Insights under their name: Stats, Reports, the Planner, History and Knowledge; Create is a page it holds without a tab. Floor
   holds Day, People (pageStaff), Production, Stock and Power. Money is Finance. Opening a workspace from the bar or the rail is a
   step of its own (its last view this session, else its first), so Back from Challans goes to the Office view it came from.
-  Swiping stays inside the open workspace (Clients to Stats crosses the divider).
+  Swiping stays inside the open workspace (Clients to Stats crosses into the Insights).
 - **Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
   that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
   understand the hierarchy. What do you think?"*, and *"Move insights into office tab, that way we have 5 icons again, which can
@@ -2327,10 +2327,18 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   5.5rem, the bar stood on its side), and nothing under it is listed there; its **views** are the tab row under the top bar,
   on the desktop too (it stood in the top bar, and the sidebar listed every view again beside the workspaces); a **page's own
   views** are the row under that. `--fill-h` takes the row off the room a list-and-pane screen fills. Insights was a workspace,
-  the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it is Office's review
+  the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it is Office's Insights
   now. **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
   line; the workspace on screen fills its pill in the accent's soft colour, Add (the centre door) in the accent, never raised;
   the red count sits on the mark's corner. The rail's mark opens Pulse, and opens it in a new window on a Ctrl+click.
+- **A group is named in its row, and a row past the screen says so** (owner, 8 Oct 2026: *"Insights seems to be missing on
+  mobile?"*; P183). Office's row is twice a phone's width, and the Insights after Clients were out of sight with nothing naming
+  them. The group's name heads it (`inv-viewtab-group`, `group` on the view in `WORKSPACES`): sticky at the row's right edge on
+  the row's colour until the group comes into view, so the phone opens Office on *Pipeline Challans Invoices Clients Insights ›*;
+  a tap on it brings the group in (`wsGroupReveal`), choosing no view. That row's tabs are a step tighter on the phone and a step
+  more under 24rem (a 360 px screen), so the name stands after Clients' word, never over it; on the desktop a hairline sets it
+  off. A page's own tab row that runs past the screen fades on the side with more (`data-more`, set by the overflow pass,
+  `_ovMoreSet`, as a table's is); the workspace's row is never faded, since its cue is the name.
 - **Today** (`today.js`, P135) is pageHome, two views with addresses (`?tab=pageHome&v=needs|pulse`). **Needs you** (the
   default): the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records, the
   out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
@@ -2404,7 +2412,7 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   00021 as well as 21 Sep); a worker opens in Roster's pane on the desktop; *Add a bill* works out its month when opened.
 
 ### The knowledge base
-Office → **Knowledge** (its review's last view; Insights' until 8 Oct 2026), and the book in the top bar on every screen (`knowledge.js`, `kbguides.js`; owner, 2–5 Oct 2026: *"a training
+Office → **Knowledge** (its Insights' last view; the Insights workspace's until 8 Oct 2026), and the book in the top bar on every screen (`knowledge.js`, `kbguides.js`; owner, 2–5 Oct 2026: *"a training
 ground, a troubleshooting area, a record keeper, a tool used to make decisions"*). The plan and the owner's rulings are
 `docs/KNOWLEDGE_BASE.md`. P154.
 - **In the book, never in the build** (`S.kb`: `articles`, `trained`, `paths`): this repo is public. The one exception is the app's own

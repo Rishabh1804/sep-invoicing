@@ -34,7 +34,7 @@ page. Then four reviews, one per workspace, read every shot against the rules ab
 ## The scoreboard
 
 Phone screens (desktop in brackets). **Bold** is over the length rule. Verdict: P passes, C close, N needs work. The rows keep the
-names they were surveyed under: Insights' five views became Office's review later the same day (below).
+names they were surveyed under: Insights' five views became a group in Office's row later the same day (below).
 
 | Screen | Length | Verdict | The main finding |
 |---|---:|:-:|---|
@@ -99,7 +99,7 @@ names they were surveyed under: Insights' five views became Office's review late
 insights into office tab … in the desktop view we have many tabs that are actually tabs that exist under a different tab but it
 is there on the sidebar"*): the bar is five doors of one geometry with Add the filled centre one, the dock above retired; the
 desktop's sidebar is a rail of the workspaces alone, their views the tab row under the top bar as on the phone; Insights is
-Office's review; and every tile is raised (DR-6 amended). That answers the rule *one fact, one screen* for navigation too: each
+a group in Office's row, named there; and every tile is raised (DR-6 amended). That answers the rule *one fact, one screen* for navigation too: each
 view had been drawn twice on the desktop, in the sidebar and in the top bar's tabs.
 
 ## What the survey says to change, in the order proposed

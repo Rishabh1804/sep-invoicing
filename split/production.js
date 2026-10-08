@@ -1040,7 +1040,8 @@ function prodMergeImport(obj, fileName) {
     if (trusted[cid] && heldOf(cid) && fromL.parts[key] && typeof fromL.parts[key] === 'object') p.learn.parts[key] = fromL.parts[key];
   });
   var causes = typeof pcsMergeImport === 'function' ? pcsMergeImport(src.powerCauses) : 0;
-  imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad, causes: causes };
+  imp.counts = { entries: added, skipped: skipped, unknownClient: unknown, refused: bad };
+  if (causes) imp.counts.causes = causes;   // the power causes the file brought (powercause.js), only where it brought any
   if (added || causes) p.imports.push(imp);
   prodTouch();
   return { ok: true, added: added, skipped: skipped, unknown: unknown, bad: bad, causes: causes };

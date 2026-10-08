@@ -27,15 +27,17 @@ test.describe('P134: workspaces on the desktop', () => {
     await loadAppWithState(page, state());
     const has = async (id: string) => !!(await page.locator('#' + id).count());
     const hv = await g(page, `typeof homeViews === 'function'`);
-    const want = ['Add', 'Search', 'Today', ...(hv ? ['Needs you', 'Pulse'] : []),
+    // The brand is a door (owner, 8 Oct 2026: its name and mark open Pulse, P178), so it heads the buttons; Add follows it.
+    const want = ['Soma Electro', 'Add', 'Search', 'Today', ...(hv ? ['Needs you', 'Pulse'] : []),
       'Office', ...(await has('pagePipeline') ? ['Pipeline'] : []), 'Challans', 'Invoices', 'Clients',
       'Floor', ...(await has('pageFloor') ? ['Day'] : []), 'People', 'Production', 'Stock', 'Power',
       'Money', 'Insights', 'Stats', 'Reports', 'Planner', 'History', 'Knowledge', 'Settings'];
     await expect(side(page).locator(':scope > button')).toHaveText(want.map(w => new RegExp('^' + w)));
     await expect(side(page).locator(':scope > :first-child')).toHaveClass(/inv-side-brand/);
+    await expect(side(page).locator(':scope > :first-child')).toHaveAttribute('data-action', 'invGoPulse');
     await expect(side(page).locator(':scope > button').last()).toHaveAttribute('data-action', 'invOpenSettings');
     // Add is the shell's one primary, not a view's (P76 knows it by data-shell-primary), with its key.
-    const add = side(page).locator(':scope > button').first();
+    const add = side(page).locator(':scope > button').nth(1);
     await expect(add).toHaveClass(/inv-btn-primary/);
     await expect(add).toHaveAttribute('data-action', 'invAddOpen');
     await expect(add).toHaveAttribute('data-shell-primary', '');

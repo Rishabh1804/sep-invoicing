@@ -58,15 +58,16 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
   worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn', kb: 'knowledge article how why' };
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
-   that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). */
+   that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). Insights is
+   Office's review since 8 Oct 2026. */
 var SRCH_SPACES = [
   ['t', 'Today', ['needs', 'pulse', 'todo']],
-  ['o', 'Office', ['pipeline', 'im', 'register', 'clients']],
+  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'stats', 'reports', 'history']],
   ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power']],
-  ['m', 'Money', ['money']],
-  ['i', 'Insights', ['stats', 'reports', 'history']]
+  ['m', 'Money', ['money']]
 ];
-var SRCH_G_MORE = { r: ['register'], c: ['im'] };
+/* Screens of their own key: Invoices (R), Challans (C), and Stats (I, the key Insights had while it was a workspace). */
+var SRCH_G_MORE = { r: ['register'], c: ['im'], i: ['stats'] };
 
 /* ---------- Folding ---------- */
 /* An identifier folded: case, spaces and punctuation out, each run of digits without its leading zeros, so 00834 is 834
@@ -153,21 +154,21 @@ function srchScreens() {
     ['bank', 'Bank', 'Money', 'statement ledger import', at('pageFinance', 'bank')],
     ['bills', 'Bills & notes', 'Money', 'electricity bills credit notes', at('pageFinance', 'bills')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
-    ['stats', 'Stats', 'Insights', 'statistics overview realisation tonnage', at('pageStats', 'overview')],
-    ['stats-clients', 'Contribution by client', 'Insights › Stats', 'stats clients realisation concentration revenue', at('pageStats', 'clients')],
-    ['live-cost', 'Live cost', 'Insights › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
-    ['stats-billing', 'Billing', 'Insights › Stats', 'invoice states unbilled dispatch', at('pageStats', 'billing')],
-    ['trends', 'Trends', 'Insights › Stats', 'trend chart top items', at('pageStats', 'trends')],
-    ['reports', 'Reports', 'Insights', 'report daily weekly monthly quarterly yearly print', at('pageReports')],
-    ['planner', 'Planner', 'Insights', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade', at('pagePlanner', 'play')],
-    ['planner-ledger', 'Planner ledger', 'Insights › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
-    ['planner-day', 'A day, simulated', 'Insights › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
-    ['planner-plant', 'Upgrade trees', 'Insights › Planner', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'plant')],
-    ['planner-tech', 'Tech tree', 'Insights › Planner', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'tech')],
-    ['planner-staff', 'Planner staff', 'Insights › Planner', 'hire specialist lab hand night crew training', at('pagePlanner', 'staff')],
-    ['planner-clients', 'Planner clients', 'Insights › Planner', 'ask rate held back work certificates turnaround', at('pagePlanner', 'clients')],
-    ['planner-finance', 'Planner finance', 'Insights › Planner', 'loan lenders interest instalment rates heard', at('pagePlanner', 'finance')],
-    ['history', 'History', 'Insights', 'activity log audit trail events', at('pageHistory')],
+    ['stats', 'Stats', 'Office', 'statistics overview realisation tonnage', at('pageStats', 'overview')],
+    ['stats-clients', 'Contribution by client', 'Office › Stats', 'stats clients realisation concentration revenue', at('pageStats', 'clients')],
+    ['live-cost', 'Live cost', 'Office › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
+    ['stats-billing', 'Billing', 'Office › Stats', 'invoice states unbilled dispatch', at('pageStats', 'billing')],
+    ['trends', 'Trends', 'Office › Stats', 'trend chart top items', at('pageStats', 'trends')],
+    ['reports', 'Reports', 'Office', 'report daily weekly monthly quarterly yearly print', at('pageReports')],
+    ['planner', 'Planner', 'Office', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade', at('pagePlanner', 'play')],
+    ['planner-ledger', 'Planner ledger', 'Office › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
+    ['planner-day', 'A day, simulated', 'Office › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
+    ['planner-plant', 'Upgrade trees', 'Office › Planner', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'plant')],
+    ['planner-tech', 'Tech tree', 'Office › Planner', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'tech')],
+    ['planner-staff', 'Planner staff', 'Office › Planner', 'hire specialist lab hand night crew training', at('pagePlanner', 'staff')],
+    ['planner-clients', 'Planner clients', 'Office › Planner', 'ask rate held back work certificates turnaround', at('pagePlanner', 'clients')],
+    ['planner-finance', 'Planner finance', 'Office › Planner', 'loan lenders interest instalment rates heard', at('pagePlanner', 'finance')],
+    ['history', 'History', 'Office', 'activity log audit trail events', at('pageHistory')],
     ['know', 'Knowledge', 'Knowledge', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
     ['know-lib', 'Library', 'Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
     ['know-trouble', 'Troubleshoot', 'Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
@@ -954,7 +955,7 @@ function srchKeysOpen() {
   var groups = [
     ['When no field has focus', [['Search', or(k('Ctrl K'), k('/'))], ['Add', k('A')], ['New invoice', k('N')], ['New challan', k('C')], ['This list', k('?')]]],
     ['G, then a letter', [['Today', k('G') + k('T')], ['Office', k('G') + k('O')], ['Floor', k('G') + k('F')], ['Money', k('G') + k('M')],
-      ['Insights', k('G') + k('I')], ['Invoices', k('G') + k('R')], ['Challans', k('G') + k('C')]]],
+      ['Invoices', k('G') + k('R')], ['Challans', k('G') + k('C')], ['Stats', k('G') + k('I')]]],
     ['Invoices and Challans', [['Next row', k('J')], ['Previous row', k('K')], ['Open the row', k('Enter')], ['Close the pane', k('Esc')]]],
     ['Search', [['Move', k('\u2191') + k('\u2193')], ['Open', k('Enter')], ['Open in a new window', k('Ctrl') + k('Enter')]]],
     ['Anywhere', [['Back', or(k('Backspace'), k('Alt') + k('\u2190'))], ['Close a dialog or search', k('Esc')],
@@ -1007,7 +1008,7 @@ function srchEntryLoc(e) {
 var SRCH_ROW_KINDS = { invSelectRegRow: 'invoice', invViewInvoiceDetail: 'invoice', invHistoryJumpInvoice: 'invoice',
   invSelectIMRow: 'challan', invToggleIM: 'challan', invHistoryJumpChallan: 'challan', invSelectClientRow: 'client',
   invEditClient: 'client', invQtOpen: 'quote', invStockOpen: 'stock' };
-/* The place a click on el would open: a sidebar or bar item, a workspace, a view tab, a list row. Null for anything else,
+/* The place a click on el would open: a rail or bar item, a workspace, a view tab, a list row. Null for anything else,
    and for anything in a dialog or a sheet but a search result. */
 function srchLocOf(el) {
   var a = el && el.closest ? el.closest('[data-action]') : null;
@@ -1018,6 +1019,8 @@ function srchLocOf(el) {
   // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
   // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
   if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
+  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail.
+  if (act === 'invGoPulse') return { tab: 'pageHome', v: 'pulse', id: '' };
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
     var go = sp ? srchGTarget(sp[0]) : null;

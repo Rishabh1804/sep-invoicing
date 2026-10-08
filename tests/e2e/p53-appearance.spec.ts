@@ -20,7 +20,7 @@ test.describe('P53: appearance', () => {
     // No theme class: colour-scheme alone decides every token (the v1.0 `.dark` rules are gone).
     await expect(html).not.toHaveClass(/dark/);
     await page.emulateMedia({ colorScheme: 'light' });
-    await expect.poll(() => css(page, 'body', 'background-color')).toBe('rgb(238, 242, 243)');
+    await expect.poll(() => css(page, 'body', 'background-color')).toBe('rgb(225, 235, 237)');
   });
 
   test('Settings → Appearance switches palette and theme at once, keeps them on the device, never on the books', async ({ page }) => {
@@ -70,7 +70,7 @@ test.describe('P53: appearance', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Floor');
     await expect(page.locator('#wsTabs .inv-viewtab[aria-selected="true"]')).toHaveText('Stock');
     await expect(page.locator('.inv-navbar-item[data-ws="floor"]')).toHaveClass(/inv-navbar-item-on/);
-    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#f8fafa');
+    await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#ecf4f5');
   });
 
   test('printed documents keep their own faces: the interface font never reaches paper', async ({ page }) => {

@@ -248,15 +248,15 @@ test.describe('P39: stock', () => {
 
   test('the bar is the workspaces and Add: Floor holds People, Production, Stock and Power, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Today/, /Office/, /Add/, /Floor/, /Money/, /Insights/]);
+    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Today/, /Office/, /Add/, /Floor/, /Money/]);
     await expect(page.locator('.inv-navbar-more, #moreSheet')).toHaveCount(0);
     await page.locator('.inv-navbar-item[data-ws="floor"]').click();
     await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText([...(await page.locator('#pageFloor').count() ? ['Day'] : []), 'People', 'Production', 'Stock', 'Power']);
     await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
     await expect(page.locator('.inv-navbar-item[data-ws="floor"]')).toHaveClass(/inv-navbar-item-on/);
-    // What More held besides: the To-do is Today's, Finance is Money, Stats, Reports and History are Insights'.
-    expect(await g(page, `['pageTodo', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory'].map(wsOf)`)).toEqual(['today', 'money', 'insights', 'insights', 'insights']);
+    // What More held besides: the To-do is Today's, Finance is Money, Stats, Reports and History are Office's review.
+    expect(await g(page, `['pageTodo', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory'].map(wsOf)`)).toEqual(['today', 'money', 'office', 'office', 'office']);
   });
 
   test('export carries the whole record; importing it again adds nothing', async ({ page }) => {

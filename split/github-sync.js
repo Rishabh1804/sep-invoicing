@@ -587,7 +587,7 @@ function ghRelTime(ts) {
 
 /* Home card. A backup whose state you cannot see is a backup you will not
    trust, so the last sync time sits on the first screen rather than three
-   taps into Settings. */
+   taps into Settings. A hero (§6.21): when it last went, coded by whether a working day has passed since, with its button. */
 function ghRenderCard() {
   var host = document.getElementById('homeSyncCard');
   if (!host) return;
@@ -600,11 +600,8 @@ function ghRenderCard() {
     var removed = typeof devRemovedRow === 'function' && !!devRemovedRow();
     // Removed: the whole sentence, who and when and why. Not registered: the few words, with the way to fix it beside.
     var why = removed ? devSyncBlocked() : blockedShort.charAt(0).toUpperCase() + blockedShort.slice(1);
-    host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
-      '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
-        '<span class="inv-row-meta">' + uiDot(removed ? 'danger' : 'warning', escHtml(why)) + '</span></span>' +
-      (removed ? '' : '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button></span>') +
-      '</div></div>';
+    host.innerHTML = uiHeroHtml({ tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
+      attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' });
     return;
   }
   if (!ghIsConfigured()) { host.innerHTML = ''; return; }
@@ -614,16 +611,12 @@ function ghRenderCard() {
   // Anything past a working day without a push is worth flagging on a device
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
-
-  // The status leads the meta line: it ellipsizes at its end, and a long repo
-  // name must not push the stale warning out of sight on a phone.
-  var when = 'Last synced ' + escHtml(ghRelTime(last));
-  host.innerHTML = '<div class="inv-panel inv-panel-flush" data-card="sync"><div class="inv-row inv-row-2">' +
-    '<span class="inv-row-main"><span class="inv-row-title">GitHub backup</span>' +
-      '<span class="inv-row-meta">' + (stale ? '<span class="inv-dot inv-dot-warning">' + when + '</span>' : when) +
-      ' · <span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span></span></span>' +
-    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' +
-      (_ghBusy ? 'Syncing…' : 'Back up now') + '</button></span></div></div>';
+  var when = 'Last synced ' + ghRelTime(last);
+  host.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
+    // The status is a dot and a word (DR-8), the title the time; the repository under it.
+    title: stale ? uiDot('warning', escHtml(when)) : escHtml(when), sub: '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>',
+    attrs: ' data-card="sync"',
+    foot: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' + (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' });
 }
 
 /* ===== SETTINGS SECTION ===== */

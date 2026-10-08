@@ -182,14 +182,14 @@ export async function openStatsTab(page: Page, tab: string): Promise<void> {
 }
 
 /* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone
-   bar carries Today, Office, Floor, Money and Insights. Create and the To-do are held without a tab. */
+   bar and the desktop's rail carry Today, Office, Floor and Money; Office holds what was Insights as its review (8 Oct 2026).
+   Create and the To-do are held without a tab. */
 const WS_OF: Record<string, string> = {
   pageHome: 'today', pageTodo: 'today',
   pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',
+  pageStats: 'office', pageReports: 'office', pagePlanner: 'office', pageHistory: 'office', pageKnow: 'office',
   pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
   pageFinance: 'money',
-  pageStats: 'insights', pageReports: 'insights', pagePlanner: 'insights', pageHistory: 'insights',
-  pageKnow: 'insights',
 };
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {
@@ -213,9 +213,8 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   if (opened && (await active.count())) { /* the workspace opened on the page itself (Money, Today) */ }
   else if (await door().count()) await door().first().click();
   else {
-    // The last resort, where the shell has no door to the page: the Insights pages on the phone (reached from Today →
-    // Pulse and from search, other steps' work), and the pages a workspace holds without a tab (Create, the To-do) when
-    // nothing on screen links to them. Opened the way a jump opens them, then recorded as a click's step would be.
+    // The last resort, where the shell has no door to the page: the pages a workspace holds without a tab (Create, the
+    // To-do) when nothing on screen links to them. Opened the way a jump opens them, then recorded as a click's step would be.
     await page.evaluate(id => { (window as any).switchTab(id); (window as any).navSoon(); }, tabId);
   }
   await active.waitFor();

@@ -7,6 +7,36 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 8 Oct 2026, the third: five doors, the rail, Insights in Office, raised tiles (read this first)
+
+The owner, on the same PR: *"The bottom bar still doesn't look right. Let's give our tiles elevation as well. Move insights into
+office tab, that way we have 5 icons again, which can be arranged in a better way. Also, in the desktop view we have many tabs that
+are actually tabs that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user
+will not understand the hierarchy. What do you think?"* **Three levels, the same on both layouts** (design §4): a workspace is a
+door on the phone's bar or the desktop's **rail** (the bar stood on its side, 5.5rem: the mark, Add, Today, Office, Floor, Money,
+Settings), and nothing under it is listed there; its views are the tab row **under** the top bar on the desktop too; a page's own
+views the row under that. **Insights is Office's review** after a divider (Stats, Reports, Planner, History, Knowledge); G then I
+still opens Stats. **The phone bar**: five doors of one geometry (a mark over its word, the words on one line), Add the filled
+centre one, never raised; the page fades into its own colour under it. **Tiles are raised** (`--shadow-tile`, DR-6 amended),
+deck cards too. P182 pins it; P134, P58, P53, P100, P103, P132, P139, P140, P151, P154, P164, P39 and P42 follow the new doors.
+**No data flow changed.** Still the owner's: the order of the survey's steps, and Pulse's defaults.
+
+## Built 8 Oct 2026, the second: HR-9 no white, Today's coded boxes, Pulse as cards, the dock (read this first)
+
+The owner, after #141 merged: *"In needs you and pulse, the boxes inside the cards are still just white instead of colour coded
+gradients, we will be avoiding pure white everywhere in the app, this should be an HR. Then we will extend this UI to other tabs
+sequentially … Pulse still holds generic cards as well, so it looks like a half designed space"*, then the phone's bottom bar
+*"doesn't look quite nice with how the app is designed now"*, and a survey of every screen against the cognitive-load rules.
+**HR-9** (CLAUDE.md, design §3.1): no fill lighter than OKLab L 0.97; every palette's light ramp a tinted step down, measured;
+the app draws its own tick boxes; P76's sweep enforces it on every screen, view and dialog (it now sweeps Pulse, which it never
+reached), P180 proves the instrument. **Coded fills** (design §3.3, §6.26): `--tone` / `--tone-bg` on a block, the card, its boxes
+and its controls mixed from them. **Pulse**: every widget a hero. **The dock** (design §6.1). **The survey** (owner's ask):
+`docs/COGNITIVE_LOAD_SURVEY.md`, every screen on both layouts scored against the rules (61 views), with what this PR already
+changed on Today (the cash question judged as the Money card is, the phone's inputs card folded while a red task waits, a task
+group's figure *at stake*, the recent invoices' head saying what was made today) and **the proposed order for the rest, one PR
+each: the owner's to set**. One call in it is the owner's alone: Pulse's default widgets could drop To-do and Recent invoices,
+which Needs you already shows. **No data flow changed.**
+
 ## Built 8 Oct 2026: power causes, Today as cards, the .xlsx statement (read this first)
 
 Three asks of the owner's, one PR. **Power causes** (`powercause.js`, P177): a cut saved with no time back is completed where it

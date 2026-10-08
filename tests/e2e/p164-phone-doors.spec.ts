@@ -3,7 +3,8 @@ import { emptyState, loadAppWithState, noSeedIM, todayIso, type SepState } from 
 
 // P164 (owner, 6 Oct 2026): "On the phone screen access to many tabs are missing. Insights has no direct link to open it?" and
 // "earlier we used to see the recently created invoices for quick print, now to print a recent invoice is 4 clicks".
-// Insights is on the phone bar; Today → Needs you lists the last invoices, each a tap from its print preview.
+// Insights was put on the phone bar; since 8 Oct 2026 its five views are Office's review (owner: "Move insights into office tab,
+// that way we have 5 icons again"). Today → Needs you lists the last invoices, each a tap from its print preview.
 
 function book(n = 7): SepState {
   const s: any = emptyState();
@@ -19,20 +20,22 @@ function book(n = 7): SepState {
 }
 
 test.describe('P164 the phone reaches every screen, and a recent invoice prints from Today', () => {
-  test('Insights is on the bar and opens its five views', async ({ page }) => {
+  test("Insights' five views are Office's review, a tap from the bar", async ({ page }) => {
     await loadAppWithState(page, book());
-    const item = page.locator('.inv-navbar-item[data-ws="insights"]');
-    await expect(item).toBeVisible();
+    await expect(page.locator('.inv-navbar-item[data-ws="insights"]')).toHaveCount(0);
+    const item = page.locator('.inv-navbar-item[data-ws="office"]');
     await item.click();
-    await expect(page.locator('#pageStats')).toHaveClass(/inv-page-active/);
     await expect(item).toHaveClass(/inv-navbar-item-on/);
-    await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Stats', 'Reports', 'Planner', 'History', 'Knowledge']);
+    const labels = await page.locator('#wsTabs .inv-viewtab').allInnerTexts();
+    expect(labels.slice(labels.indexOf('Stats'))).toEqual(['Stats', 'Reports', 'Planner', 'History', 'Knowledge']);
     await page.locator('#wsTabs [data-tab="pagePlanner"]').click();
     await expect(page.locator('#pagePlanner')).toHaveClass(/inv-page-active/);
-    // Six items still fit the phone, each a whole touch target.
+    await expect(item).toHaveClass(/inv-navbar-item-on/);
+    // Five doors fit the phone, each a whole touch target, Add the centre one.
     const boxes = await page.locator('.inv-navbar > .inv-navbar-item').evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [r.width, r.height, r.right]; }));
-    expect(boxes.length).toBe(6);
+    expect(boxes.length).toBe(5);
     for (const [w, h, right] of boxes) { expect(w).toBeGreaterThanOrEqual(44); expect(h).toBeGreaterThanOrEqual(44); expect(right).toBeLessThanOrEqual(page.viewportSize()!.width + 1); }
+    await expect(page.locator('.inv-navbar > .inv-navbar-item').nth(2)).toHaveAttribute('data-action', 'invAddOpen');
   });
 
   test('Needs you lists the last five invoices, newest first, and the print button opens the preview', async ({ page }) => {

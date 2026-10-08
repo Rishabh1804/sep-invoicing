@@ -14,12 +14,15 @@ about it, worked out from the book, with a button to the place where it is done.
 
 ## The shape
 
-**Phone bar**: **Today · Office · Add · Floor · Money** (Insights added as a sixth item, 6 Oct 2026). No More. Settings is the icon in the top bar (as now); search is
-the icon beside it.
+**Phone bar**: **Today · Office · Add · Floor · Money** (Insights was added as a sixth item on 6 Oct 2026 and folded into Office
+as its review on 8 Oct: *"Move insights into office tab, that way we have 5 icons again"*). No More. Settings is the icon in the
+top bar (as now); search is the icon beside it.
 
-**Desktop sidebar**: **Add** (the one primary, key `A`) · **Search** (`Ctrl K`) · **Today** (Needs you, Pulse) · **Office**
-(Pipeline, Challans, Invoices, Clients) · **Floor** (Day, People, Production, Stock, Power) · **Money** · **Insights**
-(Stats, Reports, History) · Settings at the foot.
+**Desktop rail** (since 8 Oct 2026; the owner: a view listed in the sidebar hid which workspace it was under): the mark (it opens
+Pulse) · **Add** (the one primary, key `A`) · **Today** · **Office** · **Floor** · **Money** · Settings at the foot, the phone's
+doors stood on their side. A workspace's views are its tab row under the top bar, as on the phone: Today (Needs you, Pulse),
+Office (Pipeline, Challans, Invoices, Clients, then Stats, Reports, Planner, History, Knowledge), Floor (Day, People, Production,
+Stock, Power). Search is the top bar's field (`Ctrl K`). It was a sidebar listing every workspace's views until then.
 
 **A workspace is a layer over the pages that exist.** Every page keeps its id, its address (`?tab=pageIM&v=…`), its
 view tabs and its renderer; a workspace names the pages it holds and draws their tab row above the page. So a link, a
@@ -38,7 +41,7 @@ To-do jump (`todoGo`), a bookmark and every spec that opens `pageIM` still lands
 | Staff (Overview · Day · Week · Pay · Areas · Roster) | Floor → **People** |
 | — | Floor → **Day** (new): a card per line (VAT A1, VAT A2, Barrel, Pickling): heads against the day's number, what it is running, what it has plated, the crew, the EXTRA; tiles for on site, plated, power |
 | Production · Stock · Power | Floor → **Production** · **Stock** · **Power** |
-| Stats · Reports · History | **Insights** → Stats · Reports · History (on the phone: from Pulse, and from search) |
+| Stats · Reports · History | **Office** → Stats · Reports · History, its review (Insights until 8 Oct 2026) |
 | Home's quick actions, Paste message | **Add** |
 
 **Add is one door for everything that comes in**: paste a WhatsApp message (rolls, stock, pickling loads, production,

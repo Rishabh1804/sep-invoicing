@@ -741,9 +741,10 @@ function attDaySummary(day) {
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;
 }
+/* The day's attendance as a panel. headBtn: the head's link; null, no head (a hero card above it says what the head would). */
 function attDayPanelHtml(d, headBtn, id) {
-  var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '><div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
-    '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>';
+  var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '>' + (headBtn === null ? '' : '<div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
+    '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>');
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
   // On site against the roster, judged at the rest-day gate's 90% and 80% (a day nobody typed judges nothing).
   var onPct = d.roster.length && !d.unmarked ? (d.p + d.half) / d.roster.length * 100 : null, onTone = figTonePct(onPct, 90, 80);
@@ -770,9 +771,23 @@ function attDayPanelHtml(d, headBtn, id) {
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';
 }
+/* Pulse's Attendance as a hero: who is on site against the roster, judged at the rest-day gate's 90% and 80%, the floor
+   against its number, the day as a bar of present, half, absent and unmarked; the panel's tiles and rows under it. */
 function renderAttHomeCard() {
   var el = document.getElementById('homeAttCard');
   if (!el) return;
   if (!staffActive().length) { el.innerHTML = ''; return; }
-  el.innerHTML = attDayPanelHtml(attDaySummary(), '<button class="inv-btn-link" data-action="invPayOpenAtt">Open</button>', 'homeAtt');
+  var d = attDaySummary(), n = d.roster.length, on = d.p + d.half;
+  var pct = n && d.marked && !d.unmarked ? on / n * 100 : null, tone = figTonePct(pct, 90, 80);
+  if (d.short && tone !== 'danger') tone = 'warning';
+  var meter = d.marked ? chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
+    { title: d.p + ' present · ' + d.half + ' half day · ' + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') }) : '';
+  var floor = d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' + (d.short ? ', ' + (d.complement - d.floorHeads) + ' short' : '') : '';
+  el.innerHTML = uiHeroHtml({ tone: d.marked ? tone || 'ok' : 'neutral',
+    eyebrow: '<span>Attendance</span><span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span>',
+    title: d.marked ? escHtml(on + ' of ' + n + ' on site') : 'Nothing recorded yet',
+    sub: escHtml([floor, d.marked ? todoPlural(d.absent.length, 'absent', 'absent') : ''].filter(Boolean).join(' · ')), viz: meter,
+    fold: 'pulse-attendance', open: true, attrs: ' data-card="attendance"',
+    body: d.marked ? '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'homeAtt') + '</div>' : null,
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' });
 }

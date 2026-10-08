@@ -4,7 +4,7 @@ import { sweepState, sweep, problems, type Stop } from './sweep-fixture';
 import { PINS, g, guardBook, withUsers, unlock } from './p140-guard.fixture';
 
 // P140 (desktop): the guard on the desktop layout. How long an unlock takes on the sweep book, measured; who is signed in,
-// in the desktop's top bar; the sidebar showing only the doors the role opens; a role's page taken away in Settings sending
+// in the desktop's top bar; the rail and the tab rows showing only the doors the role opens; a role's page taken away in Settings sending
 // the window that had it open Home; and the lock, the menu and Users & access as two panes, swept like every other screen.
 
 test.describe('P140: the guard (desktop)', () => {
@@ -46,22 +46,31 @@ test.describe('P140: the guard (desktop)', () => {
     expect(open).toBeGreaterThan(0);
   });
 
-  test('who is signed in is in the top bar, and the sidebar shows only the doors the role opens', async ({ page }) => {
+  test('who is signed in is in the top bar, and the rail and the tab rows show only the doors the role opens', async ({ page }) => {
     await loadAppWithState(page, guardBook());
     await withUsers(page);
     await unlock(page, 'U-sup', PINS.super);
     await expect(page.locator('.inv-topbar #guardUserBtn')).toBeVisible();
     await expect(page.locator('#guardUserBtn')).toHaveAttribute('data-initials', 'BM');
     const side = page.locator('#invSidebar');
-    for (const t of ['pageHome', 'pageFloor', 'pageProduction', 'pagePower', 'pageStock']) await expect(side.locator(`[data-tab="${t}"]`).first()).toBeVisible();
-    await expect(side.locator('[data-tab="pageStaff"]:not([data-sub])')).toBeVisible();
-    for (const t of ['pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory']) {
-      await expect(side.locator(`[data-tab="${t}"]`)).toHaveCount(await side.locator(`[data-tab="${t}"][data-grd-off]`).count());
-      await expect(side.locator(`[data-tab="${t}"]`).first()).toBeHidden();
+    // The rail: a workspace's door only where the role opens one of its views. The supervisor's Floor, never Money.
+    const seen = await page.evaluate(() => (window as any).WORKSPACES.filter((w: any) => (window as any).wsViewsPresent(w).length).map((w: any) => w.id)) as string[];
+    expect(seen).toContain('floor');
+    expect(seen).not.toContain('money');
+    await expect(side.locator('.inv-side-item[data-ws]')).toHaveCount(seen.length);
+    await expect(side.locator('[data-ws="money"]')).toHaveCount(0);
+    // Floor's row: its five views. Office's, when the role opens any of it: none of the pages the role does not.
+    await side.locator('[data-ws="floor"]').click();
+    for (const t of ['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower']) await expect(page.locator(`#wsTabs [data-tab="${t}"]`)).toBeVisible();
+    if (seen.includes('office')) {
+      await side.locator('[data-ws="office"]').click();
+      for (const t of ['pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory']) {
+        await expect(page.locator(`#wsTabs [data-tab="${t}"]`)).toHaveCount(0);
+      }
     }
-    // No wages: Pay's entry goes, and Staff opens without it. No Settings either.
-    // (Pay is a view inside People on Direction B's sidebar: its tab is the one that goes.)
-    await side.locator('[data-tab="pageStaff"]').first().click();
+    // No wages: Pay's tab goes, and Staff opens without it. No Settings either.
+    await side.locator('[data-ws="floor"]').click();
+    await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff [data-action="invAttView"][data-view="pay"]')).toHaveCount(0);
     await expect(side.locator('[data-action="invOpenSettings"]')).toBeHidden();
     // The owner, after Switch user, has every door back.
@@ -69,8 +78,12 @@ test.describe('P140: the guard (desktop)', () => {
     await page.locator('[data-grd-menu] [data-action="invGuardSwitch"]').click();
     await unlock(page, 'U-own', PINS.owner);
     await expect(page.locator('#guardUserBtn')).toHaveAttribute('data-initials', 'AR');
-    for (const t of ['pageIM', 'pageRegister', 'pageFinance', 'pageStats', 'pageHistory']) await expect(side.locator(`[data-tab="${t}"]`).first()).toBeVisible();
-    await side.locator('[data-tab="pageStaff"]').first().click();
+    await expect(side.locator('.inv-side-item[data-ws]')).toHaveCount(4);
+    await expect(side.locator('[data-ws="money"]')).toBeVisible();
+    await side.locator('[data-ws="office"]').click();
+    for (const t of ['pageIM', 'pageRegister', 'pageStats', 'pageHistory']) await expect(page.locator(`#wsTabs [data-tab="${t}"]`)).toBeVisible();
+    await side.locator('[data-ws="floor"]').click();
+    await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff [data-action="invAttView"][data-view="pay"]').first()).toBeVisible();
     await expect(page.locator('[data-grd-off]')).toHaveCount(0);
   });
@@ -84,7 +97,8 @@ test.describe('P140: the guard (desktop)', () => {
     await other.goto('/');
     await waitForBoot(other);
     await unlock(other, 'U-sup', PINS.super);
-    await other.locator('#invSidebar [data-tab="pageStock"]').click();
+    await other.locator('#invSidebar [data-ws="floor"]').click();
+    await other.locator('#wsTabs [data-tab="pageStock"]').click();
     await expect(other.locator('#pageStock')).toHaveClass(/inv-page-active/);
     // The owner takes Stock from the supervisor: a switch in the roles' grid, and the section's Save.
     await openSettingsAt(page, 'users');
@@ -96,7 +110,8 @@ test.describe('P140: the guard (desktop)', () => {
     // The other window loads the book, finds the page on screen no longer its role's, and goes Home.
     await expect(other.locator('#pageHome')).toHaveClass(/inv-page-active/);
     await expect(other.locator('.inv-toast')).toHaveText('Your ID doesn’t open Stock');
-    await expect(other.locator('#invSidebar [data-tab="pageStock"]')).toBeHidden();
+    await other.locator('#invSidebar [data-ws="floor"]').click();
+    await expect(other.locator('#wsTabs [data-tab="pageStock"]')).toHaveCount(0);
     await other.close();
   });
 

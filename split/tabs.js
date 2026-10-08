@@ -198,61 +198,71 @@ var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" st
 var ICON_CAMERA = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>';
 var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
 
-/* The stat strip for a role without money: its tiles say nothing, rather than another role's month left in them. */
-function homeBlankTiles() {
-  ['mtdCount', 'mtdRevenue', 'mtdKg', 'mtdPerKg'].forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = '&mdash;'; });
-  ['mtdCountSub', 'mtdRevenueSub', 'mtdKgSub', 'mtdPerKgSub', 'mtdCountDelta', 'mtdRevenueDelta', 'mtdKgDelta', 'mtdPerKgDelta'].forEach(function(id) {
-    var e = document.getElementById(id); if (e) e.innerHTML = '';
-  });
-  var tile = document.getElementById('mtdPerKgTile');
-  if (tile) tile.className = 'inv-tile';
-}
-/* Home's stat strip: the month so far, with the tonnage behind the revenue (What Stats measures). */
+/* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
+function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
+/* Home's month so far as a hero (§6.21): the month's billing against the same days last month, realisation against the
+   cost, and the four tiles under it, each with the tonnage behind the revenue (What Stats measures) and a line of the months
+   before. A tile whose change has a direction is coded in it (§6.26: data-tone, its figure a plain fact); realisation, which
+   the app judges against the cost, is coloured as well (inv-tile-<tone>). */
 function renderHomeTiles(active) {
-  var set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
+  var host = document.getElementById('homeMtdCard');
+  if (!host) return;
   var w = weighLines(active);
   // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
   var month = TREND_MONTH_LABELS[new Date().getMonth()];
-  set('mtdCount', String(active.length));
-  set('mtdCountSub', escHtml(month) + ' to date');
-  set('mtdRevenue', figWrapHtml(formatCurrency(sumTaxable(active))));
+  var rev = sumTaxable(active);
   // Net of credit notes, as Stats is (owner, 30 Sep 2026: "yes, it should and it should be mentioned").
   var credited = gstRound(active.reduce(function(s, i) { return s + (i._credit || 0); }, 0));
-  set('mtdRevenueSub', credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes');
-  // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
-  set('mtdKg', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;');
-  set('mtdKgSub', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet');
-  set('mtdPerKg', w.kg > 0 ? figWrapHtml(formatCurrency(w.revKnown / w.kg)) + '<span class="inv-tile-of">/kg</span>' : '&mdash;');
-  // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end.
-  // "All" only when nothing priced is unweighed, and a partial share never rounds up to 100%.
-  set('mtdPerKgSub', !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed'
-    : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed');
-
   // Whether each is good (owner, 29 Sep 2026): against the same days last month, and realisation against the month's
   // live cost, the cost Stats judges it by.
   var p = homePriorSameDays(), pw = weighLines(p.invoices), lbl = 'same days last month';
   var real = w.kg > 0 ? w.revKnown / w.kg : null, preal = pw.kg > 0 ? pw.revKnown / pw.kg : null;
-  var has = p.invoices.length > 0;
-  set('mtdCountDelta', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '');
-  set('mtdRevenueDelta', has ? figDeltaHtml(sumTaxable(active), sumTaxable(p.invoices), lbl, 'up') : '');
-  set('mtdKgDelta', has && w.kg > 0 && pw.kg > 0 ? figDeltaHtml(w.kg, pw.kg, lbl, 'up') : '');
+  var has = p.invoices.length > 0, prev = sumTaxable(p.invoices);
   var cost = null;
   if (real != null) { try { var lc = liveCost(p.monthStart, localDateStr(), w.kg); cost = lc && lc.perKg > 0 ? lc.perKg : null; } catch (e) { cost = null; } }
   if (cost == null && S.defaultCostPerKg > 0) cost = S.defaultCostPerKg;
-  var tone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
-  var tileEl = document.getElementById('mtdPerKgTile');
-  if (tileEl) tileEl.className = 'inv-tile' + (tone ? ' inv-tile-' + tone : '');
-  // Only what there is, joined: with nothing weighed on the same days last month the line ended on a bare " · ".
-  set('mtdPerKgDelta', real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '',
-    preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '));
+  var realTone = real != null && cost != null ? figToneAgainst(real, cost, 5) : null;
+  var revTone = has ? figDeltaTone(rev, prev, 'up') : null, kgTone = has && w.kg > 0 && pw.kg > 0 ? figDeltaTone(w.kg, pw.kg, 'up') : null;
   // Each figure's last six full months as a line under it (owner, 8 Oct 2026: the data on Today "still primitive"): the month
   // so far is the tile's own figure, so the line stops at the last month that ended.
   var hist = homeMonthsBack(6), labels = hist.map(function(x) { return x.label; });
-  set('mtdCountViz', chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') }));
-  set('mtdRevenueViz', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }));
-  set('mtdKgViz', chartSpark(hist.map(function(x) { return x.kg > 0 ? gstRound(x.kg / 1000) : null; }), { labels: labels, unit: 'count', dot: false,
-    title: 'Tonnes by month: ' + hist.map(function(x) { return x.label + ' ' + formatNum(x.kg / 1000, 1) + ' t'; }).join(' · ') }));
-  set('mtdPerKgViz', chartSpark(hist.map(function(x) { return x.real; }), { ref: hist.map(function(x) { return x.cost; }), labels: labels, unit: 'rate', dot: false }));
+  var tile = function(key, label, value, sub, delta, viz, o) {
+    o = o || {};
+    return '<div class="inv-tile' + (o.cls ? ' inv-tile-' + o.cls : '') + '"' + (o.id ? ' id="' + o.id + '"' : '') + (o.tone ? ' data-tone="' + o.tone + '"' : '') + '>' +
+      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value" id="mtd' + key + '">' + value + '</div>' +
+      '<div class="inv-tile-sub" id="mtd' + key + 'Sub">' + sub + '</div><div class="inv-tile-sub" id="mtd' + key + 'Delta">' + delta + '</div>' +
+      '<div class="inv-tile-viz" id="mtd' + key + 'Viz">' + viz + '</div></div>';
+  };
+  var tiles = tile('Count', 'Invoices', String(active.length), escHtml(month) + ' to date', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '',
+      chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') })) +
+    tile('Revenue', 'Revenue', figWrapHtml(formatCurrency(rev)),
+      credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes',
+      has ? figDeltaHtml(rev, prev, lbl, 'up') : '', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }), { tone: revTone }) +
+    // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
+    tile('Kg', 'Tonnage billed', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet',
+      has && w.kg > 0 && pw.kg > 0 ? figDeltaHtml(w.kg, pw.kg, lbl, 'up') : '',
+      chartSpark(hist.map(function(x) { return x.kg > 0 ? gstRound(x.kg / 1000) : null; }), { labels: labels, unit: 'count', dot: false,
+        title: 'Tonnes by month: ' + hist.map(function(x) { return x.label + ' ' + formatNum(x.kg / 1000, 1) + ' t'; }).join(' · ') }), { tone: kgTone }) +
+    // A partial figure always reads better than the blend: the unweighed lines are the piece-billed end. "All" only when
+    // nothing priced is unweighed, and a partial share never rounds up to 100%. Only what there is is joined: with nothing
+    // weighed on the same days last month the line ended on a bare " · ".
+    tile('PerKg', 'Realisation', w.kg > 0 ? figWrapHtml(formatCurrency(w.revKnown / w.kg)) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
+      !(w.kg > 0) ? '&nbsp;' : w.revUnknown < 0.005 ? 'all revenue weighed' : 'on the ' + Math.min(99, Math.round(w.coverage * 100)) + '% of revenue weighed',
+      real == null ? '' : [cost != null ? (real >= cost ? 'clears' : 'below') + ' cost ' + formatCurrency(cost) : '', preal != null ? figDeltaHtml(real, preal, lbl, 'up') : ''].filter(Boolean).join(' · '),
+      chartSpark(hist.map(function(x) { return x.real; }), { ref: hist.map(function(x) { return x.cost; }), labels: labels, unit: 'rate', dot: false }),
+      { id: 'mtdPerKgTile', cls: realTone });
+  // What the month says, in words: the billing against the same days last month, and realisation against the cost. The card
+  // is coded by the worse of the two.
+  var pct = has && prev > 0 ? (rev - prev) / prev * 100 : null;
+  var title = !active.length ? 'Nothing billed yet this month' : pct == null ? 'The month’s first invoices'
+    : Math.abs(pct) <= FIG_FLAT_PCT ? 'Billing level with the same days last month'
+    : 'Billing ' + formatNum(Math.abs(pct), 1) + '% ' + (pct > 0 ? 'ahead of' : 'behind') + ' the same days last month';
+  var sub = real == null ? (active.length ? 'Nothing weighed yet, so no realisation' : '')
+    : 'Realising ' + formatCurrency(real) + ' a kg' + (cost != null ? (real >= cost ? ', clearing the cost of ' : ' against a cost of ') + formatCurrency(cost) : '');
+  var rank = { danger: 3, warning: 2, ok: 1 }, worst = [revTone, realTone].filter(Boolean).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
+  host.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
+    title: escHtml(title), sub: escHtml(sub), fold: 'pulse-mtd', open: true, attrs: ' data-card="mtd"',
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' });
 }
 /* The last n months that have ended, oldest first, as Stats reads them (statsMonthRows: realisation over the weighed lines,
    at each month's own live cost), with the invoices counted. */
@@ -306,55 +316,66 @@ function renderHomeWidgets() {
   if (homeWidgetSeen('attendance')) renderAttHomeCard(); else homeWidgetBlank(['homeAttCard']);
   updateStockBadge();
   if (homeWidgetSeen('sync')) ghRenderCard(); else homeWidgetBlank(['homeSyncCard']);
+  renderHomeUnbilledCard();
+  renderHomeRecentCard();
+  // Laid out once every card is drawn: the packed grid measures their heights (§6.25).
   homeApplyLayout();
-
-  var unbilledEl = document.getElementById('homeUnbilledCard');
-  if (unbilledEl && !homeWidgetSeen('unbilled')) unbilledEl.innerHTML = '';
-  else if (unbilledEl) {
-    var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null;
-    (S.incomingMaterial || []).forEach(function(im) {
-      var hasPending = false;
-      im.items.forEach(function(it) {
-        if (!it.invoiced) { hasPending = true; pendingAmount += imLineOpen(it).amount; pendingItemCount++; }
-      });
-      if (hasPending) pendingChallans++;
-      if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
+}
+/* Unbilled material as a hero: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline codes its
+   first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
+function renderHomeUnbilledCard() {
+  var el = document.getElementById('homeUnbilledCard');
+  if (!el) return;
+  if (!homeWidgetSeen('unbilled')) { el.innerHTML = ''; return; }
+  var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null, oldest = null;
+  (S.incomingMaterial || []).forEach(function(im) {
+    var hasPending = false;
+    im.items.forEach(function(it) {
+      if (!it.invoiced) { hasPending = true; pendingAmount += imLineOpen(it).amount; pendingItemCount++; }
     });
-    if (pendingChallans > 0 || latestChallan) {
-      var ub = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Unbilled material</span>' +
-        '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageIM">View challans</button></div>';
-      if (pendingChallans > 0) {
-        ub += '<div class="inv-tiles inv-tiles-flush">' +
-          '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
-          '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
-          '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(pendingAmount)) + '</div>' +
-          '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
-      } else {
-        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
-      }
-      if (latestChallan) {
-        ub += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
-          '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
-          escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
-      }
-      unbilledEl.innerHTML = ub + '</div>';
-    } else {
-      unbilledEl.innerHTML = '';
-    }
+    if (hasPending) { pendingChallans++; if (im.challanDate && (!oldest || im.challanDate < oldest)) oldest = im.challanDate; }
+    if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
+  });
+  if (!pendingChallans && !latestChallan) { el.innerHTML = ''; return; }
+  var age = oldest ? isoDaysBetween(oldest, localDateStr()) : 0, amberD = todoCfg().challanDays;
+  var tone = !pendingChallans ? 'ok' : age >= amberD * 2 ? 'danger' : age >= amberD ? 'warning' : '';
+  var body = '';
+  if (pendingChallans > 0) {
+    body += '<div class="inv-tiles inv-tiles-flush">' +
+      '<div class="inv-tile"><div class="inv-tile-label">Pending challans</div><div class="inv-tile-value">' + pendingChallans + '</div>' +
+      '<div class="inv-tile-sub">' + pendingItemCount + ' item' + (pendingItemCount === 1 ? '' : 's') + ' awaiting invoicing</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Pending amount</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(pendingAmount)) + '</div>' +
+      '<div class="inv-tile-sub">at the challans&rsquo; rates</div></div></div>';
+  } else {
+    body += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-ok">All items invoiced</span></span></div>';
   }
-
-  const el = document.getElementById('recentInvoices');
-  if (!homeWidgetSeen('recent')) { el.innerHTML = ''; return; }
-  const recent = homeRecentInvoices(10);
-  if (recent.length === 0) {
-    el.innerHTML = '<div class="inv-empty">' +
-      '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
-      '<div>No invoices yet</div>' +
-      '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
-      '</div>';
-    return;
+  if (latestChallan) {
+    body += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Latest</span>' +
+      '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
+      escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
   }
-  el.innerHTML = recent.map(homeRecentRowHtml).join('');
+  el.innerHTML = uiHeroHtml({ tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
+    title: pendingChallans ? escHtml(todoPlural(pendingChallans, 'challan') + ' to invoice') : 'Everything received is invoiced',
+    fig: pendingChallans ? figWrapHtml(escHtml(formatCurrency(pendingAmount))) : '',
+    sub: pendingChallans && oldest ? escHtml('The oldest from ' + formatDate(oldest) + (age > 0 ? ', ' + todoPlural(age, 'day') + ' ago' : ', today')) : '',
+    fold: 'pulse-unbilled', open: true, attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' });
+}
+/* The recent invoices as a hero, as Needs you draws them (tdyRecentHtml), ten of them: the latest and its figure, opening to
+   the rows with their print buttons. With none yet, the way to the first. */
+function renderHomeRecentCard() {
+  var host = document.getElementById('homeRecentCard');
+  if (!host) return;
+  if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
+  var recent = homeRecentInvoices(10);
+  var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
+    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+    '<div>No invoices yet</div>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
+    '</div>';
+  host.innerHTML = uiHeroHtml(Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
+    fold: 'pulse-recent', open: true, attrs: ' data-card="recent-pulse"',
+    body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' }));
 }
 /* The invoices made last, newest first. */
 function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
@@ -488,30 +509,31 @@ function homeShowToggle(el) {
   homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
 }
 
-/* The three widgets Home had no card for. Each is drawn only while shown, to a role that sees it (homeWidgetSeen), and says
-   nothing rather than a zero. */
+/* The three widgets Home had no card for, as heroes. Each is drawn only while shown, to a role that sees it (homeWidgetSeen),
+   and says nothing rather than a zero. */
 function renderHomeExtraCards() {
   var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
-  var head = function(title, go, label) { return '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="' + go + '">' + label + '</button></div>'; };
+  var open = function(go) { return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="' + go + '">Open</button>'; };
   // Production: the last day with plating on record, by line.
   if (!l.hidden.production && homeWidgetSeen('production')) {
     var h = '';
     try {
       var last = null;
       prodIndex().counted.forEach(function(e) { if (!last || e.date > last) last = e.date; });
-      h = head('Production', 'pageProduction', 'Open');
-      if (!last) h += '<div class="inv-empty">No plating on record yet.</div>';
-      else {
-        h += '<div class="inv-row-group"><span>' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span></div>';
-        PROD_LINES.forEach(function(ln) {
-          var r = prodDayLine(last, ln);
-          if (!r.entries.length) return;
-          h += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
-            (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
-        });
-      }
-      h += '</div>';
+      var rows = '', kg = 0, nos = 0, lines = 0;
+      if (last) PROD_LINES.forEach(function(ln) {
+        var r = prodDayLine(last, ln);
+        if (!r.entries.length) return;
+        lines++; kg += r.kg; nos += r.nos;
+        rows += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
+          (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
+      });
+      var lag = last ? isoDaysBetween(last, localDateStr()) : null;
+      h = uiHeroHtml({ tone: last == null ? 'neutral' : lag > 2 ? 'warning' : '', eyebrow: '<span>Production</span>' + (last ? '<span class="inv-panel-count">' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span>' : ''),
+        title: last ? escHtml('Plated on ' + todoPlural(lines, 'line')) : 'No plating on record yet',
+        fig: last && kg > 0 ? escHtml(cpNum(kg) + ' kg') : last && nos > 0 ? escHtml(cpNum(nos) + ' NOS') : '',
+        sub: last ? escHtml(lag === 0 ? 'The last day on record is today' : 'The last day on record, ' + todoPlural(lag, 'day') + ' ago') : '',
+        fold: 'pulse-production', open: true, attrs: ' data-card="production"', body: last ? '<div class="inv-hero-sheet">' + rows + '</div>' : null, foot: open('pageProduction') });
     } catch (e) { h = ''; }
     set('homeProdCard', h);
   } else set('homeProdCard', '');
@@ -521,10 +543,16 @@ function renderHomeExtraCards() {
     try {
       var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
       var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
-      ph = head('Power cuts', 'pagePower', 'Open') + '<div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
-        '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
-        '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
-        '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>';
+      var openCuts = cuts.filter(function(c) { return c.open; }).length;
+      ph = uiHeroHtml({ tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
+        title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
+        fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
+        fold: 'pulse-power', open: true, attrs: ' data-card="power"',
+        body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
+          '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
+          '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
+          '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>',
+        foot: open('pagePower') });
     } catch (e) { ph = ''; }
     set('homePowerCard', ph);
   } else set('homePowerCard', '');
@@ -532,11 +560,17 @@ function renderHomeExtraCards() {
   if (!l.hidden.stock && homeWidgetSeen('stock')) {
     var sh = '';
     try {
-      var rows = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
+      var low = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
         .filter(function(x) { return x.s.tone === 'red' || x.s.tone === 'amber'; }).sort(function(a, b) { return (a.s.daysLeft == null ? -1 : a.s.daysLeft) - (b.s.daysLeft == null ? -1 : b.s.daysLeft); });
-      sh = head('Stock running low', 'pageStock', 'Open') + (rows.length ? rows.slice(0, 5).map(function(x) {
-        return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
-      }).join('') + (rows.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (rows.length - 5) + ' more</span></div>' : '') : '<div class="inv-empty">No line is running low.</div>') + '</div>';
+      var red = low.filter(function(x) { return x.s.tone === 'red'; }).length;
+      sh = uiHeroHtml({ tone: red ? 'danger' : low.length ? 'warning' : 'ok', eyebrow: '<span>Stock running low</span>' + (low.length ? '<span class="inv-panel-count">' + low.length + '</span>' : ''),
+        title: low.length ? escHtml(todoPlural(low.length, 'line') + ' running low') : 'No line is running low',
+        sub: low.length ? escHtml(low.slice(0, 3).map(function(x) { return x.i.name; }).join(' · ') + (low.length > 3 ? ' · and ' + (low.length - 3) + ' more' : '')) : '',
+        fold: 'pulse-stock', open: true, attrs: ' data-card="stock-low"',
+        body: low.length ? '<div class="inv-hero-sheet">' + low.slice(0, 5).map(function(x) {
+          return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
+        }).join('') + (low.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (low.length - 5) + ' more</span></div>' : '') + '</div>' : null,
+        foot: open('pageStock') });
     } catch (e) { sh = ''; }
     set('homeStockCard', sh);
   } else set('homeStockCard', '');

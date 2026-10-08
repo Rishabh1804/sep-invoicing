@@ -659,33 +659,48 @@ function todoMineRowHtml(t) {
     (end ? '<span class="inv-row-end inv-row-stack">' + end + '</span>' : '') + '</div>';
 }
 
-/* Home: the top three, both kinds, labelled. */
+/* Pulse: the To-do as a hero, grouped as Needs you groups it (Now, this week, to know: today.js tdyGroupOf), coded by its worst
+   task, with the top three as rows, both kinds labelled. */
 function renderTodoHomeCard() {
   var el = document.getElementById('homeTodoCard');
   if (!el) return;
   if (typeof grdHeld === 'function' && grdHeld()) return;
-  var ranked = todoRanked();
-  var h = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">To-do' +
-    (ranked.length ? ' <span class="inv-panel-count">' + ranked.length + '</span>' : '') + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button></div>';
-  if (!ranked.length) h += '<div class="inv-empty">Nothing due</div>';
+  var ranked = todoRanked(), groups = { now: 0, week: 0, later: 0 }, worth = 0;
+  ranked.forEach(function(r) {
+    var g = typeof tdyGroupOf === 'function' ? tdyGroupOf(r) : r.tone === 'red' ? 'now' : r.tone === 'amber' ? 'week' : 'later';
+    groups[g]++;
+    if (g === 'now' && r.app && r.app.worth > 0) worth += r.app.worth;
+  });
+  var rows = '';
+  if (!ranked.length) rows = '<div class="inv-empty">Nothing due</div>';
   ranked.slice(0, 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
-      h += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
+      rows += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
         // The tone travels with a symbol, never colour alone (DR-1): the To-do screen's own ! / i glyph.
         '<span class="inv-row-lead">' + todoGlyph(r.app.tone) + '</span>' +
-        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta">' + escHtml(r.app.sub) + '</span></span>' +
+        // The task's figures in full: a fold names its three largest (owed over 90 days by three clients), which cut at two lines.
+        '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.app.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(r.app.sub) + '</span></span>' +
         '<span class="inv-row-end"><span class="inv-badge">App</span></span></button>';
     } else {
       var t = r.mine;
-      h += '<div class="inv-row inv-row-2" data-todo="mine"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
+      rows += '<div class="inv-row inv-row-2" data-todo="mine"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
         '<button class="inv-row-main" data-action="invTodoEdit" data-id="' + escHtml(t.id) + '"><span class="inv-row-title">' + escHtml(t.text) + '</span>' +
         (t.due ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-' + tone + '">' + escHtml(todoDueLabel(t.due)) + '</span></span>' : '') + '</button>' +
         '<span class="inv-row-end"><span class="inv-badge">Mine</span></span></div>';
     }
   });
-  el.innerHTML = h + '</div>';
+  var red = ranked.some(function(r) { return r.tone === 'red'; }), amber = ranked.some(function(r) { return r.tone === 'amber'; });
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var meter = ranked.length ? chartMeter([{ v: groups.now, tone: 'danger' }, { v: groups.week, tone: 'warning' }, { v: groups.later, tone: 'info' }],
+    { title: groups.now + ' now · ' + groups.week + ' this week · ' + groups.later + ' later' }) : '';
+  el.innerHTML = uiHeroHtml({ tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
+    eyebrow: '<span>To-do</span>' + (ranked.length ? '<span class="inv-panel-count">' + ranked.length + '</span>' : ''),
+    title: escHtml(!ranked.length ? 'Nothing due' : groups.now ? todoPlural(groups.now, 'thing needs', 'things need') + ' you now' : todoPlural(ranked.length, 'task') + ' open, none urgent'),
+    fig: money && worth > 0.005 ? figWrapHtml(escHtml(formatCurrency(gstRound(worth)))) : '',
+    sub: escHtml([groups.week ? groups.week + ' this week' : '', groups.later ? groups.later + ' to know' : ''].filter(Boolean).join(' · ')),
+    viz: meter, fold: 'pulse-todo', open: true, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' });
 }
 
 function todoRefreshViews() {

@@ -33,10 +33,14 @@ function state(): SepState {
 test('Needs you is cards: the day’s inputs a hero of steps with a meter, the tasks heroes of cards coded by when they want doing', async ({ page }) => {
   await loadAppWithState(page, state());
   const inputs = page.locator('#homeNeeds [data-card="inputs"]');
-  // Open while an input is still to come; its meter says how many are in.
-  await expect(inputs).toHaveJSProperty('open', true);
+  // On the phone, shut while a red task waits, so the red tasks lead (the survey of 8 Oct 2026): its head still says how many are
+  // in, with a meter. A tap opens the day as steps.
+  await expect(inputs).toHaveJSProperty('open', false);
   await expect(inputs.locator('.inv-hero-viz svg.inv-meter')).toHaveCount(1);
+  await expect(inputs.locator('[data-tdy-in]')).toContainText('of 5 in');
+  await inputs.locator(':scope > summary').click();
   await expect(inputs.locator('.inv-step[data-tdy-input]')).toHaveCount(5);
+  await expect(inputs.locator('.inv-step[data-tdy-input]').first()).toBeVisible();
   await expect(inputs.locator('.inv-step[data-tdy-input="roll-in"]')).toHaveAttribute('data-state', 'in');
   // Now: red, open, a card per task with its move at the card's foot.
   const now = page.locator('[data-tdy-group="now"]');
@@ -66,24 +70,26 @@ test('with nothing to do, Now says so in the tone that all is well, and nothing 
   await expect(now).toHaveClass(/inv-hero-ok/);
   await expect(now).toContainText('Nothing needs you now');
   await expect(now.locator('.inv-hero-body')).toHaveCount(0);
+  // With no red task waiting, the day's inputs open while one is still to come.
+  await expect(page.locator('#homeNeeds [data-card="inputs"]')).toHaveJSProperty('open', true);
 });
 
-test('every hero is filled in its status tone’s gradient, drawn from the theme’s tokens and switched with it', async ({ page }) => {
+test('every hero is filled in its status tone’s gradient, mixed from the theme’s tokens and switched with it', async ({ page }) => {
   await loadAppWithState(page, state());
+  // A hero names its tone (--tone, --tone-bg, §3.3 Fills) and its fill is mixed from them on the card itself.
   const read = () => g(page, `(function () {
     var box = document.createElement('div'); box.id = 'p178';
     box.innerHTML = ['danger', 'warning', 'ok', 'info', 'neutral', ''].map(function (t) { return uiHeroHtml({ tone: t, eyebrow: t || 'accent', title: 'A' }); }).join('');
     document.body.appendChild(box);
     var out = Array.prototype.map.call(box.children, function (el) { return getComputedStyle(el).backgroundImage; });
-    var tok = ['danger', 'warning', 'ok', 'info', 'neutral', 'accent'].map(function (t) { return getComputedStyle(document.documentElement).getPropertyValue('--grad-' + t).trim(); });
     box.remove();
-    return { bg: out, tok: tok };
+    return { bg: out };
   })()`);
   const light: any = await read();
-  for (const t of light.tok) expect(t).toMatch(/^linear-gradient\(/);
   for (const b of light.bg) expect(b).toMatch(/^linear-gradient\(/);
-  // Six tones, six fills: the colour says the status.
+  // Six tones, six fills: the colour says the status. No stop is the plain surface: the fill stays in its tone (HR-9).
   expect(new Set(light.bg).size).toBe(6);
+  for (const b of light.bg) expect(b).not.toMatch(/rgb\(236, 244, 245\)/);
   await page.emulateMedia({ colorScheme: 'dark' });
   const dark: any = await read();
   for (let i = 0; i < 6; i++) expect(dark.bg[i]).not.toBe(light.bg[i]);

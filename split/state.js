@@ -866,7 +866,7 @@ function uiFoldCard(key, card, dflt) {
 /* A hero card (§6.21): a <details> that folds open to its body, or a plain card where it has none. `o`: tone (a status tone
    word, else the theme's gradient), eyebrow / title / fig / sub / viz / body (HTML: the caller escapes what came from the
    user), open (its default), fold (the key its open or shut is remembered under on the device; none, it opens as drawn),
-   vital (a question tile: one column, the figure first), attrs (more attributes). */
+   vital (a question tile: one column, the figure first), foot (its own links and buttons, HTML), attrs (more attributes). */
 function uiHeroHtml(o) {
   var tone = o.tone && /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? ' inv-hero-' + o.tone : '';
   var cls = 'inv-hero' + tone + (o.vital ? ' inv-hero-vital' : '') + (o.cls ? ' ' + o.cls : '');
@@ -874,10 +874,12 @@ function uiHeroHtml(o) {
     (o.vital ? (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '') + (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '')
       : (o.title ? '<span class="inv-hero-title">' + o.title + '</span>' : '') + (o.fig ? '<span class="inv-hero-fig">' + o.fig + '</span>' : '')) +
     (o.sub ? '<span class="inv-hero-sub">' + o.sub + '</span>' : '') + (o.viz ? '<span class="inv-hero-viz">' + o.viz + '</span>' : '');
-  if (o.body == null) return '<div class="' + cls + '"' + (o.attrs || '') + '><div class="inv-hero-head">' + head + '</div></div>';
+  // A hero's own links and buttons (`foot`): under its head, or under its body where it folds (shut, the head says enough).
+  var foot = o.foot ? '<div class="inv-hero-foot">' + o.foot + '</div>' : '';
+  if (o.body == null) return '<div class="' + cls + '"' + (o.attrs || '') + '><div class="inv-hero-head">' + head + '</div>' + foot + '</div>';
   var open = o.fold ? uiFoldOpen(o.fold, o.open) : !!o.open;
   return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
-    '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div></details>';
+    '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div>' + foot + '</details>';
 }
 /* A grid packed with no gaps (§6.25): each child spans as many of the grid's small rows as its own height takes. Only where
    the grid has two columns or more; packed again whenever a child changes height (a fold opened, a chart drawn). */
@@ -1420,6 +1422,13 @@ function figHtml(html, tone) { return tone ? '<span class="inv-fig-' + tone + '"
 /* A change against the period before in words (§5.4), "+12.3% on Aug", coloured by whether it moved the good way:
    better 'up' (revenue, tonnage, realisation) or 'down' (cost, days to pay); null leaves it uncoloured (a count).
    Level within FIG_FLAT_PCT; the wrong way is warning up to FIG_BAD_PCT and danger past it. Against nothing it says so. */
+/* The tone figDeltaHtml colours a change in: null where it says no figure or level, or where up and down are neither. */
+function figDeltaTone(cur, prev, better) {
+  if (!better || prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return null;
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(pct) <= FIG_FLAT_PCT) return null;
+  return (better === 'up' ? pct > 0 : pct < 0) ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger';
+}
 function figDeltaHtml(cur, prev, label, better) {
   if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return 'no figure for ' + escHtml(label);
   var pct = ((cur - prev) / Math.abs(prev)) * 100;

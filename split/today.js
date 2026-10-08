@@ -171,7 +171,8 @@ function tdyStepMeta(r) {
 }
 /* The day's inputs (§6.21, §6.23): a hero that says how many are in and what comes next, opening to the day as a rail of
    steps, each with the one tap that brings it in. Open while anything is still to come; shut once all are in. */
-function tdyInputsHtml(day) {
+function tdyInputsHtml(day, o) {
+  o = o || {};
   var defs = tdyInputsSeen();
   // A role that takes none of the floor's inputs (the office) has no card of them.
   if (!defs.length) return '';
@@ -202,7 +203,9 @@ function tdyInputsHtml(day) {
   var sub = done === rows.length ? 'Everything the floor sends is in' : next ? (TDY_INPUT_SHORT[next.k] || next.title) + ' ' + (next.state === 'late' ? 'is late, ' + tdyStepMeta(next).replace(/^Late · /, '') : tdyStepMeta(next).toLowerCase()) : '';
   return uiHeroHtml({ tone: late.length ? 'warning' : done === rows.length ? 'ok' : '', eyebrow: '<span>The day’s inputs</span><span class="inv-panel-count">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>',
     title: '<span data-tdy-in>' + (n === rows.length ? 'All ' + n + ' in' : n + ' of ' + rows.length + ' in') + '</span>',
-    fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length,
+    // Open while something is still to come, except on the phone while a red task waits: the head says what is late, and the
+    // red tasks under it are what needs the owner first (the survey of 8 Oct 2026).
+    fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length && !o.shut,
     body: '<div class="inv-hero-sheet"><div class="inv-panel-body inv-steps" data-tdy-steps>' + steps + '</div>' + wa +
       (shop ? '<div class="inv-panel-body inv-note">A time with no four weeks of record behind it is the shop’s usual one.</div>' : '') + '</div>',
     attrs: ' data-card="inputs"' });
@@ -235,7 +238,8 @@ function tdyFloorHtml(day) {
     var st = flrStaffing(day, ln, byArea, att.marked), r = prodDayLine(day, ln.id), last = flrLatest(r.entries);
     if (st.tone === 'warning') worst = 'warning';
     var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '&mdash;';
-    return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
+    // The tile is coded by its staffing (§6.26), the word under its figure saying which.
+    return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor" data-tone="' + escHtml(st.tone || 'neutral') + '"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + fig + '</div><div class="inv-tile-sub">' + uiDot(st.tone, escHtml(st.word)) + '</div>' +
       '<div class="inv-tile-sub">' + escHtml(last ? prodEntryTitle(last) : 'No record yet today') + '</div></button>';
   });
@@ -318,8 +322,9 @@ function tdyTasks() { return todoRanked(); }
 /* The tasks as three hero cards (§6.21): Now (red, and your own due), This week and Later, each coded in its tone and
    opening to its deck. Now opens by itself; This week opens where Now is empty; Later stays shut until opened. */
 var TDY_GROUP_TONE = { now: 'danger', week: 'warning', later: 'info' };
-function tdyTasksHtml() {
-  var rows = tdyTasks(), groups = { now: [], week: [], later: [] };
+function tdyTasksHtml(rows) {
+  rows = rows || tdyTasks();
+  var groups = { now: [], week: [], later: [] };
   if (typeof learnSeen === 'function') learnSeen(rows.filter(function(r) { return r.app; }).map(function(r) { return r.app; }));
   rows.forEach(function(r) { groups[tdyGroupOf(r)].push(r); });
   var money = tdySeesMoney();
@@ -328,6 +333,8 @@ function tdyTasksHtml() {
   var deck = function(g, list) { return uiMoreDeckHtml('tdy-' + g, list.map(card), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' }); };
   var titles = function(list) { return list.slice(0, 3).map(function(r) { return r.app ? r.app.title : r.mine.text; }).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : ''); };
   var counts = function(list, g) { return '<span>' + TDY_GROUPS.filter(function(x) { return x[0] === g; })[0][1] + '</span><span class="inv-panel-count" data-tdy-count>' + list.length + '</span>'; };
+  // A group's figure is the rupees its tasks name, said as such: unlabelled, it read as a total owed (the survey of 8 Oct 2026).
+  var stake = function(w) { return money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) + '<span class="inv-tile-of"> at stake</span>' : ''; };
   var h = '';
   var now = groups.now, wN = worth(now);
   var meter = rows.length ? chartMeter([{ v: groups.now.length, tone: 'danger' }, { v: groups.week.length, tone: 'warning' }, { v: groups.later.length, tone: 'info' }],
@@ -335,14 +342,14 @@ function tdyTasksHtml() {
   var rest = [groups.week.length ? groups.week.length + ' this week' : '', groups.later.length ? groups.later.length + ' to know' : ''].filter(Boolean).join(' · ');
   h += uiHeroHtml({ tone: now.length ? (now.some(function(r) { return r.tone === 'red'; }) ? 'danger' : 'warning') : 'ok',
     eyebrow: counts(now, 'now'), title: now.length ? escHtml(todoPlural(now.length, 'thing needs', 'things need') + ' you now') : 'Nothing needs you now',
-    fig: money && wN > 0 ? figWrapHtml(escHtml(formatCurrency(wN))) : '', sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
+    fig: stake(wN), sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
     viz: meter, open: true, body: now.length ? deck('now', now) : null, attrs: ' data-tdy-group="now"' });
   [['week', groups.week], ['later', groups.later]].forEach(function(p) {
     var g = p[0], list = p[1];
     if (!list.length) return;
     var w = worth(list);
     h += uiHeroHtml({ tone: TDY_GROUP_TONE[g], eyebrow: counts(list, g), title: escHtml(g === 'week' ? todoPlural(list.length, 'task') + ' for this week' : todoPlural(list.length, 'thing') + ' to know'),
-      fig: money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) : '', sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
+      fig: stake(w), sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
       body: deck(g, list), attrs: ' data-tdy-group="' + g + '"' });
   });
   return '<div class="inv-hero-stack" data-card="tasks">' + h + '</div>';
@@ -356,8 +363,9 @@ function renderNeeds() {
   if (!el) return;
   // Nothing a role decides is drawn while nobody is signed in (guard.js grdHeld): the unlock draws it.
   if (typeof grdHeld === 'function' && grdHeld()) return;
-  var day = localDateStr();
-  var inputs = tdyInputsHtml(day), tasks = tdyTasksHtml(), recent = tdyRecentHtml();
+  var day = localDateStr(), rows = tdyTasks();
+  var tasks = tdyTasksHtml(rows), recent = tdyRecentHtml();
+  var inputs = tdyInputsHtml(day, { shut: !_isDesktop && rows.some(function(r) { return r.tone === 'red'; }) });
   if (_isDesktop) {
     var floor = tdySees('pageFloor') ? tdyFloorHtml(day) : '';
     el.innerHTML = '<div class="inv-panels inv-panels-3" data-tdy-grid>' + tasks.replace('class="inv-hero-stack"', 'class="inv-hero-stack inv-panels-wide"') + inputs + floor + recent + '</div>';
@@ -372,13 +380,20 @@ function tdyRecentHtml() {
   if (!tdySees('pageRegister')) return '';
   var list = homeRecentInvoices(TDY_RECENT);
   if (!list.length) return '';
-  var last = list[0];
-  return uiHeroHtml({ eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
-    title: '<span class="inv-id">' + escHtml(last.displayNumber) + '</span>', fig: figWrapHtml(escHtml(formatCurrency(last.grandTotal))),
-    sub: escHtml([formatDate(last.date), last.clientName].filter(Boolean).join(' · ')), fold: 'tdy-recent', open: true,
+  return uiHeroHtml(Object.assign(tdyRecentHead(list), { fold: 'tdy-recent', open: true,
     body: '<div class="inv-hero-sheet">' + list.map(homeRecentRowHtml).join('') +
       '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div></div>',
-    attrs: ' data-card="recent"' });
+    attrs: ' data-card="recent"' }));
+}
+/* The head of a card of recent invoices: what was made today and its total, else when the last was made. The rows under it name
+   each invoice, the newest first, so the head does not name the newest again (the survey of 8 Oct 2026). */
+function tdyRecentHead(list) {
+  // Every invoice dated today, not only those listed: the card lists five, and a day can make more.
+  var today = localDateStr(), made = (S.invoices || []).filter(function(i) { return i.date === today && i.status !== 'cancelled'; });
+  var sum = gstRound(made.reduce(function(t, i) { return t + (i.grandTotal || 0); }, 0)), last = list[0];
+  return { eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
+    title: escHtml(made.length ? todoPlural(made.length, 'invoice') + ' made today' : last ? 'The last made ' + formatDate(last.date) : 'No invoices yet'),
+    fig: made.length && tdySeesMoney() ? figWrapHtml(escHtml(formatCurrency(sum))) : '' };
 }
 /* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
    figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
@@ -392,9 +407,9 @@ function renderPulseQuestions() {
   var qs = [];
   try { qs = advQuestions(per); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Insights</button></div>' +
+    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Stats</button></div>' +
     (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
-      : '<div class="inv-empty">The questions could not be worked out: Insights → Stats has the figures.</div>');
+      : '<div class="inv-empty">The questions could not be worked out: Office → Stats has the figures.</div>');
 }
 function tdyQuestionHtml(x) {
   var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };

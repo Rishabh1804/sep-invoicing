@@ -59,24 +59,24 @@ function zincAgeDays() {
   return Math.max(0, isoDaysBetween(isoOf(new Date(z.updatedAt)), localDateStr()));
 }
 
+/* Pulse's Zinc as a hero: the landed rate a kg, the market's last refreshes as a line (S.zinc.lmeHistory, landed at the uplift
+   and premium set now, as the price trend draws it), coded warning once the rate is out of date; the derivation under it. */
 function renderZincCard() {
   var el = document.getElementById('homeZincCard');
   if (!el) return;
   var z = getZinc();
   var landed = zincLandedRate();
-  var head = '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Zinc</span>';
+  var refresh = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>';
 
   if (landed == null) {
     // Adding the key does not fetch anything by itself, so the empty state has
     // to carry the Refresh button too. Without it, setting a key left the card
     // still asking for a key and no way to act on it.
     var hasKey = !!getMetalsKey();
-    el.innerHTML = head + (hasKey ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>' : '') + '</div>' +
-      '<div class="inv-empty">' +
-      (hasKey
-        ? 'No rate recorded yet. Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
-        : 'No rate recorded. Set it in Settings, or add a metals.dev API key there to pull it from the market.') +
-      '</div></div>';
+    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Zinc</span>', title: 'No rate recorded',
+      sub: hasKey ? 'Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
+        : 'Set it in Settings, or add a metals.dev API key there to pull it from the market.',
+      attrs: ' data-card="zinc"', foot: hasKey ? refresh : '' });
     return;
   }
 
@@ -85,9 +85,12 @@ function renderZincCard() {
   var ageText = age == null ? 'never updated'
     : age === 0 ? 'updated today'
     : 'updated ' + age + ' day' + (age !== 1 ? 's' : '') + ' ago';
+  // The market's last 30 refreshes, landed as a bill is priced (zinc.js zincTrend's rule), oldest first.
+  var hist = z.lmeHistory || {}, days = Object.keys(hist).sort().slice(-30), up = z.upliftPct || 0, prem = z.premiumPerKg || 0;
+  var line = days.length >= 3 ? chartSpark(days.map(function(d) { return gstRound(hist[d] * (1 + up / 100) + prem); }), { labels: days.map(function(d) { return formatDate(d); }), unit: 'rate', dot: true,
+    title: 'Landed zinc at each refresh: ' + days.slice(-6).map(function(d) { return formatDate(d) + ' ' + formatCurrency(gstRound(hist[d] * (1 + up / 100) + prem)); }).join(' · ') }) : '';
 
-  el.innerHTML = head + '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button></div>' +
-    '<div class="inv-tiles inv-tiles-flush">' +
+  var body = '<div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile"><div class="inv-tile-label">Landed per kg</div><div class="inv-tile-value">' + figWrapHtml(formatCurrency(landed)) + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">' + (z.basis === 'lme' ? 'MCX est. + premium' : 'MCX + premium') + '</div>' +
     '<div class="inv-tile-value inv-tile-value-sm">' + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + '</div></div></div>' +
@@ -99,7 +102,10 @@ function renderZincCard() {
         ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' + formatCurrency(zincMcxRate()) + '</span>'
       : '') +
     '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
-    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div></div>';
+    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div>';
+  el.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : '', eyebrow: '<span>Zinc</span><span class="inv-panel-count">' + escHtml(ageText) + '</span>',
+    title: 'Landed a kg', fig: figWrapHtml(escHtml(formatCurrency(landed))), sub: escHtml((z.basis === 'lme' ? 'MCX est. ' : 'MCX ') + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + ' premium'),
+    viz: line, fold: 'pulse-zinc', open: true, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh });
 }
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the

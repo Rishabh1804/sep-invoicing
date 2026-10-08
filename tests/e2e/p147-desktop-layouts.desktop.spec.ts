@@ -116,14 +116,17 @@ async function columns(page: Page, sel: string) {
   return page.locator(sel).first().evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
 }
 // A strip of tiles in a grid panel ends flush with the strip: an odd last tile takes the row rather than leave a blank cell.
+// Measured to the strip's content edge: a strip in a flush panel keeps the panel's padding round its raised tiles (8 Oct 2026).
 async function blankCells(page: Page) {
   return page.evaluate(() => {
     const bad: string[] = [];
     document.querySelectorAll('.inv-page-active .inv-panels > * .inv-tiles').forEach(t => {
       const tiles = Array.from(t.children) as HTMLElement[];
       if (tiles.length < 2) return;
+      const cs = getComputedStyle(t as HTMLElement);
       const box = (t as HTMLElement).getBoundingClientRect(), last = tiles[tiles.length - 1].getBoundingClientRect();
-      if (last.top > tiles[0].getBoundingClientRect().top + 1 && box.right - last.right > 4) bad.push((t.closest('[data-card], [id], [data-home-w]') as HTMLElement | null)?.outerHTML.slice(0, 80) || '?');
+      const right = box.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
+      if (last.top > tiles[0].getBoundingClientRect().top + 1 && right - last.right > 4) bad.push((t.closest('[data-card], [id], [data-home-w]') as HTMLElement | null)?.outerHTML.slice(0, 80) || '?');
     });
     return bad;
   });

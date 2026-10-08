@@ -31,10 +31,10 @@ async function load(page: Page, extra: Partial<SepState> = {}) {
 test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
   test("the To-do is Today's: its late task counts on Today's head, and it works on the desktop", async ({ page }) => {
     await load(page, { todo: { tasks: [{ id: 'TD-a', text: 'Late one', due: iso(-1), note: '', link: null, createdAt: 1, doneAt: null }], snoozes: {} } } as any);
-    await expect(page.locator('.inv-side-item[data-ws="today"] .inv-side-count')).toHaveText('1');
+    await expect(page.locator('.inv-side-item[data-ws="today"] [data-ws-count]')).toHaveText('1');
     await expect(page.locator('.inv-navbar')).toBeHidden();
     await switchTab(page, 'pageTodo');
-    // A page Today holds without an entry of its own marks Today's head.
+    // A page Today holds without a tab of its own marks Today's door.
     await expect(page.locator('.inv-side-item[data-ws="today"]')).toHaveClass(/inv-side-item-on/);
     await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
@@ -68,7 +68,8 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await load(page, { staff: STAFF, attendance: {} } as any);
     await openPulse(page);
     await page.locator('[data-action="invHomeQuick"][data-go="paste"]').click();
-    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]:not([data-sub])')).toHaveClass(/inv-side-item-on/);
+    await expect(page.locator('#wsTabs [data-tab="pageStaff"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('.inv-side-item[data-ws="floor"]')).toHaveClass(/inv-side-item-on/);
     await page.locator('#relayPasteText').fill(`${dmy(-1)}/ in time\n----6:00 AM---\n---VAT A 1---\n1) ARUN\nEXTRA 3 HOURS\n----8:30 AM---\n---VAT A 1---\n1) ARUN\n---berral---\n2) BALA`);
     await page.locator('[data-action="invRelayRead"]').click();
     await expect(page.locator('[data-relay-row]').filter({ hasText: 'Arun' })).toContainText('6 AM – 5 PM · 11 h · OT 3 h');

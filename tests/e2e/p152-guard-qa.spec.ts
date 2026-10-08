@@ -142,7 +142,7 @@ test.describe('P152: the guard, after its QA', () => {
     await withUsers(page);
     // At the start nobody is signed in: Today waits for the unlock, and the bar counts nothing.
     expect(await ev(page, "document.getElementById('homeNeeds').innerHTML")).toBe('');
-    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0, insights: 0 }));
+    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0 }));
     await unlock(page, 'U-sup', PINS.super);
     await expect(page.locator('#homeNeeds [data-card="tasks"]')).toBeVisible();
     await expect(page.locator('#homeNeeds [data-tdy-task^="challan:"]')).toHaveCount(0);
@@ -349,7 +349,7 @@ test.describe('P152: the guard, after its QA', () => {
     await g(page, "todoOpenApp('supplierNoBill:x')");
     await expect(page.locator('[data-todo-facts]')).toHaveCount(0);
     // The bar counts only what the role sees: nothing red here.
-    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0, insights: 0 }));
+    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0 }));
     // The link picker: a stock line, nothing else; no invoice, challan or client is listed.
     await page.locator('[data-action="invTodoNew"]').click();
     expect(await ev(page, `Array.prototype.map.call(document.querySelectorAll('#todoLinkKind option'), function (o) { return o.value; })`)).toEqual(['', 'stock']);

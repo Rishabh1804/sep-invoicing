@@ -1108,10 +1108,19 @@ document.addEventListener('keydown', function(e) {
   }
 });
 
-/* Blur on part input dismisses autocomplete (with delay for click) */
+/* A part field left closes its own suggestion list a moment later, so a tap on one of its options lands first. Only its own:
+   closing every list hid a client search opened inside the moment on another screen, under the cursor (P181). */
 document.addEventListener('focusout', function(e) {
-  if (e.target.dataset && (e.target.dataset.action === 'invEditLinePart' || e.target.dataset.action === 'invEditChallanPart')) {
-    setTimeout(dismissAllAutocomplete, 200);
-  }
+  var t = e.target;
+  if (!(t.dataset && (t.dataset.action === 'invEditLinePart' || t.dataset.action === 'invEditChallanPart'))) return;
+  var combo = t.closest('.inv-combo');
+  setTimeout(function() {
+    if (!combo || !combo.isConnected || combo.contains(document.activeElement)) return;
+    var list = combo.querySelector('.inv-menu');
+    if (!list || list.classList.contains('inv-hidden')) return;
+    list.classList.add('inv-hidden');
+    t.setAttribute('aria-expanded', 'false');
+    acReset();
+  }, 200);
 });
 

@@ -366,16 +366,18 @@ test.describe('P129: on the desktop', () => {
 
   test('Backspace goes back from the field the app focused on arrival, until something is typed in it (G7-7)', async ({ page }) => {
     await loadAppWithState(page, emptyState());
+    // From Challans to Invoices, one tab of Office's row: Backspace goes back to Challans (the step before).
+    await switchTab(page, 'pageIM');
     await switchTab(page, 'pageRegister');
     const search = page.locator('#regSearch');
     await expect(search).toBeFocused();
     await page.keyboard.press('Backspace');
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
     // History's search too.
     await switchTab(page, 'pageHistory');
     await expect(page.locator('#pageHistory .inv-search input')).toBeFocused();
     await page.keyboard.press('Backspace');
-    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
     // Typed in and emptied again: the field keeps its Backspace.
     await switchTab(page, 'pageRegister');
     await expect(search).toBeFocused();

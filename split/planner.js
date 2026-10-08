@@ -1,5 +1,5 @@
 /* ===== THE PLANNER — the plant, certification, staff, clients and a loan, simulated (docs/PLANNER.md) =====
-   Insights → Planner (owner, 6 Oct 2026). A scenario is a set of moves with their months; the engine builds each month from
+   Office → Planner (owner, 6 Oct 2026; under Insights until 8 Oct). A scenario is a set of moves with their months; the engine builds each month from
    the bottom up, so every figure adds up: each part's kilos go to its line, the line plates them in rounds within the hours it
    can run less the power cuts, fed by pickling; the month's kilos × each part's rate is the revenue; the cost lines follow the
    kilos, the hours and the hires; margin, the loan and the spend give the cash. A move changes an input, never a total.

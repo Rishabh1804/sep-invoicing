@@ -198,7 +198,15 @@ const HOOKS = ['inv-booted', 'inv-desktop', 'inv-tablet', 'inv-lines', 'inv-flip
   'inv-disk-summary', 'inv-save-status'];
 
 export type Stop = { where: string; v1: string[]; unstyled: string[]; selectAction: number; dupIds: string[]; blank: boolean; footNotLast: number; primaries: string[]; overflowX: number;
-  offscreen: string[]; smallTargets: string[]; cutFigures: string[]; brokenFigures: string[]; cutMeta: string[]; untitled: string[] };
+  offscreen: string[]; smallTargets: string[]; cutFigures: string[]; brokenFigures: string[]; cutMeta: string[]; untitled: string[]; white: string[] };
+
+/* HR-9 (owner, 8 Oct 2026: "we will be avoiding pure white everywhere in the app"): no fill on screen is lighter than OKLab
+   L 0.97, the ceiling the tinted surface sits under; paper is the one exception (a printed document and its preview, and a QR,
+   which a camera reads black on white). Every colour in an element's computed background, its gradient's stops included, is
+   read as OKLab lightness; a colour more than half transparent is the fill behind it showing through. A tick box or a radio the
+   browser draws paints its box white whatever its computed fill says, so every one on screen must be drawn by the app. */
+export const WHITE_CEIL = 0.97;
+export const PAPER = '.inv-print-body, .inv-rpt-doc, .inv-sr-doc, .inv-qt-doc, .inv-ps-sheet, .inv-idc-sheet, .inv-ck-sheet, .inv-as-page, .inv-qc-page, .inv-cn-doc, .inv-print-invoice, .inv-qr';
 
 /* Everything checked at one stop, read from the rendered DOM (the page and whatever dialog is open). */
 export async function sweep(page: Page, where: string): Promise<Stop> {
@@ -302,7 +310,41 @@ export async function sweep(page: Page, where: string): Promise<Stop> {
       }).map(el => el.tagName.toLowerCase() + '.' + (el as HTMLElement).className + ' "' + (el as HTMLElement).innerText.trim().slice(0, 50) + '"'),
     };
   }, [V1_PREFIX, V1_EXACT, HOOKS] as const);
-  return { where, ...r };
+  const white = await page.evaluate(([ceil, paper]) => {
+    const lin = (c: number) => c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4);
+    const okL = (r: number, g: number, b: number) => {
+      r = lin(r); g = lin(g); b = lin(b);
+      const l = Math.cbrt(0.4122214708 * r + 0.5363325363 * g + 0.0514459929 * b), m = Math.cbrt(0.2119034982 * r + 0.6806995451 * g + 0.1073969566 * b),
+        s = Math.cbrt(0.0883024619 * r + 0.2817188376 * g + 0.6299787005 * b);
+      return 0.2104542553 * l + 0.7936177850 * m - 0.0040720468 * s;
+    };
+    // Every colour a computed background names, as [lightness, alpha]: rgb()/rgba(), color(srgb …), oklab(), oklch(), lab(), lch().
+    const colours = (v: string) => {
+      const out: Array<[number, number]> = [], re = /(rgba?|color|oklab|oklch|lab|lch)\(([^()]*)\)/g;
+      for (let m = re.exec(v); m; m = re.exec(v)) {
+        const a = m[2].replace(/,/g, ' ').replace(/\//g, ' ').split(/\s+/).filter(Boolean);
+        const num = (x: string, scale = 1) => /%$/.test(x) ? parseFloat(x) / 100 * scale : parseFloat(x);
+        if (m[1] === 'rgb' || m[1] === 'rgba') out.push([okL(num(a[0], 255) / 255, num(a[1], 255) / 255, num(a[2], 255) / 255), a[3] != null ? num(a[3]) : 1]);
+        else if (m[1] === 'color' && a[0] === 'srgb') out.push([okL(num(a[1]), num(a[2]), num(a[3])), a[4] != null ? num(a[4]) : 1]);
+        else if (m[1] === 'oklab' || m[1] === 'oklch') out.push([num(a[0]), a[3] != null ? num(a[3]) : 1]);
+        else if (m[1] === 'lab' || m[1] === 'lch') out.push([num(a[0], 100) / 100, a[3] != null ? num(a[3]) : 1]);
+      }
+      return out;
+    };
+    const hits: string[] = [];
+    for (const el of Array.from(document.querySelectorAll('body *')) as HTMLElement[]) {
+      if (el.closest(paper as string) || !el.checkVisibility()) continue;
+      const b = el.getBoundingClientRect();
+      if (b.width < 1 || b.height < 1) continue;
+      const cs = getComputedStyle(el);
+      const tick = el.matches('input[type=checkbox], input[type=radio]') && cs.appearance !== 'none';
+      const light = colours(cs.backgroundColor).concat(colours(cs.backgroundImage)).filter(c => c[1] > 0.5 && c[0] > (ceil as number));
+      if (tick || light.length) hits.push(el.tagName.toLowerCase() + '.' + String(el.className).trim().split(/\s+/).slice(0, 3).join('.') +
+        (tick ? ' (the browser’s own tick box)' : ' L ' + Math.max(...light.map(c => c[0])).toFixed(3)));
+    }
+    return hits.slice(0, 20);
+  }, [WHITE_CEIL, PAPER] as const);
+  return { where, ...r, white };
 }
 
 export async function shot(page: Page, name: string) {
@@ -321,6 +363,13 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
     await switchTab(page, id);
     stops.push(await sweep(page, id));
     await shot(page, `${tag}-${id}`);
+    // Today's two views are the shell's tabs (#wsTabs), not the page's: Pulse is opened by its own (it was never swept).
+    if (id === 'pageHome') {
+      await page.locator('#wsTabs [data-v="pulse"]').click();
+      await page.locator('#homePulse:not(.inv-hidden)').waitFor();
+      stops.push(await sweep(page, 'pageHome › Pulse'));
+      await shot(page, `${tag}-pageHome-Pulse`);
+    }
     const tabs = page.locator(`#${id} .inv-viewtab:visible`);
     const n = await tabs.count();
     for (let i = 1; i < n; i++) {
@@ -478,7 +527,7 @@ export async function walkDialogs(page: Page, tag: string, stops: Stop[]) {
 export function problems(stops: Stop[], opts: { cutMeta?: boolean } = {}) {
   const meta = opts.cutMeta !== false;
   return stops.filter(s => s.v1.length || s.unstyled.length || s.selectAction || s.dupIds.length || s.blank || s.footNotLast || s.primaries.length > 1 || s.overflowX > 0 ||
-      s.offscreen.length || s.smallTargets.length || s.cutFigures.length || s.brokenFigures.length || (meta && s.cutMeta.length) || s.untitled.length)
+      s.offscreen.length || s.smallTargets.length || s.cutFigures.length || s.brokenFigures.length || (meta && s.cutMeta.length) || s.untitled.length || s.white.length)
     .map(s => `${s.where}: ${JSON.stringify({ v1: s.v1, unstyled: s.unstyled, selectAction: s.selectAction, dupIds: s.dupIds, blank: s.blank, footNotLast: s.footNotLast, primaries: s.primaries.length > 1 ? s.primaries : [], overflowX: s.overflowX,
-      offscreen: s.offscreen, smallTargets: s.smallTargets, cutFigures: s.cutFigures, brokenFigures: s.brokenFigures, cutMeta: s.cutMeta, untitled: s.untitled })}`);
+      offscreen: s.offscreen, smallTargets: s.smallTargets, cutFigures: s.cutFigures, brokenFigures: s.brokenFigures, cutMeta: s.cutMeta, untitled: s.untitled, white: s.white })}`);
 }

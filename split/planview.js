@@ -1,5 +1,5 @@
 /* ===== THE PLANNER'S SCREENS (planner.js holds the engine; docs/PLANNER.md) =====
-   Insights → Planner: Play · Ledger · A day · Plant · Tech tree · Staff · Clients · Finance. One scenario runs through every
+   Office → Planner: Play · Ledger · A day · Plant · Tech tree · Staff · Clients · Finance. One scenario runs through every
    view; the heads-up strip is on each. The registers (machines, the CQI-11 checklist, lenders, rates heard, work held back) are
    edited here, behind Settings' permission: they are records of the shop. A scenario's moves are not: the page is a sandbox. */
 

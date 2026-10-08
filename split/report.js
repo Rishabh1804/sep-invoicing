@@ -1,4 +1,4 @@
-/* ===== REPORTS (Insights → Reports; on the phone from Pulse and search) =====
+/* ===== REPORTS (Office → Reports, in its review) =====
    Owner, 1 Oct 2026: "I would also like to have a daily weekly and a monthly quarterly yearly report generator". A report
    is a document drawn from the data every time it is shown or printed, the Power case's contract (power.js): rptHtml()
    draws one A4 document, the page shows it, Print sends the same document to the one print view, and a save in this or

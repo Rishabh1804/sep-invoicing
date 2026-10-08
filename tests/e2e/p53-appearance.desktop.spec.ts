@@ -1,25 +1,30 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, type SepState } from './fixtures';
 
-// P53 desktop: the labelled sidebar (§4.2; DIRECTION_B: grouped by workspace) and density following the layout (§3.5).
+// P53 desktop: the rail (§4.2; DIRECTION_B, and since 8 Oct 2026 the workspaces alone, their views the tab row under the top
+// bar) and density following the layout (§3.5).
 
-test.describe('P53 desktop: sidebar and density', () => {
-  test('the sidebar is grouped by workspace, and Items and Pay are views inside their page, whose entry stays on', async ({ page }) => {
+test.describe('P53 desktop: rail and density', () => {
+  test('the rail is the workspaces; Items and Pay are views inside their page, whose tab stays pressed', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() } as SepState);
-    await expect(page.locator('#invSidebar .inv-side-item[data-ws] .inv-side-label')).toHaveText(['Today', 'Office', 'Floor', 'Money', 'Insights']);
-    expect(await page.evaluate(() => getComputedStyle(document.body).marginLeft)).toBe('216px');
-    await expect(page.locator('#invSidebar [data-sub]')).toHaveCount(0);
-    await page.locator('.inv-side-item[data-tab="pageClients"]').click();
+    await expect(page.locator('#invSidebar .inv-side-item[data-ws]')).toHaveText([/^Today/, /^Office/, /^Floor/, /^Money/]);
+    expect(await page.evaluate(() => getComputedStyle(document.body).marginLeft)).toBe('88px');
+    await expect(page.locator('#invSidebar [data-sub], #invSidebar [data-tab]')).toHaveCount(0);
+    await page.locator('#invSidebar [data-ws="office"]').click();
+    await page.locator('#wsTabs [data-tab="pageClients"]').click();
     await page.locator('[data-action="invSwitchSubView"][data-view="items"]').first().click();
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
     await expect(page.locator('[data-action="invSwitchSubView"][data-view="items"]').first()).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('.inv-side-item[data-tab="pageClients"]')).toHaveClass(/inv-side-item-on/);
-    await page.locator('.inv-side-item[data-tab="pageStaff"]').click();
+    await expect(page.locator('#wsTabs [data-tab="pageClients"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#invSidebar [data-ws="office"]')).toHaveClass(/inv-side-item-on/);
+    await page.locator('#invSidebar [data-ws="floor"]').click();
+    await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
-    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]')).toHaveAttribute('aria-current', 'page');
-    // Any view of the page carries its entry's mark.
+    await expect(page.locator('#wsTabs [data-tab="pageStaff"]')).toHaveAttribute('aria-selected', 'true');
+    // Any view of the page keeps its tab pressed and its workspace's door on.
     await page.locator('[data-action="invAttView"][data-view="week"]').click();
-    await expect(page.locator('.inv-side-item[data-tab="pageStaff"]')).toHaveClass(/inv-side-item-on/);
+    await expect(page.locator('#wsTabs [data-tab="pageStaff"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#invSidebar [data-ws="floor"]')).toHaveAttribute('aria-current', 'true');
   });
 
   test('density is compact on the desktop until the device says otherwise', async ({ page }) => {

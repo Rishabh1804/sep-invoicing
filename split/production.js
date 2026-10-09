@@ -416,12 +416,20 @@ function prodByGauge(list, g) {
    - written: kilograms on the run itself;
    - record: the part's kg a piece on record (prodKg), for the part the floor name was learnt as too, or, for a client billed
      by the piece, its piece rate over its ₹ a kg (the arithmetic of the Items Master's derived weights: exact for tonnage);
+     or, for a name that writes one size ("clamp 165x83(40x6)"), the client's part of that size and gauge however it is
+     spelt ("CLAMP 165X83 (NT)"), where the client's parts of that size and gauge weigh alike (owner, 9 Oct 2026: "Mehta's
+     clamp have real weight values calculated in our data, maybe it is not linking to the production data due to part being
+     unassigned");
    - challans: the challan lines In plant set the plating against (its own part, or the kind and gauge at the family level,
      oldest open first), each at its own kg a piece: its kilos over its count, its weight on record, or a piece client's
      amount over its ₹ a kg. Pieces past what those lines hold go at the same kg a piece;
    - kind: the client's own challans of that kind of part in the year before (CLAMP, LINER; BKT is BRACKET), at the run's
      gauge or the gauges its round allows: the median kg a piece by pieces, the middle 80% kept as the range (`low`, `high`);
+   - default: the client's own kg a piece where nothing links the run to a part (owner, 9 Oct 2026: "Default Mehta to 0.560
+     kg per unit, adjustable"), before a kind whose parts weigh wide apart (the middle 80% more than half its median across:
+     Mehta's clamps of every gauge run 0.18 to 0.85 kg), after one whose agree (their pads, 0.28 to 0.31);
    - null: none of these. Never a guess past them: the pieces are named, with the move that weighs them. */
+var PROD_WEIGH_NARROW = 0.5;
 var PROD_WEIGH_SYN = { BKT: 'BRACKET', BRKT: 'BRACKET', BRAKET: 'BRACKET', BRACKETS: 'BRACKET', CLAMPS: 'CLAMP', CLMP: 'CLAMP' };
 var PROD_WEIGH_SKIP = { NT: 1, UT: 1, NO: 1, NOS: 1, PC: 1, PCS: 1, KG: 1, KGS: 1, MM: 1, AND: 1, THE: 1, OF: 1, FOR: 1, WITH: 1, NEW: 1, OLD: 1 };
 var PROD_WEIGH_DAYS = 365;
@@ -466,8 +474,9 @@ function prodWeighIndex() {
       else list.push({ pcs: a.q, kg: w ? a.q * w.kg : null });
     });
   });
-  // Every client's challan lines with a kg a piece, by kind: {clientId|KIND: [{date, g, kg, pcs}]}.
-  var kinds = {};
+  // Every client's challan lines with a kg a piece, by kind: {clientId|KIND: [{date, g, kg, pcs}]}; and by the size a part
+  // writes (cpPartIdentity): {clientId|165X83: [{g, kg, name}]}.
+  var kinds = {}, sizes = {};
   (S.incomingMaterial || []).forEach(function(m) {
     if (m.clientId == null) return;
     var c = clients[String(m.clientId)];
@@ -475,7 +484,8 @@ function prodWeighIndex() {
       var w = prodLineKgPc(m, it, c);
       if (!w || !(w.kg > 0) || w.kg > 100) return;
       var pcs = (it.unit || 'KG') === 'KG' ? it.nosQty : it.qty;
-      var g = prodGaugeOf(it.partNumber, it.desc), seen = {};
+      var g = prodGaugeOf(it.partNumber, it.desc), seen = {}, idn = cpPartIdentity(it.partNumber || '', it.desc || '');
+      if (PROD_SIZE_RE.test(idn.base)) (sizes[m.clientId + '|' + idn.base] = sizes[m.clientId + '|' + idn.base] || []).push({ g: idn.gauge || g, kg: w.kg, name: it.partNumber || it.desc || '' });
       prodWeighKinds(it.partNumber).concat(prodWeighKinds(it.desc)).forEach(function(k) {
         if (seen[k]) return;
         seen[k] = true;
@@ -483,7 +493,7 @@ function prodWeighIndex() {
       });
     });
   });
-  _prodWeighIdx = { s: S, w: _bookWrites, v: _prodVer, p: p, alloc: alloc, kinds: kinds, byId: {} };
+  _prodWeighIdx = { s: S, w: _bookWrites, v: _prodVer, p: p, alloc: alloc, kinds: kinds, sizes: sizes, byId: {} };
   return _prodWeighIdx;
 }
 /* The median and the middle 80% of kg a piece over lines, each counted by its pieces. */
@@ -522,22 +532,48 @@ function prodWeighOf(e, idx) {
     var pr = getPieceRate(client, e.date, pn, desc), per = clientLadderRate(client, e.date);
     if (pr && pr.rate > 0 && per > 0) return { kg: e.qty * pr.rate / per, how: 'record', src: 'rate card', kgPc: pr.rate / per };
   }
+  var bySize = prodWeighBySize(e, idx);
+  if (bySize) return bySize;
   // From the challans the plating was set against.
   var al = idx.alloc[e.id] || [], pcs = 0, kg = 0;
   al.forEach(function(a) { if (a.kg != null) { pcs += a.pcs; kg += a.kg; } });
   if (pcs > 0.0005 && kg > 0) return { kg: e.qty * kg / pcs, how: 'challans', src: 'challans', kgPc: kg / pcs, part: Math.min(1, pcs / e.qty) };
   // By its kind: the client's challans of that kind, at its gauge (or the gauges its round allows), in the year before.
   var gs = e.gauge ? [e.gauge] : (e.gaugeOptions || []), from = isoAddDays(e.date, -PROD_WEIGH_DAYS), to = isoAddDays(e.date, 1);
-  var words = prodWeighKinds(e.partNumber || e.part);
+  var words = prodWeighKinds(e.partNumber || e.part), kind = null;
   for (var i = 0; i < words.length; i++) {
     var rows = (idx.kinds[e.clientId + '|' + words[i]] || []).filter(function(x) {
       return x.date >= from && x.date <= to && (!gs.length || gs.indexOf(x.g) >= 0 || (e.gauge && !x.g));
     });
     if (rows.length < 2) continue;
     var sp = prodWeighSpread(rows);
-    return { kg: e.qty * sp.kg, how: 'kind', src: words[i], kgPc: sp.kg, low: e.qty * sp.low, high: e.qty * sp.high, lines: sp.n, gauges: gs.slice() };
+    kind = { kg: e.qty * sp.kg, how: 'kind', src: words[i], kgPc: sp.kg, low: e.qty * sp.low, high: e.qty * sp.high, lines: sp.n, gauges: gs.slice(), spread: sp.kg > 0 ? (sp.high - sp.low) / sp.kg : null };
+    break;
   }
-  return { kg: null, how: null };
+  // The client's own default a piece (owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable"), set on the client:
+  // before a kind whose parts weigh wide apart, after one whose parts agree.
+  var dk = client ? +client.defaultKgPc : 0;
+  if (dk > 0 && dk <= 100 && (!kind || !(kind.spread <= PROD_WEIGH_NARROW))) return { kg: e.qty * dk, how: 'default', src: 'the client’s default', kgPc: dk };
+  return kind || { kg: null, how: null };
+}
+/* A floor name that writes one size is the client's part of that size and gauge, however each is spelt: "clamp
+   165x83(40x6)" is CLAMP 165X83 (NT) at 40X6. Its weight where every one of the client's parts of that size (and gauge, where
+   the run or its round says one) weighs within 5% of the others; two products of one size are never guessed between. A
+   name writing several sizes ("CLAMP 85X81, 101X81, 133X81") names no one part and is left to the routes after. */
+var PROD_SIZE_RE = /^\d{2,4}X\d{2,4}(X\d{1,4})?$/;
+function prodWeighBySize(e, idx) {
+  if (e.clientId == null) return null;
+  var text = String(e.partNumber || e.part || '').toUpperCase().replace(/[×✕*]/g, 'X');
+  if ((text.replace(/\([^)]*\)/g, ' ').match(/\d{2,4}\s*X\s*\d{2,4}/g) || []).length !== 1) return null;
+  var idn = cpPartIdentity(e.partNumber || e.part || '', e.part || '');
+  if (!PROD_SIZE_RE.test(idn.base)) return null;
+  var gs = e.gauge ? [e.gauge] : idn.gauge ? [idn.gauge] : (e.gaugeOptions || []);
+  var rows = (idx.sizes[e.clientId + '|' + idn.base] || []).filter(function(r) { return !gs.length || gs.indexOf(r.g) >= 0; });
+  if (!rows.length) return null;
+  var kgs = rows.map(function(r) { return r.kg; }), lo = Math.min.apply(null, kgs), hi = Math.max.apply(null, kgs);
+  if (!(lo > 0) || hi > lo * 1.05) return null;
+  var kg = numMedian(kgs);
+  return { kg: e.qty * kg, how: 'record', src: 'its size: ' + rows[0].name, kgPc: kg };
 }
 /* A counted plated run in pieces that no route weighs (Entries' "Not weighed", the To-do's follow-up). */
 function prodIsUnweighed(e, idx) {
@@ -550,7 +586,9 @@ function prodKgFig(kg, est, atLeast) {
   if (!(kg > 0)) return '';
   return (atLeast ? '≥ ' : est ? '≈ ' : '') + (kg >= 1000 ? formatNum(kg / 1000, 2) + ' t' : formatNum(kg, 0) + ' kg');
 }
-var PROD_WEIGH_WORD = { written: 'kilos written', record: 'a weight on record', challans: 'from the challans it was set against', kind: 'estimated by its kind' };
+var PROD_WEIGH_WORD = { written: 'kilos written', record: 'a weight on record', challans: 'from the challans it was set against', 'default': 'at the client’s default kg a piece', kind: 'estimated by its kind' };
+/* A weight the app worked out, not the part's own: the challans' share, the client's default, the kind's usual ("≈"). */
+function prodWeighEst(w) { return !!w && (w.how === 'challans' || w.how === 'default' || w.how === 'kind'); }
 
 /* ---------- The index (derived on read, never stored) ---------- */
 /* Keyed on the version bumped by every write AND the identity of S.production, so a GitHub pull or a Settings
@@ -815,7 +853,7 @@ function prodCompleteDays(from, to) {
    kind estimates allow, `unweighed` the pieces no route weighs. Rework is named apart (it counts as work). */
 function prodDayLine(date, line) {
   var r = { nos: 0, kg: 0, pieces: 0, weighedPieces: 0, unweighed: 0, rounds: 0, entries: [], rework: 0,
-    by: { written: 0, record: 0, challans: 0, kind: 0 }, est: 0, low: 0, high: 0, kgWritten: 0 };
+    by: { written: 0, record: 0, challans: 0, 'default': 0, kind: 0 }, est: 0, low: 0, high: 0, kgWritten: 0, kgRounds: 0, roundsWeighed: 0 };
   prodIndex().counted.forEach(function(e) {
     if (e.date !== date || e.line !== line || e.qty == null) return;
     r.entries.push(e);
@@ -826,11 +864,16 @@ function prodDayLine(date, line) {
     if (w.kg != null) {
       r.kg += w.kg; r.by[w.how] += w.kg;
       r.low += w.low != null ? w.low : w.kg; r.high += w.high != null ? w.high : w.kg;
-      if (w.how === 'challans' || w.how === 'kind') r.est += w.kg;
+      if (prodWeighEst(w)) r.est += w.kg;
     }
     // A batch written as racks × rounds ("98×8+1", an END row) is its rounds, not one.
-    (e.rounds || []).forEach(function(x) { if (!x.struck) r.rounds += x.n > 0 ? x.n : 1; });
-    if (!e.rounds && e.racks) r.rounds += e.racks;
+    var n = 0;
+    (e.rounds || []).forEach(function(x) { if (!x.struck) n += x.n > 0 ? x.n : 1; });
+    if (!e.rounds && e.racks) n += e.racks;
+    r.rounds += n;
+    // The kilos of the runs whose rounds were counted, with those rounds: a round's load is read over these alone, since a
+    // run written without its rounds (a slot typed as text, the barrel list) adds kilos and no round.
+    if (n > 0 && w.kg != null) { r.kgRounds += w.kg; r.roundsWeighed += n; }
   });
   r.weighedShare = r.pieces ? r.weighedPieces / r.pieces : 1;
   return r;
@@ -864,8 +907,8 @@ function prodPlatedSub(pieces, kgWritten, kg, est, unweighed) {
    the plant's usual day. Read by Production's day card (prodview.js), Floor → Day and Pulse; worked out, never stored. */
 function prodDayPicture(date) {
   var pic = { date: date, lines: {}, ran: [], kg: 0, est: 0, low: 0, high: 0, pieces: 0, kgWritten: 0, unweighed: 0, runs: 0,
-    by: { written: 0, record: 0, challans: 0, kind: 0 }, clients: [], names: [], spans: {}, from: null, to: null };
-  var clients = {}, names = {};
+    by: { written: 0, record: 0, challans: 0, 'default': 0, kind: 0 }, clients: [], names: [], dflt: [], spans: {}, from: null, to: null };
+  var clients = {}, names = {}, dflt = {};
   PROD_LINES.forEach(function(l) {
     var r = prodDayLine(date, l);
     pic.lines[l] = r;
@@ -878,7 +921,9 @@ function prodDayPicture(date) {
     r.entries.forEach(function(e) {
       var w = prodWeigh(e), ck = e.clientId != null ? String(e.clientId) : '?' + (e.client || '');
       var c = clients[ck] || (clients[ck] = { clientId: e.clientId, name: e.clientId != null ? prodClientName(e.clientId) || e.client || '' : e.client || 'No client written', kg: 0, est: 0, pieces: 0, kgWritten: 0, unweighed: 0 });
-      if (w.kg != null) { c.kg += w.kg; if (w.how === 'challans' || w.how === 'kind') c.est += w.kg; }
+      if (w.kg != null) { c.kg += w.kg; if (prodWeighEst(w)) c.est += w.kg; }
+      // A run weighed at its client's default: named with the client, so the default can be checked and changed.
+      if (w.how === 'default') { var dd = dflt[ck] || (dflt[ck] = { clientId: e.clientId, client: c.name, kgPc: w.kgPc, pieces: 0, kg: 0 }); dd.pieces += e.qty; dd.kg += w.kg; }
       if (e.unit === 'NOS') { c.pieces += e.qty; if (w.kg == null) c.unweighed += e.qty; } else if (e.unit === 'KG') c.kgWritten += e.qty;
       if (w.kg == null && e.unit === 'NOS') {
         var nk = ck + '|' + String(e.part || '').toUpperCase();
@@ -898,6 +943,7 @@ function prodDayPicture(date) {
   });
   pic.clients = Object.keys(clients).map(function(k) { return clients[k]; }).sort(function(a, b) { return b.kg - a.kg || b.pieces - a.pieces; });
   pic.names = Object.keys(names).map(function(k) { return names[k]; }).sort(function(a, b) { return b.pieces - a.pieces; });
+  pic.dflt = Object.keys(dflt).map(function(k) { return dflt[k]; }).sort(function(a, b) { return b.kg - a.kg; });
   // The lines that had heads on the general shift and no record of it: the day's figure is short of them.
   var att = (S.attendance || {})[date], staffed = prodStaffedLines(att), gen = prodGeneralLines()[date] || {};
   pic.attendance = !!(att && att.marks && Object.keys(att.marks).length);
@@ -935,11 +981,11 @@ function prodDayWorth(date) {
     var w = prodWeigh(e), amt = null;
     if (rr && rr.rate > 0 && rr.fits !== false) {
       if (rr.unit === 'piece' && e.unit === 'NOS') amt = rr.rate * e.qty;
-      else if (rr.unit === 'kg' && w.kg != null) { amt = rr.rate * w.kg; if (w.how === 'challans' || w.how === 'kind') o.est = true; }
+      else if (rr.unit === 'kg' && w.kg != null) { amt = rr.rate * w.kg; if (prodWeighEst(w)) o.est = true; }
     }
     if (amt == null) {
       var per = clientLadderRate(client, e.date);
-      if (per > 0 && w.kg != null) { amt = per * w.kg; if (w.how === 'challans' || w.how === 'kind') o.est = true; }
+      if (per > 0 && w.kg != null) { amt = per * w.kg; if (prodWeighEst(w)) o.est = true; }
     }
     if (amt == null) { if (e.unit === 'NOS') o.unpriced += e.qty; return; }
     o.amount += amt; o.runs++;
@@ -967,21 +1013,75 @@ function prodUsualDay(date) {
    also a special case as 50% of it is down." What the line plated against what its working units could plate in the time it
    ran, every input said so it can be checked:
    - a round: the kg a round of the line's units working that day (the plant register, read as found before it was set up);
-     the share of the line's kg a round that stood down is said, and half or more down colours the card;
+     the share of the line's kg a round that stood down is said, and half or more down colours the card. Once what a tank
+     takes a round is firm on the register (prodTankLoad), it is that times the tanks working, in place of the kg typed;
    - how long a round takes: the line's own pace (the planner's: set, else the register's rounds over three months, else
      assumed, and it says which);
    - the time it ran: the general shift (8:30 AM to 5 PM) where it ran or had heads on it, and each overtime run from its
      start to its end (a morning run with no end ends at 8:30), less the power cuts inside that time;
    - what it plated: the day's weight (prodWeigh), "≈" where estimated.
-   Where the register counted the rounds, it is split into the pace (rounds run of the rounds the time allowed) and the load
-   (kilos a round of what the working units hold). A figure missing is said, never guessed: the line is then not judged. */
+   Where the register counted the rounds, it is split into the load (the counted rounds' kilos a round, of what a round holds)
+   and the pace (the rounds' worth run, of the rounds the time allowed): pace × load is the figure. A run written without its
+   rounds (a slot typed as text) adds kilos and no round, so the load is read over the counted rounds alone. A figure missing
+   is said, never guessed: the line is then not judged. */
 var PROD_EFF_OK = 0.75, PROD_EFF_LOW = 0.5;
+
+/* ---------- What a tank takes a round ----------
+   Owner, 9 Oct 2026: "Each register line on A1 includes 3 tanks out of the 4 available, 150 kg/3 = 50 kg an hour per tank
+   inside VAT A1 area. If confidence on rack capacity becomes high it should override defaults. Each register line on A2
+   includes 2 tanks." A round of the register is every tank working on the line that day (the plant register's units
+   available), so a round's kilos over those tanks is what a tank took. Over the 60 days to the day: the median kg a round and
+   a tank, the rounds and days it rests on, and how many of those rounds rest on a part's own weight: its kilos written, a
+   weight on record, or the challans it was set against (owner, the same day: "Mehta's clamp have real weight values
+   calculated in our data"), never a client's default or the kind's usual. Firm at 30 rounds on 5 days with 80% of them so
+   weighed; then prodLineEfficiency reads it in place of the kg a round typed on the units, the default set before anything
+   was measured. Kept with the weighing index, so a save works it out again. */
+var PROD_TANK_DAYS = 60, PROD_TANK_ROUNDS = 30, PROD_TANK_DAYS_MIN = 5, PROD_TANK_LINKED = 0.8;
+function prodTankLoad(line, iso) {
+  iso = iso || localDateStr();
+  var widx = prodWeighIndex(), memo = widx.tank || (widx.tank = {}), key = line + '|' + iso;
+  if (memo[key]) return memo[key];
+  var from = isoAddDays(iso, -(PROD_TANK_DAYS - 1)), tanks = {}, perRound = [], perTank = [], days = {}, linked = 0;
+  prodIndex().counted.forEach(function(e) {
+    if (e.kind !== 'plated' || e.line !== line || e.basis !== 'register' || !Array.isArray(e.rounds) || !(e.qty > 0) || e.date < from || e.date > iso) return;
+    var w = prodWeigh(e);
+    if (w.kg == null) return;
+    var kgPc = w.kg / e.qty, own = !prodWeighEst(w) || w.how === 'challans';
+    if (tanks[e.date] === undefined) { var cap = typeof pltCapacity === 'function' ? pltCapacity(line, e.date, true) : null; tanks[e.date] = cap && cap.nAvail > 0 ? cap.nAvail : 0; }
+    var t = tanks[e.date];
+    e.rounds.forEach(function(x) {
+      if (x.struck || !(x.qty > 0)) return;
+      // A batch written as racks × a rack ("3×156") is that many rounds of its share.
+      var k = x.n > 0 ? x.n : 1, kg = x.qty / k * kgPc;
+      for (var i = 0; i < k; i++) { perRound.push(kg); if (t) perTank.push(kg / t); if (own) linked++; }
+      days[e.date] = true;
+    });
+  });
+  var n = perRound.length, nDays = Object.keys(days).length, share = n ? linked / n : 0;
+  var o = { line: line, from: from, to: iso, rounds: n, days: nDays, linked: linked, share: share,
+    perRound: n ? numMedian(perRound) : null, perTank: perTank.length ? numMedian(perTank) : null };
+  o.firm = n >= PROD_TANK_ROUNDS && nDays >= PROD_TANK_DAYS_MIN && share >= PROD_TANK_LINKED;
+  o.why = !n ? 'no rounds counted on the register in the 60 days' : o.firm ? '' : [
+    n < PROD_TANK_ROUNDS ? n + ' of the ' + PROD_TANK_ROUNDS + ' rounds it needs' : '',
+    nDays < PROD_TANK_DAYS_MIN ? nDays + ' of the ' + PROD_TANK_DAYS_MIN + ' days it needs' : '',
+    share < PROD_TANK_LINKED ? Math.round(share * 100) + '% of the rounds from a part’s own weight, firm at ' + Math.round(PROD_TANK_LINKED * 100) + '%' : ''].filter(Boolean).join(', ');
+  memo[key] = o;
+  return o;
+}
 function prodLineEfficiency(date, line) {
   var r = prodDayLine(date, line);
   var o = { line: line, date: date, kg: r.kg, est: r.est > 0.0005, unweighed: r.unweighed, pieces: r.pieces, rounds: r.rounds, ran: r.entries.length > 0,
     eff: null, pace: null, load: null, possible: null, minutes: null, cutMin: 0, noEnd: 0, avail: null, tone: 'neutral', word: '', why: '' };
   var cap = typeof pltCapacity === 'function' ? pltCapacity(line, date) : null;
   if (cap && cap.n) { o.n = cap.n; o.nAvail = cap.nAvail; o.kgAvail = cap.kgAvail; o.kgTotal = cap.kgTotal; o.byKg = cap.byKg; o.avail = cap.pct; o.down = cap.down; o.unitWord = cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrel' : 'tank'; }
+  // What a tank takes a round, measured on the register; firm, it takes the place of the kg a round typed on the units (owner,
+  // 9 Oct 2026: "If confidence on rack capacity becomes high it should override defaults").
+  var T = prodTankLoad(line, date);
+  o.tank = T; o.kgSrc = o.byKg ? 'typed' : null;
+  if (T.firm && T.perRound != null) {
+    if (o.n && o.nAvail && T.perTank != null) { o.kgTyped = o.byKg ? o.kgAvail : null; o.kgAvail = T.perTank * o.nAvail; o.kgSrc = 'measured'; }
+    else if (!o.n) { o.kgAvail = T.perRound; o.kgSrc = 'measured'; }
+  }
   var L = null;
   try { var B = typeof plnBase === 'function' ? plnBase() : null; L = B && B.lines ? B.lines[line] : null; } catch (e) { L = null; }
   if (L && L.every > 0) { o.every = L.every; o.everySrc = L.src; }
@@ -1015,8 +1115,8 @@ function prodLineEfficiency(date, line) {
   var missing = staffed && !(prodGeneralLines()[date] || {})[line];
   if (!o.ran && !staffed) { o.word = 'Did not run'; return o; }
   if (missing && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = 'heads on the general shift, nothing recorded'; return o; }
-  if (!o.n) o.why = 'no unit on the plant register';
-  else if (!o.byKg) o.why = 'set the kg a round of every unit';
+  if (!o.kgSrc && !o.n) o.why = 'no unit on the plant register';
+  else if (!o.kgSrc) o.why = 'set the kg a round of every unit';
   else if (!o.every) o.why = 'no pace for the line';
   else if (!(o.minutes > 0)) o.why = 'no time worked recorded';
   if (!o.why) {
@@ -1024,12 +1124,21 @@ function prodLineEfficiency(date, line) {
     o.roundsPossible = roundsPossible;
     o.possible = o.kgAvail * roundsPossible;
     if (o.possible > 0) o.eff = o.kg / o.possible;
-    if (o.rounds > 0 && roundsPossible > 0 && o.kgAvail > 0) { o.pace = o.rounds / roundsPossible; o.load = o.kg / o.rounds / o.kgAvail; }
+    // The load over the counted rounds alone; the pace is what is left, so a run written without rounds counts as rounds'
+    // worth at that load. Where every kilo came from counted rounds, every one weighed, it is the rounds counted exactly.
+    if (r.roundsWeighed > 0 && o.kgAvail > 0 && o.eff != null) {
+      o.load = r.kgRounds / r.roundsWeighed / o.kgAvail;
+      o.pace = o.load > 0 ? o.eff / o.load : null;
+      o.roundsRun = o.pace != null ? o.pace * roundsPossible : null;
+      o.roundsOnly = r.kgRounds >= r.kg - 0.0005 && r.roundsWeighed === r.rounds;
+      o.kgNoRounds = Math.max(0, r.kg - r.kgRounds); o.roundsUnweighed = Math.max(0, r.rounds - r.roundsWeighed);
+    }
   }
   // The colour: the efficiency, then a line half or more down (owner: "Barrel is also a special case"), then a missing record.
   var rank = { neutral: 0, ok: 1, info: 1, warning: 2, danger: 3 }, worst = function(t) { if (rank[t] > rank[o.tone]) o.tone = t; };
   if (o.eff != null) {
-    if (o.eff > 1.1) { o.tone = 'info'; o.word = 'Over what its units can do'; o.why = 'check the kg a round or the pace'; }
+    // Over a round measured on the register is heavier rounds or a quicker pace than usual; over a typed one, a figure to check.
+    if (o.eff > 1.1) { o.tone = 'info'; o.over = true; o.word = o.kgSrc === 'measured' ? 'Over its usual' : 'Over what its units can do'; o.why = o.kgSrc === 'measured' ? 'heavier rounds or a quicker pace than the line’s usual' : 'check the kg a round or the pace'; }
     else { o.tone = o.eff >= PROD_EFF_OK ? 'ok' : o.eff >= PROD_EFF_LOW ? 'warning' : 'danger'; o.word = Math.round(o.eff * 100) + '% efficient'; }
   } else o.word = 'Not judged';
   if (o.avail != null && o.avail <= 0.5) { worst('danger'); o.halfDown = true; }
@@ -1041,7 +1150,7 @@ function prodLineEfficiency(date, line) {
    time each ran (prodLineEfficiency, line by line). Null where no line is judged. */
 function prodDayEfficiency(date) {
   var kg = 0, possible = 0, n = 0, lines = {};
-  PROD_LINES.forEach(function(l) { var o = prodLineEfficiency(date, l); lines[l] = o; if (o.eff != null && o.eff <= 1.1) { kg += o.kg; possible += o.possible; n++; } });
+  PROD_LINES.forEach(function(l) { var o = prodLineEfficiency(date, l); lines[l] = o; if (o.eff != null && (o.eff <= 1.1 || o.kgSrc === 'measured')) { kg += o.kg; possible += o.possible; n++; } });
   var eff = possible > 0 ? kg / possible : null;
   return { eff: eff, lines: lines, n: n, kg: kg, possible: possible, tone: eff == null ? 'neutral' : eff >= PROD_EFF_OK ? 'ok' : eff >= PROD_EFF_LOW ? 'warning' : 'danger' };
 }

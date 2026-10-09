@@ -212,25 +212,35 @@ function flrEffHead(ef, last, isToday) {
   var kg = prodKgFig(ef.kg, ef.est, ef.unweighed > 0) || '—';
   if (ef.eff == null) return { title: 'Plated ' + kg, sub: 'Not judged: ' + ef.why + (units ? ' · ' + units : '') };
   var hours = ef.minutes / 60, hTxt = formatNum(hours, 1).replace(/\.0$/, '') + ' h';
-  var plated = ef.word === 'Over what its units can do' ? 'Plated ' + kg + ', over the ' + prodKgFig(ef.possible) + ' its units can plate: ' + ef.why
+  var plated = ef.over ? 'Plated ' + kg + ', over the ' + prodKgFig(ef.possible) + (ef.kgSrc === 'measured' ? ' its usual round and pace would plate: ' : ' its units can plate: ') + ef.why
     : kg + ' of the ' + prodKgFig(ef.possible) + ' its working ' + unit + 's could plate';
   // What needs following up leads (half the line down, the general shift unrecorded); the plating follows in the sub.
   var lead = [ef.halfDown ? down : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var title = lead ? lead.charAt(0).toUpperCase() + lead.slice(1) : plated;
-  var sub = [lead ? plated : '', units, formatNum(ef.kgAvail, 0) + ' kg a round', 'a round every ' + Math.round(ef.every) + ' min' + (ef.everySrc === 'assumed' ? ' (assumed)' : ef.everySrc === 'set' ? ' (set)' : ''),
+  var sub = [lead ? plated : '', units, formatNum(ef.kgAvail, 0) + ' kg a round' + (ef.kgSrc === 'measured' ? ' (measured)' : ''), 'a round every ' + Math.round(ef.every) + ' min' + (ef.everySrc === 'assumed' ? ' (assumed)' : ef.everySrc === 'set' ? ' (set)' : ''),
     hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''), ef.noEnd ? todoPlural(ef.noEnd, 'run') + ' with no end time not counted' : '',
     ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pieces not weighed: reads low' : ''].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: Math.min(ef.kg, ef.possible * 1.2), tone: ef.tone === 'neutral' ? 'neutral' : ef.tone }], { max: ef.possible, mark: ef.possible * PROD_EFF_OK,
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
 }
-/* How the efficiency splits where the register counted the rounds: the pace (rounds run of the rounds the time allowed) and
-   the load (kilos a round of what the working units hold). */
+/* How the efficiency splits where the register counted the rounds: the load (the counted rounds' kilos a round, of what a
+   round holds) and the pace (the rounds' worth run, of the rounds the time allowed); then what a round holds and where that
+   figure comes from: measured on the register once firm, else typed on the units with the register's measure beside it. */
 function flrEffRowHtml(ef) {
-  var bits = ef.pace != null ? ['ran ' + ef.rounds + ' of the ' + Math.round(ef.roundsPossible) + ' rounds the time allowed (' + Math.round(ef.pace * 100) + '%)',
-    'loaded ' + Math.round(ef.load * 100) + '% of ' + formatNum(ef.kgAvail, 0) + ' kg a round']
-    : ['no rounds counted: the time and the load cannot be told apart'];
-  return '<div class="inv-row inv-row-2" data-flr-effparts><span class="inv-row-main"><span class="inv-row-title">' + escHtml(ef.pace != null ? (ef.pace < ef.load ? 'The pace lost most' : 'The load lost most') : 'How it was worked out') + '</span>' +
+  var pct = function(x) { return Math.round(x * 100) + '%'; }, rp = Math.round(ef.roundsPossible), T = ef.tank || {}, bits = [];
+  if (ef.pace != null) {
+    bits.push(ef.roundsOnly ? 'ran ' + ef.rounds + ' of the ' + rp + ' rounds the time allowed (' + pct(ef.pace) + ')'
+      : 'ran about ' + Math.round(ef.roundsRun) + ' rounds’ worth of the ' + rp + ' the time allowed (' + pct(ef.pace) + '): ' + ef.rounds + ' counted on the register' +
+        (ef.kgNoRounds > 0.5 ? ', ' + prodKgFig(ef.kgNoRounds) + ' from runs written without rounds' : '') + (ef.roundsUnweighed ? ', ' + ef.roundsUnweighed + ' not weighed' : ''));
+    bits.push('loaded ' + pct(ef.load) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round');
+  } else bits.push('no rounds counted: the time and the load cannot be told apart');
+  if (ef.kgSrc === 'measured') bits.push('a round measured on the register: ' + (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ' × ' + ef.nAvail + ', ' : '') +
+    T.rounds + ' rounds over ' + T.days + ' days' + (ef.kgTyped ? ', in place of the ' + formatNum(ef.kgTyped, 0) + ' kg typed' : ''));
+  else if (T.perRound != null) bits.push('typed on its ' + (ef.unitWord || 'unit') + 's; the register measures ' + formatNum(T.perRound, 0) + ' kg a round' +
+    (T.perTank != null ? ' (' + formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ')' : '') + ', not firm: ' + T.why);
+  var title = ef.pace == null ? 'How it was worked out' : Math.min(ef.pace, ef.load) >= 1 ? 'Neither the pace nor the load lost' : ef.pace < ef.load ? 'The pace lost most' : 'The load lost most';
+  return '<div class="inv-row inv-row-2" data-flr-effparts><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span></div>';
 }
 

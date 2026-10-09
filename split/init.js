@@ -549,6 +549,20 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== SSS MEHTA'S DEFAULT WEIGHT A PIECE, RECORDED ONCE =====
+   Owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable." What the floor's plating of theirs weighs where nothing
+   links a run to a part: the register writes CLAMP and a gauge, and a round no gauge rule names has no challan to set it
+   against (production.js prodWeighOf). Set on the client whose name reads Mehta, only where it has none, and once: the flag
+   travels with the state, so a figure the owner changed or cleared stays so. */
+(function() {
+  if (S._clientKgPcDefault1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  if (!(+c.defaultKgPc > 0)) c.defaultKgPc = 0.56;
+  S._clientKgPcDefault1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
    A load written with its code alone ("DORABJI / 4206-1000") read as no part, and sat on the floor with no challan open
    (P127: 8 of 8 real Dorabji loads, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already

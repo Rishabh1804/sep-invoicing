@@ -187,7 +187,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,594 tests, both layouts
+pnpm exec playwright test          # 1,609 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1926,12 +1926,20 @@ it says 1386 pieces not weighed, we should have a list of those pieces whose wei
 gradient for cards in this tab will be decided. Barrel is also a special case as 50% of it is down."* P190.
 - **A run is weighed by the surest route the book holds, and says which** (`prodWeigh`, production.js; `prodKg` stays the record's
   own): **written** (kilos on the run); **record** (the part's kg a piece: the client's card, part weights, the Items Master, for the
-  part the floor's name was learnt as too, or a piece client's piece rate over its ₹ a kg, the derived weights' own arithmetic);
+  part the floor's name was learnt as too, or a piece client's piece rate over its ₹ a kg, the derived weights' own arithmetic; or
+  **by its size**: a name writing one size, *clamp 165x83(40x6)*, is the client's part of that size and gauge however it is spelt,
+  *CLAMP 165X83 (NT)*, where the client's parts of that size weigh within 5% of each other, `prodWeighBySize`; owner, 9 Oct 2026:
+  *"Mehta's clamp have real weight values calculated in our data, maybe it is not linking to the production data due to part being
+  unassigned"*; a name writing several sizes names no one part);
   **challans** (the challan lines In plant set the plating against, oldest open first, each at its own kg a piece: its kilos over its
   count, its weight on record, or a piece client's amount over its ₹ a kg; `prodInPlant` returns its `lines` for this); **kind**
   (the client's own challans of that kind of part in the year before, CLAMP, LINER, BRACKET (*BKT* spelt out), at the run's gauge or
-  the gauges its round allows: the median kg a piece by pieces, the middle 80% kept as the range); else **not weighed**, never a
-  guess. Worked out once a book (`prodWeighIndex`, keyed on `_bookWrites`, `_prodVer` and the store). On the owner's book of 9 Oct:
+  the gauges its round allows: the median kg a piece by pieces, the middle 80% kept as the range); **default** (the client's own kg a
+  piece, `client.defaultKgPc`, Client → Edit → *On the floor*; owner, 9 Oct 2026: *"Default Mehta to 0.560 kg per unit,
+  adjustable"*, set once on the client whose name reads Mehta where it had none, `_clientKgPcDefault1`), before a kind whose parts
+  weigh wide apart (the middle 80% more than half its median across: Mehta's clamps of every gauge, 0.18 to 0.85 kg) and after one
+  whose parts agree (their pads, 0.28 to 0.31); else **not weighed**, never a guess. The day's weighing names each client's default
+  with **Change**, the client's form, and the page is drawn again on its save. Worked out once a book (`prodWeighIndex`, keyed on `_bookWrites`, `_prodVer` and the store). On the owner's book of 9 Oct:
   of 50,784 pieces plated, 12% had been weighed; 89% are now (record 12%, challans 33%, kind 44%), 11% not.
 - **One unit everywhere** (`prodKgFig`): tonnes from a tonne, kilograms under it, **≈** where any run is estimated, **≥** where
   pieces nothing weighs are left out (the figure is then the least it can be). Every figure that turned pieces into kilos reads
@@ -1951,11 +1959,26 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   ran**: the kg a round of the units running that day (the plant register), a round every so many minutes (the planner's pace: set,
   else the register's rounds, else assumed, said which), the general shift (8:30 AM to 5 PM) where it ran or had heads and each
   overtime run from start to end (a morning run with no end ends at 8:30; any other is not counted, and said), less the power cuts
-  inside. Where the register counted rounds it splits into the **pace** (rounds run of those the time allowed) and the **load** (kilos
-  a round of what the working units hold). **Floor → Day's line cards are heroes coloured by it** (75% ok, 50% warning, under it
+  inside. Where the register counted rounds it splits into the **load** (the counted rounds' kilos a round, of what a round holds) and
+  the **pace** (what is left: the rounds' worth run, of those the time allowed), so pace × load is the figure; a run written without
+  its rounds (a slot typed as text, the barrel list) adds kilos and no round, and the card says how many were counted and what came
+  without rounds. **Floor → Day's line cards are heroes coloured by it** (75% ok, 50% warning, under it
   danger; over 110% is info, *check the kg a round or the pace*), and **half or more of a line's units down is danger whatever its
   efficiency** and leads the card (*3 of 6 barrels down*); a general shift with heads and no record is at least warning. The inputs
   are on the card, so a figure that looks wrong leads to the input that made it. On the owner's book: VAT A1 45–61%, VAT A2 9–65%.
+- **What a tank takes a round, measured** (`prodTankLoad`; owner, 9 Oct 2026: *"Each register line on A1 includes 3 tanks out of the
+  4 available, 150 kg/3 = 50 kg an hour per tank inside VAT A1 area. If confidence on rack capacity becomes high it should override
+  defaults. Each register line on A2 includes 2 tanks"*): a round of the register is every tank working on the line that day, so a
+  round's kilos over those tanks is what a tank took; over the 60 days to the day, the median kg a round and a tank, the rounds and
+  days, and how many rounds rest on a part's own weight (written, on record, or the challans it was set against; never a client's
+  default or the kind's usual). **Firm at 30 rounds on 5 days with 80% so weighed**: then the efficiency's round is that times the
+  tanks working, in place of the kg typed on the units (`kgSrc: 'measured'`, the card says *(measured)* and what it replaced), and
+  over 110% reads *Over its usual* (heavier rounds or a quicker pace), counted in the day's figure; not firm, the typed figure stands
+  and the card says what the register measures and why it is not firm. The plant strip's *plating N kg a round* reads it too
+  (`pltUsed`; the planner's reading only for a line with no rounds). On the owner's book of 9 Oct, with Mehta's default: VAT A1 20 kg
+  a tank (60 kg a round over 3), 54% of 256 rounds from parts' own weights; VAT A2 22 kg a tank, 62%: neither firm. What holds them
+  back is Mehta's runs that link to no part: the liners (no gauge, five weights) and the clamp rounds no gauge rule names (108, and
+  single rounds of 24 to 156), which *Pick gauge* or a gauge rule links. P191.
 - **The pieces nothing weighs are a follow-up list**: on the day card and Floor → Day (*Not weighed*, under the cards; the plated tile
   brings it into sight), each floor name with its client, lines and pieces and two moves: **Which part?** (learns the name as one of
   the client's parts, `prodLearnAlias`) and **Set its weight** (a kg a piece on the client's card, from the first day the name was
@@ -1968,7 +1991,8 @@ workers and every personal detail are the book's; the owner's private files (`se
 - **The plant register** (`plant.js`, `S.plant = {units, log}`): every tank, barrel and supporting machine on its station (the planner's
   ids), run · standby · repair · down, with a dated log of every change and a reason. **A line's units work side by side, each in kg a
   round** (owner): available = the kg a round of the units running or on standby over all of them (by count, and said, where no kg is
-  typed); used is what the register measures a line plating a round (`plnBase().lines`), *not measured* without one. Production →
+  typed); used is what the register measures a line plating a round (`prodTankLoad`, the register's own rounds; the planner's
+  `plnBase().lines` for a line with none), *not measured* without either. Production →
   **Equipment**, a strip per line leading Production's Overview, Floor → Day's line cards (*1 of 4 down*). The planner's machines are
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
   **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the

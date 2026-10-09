@@ -164,7 +164,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
       opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
     '</div>' +
-    _clientDocDefaultsHtml(c) +
+    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
@@ -196,6 +196,17 @@ function _clientDocDefaultsHtml(c) {
     _cinput('ceditPoTpl', c.poFromChallan || '', 'inv-id', ' placeholder="DA1/{challan:5}" autocomplete="off" data-client-id="' + c.id + '"') +
     '<div class="inv-field-hint">{challan} is the challan number; {challan:5} pads it to five digits.</div>' +
     '<div class="inv-field-hint inv-id" id="ceditPoEx">' + escHtml(_clientPoExampleText(c, c.poFromChallan)) + '</div></div>' +
+    '</div></div></div>';
+}
+/* What the floor's plating of this client weighs where nothing links a run to a part (production.js prodWeighOf; owner, 9 Oct
+   2026: "Default Mehta to 0.560 kg per unit, adjustable"): after the part's own weight and its challans, before the app's
+   estimate by kind. */
+function _clientFloorDefaultsHtml(c) {
+  return '<div class="inv-panel inv-panel-flush" data-client-floor><div class="inv-panel-head"><span class="inv-panel-title">On the floor</span></div>' +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditDefaultKgPc">Default kg per piece</label>' +
+    _cinput('ceditDefaultKgPc', c.defaultKgPc > 0 ? String(c.defaultKgPc) : '', 'inv-input-num', ' type="number" step="0.001" min="0" inputmode="decimal" placeholder="0.000"') +
+    '<div class="inv-field-hint">For a piece plated with no weight of its own: the floor wrote a name with no part (CLAMP and a gauge) and no challan links it. Empty for none.</div></div>' +
     '</div></div></div>';
 }
 function clientPoExampleRefresh(input) {
@@ -239,6 +250,8 @@ function _readClientForm(excludeId) {
   if (gstin && gstin.length !== 15) { showToast('GSTIN must be 15 characters', 'error'); return null; }
   const poTpl = (document.getElementById('ceditPoTpl') || {}).value || '';
   if (!clientPoTemplateOk(poTpl.trim())) { showToast('The P.O. pattern needs {challan} where the number goes', 'error'); return null; }
+  const dkEl = document.getElementById('ceditDefaultKgPc'), dk = dkEl ? String(dkEl.value || '').trim() : '';
+  if (dk !== '' && !(+dk > 0 && +dk <= 100)) { showToast('The default kg per piece is a weight above 0 and up to 100', 'error'); return null; }
 
   return {
     name: name,
@@ -256,6 +269,7 @@ function _readClientForm(excludeId) {
     notes: document.getElementById('ceditNotes').value.trim(),
     defaultTransport: ((document.getElementById('ceditTransport') || {}).value || '').trim().toUpperCase(),
     poFromChallan: poTpl.trim(),
+    defaultKgPc: dk === '' ? undefined : Math.round(+dk * 10000) / 10000,
     isActive: document.getElementById('ceditActive').checked
   };
 }
@@ -290,6 +304,12 @@ async function saveClientEdit(clientId, mode) {
 /* The desktop pane shows the client just changed, and its row in the list the new rate: the pane was redrawn only when it
    was already open on that client, and a card change made from the edit sheet closed the sheet instead. */
 function _clientPaneRefresh(clientId) {
+  // Opened from another page (Production's weighing, search): that page is drawn again with what was saved, unless it holds
+  // typed work, which is drawn around once that is saved or left (bookBusy, nav.js).
+  if (typeof navPageOf === 'function' && navPageOf() !== 'pageClients') {
+    if (bookBusy()) _bookRedrawPending = true; else tabRedrawActive();
+    return;
+  }
   const searchEl = document.getElementById('clientSearch');
   if (_isDesktop && document.getElementById('clientList')) _renderClientDetail(clientId, false);
   else renderClientList(searchEl ? searchEl.value : '');

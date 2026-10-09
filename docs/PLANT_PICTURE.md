@@ -1,6 +1,8 @@
 # The plant picture
 
-**Status, 9 Oct 2026.** PP1 is built, on PR #144. The owner has answered the four questions in §5, and PP3 (stock by line) is next. PP2, PP4 and PP5 are proposals; their order is the owner's to set.
+**Status, 9 Oct 2026.** PP1 is built, on PR #144, with what a tank takes a round measured and Mehta's default weight a piece
+(§5, question 1). The owner has answered the four questions in §5, and PP3 (stock by line) is next. PP2, PP4 and PP5 are proposals;
+their order is the owner's to set.
 
 ## 1. What the owner asked
 
@@ -114,6 +116,25 @@ Each of these is one PR.
    about 47 kg a round, one about every 36 minutes. **Still open:** is one round of the register a rack from one tank, or all the
    working tanks at once? The app takes it as all of them (3 × 30 kg = 90 kg a round on A1), and so reads the racks as 58% to 78%
    full.
+
+   *The owner: "Each register line on A1 includes 3 tanks out of the 4 available, 150 kg/3 = 50 kg an hour per tank inside VAT A1
+   area. If confidence on rack capacity becomes high it should override defaults. Each register line on A2 includes 2 tanks."* So a
+   round is every tank working, as the app read it. Built (P191): what a tank takes a round is measured on the register
+   (`prodTankLoad`): a round's kilos over the tanks working that day, the median over 60 days, with how many rounds rest on a part's
+   own weight. Firm at 30 rounds on 5 days with 80% so weighed, it replaces the typed 30 and 45 kg in the efficiency; until then the
+   typed figure stands and the card says what the register measures.
+
+   *Then: "Default Mehta to 0.560 kg per unit, adjustable", and "Mehta's clamp have real weight values calculated in our data, maybe
+   it is not linking to the production data due to part being unassigned."* Both built:
+   - The runs written with a gauge already linked to their challans at the parts' real weights: 0.33 to 0.88 kg a piece by size.
+     An earlier reading here said one kg a piece was applied to every round; that was this session's measuring script, not the app.
+   - A name that writes a size (*clamp 165x83(40x6)*) now links to the client's part of that size and gauge.
+   - Mehta has a default of 0.560 kg a piece, set on the client and changed there. It weighs a run nothing links to a part, before
+     the client's usual weight for that kind wherever those weights spread wide.
+
+   On the 9 Oct book this gives VAT A1 20 kg a tank (60 kg a round over 3 tanks) and VAT A2 22 kg a tank. Neither is firm: 54% and
+   62% of the rounds rest on a part's own weight. The rest are Mehta's liners and the clamp rounds no gauge rule names (108, plus
+   single rounds of 24 to 156). Picking those rounds' gauge, or adding 108 to a rule, links them.
 2. **Round times.** Are the planner's round times right: 19 minutes on A1, 20 on A2 and 75 on the barrel?
 
    *"It is approximately right, till we have more concrete data."* Kept as set. The register is measuring A1's pace too, at 19

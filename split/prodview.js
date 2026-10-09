@@ -112,9 +112,10 @@ function prodDayHeroHtml(date, opts) {
   else title = todoPlural(pic.ran.length, 'line') + ' ran';
   if (lag > 2 && !tone) tone = 'warning';
   var sub = prodPlatedSub(pic.pieces, pic.kgWritten, pic.kg, pic.est, pic.unweighed) + (effWord && title.indexOf(effWord) < 0 ? ' · ' + effWord : '');
-  var meterTitle = prodKgFig(pic.kg, estd, pic.unweighed > 0) + ' plated: ' + [sure ? prodKgFig(sure) + ' weighed' : '', pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '', pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind' : ''].filter(Boolean).join(', ') +
+  var meterTitle = prodKgFig(pic.kg, estd, pic.unweighed > 0) + ' plated: ' + [sure ? prodKgFig(sure) + ' weighed' : '', pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '',
+    pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '', pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind' : ''].filter(Boolean).join(', ') +
     '. Two shifts hold about ' + prodKgFig(pic.capacity) + (pic.usual != null ? '; a usual day is ' + prodKgFig(pic.usual, true) : '') + '.';
-  var viz = chartMeter([{ v: sure, tone: 'ok' }, { v: pic.by.challans, tone: 'info' }, { v: pic.by.kind, tone: 'neutral' }], { max: pic.capacity, mark: pic.usual, title: meterTitle });
+  var viz = chartMeter([{ v: sure, tone: 'ok' }, { v: pic.by.challans, tone: 'info' }, { v: pic.by['default'] + pic.by.kind, tone: 'neutral' }], { max: pic.capacity, mark: pic.usual, title: meterTitle });
   var fig = pic.kg > 0 ? prodKgFig(pic.kg, estd, pic.unweighed > 0) : Math.round(pic.pieces).toLocaleString('en-IN') + ' pieces';
   var body = '<div class="inv-hero-sheet" data-prod-day-sheet>' + prodDayLinesHtml(pic, opts.compact) + prodDayWeighHtml(pic, opts.compact) + (opts.compact ? '' : prodDayMoreHtml(pic)) + '</div>';
   return uiHeroHtml({ tone: tone, eyebrow: eyebrow, title: escHtml(title), fig: escHtml(fig), sub: escHtml(sub), viz: viz, body: body,
@@ -212,11 +213,20 @@ function prodDayWeighHtml(pic, compact) {
   var h = '<div class="inv-row-group"><span>How it was weighed</span></div>';
   if (compact) {
     return h + row('summary', escHtml(!pic.est ? 'Every run weighed' : sure ? Math.round(sure / pic.kg * 100) + '% weighed, the rest estimated' : 'Estimated'),
-      [pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '', pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind (' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high) + ' for the day)' : '',
+      [pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '', pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '',
+        pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind (' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high) + ' for the day)' : '',
         pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pieces not weighed' : ''].filter(Boolean).join(' · ') || 'kilos written, or a weight on record', prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0));
   }
   if (sure) h += row('sure', 'Weighed', 'kilos written, or the part’s weight on record', prodKgFig(sure));
   if (pic.by.challans) h += row('challans', 'From the challans', 'at the kg a piece of the challans the plating was set against', prodKgFig(pic.by.challans, true));
+  // A client's default (owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable"): its figure, and the door that changes it.
+  var mayEdit = (typeof grdCan !== 'function' || grdCan('rates')) && (typeof grdSees !== 'function' || grdSees('pageClients'));
+  (pic.dflt || []).forEach(function(d) {
+    h += '<div class="inv-row inv-row-2 inv-row-flow" data-prod-weigh="default"><span class="inv-row-main"><span class="inv-row-title">' + escHtml('At ' + d.client + '’s default') + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(d.kgPc, 3) + ' kg a piece, set on the client, for ' + Math.round(d.pieces).toLocaleString('en-IN') + ' pieces nothing links to a part') + '</span></span>' +
+      '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + escHtml(prodKgFig(d.kg, true)) + '</span>' +
+      (mayEdit && d.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(d.clientId)) + '">Change</button>' : '') + '</span></div>';
+  });
   if (pic.by.kind) h += row('kind', 'By its kind', 'at the client’s usual kg a piece for that kind and gauge · the day ' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high), prodKgFig(pic.by.kind, true));
   if (pic.names.length) h += prodUnweighedRowsHtml(pic.names) + '<div class="inv-row"><span class="inv-row-main"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every run not weighed</button></span></div>';
   return h;
@@ -441,7 +451,7 @@ function prodRunRowHtml(e, muted) {
   var meta = (e.time ? e.time + (e.to && e.to !== e.time ? '–' + e.to : '') + ' · ' : '') + (rounds.length ? rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ' · ' : e.racks ? e.rackSize + ' × ' + e.racks + ' · ' : '') + prodSrcWord(e) + (e.rework ? ' · rework' : '');
   // A run in pieces says what it weighs and how that was found (prodWeigh); one nothing weighs says so.
   var w = e.unit === 'NOS' ? prodWeigh(e) : null;
-  var kg = !w ? '' : w.kg == null ? 'not weighed' : prodKgFig(w.kg, w.how === 'challans' || w.how === 'kind') + (w.how === 'kind' ? ' by kind' : w.how === 'challans' ? ' from challans' : '');
+  var kg = !w ? '' : w.kg == null ? 'not weighed' : prodKgFig(w.kg, prodWeighEst(w)) + (w.how === 'kind' ? ' by kind' : w.how === 'challans' ? ' from challans' : w.how === 'default' ? ' at the client’s default' : '');
   return '<div class="inv-row inv-row-2' + (muted ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
     (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span></div>';

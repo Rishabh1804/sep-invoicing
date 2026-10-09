@@ -165,9 +165,11 @@ test.describe('P190: a day’s plating, whole', () => {
   test('each line’s efficiency colours its card: what it plated of what its working units could plate in the time it ran', async ({ page }) => {
     await loadAppWithState(page, book(true));
     // VAT A1: three tanks of 100 kg working (the fourth down a year), a round every 30 minutes, the general shift 8:30 to 5 (510
-    // minutes): 17 rounds of 300 kg, 5,100 kg. It plated 265 kg weighed (WIDGET not): 5%. The register counted 2 rounds.
-    const a1 = await g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a1'); return [o.nAvail, o.n, o.kgAvail, o.minutes, Math.round(o.possible), Math.round(o.eff * 100), o.tone, o.rounds, Math.round(o.pace * 100)]; })()`);
-    expect(a1).toEqual([3, 4, 300, 510, 5100, 5, 'danger', 2, 12]);
+    // minutes): 17 rounds of 300 kg, 5,100 kg. It plated 265 kg weighed (WIDGET not): 5%. The register counted 2 rounds of the
+    // brackets, 140 kg: the load is read over those alone (23% of 300 kg), and the pace is what is left (22%), since 125 kg
+    // came from runs written without rounds. Two rounds are not enough to measure a tank: the typed 300 stands.
+    const a1 = await g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a1'); return [o.nAvail, o.n, o.kgAvail, o.minutes, Math.round(o.possible), Math.round(o.eff * 100), o.tone, o.rounds, Math.round(o.pace * 100), Math.round(o.load * 100), Math.round(o.kgNoRounds), o.roundsOnly, o.kgSrc]; })()`);
+    expect(a1).toEqual([3, 4, 300, 510, 5100, 5, 'danger', 2, 22, 23, 125, false, 'typed']);
     // VAT A2: one tank of 50 kg working of two (half down: the owner's "special case"), 510 minutes: 17 rounds, 850 kg.
     const a2 = await g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a2'); return [o.nAvail, o.n, Math.round(o.possible), Math.round(o.eff * 100), o.tone, !!o.halfDown]; })()`);
     expect(a2).toEqual([1, 2, 850, 74, 'danger', true]);
@@ -179,7 +181,9 @@ test.describe('P190: a day’s plating, whole', () => {
     await expect(c1.locator('.inv-hero-fig')).toHaveText('5%');
     await expect(c1.locator('.inv-hero-title')).toHaveText('≥ 265 kg of the 5.10 t its working tanks could plate');
     await expect(c1.locator('.inv-hero-sub')).toContainText('3 of 4 tanks working · 300 kg a round · a round every 30 min (set) · 8.5 h run');
-    await expect(c1.locator('[data-flr-effparts]')).toContainText('ran 2 of the 17 rounds the time allowed (12%)');
+    await expect(c1.locator('[data-flr-effparts]')).toContainText('ran about 4 rounds’ worth of the 17 the time allowed (22%): 2 counted on the register, 125 kg from runs written without rounds');
+    await expect(c1.locator('[data-flr-effparts]')).toContainText('loaded 23% of 300 kg a round');
+    await expect(c1.locator('[data-flr-effparts]')).toContainText('typed on its tanks; the register measures 70 kg a round (23 kg a tank), not firm: 2 of the 30 rounds it needs');
     // Half its tanks down leads the card, whatever its efficiency.
     await expect(c2).toHaveClass(/inv-hero-danger/);
     await expect(c2.locator('.inv-hero-title')).toHaveText('1 of 2 tanks down');

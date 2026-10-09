@@ -75,11 +75,13 @@ function learnOpened(t) {
 /* `t` an app task (a fold's members answer each for itself), `act` go | list | snooze | week. */
 function learnRespond(t, act) {
   if (!t) return;
-  var td = learnData(), seen = learnSeenRead(), today = localDateStr();
+  // One answer, one moment: a fold's members share `at`, which learnStats counts once. Read per member, the clock could tick
+  // between them and one snooze count as two or three.
+  var td = learnData(), seen = learnSeenRead(), today = localDateStr(), at = Date.now();
   (t.rule === 'fold' ? t.members || [] : [t]).forEach(function(m) {
     if (!m || !m.key || m.rule === 'learn') return;
     var s = seen[m.key];
-    td.resp.push({ at: Date.now(), key: m.key, rule: m.rule, act: act, age: s && s.f ? Math.max(0, isoDaysBetween(s.f, today)) : null });
+    td.resp.push({ at: at, key: m.key, rule: m.rule, act: act, age: s && s.f ? Math.max(0, isoDaysBetween(s.f, today)) : null });
   });
   if (td.resp.length > LEARN_RESP_MAX) td.resp.splice(0, td.resp.length - LEARN_RESP_MAX);
   saveState();

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="35511486">
+<meta name="app-build" content="f7d0d02c">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -34408,7 +34408,7 @@ function addQuoteLines(text) {
 /* What a text is, named with the paste box's own readers and routed the way its read routes it (relayRead): rolls go to
    Staff; otherwise pickling, production and power messages go to Production, then a stock message to Stock. Pure but for
    the book's roster, clients and stock lines, which the readers take. */
-var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', power: 'Power cuts' };
+var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', runs: 'Production by slot', power: 'Power cuts' };
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
   var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };
@@ -35738,6 +35738,8 @@ function prodKind(text) {
   if (rk === 'stock') return 'stock';
   if (/p\w{0,2}[ckx]{1,2}l\w*[ \t]*t\w*me|in[ \t]*c?o?ming[ \t]*ma|i+n?x?o?coming|incoming[ \t]*time/i.test(t) && !PROD_CHEM_IN_RE.test(head)) return 'pickling';
   if (PROD_LIST_HEAD_RE.test(head) || /^\s*b[ae]r+[ae]*l+\.?\s*production/im.test(t)) return 'production';
+  // Before power: a slot log may carry a power cut among its slots, and read as power alone its slots were lost.
+  if (prodIsRunLog(t)) return 'runs';
   if (/p[ao]w[ae]r\s*(cut|cat|cute|in|out|no)|pawar\s*cut|single\s*ph[ae]se/i.test(t)) return 'power';
   if (/^\s*-*\s*(production|work)\s*-*\s*$/im.test(t)) return 'production';
   return 'other';
@@ -36092,6 +36094,157 @@ function parseProductionList(msg, ctx) {
   return { items: items, notes: notes, date: date, noDate: noDate };
 }
 
+/* ---------- Production by slot: the register typed as text ---------- */
+/* Owner, 9 Oct 2026: "the parser refuses to read it even when the data is available. Same for Barrel and VAT A2
+   production pasted as text rather than uploaded as an image". A day's head, then one slot a line: its from and to,
+   what was plated on it, the line it ran on:
+     08/10/26 -
+     5 pm - 8 pm - Mehta clamp 165x83(40x6) - 400 nos + Clamp 140/146x91(32x6) - 606 nos = 1006 nos VAT A1
+     9 PM - 4 AM - General 188 CD - 300.4 KG VAT A1
+   It is the register's page in words, so a slot is a run on its line, in the general shift or overtime by when it
+   began (the photo's rule); a part after "+" with no client of its own is the slot's client; "= 1006 nos" is checked
+   against the parts, never taken for one. A slot with no line written is asked, never guessed. */
+var PROD_RUN_TIME = '\\d{1,2}(?:\\s*[:.]\\s*\\d{2})?\\s*(?:[ap]\\.?\\s?m\\.?)?';
+var PROD_RUN_RE = new RegExp('^\\s*(' + PROD_RUN_TIME + ')\\s*(?:-+|–|—|\\bto\\b)\\s*(' + PROD_RUN_TIME + ')\\s*(?:-+|–|—|:)\\s*(.+)$', 'i');
+var PROD_LINE_TOKEN = '(?:VAT[\\s.-]*A?[\\s.-]*[12]|V[\\s.]?A[\\s.]?[12]|B[AE]R+[AE]*L+)';
+var PROD_LINE_END_RE = new RegExp('[\\s,–-]*\\(?\\b(' + PROD_LINE_TOKEN + ')\\)?\\s*\\.?\\s*$', 'i');
+var PROD_LINE_LEAD_RE = new RegExp('^\\s*(' + PROD_LINE_TOKEN + ')\\b\\s*[-–:]+\\s*', 'i');
+var PROD_LINE_ONLY_RE = new RegExp('^[\\s*–-]*(' + PROD_LINE_TOKEN + ')[\\s*:–-]*$', 'i');
+var PROD_RUN_TOTAL_RE = /\s*=\s*(\d+(?:\.\d+)?)\s*(nos|no|pcs|pc|pieces|kgs|kg)?\.?\s*$/i;
+/* A line's own name ("VAT A1", "VAT-A2", "V A 2", "Barrel", "berral") as its id; anything else, or two lines, null. */
+function prodLineOfToken(token) {
+  var a = relayHeaderAreas(token).filter(function(x) { return PROD_LINES.indexOf(x) >= 0; });
+  return a.length === 1 ? a[0] : null;
+}
+/* A slot line, with any line name at its front taken off: {from, to, rest, lead}, or null. */
+function prodRunMatch(line) {
+  var lead = null, s = String(line || '');
+  var lm = s.match(PROD_LINE_LEAD_RE);
+  if (lm) { lead = prodLineOfToken(lm[1]); s = s.slice(lm[0].length); }
+  var m = s.match(PROD_RUN_RE);
+  return m ? { from: m[1], to: m[2], rest: m[3], lead: lead } : null;
+}
+/* A message is a slot log when a line reads as a slot with a figure or a line name on it. */
+function prodIsRunLog(text) {
+  return String(text || '').split('\n').some(function(l) {
+    var m = prodRunMatch(l);
+    if (!m) return false;
+    PROD_QTY_TOKEN_RE.lastIndex = 0;
+    return PROD_QTY_TOKEN_RE.test(m.rest) || PROD_LINE_END_RE.test(m.rest) || m.lead != null;
+  });
+}
+/* The slot's two times in minutes. A time written without AM or PM takes the other's; when neither says, the shop's
+   hours decide (6 to 11 is the morning) and it is said. A slot that runs past midnight ends before it began. */
+function prodRunTimes(a, b) {
+  var p = function(s) {
+    var m = /^(\d{1,2})(?:\s*[:.]\s*(\d{2}))?\s*([ap])?/i.exec(String(s || '').trim());
+    return m ? { h: +m[1], mm: m[2] ? +m[2] : 0, ap: m[3] ? m[3].toLowerCase() : '' } : null;
+  };
+  var x = p(a), y = p(b), issues = [];
+  if (!x || !y || x.h > 23 || y.h > 23 || x.mm > 59 || y.mm > 59) {
+    return { from: null, to: null, issues: [{ tone: 'amber', code: 'time', text: 'The slot’s times could not be read; enter them by hand if they matter.' }] };
+  }
+  var at = function(t, ap) { return t.h > 12 ? t.h * 60 + t.mm : (t.h % 12 + (ap === 'p' ? 12 : 0)) * 60 + t.mm; };
+  var flip = function(ap) { return ap === 'p' ? 'a' : 'p'; };
+  var said = x.ap || y.ap || x.h > 12 || y.h > 12, from, to;
+  if (x.ap || x.h > 12) {
+    from = at(x, x.ap);
+    to = y.ap || y.h > 12 ? at(y, y.ap) : at(y, x.ap);
+    if (!y.ap && y.h <= 12 && to <= from) to = at(y, flip(x.ap || 'p'));
+  } else if (y.ap || y.h > 12) {
+    to = at(y, y.ap);
+    from = at(x, y.ap);
+    if (from > to && y.h <= 12) from = at(x, flip(y.ap));
+  } else {
+    var apx = x.h >= 6 && x.h <= 11 ? 'a' : 'p';
+    from = at(x, apx);
+    to = at(y, apx);
+    if (to <= from) to = at(y, flip(apx));
+  }
+  if (!said) issues.push({ tone: 'amber', code: 'meridiem', text: 'No AM or PM written: read as ' + relayClockLabel(from) + ' to ' + relayClockLabel(to) + '.' });
+  return { from: from, to: to, issues: issues };
+}
+/* The parts of one slot: split at a "+" that starts a new part ("400 nos + Clamp …"), never at one inside a figure
+   ("1800+450 nos") or inside brackets. */
+function prodRunPieces(s) {
+  var out = [], depth = 0, cur = '';
+  for (var i = 0; i < s.length; i++) {
+    var ch = s[i];
+    if (ch === '(') depth++;
+    else if (ch === ')') depth = Math.max(0, depth - 1);
+    if (ch === '+' && !depth && /^\s*[A-Za-z]/.test(s.slice(i + 1)) && /\S/.test(cur)) { out.push(cur); cur = ''; continue; }
+    cur += ch;
+  }
+  if (/\S/.test(cur)) out.push(cur);
+  return out.map(function(x) { return x.trim(); });
+}
+function parseProductionRuns(msg, ctx) {
+  var lines = String(msg.text || '').split('\n'), items = [], notes = [], power = {};
+  var date = msg.sentOn || ctx.today, noDate = !msg.sentOn, curLine = null;
+  lines.forEach(function(raw, i) {
+    var line = raw.trim(), n = i + 1;
+    if (!line) return;
+    var dm = line.match(/^(?:date\s*[:-]?\s*)?(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s*[-–:,]*\s*$/i);
+    if (dm) {
+      var d = isoFromDmy(dm[1], dm[2], dm[3]);
+      if (d) { prodPowerEnd(power, date, items); date = d; noDate = false; }
+      return;
+    }
+    // "VAT A2" on a line of its own: the line of the slots under it.
+    var lo = line.match(PROD_LINE_ONLY_RE);
+    if (lo) { curLine = prodLineOfToken(lo[1]); return; }
+    if (prodIsPowerLine(line)) { prodPowerStep(power, line, raw, n, date, null, items, notes); return; }
+    var m = prodRunMatch(line);
+    if (!m) { notes.push({ n: n, raw: raw, text: 'Not read as production' }); return; }
+    var times = prodRunTimes(m.from, m.to), rest = m.rest, runLine = m.lead;
+    var le = rest.match(PROD_LINE_END_RE);
+    if (le && prodLineOfToken(le[1])) { runLine = runLine || prodLineOfToken(le[1]); rest = rest.slice(0, le.index); }
+    if (!runLine) runLine = curLine;
+    var total = null, tm = rest.match(PROD_RUN_TOTAL_RE);
+    if (tm) { total = { qty: parseFloat(tm[1]), unit: tm[2] ? PROD_UNIT_OF[tm[2].toUpperCase()] || null : null }; rest = rest.slice(0, tm.index); }
+    var group = null, recs = [];
+    prodRunPieces(rest).forEach(function(piece) {
+      // "500 nos + 300 nos": one part counted in two goes, the sum, as "500+300 nos" reads (two units are left apart).
+      var sumRe = /(\d+(?:\.\d+)?)\s*(nos|no|pcs|pc|kgs|kg)\.?\s*\+\s*(\d+(?:\.\d+)?)\s*(nos|no|pcs|pc|kgs|kg)\b/i, sm;
+      while ((sm = piece.match(sumRe)) && PROD_UNIT_OF[sm[2].toUpperCase()] === PROD_UNIT_OF[sm[4].toUpperCase()]) {
+        piece = piece.slice(0, sm.index) + sm[1] + '+' + sm[3] + ' ' + sm[4] + piece.slice(sm.index + sm[0].length);
+      }
+      var it = prodReadItem(piece, ctx.clients);
+      // After the slot's client, a part's first word is only another client when it names one exactly: "Clamp 140x91"
+      // after "Mehta clamp …" is the clamp, not a client whose name holds the word (read-as would take it off the part).
+      if (group && it.clientId != null && it.clientHow === 'read-as') it = prodReadItem(piece, null);
+      // A client named alone ("Mehta + …"): the client of the parts after it.
+      if (it.clientId != null && !it.part && it.qty == null) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; return; }
+      if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+      else if (!group && /^[A-Za-z]/.test(piece)) {
+        // A first word that names nobody the book holds, with a part after it, is asked as the client (the barrel
+        // list's rule); alone before its figure it is the part.
+        var w0 = piece.split(/\s+/)[0], restPart = it.part.replace(new RegExp('^' + w0.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*'), '');
+        if (restPart) { group = { client: w0, clientId: null, clientName: '', how: 'unknown' }; it.part = restPart; }
+      }
+      var rec = prodItemRecord(it, it.clientId == null ? group : null, raw, n, date, false);
+      rec.kind = 'plated'; rec.line = runLine || null; rec.lineSrc = runLine ? 'written' : null; rec.basis = 'relay';
+      rec.time = prodHhmm(times.from); rec.to = prodHhmm(times.to);
+      rec.slot = times.from != null && (times.from < RELAY_GENERAL || times.from >= RELAY_GENERAL_OUT) ? 'ot' : 'general';
+      times.issues.forEach(function(x) { rec.issues.push(x); });
+      if (!runLine) rec.issues.push({ tone: 'amber', code: 'noline', text: 'No line written on this slot. Pick the line, or leave it unknown.' });
+      recs.push(rec);
+    });
+    if (!recs.length) { notes.push({ n: n, raw: raw, text: 'Not read as production' }); return; }
+    if (total) {
+      var same = recs.filter(function(r) { return r.qty != null && (!total.unit || r.unit === total.unit); });
+      var sum = Math.round(same.reduce(function(t, r) { return t + r.qty; }, 0) * 1000) / 1000;
+      if (same.length !== recs.length || Math.abs(sum - total.qty) > 0.0005) {
+        recs[recs.length - 1].issues.push({ tone: 'amber', code: 'total', text: 'The parts add up to ' + sum + (total.unit ? ' ' + total.unit.toLowerCase() : '') + '; the slot says ' + total.qty + '.' });
+      }
+    }
+    recs.forEach(function(r) { items.push(r); });
+  });
+  prodPowerEnd(power, date, items);
+  if (noDate) items.forEach(function(it) { if (it.kind !== 'downtime') it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date in the message: read as ' + date + '.' }); });
+  return { items: items, notes: notes, date: date, noDate: noDate };
+}
+
 /* ---------- The production block inside a roll ---------- */
 /* The roll parser already knows which lines are names; the block is the lines it read as notes under a
    "----production----" head. The block reports the overtime slot above it, and its line is the nearest area
@@ -36187,6 +36340,7 @@ function parseProdPaste(text, ctx) {
     var r;
     if (m.kind === 'pickling' || m.kind === 'power') r = parsePickling(m, ctx);
     else if (m.kind === 'production') r = parseProductionList(m, ctx);
+    else if (m.kind === 'runs') r = parseProductionRuns(m, ctx);
     else if (m.kind === 'roll') r = prodFromRoll(m, ctx);
     else r = { items: [], notes: [], date: m.sentOn || ctx.today };
     prodOwnerFill(r.items, ctx);
@@ -44988,7 +45142,7 @@ function prodReviewHtml() {
     '<div class="inv-tile"><div class="inv-tile-label">To save</div><div class="inv-tile-value">' + res.save + '</div></div></div>';
   if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before, or sent twice, and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
   rv.msgs.forEach(function(m, mi) {
-    var kindWord = { pickling: 'Pickling', production: 'Barrel production', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
+    var kindWord = { pickling: 'Pickling', production: 'Barrel production', runs: 'Production by slot', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
     h += '<div class="inv-panel inv-panel-flush' + (m.dup ? ' inv-row-muted' : '') + '" data-prod-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(kindWord + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
       '<span class="inv-panel-count">' + escHtml((m.sentOn ? stockShortDate(m.sentOn) : 'no date') + (m.sentAt != null ? ' ' + relayHhmm(m.sentAt) : '')) + '</span></div>';
     if (m.dup) h += '<div class="inv-panel-body inv-note">' + (m.twice ? 'The same message is earlier in this paste: read once, left out here.' : 'Saved before: left out.') + '</div>';

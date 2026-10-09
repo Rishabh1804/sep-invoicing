@@ -2024,6 +2024,9 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
    take the card's tone. */
 .inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; }
 .inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+/* An analysis's caption and its folded working (§6.27) are drawn on the card's box: no page-coloured band, the card's hairlines. */
+.inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero details.inv-row-fold > summary:hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 :is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--border)); }
 .inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
@@ -2136,6 +2139,9 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 .inv-meter-mark { fill: var(--text-1); }
 /* A tile's line under its figure (Pulse's month to date). */
 .inv-tile-viz { margin-top: var(--sp-6); }
+/* A day on one bar (chartDayStrip, §6.24): the meter's bar, the hours under it at its quarters. */
+.inv-daystrip { display: block; min-width: 0; margin-top: var(--sp-6); }
+.inv-daystrip-axis { display: flex; justify-content: space-between; margin-top: var(--sp-2); font-size: var(--fs-11); line-height: 1.2; color: var(--text-3); }
 .inv-tile-viz:empty { display: none; }
 
 /* §6.25 A grid packed with no gaps (Needs you and Pulse's widgets on the desktop): each card spans as many small rows as its

@@ -52,5 +52,5 @@ export function floorBook(): SepState {
 export async function openFloor(page: Page) {
   await switchTab(page, 'pageFloor');
 }
-export const card = (page: Page, line: string) => page.locator(`#flrLines > .inv-panel[data-line="${line}"]`);
+export const card = (page: Page, line: string) => page.locator(`#flrLines > [data-line="${line}"]`);
 export const tile = (page: Page, key: string) => page.locator(`#flrTiles [data-flr-tile="${key}"]`);

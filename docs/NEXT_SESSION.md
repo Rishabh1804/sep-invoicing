@@ -7,6 +7,31 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 9 Oct 2026: production read whole, stock by line, one spec for the map and the load (read this first)
+
+PR #144, from the owner's messages of 9 Oct 2026. CLAUDE.md has each part.
+- **Production typed as text** (P189): a slot a line (*"5 pm - 8 pm - Mehta clamp … = 1006 nos VAT A1"*) is its own kind of
+  message, read as runs.
+- **A day's plating, whole** (P190): every run weighed by the surest route; the day one card in tonnes; Floor's line cards coloured
+  by each line's efficiency; the pieces not weighed a follow-up list.
+- **The tank's round and the register's pace** (P191), measured from the register and used once firm. The efficiency splits into
+  time, racks and parts, drawn as tiles. Mehta's default weight is 0.560 kg a piece; their round of 108 and their liners' rounds
+  are the owner's answers.
+- **Stock by line, PP3** (P192): the bath a stock message names is read, a use per bath on its own day, and zinc and chemicals are
+  set against what each line plated.
+- **Analysed figures drawn one way** (design §6.27): the verdict, its factors as tiles, the working folded.
+- **One spec, `docs/TAB_MAP.md`**: the tab map (TM1–TM4) and the cognitive-load survey's fixes, combined on the owner's word
+  (*"Combine them into one spec"*), in seven steps. **Not built.**
+
+**Left for the owner:**
+- On Stock → To check, *Use the new reading* on the 25–28 Sep zinc message and the 4–6 Oct 16 Salt message, so their uses are split
+  by bath.
+- The order of PP2, PP4 and PP5 (`docs/PLANT_PICTURE.md`).
+- The calls the spec makes (`docs/TAB_MAP.md` §1a), and the word to build it.
+
+**Data flows changed:** stock entries gain `lines` (`sep-stock`); production gains `seriesRules` and `gaugeRuled`
+(`sep-production`); a client may carry `defaultKgPc`. The table below has the detail.
+
 ## Built 8 Oct 2026, the fourth: Office's Insights in sight on the phone (read this first)
 
 The owner, after the third merged: *"Insights seems to be missing on mobile?"* It was there, out of sight: Office's row is twice a
@@ -376,6 +401,7 @@ in the PR**, so the compile session knows to re-check.
 | **Monthly register, 6 Oct 2026** | New top-level `attRegister: {months: {'YYYY-MM': {month, src: import/photo/hand, title, columns: [{name, staffId?, total?}], days: [{date, written, kind: work/sunday/holiday, cells: [{raw, unsure?, edits?: [{at, by, from, to}]}], note?, dateUnsure?}], notes, verifiedAt?, verifiedBy?, filledAt?, photo?: {size, model, at}}}, names: {KEY: staffId}}`: the supervisor's monthly book as written, a cell's raw text read in code. Marks the owner puts on a day from it carry `src: 'register'`. Staff → Register → Import takes `sep-att-register` v1 `{kind, version, months: [{month, title, columns: [name], days: [{date, written, kind, cells: [{raw, unsure}], note}], totals: [{col, raw}], notes}]}`; a month on record is kept. **For the compile:** the book is the source the monthly slips are made from; the pages of March–September 2026 were transcribed privately (handed over 6 Oct 2026, never committed). Keep `attRegister` whole beside `payrollPaid`. |
 | **Backup shape changed, 8 Oct 2026 (power causes)** | New `power.causes: [{id: 'PCS-…', kind: reason/fix, name, aliases, scope?: grid/plant/'', at, by, mergedInto?, mergedAt?, mergedBy?, editedAt?, editedBy?}]` — one name written one way, every spelling typed kept; a merged entry points at the one it joined. Production `downtime` entries gain `downtime.reason` and `downtime.fix` (ids into that list), `where` (`all` or a station), `unitId` (a plant register unit), `note`, `setAt`, `setBy`; a time typed in the app sets the entry's `to` with `downtime.closedAt`, `closedBy` (a name, where a paste's top-level `closedBy` is a paste id) and `closedHow: 'hand'`, dropping `atLeast` / `inferred`. **The `sep-production` export carries `powerCauses`** (the list its cuts name; version stays 1), and an import merges it by id, joining one written the same way. **For the compile:** read a cut's reason through the list, following `mergedInto`; keep the list whole. `todoCheck` gains `powerComplete`, `powerCause`. |
 | **Bank statement import, 8 Oct 2026** | The statement may come as the .xlsx Excel saves it, and a two-page statement's page foot (its time under TRAN DATE, *Page 2 of* under BALANCE) is passed over. No record shape changed; the `sep-bank` export is as before. |
+| **Backup shape changed, 9 Oct 2026 (production and stock by line)** | Stock entries gain `lines: ['vat-a1' \| 'vat-a2' \| 'barrel', …]`, the baths a use or a charge went into, read from the message or picked by hand (*Into*). **A use whose message names baths is saved as one entry a bath**, each on its own day with its bath's words as its note, where it was one entry with every bath in its note; the quantity per item is unchanged, and a message read again with the new reader (Stock → To check) voids the old entry and adds the new ones. `S.production.seriesRules: [{id, clientId, family, kinds, racks, lines, prefix, except?, name, note, at}]` says which parts a round can be (Mehta's two set once, `_prodMehtaRounds2`); a run read again by a gauge rule keeps `gaugeRuled: {rack, at}`; a client may carry `defaultKgPc` (a kg a piece, `_clientKgPcDefault1`); a weight set from a run goes on the client's `pieceWeights` with `source: 'production'`. All travel with the book; the `sep-stock` and `sep-production` exports carry them, and soma-internal's compile reads both. |
 | **Today as cards, 8 Oct 2026** | Nothing in the book: a card's fold is per device (`sep_inv_folds`, keys `tdy-*`), like every fold. |
 | **Produces** captured production → `soma-internal` (the owner) | **Built 28 Sep 2026.** Production → Entries → Export writes `sep-production-YYYY-MM-DD.json`: `{format: 'sep-production', version: 1, exportedAt, build, entries, pastes, photos, imports, learn, powerCauses}` (`powerCauses` from 8 Oct 2026). Always whole; ids are stable, so the compile de-duplicates on them and keeps the newest copy of an entry (a void is a later copy). The inferred line is never exported. |
 | **Consumes** the production history ← `soma-internal` | Production → Entries → Import takes the same `sep-production` v1 shape. Merges by id and never overwrites; a client is kept by id only where the book holds that id under the same name, else found by name, and a name the book does not hold is counted and kept as written, never invented. Entries without `src` are stamped `import` and raise no To-do task. |

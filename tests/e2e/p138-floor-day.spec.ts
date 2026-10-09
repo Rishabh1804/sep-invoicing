@@ -11,7 +11,7 @@ import { floorBook, openFloor, card, tile, dayOff, g, T, Y, D2 } from './p138-fl
 test('each line’s card: its staffing against the day’s number, its EXTRA, what it ran and plated, and who plated it', async ({ page }) => {
   await loadAppWithState(page, floorBook());
   await openFloor(page);
-  await expect(page.locator('#flrLines > .inv-panel')).toHaveCount(4);
+  await expect(page.locator('#flrLines > .inv-hero')).toHaveCount(4);
   await expect(page.locator('#flrLines .inv-panel-title')).toHaveText(['VAT A1', 'VAT A2', 'Barrel', 'Pickling']);
   // Staffing: heads against areaNeedOn (A1's day number is 4, its usual 3); Barrel is barrel and barrel pickling, one unit of five.
   await expect(card(page, 'vat-a1').locator('[data-flr-staff]')).toHaveText('Short 1 · 3/4');
@@ -27,11 +27,12 @@ test('each line’s card: its staffing against the day’s number, its EXTRA, wh
   await expect(a1).toHaveAttribute('data-flr-run', 'R2');
   await expect(a1.locator('.inv-row-title')).toHaveText('BETA TEST AUTO · CLAMP 66X42 (30X6)');
   await expect(a1.locator('.inv-row-main .inv-row-meta')).toHaveText('a round of 150 · last 2:45 PM · 2 runs');
-  await expect(a1.locator('[data-flr-plated]')).toHaveText('870 NOS');
-  await expect(a1.locator('[data-flr-kg]')).toHaveText('182 kg');
+  // One unit (owner, 9 Oct 2026): the weight leads, the pieces under it.
+  await expect(a1.locator('[data-flr-plated]')).toHaveText('182 kg');
+  await expect(a1.locator('[data-flr-kg]')).toHaveText('870 NOS');
   await expect(card(page, 'vat-a2').locator('[data-flr-run] .inv-row-main .inv-row-meta')).toHaveText('a round of 56 · last 3:20 PM');
   await expect(card(page, 'barrel').locator('[data-flr-run] .inv-row-main .inv-row-meta')).toHaveText('the day’s list');
-  await expect(card(page, 'barrel').locator('[data-flr-plated]')).toHaveText('900 NOS');
+  await expect(card(page, 'barrel').locator('[data-flr-plated]')).toHaveText('108 kg');
   // Pickling: the latest load and the count of loads.
   await expect(card(page, 'pickling').locator('[data-flr-run]')).toHaveAttribute('data-flr-run', 'P2');
   await expect(card(page, 'pickling').locator('[data-flr-run] .inv-row-main .inv-row-meta')).toContainText('last 11:30 AM · 300 NOS');
@@ -91,8 +92,8 @@ test('the tiles: on site, plated and power as Staff, Production and Power count 
   await expect(tile(page, 'onsite').locator('.inv-tile-sub')).toHaveText('1 absent');
   await expect(tile(page, 'onsite')).toHaveClass(/inv-tile-ok/);
   await expect(tile(page, 'plated').locator('.inv-tile-label')).toHaveText('Plated so far');
-  await expect(tile(page, 'plated').locator('.inv-tile-value')).toHaveText('0.37 t');
-  await expect(tile(page, 'plated').locator('.inv-tile-sub')).toHaveText('1,938 NOS');
+  await expect(tile(page, 'plated').locator('.inv-tile-value')).toHaveText('374 kg');
+  await expect(tile(page, 'plated').locator('.inv-tile-sub')).toHaveText('1,938 pieces recorded · every run weighed');
   await expect(tile(page, 'power').locator('.inv-tile-value')).toHaveText('1 cut');
   await expect(tile(page, 'power').locator('.inv-tile-sub')).toHaveText('12 min dark');
   const onSite = await tile(page, 'onsite').locator('.inv-tile-value').innerText();
@@ -102,7 +103,7 @@ test('the tiles: on site, plated and power as Staff, Production and Power count 
   await expect(page.locator('#homeAttOnSite')).toHaveText(onSite);
   await switchTab(page, 'pageProduction');
   await page.locator('[data-action="invProdTab"][data-tab="overview"]').click();
-  await expect(page.locator('[data-prod-tile="last"] .inv-tile-value')).toHaveText(plated);
+  await expect(page.locator('[data-prod-day] .inv-hero-fig')).toHaveText(plated);
   // Power: the cut reported twice is one, of 12 minutes; Lines' power tile and Power → Cuts say so.
   await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
   await expect(page.locator('#productionContent .inv-tiles .inv-tile').nth(3).locator('.inv-tile-value')).toHaveText('12 min');

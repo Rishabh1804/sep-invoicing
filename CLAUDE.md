@@ -38,10 +38,32 @@ ID cards with a QR and a scanner; one office QR for checking in from a worker's 
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
+**The tab map and the cognitive load are one spec — read `docs/TAB_MAP.md`** (owner, 8–9 Oct 2026: four sections with one
+overview each, Insights in Today, Bills & notes split, a cheque in hand counted as paid; then *"Spec cognitive load into our previous
+spec that's still to be implemented. Combine them into one spec."*). Seven steps in one PR: TM1 the shell (with the phone's Filter
+and More, and P195, the benchmark's instrument), TM2 Today, TM3 Money, TM4 Floor, TM5 Office, TM6 across the app, TM7 the docs and
+the measures. Every surveyed screen has its step and its target (§3d), the calls the spec makes are listed for the owner (§1a), and
+no step may leave a screen longer (I10). **Not built: the build and the QA chain wait for the owner's word.**
+
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
-(the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9), with
-the order proposed for taking Today's card language to the other tabs, one PR each. **The order is the owner's to set.**
+(the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9). Its
+proposals, with its *Analysed data* list, are now the tab map's steps (above).
+
+**The plant picture is begun — read `docs/PLANT_PICTURE.md`** (owner, 9 Oct 2026: *"There is no holistic vision that is being created
+using these details"*). PP1 is built: a day's plating in one unit, each line's efficiency colouring Floor's cards (half a line's units
+down is red), the pieces not weighed followed up. PP3 is built: the bath a stock message names, zinc and chemicals by line (*Stock by
+line* below). PP2, PP4 and PP5 (the line over time, equipment and money, the period whole) are proposed; **the order is the owner's.**
+
+**An analysis on screen is a verdict, its factors and the working folded** (owner, 9 Oct 2026: *"The times lost most reads like a block
+of text and is not presented according to our benchmark"*, and *"lots of new chaotic text data is entering due to the analysis …
+designing a way to present our analysed data in a coherent manner"*; design §6.27). The verdict leads in its tone. The factors are tiles
+under a caption naming what moved it most. *How it's worked out* is folded under them, shut until opened: one fact a row
+(`uiFactRowHtml`, `uiFoldRowHtml`, `uiWorkingHtml`, state.js), a few words and the figure at the end, where a figure comes from a
+badge (*measured*, *set*, *typed*, *so far*, *shared*). Certainty is a sign (≈, ≤) or a badge, never a clause. How the analysis works
+is the screen's guide (*Reading the plant's figures*, kbguides.js), not a note on the face. A new analysis is drawn this way. The
+screens that still reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*) and fixed in the tab map's
+steps (`docs/TAB_MAP.md` §3d).
 
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
@@ -90,7 +112,7 @@ split/
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── quote.js           ← Quotations: Clients → Quotations, a number at issue, revisions, the printed quotation (~790 lines)
-├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars, and a card's sparkline and meter (~560 lines)
+├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars, and a card's sparkline, meter and day on one bar (~580 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
@@ -112,7 +134,7 @@ split/
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
 ├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, photo, by hand (~600 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
-├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, the register (~570 lines)
+├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
 ├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
@@ -122,14 +144,14 @@ split/
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
 ├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
-├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); in plant; rules; export (~580 lines)
-├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity, sep-plant files (~400 lines)
+├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; a line's efficiency; in plant; rules; export (~1,420 lines)
+├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~450 lines)
 ├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
 ├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
 ├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
-├── prodview.js        ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views (~750 lines)
-├── floor.js           ← Floor → Day: a card per line, heads against the number, running, plated, crew, EXTRA (~240 lines)
+├── prodview.js        ← Production page: the day's card, Overview, In plant, Lines, Entries; paste, photo and hand sub-views; Set its weight (~1,320 lines)
+├── floor.js           ← Floor → Day: a card per line coded by its efficiency, heads against the number, running, plated, crew, EXTRA; the pieces not weighed (~300 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks) and Pulse (the questions) (~440 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -182,7 +204,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,594 tests, both layouts
+pnpm exec playwright test          # 1,623 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -427,7 +449,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 717 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 719 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1886,7 +1908,16 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   - **A round outside the gauge rules is a flag, resolvable** (owner: *"The ones that fall outside the range, raise a flag -
     resolvable"*): the run keeps `gaugeUnknown` (its round) until a gauge is picked on it (Entries → *Gauge unknown* → **Pick gauge**, from
     the client's rules and challans for that kind, or typed; `gaugeSrc: 'set'`), and To-do rule **`prodGaugeUnknown`** asks per client,
-    imported runs included.
+    imported runs included. **A rule given a round later reads the runs already saved at it** (`prodGaugeRulesApply`: the gauges the
+    register read would have given, `gaugeSrc: 'rack'`, `gaugeRuled: {rack, at}`; a gauge picked by hand stays): the owner, 9 Oct 2026,
+    on a round of 108 of Mehta's clamps on VAT A1, *"above 32x6"*, so 108 joined the rule of 35X6, 35X8 and 40X6 (`_prodMehtaRounds2`).
+  - **A floor word whose round names a series** (`S.production.seriesRules`, `prodSeriesFor`; owner, 9 Oct 2026, on Mehta's liners:
+    *"126 - 150xxxxxx series, 90/87 - everything else"*): the floor writes Mehta's L.C. Pads and liners as LINER, and the round says which
+    of them it can be, not which one: a rule is a client, the floor's word, the challans' kinds it covers (LINER, PAD), the rack sizes and
+    the start of the part numbers (`prefix`), or every other part (`except`). A run so named is set against that series' challan lines,
+    oldest first (`prodInPlant`), and weighed by them, else by the series' usual weight (the 150 series at 0.28 to 0.31 kg, so it beats
+    the client's default; the rest spread 0.13 to 0.65 kg, so the default wins). A round no series names (39, 80, 150 on A1; 156 on A2)
+    stays the floor word's.
   - **A code two parts end in is matched with the recent challans** (owner: *"Checked and matched with recent IM … After a few matches
     it'll become clearer as both would have a different amount of them that can be plated in a round"*; `prodResolveCode`): the one with a
     challan in the 45 days before, else the one with a challan open, else the one on the latest challan, else the one plated before at this
@@ -1902,15 +1933,134 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
 - **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
   says so); only what is read is kept.
 
+### Production typed as text, a slot a line
+Owner, 9 Oct 2026: *"When I paste '08/10/26 - / 5 pm - 8 pm - Mehta clamp 165x83(40x6) - 400 nos + Clamp 140/146x91(32x6) - 606 nos =
+1006 nos VAT A1 / 9 PM - 4 AM - General 188 CD - 300.4 KG VAT A1' as a production message, the parser refuses to read it … Same for
+Barrel and VAT A2."* A message whose lines start with two times (`prodIsRunLog`) is its own kind, **Production by slot**
+(`parseProductionRuns`, prodparse.js), checked before power since a slot log can carry a cut: the date line; the times, AM or PM taken
+from the other side or from the shop's hours (said, amber, when guessed) and a run past midnight; the line written after the slot or on
+a line above it (VAT A1, VAT A2, Barrel and the shop's spellings, `prodLineOfToken`), asked when none; parts joined by "+" (a sum of
+one part's figures is one figure); the total after "=" checked and said when it disagrees; a power cut among the slots; a second date
+line. Each run is a plated entry on its line and slot (before 8:30 or from 5 PM overtime), basis relay, like the supervisor's block.
+P189.
+
+### A day's plating, whole
+Owner, 9 Oct 2026, on Production's tile: *"Plated, last recorded day: 7,630 NOS + 150 kg … 0.68 t known, 14% of the pieces weighed … is
+not uniform enough to draw a full picture of what happened. We have data to analyse and represent it in a better way."* Then: *"where
+it says 1386 pieces not weighed, we should have a list of those pieces whose weights are missing so we can do a follow up"*, and
+*"where it says VAT A1 did a particular amount of production, calculate its efficiency as well … That is how the colour code of the
+gradient for cards in this tab will be decided. Barrel is also a special case as 50% of it is down."* P190.
+- **A run is weighed by the surest route the book holds, and says which** (`prodWeigh`, production.js; `prodKg` stays the record's
+  own): **written** (kilos on the run); **record** (the part's kg a piece: the client's card, part weights, the Items Master, for the
+  part the floor's name was learnt as too, or a piece client's piece rate over its ₹ a kg, the derived weights' own arithmetic; or
+  **by its size**: a name writing one size, *clamp 165x83(40x6)*, is the client's part of that size and gauge however it is spelt,
+  *CLAMP 165X83 (NT)*, where the client's parts of that size weigh within 5% of each other, `prodWeighBySize`; owner, 9 Oct 2026:
+  *"Mehta's clamp have real weight values calculated in our data, maybe it is not linking to the production data due to part being
+  unassigned"*; a name writing several sizes names no one part);
+  **challans** (the challan lines In plant set the plating against, oldest open first, each at its own kg a piece: its kilos over its
+  count, its weight on record, or a piece client's amount over its ₹ a kg; `prodInPlant` returns its `lines` for this); **kind**
+  (the client's own challans of that kind of part in the year before, CLAMP, LINER, BRACKET (*BKT* spelt out), at the run's gauge or
+  the gauges its round allows: the median kg a piece by pieces, the middle 80% kept as the range); **default** (the client's own kg a
+  piece, `client.defaultKgPc`, Client → Edit → *On the floor*; owner, 9 Oct 2026: *"Default Mehta to 0.560 kg per unit,
+  adjustable"*, set once on the client whose name reads Mehta where it had none, `_clientKgPcDefault1`), before a kind whose parts
+  weigh wide apart (the middle 80% more than half its median across: Mehta's clamps of every gauge, 0.18 to 0.85 kg) and after one
+  whose parts agree (their pads, 0.28 to 0.31); else **not weighed**, never a guess. The day's weighing names each client's default
+  with **Change**, the client's form, and the page is drawn again on its save. Worked out once a book (`prodWeighIndex`, keyed on `_bookWrites`, `_prodVer` and the store). On the owner's book of 9 Oct:
+  of 50,784 pieces plated, 12% had been weighed; 89% are now (record 12%, challans 33%, kind 44%), 11% not.
+- **One unit everywhere** (`prodKgFig`): tonnes from a tonne, kilograms under it, **≈** where any run is estimated, **≥** where
+  pieces nothing weighs are left out (the figure is then the least it can be). Every figure that turned pieces into kilos reads
+  it: Floor → Day's tile and line cards, Lines' tiles (the weight leads, the pieces under it), its runs (*≈ 540 kg from challans*),
+  the week table, the four-week chart and labour per kg by line (a line-day counts with nine tenths of its pieces weighed, estimates
+  included), Stats' *Plated (floor)* row, the reports and Today's floor tiles.
+- **The day is one card** (`prodDayHeroHtml`, prodview.js; `prodDayPicture`, production.js), on Production's Overview in place of
+  the tile, and on Pulse (`compact`): the tonnes; what was recorded, what is estimated and what is not weighed; a meter of the
+  weighing routes against two shifts (~4 t), the plant's usual day marked (`prodUsualDay`: the median of five or more days in 60,
+  each nine tenths weighed); each line on the clock, 6 AM to 6 AM (`chartDayStrip`, runs ok, cuts danger, the general shift's ends
+  marked), its runs, rounds, units working, heads against the day's number, clients and its efficiency; how it was weighed by route
+  with the kind estimates' range for the day; the pieces not weighed; the clients; what the work is worth at its clients' rates on
+  record (`prodDayWorth`, rework left out; a role that sees money) and the day's labour (a role that sees wages); the cuts; the
+  pickling loads; the week against capacity. Coloured by the plant's efficiency (`prodDayEfficiency`), made worse by a general shift
+  with heads and no record or a tenth of the pieces unweighed.
+- **A line's efficiency** (`prodLineEfficiency`): what it plated against what its **working units** could plate in the **time it
+  ran**: the kg a round of the units running that day (the plant register), a round every so many minutes (the register's own pace
+  once firm, below; else the planner's: set, else the register's rounds, else assumed, said which), the general shift (8:30 AM to
+  5 PM) where it ran or had heads and each overtime run from start to end (a morning run with no end ends at 8:30; any other is not
+  counted, and said), less the power cuts inside. **Floor → Day's line cards are heroes coloured by it** (75% ok, 50% warning, under it
+  danger; over 110% is info, *check the kg a round or the pace*), and **half or more of a line's units down is danger whatever its
+  efficiency** and leads the card (*3 of 6 barrels down*); a general shift with heads and no record is at least warning. The inputs
+  are on the card, so a figure that looks wrong leads to the input that made it.
+- **How the efficiency splits** (owner, 9 Oct 2026: *"We'll do both, so solutions for efficiency can be worked out"*), where the
+  register counted rounds, four factors whose product is the figure (`prodLineEfficiency`; Floor → Day's line card, `flrEffRowHtml`):
+  - **time**: the rounds run against the rounds the hours allowed (hours over the pace, to a tenth: *ran 25 rounds where the hours
+    allowed 24.5 (102%)*). Every round the register counted, and kilos written without rounds as rounds' worth at a weighed round's
+    kilos; past a quarter of the line's kilos that is a guess at another mix, so the time is **not told apart** and the card says how
+    many kilos came without rounds;
+  - **racks**: how full each round was, against its part's fullest: the run's own fullest round, or a named part's usual round on the
+    line where that is more (`prodUsualRack`: the size the register counts most for it, from 5 rounds with half of them that size; a
+    kind of part has none, since Mehta's clamps take 150 or 120 by gauge). **The parts run at part-full racks are named** (`partFull`:
+    the part, its client, how full, over how many rounds of what);
+  - **parts**: what a full round of the day's parts weighs against the line's round (*a full round of the day's parts is 44 kg, 76% of
+    the line's usual 59 kg*): the work, not a fault, and the sign of a typed round that does not fit the line's parts;
+  - **not weighed**: a round with no weight adds no kilos, so the figure reads low by what such rounds would have held.
+
+  The card draws them as an analysis (§6.27): a caption naming what moved it most (`data-flr-effverdict`: under its usual, the factor
+  that lost most, *The time lost most*, *Part-full racks lost most*, *Lighter parts than the line's round*, *Rounds with no weight read it
+  low*; at or over it, what raised it, *Heavier parts than the line's round*, *Faster than its usual pace*; *How it splits* where the time
+  hides it), a strip of tiles (`data-flr-effsplit`: Time, Racks, Parts, and Weighed where rounds have no weight), each in the tone of
+  what it lost (the time ok from 90%, warning from 75%; the racks ok from 95%, warning from 85%; the weighed share ok from 95%, warning
+  from 75%; the parts only said, `info`, since they are the work), and *How it's worked out* folded under them (`data-flr-effworking`),
+  a fact a row: the hours run, a round every so many minutes and a full round, each with a *measured* / *set* / *typed* badge (not firm,
+  the first thing the register's measure lacks), the rounds the hours allowed and the rounds run, the racks, each part run part-full,
+  a full round of the day's parts, rounds with no weight, runs with no end time. The head's sub is the units working, the hours run
+  and the pieces not weighed. A line's card also says what went into its bath that day (a fact row, or a row folding open to several). **A round two runs share** (a register row
+  *MEHTA+GENERAL / LINER+188CD / 39+50*, or a group of codes shared out) is in each run at the same time: one round, a share of it in
+  each (`prodDayLine`'s `at`), full as it was, never part-full by its own share; the pace and the tank's round count it once and the
+  tank's round joins its shares' kilos (only when every share is weighed). On the owner's book of 9 Oct: VAT A1's ordinary days lose
+  most to the time (73–84%: the first round comes at 9 or 10 on an 8:30 shift), its racks 94–100% full, its parts 75–96% of its
+  round, heavy-clamp days over (29 Sep 140%: 148% parts); VAT A2's parts are 22–77% of the 90 kg typed on its tanks, and up to 43% of
+  its rounds' work has no weight. P191.
+- **The register's own pace** (`prodLinePace`; owner, 9 Oct 2026: *"Yes"*, to the measured pace replacing the set one once firm, as the
+  tank's round does): per shift (the general shift, and an overtime block on its own, so the hour between them is no round), from its
+  first round to its last less the cuts inside, over the rounds between (a batch's rounds whole, its START the first); shifts of 8
+  rounds or more, the median over the 60 days to today. **Firm at 5 shifts** it is the line's pace in place of the one set
+  (`everySrc: 'measured'`, *(measured)* in the card's sub and what it replaced); not firm, the set pace stands and the card says what
+  the register measures. On the owner's book: VAT A1 a round every 18.6 minutes over 11 shifts (set 19), VAT A2 every 31 over 9 (set
+  20).
+- **What a tank takes a round, measured** (`prodTankLoad`; owner, 9 Oct 2026: *"Each register line on A1 includes 3 tanks out of the
+  4 available, 150 kg/3 = 50 kg an hour per tank inside VAT A1 area. If confidence on rack capacity becomes high it should override
+  defaults. Each register line on A2 includes 2 tanks"*): a round of the register is every tank working on the line that day, so a
+  round's kilos over those tanks is what a tank took; over the 60 days to today, the median kg a round and a tank, the rounds and
+  days, and how many rounds rest on a part's own weight (written, on record, or the challans it was set against; never a client's
+  default or the kind's usual). **The latest measure judges every day**, so the days are on one basis (judged as of each day, A1 had
+  jumped from about 50% to 80% between 26 and 28 Sep only because the measure turned firm between them). **Firm at 30 rounds on 5 days with 80% so weighed**: then the efficiency's round is that times the
+  tanks working, in place of the kg typed on the units (`kgSrc: 'measured'`, the card says *(measured)* and what it replaced), and
+  over 110% reads *Over its usual* (heavier rounds or a quicker pace), counted in the day's figure; not firm, the typed figure stands
+  and the card says what the register measures and why it is not firm. The plant strip's *plating N kg a round* reads it too
+  (`pltUsed`; the planner's reading only for a line with no rounds). On the owner's book of 9 Oct, with Mehta's default and the
+  owner's answers on the round of 108 and the liners: **VAT A1 is firm**, 19.6 kg a tank (58.9 kg a round over 3 tanks), 80% of 250
+  rounds from parts' own weights (a shared round once), and reads 70–84% on most days; heavy-clamp days read over (29 Sep 140%,
+  7 Oct 129%), since a round of 108 clamps of 35X6 and up weighs about 95 kg, which is the mix and not the line, said as *Over its
+  usual*. VAT A2 is 22 kg a tank, 62%, not firm: its typed 90 kg stands. P191.
+- **The pieces nothing weighs are a follow-up list**: on the day card and Floor → Day (*Not weighed*, under the cards; the plated tile
+  brings it into sight), each floor name with its client, lines and pieces and two moves: **Which part?** (learns the name as one of
+  the client's parts, `prodLearnAlias`) and **Set its weight** (a kg a piece on the client's card, from the first day the name was
+  plated, `source: 'production'`, behind the rates permission). Production → Entries → **Not weighed** lists every such run
+  (`prodIsUnweighed`); To-do rule **`prodUnweighed`** asks per client over 30 days, amber, until each is weighed.
+
 ### Workers and the plant
 `docs/WORKERS_AND_PLANT.md` (owner, 7 Oct 2026), steps W1–W5. P166–P170. **Nothing about the shop is in the build**: the units, the
 workers and every personal detail are the book's; the owner's private files (`sep-people`, `sep-plant`) are imported, never committed.
 - **The plant register** (`plant.js`, `S.plant = {units, log}`): every tank, barrel and supporting machine on its station (the planner's
   ids), run · standby · repair · down, with a dated log of every change and a reason. **A line's units work side by side, each in kg a
   round** (owner): available = the kg a round of the units running or on standby over all of them (by count, and said, where no kg is
-  typed); used is what the register measures a line plating a round (`plnBase().lines`), *not measured* without one. Production →
+  typed); used is what the register measures a line plating a round (`prodTankLoad`, the register's own rounds; the planner's
+  `plnBase().lines` for a line with none), *not measured* without either. Production →
   **Equipment**, a strip per line leading Production's Overview, Floor → Day's line cards (*1 of 4 down*). The planner's machines are
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
+  **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the
+  first day of a unit's first line) stood before it, whatever its *since*, which is the day it was recorded; only a unit written in
+  later counts from its own day (`pltRecordedOn`). The running units' *since* had read as the day they came, and every day before
+  showed only the units backdated as down (*0 of 1 tanks working* on VAT A1).
 - **Worker records** (`people.js`): typed by the owner (`w.profile`: designation, guardian, phone, address, date of birth, joining date,
   blood group, emergency contact, the last four of an ID and a bank account, languages, notes; `w.skills` 0–5 per area; `w.ties` up to
   three), and **worked out each time** over 90 days (`pplStats`): tenure, reliability (present on the days expected, late past 8:40,
@@ -3007,6 +3157,30 @@ zero (`below`), over 4× the usual a day (`large`; a bath line is charged in lum
 now**, and one read differently is listed with both readings; *Use the new reading* voids what the old reading saved and adds
 the new entries at the message's own time (`reread` on the entries and the paste). A figure voided by hand stays voided, a line
 the new reading cannot place keeps its entries, and entries typed by hand are never touched. A use and a charge compare alike.
+
+### Stock by line
+PP3 of `docs/PLANT_PICTURE.md` (owner, 9 Oct 2026: *"Exactly"*, to the app reading the bath a stock message names; P192).
+- **The reader** (`parseStockLine`): a use is read bath by bath. A bath named stands for the figures after it until another is
+  named, a date for the figure after it, and a bath or date just before "use" is that use's. *"use VAT A 2 / 25/09/26/ 150 kg VAT 1
+  / 28/09/26/ 175 kg berral use 75 kg"* is three uses, each on its day (the barrel's over the message's days), where it was one
+  400 kg entry with the baths in its note. *"berral & vat a1. 51 kg"* is one use the two share. *"use A 2"* is VAT A2, never A Salt.
+  Baths whose figures miss the use stay one use, amber (`baths`). Each entry carries its baths as **`lines`** and its own words as
+  its note (one part keeps the line's note). A use by hand takes its bath from **Into** (`stockBathsIn`). `stockEntryLines(e)` reads
+  `lines`, else the baths the note names, so an older entry still has its bath.
+- **Read again**: the re-read key holds the entry's baths (`stockRereadKey`), so a message the reader now splits, or now puts in a
+  bath, is listed on Stock → To check with both readings; one whose note already named its one bath is not.
+- **By line** (`stockByLine`, cost.js): each addition into a bath is set against what its line plated (Production's weighing) until
+  the next of the same stock line went into the same bath. The last is still in the bath: *so far*, kept out of the line's figure
+  unless it is the only one. Days with no production record are filled at the recorded days' pace (≈); under half recorded, nothing
+  is set. A use naming two baths is shared by what each plated over its days, or evenly where one is not recorded on half of them. A
+  use naming none is the plant's, counted apart. Rupees at the price paid by the day (`stockPriceAt`). Worked out each time.
+- **Shown** (drawn as an analysis, §6.27): a stock line's page (*By line, 60 days*: a row a line, its kg/t at the end, its ₹/kg and
+  additions under it, folding open to each addition), Production → Lines (*Into the bath*: a row a stock line, *All of it* in ₹/kg for
+  a role that sees money, *No bath named*), and Floor's line card (the day's additions).
+- **On the owner's book of 9 Oct**, once the two messages that read differently are taken (*Use the new reading*): VAT A1's zinc
+  ≈ 5.3 kg a tonne, ₹2.40 a kg plated (the cost model's 425 kg a month over ~80 t is 5.3 too); its 106 Salt ≈ 1.8 kg a tonne; VAT A2
+  on its first top-up of each, so far only; the barrel recorded on 1 of 12 days, not set. Most chemical uses name no bath yet.
+- **Data flow**: an entry's `lines` travels in the `sep-stock` export to soma-internal, which reads the stock record.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

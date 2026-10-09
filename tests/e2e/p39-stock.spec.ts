@@ -163,8 +163,9 @@ test.describe('P39: stock', () => {
     expect(lv['Zinc']).toBe(360);
     expect(lv['16 Salt']).toBe(55);
     // Zinc is charged into a bath, so its draw is a charge, not a use.
-    expect(await g(page, `stockData().entries.filter(function(e){ return e.kind === 'charged'; }).map(function(e){ return [e.qty, e.note]; })`))
-      .toEqual([[40, 'BARREL VAT A1']]);
+    // Both baths named before the figure share it, and the note stays as it was written (PP3).
+    expect(await g(page, `stockData().entries.filter(function(e){ return e.kind === 'charged'; }).map(function(e){ return [e.qty, e.note, e.lines]; })`))
+      .toEqual([[40, 'BARREL VAT A1', ['barrel', 'vat-a1']]]);
   });
 
   test('by hand: a delivery with its price, a count that disagrees, and a void', async ({ page }) => {

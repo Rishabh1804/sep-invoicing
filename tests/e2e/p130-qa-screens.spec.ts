@@ -87,18 +87,24 @@ test('Power → Cuts: a cut is one line that opens to its damage, the newest mon
   expect(screens).toBeLessThan(4.5);
 });
 
-test('Production → Overview: a day whose pieces are mostly unweighed shows the pieces, and says how much was weighed', async ({ page }) => {
+test('Production → Overview: a day with pieces nothing weighs says at least, names them with the move that weighs them, and the tonnes once weighed', async ({ page }) => {
+  // (owner, 9 Oct 2026: "7,630 NOS + 150 kg" was "not uniform enough"): one unit, the least it can be while pieces are
+  // unweighed, and the pieces named. It was "3,600 NOS · 0.03 t known, 3% of the pieces weighed".
   const d = wday(1);
   const clients = [{ id: 11, name: 'NOVA CLAMPS PVT. LTD.', billingMode: 'piece', gstType: 'intra', gstin: '', address: '' }];
   const E = (id: string, o: any) => ({ id, at: 1, time: '10:00', unit: 'NOS', basis: 'register', src: 'photo', kind: 'plated', line: 'vat-a1', lineSrc: 'written', slot: 'general', clientId: 11, date: d, ...o });
   await loadAppWithState(page, book({ clients, production: { entries: [E('P1', { part: 'LINER 88', qty: 3500 }), E('P2', { part: 'PAD 150', qty: 100 })],
     pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } }, partWeights: { 'PAD 150': 0.3 } }));
   await switchTab(page, 'pageProduction');
-  const t = page.locator('[data-prod-tile="last"]');
-  await expect(t.locator('.inv-tile-value')).toHaveText('3,600 NOS');
-  await expect(t.locator('.inv-tile-sub')).toContainText('0.03 t known, 3% of the pieces weighed');
-  // Weighed in full, the tonnes are the figure again.
+  const t = page.locator('[data-prod-day]');
+  await expect(t.locator('.inv-hero-fig')).toHaveText('≥ 30 kg');
+  await expect(t.locator('.inv-hero-title')).toHaveText('3,500 pieces not weighed: the day reads short');
+  await expect(t.locator('.inv-hero-sub')).toHaveText('3,600 pieces recorded');
+  await expect(t.locator('[data-prod-weigh="none"]')).toContainText('LINER 88');
+  await expect(t.locator('[data-prod-weigh="none"] [data-action="invProdAlias"]')).toHaveAttribute('data-id', 'P1');
+  // Weighed in full, the tonnes are the figure, with nothing estimated.
   await g(page, `S.partWeights = { 'PAD 150': 0.3, 'LINER 88': 0.2 }; prodTouch(); renderProduction();`);
-  await expect(t.locator('.inv-tile-value')).toHaveText('0.73 t');
-  await expect(t.locator('.inv-tile-sub')).toContainText('3,600 NOS');
+  await expect(t.locator('.inv-hero-fig')).toHaveText('730 kg');
+  await expect(t.locator('.inv-hero-sub')).toHaveText('every run weighed');
+  await expect(t.locator('[data-prod-weigh="none"]')).toHaveCount(0);
 });

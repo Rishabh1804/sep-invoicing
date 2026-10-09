@@ -32,7 +32,7 @@ const dmy = T.slice(8, 10) + '/' + T.slice(5, 7) + '/' + T.slice(2, 4);
 const A1 = { page: 'production', date: dmy, line: 'VAT-A1', rows: [
   { time: '10:00 AM', mark: 'START', customer: 'MEHTA', part: 'CLAMP' },
   { time: '10:15 AM', qtyText: '100', ditto: true }, { time: '10:30 AM', qtyText: '100', ditto: true },
-  { time: '10:45 AM', qtyText: '108', ditto: true }, { time: '11:00 AM', qtyText: '108', ditto: true },
+  { time: '10:45 AM', qtyText: '94', ditto: true }, { time: '11:00 AM', qtyText: '94', ditto: true },
   { time: '11:40 AM', customer: null, part: 'LINER', qtyText: '90' },
   { time: '1:05 PM', customer: null, part: 'CLAMP', qtyText: '72' }, { time: '1:20 PM', qtyText: '72', ditto: true },
   { time: '5:30 PM', qtyText: '72', ditto: true }] };
@@ -43,7 +43,7 @@ test('a Mehta clamp takes its gauges from the round, a round no rule names stays
   const runs = JSON.parse(await g(page, `JSON.stringify(prodFromRegisterRead(${JSON.stringify(A1)}, prodCtx(), null, {}).runs.map(e => [e.client, e.part, (e.gaugeOptions || []).join('/'), e.qty]))`) as string);
   expect(runs).toEqual([
     ['MEHTA', 'CLAMP', '25X6/30X6', 300],   // START counts as a round of the next figure (the owner's rule of 26 Jun)
-    ['MEHTA', 'CLAMP', '', 216],
+    ['MEHTA', 'CLAMP', '', 188],   // a round of 94 is in no rule (108 is, since the owner's 9 Oct answer: P191)
     ['MEHTA', 'LINER', '', 90],
     ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 144],
     ['MEHTA', 'CLAMP', '35X6/35X8/40X6', 72]]);   // the 5:30 PM round is overtime, a run of its own (P127)

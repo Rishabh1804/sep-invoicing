@@ -556,3 +556,24 @@ function chartMeter(parts, opts) {
     '<rect class="inv-meter-track" x="0" y="0" width="100" height="8"></rect>' + rects +
     (mark != null ? '<rect class="inv-meter-mark" x="' + mark.toFixed(2) + '" y="0" width="0.6" height="8"></rect>' : '') + '</svg>';
 }
+/* A day on one bar, 6 AM to 6 AM the next (§6.24): when something ran, in its tone, and when it stood (a cut, danger), the
+   general shift's two ends marked, the hours under it. `spans` [{from, to, tone}] in minutes from midnight, a span past
+   midnight running on past 1440 (as the Power tab counts them); one with no end is a tick. `opts.title` says it in words. */
+var CHART_DAY_START = 360;
+function chartDayStrip(spans, opts) {
+  opts = opts || {};
+  var x = function(m) { return Math.max(0, Math.min(100, (m - CHART_DAY_START) / 1440 * 100)); };
+  var on = function(m) { return m < CHART_DAY_START ? m + 1440 : m; };
+  var rects = (spans || []).map(function(sp) {
+    if (sp.from == null) return '';
+    var a = on(sp.from), b = sp.to == null ? a : sp.to;
+    if (b < a) b += 1440;
+    var x0 = x(a), w = Math.max(0.8, x(b) - x0);
+    return '<rect class="inv-meter-' + escHtml(sp.tone || 'ok') + '" x="' + x0.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="8"></rect>';
+  }).join('');
+  var marks = (opts.marks || [510, 1020]).map(function(m) { return '<rect class="inv-meter-mark" x="' + x(on(m)).toFixed(2) + '" y="0" width="0.4" height="8"></rect>'; }).join('');
+  // Spans, so it may sit inside a row's button (phrasing content only).
+  return '<span class="inv-daystrip"><svg class="inv-meter" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="' + escHtml(opts.title || '') + '">' +
+    (opts.title ? '<title>' + escHtml(opts.title) + '</title>' : '') + '<rect class="inv-meter-track" x="0" y="0" width="100" height="8"></rect>' + rects + marks + '</svg>' +
+    (opts.axis === false ? '' : '<span class="inv-daystrip-axis" aria-hidden="true"><span>6 AM</span><span>noon</span><span>6 PM</span><span>midnight</span><span>6 AM</span></span>') + '</span>';
+}

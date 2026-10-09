@@ -75,12 +75,26 @@ function pltDownDays(u, from, to) {
 /* Days in the status it is in now. */
 function pltDaysIn(u) { return u.since ? Math.max(0, isoDaysBetween(u.since, localDateStr())) : null; }
 
+/* The day the register was set up: the first day a unit was written into it (the day of its first line's `at`). A unit written
+   in that day is the plant as found, and stood before it: its "since" is the day it was recorded, not the day it came. The
+   owner set the register up on 9 Oct 2026, the running units "since" that day and the stopped ones backdated to when they
+   stopped, and every day before read only the stopped ones ("0 of 1 tanks working" on VAT A1, which runs three). A unit
+   written in later is new, and counts from its first day. */
+function pltRecordedOn(u) {
+  var first = pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.from == null && l.at; }).sort(function(a, b) { return a.at - b.at; })[0];
+  return first ? isoOf(new Date(first.at)) : u.addedOn || '';
+}
+function pltSetUpDay() {
+  return pltRead().units.reduce(function(m, u) { var d = u ? pltRecordedOn(u) : ''; return d && (!m || d < m) ? d : m; }, '');
+}
 /* What a line can do on a day: its units side by side.
-   {units, n, nAvail, down: [units], byKg, kgTotal, kgAvail, pct, note, used: {kgRound, pct, why}} */
-function pltCapacity(station, iso) {
+   {units, n, nAvail, down: [units], byKg, kgTotal, kgAvail, pct, note, used: {kgRound, pct, why}}. `bare` leaves out what the
+   line uses (prodTankLoad reads the units working each day, and is what pltUsed reads). */
+function pltCapacity(station, iso, bare) {
   var day = iso || localDateStr();
+  var setUp = iso ? pltSetUpDay() : '';
   var units = (iso ? pltRead().units.filter(function(u) { return u && u.station === station && (!u.retiredAt || pltRetiredDay(u) > day); }).sort(pltNameCmp) : pltUnits(station))
-    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day; });
+    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day || (setUp && pltRecordedOn(u) === setUp); });
   var st = function(u) { return iso ? pltStatusOn(u, day) : u.status || 'run'; };
   var avail = units.filter(function(u) { return pltAvailable(st(u)); });
   var withKg = units.filter(function(u) { return +u.kgRound > 0; });
@@ -90,13 +104,22 @@ function pltCapacity(station, iso) {
   var pct = !units.length ? null : byKg ? (kgTotal ? kgAvail / kgTotal : 0) : avail.length / units.length;
   var note = !units.length ? 'no unit recorded' : byKg ? 'by kg a round' : withKg.length ? 'by count: kg a round set on ' + withKg.length + ' of ' + units.length : 'by count: no kg a round set';
   var cap = { units: units, n: units.length, nAvail: avail.length, down: units.filter(function(u) { return !pltAvailable(st(u)); }), byKg: byKg, kgTotal: kgTotal, kgAvail: kgAvail, pct: pct, note: note, used: null };
-  cap.used = pltUsed(station, cap);
+  if (!bare) cap.used = pltUsed(station, cap);
   return cap;
 }
-/* What the line actually plates a round, against what is available: the planner's reading of the register over its three
-   months, never a guess. */
+/* What the line actually plates a round, against what is available: the register's own rounds over the 60 days to today
+   (production.js prodTankLoad: a round is every tank working, owner, 9 Oct 2026), said with how much of it rests on parts'
+   own weights; firm, it is the line's round in place of the kg typed on the units, so nothing is "running at" against them.
+   Without rounds on the register, the planner's reading over its three months. Never a guess. */
 function pltUsed(station, cap) {
   if (!PLT_LINE_STATIONS[station]) return { kgRound: null, pct: null, why: station === 'pick' ? 'pickling is not timed a round' : 'not a plating line' };
+  var T = typeof prodTankLoad === 'function' ? prodTankLoad(station, localDateStr()) : null;
+  if (T && T.perRound != null) {
+    return { kgRound: T.perRound, perTank: T.perTank, firm: T.firm, pct: !T.firm && cap.byKg && cap.kgAvail > 0 ? T.perRound / cap.kgAvail : null,
+      why: 'the register’s ' + T.rounds + ' round' + (T.rounds === 1 ? '' : 's') + ' over ' + T.days + ' day' + (T.days === 1 ? '' : 's') +
+        (T.perTank != null ? ', ' + formatNum(T.perTank, 0) + ' kg a tank' : '') +
+        (T.firm ? '; firm, so it is the line’s round in place of the kg typed' : '; ' + T.why) };
+  }
   if (!cap.byKg) return { kgRound: null, pct: null, why: 'set the kg a round of every unit to compare' };
   var L = null;
   try { var B = typeof plnBase === 'function' ? plnBase() : null; L = B && B.lines ? B.lines[station] : null; } catch (e) { L = null; }
@@ -145,8 +168,11 @@ function pltStationHtml(station) {
     ' <span class="inv-panel-count">' + (cap.n ? cap.nAvail + ' of ' + cap.n : 'none') + '</span></span>' + pltCapDot(cap) + '</div>';
   if (!cap.n) return h + '<div class="inv-empty">No unit recorded for ' + escHtml(name) + '.' + (pltCanEdit() ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button>' : '') + '</div></div>';
   h += '<div class="inv-panel-body"><div class="inv-unit-cap" data-plt-cap><span class="inv-unit-cap-words">' + escHtml(pltCapWords(cap)) + '</span>' + pltBarHtml(cap) +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '') +
-    (cap.used && cap.used.kgRound != null ? ' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round (' + cap.used.why + ')' : cap.used && PLT_LINE_STATIONS[station] ? ' · ' + cap.used.why : '')) + '</span></div>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '')) +
+    // What it plates a round, and where that comes from as a badge (§6.27); how it was measured is the line's working on Floor.
+    (cap.used && cap.used.kgRound != null ? escHtml(' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round') + ' <span class="inv-badge inv-badge-' + (cap.used.firm ? 'ok' : 'neutral') + '" data-plt-used="' +
+      (cap.used.firm ? 'measured' : cap.used.firm === false ? 'notfirm' : 'book') + '">' + (cap.used.firm ? 'measured' : cap.used.firm === false ? 'not firm' : 'from the book') + '</span>'
+      : cap.used && PLT_LINE_STATIONS[station] ? escHtml(' · ' + cap.used.why) : '') + '</span></div>' +
     '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
   // The power cuts that hit this line (powercause.js), when any were tied to it.
   if (typeof pcsStationNote === 'function') h += pcsStationNote(station);

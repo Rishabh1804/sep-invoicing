@@ -240,7 +240,7 @@ test('G6-2: the older real shapes: an area\'s number is not a quantity, and a us
   }
 });
 
-test('G6-2: pasted after the 23–24 Sep closing, the 25–28 Sep message balances on every line and saves 400 kg of zinc over its window', async ({ page }) => {
+test('G6-2: pasted after the 23–24 Sep closing, the 25–28 Sep message balances on every line and saves 400 kg of zinc, bath by bath', async ({ page }) => {
   await loadAppWithState(page, closing2324());
   await paste(page, MSG_2528());
   await expect(page.locator('#stockReview [data-line]')).toHaveCount(15);
@@ -252,7 +252,12 @@ test('G6-2: pasted after the 23–24 Sep closing, the 25–28 Sep message balanc
   expect([lv.Z, lv.M65, lv.S106, lv.BA, lv.BS, lv.CY]).toEqual([44, 39, 50, 0, 0, 10]);
   const z = (await readStoredState(page)).stock.entries.filter((e: any) => e.itemId === 'Z' && e.kind === 'charged');
   const days = await g(page, `stockWorkingDays('${iso(-3)}', '${iso(0)}')`);
-  expect(z.map((e: any) => [e.qty, e.from, e.date, e.days, e.note])).toEqual([[400, iso(-3), iso(0), days, 'VAT A2 VAT A1 BARREL']]);
+  // Each bath's charge on the day the message gives it; the barrel's, undated, over the message's window (PP3). The note is
+  // each part's bath as written, as it always was the line's.
+  expect(z.map((e: any) => [e.qty, e.from, e.date, e.days, e.lines, e.note])).toEqual([
+    [150, iso(-3), iso(-3), 1, ['vat-a2'], 'VAT A2'],
+    [175, iso(0), iso(0), 1, ['vat-a1'], 'VAT A1'],
+    [75, iso(-3), iso(0), days, ['barrel'], 'BARREL']]);
 });
 
 /* ---------- G6-3: a correction replays where the entry stood ---------- */

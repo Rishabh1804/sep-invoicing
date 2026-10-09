@@ -863,6 +863,35 @@ function uiFoldCard(key, card, dflt) {
   return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
 }
+/* An analysis on screen (§6.27; owner, 9 Oct 2026: "The times lost most reads like a block of text … not presented according to
+   our benchmark", and "lots of new chaotic text data is entering due to the analysis"). The verdict leads; its factors are tiles;
+   the working is folded under them, shut until opened and remembered on the device: one fact a row, a label of a few words, its
+   figure at the end, at most a few words under the label, and where a figure comes from as a badge, never a clause. How the
+   analysis works is the screen's guide (kbguides.js). Every field is plain text, escaped here.
+   A fact: { label, value, sub, src: [tone, word], attrs, actions (HTML: the caller escapes) }. A value null or '' is withheld: a dash. */
+function _uiFactInner(f) {
+  var v = f.value != null && f.value !== '' ? escHtml(String(f.value)) : '&mdash;';
+  return '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) +
+    (f.src ? ' <span class="inv-badge inv-badge-' + uiTone(f.src[0]) + '">' + escHtml(f.src[1]) + '</span>' : '') + '</span>' +
+    (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
+    // A fact's own move (a Change beside a default): the figure and its buttons, a line of their own under it on the phone.
+    (f.actions ? '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + v + '</span>' + f.actions + '</span>'
+      : '<span class="inv-row-end ' + (f.count ? 'inv-panel-count' : 'inv-num') + '">' + v + '</span>');
+}
+function uiFactRowHtml(f) { return '<div class="inv-row' + (f.sub ? ' inv-row-2' : '') + (f.actions ? ' inv-row-flow' : '') + '"' + (f.attrs || '') + '>' + _uiFactInner(f) + '</div>'; }
+/* A row that folds open to the facts it rests on: its head is a fact (`head`, the same shape; `count` draws its value as a
+   count), its facts the rows under it. Shut until opened, remembered on the device under `key`. */
+function uiFoldRowHtml(key, head, facts, attrs) {
+  return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
+    '<summary class="inv-row' + (head.sub ? ' inv-row-2' : '') + '"' + (head.attrs || '') + '>' + _uiFactInner(head) + '</summary>' +
+    '<div class="inv-row-children">' + (facts || []).filter(Boolean).map(uiFactRowHtml).join('') + '</div></details>';
+}
+/* The working under an analysis's factors: "How it's worked out", the count of facts at its end. */
+function uiWorkingHtml(key, facts, title, attrs) {
+  var list = (facts || []).filter(Boolean);
+  if (!list.length) return '';
+  return uiFoldRowHtml(key, { label: title || 'How it’s worked out', value: list.length, count: true }, list, attrs);
+}
 /* A hero card (§6.21): a <details> that folds open to its body, or a plain card where it has none. `o`: tone (a status tone
    word, else the theme's gradient), eyebrow / title / fig / sub / viz / body (HTML: the caller escapes what came from the
    user), open (its default), fold (the key its open or shut is remembered under on the device; none, it opens as drawn),

@@ -217,7 +217,7 @@ function addQuoteLines(text) {
 /* What a text is, named with the paste box's own readers and routed the way its read routes it (relayRead): rolls go to
    Staff; otherwise pickling, production and power messages go to Production, then a stock message to Stock. Pure but for
    the book's roster, clients and stock lines, which the readers take. */
-var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', power: 'Power cuts' };
+var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', runs: 'Production by slot', power: 'Power cuts' };
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
 function addDescribe(text) {
   var d = { items: [], where: '', also: [], lines: String(text).split('\n').filter(function(l) { return l.trim(); }).length };

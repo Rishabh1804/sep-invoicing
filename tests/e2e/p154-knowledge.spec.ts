@@ -157,6 +157,8 @@ test('sep-kb import adds drafts, skips the same version, and a newer version rep
   const v2 = { format: 'sep-kb', articles: [{ ...file.articles[0], status: 'published', version: 2, body: 'Degrease, then acid.' }] };
   res = await page.evaluate(f => (window as any).kbImportData(f, 'b.json'), v2);
   expect(res.updated).toBe(1);
+  // The import's save is coalesced and lands a moment later: wait for it on disk (a busy run read the copy before it).
+  await expect.poll(async () => ((await readStoredState(page)).kb?.articles?.[0] || {}).version).toBe(2);
   const st: any = await readStoredState(page);
   const k = st.kb.articles[0];
   expect([k.version, k.body, k.versions.length, k.versions[0].body, k.images.length]).toEqual([2, 'Degrease, then acid.', 1, 'Acid first.', 0]);

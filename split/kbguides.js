@@ -55,6 +55,21 @@ var KB_APP_GUIDES = [
     '- **Paste** the pickling loads and the production list from WhatsApp.\n- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
     '- **Enter by hand** when there is nothing to paste. The form stays open for the next entry.\n' +
     '- Production → In plant shows the material in the plant two ways: by the book and by the floor.\n- A figure is corrected by a new entry, never edited.'),
+  // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
+  // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
+  _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
+    '# A line’s efficiency\nWhat the line plated against what its working units could plate in the hours it ran, less the power cuts. Four factors multiply to it:\n' +
+    '- **Time**: the rounds run against the rounds the hours allowed (the hours over the pace).\n- **Racks**: how full each round was, against its part’s fullest round.\n' +
+    '- **Parts**: what a full round of the day’s parts weighs, against the line’s round. Lighter parts are the work, not a fault.\n- **Weighed**: rounds with no weight leave the figure low.\n\n' +
+    'The caption over the tiles names what moved it most. **How it’s worked out** under them lists every input, one a row.\n\n' +
+    '# Measured, set or typed\n- **Measured**: read off the register. A round’s kilos once 30 rounds on 5 days rest on the parts’ own weights; the pace once 5 shifts of 8 rounds or more are on it.\n' +
+    '- **Set** or **typed**: the figure entered by hand, which stands until the register’s measure is firm.\n\n' +
+    '# Stock by line\nWhat went into each line’s bath against what the line plated.\n' +
+    '- Each addition (zinc, a salt, a brightener) is set against what its line plated until the next one went into the same bath.\n' +
+    '- The last is still in the bath: its figure is **so far**, falls as the line plates on, and is kept out of the line’s figure.\n' +
+    '- Days the line has no record are filled at the pace of the days it has; under half recorded, nothing is set.\n' +
+    '- A use naming two baths is shared by what each plated, or evenly where one is not recorded. A use naming no bath is the plant’s.\n\n' +
+    '# The signs\n- **≈** an estimate. **≤** the most it can be: pieces nothing weighs leave the kilograms short.\n- **—** withheld, with the reason beside it.'),
   _kbg('power', 'Using the app: power cuts', 'Recording a cut and what it cost', ['pagePower', 'pageProduction'],
     '- A cut is entered like any floor record: Floor → Power → **Enter a cut** (the time it went and the time it came back).\n' +
     '- A cut reported twice (the register and a message) is counted once.\n- Power → Case is the business case for backup power, drawn from the record every time it is opened or printed.'),

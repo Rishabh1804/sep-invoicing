@@ -514,26 +514,13 @@ function homeShowToggle(el) {
 function renderHomeExtraCards() {
   var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
   var open = function(go) { return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="' + go + '">Open</button>'; };
-  // Production: the last day with plating on record, by line.
+  // Production: the last day with plating on record, as Production's own day card (prodDayHeroHtml): one unit, the lines.
   if (!l.hidden.production && homeWidgetSeen('production')) {
     var h = '';
     try {
       var last = null;
-      prodIndex().counted.forEach(function(e) { if (!last || e.date > last) last = e.date; });
-      var rows = '', kg = 0, nos = 0, lines = 0;
-      if (last) PROD_LINES.forEach(function(ln) {
-        var r = prodDayLine(last, ln);
-        if (!r.entries.length) return;
-        lines++; kg += r.kg; nos += r.nos;
-        rows += '<div class="inv-row"><span class="inv-row-main">' + escHtml(prodLineName(ln)) + '</span><span class="inv-row-end inv-num">' +
-          (r.kg > 0 ? cpNum(r.kg) + ' kg' : '') + (r.nos > 0 ? (r.kg > 0 ? ' · ' : '') + cpNum(r.nos) + ' NOS' : '') + '</span></div>';
-      });
-      var lag = last ? isoDaysBetween(last, localDateStr()) : null;
-      h = uiHeroHtml({ tone: last == null ? 'neutral' : lag > 2 ? 'warning' : '', eyebrow: '<span>Production</span>' + (last ? '<span class="inv-panel-count">' + escHtml(attDayName(last) + ' ' + formatDate(last)) + '</span>' : ''),
-        title: last ? escHtml('Plated on ' + todoPlural(lines, 'line')) : 'No plating on record yet',
-        fig: last && kg > 0 ? escHtml(cpNum(kg) + ' kg') : last && nos > 0 ? escHtml(cpNum(nos) + ' NOS') : '',
-        sub: last ? escHtml(lag === 0 ? 'The last day on record is today' : 'The last day on record, ' + todoPlural(lag, 'day') + ' ago') : '',
-        fold: 'pulse-production', open: true, attrs: ' data-card="production"', body: last ? '<div class="inv-hero-sheet">' + rows + '</div>' : null, foot: open('pageProduction') });
+      prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && (!last || e.date > last)) last = e.date; });
+      h = prodDayHeroHtml(last, { compact: true, fold: 'pulse-production', attrs: ' data-card="production"' });
     } catch (e) { h = ''; }
     set('homeProdCard', h);
   } else set('homeProdCard', '');

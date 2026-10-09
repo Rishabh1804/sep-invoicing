@@ -298,13 +298,13 @@ function rptBreakdownHtml(p, end, ctx) {
           if (m && (m.st === 'P' || m.st === 'H') && (m.area || (wk && wk.area)) === a) heads++;
         });
       });
-      return [escHtml(prodLineName(l)), recd ? heads + (need ? ' / ' + need : '') : '', r.entries.length && r.pieces ? rptInt(r.pieces) : '', r.entries.length && r.kg > 0 ? rptInt(r.kg) : '',
-        r.entries.length && r.rounds ? r.rounds : ''];
+      return [escHtml(prodLineName(l)), recd ? heads + (need ? ' / ' + need : '') : '', r.entries.length && r.kg > 0 ? (r.est > 0.0005 ? '≈ ' : '') + rptInt(r.kg) : '',
+        r.entries.length && r.pieces ? rptInt(r.pieces) + (r.unweighed ? ' (' + rptInt(r.unweighed) + ' not weighed)' : '') : '', r.entries.length && r.rounds ? Math.round(r.rounds) : ''];
     });
     var cov = prodCoverage(d, d);
     return rptSec('lines', 'By line', escHtml('Heads on the general shift against the day’s number; plated as the register, the relay or a hand entry counts it (one figure per line and shift). ' +
       PROD_LINES.filter(function(l) { return cov[l].days; }).length + ' of ' + PROD_LINES.length + ' lines recorded.'),
-      rptTable([['Line'], ['Heads', 1], ['Plated NOS', 1], ['Plated kg', 1], ['Rounds', 1]], rows, null, 'lines'));
+      rptTable([['Line'], ['Heads', 1], ['Plated kg', 1], ['Pieces', 1], ['Rounds', 1]], rows, null, 'lines'));
   }
   var subs = [];
   if (p.kind === 'weekly') attWeekDays(p.from).forEach(function(d) { subs.push({ from: d, to: d, label: RPT_DAYS[new Date(d + 'T00:00:00').getDay()].slice(0, 3) + ' ' + rptShort(d) }); });
@@ -368,15 +368,15 @@ function rptClientsHtml(p, end, invs, w) {
 function rptProductionHtml(p, end) {
   var cov = prodCoverage(p.from, end), any = false;
   var rows = PROD_LINES.map(function(l) {
-    var nos = 0, kg = 0, pieces = 0, weighed = 0;
-    attDatesInRange(p.from, end).forEach(function(d) { var r = prodDayLine(d, l); nos += r.nos; kg += r.kg; pieces += r.pieces; weighed += r.weighedPieces; });
+    var nos = 0, kg = 0, est = 0, un = 0;
+    attDatesInRange(p.from, end).forEach(function(d) { var r = prodDayLine(d, l); nos += r.nos; kg += r.kg; est += r.est; un += r.unweighed; });
     if (cov[l].days) any = true;
-    return [escHtml(prodLineName(l)), cov[l].days && nos ? rptInt(nos) : '', cov[l].days && kg > 0 ? rptInt(kg) : '', cov[l].days + ' of ' + cov[l].of,
-      cov[l].days && pieces ? Math.round(weighed / pieces * 100) + '%' : ''];
+    return [escHtml(prodLineName(l)), cov[l].days && kg > 0 ? (est > 0.0005 ? '≈ ' : '') + rptInt(kg) : '', cov[l].days && nos ? rptInt(nos) : '', cov[l].days + ' of ' + cov[l].of,
+      cov[l].days && kg > 0 ? (est > 0.0005 ? Math.round(est / kg * 100) + '%' : 'none') + (un ? ', ' + rptInt(un) + ' pcs not weighed' : '') : ''];
   });
   if (!any) return rptSec('production', 'Production', '', rptNone('No plating recorded on any line in the period.'));
-  return rptSec('production', 'Production by line', 'One figure per line and shift: the register, else the supervisor’s relay, else an entry by hand. Days recorded are the working days with a counted entry for the line.',
-    rptTable([['Line'], ['Plated NOS', 1], ['Plated kg', 1], ['Days recorded', 1], ['Pieces weighed', 1]], rows, null, 'production'));
+  return rptSec('production', 'Production by line', 'One figure per line and shift: the register, else the supervisor’s relay, else an entry by hand. Each run is weighed by the surest route the book holds: its kilos or its weight on record, else the challans it was set against, else its kind of part; the last column says how much of the weight is estimated. Days recorded are the working days with a counted entry for the line.',
+    rptTable([['Line'], ['Plated kg', 1], ['Pieces', 1], ['Days recorded', 1], ['Estimated', 1]], rows, null, 'production'));
 }
 
 /* 5. Staff: by area against the day's number, OT and EXTRA; a week's payout; a month's labour fixed and variable. */

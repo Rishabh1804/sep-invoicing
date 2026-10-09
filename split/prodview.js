@@ -76,27 +76,200 @@ function prodLineName(l) { return l ? PROD_LINE_LABEL[l] || l : 'Line unknown'; 
 function prodEntryTitle(e) { return (e.clientId != null ? prodClientName(e.clientId) || e.client : e.client || 'No client') + (e.part ? ' · ' + e.part : ''); }
 function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', hand: 'by hand', 'import': 'history' }[e.src] || e.src || ''; }
 
+/* ---------- A day's plating, as one card ----------
+   Owner, 9 Oct 2026: the tile read "7,630 NOS + 150 kg … 0.68 t known, 14% of the pieces weighed", which "is not uniform
+   enough to draw a full picture of what happened". The day in one unit: the tonnes, every run weighed by the surest route
+   the book holds (prodWeigh), what of it is estimated said, the range the estimates allow, against two shifts and the
+   plant's usual day; each line's runs on the clock, the clients, the pieces nothing weighs with the move that weighs them,
+   the cuts and the loads. One card for Production's Overview, Floor and Pulse (`compact`: the lines and how it was weighed). */
+function prodDayHeroHtml(date, opts) {
+  opts = opts || {};
+  var isToday = date === localDateStr(), attrs = ' data-prod-day="' + escHtml(date || '') + '"' + (opts.attrs || '');
+  var foot = function(line) {
+    return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdDayLines" data-day="' + escHtml(date || '') + '" data-line="' + escHtml(line || '') + '">' + (date ? 'Open the lines' : 'Open Production') + '</button>';
+  };
+  if (!date) return uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Plated</span>', title: 'No plating on record yet', attrs: attrs, fold: opts.fold, foot: foot('') });
+  // Pulse shows the last day on record: how long ago it was is said, and a record days behind is amber (it has stopped).
+  var lag = opts.compact ? isoDaysBetween(date, localDateStr()) : 0;
+  var pic = prodDayPicture(date), when = attDayName(date) + ' ' + formatDate(date) + (isToday ? ' · so far' : lag === 1 ? ' · yesterday' : lag > 1 ? ' · ' + lag + ' days ago' : '');
+  var eyebrow = '<span>Plated</span><span class="inv-panel-count">' + escHtml(when) + '</span>';
+  if (!pic.runs) {
+    return uiHeroHtml({ tone: pic.missing.length ? 'warning' : 'neutral', eyebrow: eyebrow, attrs: attrs, fold: opts.fold, foot: foot(''),
+      title: escHtml(pic.missing.length ? prodLinesWord(pic.missing) + ' had heads and no record' : isToday ? 'No plating recorded yet today' : 'No plating recorded this day: a gap, not a zero') });
+  }
+  var estd = pic.est > 0.0005, sure = pic.by.written + pic.by.record, de = prodDayEfficiency(date);
+  // The colour is the plant's efficiency (owner, 9 Oct 2026: efficiency decides a card's colour), made worse by a general shift
+  // with heads and no record, or by pieces nothing weighs (the day then reads low). The title says the first of those.
+  var tone = de.eff != null ? de.tone : '', title;
+  var rank = { '': 0, neutral: 0, ok: 1, info: 1, warning: 2, danger: 3 }, worse = function(t) { if (rank[t] > rank[tone]) tone = t; };
+  var effWord = de.eff != null ? Math.round(de.eff * 100) + '% of what the working lines could plate' : '';
+  if (pic.missing.length) { worse('warning'); title = prodLinesWord(pic.missing) + ' had heads and no record: the day reads short'; }
+  else if (pic.unweighed && pic.unweighed / pic.pieces > 0.1) { worse('warning'); title = Math.round(pic.unweighed).toLocaleString('en-IN') + ' pieces not weighed: the day reads short'; }
+  else if (effWord) title = (isToday ? 'So far today, ' : '') + effWord;
+  else if (isToday) title = 'So far today, on ' + todoPlural(pic.ran.length, 'line');
+  else if (pic.usual != null && pic.kg < pic.usual * 0.8) { worse('warning'); title = 'Under a usual day of ' + prodKgFig(pic.usual, true); }
+  else if (pic.usual != null) { worse('ok'); title = (pic.kg > pic.usual * 1.2 ? 'Over' : 'About') + ' a usual day of ' + prodKgFig(pic.usual, true); }
+  else title = todoPlural(pic.ran.length, 'line') + ' ran';
+  if (lag > 2 && !tone) tone = 'warning';
+  // How good and how sure, in short facts (§6.27): the plant's efficiency where the title is about something else, the share
+  // estimated, the pieces nothing weighs where the title does not say them; the record itself where none of those is.
+  var notW = pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '';
+  var sub = [effWord && title.indexOf(effWord) < 0 ? Math.round(de.eff * 100) + '% efficient' : '', estd && pic.kg > 0 ? Math.round(pic.est / pic.kg * 100) + '% estimated' : pic.unweighed ? '' : 'every run weighed',
+    notW && title.indexOf('not weighed') < 0 ? notW : ''].filter(Boolean).join(' · ') || prodPlatedSub(pic.pieces, pic.kgWritten, 0, 0, 0);
+  var meterTitle = prodKgFig(pic.kg, estd, pic.unweighed > 0) + ' plated: ' + [sure ? prodKgFig(sure) + ' weighed' : '', pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '',
+    pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '', pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind' : ''].filter(Boolean).join(', ') +
+    '. Two shifts hold about ' + prodKgFig(pic.capacity) + (pic.usual != null ? '; a usual day is ' + prodKgFig(pic.usual, true) : '') + '.';
+  var viz = chartMeter([{ v: sure, tone: 'ok' }, { v: pic.by.challans, tone: 'info' }, { v: pic.by['default'] + pic.by.kind, tone: 'neutral' }], { max: pic.capacity, mark: pic.usual, title: meterTitle });
+  var fig = pic.kg > 0 ? prodKgFig(pic.kg, estd, pic.unweighed > 0) : Math.round(pic.pieces).toLocaleString('en-IN') + ' pieces';
+  var body = '<div class="inv-hero-sheet" data-prod-day-sheet>' + prodDayLinesHtml(pic, opts.compact) + prodDayWeighHtml(pic, opts.compact) + (opts.compact ? '' : prodDayMoreHtml(pic)) + '</div>';
+  return uiHeroHtml({ tone: tone, eyebrow: eyebrow, title: escHtml(title), fig: escHtml(fig), sub: escHtml(sub), viz: viz, body: body,
+    open: opts.open !== false, fold: opts.fold, attrs: attrs, foot: foot(pic.ran[0]) });
+}
+function prodLinesWord(list) { return list.map(prodLineName).join(list.length === 2 ? ' and ' : ', '); }
+/* Each line that ran: its weight and pieces, its hours on the clock and its runs; a line with heads and no record says so. */
+function prodDayLinesHtml(pic, compact) {
+  var h = '<div class="inv-row-group"><span>Lines</span></div>';
+  PROD_LINES.forEach(function(l) {
+    var r = pic.lines[l], miss = pic.missing.indexOf(l) >= 0;
+    if (!r.entries.length && !miss) return;
+    if (!r.entries.length) {
+      h += '<div class="inv-row inv-row-2" data-prod-day-line="' + l + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodLineName(l)) + '</span>' +
+        '<span class="inv-row-meta">Heads on the general shift, no record of what it plated</span></span><span class="inv-row-end">' + uiDot('warning', 'No record') + '</span></div>';
+      return;
+    }
+    var sp = pic.spans[l], a = null, b = null, rounds = r.rounds;
+    sp.forEach(function(x) { if (a == null || x.from < a) a = x.from; if (b == null || x.to > b) b = x.to; });
+    var clients = {};
+    r.entries.forEach(function(e) { var n = e.clientId != null ? prodClientName(e.clientId) : e.client || ''; if (n) clients[n] = true; });
+    var meta = [a != null ? relayClockLabel(a) + (b != null && b > a ? ' – ' + relayClockLabel(b) : '') : 'no times written', todoPlural(r.entries.length, 'run'),
+      rounds ? todoPlural(rounds, 'round') : ''].filter(Boolean).join(' · ');
+    // What the line had to plate with: its units on the day and its heads against the day's number; then whose work it was.
+    var cap = pic.equip[l], cw = pic.crew[l];
+    var meta2 = [cap ? cap.nAvail + ' of ' + cap.n + ' ' + (cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrels' : 'tanks') + ' working' : '',
+      cw && cw.need != null ? cw.heads + ' of ' + cw.need + ' heads' : cw && cw.heads != null ? cw.heads + ' heads' : '',
+      Object.keys(clients).slice(0, 2).join(', ') + (Object.keys(clients).length > 2 ? ' +' + (Object.keys(clients).length - 2) : '')].filter(Boolean).join(' · ');
+    var pcs = [r.pieces ? Math.round(r.pieces).toLocaleString('en-IN') + ' pcs' : '', r.kgWritten ? formatNum(r.kgWritten, 0) + ' kg written' : ''].filter(Boolean).join(' + ');
+    // Its efficiency (Floor's card has the parts): what it plated of what its working units could, in the time it ran.
+    var ef = prodLineEfficiency(pic.date, l);
+    h += '<div class="inv-row inv-row-2' + (compact ? '' : ' inv-row-flow') + '" data-prod-day-line="' + l + '"><button class="inv-row-main" data-action="invProdDayLines" data-day="' + escHtml(pic.date) + '" data-line="' + l + '">' +
+      '<span class="inv-row-title">' + escHtml(prodLineName(l)) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
+      (meta2 && !compact ? '<span class="inv-row-meta inv-row-wrap" data-prod-day-with>' + escHtml(meta2) + '</span>' : '') +
+      (compact || !sp.length ? '' : chartDayStrip(sp.map(function(x) { return { from: x.from, to: x.to, tone: 'ok' }; }).concat(pic.cuts.map(function(c) { return { from: c.from, to: c.to, tone: 'danger' }; })),
+        { title: prodLineName(l) + ': ' + sp.map(function(x) { return relayClockLabel(x.from) + (x.to > x.from ? ' – ' + relayClockLabel(x.to) : ''); }).join(', ') + (pic.cuts.length ? '; power cut ' + pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') : '') })) +
+      '</button><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num" data-prod-day-kg>' + escHtml(r.kg > 0 ? prodKgFig(r.kg, r.est > 0.0005, r.unweighed > 0) : '—') + '</span>' +
+      (pcs ? '<span class="inv-row-meta inv-num">' + escHtml(pcs) + '</span>' : '') +
+      (ef.eff != null || ef.halfDown || ef.missing ? '<span data-prod-day-eff>' + uiDot(ef.tone, escHtml(ef.eff != null ? ef.word : ef.missing ? 'No record' : 'Half down')) + '</span>' : '') + '</span></span></div>';
+  });
+  return h;
+}
+/* Pieces nothing weighs, one row a floor name: its client and lines, the pieces, and the two moves that weigh it. The list's head
+   says why they are listed (§6.27): a row does not say it again. */
+function prodUnweighedRowsHtml(names) {
+  var may = typeof grdOk !== 'function' || grdOk('floor');
+  return names.map(function(n) {
+    return '<div class="inv-row inv-row-2 inv-row-flow" data-prod-weigh="none"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(n.part || 'No part written') + '</span>' +
+      '<span class="inv-row-meta">' + escHtml([n.client, n.lines && n.lines.length ? n.lines.map(prodLineName).join(', ') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+      '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + escHtml(Math.round(n.pieces).toLocaleString('en-IN') + ' pcs') + '</span>' +
+      (may && n.clientId != null && n.id && n.part ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(n.id) + '">Which part?</button>' +
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdWeighSet" data-id="' + escHtml(n.id) + '">Set its weight</button>' : '') + '</span></div>';
+  }).join('');
+}
+/* Set its weight: a kg a piece on the client's card for the part the floor's name was learnt as, else the name itself, from
+   the first day it was plated, so every run under it is weighed (a weight on record, prodKg). A rate-card change (P1). */
+function prodWeighSetOpen(id) {
+  var e = prodIndex().byId[id];
+  if (!e || e.clientId == null) return;
+  var pn = e.partNumber || prodWeighLearnt(e) || e.part || '';
+  var h = '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="prodWeighT" data-prod-weigh-dialog="' + escHtml(id) + '">' +
+    dialogHeadHtml('<span id="prodWeighT">Weight of ' + escHtml(e.part || pn) + '</span>') +
+    '<div class="inv-dialog-body"><div class="inv-note inv-mb-8">' + escHtml(prodClientName(e.clientId) + '. Kept on the client’s card (Clients → Edit → Piece weights); every run under this name is weighed by it, the days before included.') + '</div>' +
+    '<div class="inv-fields"><label class="inv-field"><span class="inv-field-label">Part</span><input class="inv-input" id="prodWeighPart" value="' + escHtml(pn) + '"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Gauge</span><input class="inv-input" id="prodWeighGauge" value="' + escHtml(e.gauge || '') + '" placeholder="none"></label>' +
+    '<label class="inv-field"><span class="inv-field-label">Kg a piece</span><input class="inv-input" id="prodWeighKg" inputmode="decimal" placeholder="0.25"></label></div></div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invProdWeighSave" data-id="' + escHtml(id) + '">Save</button></div></div>';
+  dialogOpen(h);
+}
+function prodWeighSetSave(id) {
+  var e = prodIndex().byId[id], v = function(k) { return ((document.getElementById(k) || {}).value || '').trim(); };
+  if (!e) return;
+  var part = v('prodWeighPart'), gauge = v('prodWeighGauge').toUpperCase().replace(/[×✕*\s]/g, 'X').replace(/X+/g, 'X'), kg = parseFloat(v('prodWeighKg'));
+  if (!part) { showToast('Enter the part', 'error'); return; }
+  if (!(kg > 0) || kg > 100) { showToast('Enter the weight of one piece in kg', 'error'); return; }
+  if (!grdGate('rates', 'add a piece weight', function() { prodWeighSetSave(id); })) return;   // P1 (guard.js), as the card's own Add
+  var c = (S.clients || []).find(function(x) { return String(x.id) === String(e.clientId); });
+  if (!c) return;
+  // From the first day this name was plated for the client, so the runs already recorded are weighed too.
+  var first = prodIndex().counted.filter(function(x) { return String(x.clientId) === String(e.clientId) && String(x.part || '').toUpperCase() === String(e.part || '').toUpperCase(); })
+    .reduce(function(m, x) { return !m || x.date < m ? x.date : m; }, e.date);
+  (c.pieceWeights || (c.pieceWeights = [])).push({ partNumber: part, gauge: lineGauge(gauge) || '', effectiveFrom: first, source: 'production', addedAt: Date.now(), kgPerPiece: Math.round(kg * 10000) / 10000 });
+  saveState();
+  closeOverlay();
+  tabRedrawActive();
+  showToast(part + ' weighed at ' + formatNum(kg, 3) + ' kg a piece from ' + formatDate(first));
+}
+/* How the day was weighed (§6.27): the kilograms by route, folded under one row that says how much is estimated, a route a row;
+   then the names nothing weighs, which need the owner, open under their own head with the moves that weigh them. */
+function prodDayWeighHtml(pic, compact) {
+  var sure = pic.by.written + pic.by.record, estPct = pic.kg > 0 && pic.est > 0.0005 ? Math.round(pic.est / pic.kg * 100) : 0;
+  var notW = pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '';
+  if (compact) return uiFactRowHtml({ label: 'How it was weighed', sub: [estPct ? estPct + '% estimated' : 'every run weighed', notW].filter(Boolean).join(' · '),
+    value: prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0), attrs: ' data-prod-weigh="summary"' });
+  // A client's default (owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable"): its figure, and the door that changes it.
+  var mayEdit = (typeof grdCan !== 'function' || grdCan('rates')) && (typeof grdSees !== 'function' || grdSees('pageClients'));
+  var facts = [sure ? { label: 'Weighed', sub: 'its kilos, or a weight on record', value: prodKgFig(sure), attrs: ' data-prod-weigh="sure"' } : null,
+    pic.by.challans ? { label: 'From the challans', sub: 'their kg a piece', value: prodKgFig(pic.by.challans, true), attrs: ' data-prod-weigh="challans"' } : null]
+    .concat((pic.dflt || []).map(function(d) {
+      return { label: 'At ' + d.client + '’s default', sub: formatNum(d.kgPc, 3) + ' kg a piece · ' + Math.round(d.pieces).toLocaleString('en-IN') + ' pcs', value: prodKgFig(d.kg, true), attrs: ' data-prod-weigh="default"',
+        actions: mayEdit && d.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(d.clientId)) + '">Change</button>' : '' };
+    }))
+    .concat([pic.by.kind ? { label: 'By its kind', sub: 'the day ' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high), value: prodKgFig(pic.by.kind, true), attrs: ' data-prod-weigh="kind"' } : null]);
+  var h = uiFoldRowHtml('prod-day-weigh', { label: 'How it was weighed', sub: estPct ? estPct + '% estimated' : 'every run weighed', value: facts.filter(Boolean).length, count: true }, facts, ' data-prod-day-weighing');
+  if (pic.names.length) h += '<div class="inv-row-group"><span>' + escHtml('Not weighed · ' + Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs') + '</span></div>' + prodUnweighedRowsHtml(pic.names) +
+    '<div class="inv-row"><span class="inv-row-main"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every run not weighed</button></span></div>';
+  return h;
+}
+/* The clients (folded), then the day as facts: what the work is worth, its labour, the cuts, the loads, the week. */
+function prodDayMoreHtml(pic) {
+  var cf = pic.clients.slice(0, 5).map(function(c) {
+    return { label: c.name, sub: [c.pieces ? Math.round(c.pieces).toLocaleString('en-IN') + ' pcs' : '', c.kgWritten ? formatNum(c.kgWritten, 0) + ' kg written' : '', c.unweighed ? Math.round(c.unweighed).toLocaleString('en-IN') + ' not weighed' : ''].filter(Boolean).join(' · '),
+      value: c.kg > 0 ? prodKgFig(c.kg, c.est > 0.0005, c.unweighed > 0) : '', attrs: ' data-prod-day-client="' + escHtml(c.clientId != null ? String(c.clientId) : '') + '"' };
+  });
+  if (pic.clients.length > 5) {
+    var rest = pic.clients.slice(5), kg = rest.reduce(function(s, c) { return s + c.kg; }, 0), est = rest.some(function(c) { return c.est > 0.0005; });
+    cf.push({ label: todoPlural(rest.length, 'more client'), value: kg > 0 ? prodKgFig(kg, est) : '' });
+  }
+  var h = uiFoldRowHtml('prod-day-clients', { label: 'Clients', value: pic.clients.length, count: true }, cf, ' data-prod-day-clients');
+  var mins = pic.cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), open = pic.cuts.filter(function(c) { return c.open; }).length;
+  // What the work is worth at the rates on record, and the labour the day's record holds: shown to a role that sees money
+  // and wages (guard.js), never a figure a role's screens do not show.
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), wages = typeof grdSeesWages !== 'function' || grdSeesWages();
+  var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date);
+  h += '<div class="inv-row-group"><span>The day</span></div>' + [
+    money && pic.worth.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
+      value: (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount), attrs: ' data-prod-day-worth' } : null,
+    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
+    { label: 'Power cuts', sub: pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') + (open ? ' · ' + open + ' with no time back' : '') : '',
+      value: pic.cuts.length ? powerDur(mins) + ' dark' : 'none', attrs: ' data-prod-day-cuts' },
+    { label: 'Pickling loads', value: pic.loads || 'none', attrs: ' data-prod-day-loads' },
+    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null
+  ].filter(Boolean).map(uiFactRowHtml).join('');
+  return h;
+}
+
 /* ---------- Overview ---------- */
 function prodOverviewHtml() {
   var today = localDateStr(), from = isoAddDays(today, -27), idx = prodIndex();
-  var lastDay = idx.counted.map(function(e) { return e.date; }).sort().pop() || null;
-  // Tonnage is a whole figure only where the pieces are weighed: under 90% the pieces are the figure and the tonnes are
-  // said as what they are (on the real book, 0.03 t stood beside 3,600 NOS with nothing saying 2% were weighed).
-  var lp = prodDayPlated(lastDay);
-  var lastKg = lp.kg, lastNos = lp.nos, lastLines = lp.lines, lastShare = lp.share, lastWhole = lp.whole;
-  var lastWhere = lastDay ? stockShortDate(lastDay) + ' · ' + Object.keys(lastLines).map(prodLineName).join(', ') : '';
+  var lastDay = idx.counted.filter(function(e) { return e.kind === 'plated'; }).map(function(e) { return e.date; }).sort().pop() || null;
   var wk = attWeekStartOf(today), wkSum = prodPlatedSummary(wk, today);   // the pay week, Sunday to Saturday
   var plant = prodInPlant({});
   var pni = plant.rows.reduce(function(s, x) { if (x.unit === 'NOS') s.nos += x.platedNotInvoiced; else s.kg += x.platedNotInvoiced; return s; }, { nos: 0, kg: 0 });
   var tile = function(label, value, sub, tone, key) {
     return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-prod-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + figWrapHtml(value) + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
   };
-  // The plant at a glance leads: whether each line can run today, before what it plated (plant.js).
-  var h = pltGlanceHtml() + '<div class="inv-tiles">' +
-    tile('Plated, last recorded day', !lastDay ? '&mdash;' : escHtml(lp.text),
-      !lastDay ? 'nothing recorded' : escHtml(lastWhere + ' · ' + (lastWhole ? Math.round(lastNos).toLocaleString('en-IN') + ' NOS'
-        : formatNum(lastKg / 1000, 2) + ' t known, ' + Math.round(lastShare * 100) + '% of the pieces weighed')), '', 'last') +
-    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml('on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · of ~2 t a shift, two shifts') : 'no complete day this week', '', 'week') +
+  // The plant at a glance leads: whether each line can run today, before what it plated (plant.js). Then the last day
+  // plated as one card (owner, 9 Oct 2026: the tile's "7,630 NOS + 150 kg" was "not uniform enough").
+  var h = pltGlanceHtml() + '<div class="inv-hero-stack">' + prodDayHeroHtml(lastDay, { fold: 'prod-day' }) + '</div><div class="inv-tiles">' +
+    tile('This week against capacity', wkSum ? Math.round(wkSum.perDay / wkSum.capacity * 100) + '%' : '&mdash;', wkSum ? escHtml(prodKgFig(wkSum.kg, wkSum.est > 0.0005) + ' on ' + wkSum.days + ' complete day' + (wkSum.days === 1 ? '' : 's') + ' · of ~2 t a shift, two shifts') : 'no complete day this week', '', 'week') +
     tile('In plant (book)', escHtml(formatCurrency(plant.book)), 'open on challans, not invoiced', '', 'book') +
     tile('Plated, not invoiced', escHtml((pni.nos ? Math.round(pni.nos).toLocaleString('en-IN') + ' NOS' : '') + (pni.nos && pni.kg ? ' + ' : '') + (pni.kg ? formatNum(pni.kg, 1) + ' kg' : '') || '0'), 'recorded plated, still open on its challan', pni.nos || pni.kg ? 'warning' : '', 'pni') +
     '</div>';
@@ -108,8 +281,8 @@ function prodOverviewHtml() {
     PROD_LINES.forEach(function(l, i) { var r = prodDayLine(d, l); series[i].values.push(r.entries.length && r.weighedShare >= 0.9 ? Math.round(r.kg) : null); });
   }
   h += '<div class="inv-panels"><div class="inv-panel" id="prodChart"><div class="inv-panel-head"><span class="inv-panel-title">Plated by line, 4 weeks</span></div>' +
-    chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with its pieces weighed' }) +
-    '<div class="inv-note">Kilograms by day. A day with no record for a line, or with under 90% of its pieces weighed, is a gap in its line, not a zero.</div></div>';
+    chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with nine tenths of its pieces weighed' }) +
+    '<div class="inv-note">Kilograms a day. A gap is a day with no record, or a tenth of its pieces not weighed.</div></div>';
   var cov = prodCoverage(from, today);
   h += '<div class="inv-panel inv-panel-flush" id="prodCoverage"><div class="inv-panel-head"><span class="inv-panel-title">Record coverage, 4 weeks</span></div>';
   PROD_LINES.forEach(function(l) {
@@ -118,7 +291,7 @@ function prodOverviewHtml() {
       (c.last ? 'last recorded ' + escHtml(stockShortDate(c.last)) : 'never recorded') + '</span></span><span class="inv-row-end"><span class="inv-num">' + c.days + ' of ' + c.of + '</span>' +
       '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'warning') + '">' + (ok ? 'Recorded' : 'Gaps') + '</span></span></div>';
   });
-  h += '<div class="inv-panel-body inv-note">Working days with a plated record for the line. Figures that rest on the floor record read low where it has gaps, and the In plant tab says so.</div></div>';
+  h += '<div class="inv-panel-body inv-note">Working days with a plated record. Where it has gaps, what rests on it reads low.</div></div>';
   var unknown = idx.live.filter(function(e) { return e.kind === 'pickled' && !idx.replaced[e.id] && e.date >= from && prodLoadLine(e).how === 'unknown'; });
   h += '<div class="inv-panel inv-panel-flush" id="prodUnknown"><div class="inv-panel-head"><span class="inv-panel-title">Line unknown</span><span class="inv-panel-count">' + unknown.length + '</span></div>' +
     (unknown.length ? unknown.slice(-6).reverse().map(prodLoadRowHtml).join('') + (unknown.length > 6 ? '<div class="inv-panel-body"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdFilter" data-flag="unknown">All ' + unknown.length + '</button></div>' : '')
@@ -224,10 +397,12 @@ function prodLinesHtml() {
   }
   var r = prodDayLine(day, line), downtime = prodDowntimeDay(day);
   var mins = downtime.reduce(function(s, x) { return s + x.min; }, 0);
+  // One unit (owner, 9 Oct 2026): the weight leads, every run weighed by the surest route the book holds; the pieces under it.
   h += '<div class="inv-tiles">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Plated</div><div class="inv-tile-value">' + escHtml(Math.round(r.nos).toLocaleString('en-IN')) + ' <span class="inv-tile-of">NOS</span></div><div class="inv-tile-sub">' + todoPlural(r.entries.length, 'run') + '</div></div>' +
-    '<div class="inv-tile"><div class="inv-tile-label">Weight</div><div class="inv-tile-value">' + (r.kg ? escHtml(formatNum(r.kg, 0)) + ' <span class="inv-tile-of">kg</span>' : '&mdash;') + '</div><div class="inv-tile-sub">' + Math.round(r.weighedShare * 100) + '% of pieces weighed</div></div>' +
-    '<div class="inv-tile"><div class="inv-tile-label">Rounds</div><div class="inv-tile-value">' + r.rounds + '</div><div class="inv-tile-sub">racks or rounds counted</div></div>' +
+    '<div class="inv-tile" data-prod-line-tile="kg"><div class="inv-tile-label">Plated</div><div class="inv-tile-value">' + (r.kg > 0 ? figWrapHtml(escHtml(prodKgFig(r.kg, r.est > 0.0005, r.unweighed > 0))) : '&mdash;') + '</div><div class="inv-tile-sub">' +
+      escHtml(!r.entries.length ? 'nothing recorded' : r.kg > 0 ? (r.est > 0.0005 ? Math.round(r.est / r.kg * 100) + '% estimated' : 'every run weighed') + (r.unweighed ? ' · ' + Math.round(r.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '') : 'no run weighed') + '</div></div>' +
+    '<div class="inv-tile" data-prod-line-tile="pieces"><div class="inv-tile-label">Pieces</div><div class="inv-tile-value">' + escHtml(Math.round(r.nos).toLocaleString('en-IN')) + ' <span class="inv-tile-of">NOS</span></div><div class="inv-tile-sub">' + escHtml(todoPlural(r.entries.length, 'run') + (r.kgWritten ? ' · ' + formatNum(r.kgWritten, 0) + ' kg written' : '')) + '</div></div>' +
+    '<div class="inv-tile"><div class="inv-tile-label">Rounds</div><div class="inv-tile-value">' + Math.round(r.rounds) + '</div><div class="inv-tile-sub">racks or rounds counted</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">Power cuts</div><div class="inv-tile-value">' + (downtime.length ? mins + ' min' : '&mdash;') + '</div><div class="inv-tile-sub">' + todoPlural(downtime.length, 'cut') + ' this day</div></div></div>';
   var groups = { general: [], ot: [] };
   r.entries.forEach(function(e) { groups[e.slot === 'ot' ? 'ot' : 'general'].push(e); });
@@ -249,9 +424,10 @@ function prodLinesHtml() {
     PROD_LINES.map(function(l) {
       return '<tr><td>' + escHtml(PROD_LINE_LABEL[l]) + '</td>' + wd.map(function(d) {
         var x = prodDayLine(d, l);
-        return '<td class="inv-num">' + (x.entries.length ? escHtml(x.nos ? Math.round(x.nos).toLocaleString('en-IN') : formatNum(x.kg, 0) + ' kg') : '&mdash;') + '</td>';
+        return '<td class="inv-num">' + (x.entries.length ? escHtml((x.kg > 0 ? (x.est > 0.0005 ? '≈ ' : '') + formatNum(x.kg, 0) : '') + (x.unweighed ? (x.kg > 0 ? ' + ' : '') + Math.round(x.unweighed).toLocaleString('en-IN') + ' pcs' : '')) : '&mdash;') + '</td>';
       }).join('') + '</tr>';
-    }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Pieces plated (kilograms where the line was weighed, not counted). A dash is a day with no record for the line.</div></div>';
+    }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Kilograms plated, ≈ where any run is estimated; pieces nothing weighs are added as pieces. A dash is a day with no record for the line.</div></div>';
+  h += prodLineStockHtml(line);
   // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
   var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
@@ -259,22 +435,53 @@ function prodLinesHtml() {
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +
     escHtml(L.days + ' day' + (L.days === 1 ? '' : 's') + ' with attendance and a weighed record · ' + formatCurrency(L.cost) + ' on ' + formatNum(L.kg, 0) + ' kg') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + (L.perKg != null ? escHtml('₹' + formatNum(L.perKg, 2) + '/kg') : '&mdash;') + '</span></div>' +
-    '<div class="inv-panel-body inv-note">Variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), with the VAT side’s pickling hands shared by each day’s kg, over the same days as the kg. The monthly crew is the standing crew and is not by line. Withheld under five days. ' +
+    '<div class="inv-panel-body inv-note">Variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), with the VAT side’s pickling hands shared by each day’s kg, over the same days as the kg (days with nine tenths of the pieces weighed, estimates by the challans or by kind included). The monthly crew is the standing crew and is not by line. Withheld under five days. ' +
     escHtml(lab.skipped ? lab.skipped + ' day' + (lab.skipped === 1 ? '' : 's') + ' with attendance and no usable production record are left out.' : '') + '</div></div>';
   return h;
+}
+/* What went into the line's bath over 60 days (PP3; cost.js stockByLine), drawn as an analysis (§6.27): a row a stock line with its
+   figure a tonne plated and, for a role that sees money, its rupees a kilogram; the line's rupees a kilogram; what named no bath. */
+function prodLineStockHtml(line) {
+  var to = localDateStr(), res = stockByLine(isoAddDays(to, -(STOCK_LINE_DAYS - 1)), to), L = res.lines[line];
+  if (!res.recorded || !L) return '';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), name = PROD_LINE_LABEL[line], stockDoor = typeof grdSees !== 'function' || grdSees('pageStock');
+  var ids = Object.keys(L.items).sort(function(a, b) { return (L.items[b].rs - L.items[a].rs) || (L.items[b].qty - L.items[a].qty); });
+  var h = '<div class="inv-panel inv-panel-flush" id="prodLineStock"><div class="inv-panel-head"><span class="inv-panel-title">Into the bath, ' + STOCK_LINE_DAYS + ' days</span>' +
+    (ids.length ? '<span class="inv-panel-count">' + ids.length + '</span>' : '') + '</div>';
+  if (!ids.length) h += '<div class="inv-empty">No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.</div>';
+  ids.forEach(function(id) {
+    var r = L.items[id], unit = r.item.unit || '', pt = stockPerTonneText(r.perT, r.est || r.soFar, r.atMost), sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
+    var f = { label: r.item.name, src: r.soFar ? ['neutral', 'so far'] : null, value: pt ? pt + ' ' + (unit || 'unit') + '/t' : '',
+      sub: r.perT == null ? r.why : [money ? (r.rsKg != null ? sign + '₹' + formatNum(r.rsKg, 2) + '/kg' : r.priced ? '' : 'no price') : '', todoPlural(r.n, 'addition')].filter(Boolean).join(' · ') };
+    // The stock line's page, for a role that opens Stock.
+    h += stockDoor ? '<button type="button" class="inv-row inv-row-2" data-action="invProdStockLine" data-id="' + escHtml(id) + '" data-prod-line-stock="' + escHtml(id) + '">' + _uiFactInner(f) + '</button>'
+      : uiFactRowHtml(Object.assign(f, { attrs: ' data-prod-line-stock="' + escHtml(id) + '"' }));
+  });
+  if (ids.length && money) {
+    // What the line's figure leaves out is said beside it: a stock line on its first addition, one with no price (reads low).
+    h += uiFactRowHtml(L.rsKg != null ? { label: 'All of it', value: (L.rsKgEst ? '≈ ' : '') + '₹' + formatNum(L.rsKg, 2) + '/kg', attrs: ' data-prod-line-stock-total',
+        sub: [L.soFar ? L.soFar + ' still on a first addition' : '', L.unpriced ? L.unpriced + ' with no price: reads low' : ''].filter(Boolean).join(' · ') }
+      : { label: 'All of it', value: '', sub: L.soFar ? 'each still on a first addition' : 'no price', attrs: ' data-prod-line-stock-total' });
+  }
+  if (res.unnamed.n) h += uiFactRowHtml({ label: 'No bath named', value: todoPlural(res.unnamed.n, 'use'), sub: 'the plant’s, not in these', attrs: ' data-prod-line-stock-unnamed' });
+  return h + '<div class="inv-panel-body inv-note">Each addition against what the line plated until the next. ≈ an estimate, ≤ the most it can be.</div></div>';
 }
 function prodRunRowHtml(e, muted) {
   var rounds = (e.rounds || []).filter(function(x) { return !x.struck; });
   var meta = (e.time ? e.time + (e.to && e.to !== e.time ? '–' + e.to : '') + ' · ' : '') + (rounds.length ? rounds.length + ' round' + (rounds.length === 1 ? '' : 's') + ' · ' : e.racks ? e.rackSize + ' × ' + e.racks + ' · ' : '') + prodSrcWord(e) + (e.rework ? ' · rework' : '');
+  // A run in pieces says what it weighs and how that was found (prodWeigh); one nothing weighs says so.
+  var w = e.unit === 'NOS' ? prodWeigh(e) : null;
+  var kg = !w ? '' : w.kg == null ? 'not weighed' : prodKgFig(w.kg, prodWeighEst(w)) + (w.how === 'kind' ? ' by kind' : w.how === 'challans' ? ' from challans' : w.how === 'default' ? ' at the client’s default' : '');
   return '<div class="inv-row inv-row-2' + (muted ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(meta) + '</span></span><span class="inv-row-end inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span></div>';
+    '<span class="inv-row-meta">' + escHtml(meta) + '</span></span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
+    (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span></div>';
 }
 
 /* ---------- Entries ---------- */
 function prodEntriesHtml() {
   var idx = prodIndex(), f = _prodFilter, from = isoAddDays(localDateStr(), -60);
   var chips = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
-  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown']];
+  var flags = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed']];
   var h = '<div class="inv-toolbar" role="group" aria-label="Show">' + chips.map(function(c) {
     return '<button class="inv-chip" data-action="invProdFilter" data-kind="' + c[0] + '" aria-pressed="' + (f.kind === c[0] && !f.flag) + '">' + c[1] + '</button>';
   }).join('') + flags.map(function(c) {
@@ -288,6 +495,7 @@ function prodEntriesHtml() {
     if (f.flag === 'noclient') return e.clientId == null && e.kind !== 'downtime';
     if (f.flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
     if (f.flag === 'gauge') return prodGaugeFlagged(e);
+    if (f.flag === 'unweighed') return prodIsUnweighed(e, idx);
     return !f.kind || e.kind === f.kind;
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
   h += '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">' + (f.flag ? 'Entries, every date' : 'Entries, 60 days') + '</span><span class="inv-panel-count">' + list.length + '</span></div>';
@@ -397,6 +605,11 @@ function prodEntryActionsHtml(e, idx) {
   if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
   if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
   if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
+  // A run in pieces nothing weighs: its weight set on the client's card (Which part? is offered above where the name is a code).
+  if (prodIsUnweighed(e, idx) && e.clientId != null) {
+    if (!(alias && !alias.pn && !alias.generic)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
+    h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdWeighSet" data-id="' + escHtml(e.id) + '">Set its weight</button>';
+  }
   if (e.kind !== 'downtime' && !idx.replaced[e.id]) h += '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
   // A power cut is completed in place: its power-in time, why it went and what brought it back (powercause.js).
   if (e.kind === 'downtime') {
@@ -576,7 +789,7 @@ function prodReviewHtml() {
     '<div class="inv-tile"><div class="inv-tile-label">To save</div><div class="inv-tile-value">' + res.save + '</div></div></div>';
   if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before, or sent twice, and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
   rv.msgs.forEach(function(m, mi) {
-    var kindWord = { pickling: 'Pickling', production: 'Barrel production', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
+    var kindWord = { pickling: 'Pickling', production: 'Barrel production', runs: 'Production by slot', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
     h += '<div class="inv-panel inv-panel-flush' + (m.dup ? ' inv-row-muted' : '') + '" data-prod-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(kindWord + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
       '<span class="inv-panel-count">' + escHtml((m.sentOn ? stockShortDate(m.sentOn) : 'no date') + (m.sentAt != null ? ' ' + relayHhmm(m.sentAt) : '')) + '</span></div>';
     if (m.dup) h += '<div class="inv-panel-body inv-note">' + (m.twice ? 'The same message is earlier in this paste: read once, left out here.' : 'Saved before: left out.') + '</div>';
@@ -1014,6 +1227,7 @@ function prodImportText(text, name) {
 function prodAction(action, btn) {
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
+    case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       var wasPhoto = !!_prodPhoto;
       _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
@@ -1037,6 +1251,24 @@ function prodAction(action, btn) {
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
     case 'invProdAlias': prodAliasOpen(btn.dataset.id); return true;
+    case 'invProdWeighSet': prodWeighSetOpen(btn.dataset.id); return true;
+    case 'invProdWeighSave': prodWeighSetSave(btn.dataset.id); return true;
+    case 'invProdUnweighedAll': {
+      // Every run nothing weighs, on Entries: the follow-up list (owner, 9 Oct 2026).
+      prodSetTab('entries'); _prodView = 'main'; _prodEntryOpen = null; _prodFilter = { kind: '', flag: 'unweighed', client: '' };
+      if (navPageOf() === 'pageProduction') renderProduction(); else switchTab('pageProduction');
+      return true;
+    }
+    case 'invProdDayLines': {
+      // From the day card (Production, Floor, Pulse): Lines on the line and the day it shows.
+      var dl = btn.dataset.line;
+      _prodLine = PROD_LINES.indexOf(dl) >= 0 ? dl : _prodLine || 'vat-a1';
+      if (btn.dataset.day) _prodDay = btn.dataset.day;
+      _prodView = 'main';
+      prodSetTab('lines');
+      if (navPageOf() === 'pageProduction') renderProduction(); else switchTab('pageProduction');
+      return true;
+    }
     case 'invProdGauge': prodGaugeOpen(btn.dataset.id); return true;
     case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;

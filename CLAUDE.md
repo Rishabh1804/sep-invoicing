@@ -38,10 +38,17 @@ ID cards with a QR and a scanner; one office QR for checking in from a worker's 
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
+**The tab map and the cognitive load are one spec — read `docs/TAB_MAP.md`** (owner, 8–9 Oct 2026: four sections with one
+overview each, Insights in Today, Bills & notes split, a cheque in hand counted as paid; then *"Spec cognitive load into our previous
+spec that's still to be implemented. Combine them into one spec."*). Seven steps in one PR: TM1 the shell (with the phone's Filter
+and More, and P195, the benchmark's instrument), TM2 Today, TM3 Money, TM4 Floor, TM5 Office, TM6 across the app, TM7 the docs and
+the measures. Every surveyed screen has its step and its target (§3d), the calls the spec makes are listed for the owner (§1a), and
+no step may leave a screen longer (I10). **Not built: the build and the QA chain wait for the owner's word.**
+
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
-(the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9), with
-the order proposed for taking Today's card language to the other tabs, one PR each. **The order is the owner's to set.**
+(the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9). Its
+proposals, with its *Analysed data* list, are now the tab map's steps (above).
 
 **The plant picture is begun — read `docs/PLANT_PICTURE.md`** (owner, 9 Oct 2026: *"There is no holistic vision that is being created
 using these details"*). PP1 is built: a day's plating in one unit, each line's efficiency colouring Floor's cards (half a line's units
@@ -55,7 +62,8 @@ under a caption naming what moved it most. *How it's worked out* is folded under
 (`uiFactRowHtml`, `uiFoldRowHtml`, `uiWorkingHtml`, state.js), a few words and the figure at the end, where a figure comes from a
 badge (*measured*, *set*, *typed*, *so far*, *shared*). Certainty is a sign (≈, ≤) or a badge, never a clause. How the analysis works
 is the screen's guide (*Reading the plant's figures*, kbguides.js), not a note on the face. A new analysis is drawn this way. The
-screens that still reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*), the order the owner's.
+screens that still reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*) and fixed in the tab map's
+steps (`docs/TAB_MAP.md` §3d).
 
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot

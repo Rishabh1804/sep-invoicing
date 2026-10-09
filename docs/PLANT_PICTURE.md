@@ -200,4 +200,5 @@ then *"Lots of new chaotic text data is entering due to the analysis … designi
 manner."* Every figure this work adds is drawn in one way (`docs/SEP_INVOICING_DESIGN_PRINCIPLES.md` §6.27). The verdict leads.
 The factors are tiles under a caption. The working is folded, one fact a row with its source a badge, and the reasoning is the
 guide *Reading the plant's figures*. Built on Floor's line cards, Production's day card, stock by line and the plant strip. The
-other screens are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*), the order the owner's.
+other screens are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*) and fixed in the tab map's steps
+(`docs/TAB_MAP.md` §3d), which holds every new figure to this shape.

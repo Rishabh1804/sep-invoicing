@@ -849,8 +849,8 @@ manner"*. Every figure the app works out is drawn in three layers, and nothing o
   book; a panel's note is a line at most.
 - Inside a card the caption and the working are drawn on the card's box (no page-coloured band; the card's hairlines).
 Built on Floor → Day's line cards, Production's day card, Production → Lines (*Into the bath*), a stock line's *By line* and the
-plant strip's round. The other screens that reason in sentences are measured and listed in `docs/COGNITIVE_LOAD_SURVEY.md`
-(*Analysed data*), for the owner to order.
+plant strip's round. The other screens that reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed
+data*) and fixed in the steps of `docs/TAB_MAP.md` (its §3d), whose §3b states the benchmark's rules with what measures each.
 
 ---
 
@@ -936,8 +936,9 @@ phone and desktop.
    can see what the baseline is and how to implement it in other tabs too"*). HR-9 already holds on every screen through the
    tokens (§3.1); what moves screen by screen is the card language: a block that is read for its verdict becomes a hero coded by
    its status, what it holds coded boxes, its controls tinted; a list's rows stay rows on a tinted panel, with only its head and
-   summary as cards. **The order is in `docs/COGNITIVE_LOAD_SURVEY.md`** (every screen measured against the cognitive-load rules,
-   8 Oct 2026), one PR each, for the owner to set. A screen that is a document (a report, the power case) stays paper.
+   summary as cards. **The order is `docs/TAB_MAP.md`'s** (the tab map and the cognitive load, one spec, 9 Oct 2026): every
+   screen the survey measured (`docs/COGNITIVE_LOAD_SURVEY.md`, 8 Oct 2026) has its step and its target there. A screen that is a
+   document (a report, the power case) stays paper, fitted to the screen.
 
 **Route 3 (a framework build) is a separate app** in its own folder of this repo, built to this same
 document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe while both run.

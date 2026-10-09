@@ -2,8 +2,10 @@
 
 The owner, after Today was rebuilt as cards: *"survey all the screens to make sure the app is up to the mark for our cognitive load
 benchmark … if any other updates are needed because of that … get back to me"*. This is the survey: what the benchmark is, how it
-was measured, what each screen scored, what this PR already changed, and the order proposed for the rest. **The order is the
-owner's to set**; nothing below the line *What this PR changed* is built.
+was measured, what each screen scored, what this PR already changed, and what it proposed for the rest. **The proposals are now
+steps of one spec, `docs/TAB_MAP.md`** (owner, 9 Oct 2026: *"Spec cognitive load into our previous spec that's still to be
+implemented. Combine them into one spec."*): its §3d gives every screen below its step and its target, and nothing below the line
+*What this PR changed* is built.
 
 ## The benchmark
 
@@ -104,7 +106,9 @@ view had been drawn twice on the desktop, in the sidebar and in the top bar's ta
 
 ## What the survey says to change, in the order proposed
 
-Each is one PR, its screens measured again after.
+**Folded into `docs/TAB_MAP.md` on 9 Oct 2026**, each fix in the step where its screen lands: Pulse and Stats in TM2, Money in
+TM3, Floor's screens in TM4, Office's in TM5, the rest across the app in TM6. A screen that the map removes (Stats → Overview, the
+To-do, the page Overviews) is not fixed first. The list below is kept as it was proposed.
 
 1. **Repetition and length, cheapest first**:
    - Production → Entries shows its latest thirty (16.9 screens to about three).
@@ -175,11 +179,13 @@ Production's Overview has one block. The screens still reasoning in sentences, m
 | Power → Load & bills | 4 | 2 |
 | Power → Cuts | 0 | 9 |
 
-**Proposed, one PR each, the order the owner's:**
-1. Production → Entries and In plant: an entry's facts as fact rows or badges (its source, its weight, its match).
-2. Clients → Performance and Items.
-3. Staff → Areas, Pay and Register: the extra's check and the wage arithmetic as folded working.
-4. Stats → Overview, Clients and Cost: the story cards' sentences as verdict and factors; the live cost's notes as badges.
-5. Finance → Receivables, the Planner and Power.
+**Proposed on 9 Oct, and folded into `docs/TAB_MAP.md` the same day** (its §3d):
+1. Production → Entries and In plant: an entry's facts as fact rows or badges (its source, its weight, its match). *TM4c.*
+2. Clients → Performance and Items. *TM5e, TM5f.*
+3. Staff → Areas, Pay and Register: the extra's check and the wage arithmetic as folded working. *TM4b.*
+4. Stats → Overview, Clients and Cost: the story cards' sentences as verdict and factors; the live cost's notes as badges. *TM2b
+   (the Overview goes there).*
+5. Finance → Receivables, the Planner and Power. *TM3c, TM2d, TM4e.*
 
-Each screen is measured again with the same harness after its PR, the counts said in the PR.
+Each step measures its screens before and after: this harness on the owner's book where the session has it, and P195 (the spec's
+instrument, built in TM1) on a made-up long book in the repo. No step may leave a screen longer or wordier (the spec's I10).

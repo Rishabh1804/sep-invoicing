@@ -46,7 +46,7 @@ var GRD_GROUPS = [['billing', 'Invoices and credit notes'], ['rates', 'Rates and
    day) is kept in a role's list and skipped on screen. */
 var GRD_PAGE_IDS = ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
   'pageStaff', 'pageProduction', 'pageStock', 'pagePower', 'pageFinance', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory'];
-var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor day' };
+var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor overview' };
 /* Pages that are money: opened only by a role that sees money, whatever its page switches say. */
 var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1, pagePlanner: 1 };
 
@@ -758,6 +758,8 @@ function grdApplyDoors() {
     if (to && !grdSees(to)) off(el);
   });
   if (!grdCan('settings')) document.querySelectorAll('.inv-topbar [data-action="invOpenSettings"], #invSidebar [data-action="invOpenSettings"]').forEach(off);
+  // History is a tool in the top bar (the tab map): its door goes with the page.
+  if (!grdSees('pageHistory')) document.querySelectorAll('.inv-topbar [data-action="invGoHistory"]').forEach(off);
 }
 var _grdDoorsQueued = false;
 function grdApplyDoorsSoon() {
@@ -1067,8 +1069,8 @@ function grdRolesGridHtml() {
   h += '<tr class="inv-table-group"><td colspan="4">What it may change</td></tr>';
   GRD_GROUPS.forEach(function(g) { h += row(g[1], 'data-grd-may="' + g[0] + '"', function(x) { return x.may.indexOf(g[0]) >= 0; }); });
   h += '<tr class="inv-table-group"><td colspan="4">What it sees</td></tr>' +
-    row('Wages (Staff → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
-    row('Money (Finance, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
+    row('Wages (People → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
+    row('Money (Money, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
   return h + '</tbody></table></div>';
 }
 function grdUsersBody() {

@@ -6,9 +6,10 @@ import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, waitForBoo
 // Today · Office · Add · Floor · Money, with no More. A workspace is a layer over the pages that exist: every page keeps
 // its id, its address and its own view tabs, and the workspace draws its views as a tab row above the page. The red count
 // moved from More to the bar. Swiping stays inside the workspace. Add and search are other steps' (add.js, search.js):
-// their buttons call them when they exist and do nothing when they do not. Insights is Office's review since 8 Oct 2026
-// (owner: "Move insights into office tab, that way we have 5 icons again"): five doors, Add the centre one, the views of
-// Office after a divider. Every name is made up; dates are from today.
+// their buttons call them when they exist and do nothing when they do not. Insights was Office's review from 8 Oct 2026
+// (owner: "Move insights into office tab, that way we have 5 icons again"): five doors, Add the centre one. Since the tab map
+// (9 Oct 2026, P184) they are Today's, and History and Knowledge are the top bar's tools. Every name is made up; dates are
+// from today.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 const where = (p: Page) => { const u = new URL(p.url()); return [u.searchParams.get('tab'), u.searchParams.get('v') || '']; };
@@ -41,10 +42,11 @@ const swipe = (p: Page, from: number, to: number) => p.evaluate(([a, b]) => {
   document.dispatchEvent(new TouchEvent('touchend', { touches: [], changedTouches: [t(b)] }));
 }, [from, to]);
 
-/* The map, restated (split/workspace.js WORKSPACES). */
+/* The map, restated (split/workspace.js WORKSPACES; the tab map of 9 Oct 2026: Today holds its Insights, and History and
+   Knowledge are the top bar's tools, in no workspace). */
 const MAP: Record<string, string[]> = {
-  today: ['pageHome', 'pageTodo'],
-  office: ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageCreate', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory', 'pageKnow'],
+  today: ['pageHome', 'pageTodo', 'pageStats', 'pageReports', 'pagePlanner'],
+  office: ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageCreate'],
   floor: ['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'],
   money: ['pageFinance'],
 };
@@ -63,7 +65,7 @@ test.describe('P134: workspaces on the phone', () => {
     for (const h of await page.locator('.inv-navbar > .inv-navbar-item').evaluateAll(els => els.map(e => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
   });
 
-  test("each workspace item opens its workspace and is on for every page it holds, Office's review too", async ({ page }) => {
+  test("each workspace item opens its workspace and is on for every page it holds, Today's Insights too", async ({ page }) => {
     await loadAppWithState(page, state());
     for (const [ws, ids] of Object.entries(MAP)) {
       for (const id of await present(page, ids)) {
@@ -91,12 +93,9 @@ test.describe('P134: workspaces on the phone', () => {
     const labels = async (ids: string[], names: string[]) => { const ps = await present(page, ids); return names.filter((_, i) => ps.includes(ids[i])); };
     await switchTab(page, 'pageIM');
     await expect(row).toHaveAttribute('role', 'tablist');
-    await expect(row.locator('.inv-viewtab[role="tab"]')).toHaveText(await labels(
-      ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory', 'pageKnow'],
-      ['Pipeline', 'Challans', 'Invoices', 'Clients', 'Stats', 'Reports', 'Planner', 'History', 'Knowledge']));
-    // Office's Insights follow their name: one, just before Stats.
-    await expect(row.locator('.inv-viewtab-group')).toHaveText('Insights');
-    expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-group').nextElementSibling.dataset.tab`)).toBe('pageStats');
+    // Office's work: Clients and Sales are one page (pageClients), two doors.
+    await expect(row.locator('.inv-viewtab[role="tab"]')).toHaveText(['Pipeline', 'Challans', 'Invoices', 'Clients', 'Sales']);
+    await expect(row.locator('.inv-viewtab-group')).toHaveCount(0);
     await expect(row.locator('[aria-selected="true"]')).toHaveText('Challans');
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
     // Each tab is a door: the action and the page, so a jump, a link and the fixtures land on the same place.
@@ -110,18 +109,21 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
 
     await switchTab(page, 'pageStock');
-    await expect(row.locator('.inv-viewtab')).toHaveText(await labels(['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], ['Day', 'People', 'Production', 'Stock', 'Power']));
+    await expect(row.locator('.inv-viewtab')).toHaveText(await labels(['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], ['Overview', 'People', 'Production', 'Stock', 'Power']));
     await expect(page.locator('#topbarTitle')).toHaveText('Floor');
     await switchTab(page, 'pageStats');
     await expect(row.locator('[aria-selected="true"]')).toHaveText('Stats');
-    await expect(page.locator('#topbarTitle')).toHaveText('Office');
+    await expect(page.locator('#topbarTitle')).toHaveText('Today');
+    // Today's Insights follow their name: one, just before Stats.
+    await expect(row.locator('.inv-viewtab-group')).toHaveText('Insights');
+    expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-group').nextElementSibling.dataset.tab`)).toBe('pageStats');
     // Money is one view: no row, and its own six tabs are the only one.
     await switchTab(page, 'pageFinance');
     await expect(row).toBeHidden();
     await expect(page.locator('#topbarTitle')).toHaveText('Money');
     // Today's two views are pageHome's own, drawn once pageHome declares them (the Today step).
     await switchTab(page, 'pageHome');
-    if (await g(page, `typeof homeViews === 'function'`)) await expect(row.locator('.inv-viewtab')).toHaveText(['Needs you', 'Pulse']);
+    if (await g(page, `typeof homeViews === 'function'`)) await expect(row.locator('.inv-viewtab')).toHaveText(['Needs you', 'Pulse', 'Stats', 'Reports', 'Planner']);
     else await expect(row).toBeHidden();
     // A page held without a tab lights its workspace, shows its row with nothing pressed, and names itself.
     await g(page, `switchTab('pageCreate')`);
@@ -186,7 +188,7 @@ test.describe('P134: workspaces on the phone', () => {
   test("a workspace item opens the view last open in it; on the open workspace, its first view at the top", async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageIM');
-    await page.locator('#wsTabs [data-tab="pageClients"]').click();
+    await page.locator('#wsTabs [data-tab="pageClients"][data-v="clients"]').click();
     await bar(page, 'floor').click();
     await bar(page, 'office').click();
     await expect(page.locator('#pageClients')).toHaveClass(/inv-page-active/);
@@ -233,10 +235,11 @@ test.describe('P134: workspaces on the phone', () => {
     expect(errors).toEqual([]);
   });
 
-  test('the top bar: search, Knowledge, then Settings; two tab rows leave the page starting by 150px', async ({ page }) => {
+  test('the top bar: search, History, Knowledge, then Settings; two tab rows leave the page starting by 150px', async ({ page }) => {
     await loadAppWithState(page, state());
     const btns = page.locator('.inv-topbar > button:visible');
-    await expect(btns.nth(-3)).toHaveAttribute('data-action', 'invSearchOpen');
+    await expect(btns.nth(-4)).toHaveAttribute('data-action', 'invSearchOpen');
+    await expect(btns.nth(-3)).toHaveAttribute('data-action', 'invGoHistory');   // a tool since the tab map (P184)
     await expect(btns.nth(-2)).toHaveAttribute('data-action', 'invKbHelp');   // the knowledge base (P154)
     await expect(btns.nth(-1)).toHaveAttribute('data-action', 'invOpenSettings');
     for (const h of await btns.evaluateAll(els => els.map(e => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);

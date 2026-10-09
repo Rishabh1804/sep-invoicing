@@ -44,7 +44,7 @@ Nothing here changes what the book records except TM3b.
 
 | Step | What | State |
 |---|---|---|
-| TM1 | The shell: the rows, the tools in the top bar, Sales, Parts, the redirect table, the names; the toolbar (Filter, More); one look's pieces (the verdict card, `data-screen`, the row end); the instruments (P195, P197) | Not built |
+| TM1 | The shell: the rows, the tools in the top bar, Sales, Parts, the redirect table, the names; the toolbar (Filter, More); one look's pieces (the verdict card, `data-screen`, the row end); the instruments (P195, P197) | **Built** (9 Oct 2026; what it decided is under TM1, *As built*) |
 | TM2 | Today: the To-do into Needs you, Pulse takes Stats → Overview and stays short, Stats' three tabs led by verdicts, Pulse's widgets, the Planner's Moves and header, Reports fitted | Not built |
 | ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | — |
 | TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | Not built |
@@ -77,7 +77,7 @@ Staff, Clients and Finance → one **Moves** tab with a switch; Clients' Quotati
 Owner's addition (9 Oct 2026): **a cheque received from a client and not yet deposited counts as paid by the client** (TM3b). It
 lives in Money → Receivables, where client payments are matched; Payments is money going out (said to the owner).
 
-### 1a. Calls this spec makes (the owner's to change before the build)
+### 1a. Calls this spec makes (accepted by the owner, 9 Oct 2026: *"go with all 14"*)
 
 1. **Floor's line cards lead with the worst**: danger, then warning, ok and info, with ties in line order (VAT A1, VAT A2, Barrel).
    The survey found the line needing the owner was the last card.
@@ -580,6 +580,35 @@ desktop, its tiles filtering, its 60-character limit, the fall-back for a role w
 every page setting `data-screen`; P197 green with an empty `ONE_LOOK` and its census reported.
 **Specs P184** (`p184-tab-map.spec.ts`, `.desktop.spec.ts`), **P195 and P197** (`p197-one-look(.desktop).spec.ts`).
 **Grep after:** `label: 'Day'` in workspace.js (none); `'Items'` as a user-facing label (none outside comments).
+
+**As built (9 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **More is drawn on both layouts** (call 10, which item 11 predates); Filter is the phone's, the desktop's filters stay inline, and
+  the tokens are the phone's.
+- **A grouped view remembers its own sub-view** (`wsVsPut`, workspace.js). Clients and Sales share one page, whose memory holds only
+  the sub-view on screen, so Clients opened from Sales went back to its first view; it returns to where Clients was left (Parts).
+- **The verdict card flags, never throws**, past its limits: `data-verdict-long` and an error in a test browser's console, which
+  P197 fails on. A long client name must not take a screen down in the owner's hands. Its facts are spans the stylesheet sets
+  apart (`inv-hero-fact`), not one string joined with "·", and its default memory is the page and its view (`uiVerdictKey`).
+- **A pick in More shuts the dialog first** (a capture listener in state.js), so a layer the pick opens is drawn after it. Filter's
+  dialog redraws its row however it shuts (Done, ×, a tap outside, Back) through the scrim's close hook (`dialogClosed`,
+  `UI_FILTER_DONE[key]`, else the page in place).
+- **P195's budgets are the worst of eleven days of the calendar**: a Sunday, a Monday, a month's first and last days, the
+  financial year's first, the year's first and a February's last. A screen's length moves with the date (Stats → Clients ran 2.3
+  to 5.5 phone screens, Invoices 1.1 to 3.7), so one day's measure would fail on another. The face (Liberation) and the clock
+  (11:30 on today) are pinned, so a screen measures the same on any machine at any hour. A step lowering a budget measures the
+  same eleven days.
+- **`LOOKS` and `ONE_LOOK` live in `tests/e2e/load-fixture.ts`** beside the walk and the measures, so P197's phone and desktop
+  files read one list. `LOOKS` is the census's 38, the same on each of the eleven days.
+- **P197's anatomy checks are proven on screens the test draws**, one right and each way wrong, since no screen is assembled
+  until TM2.
+- **Today's row fits a phone, so its group is a hairline there** (§3a-4). *Needs you Pulse Insights Stats Reports Planner* ran
+  412 px at 393 under the fallback face and 449 under DejaVu: the row would scroll, the very cue it exists to avoid. Where the
+  whole row fits, the name gives its place to a hairline between Pulse and Stats (`data-group="rule"`); where it would not (a
+  role's row, a face wider still), the name stays as the cue (`data-group="word"`). `wsRowFit` measures on every draw and resize.
+  The desktop keeps the name.
+- **The top bar's title gives way** (P76): Create's back arrow, name and four tools ran 21 px past a 393 px screen. The name
+  shrinks to an ellipsis, and the cue pass gives it a `title`.
+- **Grep after**: `label: 'Day'` in workspace.js, none; `'Items'` as a user-facing label, none (the sub-view's id `items` stays).
 
 ### TM2 — Today
 

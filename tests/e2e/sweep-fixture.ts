@@ -16,7 +16,7 @@ const CLIENTS = [
   { id: 3, name: 'GAMMA PRESS WORKS', rate: 11 },
 ];
 
-function inv(n: number, date: string, c: typeof CLIENTS[number], kg: number, state: string, status = 'active') {
+export function inv(n: number, date: string, c: { id: number; name: string; rate: number }, kg: number, state: string, status = 'active') {
   const taxable = Math.round(kg * c.rate * 100) / 100;
   const tax = Math.round(taxable * 0.09 * 100) / 100;
   return {
@@ -32,7 +32,7 @@ function inv(n: number, date: string, c: typeof CLIENTS[number], kg: number, sta
   };
 }
 
-function challan(n: number, c: typeof CLIENTS[number], date: string, invoiced: string | null) {
+export function challan(n: number, c: { id: number; name: string; rate: number }, date: string, invoiced: string | null) {
   return {
     id: 'IM-' + n, challanNo: String(800 + n), challanDate: date, clientId: c.id, clientName: c.name, vehicleNo: 'JH 05AN 0878',
     items: [

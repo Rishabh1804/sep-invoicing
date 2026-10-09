@@ -17,12 +17,19 @@
   <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
   </button>
+  <!-- History (the tab map, 9 Oct 2026): a tool on every screen, in no section's row. Hidden for a role that does not open it. -->
+  <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+  </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
   </button>
-  <!-- The book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop had no
-       way to the guides for the screen on show). Hidden on the phone, which has the icon above. -->
+  <!-- History and the book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop
+       had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
+  <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+  </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
   </button>

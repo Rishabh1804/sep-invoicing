@@ -136,7 +136,9 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-14);
   height: var(--bar-h); padding: 0 var(--sp-8) 0 var(--sp-16);
   background: var(--surface); color: var(--text-1); border-bottom: var(--hair) solid var(--border);
 }
-.inv-topbar-title { font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; }
+/* The title gives way first (a back arrow and four tools on the phone leave a long title little room: Create invoice ran the page
+   21px past a 393px screen). An ellipsis, and the cue pass titles it. */
+.inv-topbar-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-topbar-ctx { font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-topbar-ctx:empty { display: none; }
 .inv-topbar-spacer { flex: 1; }
@@ -1313,6 +1315,10 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
   border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-12); font-weight: 500; white-space: nowrap;
 }
 .inv-token-key { color: var(--text-3); font-weight: 400; }
+/* The filters applied, under the toolbar on the phone (one look, §6.6): each a button that clears its own. */
+.inv-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: calc(-1 * var(--sp-4)) 0 var(--sp-12); }
+button.inv-token { border: none; cursor: pointer; font-family: inherit; }
+button.inv-token:hover { background: var(--surface-3); }
 .inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
 .inv-token-add { background: none; border: var(--hair) dashed var(--border); color: var(--text-2); cursor: pointer; }
 
@@ -2008,6 +2014,9 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-sub { grid-column: 1 / -1; min-width: 0; font-size: var(--fs-13); line-height: 1.4; color: var(--text-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .inv-hero-viz { grid-column: 1 / -1; min-width: 0; margin-top: var(--sp-4); }
+/* The verdict card's facts (§6.28): up to three, each its own, set apart by the stylesheet rather than run together in one line
+   of text. */
+.inv-hero-fact + .inv-hero-fact::before { content: '\00B7'; padding: 0 var(--sp-6); color: var(--text-3); }
 .inv-hero-body { padding: 0 var(--sp-12) var(--sp-12); }
 /* A hero's own links and buttons (Import statement, Refresh, Back up now), under its head or its body. */
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
@@ -2289,7 +2298,7 @@ a.inv-btn { text-decoration: none; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
 body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
 /* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
-body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn[data-action="invKbHelp"] { display: none; }
+body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"]) { display: none; }
 
 /* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
    The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
@@ -2366,6 +2375,11 @@ body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); h
    narrow phone (a 360 px screen). */
 body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
 @media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
+/* Where the row's views fit with the group set off by a rule, the name is that rule, as on the desktop (wsRowFit, the tab map):
+   the word is the cue for a group out of sight, and a row with nothing out of sight needs none. */
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group { position: static; padding: 0 var(--sp-4); font-size: 0; background: none; cursor: default; }
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group::after { content: none; }
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group::before { content: ''; width: var(--hair); height: var(--sp-16); background: var(--border); }
 /* Under it, a page that opens on its own tabs: that row sits flush under the first, a step smaller (the secondary row). */
 body:has(> .inv-ws-tabs:not(.inv-hidden)) .inv-page:has(> .inv-viewtabs:first-child, > :first-child > .inv-viewtabs:first-child) { padding-top: 0; }
 body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) { margin-bottom: var(--sp-8); }

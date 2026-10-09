@@ -978,7 +978,7 @@ function rateMatchNote(m, compact) {
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
   else if (m.status === 'unit') text = 'On record ' + formatCurrency(m.ref) + per + ' for this part, not in this line’s unit' + (compact ? '' :
-    m.need === 'weight' ? ': enter its weight in Items → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
+    m.need === 'weight' ? ': enter its weight in Clients → Parts → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
   return verdictHtml(m.status, RM_LABELS[m.status], text);
 }
 

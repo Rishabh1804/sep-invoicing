@@ -20,17 +20,22 @@ function book(n = 7): SepState {
 }
 
 test.describe('P164 the phone reaches every screen, and a recent invoice prints from Today', () => {
-  test("Insights' five views are Office's review, a tap from the bar", async ({ page }) => {
+  test("the Insights are Today's, a tap from the bar; History and Knowledge are the top bar's on every screen", async ({ page }) => {
+    // Office's review from 8 Oct 2026; Today's since the tab map (9 Oct 2026), History and Knowledge tools in the top bar.
     await loadAppWithState(page, book());
     await expect(page.locator('.inv-navbar-item[data-ws="insights"]')).toHaveCount(0);
-    const item = page.locator('.inv-navbar-item[data-ws="office"]');
+    const item = page.locator('.inv-navbar-item[data-ws="today"]');
     await item.click();
     await expect(item).toHaveClass(/inv-navbar-item-on/);
     const labels = await page.locator('#wsTabs .inv-viewtab').allInnerTexts();
-    expect(labels.slice(labels.indexOf('Stats'))).toEqual(['Stats', 'Reports', 'Planner', 'History', 'Knowledge']);
+    expect(labels.slice(labels.indexOf('Stats'))).toEqual(['Stats', 'Reports', 'Planner']);
     await page.locator('#wsTabs [data-tab="pagePlanner"]').click();
     await expect(page.locator('#pagePlanner')).toHaveClass(/inv-page-active/);
     await expect(item).toHaveClass(/inv-navbar-item-on/);
+    for (const [tool, id] of [['invGoHistory', 'pageHistory'], ['invKbHelp', 'pageKnow']]) {
+      await page.locator(`.inv-topbar [data-action="${tool}"]:visible`).click();
+      await expect(page.locator(`#${id}`)).toHaveClass(/inv-page-active/);
+    }
     // Five doors fit the phone, each a whole touch target, Add the centre one.
     const boxes = await page.locator('.inv-navbar > .inv-navbar-item').evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [r.width, r.height, r.right]; }));
     expect(boxes.length).toBe(5);

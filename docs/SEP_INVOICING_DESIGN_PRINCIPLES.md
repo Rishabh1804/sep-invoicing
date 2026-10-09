@@ -442,7 +442,7 @@ chevrons, settings sliders).
 Each entry gives the class, the anatomy, and what it replaces. Modifiers are `inv-<component>-<mod>`.
 
 ### 6.1 App shell — `inv-shell`, `inv-topbar`, `inv-side`, `inv-navbar`
-As §4. `inv-topbar-title`, `inv-topbar-ctx`, `inv-topbar-actions`; the rail `inv-side` of `inv-side-item` (`-on`) doors, its mark
+As §4. `inv-topbar-title` (shrinks to an ellipsis before the tools are pushed off a phone; its full text in a `title`), `inv-topbar-ctx`, `inv-topbar-actions`; the rail `inv-side` of `inv-side-item` (`-on`) doors, its mark
 `inv-side-brand`; the bar `inv-navbar` of `inv-navbar-item` (`-on`) doors. Replaces `inv-header`, `inv-tabs`/`inv-tab` (the old
 bottom bar — which is why view tabs are `inv-viewtab`), `inv-sidebar*`, `inv-fab`, the sidebar's `inv-side-item-sub` and
 `inv-side-count`, the dock's `inv-navbar-add-mark`.
@@ -483,12 +483,15 @@ Underline tabs: `inv-viewtab` (`role=tab`, `aria-selected`), `--t-label` desktop
 control for switching views** — Clients/Items/Performance, Staff Day/Week/Pay/Areas/Roster, Stats
 Overview/Clients/Cost/Billing/Trends, Stock views. Replaces `inv-subview-toggle`, `inv-stats-tabs`, the chip
 rows used as tabs (`inv-stats-chips` + `inv-chip` in staff.js), `inv-set-nav-btn` (Settings keeps its two-pane
-layout, drawn with `inv-side-item`). **A group of a workspace's views** (Office's Insights) follows its name,
+layout, drawn with `inv-side-item`). **A group of a workspace's views** (Today's Insights; Office's before the tab map) follows its name,
 `inv-viewtab-group` (`role=presentation`, `--fs-12` 600 in `--text-3`, a › after it), which is sticky at the row's right edge, on
 the row's colour with a short fade at its left, until the group comes into view; a tap on it scrolls the group in and picks no
 view (owner, 8 Oct 2026: *"Insights seems to be missing on mobile?"*). That row's tabs are `--sp-10` a side on the phone and
 `--sp-6` under 24rem, so the name stands after the last tab of the first group, never over its word; on the desktop a hairline
-sets the name off. **A page's own tab row that runs past the screen fades** on the side with more, the table's cue (§6.11)
+sets the name off. **A row that fits shows no word** (the tab map, TM1: Today's Insights): on the phone, where the whole row fits,
+the name is a `--hair` × `--sp-16` rule between the groups (`data-group="rule"`), since a word with nothing past it to name is a
+cue to scroll a row that does not; only a row that would run past the screen keeps the word (`data-group="word"`, `wsRowFit`).
+**A page's own tab row that runs past the screen fades** on the side with more, the table's cue (§6.11)
 without its note (`data-more` start | end | both); the workspace's row never fades, its cue being the group's name.
 
 ### 6.5 Segmented control — `inv-seg`
@@ -503,6 +506,9 @@ buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the
 ### 6.6 Filter tokens and chips — `inv-token`, `inv-chip`
 - `inv-token`: an **applied** filter, "`Month` Sep 2026 ×", `--surface-2`, `--r-md`, key in `--text-3`;
   "+ Filter" is `inv-token-add` (dashed border). The active one on the phone is `--accent-soft`.
+- **`inv-tokens`** (one look, TM1; `uiTokensHtml`, state.js): on the phone the filters applied behind a toolbar's **Filter**
+  (§6.7) stand under it as a row of tokens, each a `button.inv-token` clearing its own (`aria-label` *Clear Client: SSS Mehta*);
+  a sort other than the default is a token too. The desktop shows the filters themselves inline and draws no tokens.
 - `inv-chip`: a **choice among options** inside a form (zero-rate reason, P/H/A on the desktop grid,
   stock basis). `inv-chip-on`. One definition (v1.0 defined `.inv-chip` twice). Replaces `inv-zero-opt`,
   `inv-stk-choice`, `inv-td-pill`, `inv-att-chip`, `inv-rm-chip` as a picker.
@@ -516,6 +522,20 @@ Every searchable list uses it. Its field fills the box to the border, so the who
 sharing the line and wrapping two to a row on the phone; on the desktop a select, a month and a labelled date field are as
 wide as their control, not a share of the row (Register's and History's From / To). Replaces `inv-reg-toolbar`, `inv-im-toolbar`, `inv-items-toolbar`,
 `inv-cp-toolbar`, `inv-history-filters`, `inv-search-wrap`, `inv-reg-search`.
+
+**One row** (one look, `docs/TAB_MAP.md` §1a-2, §1a-10; built in TM1, applied screen by screen from TM2): a screen's toolbar
+is one row on both layouts: the search, the filters, the view's one primary, at most one secondary, and **More**.
+- **Filter** (`uiFilterHtml({key, controls, count})`): on the phone one secondary button, the count of filters applied as a
+  badge, opening a dialog that holds the screen's own controls (their own ids and `change` handlers, drawn only while it is
+  open, from a `<template>`) and **Done**. A control applies as it changes; however the dialog shuts (Done, ×, a tap outside,
+  Back) the row is drawn again with the filters as they stand (`UI_FILTER_DONE[key]`, else the page in place), and the
+  applied ones show as tokens under it (§6.6). On the desktop the controls are the row's, inline.
+- **More** (`uiToolbarMoreHtml(items)`): on both layouts, everything the row has no room for (files always: Export, Import,
+  Print sheets, the register's CSVs; Add → File stays the one door that takes any file). A secondary small button with an
+  ellipsis, `aria-haspopup="dialog"`, opening a dialog titled *More* whose rows carry the same `data-action` and data the
+  item had on the row, so `events.js` routes them unchanged. A pick shuts the dialog first, then acts (a layer it opens is
+  drawn after; Back passes over More's step). **A badge an item carries is carried by More**, summed, in the worst tone, so
+  nothing waiting hides behind it.
 
 ### 6.8 Panel — `inv-panel`
 `inv-panel-head` (`--t-heading` title · optional count in mono `--text-3` · spacer · actions as
@@ -562,6 +582,11 @@ indented on the page colour. **The phone form of every table.** Replaces `inv-cl
 `inv-im-header`, `inv-att-row`, `inv-area-row`, `inv-history-item`, `inv-stats-row`, `inv-lab-row`,
 `inv-pay-row`, `inv-rate-row`, `inv-cost-dline`, `inv-td-hrow`, `inv-more-item`, `inv-stk-row`,
 `inv-stk-hrow`, `inv-stk-mrow`, `inv-td-row`.
+
+**A row's end holds its figure and its status, or one action** (one look, `docs/TAB_MAP.md` §1a-11; `uiRowEndHtml(fig,
+status, action)`, state.js): the figure (mono), then a dot and a word, stacked where both stand (`inv-row-end-stack`), or one
+button. A row with more to do draws the rest with `uiRowMoreHtml(actions)`: in the row's fold on the phone (`inv-row-actions`,
+`data-row-more`), and nowhere on the desktop, where the pane beside the list draws them with the record.
 
 **A long list shows its first rows** (`uiMoreHtml`, state.js; UX overhaul 2, step 6): thirty by default, ten where each
 row is a question (a client's Materials, the Stats client tables, unplaced receipts), then one row with a link button,
@@ -851,6 +876,25 @@ manner"*. Every figure the app works out is drawn in three layers, and nothing o
 Built on Floor → Day's line cards, Production's day card, Production → Lines (*Into the bath*), a stock line's *By line* and the
 plant strip's round. The other screens that reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed
 data*) and fixed in the steps of `docs/TAB_MAP.md` (its §3d), whose §3b states the benchmark's rules with what measures each.
+
+### 6.28 The verdict card — `uiVerdictHtml` (state.js), `data-verdict`
+The owner, 9 Oct 2026: *"UI still feels inconsistent to me"*. A census of every screen found the components alike and the screens
+led five ways, or not at all (`docs/TAB_MAP.md` §3e). **A work screen leads with one verdict card**: a hero (§6.21) saying how the
+screen stands, and nothing else leads it (no page-head line, no strip of tiles, no callout). `uiVerdictHtml(o)`:
+- `screen`, the eyebrow: the screen and its period or count;
+- `verdict`, a sentence of **60 characters at most**, in `tone`, the worst of what the card holds; with `money: true` a role
+  that does not see money reads `plain` (its count) instead, and a fact or factor carrying `money: true` is left out for it;
+- `fig`, its key figure; `facts`, up to **three** short facts under it (`inv-hero-fact`, set apart by a middle dot the
+  stylesheet draws); `viz`, a meter or sparkline (§6.24);
+- `factors`, up to **four** coded tiles in its body (§6.9, §6.26, `uiFactorTileHtml`); a factor that filters its list is a
+  `button.inv-tile` keeping `aria-pressed`;
+- `links`, up to **two**, in its foot; `body`, more of the card.
+
+It carries `data-verdict` and `data-card="verdict"`. **Shut on the phone**, where its line still answers the six-second test,
+**open on the desktop**, either until the owner moves it, remembered per device (`v-<page>-<view>`, or the `key` given). Past
+its limits it is drawn with `data-verdict-long` and says so in a test browser's console; P197 fails on it. Every screen declares
+its kind on its root (`data-screen`: overview, work, document, form; `SCREEN_KINDS`, tabs.js), and P197 holds each to its kind's
+anatomy once its step has assembled it (`docs/TAB_MAP.md` §3e).
 
 ---
 

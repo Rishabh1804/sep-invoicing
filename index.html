@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="8bd50ca6">
+<meta name="app-build" content="4f55cc9f">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -158,7 +158,9 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-14);
   height: var(--bar-h); padding: 0 var(--sp-8) 0 var(--sp-16);
   background: var(--surface); color: var(--text-1); border-bottom: var(--hair) solid var(--border);
 }
-.inv-topbar-title { font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; }
+/* The title gives way first (a back arrow and four tools on the phone leave a long title little room: Create invoice ran the page
+   21px past a 393px screen). An ellipsis, and the cue pass titles it. */
+.inv-topbar-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-topbar-ctx { font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-topbar-ctx:empty { display: none; }
 .inv-topbar-spacer { flex: 1; }
@@ -1335,6 +1337,10 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
   border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-12); font-weight: 500; white-space: nowrap;
 }
 .inv-token-key { color: var(--text-3); font-weight: 400; }
+/* The filters applied, under the toolbar on the phone (one look, §6.6): each a button that clears its own. */
+.inv-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: calc(-1 * var(--sp-4)) 0 var(--sp-12); }
+button.inv-token { border: none; cursor: pointer; font-family: inherit; }
+button.inv-token:hover { background: var(--surface-3); }
 .inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
 .inv-token-add { background: none; border: var(--hair) dashed var(--border); color: var(--text-2); cursor: pointer; }
 
@@ -2030,6 +2036,9 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-sub { grid-column: 1 / -1; min-width: 0; font-size: var(--fs-13); line-height: 1.4; color: var(--text-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .inv-hero-viz { grid-column: 1 / -1; min-width: 0; margin-top: var(--sp-4); }
+/* The verdict card's facts (§6.28): up to three, each its own, set apart by the stylesheet rather than run together in one line
+   of text. */
+.inv-hero-fact + .inv-hero-fact::before { content: '\00B7'; padding: 0 var(--sp-6); color: var(--text-3); }
 .inv-hero-body { padding: 0 var(--sp-12) var(--sp-12); }
 /* A hero's own links and buttons (Import statement, Refresh, Back up now), under its head or its body. */
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
@@ -2311,7 +2320,7 @@ a.inv-btn { text-decoration: none; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
 body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
 /* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
-body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn[data-action="invKbHelp"] { display: none; }
+body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"]) { display: none; }
 
 /* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
    The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
@@ -2388,6 +2397,11 @@ body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); h
    narrow phone (a 360 px screen). */
 body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
 @media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
+/* Where the row's views fit with the group set off by a rule, the name is that rule, as on the desktop (wsRowFit, the tab map):
+   the word is the cue for a group out of sight, and a row with nothing out of sight needs none. */
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group { position: static; padding: 0 var(--sp-4); font-size: 0; background: none; cursor: default; }
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group::after { content: none; }
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group::before { content: ''; width: var(--hair); height: var(--sp-16); background: var(--border); }
 /* Under it, a page that opens on its own tabs: that row sits flush under the first, a step smaller (the secondary row). */
 body:has(> .inv-ws-tabs:not(.inv-hidden)) .inv-page:has(> .inv-viewtabs:first-child, > :first-child > .inv-viewtabs:first-child) { padding-top: 0; }
 body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) { margin-bottom: var(--sp-8); }
@@ -2579,12 +2593,19 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
   <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
   </button>
+  <!-- History (the tab map, 9 Oct 2026): a tool on every screen, in no section's row. Hidden for a role that does not open it. -->
+  <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+  </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
   </button>
-  <!-- The book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop had no
-       way to the guides for the screen on show). Hidden on the phone, which has the icon above. -->
+  <!-- History and the book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop
+       had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
+  <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+  </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
   </button>
@@ -3676,6 +3697,147 @@ function uiHeroHtml(o) {
   return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
     '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div>' + foot + '</details>';
 }
+/* ===== ONE LOOK'S PIECES (docs/TAB_MAP.md §3e; design §6.28, §6.6, §6.7) =====
+   The owner, 9 Oct 2026: "UI still feels inconsistent to me". The components were alike everywhere; how each screen was put
+   together was not: of 60 phone screens, 34 led with no summary and the rest five different ways. These are the pieces every
+   screen is assembled from: a work screen leads with its verdict card, then one toolbar row (the filters behind Filter on the
+   phone, everything else behind More), what needs the owner as rows, the list, the rest folded; a row ends in its figure and
+   its status, or one action. */
+
+/* The verdict card (§6.28): one hero saying how the screen stands. `o`: screen (the eyebrow: the screen and its period or
+   count), verdict (a sentence of 60 characters at most, said in `tone`, the worst of what the card holds), fig (its key figure,
+   HTML), facts (up to three short texts under it), viz (a meter or sparkline, HTML), factors (up to four tiles, uiFactorTileHtml's
+   shape), body (more of the card, HTML), links (up to two buttons or links for its foot, HTML), key (the device remembers the
+   card open or shut under it). A verdict naming rupees carries money: true and its count in `plain`, which a role that does not
+   see money reads instead (I4); a fact or a factor with money: true is left out for that role. Shut on the phone, where its line
+   still answers the six-second test; open on the desktop; either until the owner moves it. Over its limits it says so to a test
+   build (data-verdict-long, which P197 fails on) rather than throwing: a long client name must not take a screen down. */
+var UI_VERDICT_MAX = 60;
+function uiVerdictHtml(o) {
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var verdict = String((o.money && !money ? o.plain : o.verdict) || '');
+  var keep = function(f) { return f && (typeof f === 'string' || !f.money || money); };
+  var facts = (o.facts || []).filter(keep).map(function(f) { return typeof f === 'string' ? f : f.text; }).filter(Boolean);
+  var factors = (o.factors || []).filter(keep), links = (o.links || []).filter(Boolean);
+  var long = verdict.length > UI_VERDICT_MAX || facts.length > 3 || factors.length > 4 || links.length > 2;
+  if (long && typeof navigator !== 'undefined' && navigator.webdriver) console.error('uiVerdictHtml over its limits: ' + verdict);
+  var n = Math.min(factors.length, 4);
+  var tiles = n ? '<div class="inv-hero-sheet"><div class="inv-tiles' + (n === 4 ? ' inv-tiles-4' : n === 3 ? ' inv-tiles-3' : '') + '">' +
+    factors.slice(0, 4).map(uiFactorTileHtml).join('') + '</div></div>' : '';
+  var body = tiles + (o.body || '');
+  return uiHeroHtml({ tone: /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? o.tone : 'neutral', eyebrow: escHtml(o.screen || ''),
+    title: escHtml(verdict), fig: o.fig || '', viz: o.viz || '',
+    sub: facts.length ? facts.slice(0, 3).map(function(f) { return '<span class="inv-hero-fact">' + escHtml(f) + '</span>'; }).join('') : '',
+    body: body || null, fold: 'v-' + (o.key || uiVerdictKey()), open: !!_isDesktop, foot: links.slice(0, 2).join(''),
+    attrs: ' data-verdict data-card="verdict"' + (long ? ' data-verdict-long' : '') + (o.attrs || '') });
+}
+/* The card's default key: the page and its view, so each view's card is remembered open or shut on its own. */
+function uiVerdictKey() {
+  var loc = typeof navLoc === 'function' ? navLoc() : { tab: navPageOf(), v: '' };
+  var v = String(loc.v || '').split('/')[0];
+  return loc.tab + (v ? '-' + v : '');
+}
+/* A factor: a coded tile (§6.26). `f`: label and sub (text), fig (HTML: a figure, already formatted), tone; a factor that filters
+   its list carries `action` (and `attrs`, `pressed`), drawn as a button keeping aria-pressed. A fig left out reads as a dash. */
+function uiFactorTileHtml(f) {
+  var tone = /^(danger|warning|ok|info|neutral)$/.test(f.tone) ? ' inv-tile-' + f.tone : '';
+  var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
+    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '');
+  if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
+    (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
+  return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
+}
+
+/* A row's end (§1a-11): its figure and its status (a dot and a word), or one action. `fig` HTML (formatted), `status` {tone,
+   word}, `action` the one button's HTML. A row with more to do than one action puts the rest in uiRowMoreHtml. */
+function uiRowEndHtml(fig, status, action) {
+  var dot = status && status.word ? '<span class="inv-dot inv-dot-' + uiTone(status.tone) + '">' + escHtml(status.word) + '</span>' : '';
+  return '<span class="inv-row-end' + (fig && dot ? ' inv-row-end-stack' : '') + '">' + (fig ? '<span class="inv-num">' + fig + '</span>' : '') + dot + (action || '') + '</span>';
+}
+/* A row's second and third actions: in the row's fold on the phone (the caller draws them where the row opens), and nowhere on
+   the desktop, where the pane beside the list draws them with the record. `actions`: the buttons' HTML. */
+function uiRowMoreHtml(actions) {
+  var list = (actions || []).filter(Boolean);
+  if (_isDesktop || !list.length) return '';
+  return '<div class="inv-row-actions" data-row-more>' + list.join('') + '</div>';
+}
+
+/* The toolbar's More (§6.7, §1a-2, §1a-10): one button holding everything the row has no room for, on both layouts (files
+   always: Export, Import, Print sheets, the register's CSVs). `items`: {label, action, attrs, badge: {n, tone}}. Each opens as a
+   row of a dialog carrying the action and the data it had in the toolbar, so events.js routes it unchanged; a pick shuts the
+   dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it.
+   The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. */
+var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
+var UI_ICON_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg>';
+var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
+function uiToolbarMoreHtml(items) {
+  var list = (items || []).filter(Boolean);
+  if (!list.length) return '';
+  var n = 0, worst = '';
+  var rows = list.map(function(x) {
+    var b = x.badge && x.badge.n ? x.badge : null;
+    if (b) { n += b.n; if (!worst || (UI_TONE_RANK[uiTone(b.tone)] || 0) > (UI_TONE_RANK[worst] || 0)) worst = uiTone(b.tone); }
+    return '<button type="button" class="inv-row" data-tb-pick data-action="' + escHtml(x.action) + '"' + (x.attrs || '') + '>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
+      (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';
+  }).join('');
+  return '<span data-tb-more><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbMore" aria-haspopup="dialog">' + UI_ICON_MORE + 'More' +
+    (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
+}
+/* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count
+   of filters applied) that opens them in a dialog with Done, the applied ones shown under the row as tokens (uiTokensHtml).
+   `o`: controls (HTML: the screen's own selects, dates and chips, with their own ids and change handlers), count, key (the
+   screen; UI_FILTER_DONE[key] redraws its row after Done, else the page is redrawn in place). */
+var UI_FILTER_DONE = {};
+function uiFilterHtml(o) {
+  if (_isDesktop) return o.controls || '';
+  return '<span data-tb-filter="' + escHtml(o.key || '') + '"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbFilter" aria-haspopup="dialog">' +
+    UI_ICON_FILTER + 'Filter' + (o.count ? ' <span class="inv-badge inv-badge-info">' + o.count + '</span>' : '') + '</button><template>' + (o.controls || '') + '</template></span>';
+}
+/* The filters applied, under the toolbar on the phone: "Client SSS Mehta ×", each a button that clears its own (a sort other than
+   the default is one too). `tokens`: {key, value (text), action, attrs}. The desktop shows its filters inline instead. */
+function uiTokensHtml(tokens) {
+  var list = (tokens || []).filter(function(t) { return t && t.value; });
+  if (_isDesktop || !list.length) return '';
+  return '<div class="inv-tokens">' + list.map(function(t) {
+    return '<button type="button" class="inv-token" data-action="' + escHtml(t.action) + '"' + (t.attrs || '') + ' aria-label="Clear ' + escHtml(t.key) + ': ' + escHtml(t.value) + '">' +
+      '<span class="inv-token-key">' + escHtml(t.key) + '</span>' + escHtml(t.value) + '<span aria-hidden="true">&times;</span></button>';
+  }).join('') + '</div>';
+}
+function uiToolbarAction(action, btn) {
+  if (action === 'invTbMore') {
+    var tpl = btn.parentElement && btn.parentElement.querySelector('template');
+    if (!tpl) return true;
+    dialogOpen('<div class="inv-dialog" data-tb-more-dialog>' + dialogHeadHtml('More', 'invCloseConfirm') +
+      '<div class="inv-panel inv-panel-flush">' + tpl.innerHTML + '</div></div>', { dismiss: true });
+    return true;
+  }
+  if (action === 'invTbFilter') {
+    var wrap = btn.closest('[data-tb-filter]'), t = wrap && wrap.querySelector('template'), key = wrap ? wrap.dataset.tbFilter || '' : '';
+    if (!t) return true;
+    var scrim = dialogOpen('<div class="inv-dialog" data-tb-filter-dialog="' + escHtml(key) + '">' + dialogHeadHtml('Filter', 'invTbFilterDone') +
+      '<div class="inv-dialog-body inv-toolbar" data-nodirty>' + t.innerHTML + '</div>' +
+      '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invTbFilterDone">Done</button></div></div>', { dismiss: true });
+    // However it shuts (Done, the ×, a tap outside, Back), the row is drawn again with the filters as they now stand: they apply as
+    // they change, so nothing in it is ever discarded.
+    scrim._onClose = function() { if (UI_FILTER_DONE[key]) keepScroll(UI_FILTER_DONE[key]); else tabRedrawActive(); };
+    return true;
+  }
+  if (action === 'invTbFilterDone') {
+    var open = btn.closest('.inv-scrim-dialog');
+    if (open) dialogCloseScrim(open);
+    return true;
+  }
+  return false;
+}
+// A pick in More shuts its dialog first, so whatever it opens is drawn after it (its step is passed over on Back: nav.js marks a
+// layer shut by anything but Back). Capture, before events.js runs the action.
+document.addEventListener('click', function(e) {
+  var pick = e.target && e.target.closest ? e.target.closest('[data-tb-pick]') : null;
+  var scrim = pick && pick.closest('.inv-scrim-dialog');
+  if (scrim && scrim.querySelector('[data-tb-more-dialog]')) dialogCloseScrim(scrim);
+}, true);
+
 /* A grid packed with no gaps (§6.25): each child spans as many of the grid's small rows as its own height takes. Only where
    the grid has two columns or more; packed again whenever a child changes height (a fold opened, a chart drawn). */
 var _masonryObs = typeof ResizeObserver === 'function' ? new ResizeObserver(function(entries) {
@@ -3854,6 +4016,14 @@ function dialogCloseScrim(scrim) {
   scrim.remove();
   popFocus();
   if (!document.querySelector('.inv-scrim-dialog')) document.body.style.overflow = '';
+  dialogClosed(scrim);
+}
+/* What a dialog asked to run once it is shut, however it was shut (the toolbar's Filter redraws its row). */
+function dialogClosed(scrim) {
+  var f = scrim && scrim._onClose;
+  if (!f) return;
+  scrim._onClose = null;
+  try { f(); } catch (e) { console.error(e); }
 }
 
 /* ===== THE OTHER WINDOWS =====
@@ -4959,7 +5129,7 @@ function lineFillFromRecord(client, onDate, item, part) {
   // Items Master's standard weight, which is said to be the master's.
   var w = getPieceWeight(client, onDate, item.partNumber, item.desc);
   if (w && w.kg > 0) item._kgPc = { kg: w.kg, src: 'client card' };
-  else if (part && part.stdWeightKg > 0) item._kgPc = { kg: part.stdWeightKg, src: 'Items Master' };
+  else if (part && part.stdWeightKg > 0) item._kgPc = { kg: part.stdWeightKg, src: 'Parts' };
   else item._kgPc = null;
 }
 /* What the record fills into a counted line: pieces × rate is the amount on a piece line; pieces ×
@@ -6074,7 +6244,7 @@ var GRD_GROUPS = [['billing', 'Invoices and credit notes'], ['rates', 'Rates and
    day) is kept in a role's list and skipped on screen. */
 var GRD_PAGE_IDS = ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
   'pageStaff', 'pageProduction', 'pageStock', 'pagePower', 'pageFinance', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory'];
-var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor day' };
+var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor overview' };
 /* Pages that are money: opened only by a role that sees money, whatever its page switches say. */
 var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1, pagePlanner: 1 };
 
@@ -6786,6 +6956,8 @@ function grdApplyDoors() {
     if (to && !grdSees(to)) off(el);
   });
   if (!grdCan('settings')) document.querySelectorAll('.inv-topbar [data-action="invOpenSettings"], #invSidebar [data-action="invOpenSettings"]').forEach(off);
+  // History is a tool in the top bar (the tab map): its door goes with the page.
+  if (!grdSees('pageHistory')) document.querySelectorAll('.inv-topbar [data-action="invGoHistory"]').forEach(off);
 }
 var _grdDoorsQueued = false;
 function grdApplyDoorsSoon() {
@@ -7095,8 +7267,8 @@ function grdRolesGridHtml() {
   h += '<tr class="inv-table-group"><td colspan="4">What it may change</td></tr>';
   GRD_GROUPS.forEach(function(g) { h += row(g[1], 'data-grd-may="' + g[0] + '"', function(x) { return x.may.indexOf(g[0]) >= 0; }); });
   h += '<tr class="inv-table-group"><td colspan="4">What it sees</td></tr>' +
-    row('Wages (Staff → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
-    row('Money (Finance, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
+    row('Wages (People → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
+    row('Money (Money, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
   return h + '</tbody></table></div>';
 }
 function grdUsersBody() {
@@ -7658,12 +7830,49 @@ function zincLookupBillLme(from) {
   });
 }
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
+/* Each page by the name it carries on screen (the tab map, 9 Oct 2026: one word, one meaning). They reach users in refusal
+   toasts, the guard's roles grid and a screen that could not be drawn. */
 const PAGE_TITLES = {
-  pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
-  pageFloor: 'Day', pagePipeline: 'Pipeline',
+  pageHome: 'Today', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
+  pageClients: 'Clients', pageFinance: 'Money', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
+  pageFloor: 'Floor overview', pagePipeline: 'Pipeline',
   pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
 };
+
+/* ===== ONE LOOK: EVERY SCREEN DECLARES ITS KIND (docs/TAB_MAP.md §3e) =====
+   An overview (Today's two views, Pipeline, Floor's and Money's Overview), a work screen (every list and every analysis), a
+   document (paper fitted to the screen) or a form (a back head, the fields, the action bar last). Each kind is assembled one
+   way, and P197 holds a screen to its kind. The page's root carries its kind (`data-screen`), read off the place on screen:
+   a page's own view can differ from the page (`page/view`), and a sub-view that is a form says so while it shows. */
+var SCREEN_KINDS = {
+  pageHome: 'overview', pageTodo: 'work', pagePipeline: 'overview', pageIM: 'work', pageRegister: 'work', pageClients: 'work',
+  pageCreate: 'form', pageFloor: 'overview',
+  pageStaff: 'work', 'pageStaff/overview': 'overview',
+  pageProduction: 'work', 'pageProduction/overview': 'overview',
+  pageStock: 'work', 'pageStock/overview': 'overview', 'pageStock/item': 'form',
+  pagePower: 'work', 'pagePower/overview': 'overview', 'pagePower/case': 'document',
+  pageFinance: 'work', 'pageFinance/overview': 'overview',
+  pageStats: 'work', 'pageStats/overview': 'overview',
+  pageReports: 'document', pagePlanner: 'work', pageHistory: 'work',
+  pageKnow: 'work', 'pageKnow/start': 'overview'
+};
+// A part of the address that is a form wherever it appears: a challan, a quotation, a paste and its check, by hand, a register
+// photo's check, an article being written.
+var SCREEN_FORM_PARTS = /^(form|paste|review|hand|photo|manual|edit)$/;
+function screenKindOf(loc) {
+  loc = loc || navLoc();
+  var parts = String(loc.v || '').split('/');
+  if (parts.some(function(x) { return SCREEN_FORM_PARTS.test(x); })) return 'form';
+  // An article read on the phone is a record opened as a sub-view; on the desktop it sits in the pane beside its list.
+  if (loc.tab === 'pageKnow' && loc.id && !_isDesktop) return 'form';
+  return SCREEN_KINDS[loc.tab + '/' + parts[0]] || SCREEN_KINDS[loc.tab] || 'work';
+}
+function screenKindApply() {
+  var p = document.querySelector('.inv-page-active');
+  if (!p) return;
+  var k = screenKindOf();
+  if (p.dataset.screen !== k) p.dataset.screen = k;
+}
 
 /* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
    build had) opens Home and is never remembered: ?tab=topbarTitle drew a blank page, and every launch after reopened it
@@ -7821,6 +8030,7 @@ function tabRender(tabId, isDirty) {
   } else if (tabId === 'pageKnow') {
     renderKnow();
   }
+  screenKindApply();
 }
 
 /* The page on screen, drawn again from S where it stands: the page, its panes and dialogs keep their scroll. */
@@ -8678,13 +8888,15 @@ function closeOverlay() {
 function closeTopOverlay() {
   const all = document.querySelectorAll('.inv-scrim-dialog');
   if (all.length > 0) {
-    all[all.length - 1].remove();
+    const top = all[all.length - 1];
+    top.remove();
     popFocus();
     // The last one shut: the page scrolls again, and a layout switch deferred while it was open runs now.
     if (document.querySelectorAll('.inv-scrim-dialog').length === 0) {
       document.body.style.overflow = '';
       if (_pendingModeSwitch) { _pendingModeSwitch = false; updateLayoutMode(); }
     }
+    dialogClosed(top);
   }
 }
 
@@ -9173,13 +9385,13 @@ function _buildItemsSubViewHtml() {
   // A <select> speaks through change only (events.js), never a data-action: the click that opens it must not run it.
   return '<div class="inv-toolbar">' +
     '<label class="inv-search">' + ICON_SEARCH +
-    '<input type="text" id="itemsSearch" placeholder="Search items" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search items"></label>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add item</button>' +
+    '<input type="text" id="itemsSearch" placeholder="Search parts" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search parts"></label>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add part</button>' +
     '</div>' +
     '<div class="inv-toolbar">' +
     '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
     '<button class="inv-chip" data-action="invFilterUnused" aria-pressed="' + (filter === 'unused') + '">Unused (' + unusedCount + ')</button>' +
-    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort items">' +
+    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort parts">' +
     opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>' +
     '</div>' +
     '<div class="inv-toolbar">' +
@@ -9192,12 +9404,18 @@ function _buildItemsSubViewHtml() {
     '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="itemsCount">' + S.items.length + ' items</span></div>';
 }
 
+/* The page's own row draws the group its sub-view is in (the tab map): Office's Clients covers Clients · Parts · Performance,
+   Office's Sales covers Prospects · Quotations. The parts master is called Parts wherever the user reads it; `items` stays the
+   sub-view's id. */
+var CLIENTS_GROUPS = { clients: ['clients', 'items', 'performance'], sales: ['prospects', 'quotes'] };
+var CLIENTS_VIEW_LABELS = { clients: 'Clients', items: 'Parts', performance: 'Performance', prospects: 'Prospects', quotes: 'Quotations' };
 function _buildSubViewToggle(active) {
-  var tab = function(k, l) {
-    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + l + '</button>';
+  var tab = function(k) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + CLIENTS_VIEW_LABELS[k] + '</button>';
   };
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Clients">' +
-    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + tab('quotes', 'Quotations') + tab('prospects', 'Prospects') + '</div>';
+  var sales = CLIENTS_GROUPS.sales.indexOf(active) >= 0;
+  return '<div class="inv-viewtabs" role="tablist" aria-label="' + (sales ? 'Sales' : 'Clients') + '">' +
+    (sales ? CLIENTS_GROUPS.sales : CLIENTS_GROUPS.clients).map(tab).join('') + '</div>';
 }
 
 /* ===== CLIENTS/ITEMS DESKTOP: LIST AND PANE =====
@@ -9417,7 +9635,7 @@ function openItemAdd() {
 }
 
 function _showItemOverlay(item, isAdd) {
-  var title = isAdd ? 'Add item' : 'Edit item';
+  var title = isAdd ? 'Add part' : 'Edit part';
   var pn = item ? item.partNumber : '';
   var desc = item ? item.desc : '';
   var gauge = item ? (item.gauge || '') : '';
@@ -11305,7 +11523,7 @@ function rateMatchNote(m, compact) {
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
   else if (m.status === 'unit') text = 'On record ' + formatCurrency(m.ref) + per + ' for this part, not in this line’s unit' + (compact ? '' :
-    m.need === 'weight' ? ': enter its weight in Items → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
+    m.need === 'weight' ? ': enter its weight in Clients → Parts → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
   return verdictHtml(m.status, RM_LABELS[m.status], text);
 }
 
@@ -11625,7 +11843,7 @@ var SETTINGS_SECS = {
     title: 'Full cost',
     summary: function() { return _sRs(S.defaultCostPerKg || 8.55) + '/kg'; },
     body: function() { return _sfg('Default cost per kg (&#8377;)', 'setDefaultCost', _sNum('setDefaultCost', S.defaultCostPerKg || 8.55, 0.01, 0.01)); },
-    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Items Master reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
+    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Parts reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
     save: function() { var v = _sPos('setDefaultCost'); if (v) S.defaultCostPerKg = v; }
   },
   fallbacks: {
@@ -16682,7 +16900,7 @@ function renderAddPartOption(idx, idPrefix, query, kind) {
     ' data-ac-new="1" data-action="invAddItemInline" data-kind="' + kind + '"' +
     ' data-idx="' + idx + '" data-q="' + escHtml(query) + '">' +
     '<span class="inv-menu-title">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
-    '<span class="inv-menu-meta">New item in the master</span></div>';
+    '<span class="inv-menu-meta">New part in Parts</span></div>';
 }
 
 /* Render the suggestion rows for one part input. Shared by the invoice form
@@ -19411,7 +19629,7 @@ function qtPostPlan(q) {
       var priced = billed.units.filter(function(u) { return itemRateHow(c, unit, u, part); });
       if (!priced.length) {
         hand.push(name + ': a rate per ' + unit + ', and ' + c.name + ' bills ' + part + ' ' + billed.units.map(qtUnitWords).join(' and ') +
-          (unit === 'kg' && c.billingMode === 'nos_to_weight' ? ' with no weight a piece on record (Items → Part weights)' : '') + ', which it cannot price; set it on the card by hand');
+          (unit === 'kg' && c.billingMode === 'nos_to_weight' ? ' with no weight a piece on record (Clients → Parts → Part weights)' : '') + ', which it cannot price; set it on the card by hand');
         return;
       }
       var have = card.find(function(r) { return r.partPattern === part; });
@@ -23091,7 +23309,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
         after += _labCallout('That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
           Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
           'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
-          'Items Master &rarr; Derive weights from rates closes it.');
+          'Clients &rarr; Parts &rarr; Derive weights from rates closes it.');
       }
     } else {
       tiles += _labTile('perkg-withheld', '₹/kg withheld', '&mdash;', verdict.why);
@@ -37796,7 +38014,7 @@ function renderStats() {
       'That exclusion is not neutral: unweighed lines are typically piece-billed work, which is ' +
       'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
       (costLabel === 'live cost ' ? statsCostWeighedNote(tonnage, true) + ' ' : '') +
-      'Items Master &rarr; Derive weights from rates closes it.', '', 'coverage');
+      'Clients &rarr; Parts &rarr; Derive weights from rates closes it.', '', 'coverage');
   }
   if (contribution != null && contribution < 0) {
     html += statsCallout('Realisation is ' + formatCurrency(Math.abs(contribution)) +
@@ -37910,7 +38128,7 @@ function renderStats() {
           ' cannot be priced per kg &mdash; ' + formatCurrency(partialRev) + ', ' + formatNum(partialShare, 0) +
           '% of revenue, billed on parts with no weight on file. These are the accounts most likely to be ' +
           'underpriced, and they are the ones this table cannot yet rank. ' +
-          'Items Master &rarr; Derive weights from rates fills them in.', 'danger', 'unranked');
+          'Clients &rarr; Parts &rarr; Derive weights from rates fills them in.', 'danger', 'unranked');
       }
 
       if (costPerKg > 0) {
@@ -40750,7 +40968,7 @@ function advRepriceMove(ctx, x) {
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
     task: said,
-    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or the Items Master) to quote ' +
+    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or Parts) to quote ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
 
@@ -40932,7 +41150,7 @@ function advMoneyMoves(ctx) {
   var plant = ctx.cards.plant;
   if (plant && plant.capPct != null && plant.capPct < 0.8) out.push(ctx.plantMoves()[0] || null);
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
-    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or the Items Master) lets the app set what was billed against the cost.'
+    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or Parts) lets the app set what was billed against the cost.'
       : 'Nothing to move on: no account with a tenth of the plant is below the full cost, nothing has waited ' + todoCfg().challanDays + ' days to be billed, and every cost line is within its model.' };
 }
 
@@ -45998,7 +46216,7 @@ function prodPlantHtml() {
     });
   });
   h += (plant.unweighed ? '<div class="inv-panel-body inv-note" data-prod-unweighed>' + escHtml(todoPlural(plant.unweighed, 'open line') + ' (' + formatNum(plant.unweighedKg, 1) + ' kg) came by the kilo with no kg per piece known, so the floor’s piece counts cannot be set against ' + (plant.unweighed === 1 ? 'it' : 'them') + '. Put the weight on the client’s card (Clients → Edit → Piece weights).') + '</div>' : '') +
-    '<div class="inv-panel-body inv-note">A line received by the kilo is counted in pieces where the part’s kg per piece is known: the client’s card, then part weights, then the Items Master. Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
+    '<div class="inv-panel-body inv-note">A line received by the kilo is counted in pieces where the part’s kg per piece is known: the client’s card, then part weights, then Parts. Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
   if (plant.noChallan.length) {
     h += '<div class="inv-panel inv-panel-flush" id="prodNoChallan"><div class="inv-panel-head"><span class="inv-panel-title">On the floor, no challan open</span><span class="inv-panel-count">' + plant.noChallan.length + '</span></div>';
     plant.noChallan.forEach(function(x) {
@@ -51960,7 +52178,7 @@ var KB_APP_GUIDES = [
     '- **Troubleshoot**: find a fault by what you see; log an incident when something goes wrong, and the app shows that day as recorded.\n' +
     '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.'),
   _kbg('planner', 'Using the app: the planner', 'Simulating machines, certification, staff, clients and a loan', ['pagePlanner'],
-    'Office → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
+    'Today → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
     '# Make a plan\n1. **Suggest a start** puts the CQI-11 path in at its earliest, or plan moves one by one: **Plant** (an upgrade tree per station), **Tech tree**, **Staff** (hires and training), **Clients** (ask a rate, plan the work a client holds back).\n' +
     '2. A level or node opens once what it needs is planned. A move on the **board** (Play) is tapped to shift it a month or take it out.\n' +
     '3. **Finance** → Lenders: play one loan; its amount, rate, months and interest-only months are then the plan’s to change.\n' +
@@ -51970,7 +52188,9 @@ var KB_APP_GUIDES = [
     '- **Roll the trials**: 600 runs drawing every chance and risk. The score is the share that reach the goal (Easy, Normal or Hard). **Replay one run** tells one as a story.\n\n' +
     '# Keep it true\n- The **registers** are records: machines and what they need, the CQI-11 checklist, lenders, rates heard, work held back. Keep them current.\n' +
     '- **Set the assumptions** (Ledger or Plant) where the book measures nothing: a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill, the cash.\n' +
-    '- Upgrade costs are estimates until a quote replaces them: **Cost** on each level.\n- **Make the report** prints the plan for a lender or a meeting.')
+    '- Upgrade costs are estimates until a quote replaces them: **Cost** on each level.\n- **Make the report** prints the plan for a lender or a meeting.',
+    // Version 2: the Planner is Today's (the tab map, 9 Oct 2026).
+    { version: 2 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 var KB_APP_PATHS = [
@@ -56325,6 +56545,8 @@ function onDocClick(e) {
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
+      // The toolbar's More and Filter (state.js, one look).
+      if (uiToolbarAction(action, btn)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (soaAction(action, btn)) break;
@@ -57025,8 +57247,12 @@ document.addEventListener('focusout', function(e) {
    Three levels, the same on both layouts (owner, 8 Oct 2026: "in the desktop view we have many tabs that are actually tabs
    that exist under a different tab but it is there on the sidebar … user will not understand the hierarchy"): a workspace
    is a door on the phone's bar or the desktop's rail, never anything under it; its views are the tab row under the top bar;
-   a page's own views are the row under that. Insights is Office's second group (owner, the same day: "Move insights into
-   office tab, that way we have 5 icons again"): Stats, Reports, the Planner, History and Knowledge after its work. */
+   a page's own views are the row under that.
+
+   The tab map (docs/TAB_MAP.md, owner, 9 Oct 2026: "Go with all four recommendations"): four sections by subject. Today is
+   the whole business (Needs you, Pulse, then its Insights: Stats, Reports, the Planner); Office the paperwork (Pipeline,
+   Challans, Invoices, Clients, Sales); Floor the plant; Money the cash. History and Knowledge are tools in the top bar on
+   every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
 var WS_ICONS = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -57041,24 +57267,33 @@ function wsSvg(k) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
 }
 
-/* The map. `views` are the tabs, in order: {tab, v?, label, group?}; a view carrying `group` starts a group of its own, headed
-   in the row by the group's name (Office's Insights). `members` are pages held without a tab. `bar`: a door on the phone bar and
-   the desktop rail (Add stands between Office and Floor, the bar's centre). */
+/* The map. `views` are the tabs, in order: {tab, v?, vs?, label, group?}; a view carrying `group` starts a group of its own,
+   headed in the row by the group's name (Today's Insights). A view carrying `vs` covers several of its page's own views: it is
+   on while the page shows any of them (Clients covers Clients, Parts and Performance; Sales covers Prospects and Quotations),
+   and `v` is the one it opens first. `members` are pages held without a tab. `bar`: a door on the phone bar and the desktop
+   rail (Add stands between Office and Floor, the bar's centre). */
 var WORKSPACES = [
   { id: 'today', label: 'Today', icon: 'today', bar: true,
-    views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' }], members: ['pageTodo'] },
+    views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' },
+      { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
+    members: ['pageTodo'] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
-    // The office's work, then its Insights, the workspace that was (the knowledge base, knowledge.js, last; the top bar's book
-    // opens it on every screen too).
-    views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' }, { tab: 'pageClients', label: 'Clients' },
-      { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' },
-      { tab: 'pageKnow', label: 'Knowledge' }],
+    views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' },
+      { tab: 'pageClients', v: 'clients', vs: ['clients', 'items', 'performance'], label: 'Clients' },
+      { tab: 'pageClients', v: 'prospects', vs: ['prospects', 'quotes'], label: 'Sales' }],
     members: ['pageCreate'] },
   { id: 'floor', label: 'Floor', icon: 'floor', bar: true,
-    views: [{ tab: 'pageFloor', label: 'Day' }, { tab: 'pageStaff', label: 'People' }, { tab: 'pageProduction', label: 'Production' }, { tab: 'pageStock', label: 'Stock' }, { tab: 'pagePower', label: 'Power' }],
+    views: [{ tab: 'pageFloor', label: 'Overview' }, { tab: 'pageStaff', label: 'People' }, { tab: 'pageProduction', label: 'Production' }, { tab: 'pageStock', label: 'Stock' }, { tab: 'pagePower', label: 'Power' }],
     members: [] },
   { id: 'money', label: 'Money', icon: 'money', bar: true, views: [{ tab: 'pageFinance', label: 'Money' }], members: [] }
 ];
+/* The page's own view a `vs` view stands for: the first part of the address's v while its page is on screen, else the one the
+   page remembers (Clients' sub-view is kept on the device). */
+function wsPageV(tabId) {
+  if (navPageOf() === tabId) return String(navLoc().v || '').split('/')[0];
+  return tabId === 'pageClients' && typeof getItemsSubView === 'function' ? getItemsSubView() : '';
+}
+function wsViewHas(x, v) { return x.v === v || (!!x.vs && x.vs.indexOf(v) >= 0); }
 
 function wsGet(id) { return WORKSPACES.filter(function(w) { return w.id === id; })[0] || null; }
 /* The workspace holding a page, as its id; null for a page no workspace names. */
@@ -57087,35 +57322,51 @@ function wsViewOn(views, tabId) {
   var hit = mine[0];
   if (mine.length > 1 || hit.v) {
     var v = String(navLoc().v || '').split('/')[0];
-    hit = mine.filter(function(x) { return x.v === v; })[0] || mine[0];
+    hit = mine.filter(function(x) { return wsViewHas(x, v); })[0] || mine[0];
   }
   return views.indexOf(hit);
 }
-/* What a page is called in B (the view's label: Invoices, People, Money), else its own title (Create invoice, To-do). */
+/* What a page is called in B (the view's label: Invoices, People, Money, Sales), else its own title (Create invoice). */
 function wsPageName(tabId, v) {
   var w = wsGet(wsOf(tabId)), views = w ? wsViewsPresent(w) : [];
   var mine = views.filter(function(x) { return x.tab === tabId; });
-  var hit = mine.filter(function(x) { return !x.v || x.v === v; })[0] || mine[0];
+  var hit = mine.filter(function(x) { return !x.v || wsViewHas(x, v); })[0] || mine[0];
   return hit ? hit.label : (PAGE_TITLES[tabId] || 'SEP Invoicing');
 }
 function wsLabelOf(tabId) { var w = wsGet(wsOf(tabId)); return w ? w.label : ''; }
 
 /* ---------- Opening ---------- */
-/* A view: a page (switchTab), or a page on one of its own views (a new step through nav.js, which applies the view). */
+/* A view: a page (switchTab), or a page on one of its own views (a new step through nav.js, which applies the view). A view
+   covering several (`vs`) opens the one its page was last on among them, else its first: Sales goes back to Quotations. */
 function wsShowView(view) {
-  if (view.v) navOpen({ tab: view.tab, v: view.v, id: '' });
+  var v = view.v;
+  if (view.vs) {
+    var cur = wsPageV(view.tab), was = _wsLast['vs:' + view.tab + '|' + view.v];
+    if (view.vs.indexOf(cur) >= 0) v = cur;
+    else if (was && view.vs.indexOf(was) >= 0) v = was;   // Clients from Sales: back onto Parts, where Clients was left
+  }
+  if (v) navOpen({ tab: view.tab, v: v, id: '' });
   else switchTab(view.tab);
 }
-/* A workspace tab or a sidebar entry (invSwitchTab): a Today view carries data-v. */
+/* A workspace tab or a sidebar entry (invSwitchTab): a view of a page's own carries data-v. */
 function wsSwitchTab(tab, v) {
-  if (v) wsShowView({ tab: tab, v: v });
-  else switchTab(tab);
+  if (!v) { switchTab(tab); return; }
+  var w = wsGet(wsOf(tab)), x = w ? w.views.filter(function(y) { return y.tab === tab && y.v === v; })[0] : null;
+  wsShowView(x || { tab: tab, v: v });
 }
 
 /* The view last open in each workspace this session, a page it holds without a tab included: Office reopens an invoice
    being typed on Create. Per tab (sessionStorage), like the trail. */
 var WS_LAST_KEY = 'sep_inv_ws_last';
 var _wsLast = (function() { try { return JSON.parse(sessionStorage.getItem(WS_LAST_KEY) || '{}') || {}; } catch (e) { return {}; } })();
+/* A view covering several (`vs`) also remembers which of them it was last on: Clients and Sales share one page, whose own
+   memory holds only the sub-view open now. */
+function wsVsPut(view, v) {
+  var k = 'vs:' + view.tab + '|' + view.v;
+  if (!v || view.vs.indexOf(v) < 0 || _wsLast[k] === v) return;
+  _wsLast[k] = v;
+  try { sessionStorage.setItem(WS_LAST_KEY, JSON.stringify(_wsLast)); } catch (e) { /* a convenience only */ }
+}
 function wsLastPut(id, view) {
   var was = _wsLast[id];
   if (was && was.tab === view.tab && (was.v || '') === (view.v || '')) return;
@@ -57133,8 +57384,9 @@ function wsTarget(id) {
   if (wsOf(navPageOf()) === w.id) return views[0];
   var last = _wsLast[w.id];
   if (last && isPageId(last.tab) && wsOf(last.tab) === w.id) {
-    var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || x.v === last.v); })[0];
-    if (hit) return hit;
+    var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || wsViewHas(x, last.v)); })[0];
+    // A view covering several returns to the one that was open (Office's door back onto Quotations).
+    if (hit) return hit.vs && last.v ? Object.assign({}, hit, { v: last.v }) : hit;
     if (w.members.indexOf(last.tab) >= 0 && (typeof grdSees !== 'function' || grdSees(last.tab))) return { tab: last.tab, v: '' };
   }
   return views[0];
@@ -57191,7 +57443,10 @@ function wsShellDraw(tabId) {
   if (ctx) { var loc = navLoc(); ctx.textContent = _isDesktop ? navPlaceText(Object.assign({ loc: loc }, navLabel(loc)), true) : ''; }
   wsDrawRow(w, views, on);
   markSideActive(tabId);
-  if (w) wsLastPut(w.id, { tab: tabId, v: on >= 0 ? views[on].v : '' });
+  // The kind of screen on show (tabs.js): a view moved inside a page moves it too.
+  if (typeof screenKindApply === 'function') screenKindApply();
+  if (w && on >= 0 && views[on].vs) wsVsPut(views[on], wsPageV(tabId));
+  if (w) wsLastPut(w.id, { tab: tabId, v: on < 0 ? '' : views[on].vs ? wsPageV(tabId) : views[on].v });
 }
 /* The tab row of a workspace of two or more views (Money has none), under the top bar on both layouts (§4.2): the second of
    the three levels. A view starting a group of its own follows the group's name (Office's Insights, `inv-viewtab-group`): on
@@ -57214,8 +57469,24 @@ function wsDrawRow(w, views, on) {
     if (show) row.setAttribute('aria-label', w.label); else row.removeAttribute('aria-label');
     row.classList.toggle('inv-hidden', !show);
   }
-  if (show) viewTabReveal(row);
+  if (show) { wsRowFit(row); viewTabReveal(row); }
 }
+/* A group's name on the phone (the tab map, §3a-4: every row fits a phone). Where the row's views fit with the group set off by a
+   rule, the name is that rule (`data-group="rule"`): Today's five views fit a 360 px phone so, and fit nothing with the word.
+   Only where they do not fit is it the word, waiting at the row's right edge until the group comes into view (P183). The
+   desktop's row fits and keeps its word behind a hairline. Again on a resize: a phone turned on its side. */
+function wsRowFit(row) {
+  row = row || document.getElementById('wsTabs');
+  if (!row) return;
+  if (_isDesktop || !row.querySelector('.inv-viewtab-group')) { row.removeAttribute('data-group'); return; }
+  row.setAttribute('data-group', 'rule');
+  if (row.scrollWidth > row.clientWidth + 1) row.setAttribute('data-group', 'word');
+}
+var _wsFitTimer = null;
+window.addEventListener('resize', function() {
+  clearTimeout(_wsFitTimer);
+  _wsFitTimer = setTimeout(function() { wsRowFit(); }, 120);
+});
 
 /* The desktop rail (§4.2): the phone's bar stood on its side. The mark (it opens Pulse) · Add (the shell's primary, key A) ·
    the workspaces · Settings at the foot, each a door drawn as the bar draws it. A workspace's views are never listed here:
@@ -57329,6 +57600,8 @@ function wsAction(action, btn) {
   if (action === 'invWsGroup') { wsGroupReveal(btn); return true; }
   // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
   if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
+  // The top bar's History: a tool, not a section's view (the tab map, 9 Oct 2026). A step of the trail, at its top.
+  if (action === 'invGoHistory') { navOpen({ tab: 'pageHistory', v: '', id: '' }); viewTop(); return true; }
   return false;
 }
 /* ===== SWIPE NAVIGATION ===== */
@@ -57454,8 +57727,30 @@ function navLocFromUrl(search) {
   var p;
   try { p = new URLSearchParams(search); } catch (e) { return null; }
   var tab = p.get('tab');
-  if (!tab || !isPageId(tab)) return null;
-  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' };
+  if (!tab) return null;
+  // A place that moved (the redirect table) is followed before the page is checked: a page that is gone still lands.
+  var loc = navRedirect({ tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' });
+  return isPageId(loc.tab) ? loc : null;
+}
+
+/* ---------- Places that moved (docs/TAB_MAP.md §5) ----------
+   Every old address still opens where its screen went: a bookmark, a manifest shortcut, the Windows widget's launch, a step of
+   the back trail an older build saved, a new window, a link in an article, a task saved naming an old view. One table, one pure
+   helper, applied to an address (navLocFromUrl) and to every place applied (navApply), so a saved step lands too. A row is added
+   by the step that removes its place, never before: a row naming a screen that still exists would hide it.
+   A row: { tab, v: a view's first part, a list of them, or null for any; to: function(loc) → {tab, v, id, d} }. */
+var NAV_REDIRECTS = [];
+function navRedirect(loc) {
+  if (!loc || !loc.tab) return loc;
+  var first = String(loc.v || '').split('/')[0];
+  for (var i = 0; i < NAV_REDIRECTS.length; i++) {
+    var r = NAV_REDIRECTS[i];
+    if (r.tab !== loc.tab) continue;
+    if (r.v != null && (Array.isArray(r.v) ? r.v.indexOf(first) < 0 : r.v !== first)) continue;
+    var to = r.to(loc) || {};
+    return { tab: to.tab || loc.tab, v: to.v || '', id: to.id || '', d: to.d || '' };
+  }
+  return loc;
 }
 
 /* What a place is called: the page, then the view and the record ("Challans", "Invoiced, Aug 2026 · Ch. 301"). */
@@ -57474,7 +57769,7 @@ function navLabel(loc) {
       break;
     case 'pagePipeline': sub.push(pipeStageLabel(parts[0])); break;
     case 'pageClients':
-      sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance', quotes: 'Quotations' }[parts[0]] || '');
+      sub.push({ clients: 'Clients', items: 'Parts', performance: 'Performance', quotes: 'Quotations', prospects: 'Prospects' }[parts[0]] || '');
       if (parts[1] === 'form') sub.push('Quotation form');
       var c = loc.id && parts[0] !== 'quotes' && S.clients.find(function(x) { return String(x.id) === loc.id; });
       if (c) rec = c.name;
@@ -57500,7 +57795,7 @@ function navLabel(loc) {
       if (sw) rec = sw.name;
       break;
     case 'pageStock':
-      sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
+      sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
@@ -57533,6 +57828,7 @@ function navPlaceText(t, afterWs) {
 
 /* Puts the app where loc says. Every screen's own setters, then one draw; the record last, once the list exists. */
 function navApply(loc) {
+  loc = navRedirect(loc);
   _navHold++;
   try {
     var tab = loc && isPageId(loc.tab) ? loc.tab : 'pageHome';
@@ -57681,7 +57977,9 @@ function navLeaveOk() {
    Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
    layer over the screen and leave nothing. */
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1 };
+// So do the top bar's History and the brand's mark (Pulse): both leave the screen.
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1,
+  invGoHistory: 1, invGoPulse: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -57893,11 +58191,11 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
   worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn', kb: 'knowledge article how why' };
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
-   that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). Insights is
-   a group in Office's row since 8 Oct 2026. */
+   that this build holds. Since the tab map (9 Oct 2026) the Insights are a group in Today's row, Sales ends Office's, and
+   History and Knowledge are the top bar's tools, in no workspace. */
 var SRCH_SPACES = [
-  ['t', 'Today', ['needs', 'pulse', 'todo']],
-  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'stats', 'reports', 'history']],
+  ['t', 'Today', ['needs', 'pulse', 'stats', 'reports', 'planner']],
+  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'sales']],
   ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power']],
   ['m', 'Money', ['money']]
 ];
@@ -57957,13 +58255,14 @@ function srchScreens() {
     ['im-invoiced', 'Challans, invoiced', 'Office · was IM', 'im incoming material billed', at('pageIM', 'invoiced')],
     ['register', 'Invoices', 'Office · was Register', 'register invoice list sales', at('pageRegister')],
     ['clients', 'Clients', 'Office', 'customers parties', at('pageClients', 'clients')],
-    ['items', 'Items', 'Office › Clients', 'parts items master part numbers weights', at('pageClients', 'items')],
+    ['items', 'Parts', 'Office › Clients', 'parts items master part numbers weights', at('pageClients', 'items')],
     ['performance', 'Performance', 'Office › Clients', 'client performance materials worked by the hour stopped parts', at('pageClients', 'performance')],
-    ['quotes', 'Quotations', 'Office › Clients', 'quotation quote qtn rates', at('pageClients', 'quotes')],
-    ['prospects', 'Prospects', 'Office › Clients', 'prospect lead enquiry new customer spare capacity', at('pageClients', 'prospects')],
+    ['sales', 'Sales', 'Office', 'sales prospects quotations leads new business', at('pageClients', 'prospects')],
+    ['quotes', 'Quotations', 'Office › Sales', 'quotation quote qtn rates', at('pageClients', 'quotes')],
+    ['prospects', 'Prospects', 'Office › Sales', 'prospect lead enquiry new customer spare capacity', at('pageClients', 'prospects')],
     ['cn-list', 'Credit notes', 'Office › Invoices', 'credit note cn rebate', { kind: 'cnList' }],
     ['audit', 'Number audit', 'Office › Invoices', 'void voided gaps serial numbers missing', { kind: 'audit' }],
-    ['floor', 'Day', 'Floor', 'floor lines heads crew', at('pageFloor')],
+    ['floor', 'Overview', 'Floor', 'floor day lines heads crew overview', at('pageFloor')],
     ['people', 'People', 'Floor · was Staff', 'staff attendance overview', at('pageStaff', 'overview')],
     ['att-day', 'Attendance', 'Floor › People', 'day marks present absent', at('pageStaff', 'day')],
     ['att-week', 'Week', 'Floor › People', 'attendance week grid', at('pageStaff', 'week')],
@@ -57989,32 +58288,33 @@ function srchScreens() {
     ['bank', 'Bank', 'Money', 'statement ledger import', at('pageFinance', 'bank')],
     ['bills', 'Bills & notes', 'Money', 'electricity bills credit notes', at('pageFinance', 'bills')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
-    ['stats', 'Stats', 'Office', 'statistics overview realisation tonnage', at('pageStats', 'overview')],
-    ['stats-clients', 'Contribution by client', 'Office › Stats', 'stats clients realisation concentration revenue', at('pageStats', 'clients')],
-    ['live-cost', 'Live cost', 'Office › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
-    ['stats-billing', 'Billing', 'Office › Stats', 'invoice states unbilled dispatch', at('pageStats', 'billing')],
-    ['trends', 'Trends', 'Office › Stats', 'trend chart top items', at('pageStats', 'trends')],
-    ['reports', 'Reports', 'Office', 'report daily weekly monthly quarterly yearly print', at('pageReports')],
-    ['planner', 'Planner', 'Office', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade', at('pagePlanner', 'play')],
-    ['planner-ledger', 'Planner ledger', 'Office › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
-    ['planner-day', 'A day, simulated', 'Office › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
-    ['planner-plant', 'Upgrade trees', 'Office › Planner', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'plant')],
-    ['planner-tech', 'Tech tree', 'Office › Planner', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'tech')],
-    ['planner-staff', 'Planner staff', 'Office › Planner', 'hire specialist lab hand night crew training', at('pagePlanner', 'staff')],
-    ['planner-clients', 'Planner clients', 'Office › Planner', 'ask rate held back work certificates turnaround', at('pagePlanner', 'clients')],
-    ['planner-finance', 'Planner finance', 'Office › Planner', 'loan lenders interest instalment rates heard', at('pagePlanner', 'finance')],
-    ['history', 'History', 'Office', 'activity log audit trail events', at('pageHistory')],
-    ['know', 'Knowledge', 'Knowledge', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
-    ['know-lib', 'Library', 'Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
-    ['know-trouble', 'Troubleshoot', 'Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
-    ['know-records', 'Records', 'Knowledge', 'rulings decisions incidents record', at('pageKnow', 'records')],
-    ['know-train', 'Training', 'Knowledge', 'training lessons paths trained', at('pageKnow', 'training')],
+    ['stats', 'Stats', 'Today', 'statistics overview realisation tonnage insights', at('pageStats', 'overview')],
+    ['stats-clients', 'Contribution by client', 'Today › Stats', 'stats clients realisation concentration revenue', at('pageStats', 'clients')],
+    ['live-cost', 'Live cost', 'Today › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
+    ['stats-billing', 'Billing', 'Today › Stats', 'invoice states unbilled dispatch', at('pageStats', 'billing')],
+    ['trends', 'Trends', 'Today › Stats', 'trend chart top items', at('pageStats', 'trends')],
+    ['reports', 'Reports', 'Today', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
+    ['planner', 'Planner', 'Today', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
+    ['planner-ledger', 'Planner ledger', 'Today › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
+    ['planner-day', 'A day, simulated', 'Today › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
+    ['planner-plant', 'Upgrade trees', 'Today › Planner', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'plant')],
+    ['planner-tech', 'Tech tree', 'Today › Planner', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'tech')],
+    ['planner-staff', 'Planner staff', 'Today › Planner', 'hire specialist lab hand night crew training', at('pagePlanner', 'staff')],
+    ['planner-clients', 'Planner clients', 'Today › Planner', 'ask rate held back work certificates turnaround', at('pagePlanner', 'clients')],
+    ['planner-finance', 'Planner finance', 'Today › Planner', 'loan lenders interest instalment rates heard', at('pagePlanner', 'finance')],
+    // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
+    ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
+    ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
+    ['know-lib', 'Library', 'Top bar › Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
+    ['know-trouble', 'Troubleshoot', 'Top bar › Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
+    ['know-records', 'Records', 'Top bar › Knowledge', 'rulings decisions incidents record', at('pageKnow', 'records')],
+    ['know-train', 'Training', 'Top bar › Knowledge', 'training lessons paths trained', at('pageKnow', 'training')],
     // Actions: each opens its place on the job.
     ['new-invoice', 'New invoice', 'Add', 'create invoice', act('invoice')],
     ['new-challan', 'New challan', 'Add', 'add challan incoming material', act('challan')],
     ['new-quote', 'New quotation', 'Add', 'quote qtn', act('quote')],
     ['add-client', 'Add client', 'Add', 'new client customer', act('client')],
-    ['add-item', 'Add item', 'Add', 'new part', act('item')],
+    ['add-item', 'Add part', 'Add', 'new part item', act('item')],
     ['add-worker', 'Add worker', 'Add', 'new worker hand staff', act('worker')],
     ['add-task', 'Add task', 'Add', 'new task to-do', act('task')],
     ['stock-entry', 'Stock entry', 'Add', 'enter by hand count received used charged', act('stock')],
@@ -58854,8 +59154,9 @@ function srchLocOf(el) {
   // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
   // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
   if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
-  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail.
+  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail; the top bar's History, History.
   if (act === 'invGoPulse') return { tab: 'pageHome', v: 'pulse', id: '' };
+  if (act === 'invGoHistory') return { tab: 'pageHistory', v: '', id: '' };
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
     var go = sp ? srchGTarget(sp[0]) : null;

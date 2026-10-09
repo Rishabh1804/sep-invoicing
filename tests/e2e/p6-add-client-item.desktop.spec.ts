@@ -48,11 +48,11 @@ test.describe('P6 desktop: add entry points survive the master-detail layout', (
 
     const add = page.locator('.inv-toolbar [data-action="invAddItem"]');
     await expect(add).toBeVisible();
-    await expect(add).toHaveText('Add item');
+    await expect(add).toHaveText('Add part');
     await expect(page.locator('#pageClients [data-action="invAddItem"]')).toHaveCount(1);
 
     await add.click();
-    await expect(page.locator('.inv-dialog-title')).toHaveText('Add item');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add part');
   });
 
 });

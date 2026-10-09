@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, recentTs, answerAsk, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openSales, readStoredState, switchTab, todayIso, recentTs, answerAsk, type SepState } from './fixtures';
 
 // P176 (owner, 7 Oct 2026: "start with 3 and 4"): Clients → Prospects, a list of firms approached to fill the spare capacity.
 // A prospect's stage, follow-up and estimated tonnes; its quotations; won makes the client; the To-do asks for a follow-up due;
@@ -20,10 +20,10 @@ function book(extra: any = {}): SepState {
   return Object.assign(s, extra);
 }
 
-test('add a prospect from Clients → Prospects; its follow-up is a To-do task and Pulse names the pipeline against the spare', async ({ page }) => {
+test('add a prospect from Office → Sales → Prospects; its follow-up is a To-do task and Pulse names the pipeline against the spare', async ({ page }) => {
   await loadAppWithState(page, book());
-  await switchTab(page, 'pageClients');
-  await page.locator('[data-action="invSwitchSubView"][data-view="prospects"]').click();
+  // Sales since the tab map (9 Oct 2026; Clients' fifth view before).
+  await openSales(page, 'prospects');
   await expect(page.locator('[data-prs-tile="open"]')).toContainText('0');
   await page.locator('[data-action="invPrsNew"]').click();
   const dlg = page.locator('[data-prs-dialog="new"]');

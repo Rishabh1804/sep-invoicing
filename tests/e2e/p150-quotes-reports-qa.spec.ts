@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import zlib from 'zlib';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSales, openStatsTab, readStoredState, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
 import { adviceState, ORION } from './p133-what-to-do.fixture';
 
 // P150: the QA chain of 2 Oct 2026 over Quotations, Reports and What to do (QA5-1 … QA5-14), and the rate-pricing code
@@ -463,8 +463,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
 
   test('QA5-13: a rate keeps its four places and prints as typed; a quotation with no GST rate is not issued', async ({ page }) => {
     await loadAppWithState(page, rateState());
-    await switchTab(page, 'pageClients');
-    await page.locator('#pageClients .inv-viewtab[data-view="quotes"]').click();
+    await openSales(page, 'quotes');
     await page.locator('[data-action="invQtNew"]').click();
     await page.locator('#qtClient').selectOption('1');
     await page.locator('#qtL0item').fill('WASHER');

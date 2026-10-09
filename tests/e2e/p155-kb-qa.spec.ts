@@ -129,12 +129,13 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     await expect(page.locator('#ceditName')).toHaveValue('ACME FORGINGS LTD');
   });
 
-  test('Leave, then Knowledge’s own tab: the form is gone, not shown again with nothing to say it was typed', async ({ page }) => {
+  test('Leave, then Knowledge’s own door: the form is gone, not shown again with nothing to say it was typed', async ({ page }) => {
     await loadAppWithState(page, book([art('G1', 'guide', 'Rinsing')]));
     await know(page);
     await page.locator('#knowContent .inv-toolbar [data-action="invKbNew"]').first().click();
     await field(page, 'title').fill('Half typed');
-    await page.locator('#wsTabs [data-tab="pageKnow"]').click();
+    // The top bar's book since the tab map (9 Oct 2026; Office's row had a Knowledge tab before).
+    await page.locator('.inv-topbar [data-action="invKbHelp"]:visible').click();
     expect(await answerAsk(page, 'ok')).toContain('Leave without saving?');
     await expect(field(page, 'title')).toHaveCount(0);
     expect(await g(page, '_kbEdit')).toBeNull();

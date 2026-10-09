@@ -239,7 +239,7 @@ var SETTINGS_SECS = {
     title: 'Full cost',
     summary: function() { return _sRs(S.defaultCostPerKg || 8.55) + '/kg'; },
     body: function() { return _sfg('Default cost per kg (&#8377;)', 'setDefaultCost', _sNum('setDefaultCost', S.defaultCostPerKg || 8.55, 0.01, 0.01)); },
-    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Items Master reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
+    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Parts reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
     save: function() { var v = _sPos('setDefaultCost'); if (v) S.defaultCostPerKg = v; }
   },
   fallbacks: {

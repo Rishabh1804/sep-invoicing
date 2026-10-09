@@ -17,8 +17,12 @@
    Three levels, the same on both layouts (owner, 8 Oct 2026: "in the desktop view we have many tabs that are actually tabs
    that exist under a different tab but it is there on the sidebar … user will not understand the hierarchy"): a workspace
    is a door on the phone's bar or the desktop's rail, never anything under it; its views are the tab row under the top bar;
-   a page's own views are the row under that. Insights is Office's second group (owner, the same day: "Move insights into
-   office tab, that way we have 5 icons again"): Stats, Reports, the Planner, History and Knowledge after its work. */
+   a page's own views are the row under that.
+
+   The tab map (docs/TAB_MAP.md, owner, 9 Oct 2026: "Go with all four recommendations"): four sections by subject. Today is
+   the whole business (Needs you, Pulse, then its Insights: Stats, Reports, the Planner); Office the paperwork (Pipeline,
+   Challans, Invoices, Clients, Sales); Floor the plant; Money the cash. History and Knowledge are tools in the top bar on
+   every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
 var WS_ICONS = {
   today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
@@ -33,24 +37,33 @@ function wsSvg(k) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
 }
 
-/* The map. `views` are the tabs, in order: {tab, v?, label, group?}; a view carrying `group` starts a group of its own, headed
-   in the row by the group's name (Office's Insights). `members` are pages held without a tab. `bar`: a door on the phone bar and
-   the desktop rail (Add stands between Office and Floor, the bar's centre). */
+/* The map. `views` are the tabs, in order: {tab, v?, vs?, label, group?}; a view carrying `group` starts a group of its own,
+   headed in the row by the group's name (Today's Insights). A view carrying `vs` covers several of its page's own views: it is
+   on while the page shows any of them (Clients covers Clients, Parts and Performance; Sales covers Prospects and Quotations),
+   and `v` is the one it opens first. `members` are pages held without a tab. `bar`: a door on the phone bar and the desktop
+   rail (Add stands between Office and Floor, the bar's centre). */
 var WORKSPACES = [
   { id: 'today', label: 'Today', icon: 'today', bar: true,
-    views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' }], members: ['pageTodo'] },
+    views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' },
+      { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
+    members: ['pageTodo'] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
-    // The office's work, then its Insights, the workspace that was (the knowledge base, knowledge.js, last; the top bar's book
-    // opens it on every screen too).
-    views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' }, { tab: 'pageClients', label: 'Clients' },
-      { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }, { tab: 'pageHistory', label: 'History' },
-      { tab: 'pageKnow', label: 'Knowledge' }],
+    views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' },
+      { tab: 'pageClients', v: 'clients', vs: ['clients', 'items', 'performance'], label: 'Clients' },
+      { tab: 'pageClients', v: 'prospects', vs: ['prospects', 'quotes'], label: 'Sales' }],
     members: ['pageCreate'] },
   { id: 'floor', label: 'Floor', icon: 'floor', bar: true,
-    views: [{ tab: 'pageFloor', label: 'Day' }, { tab: 'pageStaff', label: 'People' }, { tab: 'pageProduction', label: 'Production' }, { tab: 'pageStock', label: 'Stock' }, { tab: 'pagePower', label: 'Power' }],
+    views: [{ tab: 'pageFloor', label: 'Overview' }, { tab: 'pageStaff', label: 'People' }, { tab: 'pageProduction', label: 'Production' }, { tab: 'pageStock', label: 'Stock' }, { tab: 'pagePower', label: 'Power' }],
     members: [] },
   { id: 'money', label: 'Money', icon: 'money', bar: true, views: [{ tab: 'pageFinance', label: 'Money' }], members: [] }
 ];
+/* The page's own view a `vs` view stands for: the first part of the address's v while its page is on screen, else the one the
+   page remembers (Clients' sub-view is kept on the device). */
+function wsPageV(tabId) {
+  if (navPageOf() === tabId) return String(navLoc().v || '').split('/')[0];
+  return tabId === 'pageClients' && typeof getItemsSubView === 'function' ? getItemsSubView() : '';
+}
+function wsViewHas(x, v) { return x.v === v || (!!x.vs && x.vs.indexOf(v) >= 0); }
 
 function wsGet(id) { return WORKSPACES.filter(function(w) { return w.id === id; })[0] || null; }
 /* The workspace holding a page, as its id; null for a page no workspace names. */
@@ -79,35 +92,51 @@ function wsViewOn(views, tabId) {
   var hit = mine[0];
   if (mine.length > 1 || hit.v) {
     var v = String(navLoc().v || '').split('/')[0];
-    hit = mine.filter(function(x) { return x.v === v; })[0] || mine[0];
+    hit = mine.filter(function(x) { return wsViewHas(x, v); })[0] || mine[0];
   }
   return views.indexOf(hit);
 }
-/* What a page is called in B (the view's label: Invoices, People, Money), else its own title (Create invoice, To-do). */
+/* What a page is called in B (the view's label: Invoices, People, Money, Sales), else its own title (Create invoice). */
 function wsPageName(tabId, v) {
   var w = wsGet(wsOf(tabId)), views = w ? wsViewsPresent(w) : [];
   var mine = views.filter(function(x) { return x.tab === tabId; });
-  var hit = mine.filter(function(x) { return !x.v || x.v === v; })[0] || mine[0];
+  var hit = mine.filter(function(x) { return !x.v || wsViewHas(x, v); })[0] || mine[0];
   return hit ? hit.label : (PAGE_TITLES[tabId] || 'SEP Invoicing');
 }
 function wsLabelOf(tabId) { var w = wsGet(wsOf(tabId)); return w ? w.label : ''; }
 
 /* ---------- Opening ---------- */
-/* A view: a page (switchTab), or a page on one of its own views (a new step through nav.js, which applies the view). */
+/* A view: a page (switchTab), or a page on one of its own views (a new step through nav.js, which applies the view). A view
+   covering several (`vs`) opens the one its page was last on among them, else its first: Sales goes back to Quotations. */
 function wsShowView(view) {
-  if (view.v) navOpen({ tab: view.tab, v: view.v, id: '' });
+  var v = view.v;
+  if (view.vs) {
+    var cur = wsPageV(view.tab), was = _wsLast['vs:' + view.tab + '|' + view.v];
+    if (view.vs.indexOf(cur) >= 0) v = cur;
+    else if (was && view.vs.indexOf(was) >= 0) v = was;   // Clients from Sales: back onto Parts, where Clients was left
+  }
+  if (v) navOpen({ tab: view.tab, v: v, id: '' });
   else switchTab(view.tab);
 }
-/* A workspace tab or a sidebar entry (invSwitchTab): a Today view carries data-v. */
+/* A workspace tab or a sidebar entry (invSwitchTab): a view of a page's own carries data-v. */
 function wsSwitchTab(tab, v) {
-  if (v) wsShowView({ tab: tab, v: v });
-  else switchTab(tab);
+  if (!v) { switchTab(tab); return; }
+  var w = wsGet(wsOf(tab)), x = w ? w.views.filter(function(y) { return y.tab === tab && y.v === v; })[0] : null;
+  wsShowView(x || { tab: tab, v: v });
 }
 
 /* The view last open in each workspace this session, a page it holds without a tab included: Office reopens an invoice
    being typed on Create. Per tab (sessionStorage), like the trail. */
 var WS_LAST_KEY = 'sep_inv_ws_last';
 var _wsLast = (function() { try { return JSON.parse(sessionStorage.getItem(WS_LAST_KEY) || '{}') || {}; } catch (e) { return {}; } })();
+/* A view covering several (`vs`) also remembers which of them it was last on: Clients and Sales share one page, whose own
+   memory holds only the sub-view open now. */
+function wsVsPut(view, v) {
+  var k = 'vs:' + view.tab + '|' + view.v;
+  if (!v || view.vs.indexOf(v) < 0 || _wsLast[k] === v) return;
+  _wsLast[k] = v;
+  try { sessionStorage.setItem(WS_LAST_KEY, JSON.stringify(_wsLast)); } catch (e) { /* a convenience only */ }
+}
 function wsLastPut(id, view) {
   var was = _wsLast[id];
   if (was && was.tab === view.tab && (was.v || '') === (view.v || '')) return;
@@ -125,8 +154,9 @@ function wsTarget(id) {
   if (wsOf(navPageOf()) === w.id) return views[0];
   var last = _wsLast[w.id];
   if (last && isPageId(last.tab) && wsOf(last.tab) === w.id) {
-    var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || x.v === last.v); })[0];
-    if (hit) return hit;
+    var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || wsViewHas(x, last.v)); })[0];
+    // A view covering several returns to the one that was open (Office's door back onto Quotations).
+    if (hit) return hit.vs && last.v ? Object.assign({}, hit, { v: last.v }) : hit;
     if (w.members.indexOf(last.tab) >= 0 && (typeof grdSees !== 'function' || grdSees(last.tab))) return { tab: last.tab, v: '' };
   }
   return views[0];
@@ -183,7 +213,10 @@ function wsShellDraw(tabId) {
   if (ctx) { var loc = navLoc(); ctx.textContent = _isDesktop ? navPlaceText(Object.assign({ loc: loc }, navLabel(loc)), true) : ''; }
   wsDrawRow(w, views, on);
   markSideActive(tabId);
-  if (w) wsLastPut(w.id, { tab: tabId, v: on >= 0 ? views[on].v : '' });
+  // The kind of screen on show (tabs.js): a view moved inside a page moves it too.
+  if (typeof screenKindApply === 'function') screenKindApply();
+  if (w && on >= 0 && views[on].vs) wsVsPut(views[on], wsPageV(tabId));
+  if (w) wsLastPut(w.id, { tab: tabId, v: on < 0 ? '' : views[on].vs ? wsPageV(tabId) : views[on].v });
 }
 /* The tab row of a workspace of two or more views (Money has none), under the top bar on both layouts (§4.2): the second of
    the three levels. A view starting a group of its own follows the group's name (Office's Insights, `inv-viewtab-group`): on
@@ -206,8 +239,24 @@ function wsDrawRow(w, views, on) {
     if (show) row.setAttribute('aria-label', w.label); else row.removeAttribute('aria-label');
     row.classList.toggle('inv-hidden', !show);
   }
-  if (show) viewTabReveal(row);
+  if (show) { wsRowFit(row); viewTabReveal(row); }
 }
+/* A group's name on the phone (the tab map, §3a-4: every row fits a phone). Where the row's views fit with the group set off by a
+   rule, the name is that rule (`data-group="rule"`): Today's five views fit a 360 px phone so, and fit nothing with the word.
+   Only where they do not fit is it the word, waiting at the row's right edge until the group comes into view (P183). The
+   desktop's row fits and keeps its word behind a hairline. Again on a resize: a phone turned on its side. */
+function wsRowFit(row) {
+  row = row || document.getElementById('wsTabs');
+  if (!row) return;
+  if (_isDesktop || !row.querySelector('.inv-viewtab-group')) { row.removeAttribute('data-group'); return; }
+  row.setAttribute('data-group', 'rule');
+  if (row.scrollWidth > row.clientWidth + 1) row.setAttribute('data-group', 'word');
+}
+var _wsFitTimer = null;
+window.addEventListener('resize', function() {
+  clearTimeout(_wsFitTimer);
+  _wsFitTimer = setTimeout(function() { wsRowFit(); }, 120);
+});
 
 /* The desktop rail (§4.2): the phone's bar stood on its side. The mark (it opens Pulse) · Add (the shell's primary, key A) ·
    the workspaces · Settings at the foot, each a door drawn as the bar draws it. A workspace's views are never listed here:
@@ -321,5 +370,7 @@ function wsAction(action, btn) {
   if (action === 'invWsGroup') { wsGroupReveal(btn); return true; }
   // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
   if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
+  // The top bar's History: a tool, not a section's view (the tab map, 9 Oct 2026). A step of the trail, at its top.
+  if (action === 'invGoHistory') { navOpen({ tab: 'pageHistory', v: '', id: '' }); viewTop(); return true; }
   return false;
 }

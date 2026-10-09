@@ -47,8 +47,9 @@ no step may leave a screen longer (I10). **Revised the same day with one look** 
 need to plan properly"*): a census of every screen found the components consistent and the screens' assembly not (of 60 phone
 screens and views, 34 lead with no summary at all; the rest lead five different ways). §3e gives four kinds of screen (overview,
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
-row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Not built:
-the build and the QA chain wait for the owner's word.**
+row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
+(owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
+built (*The tab map* below); the build stops after TM2 for the owner to look, then TM3 to TM7 and the QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -94,13 +95,13 @@ split/
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid (~2,250 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More) (~2,450 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History → Changes (~670 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── guard.js           ← The gate: IDs and PINs, roles, the lock, the re-ask before a P1 change, what each role opens (~1,030 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
-├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
+├── tabs.js            ← switchTab (9-step protocol) + renderHome; the names (PAGE_TITLES) and each screen’s kind (SCREEN_KINDS, data-screen) (~600 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
@@ -171,9 +172,9 @@ split/
 ├── vision.js          ← One Gemini photo read: the scanner's request unchanged, a schema for the register (~100 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
-├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row, the red counts (~300 lines)
+├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row (a view may cover several of a page's own: Clients, Sales), the red counts (~360 lines)
 ├── swipe.js           ← Swipe navigation: within the open workspace's views (38 lines)
-├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail (~330 lines)
+├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail; the redirect table for places that moved (~490 lines)
 ├── search.js          ← Search, keys and new windows: one index of records and screens, the palette, the shortcuts (~930 lines)
 ├── seed.js            ← seedIncomingMaterial(), called from boot (10 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
@@ -209,7 +210,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,630 tests, both layouts
+pnpm exec playwright test          # 1,652 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -454,7 +455,8 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 719 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row
+`inv-tokens` and the verdict card's facts `inv-hero-fact`: 721); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2121,7 +2123,7 @@ workers and every personal detail are the book's; the owner's private files (`se
   - Card numbers never return (`S.cardSeq`); ten cards fit one A4 page (measured under print media).
 
 ### The planner
-Office → **Planner** (in its Insights; the Insights workspace's until 8 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
+Today → **Planner** (in its Insights; Office's until the tab map of 9 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
 clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
 prototypes). P162.
 - **A month is built from the book's parts up** (`plnBase`, `plnMonth`): the last three full months' invoices by client and part
@@ -2150,7 +2152,7 @@ prototypes). P162.
   planner*; **Make the report** prints the plan in the report generator's frame. A money page for the guard.
 
 ### Quotations
-Clients → **Quotations** (`quote.js`; owner, 1 Oct 2026: *"a quotation generator as well … I think we have the template for that
+Office → Sales → **Quotations** (Clients → Quotations until the tab map of 9 Oct 2026; `quote.js`; owner, 1 Oct 2026: *"a quotation generator as well … I think we have the template for that
 in our Soma internal repo"*). Built to the rules of soma-internal's quotation register (`operations/quotations/README.md`) and in the
 layout of its issued quotations; both are read-only references, and nothing of them is in this repo. P131.
 - **A draft holds no number.** Its face says DRAFT and its number reads *Draft*: the register's duplicate `001` came from drafts that
@@ -2189,12 +2191,12 @@ layout of its issued quotations; both are read-only references, and nothing of t
 - **Left open:** a per-kg quotation for "all components" (no part number) is not posted to the ₹/kg ladder; it says to set it by hand.
 
 ### Prospects
-Clients → **Prospects** (`prospects.js`, P176; owner, 7 Oct 2026: *"start with 3 and 4"*). The plant runs about three quarters full (~24 t
+Office → Sales → **Prospects** (Clients' fifth view until the tab map of 9 Oct 2026; `prospects.js`, P176; owner, 7 Oct 2026: *"start with 3 and 4"*). The plant runs about three quarters full (~24 t
 a month spare), and nothing kept who was approached, what they were offered or when to call again.
 - **A prospect** (`S.prospects`): the firm, a contact, phone and e-mail, the work (process and parts), tonnes a month as estimated, a
   target ₹/kg, a stage (**new · contacted · sample · quoted · won · lost**), the next follow-up, notes, and a dated log of each stage.
   Lost needs a reason; a name already on the list is refused. In the change log.
-- **The list** is the fifth view tab: search, a stage `<select>` (Open by default), **Add prospect** the one primary; the follow-ups due
+- **The list** is Sales' first view: search, a stage `<select>` (Open by default), **Add prospect** the one primary; the follow-ups due
   first, most late first. Four tiles: open (and how many due), the **pipeline** (tonnes a month weighted by a chance per stage: new 10%,
   contacted 20%, sample 40%, quoted 60%, said on the screen as a working assumption, beside the tonnes if all came), the **spare** (the
   last 90 days' invoiced tonnes against ~2 t a shift, two shifts, Stats' capacity), and what share of the spare the pipeline fills.
@@ -2206,7 +2208,7 @@ a month spare), and nothing kept who was approached, what they were offered or w
   spare with what it would bill a month, weighted (`prsPlantMove`). Search finds the screen.
 
 ### Reports
-Office → **Reports** (in its Insights, after Stats; the Insights workspace's until 8 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
+Today → **Reports** (in its Insights, after Stats; Office's until the tab map of 9 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
 quarterly yearly report generator"*). Shaped on soma-internal's hand-compiled daily, weekly and monthly reports (`reports/`); a
 quarterly and a yearly follow the monthly's shape. P132.
 - **Kinds and periods**: Daily · Weekly · Monthly · Quarterly · Yearly; a day, the pay week Sun–Sat numbered by its Saturday's ISO week,
@@ -2474,16 +2476,53 @@ of things in the app that can answer itself but that linkage is missing."*). The
 - **Left open**: the rebate move opens the whole credit-note list (no client filter there yet); a quotation draft's prefill is
   not restored by browser Back/Forward.
 
+### The tab map: the shell (TM1)
+`docs/TAB_MAP.md` (owner, 8–9 Oct 2026; *"Merge and go with all 14"*). TM1 built what every later step stands on. P184, P195, P197.
+- **The rows** (`WORKSPACES`): Today is Needs you, Pulse, then its *Insights* Stats, Reports and the Planner; Office is Pipeline,
+  Challans, Invoices, Clients and Sales; Floor is Overview, People, Production, Stock and Power; Money is its page's own row. Stats
+  keeps its five tabs and the Planner its eight until TM2.
+- **Clients and Sales are one page** (`pageClients`): a view may cover several of a page's own (`vs`). Clients covers clients,
+  items and performance; Sales covers prospects and quotes. Each draws only its group's row (`CLIENTS_GROUPS`, items.js), an address
+  lights its own (`?tab=pageClients&v=quotes` lights Sales), and each returns to the sub-view it was left on (`wsVsPut`). The parts
+  master is called **Parts** wherever the user reads it; its sub-view's id stays `items`.
+- **History and Knowledge are tools in the top bar** on every screen (History a clock, `invGoHistory`; Knowledge the book), in no
+  workspace: no door lit, no row, their own title, no swipe. History's tool is hidden from a role that does not open it.
+- **The names the user reads** (`PAGE_TITLES`, so the guard's refusals and roles grid too): Today, Invoices, People, Money, Floor
+  overview.
+- **A place that moves is followed through one table** (`navRedirect`, `NAV_REDIRECTS`, nav.js), applied to an address and to every
+  place applied (a step of the trail an older build saved). It is empty until a step removes a place; that step adds its row.
+- **One look's pieces** (state.js; design §6.6, §6.7, §6.10, §6.28), applied to no screen until TM2:
+  - the verdict card (`uiVerdictHtml`): a sentence of 60 characters at most in its tone, three facts, four factors as tiles, two
+    links; shut on the phone and open on the desktop; its count for a role without money;
+  - the row end (`uiRowEndHtml`: a figure and a status, or one action; `uiRowMoreHtml`: the rest in the row's fold on the phone);
+  - the toolbar's Filter (the phone's dialog, its tokens under the row: `uiFilterHtml`, `uiTokensHtml`) and More (both layouts,
+    its badges summed in the worst tone: `uiToolbarMoreHtml`).
+
+  Every page declares its kind (`data-screen` from `SCREEN_KINDS`, tabs.js: overview, work, document or form; a sub-view that is a
+  form says so while it shows).
+- **The instruments.** The long book (`longBook()`, `tests/e2e/load-fixture.ts`) is the sweep's book scaled toward the owner's
+  shape, every name made up. **P195** holds every screen of the map on the phone within its budget: length in screens, blocks of
+  text over 120 characters, meta lines chaining three facts, toolbar rows. Each budget is the worst of eleven days of the calendar,
+  with the face and the clock pinned. **P197** holds every screen's kind and box looks (`LOOKS`, the census's 38) on both layouts,
+  and each assembled screen (`ONE_LOOK`, empty after TM1) to its kind's anatomy. A budget is never raised to get green; each step
+  lowers its own screens'.
+- **The top bar's title gives way**: on a form whose back arrow, name and four tools are wider than a phone (Create), the name
+  ends in an ellipsis with its full text in a `title`, never a page wider than the screen (P76).
+- Fixtures: `phoneFilter`, `closeFilter`, `toolbarMore` (`phoneMore`), `openVerdict`, `openSales`; `switchTab` opens History by
+  its tool.
+
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
 - **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More; the desktop's
   rail is the same doors (the mark, Add, the four workspaces, Settings). A workspace is a layer over the pages that exist: every
   page keeps its id, its address and its own view tabs, and the workspace draws its views as a tab row under the top bar
-  (`#wsTabs`; `WORKSPACES` is the one map). Office holds Pipeline, Challans (pageIM), Invoices (pageRegister) and Clients, then
-  its Insights under their name: Stats, Reports, the Planner, History and Knowledge; Create is a page it holds without a tab. Floor
-  holds Day, People (pageStaff), Production, Stock and Power. Money is Finance. Opening a workspace from the bar or the rail is a
-  step of its own (its last view this session, else its first), so Back from Challans goes to the Office view it came from.
-  Swiping stays inside the open workspace (Clients to Stats crosses into the Insights).
+  (`#wsTabs`; `WORKSPACES` is the one map). Since the tab map (9 Oct 2026, below): Today holds Needs you and Pulse, then its
+  Insights under their name (Stats, Reports, the Planner); Office holds Pipeline, Challans (pageIM), Invoices (pageRegister),
+  Clients and Sales (one page, pageClients); Create is a page it holds without a tab. Floor holds its Overview (pageFloor),
+  People (pageStaff), Production, Stock and Power. Money is Finance. History and Knowledge are the top bar's tools, in no
+  workspace. Opening a workspace from the bar or the rail is a step of its own (its last view this session, else its first),
+  so Back from Challans goes to the Office view it came from. Swiping stays inside the open workspace (Pulse to Stats crosses
+  into the Insights).
 - **Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
   that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
   understand the hierarchy. What do you think?"*, and *"Move insights into office tab, that way we have 5 icons again, which can
@@ -2491,8 +2530,8 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   5.5rem, the bar stood on its side), and nothing under it is listed there; its **views** are the tab row under the top bar,
   on the desktop too (it stood in the top bar, and the sidebar listed every view again beside the workspaces); a **page's own
   views** are the row under that. `--fill-h` takes the row off the room a list-and-pane screen fills. Insights was a workspace,
-  the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it is Office's Insights
-  now. **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
+  the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it was Office's
+  Insights (8 Oct 2026), and is Today's since the tab map (9 Oct 2026). **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
   line; the workspace on screen fills its pill in the accent's soft colour, Add (the centre door) in the accent, never raised;
   the red count sits on the mark's corner. The rail's mark opens Pulse, and opens it in a new window on a Ctrl+click.
 - **A group is named in its row, and a row past the screen says so** (owner, 8 Oct 2026: *"Insights seems to be missing on
@@ -2502,7 +2541,10 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   a tap on it brings the group in (`wsGroupReveal`), choosing no view. That row's tabs are a step tighter on the phone and a step
   more under 24rem (a 360 px screen), so the name stands after Clients' word, never over it; on the desktop a hairline sets it
   off. A page's own tab row that runs past the screen fades on the side with more (`data-more`, set by the overflow pass,
-  `_ovMoreSet`, as a table's is); the workspace's row is never faded, since its cue is the name.
+  `_ovMoreSet`, as a table's is); the workspace's row is never faded, since its cue is the name. **Since the tab map (TM1) the
+  group is Today's Insights, and Today's row fits a phone**: where the whole row fits, the name is a hairline between Pulse and
+  Stats (`data-group="rule"`); only a row that would run past the screen keeps the word as its cue (`data-group="word"`), measured
+  on every draw and resize (`wsRowFit`, workspace.js). On the desktop the name stands in its row as before.
 - **Today** (`today.js`, P135) is pageHome, two views with addresses (`?tab=pageHome&v=needs|pulse`). **Needs you** (the
   default): the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records, the
   out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
@@ -2584,7 +2626,7 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   00021 as well as 21 Sep); a worker opens in Roster's pane on the desktop; *Add a bill* works out its month when opened.
 
 ### The knowledge base
-Office → **Knowledge** (its Insights' last view; the Insights workspace's until 8 Oct 2026), and the book in the top bar on every screen (`knowledge.js`, `kbguides.js`; owner, 2–5 Oct 2026: *"a training
+The top bar's book, on every screen (a tool since the tab map of 9 Oct 2026; Office's Insights' last view before it) (`knowledge.js`, `kbguides.js`; owner, 2–5 Oct 2026: *"a training
 ground, a troubleshooting area, a record keeper, a tool used to make decisions"*). The plan and the owner's rulings are
 `docs/KNOWLEDGE_BASE.md`. P154.
 - **In the book, never in the build** (`S.kb`: `articles`, `trained`, `paths`): this repo is public. The one exception is the app's own

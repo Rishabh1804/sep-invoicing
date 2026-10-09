@@ -89,7 +89,7 @@ test.describe('P6: explicit add entry points for clients and items', () => {
     await openItemsTab(page);
 
     await page.locator('.inv-toolbar [data-action="invAddItem"]').click();
-    await expect(page.locator('.inv-dialog-title')).toHaveText('Add item');
+    await expect(page.locator('.inv-dialog-title')).toHaveText('Add part');
 
     await page.locator('#itemEditPN').fill('15020030');
     await page.locator('#itemEditDesc').fill('188 CD');

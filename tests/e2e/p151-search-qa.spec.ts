@@ -152,14 +152,14 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
       await expect(page.locator('#pageStock')).toHaveClass(/inv-page-active/);
     };
     // The credit notes and the number audit (with its Record, which writes a void) drew their dialogs over Home.
-    await nothing(`todoGo({ kind: 'cnList' })`, 'Register');
-    await nothing(`todoGo({ kind: 'audit' })`, 'Register');
+    await nothing(`todoGo({ kind: 'cnList' })`, 'Invoices');
+    await nothing(`todoGo({ kind: 'audit' })`, 'Invoices');
     // A task linked to an invoice showed the invoice, its Mark buttons included; one linked to a client its rate ladder.
-    await nothing(`todoGoLink('T-INV')`, 'Register');
+    await nothing(`todoGoLink('T-INV')`, 'Invoices');
     await expect(page.locator('[data-inv-detail]')).toHaveCount(0);
     await nothing(`todoGoLink('T-CL')`, 'Clients');
     await expect(page.locator('[data-action="invSaveClient"]')).toHaveCount(0);
-    await nothing(`todoGo({ kind: 'bills', month: '${ym(1)}' })`, 'Finance');
+    await nothing(`todoGo({ kind: 'bills', month: '${ym(1)}' })`, 'Money');
     await nothing(`todoGo({ kind: 'payWages' })`, 'Pay');
     // A page it does open still opens.
     await g(page, `todoGo({ kind: 'staffRoster' })`);

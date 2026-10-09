@@ -499,7 +499,7 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
         after += _labCallout('That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
           Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
           'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
-          'Items Master &rarr; Derive weights from rates closes it.');
+          'Clients &rarr; Parts &rarr; Derive weights from rates closes it.');
       }
     } else {
       tiles += _labTile('perkg-withheld', '₹/kg withheld', '&mdash;', verdict.why);

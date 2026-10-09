@@ -110,13 +110,13 @@ function _buildItemsSubViewHtml() {
   // A <select> speaks through change only (events.js), never a data-action: the click that opens it must not run it.
   return '<div class="inv-toolbar">' +
     '<label class="inv-search">' + ICON_SEARCH +
-    '<input type="text" id="itemsSearch" placeholder="Search items" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search items"></label>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add item</button>' +
+    '<input type="text" id="itemsSearch" placeholder="Search parts" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search parts"></label>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add part</button>' +
     '</div>' +
     '<div class="inv-toolbar">' +
     '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
     '<button class="inv-chip" data-action="invFilterUnused" aria-pressed="' + (filter === 'unused') + '">Unused (' + unusedCount + ')</button>' +
-    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort items">' +
+    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort parts">' +
     opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>' +
     '</div>' +
     '<div class="inv-toolbar">' +
@@ -129,12 +129,18 @@ function _buildItemsSubViewHtml() {
     '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="itemsCount">' + S.items.length + ' items</span></div>';
 }
 
+/* The page's own row draws the group its sub-view is in (the tab map): Office's Clients covers Clients · Parts · Performance,
+   Office's Sales covers Prospects · Quotations. The parts master is called Parts wherever the user reads it; `items` stays the
+   sub-view's id. */
+var CLIENTS_GROUPS = { clients: ['clients', 'items', 'performance'], sales: ['prospects', 'quotes'] };
+var CLIENTS_VIEW_LABELS = { clients: 'Clients', items: 'Parts', performance: 'Performance', prospects: 'Prospects', quotes: 'Quotations' };
 function _buildSubViewToggle(active) {
-  var tab = function(k, l) {
-    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + l + '</button>';
+  var tab = function(k) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + CLIENTS_VIEW_LABELS[k] + '</button>';
   };
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Clients">' +
-    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + tab('quotes', 'Quotations') + tab('prospects', 'Prospects') + '</div>';
+  var sales = CLIENTS_GROUPS.sales.indexOf(active) >= 0;
+  return '<div class="inv-viewtabs" role="tablist" aria-label="' + (sales ? 'Sales' : 'Clients') + '">' +
+    (sales ? CLIENTS_GROUPS.sales : CLIENTS_GROUPS.clients).map(tab).join('') + '</div>';
 }
 
 /* ===== CLIENTS/ITEMS DESKTOP: LIST AND PANE =====
@@ -354,7 +360,7 @@ function openItemAdd() {
 }
 
 function _showItemOverlay(item, isAdd) {
-  var title = isAdd ? 'Add item' : 'Edit item';
+  var title = isAdd ? 'Add part' : 'Edit part';
   var pn = item ? item.partNumber : '';
   var desc = item ? item.desc : '';
   var gauge = item ? (item.gauge || '') : '';

@@ -1,8 +1,9 @@
 import { test, expect } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
 
-// P154 on the desktop: Knowledge is Insights' fourth view; the Library is a list beside the open article, which has an
-// address a reload and Back follow; the page never scrolls behind its list and pane (P80's rule). Made-up content.
+// P154 on the desktop: Knowledge is a tool of the top bar (the tab map, TM1: no door lit, no row, its own title); the Library
+// is a list beside the open article, which has an address a reload and Back follow; the page never scrolls behind its list and
+// pane (P80's rule). Made-up content.
 
 function art(id: string, kind: string, title: string, extra: any = {}) {
   return { id, kind, title, summary: 'About ' + title, body: 'Text of ' + title + '.', tags: [], links: [], roles: [], status: 'published', version: 1, versions: [], src: 'app', by: 'Owner', at: 1, ...extra };
@@ -19,8 +20,9 @@ test('the Library is a list beside the open article; the article has an address 
   await page.setViewportSize({ width: 1280, height: 800 });
   await loadAppWithState(page, book());
   await switchTab(page, 'pageKnow');
-  await expect(page.locator('#wsTabs [data-tab="pageKnow"]')).toHaveText('Knowledge');
-  await expect(page.locator('#wsTabs [data-tab="pageKnow"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#wsTabs')).toHaveClass(/inv-hidden/);
+  await expect(page.locator('#topbarTitle')).toHaveText('Knowledge');
+  await expect(page.locator('#invSidebar [aria-current]')).toHaveCount(0);
   await page.locator('#knowContent [data-action="invKbTab"][data-tab="library"]').click();
   await page.locator('[data-kb-row="A3"] [data-action="invKbOpen"]').click();
   await expect(page.locator('#kbHost')).toHaveClass(/inv-pane-open/);

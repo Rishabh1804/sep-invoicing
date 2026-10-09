@@ -182,12 +182,12 @@ export async function openStatsTab(page: Page, tab: string): Promise<void> {
 }
 
 /* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone
-   bar and the desktop's rail carry Today, Office, Floor and Money; Office holds what was Insights as its review (8 Oct 2026).
-   Create and the To-do are held without a tab. */
+   bar and the desktop's rail carry Today, Office, Floor and Money. The tab map (9 Oct 2026): Today holds its Insights (Stats,
+   Reports, the Planner); History and Knowledge are tools in the top bar and belong to no workspace. Create and the To-do are
+   held without a tab. */
 const WS_OF: Record<string, string> = {
-  pageHome: 'today', pageTodo: 'today',
+  pageHome: 'today', pageTodo: 'today', pageStats: 'today', pageReports: 'today', pagePlanner: 'today',
   pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',
-  pageStats: 'office', pageReports: 'office', pagePlanner: 'office', pageHistory: 'office', pageKnow: 'office',
   pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
   pageFinance: 'money',
 };
@@ -197,6 +197,11 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   // one works; the first is taken, so the helper is layout-agnostic.
   const door = () => page.locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]:visible`);
   const active = page.locator(`#${tabId}.inv-page-active`);
+  // History is the top bar's (its clock, on both layouts).
+  if (tabId === 'pageHistory' && !(await active.count())) {
+    const tool = page.locator('.inv-topbar [data-action="invGoHistory"]:visible');
+    if (await tool.count()) { await tool.first().click(); await active.waitFor(); return; }
+  }
   let opened = false;
   if ((await door().count()) === 0) {
     // None on screen: open the page's workspace (its bar item on the phone, its head in the sidebar), whose tab row then
@@ -228,6 +233,43 @@ export async function openPulse(page: Page): Promise<void> {
   const tab = page.locator('#wsTabs [data-v="pulse"]');
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
   await page.locator('#homePulse:not(.inv-hidden)').waitFor();
+}
+
+/** Office → Sales (the tab map, 9 Oct 2026): Prospects and Quotations are Sales' own row, on the page Clients shares. Opens Sales
+ *  through Office's row, then `view`. */
+export async function openSales(page: Page, view: 'prospects' | 'quotes' = 'prospects'): Promise<void> {
+  await switchTab(page, 'pageClients');
+  await page.locator('#wsTabs [data-action="invSwitchTab"][data-tab="pageClients"][data-v="prospects"]').click();
+  if (view !== 'prospects') await page.locator(`#pageClients .inv-viewtab[data-view="${view}"]`).click();
+  await page.locator(`#pageClients .inv-viewtab[data-view="${view}"][aria-selected="true"]`).waitFor();
+}
+/** The toolbar's Filter (one look, docs/TAB_MAP.md §1a-2): on the phone the screen's filters and sort sit in a dialog opened by
+ *  Filter; on the desktop they are inline and this does nothing. Done or Esc shuts it (`closeFilter`). */
+export async function phoneFilter(page: Page): Promise<void> {
+  const btn = page.locator('.inv-page-active [data-action="invTbFilter"]:visible');
+  if (!(await btn.count())) return;
+  await btn.first().click();
+  await page.locator('[data-tb-filter-dialog]').waitFor();
+}
+export async function closeFilter(page: Page): Promise<void> {
+  const done = page.locator('[data-tb-filter-dialog] [data-action="invTbFilterDone"].inv-btn-primary');
+  if (await done.count()) { await done.click(); await expect(page.locator('[data-tb-filter-dialog]')).toHaveCount(0); }
+}
+/** The toolbar's More (§1a-2, §1a-10): opens it, on either layout, and picks the row named `label` (its dialog shuts first, then
+ *  the row acts). Without a label it only opens the dialog. */
+export async function toolbarMore(page: Page, label?: string): Promise<void> {
+  await page.locator('.inv-page-active [data-action="invTbMore"]:visible').first().click();
+  const dlg = page.locator('[data-tb-more-dialog]');
+  await dlg.waitFor();
+  if (label != null) await dlg.locator('[data-tb-pick]', { hasText: label }).first().click();
+}
+/** The phone's name for toolbarMore, kept for the specs written before the desktop took the same row (§1a-10). */
+export const phoneMore = toolbarMore;
+/** A work screen's verdict card (§3e) is shut on the phone until opened: opens it where it is shut, on either layout. */
+export async function openVerdict(page: Page): Promise<void> {
+  const v = page.locator('.inv-page-active [data-verdict]').first();
+  await v.waitFor();
+  if (await v.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await v.locator(':scope > summary').click();
 }
 
 /** Open Settings the way the operator does and bring one section into view:

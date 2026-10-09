@@ -190,7 +190,7 @@ function advRepriceMove(ctx, x) {
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
     task: said,
-    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or the Items Master) to quote ' +
+    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or Parts) to quote ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
 
@@ -372,7 +372,7 @@ function advMoneyMoves(ctx) {
   var plant = ctx.cards.plant;
   if (plant && plant.capPct != null && plant.capPct < 0.8) out.push(ctx.plantMoves()[0] || null);
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
-    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or the Items Master) lets the app set what was billed against the cost.'
+    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or Parts) lets the app set what was billed against the cost.'
       : 'Nothing to move on: no account with a tenth of the plant is below the full cost, nothing has waited ' + todoCfg().challanDays + ' days to be billed, and every cost line is within its model.' };
 }
 

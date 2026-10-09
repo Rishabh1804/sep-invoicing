@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSales, openSettingsAt, switchTab, todayIso, type SepState } from './fixtures';
 
 // P131: the quotation generator (owner, 1 Oct 2026), Clients → Quotations, built to the register's rules
 // (soma-internal operations/quotations/README.md): a draft holds no number and prints DRAFT; issue takes the next number
@@ -42,9 +42,9 @@ async function issue(page: Page, id: string, ...answers: Array<'ok' | 'cancel'>)
   for (const a of answers) await answerAsk(page, a);
   return done;
 }
+/* Office → Sales → Quotations (the tab map, 9 Oct 2026; Clients' own row until then). */
 async function openQuotes(page: Page) {
-  await switchTab(page, 'pageClients');
-  await page.locator('#pageClients .inv-viewtab[data-view="quotes"]').click();
+  await openSales(page, 'quotes');
 }
 
 test.describe('P131: quotations', () => {

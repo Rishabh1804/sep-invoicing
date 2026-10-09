@@ -455,13 +455,15 @@ function closeOverlay() {
 function closeTopOverlay() {
   const all = document.querySelectorAll('.inv-scrim-dialog');
   if (all.length > 0) {
-    all[all.length - 1].remove();
+    const top = all[all.length - 1];
+    top.remove();
     popFocus();
     // The last one shut: the page scrolls again, and a layout switch deferred while it was open runs now.
     if (document.querySelectorAll('.inv-scrim-dialog').length === 0) {
       document.body.style.overflow = '';
       if (_pendingModeSwitch) { _pendingModeSwitch = false; updateLayoutMode(); }
     }
+    dialogClosed(top);
   }
 }
 

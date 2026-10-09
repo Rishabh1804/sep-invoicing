@@ -27,7 +27,8 @@ test('three levels: the rail, the workspace row under the bar, the page row unde
   expect(m.railDoors).toBe(4);
   expect(m.onMark).not.toBe('rgba(0, 0, 0, 0)');
   await expect(page.locator('#wsTabs [aria-selected="true"]')).toHaveText('Stats');
-  await expect(page.locator('#invSidebar [data-ws="office"]')).toHaveAttribute('aria-current', 'true');
+  // Stats is one of Today's Insights since the tab map (9 Oct 2026).
+  await expect(page.locator('#invSidebar [data-ws="today"]')).toHaveAttribute('aria-current', 'true');
   // The page row is the page's own (Stats' five tabs), never the workspace's.
   await expect(page.locator('#pageStats .inv-viewtabs [aria-selected="true"]')).toHaveText('Overview');
 });

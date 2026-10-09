@@ -604,7 +604,7 @@ function renderStats() {
       'That exclusion is not neutral: unweighed lines are typically piece-billed work, which is ' +
       'the low-realisation end of the book, so the rate above reads better than the real blend. ' +
       (costLabel === 'live cost ' ? statsCostWeighedNote(tonnage, true) + ' ' : '') +
-      'Items Master &rarr; Derive weights from rates closes it.', '', 'coverage');
+      'Clients &rarr; Parts &rarr; Derive weights from rates closes it.', '', 'coverage');
   }
   if (contribution != null && contribution < 0) {
     html += statsCallout('Realisation is ' + formatCurrency(Math.abs(contribution)) +
@@ -718,7 +718,7 @@ function renderStats() {
           ' cannot be priced per kg &mdash; ' + formatCurrency(partialRev) + ', ' + formatNum(partialShare, 0) +
           '% of revenue, billed on parts with no weight on file. These are the accounts most likely to be ' +
           'underpriced, and they are the ones this table cannot yet rank. ' +
-          'Items Master &rarr; Derive weights from rates fills them in.', 'danger', 'unranked');
+          'Clients &rarr; Parts &rarr; Derive weights from rates fills them in.', 'danger', 'unranked');
       }
 
       if (costPerKg > 0) {

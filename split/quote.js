@@ -829,7 +829,7 @@ function qtPostPlan(q) {
       var priced = billed.units.filter(function(u) { return itemRateHow(c, unit, u, part); });
       if (!priced.length) {
         hand.push(name + ': a rate per ' + unit + ', and ' + c.name + ' bills ' + part + ' ' + billed.units.map(qtUnitWords).join(' and ') +
-          (unit === 'kg' && c.billingMode === 'nos_to_weight' ? ' with no weight a piece on record (Items → Part weights)' : '') + ', which it cannot price; set it on the card by hand');
+          (unit === 'kg' && c.billingMode === 'nos_to_weight' ? ' with no weight a piece on record (Clients → Parts → Part weights)' : '') + ', which it cannot price; set it on the card by hand');
         return;
       }
       var have = card.find(function(r) { return r.partPattern === part; });

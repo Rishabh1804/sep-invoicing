@@ -443,6 +443,8 @@ function onDocClick(e) {
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
+      // The toolbar's More and Filter (state.js, one look).
+      if (uiToolbarAction(action, btn)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (soaAction(action, btn)) break;

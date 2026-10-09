@@ -83,8 +83,30 @@ function navLocFromUrl(search) {
   var p;
   try { p = new URLSearchParams(search); } catch (e) { return null; }
   var tab = p.get('tab');
-  if (!tab || !isPageId(tab)) return null;
-  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' };
+  if (!tab) return null;
+  // A place that moved (the redirect table) is followed before the page is checked: a page that is gone still lands.
+  var loc = navRedirect({ tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' });
+  return isPageId(loc.tab) ? loc : null;
+}
+
+/* ---------- Places that moved (docs/TAB_MAP.md §5) ----------
+   Every old address still opens where its screen went: a bookmark, a manifest shortcut, the Windows widget's launch, a step of
+   the back trail an older build saved, a new window, a link in an article, a task saved naming an old view. One table, one pure
+   helper, applied to an address (navLocFromUrl) and to every place applied (navApply), so a saved step lands too. A row is added
+   by the step that removes its place, never before: a row naming a screen that still exists would hide it.
+   A row: { tab, v: a view's first part, a list of them, or null for any; to: function(loc) → {tab, v, id, d} }. */
+var NAV_REDIRECTS = [];
+function navRedirect(loc) {
+  if (!loc || !loc.tab) return loc;
+  var first = String(loc.v || '').split('/')[0];
+  for (var i = 0; i < NAV_REDIRECTS.length; i++) {
+    var r = NAV_REDIRECTS[i];
+    if (r.tab !== loc.tab) continue;
+    if (r.v != null && (Array.isArray(r.v) ? r.v.indexOf(first) < 0 : r.v !== first)) continue;
+    var to = r.to(loc) || {};
+    return { tab: to.tab || loc.tab, v: to.v || '', id: to.id || '', d: to.d || '' };
+  }
+  return loc;
 }
 
 /* What a place is called: the page, then the view and the record ("Challans", "Invoiced, Aug 2026 · Ch. 301"). */
@@ -103,7 +125,7 @@ function navLabel(loc) {
       break;
     case 'pagePipeline': sub.push(pipeStageLabel(parts[0])); break;
     case 'pageClients':
-      sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance', quotes: 'Quotations' }[parts[0]] || '');
+      sub.push({ clients: 'Clients', items: 'Parts', performance: 'Performance', quotes: 'Quotations', prospects: 'Prospects' }[parts[0]] || '');
       if (parts[1] === 'form') sub.push('Quotation form');
       var c = loc.id && parts[0] !== 'quotes' && S.clients.find(function(x) { return String(x.id) === loc.id; });
       if (c) rec = c.name;
@@ -129,7 +151,7 @@ function navLabel(loc) {
       if (sw) rec = sw.name;
       break;
     case 'pageStock':
-      sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
+      sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
@@ -162,6 +184,7 @@ function navPlaceText(t, afterWs) {
 
 /* Puts the app where loc says. Every screen's own setters, then one draw; the record last, once the list exists. */
 function navApply(loc) {
+  loc = navRedirect(loc);
   _navHold++;
   try {
     var tab = loc && isPageId(loc.tab) ? loc.tab : 'pageHome';
@@ -310,7 +333,9 @@ function navLeaveOk() {
    Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
    layer over the screen and leave nothing. */
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1 };
+// So do the top bar's History and the brand's mark (Pulse): both leave the screen.
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1,
+  invGoHistory: 1, invGoPulse: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

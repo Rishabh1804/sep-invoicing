@@ -359,7 +359,7 @@ function prodPlantHtml() {
     });
   });
   h += (plant.unweighed ? '<div class="inv-panel-body inv-note" data-prod-unweighed>' + escHtml(todoPlural(plant.unweighed, 'open line') + ' (' + formatNum(plant.unweighedKg, 1) + ' kg) came by the kilo with no kg per piece known, so the floor’s piece counts cannot be set against ' + (plant.unweighed === 1 ? 'it' : 'them') + '. Put the weight on the client’s card (Clients → Edit → Piece weights).') + '</div>' : '') +
-    '<div class="inv-panel-body inv-note">A line received by the kilo is counted in pieces where the part’s kg per piece is known: the client’s card, then part weights, then the Items Master. Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
+    '<div class="inv-panel-body inv-note">A line received by the kilo is counted in pieces where the part’s kg per piece is known: the client’s card, then part weights, then Parts. Each open line’s share is split by what the floor recorded: plating and pickling of a part are set against its challans oldest first. Rework is left out: it is work done, not billing.</div></div>';
   if (plant.noChallan.length) {
     h += '<div class="inv-panel inv-panel-flush" id="prodNoChallan"><div class="inv-panel-head"><span class="inv-panel-title">On the floor, no challan open</span><span class="inv-panel-count">' + plant.noChallan.length + '</span></div>';
     plant.noChallan.forEach(function(x) {

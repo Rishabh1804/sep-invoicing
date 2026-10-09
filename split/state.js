@@ -910,6 +910,147 @@ function uiHeroHtml(o) {
   return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
     '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div>' + foot + '</details>';
 }
+/* ===== ONE LOOK'S PIECES (docs/TAB_MAP.md §3e; design §6.28, §6.6, §6.7) =====
+   The owner, 9 Oct 2026: "UI still feels inconsistent to me". The components were alike everywhere; how each screen was put
+   together was not: of 60 phone screens, 34 led with no summary and the rest five different ways. These are the pieces every
+   screen is assembled from: a work screen leads with its verdict card, then one toolbar row (the filters behind Filter on the
+   phone, everything else behind More), what needs the owner as rows, the list, the rest folded; a row ends in its figure and
+   its status, or one action. */
+
+/* The verdict card (§6.28): one hero saying how the screen stands. `o`: screen (the eyebrow: the screen and its period or
+   count), verdict (a sentence of 60 characters at most, said in `tone`, the worst of what the card holds), fig (its key figure,
+   HTML), facts (up to three short texts under it), viz (a meter or sparkline, HTML), factors (up to four tiles, uiFactorTileHtml's
+   shape), body (more of the card, HTML), links (up to two buttons or links for its foot, HTML), key (the device remembers the
+   card open or shut under it). A verdict naming rupees carries money: true and its count in `plain`, which a role that does not
+   see money reads instead (I4); a fact or a factor with money: true is left out for that role. Shut on the phone, where its line
+   still answers the six-second test; open on the desktop; either until the owner moves it. Over its limits it says so to a test
+   build (data-verdict-long, which P197 fails on) rather than throwing: a long client name must not take a screen down. */
+var UI_VERDICT_MAX = 60;
+function uiVerdictHtml(o) {
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var verdict = String((o.money && !money ? o.plain : o.verdict) || '');
+  var keep = function(f) { return f && (typeof f === 'string' || !f.money || money); };
+  var facts = (o.facts || []).filter(keep).map(function(f) { return typeof f === 'string' ? f : f.text; }).filter(Boolean);
+  var factors = (o.factors || []).filter(keep), links = (o.links || []).filter(Boolean);
+  var long = verdict.length > UI_VERDICT_MAX || facts.length > 3 || factors.length > 4 || links.length > 2;
+  if (long && typeof navigator !== 'undefined' && navigator.webdriver) console.error('uiVerdictHtml over its limits: ' + verdict);
+  var n = Math.min(factors.length, 4);
+  var tiles = n ? '<div class="inv-hero-sheet"><div class="inv-tiles' + (n === 4 ? ' inv-tiles-4' : n === 3 ? ' inv-tiles-3' : '') + '">' +
+    factors.slice(0, 4).map(uiFactorTileHtml).join('') + '</div></div>' : '';
+  var body = tiles + (o.body || '');
+  return uiHeroHtml({ tone: /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? o.tone : 'neutral', eyebrow: escHtml(o.screen || ''),
+    title: escHtml(verdict), fig: o.fig || '', viz: o.viz || '',
+    sub: facts.length ? facts.slice(0, 3).map(function(f) { return '<span class="inv-hero-fact">' + escHtml(f) + '</span>'; }).join('') : '',
+    body: body || null, fold: 'v-' + (o.key || uiVerdictKey()), open: !!_isDesktop, foot: links.slice(0, 2).join(''),
+    attrs: ' data-verdict data-card="verdict"' + (long ? ' data-verdict-long' : '') + (o.attrs || '') });
+}
+/* The card's default key: the page and its view, so each view's card is remembered open or shut on its own. */
+function uiVerdictKey() {
+  var loc = typeof navLoc === 'function' ? navLoc() : { tab: navPageOf(), v: '' };
+  var v = String(loc.v || '').split('/')[0];
+  return loc.tab + (v ? '-' + v : '');
+}
+/* A factor: a coded tile (§6.26). `f`: label and sub (text), fig (HTML: a figure, already formatted), tone; a factor that filters
+   its list carries `action` (and `attrs`, `pressed`), drawn as a button keeping aria-pressed. A fig left out reads as a dash. */
+function uiFactorTileHtml(f) {
+  var tone = /^(danger|warning|ok|info|neutral)$/.test(f.tone) ? ' inv-tile-' + f.tone : '';
+  var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
+    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '');
+  if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
+    (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
+  return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
+}
+
+/* A row's end (§1a-11): its figure and its status (a dot and a word), or one action. `fig` HTML (formatted), `status` {tone,
+   word}, `action` the one button's HTML. A row with more to do than one action puts the rest in uiRowMoreHtml. */
+function uiRowEndHtml(fig, status, action) {
+  var dot = status && status.word ? '<span class="inv-dot inv-dot-' + uiTone(status.tone) + '">' + escHtml(status.word) + '</span>' : '';
+  return '<span class="inv-row-end' + (fig && dot ? ' inv-row-end-stack' : '') + '">' + (fig ? '<span class="inv-num">' + fig + '</span>' : '') + dot + (action || '') + '</span>';
+}
+/* A row's second and third actions: in the row's fold on the phone (the caller draws them where the row opens), and nowhere on
+   the desktop, where the pane beside the list draws them with the record. `actions`: the buttons' HTML. */
+function uiRowMoreHtml(actions) {
+  var list = (actions || []).filter(Boolean);
+  if (_isDesktop || !list.length) return '';
+  return '<div class="inv-row-actions" data-row-more>' + list.join('') + '</div>';
+}
+
+/* The toolbar's More (§6.7, §1a-2, §1a-10): one button holding everything the row has no room for, on both layouts (files
+   always: Export, Import, Print sheets, the register's CSVs). `items`: {label, action, attrs, badge: {n, tone}}. Each opens as a
+   row of a dialog carrying the action and the data it had in the toolbar, so events.js routes it unchanged; a pick shuts the
+   dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it.
+   The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. */
+var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
+var UI_ICON_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg>';
+var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
+function uiToolbarMoreHtml(items) {
+  var list = (items || []).filter(Boolean);
+  if (!list.length) return '';
+  var n = 0, worst = '';
+  var rows = list.map(function(x) {
+    var b = x.badge && x.badge.n ? x.badge : null;
+    if (b) { n += b.n; if (!worst || (UI_TONE_RANK[uiTone(b.tone)] || 0) > (UI_TONE_RANK[worst] || 0)) worst = uiTone(b.tone); }
+    return '<button type="button" class="inv-row" data-tb-pick data-action="' + escHtml(x.action) + '"' + (x.attrs || '') + '>' +
+      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
+      (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';
+  }).join('');
+  return '<span data-tb-more><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbMore" aria-haspopup="dialog">' + UI_ICON_MORE + 'More' +
+    (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
+}
+/* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count
+   of filters applied) that opens them in a dialog with Done, the applied ones shown under the row as tokens (uiTokensHtml).
+   `o`: controls (HTML: the screen's own selects, dates and chips, with their own ids and change handlers), count, key (the
+   screen; UI_FILTER_DONE[key] redraws its row after Done, else the page is redrawn in place). */
+var UI_FILTER_DONE = {};
+function uiFilterHtml(o) {
+  if (_isDesktop) return o.controls || '';
+  return '<span data-tb-filter="' + escHtml(o.key || '') + '"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbFilter" aria-haspopup="dialog">' +
+    UI_ICON_FILTER + 'Filter' + (o.count ? ' <span class="inv-badge inv-badge-info">' + o.count + '</span>' : '') + '</button><template>' + (o.controls || '') + '</template></span>';
+}
+/* The filters applied, under the toolbar on the phone: "Client SSS Mehta ×", each a button that clears its own (a sort other than
+   the default is one too). `tokens`: {key, value (text), action, attrs}. The desktop shows its filters inline instead. */
+function uiTokensHtml(tokens) {
+  var list = (tokens || []).filter(function(t) { return t && t.value; });
+  if (_isDesktop || !list.length) return '';
+  return '<div class="inv-tokens">' + list.map(function(t) {
+    return '<button type="button" class="inv-token" data-action="' + escHtml(t.action) + '"' + (t.attrs || '') + ' aria-label="Clear ' + escHtml(t.key) + ': ' + escHtml(t.value) + '">' +
+      '<span class="inv-token-key">' + escHtml(t.key) + '</span>' + escHtml(t.value) + '<span aria-hidden="true">&times;</span></button>';
+  }).join('') + '</div>';
+}
+function uiToolbarAction(action, btn) {
+  if (action === 'invTbMore') {
+    var tpl = btn.parentElement && btn.parentElement.querySelector('template');
+    if (!tpl) return true;
+    dialogOpen('<div class="inv-dialog" data-tb-more-dialog>' + dialogHeadHtml('More', 'invCloseConfirm') +
+      '<div class="inv-panel inv-panel-flush">' + tpl.innerHTML + '</div></div>', { dismiss: true });
+    return true;
+  }
+  if (action === 'invTbFilter') {
+    var wrap = btn.closest('[data-tb-filter]'), t = wrap && wrap.querySelector('template'), key = wrap ? wrap.dataset.tbFilter || '' : '';
+    if (!t) return true;
+    var scrim = dialogOpen('<div class="inv-dialog" data-tb-filter-dialog="' + escHtml(key) + '">' + dialogHeadHtml('Filter', 'invTbFilterDone') +
+      '<div class="inv-dialog-body inv-toolbar" data-nodirty>' + t.innerHTML + '</div>' +
+      '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invTbFilterDone">Done</button></div></div>', { dismiss: true });
+    // However it shuts (Done, the ×, a tap outside, Back), the row is drawn again with the filters as they now stand: they apply as
+    // they change, so nothing in it is ever discarded.
+    scrim._onClose = function() { if (UI_FILTER_DONE[key]) keepScroll(UI_FILTER_DONE[key]); else tabRedrawActive(); };
+    return true;
+  }
+  if (action === 'invTbFilterDone') {
+    var open = btn.closest('.inv-scrim-dialog');
+    if (open) dialogCloseScrim(open);
+    return true;
+  }
+  return false;
+}
+// A pick in More shuts its dialog first, so whatever it opens is drawn after it (its step is passed over on Back: nav.js marks a
+// layer shut by anything but Back). Capture, before events.js runs the action.
+document.addEventListener('click', function(e) {
+  var pick = e.target && e.target.closest ? e.target.closest('[data-tb-pick]') : null;
+  var scrim = pick && pick.closest('.inv-scrim-dialog');
+  if (scrim && scrim.querySelector('[data-tb-more-dialog]')) dialogCloseScrim(scrim);
+}, true);
+
 /* A grid packed with no gaps (§6.25): each child spans as many of the grid's small rows as its own height takes. Only where
    the grid has two columns or more; packed again whenever a child changes height (a fold opened, a chart drawn). */
 var _masonryObs = typeof ResizeObserver === 'function' ? new ResizeObserver(function(entries) {
@@ -1088,6 +1229,14 @@ function dialogCloseScrim(scrim) {
   scrim.remove();
   popFocus();
   if (!document.querySelector('.inv-scrim-dialog')) document.body.style.overflow = '';
+  dialogClosed(scrim);
+}
+/* What a dialog asked to run once it is shut, however it was shut (the toolbar's Filter redraws its row). */
+function dialogClosed(scrim) {
+  var f = scrim && scrim._onClose;
+  if (!f) return;
+  scrim._onClose = null;
+  try { f(); } catch (e) { console.error(e); }
 }
 
 /* ===== THE OTHER WINDOWS =====
@@ -2193,7 +2342,7 @@ function lineFillFromRecord(client, onDate, item, part) {
   // Items Master's standard weight, which is said to be the master's.
   var w = getPieceWeight(client, onDate, item.partNumber, item.desc);
   if (w && w.kg > 0) item._kgPc = { kg: w.kg, src: 'client card' };
-  else if (part && part.stdWeightKg > 0) item._kgPc = { kg: part.stdWeightKg, src: 'Items Master' };
+  else if (part && part.stdWeightKg > 0) item._kgPc = { kg: part.stdWeightKg, src: 'Parts' };
   else item._kgPc = null;
 }
 /* What the record fills into a counted line: pieces × rate is the amount on a piece line; pieces ×

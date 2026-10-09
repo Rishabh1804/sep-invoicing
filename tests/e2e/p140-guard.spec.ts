@@ -187,10 +187,10 @@ test.describe('P140: the guard (phone)', () => {
     await expect(page.locator('.inv-navbar [data-tab="pageIM"]')).toBeHidden();
     await expect(page.locator('.inv-topbar [data-action="invOpenSettings"]')).toBeHidden();
     await g(page, "switchTab('pageFinance')");
-    await expect(page.locator('.inv-toast')).toHaveText('Your ID doesn’t open Finance');
+    await expect(page.locator('.inv-toast')).toHaveText('Your ID doesn’t open Money');
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
     await g(page, "switchTab('pageRegister')");
-    await expect(page.locator('.inv-toast')).toHaveText('Your ID doesn’t open Register');
+    await expect(page.locator('.inv-toast')).toHaveText('Your ID doesn’t open Invoices');
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
     // An address naming one does the same.
     await page.goto('/?tab=pageStats');

@@ -1,10 +1,47 @@
 /* ===== TAB SWITCHING (DP v0.2 9-step) ===== */
+/* Each page by the name it carries on screen (the tab map, 9 Oct 2026: one word, one meaning). They reach users in refusal
+   toasts, the guard's roles grid and a screen that could not be drawn. */
 const PAGE_TITLES = {
-  pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Register',
-  pageClients: 'Clients', pageFinance: 'Finance', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'Staff',
-  pageFloor: 'Day', pagePipeline: 'Pipeline',
+  pageHome: 'Today', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
+  pageClients: 'Clients', pageFinance: 'Money', pageTodo: 'To-do', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
+  pageFloor: 'Floor overview', pagePipeline: 'Pipeline',
   pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
 };
+
+/* ===== ONE LOOK: EVERY SCREEN DECLARES ITS KIND (docs/TAB_MAP.md §3e) =====
+   An overview (Today's two views, Pipeline, Floor's and Money's Overview), a work screen (every list and every analysis), a
+   document (paper fitted to the screen) or a form (a back head, the fields, the action bar last). Each kind is assembled one
+   way, and P197 holds a screen to its kind. The page's root carries its kind (`data-screen`), read off the place on screen:
+   a page's own view can differ from the page (`page/view`), and a sub-view that is a form says so while it shows. */
+var SCREEN_KINDS = {
+  pageHome: 'overview', pageTodo: 'work', pagePipeline: 'overview', pageIM: 'work', pageRegister: 'work', pageClients: 'work',
+  pageCreate: 'form', pageFloor: 'overview',
+  pageStaff: 'work', 'pageStaff/overview': 'overview',
+  pageProduction: 'work', 'pageProduction/overview': 'overview',
+  pageStock: 'work', 'pageStock/overview': 'overview', 'pageStock/item': 'form',
+  pagePower: 'work', 'pagePower/overview': 'overview', 'pagePower/case': 'document',
+  pageFinance: 'work', 'pageFinance/overview': 'overview',
+  pageStats: 'work', 'pageStats/overview': 'overview',
+  pageReports: 'document', pagePlanner: 'work', pageHistory: 'work',
+  pageKnow: 'work', 'pageKnow/start': 'overview'
+};
+// A part of the address that is a form wherever it appears: a challan, a quotation, a paste and its check, by hand, a register
+// photo's check, an article being written.
+var SCREEN_FORM_PARTS = /^(form|paste|review|hand|photo|manual|edit)$/;
+function screenKindOf(loc) {
+  loc = loc || navLoc();
+  var parts = String(loc.v || '').split('/');
+  if (parts.some(function(x) { return SCREEN_FORM_PARTS.test(x); })) return 'form';
+  // An article read on the phone is a record opened as a sub-view; on the desktop it sits in the pane beside its list.
+  if (loc.tab === 'pageKnow' && loc.id && !_isDesktop) return 'form';
+  return SCREEN_KINDS[loc.tab + '/' + parts[0]] || SCREEN_KINDS[loc.tab] || 'work';
+}
+function screenKindApply() {
+  var p = document.querySelector('.inv-page-active');
+  if (!p) return;
+  var k = screenKindOf();
+  if (p.dataset.screen !== k) p.dataset.screen = k;
+}
 
 /* A page is one of PAGE_TITLES' keys. An address or a remembered tab naming anything else (another element, a page another
    build had) opens Home and is never remembered: ?tab=topbarTitle drew a blank page, and every launch after reopened it
@@ -162,6 +199,7 @@ function tabRender(tabId, isDirty) {
   } else if (tabId === 'pageKnow') {
     renderKnow();
   }
+  screenKindApply();
 }
 
 /* The page on screen, drawn again from S where it stands: the page, its panes and dialogs keep their scroll. */

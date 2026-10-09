@@ -55,7 +55,7 @@ test.describe('P184: the tab map on the desktop', () => {
     await expect(row(page).filter({ hasText: /^Sales$/ })).toHaveAttribute('aria-selected', 'true');
     await row(page).filter({ hasText: /^Clients$/ }).click();
     await expect(own(page)).toHaveText(['Clients', 'Parts', 'Performance']);
-    expect(where(page)).toEqual(['pageClients', 'clients']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'clients']);
   });
 
   test('History and Knowledge are the top bar’s: no door lit, no row; Ctrl+click opens History in a new window', async ({ page }) => {

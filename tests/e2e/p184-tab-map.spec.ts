@@ -61,25 +61,25 @@ test.describe('P184: the tab map on the phone', () => {
     await row(page).filter({ hasText: /^Clients$/ }).click();
     await expect(own(page)).toHaveText(['Clients', 'Parts', 'Performance']);
     await own(page).filter({ hasText: 'Parts' }).click();
-    expect(where(page)).toEqual(['pageClients', 'items']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'items']);
     await expect(row(page).filter({ hasText: /^Clients$/ })).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
 
     await row(page).filter({ hasText: /^Sales$/ }).click();
-    expect(where(page)).toEqual(['pageClients', 'prospects']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'prospects']);
     await expect(own(page)).toHaveText(['Prospects', 'Quotations']);
     await own(page).filter({ hasText: 'Quotations' }).click();
-    expect(where(page)).toEqual(['pageClients', 'quotes']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'quotes']);
     await expect(row(page).filter({ hasText: /^Sales$/ })).toHaveAttribute('aria-selected', 'true');
     await expect(row(page).filter({ hasText: /^Clients$/ })).toHaveAttribute('aria-selected', 'false');
 
     // Office's door comes back to the view left (Quotations), not to Sales' first.
     await bar(page, 'floor').click();
     await bar(page, 'office').click();
-    expect(where(page)).toEqual(['pageClients', 'quotes']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'quotes']);
     // Clients' door comes back to Parts, where Clients' group was left.
     await row(page).filter({ hasText: /^Clients$/ }).click();
-    expect(where(page)).toEqual(['pageClients', 'items']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'items']);
 
     // An address lights its own door.
     await page.goto('/?tab=pageClients&v=quotes');
@@ -102,7 +102,7 @@ test.describe('P184: the tab map on the phone', () => {
     expect(seen).toEqual(['Pipeline', 'Challans', 'Invoices', 'Clients', 'Sales']);
     // The last swipe went nowhere: Sales is the row's end, and the swipe stays inside Office.
     expect(await on(page)).toBe('pageClients');
-    expect(where(page)).toEqual(['pageClients', 'prospects']);
+    await expect.poll(() => where(page)).toEqual(['pageClients', 'prospects']);
     await swipe(page, 60, 300);
     await expect(row(page).filter({ hasText: /^Clients$/ })).toHaveAttribute('aria-selected', 'true');
   });
@@ -117,7 +117,7 @@ test.describe('P184: the tab map on the phone', () => {
     await bar(page, 'floor').click();
     await page.locator('.inv-topbar [data-action="invGoHistory"]:visible').click();
     await expect(page.locator('#pageHistory')).toHaveClass(/inv-page-active/);
-    expect(where(page)).toEqual(['pageHistory', '']);
+    await expect.poll(() => where(page)).toEqual(['pageHistory', '']);
     await expect(page.locator('.inv-navbar-item-on')).toHaveCount(0);
     await expect(page.locator('#wsTabs')).toHaveClass(/inv-hidden/);
     await expect(page.locator('#topbarTitle')).toHaveText('History');
@@ -186,12 +186,12 @@ test.describe('P184: the tab map on the phone', () => {
     await page.goto('/?tab=pageGone&v=anything');
     await waitForBoot(page);
     expect(await on(page)).toBe('pageStock');
-    expect(where(page)[0]).toBe('pageStock');
+    await expect.poll(() => where(page)[0]).toBe('pageStock');
     // A view that moved.
     await page.goto('/?tab=pageStats&v=billing');
     await waitForBoot(page);
     expect(await on(page)).toBe('pagePipeline');
-    expect(where(page)[0]).toBe('pagePipeline');
+    await expect.poll(() => where(page)[0]).toBe('pagePipeline');
 
     // From a step of the trail an older build saved: Back arrives at the place it went.
     await switchTab(page, 'pageStock');
@@ -426,7 +426,7 @@ test.describe('P184: the verdict card and the row end on the phone', () => {
     await switchTab(page, 'pageIM');
     await page.locator('#pageIM [data-action="invShowAddChallan"]').first().click();
     await expect(page.locator('#pageIM')).toHaveAttribute('data-screen', 'form');
-    expect(where(page)).toEqual(['pageIM', 'form']);
+    await expect.poll(() => where(page)).toEqual(['pageIM', 'form']);
     // Stock's and Production's by-hand and paste sub-views; back on the list, a work screen again.
     await switchTab(page, 'pageStock');
     await page.locator('#pageStock [data-action="invStockManual"]').first().click();

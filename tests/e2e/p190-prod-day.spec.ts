@@ -181,7 +181,7 @@ test.describe('P190: a day’s plating, whole', () => {
     await expect(c1).toHaveClass(/inv-hero-danger/);
     await expect(c1.locator('.inv-hero-fig')).toHaveText('5%');
     await expect(c1.locator('.inv-hero-title')).toHaveText('≥ 265 kg of the 5.10 t its working tanks could plate');
-    await expect(c1.locator('.inv-hero-sub')).toContainText('3 of 4 tanks working · 300 kg a round · a round every 30 min (set) · 8.5 h run');
+    await expect(c1.locator('.inv-hero-sub')).toContainText('3 of 4 tanks working · 8.5 h run · 200 pieces not weighed: reads low · 300 kg a round, every 30 min (set)');
     await expect(c1.locator('[data-flr-effparts] .inv-row-title')).toHaveText('Lighter parts than the line’s round');
     await expect(c1.locator('[data-flr-effparts]')).toContainText('time: not told apart, 125 kg (47% of the kilos) written without rounds beside the 2 the register counted');
     await expect(c1.locator('[data-flr-effparts]')).toContainText('racks: 100% full, each round against its part’s fullest');

@@ -1986,9 +1986,14 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
     the line's usual 59 kg*): the work, not a fault, and the sign of a typed round that does not fit the line's parts;
   - **not weighed**: a round with no weight adds no kilos, so the figure reads low by what such rounds would have held.
 
-  The row's title names what moved it most: under its usual, the factor that lost most (*The time lost most*, *Part-full racks lost
-  most*, *Lighter parts than the line's round*, *Rounds with no weight read it low*); at or over it, what raised it (*Heavier parts than
-  the line's round*, *Faster than its usual pace*); *How it splits* where the time hides it. **A round two runs share** (a register row
+  The card shows them as a strip of tiles (`data-flr-effsplit`: Time, Racks, Parts, and Weighed where rounds have no weight), each in
+  the tone of what it lost (the time ok from 90%, warning from 75%; the racks ok from 95%, warning from 85%; the weighed share ok from
+  95%, warning from 75%; the parts only said, `info`, since they are the work), and under them a row (`data-flr-effparts`) of how each
+  was worked out. The row's title names what moved it most: under its usual, the factor that lost most (*The time lost most*,
+  *Part-full racks lost most*, *Lighter parts than the line's round*, *Rounds with no weight read it low*); at or over it, what raised it
+  (*Heavier parts than the line's round*, *Faster than its usual pace*); *How it splits* where the time hides it. The head's line of
+  inputs leads with what a phone must show in its two lines: units working, the hours run, the pieces not weighed, then the round and
+  the pace (*59 kg a round every 19 min, both measured*), said again under the card. **A round two runs share** (a register row
   *MEHTA+GENERAL / LINER+188CD / 39+50*, or a group of codes shared out) is in each run at the same time: one round, a share of it in
   each (`prodDayLine`'s `at`), full as it was, never part-full by its own share; the pace and the tank's round count it once and the
   tank's round joins its shares' kilos (only when every share is weighed). On the owner's book of 9 Oct: VAT A1's ordinary days lose

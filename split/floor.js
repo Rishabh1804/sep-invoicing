@@ -217,9 +217,13 @@ function flrEffHead(ef, last, isToday) {
   // What needs following up leads (half the line down, the general shift unrecorded); the plating follows in the sub.
   var lead = [ef.halfDown ? down : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var title = lead ? lead.charAt(0).toUpperCase() + lead.slice(1) : plated;
-  var sub = [lead ? plated : '', units, formatNum(ef.kgAvail, 0) + ' kg a round' + (ef.kgSrc === 'measured' ? ' (measured)' : ''), 'a round every ' + Math.round(ef.every) + ' min' + (ef.everySrc === 'assumed' ? ' (assumed)' : ef.everySrc === 'set' ? ' (set)' : ef.everySrc === 'measured' ? ' (measured)' : ''),
-    hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''), ef.noEnd ? todoPlural(ef.noEnd, 'run') + ' with no end time not counted' : '',
-    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pieces not weighed: reads low' : ''].filter(Boolean).join(' · ');
+  // The inputs, most needed first: a phone shows two lines of them, and the round and the pace are said again under the card.
+  var evW = { assumed: 'assumed', set: 'set', measured: 'measured' }[ef.everySrc] || '', kgM = ef.kgSrc === 'measured';
+  var round = formatNum(ef.kgAvail, 0) + ' kg a round' + (kgM && evW === 'measured' ? ' every ' + Math.round(ef.every) + ' min, both measured'
+    : (kgM ? ' (measured)' : '') + ', every ' + Math.round(ef.every) + ' min' + (evW ? ' (' + evW + ')' : ''));
+  var sub = [lead ? plated : '', units, hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''),
+    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pieces not weighed: reads low' : '',
+    ef.noEnd ? todoPlural(ef.noEnd, 'run') + ' with no end time not counted' : '', round].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: Math.min(ef.kg, ef.possible * 1.2), tone: ef.tone === 'neutral' ? 'neutral' : ef.tone }], { max: ef.possible, mark: ef.possible * PROD_EFF_OK,
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
@@ -254,7 +258,8 @@ function flrEffRowHtml(ef) {
     } else bits.push('loaded ' + pct(ef.load) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round');
     if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) bits.push('not weighed: ' + Math.round(ef.roundsUnweighed) + ' of the ' + nr + ' rounds, about ' + pct(1 - ef.weighed) + ' of the work, so the figure reads low');
   } else bits.push('no rounds counted: the time and the load cannot be told apart');
-  if (ef.everySrc === 'measured') bits.push('a round every ' + Math.round(ef.every) + ' min measured on the register over ' + C.shifts + ' shifts' + (ef.everySet ? ', in place of the ' + Math.round(ef.everySet) + ' set' : ''));
+  if (ef.everySrc === 'measured') bits.push('a round every ' + Math.round(ef.every) + ' min measured on the register over ' + C.shifts + ' shifts' +
+    (ef.everySet ? Math.round(ef.everySet) === Math.round(ef.every) ? ', as set' : ', in place of the ' + Math.round(ef.everySet) + ' set' : ''));
   else if (C.every != null) bits.push('the register’s rounds come every ' + Math.round(C.every) + ' min, not firm: ' + C.why);
   if (ef.kgSrc === 'measured') bits.push('a round measured on the register: ' + (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ' × ' + ef.nAvail + ', ' : '') +
     T.rounds + ' rounds over ' + T.days + ' days' + (ef.kgTyped ? ', in place of the ' + formatNum(ef.kgTyped, 0) + ' kg typed' : ''));
@@ -277,7 +282,25 @@ function flrEffRowHtml(ef) {
     pick = known.filter(function(x) { return x[1] < 1; }).sort(function(a, b) { return a[1] - b[1]; })[0];
     if (pick) title = LOST[pick[0]];
   }
-  return '<div class="inv-row inv-row-2" data-flr-effparts><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
+  // The factors at a glance, a tile each coloured by what it lost (the parts are the work, so only said); the row under them is
+  // how each was worked out.
+  var strip = '';
+  if (ef.pace != null) {
+    var tone = function(x, ok, warn) { return x >= ok ? 'ok' : x >= warn ? 'warning' : 'danger'; };
+    var tile = function(key, label, v, sub, t) {
+      return '<div class="inv-tile' + (t ? ' inv-tile-' + t : '') + '" data-flr-factor="' + key + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
+        '<div class="inv-tile-value">' + escHtml(v) + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
+    };
+    var tiles = [timeKnown ? tile('time', 'Time', pct(ef.pace), (ef.roundsOnly ? '' : 'about ') + Math.round(ef.roundsRun) + ' of ' + rp + ' rounds', tone(ef.pace, 0.9, 0.75))
+      : tile('time', 'Time', '—', 'not told apart', '')];
+    if (ef.racks != null) {
+      tiles.push(tile('racks', 'Racks', pct(ef.racks), ef.partFull && ef.partFull.length ? todoPlural(ef.partFull.length, 'part') + ' not full' : 'full', tone(ef.racks, 0.95, 0.85)));
+      tiles.push(tile('parts', 'Parts', pct(ef.parts), formatNum(ef.fullRound, 0) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
+    } else tiles.push(tile('load', 'Load', pct(ef.load), 'of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
+    if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) tiles.push(tile('weighed', 'Weighed', pct(ef.weighed), Math.round(ef.roundsUnweighed) + ' of ' + nr + ' rounds unweighed', tone(ef.weighed, 0.95, 0.75)));
+    strip = '<div class="inv-tiles inv-tiles-flush' + (tiles.length === 3 ? ' inv-tiles-3' : '') + '" data-flr-effsplit>' + tiles.join('') + '</div>';
+  }
+  return strip + '<div class="inv-row inv-row-2" data-flr-effparts><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span></div>';
 }
 

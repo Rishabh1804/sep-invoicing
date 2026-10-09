@@ -142,7 +142,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('#flrDate').fill(D);
     await page.locator('#flrDate').dispatchEvent('change');
     const card = page.locator('#flrLines > [data-line="vat-a2"]');
-    await expect(card.locator('.inv-hero-sub')).toContainText('2 of 2 tanks working · 50 kg a round (measured)');
+    await expect(card.locator('.inv-hero-sub')).toContainText('2 of 2 tanks working · 8.5 h run · 50 kg a round (measured), every 30 min (set)');
     await expect(card.locator('[data-flr-effparts]')).toContainText('time: ran 6 rounds where the hours allowed 17 (35%)');
     await expect(card.locator('[data-flr-effparts]')).toContainText('a round measured on the register: 25 kg a tank × 2, 36 rounds over 6 days, in place of the 90 kg typed');
     // The plant strip says what the line plates a round, and that it is the line's round now.
@@ -206,8 +206,12 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // 100 kg, twice the line's usual 50 (200%). 35% × 93% × 200% is the 66% the line plated of what it could.
     expect(await eff(page)).toEqual([20, 'measured', 30, 7, 'measured', 50, 9, 25.5, 66, 35, 93, 200, 100, true]);
     const card = await openDay(page), parts = card.locator('[data-flr-effparts]');
-    await expect(card.locator('.inv-hero-sub')).toContainText('50 kg a round (measured) · a round every 20 min (measured)');
+    await expect(card.locator('.inv-hero-sub')).toContainText('8.5 h run · 50 kg a round every 20 min, both measured');
     await expect(parts.locator('.inv-row-title')).toHaveText('The time lost most');
+    // The factors at a glance, a tile each: what it lost, in its tone; the parts only said.
+    const tiles = await card.locator('[data-flr-effsplit] .inv-tile').evaluateAll(els => els.map(t => [(t as HTMLElement).dataset.flrFactor,
+      t.querySelector('.inv-tile-value')!.textContent, t.querySelector('.inv-tile-sub')!.textContent, t.className.replace('inv-tile', '').trim()]));
+    expect(tiles).toEqual([['time', '35%', '9 of 25.5 rounds', 'inv-tile-danger'], ['racks', '93%', '1 part not full', 'inv-tile-warning'], ['parts', '200%', '100 of 50 kg a round', 'inv-tile-info']]);
     await expect(parts).toContainText('time: ran 9 rounds where the hours allowed 25.5 (35%)');
     await expect(parts).toContainText('racks: 93% full, each round against its part’s fullest');
     await expect(parts).toContainText('part-full: GEAR 9, NOVA GEARS at 93% over 9 rounds of 100');
@@ -230,12 +234,14 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     parts = (await openDay(page)).locator('[data-flr-effparts]');
     await expect(parts).toContainText('time: ran 11 rounds where the hours allowed 25.5 (43%)');
     await expect(parts).toContainText('not weighed: 2 of the 11 rounds, about 18% of the work, so the figure reads low');
+    await expect(page.locator('#flrLines > [data-line="vat-a2"] [data-flr-factor="weighed"]')).toHaveText(/Weighed\s*82%\s*2 of 11 rounds unweighed/);
+    await expect(page.locator('#flrLines > [data-line="vat-a2"] [data-flr-factor="weighed"]')).toHaveClass(/inv-tile-warning/);
     // Four shifts: the pace is not firm, so the 30 set stands and the register's 20 is said beside it.
     await loadAppWithState(page, paceBook(3));
     const o: any = await g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a2'); return [o.every, o.everySrc, o.cycle.every, o.cycle.firm, o.cycle.why]; })()`);
     expect(o).toEqual([30, 'set', 20, false, '4 of the 5 shifts it needs']);
     const card = await openDay(page);
-    await expect(card.locator('.inv-hero-sub')).toContainText('a round every 30 min (set)');
+    await expect(card.locator('.inv-hero-sub')).toContainText('kg a round, every 30 min (set)');
     await expect(card.locator('[data-flr-effparts]')).toContainText('the register’s rounds come every 20 min, not firm: 4 of the 5 shifts it needs');
   });
 

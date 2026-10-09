@@ -92,7 +92,8 @@ test.describe('P88: Production in the rest of the app', () => {
     expect(r.a1).toMatchObject({ days: 6, kg: 600, cost: 2400, perKg: 4 });
     expect(r.a2).toMatchObject({ days: 0, perKg: null });
     await switchTab(page, 'pageProduction');
-    await expect(page.locator('[data-prod-tile="last"] .inv-tile-value')).toHaveText('0.10 t');
+    // The last day plated is the day card (one unit: 100 kg written, nothing estimated).
+    await expect(page.locator('[data-prod-day] .inv-hero-fig')).toHaveText('100 kg');
     await expect(page.locator('#prodCoverage')).toContainText('VAT A1');
     await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
     await expect(page.locator('#prodLabour .inv-num')).toHaveText('₹4.00/kg');

@@ -237,7 +237,7 @@ function tdyFloorHtml(day) {
   var tiles = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).map(function(ln) {
     var st = flrStaffing(day, ln, byArea, att.marked), r = prodDayLine(day, ln.id), last = flrLatest(r.entries);
     if (st.tone === 'warning') worst = 'warning';
-    var fig = r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : r.kg > 0 ? formatNum(r.kg, 0) + ' kg' : '&mdash;';
+    var fig = r.kg > 0 ? escHtml(prodKgFig(r.kg, r.est > 0.0005, r.unweighed > 0)) : r.nos > 0 ? Math.round(r.nos).toLocaleString('en-IN') + ' NOS' : '&mdash;';
     // The tile is coded by its staffing (§6.26), the word under its figure saying which.
     return '<button type="button" class="inv-tile" data-tdy-line="' + ln.id + '" data-action="invTdyFloor" data-tone="' + escHtml(st.tone || 'neutral') + '"><div class="inv-tile-label">' + escHtml(flrLineName(ln.id)) + '</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + fig + '</div><div class="inv-tile-sub">' + uiDot(st.tone, escHtml(st.word)) + '</div>' +

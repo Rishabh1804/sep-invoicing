@@ -75,12 +75,25 @@ function pltDownDays(u, from, to) {
 /* Days in the status it is in now. */
 function pltDaysIn(u) { return u.since ? Math.max(0, isoDaysBetween(u.since, localDateStr())) : null; }
 
+/* The day the register was set up: the first day a unit was written into it (the day of its first line's `at`). A unit written
+   in that day is the plant as found, and stood before it: its "since" is the day it was recorded, not the day it came. The
+   owner set the register up on 9 Oct 2026, the running units "since" that day and the stopped ones backdated to when they
+   stopped, and every day before read only the stopped ones ("0 of 1 tanks working" on VAT A1, which runs three). A unit
+   written in later is new, and counts from its first day. */
+function pltRecordedOn(u) {
+  var first = pltRead().log.filter(function(l) { return l && l.unitId === u.id && l.from == null && l.at; }).sort(function(a, b) { return a.at - b.at; })[0];
+  return first ? isoOf(new Date(first.at)) : u.addedOn || '';
+}
+function pltSetUpDay() {
+  return pltRead().units.reduce(function(m, u) { var d = u ? pltRecordedOn(u) : ''; return d && (!m || d < m) ? d : m; }, '');
+}
 /* What a line can do on a day: its units side by side.
    {units, n, nAvail, down: [units], byKg, kgTotal, kgAvail, pct, note, used: {kgRound, pct, why}} */
 function pltCapacity(station, iso) {
   var day = iso || localDateStr();
+  var setUp = iso ? pltSetUpDay() : '';
   var units = (iso ? pltRead().units.filter(function(u) { return u && u.station === station && (!u.retiredAt || pltRetiredDay(u) > day); }).sort(pltNameCmp) : pltUnits(station))
-    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day; });
+    .filter(function(u) { return !iso || !u.addedOn || u.addedOn <= day || (setUp && pltRecordedOn(u) === setUp); });
   var st = function(u) { return iso ? pltStatusOn(u, day) : u.status || 'run'; };
   var avail = units.filter(function(u) { return pltAvailable(st(u)); });
   var withKg = units.filter(function(u) { return +u.kgRound > 0; });

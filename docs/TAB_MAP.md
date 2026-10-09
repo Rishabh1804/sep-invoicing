@@ -339,14 +339,16 @@ held cheque raises the task, a void puts owed back, the export carries cheques. 
 **TM4a. Floor's Overview** (`floor.js`, `pageFloor`; the page keeps its address `?tab=pageFloor&d=…` and its day stepper):
 - Below the stepper, **four hero cards** in Today's card language (`uiHeroHtml`, coded by status, a one-line verdict, a meter or
   figure, the foot a link to the page): **People** (on site against the roster and against the day's number, short areas; link
-  People → Attendance, Day), **Production** (plated on the day, this week against capacity; link Production → Lines), **Stock**
+  People → Attendance, Day), **Production** (`prodDayHeroHtml(day)`, the day's card built 9 Oct 2026 for the owner's *"not uniform enough"*: the tonnes, ≈ and ≥ as estimated and unweighed, each line on the clock with its efficiency, how it was weighed, the pieces not weighed, the worth and labour by role, the week against capacity; coloured by the plant's efficiency; link Production → Lines), **Stock**
   (lines out and low, the first three names, the reorder's cash when the role sees money; link Stock), **Power** (the day's cuts
   and minutes, the month so far, a year at this rate; the load to chase when approved and not yet billed; link Power → Cuts).
   People and Production read the day on screen; Stock reads now and says so; Power reads the day and the month to date.
 - Each card shows for a role that sees its page (`grdSees`); People's figures are heads (no rupees). **A link the role cannot
   follow is text.** The line cards' staffing word, EXTRA badge and the old tiles' doors follow the same rule (today a floor hand's
   tap on them is refused with a toast).
-- The three tiles (on site, plated, power) go: the heroes say them (I8). The line cards stay, under the heroes.
+- The three tiles (on site, plated, power) go: the heroes say them (I8). The line cards stay, under the heroes: since 9 Oct 2026 they are
+  heroes coloured by each line's efficiency (`prodLineEfficiency`; half or more of a line's units down is danger), and the *Not weighed*
+  panel (`flrUnweighedHtml`) stays under them.
 - On the desktop the heroes are a row (`.inv-heroes`), the lines below.
 
 **TM4b. People** (`staff.js`, `dash.js`, `payroll.js`, `relay.js`):
@@ -363,7 +365,7 @@ held cheque raises the task, a void puts owed back, the export carries cheques. 
 
 **TM4c. Production** (`prodview.js`, `plant.js`):
 - `PROD_TABS = [['lines','Lines'],['plant','In plant'],['entries','Entries'],['equipment','Equipment']]`, default `lines`.
-- The Overview goes. Its pieces: the tiles → Floor's Production hero (In plant keeps its own book and plated-not-invoiced tiles);
+- The Overview goes. Its pieces: the day's card (`prodDayHeroHtml`, which replaced the plated tile on 9 Oct 2026) and the week tile → Floor's Production hero (In plant keeps its own book and plated-not-invoiced tiles);
   **plated by line, 4 weeks** (`#prodChart`) → the head of Lines; **record coverage** (`#prodCoverage`) and **line unknown**
   (`#prodUnknown`) → the head of Entries; the glance (`#pltGlance`) stays only on the no-entries empty state; Raised → nothing.
 - Re-point `todoGo('production')` default → `lines`; search `production` → `lines`, a new `equipment` entry.

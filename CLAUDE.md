@@ -45,8 +45,17 @@ the order proposed for taking Today's card language to the other tabs, one PR ea
 
 **The plant picture is begun — read `docs/PLANT_PICTURE.md`** (owner, 9 Oct 2026: *"There is no holistic vision that is being created
 using these details"*). PP1 is built: a day's plating in one unit, each line's efficiency colouring Floor's cards (half a line's units
-down is red), the pieces not weighed followed up. PP2–PP5 (the line over time, stock by line, equipment and money, the period whole)
-are proposed, with four questions; **the order is the owner's.**
+down is red), the pieces not weighed followed up. PP3 is built: the bath a stock message names, zinc and chemicals by line (*Stock by
+line* below). PP2, PP4 and PP5 (the line over time, equipment and money, the period whole) are proposed; **the order is the owner's.**
+
+**An analysis on screen is a verdict, its factors and the working folded** (owner, 9 Oct 2026: *"The times lost most reads like a block
+of text and is not presented according to our benchmark"*, and *"lots of new chaotic text data is entering due to the analysis …
+designing a way to present our analysed data in a coherent manner"*; design §6.27). The verdict leads in its tone. The factors are tiles
+under a caption naming what moved it most. *How it's worked out* is folded under them, shut until opened: one fact a row
+(`uiFactRowHtml`, `uiFoldRowHtml`, `uiWorkingHtml`, state.js), a few words and the figure at the end, where a figure comes from a
+badge (*measured*, *set*, *typed*, *so far*, *shared*). Certainty is a sign (≈, ≤) or a badge, never a clause. How the analysis works
+is the screen's guide (*Reading the plant's figures*, kbguides.js), not a note on the face. A new analysis is drawn this way. The
+screens that still reason in sentences are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*), the order the owner's.
 
 **UX overhaul 2 is planned — read `docs/UX_OVERHAUL_2.md`.** Agreed with the owner, 28 Sep 2026: navigation with a
 back trail, a version guard so two windows can edit safely, every screen openable in a new window, search (a chatbot
@@ -187,7 +196,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,612 tests, both layouts
+pnpm exec playwright test          # 1,623 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1986,14 +1995,16 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
     the line's usual 59 kg*): the work, not a fault, and the sign of a typed round that does not fit the line's parts;
   - **not weighed**: a round with no weight adds no kilos, so the figure reads low by what such rounds would have held.
 
-  The card shows them as a strip of tiles (`data-flr-effsplit`: Time, Racks, Parts, and Weighed where rounds have no weight), each in
-  the tone of what it lost (the time ok from 90%, warning from 75%; the racks ok from 95%, warning from 85%; the weighed share ok from
-  95%, warning from 75%; the parts only said, `info`, since they are the work), and under them a row (`data-flr-effparts`) of how each
-  was worked out. The row's title names what moved it most: under its usual, the factor that lost most (*The time lost most*,
-  *Part-full racks lost most*, *Lighter parts than the line's round*, *Rounds with no weight read it low*); at or over it, what raised it
-  (*Heavier parts than the line's round*, *Faster than its usual pace*); *How it splits* where the time hides it. The head's line of
-  inputs leads with what a phone must show in its two lines: units working, the hours run, the pieces not weighed, then the round and
-  the pace (*59 kg a round every 19 min, both measured*), said again under the card. **A round two runs share** (a register row
+  The card draws them as an analysis (§6.27): a caption naming what moved it most (`data-flr-effverdict`: under its usual, the factor
+  that lost most, *The time lost most*, *Part-full racks lost most*, *Lighter parts than the line's round*, *Rounds with no weight read it
+  low*; at or over it, what raised it, *Heavier parts than the line's round*, *Faster than its usual pace*; *How it splits* where the time
+  hides it), a strip of tiles (`data-flr-effsplit`: Time, Racks, Parts, and Weighed where rounds have no weight), each in the tone of
+  what it lost (the time ok from 90%, warning from 75%; the racks ok from 95%, warning from 85%; the weighed share ok from 95%, warning
+  from 75%; the parts only said, `info`, since they are the work), and *How it's worked out* folded under them (`data-flr-effworking`),
+  a fact a row: the hours run, a round every so many minutes and a full round, each with a *measured* / *set* / *typed* badge (not firm,
+  the first thing the register's measure lacks), the rounds the hours allowed and the rounds run, the racks, each part run part-full,
+  a full round of the day's parts, rounds with no weight, runs with no end time. The head's sub is the units working, the hours run
+  and the pieces not weighed. A line's card also says what went into its bath that day (a fact row, or a row folding open to several). **A round two runs share** (a register row
   *MEHTA+GENERAL / LINER+188CD / 39+50*, or a group of codes shared out) is in each run at the same time: one round, a share of it in
   each (`prodDayLine`'s `at`), full as it was, never part-full by its own share; the pace and the tank's round count it once and the
   tank's round joins its shares' kilos (only when every share is weighed). On the owner's book of 9 Oct: VAT A1's ordinary days lose
@@ -3138,6 +3149,30 @@ zero (`below`), over 4× the usual a day (`large`; a bath line is charged in lum
 now**, and one read differently is listed with both readings; *Use the new reading* voids what the old reading saved and adds
 the new entries at the message's own time (`reread` on the entries and the paste). A figure voided by hand stays voided, a line
 the new reading cannot place keeps its entries, and entries typed by hand are never touched. A use and a charge compare alike.
+
+### Stock by line
+PP3 of `docs/PLANT_PICTURE.md` (owner, 9 Oct 2026: *"Exactly"*, to the app reading the bath a stock message names; P192).
+- **The reader** (`parseStockLine`): a use is read bath by bath. A bath named stands for the figures after it until another is
+  named, a date for the figure after it, and a bath or date just before "use" is that use's. *"use VAT A 2 / 25/09/26/ 150 kg VAT 1
+  / 28/09/26/ 175 kg berral use 75 kg"* is three uses, each on its day (the barrel's over the message's days), where it was one
+  400 kg entry with the baths in its note. *"berral & vat a1. 51 kg"* is one use the two share. *"use A 2"* is VAT A2, never A Salt.
+  Baths whose figures miss the use stay one use, amber (`baths`). Each entry carries its baths as **`lines`** and its own words as
+  its note (one part keeps the line's note). A use by hand takes its bath from **Into** (`stockBathsIn`). `stockEntryLines(e)` reads
+  `lines`, else the baths the note names, so an older entry still has its bath.
+- **Read again**: the re-read key holds the entry's baths (`stockRereadKey`), so a message the reader now splits, or now puts in a
+  bath, is listed on Stock → To check with both readings; one whose note already named its one bath is not.
+- **By line** (`stockByLine`, cost.js): each addition into a bath is set against what its line plated (Production's weighing) until
+  the next of the same stock line went into the same bath. The last is still in the bath: *so far*, kept out of the line's figure
+  unless it is the only one. Days with no production record are filled at the recorded days' pace (≈); under half recorded, nothing
+  is set. A use naming two baths is shared by what each plated over its days, or evenly where one is not recorded on half of them. A
+  use naming none is the plant's, counted apart. Rupees at the price paid by the day (`stockPriceAt`). Worked out each time.
+- **Shown** (drawn as an analysis, §6.27): a stock line's page (*By line, 60 days*: a row a line, its kg/t at the end, its ₹/kg and
+  additions under it, folding open to each addition), Production → Lines (*Into the bath*: a row a stock line, *All of it* in ₹/kg for
+  a role that sees money, *No bath named*), and Floor's line card (the day's additions).
+- **On the owner's book of 9 Oct**, once the two messages that read differently are taken (*Use the new reading*): VAT A1's zinc
+  ≈ 5.3 kg a tonne, ₹2.40 a kg plated (the cost model's 425 kg a month over ~80 t is 5.3 too); its 106 Salt ≈ 1.8 kg a tonne; VAT A2
+  on its first top-up of each, so far only; the barrel recorded on 1 of 12 days, not set. Most chemical uses name no bath yet.
+- **Data flow**: an entry's `lines` travels in the `sep-stock` export to soma-internal, which reads the stock record.
 
 ### Stock reorder list
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:

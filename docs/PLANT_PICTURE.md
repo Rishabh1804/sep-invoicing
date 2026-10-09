@@ -1,8 +1,9 @@
 # The plant picture
 
-**Status, 9 Oct 2026.** PP1 is built, on PR #144, with what a tank takes a round and the register's pace measured, the efficiency
-split four ways, and Mehta's default weight a piece (§5, questions 1 and 2). The owner has answered the four questions in §5, and PP3 (stock by line) is next. PP2, PP4 and PP5 are proposals;
-their order is the owner's to set.
+**Status, 9 Oct 2026.** PP1 and PP3 are built, on PR #144: what a tank takes a round and the register's pace measured, the
+efficiency split four ways, Mehta's default weight a piece (§5, questions 1 and 2), and stock by line (§5, question 3). The
+analysed figures are drawn in one way since the owner's notes of the same day (§6). PP2, PP4 and PP5 are proposals; their order is
+the owner's to set.
 
 ## 1. What the owner asked
 
@@ -94,7 +95,7 @@ Each of these is one PR.
   - For each line and week, where the units' time went: what the units could plate, less what stood down, less the cuts, less the
     time nothing was run, ending in what was plated.
   - The same picture for the plant as a whole.
-- **PP3 · Stock by line** (stock.js, Floor).
+- **PP3 · Stock by line** (stock.js, cost.js, Floor). *Built* (§5, question 3).
   - Read the bath that a zinc or chemical line names ("use VAT A 2 … 150 kg") into the entry.
   - Zinc and chemicals by line, as kilos per tonne plated and rupees per kilogram.
   - A bath's top-ups set against what it plated.
@@ -167,10 +168,36 @@ Each of these is one PR.
      up to 43% of its rounds' work has no weight.
 3. **The bath named in a stock message.** Should the app read it? (PP3)
 
-   *"Exactly."* PP3 is next. A zinc line such as "use VAT A 2 / 25/09/26/ 150 kg VAT 1 / 28/09/26/ 175 kg berral use 75 kg" is saved
-   as one use for each bath, each on its own date. It was one 400 kg entry, the baths only noted. Zinc and chemicals can then be
-   counted per line against what each line plated.
+   *"Exactly."* Built (P192):
+   - **The reader** (stock.js `parseStockLine`). A use is read bath by bath: a bath named stands for the figures after it until
+     another is named, a date for the figure after it, and a bath or a date just before "use" is that use's. "use VAT A 2 /
+     25/09/26/ 150 kg VAT 1 / 28/09/26/ 175 kg berral use 75 kg" is three uses: 150 kg into VAT A2 on 25 Sep, 175 into VAT A1 on
+     28 Sep, 75 into the barrel over the message's days. It was one 400 kg entry, the baths only noted. "berral & vat a1. 51 kg"
+     is one use the two share. "use A 2" is VAT A2, never A Salt. Baths whose figures do not add up to the use stay one use and
+     say so. Each entry carries its baths as `lines` and its own words as its note. A use typed by hand takes its bath from
+     **Into**.
+   - **Read again** (Stock → To check). A saved message the reader now splits by bath, or now puts in a bath, is listed with both
+     readings. One whose note already named its one bath is not.
+   - **By line** (cost.js `stockByLine`). Each addition into a bath is set against what its line plated until the next of the same
+     stock line went in. The last is still in the bath: *so far*, and out of the line's figure unless it is the only one. Days with
+     no production record are filled at the pace of the days recorded; under half recorded, nothing is set. A use naming two baths
+     is shared by what each plated, or evenly where one is not recorded. A use naming none is the plant's. Rupees at the price paid.
+   - **Shown** on a stock line's page (*By line, 60 days*), Production → Lines (*Into the bath*) and Floor's line card (the day's
+     additions).
+   - **On the owner's book**, once the two messages the reader now reads differently are taken (Stock → To check → *Use the new
+     reading*): VAT A1's zinc is ≈ 5.3 kg a tonne (₹2.40 a kg plated), on its one top-up drawn on to the next. The cost model's
+     425 kg a month over ~80 t is 5.3 too. Its 106 Salt is ≈ 1.8 kg a tonne. VAT A2 is on its first top-up of each (so far
+     only). The barrel is recorded on 1 of 12 days and is not set against anything. Most chemical uses name no bath yet.
 4. **Repairs.** Where are repairs paid and recorded today: a bill, or a bank payee? (PP4)
 
    *"Nothing recorded as of yet."* PP4 gives a repair a place on its unit: what was done, on which day, and what it cost (typed,
    or from a bill or a bank payment). It is recorded with the status change that brings the unit back to running.
+
+## 6. Analysed data on screen (9 Oct 2026)
+
+The owner, on Floor's line card: *"The times lost most reads like a block of text and is not presented according to our benchmark"*;
+then *"Lots of new chaotic text data is entering due to the analysis … designing a way to present our analysed data in a coherent
+manner."* Every figure this work adds is drawn in one way (`docs/SEP_INVOICING_DESIGN_PRINCIPLES.md` §6.27). The verdict leads.
+The factors are tiles under a caption. The working is folded, one fact a row with its source a badge, and the reasoning is the
+guide *Reading the plant's figures*. Built on Floor's line cards, Production's day card, stock by line and the plant strip. The
+other screens are measured in `docs/COGNITIVE_LOAD_SURVEY.md` (*Analysed data*), the order the owner's.

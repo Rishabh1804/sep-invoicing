@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="203d9f66">
+<meta name="app-build" content="149351d5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2046,6 +2046,9 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
    take the card's tone. */
 .inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; }
 .inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+/* An analysis's caption and its folded working (§6.27) are drawn on the card's box: no page-coloured band, the card's hairlines. */
+.inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-hero details.inv-row-fold > summary:hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 :is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--border)); }
 .inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
@@ -3625,6 +3628,35 @@ function uiFoldCard(key, card, dflt) {
   var rest = card.slice(m[0].length).replace(/<\/div>\s*$/, '');
   return m[1] + '<details class="inv-panel inv-panel-flush inv-panel-fold' + m[2] + '"' + m[3] + ' data-fold="' + escHtml(key) + '"' + (uiFoldOpen(key, dflt) ? ' open' : '') + '>' +
     '<summary class="inv-panel-head">' + m[4] + '</summary>' + rest + '</details>';
+}
+/* An analysis on screen (§6.27; owner, 9 Oct 2026: "The times lost most reads like a block of text … not presented according to
+   our benchmark", and "lots of new chaotic text data is entering due to the analysis"). The verdict leads; its factors are tiles;
+   the working is folded under them, shut until opened and remembered on the device: one fact a row, a label of a few words, its
+   figure at the end, at most a few words under the label, and where a figure comes from as a badge, never a clause. How the
+   analysis works is the screen's guide (kbguides.js). Every field is plain text, escaped here.
+   A fact: { label, value, sub, src: [tone, word], attrs, actions (HTML: the caller escapes) }. A value null or '' is withheld: a dash. */
+function _uiFactInner(f) {
+  var v = f.value != null && f.value !== '' ? escHtml(String(f.value)) : '&mdash;';
+  return '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) +
+    (f.src ? ' <span class="inv-badge inv-badge-' + uiTone(f.src[0]) + '">' + escHtml(f.src[1]) + '</span>' : '') + '</span>' +
+    (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
+    // A fact's own move (a Change beside a default): the figure and its buttons, a line of their own under it on the phone.
+    (f.actions ? '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + v + '</span>' + f.actions + '</span>'
+      : '<span class="inv-row-end ' + (f.count ? 'inv-panel-count' : 'inv-num') + '">' + v + '</span>');
+}
+function uiFactRowHtml(f) { return '<div class="inv-row' + (f.sub ? ' inv-row-2' : '') + (f.actions ? ' inv-row-flow' : '') + '"' + (f.attrs || '') + '>' + _uiFactInner(f) + '</div>'; }
+/* A row that folds open to the facts it rests on: its head is a fact (`head`, the same shape; `count` draws its value as a
+   count), its facts the rows under it. Shut until opened, remembered on the device under `key`. */
+function uiFoldRowHtml(key, head, facts, attrs) {
+  return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '"' + (attrs || '') + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
+    '<summary class="inv-row' + (head.sub ? ' inv-row-2' : '') + '"' + (head.attrs || '') + '>' + _uiFactInner(head) + '</summary>' +
+    '<div class="inv-row-children">' + (facts || []).filter(Boolean).map(uiFactRowHtml).join('') + '</div></details>';
+}
+/* The working under an analysis's factors: "How it's worked out", the count of facts at its end. */
+function uiWorkingHtml(key, facts, title, attrs) {
+  var list = (facts || []).filter(Boolean);
+  if (!list.length) return '';
+  return uiFoldRowHtml(key, { label: title || 'How it’s worked out', value: list.length, count: true }, list, attrs);
 }
 /* A hero card (§6.21): a <details> that folds open to its body, or a plain card where it has none. `o`: tone (a status tone
    word, else the theme's gradient), eyebrow / title / fig / sub / viz / body (HTML: the caller escapes what came from the
@@ -25227,10 +25259,38 @@ function stockRound(v) { return Math.round(v * 1000) / 1000; }
    A figure with its unit after it ("VAT 2 kg") stays a figure, and "VAT A1", one word already, is left as written. The
    barrel is not numbered in the shop's messages (a quantity, a time or a part follows it), so it is left alone. */
 var STOCK_UNIT_AFTER = '(?![\\s-]*(?:' + Object.keys(STOCK_UNITS).join('|') + ')\\b)';
-var STOCK_AREA_RES = [new RegExp('\\bV[\\s-]*A[\\s-]*([12])\\b' + STOCK_UNIT_AFTER, 'gi'),
-  new RegExp('\\bVAT(?:[\\s-]*A[\\s-]+|[\\s-]+)([12])\\b' + STOCK_UNIT_AFTER, 'gi')];
+/* After "use", an A with its number is the line too ("16 SOLLT use A 2 10-10=00"): A Salt is a name, and stands before it. */
+var STOCK_AREA_RES = [[new RegExp('\\bV[\\s-]*A[\\s-]*([12])\\b' + STOCK_UNIT_AFTER, 'gi'), 'VAT A$1'],
+  [new RegExp('\\bVAT(?:[\\s-]*A[\\s-]+|[\\s-]+)([12])\\b' + STOCK_UNIT_AFTER, 'gi'), 'VAT A$1'],
+  [new RegExp('(\\bUSE[\\s.:/-]*)A[\\s-]*([12])\\b' + STOCK_UNIT_AFTER, 'gi'), '$1VAT A$2']];
 function stockFoldAreas(text) {
-  return STOCK_AREA_RES.reduce(function(t, re) { return t.replace(re, 'VAT A$1'); }, String(text || ''));
+  return STOCK_AREA_RES.reduce(function(t, re) { return t.replace(re[0], re[1]); }, String(text || ''));
+}
+/* The bath a word names, once the areas are folded: VAT A1, VAT A2 (A1 and A2 alone too) or the barrel, the three plating
+   lines (PP3; owner, 9 Oct 2026: "Exactly", to reading the bath a stock line names). */
+var STOCK_BATH_WORDS = { A1: 'vat-a1', VA1: 'vat-a1', VATA1: 'vat-a1', A2: 'vat-a2', VA2: 'vat-a2', VATA2: 'vat-a2' };
+function stockBathOfWord(w) {
+  var u = String(w || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (STOCK_BATH_WORDS[u]) return STOCK_BATH_WORDS[u];
+  return /^B[AE]R+[AE]L+S?$/.test(u) ? 'barrel' : null;
+}
+/* The baths a text names, in order: an "Into" typed by hand, a use's note ("VAT A2 VAT A1 BARREL"). */
+function stockBathsIn(text) {
+  var out = [];
+  stockTokens(stockFoldAreas(text)).forEach(function(t) { var b = t.t === 'text' ? stockBathOfWord(t.v) : null; if (b && out.indexOf(b) < 0) out.push(b); });
+  return out;
+}
+/* The baths an entry went into: its lines, else the ones its note names (a use saved before the reader read them, an Into typed
+   by hand before it was kept as lines). Only a use or a charge goes into a bath. */
+function stockEntryLines(e) {
+  if (!e || (e.kind !== 'used' && e.kind !== 'charged')) return [];
+  if (Array.isArray(e.lines)) return e.lines.filter(function(l) { return typeof l === 'string'; });
+  return e.note ? stockBathsIn(e.note) : [];
+}
+/* A use's note less the baths it names, which its entries carry as lines. */
+function stockNoteSansBaths(text) {
+  return stockKey(stockTokens(stockFoldAreas(text)).filter(function(t) { return t.t === 'text' && !stockBathOfWord(t.v) && !/^(VAT|AND)$/i.test(t.v); })
+    .map(function(t) { return t.v; }).join(' '));
 }
 /* Whether the figure at s stands in a use clause: after "use", with only areas, dates and days between (and a minus
    straight before it, "-25kg =150"). */
@@ -25249,7 +25309,7 @@ function stockInUse(sig, s) {
 function parseStockLine(body) {
   var toks = stockTokens(stockFoldAreas(body));
   var r = { name: '', unit: '', O: null, A: null, U: null, C: null, addDate: null, useDate: null, useFrom: null,
-    days: null, rate: null, note: '', issues: [], unread: [] };
+    days: null, rate: null, note: '', useParts: null, issues: [], unread: [] };
 
   // The name runs until a keyword or a number that is doing arithmetic. Names
   // carry digits of their own (16 Salt, 65 M, Q558), so a digit alone is not
@@ -25342,9 +25402,25 @@ function parseStockLine(body) {
   }
 
   var useDates = [], balance = null;
+  // The baths a use went into, part by part: a bath, then a date, then what went in there ("use VAT A 2 / 25/09/26/ 150 kg
+  // VAT 1 / 28/09/26/ 175 kg berral use 75 kg"). A bath stands for the parts after it until another is named; a date for the
+  // part after it. A bath or a date straight before "use" is the use's ("berral use 75 kg", "70 kg 25/09/26 use V A 1 20 KG").
+  var useParts = [], curBaths = [], curWords = [], bathsSpent = false, curDate = null, wholeBaths = null;
+  // A word naming a bath, or the VAT before its number, starts a new bath once the last one's figure is taken; the words are kept
+  // as written for the part's note.
+  var bathWord = function(w, b) {
+    if (bathsSpent) { curBaths = []; curWords = []; bathsSpent = false; }
+    curWords.push(w);
+    if (b && curBaths.indexOf(b) < 0) curBaths.push(b);
+  };
   for (var p = 0; p < sig.length; p++) {
     var tp = sig[p];
     if (tp.t !== 'kw') continue;
+    if (tp.v === 'use') {
+      var bk = p - 1;
+      while (bk >= 0 && sig[bk].t === 'text' && (stockBathOfWord(sig[bk].v) || /^VAT$/i.test(sig[bk].v))) bk--;
+      if (bk >= 0 && sig[bk].t === 'date' && !(sig[bk - 1] && sig[bk - 1].t === 'kw' && sig[bk - 1].v === 'add')) { curDate = sig[bk].v; useDates.push(sig[bk].v); }
+    }
     if (tp.v === 'nil') {
       r.C = 0;
       if (sig[p + 1] && sig[p + 1].t === 'num' && sig[p + 1].v === 0) claimed[p + 1] = true;
@@ -25360,13 +25436,15 @@ function parseStockLine(body) {
       var notes = [], parts = 0;
       for (var q1 = p + 1; q1 < sig.length; q1++) {
         var tq1 = sig[q1];
-        if (tq1.t === 'date') { useDates.push(tq1.v); continue; }
+        if (tq1.t === 'date') { useDates.push(tq1.v); curDate = tq1.v; continue; }
         if (tq1.t === 'days') { r.days = tq1.v; continue; }
-        if (tq1.t === 'text') { notes.push(tq1.v); continue; }
+        if (tq1.t === 'text') { notes.push(tq1.v); var bw = stockBathOfWord(tq1.v); if (bw || /^VAT$/i.test(tq1.v)) bathWord(tq1.v, bw); continue; }
         if (tq1.t === 'op' && tq1.v === '-' && sig[q1 + 1] && sig[q1 + 1].t === 'num' && !claimed[q1 + 1]) continue;
         if (tq1.t === 'num' && !claimed[q1] && sig[q1 - 1].t !== 'num') {
           claimed[q1] = true; parts++;
           if (!minusU) { r.U = stockRound((r.U || 0) + tq1.v); if (tq1.days) { r.days = tq1.days; r.rate = tq1.rate; } }
+          useParts.push({ qty: tq1.v, date: curDate, baths: curBaths.slice(), words: curWords.slice() });
+          bathsSpent = true; curDate = null;
           if (sig[q1 + 1] && sig[q1 + 1].v === '=' && sig[q1 + 2] && sig[q1 + 2].t === 'num') {
             claimed[q1 + 2] = true; balance = { v: sig[q1 + 2].v, idx: q1 + 2 }; q1 += 2;
           }
@@ -25374,6 +25452,8 @@ function parseStockLine(body) {
         }
         break;
       }
+      // A clause naming its bath and no figure of its own ("use V A 1 50-30= 20KG"): the whole use went into it.
+      if (!parts && curBaths.length && !bathsSpent) wholeBaths = { baths: curBaths.slice(), words: curWords.slice(), date: curDate };
       if (notes.length) r.note = (r.note ? r.note + ' ' : '') + notes.join(' ');
       if (!parts) {
         var before = prevNum(p - 1);
@@ -25408,6 +25488,13 @@ function parseStockLine(body) {
     sig.forEach(function(tk) { if (tk.t === 'days' && r.days == null) r.days = tk.v; });
   }
   if (r.U != null && r.days && r.rate == null) r.rate = stockRound(r.U / r.days);
+  // The use, bath by bath, where a bath is named: its parts add up to the use, or it stays one use and says why.
+  if (r.U != null && !useParts.length && wholeBaths) useParts = [{ qty: r.U, date: wholeBaths.date, baths: wholeBaths.baths, words: wholeBaths.words }];
+  if (r.U != null && useParts.some(function(x) { return x.baths.length; })) {
+    var sumParts = stockRound(useParts.reduce(function(t, x) { return t + x.qty; }, 0));
+    if (sumParts === stockRound(r.U)) r.useParts = useParts;
+    else r.issues.push({ level: 'amber', code: 'baths', text: 'The baths’ figures add to ' + sumParts + '; the use is ' + r.U + '. Saved as one use.' });
+  }
   if (r.C == null && r.A == null && r.U == null && r.O == null) {
     r.issues.push({ level: 'red', code: 'nofigure', text: 'No quantity found on this line' });
   }
@@ -25697,9 +25784,23 @@ function resolveStockParse(parsed, choices) {
       if (A != null) r.entries.push({ kind: 'received', qty: A, date: addDate, seq: 1 });
       if (U != null) {
         // A use on one day is that day's; one whose parts name several days covers them (useFrom … useDate).
-        var uFrom = l.useFrom || l.useDate || from;
-        r.entries.push({ kind: basis === 'charge' ? 'charged' : 'used', qty: U, date: l.useDate || to, from: uFrom, seq: 2,
-          days: l.useFrom ? stockWorkingDays(l.useFrom, l.useDate) : l.useDate ? 1 : (l.days || stockWorkingDays(from, to)), rate: l.rate, note: l.note ? stockKey(l.note) : '' });
+        var uFrom = l.useFrom || l.useDate || from, uDays = l.useFrom ? stockWorkingDays(l.useFrom, l.useDate) : l.useDate ? 1 : (l.days || stockWorkingDays(from, to));
+        var uKind = basis === 'charge' ? 'charged' : 'used';
+        if (l.useParts) {
+          // One use a bath (PP3): each part on its own day where the message dates it, else over the use's days as before,
+          // and the bath it went into as its line (two baths named together share the part: "berral & vat a1. 51 kg"). The note
+          // is the bath as written, as it always was: a part's own words, or the whole line's where the use is one part.
+          var note1 = l.note ? stockKey(l.note) : '', rest = l.note ? stockNoteSansBaths(l.note) : '';
+          l.useParts.forEach(function(pt) {
+            var pn = l.useParts.length === 1 ? note1 : [stockKey((pt.words || []).join(' ')), rest].filter(Boolean).join(' ');
+            var pe = { kind: uKind, qty: pt.qty, date: pt.date || l.useDate || to, from: pt.date || uFrom, seq: 2, days: pt.date ? 1 : uDays, note: pn };
+            if (pt.baths.length) pe.lines = pt.baths.slice();
+            if (l.useParts.length === 1 && l.rate != null) pe.rate = l.rate;
+            r.entries.push(pe);
+          });
+        } else {
+          r.entries.push({ kind: uKind, qty: U, date: l.useDate || to, from: uFrom, seq: 2, days: uDays, rate: l.rate, note: l.note ? stockKey(l.note) : '' });
+        }
       }
       if (closing != null) {
         var ce = { kind: 'count', qty: closing, date: to, seq: 3 };
@@ -25746,7 +25847,7 @@ function stockCommitPaste(parsed, res, meta) {
     r.entries.forEach(function(e) {
       var rec = { id: stockUid('SE'), itemId: item.id, kind: e.kind, qty: e.qty, date: e.date, seq: e.seq, at: at,
         source: 'paste', pasteId: pasteId, n: r.src.n, raw: r.src.raw, sentBy: meta.sentBy || '', by: meta.by || '' };
-      ['from', 'days', 'rate', 'note', 'unsettled'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
+      ['from', 'days', 'rate', 'note', 'unsettled', 'lines'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
       if (e.kind === 'used' || e.kind === 'charged') { if (!rec.days) rec.days = 1; }
       st.entries.push(rec);
       ids.push(rec.id);
@@ -26119,7 +26220,7 @@ function renderStockManual() {
       field('stockManBillDate', 'Invoice date', '<input type="date" id="stockManBillDate" class="inv-input" value="' + escHtml(m.billDate || m.date) + '">') +
       stockSupplierDatalist();
   }
-  if (m.mode === 'charged') {
+  if (m.mode === 'charged' || m.mode === 'used') {
     h += field('stockManBath', 'Into', '<input id="stockManBath" class="inv-input" value="' + escHtml(m.bath) + '" placeholder="VAT A1, Barrel…" autocomplete="off">');
   }
   h += field('stockBy', 'Entered by', '<input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" autocomplete="off">') + '</div>';
@@ -26207,7 +26308,11 @@ function stockSaveManual() {
       rec.billDate = m.billDate || m.date;
     }
     if (m.mode === 'used' || m.mode === 'charged') { rec.days = 1; rec.from = m.date; }
-    if (m.mode === 'charged' && m.bath) rec.note = m.bath;
+    if ((m.mode === 'charged' || m.mode === 'used') && m.bath) {
+      rec.note = m.bath;
+      var mb = stockBathsIn(m.bath);
+      if (mb.length) rec.lines = mb;
+    }
     if (m.mode === 'count') {
       var before = stockReplay(id, isoAddDays(m.date, 1)).level;
       if (before != null && stockRound(before) !== stockRound(q)) gaps++;
@@ -26295,7 +26400,7 @@ function stockItemBodyHtml(item) {
   }
   if (!lp) h += ' No price yet. Add a bill below and the live cost can use this line.';
   h += '</div></div></div>';
-  h += stockPatternHtml(item) + stockEditHtml(item);
+  h += stockPatternHtml(item) + stockByLineHtml(item) + stockEditHtml(item);
 
   var replay = stockReplay(item.id).rows;
   var byId = {};
@@ -26319,7 +26424,9 @@ function stockEntryRowHtml(e, r, unit, checks) {
     if (e.supplier) extra.push(e.supplier);
     if (e.billNo) extra.push('invoice ' + e.billNo + (e.billDate && e.billDate !== e.date ? ' of ' + stockShortDate(e.billDate) : ''));
   }
-  if (e.note) extra.push(e.note);
+  var into = stockEntryLines(e);
+  if (into.length) extra.push('into ' + into.map(prodLineName).join(' and '));
+  if (e.note && !(into.length && !stockNoteSansBaths(e.note))) extra.push(e.note);
   var gap = '';
   if (checks && checks.length) {
     gap = checks.map(function(c) { return '<div class="inv-callout inv-callout-warning inv-mt-8" data-check="' + escHtml(c.k) + '">' + escHtml(c.text) + '</div>'; }).join('') +
@@ -26521,7 +26628,9 @@ function stockChecksFor(ids) {
    old entries. */
 // A use and a charge are one thing to the level and the cost: a line whose basis was changed since reads the same message
 // as the other kind, which is not a different reading.
-function stockRereadKey(e) { return [e.itemId, stockIsDraw(e) ? 'draw' : e.kind, stockRound(e.qty), e.date].join('|'); }
+// The bath is part of what was read (PP3), as the entry's lines or, saved before them, the baths its note names: a use the
+// reader now splits by bath reads differently, one whose note already named its one bath does not.
+function stockRereadKey(e) { return [e.itemId, stockIsDraw(e) ? 'draw' : e.kind, stockRound(e.qty), e.date, stockEntryLines(e).join('+')].join('|'); }
 /* What a message holds now: its entries, a correction standing for the entry it corrected. */
 function stockPasteHeld(p) {
   var all = stockData().entries, byId = {};
@@ -26561,7 +26670,7 @@ function stockRereadDiff(p) {
       // An opening is saved only where it differs from what the app held before the message, which moves when an earlier
       // message is read again; so openings are compared by the figure the message states, apart from the rest.
       var rec = { itemId: r.item.id, kind: e.kind, qty: e.qty, date: e.date, seq: e.seq, n: r.src.n, raw: r.src.raw };
-      ['from', 'days', 'rate', 'note', 'unsettled'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
+      ['from', 'days', 'rate', 'note', 'unsettled', 'lines'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
       if ((e.kind === 'used' || e.kind === 'charged') && !rec.days) rec.days = 1;
       if (e.kind === 'count' && e.note === 'opening') freshOpen[r.item.id] = rec; else fresh.push(rec);
     });
@@ -26602,8 +26711,9 @@ function stockRereadAll() {
   return val;
 }
 function stockRereadEntryText(e) {
-  var it = stockItem(e.itemId), unit = it ? it.unit || '' : '';
-  return (it ? it.name + ': ' : '') + (STOCK_KIND_LABEL[e.kind] || e.kind).toLowerCase() + ' ' + stockFmtQty(e.qty) + (unit ? ' ' + unit : '') + ' on ' + stockShortDate(e.date);
+  var it = stockItem(e.itemId), unit = it ? it.unit || '' : '', into = stockEntryLines(e);
+  return (it ? it.name + ': ' : '') + (STOCK_KIND_LABEL[e.kind] || e.kind).toLowerCase() + ' ' + stockFmtQty(e.qty) + (unit ? ' ' + unit : '') + ' on ' + stockShortDate(e.date) +
+    (into.length ? ', into ' + into.map(prodLineName).join(' and ') : '');
 }
 async function stockRereadApply(pasteId) {
   if (!grdOk('floor') && !(await guardAsk('floor', 'read a stock message again'))) return;
@@ -27039,6 +27149,180 @@ function stockPatternHtml(item) {
   if (p.rate && p.rate.rate) h += row('Use', escHtml(stockFmtQty(p.used30)) + ' ' + escHtml(unit) + ' in the last 30 days', escHtml(stockFmtRate(p.rate.rate)) + ' ' + escHtml(unit) + '/day');
   if (p.costDay != null) h += row('Costs', 'at the last price', formatCurrency(p.costDay) + '/day · ' + formatCurrency(p.costMonth) + '/month');
   return h + '</div>';
+}
+
+/* ---------- Stock by line (PP3; owner, 9 Oct 2026: "Exactly", to reading the bath a stock line names) ----------
+   What went into each plating line's bath against what the line plated: zinc and every chemical whose use names its bath (the
+   supervisor's message, "use VAT A 2 / 25/09/26/ 150 kg", or Into on a use typed by hand), as so much a tonne plated and rupees a
+   kilogram, at the price paid by the day (stockPriceAt). A use counts by the day it ends, as the live cost counts it; one naming
+   no bath is the plant's, totalled apart and never placed. The kilograms are Production's (prodDayLine: every run weighed by the
+   surest route).
+   - What goes into a bath is a lump the bath draws on until the next of its kind (zinc anodes, a salt, a brightener), so each
+     addition is set against what the line plated from it until the next of the same stock line into the same bath. The last is
+     still in the bath and runs to today: it is said apart, "so far", and kept out of the line's figure unless it is the only one.
+   - The working days the line has no record for are filled at the pace of those it has, said; under half recorded, the addition
+     is not set against anything (one barrel day of fifteen had read 75 kg of zinc as 500 kg a tonne). Today, still running, is
+     left out until it is recorded.
+   - A use naming two baths is shared by what each plated over its days where each is recorded on half of them; else evenly. Both
+     are estimates and say so.
+   Worked out each time; nothing is stored but the entries' lines. */
+var STOCK_LINE_DAYS = 60;
+function stockByLine(from, to) {
+  var st = stockData(), first = null, today = localDateStr();
+  st.entries.forEach(function(e) { if (e.voided || !stockIsDraw(e)) return; var d = stockEntryWindow(e)[0]; if (!first || d < first) first = d; });
+  var start = first && first > from ? first : from;
+  var out = { from: from, to: to, start: start, recorded: !!first && first <= to, lines: {}, unnamed: { items: {}, n: 0 }, items: {} };
+  // Each line's kilograms a day, read once for the call.
+  var memo = {};
+  var kgOn = function(l, d) {
+    var k = l + '|' + d;
+    if (!memo[k]) { var r = prodDayLine(d, l); memo[k] = { kg: r.kg, est: r.est, unweighed: r.unweighed, rec: r.entries.length > 0 }; }
+    return memo[k];
+  };
+  // What a line plated over [a, b], with the share of the working days its record covers.
+  var span = function(l, a, b) {
+    var o = { kg: 0, est: 0, unweighed: 0, days: 0 };
+    for (var d = a, g = 0; d <= b && g < 400; d = isoAddDays(d, 1), g++) { var x = kgOn(l, d); o.kg += x.kg; o.est += x.est; o.unweighed += x.unweighed; if (x.rec) o.days++; }
+    var end = b === today && !kgOn(l, today).rec ? isoAddDays(b, -1) : b;
+    o.work = end >= a ? statsWorkingDays(a, end) : 0;
+    o.cover = o.work ? Math.min(1, o.days / o.work) : o.days ? 1 : 0;
+    return o;
+  };
+  PROD_LINES.forEach(function(l) {
+    var k = start <= to ? span(l, start, to) : { kg: 0, est: 0, unweighed: 0, days: 0, work: 0, cover: 0 };
+    out.lines[l] = { line: l, kg: k.kg, est: k.est, unweighed: k.unweighed, days: k.days, of: k.work, share: k.cover, items: {}, adds: [] };
+  });
+  st.entries.forEach(function(e) {
+    if (e.voided || !stockIsDraw(e) || e.date < from || e.date > to || !(e.qty > 0)) return;
+    var it = stockItem(e.itemId);
+    if (!it) return;
+    var p = stockPriceAt(it.id, e.date), price = p && p.price > 0 ? p.price : null;
+    var baths = stockEntryLines(e).filter(function(l) { return PROD_LINES.indexOf(l) >= 0; }), w = stockEntryWindow(e);
+    var tot = out.items[it.id] || (out.items[it.id] = { item: it, qty: 0, named: 0 });
+    tot.qty += e.qty;
+    if (!baths.length) {
+      var u = out.unnamed.items[it.id] || (out.unnamed.items[it.id] = { item: it, qty: 0, rs: 0, priced: true, ids: [] });
+      u.qty += e.qty; u.ids.push(e.id);
+      if (price != null) u.rs += e.qty * price; else u.priced = false;
+      out.unnamed.n++;
+      return;
+    }
+    tot.named += e.qty;
+    var spans = baths.length > 1 ? baths.map(function(l) { return span(l, w[0], w[1]); }) : null;
+    var byKg = spans && spans.every(function(k) { return k.cover >= 0.5; }) && spans.some(function(k) { return k.kg > 0; });
+    var sum = byKg ? spans.reduce(function(t, k) { return t + k.kg; }, 0) : 0;
+    baths.forEach(function(l, i) {
+      var share = baths.length === 1 ? 1 : byKg ? spans[i].kg / sum : 1 / baths.length, q = e.qty * share, L = out.lines[l];
+      var r = L.items[it.id] || (L.items[it.id] = { item: it, qty: 0, shared: 0, n: 0, priced: true });
+      r.qty += q; r.n++;
+      if (baths.length > 1) r.shared += q;
+      if (price == null) r.priced = false;
+      L.adds.push({ e: e, item: it, qty: q, rs: price != null ? q * price : null, with: baths.filter(function(x) { return x !== l; }),
+        even: baths.length > 1 && !byKg, from: w[0], to: w[1] });
+    });
+  });
+  // Each bath's additions of each stock line, against what the line plated over them (two starting on one day are one).
+  PROD_LINES.forEach(function(l) {
+    var L = out.lines[l];
+    L.runs = {};
+    L.rsKg = null; L.rsKgEst = false; L.unpriced = 0; L.soFar = 0;
+    Object.keys(L.items).forEach(function(id) {
+      var g = [];
+      L.adds.filter(function(a) { return a.item.id === id; }).sort(function(a, b) { return a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : 1; }).forEach(function(a) {
+        var last = g[g.length - 1];
+        if (last && last.from === a.from) { last.qty += a.qty; last.list.push(a); if (a.to > last.to) last.to = a.to; last.rs = last.rs == null || a.rs == null ? null : last.rs + a.rs; }
+        else g.push({ from: a.from, to: a.to, qty: a.qty, rs: a.rs, list: [a] });
+      });
+      var runs = L.runs[id] = g.map(function(x, i) {
+        var next = g[i + 1], until = next ? isoAddDays(next.from, -1) : to;
+        if (until < x.to) until = x.to;
+        var k = span(l, x.from, until), ok = k.days > 0 && k.cover >= 0.5;
+        var kgFull = ok ? k.kg / k.cover : null;
+        return { from: x.from, to: x.to, until: until, open: !next, qty: x.qty, rs: x.rs, list: x.list, kg: k.kg, kgFull: kgFull, days: k.days, work: k.work, cover: k.cover,
+          est: k.est > 0.0005 || k.cover < 0.999, unweighed: k.unweighed, perT: ok && kgFull > 0 ? x.qty / (kgFull / 1000) : null };
+      });
+      // The line's figure for the stock line: its additions set against what was plated over them, the one still in the bath apart.
+      var r = L.items[id], closed = runs.filter(function(x) { return !x.open && x.perT != null; }), last = runs[runs.length - 1];
+      var use = closed.length ? closed : last && last.open && last.perT != null ? [last] : [];
+      var qty = use.reduce(function(t, x) { return t + x.qty; }, 0), kg = use.reduce(function(t, x) { return t + x.kgFull; }, 0);
+      r.perT = use.length && kg > 0 ? qty / (kg / 1000) : null;
+      r.soFar = !closed.length && use.length > 0;
+      r.est = use.some(function(x) { return x.est; }); r.atMost = use.some(function(x) { return x.unweighed > 0; });
+      r.on = use.length; r.withheld = runs.filter(function(x) { return x.perT == null; }).length;
+      // Why there is no figure: the line not recorded on half the days, or recorded with nothing weighed.
+      r.why = r.perT != null ? '' : runs.some(function(x) { return x.days > 0 && x.cover >= 0.5; }) ? 'no plating weighed' : 'too few days recorded';
+      var rs = use.every(function(x) { return x.rs != null; }) ? use.reduce(function(t, x) { return t + x.rs; }, 0) : null;
+      r.rs = runs.reduce(function(t, x) { return t + (x.rs || 0); }, 0);
+      r.rsKg = rs != null && kg > 0 ? rs / kg : null;
+      // The line's rupees a kilogram: each stock line's over the plating its additions met, only where one has been drawn on to the
+      // next (a first addition still in the bath would read it high), the others counted apart.
+      if (use.length && rs == null) L.unpriced++;
+      if (r.soFar) L.soFar++;
+      else if (r.rsKg != null) { L.rsKg = (L.rsKg || 0) + r.rsKg; if (r.est) L.rsKgEst = true; }
+    });
+  });
+  return out;
+}
+/* A line's figure for a stock line a tonne plated, with its sign: ≤ where pieces nothing weighs leave the kilograms short (the
+   most it can be), ≈ where a weight is estimated or a day not recorded was filled. Null where it is not set against anything. */
+function stockPerTonneText(v, est, atMost) {
+  return v == null ? null : (atMost ? '≤ ' : est ? '≈ ' : '') + stockFmtRate(v);
+}
+/* The uses of a stock line that go into a bath on a day, for Floor's card: those of one day on it, and a use over several days
+   on the day it ends, with its days. */
+function stockDayAdds(day, line) {
+  var out = [];
+  stockData().entries.forEach(function(e) {
+    if (e.voided || !stockIsDraw(e) || e.date !== day || !(e.qty > 0)) return;
+    var it = stockItem(e.itemId), baths = stockEntryLines(e);
+    if (!it || baths.indexOf(line) < 0) return;
+    var w = stockEntryWindow(e);
+    out.push({ e: e, item: it, qty: e.qty, shared: baths.length > 1, with: baths.filter(function(x) { return x !== line; }), from: w[0] });
+  });
+  return out;
+}
+
+/* Two days as a span, the month once where they share it: "23 – 24 Sep", "28 Sep – 2 Oct". */
+function stockSpanText(a, b) {
+  if (!a || a === b) return stockShortDate(a || b);
+  return a.slice(0, 7) === b.slice(0, 7) ? (+a.slice(8)) + ' – ' + stockShortDate(b) : stockShortDate(a) + ' – ' + stockShortDate(b);
+}
+/* By line, on a stock line's page (Stock → a line), drawn as an analysis (§6.27): a row a line with its figure a tonne plated, its
+   rupees a kilogram and its additions folded under it, one a row; what named no bath, a row of its own. How it is worked out is
+   the guide's (kbguides.js, "Reading the plant's figures"). */
+function stockByLineHtml(item) {
+  var to = localDateStr(), res = stockByLine(isoAddDays(to, -(STOCK_LINE_DAYS - 1)), to), unit = item.unit || '', tot = res.items[item.id];
+  if (!tot) return '';
+  var q = function(v) { return stockFmtQty(v) + (unit ? ' ' + unit : ''); };
+  var per = function(txt) { return txt ? txt + ' ' + (unit || 'unit') + '/t' : ''; };
+  var t = function(kg) { return formatNum(kg / 1000, kg < 10000 ? 2 : 1) + ' t'; };
+  var h = '<div class="inv-panel inv-panel-flush" id="stockByLine"><div class="inv-panel-head"><span class="inv-panel-title">By line, ' + STOCK_LINE_DAYS + ' days</span></div>';
+  if (!(tot.named > 0)) {
+    // A line counted in pieces (gloves, a spray can) goes into no bath: nothing to say.
+    if (/^nos$/i.test(unit)) return '';
+    return h + '<div class="inv-row inv-row-auto" data-stock-unnamed><span class="inv-note">None of the ' + escHtml(q(tot.qty)) + ' used names its bath. ' +
+      'Write the bath in the message (“use VAT A 2 / 150 kg”), or pick it under Into by hand, and it is set against the line.</span></div></div>';
+  }
+  PROD_LINES.forEach(function(l) {
+    var L = res.lines[l], r = L.items[item.id];
+    if (!r) return;
+    var sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
+    var head = { label: prodLineName(l), src: r.soFar ? ['neutral', 'so far'] : null, value: per(stockPerTonneText(r.perT, r.est || r.soFar, r.atMost)), attrs: ' data-stock-line="' + l + '"',
+      sub: r.perT == null ? r.why : [r.rsKg != null ? sign + '₹' + formatNum(r.rsKg, 2) + '/kg' : r.priced ? '' : 'no price', todoPlural(r.n, 'addition')].filter(Boolean).join(' · ') };
+    var facts = (L.runs[item.id] || []).map(function(x) {
+      var shared = x.list.some(function(a) { return a.with.length; });
+      return { label: stockSpanText(x.from, x.to) + ' · ' + q(x.qty), src: shared ? ['neutral', 'shared'] : null, value: per(stockPerTonneText(x.perT, x.est, x.unweighed > 0)), attrs: ' data-stock-add="' + l + '"',
+        sub: x.perT == null ? (x.days > 0 && x.cover >= 0.5 ? 'nothing weighed to ' + stockShortDate(x.until) : x.days + ' of ' + x.work + ' days recorded')
+          : (x.est ? '≈ ' : '') + t(x.kgFull) + (x.open ? ' so far' : ' to ' + stockShortDate(x.until)) + (x.cover < 0.999 ? ' · ' + x.days + ' of ' + x.work + ' days' : '') };
+    });
+    h += uiFoldRowHtml('stock-line-' + item.id + '-' + l, head, facts);
+  });
+  var u = res.unnamed.items[item.id];
+  if (u) {
+    var checks = stockEntryChecks(item.id), held = u.ids.filter(function(id) { return checks[id] && checks[id].length; }).length;
+    h += uiFactRowHtml({ label: 'No bath named', value: q(u.qty), sub: 'the plant’s' + (held ? ' · ' + held + ' on To check' : ''), attrs: ' data-stock-unnamed' });
+  }
+  return h + '<div class="inv-panel-body inv-note">Each addition against what its line plated until the next. ≈ an estimate, ≤ the most it can be.</div></div>';
 }
 
 /* ---------- The live cost ---------- */
@@ -43622,8 +43906,11 @@ function pltStationHtml(station) {
     ' <span class="inv-panel-count">' + (cap.n ? cap.nAvail + ' of ' + cap.n : 'none') + '</span></span>' + pltCapDot(cap) + '</div>';
   if (!cap.n) return h + '<div class="inv-empty">No unit recorded for ' + escHtml(name) + '.' + (pltCanEdit() ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button>' : '') + '</div></div>';
   h += '<div class="inv-panel-body"><div class="inv-unit-cap" data-plt-cap><span class="inv-unit-cap-words">' + escHtml(pltCapWords(cap)) + '</span>' + pltBarHtml(cap) +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '') +
-    (cap.used && cap.used.kgRound != null ? ' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round (' + cap.used.why + ')' : cap.used && PLT_LINE_STATIONS[station] ? ' · ' + cap.used.why : '')) + '</span></div>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '')) +
+    // What it plates a round, and where that comes from as a badge (§6.27); how it was measured is the line's working on Floor.
+    (cap.used && cap.used.kgRound != null ? escHtml(' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round') + ' <span class="inv-badge inv-badge-' + (cap.used.firm ? 'ok' : 'neutral') + '" data-plt-used="' +
+      (cap.used.firm ? 'measured' : cap.used.firm === false ? 'notfirm' : 'book') + '">' + (cap.used.firm ? 'measured' : cap.used.firm === false ? 'not firm' : 'from the book') + '</span>'
+      : cap.used && PLT_LINE_STATIONS[station] ? escHtml(' · ' + cap.used.why) : '') + '</span></div>' +
     '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
   // The power cuts that hit this line (powercause.js), when any were tied to it.
   if (typeof pcsStationNote === 'function') h += pcsStationNote(station);
@@ -45398,7 +45685,11 @@ function prodDayHeroHtml(date, opts) {
   else if (pic.usual != null) { worse('ok'); title = (pic.kg > pic.usual * 1.2 ? 'Over' : 'About') + ' a usual day of ' + prodKgFig(pic.usual, true); }
   else title = todoPlural(pic.ran.length, 'line') + ' ran';
   if (lag > 2 && !tone) tone = 'warning';
-  var sub = prodPlatedSub(pic.pieces, pic.kgWritten, pic.kg, pic.est, pic.unweighed) + (effWord && title.indexOf(effWord) < 0 ? ' · ' + effWord : '');
+  // How good and how sure, in short facts (§6.27): the plant's efficiency where the title is about something else, the share
+  // estimated, the pieces nothing weighs where the title does not say them; the record itself where none of those is.
+  var notW = pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '';
+  var sub = [effWord && title.indexOf(effWord) < 0 ? Math.round(de.eff * 100) + '% efficient' : '', estd && pic.kg > 0 ? Math.round(pic.est / pic.kg * 100) + '% estimated' : pic.unweighed ? '' : 'every run weighed',
+    notW && title.indexOf('not weighed') < 0 ? notW : ''].filter(Boolean).join(' · ') || prodPlatedSub(pic.pieces, pic.kgWritten, 0, 0, 0);
   var meterTitle = prodKgFig(pic.kg, estd, pic.unweighed > 0) + ' plated: ' + [sure ? prodKgFig(sure) + ' weighed' : '', pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '',
     pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '', pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind' : ''].filter(Boolean).join(', ') +
     '. Two shifts hold about ' + prodKgFig(pic.capacity) + (pic.usual != null ? '; a usual day is ' + prodKgFig(pic.usual, true) : '') + '.';
@@ -45445,12 +45736,13 @@ function prodDayLinesHtml(pic, compact) {
   });
   return h;
 }
-/* Pieces nothing weighs, one row a floor name: its client, the lines, the pieces, and the two moves that weigh it. */
+/* Pieces nothing weighs, one row a floor name: its client and lines, the pieces, and the two moves that weigh it. The list's head
+   says why they are listed (§6.27): a row does not say it again. */
 function prodUnweighedRowsHtml(names) {
   var may = typeof grdOk !== 'function' || grdOk('floor');
   return names.map(function(n) {
     return '<div class="inv-row inv-row-2 inv-row-flow" data-prod-weigh="none"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(n.part || 'No part written') + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml([n.client, n.lines && n.lines.length ? n.lines.map(prodLineName).join(', ') : '', 'no weight on record, no challan of it with a count'].filter(Boolean).join(' · ')) + '</span></span>' +
+      '<span class="inv-row-meta">' + escHtml([n.client, n.lines && n.lines.length ? n.lines.map(prodLineName).join(', ') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
       '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + escHtml(Math.round(n.pieces).toLocaleString('en-IN') + ' pcs') + '</span>' +
       (may && n.clientId != null && n.id && n.part ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(n.id) + '">Which part?</button>' +
         '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdWeighSet" data-id="' + escHtml(n.id) + '">Set its weight</button>' : '') + '</span></div>';
@@ -45489,65 +45781,52 @@ function prodWeighSetSave(id) {
   tabRedrawActive();
   showToast(part + ' weighed at ' + formatNum(kg, 3) + ' kg a piece from ' + formatDate(first));
 }
-/* How the day was weighed: the kilograms by route, the range the estimates allow, and each name nothing weighs, with the
-   move that weighs it (Which part? learns the floor's name as one of the client's parts, for every run under it). */
+/* How the day was weighed (§6.27): the kilograms by route, folded under one row that says how much is estimated, a route a row;
+   then the names nothing weighs, which need the owner, open under their own head with the moves that weigh them. */
 function prodDayWeighHtml(pic, compact) {
-  var sure = pic.by.written + pic.by.record;
-  var row = function(key, title, meta, kg) {
-    return '<div class="inv-row inv-row-2" data-prod-weigh="' + key + '"><span class="inv-row-main"><span class="inv-row-title">' + title + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span>' +
-      '<span class="inv-row-end inv-num">' + escHtml(kg) + '</span></div>';
-  };
-  var h = '<div class="inv-row-group"><span>How it was weighed</span></div>';
-  if (compact) {
-    return h + row('summary', escHtml(!pic.est ? 'Every run weighed' : sure ? Math.round(sure / pic.kg * 100) + '% weighed, the rest estimated' : 'Estimated'),
-      [pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '', pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '',
-        pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind (' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high) + ' for the day)' : '',
-        pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pieces not weighed' : ''].filter(Boolean).join(' · ') || 'kilos written, or a weight on record', prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0));
-  }
-  if (sure) h += row('sure', 'Weighed', 'kilos written, or the part’s weight on record', prodKgFig(sure));
-  if (pic.by.challans) h += row('challans', 'From the challans', 'at the kg a piece of the challans the plating was set against', prodKgFig(pic.by.challans, true));
+  var sure = pic.by.written + pic.by.record, estPct = pic.kg > 0 && pic.est > 0.0005 ? Math.round(pic.est / pic.kg * 100) : 0;
+  var notW = pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '';
+  if (compact) return uiFactRowHtml({ label: 'How it was weighed', sub: [estPct ? estPct + '% estimated' : 'every run weighed', notW].filter(Boolean).join(' · '),
+    value: prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0), attrs: ' data-prod-weigh="summary"' });
   // A client's default (owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable"): its figure, and the door that changes it.
   var mayEdit = (typeof grdCan !== 'function' || grdCan('rates')) && (typeof grdSees !== 'function' || grdSees('pageClients'));
-  (pic.dflt || []).forEach(function(d) {
-    h += '<div class="inv-row inv-row-2 inv-row-flow" data-prod-weigh="default"><span class="inv-row-main"><span class="inv-row-title">' + escHtml('At ' + d.client + '’s default') + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(d.kgPc, 3) + ' kg a piece, set on the client, for ' + Math.round(d.pieces).toLocaleString('en-IN') + ' pieces nothing links to a part') + '</span></span>' +
-      '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + escHtml(prodKgFig(d.kg, true)) + '</span>' +
-      (mayEdit && d.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(d.clientId)) + '">Change</button>' : '') + '</span></div>';
-  });
-  if (pic.by.kind) h += row('kind', 'By its kind', 'at the client’s usual kg a piece for that kind and gauge · the day ' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high), prodKgFig(pic.by.kind, true));
-  if (pic.names.length) h += prodUnweighedRowsHtml(pic.names) + '<div class="inv-row"><span class="inv-row-main"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every run not weighed</button></span></div>';
+  var facts = [sure ? { label: 'Weighed', sub: 'its kilos, or a weight on record', value: prodKgFig(sure), attrs: ' data-prod-weigh="sure"' } : null,
+    pic.by.challans ? { label: 'From the challans', sub: 'their kg a piece', value: prodKgFig(pic.by.challans, true), attrs: ' data-prod-weigh="challans"' } : null]
+    .concat((pic.dflt || []).map(function(d) {
+      return { label: 'At ' + d.client + '’s default', sub: formatNum(d.kgPc, 3) + ' kg a piece · ' + Math.round(d.pieces).toLocaleString('en-IN') + ' pcs', value: prodKgFig(d.kg, true), attrs: ' data-prod-weigh="default"',
+        actions: mayEdit && d.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(d.clientId)) + '">Change</button>' : '' };
+    }))
+    .concat([pic.by.kind ? { label: 'By its kind', sub: 'the day ' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high), value: prodKgFig(pic.by.kind, true), attrs: ' data-prod-weigh="kind"' } : null]);
+  var h = uiFoldRowHtml('prod-day-weigh', { label: 'How it was weighed', sub: estPct ? estPct + '% estimated' : 'every run weighed', value: facts.filter(Boolean).length, count: true }, facts, ' data-prod-day-weighing');
+  if (pic.names.length) h += '<div class="inv-row-group"><span>' + escHtml('Not weighed · ' + Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs') + '</span></div>' + prodUnweighedRowsHtml(pic.names) +
+    '<div class="inv-row"><span class="inv-row-main"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every run not weighed</button></span></div>';
   return h;
 }
-/* The clients, the cuts, the loads, and the week against two shifts. */
+/* The clients (folded), then the day as facts: what the work is worth, its labour, the cuts, the loads, the week. */
 function prodDayMoreHtml(pic) {
-  var h = '<div class="inv-row-group"><span>Clients</span></div>';
-  pic.clients.slice(0, 5).forEach(function(c) {
-    var meta = [c.pieces ? Math.round(c.pieces).toLocaleString('en-IN') + ' pcs' : '', c.kgWritten ? formatNum(c.kgWritten, 0) + ' kg written' : '', c.unweighed ? Math.round(c.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : ''].filter(Boolean).join(' · ');
-    h += '<div class="inv-row inv-row-2" data-prod-day-client="' + escHtml(c.clientId != null ? String(c.clientId) : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
-      '<span class="inv-row-end inv-num">' + escHtml(c.kg > 0 ? prodKgFig(c.kg, c.est > 0.0005, c.unweighed > 0) : '—') + '</span></div>';
+  var cf = pic.clients.slice(0, 5).map(function(c) {
+    return { label: c.name, sub: [c.pieces ? Math.round(c.pieces).toLocaleString('en-IN') + ' pcs' : '', c.kgWritten ? formatNum(c.kgWritten, 0) + ' kg written' : '', c.unweighed ? Math.round(c.unweighed).toLocaleString('en-IN') + ' not weighed' : ''].filter(Boolean).join(' · '),
+      value: c.kg > 0 ? prodKgFig(c.kg, c.est > 0.0005, c.unweighed > 0) : '', attrs: ' data-prod-day-client="' + escHtml(c.clientId != null ? String(c.clientId) : '') + '"' };
   });
   if (pic.clients.length > 5) {
     var rest = pic.clients.slice(5), kg = rest.reduce(function(s, c) { return s + c.kg; }, 0), est = rest.some(function(c) { return c.est > 0.0005; });
-    h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(todoPlural(rest.length, 'more client')) + '</span></span><span class="inv-row-end inv-num">' + escHtml(kg > 0 ? prodKgFig(kg, est) : '—') + '</span></div>';
+    cf.push({ label: todoPlural(rest.length, 'more client'), value: kg > 0 ? prodKgFig(kg, est) : '' });
   }
+  var h = uiFoldRowHtml('prod-day-clients', { label: 'Clients', value: pic.clients.length, count: true }, cf, ' data-prod-day-clients');
   var mins = pic.cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), open = pic.cuts.filter(function(c) { return c.open; }).length;
-  h += '<div class="inv-row-group"><span>The day</span></div>';
   // What the work is worth at the rates on record, and the labour the day's record holds: shown to a role that sees money
   // and wages (guard.js), never a figure a role's screens do not show.
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), wages = typeof grdSeesWages !== 'function' || grdSeesWages();
-  if (money && pic.worth.runs) h += '<div class="inv-row inv-row-2" data-prod-day-worth><span class="inv-row-main"><span class="inv-row-title">' + escHtml('Work plated, worth ' + (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount)) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml('at its clients’ rates on record, before GST; rework left out' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pieces with no rate or weight' : '')) + '</span></span></div>';
-  if (wages && pic.labour > 0) h += '<div class="inv-row inv-row-2" data-prod-day-labour><span class="inv-row-main"><span class="inv-row-title">' + escHtml('Labour on the day’s record ' + formatCurrency(pic.labour)) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml((money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of what the work is worth · ' : '') + 'every tier, overtime and the EXTRA, as Staff counts it') + '</span></span></div>';
-  h += '' +
-    '<div class="inv-row inv-row-2" data-prod-day-cuts><span class="inv-row-main"><span class="inv-row-title">' + (pic.cuts.length ? escHtml(todoPlural(pic.cuts.length, 'power cut')) : 'No power cut reported') + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') : 'on the day’s record') + '</span></span>' +
-    '<span class="inv-row-end">' + (pic.cuts.length ? uiDot(open ? 'warning' : 'danger', escHtml(open ? open + ' with no time back' : powerDur(mins) + ' dark')) : '') + '</span></div>' +
-    '<div class="inv-row inv-row-2" data-prod-day-loads><span class="inv-row-main"><span class="inv-row-title">' + escHtml(pic.loads ? todoPlural(pic.loads, 'pickling load') : 'No pickling load recorded') + '</span>' +
-    '<span class="inv-row-meta">the pickling hand’s messages</span></span></div>';
   var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date);
-  if (wk) h += '<div class="inv-row inv-row-2" data-prod-day-week><span class="inv-row-main"><span class="inv-row-title">' + escHtml('The week to this day: ' + Math.round(wk.perDay / wk.capacity * 100) + '% of capacity') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day') + ' · two shifts hold about ' + prodKgFig(wk.capacity) + ' a day') + '</span></span></div>';
+  h += '<div class="inv-row-group"><span>The day</span></div>' + [
+    money && pic.worth.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
+      value: (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount), attrs: ' data-prod-day-worth' } : null,
+    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
+    { label: 'Power cuts', sub: pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') + (open ? ' · ' + open + ' with no time back' : '') : '',
+      value: pic.cuts.length ? powerDur(mins) + ' dark' : 'none', attrs: ' data-prod-day-cuts' },
+    { label: 'Pickling loads', value: pic.loads || 'none', attrs: ' data-prod-day-loads' },
+    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null
+  ].filter(Boolean).map(uiFactRowHtml).join('');
   return h;
 }
 
@@ -45577,7 +45856,7 @@ function prodOverviewHtml() {
   }
   h += '<div class="inv-panels"><div class="inv-panel" id="prodChart"><div class="inv-panel-head"><span class="inv-panel-title">Plated by line, 4 weeks</span></div>' +
     chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with nine tenths of its pieces weighed' }) +
-    '<div class="inv-note">Kilograms by day, each run weighed by the surest route the book holds (its kilos, its weight on record, the challans it was set against, or its kind; the day card says which). A day with no record for a line, or with over a tenth of its pieces not weighed, is a gap in its line, not a zero.</div></div>';
+    '<div class="inv-note">Kilograms a day. A gap is a day with no record, or a tenth of its pieces not weighed.</div></div>';
   var cov = prodCoverage(from, today);
   h += '<div class="inv-panel inv-panel-flush" id="prodCoverage"><div class="inv-panel-head"><span class="inv-panel-title">Record coverage, 4 weeks</span></div>';
   PROD_LINES.forEach(function(l) {
@@ -45586,7 +45865,7 @@ function prodOverviewHtml() {
       (c.last ? 'last recorded ' + escHtml(stockShortDate(c.last)) : 'never recorded') + '</span></span><span class="inv-row-end"><span class="inv-num">' + c.days + ' of ' + c.of + '</span>' +
       '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'warning') + '">' + (ok ? 'Recorded' : 'Gaps') + '</span></span></div>';
   });
-  h += '<div class="inv-panel-body inv-note">Working days with a plated record for the line. Figures that rest on the floor record read low where it has gaps, and the In plant tab says so.</div></div>';
+  h += '<div class="inv-panel-body inv-note">Working days with a plated record. Where it has gaps, what rests on it reads low.</div></div>';
   var unknown = idx.live.filter(function(e) { return e.kind === 'pickled' && !idx.replaced[e.id] && e.date >= from && prodLoadLine(e).how === 'unknown'; });
   h += '<div class="inv-panel inv-panel-flush" id="prodUnknown"><div class="inv-panel-head"><span class="inv-panel-title">Line unknown</span><span class="inv-panel-count">' + unknown.length + '</span></div>' +
     (unknown.length ? unknown.slice(-6).reverse().map(prodLoadRowHtml).join('') + (unknown.length > 6 ? '<div class="inv-panel-body"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdFilter" data-flag="unknown">All ' + unknown.length + '</button></div>' : '')
@@ -45722,6 +46001,7 @@ function prodLinesHtml() {
         return '<td class="inv-num">' + (x.entries.length ? escHtml((x.kg > 0 ? (x.est > 0.0005 ? '≈ ' : '') + formatNum(x.kg, 0) : '') + (x.unweighed ? (x.kg > 0 ? ' + ' : '') + Math.round(x.unweighed).toLocaleString('en-IN') + ' pcs' : '')) : '&mdash;') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Kilograms plated, ≈ where any run is estimated; pieces nothing weighs are added as pieces. A dash is a day with no record for the line.</div></div>';
+  h += prodLineStockHtml(line);
   // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
   var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
@@ -45732,6 +46012,33 @@ function prodLinesHtml() {
     '<div class="inv-panel-body inv-note">Variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), with the VAT side’s pickling hands shared by each day’s kg, over the same days as the kg (days with nine tenths of the pieces weighed, estimates by the challans or by kind included). The monthly crew is the standing crew and is not by line. Withheld under five days. ' +
     escHtml(lab.skipped ? lab.skipped + ' day' + (lab.skipped === 1 ? '' : 's') + ' with attendance and no usable production record are left out.' : '') + '</div></div>';
   return h;
+}
+/* What went into the line's bath over 60 days (PP3; cost.js stockByLine), drawn as an analysis (§6.27): a row a stock line with its
+   figure a tonne plated and, for a role that sees money, its rupees a kilogram; the line's rupees a kilogram; what named no bath. */
+function prodLineStockHtml(line) {
+  var to = localDateStr(), res = stockByLine(isoAddDays(to, -(STOCK_LINE_DAYS - 1)), to), L = res.lines[line];
+  if (!res.recorded || !L) return '';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), name = PROD_LINE_LABEL[line], stockDoor = typeof grdSees !== 'function' || grdSees('pageStock');
+  var ids = Object.keys(L.items).sort(function(a, b) { return (L.items[b].rs - L.items[a].rs) || (L.items[b].qty - L.items[a].qty); });
+  var h = '<div class="inv-panel inv-panel-flush" id="prodLineStock"><div class="inv-panel-head"><span class="inv-panel-title">Into the bath, ' + STOCK_LINE_DAYS + ' days</span>' +
+    (ids.length ? '<span class="inv-panel-count">' + ids.length + '</span>' : '') + '</div>';
+  if (!ids.length) h += '<div class="inv-empty">No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.</div>';
+  ids.forEach(function(id) {
+    var r = L.items[id], unit = r.item.unit || '', pt = stockPerTonneText(r.perT, r.est || r.soFar, r.atMost), sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
+    var f = { label: r.item.name, src: r.soFar ? ['neutral', 'so far'] : null, value: pt ? pt + ' ' + (unit || 'unit') + '/t' : '',
+      sub: r.perT == null ? r.why : [money ? (r.rsKg != null ? sign + '₹' + formatNum(r.rsKg, 2) + '/kg' : r.priced ? '' : 'no price') : '', todoPlural(r.n, 'addition')].filter(Boolean).join(' · ') };
+    // The stock line's page, for a role that opens Stock.
+    h += stockDoor ? '<button type="button" class="inv-row inv-row-2" data-action="invProdStockLine" data-id="' + escHtml(id) + '" data-prod-line-stock="' + escHtml(id) + '">' + _uiFactInner(f) + '</button>'
+      : uiFactRowHtml(Object.assign(f, { attrs: ' data-prod-line-stock="' + escHtml(id) + '"' }));
+  });
+  if (ids.length && money) {
+    // What the line's figure leaves out is said beside it: a stock line on its first addition, one with no price (reads low).
+    h += uiFactRowHtml(L.rsKg != null ? { label: 'All of it', value: (L.rsKgEst ? '≈ ' : '') + '₹' + formatNum(L.rsKg, 2) + '/kg', attrs: ' data-prod-line-stock-total',
+        sub: [L.soFar ? L.soFar + ' still on a first addition' : '', L.unpriced ? L.unpriced + ' with no price: reads low' : ''].filter(Boolean).join(' · ') }
+      : { label: 'All of it', value: '', sub: L.soFar ? 'each still on a first addition' : 'no price', attrs: ' data-prod-line-stock-total' });
+  }
+  if (res.unnamed.n) h += uiFactRowHtml({ label: 'No bath named', value: todoPlural(res.unnamed.n, 'use'), sub: 'the plant’s, not in these', attrs: ' data-prod-line-stock-unnamed' });
+  return h + '<div class="inv-panel-body inv-note">Each addition against what the line plated until the next. ≈ an estimate, ≤ the most it can be.</div></div>';
 }
 function prodRunRowHtml(e, muted) {
   var rounds = (e.rounds || []).filter(function(x) { return !x.struck; });
@@ -46494,6 +46801,7 @@ function prodImportText(text, name) {
 function prodAction(action, btn) {
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
+    case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       var wasPhoto = !!_prodPhoto;
       _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
@@ -46797,13 +47105,24 @@ function flrCardHtml(day, isToday, ln, byArea, marked) {
       '<span class="inv-row-end inv-row-actions">' + btn + '</span></div>';
   }
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
-  if (ef && ef.eff != null) h += flrEffRowHtml(ef);
+  if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.
   var cr = last ? prodCrew(last) : prodCrew(ln.id === 'pickling' ? { date: day, kind: 'pickled' } : { date: day, kind: 'plated', line: ln.id, slot: 'general' });
   var crew = last ? (cr.known ? (cr.src === 'block' ? 'OT crew: ' : 'Crew: ') + cr.names.join(', ') : 'Crew not known: ' + cr.why)
     : cr.known ? 'On the line: ' + cr.names.join(', ') : cr.why.charAt(0).toUpperCase() + cr.why.slice(1);
   // The line's units on the day shown (plant.js): what of it could run.
   h += pltFloorRowHtml(ln.id, day);
+  // What went into the line's bath that day, as the stock record has it (PP3): a use over several days on the day it ends. One
+  // a fact row; more, a row that folds open to them (§6.27).
+  if (ln.id !== 'pickling') {
+    var adds = stockDayAdds(day, ln.id);
+    var addFact = function(a) {
+      return { label: a.item.name, value: stockFmtQty(a.qty) + (a.item.unit ? ' ' + a.item.unit : ''), attrs: ' data-flr-bath-item',
+        sub: [a.from !== day ? stockSpanText(a.from, day) : '', a.shared ? 'shared with ' + a.with.map(prodLineName).join(' and ') : ''].filter(Boolean).join(' · ') };
+    };
+    if (adds.length === 1) h += uiFactRowHtml(Object.assign(addFact(adds[0]), { label: adds[0].item.name + ' into the bath', attrs: ' data-flr-bath' }));
+    else if (adds.length) h += uiFoldRowHtml('flr-bath-' + ln.id, { label: 'Into the bath', value: adds.length, count: true }, adds.map(addFact), ' data-flr-bath');
+  }
   h += '<div class="inv-row inv-row-auto" data-flr-crew><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(crew) + '</span></span></div>';
   // The head: what the line is judged on; the foot: its staffing, its EXTRA and its record, each a door.
   var tone = ef ? ef.tone : st.tone === 'warning' ? 'warning' : st.tone === 'ok' ? 'ok' : 'neutral';
@@ -46829,13 +47148,9 @@ function flrEffHead(ef, last, isToday) {
   // What needs following up leads (half the line down, the general shift unrecorded); the plating follows in the sub.
   var lead = [ef.halfDown ? down : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var title = lead ? lead.charAt(0).toUpperCase() + lead.slice(1) : plated;
-  // The inputs, most needed first: a phone shows two lines of them, and the round and the pace are said again under the card.
-  var evW = { assumed: 'assumed', set: 'set', measured: 'measured' }[ef.everySrc] || '', kgM = ef.kgSrc === 'measured';
-  var round = formatNum(ef.kgAvail, 0) + ' kg a round' + (kgM && evW === 'measured' ? ' every ' + Math.round(ef.every) + ' min, both measured'
-    : (kgM ? ' (measured)' : '') + ', every ' + Math.round(ef.every) + ' min' + (evW ? ' (' + evW + ')' : ''));
+  // What it had to plate with and what reads it low; the round, the pace and the rest are the working under the card (§6.27).
   var sub = [lead ? plated : '', units, hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''),
-    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pieces not weighed: reads low' : '',
-    ef.noEnd ? todoPlural(ef.noEnd, 'run') + ' with no end time not counted' : '', round].filter(Boolean).join(' · ');
+    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : ''].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: Math.min(ef.kg, ef.possible * 1.2), tone: ef.tone === 'neutral' ? 'neutral' : ef.tone }], { max: ef.possible, mark: ef.possible * PROD_EFF_OK,
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
@@ -46843,50 +47158,55 @@ function flrEffHead(ef, last, isToday) {
 /* How the efficiency splits where the register counted the rounds (owner, 9 Oct 2026: "We'll do both, so solutions for
    efficiency can be worked out"): the time (the rounds run, of the rounds the hours allowed), the racks (how full each round
    was, against its part's fullest round), the parts (what a full round of the day's parts weighs, against the line's round)
-   and, where rounds have no weight, what they leave out: their product is the figure (prodLineEfficiency). Then where the
-   round and the pace come from: measured on the register once firm, else set or typed, with the register's measure beside it. */
-function flrEffRowHtml(ef) {
+   and, where rounds have no weight, what they leave out: their product is the figure (prodLineEfficiency). Drawn as an
+   analysis (§6.27; owner: "The times lost most reads like a block of text"): what moved it most names the factors, a tile each,
+   and how each was worked out is folded under them, one fact a row, where the round and the pace come from as a badge. */
+function flrEffRowHtml(ef, line) {
   // The rounds the hours allowed are hours over the pace, a fraction: shown to a tenth, so 25 against 24.5 reads as 102%.
-  var pct = function(x) { return Math.round(x * 100) + '%'; }, T = ef.tank || {}, C = ef.cycle || {}, bits = [],
+  var pct = function(x) { return Math.round(x * 100) + '%'; }, T = ef.tank || {}, C = ef.cycle || {}, unitW = ef.unitWord || 'unit',
     rp = Math.abs(ef.roundsPossible - Math.round(ef.roundsPossible)) < 0.05 ? String(Math.round(ef.roundsPossible)) : formatNum(ef.roundsPossible, 1);
   // The time is the rounds' worth: kilos written without rounds count at the counted rounds' weight. Past a quarter of the
   // line's kilos that is a guess at a different mix (an evening of heavy clamps beside a day of pads), so it is not given.
   var noRounds = ef.kg > 0 ? (ef.kgNoRounds || 0) / ef.kg : 0, timeKnown = ef.pace != null && (ef.roundsOnly || noRounds <= 0.25);
+  var nr = Math.round(ef.rounds || 0), SRC = { measured: ['ok', 'measured'], set: ['neutral', 'set'], assumed: ['warning', 'assumed'], typed: ['neutral', 'typed'] };
+  // Why a measure is not firm yet: the first of what it lacks, a few words; the rest follows once that is met.
+  var lacks = function(why) { return String(why || '').split(', ')[0]; };
+  // The working, in the order the figure is built: the time (hours, pace, rounds), then the round (its kilos, the racks, the parts).
+  var facts = [{ label: 'Hours run', value: formatNum(ef.minutes / 60, 1).replace(/\.0$/, '') + ' h', sub: ef.cutMin ? powerDur(ef.cutMin) + ' of cuts taken off' : '' },
+    { label: 'A round every', value: Math.round(ef.every) + ' min', src: SRC[ef.everySrc] || null,
+      sub: ef.everySrc === 'measured' ? 'on the register, ' + todoPlural(C.shifts, 'shift') + (ef.everySet && Math.round(ef.everySet) !== Math.round(ef.every) ? ' · set ' + Math.round(ef.everySet) : '')
+        : C.every != null ? 'register ' + Math.round(C.every) + ' min, not firm: ' + lacks(C.why) : '' }];
   if (ef.pace != null) {
-    var nr = Math.round(ef.rounds);
-    bits.push(ef.roundsOnly ? 'time: ran ' + nr + ' rounds where the hours allowed ' + rp + ' (' + pct(ef.pace) + ')'
-      : !timeKnown ? 'time: not told apart, ' + prodKgFig(ef.kgNoRounds) + ' (' + pct(noRounds) + ' of the kilos) written without rounds beside the ' + nr + ' the register counted'
-      : 'time: ran about ' + Math.round(ef.roundsRun) + ' rounds where the hours allowed ' + rp + ' (' + pct(ef.pace) + '): ' + nr + ' counted on the register, ' +
-        prodKgFig(ef.kgNoRounds) + ' from runs written without rounds');
-    if (ef.racks != null) {
-      bits.push('racks: ' + pct(ef.racks) + ' full, each round against its part’s fullest');
-      if (ef.partFull && ef.partFull.length) bits.push('part-full: ' + ef.partFull.slice(0, 3).map(function(p) {
-        var fulls = Object.keys(p.fulls), who = p.clientId != null ? plnClientNameOf(p.clientId) : p.client;
-        return (p.part || 'no part written') + (p.gauge && String(p.part).toUpperCase().indexOf(p.gauge) < 0 ? ' (' + p.gauge + ')' : '') + (who ? ', ' + who : '') + ' at ' + pct(p.qty / p.cap) +
-          ' over ' + todoPlural(Math.max(1, Math.round(p.n)), 'round') + (fulls.length === 1 ? ' of ' + fulls[0] : '');
-      }).join('; ') + (ef.partFull.length > 3 ? '; ' + (ef.partFull.length - 3) + ' more' : ''));
-      bits.push('parts: a full round of the day’s parts is ' + formatNum(ef.fullRound, 0) + ' kg, ' + pct(ef.parts) + ' of ' +
-        (ef.kgSrc === 'measured' ? 'the line’s usual ' + formatNum(ef.kgAvail, 0) + ' kg' : 'the ' + formatNum(ef.kgAvail, 0) + ' kg typed on its ' + (ef.unitWord || 'unit') + 's'));
-    } else bits.push('loaded ' + pct(ef.load) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round');
-    if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) bits.push('not weighed: ' + Math.round(ef.roundsUnweighed) + ' of the ' + nr + ' rounds, about ' + pct(1 - ef.weighed) + ' of the work, so the figure reads low');
-  } else bits.push('no rounds counted: the time and the load cannot be told apart');
-  if (ef.everySrc === 'measured') bits.push('a round every ' + Math.round(ef.every) + ' min measured on the register over ' + C.shifts + ' shifts' +
-    (ef.everySet ? Math.round(ef.everySet) === Math.round(ef.every) ? ', as set' : ', in place of the ' + Math.round(ef.everySet) + ' set' : ''));
-  else if (C.every != null) bits.push('the register’s rounds come every ' + Math.round(C.every) + ' min, not firm: ' + C.why);
-  if (ef.kgSrc === 'measured') bits.push('a round measured on the register: ' + (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ' × ' + ef.nAvail + ', ' : '') +
-    T.rounds + ' rounds over ' + T.days + ' days' + (ef.kgTyped ? ', in place of the ' + formatNum(ef.kgTyped, 0) + ' kg typed' : ''));
-  else if (T.perRound != null) bits.push('typed on its ' + (ef.unitWord || 'unit') + 's; the register measures ' + formatNum(T.perRound, 0) + ' kg a round' +
-    (T.perTank != null ? ' (' + formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ')' : '') + ', not firm: ' + T.why);
-  // The title names what moved it most: under its usual, the factor that lost most (lighter parts are the work, not a fault);
-  // at or over it, the factor that raised it. A time not told apart is never named, and a split it hides is just "How it splits".
+    facts.push({ label: 'Rounds the hours allowed', value: rp });
+    facts.push(ef.roundsOnly ? { label: 'Rounds run', value: nr, sub: 'counted on the register' }
+      : timeKnown ? { label: 'Rounds run', value: '≈ ' + Math.round(ef.roundsRun), sub: nr + ' counted · ' + prodKgFig(ef.kgNoRounds) + ' without rounds' }
+      : { label: 'Rounds run', value: nr, sub: pct(noRounds) + ' of the kilos without rounds: time not told apart' });
+  } else facts.push({ label: 'Rounds', value: '', sub: 'none counted: time and load not told apart' });
+  facts.push({ label: 'A full round', value: formatNum(ef.kgAvail, 0) + ' kg', src: ef.kgSrc === 'measured' ? SRC.measured : SRC.typed,
+    sub: ef.kgSrc === 'measured' ? (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + unitW + ' × ' + ef.nAvail + ' · ' : '') + T.rounds + ' rounds' + (ef.kgTyped ? ' · typed ' + formatNum(ef.kgTyped, 0) : '')
+      : T.perRound != null ? 'register ' + formatNum(T.perRound, 0) + ' kg, not firm: ' + lacks(T.why) : '' });
+  if (ef.pace != null && ef.racks != null) {
+    facts.push({ label: 'Racks full', value: pct(ef.racks), sub: 'against each part’s fullest round' });
+    // The parts run part-full, a row each, most kilos short first.
+    (ef.partFull || []).slice(0, 3).forEach(function(p) {
+      var fulls = Object.keys(p.fulls), who = p.clientId != null ? plnClientNameOf(p.clientId) : p.client;
+      facts.push({ label: (p.part || 'No part written') + (p.gauge && String(p.part).toUpperCase().indexOf(p.gauge) < 0 ? ' (' + p.gauge + ')' : ''), value: pct(p.qty / p.cap),
+        sub: [who, todoPlural(Math.max(1, Math.round(p.n)), 'round') + (fulls.length === 1 ? ' of ' + fulls[0] : '')].filter(Boolean).join(' · '), attrs: ' data-flr-partfull' });
+    });
+    if ((ef.partFull || []).length > 3) facts.push({ label: 'More parts not full', value: ef.partFull.length - 3 });
+    facts.push({ label: 'A full round of the day’s parts', value: formatNum(ef.fullRound, 0) + ' kg', sub: pct(ef.parts) + ' of the line’s round' });
+  } else if (ef.pace != null) facts.push({ label: 'Loaded', value: pct(ef.load), sub: 'of a full round' });
+  if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) facts.push({ label: 'Rounds with no weight', value: Math.round(ef.roundsUnweighed) + ' of ' + nr, sub: 'about ' + pct(1 - ef.weighed) + ' of the work: reads low' });
+  if (ef.noEnd) facts.push({ label: 'Runs with no end time', value: ef.noEnd, sub: 'not counted' });
+  // What moved it most names the factors: under its usual, the factor that lost most (lighter parts are the work, not a fault);
+  // at or over it, the factor that raised it. A time not told apart is never named.
   var known = (ef.racks != null ? [['racks', ef.racks], ['parts', ef.parts]] : [['load', ef.load]]).concat(timeKnown ? [['time', ef.pace]] : [])
     .concat(ef.roundsUnweighed ? [['weighed', ef.weighed]] : []).filter(function(x) { return x[1] != null; });
   var LOST = { racks: 'Part-full racks lost most', parts: 'Lighter parts than the line’s round', load: 'The load lost most', time: 'The time lost most',
       weighed: 'Rounds with no weight read it low' },
     RAISED = { parts: 'Heavier parts than the line’s round', load: 'Heavier rounds than the line’s round', time: 'Faster than its usual pace' };
   var title = 'How it splits', pick;
-  if (ef.pace == null) title = 'How it was worked out';
-  else if (ef.eff >= 1) {
+  if (ef.eff >= 1) {
     pick = known.filter(function(x) { return x[1] > 1 && RAISED[x[0]]; }).sort(function(a, b) { return b[1] - a[1]; })[0];
     if (pick) title = RAISED[pick[0]];
     else if (timeKnown && !known.some(function(x) { return x[1] < 1; })) title = 'Nothing lost to the time, the racks or the parts';
@@ -46894,26 +47214,23 @@ function flrEffRowHtml(ef) {
     pick = known.filter(function(x) { return x[1] < 1; }).sort(function(a, b) { return a[1] - b[1]; })[0];
     if (pick) title = LOST[pick[0]];
   }
-  // The factors at a glance, a tile each coloured by what it lost (the parts are the work, so only said); the row under them is
-  // how each was worked out.
-  var strip = '';
-  if (ef.pace != null) {
-    var tone = function(x, ok, warn) { return x >= ok ? 'ok' : x >= warn ? 'warning' : 'danger'; };
-    var tile = function(key, label, v, sub, t) {
-      return '<div class="inv-tile' + (t ? ' inv-tile-' + t : '') + '" data-flr-factor="' + key + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
-        '<div class="inv-tile-value">' + escHtml(v) + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
-    };
-    var tiles = [timeKnown ? tile('time', 'Time', pct(ef.pace), (ef.roundsOnly ? '' : 'about ') + Math.round(ef.roundsRun) + ' of ' + rp + ' rounds', tone(ef.pace, 0.9, 0.75))
-      : tile('time', 'Time', '—', 'not told apart', '')];
-    if (ef.racks != null) {
-      tiles.push(tile('racks', 'Racks', pct(ef.racks), ef.partFull && ef.partFull.length ? todoPlural(ef.partFull.length, 'part') + ' not full' : 'full', tone(ef.racks, 0.95, 0.85)));
-      tiles.push(tile('parts', 'Parts', pct(ef.parts), formatNum(ef.fullRound, 0) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
-    } else tiles.push(tile('load', 'Load', pct(ef.load), 'of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
-    if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) tiles.push(tile('weighed', 'Weighed', pct(ef.weighed), Math.round(ef.roundsUnweighed) + ' of ' + nr + ' rounds unweighed', tone(ef.weighed, 0.95, 0.75)));
-    strip = '<div class="inv-tiles inv-tiles-flush' + (tiles.length === 3 ? ' inv-tiles-3' : '') + '" data-flr-effsplit>' + tiles.join('') + '</div>';
-  }
-  return strip + '<div class="inv-row inv-row-2" data-flr-effparts><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span></div>';
+  var working = uiWorkingHtml('flr-eff-' + line, facts, null, ' data-flr-effworking');
+  // With no rounds counted there are no factors to name: only the working.
+  if (ef.pace == null) return working;
+  var tone = function(x, ok, warn) { return x >= ok ? 'ok' : x >= warn ? 'warning' : 'danger'; };
+  var tile = function(key, label, v, sub, t) {
+    return '<div class="inv-tile' + (t ? ' inv-tile-' + t : '') + '" data-flr-factor="' + key + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
+      '<div class="inv-tile-value">' + escHtml(v) + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
+  };
+  var tiles = [timeKnown ? tile('time', 'Time', pct(ef.pace), (ef.roundsOnly ? '' : 'about ') + Math.round(ef.roundsRun) + ' of ' + rp + ' rounds', tone(ef.pace, 0.9, 0.75))
+    : tile('time', 'Time', '—', 'not told apart', '')];
+  if (ef.racks != null) {
+    tiles.push(tile('racks', 'Racks', pct(ef.racks), ef.partFull && ef.partFull.length ? todoPlural(ef.partFull.length, 'part') + ' not full' : 'full', tone(ef.racks, 0.95, 0.85)));
+    tiles.push(tile('parts', 'Parts', pct(ef.parts), formatNum(ef.fullRound, 0) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
+  } else tiles.push(tile('load', 'Load', pct(ef.load), 'of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
+  if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) tiles.push(tile('weighed', 'Weighed', pct(ef.weighed), Math.round(ef.roundsUnweighed) + ' of ' + nr + ' rounds unweighed', tone(ef.weighed, 0.95, 0.75)));
+  return '<div class="inv-row-group" data-flr-effverdict><span>' + escHtml(title) + '</span></div>' +
+    '<div class="inv-tiles inv-tiles-flush' + (tiles.length === 3 ? ' inv-tiles-3' : '') + '" data-flr-effsplit>' + tiles.join('') + '</div>' + working;
 }
 
 /* The day's pieces nothing weighs, named with the move that weighs them (owner, 9 Oct 2026: "we should have a list of those
@@ -51540,6 +51857,21 @@ var KB_APP_GUIDES = [
     '- **Paste** the pickling loads and the production list from WhatsApp.\n- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
     '- **Enter by hand** when there is nothing to paste. The form stays open for the next entry.\n' +
     '- Production → In plant shows the material in the plant two ways: by the book and by the floor.\n- A figure is corrected by a new entry, never edited.'),
+  // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
+  // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
+  _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
+    '# A line’s efficiency\nWhat the line plated against what its working units could plate in the hours it ran, less the power cuts. Four factors multiply to it:\n' +
+    '- **Time**: the rounds run against the rounds the hours allowed (the hours over the pace).\n- **Racks**: how full each round was, against its part’s fullest round.\n' +
+    '- **Parts**: what a full round of the day’s parts weighs, against the line’s round. Lighter parts are the work, not a fault.\n- **Weighed**: rounds with no weight leave the figure low.\n\n' +
+    'The caption over the tiles names what moved it most. **How it’s worked out** under them lists every input, one a row.\n\n' +
+    '# Measured, set or typed\n- **Measured**: read off the register. A round’s kilos once 30 rounds on 5 days rest on the parts’ own weights; the pace once 5 shifts of 8 rounds or more are on it.\n' +
+    '- **Set** or **typed**: the figure entered by hand, which stands until the register’s measure is firm.\n\n' +
+    '# Stock by line\nWhat went into each line’s bath against what the line plated.\n' +
+    '- Each addition (zinc, a salt, a brightener) is set against what its line plated until the next one went into the same bath.\n' +
+    '- The last is still in the bath: its figure is **so far**, falls as the line plates on, and is kept out of the line’s figure.\n' +
+    '- Days the line has no record are filled at the pace of the days it has; under half recorded, nothing is set.\n' +
+    '- A use naming two baths is shared by what each plated, or evenly where one is not recorded. A use naming no bath is the plant’s.\n\n' +
+    '# The signs\n- **≈** an estimate. **≤** the most it can be: pieces nothing weighs leave the kilograms short.\n- **—** withheld, with the reason beside it.'),
   _kbg('power', 'Using the app: power cuts', 'Recording a cut and what it cost', ['pagePower', 'pageProduction'],
     '- A cut is entered like any floor record: Floor → Power → **Enter a cut** (the time it went and the time it came back).\n' +
     '- A cut reported twice (the register and a message) is counted once.\n- Power → Case is the business case for backup power, drawn from the record every time it is opened or printed.'),

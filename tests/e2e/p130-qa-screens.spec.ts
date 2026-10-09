@@ -99,12 +99,12 @@ test('Production → Overview: a day with pieces nothing weighs says at least, n
   const t = page.locator('[data-prod-day]');
   await expect(t.locator('.inv-hero-fig')).toHaveText('≥ 30 kg');
   await expect(t.locator('.inv-hero-title')).toHaveText('3,500 pieces not weighed: the day reads short');
-  await expect(t.locator('.inv-hero-sub')).toHaveText('3,600 pieces recorded · 3,500 pieces not weighed');
+  await expect(t.locator('.inv-hero-sub')).toHaveText('3,600 pieces recorded');
   await expect(t.locator('[data-prod-weigh="none"]')).toContainText('LINER 88');
   await expect(t.locator('[data-prod-weigh="none"] [data-action="invProdAlias"]')).toHaveAttribute('data-id', 'P1');
   // Weighed in full, the tonnes are the figure, with nothing estimated.
   await g(page, `S.partWeights = { 'PAD 150': 0.3, 'LINER 88': 0.2 }; prodTouch(); renderProduction();`);
   await expect(t.locator('.inv-hero-fig')).toHaveText('730 kg');
-  await expect(t.locator('.inv-hero-sub')).toHaveText('3,600 pieces recorded · every run weighed');
+  await expect(t.locator('.inv-hero-sub')).toHaveText('every run weighed');
   await expect(t.locator('[data-prod-weigh="none"]')).toHaveCount(0);
 });

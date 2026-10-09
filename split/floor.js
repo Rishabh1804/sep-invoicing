@@ -185,13 +185,24 @@ function flrCardHtml(day, isToday, ln, byArea, marked) {
       '<span class="inv-row-end inv-row-actions">' + btn + '</span></div>';
   }
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
-  if (ef && ef.eff != null) h += flrEffRowHtml(ef);
+  if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.
   var cr = last ? prodCrew(last) : prodCrew(ln.id === 'pickling' ? { date: day, kind: 'pickled' } : { date: day, kind: 'plated', line: ln.id, slot: 'general' });
   var crew = last ? (cr.known ? (cr.src === 'block' ? 'OT crew: ' : 'Crew: ') + cr.names.join(', ') : 'Crew not known: ' + cr.why)
     : cr.known ? 'On the line: ' + cr.names.join(', ') : cr.why.charAt(0).toUpperCase() + cr.why.slice(1);
   // The line's units on the day shown (plant.js): what of it could run.
   h += pltFloorRowHtml(ln.id, day);
+  // What went into the line's bath that day, as the stock record has it (PP3): a use over several days on the day it ends. One
+  // a fact row; more, a row that folds open to them (§6.27).
+  if (ln.id !== 'pickling') {
+    var adds = stockDayAdds(day, ln.id);
+    var addFact = function(a) {
+      return { label: a.item.name, value: stockFmtQty(a.qty) + (a.item.unit ? ' ' + a.item.unit : ''), attrs: ' data-flr-bath-item',
+        sub: [a.from !== day ? stockSpanText(a.from, day) : '', a.shared ? 'shared with ' + a.with.map(prodLineName).join(' and ') : ''].filter(Boolean).join(' · ') };
+    };
+    if (adds.length === 1) h += uiFactRowHtml(Object.assign(addFact(adds[0]), { label: adds[0].item.name + ' into the bath', attrs: ' data-flr-bath' }));
+    else if (adds.length) h += uiFoldRowHtml('flr-bath-' + ln.id, { label: 'Into the bath', value: adds.length, count: true }, adds.map(addFact), ' data-flr-bath');
+  }
   h += '<div class="inv-row inv-row-auto" data-flr-crew><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(crew) + '</span></span></div>';
   // The head: what the line is judged on; the foot: its staffing, its EXTRA and its record, each a door.
   var tone = ef ? ef.tone : st.tone === 'warning' ? 'warning' : st.tone === 'ok' ? 'ok' : 'neutral';
@@ -217,13 +228,9 @@ function flrEffHead(ef, last, isToday) {
   // What needs following up leads (half the line down, the general shift unrecorded); the plating follows in the sub.
   var lead = [ef.halfDown ? down : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var title = lead ? lead.charAt(0).toUpperCase() + lead.slice(1) : plated;
-  // The inputs, most needed first: a phone shows two lines of them, and the round and the pace are said again under the card.
-  var evW = { assumed: 'assumed', set: 'set', measured: 'measured' }[ef.everySrc] || '', kgM = ef.kgSrc === 'measured';
-  var round = formatNum(ef.kgAvail, 0) + ' kg a round' + (kgM && evW === 'measured' ? ' every ' + Math.round(ef.every) + ' min, both measured'
-    : (kgM ? ' (measured)' : '') + ', every ' + Math.round(ef.every) + ' min' + (evW ? ' (' + evW + ')' : ''));
+  // What it had to plate with and what reads it low; the round, the pace and the rest are the working under the card (§6.27).
   var sub = [lead ? plated : '', units, hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''),
-    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pieces not weighed: reads low' : '',
-    ef.noEnd ? todoPlural(ef.noEnd, 'run') + ' with no end time not counted' : '', round].filter(Boolean).join(' · ');
+    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : ''].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: Math.min(ef.kg, ef.possible * 1.2), tone: ef.tone === 'neutral' ? 'neutral' : ef.tone }], { max: ef.possible, mark: ef.possible * PROD_EFF_OK,
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
@@ -231,50 +238,55 @@ function flrEffHead(ef, last, isToday) {
 /* How the efficiency splits where the register counted the rounds (owner, 9 Oct 2026: "We'll do both, so solutions for
    efficiency can be worked out"): the time (the rounds run, of the rounds the hours allowed), the racks (how full each round
    was, against its part's fullest round), the parts (what a full round of the day's parts weighs, against the line's round)
-   and, where rounds have no weight, what they leave out: their product is the figure (prodLineEfficiency). Then where the
-   round and the pace come from: measured on the register once firm, else set or typed, with the register's measure beside it. */
-function flrEffRowHtml(ef) {
+   and, where rounds have no weight, what they leave out: their product is the figure (prodLineEfficiency). Drawn as an
+   analysis (§6.27; owner: "The times lost most reads like a block of text"): what moved it most names the factors, a tile each,
+   and how each was worked out is folded under them, one fact a row, where the round and the pace come from as a badge. */
+function flrEffRowHtml(ef, line) {
   // The rounds the hours allowed are hours over the pace, a fraction: shown to a tenth, so 25 against 24.5 reads as 102%.
-  var pct = function(x) { return Math.round(x * 100) + '%'; }, T = ef.tank || {}, C = ef.cycle || {}, bits = [],
+  var pct = function(x) { return Math.round(x * 100) + '%'; }, T = ef.tank || {}, C = ef.cycle || {}, unitW = ef.unitWord || 'unit',
     rp = Math.abs(ef.roundsPossible - Math.round(ef.roundsPossible)) < 0.05 ? String(Math.round(ef.roundsPossible)) : formatNum(ef.roundsPossible, 1);
   // The time is the rounds' worth: kilos written without rounds count at the counted rounds' weight. Past a quarter of the
   // line's kilos that is a guess at a different mix (an evening of heavy clamps beside a day of pads), so it is not given.
   var noRounds = ef.kg > 0 ? (ef.kgNoRounds || 0) / ef.kg : 0, timeKnown = ef.pace != null && (ef.roundsOnly || noRounds <= 0.25);
+  var nr = Math.round(ef.rounds || 0), SRC = { measured: ['ok', 'measured'], set: ['neutral', 'set'], assumed: ['warning', 'assumed'], typed: ['neutral', 'typed'] };
+  // Why a measure is not firm yet: the first of what it lacks, a few words; the rest follows once that is met.
+  var lacks = function(why) { return String(why || '').split(', ')[0]; };
+  // The working, in the order the figure is built: the time (hours, pace, rounds), then the round (its kilos, the racks, the parts).
+  var facts = [{ label: 'Hours run', value: formatNum(ef.minutes / 60, 1).replace(/\.0$/, '') + ' h', sub: ef.cutMin ? powerDur(ef.cutMin) + ' of cuts taken off' : '' },
+    { label: 'A round every', value: Math.round(ef.every) + ' min', src: SRC[ef.everySrc] || null,
+      sub: ef.everySrc === 'measured' ? 'on the register, ' + todoPlural(C.shifts, 'shift') + (ef.everySet && Math.round(ef.everySet) !== Math.round(ef.every) ? ' · set ' + Math.round(ef.everySet) : '')
+        : C.every != null ? 'register ' + Math.round(C.every) + ' min, not firm: ' + lacks(C.why) : '' }];
   if (ef.pace != null) {
-    var nr = Math.round(ef.rounds);
-    bits.push(ef.roundsOnly ? 'time: ran ' + nr + ' rounds where the hours allowed ' + rp + ' (' + pct(ef.pace) + ')'
-      : !timeKnown ? 'time: not told apart, ' + prodKgFig(ef.kgNoRounds) + ' (' + pct(noRounds) + ' of the kilos) written without rounds beside the ' + nr + ' the register counted'
-      : 'time: ran about ' + Math.round(ef.roundsRun) + ' rounds where the hours allowed ' + rp + ' (' + pct(ef.pace) + '): ' + nr + ' counted on the register, ' +
-        prodKgFig(ef.kgNoRounds) + ' from runs written without rounds');
-    if (ef.racks != null) {
-      bits.push('racks: ' + pct(ef.racks) + ' full, each round against its part’s fullest');
-      if (ef.partFull && ef.partFull.length) bits.push('part-full: ' + ef.partFull.slice(0, 3).map(function(p) {
-        var fulls = Object.keys(p.fulls), who = p.clientId != null ? plnClientNameOf(p.clientId) : p.client;
-        return (p.part || 'no part written') + (p.gauge && String(p.part).toUpperCase().indexOf(p.gauge) < 0 ? ' (' + p.gauge + ')' : '') + (who ? ', ' + who : '') + ' at ' + pct(p.qty / p.cap) +
-          ' over ' + todoPlural(Math.max(1, Math.round(p.n)), 'round') + (fulls.length === 1 ? ' of ' + fulls[0] : '');
-      }).join('; ') + (ef.partFull.length > 3 ? '; ' + (ef.partFull.length - 3) + ' more' : ''));
-      bits.push('parts: a full round of the day’s parts is ' + formatNum(ef.fullRound, 0) + ' kg, ' + pct(ef.parts) + ' of ' +
-        (ef.kgSrc === 'measured' ? 'the line’s usual ' + formatNum(ef.kgAvail, 0) + ' kg' : 'the ' + formatNum(ef.kgAvail, 0) + ' kg typed on its ' + (ef.unitWord || 'unit') + 's'));
-    } else bits.push('loaded ' + pct(ef.load) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round');
-    if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) bits.push('not weighed: ' + Math.round(ef.roundsUnweighed) + ' of the ' + nr + ' rounds, about ' + pct(1 - ef.weighed) + ' of the work, so the figure reads low');
-  } else bits.push('no rounds counted: the time and the load cannot be told apart');
-  if (ef.everySrc === 'measured') bits.push('a round every ' + Math.round(ef.every) + ' min measured on the register over ' + C.shifts + ' shifts' +
-    (ef.everySet ? Math.round(ef.everySet) === Math.round(ef.every) ? ', as set' : ', in place of the ' + Math.round(ef.everySet) + ' set' : ''));
-  else if (C.every != null) bits.push('the register’s rounds come every ' + Math.round(C.every) + ' min, not firm: ' + C.why);
-  if (ef.kgSrc === 'measured') bits.push('a round measured on the register: ' + (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ' × ' + ef.nAvail + ', ' : '') +
-    T.rounds + ' rounds over ' + T.days + ' days' + (ef.kgTyped ? ', in place of the ' + formatNum(ef.kgTyped, 0) + ' kg typed' : ''));
-  else if (T.perRound != null) bits.push('typed on its ' + (ef.unitWord || 'unit') + 's; the register measures ' + formatNum(T.perRound, 0) + ' kg a round' +
-    (T.perTank != null ? ' (' + formatNum(T.perTank, 0) + ' kg a ' + (ef.unitWord || 'tank') + ')' : '') + ', not firm: ' + T.why);
-  // The title names what moved it most: under its usual, the factor that lost most (lighter parts are the work, not a fault);
-  // at or over it, the factor that raised it. A time not told apart is never named, and a split it hides is just "How it splits".
+    facts.push({ label: 'Rounds the hours allowed', value: rp });
+    facts.push(ef.roundsOnly ? { label: 'Rounds run', value: nr, sub: 'counted on the register' }
+      : timeKnown ? { label: 'Rounds run', value: '≈ ' + Math.round(ef.roundsRun), sub: nr + ' counted · ' + prodKgFig(ef.kgNoRounds) + ' without rounds' }
+      : { label: 'Rounds run', value: nr, sub: pct(noRounds) + ' of the kilos without rounds: time not told apart' });
+  } else facts.push({ label: 'Rounds', value: '', sub: 'none counted: time and load not told apart' });
+  facts.push({ label: 'A full round', value: formatNum(ef.kgAvail, 0) + ' kg', src: ef.kgSrc === 'measured' ? SRC.measured : SRC.typed,
+    sub: ef.kgSrc === 'measured' ? (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + unitW + ' × ' + ef.nAvail + ' · ' : '') + T.rounds + ' rounds' + (ef.kgTyped ? ' · typed ' + formatNum(ef.kgTyped, 0) : '')
+      : T.perRound != null ? 'register ' + formatNum(T.perRound, 0) + ' kg, not firm: ' + lacks(T.why) : '' });
+  if (ef.pace != null && ef.racks != null) {
+    facts.push({ label: 'Racks full', value: pct(ef.racks), sub: 'against each part’s fullest round' });
+    // The parts run part-full, a row each, most kilos short first.
+    (ef.partFull || []).slice(0, 3).forEach(function(p) {
+      var fulls = Object.keys(p.fulls), who = p.clientId != null ? plnClientNameOf(p.clientId) : p.client;
+      facts.push({ label: (p.part || 'No part written') + (p.gauge && String(p.part).toUpperCase().indexOf(p.gauge) < 0 ? ' (' + p.gauge + ')' : ''), value: pct(p.qty / p.cap),
+        sub: [who, todoPlural(Math.max(1, Math.round(p.n)), 'round') + (fulls.length === 1 ? ' of ' + fulls[0] : '')].filter(Boolean).join(' · '), attrs: ' data-flr-partfull' });
+    });
+    if ((ef.partFull || []).length > 3) facts.push({ label: 'More parts not full', value: ef.partFull.length - 3 });
+    facts.push({ label: 'A full round of the day’s parts', value: formatNum(ef.fullRound, 0) + ' kg', sub: pct(ef.parts) + ' of the line’s round' });
+  } else if (ef.pace != null) facts.push({ label: 'Loaded', value: pct(ef.load), sub: 'of a full round' });
+  if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) facts.push({ label: 'Rounds with no weight', value: Math.round(ef.roundsUnweighed) + ' of ' + nr, sub: 'about ' + pct(1 - ef.weighed) + ' of the work: reads low' });
+  if (ef.noEnd) facts.push({ label: 'Runs with no end time', value: ef.noEnd, sub: 'not counted' });
+  // What moved it most names the factors: under its usual, the factor that lost most (lighter parts are the work, not a fault);
+  // at or over it, the factor that raised it. A time not told apart is never named.
   var known = (ef.racks != null ? [['racks', ef.racks], ['parts', ef.parts]] : [['load', ef.load]]).concat(timeKnown ? [['time', ef.pace]] : [])
     .concat(ef.roundsUnweighed ? [['weighed', ef.weighed]] : []).filter(function(x) { return x[1] != null; });
   var LOST = { racks: 'Part-full racks lost most', parts: 'Lighter parts than the line’s round', load: 'The load lost most', time: 'The time lost most',
       weighed: 'Rounds with no weight read it low' },
     RAISED = { parts: 'Heavier parts than the line’s round', load: 'Heavier rounds than the line’s round', time: 'Faster than its usual pace' };
   var title = 'How it splits', pick;
-  if (ef.pace == null) title = 'How it was worked out';
-  else if (ef.eff >= 1) {
+  if (ef.eff >= 1) {
     pick = known.filter(function(x) { return x[1] > 1 && RAISED[x[0]]; }).sort(function(a, b) { return b[1] - a[1]; })[0];
     if (pick) title = RAISED[pick[0]];
     else if (timeKnown && !known.some(function(x) { return x[1] < 1; })) title = 'Nothing lost to the time, the racks or the parts';
@@ -282,26 +294,23 @@ function flrEffRowHtml(ef) {
     pick = known.filter(function(x) { return x[1] < 1; }).sort(function(a, b) { return a[1] - b[1]; })[0];
     if (pick) title = LOST[pick[0]];
   }
-  // The factors at a glance, a tile each coloured by what it lost (the parts are the work, so only said); the row under them is
-  // how each was worked out.
-  var strip = '';
-  if (ef.pace != null) {
-    var tone = function(x, ok, warn) { return x >= ok ? 'ok' : x >= warn ? 'warning' : 'danger'; };
-    var tile = function(key, label, v, sub, t) {
-      return '<div class="inv-tile' + (t ? ' inv-tile-' + t : '') + '" data-flr-factor="' + key + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
-        '<div class="inv-tile-value">' + escHtml(v) + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
-    };
-    var tiles = [timeKnown ? tile('time', 'Time', pct(ef.pace), (ef.roundsOnly ? '' : 'about ') + Math.round(ef.roundsRun) + ' of ' + rp + ' rounds', tone(ef.pace, 0.9, 0.75))
-      : tile('time', 'Time', '—', 'not told apart', '')];
-    if (ef.racks != null) {
-      tiles.push(tile('racks', 'Racks', pct(ef.racks), ef.partFull && ef.partFull.length ? todoPlural(ef.partFull.length, 'part') + ' not full' : 'full', tone(ef.racks, 0.95, 0.85)));
-      tiles.push(tile('parts', 'Parts', pct(ef.parts), formatNum(ef.fullRound, 0) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
-    } else tiles.push(tile('load', 'Load', pct(ef.load), 'of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
-    if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) tiles.push(tile('weighed', 'Weighed', pct(ef.weighed), Math.round(ef.roundsUnweighed) + ' of ' + nr + ' rounds unweighed', tone(ef.weighed, 0.95, 0.75)));
-    strip = '<div class="inv-tiles inv-tiles-flush' + (tiles.length === 3 ? ' inv-tiles-3' : '') + '" data-flr-effsplit>' + tiles.join('') + '</div>';
-  }
-  return strip + '<div class="inv-row inv-row-2" data-flr-effparts><span class="inv-row-main"><span class="inv-row-title">' + escHtml(title) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span></div>';
+  var working = uiWorkingHtml('flr-eff-' + line, facts, null, ' data-flr-effworking');
+  // With no rounds counted there are no factors to name: only the working.
+  if (ef.pace == null) return working;
+  var tone = function(x, ok, warn) { return x >= ok ? 'ok' : x >= warn ? 'warning' : 'danger'; };
+  var tile = function(key, label, v, sub, t) {
+    return '<div class="inv-tile' + (t ? ' inv-tile-' + t : '') + '" data-flr-factor="' + key + '"><div class="inv-tile-label">' + escHtml(label) + '</div>' +
+      '<div class="inv-tile-value">' + escHtml(v) + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
+  };
+  var tiles = [timeKnown ? tile('time', 'Time', pct(ef.pace), (ef.roundsOnly ? '' : 'about ') + Math.round(ef.roundsRun) + ' of ' + rp + ' rounds', tone(ef.pace, 0.9, 0.75))
+    : tile('time', 'Time', '—', 'not told apart', '')];
+  if (ef.racks != null) {
+    tiles.push(tile('racks', 'Racks', pct(ef.racks), ef.partFull && ef.partFull.length ? todoPlural(ef.partFull.length, 'part') + ' not full' : 'full', tone(ef.racks, 0.95, 0.85)));
+    tiles.push(tile('parts', 'Parts', pct(ef.parts), formatNum(ef.fullRound, 0) + ' of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
+  } else tiles.push(tile('load', 'Load', pct(ef.load), 'of ' + formatNum(ef.kgAvail, 0) + ' kg a round', 'info'));
+  if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) tiles.push(tile('weighed', 'Weighed', pct(ef.weighed), Math.round(ef.roundsUnweighed) + ' of ' + nr + ' rounds unweighed', tone(ef.weighed, 0.95, 0.75)));
+  return '<div class="inv-row-group" data-flr-effverdict><span>' + escHtml(title) + '</span></div>' +
+    '<div class="inv-tiles inv-tiles-flush' + (tiles.length === 3 ? ' inv-tiles-3' : '') + '" data-flr-effsplit>' + tiles.join('') + '</div>' + working;
 }
 
 /* The day's pieces nothing weighs, named with the move that weighs them (owner, 9 Oct 2026: "we should have a list of those

@@ -88,13 +88,18 @@ test.describe('P190: a day’s plating, whole', () => {
     await expect(card).toHaveAttribute('data-prod-day', D);
     // 75 written + 50 on record + 540 from the challans + 230 by kind; WIDGET's 200 pieces left out, so at least.
     await expect(card.locator('.inv-hero-fig')).toHaveText('≥ 895 kg');
-    await expect(card.locator('.inv-hero-sub')).toHaveText('2,200 pieces and 75 kg recorded · 86% of the weight estimated · 200 pieces not weighed');
+    // How sure, in short facts (§6.27): the share estimated and the pieces nothing weighs.
+    await expect(card.locator('.inv-hero-sub')).toHaveText('86% estimated · 200 pcs not weighed');
     await expect(card.locator('[data-prod-day-line="vat-a1"] [data-prod-day-kg]')).toHaveText('≥ 265 kg');
     await expect(card.locator('[data-prod-day-line="vat-a2"] [data-prod-day-kg]')).toHaveText('≈ 630 kg');
     // Each line on the clock, 6 AM to 6 AM.
     await expect(card.locator('[data-prod-day-line="vat-a1"] .inv-daystrip svg rect.inv-meter-ok')).toHaveCount(4);
     await expect(card.locator('[data-prod-day-line="vat-a1"] .inv-daystrip-axis')).toHaveText(/6 AM.*noon.*6 PM.*midnight.*6 AM/);
-    // How it was weighed, by route.
+    // How it was weighed, by route: folded under one row that says how much is estimated, shut until opened.
+    const weighing = card.locator('[data-prod-day-weighing]');
+    await expect(weighing).not.toHaveAttribute('open', '');
+    await expect(weighing.locator('summary')).toContainText('How it was weighed86% estimated');
+    await weighing.locator('summary').click();
     await expect(card.locator('[data-prod-weigh="sure"] .inv-row-end')).toHaveText('125 kg');
     await expect(card.locator('[data-prod-weigh="challans"] .inv-row-end')).toHaveText('≈ 540 kg');
     await expect(card.locator('[data-prod-weigh="kind"] .inv-row-end')).toHaveText('≈ 230 kg');
@@ -103,10 +108,10 @@ test.describe('P190: a day’s plating, whole', () => {
     // The clients, by weight.
     await expect(card.locator('[data-prod-day-client]').first()).toContainText('ORION CLAMPS');
     // What the work is worth at the rates on record (₹12 and ₹10 a kg, ORION's ₹5 a kg over the clamps' weight), and the labour.
-    await expect(card.locator('[data-prod-day-worth]')).toContainText('Work plated, worth ≈ ₹6,230.00');
-    await expect(card.locator('[data-prod-day-worth]')).toContainText('200 pieces with no rate or weight');
-    await expect(card.locator('[data-prod-day-labour]')).toContainText('Labour on the day’s record ₹800.00');
-    await expect(card.locator('[data-prod-day-labour]')).toContainText('13% of what the work is worth');
+    await expect(card.locator('[data-prod-day-worth] .inv-row-end')).toHaveText('≈ ₹6,230.00');
+    await expect(card.locator('[data-prod-day-worth] .inv-row-meta')).toHaveText('clients’ rates, before GST · 200 pcs unpriced');
+    await expect(card.locator('[data-prod-day-labour] .inv-row-end')).toHaveText('₹800.00');
+    await expect(card.locator('[data-prod-day-labour] .inv-row-meta')).toHaveText('13% of the work’s worth');
     // A role that does not see money or wages sees neither.
     await g(page, `window.grdSeesMoney = function() { return false; }; window.grdSeesWages = function() { return false; }; renderProduction();`);
     await expect(card.locator('[data-prod-day-worth]')).toHaveCount(0);
@@ -181,12 +186,22 @@ test.describe('P190: a day’s plating, whole', () => {
     await expect(c1).toHaveClass(/inv-hero-danger/);
     await expect(c1.locator('.inv-hero-fig')).toHaveText('5%');
     await expect(c1.locator('.inv-hero-title')).toHaveText('≥ 265 kg of the 5.10 t its working tanks could plate');
-    await expect(c1.locator('.inv-hero-sub')).toContainText('3 of 4 tanks working · 8.5 h run · 200 pieces not weighed: reads low · 300 kg a round, every 30 min (set)');
-    await expect(c1.locator('[data-flr-effparts] .inv-row-title')).toHaveText('Lighter parts than the line’s round');
-    await expect(c1.locator('[data-flr-effparts]')).toContainText('time: not told apart, 125 kg (47% of the kilos) written without rounds beside the 2 the register counted');
-    await expect(c1.locator('[data-flr-effparts]')).toContainText('racks: 100% full, each round against its part’s fullest');
-    await expect(c1.locator('[data-flr-effparts]')).toContainText('parts: a full round of the day’s parts is 70 kg, 23% of the 300 kg typed on its tanks');
-    await expect(c1.locator('[data-flr-effparts]')).toContainText('typed on its tanks; the register measures 70 kg a round (23 kg a tank), not firm: 2 of the 30 rounds it needs');
+    // An analysis (§6.27): the head says what there was to plate with and what reads it low; a caption names what moved it most;
+    // how it was worked out is folded under the tiles, shut until opened, one fact a row, where each input comes from a badge.
+    await expect(c1.locator('.inv-hero-sub')).toHaveText('3 of 4 tanks working · 8.5 h run · 200 pcs not weighed');
+    await expect(c1.locator('[data-flr-effverdict]')).toHaveText('Lighter parts than the line’s round');
+    const w1 = c1.locator('[data-flr-effworking]');
+    await expect(w1).not.toHaveAttribute('open', '');
+    await w1.locator('summary').click();
+    expect(await w1.locator('.inv-row-children > .inv-row').evaluateAll(els => els.map(r => [r.querySelector('.inv-row-title')!.textContent!.trim(),
+      (r.querySelector('.inv-row-meta') || { textContent: '' }).textContent!.trim(), r.querySelector('.inv-row-end')!.textContent!.trim()]))).toEqual([
+      ['Hours run', '', '8.5 h'],
+      ['A round every set', '', '30 min'],
+      ['Rounds the hours allowed', '', '17'],
+      ['Rounds run', '47% of the kilos without rounds: time not told apart', '2'],
+      ['A full round typed', 'register 70 kg, not firm: 2 of the 30 rounds it needs', '300 kg'],
+      ['Racks full', 'against each part’s fullest round', '100%'],
+      ['A full round of the day’s parts', '23% of the line’s round', '70 kg']]);
     // Half its tanks down leads the card, whatever its efficiency.
     await expect(c2).toHaveClass(/inv-hero-danger/);
     await expect(c2.locator('.inv-hero-title')).toHaveText('1 of 2 tanks down');

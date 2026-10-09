@@ -17,6 +17,12 @@ function dmy(n: number): string {
   d.setDate(d.getDate() + n);
   return String(d.getDate()).padStart(2, '0') + '/' + String(d.getMonth() + 1).padStart(2, '0') + '/' + String(d.getFullYear()).slice(2) + '/';
 }
+// The day as the screen prints it: "5 Oct".
+function shortDate(n: number): string {
+  const d = new Date(todayIso() + 'T00:00:00');
+  d.setDate(d.getDate() + n);
+  return d.getDate() + ' ' + ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'][d.getMonth()];
+}
 const line = (id: string, name: string, key: string, unit: string, basis = 'draw') => ({ id, name, key, unit, basis, aliases: [], active: true, createdAt: 1 });
 function withStock(items: any[], entries: any[], pastes: any[] = []): SepState {
   const s: any = emptyState();
@@ -58,7 +64,8 @@ test.describe('P156 stock: an entry is checked before it is believed', () => {
     await g(page, `_stockView = 'check'; switchTab('pageStock')`);
     const row = page.locator('#stockReread [data-paste="P1"]');
     await expect(row).toContainText('Read then: Zinc: charged to bath 2 kg');
-    await expect(row).toContainText('Read now: Zinc: charged to bath 400 kg');
+    // Read now: zinc bath by bath (PP3), each on the day the message gives it.
+    await expect(row).toContainText(`Read now: Zinc: charged to bath 150 kg on ${shortDate(-4)}, into VAT A2; Zinc: charged to bath 175 kg on ${shortDate(-1)}, into VAT A1; Zinc: charged to bath 75 kg on ${shortDate(-1)}, into Barrel`);
     await expect(row).toContainText('65 M: used 15 L');
     await row.locator('[data-action="invStockReread"]').click();
     await answerAsk(page, 'ok');
@@ -66,14 +73,14 @@ test.describe('P156 stock: an entry is checked before it is believed', () => {
     const st: any = await readStoredState(page);
     const live = st.stock.entries.filter((e: any) => !e.voided);
     const z = live.filter((e: any) => e.itemId === 'Z' && e.pasteId === 'P1').map((e: any) => e.kind + ' ' + e.qty).sort();
-    expect(z).toEqual(['charged 400', 'count 44']);
+    expect(z).toEqual(['charged 150', 'charged 175', 'charged 75', 'count 44']);
     const m = live.filter((e: any) => e.itemId === 'M' && e.pasteId === 'P1').map((e: any) => e.kind + ' ' + e.qty).sort();
     expect(m).toEqual(['count 39', 'used 15']);
     // The old reading is kept, voided with its reason; the new keeps the message's own time, so the day's order holds.
     const o1 = st.stock.entries.find((e: any) => e.id === 'O1');
     expect(o1.voided.reason).toMatch(/Read again/);
-    const added = st.stock.entries.find((e: any) => e.itemId === 'Z' && e.kind === 'charged' && e.qty === 400);
-    expect(added.at).toBe(st.stock.pastes[0].at);
+    const added = st.stock.entries.filter((e: any) => e.itemId === 'Z' && e.kind === 'charged' && !e.voided);
+    expect(added.map((e: any) => [e.qty, e.lines, e.at])).toEqual([150, 175, 75].map((q, i) => [q, [['vat-a2'], ['vat-a1'], ['barrel']][i], st.stock.pastes[0].at]));
     expect(st.stock.pastes[0].reread.length).toBe(1);
     expect(await g(page, `stockReplay('M').level`)).toBe(39);
     expect(await g(page, `stockReplay('Z').level`)).toBe(44);
@@ -89,9 +96,9 @@ test.describe('P156 stock: an entry is checked before it is believed', () => {
     s.stock.items.find((i: any) => i.id === 'M').basis = 'charge';
     await loadAppWithState(page, s);
     const d: any = await g(page, `(function () { var d = stockRereadDiff(stockData().pastes[0]); return d && { drop: d.drop.map(function (h) { return h.cur.id; }), add: d.add.map(function (e) { return e.itemId + ' ' + e.kind + ' ' + e.qty; }) }; })()`);
-    // Zinc's 400 is added (nothing live says it); the voided 2 stays voided and is not dropped twice; 65 M is unchanged.
+    // Zinc's 400 is added, bath by bath (nothing live says it); the voided 2 stays voided and is not dropped twice; 65 M is unchanged.
     expect(d.drop).toEqual([]);
-    expect(d.add).toEqual(['Z charged 400']);
+    expect(d.add).toEqual(['Z charged 150', 'Z charged 175', 'Z charged 75']);
   });
 
   test('a use typed by hand beside the message that holds it is said on the line, on the check and on the To-do', async ({ page }) => {
@@ -157,7 +164,7 @@ test.describe('P156 stock: an entry is checked before it is believed', () => {
     await loadAppWithState(page, s);
     const d: any = await g(page, `(function () { var d = stockRereadDiff(stockData().pastes[0]); return { drop: d.drop.map(function (h) { return h.cur.id; }), add: d.add.map(function (e) { return e.itemId + ' ' + e.kind + ' ' + e.qty; }) }; })()`);
     expect(d.drop).toEqual(['O1']);
-    expect(d.add).toEqual(['Z charged 400']);
+    expect(d.add).toEqual(['Z charged 150', 'Z charged 175', 'Z charged 75']);
   });
 
   test('a balance picked at the review is kept on the message and read again the same way; an old message that needed one is left', async ({ page }) => {

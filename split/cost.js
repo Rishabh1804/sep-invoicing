@@ -178,6 +178,180 @@ function stockPatternHtml(item) {
   return h + '</div>';
 }
 
+/* ---------- Stock by line (PP3; owner, 9 Oct 2026: "Exactly", to reading the bath a stock line names) ----------
+   What went into each plating line's bath against what the line plated: zinc and every chemical whose use names its bath (the
+   supervisor's message, "use VAT A 2 / 25/09/26/ 150 kg", or Into on a use typed by hand), as so much a tonne plated and rupees a
+   kilogram, at the price paid by the day (stockPriceAt). A use counts by the day it ends, as the live cost counts it; one naming
+   no bath is the plant's, totalled apart and never placed. The kilograms are Production's (prodDayLine: every run weighed by the
+   surest route).
+   - What goes into a bath is a lump the bath draws on until the next of its kind (zinc anodes, a salt, a brightener), so each
+     addition is set against what the line plated from it until the next of the same stock line into the same bath. The last is
+     still in the bath and runs to today: it is said apart, "so far", and kept out of the line's figure unless it is the only one.
+   - The working days the line has no record for are filled at the pace of those it has, said; under half recorded, the addition
+     is not set against anything (one barrel day of fifteen had read 75 kg of zinc as 500 kg a tonne). Today, still running, is
+     left out until it is recorded.
+   - A use naming two baths is shared by what each plated over its days where each is recorded on half of them; else evenly. Both
+     are estimates and say so.
+   Worked out each time; nothing is stored but the entries' lines. */
+var STOCK_LINE_DAYS = 60;
+function stockByLine(from, to) {
+  var st = stockData(), first = null, today = localDateStr();
+  st.entries.forEach(function(e) { if (e.voided || !stockIsDraw(e)) return; var d = stockEntryWindow(e)[0]; if (!first || d < first) first = d; });
+  var start = first && first > from ? first : from;
+  var out = { from: from, to: to, start: start, recorded: !!first && first <= to, lines: {}, unnamed: { items: {}, n: 0 }, items: {} };
+  // Each line's kilograms a day, read once for the call.
+  var memo = {};
+  var kgOn = function(l, d) {
+    var k = l + '|' + d;
+    if (!memo[k]) { var r = prodDayLine(d, l); memo[k] = { kg: r.kg, est: r.est, unweighed: r.unweighed, rec: r.entries.length > 0 }; }
+    return memo[k];
+  };
+  // What a line plated over [a, b], with the share of the working days its record covers.
+  var span = function(l, a, b) {
+    var o = { kg: 0, est: 0, unweighed: 0, days: 0 };
+    for (var d = a, g = 0; d <= b && g < 400; d = isoAddDays(d, 1), g++) { var x = kgOn(l, d); o.kg += x.kg; o.est += x.est; o.unweighed += x.unweighed; if (x.rec) o.days++; }
+    var end = b === today && !kgOn(l, today).rec ? isoAddDays(b, -1) : b;
+    o.work = end >= a ? statsWorkingDays(a, end) : 0;
+    o.cover = o.work ? Math.min(1, o.days / o.work) : o.days ? 1 : 0;
+    return o;
+  };
+  PROD_LINES.forEach(function(l) {
+    var k = start <= to ? span(l, start, to) : { kg: 0, est: 0, unweighed: 0, days: 0, work: 0, cover: 0 };
+    out.lines[l] = { line: l, kg: k.kg, est: k.est, unweighed: k.unweighed, days: k.days, of: k.work, share: k.cover, items: {}, adds: [] };
+  });
+  st.entries.forEach(function(e) {
+    if (e.voided || !stockIsDraw(e) || e.date < from || e.date > to || !(e.qty > 0)) return;
+    var it = stockItem(e.itemId);
+    if (!it) return;
+    var p = stockPriceAt(it.id, e.date), price = p && p.price > 0 ? p.price : null;
+    var baths = stockEntryLines(e).filter(function(l) { return PROD_LINES.indexOf(l) >= 0; }), w = stockEntryWindow(e);
+    var tot = out.items[it.id] || (out.items[it.id] = { item: it, qty: 0, named: 0 });
+    tot.qty += e.qty;
+    if (!baths.length) {
+      var u = out.unnamed.items[it.id] || (out.unnamed.items[it.id] = { item: it, qty: 0, rs: 0, priced: true, ids: [] });
+      u.qty += e.qty; u.ids.push(e.id);
+      if (price != null) u.rs += e.qty * price; else u.priced = false;
+      out.unnamed.n++;
+      return;
+    }
+    tot.named += e.qty;
+    var spans = baths.length > 1 ? baths.map(function(l) { return span(l, w[0], w[1]); }) : null;
+    var byKg = spans && spans.every(function(k) { return k.cover >= 0.5; }) && spans.some(function(k) { return k.kg > 0; });
+    var sum = byKg ? spans.reduce(function(t, k) { return t + k.kg; }, 0) : 0;
+    baths.forEach(function(l, i) {
+      var share = baths.length === 1 ? 1 : byKg ? spans[i].kg / sum : 1 / baths.length, q = e.qty * share, L = out.lines[l];
+      var r = L.items[it.id] || (L.items[it.id] = { item: it, qty: 0, shared: 0, n: 0, priced: true });
+      r.qty += q; r.n++;
+      if (baths.length > 1) r.shared += q;
+      if (price == null) r.priced = false;
+      L.adds.push({ e: e, item: it, qty: q, rs: price != null ? q * price : null, with: baths.filter(function(x) { return x !== l; }),
+        even: baths.length > 1 && !byKg, from: w[0], to: w[1] });
+    });
+  });
+  // Each bath's additions of each stock line, against what the line plated over them (two starting on one day are one).
+  PROD_LINES.forEach(function(l) {
+    var L = out.lines[l];
+    L.runs = {};
+    L.rsKg = null; L.rsKgEst = false; L.unpriced = 0; L.soFar = 0;
+    Object.keys(L.items).forEach(function(id) {
+      var g = [];
+      L.adds.filter(function(a) { return a.item.id === id; }).sort(function(a, b) { return a.from < b.from ? -1 : a.from > b.from ? 1 : a.to < b.to ? -1 : 1; }).forEach(function(a) {
+        var last = g[g.length - 1];
+        if (last && last.from === a.from) { last.qty += a.qty; last.list.push(a); if (a.to > last.to) last.to = a.to; last.rs = last.rs == null || a.rs == null ? null : last.rs + a.rs; }
+        else g.push({ from: a.from, to: a.to, qty: a.qty, rs: a.rs, list: [a] });
+      });
+      var runs = L.runs[id] = g.map(function(x, i) {
+        var next = g[i + 1], until = next ? isoAddDays(next.from, -1) : to;
+        if (until < x.to) until = x.to;
+        var k = span(l, x.from, until), ok = k.days > 0 && k.cover >= 0.5;
+        var kgFull = ok ? k.kg / k.cover : null;
+        return { from: x.from, to: x.to, until: until, open: !next, qty: x.qty, rs: x.rs, list: x.list, kg: k.kg, kgFull: kgFull, days: k.days, work: k.work, cover: k.cover,
+          est: k.est > 0.0005 || k.cover < 0.999, unweighed: k.unweighed, perT: ok && kgFull > 0 ? x.qty / (kgFull / 1000) : null };
+      });
+      // The line's figure for the stock line: its additions set against what was plated over them, the one still in the bath apart.
+      var r = L.items[id], closed = runs.filter(function(x) { return !x.open && x.perT != null; }), last = runs[runs.length - 1];
+      var use = closed.length ? closed : last && last.open && last.perT != null ? [last] : [];
+      var qty = use.reduce(function(t, x) { return t + x.qty; }, 0), kg = use.reduce(function(t, x) { return t + x.kgFull; }, 0);
+      r.perT = use.length && kg > 0 ? qty / (kg / 1000) : null;
+      r.soFar = !closed.length && use.length > 0;
+      r.est = use.some(function(x) { return x.est; }); r.atMost = use.some(function(x) { return x.unweighed > 0; });
+      r.on = use.length; r.withheld = runs.filter(function(x) { return x.perT == null; }).length;
+      // Why there is no figure: the line not recorded on half the days, or recorded with nothing weighed.
+      r.why = r.perT != null ? '' : runs.some(function(x) { return x.days > 0 && x.cover >= 0.5; }) ? 'no plating weighed' : 'too few days recorded';
+      var rs = use.every(function(x) { return x.rs != null; }) ? use.reduce(function(t, x) { return t + x.rs; }, 0) : null;
+      r.rs = runs.reduce(function(t, x) { return t + (x.rs || 0); }, 0);
+      r.rsKg = rs != null && kg > 0 ? rs / kg : null;
+      // The line's rupees a kilogram: each stock line's over the plating its additions met, only where one has been drawn on to the
+      // next (a first addition still in the bath would read it high), the others counted apart.
+      if (use.length && rs == null) L.unpriced++;
+      if (r.soFar) L.soFar++;
+      else if (r.rsKg != null) { L.rsKg = (L.rsKg || 0) + r.rsKg; if (r.est) L.rsKgEst = true; }
+    });
+  });
+  return out;
+}
+/* A line's figure for a stock line a tonne plated, with its sign: ≤ where pieces nothing weighs leave the kilograms short (the
+   most it can be), ≈ where a weight is estimated or a day not recorded was filled. Null where it is not set against anything. */
+function stockPerTonneText(v, est, atMost) {
+  return v == null ? null : (atMost ? '≤ ' : est ? '≈ ' : '') + stockFmtRate(v);
+}
+/* The uses of a stock line that go into a bath on a day, for Floor's card: those of one day on it, and a use over several days
+   on the day it ends, with its days. */
+function stockDayAdds(day, line) {
+  var out = [];
+  stockData().entries.forEach(function(e) {
+    if (e.voided || !stockIsDraw(e) || e.date !== day || !(e.qty > 0)) return;
+    var it = stockItem(e.itemId), baths = stockEntryLines(e);
+    if (!it || baths.indexOf(line) < 0) return;
+    var w = stockEntryWindow(e);
+    out.push({ e: e, item: it, qty: e.qty, shared: baths.length > 1, with: baths.filter(function(x) { return x !== line; }), from: w[0] });
+  });
+  return out;
+}
+
+/* Two days as a span, the month once where they share it: "23 – 24 Sep", "28 Sep – 2 Oct". */
+function stockSpanText(a, b) {
+  if (!a || a === b) return stockShortDate(a || b);
+  return a.slice(0, 7) === b.slice(0, 7) ? (+a.slice(8)) + ' – ' + stockShortDate(b) : stockShortDate(a) + ' – ' + stockShortDate(b);
+}
+/* By line, on a stock line's page (Stock → a line), drawn as an analysis (§6.27): a row a line with its figure a tonne plated, its
+   rupees a kilogram and its additions folded under it, one a row; what named no bath, a row of its own. How it is worked out is
+   the guide's (kbguides.js, "Reading the plant's figures"). */
+function stockByLineHtml(item) {
+  var to = localDateStr(), res = stockByLine(isoAddDays(to, -(STOCK_LINE_DAYS - 1)), to), unit = item.unit || '', tot = res.items[item.id];
+  if (!tot) return '';
+  var q = function(v) { return stockFmtQty(v) + (unit ? ' ' + unit : ''); };
+  var per = function(txt) { return txt ? txt + ' ' + (unit || 'unit') + '/t' : ''; };
+  var t = function(kg) { return formatNum(kg / 1000, kg < 10000 ? 2 : 1) + ' t'; };
+  var h = '<div class="inv-panel inv-panel-flush" id="stockByLine"><div class="inv-panel-head"><span class="inv-panel-title">By line, ' + STOCK_LINE_DAYS + ' days</span></div>';
+  if (!(tot.named > 0)) {
+    // A line counted in pieces (gloves, a spray can) goes into no bath: nothing to say.
+    if (/^nos$/i.test(unit)) return '';
+    return h + '<div class="inv-row inv-row-auto" data-stock-unnamed><span class="inv-note">None of the ' + escHtml(q(tot.qty)) + ' used names its bath. ' +
+      'Write the bath in the message (“use VAT A 2 / 150 kg”), or pick it under Into by hand, and it is set against the line.</span></div></div>';
+  }
+  PROD_LINES.forEach(function(l) {
+    var L = res.lines[l], r = L.items[item.id];
+    if (!r) return;
+    var sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
+    var head = { label: prodLineName(l), src: r.soFar ? ['neutral', 'so far'] : null, value: per(stockPerTonneText(r.perT, r.est || r.soFar, r.atMost)), attrs: ' data-stock-line="' + l + '"',
+      sub: r.perT == null ? r.why : [r.rsKg != null ? sign + '₹' + formatNum(r.rsKg, 2) + '/kg' : r.priced ? '' : 'no price', todoPlural(r.n, 'addition')].filter(Boolean).join(' · ') };
+    var facts = (L.runs[item.id] || []).map(function(x) {
+      var shared = x.list.some(function(a) { return a.with.length; });
+      return { label: stockSpanText(x.from, x.to) + ' · ' + q(x.qty), src: shared ? ['neutral', 'shared'] : null, value: per(stockPerTonneText(x.perT, x.est, x.unweighed > 0)), attrs: ' data-stock-add="' + l + '"',
+        sub: x.perT == null ? (x.days > 0 && x.cover >= 0.5 ? 'nothing weighed to ' + stockShortDate(x.until) : x.days + ' of ' + x.work + ' days recorded')
+          : (x.est ? '≈ ' : '') + t(x.kgFull) + (x.open ? ' so far' : ' to ' + stockShortDate(x.until)) + (x.cover < 0.999 ? ' · ' + x.days + ' of ' + x.work + ' days' : '') };
+    });
+    h += uiFoldRowHtml('stock-line-' + item.id + '-' + l, head, facts);
+  });
+  var u = res.unnamed.items[item.id];
+  if (u) {
+    var checks = stockEntryChecks(item.id), held = u.ids.filter(function(id) { return checks[id] && checks[id].length; }).length;
+    h += uiFactRowHtml({ label: 'No bath named', value: q(u.qty), sub: 'the plant’s' + (held ? ' · ' + held + ' on To check' : ''), attrs: ' data-stock-unnamed' });
+  }
+  return h + '<div class="inv-panel-body inv-note">Each addition against what its line plated until the next. ≈ an estimate, ≤ the most it can be.</div></div>';
+}
+
 /* ---------- The live cost ---------- */
 var COST_MODEL_DEFAULTS = { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 };
 function costModelCfg() {

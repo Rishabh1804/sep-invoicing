@@ -131,3 +131,55 @@ Each is one PR, its screens measured again after.
 5. **One tone per fact**:
    - the same figure in the same tone on every screen (on site, at complement);
    - the month so far drawn dashed and marked *to date* in every chart.
+
+## Analysed data (9 Oct 2026)
+
+The owner, on Floor's line card: *"The times lost most reads like a block of text and is not presented according to our
+benchmark, where we are looking to reduce cognitive load."* Then: *"Lots of new chaotic text data is entering due to the analysis,
+that means we are [not] spending enough time and resources on designing a way to present our analysed data in a coherent manner."*
+
+**One way to present a worked-out figure is now a design rule** (`docs/SEP_INVOICING_DESIGN_PRINCIPLES.md` §6.27). The verdict
+leads in its tone. The factors are tiles under a caption naming what moved it most. The working is folded under them, shut until
+opened: one fact a row, a few words and the figure at the end, where a figure comes from a badge. Certainty is a sign (≈, ≤) or a
+badge (*so far*), never a clause. How the analysis works is the screen's guide (*Reading the plant's figures*, the book in the top
+bar), not a note on the face.
+
+**Built in PR #144 on the screens the analysis had added:**
+- **Floor → Day's line cards.** The paragraph under the tiles is a caption and a folded *How it's worked out*: hours, the pace and the
+  round each with a *measured* / *set* / *typed* badge, the rounds allowed and run, the racks, each part run part-full, the parts'
+  round. The card's sub keeps the units, the hours and the pieces not weighed. What went into the bath that day is a fact row.
+- **Production's day card.** The sub is three short facts. *How it was weighed* folds to a route a row, the client's default keeping
+  its *Change*. The pieces not weighed stay open, since they need the owner, without the reason repeated on each. The clients fold.
+  The day is five fact rows. On the owner's book of 9 Oct the Overview went from 4,728 to 4,046 px on the phone.
+- **Stock by line** (Stock → a line, Production → Lines): a row a line or stock line, its figure at the end, its additions folded.
+- **The plant strip's round**: "plating 59 kg a round" with a *measured* badge, in place of a sentence of how it was measured.
+
+**Measured on the owner's 9 Oct book, the phone, every page and view** (a scratch harness, never committed; counts only). It counts
+text blocks over 120 characters and meta lines chaining three or more facts with "·". Floor → Day now has one block and no chain.
+Production's Overview has one block. The screens still reasoning in sentences, most first:
+
+| Screen | Blocks over 120 | Chains of 3+ |
+|---|---:|---:|
+| Production → Entries | 0 | 150 |
+| Clients → Performance | 10 | 21 |
+| Production → In plant | 5 | 30 |
+| Staff → Areas | 8 | 15 |
+| Stats → Overview | 13 | 5 |
+| Clients → Items | 0 | 30 |
+| Finance → Receivables | 4 | 11 |
+| Staff → Register | 7 | 1 |
+| Stats → Clients | 7 | 0 |
+| Stats → Cost | 7 | 0 |
+| Staff → Pay | 4 | 5 |
+| Planner → Plant | 1 | 11 |
+| Power → Load & bills | 4 | 2 |
+| Power → Cuts | 0 | 9 |
+
+**Proposed, one PR each, the order the owner's:**
+1. Production → Entries and In plant: an entry's facts as fact rows or badges (its source, its weight, its match).
+2. Clients → Performance and Items.
+3. Staff → Areas, Pay and Register: the extra's check and the wage arithmetic as folded working.
+4. Stats → Overview, Clients and Cost: the story cards' sentences as verdict and factors; the live cost's notes as badges.
+5. Finance → Receivables, the Planner and Power.
+
+Each screen is measured again with the same harness after its PR, the counts said in the PR.

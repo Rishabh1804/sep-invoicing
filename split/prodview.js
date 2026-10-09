@@ -111,7 +111,11 @@ function prodDayHeroHtml(date, opts) {
   else if (pic.usual != null) { worse('ok'); title = (pic.kg > pic.usual * 1.2 ? 'Over' : 'About') + ' a usual day of ' + prodKgFig(pic.usual, true); }
   else title = todoPlural(pic.ran.length, 'line') + ' ran';
   if (lag > 2 && !tone) tone = 'warning';
-  var sub = prodPlatedSub(pic.pieces, pic.kgWritten, pic.kg, pic.est, pic.unweighed) + (effWord && title.indexOf(effWord) < 0 ? ' · ' + effWord : '');
+  // How good and how sure, in short facts (§6.27): the plant's efficiency where the title is about something else, the share
+  // estimated, the pieces nothing weighs where the title does not say them; the record itself where none of those is.
+  var notW = pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '';
+  var sub = [effWord && title.indexOf(effWord) < 0 ? Math.round(de.eff * 100) + '% efficient' : '', estd && pic.kg > 0 ? Math.round(pic.est / pic.kg * 100) + '% estimated' : pic.unweighed ? '' : 'every run weighed',
+    notW && title.indexOf('not weighed') < 0 ? notW : ''].filter(Boolean).join(' · ') || prodPlatedSub(pic.pieces, pic.kgWritten, 0, 0, 0);
   var meterTitle = prodKgFig(pic.kg, estd, pic.unweighed > 0) + ' plated: ' + [sure ? prodKgFig(sure) + ' weighed' : '', pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '',
     pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '', pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind' : ''].filter(Boolean).join(', ') +
     '. Two shifts hold about ' + prodKgFig(pic.capacity) + (pic.usual != null ? '; a usual day is ' + prodKgFig(pic.usual, true) : '') + '.';
@@ -158,12 +162,13 @@ function prodDayLinesHtml(pic, compact) {
   });
   return h;
 }
-/* Pieces nothing weighs, one row a floor name: its client, the lines, the pieces, and the two moves that weigh it. */
+/* Pieces nothing weighs, one row a floor name: its client and lines, the pieces, and the two moves that weigh it. The list's head
+   says why they are listed (§6.27): a row does not say it again. */
 function prodUnweighedRowsHtml(names) {
   var may = typeof grdOk !== 'function' || grdOk('floor');
   return names.map(function(n) {
     return '<div class="inv-row inv-row-2 inv-row-flow" data-prod-weigh="none"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(n.part || 'No part written') + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml([n.client, n.lines && n.lines.length ? n.lines.map(prodLineName).join(', ') : '', 'no weight on record, no challan of it with a count'].filter(Boolean).join(' · ')) + '</span></span>' +
+      '<span class="inv-row-meta">' + escHtml([n.client, n.lines && n.lines.length ? n.lines.map(prodLineName).join(', ') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
       '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + escHtml(Math.round(n.pieces).toLocaleString('en-IN') + ' pcs') + '</span>' +
       (may && n.clientId != null && n.id && n.part ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(n.id) + '">Which part?</button>' +
         '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdWeighSet" data-id="' + escHtml(n.id) + '">Set its weight</button>' : '') + '</span></div>';
@@ -202,65 +207,52 @@ function prodWeighSetSave(id) {
   tabRedrawActive();
   showToast(part + ' weighed at ' + formatNum(kg, 3) + ' kg a piece from ' + formatDate(first));
 }
-/* How the day was weighed: the kilograms by route, the range the estimates allow, and each name nothing weighs, with the
-   move that weighs it (Which part? learns the floor's name as one of the client's parts, for every run under it). */
+/* How the day was weighed (§6.27): the kilograms by route, folded under one row that says how much is estimated, a route a row;
+   then the names nothing weighs, which need the owner, open under their own head with the moves that weigh them. */
 function prodDayWeighHtml(pic, compact) {
-  var sure = pic.by.written + pic.by.record;
-  var row = function(key, title, meta, kg) {
-    return '<div class="inv-row inv-row-2" data-prod-weigh="' + key + '"><span class="inv-row-main"><span class="inv-row-title">' + title + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span>' +
-      '<span class="inv-row-end inv-num">' + escHtml(kg) + '</span></div>';
-  };
-  var h = '<div class="inv-row-group"><span>How it was weighed</span></div>';
-  if (compact) {
-    return h + row('summary', escHtml(!pic.est ? 'Every run weighed' : sure ? Math.round(sure / pic.kg * 100) + '% weighed, the rest estimated' : 'Estimated'),
-      [pic.by.challans ? prodKgFig(pic.by.challans) + ' from the challans' : '', pic.by['default'] ? prodKgFig(pic.by['default']) + ' at a client’s default' : '',
-        pic.by.kind ? prodKgFig(pic.by.kind) + ' by kind (' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high) + ' for the day)' : '',
-        pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pieces not weighed' : ''].filter(Boolean).join(' · ') || 'kilos written, or a weight on record', prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0));
-  }
-  if (sure) h += row('sure', 'Weighed', 'kilos written, or the part’s weight on record', prodKgFig(sure));
-  if (pic.by.challans) h += row('challans', 'From the challans', 'at the kg a piece of the challans the plating was set against', prodKgFig(pic.by.challans, true));
+  var sure = pic.by.written + pic.by.record, estPct = pic.kg > 0 && pic.est > 0.0005 ? Math.round(pic.est / pic.kg * 100) : 0;
+  var notW = pic.unweighed ? Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '';
+  if (compact) return uiFactRowHtml({ label: 'How it was weighed', sub: [estPct ? estPct + '% estimated' : 'every run weighed', notW].filter(Boolean).join(' · '),
+    value: prodKgFig(pic.kg, pic.est > 0.0005, pic.unweighed > 0), attrs: ' data-prod-weigh="summary"' });
   // A client's default (owner, 9 Oct 2026: "Default Mehta to 0.560 kg per unit, adjustable"): its figure, and the door that changes it.
   var mayEdit = (typeof grdCan !== 'function' || grdCan('rates')) && (typeof grdSees !== 'function' || grdSees('pageClients'));
-  (pic.dflt || []).forEach(function(d) {
-    h += '<div class="inv-row inv-row-2 inv-row-flow" data-prod-weigh="default"><span class="inv-row-main"><span class="inv-row-title">' + escHtml('At ' + d.client + '’s default') + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatNum(d.kgPc, 3) + ' kg a piece, set on the client, for ' + Math.round(d.pieces).toLocaleString('en-IN') + ' pieces nothing links to a part') + '</span></span>' +
-      '<span class="inv-row-end inv-row-actions"><span class="inv-num">' + escHtml(prodKgFig(d.kg, true)) + '</span>' +
-      (mayEdit && d.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(d.clientId)) + '">Change</button>' : '') + '</span></div>';
-  });
-  if (pic.by.kind) h += row('kind', 'By its kind', 'at the client’s usual kg a piece for that kind and gauge · the day ' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high), prodKgFig(pic.by.kind, true));
-  if (pic.names.length) h += prodUnweighedRowsHtml(pic.names) + '<div class="inv-row"><span class="inv-row-main"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every run not weighed</button></span></div>';
+  var facts = [sure ? { label: 'Weighed', sub: 'its kilos, or a weight on record', value: prodKgFig(sure), attrs: ' data-prod-weigh="sure"' } : null,
+    pic.by.challans ? { label: 'From the challans', sub: 'their kg a piece', value: prodKgFig(pic.by.challans, true), attrs: ' data-prod-weigh="challans"' } : null]
+    .concat((pic.dflt || []).map(function(d) {
+      return { label: 'At ' + d.client + '’s default', sub: formatNum(d.kgPc, 3) + ' kg a piece · ' + Math.round(d.pieces).toLocaleString('en-IN') + ' pcs', value: prodKgFig(d.kg, true), attrs: ' data-prod-weigh="default"',
+        actions: mayEdit && d.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(d.clientId)) + '">Change</button>' : '' };
+    }))
+    .concat([pic.by.kind ? { label: 'By its kind', sub: 'the day ' + prodKgFig(pic.low) + ' – ' + prodKgFig(pic.high), value: prodKgFig(pic.by.kind, true), attrs: ' data-prod-weigh="kind"' } : null]);
+  var h = uiFoldRowHtml('prod-day-weigh', { label: 'How it was weighed', sub: estPct ? estPct + '% estimated' : 'every run weighed', value: facts.filter(Boolean).length, count: true }, facts, ' data-prod-day-weighing');
+  if (pic.names.length) h += '<div class="inv-row-group"><span>' + escHtml('Not weighed · ' + Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs') + '</span></div>' + prodUnweighedRowsHtml(pic.names) +
+    '<div class="inv-row"><span class="inv-row-main"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every run not weighed</button></span></div>';
   return h;
 }
-/* The clients, the cuts, the loads, and the week against two shifts. */
+/* The clients (folded), then the day as facts: what the work is worth, its labour, the cuts, the loads, the week. */
 function prodDayMoreHtml(pic) {
-  var h = '<div class="inv-row-group"><span>Clients</span></div>';
-  pic.clients.slice(0, 5).forEach(function(c) {
-    var meta = [c.pieces ? Math.round(c.pieces).toLocaleString('en-IN') + ' pcs' : '', c.kgWritten ? formatNum(c.kgWritten, 0) + ' kg written' : '', c.unweighed ? Math.round(c.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : ''].filter(Boolean).join(' · ');
-    h += '<div class="inv-row inv-row-2" data-prod-day-client="' + escHtml(c.clientId != null ? String(c.clientId) : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
-      '<span class="inv-row-end inv-num">' + escHtml(c.kg > 0 ? prodKgFig(c.kg, c.est > 0.0005, c.unweighed > 0) : '—') + '</span></div>';
+  var cf = pic.clients.slice(0, 5).map(function(c) {
+    return { label: c.name, sub: [c.pieces ? Math.round(c.pieces).toLocaleString('en-IN') + ' pcs' : '', c.kgWritten ? formatNum(c.kgWritten, 0) + ' kg written' : '', c.unweighed ? Math.round(c.unweighed).toLocaleString('en-IN') + ' not weighed' : ''].filter(Boolean).join(' · '),
+      value: c.kg > 0 ? prodKgFig(c.kg, c.est > 0.0005, c.unweighed > 0) : '', attrs: ' data-prod-day-client="' + escHtml(c.clientId != null ? String(c.clientId) : '') + '"' };
   });
   if (pic.clients.length > 5) {
     var rest = pic.clients.slice(5), kg = rest.reduce(function(s, c) { return s + c.kg; }, 0), est = rest.some(function(c) { return c.est > 0.0005; });
-    h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(todoPlural(rest.length, 'more client')) + '</span></span><span class="inv-row-end inv-num">' + escHtml(kg > 0 ? prodKgFig(kg, est) : '—') + '</span></div>';
+    cf.push({ label: todoPlural(rest.length, 'more client'), value: kg > 0 ? prodKgFig(kg, est) : '' });
   }
+  var h = uiFoldRowHtml('prod-day-clients', { label: 'Clients', value: pic.clients.length, count: true }, cf, ' data-prod-day-clients');
   var mins = pic.cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), open = pic.cuts.filter(function(c) { return c.open; }).length;
-  h += '<div class="inv-row-group"><span>The day</span></div>';
   // What the work is worth at the rates on record, and the labour the day's record holds: shown to a role that sees money
   // and wages (guard.js), never a figure a role's screens do not show.
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), wages = typeof grdSeesWages !== 'function' || grdSeesWages();
-  if (money && pic.worth.runs) h += '<div class="inv-row inv-row-2" data-prod-day-worth><span class="inv-row-main"><span class="inv-row-title">' + escHtml('Work plated, worth ' + (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount)) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml('at its clients’ rates on record, before GST; rework left out' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pieces with no rate or weight' : '')) + '</span></span></div>';
-  if (wages && pic.labour > 0) h += '<div class="inv-row inv-row-2" data-prod-day-labour><span class="inv-row-main"><span class="inv-row-title">' + escHtml('Labour on the day’s record ' + formatCurrency(pic.labour)) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml((money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of what the work is worth · ' : '') + 'every tier, overtime and the EXTRA, as Staff counts it') + '</span></span></div>';
-  h += '' +
-    '<div class="inv-row inv-row-2" data-prod-day-cuts><span class="inv-row-main"><span class="inv-row-title">' + (pic.cuts.length ? escHtml(todoPlural(pic.cuts.length, 'power cut')) : 'No power cut reported') + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') : 'on the day’s record') + '</span></span>' +
-    '<span class="inv-row-end">' + (pic.cuts.length ? uiDot(open ? 'warning' : 'danger', escHtml(open ? open + ' with no time back' : powerDur(mins) + ' dark')) : '') + '</span></div>' +
-    '<div class="inv-row inv-row-2" data-prod-day-loads><span class="inv-row-main"><span class="inv-row-title">' + escHtml(pic.loads ? todoPlural(pic.loads, 'pickling load') : 'No pickling load recorded') + '</span>' +
-    '<span class="inv-row-meta">the pickling hand’s messages</span></span></div>';
   var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date);
-  if (wk) h += '<div class="inv-row inv-row-2" data-prod-day-week><span class="inv-row-main"><span class="inv-row-title">' + escHtml('The week to this day: ' + Math.round(wk.perDay / wk.capacity * 100) + '% of capacity') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day') + ' · two shifts hold about ' + prodKgFig(wk.capacity) + ' a day') + '</span></span></div>';
+  h += '<div class="inv-row-group"><span>The day</span></div>' + [
+    money && pic.worth.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
+      value: (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount), attrs: ' data-prod-day-worth' } : null,
+    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
+    { label: 'Power cuts', sub: pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') + (open ? ' · ' + open + ' with no time back' : '') : '',
+      value: pic.cuts.length ? powerDur(mins) + ' dark' : 'none', attrs: ' data-prod-day-cuts' },
+    { label: 'Pickling loads', value: pic.loads || 'none', attrs: ' data-prod-day-loads' },
+    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null
+  ].filter(Boolean).map(uiFactRowHtml).join('');
   return h;
 }
 
@@ -290,7 +282,7 @@ function prodOverviewHtml() {
   }
   h += '<div class="inv-panels"><div class="inv-panel" id="prodChart"><div class="inv-panel-head"><span class="inv-panel-title">Plated by line, 4 weeks</span></div>' +
     chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with nine tenths of its pieces weighed' }) +
-    '<div class="inv-note">Kilograms by day, each run weighed by the surest route the book holds (its kilos, its weight on record, the challans it was set against, or its kind; the day card says which). A day with no record for a line, or with over a tenth of its pieces not weighed, is a gap in its line, not a zero.</div></div>';
+    '<div class="inv-note">Kilograms a day. A gap is a day with no record, or a tenth of its pieces not weighed.</div></div>';
   var cov = prodCoverage(from, today);
   h += '<div class="inv-panel inv-panel-flush" id="prodCoverage"><div class="inv-panel-head"><span class="inv-panel-title">Record coverage, 4 weeks</span></div>';
   PROD_LINES.forEach(function(l) {
@@ -299,7 +291,7 @@ function prodOverviewHtml() {
       (c.last ? 'last recorded ' + escHtml(stockShortDate(c.last)) : 'never recorded') + '</span></span><span class="inv-row-end"><span class="inv-num">' + c.days + ' of ' + c.of + '</span>' +
       '<span class="inv-dot inv-dot-' + (ok ? 'ok' : 'warning') + '">' + (ok ? 'Recorded' : 'Gaps') + '</span></span></div>';
   });
-  h += '<div class="inv-panel-body inv-note">Working days with a plated record for the line. Figures that rest on the floor record read low where it has gaps, and the In plant tab says so.</div></div>';
+  h += '<div class="inv-panel-body inv-note">Working days with a plated record. Where it has gaps, what rests on it reads low.</div></div>';
   var unknown = idx.live.filter(function(e) { return e.kind === 'pickled' && !idx.replaced[e.id] && e.date >= from && prodLoadLine(e).how === 'unknown'; });
   h += '<div class="inv-panel inv-panel-flush" id="prodUnknown"><div class="inv-panel-head"><span class="inv-panel-title">Line unknown</span><span class="inv-panel-count">' + unknown.length + '</span></div>' +
     (unknown.length ? unknown.slice(-6).reverse().map(prodLoadRowHtml).join('') + (unknown.length > 6 ? '<div class="inv-panel-body"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdFilter" data-flag="unknown">All ' + unknown.length + '</button></div>' : '')
@@ -435,6 +427,7 @@ function prodLinesHtml() {
         return '<td class="inv-num">' + (x.entries.length ? escHtml((x.kg > 0 ? (x.est > 0.0005 ? '≈ ' : '') + formatNum(x.kg, 0) : '') + (x.unweighed ? (x.kg > 0 ? ' + ' : '') + Math.round(x.unweighed).toLocaleString('en-IN') + ' pcs' : '')) : '&mdash;') + '</td>';
       }).join('') + '</tr>';
     }).join('') + '</tbody></table></div><div class="inv-panel-body inv-note">Kilograms plated, ≈ where any run is estimated; pieces nothing weighs are added as pieces. A dash is a day with no record for the line.</div></div>';
+  h += prodLineStockHtml(line);
   // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
   var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
@@ -445,6 +438,33 @@ function prodLinesHtml() {
     '<div class="inv-panel-body inv-note">Variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), with the VAT side’s pickling hands shared by each day’s kg, over the same days as the kg (days with nine tenths of the pieces weighed, estimates by the challans or by kind included). The monthly crew is the standing crew and is not by line. Withheld under five days. ' +
     escHtml(lab.skipped ? lab.skipped + ' day' + (lab.skipped === 1 ? '' : 's') + ' with attendance and no usable production record are left out.' : '') + '</div></div>';
   return h;
+}
+/* What went into the line's bath over 60 days (PP3; cost.js stockByLine), drawn as an analysis (§6.27): a row a stock line with its
+   figure a tonne plated and, for a role that sees money, its rupees a kilogram; the line's rupees a kilogram; what named no bath. */
+function prodLineStockHtml(line) {
+  var to = localDateStr(), res = stockByLine(isoAddDays(to, -(STOCK_LINE_DAYS - 1)), to), L = res.lines[line];
+  if (!res.recorded || !L) return '';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), name = PROD_LINE_LABEL[line], stockDoor = typeof grdSees !== 'function' || grdSees('pageStock');
+  var ids = Object.keys(L.items).sort(function(a, b) { return (L.items[b].rs - L.items[a].rs) || (L.items[b].qty - L.items[a].qty); });
+  var h = '<div class="inv-panel inv-panel-flush" id="prodLineStock"><div class="inv-panel-head"><span class="inv-panel-title">Into the bath, ' + STOCK_LINE_DAYS + ' days</span>' +
+    (ids.length ? '<span class="inv-panel-count">' + ids.length + '</span>' : '') + '</div>';
+  if (!ids.length) h += '<div class="inv-empty">No use names ' + escHtml(name) + ' yet. Write the bath in the stock message (“use VAT A 2 / 150 kg”), or pick it under Into by hand.</div>';
+  ids.forEach(function(id) {
+    var r = L.items[id], unit = r.item.unit || '', pt = stockPerTonneText(r.perT, r.est || r.soFar, r.atMost), sign = r.atMost ? '≤ ' : r.est || r.soFar ? '≈ ' : '';
+    var f = { label: r.item.name, src: r.soFar ? ['neutral', 'so far'] : null, value: pt ? pt + ' ' + (unit || 'unit') + '/t' : '',
+      sub: r.perT == null ? r.why : [money ? (r.rsKg != null ? sign + '₹' + formatNum(r.rsKg, 2) + '/kg' : r.priced ? '' : 'no price') : '', todoPlural(r.n, 'addition')].filter(Boolean).join(' · ') };
+    // The stock line's page, for a role that opens Stock.
+    h += stockDoor ? '<button type="button" class="inv-row inv-row-2" data-action="invProdStockLine" data-id="' + escHtml(id) + '" data-prod-line-stock="' + escHtml(id) + '">' + _uiFactInner(f) + '</button>'
+      : uiFactRowHtml(Object.assign(f, { attrs: ' data-prod-line-stock="' + escHtml(id) + '"' }));
+  });
+  if (ids.length && money) {
+    // What the line's figure leaves out is said beside it: a stock line on its first addition, one with no price (reads low).
+    h += uiFactRowHtml(L.rsKg != null ? { label: 'All of it', value: (L.rsKgEst ? '≈ ' : '') + '₹' + formatNum(L.rsKg, 2) + '/kg', attrs: ' data-prod-line-stock-total',
+        sub: [L.soFar ? L.soFar + ' still on a first addition' : '', L.unpriced ? L.unpriced + ' with no price: reads low' : ''].filter(Boolean).join(' · ') }
+      : { label: 'All of it', value: '', sub: L.soFar ? 'each still on a first addition' : 'no price', attrs: ' data-prod-line-stock-total' });
+  }
+  if (res.unnamed.n) h += uiFactRowHtml({ label: 'No bath named', value: todoPlural(res.unnamed.n, 'use'), sub: 'the plant’s, not in these', attrs: ' data-prod-line-stock-unnamed' });
+  return h + '<div class="inv-panel-body inv-note">Each addition against what the line plated until the next. ≈ an estimate, ≤ the most it can be.</div></div>';
 }
 function prodRunRowHtml(e, muted) {
   var rounds = (e.rounds || []).filter(function(x) { return !x.struck; });
@@ -1207,6 +1227,7 @@ function prodImportText(text, name) {
 function prodAction(action, btn) {
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
+    case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
     case 'invProdBack': {
       var wasPhoto = !!_prodPhoto;
       _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }

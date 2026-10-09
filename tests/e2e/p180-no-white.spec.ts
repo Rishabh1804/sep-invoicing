@@ -46,6 +46,8 @@ test('the sweep sees white: the surface of 26 Sep and a tick box the browser dra
   expect(old.length).toBeGreaterThan(3);
   expect(old.join(' ')).toMatch(/L 0\.98\d/);
   await tag.evaluate(t => t.remove());
+  // A tick box's fill eases back over --dur-1: judged mid-way it reads L 0.97x, so the sweep waits for it to land.
+  await page.waitForFunction(() => !document.getAnimations().some(a => a instanceof CSSTransition && a.playState === 'running'));
   expect((await sweep(page, 'back')).white).toEqual([]);
   // A tick box the browser paints is white whatever its computed fill says, so one not drawn by the app is flagged by name.
   await g(page, `document.getElementById('homeNeeds').insertAdjacentHTML('afterbegin', '<input type="checkbox" id="p180tick">')`);

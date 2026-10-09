@@ -168,8 +168,11 @@ function pltStationHtml(station) {
     ' <span class="inv-panel-count">' + (cap.n ? cap.nAvail + ' of ' + cap.n : 'none') + '</span></span>' + pltCapDot(cap) + '</div>';
   if (!cap.n) return h + '<div class="inv-empty">No unit recorded for ' + escHtml(name) + '.' + (pltCanEdit() ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button>' : '') + '</div></div>';
   h += '<div class="inv-panel-body"><div class="inv-unit-cap" data-plt-cap><span class="inv-unit-cap-words">' + escHtml(pltCapWords(cap)) + '</span>' + pltBarHtml(cap) +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '') +
-    (cap.used && cap.used.kgRound != null ? ' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round (' + cap.used.why + ')' : cap.used && PLT_LINE_STATIONS[station] ? ' · ' + cap.used.why : '')) + '</span></div>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '')) +
+    // What it plates a round, and where that comes from as a badge (§6.27); how it was measured is the line's working on Floor.
+    (cap.used && cap.used.kgRound != null ? escHtml(' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round') + ' <span class="inv-badge inv-badge-' + (cap.used.firm ? 'ok' : 'neutral') + '" data-plt-used="' +
+      (cap.used.firm ? 'measured' : cap.used.firm === false ? 'notfirm' : 'book') + '">' + (cap.used.firm ? 'measured' : cap.used.firm === false ? 'not firm' : 'from the book') + '</span>'
+      : cap.used && PLT_LINE_STATIONS[station] ? escHtml(' · ' + cap.used.why) : '') + '</span></div>' +
     '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
   // The power cuts that hit this line (powercause.js), when any were tied to it.
   if (typeof pcsStationNote === 'function') h += pcsStationNote(station);

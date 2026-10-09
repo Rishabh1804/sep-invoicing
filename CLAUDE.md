@@ -204,7 +204,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,623 tests, both layouts
+pnpm exec playwright test          # 1,625 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1847,7 +1847,15 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     power cuts. A cut the pickling hand also reported is counted once (`prodDowntimeDay`): cuts from different sources
     that overlap or begin within ten minutes are joined; two cuts in one log are two, however close.
   - Smaller shapes: "VAT-2" names VAT A2; "12:45 AM" between 11:30 and 1:05 is noon (said); a day name is checked against
-    the date; a ditto-only last row is not a row; an END with no START starts where the batch before ended.
+    the date; a ditto-only last row is not a row.
+  - **A run that opens on an END starts where the batch before it ended**, the last END above it on the page: a batch with
+    no START written for it, or one its gauge split from its START's run (Mehta's 120s after their 98s under one START). With
+    no END above it, when it began is not known, said in amber. **Fixed 9 Oct 2026** (owner: *"Yes, fix the reader"*): the
+    review had said so since 28 Sep while the run kept its END as its start and lasted no time, and the 20 of 20 below had
+    checked the figures, not the starts. A run saved that way, from a photo or a file the reader built, is put right at start-up
+    from the END before it on its page and keeps the start it had (`startWas`, with no clock in it, so two devices write the
+    same and the merge holds nothing): on the owner's book, four runs on
+    VAT A2 (23 Sep twice, 24 Sep, 8 Oct). P85.
   - **A photo that is not a register page is refused**: the weekly hours sheet ("other"), and a customer's challan, which
     is offered to the challan scanner with the same file.
   **Instrument, and its limit:** the 20 pages were transcribed by hand into the shape the prompt asks Gemini for (scratch,

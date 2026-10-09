@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="149351d5">
+<meta name="app-build" content="66039082">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -36969,9 +36969,17 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // START / END: the END carries the run's figure; a START is where it began and is never a round of its own.
     out.rows.forEach(function(row, k) {
       if (row.start) { row.qty = null; return; }
-      if (row.end) row.batch = true;
-      if (row.end && !out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
-        row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
+      if (!row.end) return;
+      row.batch = true;
+      // A batch began where the batch before it ended: the last END above it, earlier on the clock (two shares of one round end
+      // together, and both began where the round before them ended). A run that opens on an END starts there (below), whether
+      // no START is written for it or its gauge split it from its START's run. Until 9 Oct 2026 the review said so and the run
+      // kept its END as its start: Samarth's batch of 10:30 to 11:45 read 11:45 to 11:45.
+      var before = row.min == null ? null : out.rows.slice(0, k).filter(function(x) { return x.end && x.min != null && x.min < row.min; }).pop();
+      if (before) row.fromMin = before.min;
+      if (!out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
+        row.issues.push(before ? { tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting at ' + relayClockLabel(before.min) + ', where the batch before it ended.' }
+          : { tone: 'amber', code: 'nostart', text: 'An END with no START of its own, and no batch ends before it on the page: when it started is not known. Check the page.' });
     });
   }
   // A part the register writes with no gauge takes the gauges its rack size means, by the owner's rule (prodGaugeRuleFor):
@@ -37036,6 +37044,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // A struck row cancelled does not stretch the run's hours (one not yet answered still does).
     var timed = run.rows.filter(function(x) { return !(x.struck && choices['struck' + x.i] === 'cancelled'); });
     var mins = (timed.length ? timed : run.rows).map(function(x) { return x.min; }).filter(function(x) { return x != null; });
+    // A run that opens on an END began where the batch before it ended.
+    var lead = (timed.length ? timed : run.rows)[0];
+    if (lead && lead.end && lead.fromMin != null) mins.push(lead.fromMin);
     var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
       line: out.line, lineSrc: out.line ? (out.line === readLine ? 'written' : 'set') : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
       part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',
@@ -59454,6 +59465,46 @@ if (!S._cnSeriesStart1) {
   var p = prodData();
   if (prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt && /^\s*\d{3,5}\s*$/.test(e.part || ''); }))) prodTouch();
   S._prodBareCodes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== A RUN OPENING ON AN END, FROM WHERE THE BATCH BEFORE IT ENDED =====
+   On a START / END page a batch began where the batch before it ended, and a run that opens on an END starts there
+   (prodFromRegisterRead): one with no START written for it, or one its gauge split from its START's run. Until 9 Oct 2026
+   the reader said so and saved the END as the run's start, so the run lasted no time at all (owner: "Yes, fix the reader").
+   A run read from one page (a photo, or a file built by the reader) that opens on an END and still starts at it is given
+   the latest END before it on the same page, and keeps the start it had (`startWas`, no clock in it: two devices putting one
+   run right write the same, and the merge has nothing to hold); one with none before it stays as it was. Structural: on a
+   pulled or imported book too, and a run put right no longer starts at its own END, so twice is a no-op. */
+(function() {
+  var page = function(e) { return e.src === 'photo' && e.photoId ? 'P' + e.photoId : e.src === 'import' && e.importId ? 'I' + e.importId : ''; };
+  var hm = function(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+  // A time as the register wrote it, read inside its run's own hours: the reader put every row of a run between them. The AM or
+  // PM written comes first, the other after it, as the reader takes "12:45 AM" between 11:30 and 1:05 for noon.
+  var at = function(text, e) {
+    var m = /(\d{1,2})[:.](\d{2})\s*([AaPp])?/.exec(String(text || '')), lo = hm(e.time), hi = hm(e.to);
+    if (!m || lo == null || hi == null) return null;
+    var am = (+m[1] % 12) * 60 + +m[2], c = m[3] && /p/i.test(m[3]) ? [am + 720, am] : [am, am + 720];
+    return c.filter(function(x) { return x >= lo && x <= hi; })[0];
+  };
+  var live = prodData().entries.filter(function(e) { return !e.voidedAt && e.kind === 'plated' && e.basis === 'register' && page(e); }), n = 0;
+  live.forEach(function(e) {
+    var r = Array.isArray(e.rounds) ? e.rounds : [];
+    if (!r.length || !r.every(function(x) { return x.batch; }) || !/(^| · )END( · |$)/.test(String(e.raw || '').split('\n')[0])) return;
+    var t = hm(e.time);
+    if (t == null || at(r[0].time, e) !== t) return;
+    var ends = [];
+    live.forEach(function(x) {
+      if (x === e || page(x) !== page(e) || x.line !== e.line || x.date !== e.date) return;
+      (x.rounds || []).forEach(function(y) { var m = y.batch ? at(y.time, x) : null; if (m != null && m < t) ends.push(m); });
+    });
+    if (!ends.length) return;
+    e.startWas = e.time;
+    e.time = prodHhmm(Math.max.apply(null, ends));
+    n++;
+  });
+  if (!n) return;
+  prodTouch();
   saveJSON(STORAGE_KEY, S);
 })();
 

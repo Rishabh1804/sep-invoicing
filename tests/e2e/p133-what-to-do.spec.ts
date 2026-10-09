@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse as openToday, readStoredState, switchTab, todayIso, recentTs } from './fixtures';
 import { sweepState } from './sweep-fixture';
 import { adviceState, dayOff, LYRA_TEL, ORION, ORION_KGPC, ORION_MONTH_KG, VEGA, VEGA_TEL } from './p133-what-to-do.fixture';
 
@@ -10,11 +10,29 @@ import { adviceState, dayOff, LYRA_TEL, ORION, ORION_KGPC, ORION_MONTH_KG, VEGA,
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 
-/** Stats → Overview over the whole book: the period every figure below is read for. */
+/** Today → Pulse over the whole book: the period every figure below is read for (the questions were Stats → Overview's until
+ *  the tab map, TM2b). */
 async function openPulse(page: Page) {
-  await openStatsTab(page, 'overview');
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
-  await expect(page.locator('[data-action="invStatsPeriod"][data-period="all"]')).toHaveAttribute('aria-pressed', 'true');
+  await openToday(page);
+  const all = page.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="all"]');
+  await all.click();
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
+}
+/** A question opens to its story and its moves (each is a hero, shut until opened). */
+async function openQ(page: Page, key: string) {
+  const q = page.locator(`[data-tdy-q="${key}"]`);
+  if (!(await q.evaluate(el => (el as HTMLDetailsElement).open))) await q.locator(':scope > summary').click();
+  return q;
+}
+/** A task on Needs you, opened to its dialog: its group opened, and its card shown where the deck held it back. */
+async function openTask(page: Page, key: string) {
+  await switchTab(page, 'pageHome');
+  await page.locator('#wsTabs [data-v="needs"]').click();
+  const btn = page.locator(`#homeNeeds [data-action="invTodoOpenApp"][data-key="${key}"]`);
+  await btn.evaluate(b => { const d = b.closest('details'); if (d) (d as HTMLDetailsElement).open = true; });
+  const more = page.locator('#homeNeeds [data-tdy-group]').filter({ has: btn }).locator('[data-action="invShowMore"]');
+  if (await btn.evaluate(b => !!b.closest('[hidden]')) && (await more.count())) await more.first().click();
+  await btn.click();
 }
 
 test.describe('P133: what to do', () => {
@@ -23,12 +41,12 @@ test.describe('P133: what to do', () => {
     await openPulse(page);
 
     // The six questions, in the plan's order.
-    const order = await page.locator('#statsContent [data-story]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.story));
+    const order = await page.locator('#homeQuestions [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
     expect(order).toEqual(['smooth', 'money', 'clients', 'plant', 'cash', 'changed']);
-    for (const k of order as string[]) await expect(page.locator(`[data-story="${k}"] [data-adv-head]`)).toHaveCount(k === 'changed' ? 0 : 1);
+    for (const k of order as string[]) await expect(page.locator(`[data-tdy-q="${k}"] [data-adv-head]`)).toHaveCount(k === 'changed' ? 0 : 1);
 
     // 1. Is the plant running smoothly? What could stop it, soonest first: the line that is out, with its reorder list.
-    const smooth = page.locator('[data-story="smooth"]');
+    const smooth = await openQ(page, 'smooth');
     await expect(smooth.locator('[data-story-say]')).toContainText('Pickling acid out');
     const first = smooth.locator('[data-adv-move]').first();
     await expect(first).toHaveAttribute('data-adv-move', 'stock:PA');
@@ -55,15 +73,16 @@ test.describe('P133: what to do', () => {
     expect(want.net).toBeCloseTo(2, 6);
     expect(want.share).toBeGreaterThan(0.55);
     expect(want.full).toBeGreaterThan(2);
-    const reprice = page.locator('[data-story="clients"] [data-adv-move="reprice:1"]');
+    await openQ(page, 'clients');
+    const reprice = page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]');
     await expect(reprice).toContainText(`Ask ${ORION} for ${want.fullText}/kg, the full cost`);
     await expect(reprice.locator('[data-adv-worth]')).toHaveText('+' + want.worthText);
     await expect(reprice).toContainText('a month at the last three months’ tonnage');
     // The labour question it turns on is one of the moves, settled on the contribution table.
-    await expect(page.locator('[data-story="clients"] [data-adv-move="labour:1"] [data-action="invAdvGo"]')).toHaveText('Contribution');
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="labour:1"] [data-action="invAdvGo"]')).toHaveText('Contribution');
 
     // 5. Is cash coming in? The debt over 90 days is a call: a real tel: link with the client's number.
-    const call = page.locator('[data-story="cash"] [data-adv-move="owed:3"] a[href^="tel:"]');
+    const call = page.locator('[data-tdy-q="cash"] [data-adv-move="owed:3"] a[href^="tel:"]');
     await expect(call).toHaveAttribute('href', LYRA_TEL);
     await expect(call).toHaveText('Call');
 
@@ -74,12 +93,12 @@ test.describe('P133: what to do', () => {
     expect(tasks.length).toBe(1);
     expect(tasks[0]).toMatchObject({ text: 'Order Pickling acid', due: todayIso(), advKey: 'stock:PA', go: { kind: 'reorder' }, goLabel: 'Reorder list', doneAt: null });
     // Drawn again, it still is.
-    await g(page, 'renderStats()');
-    await expect(page.locator('[data-story="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
-    await expect(page.locator('[data-story="smooth"] [data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
-    // The task's button lands on the place.
-    await switchTab(page, 'pageTodo');
-    const mine = page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Order Pickling acid' });
+    await g(page, 'renderHome()');
+    await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+    await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-action="invAdvTask"]')).toHaveCount(0);
+    // The task's button lands on the place: the task is on Needs you, due today.
+    await page.locator('#wsTabs [data-v="needs"]').click();
+    const mine = page.locator('#homeNeeds [data-todo="mine"]').filter({ hasText: 'Order Pickling acid' });
     await mine.locator('[data-action="invTodoGo"]').click();
     await expect(page.locator('#pageStock.inv-page-active')).toBeVisible();
     await expect(page.locator('#stockContent .inv-pagehead-title')).toHaveText('Reorder list');
@@ -87,7 +106,8 @@ test.describe('P133: what to do', () => {
     // Draft quotation opens the form on a new, unsaved draft: its largest parts by the piece at the target × kg a piece,
     // the part with no weight by the kilo. Nothing is stored until Save draft.
     await openPulse(page);
-    await page.locator('[data-story="clients"] [data-adv-move="reprice:1"] [data-action="invAdvGo"]').click();
+    await openQ(page, 'clients');
+    await page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"] [data-action="invAdvGo"]').click();
     await expect(page.locator('#pageClients.inv-page-active')).toBeVisible();
     await expect(page.locator('#clientsPageContent .inv-pagehead-title')).toHaveText('New quotation');
     await expect(page.locator('#clientsPageContent [data-qt-draft-note]')).toContainText(want.fullText + '/kg, the full cost then');
@@ -112,8 +132,7 @@ test.describe('P133: what to do', () => {
 
   test('an app task’s dialog lists its moves above what clears it, and a move lands on its place', async ({ page }) => {
     await loadAppWithState(page, adviceState());
-    await switchTab(page, 'pageTodo');
-    await page.locator('#todoContent [data-action="invTodoOpenApp"][data-key="insQuiet:2"]').click();
+    await openTask(page, 'insQuiet:2');
     const dlg = page.locator('.inv-scrim-dialog .inv-dialog');
     const moves = dlg.locator('[data-adv-moves]');
     await expect(moves.locator('.inv-panel-title')).toHaveText('What you can do');
@@ -132,8 +151,7 @@ test.describe('P133: what to do', () => {
     await expect(page.locator('.inv-scrim-dialog')).toHaveCount(0);
 
     // An unbilled-challan task invoices them: a new invoice for the client, its challans ticked, nothing saved.
-    await switchTab(page, 'pageTodo');
-    await page.locator('#todoContent [data-action="invTodoOpenApp"][data-key="challan:2"]').click();
+    await openTask(page, 'challan:2');
     await page.locator('[data-adv-move="invoice:2"] [data-action="invAdvGo"]').click();
     await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();
     const f = await g(page, `({ client: invoiceForm.clientId, ims: (invoiceForm._linkedIMIds || []).slice().sort(), lines: invoiceForm.items.length, stored: S.invoices.length })`) as any;
@@ -179,7 +197,7 @@ test.describe('P133: what to do', () => {
     const full = await g(page, `(function() { var a = statsPulseArgs('all'), r = statsRangeIso('all'); return gstRound(liveCost(r.from, r.to, a.tonnage.kg).perKg); })()`) as number;
     const lines = await g(page, `_advMoves['reprice:1'].go.lines.map(function(l) { return [l.partNumber, l.basis, l.rate]; })`);
     expect(lines).toEqual([['CLAMP 101X50', 'kg', full], ['BRACKET 77', 'kg', full], ['WASHER 9', 'kg', full]]);
-    await expect(page.locator('[data-story="clients"] [data-adv-hint]')).toContainText(`Enter a weight per piece for ${ORION}’s CLAMP 101X50, BRACKET 77, WASHER 9`);
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-hint]')).toContainText(`A weight per piece for ${ORION}’s CLAMP 101X50, BRACKET 77, WASHER 9 quotes them by the piece`);
   });
 
   test('a book with no data shows no move, and each question says what would make one appear', async ({ page }) => {
@@ -194,13 +212,13 @@ test.describe('P133: what to do', () => {
     // A backup taken today: no week-old backup to ask for.
     await page.addInitScript(() => { try { localStorage.setItem('sep_inv_last_export', String(Date.now())); } catch { /* none */ } });
     await loadAppWithState(page, s);
-    await openStatsTab(page, 'overview');
-    const stories = await page.locator('#statsContent [data-story]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.story));
+    await openToday(page);
+    const stories = await page.locator('#homeQuestions [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
     expect(stories).toEqual(['smooth', 'money', 'clients', 'plant', 'changed']);
-    await expect(page.locator('#statsContent [data-adv-move]')).toHaveCount(0);
-    for (const k of stories as string[]) await expect(page.locator(`[data-story="${k}"] [data-adv-none]`)).toHaveCount(1);
-    await expect(page.locator('[data-story="smooth"] [data-story-say]')).toContainText('nothing stands in the way');
-    await expect(page.locator('[data-story="money"] [data-adv-none]')).toContainText('A weight per piece');
+    await expect(page.locator('#homeQuestions [data-adv-move]')).toHaveCount(0);
+    for (const k of stories as string[]) await expect(page.locator(`[data-tdy-q="${k}"] [data-adv-none]`)).toHaveCount(1);
+    await expect(page.locator('[data-tdy-q="smooth"] [data-story-say]')).toContainText('nothing stands in the way');
+    await expect(page.locator('[data-tdy-q="money"] [data-adv-none]')).toContainText('A weight per piece');
     expect(await g(page, `advQuestions('mtd').map(function(q) { return q.moves.length; })`)).toEqual([0, 0, 0, 0, 0]);
   });
 

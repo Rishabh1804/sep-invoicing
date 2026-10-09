@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse, openWidget } from './fixtures';
 
 // P44: pay. The pay week runs Sunday to Saturday (paid Saturday); what each
 // worker is due (earned minus paid); the week's payout, predicted at its own
@@ -136,7 +136,7 @@ test.describe('P44: pay', () => {
   test('Home carries the day\'s attendance', async ({ page }) => {
     const t = todayIso();
     await load(page, { attendance: { [t]: { marks: { 1: { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }, 2: { st: 'A', ot: 0, hours: 0, area: 'flex' } }, extra: [{ kind: 'coverage', area: 'vat-a1', hours: 8 }], note: '' } } } as any);
-    await openPulse(page);
+    await openWidget(page, 'attendance');
     const card = page.locator('#homeAttCard');
     await expect(card).toContainText('today');
     await expect(page.locator('#homeAttOnSite')).toHaveText('1/3');

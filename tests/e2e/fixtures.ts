@@ -174,7 +174,8 @@ export async function readStoredState(page: Page): Promise<any> {
   return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
-/** Stats is grouped into tabs (Overview, Clients, Cost, Billing, Trends): open one. */
+/** Stats is grouped into tabs (By client, Cost, Trends; the tab map, TM2: Overview's cards are Pulse's, Billing's dispatch cycle
+ *  Pipeline's): open one by its id (`clients`, `cost`, `trends`). */
 export async function openStatsTab(page: Page, tab: string): Promise<void> {
   await switchTab(page, 'pageStats');
   await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
@@ -183,10 +184,10 @@ export async function openStatsTab(page: Page, tab: string): Promise<void> {
 
 /* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone
    bar and the desktop's rail carry Today, Office, Floor and Money. The tab map (9 Oct 2026): Today holds its Insights (Stats,
-   Reports, the Planner); History and Knowledge are tools in the top bar and belong to no workspace. Create and the To-do are
-   held without a tab. */
+   Reports, the Planner); History and Knowledge are tools in the top bar and belong to no workspace. Create is held without a
+   tab; the To-do joined Needs you (TM2). */
 const WS_OF: Record<string, string> = {
-  pageHome: 'today', pageTodo: 'today', pageStats: 'today', pageReports: 'today', pagePlanner: 'today',
+  pageHome: 'today', pageStats: 'today', pageReports: 'today', pagePlanner: 'today',
   pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',
   pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
   pageFinance: 'money',
@@ -218,8 +219,8 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   if (opened && (await active.count())) { /* the workspace opened on the page itself (Money, Today) */ }
   else if (await door().count()) await door().first().click();
   else {
-    // The last resort, where the shell has no door to the page: the pages a workspace holds without a tab (Create, the
-    // To-do) when nothing on screen links to them. Opened the way a jump opens them, then recorded as a click's step would be.
+    // The last resort, where the shell has no door to the page: the page a workspace holds without a tab (Create) when
+    // nothing on screen links to it. Opened the way a jump opens them, then recorded as a click's step would be.
     await page.evaluate(id => { (window as any).switchTab(id); (window as any).navSoon(); }, tabId);
   }
   await active.waitFor();
@@ -233,6 +234,27 @@ export async function openPulse(page: Page): Promise<void> {
   const tab = page.locator('#wsTabs [data-v="pulse"]');
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
   await page.locator('#homePulse:not(.inv-hidden)').waitFor();
+}
+
+/** A Pulse widget opened to its body: each is a hero shut on the phone until opened (the tab map, TM2c), its line answering at a
+ *  glance and its tiles, rows and buttons inside. Opens Pulse first. */
+export async function openWidget(page: Page, key: string): Promise<void> {
+  await openPulse(page);
+  const hero = page.locator(`[data-home-w="${key}"] details.inv-hero`).first();
+  if ((await hero.count()) && !(await hero.evaluate(el => (el as HTMLDetailsElement).open))) await hero.locator(':scope > summary').click();
+}
+/** Pulse's widgets every preset hides since the tab map (TM2c: To-do, Recent invoices and Money are Needs you's and Money's),
+ *  shown on this device as Edit Home's switch shows them, the layout then the owner's own. Call before loadAppWithState: the
+ *  layout is written before each load. */
+export async function withHomeWidgets(page: Page, keys: string[]): Promise<void> {
+  await page.addInitScript(ks => {
+    try {
+      const hidden: Record<string, boolean> = { production: true, power: true, stock: true, money: true, todo: true, recent: true };
+      ks.forEach(k => { delete hidden[k]; });
+      localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', hidden, wide: { mtd: true, quick: true, recent: true },
+        order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'production', 'power', 'stock', 'sync', 'zinc', 'recent'] }));
+    } catch { /* storage refused: the presets stand */ }
+  }, keys);
 }
 
 /** Office → Sales (the tab map, 9 Oct 2026): Prospects and Quotations are Sales' own row, on the page Clients shares. Opens Sales

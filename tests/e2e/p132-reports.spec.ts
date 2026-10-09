@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, openStatsTab, openVerdict, switchTab, todayIso, toolbarMore, type SepState } from './fixtures';
 import { sweepState, dayOff } from './sweep-fixture';
 
 // P132: Review → Reports (owner, 1 Oct 2026: "a daily weekly and a monthly quarterly yearly report generator"). A report
@@ -67,11 +67,14 @@ test("Reports is in Today's Insights, after Stats; each kind draws with its titl
 
 test('the figures are the app\'s own: invoiced equals Stats\' headline for the month, labour equals labourForRange', async ({ page }) => {
   await loadAppWithState(page, sweepState());
-  await openStatsTab(page, 'overview');
+  // The headline is Stats → Trends' verdict card, and Make a report is Pulse's (the tab map, TM2b): one period for both.
+  await openStatsTab(page, 'trends');
   await page.locator('[data-action="invStatsPeriod"][data-period="mtd"]').click();
-  const statsRev = (await page.locator('#statsContent [data-card="headline"] [data-tile="revenue"] .inv-tile-value').innerText()).replace(/\s+/g, '');
-  // Make a report from the Overview opens Reports on the same period.
-  await page.locator('#statsMakeReport').click();
+  await openVerdict(page);
+  const statsRev = (await page.locator('#statsHeadline [data-tile="revenue"] .inv-tile-value').innerText()).replace(/\s+/g, '');
+  // Make a report from Pulse opens Reports on the same period.
+  await openPulse(page);
+  await toolbarMore(page, 'Make a report');
   await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
   await expect(doc(page)).toHaveAttribute('data-kind', 'monthly');
   const rptRev = (await doc(page).locator('[data-rpt-tile="invoiced"] .inv-rpt-tile-v').innerText()).replace(/\s+/g, '');

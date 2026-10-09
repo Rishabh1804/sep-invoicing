@@ -1157,6 +1157,8 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   padding: var(--sp-12); border: var(--hair) solid var(--border);
 }
 .inv-rpt-sheet { min-width: 0; }
+/* The report on the page is the paper (the tab map, TM2f): laid out at the sheet's width and zoomed to the screen (paperFit). */
+.inv-rpt-sheet > .inv-rpt-doc { width: var(--rpt-sheet-w); max-width: none; padding: var(--rpt-gutter-top) var(--rpt-gutter-side); zoom: var(--pp-zoom, 1); }
 body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-side); }
 .inv-print-body .inv-rpt-doc { width: var(--rpt-sheet-w); max-width: none; padding: var(--rpt-gutter-top) var(--rpt-gutter-side); }
 /* Five kinds share a phone's width by their words, so "Quarterly" is never the one cut. */
@@ -1341,6 +1343,9 @@ button.inv-token:hover { background: var(--surface-3); }
 body.inv-desktop .inv-toolbar > :is(select, input[type="month"]).inv-toolbar-item { flex: 0 1 auto; max-width: calc(var(--col-sm-w) * 2); }
 /* A labelled field in a toolbar (a From / To date) is as wide as its control on the desktop too; each used to take half the row. */
 body.inv-desktop .inv-toolbar > .inv-field.inv-toolbar-item { flex: 0 0 auto; }
+/* A segmented control that is the toolbar's item (Pulse's period) fills the phone's row beside More, and is as wide as its
+   segments on the desktop. */
+body.inv-desktop .inv-toolbar > .inv-seg.inv-toolbar-item { flex: 0 0 auto; }
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
@@ -2408,11 +2413,12 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 
 /* The planner (planner.js, planview.js; docs/PLANNER.md): the plans as chips, the goal with its level, the strip with its
    month stepper and stars, a move's month with its arrows. Everything else is the shared components. */
-.inv-pl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); min-width: 0; }
-.inv-pl-chips > .inv-chip { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inv-pl-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12); }
-.inv-pl-hud { margin-bottom: var(--sp-12); }
-.inv-pl-step { display: flex; align-items: center; gap: var(--sp-4); }
+/* The Planner's toolbar holds the month as a stepper; Moves' switch sizes each kind to its word (the tab map, TM2d). */
+.inv-pl-step { display: flex; align-items: center; gap: var(--sp-4); flex: 0 0 auto; }
+/* The plan's picker takes what the row leaves on the phone, so the Planner's toolbar stays one row (§1a-10). */
+.inv-toolbar > .inv-pl-step ~ .inv-toolbar-item { flex: 1 1 0; }
+.inv-pl-moves { margin-bottom: var(--sp-12); }
+.inv-pl-moves > .inv-seg-btn { flex: 1 1 auto; padding: 0 var(--sp-6); }
 .inv-pl-stars { width: calc(var(--sp-16) * 3); height: var(--sp-16); vertical-align: middle; margin-right: var(--sp-4); }
 .inv-pl-star { fill: var(--surface-3); }
 .inv-pl-star-on { fill: var(--warning); }
@@ -2453,7 +2459,6 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
 .inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
-body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
 
 /* The plant register (plant.js, owner 7 Oct 2026): a line's units side by side, each a tile edged in its status's colour and
    named in a word beside its dot (DR-1, DR-8); a pip per unit where the line is one row; a bar for what is available and

@@ -29,8 +29,8 @@ test('three levels: the rail, the workspace row under the bar, the page row unde
   await expect(page.locator('#wsTabs [aria-selected="true"]')).toHaveText('Stats');
   // Stats is one of Today's Insights since the tab map (9 Oct 2026).
   await expect(page.locator('#invSidebar [data-ws="today"]')).toHaveAttribute('aria-current', 'true');
-  // The page row is the page's own (Stats' five tabs), never the workspace's.
-  await expect(page.locator('#pageStats .inv-viewtabs [aria-selected="true"]')).toHaveText('Overview');
+  // The page row is the page's own (Stats' three tabs since the tab map), never the workspace's.
+  await expect(page.locator('#pageStats .inv-viewtabs [aria-selected="true"]')).toHaveText('By client');
 });
 
 test("the rail's Add and the bar's are one door: a filled pill in the accent, its key A", async ({ page }) => {

@@ -1,5 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab, openVerdict } from './fixtures';
+
+/* The period's headline is Stats → Trends' verdict card since the tab map (TM2b; it was the Overview's first card), shut on the
+   phone until opened. */
+async function openHeadline(page: import('@playwright/test').Page) {
+  await openStatsTab(page, 'trends');
+  await openVerdict(page);
+}
 
 /*
  * Stats and History rework.
@@ -59,9 +66,9 @@ function pricedState(): SepState {
 test.describe('Stats — tonnage and realisation', () => {
   test('reports tonnage and rupees per kilogram, not revenue alone', async ({ page }) => {
     await loadAppWithState(page, pricedState());
-    await switchTab(page, 'pageStats');
+    await openHeadline(page);
 
-    const band = page.locator('[data-card="headline"] .inv-tiles');
+    const band = page.locator('#statsHeadline .inv-tiles');
     await expect(band).toBeVisible();
 
     // 1000 kg + 2000 kg.
@@ -73,10 +80,10 @@ test.describe('Stats — tonnage and realisation', () => {
 
   test('flags realisation below full cost with the size of the shortfall', async ({ page }) => {
     await loadAppWithState(page, pricedState());
-    await switchTab(page, 'pageStats');
+    await openHeadline(page);
 
-    // 7.93 realised against 8.55 cost is a loss, and the alert says by how much.
-    const alert = page.locator('[data-card="headline"] [data-callout="below-cost"]');
+    // 7.93 realised against 8.55 cost is a loss, and the line under the tiles says by how much.
+    const alert = page.locator('#statsHeadline [data-callout="below-cost"]');
     await expect(alert).toBeVisible();
     await expect(alert).toContainText('below full cost');
   });
@@ -109,15 +116,16 @@ test.describe('Stats — tonnage and realisation', () => {
       items: [{ partNumber: 'UNKNOWN PIN', desc: 'UNKNOWN PIN', hsn: '998873', unit: 'NOS', qty: 50, rate: 4, amount: 200, nosQty: 50 }],
     });
     await loadAppWithState(page, state);
-    await switchTab(page, 'pageStats');
+    await openHeadline(page);
 
-    const caveat = page.locator('[data-card="headline"] [data-callout="coverage"]');
+    const caveat = page.locator('#statsHeadline [data-callout="coverage"]');
     // Stated in revenue terms: one unweighed line worth ₹10L matters more than
     // fifty worth ₹500, and it is the revenue ratio that governs how far the
-    // realisation figure can be trusted.
-    await expect(caveat).toContainText('cover 99% of revenue');
-    await expect(caveat).toContainText('no weight on file');
-    await expect(caveat).toContainText('reads better than the real blend');
+    // realisation figure can be trusted. Which way it errs is said too (why: the guide).
+    await expect(caveat).toContainText('99% of revenue weighed');
+    await expect(caveat).toContainText('1 line worth ₹200.00 has no weight');
+    await expect(caveat).toContainText('realisation reads high');
+    await expect(page.locator('#statsHeadline [data-tile="tonnage"] .inv-badge-warning')).toHaveText('99% weighed');
   });
 
   /* Regression, found by rendering the live backup.
@@ -137,9 +145,9 @@ test.describe('Stats — tonnage and realisation', () => {
       taxableValue: 20000,
     });
     await loadAppWithState(page, state);
-    await switchTab(page, 'pageStats');
+    await openHeadline(page);
 
-    const band = page.locator('[data-card="headline"] .inv-tiles');
+    const band = page.locator('#statsHeadline .inv-tiles');
     // Tonnage is unchanged at 3.00 t, so realisation must stay 7.93 — not leap
     // to (23,800 + 20,000) / 3000 = 14.60.
     await expect(band).toContainText('3.00 t');
@@ -186,15 +194,16 @@ test.describe('Stats — tonnage and realisation', () => {
     await expect(card).toContainText('unknown, not small');
   });
 
-  test('reports output tax and what is still unfiled', async ({ page }) => {
+  test('output tax is Money → GST’s, and what is not yet filed is in Pipeline’s stages', async ({ page }) => {
+    // Stats → Billing's Output tax card went to its homes (the tab map, TM2b).
     await loadAppWithState(page, pricedState());
-    await openStatsTab(page, 'billing');
-
-    const card = page.locator('[data-card="gst"]');
-    await expect(card).toBeVisible();
-    await expect(card).toContainText('Not yet marked filed');
-    // Neither seeded invoice is filed.
-    await expect(card).toContainText('2 unfiled');
+    await switchTab(page, 'pageFinance');
+    await page.locator('[data-action="invFinTab"][data-tab="gst"]').click();
+    // The month's output tax: ₹23,800.00 at 18%.
+    await expect(page.locator('#finGst')).toContainText('₹4,284.00');
+    // Neither seeded invoice is filed: both stand in a stage, each counted there.
+    await switchTab(page, 'pagePipeline');
+    await expect(page.locator('[data-pipe-stage="created"] .inv-panel-count')).toHaveText('2');
   });
 
   test('periods are measured on the invoice date, not on entry time', async ({ page }) => {
@@ -210,10 +219,10 @@ test.describe('Stats — tonnage and realisation', () => {
       createdAt: recentTs(),
     };
     await loadAppWithState(page, state);
-    await switchTab(page, 'pageStats');
+    await openHeadline(page);
 
     // MTD sees only the invoice dated this month: 1000 kg.
-    await expect(page.locator('[data-card="headline"] .inv-tiles')).toContainText('1.00 t');
+    await expect(page.locator('#statsHeadline .inv-tiles')).toContainText('1.00 t');
   });
 });
 

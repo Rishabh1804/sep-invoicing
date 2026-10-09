@@ -110,7 +110,9 @@ test('precedence: recorded at 90% or more, else the bank, else the model, and th
   expect(lab.note).toContain('not Jul 2026: attendance under 90% of days');
   const html = await ev(page, `_costPaidHtml('2026-07-01', '2026-08-31')`) as string;
   expect(html).toContain('over 10% apart');
-  expect(html).toContain('recorded ₹45,000.00 · paid ₹50,000.00 · over Jul 2026');
+  // The months compared lead the row's line (TM2b: a fact row; why the two may differ is the guide's).
+  expect(html).toContain('Jul 2026: recorded ₹45,000.00, paid ₹50,000.00');
+  expect(html).toContain('Aug 2026: recorded ₹16,000.00, paid ₹21,000.00; not Jul 2026 (attendance under 90% of days)');
   expect(html).toContain('+₹5,000.00 (+11%)');
 });
 

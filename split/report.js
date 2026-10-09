@@ -591,10 +591,14 @@ function renderReports() {
     '<span class="inv-note">A4, drawn from the records each time it is shown or printed.</span></div>';
   var doc = rptHtml(p.kind, p.from);
   el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>';
+  // The sheet as it prints, fitted to the screen (TM2f): a phone shows the whole A4 width, zoomed out, never its tables cut.
+  paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
 }
+
+window.addEventListener('resize', function() { var s = document.getElementById('rptSheet'); if (s && s.offsetParent) paperFit(s); });
 
 function rptPrint() {
   var body = document.getElementById('invPrintBody');
@@ -611,13 +615,13 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Stats → Overview → Make a report: the same period, as a report. Stats' All is the whole book, which no report covers
-   (a financial year at most): it opens the year to date and says so (QA5-14). */
+/* Today → Pulse → Make a report: the period Pulse shows, as a report (Stats → Overview's until the tab map, TM2b). All is the
+   whole book, which no report covers (a financial year at most): it opens the year to date and says so (QA5-14). */
 function rptFromStats() {
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
   rptSet(per === 'qtd' ? 'quarterly' : per === 'ytd' || per === 'all' ? 'yearly' : 'monthly', localDateStr());
   switchTab('pageReports');
-  if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book Stats showed. Step back a year with ‹.', 'info');
+  if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book. Step back a year with ‹.', 'info');
 }
 
 /* The address (nav.js): `kind/first-day`. */

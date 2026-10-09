@@ -381,7 +381,7 @@ test('QA6-6 a role that may not see wages sees hours and heads on Staff, never a
 /* ---------- QA6-12: an entry on Staff → Day is a floor entry ---------- */
 test('QA6-12 a role that may not make floor entries is told so on Staff → Day, never asked a PIN, and nothing is written', async ({ page }) => {
   await loadAppWithState(page, book());
-  await withUsers(page, { roles: { supervisor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: [], wages: false, finance: false } } });
+  await withUsers(page, { roles: { supervisor: { pages: ['pageHome', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: [], wages: false, finance: false } } });
   await unlock(page, 'U-sup', PINS.super);
   await openDay(page, 'sheet');
   const refused = async () => {

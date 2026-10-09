@@ -354,7 +354,7 @@ export async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: !(await page.locator('.inv-scrim-dialog').count()) });
 }
 
-export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory',
+export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory',
   'pageFloor', 'pagePipeline', 'pageKnow'];
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */

@@ -1472,10 +1472,13 @@ function prodPlatedSummary(from, to) {
 function prodStatsRowHtml(from, to) {
   var s = prodPlatedSummary(from, to);
   if (!s) return '';
-  return '<div class="inv-row inv-row-2 inv-row-flow" id="statsPlated"><span class="inv-row-main"><span class="inv-row-title">Plated (floor)</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml((s.est > 0.0005 ? '≈ ' : '') + formatNum(s.kg / 1000, 1) + ' t on ' + s.days + ' complete day' + (s.days === 1 ? '' : 's') + ' of ' + s.working + ' working · ' +
-      Math.round(s.perDay / s.capacity * 100) + '% of capacity (~2 t a shift, two shifts) · ' + (s.est > 0.0005 ? Math.round(s.est / s.kg * 100) + '% of the weight estimated' : 'every run weighed') +
-      (s.weighedShare < 0.995 ? ', ' + Math.round((1 - s.weighedShare) * 100) + '% of the pieces not weighed' : '')) + '</span></span>' +
+  // Two facts in its meta; how it was weighed is a badge (the tab map, TM2b: a row says two things, a third is a badge, §3b-11).
+  var notWeighed = s.weighedShare < 0.995 ? Math.round((1 - s.weighedShare) * 100) : 0, est = s.est > 0.0005 ? Math.round(s.est / s.kg * 100) : 0;
+  var badge = notWeighed ? '<span class="inv-badge inv-badge-warning" title="' + escHtml(notWeighed + '% of the pieces not weighed') + '">' + notWeighed + '% not weighed</span>'
+    : est ? '<span class="inv-badge inv-badge-info" title="' + escHtml(est + '% of the weight estimated') + '">' + est + '% estimated</span>' : '';
+  return '<div class="inv-row inv-row-2 inv-row-flow" id="statsPlated"><span class="inv-row-main"><span class="inv-row-title">Plated (floor) ' + badge + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap" title="' + escHtml('Capacity: ~2 t a shift, two shifts') + '">' + escHtml((est ? '≈ ' : '') + formatNum(s.kg / 1000, 1) + ' t on ' + s.days + ' complete day' + (s.days === 1 ? '' : 's') + ' of ' + s.working + ' · ' +
+      Math.round(s.perDay / s.capacity * 100) + '% of capacity') + '</span></span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageProduction">Production</button></span></div>';
 }
 

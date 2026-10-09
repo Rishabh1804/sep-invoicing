@@ -105,9 +105,16 @@ test.describe('P166 the plant register', () => {
     const r: any = await g(page, `({ left: S.planner.machines.length, unit: S.plant.units[0].name, st: S.plant.units[0].station, m: plnLive('machines').map(function (x) { return [x.id, x.item, x.state, x.risk.p]; }) })`);
     expect(r).toEqual({ left: 0, unit: 'Barrel drive', st: 'barrel', m: [['MA-1', 'Barrel drive', 'needs', 0.1]] });
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner .inv-viewtab[data-v="plant"]').click();
+    // Plant is a kind under the planner's Moves since the tab map (TM2d); a book with nothing weighed to plan from shows the
+    // registers alone, the machines among them, on every view.
+    await page.locator('#pagePlanner .inv-viewtab[data-v="moves"]').click();
+    const plant = page.locator('#pagePlanner [data-action="invPlnMoves"][data-k="plant"]');
+    if (await plant.count()) await plant.click();
     await expect(page.locator('#plnMachines [data-pl-machine="MA-1"]')).toContainText('Barrel drive');
-    await page.locator('#plnMachines [data-pl-machine="MA-1"] [data-action="invPltEdit"]').click();
+    // On the phone the row's Edit is in its fold (TM2d).
+    const row = page.locator('#plnMachines [data-pl-machine="MA-1"]');
+    if (await row.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await row.locator(':scope > summary').click();
+    await row.locator('[data-action="invPltEdit"]').click();
     await expect(page.locator('#pltName')).toHaveValue('Barrel drive');
   });
 

@@ -36,8 +36,6 @@ var TODO_RULES = [
 var TODO_LAST_EXPORT_KEY = 'sep_inv_last_export';
 var TODO_TONE_RANK = { red: 0, amber: 1, info: 2, '': 3 };
 
-var _todoShowDone = false;
-var _todoShowSnoozed = false;
 
 function todoData() {
   if (!S.todo || typeof S.todo !== 'object' || Array.isArray(S.todo)) S.todo = {};
@@ -553,73 +551,6 @@ function todoRanked(all) {
    Yours lead: what you typed is what is easiest to forget under the raised ones. Rows are §6.10's:
    an app task is a whole-row button led by its ! / i mark; a task of your own is led by its
    tick box and ends with its due date as a dot and a word. */
-function renderTodo() {
-  var el = document.getElementById('todoContent');
-  if (!el) return;
-  // Nothing a role decides is drawn while nobody is signed in (guard.js): the unlock draws it.
-  if (typeof grdHeld === 'function' && grdHeld()) return;
-  var app = todoApp(), mine = todoMineShown(), td = todoData();
-  var late = todoRanked().filter(function(r) { return r.tone === 'red'; }).length;
-  var done = td.tasks.filter(function(t) { return t.doneAt && todoMineSees(t); }).sort(function(a, b) { return b.doneAt - a.doneAt; });
-  var tab = function(v, label, n) {
-    var on = (v === 'done') === _todoShowDone;
-    return '<button class="inv-viewtab" role="tab" aria-selected="' + on + '" data-action="invTodoFoldDone" data-v="' + v + '">' +
-      label + ' <span class="inv-panel-count">' + n + '</span></button>';
-  };
-  var h = '<div class="inv-viewtabs" role="tablist" aria-label="To-do">' + tab('open', 'Open', app.length + mine.length) + tab('done', 'Done', done.length) + '</div>';
-
-  if (_todoShowDone) {
-    h += '<div class="inv-panel inv-panel-flush" data-todo-sec="done"><div class="inv-panel-head"><span class="inv-panel-title">Done' +
-      (done.length ? ' <span class="inv-panel-count">' + done.length + '</span>' : '') + '</span></div>';
-    if (!done.length) h += '<div class="inv-empty">Nothing ticked yet. A task you tick moves here, and can be reopened.</div>';
-    // Every one can be reached (it stopped at fifty, with no way to the rest), the newest first.
-    h += uiMoreHtml('todoDone', done.map(function(t) { return todoMineRowHtml(t); }), { noun: 'done' });
-    el.innerHTML = h + '</div>';
-    updateStockBadge();
-    return;
-  }
-
-  h += '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + todoPlural(app.length + mine.length, 'open task') +
-    (late ? ' · <span class="inv-dot inv-dot-danger">' + late + ' late</span>' : '') + '</span></div>';
-  h += '<div class="inv-toolbar"><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off">' +
-    '<button class="inv-btn inv-btn-primary" data-action="invTodoAdd">Add</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invTodoNew">Details</button></div>';
-
-  mine.sort(function(a, b) {
-    return TODO_TONE_RANK[todoMineTone(a)] - TODO_TONE_RANK[todoMineTone(b)] ||
-      (a.due || '9999').localeCompare(b.due || '9999') || (a.createdAt - b.createdAt);
-  });
-  h += '<div class="inv-panels">';
-  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="mine"><div class="inv-panel-head"><span class="inv-panel-title">Mine' +
-    ' <span class="inv-panel-count">' + mine.length + '</span></span><span class="inv-badge">Mine</span></div>';
-  if (!mine.length) h += '<div class="inv-empty">No tasks of your own. Type one above and press Enter.</div>';
-  mine.forEach(function(t) { h += todoMineRowHtml(t); });
-  h += '</div>';
-  h += '<div class="inv-panel inv-panel-flush" data-todo-sec="app"><div class="inv-panel-head"><span class="inv-panel-title">From your data' +
-    ' <span class="inv-panel-count">' + app.length + '</span></span><span class="inv-badge">App</span></div>';
-  if (!app.length) h += '<div class="inv-empty">Nothing from your data needs you.</div>';
-  app.forEach(function(t) { h += todoAppRowHtml(t); });
-  h += '</div>';
-  if (typeof learnSeen === 'function') learnSeen(app);
-  if (typeof learnPanelHtml === 'function') h += learnPanelHtml();
-
-  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); }).concat(todoFolds().filter(todoIsSnoozed));
-  if (snoozed.length) {
-    h += '<div class="inv-panel inv-panel-flush inv-panels-wide" data-todo-sec="snoozed"><div class="inv-panel-head"><span class="inv-panel-title">Snoozed' +
-      ' <span class="inv-panel-count">' + snoozed.length + '</span></span>' +
-      '<button class="inv-btn-link" data-action="invTodoFoldSnoozed" aria-expanded="' + _todoShowSnoozed + '">' + (_todoShowSnoozed ? 'Hide' : 'Show') + '</button></div>';
-    if (_todoShowSnoozed) snoozed.forEach(function(t) {
-      var s = td.snoozes[t.key];
-      h += '<div class="inv-row inv-row-2" data-todo="snoozed"><span class="inv-row-main"><span class="inv-row-title" title="' + escHtml(t.title) + '">' + escHtml(t.title) + '</span>' +
-        '<span class="inv-row-meta">' + (s.until ? 'Until ' + escHtml(stockShortDate(s.until)) : 'Until the figures change') + '</span></span>' +
-        '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></span></div>';
-    });
-    h += '</div>';
-  }
-  el.innerHTML = h + '</div>';
-  updateStockBadge();
-}
-
 /* An app task's mark: its tone, and a symbol with it (DR-1) — ! to act on, i to know. */
 function todoGlyph(tone) {
   var ui = uiTone(tone || 'info');
@@ -699,14 +630,13 @@ function renderTodoHomeCard() {
     title: escHtml(!ranked.length ? 'Nothing due' : groups.now ? todoPlural(groups.now, 'thing needs', 'things need') + ' you now' : todoPlural(ranked.length, 'task') + ' open, none urgent'),
     fig: money && worth > 0.005 ? figWrapHtml(escHtml(formatCurrency(gstRound(worth)))) : '',
     sub: escHtml([groups.week ? groups.week + ' this week' : '', groups.later ? groups.later + ' to know' : ''].filter(Boolean).join(' · ')),
-    viz: meter, fold: 'pulse-todo', open: true, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>',
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageTodo">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' });
+    viz: meter, fold: 'pulse-todo', open: !!_isDesktop, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' });
 }
 
 function todoRefreshViews() {
   var page = document.querySelector('.inv-page-active');
-  if (page && page.id === 'pageTodo') renderTodo();
-  // Today → Needs you lists the same tasks (today.js): a tick there is redrawn there.
+  // Today → Needs you lists the tasks (today.js; the To-do page joined it, the tab map TM2a): a tick there is redrawn there.
   if (page && page.id === 'pageHome' && typeof tdyView === 'function' && tdyView() === 'needs') keepScroll(renderNeeds);
   renderTodoHomeCard();
   updateStockBadge();
@@ -849,8 +779,10 @@ function todoQuickAdd() {
   var text = inp ? inp.value.trim() : '';
   if (!text) { if (inp) inp.focus(); return; }
   todoData().tasks.push({ id: todoUid(), text: text, due: '', note: '', link: null, createdAt: Date.now(), doneAt: null });
+  inp.value = '';
   saveState();
-  renderTodo();
+  todoRefreshViews();
+  // The field again, empty, for the next: tasks are often added a few at a sitting.
   var again = document.getElementById('todoNew');
   if (again) again.focus();
 }
@@ -921,8 +853,8 @@ function todoGo(go) {
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'todoLearn': {
-      _todoShowDone = false;
-      switchTab('pageTodo');
+      tdySetView('needs');
+      switchTab('pageHome');
       var tl = document.getElementById('todoLearn');
       if (tl) uiRevealEl(tl);
       break;
@@ -944,10 +876,16 @@ function todoGo(go) {
       if (fa && fa.scrollIntoView) fa.scrollIntoView({ block: 'start' });
       break;
     case 'stats':
-      try { localStorage.setItem(STATS_TAB_KEY, go.tab); } catch (e) { /* per-device */ }
       // A move worked out for a period opens Stats on it, so the block it names is the one on screen (advice.js).
       if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
-      switchTab('pageStats');
+      // A task saved naming a tab that moved (the tab map, TM2b, §5): Overview's cards are Pulse's, Billing's dispatch cycle
+      // Pipeline's.
+      if (go.tab === 'overview') { tdySetView('pulse'); switchTab('pageHome'); }
+      else if (go.tab === 'billing') switchTab('pagePipeline');
+      else {
+        try { localStorage.setItem(STATS_TAB_KEY, go.tab || 'clients'); } catch (e) { /* per-device */ }
+        switchTab('pageStats');
+      }
       if (go.anchor) uiRevealEl(document.getElementById(go.anchor));
       break;
     case 'staffRoster': _attView = 'roster'; switchTab('pageStaff'); break;
@@ -1216,12 +1154,11 @@ function todoHandleLaunch(action) {
   if (dialogsTypedAsk(function() { todoHandleLaunch(action); })) return;
   if (navFormDirty()) { navLeaveOk().then(function(ok) { if (ok) todoHandleLaunch(action); }); return; }
   todoApplyWidgetQueue();
-  if (action === 'add') _todoShowDone = false;
-  switchTab('pageTodo');
-  if (action === 'add') {
-    var inp = document.getElementById('todoNew');
-    if (inp) inp.focus();
-  } else if (action.indexOf('open:a:') === 0) todoOpenApp(action.slice(7));
+  // Needs you holds the tasks (the To-do page joined it, the tab map TM2a).
+  if (action === 'add') { tdyFocusAdd(); return; }
+  tdySetView('needs');
+  switchTab('pageHome');
+  if (action.indexOf('open:a:') === 0) todoOpenApp(action.slice(7));
   else if (action.indexOf('open:m:') === 0) todoOpenEdit(action.slice(7));
 }
 
@@ -1243,10 +1180,7 @@ function todoAction(action, btn) {
     }
     case 'invTodoGo': todoGoLink(btn.dataset.id); break;
     case 'invTodoSnooze': todoSnooze(btn.dataset.key, btn.dataset.v); break;
-    case 'invTodoWake': delete todoData().snoozes[btn.dataset.key]; saveState(); renderTodo(); break;
-    // The Open / Done view tabs (they were a Done fold, whose action they keep).
-    case 'invTodoFoldDone': _todoShowDone = btn.dataset.v ? btn.dataset.v === 'done' : !_todoShowDone; renderTodo(); break;
-    case 'invTodoFoldSnoozed': _todoShowSnoozed = !_todoShowSnoozed; renderTodo(); break;
+    case 'invTodoWake': delete todoData().snoozes[btn.dataset.key]; saveState(); todoRefreshViews(); break;
     case 'invTodoDue': {
       var inp = document.getElementById('todoDue');
       if (inp) inp.value = btn.dataset.v === '' ? '' : isoAddDays(todoToday(), parseInt(btn.dataset.v, 10));

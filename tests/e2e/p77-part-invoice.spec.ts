@@ -58,8 +58,9 @@ test('600 invoiced as 200, 300 and 100: the share left, the status and the unbil
   it = await line(page);
   expect(it.billedQty).toBe(500);
   expect(it.invoiceIds).toHaveLength(2);
-  await openStatsTab(page, 'billing');
-  await expect(page.locator('[data-card="unbilled"]')).toContainText('₹1,550.00');   // 100 × 2.50 + 1,300
+  // What is left to bill is Pipeline's first stage (Stats → Billing's Unbilled card went there: the tab map, TM2b).
+  await switchTab(page, 'pagePipeline');
+  await expect(page.locator('[data-pipe-stage="awaiting"]')).toContainText('₹1,550.00');   // 100 × 2.50 + 1,300
 
   // The third takes what is left without typing, and closes the line.
   await invoiceQty(page, null, 3);

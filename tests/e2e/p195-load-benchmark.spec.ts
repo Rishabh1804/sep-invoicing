@@ -9,29 +9,28 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 // and, where §3d asks for one, a verdict inside the first screen.
 //
 // A budget is a ceiling, never a target: each step that assembles a screen lowers its budget to the new measure in the same
-// commit, and no budget is raised to get green. The budgets below are TM1's: every screen measured on eleven days of the
-// calendar (a Sunday, a month's first and last days, the financial year's first, the year's), the worst of them kept, the
-// length rounded up to the next half screen. The face is pinned (Liberation, as on every runner) and the clock to 11:30 on
-// today, so a screen measures the same on any machine at any hour.
+// commit, and no budget is raised to get green. The budgets below are TM1's, then each step's for the screens it assembled
+// (TM2: Today's): every screen measured on eleven days of the calendar (a Sunday, a month's first and last days, the financial
+// year's first, the year's), the worst of them kept, the length rounded up to the next half screen. The face is pinned
+// (Liberation, as on every runner) and the clock to 11:30 on today, so a screen measures the same on any machine at any hour.
+// What is measured is what is drawn: a view or widget the page hides is not on the screen's face (TM2: Pulse had been charged
+// with Needs you's tasks and the widgets TM2c hides).
 
 /* "Section › Row view › Own view": { screens, blocks, chains, toolbarRows }. */
 const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
-  'Today › Needs you': { screens: 3, blocks: 1, chains: 2, toolbarRows: 0 },
-  'Today › Pulse': { screens: 7, blocks: 4, chains: 4, toolbarRows: 1 },
-  'Today › Stats › Overview': { screens: 12, blocks: 13, chains: 10, toolbarRows: 2 },
-  'Today › Stats › Clients': { screens: 6, blocks: 4, chains: 1, toolbarRows: 1 },
-  'Today › Stats › Cost': { screens: 4, blocks: 6, chains: 1, toolbarRows: 1 },
-  'Today › Stats › Billing': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Stats › Trends': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Reports': { screens: 7, blocks: 0, chains: 0, toolbarRows: 5 },
-  'Today › Planner › Play': { screens: 3.5, blocks: 1, chains: 0, toolbarRows: 3 },
-  'Today › Planner › Ledger': { screens: 4.5, blocks: 2, chains: 0, toolbarRows: 4 },
-  'Today › Planner › A day': { screens: 3, blocks: 2, chains: 0, toolbarRows: 3 },
-  'Today › Planner › Plant': { screens: 5, blocks: 1, chains: 0, toolbarRows: 3 },
-  'Today › Planner › Tech tree': { screens: 3.5, blocks: 2, chains: 9, toolbarRows: 3 },
-  'Today › Planner › Staff': { screens: 3, blocks: 1, chains: 0, toolbarRows: 3 },
-  'Today › Planner › Clients': { screens: 4, blocks: 2, chains: 0, toolbarRows: 3 },
-  'Today › Planner › Finance': { screens: 2, blocks: 1, chains: 0, toolbarRows: 3 },
+  // TM2. Needs you's one toolbar row is the To-do's Add (TM2a puts it there; the one budget a step has raised, and said so
+  // at the stop, I10). Pulse took Stats → Overview's cards and gave the room back (three widgets hidden, the cards and the
+  // widgets shut on the phone).
+  'Today › Needs you': { screens: 3, blocks: 1, chains: 2, toolbarRows: 1 },
+  'Today › Pulse': { screens: 4, blocks: 0, chains: 1, toolbarRows: 1 },
+  'Today › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 5 },
+  'Today › Planner › Play': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Planner › A day': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Planner › Moves': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Pipeline': { screens: 5, blocks: 0, chains: 12, toolbarRows: 1 },
   'Office › Challans › Awaiting invoice': { screens: 4, blocks: 0, chains: 0, toolbarRows: 2 },
   'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 4 },
@@ -76,7 +75,11 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
 };
 
 /* The screens §3d marks *verdict*: a [data-verdict] in the first phone screen. Each joins in the step that builds its verdict. */
-const VERDICT: string[] = [];
+const VERDICT: string[] = [
+  // TM2
+  'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
+  'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+];
 
 test('every screen of the map is within its load budget on the long book', async ({ page }) => {
   test.setTimeout(300_000);

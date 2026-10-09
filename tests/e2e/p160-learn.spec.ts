@@ -36,8 +36,9 @@ test.describe('P160 learning from responses', () => {
     const sug: any = await g(page, `learnSuggestions()`);
     expect(sug.map((x: any) => [x.kind, x.rule, x.from, x.to])).toEqual([['raise', 'challan', 5, 10]]);
     expect(sug[0].title).toBe('Raise a challan is waiting to be billed to 10 days');
-    await switchTab(page, 'pageTodo');
-    const row = page.locator('[data-learn="raise:challan"]');
+    // Learnt from your answers is on Needs you, at the foot of the tasks (the tab map, TM2a).
+    await switchTab(page, 'pageHome');
+    const row = page.locator('#homeNeeds [data-learn="raise:challan"]');
     await expect(row).toContainText('3 snoozes in 90 days, none acted on. Now 5 days.');
     await row.locator('[data-action="invLearnApply"]').click();
     expect(await g(page, `todoCfg().challanDays`)).toBe(10);
@@ -87,8 +88,8 @@ test.describe('P160 learning from responses', () => {
   test('a fold snoozed is one decision for its members, and the snooze is recorded where it is made', async ({ page }) => {
     await loadAppWithState(page, book());
     await stub(page, { owed90: [task('owed90', 1, { amount: 100 }), task('owed90', 2, { amount: 200 }), task('owed90', 3, { amount: 300 })] });
-    await switchTab(page, 'pageTodo');
-    await page.locator('[data-todo-sec="app"] [data-todo="app"]').first().click();
+    await switchTab(page, 'pageHome');
+    await page.locator('#homeNeeds [data-todo="app"] [data-action="invTodoOpenApp"]').first().click();
     // The clock ticks between the members on a slow device (CI caught it, 9 Oct 2026): here it ticks on every reading.
     await page.evaluate(() => { const now = Date.now.bind(Date); let n = 0; Date.now = () => now() + n++; });
     await page.locator('[data-action="invTodoSnooze"][data-v="sig"]').click();
@@ -102,14 +103,14 @@ test.describe('P160 learning from responses', () => {
   test('a task’s button and a move under it are answers; the To-do raises one task that opens the suggestions', async ({ page }) => {
     await loadAppWithState(page, book({ todo: { tasks: [], snoozes: {}, resp: resp('challan', 'snooze', 3) } }));
     await stub(page, { owed90: [task('owed90', 1, { amount: 100 })] });
-    await switchTab(page, 'pageTodo');
-    await page.locator('[data-todo-sec="app"] [data-todo="app"][data-key="owed90:1"]').click();
+    await switchTab(page, 'pageHome');
+    await page.locator('#homeNeeds [data-tdy-task="owed90:1"] [data-action="invTodoOpenApp"]').click();
     await page.locator('.inv-dialog-foot [data-action="invTodoGoApp"]').click();
     expect(await g(page, `todoData().resp.filter(function (x) { return x.key === 'owed90:1'; }).map(function (x) { return x.act; })`)).toEqual(['go']);
     const t: any = await g(page, `todoAppAll(['learn'])[0]`);
     expect(t.title).toBe('1 suggestion from how you answer the tasks');
     await g(page, `todoGo(${JSON.stringify(t.go)})`);
-    await expect(page.locator('#pageTodo')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#homeNeeds')).toBeVisible();
     await expect(page.locator('#todoLearn [data-learn="raise:challan"]')).toBeVisible();
   });
 });

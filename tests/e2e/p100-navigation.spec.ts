@@ -122,7 +122,8 @@ test.describe('P100: navigation on the phone', () => {
     await expect.poll(() => where(page)).toEqual(['pageStats', 'cost']);
     await page.locator('#topbarTitle').click();
     await page.keyboard.press('Backspace');
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="overview"][aria-selected="true"]')).toHaveCount(1);
+    // Back to the tab Stats opened on (By client since the tab map, TM2b).
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="clients"][aria-selected="true"]')).toHaveCount(1);
     await switchTab(page, 'pageRegister');
     const search = page.locator('#pageRegister input[type="search"], #pageRegister .inv-search input').first();
     await search.fill('x');

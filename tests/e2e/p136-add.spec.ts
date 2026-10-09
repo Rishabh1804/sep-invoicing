@@ -272,7 +272,8 @@ test.describe('P136: Add, the one door', () => {
       ['attendance', async () => { await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/); await expect(page.locator('#attDate')).toHaveValue(todayIso()); }],
       ['payment', async () => { await expect(page.locator('#payForm')).toBeVisible(); await expect(page.locator('#payWorker')).toBeFocused(); }],
       ['bill', async () => { await expect(page.locator('#pageFinance #costBillAmount')).toBeVisible(); await expect(page.locator('#pageFinance #costBillMonth')).toHaveValue(lastMonth); }],
-      ['task', async () => { await expect(page.locator('#pageTodo')).toHaveClass(/inv-page-active/); await expect(page.locator('#todoNew')).toBeFocused(); }],
+      // Your own task is typed on Needs you, where the tasks are (the tab map, TM2a).
+      ['task', async () => { await expect(page.locator('#homeNeeds')).toBeVisible(); await expect(page.locator('#todoNew')).toBeFocused(); }],
     ];
     for (const [go, landed] of lands) {
       await openAdd(page);

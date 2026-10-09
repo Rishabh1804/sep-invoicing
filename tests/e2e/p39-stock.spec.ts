@@ -257,9 +257,9 @@ test.describe('P39: stock', () => {
     await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
     await expect(page.locator('.inv-navbar-item[data-ws="floor"]')).toHaveClass(/inv-navbar-item-on/);
-    // What More held besides: the To-do is Today's, Finance is Money, Stats and Reports are Today's Insights (the tab map, 9 Oct
-    // 2026), and History is the top bar's tool, in no workspace.
-    expect(await g(page, `['pageTodo', 'pageFinance', 'pageStats', 'pageReports', 'pageHistory'].map(wsOf)`)).toEqual(['today', 'money', 'today', 'today', null]);
+    // What More held besides: Finance is Money, Stats and Reports are Today's Insights (the tab map, 9 Oct 2026), History is the
+    // top bar's tool, in no workspace, and the To-do is Needs you's (TM2a), no page at all.
+    expect(await g(page, `['pageFinance', 'pageStats', 'pageReports', 'pageHistory', 'pageTodo'].map(wsOf)`)).toEqual(['money', 'today', 'today', null, null]);
   });
 
   test('export carries the whole record; importing it again adds nothing', async ({ page }) => {

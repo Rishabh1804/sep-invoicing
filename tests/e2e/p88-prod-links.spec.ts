@@ -72,8 +72,9 @@ test.describe('P88: Production in the rest of the app', () => {
     await expect(page.locator('[data-action="invProdTab"][data-tab="plant"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#prodPlantClient')).toHaveValue('11');
     // It reaches the To-do list like every other rule.
-    await switchTab(page, 'pageTodo');
-    await expect(page.locator('#pageTodo')).toContainText('400 NOS plated, not invoiced');
+    // The tasks are Needs you's (the tab map, TM2a).
+    await switchTab(page, 'pageHome');
+    await expect(page.locator('#homeNeeds')).toContainText('400 NOS plated, not invoiced');
   });
 
   test('the Overview, the Stats row on complete days, and labour per kg by line', async ({ page }) => {

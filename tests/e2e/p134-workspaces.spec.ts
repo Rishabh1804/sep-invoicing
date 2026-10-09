@@ -45,7 +45,7 @@ const swipe = (p: Page, from: number, to: number) => p.evaluate(([a, b]) => {
 /* The map, restated (split/workspace.js WORKSPACES; the tab map of 9 Oct 2026: Today holds its Insights, and History and
    Knowledge are the top bar's tools, in no workspace). */
 const MAP: Record<string, string[]> = {
-  today: ['pageHome', 'pageTodo', 'pageStats', 'pageReports', 'pagePlanner'],
+  today: ['pageHome', 'pageStats', 'pageReports', 'pagePlanner'],
   office: ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageCreate'],
   floor: ['pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'],
   money: ['pageFinance'],

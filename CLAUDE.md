@@ -49,7 +49,7 @@ screens and views, 34 lead with no summary at all; the rest lead five different 
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
 row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
 (owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
-built (*The tab map* below); the build stops after TM2 for the owner to look, then TM3 to TM7 and the QA chain.
+built, then TM2 (*The tab map* below); the build stops there for the owner to look, then TM3 to TM7 and the QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -114,7 +114,7 @@ split/
 ├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
-├── print.js           ← formatInvoiceData + print preview (224 lines)
+├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
 ├── quote.js           ← Quotations: Clients → Quotations, a number at issue, revisions, the printed quotation (~790 lines)
@@ -132,7 +132,7 @@ split/
 ├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
-├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
+├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
 ├── prospects.js       ← Clients → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
@@ -142,7 +142,7 @@ split/
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
-├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
+├── intel.js           ← Stats' three tabs; the questions' stories and In one line for Pulse; six months; contribution by client (~230 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
@@ -158,12 +158,12 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: the day's card, Overview, In plant, Lines, Entries; paste, photo and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Day: a card per line coded by its efficiency, heads against the number, running, plated, crew, EXTRA; the pieces not weighed (~300 lines)
-├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks) and Pulse (the questions) (~440 lines)
+├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
 ├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~610 lines)
-├── planview.js        ← The planner's screens: Play, Ledger, A day, Plant, Tech tree, Staff, Clients, Finance; registers; the report (~990 lines)
+├── planview.js        ← The planner's screens: Play, Ledger, A day, Moves (Plant, Tech tree, Staff, Clients, Finance); its verdict; registers; the report (~990 lines)
 ├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
 ├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,670 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
@@ -455,8 +455,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row
-`inv-tokens` and the verdict card's facts `inv-hero-fact`: 721); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 719 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1826,7 +1825,7 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   included. The row says *100 kg ≈ 400 NOS at 0.25 kg/pc (client card)*, each client's head says how many lines were
   worked out, and a line with no weight known stays in kg and is named with where to put the weight. Before this a
   kilo line with no count took none of the floor's piece counts, which all read *on the floor, no challan open*.
-- **Linked in.** Stats → Overview gets *Plated (floor)*, only on **complete days** (attendance recorded and every
+- **Linked in.** *In one line* (Today → Pulse; Stats → Overview's until the tab map) gets *Plated (floor)*, only on **complete days** (attendance recorded and every
   staffed line with a general-shift record), never a zero. Lines shows labour ₹/kg by line: variable labour of the
   line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg. Two To-do
   rules, both blind to imported history and rework: **plated, not invoiced** (amber at 3 working days, red at 6,
@@ -2126,6 +2125,9 @@ workers and every personal detail are the book's; the owner's private files (`se
 Today → **Planner** (in its Insights; Office's until the tab map of 9 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
 clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
 prototypes). P162.
+- **Four views: Play · Ledger · A day · Moves** (the tab map, TM2d; eight until then), Moves a switch over Plant · Tech tree · Staff ·
+  Clients · Finance. One verdict card leads every view (the plan's margin a month against the goal), and one toolbar row (Roll, the
+  month, the plan where there are two, More). *The tab map: Today (TM2)* above.
 - **A month is built from the book's parts up** (`plnBase`, `plnMonth`): the last three full months' invoices by client and part
   (`statsInvoices`, `lineWeightKg`, `cpPartIdentity`), each part on its own usual line from the production record, else its client's,
   else VAT A2 (*assumed*). A line plates **kg a round every so many minutes** (from the register's rounds a day against the book's
@@ -2214,7 +2216,9 @@ quarterly and a yearly follow the monthly's shape. P132.
 - **Kinds and periods**: Daily · Weekly · Monthly · Quarterly · Yearly; a day, the pay week Sun–Sat numbered by its Saturday's ISO week,
   a month, a quarter of the financial year (Q1 Apr–Jun), a financial year. ‹ › steppers (never past the current period), a picker, Now,
   and **Print** the one primary. A period not yet ended reads *to date* and stops at today. Kept per device (`sep_inv_report`); the
-  address is `?tab=pageReports&v=<kind>/<first day>`. Stats → Overview → *Make a report* opens it on the same period.
+  address is `?tab=pageReports&v=<kind>/<first day>`. Pulse's head → More → *Make a report* opens it on the same period.
+- **The report on the page is the paper, fitted** (the tab map, TM2f): laid out at the sheet's width and zoomed to the screen
+  (`paperFit`, print.js, the print view's own fit), so its tables never run past a phone's edge.
 - **One document, drawn from the data every time** — the Power case's contract: `rptHtml(kind, from, to)` is the page and the print
   (`rptPrint`), and a save in another window redraws both.
 - **Sections by kind**: headline tiles with a change line against the period before of the same length (same days while one runs);
@@ -2440,7 +2444,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
   `prodGeneralLines` / `prodStaffedLines`, `cpHourParts`, `qtToFromClient`); a worth that cannot be worked out is left out of
   the sentence, never guessed. **Nothing is applied**: a move opens a place or a draft, and nothing is written until the owner
   saves there.
-- **The six questions** on Stats → Overview (and, with Direction B, Today → Pulse: `advPulseHtml(period)`), each ending in
+- **The six questions** on Today → Pulse (Stats → Overview's too until the tab map, TM2b), each ending in
   *What you can do* — three moves shown, ranked by worth then tone, the rest behind *Show N more moves*; where none can be
   worked out, one line says what would make one appear:
   1. **Is the plant running smoothly?** (new) A stock line out or red, with the reorder list's cost; this month's cuts, with
@@ -2511,6 +2515,48 @@ of things in the app that can answer itself but that linkage is missing."*). The
 - Fixtures: `phoneFilter`, `closeFilter`, `toolbarMore` (`phoneMore`), `openVerdict`, `openSales`; `switchTab` opens History by
   its tool.
 
+### The tab map: Today (TM2)
+`docs/TAB_MAP.md` TM2 (9 Oct 2026): the first screens assembled to one look (§3e), and the build's stop (§1a-14): the owner looks at
+them before TM3. P185; P195's budgets lowered for Today's screens and P197's `ONE_LOOK` filled with them.
+- **The To-do is Needs you's** (TM2a). The tasks stack opens with the To-do's toolbar (`#todoNew`, **Add** the view's one primary,
+  **Details**), then Now, This week and Later as before, then **Snoozed** (Wake) and **Done** (the tick reopens), each a fold shut,
+  and *Learnt from your answers* (`#todoLearn`) at the foot for a role that may change settings. `#pageTodo` is gone: an address, a
+  saved step of the trail, the widget's launch and the manifest's shortcut land on Needs you (`navRedirect`), `todo=add` with
+  `#todoNew` focused, `todo=open:…` on the task's dialog. The engine is unchanged (`todoRanked`, `todoGo`, the dialogs, the widget).
+- **Pulse takes Stats → Overview** (TM2b). Under its head (the period, `MTD · QTD · YTD · All`, one `_statsPeriod` with Stats, and
+  More: *Make a report*, *Open Stats*, *Edit Home*), the questions and *Do first* as before, then **Why it moved** (`#statsWhy`),
+  **In one line** (`#statsOverview`, with its Cash and plated rows) and **This month at its pace** (`#statsPace`), each a hero led by
+  its verdict, shut on the phone and open on the desktop. A period changed on Stats redraws Pulse when it is next shown
+  (`_homeDrawnPeriod`). **Edit Home** is in More (the bar under the widgets is gone); a role without money sees that button alone.
+  **The widgets are shut on the phone too** until opened (each a hero whose line answers at a glance): open, they alone ran past
+  three phone screens on the owner's book.
+- **Stats is three tabs, each led by its verdict card** (`statsVerdictHtml`, `#statsVerdict`):
+  - **By client**: how many large accounts sit below their variable or full cost, the worst named with its ₹/kg; then contribution,
+    the next challans, revenue, and realisation and concentration, the last three folds shut on the phone.
+  - **Cost**: *Live cost ₹/kg · N% measured*, toned by the share measured; then labour and the live cost. *Recorded against paid*
+    names on its row the months it compares and the ones it leaves out; the bills fold to one row (*12 bills entered, the latest
+    Sep 2026*, a voided bill listed inside and never the head) without their notes, which stay on Money's bills.
+  - **Trends**: the period's headline as the verdict (revenue, tonnage, realisation and margin its factors, each old callout a badge
+    on its factor and one line); then six months, the trend and top items (a fold shut on the phone).
+
+  A tab remembered from before (Overview, Billing) opens By client. Billing's cards went: output tax and invoice states are Money →
+  GST's and Pipeline's facts, and the **dispatch cycle** is Pipeline's (`#pipeDispatch`, the last 90 days). The insight list went: an
+  insight is a task on Needs you.
+- **Every preset of Pulse's widgets hides To-do, Recent and Money** (TM2c; Needs you holds them). A device on a preset follows the
+  build's preset; a layout of the owner's own is kept.
+- **The Planner is Play · Ledger · A day · Moves** (TM2d). Moves is a switch over Plant · Tech tree · Staff · Clients · Finance
+  (`invPlnMoves`; the address `v=moves/<kind>`, an old kind's name opening Moves on it); a kind switched keeps the page where it is,
+  a control inside the view and not a navigation (P79). One verdict card on every view
+  (`#plnVerdict`: the plan's margin a month against the goal, cash's low, CQI-11, the trials' stars) replaces the goal callout and the
+  heads-up tiles. The toolbar is one row: Roll, the month ‹ ›, the plan's picker where there are two plans, and More (New card, Make
+  the report, Copy, Rename, Suggest a start, Start over, the goal). On the phone a register's or a move's row carries two facts and
+  one thing at its end, the rest folded under it (`plnRowHtml`); the desktop keeps its tables.
+- **Reports, fitted** (TM2f): the report on the page is laid out at the sheet's width and zoomed to the screen (`paperFit`, print.js,
+  which the print view calls too).
+- **What is measured is what is drawn** (P195): a view or widget the page hides is not on a screen's face. The notes that explained a
+  figure went to the screen's guide (Stats', Today's; kbguides.js). **Needs you's toolbar budget went from 0 to 1**: the To-do's Add
+  row TM2a puts there, the one budget a step has raised, said to the owner at the stop (I10).
+
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
 - **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More; the desktop's
@@ -2551,8 +2597,9 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   the shop's own time), with its door; on the desktop, the floor now; **the last five invoices, each with its print button**
   (`tdyRecentHtml`, the Pulse widget's own rows, `homeRecentRowHtml`; owner, 6 Oct 2026: *"to print a recent invoice is 4
   clicks"*: the list had been only on Pulse, under the questions; now Today → print → Print, P164); then every open task grouped **Now** (red, and your
-  own due today or late), **This week** and **Later**, each with its one-tap move. **Pulse**: the questions with what to do
-  (advice.js), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
+  own due today or late), **This week** and **Later**, each with its one-tap move (and since the tab map the To-do's Add, Snoozed,
+  Done and Learnt, TM2a). **Pulse**: the period, the questions with what to do (advice.js), Why it moved, In one line and the
+  month's pace (Stats → Overview's until TM2b), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
   a spec reaching one opens Pulse first (`openPulse` in the fixtures).
 - **Today is cards** (owner, 8 Oct 2026: *"need the pulse screen and needs you screen to have less cognitive load, data
   presentation on these screens are still primitive"*; *"If it is in list form, it should be presented better, maybe as a card or
@@ -2566,7 +2613,8 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   and mark open Pulse** (`invGoPulse`), where Today's own item opens Needs you; the phone's bar has no name or mark.
 - **Pulse's widgets are cards too** (owner, 8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed
   space"*; P180). Each is a hero with its eyebrow, a one-line verdict, its figure where the line is not one, a meter or sparkline,
-  coded by the worst of what it holds, open at first and remembered per device (`fold: 'pulse-<widget>'`), its links in its foot
+  coded by the worst of what it holds, shut on the phone and open on the desktop until moved, remembered per device (`fold:
+  'pulse-<widget>'`; open at first until the tab map, TM2c), its links in its foot
   (`inv-hero-foot`): Month to date (`homeMtdCard`: billing against the same days last month, realisation against the cost, the
   tiles coded by their change, `figDeltaTone`), Money (owed past 60 and 90 days, the ageing as a meter, `FIN_AGE_TONE`), To-do
   (grouped as Needs you groups it), Attendance (on site, the day as a meter; `attDayPanelHtml(d, null, …)` draws the panel with no
@@ -2754,31 +2802,32 @@ on the build before. What it leaves as rules:
 - **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
   compile). A PIN, a token or a key never does.
 
-### Stats in tabs, and the overview
-Stats is five tabs over one period chip row (owner, 25 Sep 2026: *"break up the stats page into multiple
-grouped tabs"*): **Overview** (the headline four, *In one line*, six months), **Clients** (contribution by
-client, revenue, realisation, concentration), **Cost** (labour, live cost), **Billing** (GST, invoice
-states, unbilled, dispatch) and **Trends** (the trend chart, top items). The open tab is remembered on
-the device. `renderStats()` still draws every card; `take()` files each into its tab.
+### Stats in tabs, and the questions on Pulse
+Stats is three tabs over one period chip row since the tab map (TM2b, 9 Oct 2026; five from 25 Sep 2026, owner: *"break up the stats
+page into multiple grouped tabs"*): **By client** (contribution by client, the next challans, revenue, realisation, concentration),
+**Cost** (labour, live cost) and **Trends** (the headline, six months, the trend chart, top items), each led by its verdict card. The
+open tab is remembered on the device; `renderStats()` draws the open tab's cards.
 
-- **The Overview opens on the owner's questions, each a story** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
-  and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoriesHtml`, intel.js):
+- **The owner's questions, each a story, are Today → Pulse's** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
+  and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoryCards`, intel.js;
+  Stats → Overview's until the tab map):
   *Are we making money?* (realisation and what a kilo leaves, six months against the cost), *Who is driving it?* (the four largest
   clients by tonnage, the worst-priced large account, the biggest mover against the period before), *Is the plant full?* (capacity and
   tonnes by month), *What changed?* (the month's pace and the three most urgent insights) and, with a statement, *Is cash coming in?*.
-  Each says what it means in one sentence with its tone (`data-story-say`) and links to its tab (`invStatsGo`). They read the figures the
-  panels under them read; the headline, *In one line*, the pace and six months follow, and **the whole insight list closes the page**. P120.
-- **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so the
-  headline and the Overview cannot disagree. The typed figure is used only where there is no tonnage to
+  Each says what it means in one sentence with its tone (`data-story-say`). They read the figures the panels beside them read: on Pulse,
+  *Why it moved*, *In one line* and the pace follow them; the headline and six months are Trends'; the insights are tasks on Needs you.
+  P120, P185.
+- **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so
+  Trends' headline and Pulse's *In one line* cannot disagree. The typed figure is used only where there is no tonnage to
   divide by (and still by Items Master's break-even).
-- **In one line**: realisation, live cost, contribution per kg and on the period, and capacity against
-  ~2 t per shift × two shifts × working days. Whatever is not measured is named under it.
-- **Six months**: each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
+- **In one line** (Pulse): realisation, live cost, contribution per kg and on the period, and capacity against
+  ~2 t per shift × two shifts × working days. Whatever is not measured is a badge on its tile.
+- **Six months** (Trends): each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
   recorded and the share of cost measured.
 - **Credit notes are netted across all of Stats** (owner, 30 Sep 2026): each note's credit is spread over the invoices it names in
   proportion to their taxable (`statsInvoices`, `cnCreditByInvoice`), and the headline, realisation, clients, six months, the trend,
   the insights and Clients → Performance read those net invoices; tonnage is untouched. A note naming no invoice in the book is
-  counted apart and said on the Overview. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
+  counted apart and said on Trends' verdict. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
   it should be mentioned"*): the Revenue tile reads *taxable, net of ₹200.00 in credit notes*, and its comparison with the same
   days last month is net on both sides. The tile will link to the notes once the hover previews are built.
 - **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
@@ -2808,7 +2857,7 @@ stock lines and three clients' challans each a row of its own, in the rules' ord
   now too).
 
 ### Why it moved
-Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Stats → Overview → **Why it moved**, under the questions, for the period shown
+Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Today → Pulse → **Why it moved** (Stats → Overview's until the tab map), under the questions, for the period shown
 against the one before (Stats' own: same days last month, quarter, year), and *What changed?* names realisation's largest cause.
 Every cause carries its ₹ and **the causes add up to the change exactly**; the top few are listed and the rest is one line.
 - **Realisation** (`whyRealisation`) over the weighed lines, the figure Stats shows: each client's own rate (its share now × its
@@ -2844,7 +2893,7 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
 
 - **An insight is a To-do rule.** It has the same shape as an app task (tone, figures, what to do, what
   clears it, a snooze against its figures), so it reaches the To-do list, the Home card and the Windows
-  widget with nothing new, and **Stats → Overview → Insights** lists them all. Each can be switched off in
+  widget with nothing new (Stats → Overview → Insights listed them all until the tab map; they are Needs you's tasks). Each can be switched off in
   Settings → Checks & alerts → To-do. There are eight:
   - **a client gone quiet** — judged against its own rhythm: overdue once its gap passes both 1.75× its
     median gap and median + 21 days, with 5+ challans and ₹20k+ in three months. Red at 10%+ of the book;
@@ -2857,7 +2906,7 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
   - **last pay week with no attendance**;
   - **stock lines used in 30 days with no price**.
 - **Predictions**, each saying what it rests on:
-  - **This month at its pace** (Overview): revenue and tonnage per working day so far × the month's
+  - **This month at its pace** (Today → Pulse): revenue and tonnage per working day so far × the month's
     working days, a band from how much those days varied, and unbilled challans in hand.
   - **Next challan expected** (Clients): each client's median gap after its last challan; late past it,
     quiet past the rule above.
@@ -3262,8 +3311,10 @@ screen which user can adjust"*; they chose **presets and an edit mode, kept per 
   **production** (the last day plated, by line), **power cuts** (this month's and the last), **stock running low** (red and amber lines,
   soonest out first), GitHub sync, zinc, recent invoices. The three new ones are drawn only while shown (`renderHomeExtraCards`).
 - **Presets**: *Owner* is the Home there was (the three new widgets hidden), *Floor* leads with quick actions, attendance, production,
-  stock and power, *Money* with the month, money, unbilled and recent invoices.
-- **Edit Home** (at the foot of Home): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
+  stock and power, *Money* with the month and unbilled. **Every preset hides To-do, Recent invoices and Money since the tab map** (TM2c:
+  Needs you holds them, and Pulse gave the room to the cards it took from Stats), and a device on a preset follows the preset as the
+  build defines it; a layout of the owner's own is kept as it is.
+- **Edit Home** (Pulse's head → More; a bar at the foot until the tab map): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
   one column). Any change makes the layout *your own* (`preset: 'custom'`). A widget added by a later build joins at the end, hidden, so a
   new build never rearranges a Home. Kept in localStorage, never in the book: a backup or a pull does not rearrange another device. P121.
 
@@ -3275,7 +3326,8 @@ messages to Production's; it opens without a roster), Add task (the
 box focused). Three across on the phone, six on the desktop.
 
 ### To-do
-More → **To-do**, a Home card, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
+Today → **Needs you** (the To-do page joined it in the tab map, TM2a: its Add, Snoozed, Done and Learnt are Needs you's), Pulse's
+To-do card, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
 *just me*, *both, labelled*, *Windows 11*, *in SEP Invoicing for now*, *not the phone yet*). `S.todo`
 is self-contained so it can move to `sep-dashboard` whole.
 
@@ -3293,9 +3345,8 @@ is self-contained so it can move to `sep-dashboard` whole.
   come back every time a litre is used.
 - One rule failing on an unexpected shape is caught; it must not take the list with it.
 - **Your own tasks lead** (owner, 26 Sep 2026: *"once I add a todo of my own, it still stays at the end of all the
-  system generated one, that makes it easy to miss"*). The page draws *Mine* before *From your data* (on the left on
-  the desktop), and `todoRanked()` — the Home card, the widget — puts every open task of yours ahead of every raised
-  one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
+  system generated one, that makes it easy to miss"*). `todoRanked()` (Needs you, Pulse's card, the widget) puts every
+  open task of yours ahead of every raised one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
   an undated task of yours had no tone and fell below every info task the data raised (P69).
 
 **The widget cannot be the app's HTML.** Windows draws an Adaptive Card (`widgets/todo-template.json`)
@@ -3306,7 +3357,8 @@ whole book) and written to a small database of their own, **`sep-invoicing-widge
 **Done tapped on the card** is queued, dropped from the card at once, and applied when the app is next
 shown (or at once if open, by message). The queue is read and emptied in one transaction, and the
 payload is only written after the queue is applied, so a tick cannot be lost or come back. Tapping a
-row opens `?tab=pageTodo&todo=open:<m|a>:<id>`; Add task opens `&todo=add`.
+row opens `?tab=pageHome&v=needs&todo=open:<m|a>:<id>`; Add task opens `&todo=add` (an older `?tab=pageTodo` address is
+redirected there, `navRedirect`).
 
 ⚠ **Nothing here can test the widget host.** It exists only in Edge on Windows 11 (setup: Developer
 Mode + WinAppSDK 1.2, install from Edge, Win+W → Add widgets → SEP To-do). The spec tests everything

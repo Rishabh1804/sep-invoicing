@@ -276,10 +276,9 @@ function onDocClick(e) {
     case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
-    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    // One period for Stats and Today → Pulse (the tab map, TM2b): a change redraws whichever is on screen.
+    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; if (navPageOf() === 'pageHome') renderHome(); else renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
-    case 'invStatsGo': statsSetTab(btn.dataset.tab); break;
-    case 'invStatsInsightsAll': uiRevealEl(document.getElementById('statsInsights')); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
     // Chart controls: what the trend plots, how it is drawn, and how the

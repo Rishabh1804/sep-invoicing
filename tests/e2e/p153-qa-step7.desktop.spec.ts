@@ -160,11 +160,12 @@ test('a window crossing 1024px keeps the leave guard on a half-typed form', asyn
 async function columns(page: Page, sel: string) {
   return page.locator(sel).first().evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
 }
-test('above about 1,600px only Pulse, Stats and Finance go three across; To-do keeps its two lists', async ({ page }) => {
+test('above about 1,600px only Pulse, Stats and Finance go three across; every other grid keeps two', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await page.setViewportSize({ width: 1700, height: 1000 });
   await openPulse(page);
   expect(await columns(page, '[data-tdy-questions]')).toBe(3);
-  await switchTab(page, 'pageTodo');
-  expect(await columns(page, '#pageTodo .inv-panels')).toBe(2);
+  // The To-do's two lists were the example until the To-do joined Needs you (the tab map, TM2a); Power's panels are one now.
+  await switchTab(page, 'pagePower');
+  expect(await columns(page, '#pagePower .inv-panels:not(.inv-panels-3)')).toBe(2);
 });

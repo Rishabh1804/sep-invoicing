@@ -45,8 +45,8 @@ Nothing here changes what the book records except TM3b.
 | Step | What | State |
 |---|---|---|
 | TM1 | The shell: the rows, the tools in the top bar, Sales, Parts, the redirect table, the names; the toolbar (Filter, More); one look's pieces (the verdict card, `data-screen`, the row end); the instruments (P195, P197) | **Built** (9 Oct 2026; what it decided is under TM1, *As built*) |
-| TM2 | Today: the To-do into Needs you, Pulse takes Stats → Overview and stays short, Stats' three tabs led by verdicts, Pulse's widgets, the Planner's Moves and header, Reports fitted | Not built |
-| ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | — |
+| TM2 | Today: the To-do into Needs you, Pulse takes Stats → Overview and stays short, Stats' three tabs led by verdicts, Pulse's widgets, the Planner's Moves and header, Reports fitted | **Built** (9 Oct 2026; what it decided is under TM2, *As built*) |
+| ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | **Waiting**: the shots are in the PR |
 | TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | Not built |
 | TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | Not built |
 | TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | Not built |
@@ -745,6 +745,58 @@ keeps them; the report on the page fits a 393 px screen; Stats' three tabs and t
 (TM2g) shot and asked. **Spec P185;** P197 extended; P195's budgets lowered for Pulse, Stats and the Planner. **Grep after:**
 `pageTodo` (only §5's row and comments), `renderTodo(`, `'overview'` / `'billing'` in intel.js, `advPulseHtml`,
 `statsStoriesHtml`, `invStatsInsightsAll`.
+
+**As built (9 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **Pulse's head is the period and More, with no period word**: the segments name the period, and the word beside them took the
+  head to a second row on the phone. More holds *Make a report*, *Open Stats* and **Edit Home**: the bar under the widgets
+  (`#homeEditBar`) is gone, and a role without money, who has no period to pick, sees the one button.
+- **Pulse follows a period changed on Stats** when it is next shown (`_homeDrawnPeriod`, tabs.js), not at the next save.
+- **Pulse's widgets are shut on the phone and open on the desktop**, remembered per device, as the verdict cards are (§1a-3). With
+  them open Pulse measured 4.95 phone screens on the owner's book, the widgets alone 2.3 of it; shut, 3.48. A widget's buttons are
+  in its body, one tap down (Zinc's Refresh, Money's Import statement).
+- **The factors carry badges** (`uiFactorTileHtml`'s `badge`, design §6.28): Trends' *99% weighed*, *net of notes*, *below cost*;
+  In one line's *90% weighed* and *N% measured*. Each old callout is one line under Trends' card; why is the screen's guide
+  (`kbguides.js`, Reading Stats). By client's margin says where its labour split came from as a badge (`data-margin-split`).
+- **By client folds the next challans** with realisation and concentration, and **Trends folds top items**, shut on the phone (the
+  long book's By client ran past its budget with the forecast open).
+- **Stats → Cost shows the bills without their notes and folded to one row** (*12 bills entered, the latest Sep 2026*), shut on the
+  phone: the bills are Money's, where each keeps its note (a note imported with a bill ran to 270 characters on Cost). The head
+  counts and names the bills that stand; a voided bill is listed inside, muted, and never leads. *Recorded against paid* is fact
+  rows: the gap at the end, and under the label the months compared, recorded and paid, then the months left out and why.
+- **Moves' switch is a control inside the view, not a navigation**: switching a kind keeps the page where it is (P79 found it
+  jumping to the top); only another view goes to the top.
+- **The Planner's plan picker is drawn only where there are two plans**; one plan has nothing to pick, and the select took the
+  phone's row to two. On the phone *Roll the trials* reads *Roll* and More is its mark (`{icon: true}`, design §6.7).
+- **A folded row's head keeps two short facts** (`plnRowHtml`: the head's meta never past 80 characters); a fact that reads as a
+  sentence goes under the row with the rest. P76 found a tech level's head cut past its two lines.
+- **The report on the page is the paper** (`.inv-rpt-sheet > .inv-rpt-doc` at the sheet's width, zoomed by `paperFit`); the page
+  is never printed (print hides every page), so Print sends the same document to the print view at life size.
+- **The first invoice's way on a new device** is Pulse's quick actions and Add: the Recent widget that carried *Create your first
+  invoice* is hidden by every preset, and Needs you draws no empty recent card (P164's ruling of 6 Oct). P3 holds both.
+- **What is measured is what is drawn** (P195's `drawn`): Pulse had been charged with Needs you's tasks and the three widgets TM2c
+  hides, all in the page under `display: none`. A fold's inside still counts (one tap from the face; folding is not shortening).
+- **Needs you's toolbar budget went from 0 to 1**, the To-do's Add row TM2a puts there: the one budget a step has raised, said at
+  the stop (I10). On the owner's book Needs you went from 2.85 to 3.00 phone screens, the Add row and the Snoozed and Done folds.
+- **Needs you and Pulse are on `ONE_LOOK`** with Stats' tabs and the Planner's views: both lead with heroes carrying
+  `data-verdict`. P197's overview check takes heroes packed on the desktop (`inv-panels`, `uiMasonry`) as it takes `inv-heroes`.
+- **The measures**, phone screens, the worst of eleven days on the long book (TM1's budget → TM2's measure, the budget lowered to
+  it):
+
+  | Screen | Long book | Owner's book (TM1 → TM2, same book) |
+  |---|---|---|
+  | Needs you | 3 → 2.83 | 2.85 → 3.00 |
+  | Pulse | 7 → 3.51 (blocks 4 → 0, chains 4 → 1) | 6.50 → **3.48** (target ≤ 3.5) |
+  | Stats → Overview | 12 → gone | 13.03 → gone |
+  | Stats → By client (was Clients) | 6 → 3.21 | 5.50 → **2.98**, 0 blocks (target ≤ 3, 0 blocks) |
+  | Stats → Cost | 4 → 2.76 (blocks 6 → 0) | 5.16 → **2.96**, blocks 7 → 0 (target ≤ 3, 0 blocks) |
+  | Stats → Billing | 2.5 → gone | 2.04 → gone |
+  | Stats → Trends | 3 → 1.82 | 2.02 → 1.82 |
+  | Reports | 7 → 2.84 | 7.35 → 3.10 |
+  | Planner → Play · Ledger · A day | 3.5 · 4.5 · 3 → 2.28 · 3.17 · 2.03 | 4.46 · 5.67 · 2.80 → 3.84 · 4.84 · 2.03 |
+  | Planner → Moves (was five views) | 2–5 → 3.78 | Plant 6.59 (Tech 3.68 · Staff 2.62 · Clients 4.31 · Finance 1.94) → 5.04 on Plant |
+
+  The Planner's toolbar went from three or four rows to one on every view, and its chains (Plant 22, Clients 16, Tech 13 on the
+  owner's book) to none. The owner's book is measured in a scratch harness that never enters the repository.
 
 ### TM3 — Money and Invoices
 

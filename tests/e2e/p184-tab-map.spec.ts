@@ -163,8 +163,8 @@ test.describe('P184: the tab map on the phone', () => {
   });
 
   test('a place that moved opens where it went, from an address and from a step saved in the history', async ({ page }) => {
-    // The table is empty until a step removes a place (TM2 on); the test puts in two rows before the app reads its address:
-    // a page that is gone, and a view that moved to another page.
+    // The table holds the steps' own rows (TM2 on: the To-do, Stats' Overview and Billing, the Planner's kinds); the test puts in
+    // two more before the app reads its address: a page that is gone, and a view that moved to another page carrying its record.
     await page.addInitScript(() => {
       let arr: any[] = [];
       Object.defineProperty(window, 'NAV_REDIRECTS', {
@@ -172,15 +172,18 @@ test.describe('P184: the tab map on the phone', () => {
         set: v => {
           arr = v;
           arr.push({ tab: 'pageGone', v: null, to: () => ({ tab: 'pageStock', v: '' }) });
-          arr.push({ tab: 'pageStats', v: ['billing', 'old'], to: (l: any) => ({ tab: 'pagePipeline', v: '', id: l.id }) });
+          arr.push({ tab: 'pageStats', v: ['old'], to: (l: any) => ({ tab: 'pagePipeline', v: '', id: l.id }) });
         },
       });
     });
     await loadAppWithState(page, book());
-    expect(await g(page, `NAV_REDIRECTS.length`)).toBe(2);
+    const own = await g(page, `NAV_REDIRECTS.length`) as number;
+    expect(own).toBeGreaterThan(2);
     // A pure helper: an address it does not know comes back unchanged.
     expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'cost', id: '', d: '' })`)).toEqual({ tab: 'pageStats', v: 'cost', id: '', d: '' });
-    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'billing/x', id: 'A', d: '' })`)).toEqual({ tab: 'pagePipeline', v: '', id: 'A', d: '' });
+    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'old/x', id: 'A', d: '' })`)).toEqual({ tab: 'pagePipeline', v: '', id: 'A', d: '' });
+    // A step's own row: Stats' Billing went to Pipeline (TM2b).
+    expect(await g(page, `navRedirect({ tab: 'pageStats', v: 'billing', id: '', d: '' })`)).toEqual({ tab: 'pagePipeline', v: '', id: '', d: '' });
 
     // From an address: a page that no longer exists still lands, and the bar shows where.
     await page.goto('/?tab=pageGone&v=anything');

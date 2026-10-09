@@ -190,7 +190,8 @@ function advRepriceMove(ctx, x) {
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
     task: said,
-    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or Parts) to quote ' +
+    // One line (the tab map, TM2b: Pulse's words are short); where a weight is entered is the guide's (Reading Stats).
+    hint: draft.unweighed.length ? 'A weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' quotes ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
 
@@ -372,8 +373,8 @@ function advMoneyMoves(ctx) {
   var plant = ctx.cards.plant;
   if (plant && plant.capPct != null && plant.capPct < 0.8) out.push(ctx.plantMoves()[0] || null);
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
-    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or Parts) lets the app set what was billed against the cost.'
-      : 'Nothing to move on: no account with a tenth of the plant is below the full cost, nothing has waited ' + todoCfg().challanDays + ' days to be billed, and every cost line is within its model.' };
+    none: !(ctx.a.tonnage.kg > 0) ? 'No weighed tonnage in the period yet. A weight per piece lets the app set what was billed against the cost.'
+      : 'Nothing to move on: no large account below the full cost, nothing waiting ' + todoCfg().challanDays + ' days to bill, every cost within its model.' };
 }
 
 /* ---------- 3. Who is driving it? ---------- */
@@ -442,7 +443,7 @@ function advClientsMoves(ctx, card) {
   }
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
     none: !m ? 'Weighed billing in the period ranks the clients by what a kilo leaves; nothing to move on until then.'
-      : 'Nothing to move on: no account with a tenth of the plant is below the full cost, and no client billed less than ' + (PERIOD_PRIOR_LABELS[ctx.a.period] || 'the period before') + '.' };
+      : 'Nothing to move on: no large account below the full cost, no client billing less than ' + (PERIOD_PRIOR_LABELS[ctx.a.period] || 'the period before') + '.' };
 }
 
 /* ---------- 4. Is the plant full? ---------- */
@@ -578,9 +579,9 @@ function advChangedMoves(ctx, card) {
 }
 
 /* ---------- The questions ---------- */
-/* The six questions in order, each {key, q, html, answer: {tone, say}, moves, none, hints, go, goLabel}: `html` the card's
-   body (statsStoryCards, intel.js, for the five the Overview had), `moves` what can be done, worked out from the book.
-   `range` is a period ('mtd'…) or statsPulseArgs' object. */
+/* The six questions in order, each {key, q, html, answer: {tone, say}, vital, moves, none, hints}: `html` the card's body
+   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Today →
+   Pulse draws them (today.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
 function advQuestions(range) {
   var a = range && typeof range === 'object' ? range : statsPulseArgs(range || _statsPeriod);
   var ctx = advCtx(a);
@@ -598,12 +599,6 @@ function advQuestions(range) {
   });
   return out.filter(Boolean);
 }
-/* The six cards for a period, read exactly as Stats → Overview reads them (statsPulseArgs): Today → Pulse draws them here. */
-function advPulseHtml(period) {
-  var a = statsPulseArgs(period || _statsPeriod);
-  return statsStoriesHtml(a.period, a.filtered, a.prior, a.tonnage, a.periodCost);
-}
-
 /* ---------- Moves on every app task ---------- */
 /* Built from the task's own data (attached at its rule: clientId, itemId, month…), never from its title. A rule with no
    entry keeps its one button. */
@@ -797,17 +792,6 @@ function advMovesDeckHtml(moves, listKey, n, word) {
   var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
   return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
-/* A question's foot: What you can do, its moves, and what would make one appear where there is none. An insight's moves
-   are drawn under its row (`inline`), so What changed? draws a foot only to say there is none. */
-function advFootHtml(q) {
-  if (!q || (q.inline && q.moves.length)) return '';
-  var h = '<div class="inv-row-group" data-adv-head><span>What you can do</span>' + (q.moves.length ? '<span class="inv-num">' + q.moves.length + '</span>' : '') + '</div>';
-  if (!q.moves.length) return h + '<div class="inv-row inv-row-auto" data-adv-none><span class="inv-row-main inv-note inv-row-wrap">' + escHtml(q.none || 'Nothing to do here yet.') + '</span></div>';
-  h += advMovesHtml(q.moves, 'q-' + q.key);
-  (q.hints || []).forEach(function(x) { h += '<div class="inv-row inv-row-auto" data-adv-hint><span class="inv-row-main inv-note inv-row-wrap">' + escHtml(x) + '</span></div>'; });
-  return h;
-}
-
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */

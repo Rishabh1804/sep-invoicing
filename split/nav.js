@@ -65,9 +65,8 @@ function navLoc() {
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
       break;
     case 'pageHome': v = tdyView(); break;
-    case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
-    case 'pagePlanner': v = _plnView; break;
+    case 'pagePlanner': v = plnViewKey(); break;
     case 'pageFloor': d = flrNavD(); break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
     case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
@@ -95,7 +94,15 @@ function navLocFromUrl(search) {
    helper, applied to an address (navLocFromUrl) and to every place applied (navApply), so a saved step lands too. A row is added
    by the step that removes its place, never before: a row naming a screen that still exists would hide it.
    A row: { tab, v: a view's first part, a list of them, or null for any; to: function(loc) → {tab, v, id, d} }. */
-var NAV_REDIRECTS = [];
+var NAV_REDIRECTS = [
+  // TM2a: the To-do joined Needs you. A widget's launch (todo=) still works: init.js reads it once the address has landed here.
+  { tab: 'pageTodo', v: null, to: function() { return { tab: 'pageHome', v: 'needs' }; } },
+  // TM2b: Stats → Overview went to Today → Pulse; Stats → Billing's dispatch cycle to Pipeline, its other cards to Money → GST.
+  { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'pulse' }; } },
+  { tab: 'pageStats', v: 'billing', to: function() { return { tab: 'pagePipeline', v: '' }; } },
+  // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
+  { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } }
+];
 function navRedirect(loc) {
   if (!loc || !loc.tab) return loc;
   var first = String(loc.v || '').split('/')[0];
@@ -155,9 +162,8 @@ function navLabel(loc) {
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
-    case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
-    case 'pagePlanner': sub.push(_navFind(PLN_VIEWS, parts[0])); break;
+    case 'pagePlanner': sub.push(_navFind(PLN_VIEWS, parts[0])); if (parts[0] === 'moves') sub.push(_navFind(PLN_MOVES, parts[1])); break;
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
@@ -210,7 +216,7 @@ function navApply(loc) {
         finSetTab(parts[0]); _bankEdit = null;
         if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id && S.clients.some(function(c) { return String(c.id) === id; }) ? id : null;
         break;
-      case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
+      case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'clients'); } catch (e) { /* per device only */ } break;
       case 'pageProduction':
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
@@ -234,9 +240,8 @@ function navApply(loc) {
         _stockView = sv;
         break;
       case 'pageHome': tdySetView(parts[0]); break;
-      case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
-      case 'pagePlanner': plnSetView(parts[0]); break;
+      case 'pagePlanner': plnSetView(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
       case 'pageKnow': kbNavApply(loc && loc.v, id); break;

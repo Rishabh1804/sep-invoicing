@@ -114,9 +114,10 @@ function srchScreens() {
   var act = function(a) { return { kind: 'act', act: a }; };
   var list = [
     ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
-    ['pulse', 'Pulse', 'Today', 'home questions what to do widgets', at('pageHome', 'pulse')],
-    ['todo', 'To-do', 'Today', 'tasks todo my list needs you', at('pageTodo', 'open')],
-    ['todo-done', 'To-do, done', 'Today', 'tasks ticked done', at('pageTodo', 'done')],
+    ['pulse', 'Pulse', 'Today', 'home questions what to do widgets why it moved in one line pace contribution capacity overview', at('pageHome', 'pulse')],
+    // The To-do joined Needs you (the tab map, TM2a): its tasks are there, its Done a fold there.
+    ['todo', 'Your tasks', 'Today › Needs you', 'tasks todo to-do my list needs you', at('pageHome', 'needs')],
+    ['todo-done', 'Done tasks', 'Today › Needs you', 'tasks todo to-do ticked done', { kind: 'act', act: 'todoDone' }],
     ['pipeline', 'Pipeline', 'Office', 'awaiting created printed dispatched delivered owed stages', at('pagePipeline')],
     ['im', 'Challans', 'Office · was IM', 'im incoming material awaiting invoice', at('pageIM', 'awaiting')],
     ['im-invoiced', 'Challans, invoiced', 'Office · was IM', 'im incoming material billed', at('pageIM', 'invoiced')],
@@ -155,20 +156,20 @@ function srchScreens() {
     ['bank', 'Bank', 'Money', 'statement ledger import', at('pageFinance', 'bank')],
     ['bills', 'Bills & notes', 'Money', 'electricity bills credit notes', at('pageFinance', 'bills')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
-    ['stats', 'Stats', 'Today', 'statistics overview realisation tonnage insights', at('pageStats', 'overview')],
-    ['stats-clients', 'Contribution by client', 'Today › Stats', 'stats clients realisation concentration revenue', at('pageStats', 'clients')],
+    ['stats', 'Stats', 'Today', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
+    ['stats-clients', 'By client', 'Today › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
     ['live-cost', 'Live cost', 'Today › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
-    ['stats-billing', 'Billing', 'Today › Stats', 'invoice states unbilled dispatch', at('pageStats', 'billing')],
-    ['trends', 'Trends', 'Today › Stats', 'trend chart top items', at('pageStats', 'trends')],
+    ['stats-billing', 'Dispatch cycle', 'Office › Pipeline', 'dispatch delivered cycle days invoice states', at('pagePipeline')],
+    ['trends', 'Trends', 'Today › Stats', 'trend chart top items headline six months', at('pageStats', 'trends')],
     ['reports', 'Reports', 'Today', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
     ['planner', 'Planner', 'Today', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
     ['planner-ledger', 'Planner ledger', 'Today › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
     ['planner-day', 'A day, simulated', 'Today › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
-    ['planner-plant', 'Upgrade trees', 'Today › Planner', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'plant')],
-    ['planner-tech', 'Tech tree', 'Today › Planner', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'tech')],
-    ['planner-staff', 'Planner staff', 'Today › Planner', 'hire specialist lab hand night crew training', at('pagePlanner', 'staff')],
-    ['planner-clients', 'Planner clients', 'Today › Planner', 'ask rate held back work certificates turnaround', at('pagePlanner', 'clients')],
-    ['planner-finance', 'Planner finance', 'Today › Planner', 'loan lenders interest instalment rates heard', at('pagePlanner', 'finance')],
+    ['planner-plant', 'Upgrade trees', 'Today › Planner › Moves', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'moves/plant')],
+    ['planner-tech', 'Tech tree', 'Today › Planner › Moves', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'moves/tech')],
+    ['planner-staff', 'Planner staff', 'Today › Planner › Moves', 'hire specialist lab hand night crew training', at('pagePlanner', 'moves/staff')],
+    ['planner-clients', 'Planner clients', 'Today › Planner › Moves', 'ask rate held back work certificates turnaround', at('pagePlanner', 'moves/clients')],
+    ['planner-finance', 'Planner finance', 'Today › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
     // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
     ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
     ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
@@ -217,7 +218,7 @@ var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pa
    credit notes and the Number audit, which opened over Home after switchTab had refused the Register. */
 var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'pageFinance' };
 var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
-  worker: 'pageStaff', task: 'pageTodo', stock: 'pageStock', paste: 'pageStaff' };
+  worker: 'pageStaff', task: 'pageHome', todoDone: 'pageHome', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
@@ -865,6 +866,7 @@ function srchAct(a) {
     case 'challan': homeQuick('challan'); break;
     case 'stock': homeQuick('stock'); break;
     case 'task': homeQuick('task'); break;
+    case 'todoDone': tdyShowDone(); break;
     case 'paste': relayOpen(); break;
     case 'quote': qtOpenForm(null); break;
     case 'client': _qtForm = null; setItemsSubView('clients'); switchTab('pageClients'); openClientAdd(); break;

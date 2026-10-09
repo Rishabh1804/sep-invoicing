@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState, openPulse, withHomeWidgets, openWidget } from './fixtures';
 
 // P64: finance linked into every screen (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 6). Each screen carries the
 // figure that belongs to it and a link that lands on the right place in Finance. Dates are built from today;
@@ -47,8 +47,10 @@ const onFinanceTab = async (page: Page, tab: string) => {
 };
 
 test('Home: the Money strip reads the balance, what is owed and the runway, and each opens Finance', async ({ page }) => {
+  // Pulse's Money card is off in every preset since the tab map (TM2c): shown here as Edit Home shows it.
+  await withHomeWidgets(page, ['money']);
   await loadAppWithState(page, state());
-  await openPulse(page);
+  await openWidget(page, 'money');
   const strip = page.locator('#homeFin');
   await expect(strip.locator('[data-home-fin="Balance"]')).toContainText('₹2,50,000');
   await expect(strip.locator('[data-home-fin="Owed to us"]')).toContainText('₹5,900');
@@ -58,6 +60,7 @@ test('Home: the Money strip reads the balance, what is owed and the runway, and 
 });
 
 test('Home with no statement offers the import, which opens the file picker on Finance → Bank', async ({ page }) => {
+  await withHomeWidgets(page, ['money']);
   await loadAppWithState(page, state(false));
   await openPulse(page);
   await expect(page.locator('#homeFin')).toContainText('No bank statement yet');
@@ -95,13 +98,14 @@ test('Clients: a client carries what it owes, how fast it pays, and its last rec
   await onFinanceTab(page, 'receipts');
 });
 
-test('Stats: In one line carries the cash, and contribution by client says what each owes and how fast it pays', async ({ page }) => {
+test('Pulse: In one line carries the cash; Stats: contribution by client says what each owes and how fast it pays', async ({ page }) => {
   await loadAppWithState(page, state());
   await ev(page, `_statsPeriod = 'all'`);
-  await switchTab(page, 'pageStats');
-  await page.locator('[data-action="invStatsTab"][data-tab="overview"]').click();
+  // In one line is Pulse's since the tab map (TM2b), where Stats → Overview's was.
+  await openPulse(page);
   await expect(page.locator('#statsCash')).toContainText('₹2,50,000.00');
   await expect(page.locator('#statsCash')).toContainText('clients pay in 20 days');
+  await switchTab(page, 'pageStats');
   await page.locator('[data-action="invStatsTab"][data-tab="clients"]').click();
   await expect(page.locator('#statsMargin [data-client-owed]')).toContainText('owes ₹5,900.00 · pays in 20 d');
 });

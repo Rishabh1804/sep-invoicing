@@ -717,7 +717,9 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
   await expect(card.locator('[data-tile="perkg-withheld"]')).toBeVisible();
   await expect(card).toContainText('₹/kg withheld');
   await expect(card).toContainText('working days are recorded');
-  await expect(card).toContainText('never neutral');
+  // One line says it reads low (the tab map, TM2b); why an incomplete record reads low, never neutral, is the screen's guide.
+  await expect(card).toContainText(/Reads low: \d+ working days not recorded/);
+  expect(await page.evaluate(() => (window as any).KB_APP_GUIDES.find((a: any) => a.id === 'app-stats').body)).toContain('Labour reads **low** when days are not recorded');
 });
 
 test('Stats stays silent about labour while the roster is empty', async ({ page }) => {

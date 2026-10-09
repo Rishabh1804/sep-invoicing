@@ -787,7 +787,7 @@ function renderAttHomeCard() {
     eyebrow: '<span>Attendance</span><span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span>',
     title: d.marked ? escHtml(on + ' of ' + n + ' on site') : 'Nothing recorded yet',
     sub: escHtml([floor, d.marked ? todoPlural(d.absent.length, 'absent', 'absent') : ''].filter(Boolean).join(' · ')), viz: meter,
-    fold: 'pulse-attendance', open: true, attrs: ' data-card="attendance"',
+    fold: 'pulse-attendance', open: !!_isDesktop, attrs: ' data-card="attendance"',
     body: d.marked ? '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'homeAtt') + '</div>' : null,
     foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' });
 }

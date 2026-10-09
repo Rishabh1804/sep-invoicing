@@ -130,7 +130,9 @@ test.describe('P152: the guard, after its QA', () => {
     await waitForBoot(tab);
     await unlock(tab, 'U-sup', PINS.super);
     await expect(tab.locator('#homePulse')).toBeVisible();
-    await expect(tab.locator('#homeQuestions')).toBeEmpty();
+    // No question and no period: the head holds Edit Home alone (in its More since the tab map, TM2b).
+    await expect(tab.locator('#homeQuestions [data-tdy-q], #homeQuestions [data-action="invStatsPeriod"], #statsWhy, #statsOverview, #statsPace')).toHaveCount(0);
+    await expect(tab.locator('#homeQuestions [data-tdy-pulse-head] button')).toHaveText(['Edit Home']);
     await expect(tab.locator('[data-home-w="mtd"]')).toBeHidden();
     await expect(tab.locator('[data-home-w="money"]')).toBeHidden();
     await expect(tab.locator('#homeFinCard')).toBeEmpty();
@@ -167,7 +169,9 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(tab.locator('#guardRoot')).toBeVisible();
     await expect(tab.locator('[data-todo-facts]')).toHaveCount(0);
     await unlock(tab, 'U-own', PINS.owner);
-    await expect(tab.locator('#pageTodo')).toHaveClass(/inv-page-active/);
+    // The tasks are Needs you's (the tab map, TM2a); the old address lands there.
+    await expect(tab.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(tab.locator('#homeNeeds')).toBeVisible();
     await expect(tab.locator('[data-todo-facts]')).toContainText('Bill TEST CLIENT KG');
     await tab.close();
     // The supervisor tapping the same row is told the task is not theirs, and sees none of it.
@@ -341,8 +345,8 @@ test.describe('P152: the guard, after its QA', () => {
       sub: 'paid with no bill', why: 'Payments', facts: [], clears: '', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: '1' }]; };
       TODO_RULE_FNS.payCarry = function () { return [{ key: 'payCarry', rule: 'payCarry', tone: 'red', title: 'A worker carries a balance',
       sub: '', why: 'Pay', facts: [], clears: '', go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: '1' }]; };`);
-    await switchTab(page, 'pageTodo');
-    const appKeys = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#todoContent [data-todo="app"]'), function (b) { return b.dataset.key; })`) as Promise<string[]>;
+    await switchTab(page, 'pageHome');
+    const appKeys = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#homeNeeds [data-todo="app"]'), function (b) { return b.dataset.tdyTask; })`) as Promise<string[]>;
     let keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).not.toContain(k);
     // Opened by its key (the widget's launch), a task not the role's is not shown.
@@ -358,7 +362,7 @@ test.describe('P152: the guard, after its QA', () => {
 
     // The owner sees every one, and the counts are theirs.
     await switchUser(page, 'U-own', PINS.owner);
-    await switchTab(page, 'pageTodo');
+    await switchTab(page, 'pageHome');
     keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).toContain(k);
     const n = JSON.parse(await ev(page, 'JSON.stringify(wsRedCounts())') as string);

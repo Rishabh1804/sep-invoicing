@@ -203,7 +203,12 @@ export async function measureLoad(page: Page): Promise<Load> {
     const act = document.querySelector('.inv-page.inv-page-active') as HTMLElement;
     const screens = Math.round(document.documentElement.scrollHeight / innerHeight * 100) / 100;
     const sel = '.inv-row-meta, .inv-note, .inv-callout, .inv-hero-sub, .inv-tile-sub, .inv-row-title';
-    const els = Array.from(act.querySelectorAll(sel)).filter(el => !el.closest(PAPER) && !el.closest('[hidden]'));
+    // What is on the screen's face: never a view or widget the page hides (Today's other view, a widget its layout hides: TM2
+    // found Pulse charged with Needs you's tasks and the three widgets TM2c hides, the room I10 says a hidden widget gives
+    // back), nor a row uiMoreHtml holds back. A fold's inside counts: it is one tap from the face, and folding a block is not
+    // making it short (TM6).
+    const drawn = (el: Element) => { for (let a: Element | null = el; a && a !== act; a = a.parentElement) if (getComputedStyle(a).display === 'none') return false; return true; };
+    const els = Array.from(act.querySelectorAll(sel)).filter(el => !el.closest(PAPER) && !el.closest('[hidden]') && drawn(el));
     let blocks = 0, chains = 0;
     for (const el of els) {
       const t = (el.textContent || '').replace(/\s+/g, ' ').trim();
@@ -327,7 +332,12 @@ export const LOOKS: string[] = [
 ];
 
 /* The screens assembled to one look, by the place walkMap names them; each joins in the step that assembles it (TM1: none). */
-export const ONE_LOOK: string[] = [];
+export const ONE_LOOK: string[] = [
+  // TM2: Today's two views, Stats' three tabs and the Planner's four views (Moves on the kind it opens on).
+  'Today › Needs you', 'Today › Pulse',
+  'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
+  'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+];
 
 /* What keeps the screen on show from its kind's anatomy (§3e), as a list of problems: none is one look. Read off what is drawn:
    the page's own blocks in order (through plain wrappers, the screen's own view-tab row left out), the verdict cards, the
@@ -374,7 +384,8 @@ export async function oneLookProblems(page: Page): Promise<string[]> {
     } else if (kind === 'overview') {
       const head = blocks.findIndex(b => !b.matches('.inv-toolbar, .inv-seg, .inv-pagehead'));
       const first = blocks[head];
-      if (!first || !(first.matches('.inv-hero[data-verdict]') || (first.matches('.inv-heroes') && first.querySelector('[data-verdict]')))) out.push('leads with ' + name(first) + ', not a hero with its verdict');
+      // Heroes side by side (inv-heroes), or packed on the desktop (Needs you's inv-panels, uiMasonry).
+      if (!first || !(first.matches('.inv-hero[data-verdict]') || (first.matches('.inv-heroes, .inv-panels') && first.querySelector('.inv-hero[data-verdict]')))) out.push('leads with ' + name(first) + ', not a hero with its verdict');
     } else if (kind === 'document') {
       if (document.documentElement.scrollWidth > document.documentElement.clientWidth + 1) out.push('the page scrolls sideways');
       Array.from(act.querySelectorAll('*')).filter(el => el.querySelector(PAPER) && (el as HTMLElement).scrollWidth > (el as HTMLElement).clientWidth + 1 && /auto|scroll/.test(getComputedStyle(el).overflowX))
@@ -410,11 +421,11 @@ export async function walkOneLook(page: Page) {
     report[name] = { ...c, problems };
   });
   for (const n of ONE_LOOK) if (!report[n]) bad.push(n + ': on ONE_LOOK, not on the map');
-  // Every page is on SCREEN_KINDS, and the pages no row reaches (Create, the To-do) declare their kind too.
+  // Every page is on SCREEN_KINDS, and the page no row reaches (Create) declares its kind too.
   const pages: string[] = await page.evaluate(() => Array.from(document.querySelectorAll('.inv-page')).map(p => p.id));
   const kinds: string[] = await page.evaluate(() => Object.keys((window as any).SCREEN_KINDS));
   for (const id of pages) if (!kinds.some(k => k === id || k.startsWith(id + '/'))) bad.push(id + ': not on SCREEN_KINDS');
-  for (const id of ['pageCreate', 'pageTodo'].filter(x => pages.includes(x))) {
+  for (const id of ['pageCreate'].filter(x => pages.includes(x))) {
     await switchTab(page, id);
     const k = await page.locator('#' + id).getAttribute('data-screen');
     if (!k) bad.push(id + ': no data-screen');

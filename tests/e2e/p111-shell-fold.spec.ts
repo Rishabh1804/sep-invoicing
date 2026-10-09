@@ -185,11 +185,11 @@ test("the widget's worker reaches only this app's windows", async () => {
   // Every project on the account is served from one origin: an uncontrolled match returned a sister app's windows too,
   // so a widget tap could focus one and post it this app's message.
   const sw = readFileSync('sw.js', 'utf8');
-  const src = sw.slice(sw.indexOf('async function appWindows()'), sw.indexOf('// Open the app on the To-do tab'));
+  const src = sw.slice(sw.indexOf('async function appWindows()'), sw.indexOf('// Open the app on Today → Needs you'));
   const self = { registration: { scope: 'https://example.github.io/sep-invoicing/' },
-    clients: { matchAll: async () => [{ url: 'https://example.github.io/sep-dashboard/' }, { url: 'https://example.github.io/sep-invoicing/?tab=pageTodo' }] } };
+    clients: { matchAll: async () => [{ url: 'https://example.github.io/sep-dashboard/' }, { url: 'https://example.github.io/sep-invoicing/?tab=pageHome&v=needs' }] } };
   const appWindows = new Function('self', src + '\nreturn appWindows;')(self);
-  expect((await appWindows()).map((c: any) => c.url)).toEqual(['https://example.github.io/sep-invoicing/?tab=pageTodo']);
+  expect((await appWindows()).map((c: any) => c.url)).toEqual(['https://example.github.io/sep-invoicing/?tab=pageHome&v=needs']);
   expect((sw.match(/clients\.matchAll/g) || []).length).toBe(1);
 });
 
@@ -246,7 +246,7 @@ test("the offline shell is the app's own page, and a copy that cannot be stored 
   const isShellUrl = new Function('self', src + '\nreturn isShellUrl;')(self);
   const is = (u: string) => isShellUrl(new URL(u));
   expect(is('https://example.github.io/sep-invoicing/')).toBe(true);
-  expect(is('https://example.github.io/sep-invoicing/?tab=pageTodo&todo=add')).toBe(true);
+  expect(is('https://example.github.io/sep-invoicing/?tab=pageHome&v=needs&todo=add')).toBe(true);
   expect(is('https://example.github.io/sep-invoicing/index.html')).toBe(true);
   expect(is('https://example.github.io/sep-invoicing/sep-invoicing.html')).toBe(true);
   expect(is('https://example.github.io/sep-invoicing/version.json')).toBe(false);
@@ -348,11 +348,12 @@ test.describe("P111: the To-do's own list", () => {
     const st: any = emptyState();
     st.todo = { tasks: Array.from({ length: 60 }, (_, i) => task('TD-' + i, 'Task ' + i, { doneAt: Date.now() - i * 1000 })), snoozes: {} };
     await loadAppWithState(page, st);
-    await switchTab(page, 'pageTodo');
-    await page.locator('.inv-page-active [data-action="invTodoFoldDone"][data-v="done"]').click();
-    const rows = page.locator('[data-todo-sec="done"] [data-action="invTodoToggle"]');
+    // Done is folded at the foot of Needs you (the tab map, TM2a).
+    const done = page.locator('#homeNeeds [data-card="done"]');
+    await done.locator(':scope > summary').click();
+    const rows = done.locator('[data-action="invTodoToggle"]');
     await expect(rows.filter({ visible: true })).toHaveCount(30);
-    await page.locator('[data-todo-sec="done"] [data-action="invShowMore"]').click();
+    await done.locator('[data-action="invShowMore"]').click();
     await expect(rows.filter({ visible: true })).toHaveCount(60);
   });
 

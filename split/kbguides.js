@@ -8,11 +8,36 @@ function _kbg(id, title, summary, screens, body, extra) {
     title: title, summary: summary, body: body, links: screens.map(function(s) { return { type: 'screen', id: s, label: '' }; }) }, extra || {});
 }
 var KB_APP_GUIDES = [
-  _kbg('today', 'Using the app: Today', 'What needs you now, and how the plant is doing', ['pageHome', 'pageTodo'],
-    'Today is the first screen. It has two views.\n\n' +
+  _kbg('today', 'Using the app: Today', 'What needs you now, and how the plant is doing', ['pageHome'],
+    'Today is the first screen. It has two views, then its Insights: Stats, Reports and the Planner.\n\n' +
     '# Needs you\n- The day’s five inputs: the in-time roll, the pickling loads, the stock message, the production records and the out-time roll. Each says **in**, **late** or **not yet**.\n' +
-    '- Then every open task, grouped **Now**, **This week** and **Later**. Tap a task to see why it was raised and what clears it.\n- A red task is late or wrong; amber needs a look soon.\n\n' +
-    '# Pulse\n- The owner’s questions (is the plant running smoothly, are we making money, is cash coming in), each with what to do.\n- Below them, the widgets. **Edit Home** at the foot chooses which show and where.'),
+    '- Then every open task, grouped **Now**, **This week** and **Later**. Tap a task to see why it was raised and what clears it.\n- A red task is late or wrong; amber needs a look soon.\n' +
+    '- **Add a task** of your own in the field above them, and **Add** (or Enter). **Details** gives it a due date, a note and a link.\n' +
+    '- Tick your task when it is done: it goes to **Done**, folded at the foot, where its tick reopens it. A task you snoozed waits under **Snoozed**, with **Wake**.\n\n' +
+    '# Pulse\n- The period at the top (**MTD**, **QTD**, **YTD**, **All**) is the one Stats shows. **More** beside it holds **Make a report** (the period as a report), **Open Stats** and **Edit Home**.\n' +
+    '- The owner’s questions (is the plant running smoothly, are we making money, is cash coming in), each with what to do, then **Do first**: the moves worth most.\n' +
+    '- **Why it moved**, **In one line** and **This month at its pace** each say their answer in one line; tap one to open what it rests on.\n' +
+    '- Below them, the widgets. **Edit Home** (under More) chooses which show and where.', { version: 3 }),
+  _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how their figures are worked out', ['pageStats', 'pageHome'],
+    'Stats has three tabs over one period (the same period as Pulse). Each starts with a card that says how it stands; tap it on a phone for its figures.\n\n' +
+    '# By client\n- Contribution by client, worst first: what a kilo leaves after its **variable** cost (everything but the monthly crew) and after the **full** cost.\n' +
+    '- Cost is spread per kilo: a thin clamp and a heavy bracket cost the same per kilo here. That is the one assumption the table cannot check.\n' +
+    '- The worst large account is settled both ways: if labour is fixed and if it scales with the work.\n' +
+    '- **Realisation by client** ranks only clients with weights on 90% of their revenue. A client billed on parts with no weight cannot be priced per kilo: those are the accounts most likely to be underpriced. **Clients → Parts → Derive weights from rates** fills them in.\n' +
+    '- Whether a client below the full cost is worth exiting turns on how much of the cost is variable: the contribution table says it at both costs.\n' +
+    '- **Concentration**: a client with no weights barely enters the measured tonnage, so its share of the plant is unknown, not small.\n' +
+    '- A move to quote a client by the piece needs a **weight per piece** for each part: on the client’s card, in **Part weights**, or on **Parts**.\n' +
+    '- **Next challan expected** is each client’s median gap between challans, counted from its last one. Late is past that gap; quiet is past both 1.75 times the gap and three weeks beyond it.\n\n' +
+    '# Cost\n- The live cost is every cost line over the kilos plated, each with where it came from: **measured** (the app’s own records), **paid, bank** (the statement), **part-recorded**, **market rate** (zinc with no bill) or **model** (a Settings fallback).\n' +
+    '- A stretch with no record is filled at the model, never read as zero: a figure that reads cheapest where least is known would flatter every margin.\n' +
+    '- **Zinc** goes into the bath as it arrives, so over a month or more its bills are its use: what was bought over the 90 days before, per kilo plated over the same days.\n' +
+    '- Labour reads **low** when days are not recorded: every tier is paid for the days typed, and the monthly crew’s rest days are gated on the same attendance.\n' +
+    '- **Variable labour by area** places the hourly pool, the daily tier, overtime and the extra where each was worked. The monthly crew’s day pay and rest days are not in it: that crew is the standing one, and splitting it by area would print an allocation nobody measured. Its overtime is in it, since an overtime hour was worked somewhere.\n' +
+    '- **Recorded against paid** sets the app’s records beside what the bank paid; a gap over 10% is marked.\n\n' +
+    '# Trends\n- The period’s revenue, tonnage, realisation and margin, against the same days before; then six months, each at its own live cost; the trend; the top items.\n' +
+    '- In the six months, labour shows only where 90% of the month is recorded, or the bank statement covers what paid it; a month with less is withheld rather than read low. **Measured** is the share of that month’s cost from the app’s own records.\n' +
+    '- Realisation divides revenue by the tonnage of the same lines. Lines with no weight are left out of both, and they are the piece-billed, low-priced end, so a partial figure reads **high**.\n\n' +
+    '# Why it moved (on Pulse)\n- Realisation’s change is split into each client’s own rate and the mix (a client’s share of the kilos, at its rate against the average before). Contribution’s change is split into the price, each cost line and the kilos. The causes add up to the change exactly.'),
   _kbg('add', 'Using the app: the Add button', 'One door for everything that comes in', ['pageHome', 'pageStaff', 'pageStock', 'pageProduction'],
     'Everything that comes into the app goes through **Add** (the filled button in the middle of the phone bar, at the top of the rail on a computer, or the key A).\n\n' +
     '- **Paste**: a WhatsApp message (an attendance roll, the stock message, pickling loads, a production list). The app reads it and shows every line beside what it read, before anything is saved.\n' +
@@ -89,18 +114,21 @@ var KB_APP_GUIDES = [
     '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.'),
   _kbg('planner', 'Using the app: the planner', 'Simulating machines, certification, staff, clients and a loan', ['pagePlanner'],
     'Today → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
-    '# Make a plan\n1. **Suggest a start** puts the CQI-11 path in at its earliest, or plan moves one by one: **Plant** (an upgrade tree per station), **Tech tree**, **Staff** (hires and training), **Clients** (ask a rate, plan the work a client holds back).\n' +
-    '2. A level or node opens once what it needs is planned. A move on the **board** (Play) is tapped to shift it a month or take it out.\n' +
-    '3. **Finance** → Lenders: play one loan; its amount, rate, months and interest-only months are then the plan’s to change.\n' +
-    '4. **New card** adds a move the planner does not know: new work at a rate on a line, more kilos a round, or a saving, with its cost and its chance.\n\n' +
-    '# Read it\n- **Ledger**: every month’s kilos, revenue, costs, margin, spend, loan and cash. Tap a month: today’s margin, then each move in the order it takes effect, adding up to the plan.\n' +
-    '- **A day**: each line’s rounds on the clock, with overtime, the power cut and pickling. The day times the working days is the month on the Ledger.\n' +
+    'The card at the top says how the plan stands against its goal on every view; **Roll** and the month are under it, and **More** holds the rest (a new card, the report, the plan’s copy and name, the goal).\n\n' +
+    '# Make a plan\n1. **Suggest a start** (under More) puts the CQI-11 path in at its earliest, or plan moves one by one on **Moves**: **Plant** (an upgrade tree per station), **Tech tree**, **Staff** (hires and training), **Clients** (ask a rate, plan the work a client holds back).\n' +
+    '2. A level or node opens once what it needs is planned. A move on the **board** (Play) is tapped to shift it a month or take it out. On a phone, tap a move’s row for its controls.\n' +
+    '3. **Moves → Finance** → Lenders: play one loan; its amount, rate, months and interest-only months are then the plan’s to change.\n' +
+    '4. **New card** (under More) adds a move the planner does not know: new work at a rate on a line, more kilos a round, or a saving, with its cost and its chance.\n\n' +
+    '# Read it\n- **Ledger**: every month’s kilos, revenue, costs, margin, spend, loan and cash. Tap a month: today’s margin, then each move in the order it takes effect, adding up to the plan. Each row is what its move added on top of the rows above, so they add up to the plan; a wage or upkeep shows where it starts, and one-off spend is on the Spend row.\n' +
+    '- **A day**: each line’s rounds on the clock. A line runs the general shift first, then the morning block from 6:00, then the evening to 8 PM, then a night shift where the plan has a night crew; rounds are coloured by client. The day times the working days is the month on the Ledger.\n' +
+    '- **Moves → Clients**: a piece part’s ₹/kg is its rate over its kg a piece; with the ask in the plan, a rate typed on a part asks that part apart.\n' +
     '- **Roll the trials**: 600 runs drawing every chance and risk. The score is the share that reach the goal (Easy, Normal or Hard). **Replay one run** tells one as a story.\n\n' +
     '# Keep it true\n- The **registers** are records: machines and what they need, the CQI-11 checklist, lenders, rates heard, work held back. Keep them current.\n' +
-    '- **Set the assumptions** (Ledger or Plant) where the book measures nothing: a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill, the cash.\n' +
+    '- **Set the assumptions** (Ledger or Moves → Plant) where the book measures nothing: a line’s kilos a round, pickling, the overtime hour, the fixed electricity bill, the cash.\n' +
     '- Upgrade costs are estimates until a quote replaces them: **Cost** on each level.\n- **Make the report** prints the plan for a lender or a meeting.',
-    // Version 2: the Planner is Today's (the tab map, 9 Oct 2026).
-    { version: 2 })
+    // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
+    // card and More (TM2d).
+    { version: 3 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 var KB_APP_PATHS = [

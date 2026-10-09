@@ -107,7 +107,7 @@ test.describe('P153: the QA chain over step 7 (phone)', () => {
 
   test('a role that may open Finance but not change payments is refused, never asked', async ({ page }) => {
     await loadAppWithState(page, sweepState());
-    await withUsers(page, { roles: { office: { pages: ['pageHome', 'pageTodo', 'pageFinance'], may: ['billing'], wages: false, finance: true } } });
+    await withUsers(page, { roles: { office: { pages: ['pageHome', 'pageFinance'], may: ['billing'], wages: false, finance: true } } });
     await unlock(page, 'U-off', PINS.office);
     await openFinanceTab(page, 'receipts');
     const before = await loose(page).count();
@@ -124,7 +124,7 @@ test.describe('P153: the QA chain over step 7 (phone)', () => {
 // are; a role that sees wages but not money has no bank legs on Pay; the Pulse's payout move needs the wages, and its
 // questions read only the tasks the role sees; an "Out time" heading with its time run on is still a heading.
 test.describe('P153: what the builders left (phone)', () => {
-  const staffRole = { roles: { supervisor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: true, finance: false } } };
+  const staffRole = { roles: { supervisor: { pages: ['pageHome', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: true, finance: false } } };
 
   test("an area's complement is the owner's: read-only to a role without Settings, asked of the owner past the window", async ({ page }) => {
     await loadAppWithState(page, sweepState());
@@ -175,7 +175,7 @@ test.describe('P153: what the builders left (phone)', () => {
     await loadAppWithState(page, sweepState());
     const sat = await page.evaluate(() => { const w = window as any; return w.isoAddDays(w.attWeekStartOf(w.localDateStr()), 6); });
     const owner = await page.evaluate(s => (window as any).advWageMoves({ today: s }).length, sat);
-    await withUsers(page, { roles: { office: { pages: ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: true } } });
+    await withUsers(page, { roles: { office: { pages: ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: true } } });
     await unlock(page, 'U-off', PINS.office);
     expect(await page.evaluate(s => (window as any).advWageMoves({ today: s }).length, sat)).toBe(0);
     // The owner, with the same book, has the move (a payout is predicted at the week's pace): the test above is not vacuous.

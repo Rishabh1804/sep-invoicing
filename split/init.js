@@ -786,6 +786,13 @@ new ResizeObserver(function() {
    here as ?tab=<pageId>[&new=1]. Writing the target into regFilter before the first layout pass means both the desktop
    and the mobile restore paths pick it up without a second switchTab; the view and the record are applied at the end
    of boot (navBoot), which writes the address back without the shortcut's one-off parameters. */
+/* The screen this device last had open, remembered by an older build, may have moved since (the redirect table, nav.js):
+   a device last on the To-do opens on Today. A launch's own address, read next, still wins. */
+(function() {
+  if (!regFilter || !regFilter.activeTab) return;
+  var to = navRedirect({ tab: regFilter.activeTab, v: '', id: '', d: '' });
+  if (to && to.tab !== regFilter.activeTab) { regFilter.activeTab = to.tab; saveRegFilter(); }
+})();
 var _launchNew = false;
 var _launchTodo = '';   // the widget's action when it opened the app: 'open', 'add', 'open:m:<id>', 'open:a:<key>'
 var _launchLoc = null;

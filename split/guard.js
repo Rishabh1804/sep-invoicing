@@ -44,7 +44,7 @@ var GRD_GROUPS = [['billing', 'Invoices and credit notes'], ['rates', 'Rates and
   ['payments', 'Payments and wages'], ['imports', 'Imports (stock, production, power, roster)'], ['settings', 'Settings'], ['floor', 'Floor entries']];
 /* Every page a role may be given, in the bar's order; a page this build does not have (Direction B's Pipeline and Floor
    day) is kept in a role's list and skipped on screen. */
-var GRD_PAGE_IDS = ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
+var GRD_PAGE_IDS = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
   'pageStaff', 'pageProduction', 'pageStock', 'pagePower', 'pageFinance', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory'];
 var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor overview' };
 /* Pages that are money: opened only by a role that sees money, whatever its page switches say. */
@@ -54,9 +54,9 @@ var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1, pagePlanne
 function grdRoleDefaults() {
   return {
     owner: { pages: GRD_PAGE_IDS.slice(), may: GRD_GROUPS.map(function(g) { return g[0]; }).concat('users'), wages: true, finance: true },
-    office: { pages: ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: false },
-    supervisor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: false, finance: false },
-    floor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageProduction', 'pageStock'], may: ['floor'], wages: false, finance: false }
+    office: { pages: ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: false },
+    supervisor: { pages: ['pageHome', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: false, finance: false },
+    floor: { pages: ['pageHome', 'pageFloor', 'pageProduction', 'pageStock'], may: ['floor'], wages: false, finance: false }
   };
 }
 function grdCfgDefaults() { return { lockMinutes: 15, askMinutes: 5, roles: grdRoleDefaults(), recovery: null }; }
@@ -733,10 +733,10 @@ function grdMenuOpen() {
 /* The bar, the sidebar, the workspace tabs, Add's forms and Home's quick actions show only the pages this role opens (G3:
    the shell draws a workspace's views from what the role sees, workspace.js wsViewsPresent, and a workspace with none
    loses its door). A door hidden here is refused anyway (switchTab), so a door missed is a word, not a hole. */
-var GRD_QUICK_PAGE = { challan: 'pageIM', stock: 'pageStock', attendance: 'pageStaff', paste: 'pageStaff', task: 'pageTodo' };
+var GRD_QUICK_PAGE = { challan: 'pageIM', stock: 'pageStock', attendance: 'pageStaff', paste: 'pageStaff', task: 'pageHome' };
 // Add → By hand: the screen each form is on (add.js ADD_HAND); a payment is Staff → Pay, so it needs the wages too.
 var GRD_ADD_PAGE = { challan: 'pageIM', invoice: 'pageCreate', quote: 'pageClients', stock: 'pageStock', production: 'pageProduction',
-  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', bill: 'pageFinance', task: 'pageTodo' };
+  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', bill: 'pageFinance', task: 'pageHome' };
 function grdApplyDoors() {
   document.querySelectorAll('[data-grd-off]').forEach(function(el) { el.removeAttribute('data-grd-off'); });
   if (!grdOn() || !grdUser()) return;

@@ -46,7 +46,7 @@ var WORKSPACES = [
   { id: 'today', label: 'Today', icon: 'today', bar: true,
     views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' },
       { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
-    members: ['pageTodo'] },
+    members: [] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
     views: [{ tab: 'pagePipeline', label: 'Pipeline' }, { tab: 'pageIM', label: 'Challans' }, { tab: 'pageRegister', label: 'Invoices' },
       { tab: 'pageClients', v: 'clients', vs: ['clients', 'items', 'performance'], label: 'Clients' },
@@ -312,7 +312,7 @@ var WS_GO_PAGE = {
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
   finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
-  kb: 'pageKnow', todoLearn: 'pageTodo'
+  kb: 'pageKnow', todoLearn: 'pageHome'
 };
 function wsOfGo(go) {
   var tab = go ? (isPageId(go.page) ? go.page : WS_GO_PAGE[go.kind]) : null;

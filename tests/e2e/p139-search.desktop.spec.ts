@@ -215,7 +215,7 @@ test.describe('P139: keys and new windows on the desktop', () => {
     // A view tab: its page at that view.
     await switchTab(page, 'pageStats');
     await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click({ modifiers: ['Control'] });
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="overview"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="clients"]')).toHaveAttribute('aria-selected', 'true');
     // A row: its record. A challan on its tab and month.
     await switchTab(page, 'pageRegister');
     await allMonths(page);

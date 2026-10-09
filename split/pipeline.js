@@ -110,9 +110,16 @@ function renderPipeline() {
   // The pipeline's own column keeps its place on a short desktop screen: the stage just tapped stays under the pointer.
   var rail = el.querySelector('.inv-pipe-rail'), railTop = rail ? rail.scrollTop : 0;
   el.innerHTML = '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create invoice</button></div>' +
-    '<div class="inv-pane-host inv-pipe-host" id="pipeHost"><div class="inv-pipe-rail">' + pipeRailHtml(stages) + '</div>' +
+    '<div class="inv-pane-host inv-pipe-host" id="pipeHost"><div class="inv-pipe-rail">' + pipeRailHtml(stages) + pipeDispatchHtml() + '</div>' +
     '<div class="inv-pane-list" id="pipeList">' + pipeListHtml(cur) + '</div></div>';
   if (railTop) el.querySelector('.inv-pipe-rail').scrollTop = railTop;
+}
+
+/* How long an invoice takes from created to dispatched and to delivered, under the stages (the tab map, TM2b; it was a card on
+   Stats → Billing): over the last 90 days of invoices, whatever the period, which the card says. */
+function pipeDispatchHtml() {
+  var from = isoAddDays(localDateStr(), -89);
+  return statsDispatchCycleHtml(statsInvoices().filter(function(i) { return i.date && i.date >= from; }), 'the last 90 days');
 }
 
 /* ---------- The pipeline ---------- */

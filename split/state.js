@@ -950,11 +950,13 @@ function uiVerdictKey() {
   var v = String(loc.v || '').split('/')[0];
   return loc.tab + (v ? '-' + v : '');
 }
-/* A factor: a coded tile (§6.26). `f`: label and sub (text), fig (HTML: a figure, already formatted), tone; a factor that filters
-   its list carries `action` (and `attrs`, `pressed`), drawn as a button keeping aria-pressed. A fig left out reads as a dash. */
+/* A factor: a coded tile (§6.26). `f`: label and sub (text), fig (HTML: a figure, already formatted), tone; `badge` [tone, word]
+   says beside the label what the figure is not (measured, weighed: §3c's certainty as a badge); a factor that filters its list
+   carries `action` (and `attrs`, `pressed`), drawn as a button keeping aria-pressed. A fig left out reads as a dash. */
 function uiFactorTileHtml(f) {
   var tone = /^(danger|warning|ok|info|neutral)$/.test(f.tone) ? ' inv-tile-' + f.tone : '';
-  var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
+  var badge = f.badge ? ' <span class="inv-badge inv-badge-' + uiTone(f.badge[0]) + '">' + escHtml(f.badge[1]) + '</span>' : '';
+  var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + badge + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
     (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '');
   if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
     (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
@@ -979,12 +981,13 @@ function uiRowMoreHtml(actions) {
    always: Export, Import, Print sheets, the register's CSVs). `items`: {label, action, attrs, badge: {n, tone}}. Each opens as a
    row of a dialog carrying the action and the data it had in the toolbar, so events.js routes it unchanged; a pick shuts the
    dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it.
-   The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. */
+   The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
+   (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
 var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
 var UI_ICON_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg>';
 var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
-function uiToolbarMoreHtml(items) {
-  var list = (items || []).filter(Boolean);
+function uiToolbarMoreHtml(items, opts) {
+  var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon);
   if (!list.length) return '';
   var n = 0, worst = '';
   var rows = list.map(function(x) {
@@ -994,7 +997,7 @@ function uiToolbarMoreHtml(items) {
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
       (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';
   }).join('');
-  return '<span data-tb-more><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbMore" aria-haspopup="dialog">' + UI_ICON_MORE + 'More' +
+  return '<span data-tb-more><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm' + (icon ? ' inv-btn-icon' : '') + '" data-action="invTbMore" aria-haspopup="dialog"' + (icon ? ' aria-label="More"' : '') + '>' + UI_ICON_MORE + (icon ? '' : 'More') +
     (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
 }
 /* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count

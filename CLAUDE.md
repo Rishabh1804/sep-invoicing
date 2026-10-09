@@ -187,7 +187,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,609 tests, both layouts
+pnpm exec playwright test          # 1,610 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1891,7 +1891,16 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   - **A round outside the gauge rules is a flag, resolvable** (owner: *"The ones that fall outside the range, raise a flag -
     resolvable"*): the run keeps `gaugeUnknown` (its round) until a gauge is picked on it (Entries → *Gauge unknown* → **Pick gauge**, from
     the client's rules and challans for that kind, or typed; `gaugeSrc: 'set'`), and To-do rule **`prodGaugeUnknown`** asks per client,
-    imported runs included.
+    imported runs included. **A rule given a round later reads the runs already saved at it** (`prodGaugeRulesApply`: the gauges the
+    register read would have given, `gaugeSrc: 'rack'`, `gaugeRuled: {rack, at}`; a gauge picked by hand stays): the owner, 9 Oct 2026,
+    on a round of 108 of Mehta's clamps on VAT A1, *"above 32x6"*, so 108 joined the rule of 35X6, 35X8 and 40X6 (`_prodMehtaRounds2`).
+  - **A floor word whose round names a series** (`S.production.seriesRules`, `prodSeriesFor`; owner, 9 Oct 2026, on Mehta's liners:
+    *"126 - 150xxxxxx series, 90/87 - everything else"*): the floor writes Mehta's L.C. Pads and liners as LINER, and the round says which
+    of them it can be, not which one: a rule is a client, the floor's word, the challans' kinds it covers (LINER, PAD), the rack sizes and
+    the start of the part numbers (`prefix`), or every other part (`except`). A run so named is set against that series' challan lines,
+    oldest first (`prodInPlant`), and weighed by them, else by the series' usual weight (the 150 series at 0.28 to 0.31 kg, so it beats
+    the client's default; the rest spread 0.13 to 0.65 kg, so the default wins). A round no series names (39, 80, 150 on A1; 156 on A2)
+    stays the floor word's.
   - **A code two parts end in is matched with the recent challans** (owner: *"Checked and matched with recent IM … After a few matches
     it'll become clearer as both would have a different amount of them that can be plated in a round"*; `prodResolveCode`): the one with a
     challan in the 45 days before, else the one with a challan open, else the one on the latest challan, else the one plated before at this
@@ -1969,16 +1978,19 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
 - **What a tank takes a round, measured** (`prodTankLoad`; owner, 9 Oct 2026: *"Each register line on A1 includes 3 tanks out of the
   4 available, 150 kg/3 = 50 kg an hour per tank inside VAT A1 area. If confidence on rack capacity becomes high it should override
   defaults. Each register line on A2 includes 2 tanks"*): a round of the register is every tank working on the line that day, so a
-  round's kilos over those tanks is what a tank took; over the 60 days to the day, the median kg a round and a tank, the rounds and
+  round's kilos over those tanks is what a tank took; over the 60 days to today, the median kg a round and a tank, the rounds and
   days, and how many rounds rest on a part's own weight (written, on record, or the challans it was set against; never a client's
-  default or the kind's usual). **Firm at 30 rounds on 5 days with 80% so weighed**: then the efficiency's round is that times the
+  default or the kind's usual). **The latest measure judges every day**, so the days are on one basis (judged as of each day, A1 had
+  jumped from about 50% to 80% between 26 and 28 Sep only because the measure turned firm between them). **Firm at 30 rounds on 5 days with 80% so weighed**: then the efficiency's round is that times the
   tanks working, in place of the kg typed on the units (`kgSrc: 'measured'`, the card says *(measured)* and what it replaced), and
   over 110% reads *Over its usual* (heavier rounds or a quicker pace), counted in the day's figure; not firm, the typed figure stands
   and the card says what the register measures and why it is not firm. The plant strip's *plating N kg a round* reads it too
-  (`pltUsed`; the planner's reading only for a line with no rounds). On the owner's book of 9 Oct, with Mehta's default: VAT A1 20 kg
-  a tank (60 kg a round over 3), 54% of 256 rounds from parts' own weights; VAT A2 22 kg a tank, 62%: neither firm. What holds them
-  back is Mehta's runs that link to no part: the liners (no gauge, five weights) and the clamp rounds no gauge rule names (108, and
-  single rounds of 24 to 156), which *Pick gauge* or a gauge rule links. P191.
+  (`pltUsed`; the planner's reading only for a line with no rounds). On the owner's book of 9 Oct, with Mehta's default and the
+  owner's answers on the round of 108 and the liners: **VAT A1 is firm**, 19.5 kg a tank (58.5 kg a round over 3 tanks), 80% of 256
+  rounds from parts' own weights, and reads 72–87% on most days; heavy-clamp days read over (29 Sep 145%, 7 Oct 133%), since a
+  round of 108 clamps of 35X6 and up weighs about 95 kg, which is the mix and not the line, said as *Over its usual*. VAT A2 is 22
+  kg a tank, 62%, not firm: its typed 90 kg stands, and its set pace (a round every 20 minutes) is about half what the register
+  measures (about 36). P191.
 - **The pieces nothing weighs are a follow-up list**: on the day card and Floor → Day (*Not weighed*, under the cards; the plated tile
   brings it into sight), each floor name with its client, lines and pieces and two moves: **Which part?** (learns the name as one of
   the client's parts, `prodLearnAlias`) and **Set its weight** (a kg a piece on the client's card, from the first day the name was

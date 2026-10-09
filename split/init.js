@@ -563,6 +563,34 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
+   Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
+   and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule
+   whose gauges are those above 32X6 (35X6, 35X8, 40X6), and the runs already saved at 108 are read again by it
+   (prodGaugeRulesApply). The floor writes their L.C. Pads and liners as LINER: a round of 126 is one of the parts numbered
+   150…, of 90 or 87 one of the others (production.js prodSeriesFor), set where the client has no series rule. Once: the
+   flag travels with the state. */
+(function() {
+  if (S._prodMehtaRounds2) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData(), at = Date.now(), note = 'owner, 9 Oct 2026', mine = function(r) { return String(r.clientId) === String(c.id); };
+  var heavy = p.gaugeRules.find(function(r) { return mine(r) && r.family === 'CLAMP' && (r.gauges || []).indexOf('40X6') >= 0 && (r.gauges || []).indexOf('25X6') < 0; });
+  if (heavy && !p.gaugeRules.some(function(r) { return mine(r) && r.family === 'CLAMP' && (r.racks || []).indexOf(108) >= 0; })) {
+    heavy.racks = (heavy.racks || []).concat([108]);
+    heavy.lines = Object.assign({}, heavy.lines || {}, { 108: 'vat-a1' });
+    heavy.note = (heavy.note ? heavy.note + '; ' : '') + '108 on VAT A1, ' + note;
+  }
+  if (!p.seriesRules.some(mine)) {
+    p.seriesRules.push({ id: 'SR-seed1', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [126], lines: { 126: 'vat-a1' }, prefix: '150', name: 'the 150 series', note: note, at: at });
+    p.seriesRules.push({ id: 'SR-seed2', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [90, 87], lines: { 90: 'vat-a1', 87: 'vat-a1' }, prefix: '150', except: true, name: 'the liners outside the 150 series', note: note, at: at });
+  }
+  prodGaugeRulesApply();
+  prodTouch();
+  S._prodMehtaRounds2 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== A FLOOR CODE WRITTEN BARE, MATCHED ONCE =====
    A load written with its code alone ("DORABJI / 4206-1000") read as no part, and sat on the floor with no challan open
    (P127: 8 of 8 real Dorabji loads, 16–28 Sep). A bare code is now the part's code, as one in brackets is; the loads already

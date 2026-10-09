@@ -47,7 +47,7 @@ function weighBook(): SepState {
     { ...shut('C2a', 'BRACKET 50X40', 'BRACKET 50X40', 20, 200), unit: 'KG', nosQty: 100 }, { ...shut('C2b', 'BRACKET 50X40 HD', 'BRACKET 50X40 HD', 40, 400), unit: 'KG', nosQty: 100 }] });
   s.production = { pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} }, entries: [
     run('R1', 31, 'clamp 165x83(40x6)', 400),                                                          // a size: CLAMP 165X83 (NT)
-    run('R2', 31, 'CLAMP', 108, { gaugeUnknown: 108 }),                                                  // no gauge: the clamps, wide
+    run('R2', 31, 'CLAMP', 94, { gaugeUnknown: 94 }),                                                    // a round no rule names: the clamps, wide
     run('R3', 31, 'PAD', 100),                                                                          // the pads agree
     run('R4', 31, 'LINER', 100),                                                                        // the liners do not
     run('R5', 32, 'bracket 50x40', 100),                                                                // two brackets of that size
@@ -66,7 +66,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     expect(await weigh(page, 'R1')).toEqual(['record', 352, 'its size: CLAMP 165X83 (NT)']);
     expect(await weigh(page, 'R6')).toEqual(['record', 38, 'its size: CLAMP 133X83 (NT)']);
     // Nothing links the clamp of no gauge to a part, and the client's clamps weigh 0.33 to 0.88: the client's default.
-    expect(await weigh(page, 'R2')).toEqual(['default', 60.48, 'the client’s default']);
+    expect(await weigh(page, 'R2')).toEqual(['default', 52.64, 'the client’s default']);
     // The pads agree (0.30, 0.31): their own weight wins over the default. The liners do not (0.20, 0.50): the default.
     expect((await weigh(page, 'R3'))[0]).toBe('kind');
     expect(await weigh(page, 'R4')).toEqual(['default', 56, 'the client’s default']);
@@ -76,7 +76,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await switchTab(page, 'pageProduction');
     const row = page.locator('[data-prod-weigh="default"]').first();
     await expect(row).toContainText('At MEHTA TEST INDUSTRIES’s default');
-    await expect(row).toContainText('0.560 kg a piece, set on the client, for 208 pieces nothing links to a part');
+    await expect(row).toContainText('0.560 kg a piece, set on the client, for 194 pieces nothing links to a part');
   });
 
   test('the default is adjustable on the client: changed, the runs follow; cleared, the kind is used again', async ({ page }) => {
@@ -88,7 +88,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await f.fill('0.6');
     await page.locator('[data-action="invSaveClient"]').click();
     expect((await readStoredState(page)).clients.find((c: any) => c.id === 31).defaultKgPc).toBe(0.6);
-    expect(await weigh(page, 'R2')).toEqual(['default', 64.8, 'the client’s default']);
+    expect(await weigh(page, 'R2')).toEqual(['default', 56.4, 'the client’s default']);
     await expect(page.locator('[data-prod-weigh="default"]').first()).toContainText('0.600 kg a piece');
     // A weight that is no weight is refused, and nothing is saved.
     await page.locator('[data-prod-weigh="default"] [data-action="invEditClient"]').first().click();
@@ -136,6 +136,8 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // possible, 300 plated (35%). Every round was full: the load 100%, the pace 6 of 17.
     const o: any = await g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a2'); return [o.kgSrc, o.kgAvail, o.kgTyped, Math.round(o.possible), Math.round(o.eff * 100), Math.round(o.load * 100), Math.round(o.pace * 100), o.tone]; })()`);
     expect(o).toEqual(['measured', 50, 90, 850, 35, 100, 35, 'danger']);
+    // One basis for every day: the first day is judged by the same measure, though on its own day the register held one day.
+    expect(await g(page, `(function(){ var o = prodLineEfficiency('${before(-5)}', 'vat-a2'); return [o.kgSrc, o.kgAvail]; })()`)).toEqual(['measured', 50]);
     await switchTab(page, 'pageFloor');
     await page.locator('#flrDate').fill(D);
     await page.locator('#flrDate').dispatchEvent('change');
@@ -165,5 +167,33 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // The plant strip reads the register's figure against the typed round while it is not firm.
     const used: any = await g(page, `(function(){ var c = pltCapacity('vat-a2'); return [Math.round(c.used.kgRound), Math.round(c.used.pct * 100)]; })()`);
     expect(used).toEqual([50, 56]);
+  });
+
+  // The owner's answers of 9 Oct: a round of 108 of Mehta's clamps on VAT A1 is "above 32x6"; "126 - 150xxxxxx series, 90/87 -
+  // everything else" (the floor writes their L.C. Pads and liners as LINER).
+  test('Mehta’s round of 108 reads above 32x6, the runs saved at 108 included; a liner round of 126 is the 150 series, 90 the rest', async ({ page }) => {
+    const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
+    s.clients = [client(31, 'MEHTA TEST INDUSTRIES', 'piece', 5)];
+    const open = (id: string, partNumber: string, desc: string, qty: number, amount: number) => ({ id, partNumber, desc, hsn: '998873', unit: 'NOS', qty, rate: amount / qty, amount, nosQty: qty, invoiced: false, invoiceId: null });
+    // The pads of the 150 series at 0.309 kg a piece (₹1.545 at ₹5 a kg), a liner outside it at 0.411.
+    s.incomingMaterial.push({ id: 'C9', clientId: 31, challanNo: '91', challanDate: before(-3), items: [open('C9a', '150X88X3', 'L.C.Pad', 1000, 1545), open('C9b', '220X80X3', 'LINER', 500, 1027.5)] });
+    const reg = (id: string, part: string, size: number, n: number, extra: any = {}) => ({ id, kind: 'plated', date: D, line: 'vat-a1', lineSrc: 'written', slot: 'general', time: '09:00', to: '11:00',
+      clientId: 31, client: 'MEHTA', part, qty: size * n, unit: 'NOS', basis: 'register', src: 'photo', at: 1, rounds: Array.from({ length: n }, (_, i) => ({ time: (9 + i) + ':00 AM', qty: size })), ...extra });
+    s.production = { pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} }, entries: [
+      reg('G108', 'CLAMP', 108, 2, { gaugeUnknown: 108 }), reg('G94', 'CLAMP', 94, 1, { gaugeUnknown: 94 }),
+      reg('L126', 'LINER', 126, 2), reg('L90', 'LINER', 90, 2), reg('L39', 'LINER', 39, 1)] };
+    await loadAppWithState(page, s as SepState);
+    const rules: any = await g(page, `({ gauge: prodData().gaugeRules.map(function(r){ return r.racks.join('/') + ':' + r.gauges.join('/'); }),
+      series: prodData().seriesRules.map(function(r){ return r.racks.join('/') + ':' + (r.except ? 'not ' : '') + r.prefix; }) })`);
+    expect(rules).toEqual({ gauge: ['150/100:25X6/30X6', '120/72/108:35X6/35X8/40X6'], series: ['126:150', '90/87:not 150'] });
+    // The run saved at 108 is read by the rule now; a round of 94 is in none and stays flagged.
+    const st = await readStoredState(page);
+    const e108 = st.production.entries.find((e: any) => e.id === 'G108'), e94 = st.production.entries.find((e: any) => e.id === 'G94');
+    expect([e108.gaugeOptions, e108.gaugeSrc, e108.gaugeRuled.rack, 'gaugeUnknown' in e108]).toEqual([['35X6', '35X8', '40X6'], 'rack', 108, false]);
+    expect(e94.gaugeUnknown).toBe(94);
+    // The liners: a round of 126 is set against the 150 series' challan, 90 against the others, 39 against none.
+    expect(await weigh(page, 'L126')).toEqual(['challans', 77.87, 'challans']);
+    expect(await weigh(page, 'L90')).toEqual(['challans', 73.98, 'challans']);
+    expect(await weigh(page, 'L39')).toEqual(['default', 21.84, 'the client’s default']);
   });
 });

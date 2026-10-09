@@ -104,16 +104,16 @@ function pltCapacity(station, iso, bare) {
   var pct = !units.length ? null : byKg ? (kgTotal ? kgAvail / kgTotal : 0) : avail.length / units.length;
   var note = !units.length ? 'no unit recorded' : byKg ? 'by kg a round' : withKg.length ? 'by count: kg a round set on ' + withKg.length + ' of ' + units.length : 'by count: no kg a round set';
   var cap = { units: units, n: units.length, nAvail: avail.length, down: units.filter(function(u) { return !pltAvailable(st(u)); }), byKg: byKg, kgTotal: kgTotal, kgAvail: kgAvail, pct: pct, note: note, used: null };
-  if (!bare) cap.used = pltUsed(station, cap, iso);
+  if (!bare) cap.used = pltUsed(station, cap);
   return cap;
 }
-/* What the line actually plates a round, against what is available: the register's own rounds over the 60 days to the day
+/* What the line actually plates a round, against what is available: the register's own rounds over the 60 days to today
    (production.js prodTankLoad: a round is every tank working, owner, 9 Oct 2026), said with how much of it rests on parts'
    own weights; firm, it is the line's round in place of the kg typed on the units, so nothing is "running at" against them.
    Without rounds on the register, the planner's reading over its three months. Never a guess. */
-function pltUsed(station, cap, iso) {
+function pltUsed(station, cap) {
   if (!PLT_LINE_STATIONS[station]) return { kgRound: null, pct: null, why: station === 'pick' ? 'pickling is not timed a round' : 'not a plating line' };
-  var T = typeof prodTankLoad === 'function' ? prodTankLoad(station, iso || localDateStr()) : null;
+  var T = typeof prodTankLoad === 'function' ? prodTankLoad(station, localDateStr()) : null;
   if (T && T.perRound != null) {
     return { kgRound: T.perRound, perTank: T.perTank, firm: T.firm, pct: !T.firm && cap.byKg && cap.kgAvail > 0 ? T.perRound / cap.kgAvail : null,
       why: 'the register’s ' + T.rounds + ' round' + (T.rounds === 1 ? '' : 's') + ' over ' + T.days + ' day' + (T.days === 1 ? '' : 's') +

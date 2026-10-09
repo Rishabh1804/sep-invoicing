@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="890c7ce9">
+<meta name="app-build" content="a5cd2eec">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -41763,6 +41763,7 @@ function prodData() {
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
   if (!Array.isArray(p.gaugeRules)) p.gaugeRules = [];
   if (!Array.isArray(p.partRules)) p.partRules = [];
+  if (!Array.isArray(p.seriesRules)) p.seriesRules = [];
   return p;
 }
 
@@ -41812,6 +41813,46 @@ function prodCrew(e) {
   }
   if (!ids.length) return { known: false, why: ot ? 'no OT block on the line names its crew' : 'nobody marked on the line that day' };
   return { known: true, src: src, ids: ids, names: ids.map(function(id) { var w = staffById(id); return w ? w.name : 'a hand since removed'; }) };
+}
+
+/* The runs saved at a round no rule named, read again by the rules as they are now: a round named later counts from the
+   first (owner, 9 Oct 2026: a round of 108 of Mehta's clamps on VAT A1 is "above 32x6"). What the register read would
+   have given: the gauge, or the gauges it can be, from the round. A gauge picked by hand stays. */
+function prodGaugeRulesApply() {
+  var n = 0, at = Date.now();
+  prodData().entries.forEach(function(e) {
+    if (!e || e.kind !== 'plated' || e.voidedAt || !e.gaugeUnknown || e.gauge || e.gaugeOptions) return;
+    var g = prodGaugeRuleFor(e.clientId, e.part, e.gaugeUnknown);
+    if (!g || !g.length) return;
+    if (g.length === 1) e.gauge = g[0]; else e.gaugeOptions = g;
+    e.gaugeSrc = 'rack'; e.gaugeRuled = { rack: e.gaugeUnknown, at: at };
+    delete e.gaugeUnknown;
+    n++;
+  });
+  if (n) prodTouch();
+  return n;
+}
+
+/* ---------- The series a round's size gives ----------
+   Owner, 9 Oct 2026, asked which of Mehta's liners is done at 126 a round and which at 90 or 87: "126 - 150xxxxxx series,
+   90/87 - everything else". The floor writes their L.C. Pads and liners as LINER; the pieces on a round say which of them it
+   can be, though not which one (`S.production.seriesRules`: a client, the floor's word, the challans' kinds it covers, the
+   rack sizes, and the part numbers' start, or every other part where `except`). A run so named is set against those parts'
+   challans (prodInPlant) and weighed by them (prodWeighOf). The lines the owner named are kept, not required. */
+function prodSeriesFor(e) {
+  if (!e || e.clientId == null || e.partNumber || !e.part) return null;
+  var w = (prodPartBase(e.part).toUpperCase().match(/[A-Z]+/) || [''])[0], rack = prodEntryRack(e);
+  if (!w || !(rack > 0)) return null;
+  return prodData().seriesRules.find(function(x) { return String(x.clientId) === String(e.clientId) && x.family === w && (x.racks || []).indexOf(rack) >= 0; }) || null;
+}
+function prodSeriesPart(rule, pn) {
+  var starts = rateKey(pn || '').indexOf(rateKey(rule.prefix || '')) === 0;
+  return rule.except ? !starts : starts;
+}
+function prodSeriesHolds(rule, m, it) {
+  if (String(m.clientId) !== String(rule.clientId)) return false;
+  var kinds = prodWeighKinds(it.partNumber).concat(prodWeighKinds(it.desc));
+  return kinds.some(function(k) { return (rule.kinds || []).indexOf(k) >= 0; }) && prodSeriesPart(rule, it.partNumber || it.desc);
 }
 
 function prodGaugeRuleHas(clientId, part) {
@@ -42219,7 +42260,7 @@ function prodWeighIndex() {
   (S.incomingMaterial || []).forEach(function(m) {
     if (m.clientId == null) return;
     var c = clients[String(m.clientId)];
-    (m.items || []).forEach(function(it) {
+    (m.items || []).forEach(function(it, li) {
       var w = prodLineKgPc(m, it, c);
       if (!w || !(w.kg > 0) || w.kg > 100) return;
       var pcs = (it.unit || 'KG') === 'KG' ? it.nosQty : it.qty;
@@ -42228,7 +42269,7 @@ function prodWeighIndex() {
       prodWeighKinds(it.partNumber).concat(prodWeighKinds(it.desc)).forEach(function(k) {
         if (seen[k]) return;
         seen[k] = true;
-        (kinds[m.clientId + '|' + k] = kinds[m.clientId + '|' + k] || []).push({ date: m.challanDate || '', g: g, kg: w.kg, pcs: pcs });
+        (kinds[m.clientId + '|' + k] = kinds[m.clientId + '|' + k] || []).push({ date: m.challanDate || '', g: g, kg: w.kg, pcs: pcs, lid: m.id + '#' + li, pn: it.partNumber || it.desc || '' });
       });
     });
   });
@@ -42280,6 +42321,23 @@ function prodWeighOf(e, idx) {
   // By its kind: the client's challans of that kind, at its gauge (or the gauges its round allows), in the year before.
   var gs = e.gauge ? [e.gauge] : (e.gaugeOptions || []), from = isoAddDays(e.date, -PROD_WEIGH_DAYS), to = isoAddDays(e.date, 1);
   var words = prodWeighKinds(e.partNumber || e.part), kind = null;
+  // A round a series rule names: the usual weight of that series' parts (the 150 series of Mehta's pads at 0.28 to 0.31 kg),
+  // over every kind the rule covers, never the floor word's own kind (their LINER is their pads and liners both).
+  var ser = prodSeriesFor(e);
+  if (ser) {
+    var seenL = {}, srows = [];
+    (ser.kinds || []).forEach(function(kd) {
+      (idx.kinds[e.clientId + '|' + kd] || []).forEach(function(x) {
+        if (seenL[x.lid] || x.date < from || x.date > to || !prodSeriesPart(ser, x.pn)) return;
+        seenL[x.lid] = true; srows.push(x);
+      });
+    });
+    if (srows.length >= 2) {
+      var ss = prodWeighSpread(srows);
+      kind = { kg: e.qty * ss.kg, how: 'kind', src: ser.name || ser.family, kgPc: ss.kg, low: e.qty * ss.low, high: e.qty * ss.high, lines: ss.n, gauges: gs.slice(), spread: ss.kg > 0 ? (ss.high - ss.low) / ss.kg : null, series: ser.id };
+    }
+    words = [];
+  }
   for (var i = 0; i < words.length; i++) {
     var rows = (idx.kinds[e.clientId + '|' + words[i]] || []).filter(function(x) {
       return x.date >= from && x.date <= to && (!gs.length || gs.indexOf(x.g) >= 0 || (e.gauge && !x.g));
@@ -42814,8 +42872,9 @@ function prodLineEfficiency(date, line) {
   var cap = typeof pltCapacity === 'function' ? pltCapacity(line, date) : null;
   if (cap && cap.n) { o.n = cap.n; o.nAvail = cap.nAvail; o.kgAvail = cap.kgAvail; o.kgTotal = cap.kgTotal; o.byKg = cap.byKg; o.avail = cap.pct; o.down = cap.down; o.unitWord = cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrel' : 'tank'; }
   // What a tank takes a round, measured on the register; firm, it takes the place of the kg a round typed on the units (owner,
-  // 9 Oct 2026: "If confidence on rack capacity becomes high it should override defaults").
-  var T = prodTankLoad(line, date);
+  // 9 Oct 2026: "If confidence on rack capacity becomes high it should override defaults"). The latest measure judges every
+  // day, so the days are on one basis: a tank's round is the tank's, and only the tanks working are the day's.
+  var T = prodTankLoad(line, localDateStr());
   o.tank = T; o.kgSrc = o.byKg ? 'typed' : null;
   if (T.firm && T.perRound != null) {
     if (o.n && o.nAvail && T.perTank != null) { o.kgTyped = o.byKg ? o.kgAvail : null; o.kgAvail = T.perTank * o.nAvail; o.kgSrc = 'measured'; }
@@ -42948,8 +43007,12 @@ function prodInPlant(opts) {
   var alloc = function(e, field) {
     var k = prodEntryKey(e);
     if (!k || e.qty == null || !e.unit || e.unit === 'BAG') return;
-    var pool = byKey[k];
-    if (!pool && prodIsGeneric(e.partNumber || e.part)) {
+    var pool = byKey[k], ser = !pool ? prodSeriesFor(e) : null;
+    if (ser) {
+      // A round a series rule names (Mehta's LINER at 126 is one of their 150 series): that series' challan lines, oldest first.
+      pool = lines.filter(function(r) { return prodSeriesHolds(ser, r.m, r.it); }).sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; });
+      if (pool.length) famUsed++;
+    } else if (!pool && prodIsGeneric(e.partNumber || e.part)) {
       // Only a record naming just the kind and gauge is set against the family; a named part with no challan of its
       // own is on the floor with no challan, never someone else's.
       var fk = prodFamilyKey(e.clientId, e.partNumber || e.part, e.gauge);
@@ -43372,16 +43435,16 @@ function pltCapacity(station, iso, bare) {
   var pct = !units.length ? null : byKg ? (kgTotal ? kgAvail / kgTotal : 0) : avail.length / units.length;
   var note = !units.length ? 'no unit recorded' : byKg ? 'by kg a round' : withKg.length ? 'by count: kg a round set on ' + withKg.length + ' of ' + units.length : 'by count: no kg a round set';
   var cap = { units: units, n: units.length, nAvail: avail.length, down: units.filter(function(u) { return !pltAvailable(st(u)); }), byKg: byKg, kgTotal: kgTotal, kgAvail: kgAvail, pct: pct, note: note, used: null };
-  if (!bare) cap.used = pltUsed(station, cap, iso);
+  if (!bare) cap.used = pltUsed(station, cap);
   return cap;
 }
-/* What the line actually plates a round, against what is available: the register's own rounds over the 60 days to the day
+/* What the line actually plates a round, against what is available: the register's own rounds over the 60 days to today
    (production.js prodTankLoad: a round is every tank working, owner, 9 Oct 2026), said with how much of it rests on parts'
    own weights; firm, it is the line's round in place of the kg typed on the units, so nothing is "running at" against them.
    Without rounds on the register, the planner's reading over its three months. Never a guess. */
-function pltUsed(station, cap, iso) {
+function pltUsed(station, cap) {
   if (!PLT_LINE_STATIONS[station]) return { kgRound: null, pct: null, why: station === 'pick' ? 'pickling is not timed a round' : 'not a plating line' };
-  var T = typeof prodTankLoad === 'function' ? prodTankLoad(station, iso || localDateStr()) : null;
+  var T = typeof prodTankLoad === 'function' ? prodTankLoad(station, localDateStr()) : null;
   if (T && T.perRound != null) {
     return { kgRound: T.perRound, perTank: T.perTank, firm: T.firm, pct: !T.firm && cap.byKg && cap.kgAvail > 0 ? T.perRound / cap.kgAvail : null,
       why: 'the register’s ' + T.rounds + ' round' + (T.rounds === 1 ? '' : 's') + ' over ' + T.days + ' day' + (T.days === 1 ? '' : 's') +
@@ -58836,6 +58899,34 @@ if (!S._cnSeriesStart1) {
   if (!c) return;
   if (!(+c.defaultKgPc > 0)) c.defaultKgPc = 0.56;
   S._clientKgPcDefault1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
+   Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
+   and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule
+   whose gauges are those above 32X6 (35X6, 35X8, 40X6), and the runs already saved at 108 are read again by it
+   (prodGaugeRulesApply). The floor writes their L.C. Pads and liners as LINER: a round of 126 is one of the parts numbered
+   150…, of 90 or 87 one of the others (production.js prodSeriesFor), set where the client has no series rule. Once: the
+   flag travels with the state. */
+(function() {
+  if (S._prodMehtaRounds2) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  var p = prodData(), at = Date.now(), note = 'owner, 9 Oct 2026', mine = function(r) { return String(r.clientId) === String(c.id); };
+  var heavy = p.gaugeRules.find(function(r) { return mine(r) && r.family === 'CLAMP' && (r.gauges || []).indexOf('40X6') >= 0 && (r.gauges || []).indexOf('25X6') < 0; });
+  if (heavy && !p.gaugeRules.some(function(r) { return mine(r) && r.family === 'CLAMP' && (r.racks || []).indexOf(108) >= 0; })) {
+    heavy.racks = (heavy.racks || []).concat([108]);
+    heavy.lines = Object.assign({}, heavy.lines || {}, { 108: 'vat-a1' });
+    heavy.note = (heavy.note ? heavy.note + '; ' : '') + '108 on VAT A1, ' + note;
+  }
+  if (!p.seriesRules.some(mine)) {
+    p.seriesRules.push({ id: 'SR-seed1', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [126], lines: { 126: 'vat-a1' }, prefix: '150', name: 'the 150 series', note: note, at: at });
+    p.seriesRules.push({ id: 'SR-seed2', clientId: c.id, family: 'LINER', kinds: ['LINER', 'PAD'], racks: [90, 87], lines: { 90: 'vat-a1', 87: 'vat-a1' }, prefix: '150', except: true, name: 'the liners outside the 150 series', note: note, at: at });
+  }
+  prodGaugeRulesApply();
+  prodTouch();
+  S._prodMehtaRounds2 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

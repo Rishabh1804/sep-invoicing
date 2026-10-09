@@ -132,9 +132,20 @@ Each of these is one PR.
    - Mehta has a default of 0.560 kg a piece, set on the client and changed there. It weighs a run nothing links to a part, before
      the client's usual weight for that kind wherever those weights spread wide.
 
-   On the 9 Oct book this gives VAT A1 20 kg a tank (60 kg a round over 3 tanks) and VAT A2 22 kg a tank. Neither is firm: 54% and
-   62% of the rounds rest on a part's own weight. The rest are Mehta's liners and the clamp rounds no gauge rule names (108, plus
-   single rounds of 24 to 156). Picking those rounds' gauge, or adding 108 to a rule, links them.
+   On the 9 Oct book this gave VAT A1 20 kg a tank (60 kg a round over 3 tanks) and VAT A2 22 kg a tank. Neither was firm: 54% and
+   62% of the rounds rested on a part's own weight. The rest were Mehta's liners and the clamp rounds no gauge rule named (108, plus
+   single rounds of 24 to 156).
+
+   *The owner then answered the two questions that would link them: a round of 108 clamps on VAT A1 is "above 32x6", and "126 -
+   150xxxxxx series, 90/87 - everything else" for the liners.* Built:
+   - A round of 108 joins the rule of 35X6, 35X8 and 40X6, and the runs already saved at 108 are read by it.
+   - The floor writes Mehta's L.C. Pads and liners as LINER. A round of 126 is one of the parts numbered 150… (0.28–0.31 kg); a round
+     of 90 or 87 is one of the others (`seriesRules`). Those runs are set against those parts' challans.
+
+   VAT A1 is now firm: 19.5 kg a tank, 58.5 kg a round over 3 tanks, with 80% of 256 rounds resting on a part's own weight. Judged on
+   one basis, it reads 72–87% on most days. Heavy-clamp days read over: 108 clamps of 35X6 and up weigh about 95 kg a round, and the
+   app says that is over its usual. VAT A2 stays at 62%. Its typed 90 kg stands, and its set pace of 20 minutes a round is about half
+   what the register measures (36).
 2. **Round times.** Are the planner's round times right: 19 minutes on A1, 20 on A2 and 75 on the barrel?
 
    *"It is approximately right, till we have more concrete data."* Kept as set. The register is measuring A1's pace too, at 19

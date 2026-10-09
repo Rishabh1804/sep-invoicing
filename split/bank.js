@@ -1201,7 +1201,7 @@ async function bankImportBuf(buf, name) {
   try {
     parsed = bankParseSheet((await bankReadSheet(buf)).rows);
     b = bankData();
-  } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
+  } catch (err) { if (!addFileElsewhere(buf, name, 'xls')) showToast(err.message || 'That file could not be read', 'error'); return; }
   if (b.account && parsed.account && parsed.account !== b.account &&
     !(await uiConfirm({ title: 'A different account', danger: true, okLabel: 'Import into the same record',
       body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Imported, its rows sit in one record with them, and the balances will not follow from one another. ' +

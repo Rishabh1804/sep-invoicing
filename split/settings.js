@@ -840,14 +840,16 @@ function importData() {
     inp.value = '';
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = (ev) => importDataText(ev.target.result);
+    reader.onload = (ev) => importDataText(ev.target.result, f.name);
     reader.readAsText(f);
   };
   inp.click();
 }
 
 /* A backup's text, from Settings → Import or from Add → File (add.js): checked, asked about, and only then the book replaced. */
-async function importDataText(text) {
+async function importDataText(text, name) {
+  // Another screen's file (a production export, a roster) is said and taken there, before anyone is asked to replace the book.
+  if (addFileElsewhere(text, name, 'backup')) return;
   // Whatever door it came through (Settings → Import, Add → File): replacing the book is the owner's (guard.js). Asked
   // once: the door's own question opened the window this one reads.
   if (typeof grdOk === 'function' && !grdOk('users') && !(await grdBookAsk('import a backup'))) return;

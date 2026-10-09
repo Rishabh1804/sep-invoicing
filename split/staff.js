@@ -1839,21 +1839,21 @@ function importRoster() {
     var f = e.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(ev) { importRosterText(ev.target.result); };
+    reader.onload = function(ev) { importRosterText(ev.target.result, f.name); };
     reader.readAsText(f);
     inp.value = '';
   };
   inp.click();
 }
 /* A roster file's text, from Staff → Roster → Import or from Add → File (add.js). */
-function importRosterText(text) {
+function importRosterText(text, name) {
   var data;
   try { data = JSON.parse(text); }
   catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
   // A file of workers' details (people.js) is the owner's, checked row by row before anything is kept.
   if (data && data.format === 'sep-people') { pplImportData(data); return; }
   var res = applyRosterImport(data);
-  if (res.error) { showToast(res.error, 'error'); return; }
+  if (res.error) { if (!addFileElsewhere(data, name, ['roster', 'people'])) showToast(res.error, 'error'); return; }
   saveState();
   renderAttendance();
   // Every count the merge dropped something on is stated. A silent import

@@ -204,7 +204,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,625 tests, both layouts
+pnpm exec playwright test          # 1,630 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2322,7 +2322,8 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   hours), the recommendation, open items (set in Options' figures) and what is not counted. The options' figures are the
   30 May case's estimates until a quote replaces them.
 - **Import history** takes one file: its cuts as `sep-production` (merged by id into Production) and under `power` the
-  bills' details by month and the load. A detail fills only an empty field; a bill the file records is added where the app
+  bills' details by month and the load. A file with no cut and no bill in it is another screen's and is handed on (P196); one
+  with cuts merges whole, and the toast counts the cuts apart from its other entries (it had called every entry a cut). A detail fills only an empty field; a bill the file records is added where the app
   has none for that month, **at what was paid** (`paid`, else `amount`), with the bill's net payable kept as a detail and the
   basis in its note (Iuno H-6: which of the bill's figures is "the" bill is still BM's question); a month described without
   an amount is counted, never invented.
@@ -2548,6 +2549,14 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   edged in the accent). The `panel-w` thresholds for two, three and four across moved to 32.5rem and 43rem for the gap.
 - **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
   by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
+- **A file brought to another screen's Import is taken where it belongs** (`addFileElsewhere`, add.js; owner, 9 Oct 2026: the day's
+  production file, imported on Production → Equipment, read *Not a plant file* and stopped there). Every screen's Import (Equipment,
+  Roster, Register, Pay, Stock, Production, Power, Settings, Knowledge, Bank) asks before it refuses: the file is named for what it
+  is and the screen that imports it (*… is a production file (sep-production), not a plant register file (sep-plant). It is
+  imported on Production → Entries.*), and **Import it there** takes it by Add → File's own route (`addFileGo`) and guard question
+  (`addFileGuardOk`); Cancel imports nothing. Settings never asks to replace the book with a file that is not a backup. A file no
+  screen imports is refused where it was brought, as before. Add → File takes a knowledge file too (`sep-kb`, the owner's, asked
+  again as Knowledge's own Import asks). P196.
 - **WhatsApp, opened from beside each paste box** (`waLinksHtml`, add.js; owner, 7 Oct 2026: *"directly open the web.whatsapp.com
   page or the installed app"*): Add, Staff → Paste message and Today's inputs. WhatsApp Web answers `frame-ancestors
   https://*.whatsapp.com`, so no site can show it in a frame: the phone opens the installed app (Android by its package, Chrome
@@ -2575,7 +2584,7 @@ ground, a troubleshooting area, a record keeper, a tool used to make decisions"*
 `docs/KNOWLEDGE_BASE.md`. P154.
 - **In the book, never in the build** (`S.kb`: `articles`, `trained`, `paths`): this repo is public. The one exception is the app's own
   guides (`KB_APP_GUIDES`): how to use each screen, read-only, `src: 'build'`, holding nothing of the shop. **soma-internal owns the
-  rulings**; the app owns what is written in it. `sep-kb` v1 export and import, merged by id: a newer `version` replaces an older one,
+  rulings**; the app owns what is written in it. `sep-kb` v1 export and import (here or Add → File), merged by id: a newer `version` replaces an older one,
   which is kept in `versions`; nothing is deleted; photos never travel.
 - **Eight kinds** (`KB_KINDS`): how-to, process, part, client requirement, ruling, fault, incident, decision. Five views: Start, Library,
   Troubleshoot, Records, Training. The desktop's Library, Troubleshoot and Records are a list beside the open article (`kbHost`).

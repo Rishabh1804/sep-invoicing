@@ -501,16 +501,16 @@ function payrollImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) { payrollImportText(e2.target.result); };
+    reader.onload = function(e2) { payrollImportText(e2.target.result, f.name); };
     reader.readAsText(f);
   };
   inp.click();
 }
 /* A sep-payroll-paid file's text, from Pay's Import or from Add → File (add.js). */
-function payrollImportText(text) {
+function payrollImportText(text, name) {
   var res;
   try { res = payrollPaidImport(JSON.parse(text)); } catch (err) { res = { error: 'Not a payroll-as-paid file' }; }
-  if (res.error) { showToast(res.error, 'error'); return; }
+  if (res.error) { if (!addFileElsewhere(text, name, 'payroll')) showToast(res.error, 'error'); return; }
   saveState();
   renderAttendance();
   var bits = [];

@@ -1368,7 +1368,7 @@ var KB_RANK = { draft: 0, pending: 1, published: 2, superseded: 3, retired: 3 };
      nobody here has the name; a ruling the file publishes over another one here supersedes it. */
 function kbImportData(obj, name) {
   var arts = obj && (Array.isArray(obj) ? obj : obj.format === 'sep-kb' || Array.isArray(obj.articles) ? obj.articles : null);
-  if (!Array.isArray(arts)) { uiAlert({ title: 'Not a knowledge file', body: 'The file is not a sep-kb export.' }); return null; }
+  if (!Array.isArray(arts)) { if (!addFileElsewhere(obj, name, 'kb')) uiAlert({ title: 'Not a knowledge file', body: 'The file is not a sep-kb export.' }); return null; }
   var k = kbData(), res = { added: 0, updated: 0, same: 0, kept: 0, refused: 0, deleted: 0, trained: 0, notOnRoster: 0, paths: 0 };
   var clean = [], seen = {};
   arts.forEach(function(x) {

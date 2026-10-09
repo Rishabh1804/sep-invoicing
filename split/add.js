@@ -328,7 +328,11 @@ function addFileKind(buf) {
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
   var text;
   try { text = new TextDecoder('utf-8').decode(buf); } catch (e) { return { kind: 'binary' }; }
-  var t = text.replace(/^﻿/, '').trim();
+  return addTextKind(text);
+}
+/* What a file read as text is: a screen's own Import reads it that way. */
+function addTextKind(text) {
+  var t = String(text == null ? '' : text).replace(/^\ufeff/, '').trim();
   if (/^[[{]/.test(t)) {
     try { return { kind: 'json', text: t, obj: JSON.parse(t) }; } catch (e) { return { kind: 'badjson', error: e.message }; }
   }
@@ -350,6 +354,7 @@ function addJsonWhat(obj) {
   if (f === 'sep-att-register') return 'register';
   if (f === 'sep-people') return 'people';
   if (f === 'sep-plant') return 'plant';
+  if (f === 'sep-kb' || (!f && Array.isArray(obj.articles))) return 'kb';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -368,6 +373,8 @@ var ADD_FILE_GUARD = {
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
+  // Knowledge's own Import is the owner's and asks the PIN again whatever the window (knowledge.js kbImport).
+  kb: { grp: 'imports', what: 'import knowledge', page: 'pageKnow', owner: true, always: true },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -378,8 +385,9 @@ async function addFileGuardOk(key) {
     await uiAlert({ title: 'Not for this ID', body: 'Your ID does not open ' + (typeof wsPageName === 'function' ? wsPageName(gd.page) : 'that screen') + ', so this file cannot be imported here. Ask the owner.' });
     return false;
   }
+  if (gd.owner && typeof grdIsOwner === 'function' && !grdIsOwner()) { grdRefuse(gd.what); return false; }
   if (!gd.grp) return true;
-  return grdOk(gd.grp) || await guardAsk(gd.grp, gd.what);
+  return (!gd.always && grdOk(gd.grp)) || await guardAsk(gd.grp, gd.what);
 }
 async function addFileRoute(file, buf) {
   var name = file.name || '', k = addFileKind(buf);
@@ -391,21 +399,62 @@ async function addFileRoute(file, buf) {
   }
   var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
   if (what && !(await addFileGuardOk(what))) return;
-  var go = {
-    stock: function() { _stockView = 'list'; switchTab('pageStock'); stockImportText(k.text); },
-    production: function() { prodSetTab('entries'); _prodView = 'main'; switchTab('pageProduction'); prodImportText(k.text, name); },
-    power: function() { powerSetTab('cuts'); switchTab('pagePower'); powerImportData(k.obj, name); },
-    payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text); },
-    roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
-    register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
-    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
-    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text); },
-    // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
-    backup: function() { importDataText(k.text); }
-  }[what];
+  var go = what && addFileGo(what, k, name);
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
+    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register or the knowledge base.' });
+}
+/* Where each kind of file is imported, opened on the screen and view that import it. */
+function addFileGo(what, k, name) {
+  return {
+    stock: function() { _stockView = 'list'; switchTab('pageStock'); stockImportText(k.text, name); },
+    production: function() { prodSetTab('entries'); _prodView = 'main'; switchTab('pageProduction'); prodImportText(k.text, name); },
+    power: function() { powerSetTab('cuts'); switchTab('pagePower'); powerImportData(k.obj, name); },
+    payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text, name); },
+    roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text, name); },
+    register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text, name); },
+    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
+    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text, name); },
+    kb: function() { kbSetTab('library'); switchTab('pageKnow'); kbImportData(k.obj, name); },
+    // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
+    backup: function() { importDataText(k.text, name); }
+  }[what] || null;
+}
+/* What each kind of file is called, and the screen whose Import takes it. */
+var ADD_FILE_KINDS = {
+  stock: { title: 'A stock file', noun: 'a stock file (sep-stock)', page: 'pageStock' },
+  production: { title: 'A production file', noun: 'a production file (sep-production)', page: 'pageProduction', view: 'Entries' },
+  power: { title: 'A power history file', noun: 'a power history file (its cuts and bills)', page: 'pagePower', view: 'Cuts' },
+  payroll: { title: 'A payroll file', noun: 'the payroll as paid (sep-payroll-paid)', page: 'pageStaff', view: 'Pay' },
+  roster: { title: 'A roster', noun: 'a roster', page: 'pageStaff', view: 'Roster' },
+  register: { title: 'An attendance register', noun: 'an attendance register (sep-att-register)', page: 'pageStaff', view: 'Register' },
+  people: { title: 'Workers’ details', noun: 'a file of workers’ details (sep-people)', page: 'pageStaff', view: 'Roster' },
+  plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
+  kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
+  backup: { title: 'A backup', noun: 'a backup of the whole book', where: 'Settings → Data & device' },
+  xls: { noun: 'a bank statement' }
+};
+function addFileWhere(what) {
+  var x = ADD_FILE_KINDS[what];
+  return !x ? '' : x.where || (typeof wsPageName === 'function' ? wsPageName(x.page) : x.page) + (x.view ? ' → ' + x.view : '');
+}
+/* A file handed to one screen's Import that is another screen's (owner, 9 Oct 2026: the day's production file, imported on
+   Production → Equipment, was refused as "Not a plant file", with no way on). Each screen's Import asks this before it
+   refuses: the file is named for what it is and where it is imported, and Import it there takes it through Add → File's
+   own route, the guard's question included. `src` is the file's text, its bytes, or what was read from it; `here` the
+   kind or kinds this Import takes. True when the file is another screen's, and the caller stops: its refusal is not shown. */
+function addFileElsewhere(src, name, here) {
+  var k = src instanceof ArrayBuffer ? addFileKind(src) : typeof src === 'string' ? addTextKind(src)
+    : src && typeof src === 'object' ? { kind: 'json', obj: src, text: JSON.stringify(src) } : null;
+  var what = k && k.kind === 'json' ? addJsonWhat(k.obj) : '', mine = [].concat(here || []);
+  if (!what || mine.indexOf(what) >= 0 || !addFileGo(what, k, name)) return false;
+  var it = ADD_FILE_KINDS[what] || {}, at = ADD_FILE_KINDS[mine[0]];
+  uiConfirm({ title: it.title || 'Another screen’s file',
+    body: (name || 'This file') + ' is ' + (it.noun || 'another screen’s file') + (at ? ', not ' + at.noun : '') + '. It is imported on ' + addFileWhere(what) + '.',
+    okLabel: 'Import it there' })
+    .then(function(ok) { return ok && addFileGuardOk(what); })
+    .then(function(ok) { if (ok) addGo(addFileGo(what, k, name), { stay: what === 'backup' }); });
+  return true;
 }
 /* What arrived, in words, for a file no import takes. */
 function addFileWords(k) {

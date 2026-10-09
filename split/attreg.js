@@ -487,16 +487,16 @@ function aregImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var r = new FileReader();
-    r.onload = function(e2) { aregImportText(e2.target.result); };
+    r.onload = function(e2) { aregImportText(e2.target.result, f.name); };
     r.readAsText(f);
   };
   inp.click();
 }
 /* A sep-att-register file's text, from the Register's Import or from Add → File (add.js). */
-function aregImportText(text) {
+function aregImportText(text, name) {
   var res;
   try { res = aregImportData(JSON.parse(text)); } catch (e) { res = { error: 'Not a register file' }; }
-  if (res.error) { showToast(res.error, 'error'); return; }
+  if (res.error) { if (!addFileElsewhere(text, name, 'register')) showToast(res.error, 'error'); return; }
   if (res.months.length) _aregMonth = res.months.sort()[res.months.length - 1];
   saveState();
   _attView = 'register';

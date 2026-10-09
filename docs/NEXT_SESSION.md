@@ -7,7 +7,7 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
-## Built 9 Oct 2026, the second: a register run's start (read this first)
+## Built 9 Oct 2026, the second: a register run's start, and a file at the wrong Import (read this first)
 
 The owner sent the day's two register pages to be made into an import file; Samarth's batch on VAT A2 is written with its END
 and no START, and the reader saved it as 11:45 to 11:45. Asked, the owner: *"Yes, fix the reader"*. **A run that opens on an END
@@ -15,7 +15,11 @@ starts where the batch before it ended** (the last END above it on the page), wh
 split it from its START's run; with none above it, its start is amber. Runs saved before the fix, from a photo or a file the
 reader built, are put right at start-up from the END before them on their page (`startWas`): four on the owner's book. P85
 pins both and fails on the build before. **Data flow changed:** a plated register entry may carry `startWas` (the row below).
-Still the owner's: everything left under the section below.
+
+The owner then imported that file on Production → Equipment, which takes the plant register, and was told *Not a plant file* with
+no way on. **Every screen's Import now names another screen's file and offers Import it there**, through Add → File's route and
+guard (`addFileElsewhere`); Add → File takes a knowledge file too, and Power's import counts cuts apart from other entries. P196,
+failing on the build before. No data flow changed. Still the owner's: everything left under the section below.
 
 ## Built 9 Oct 2026: production read whole, stock by line, one spec for the map and the load
 

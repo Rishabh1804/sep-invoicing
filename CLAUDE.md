@@ -43,7 +43,12 @@ overview each, Insights in Today, Bills & notes split, a cheque in hand counted 
 spec that's still to be implemented. Combine them into one spec."*). Seven steps in one PR: TM1 the shell (with the phone's Filter
 and More, and P195, the benchmark's instrument), TM2 Today, TM3 Money, TM4 Floor, TM5 Office, TM6 across the app, TM7 the docs and
 the measures. Every surveyed screen has its step and its target (§3d), the calls the spec makes are listed for the owner (§1a), and
-no step may leave a screen longer (I10). **Not built: the build and the QA chain wait for the owner's word.**
+no step may leave a screen longer (I10). **Revised the same day with one look** (owner: *"UI still feels inconsistent to me … we
+need to plan properly"*): a census of every screen found the components consistent and the screens' assembly not (of 60 phone
+screens and views, 34 lead with no summary at all; the rest lead five different ways). §3e gives four kinds of screen (overview,
+work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
+row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Not built:
+the build and the QA chain wait for the owner's word.**
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names

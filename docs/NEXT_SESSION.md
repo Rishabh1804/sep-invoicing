@@ -16,6 +16,10 @@ split it from its START's run; with none above it, its start is amber. Runs save
 reader built, are put right at start-up from the END before them on their page (`startWas`): four on the owner's book. P85
 pins both and fails on the build before. **Data flow changed:** a plated register entry may carry `startWas` (the row below).
 
+**The spec was revised for one look** (owner: *"UI still feels inconsistent to me … we need to plan properly"*): `docs/TAB_MAP.md`
+§3e (four kinds of screen, one anatomy each, the verdict card, P197), §3d (every screen's kind and what its verdict card says),
+calls 9–14 in §1a for the owner, TM1's new pieces, TM6f, and a stop after TM2 for the owner to look.
+
 The owner then imported that file on Production → Equipment, which takes the plant register, and was told *Not a plant file* with
 no way on. **Every screen's Import now names another screen's file and offers Import it there**, through Add → File's route and
 guard (`addFileElsewhere`); Add → File takes a knowledge file too, and Power's import counts cuts apart from other entries. P196,
@@ -41,7 +45,7 @@ PR #144, from the owner's messages of 9 Oct 2026. CLAUDE.md has each part.
 - On Stock → To check, *Use the new reading* on the 25–28 Sep zinc message and the 4–6 Oct 16 Salt message, so their uses are split
   by bath.
 - The order of PP2, PP4 and PP5 (`docs/PLANT_PICTURE.md`).
-- The calls the spec makes (`docs/TAB_MAP.md` §1a), and the word to build it.
+- The calls the spec makes (`docs/TAB_MAP.md` §1a, 1 to 14; 9 to 14 are one look's), and the word to build it.
 
 **Data flows changed:** stock entries gain `lines` (`sep-stock`); production gains `seriesRules` and `gaugeRuled`
 (`sep-production`); a client may carry `defaultKgPc`. The table below has the detail.

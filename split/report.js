@@ -299,7 +299,7 @@ function rptBreakdownHtml(p, end, ctx) {
         });
       });
       return [escHtml(prodLineName(l)), recd ? heads + (need ? ' / ' + need : '') : '', r.entries.length && r.kg > 0 ? (r.est > 0.0005 ? '≈ ' : '') + rptInt(r.kg) : '',
-        r.entries.length && r.pieces ? rptInt(r.pieces) + (r.unweighed ? ' (' + rptInt(r.unweighed) + ' not weighed)' : '') : '', r.entries.length && r.rounds ? r.rounds : ''];
+        r.entries.length && r.pieces ? rptInt(r.pieces) + (r.unweighed ? ' (' + rptInt(r.unweighed) + ' not weighed)' : '') : '', r.entries.length && r.rounds ? Math.round(r.rounds) : ''];
     });
     var cov = prodCoverage(d, d);
     return rptSec('lines', 'By line', escHtml('Heads on the general shift against the day’s number; plated as the register, the relay or a hand entry counts it (one figure per line and shift). ' +

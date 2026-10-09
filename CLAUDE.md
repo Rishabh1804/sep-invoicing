@@ -187,7 +187,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,610 tests, both layouts
+pnpm exec playwright test          # 1,612 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1965,16 +1965,43 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   pickling loads; the week against capacity. Coloured by the plant's efficiency (`prodDayEfficiency`), made worse by a general shift
   with heads and no record or a tenth of the pieces unweighed.
 - **A line's efficiency** (`prodLineEfficiency`): what it plated against what its **working units** could plate in the **time it
-  ran**: the kg a round of the units running that day (the plant register), a round every so many minutes (the planner's pace: set,
-  else the register's rounds, else assumed, said which), the general shift (8:30 AM to 5 PM) where it ran or had heads and each
-  overtime run from start to end (a morning run with no end ends at 8:30; any other is not counted, and said), less the power cuts
-  inside. Where the register counted rounds it splits into the **load** (the counted rounds' kilos a round, of what a round holds) and
-  the **pace** (what is left: the rounds' worth run, of those the time allowed), so pace × load is the figure; a run written without
-  its rounds (a slot typed as text, the barrel list) adds kilos and no round, and the card says how many were counted and what came
-  without rounds. **Floor → Day's line cards are heroes coloured by it** (75% ok, 50% warning, under it
+  ran**: the kg a round of the units running that day (the plant register), a round every so many minutes (the register's own pace
+  once firm, below; else the planner's: set, else the register's rounds, else assumed, said which), the general shift (8:30 AM to
+  5 PM) where it ran or had heads and each overtime run from start to end (a morning run with no end ends at 8:30; any other is not
+  counted, and said), less the power cuts inside. **Floor → Day's line cards are heroes coloured by it** (75% ok, 50% warning, under it
   danger; over 110% is info, *check the kg a round or the pace*), and **half or more of a line's units down is danger whatever its
   efficiency** and leads the card (*3 of 6 barrels down*); a general shift with heads and no record is at least warning. The inputs
-  are on the card, so a figure that looks wrong leads to the input that made it. On the owner's book: VAT A1 45–61%, VAT A2 9–65%.
+  are on the card, so a figure that looks wrong leads to the input that made it.
+- **How the efficiency splits** (owner, 9 Oct 2026: *"We'll do both, so solutions for efficiency can be worked out"*), where the
+  register counted rounds, four factors whose product is the figure (`prodLineEfficiency`; Floor → Day's line card, `flrEffRowHtml`):
+  - **time**: the rounds run against the rounds the hours allowed (hours over the pace, to a tenth: *ran 25 rounds where the hours
+    allowed 24.5 (102%)*). Every round the register counted, and kilos written without rounds as rounds' worth at a weighed round's
+    kilos; past a quarter of the line's kilos that is a guess at another mix, so the time is **not told apart** and the card says how
+    many kilos came without rounds;
+  - **racks**: how full each round was, against its part's fullest: the run's own fullest round, or a named part's usual round on the
+    line where that is more (`prodUsualRack`: the size the register counts most for it, from 5 rounds with half of them that size; a
+    kind of part has none, since Mehta's clamps take 150 or 120 by gauge). **The parts run at part-full racks are named** (`partFull`:
+    the part, its client, how full, over how many rounds of what);
+  - **parts**: what a full round of the day's parts weighs against the line's round (*a full round of the day's parts is 44 kg, 76% of
+    the line's usual 59 kg*): the work, not a fault, and the sign of a typed round that does not fit the line's parts;
+  - **not weighed**: a round with no weight adds no kilos, so the figure reads low by what such rounds would have held.
+
+  The row's title names what moved it most: under its usual, the factor that lost most (*The time lost most*, *Part-full racks lost
+  most*, *Lighter parts than the line's round*, *Rounds with no weight read it low*); at or over it, what raised it (*Heavier parts than
+  the line's round*, *Faster than its usual pace*); *How it splits* where the time hides it. **A round two runs share** (a register row
+  *MEHTA+GENERAL / LINER+188CD / 39+50*, or a group of codes shared out) is in each run at the same time: one round, a share of it in
+  each (`prodDayLine`'s `at`), full as it was, never part-full by its own share; the pace and the tank's round count it once and the
+  tank's round joins its shares' kilos (only when every share is weighed). On the owner's book of 9 Oct: VAT A1's ordinary days lose
+  most to the time (73–84%: the first round comes at 9 or 10 on an 8:30 shift), its racks 94–100% full, its parts 75–96% of its
+  round, heavy-clamp days over (29 Sep 140%: 148% parts); VAT A2's parts are 22–77% of the 90 kg typed on its tanks, and up to 43% of
+  its rounds' work has no weight. P191.
+- **The register's own pace** (`prodLinePace`; owner, 9 Oct 2026: *"Yes"*, to the measured pace replacing the set one once firm, as the
+  tank's round does): per shift (the general shift, and an overtime block on its own, so the hour between them is no round), from its
+  first round to its last less the cuts inside, over the rounds between (a batch's rounds whole, its START the first); shifts of 8
+  rounds or more, the median over the 60 days to today. **Firm at 5 shifts** it is the line's pace in place of the one set
+  (`everySrc: 'measured'`, *(measured)* in the card's sub and what it replaced); not firm, the set pace stands and the card says what
+  the register measures. On the owner's book: VAT A1 a round every 18.6 minutes over 11 shifts (set 19), VAT A2 every 31 over 9 (set
+  20).
 - **What a tank takes a round, measured** (`prodTankLoad`; owner, 9 Oct 2026: *"Each register line on A1 includes 3 tanks out of the
   4 available, 150 kg/3 = 50 kg an hour per tank inside VAT A1 area. If confidence on rack capacity becomes high it should override
   defaults. Each register line on A2 includes 2 tanks"*): a round of the register is every tank working on the line that day, so a
@@ -1986,11 +2013,10 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   over 110% reads *Over its usual* (heavier rounds or a quicker pace), counted in the day's figure; not firm, the typed figure stands
   and the card says what the register measures and why it is not firm. The plant strip's *plating N kg a round* reads it too
   (`pltUsed`; the planner's reading only for a line with no rounds). On the owner's book of 9 Oct, with Mehta's default and the
-  owner's answers on the round of 108 and the liners: **VAT A1 is firm**, 19.5 kg a tank (58.5 kg a round over 3 tanks), 80% of 256
-  rounds from parts' own weights, and reads 72–87% on most days; heavy-clamp days read over (29 Sep 145%, 7 Oct 133%), since a
-  round of 108 clamps of 35X6 and up weighs about 95 kg, which is the mix and not the line, said as *Over its usual*. VAT A2 is 22
-  kg a tank, 62%, not firm: its typed 90 kg stands, and its set pace (a round every 20 minutes) is about half what the register
-  measures (about 36). P191.
+  owner's answers on the round of 108 and the liners: **VAT A1 is firm**, 19.6 kg a tank (58.9 kg a round over 3 tanks), 80% of 250
+  rounds from parts' own weights (a shared round once), and reads 70–84% on most days; heavy-clamp days read over (29 Sep 140%,
+  7 Oct 129%), since a round of 108 clamps of 35X6 and up weighs about 95 kg, which is the mix and not the line, said as *Over its
+  usual*. VAT A2 is 22 kg a tank, 62%, not firm: its typed 90 kg stands. P191.
 - **The pieces nothing weighs are a follow-up list**: on the day card and Floor → Day (*Not weighed*, under the cards; the plated tile
   brings it into sight), each floor name with its client, lines and pieces and two moves: **Which part?** (learns the name as one of
   the client's parts, `prodLearnAlias`) and **Set its weight** (a kg a piece on the client's card, from the first day the name was

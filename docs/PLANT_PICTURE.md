@@ -1,7 +1,7 @@
 # The plant picture
 
-**Status, 9 Oct 2026.** PP1 is built, on PR #144, with what a tank takes a round measured and Mehta's default weight a piece
-(§5, question 1). The owner has answered the four questions in §5, and PP3 (stock by line) is next. PP2, PP4 and PP5 are proposals;
+**Status, 9 Oct 2026.** PP1 is built, on PR #144, with what a tank takes a round and the register's pace measured, the efficiency
+split four ways, and Mehta's default weight a piece (§5, questions 1 and 2). The owner has answered the four questions in §5, and PP3 (stock by line) is next. PP2, PP4 and PP5 are proposals;
 their order is the owner's to set.
 
 ## 1. What the owner asked
@@ -67,17 +67,19 @@ CLAUDE.md under *A day's plating, whole*.
 **Equipment, attendance and power are tied to production through each line's efficiency.**
 - Efficiency is what the line plated against what its working units could plate in the time it ran.
 - The time it ran comes from the general shift where it had heads, plus its overtime runs, less the power cuts.
-- Where the register counted rounds, the efficiency splits into pace and load.
+- Where the register counted rounds, the efficiency splits into four factors whose product is the figure: the time (the rounds run
+  against those the hours allowed), the racks (how full each round was, with the parts run part-full named), the parts (what a full
+  round of the day's parts weighs against the line's round) and the rounds with no weight.
 - Floor's line cards are coloured by it.
 - Half or more of a line's units down colours the card red whatever the efficiency, and leads the card.
 
-On 8 Oct:
+On 8 Oct, with the round and the pace measured (§5):
 
 | Line | Efficiency | What it shows |
 |---|---|---|
-| VAT A1 | 61% | Ran 27 of 35 rounds and loaded 78% of its 90 kg a round |
-| VAT A2 | 28% | Ran 16 of 33 rounds, and 1,386 pieces had no weight |
-| Barrel | 15% | Three of six barrels down, and no record of the general shift |
+| VAT A1 | 111% | Over its usual. 896 kg were written without rounds beside the 27 the register counted, so the time is not told apart; its racks were full and its parts 93% of its 59 kg round |
+| VAT A2 | 44% | Its parts are 75% of the 90 kg typed on its tanks, and 9 of its 16 rounds have no weight (about 41% of the work) |
+| Barrel | 15% | Three of six barrels down, and no rounds counted |
 
 **The pieces with no weight are a follow-up list.**
 - Each floor name has two moves: *Which part?* and *Set its weight*.
@@ -88,7 +90,7 @@ On 8 Oct:
 Each of these is one PR.
 
 - **PP2 · The line over time** (Production → Lines, Floor).
-  - Each line's efficiency by day as a coloured week grid, with pace and load over the weeks.
+  - Each line's efficiency by day as a coloured week grid, with the time, the racks and the parts over the weeks.
   - For each line and week, where the units' time went: what the units could plate, less what stood down, less the cuts, less the
     time nothing was run, ending in what was plated.
   - The same picture for the plant as a whole.
@@ -150,6 +152,19 @@ Each of these is one PR.
 
    *"It is approximately right, till we have more concrete data."* Kept as set. The register is measuring A1's pace too, at 19
    minutes over 7 days.
+
+   *Then, asked whether the register's pace should replace the set one once firm, as the tank's round does, and whether to keep the
+   load against the line's round or show how full the racks are for each part: "1. Yes 2. We'll do both, so solutions for efficiency
+   can be worked out."* Built (P191):
+   - The register's pace is measured per shift: its first round to its last, less the cuts, over the rounds between, the median of
+     the shifts with 8 rounds or more over 60 days. Firm at 5 shifts, it replaces the set pace. On the 9 Oct book VAT A1 is a round
+     every 18.6 minutes (set 19) and VAT A2 every 31 (set 20), both firm.
+   - The efficiency splits four ways, and the four multiply to the figure: the time, the racks (with the parts run part-full named),
+     the parts, and the rounds with no weight. Its title names what moved it most. A round two clients share counts once and is full
+     as it was.
+   - On that book VAT A1's ordinary days lose most to the time (73–84%: the first round comes at 9 or 10 on an 8:30 shift); its racks
+     are 94–100% full. VAT A2's parts are 22–77% of the 90 kg typed on its tanks, so the typed figure is high for what it runs, and
+     up to 43% of its rounds' work has no weight.
 3. **The bath named in a stock message.** Should the app read it? (PP3)
 
    *"Exactly."* PP3 is next. A zinc line such as "use VAT A 2 / 25/09/26/ 150 kg VAT 1 / 28/09/26/ 175 kg berral use 75 kg" is saved

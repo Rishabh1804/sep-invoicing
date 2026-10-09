@@ -143,7 +143,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('#flrDate').dispatchEvent('change');
     const card = page.locator('#flrLines > [data-line="vat-a2"]');
     await expect(card.locator('.inv-hero-sub')).toContainText('2 of 2 tanks working · 50 kg a round (measured)');
-    await expect(card.locator('[data-flr-effparts]')).toContainText('ran 6 of the 17 rounds the time allowed (35%)');
+    await expect(card.locator('[data-flr-effparts]')).toContainText('time: ran 6 rounds where the hours allowed 17 (35%)');
     await expect(card.locator('[data-flr-effparts]')).toContainText('a round measured on the register: 25 kg a tank × 2, 36 rounds over 6 days, in place of the 90 kg typed');
     // The plant strip says what the line plates a round, and that it is the line's round now.
     await switchTab(page, 'pageProduction');
@@ -167,6 +167,76 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // The plant strip reads the register's figure against the typed round while it is not firm.
     const used: any = await g(page, `(function(){ var c = pltCapacity('vat-a2'); return [Math.round(c.used.kgRound), Math.round(c.used.pct * 100)]; })()`);
     expect(used).toEqual([50, 56]);
+  });
+
+  // The owner's answers of 9 Oct: "1. Yes" (the register's pace, once firm, in place of the one set) and "2. We'll do both, so
+  // solutions for efficiency can be worked out" (the load as how full the racks were and what the parts weigh).
+  // VAT A2's two tanks typed at 45 kg, a round set every 30 minutes. Before the day, `days` days of GEAR 5 (0.5 kg) at 100 a
+  // round, every 20 minutes from 9:00 to 11:40; on the day GEAR 9 (1 kg) the same way, its last round 40.
+  function paceBook(days: number, opts: { shared?: boolean, unweighed?: boolean } = {}): SepState {
+    const s: any = tankBook(0);
+    s.clients[0].pieceWeights.push({ partNumber: 'GEAR 9', gauge: '', kgPerPiece: 1, effectiveFrom: '2020-04-01' });
+    s.clients.push(client(42, 'ATLAS PRESS', 'weight', 10, { pieceWeights: [{ partNumber: 'SPACER 3', gauge: '', kgPerPiece: 0.5, effectiveFrom: '2020-04-01' }] }), client(43, 'ZENITH TOOLS', 'weight', 10));
+    const times = ['9:00 AM', '9:20 AM', '9:40 AM', '10:00 AM', '10:20 AM', '10:40 AM', '11:00 AM', '11:20 AM', '11:40 AM'];
+    const e = (id: string, date: string, clientId: number, part: string, rounds: any[], time = '09:00', to = '11:40') => ({ id, kind: 'plated', date, line: 'vat-a2', lineSrc: 'written',
+      slot: 'general', time, to, clientId, part, qty: rounds.reduce((t, x) => t + x.qty, 0), unit: 'NOS', basis: 'register', src: 'photo', at: 1, rounds });
+    for (let i = 1; i <= days; i++) s.production.entries.push(e('P' + i, before(-i), 41, 'GEAR 5', times.map(t => ({ time: t, qty: 100 }))));
+    s.production.entries.push(e('G', D, 41, 'GEAR 9', times.map((t, k) => ({ time: t, qty: k === 8 ? 40 : 100 }))));
+    // A round two clients shared: the last round held GEAR 9's 40 and ATLAS's 60 spacers.
+    if (opts.shared) s.production.entries.push(e('S', D, 42, 'SPACER 3', [{ time: '11:40 AM', qty: 60 }], '11:40', '11:40'));
+    // Two rounds of a part nothing weighs.
+    if (opts.unweighed) s.production.entries.push(e('U', D, 43, 'MYSTERY', [{ time: '12:00 PM', qty: 100 }, { time: '12:20 PM', qty: 100 }], '12:00', '12:20'));
+    return s as SepState;
+  }
+  const eff = (page: Page) => g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a2'); var r = function(x) { return x == null ? null : Math.round(x * 100); };
+    return [o.every, o.everySrc, o.everySet, o.cycle.shifts, o.kgSrc, o.kgAvail, o.rounds, Math.round(o.roundsPossible * 10) / 10, r(o.eff), r(o.pace), r(o.racks), r(o.parts), r(o.weighed),
+      Math.round(o.pace * o.racks * o.parts * o.weighed * 1000) === Math.round(o.eff * 1000)]; })()`);
+  const openDay = async (page: Page) => {
+    await switchTab(page, 'pageFloor');
+    await page.locator('#flrDate').fill(D);
+    await page.locator('#flrDate').dispatchEvent('change');
+    return page.locator('#flrLines > [data-line="vat-a2"]');
+  };
+
+  test('the register’s pace, firm, replaces the one set; the load splits into racks and parts, and the four multiply to the figure', async ({ page }) => {
+    await loadAppWithState(page, paceBook(6));
+    // Seven shifts of 9 rounds over 160 minutes: a round every 20, in place of the 30 set. The tanks' round is measured too:
+    // 25 kg a tank (GEAR 5's 100 at 0.5 kg over two tanks), so the line's round is 50. The general shift's 510 minutes allow
+    // 25.5 rounds; 9 ran (35%). GEAR 9's racks: 840 pieces of the 900 nine full rounds hold (93%). A full round of GEAR 9 is
+    // 100 kg, twice the line's usual 50 (200%). 35% × 93% × 200% is the 66% the line plated of what it could.
+    expect(await eff(page)).toEqual([20, 'measured', 30, 7, 'measured', 50, 9, 25.5, 66, 35, 93, 200, 100, true]);
+    const card = await openDay(page), parts = card.locator('[data-flr-effparts]');
+    await expect(card.locator('.inv-hero-sub')).toContainText('50 kg a round (measured) · a round every 20 min (measured)');
+    await expect(parts.locator('.inv-row-title')).toHaveText('The time lost most');
+    await expect(parts).toContainText('time: ran 9 rounds where the hours allowed 25.5 (35%)');
+    await expect(parts).toContainText('racks: 93% full, each round against its part’s fullest');
+    await expect(parts).toContainText('part-full: GEAR 9, NOVA GEARS at 93% over 9 rounds of 100');
+    await expect(parts).toContainText('parts: a full round of the day’s parts is 100 kg, 200% of the line’s usual 50 kg');
+    await expect(parts).toContainText('a round every 20 min measured on the register over 7 shifts, in place of the 30 set');
+    await expect(parts).not.toContainText('not weighed');
+  });
+
+  test('a round two clients share is one round, full as it was; rounds with no weight are said; a pace not yet firm is only said', async ({ page }) => {
+    // The last round held 40 gears and 60 spacers: one round (9, not 10), and nobody's racks part-full by it.
+    await loadAppWithState(page, paceBook(6, { shared: true }));
+    expect(await eff(page)).toEqual([20, 'measured', 30, 7, 'measured', 50, 9, 25.5, 68, 35, 100, 193, 100, true]);
+    let parts = (await openDay(page)).locator('[data-flr-effparts]');
+    await expect(parts).toContainText('time: ran 9 rounds where the hours allowed 25.5 (35%)');
+    await expect(parts).toContainText('racks: 100% full');
+    await expect(parts).not.toContainText('part-full');
+    // Two rounds of a part nothing weighs: the time counts them (11 of 25.5), and what they held is said as left out.
+    await loadAppWithState(page, paceBook(6, { unweighed: true }));
+    expect(await eff(page)).toEqual([20, 'measured', 30, 7, 'measured', 50, 11, 25.5, 66, 43, 93, 200, 82, true]);
+    parts = (await openDay(page)).locator('[data-flr-effparts]');
+    await expect(parts).toContainText('time: ran 11 rounds where the hours allowed 25.5 (43%)');
+    await expect(parts).toContainText('not weighed: 2 of the 11 rounds, about 18% of the work, so the figure reads low');
+    // Four shifts: the pace is not firm, so the 30 set stands and the register's 20 is said beside it.
+    await loadAppWithState(page, paceBook(3));
+    const o: any = await g(page, `(function(){ var o = prodLineEfficiency('${D}', 'vat-a2'); return [o.every, o.everySrc, o.cycle.every, o.cycle.firm, o.cycle.why]; })()`);
+    expect(o).toEqual([30, 'set', 20, false, '4 of the 5 shifts it needs']);
+    const card = await openDay(page);
+    await expect(card.locator('.inv-hero-sub')).toContainText('a round every 30 min (set)');
+    await expect(card.locator('[data-flr-effparts]')).toContainText('the register’s rounds come every 20 min, not firm: 4 of the 5 shifts it needs');
   });
 
   // The owner's answers of 9 Oct: a round of 108 of Mehta's clamps on VAT A1 is "above 32x6"; "126 - 150xxxxxx series, 90/87 -

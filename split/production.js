@@ -724,6 +724,18 @@ function prodUsualLines(idx) {
 }
 function prodUsualLine(key) { return (prodIndex().usual || {})[key] || null; }
 
+/* A named part's usual round on a line: the size the register counts most for it there, from 5 rounds with that size half
+   of them. A run naming only a kind of part has none: a kind mixes sizes whose racks differ (Mehta's clamps run 150 or 120 a
+   round by gauge, and 72 of a larger one). */
+function prodUsualRack(e) {
+  if (!e.line || e.clientId == null) return null;
+  var named = !!e.partNumber;
+  if (!named) { var map = prodData().learn.parts[prodKey(e.clientId, e.part, e.gauge)]; named = !!(map && map.partNumber); }
+  if (!named) return null;
+  var seen = prodIndex().racks[e.line + '|' + prodEntryKey(e)] || {}, total = 0, top = null;
+  Object.keys(seen).forEach(function(z) { total += seen[z]; if (top == null || seen[z] > seen[top]) top = +z; });
+  return total >= 5 && top != null && seen[top] >= total / 2 ? top : null;
+}
 /* Rack sizes seen per line and part, counted over rounds actually counted (a START or struck round is not). */
 function prodRackSizes(idx) {
   var out = {};
@@ -911,7 +923,15 @@ function prodCompleteDays(from, to) {
    kind estimates allow, `unweighed` the pieces no route weighs. Rework is named apart (it counts as work). */
 function prodDayLine(date, line) {
   var r = { nos: 0, kg: 0, pieces: 0, weighedPieces: 0, unweighed: 0, rounds: 0, entries: [], rework: 0,
-    by: { written: 0, record: 0, challans: 0, 'default': 0, kind: 0 }, est: 0, low: 0, high: 0, kgWritten: 0, kgRounds: 0, roundsWeighed: 0 };
+    by: { written: 0, record: 0, challans: 0, 'default': 0, kind: 0 }, est: 0, low: 0, high: 0, kgWritten: 0, kgRounds: 0, roundsWeighed: 0, kgFull: 0, racked: {} };
+  // A round two runs share (a row of the register written "MEHTA+GENERAL / LINER+188CD / 39+50") is in each run at the same
+  // time: each share is part of one round, so it is full by what the round held, never part-full by its own share.
+  var at = {};
+  prodIndex().counted.forEach(function(e) {
+    if (e.date !== date || e.line !== line || e.qty == null) return;
+    var seen = {};
+    (e.rounds || []).forEach(function(x) { if (!x.struck && x.time && !seen[x.time]) { seen[x.time] = true; at[x.time] = (at[x.time] || 0) + 1; } });
+  });
   prodIndex().counted.forEach(function(e) {
     if (e.date !== date || e.line !== line || e.qty == null) return;
     r.entries.push(e);
@@ -924,16 +944,37 @@ function prodDayLine(date, line) {
       r.low += w.low != null ? w.low : w.kg; r.high += w.high != null ? w.high : w.kg;
       if (prodWeighEst(w)) r.est += w.kg;
     }
-    // A batch written as racks × rounds ("98×8+1", an END row) is its rounds, not one.
+    // A batch written as racks × rounds ("98×8+1", an END row) is its rounds, not one; a round shared by k runs is 1/k in each.
     var n = 0;
-    (e.rounds || []).forEach(function(x) { if (!x.struck) n += x.n > 0 ? x.n : 1; });
+    (e.rounds || []).forEach(function(x) { if (!x.struck) n += x.n > 0 ? x.n : at[x.time] > 1 ? 1 / at[x.time] : 1; });
     if (!e.rounds && e.racks) n += e.racks;
     r.rounds += n;
     // The kilos of the runs whose rounds were counted, with those rounds: a round's load is read over these alone, since a
     // run written without its rounds (a slot typed as text, the barrel list) adds kilos and no round.
-    if (n > 0 && w.kg != null) { r.kgRounds += w.kg; r.roundsWeighed += n; }
+    if (n > 0) {
+      // At full racks: each round at its part's fullest, the run's own fullest round (the rack a batch writes, the part's rule)
+      // or the part's usual round on the line where that is more, so what a round holds splits into how full the racks were
+      // and what the parts weigh (owner, 9 Oct 2026: "We'll do both").
+      var full = Math.max(prodEntryRack(e) || 0, prodUsualRack(e) || 0) || (e.qty / n), cap = Math.max(e.qty, n * full);
+      // Round by round where the rounds carry the run's pieces: a shared round is full as it was.
+      var rq = (e.rounds || []).filter(function(x) { return !x.struck; }), qs = rq.reduce(function(t, x) { return t + (x.qty > 0 ? x.qty : 0); }, 0);
+      if (rq.length && Math.abs(qs - e.qty) < 0.5) cap = Math.max(e.qty, rq.reduce(function(t, x) {
+        var q = x.qty > 0 ? x.qty : 0;
+        return t + (at[x.time] > 1 ? q : Math.max(q, (x.n > 0 ? x.n : 1) * full));
+      }, 0));
+      if (w.kg != null) { r.kgRounds += w.kg; r.roundsWeighed += n; r.kgFull += e.qty > 0 ? w.kg / e.qty * cap : w.kg; }
+      // Each part's rounds, for the parts run at part-full racks: the pieces against the pieces full racks hold.
+      if (e.unit === 'NOS' && e.qty > 0) {
+        var pk = (e.clientId != null ? String(e.clientId) : '?' + (e.client || '')) + '|' + (e.partNumber || e.part || '');
+        var rp = r.racked[pk] || (r.racked[pk] = { clientId: e.clientId, client: e.client || '', part: e.partNumber || e.part || '', gauge: e.gauge || '', n: 0, qty: 0, cap: 0, kgLost: 0, fulls: {} });
+        rp.n += n; rp.qty += e.qty; rp.cap += cap; rp.fulls[Math.round(full)] = true;
+        if (w.kg != null) rp.kgLost += (cap - e.qty) * w.kg / e.qty;
+      }
+    }
   });
   r.weighedShare = r.pieces ? r.weighedPieces / r.pieces : 1;
+  // Shares of a round add up to whole rounds; a third three times is not exactly one in floating point.
+  r.rounds = Math.round(r.rounds * 1000) / 1000; r.roundsWeighed = Math.round(r.roundsWeighed * 1000) / 1000;
   return r;
 }
 /* A day's plating over the three lines, as Production's tile reads it (Overview; Floor → Day): the tonnes are the figure
@@ -1095,13 +1136,69 @@ var PROD_EFF_OK = 0.75, PROD_EFF_LOW = 0.5;
    weighed; then prodLineEfficiency reads it in place of the kg a round typed on the units, the default set before anything
    was measured. Kept with the weighing index, so a save works it out again. */
 var PROD_TANK_DAYS = 60, PROD_TANK_ROUNDS = 30, PROD_TANK_DAYS_MIN = 5, PROD_TANK_LINKED = 0.8;
+
+/* ---------- How long a round takes, measured ----------
+   Owner, 9 Oct 2026, asked whether the register's pace should replace the one set once it is firm, as the tank's round does:
+   "Yes". A shift's pace on a line (the general shift, or an overtime block on its own) is the span of its register runs (the
+   first start to the last round), less the power cuts inside it, over the intervals between its rounds: one fewer than the
+   rounds where each round is logged (VAT A1), as many as the rounds where a batch's END carries them (VAT A2, "3×156"). The
+   median over the shifts of the 60 days to today with 8 rounds or more; firm at 5 such shifts, it is the line's pace in the
+   efficiency in place of the one set (the planner keeps its own). */
+var PROD_PACE_ROUNDS = 8, PROD_PACE_SHIFTS = 5;
+function prodLinePace(line) {
+  var iso = localDateStr(), widx = prodWeighIndex(), memo = widx.pace || (widx.pace = {});
+  if (memo[line]) return memo[line];
+  var from = isoAddDays(iso, -(PROD_TANK_DAYS - 1)), days = {};
+  prodIndex().counted.forEach(function(e) {
+    if (e.kind !== 'plated' || e.line !== line || e.basis !== 'register' || !Array.isArray(e.rounds) || e.date < from || e.date > iso) return;
+    var a = relayParseHhmm(e.time), b = relayParseHhmm(e.to);
+    if (a == null || b == null) return;
+    if (b < a) b += 1440;
+    // A block of overtime is its own span: the hour between the shift's last round and the evening's first is no round.
+    var k = e.date + '|' + (e.slot === 'ot' ? 'ot' : 'general'), d = days[k] || (days[k] = { date: e.date, a: a, b: b, n: 0, batch: false, seen: {} });
+    // A round two runs share is written in each at the same time: one round of the line.
+    e.rounds.forEach(function(x) {
+      if (x.struck) return;
+      if (x.n > 1 || x.batch) { d.n += x.n > 0 ? x.n : 1; d.batch = true; return; }
+      if (x.time && d.seen[x.time]) return;
+      if (x.time) d.seen[x.time] = true;
+      d.n++;
+    });
+    if (a < d.a) d.a = a; if (b > d.b) d.b = b;
+  });
+  var list = [];
+  Object.keys(days).forEach(function(k) {
+    var d = days[k], iv = d.batch ? d.n : d.n - 1;
+    if (d.n < PROD_PACE_ROUNDS || !(iv > 0)) return;
+    var cut = 0;
+    (typeof powerCuts === 'function' ? powerCuts(d.date, d.date) : []).forEach(function(c) {
+      if (c.from == null) return;
+      var ca = c.from, cb = c.to == null ? c.from : c.to;
+      if (cb < ca) cb += 1440;
+      cut += Math.max(0, Math.min(cb, d.b) - Math.max(ca, d.a));
+    });
+    var span = d.b - d.a - cut;
+    if (span > 0) list.push(span / iv);
+  });
+  var o = { line: line, shifts: list.length, every: list.length ? numMedian(list) : null };
+  o.firm = o.every != null && list.length >= PROD_PACE_SHIFTS;
+  o.why = !list.length ? 'no shift on the register with ' + PROD_PACE_ROUNDS + ' rounds in the 60 days' : o.firm ? '' : list.length + ' of the ' + PROD_PACE_SHIFTS + ' shifts it needs';
+  memo[line] = o;
+  return o;
+}
 function prodTankLoad(line, iso) {
   iso = iso || localDateStr();
   var widx = prodWeighIndex(), memo = widx.tank || (widx.tank = {}), key = line + '|' + iso;
   if (memo[key]) return memo[key];
   var from = isoAddDays(iso, -(PROD_TANK_DAYS - 1)), tanks = {}, perRound = [], perTank = [], days = {}, linked = 0;
+  var mine = function(e) { return e.kind === 'plated' && e.line === line && e.basis === 'register' && Array.isArray(e.rounds) && e.qty > 0 && e.date >= from && e.date <= iso; };
+  var single = function(x) { return !x.struck && x.qty > 0 && !(x.n > 1) && !x.batch && x.time; };
+  // A round two runs share is in each at the same time: one round, its kilos the shares' together, counted only when every
+  // share is weighed (half a round is not a round's load).
+  var shares = {}, joint = {};
+  prodIndex().counted.forEach(function(e) { if (mine(e)) e.rounds.forEach(function(x) { if (single(x)) shares[e.date + '|' + x.time] = (shares[e.date + '|' + x.time] || 0) + 1; }); });
   prodIndex().counted.forEach(function(e) {
-    if (e.kind !== 'plated' || e.line !== line || e.basis !== 'register' || !Array.isArray(e.rounds) || !(e.qty > 0) || e.date < from || e.date > iso) return;
+    if (!mine(e)) return;
     var w = prodWeigh(e);
     if (w.kg == null) return;
     var kgPc = w.kg / e.qty, own = !prodWeighEst(w) || w.how === 'challans';
@@ -1109,11 +1206,22 @@ function prodTankLoad(line, iso) {
     var t = tanks[e.date];
     e.rounds.forEach(function(x) {
       if (x.struck || !(x.qty > 0)) return;
+      if (single(x) && shares[e.date + '|' + x.time] > 1) {
+        var j = joint[e.date + '|' + x.time] || (joint[e.date + '|' + x.time] = { kg: 0, got: 0, own: true, t: t, date: e.date });
+        j.kg += x.qty * kgPc; j.got++; if (!own) j.own = false;
+        return;
+      }
       // A batch written as racks × a rack ("3×156") is that many rounds of its share.
       var k = x.n > 0 ? x.n : 1, kg = x.qty / k * kgPc;
       for (var i = 0; i < k; i++) { perRound.push(kg); if (t) perTank.push(kg / t); if (own) linked++; }
       days[e.date] = true;
     });
+  });
+  Object.keys(joint).forEach(function(key) {
+    var j = joint[key];
+    if (j.got < shares[key]) return;
+    perRound.push(j.kg); if (j.t) perTank.push(j.kg / j.t); if (j.own) linked++;
+    days[j.date] = true;
   });
   var n = perRound.length, nDays = Object.keys(days).length, share = n ? linked / n : 0;
   var o = { line: line, from: from, to: iso, rounds: n, days: nDays, linked: linked, share: share,
@@ -1144,6 +1252,10 @@ function prodLineEfficiency(date, line) {
   var L = null;
   try { var B = typeof plnBase === 'function' ? plnBase() : null; L = B && B.lines ? B.lines[line] : null; } catch (e) { L = null; }
   if (L && L.every > 0) { o.every = L.every; o.everySrc = L.src; }
+  // The register's own pace, firm, in place of the one set (owner, 9 Oct 2026: "Yes").
+  var P = prodLinePace(line);
+  o.cycle = P;
+  if (P.firm) { o.everySet = o.every || null; o.everySetSrc = o.everySrc || null; o.every = P.every; o.everySrc = 'measured'; }
   // The time it ran, on the shop's day (6 AM to 6 AM the next): windows merged, the cuts inside them taken out.
   var att = (S.attendance || {})[date], staffed = !!prodStaffedLines(att)[line];
   var wins = [];
@@ -1183,15 +1295,26 @@ function prodLineEfficiency(date, line) {
     o.roundsPossible = roundsPossible;
     o.possible = o.kgAvail * roundsPossible;
     if (o.possible > 0) o.eff = o.kg / o.possible;
-    // The load over the counted rounds alone; the pace is what is left, so a run written without rounds counts as rounds'
-    // worth at that load. Where every kilo came from counted rounds, every one weighed, it is the rounds counted exactly.
+    // How it splits (owner, 9 Oct 2026: "We'll do both, so solutions for efficiency can be worked out"), four factors whose
+    // product is the figure:
+    // - the time: the rounds run against the rounds the hours allowed; every round the register counted, and kilos written
+    //   without rounds as rounds' worth at a weighed round's kilos;
+    // - the load, a weighed round's kilos against the line's round, two ways: the racks (how full each round was, against its
+    //   part's fullest round) and the parts (what a full round of the day's parts weighs); racks × parts is the load;
+    // - the weighed share: a round with no weight adds no kilos, so the figure reads low by what it would have held.
     if (r.roundsWeighed > 0 && o.kgAvail > 0 && o.eff != null) {
-      o.load = r.kgRounds / r.roundsWeighed / o.kgAvail;
-      o.pace = o.load > 0 ? o.eff / o.load : null;
-      o.roundsRun = o.pace != null ? o.pace * roundsPossible : null;
-      o.roundsOnly = r.kgRounds >= r.kg - 0.0005 && r.roundsWeighed === r.rounds;
+      var avgRound = r.kgRounds / r.roundsWeighed;
+      o.load = avgRound / o.kgAvail;
+      if (r.kgFull > 0) { o.racks = r.kgRounds / r.kgFull; o.fullRound = r.kgFull / r.roundsWeighed; o.parts = o.fullRound / o.kgAvail; }
       o.kgNoRounds = Math.max(0, r.kg - r.kgRounds); o.roundsUnweighed = Math.max(0, r.rounds - r.roundsWeighed);
+      o.roundsOnly = o.kgNoRounds < 0.5;
+      o.roundsRun = r.rounds + o.kgNoRounds / avgRound;
+      o.pace = o.roundsRun / roundsPossible;
+      o.weighed = o.roundsRun > 0 ? o.kg / (o.roundsRun * avgRound) : null;
     }
+    // The parts run at part-full racks, the most kilos short first (pieces where no weight is known).
+    o.partFull = Object.keys(r.racked).map(function(k) { return r.racked[k]; }).filter(function(p) { return p.cap > 0 && p.qty / p.cap < 0.97; })
+      .sort(function(a, b) { return b.kgLost - a.kgLost || (b.cap - b.qty) - (a.cap - a.qty); });
   }
   // The colour: the efficiency, then a line half or more down (owner: "Barrel is also a special case"), then a missing record.
   var rank = { neutral: 0, ok: 1, info: 1, warning: 2, danger: 3 }, worst = function(t) { if (rank[t] > rank[o.tone]) o.tone = t; };

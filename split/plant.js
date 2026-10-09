@@ -444,8 +444,9 @@ function pltRiskClean(r) {
   var p = +r.p > 1 ? +r.p / 100 : +r.p;
   return { p: Math.min(1, p), cost: Math.max(0, +r.cost || 0), days: Math.max(0, +r.days || 0), say: String(r.say || '') };
 }
-function pltImportText(text) {
-  if (!pltOwnerOk(function() { pltImportText(text); })) return;
+function pltImportText(text, name) {
+  if (addFileElsewhere(text, name, 'plant')) return;
+  if (!pltOwnerOk(function() { pltImportText(text, name); })) return;
   var obj;
   try { obj = JSON.parse(text); } catch (e) { showToast('Not valid JSON: ' + e.message, 'error'); return; }
   var r = pltMergeImport(obj);
@@ -457,8 +458,8 @@ function pltImportText(text) {
 document.addEventListener('change', function(e) {
   var t = e.target;
   if (!t || t.id !== 'pltFileInput' || !t.files || !t.files[0]) return;
-  var reader = new FileReader();
-  reader.onload = function(ev) { pltImportText(ev.target.result); };
-  reader.readAsText(t.files[0]);
+  var reader = new FileReader(), f = t.files[0];
+  reader.onload = function(ev) { pltImportText(ev.target.result, f.name); };
+  reader.readAsText(f);
   t.value = '';
 });

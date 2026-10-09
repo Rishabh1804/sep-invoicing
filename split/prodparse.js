@@ -982,9 +982,17 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // START / END: the END carries the run's figure; a START is where it began and is never a round of its own.
     out.rows.forEach(function(row, k) {
       if (row.start) { row.qty = null; return; }
-      if (row.end) row.batch = true;
-      if (row.end && !out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
-        row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
+      if (!row.end) return;
+      row.batch = true;
+      // A batch began where the batch before it ended: the last END above it, earlier on the clock (two shares of one round end
+      // together, and both began where the round before them ended). A run that opens on an END starts there (below), whether
+      // no START is written for it or its gauge split it from its START's run. Until 9 Oct 2026 the review said so and the run
+      // kept its END as its start: Samarth's batch of 10:30 to 11:45 read 11:45 to 11:45.
+      var before = row.min == null ? null : out.rows.slice(0, k).filter(function(x) { return x.end && x.min != null && x.min < row.min; }).pop();
+      if (before) row.fromMin = before.min;
+      if (!out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
+        row.issues.push(before ? { tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting at ' + relayClockLabel(before.min) + ', where the batch before it ended.' }
+          : { tone: 'amber', code: 'nostart', text: 'An END with no START of its own, and no batch ends before it on the page: when it started is not known. Check the page.' });
     });
   }
   // A part the register writes with no gauge takes the gauges its rack size means, by the owner's rule (prodGaugeRuleFor):
@@ -1049,6 +1057,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // A struck row cancelled does not stretch the run's hours (one not yet answered still does).
     var timed = run.rows.filter(function(x) { return !(x.struck && choices['struck' + x.i] === 'cancelled'); });
     var mins = (timed.length ? timed : run.rows).map(function(x) { return x.min; }).filter(function(x) { return x != null; });
+    // A run that opens on an END began where the batch before it ended.
+    var lead = (timed.length ? timed : run.rows)[0];
+    if (lead && lead.end && lead.fromMin != null) mins.push(lead.fromMin);
     var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
       line: out.line, lineSrc: out.line ? (out.line === readLine ? 'written' : 'set') : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
       part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',

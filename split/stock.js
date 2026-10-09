@@ -1694,20 +1694,20 @@ function stockImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) { stockImportText(e2.target.result); };
+    reader.onload = function(e2) { stockImportText(e2.target.result, f.name); };
     reader.readAsText(f);
   };
   inp.click();
 }
 /* A sep-stock file's text, from Stock's Import or from Add → File (add.js). */
-function stockImportText(text) {
+function stockImportText(text, name) {
   try {
     var added = stockMergeImport(JSON.parse(text));
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
     showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
-  } catch (err) { showToast('Not a stock file', 'error'); }
+  } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 
 /* ---------- Actions ---------- */

@@ -1215,7 +1215,7 @@ function prodImportText(text, name) {
   var obj = null;
   try { obj = JSON.parse(text); } catch (err) { obj = null; }
   var res = obj ? prodMergeImport(obj, name) : { ok: false };
-  if (!res.ok) { uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
+  if (!res.ok) { if (!addFileElsewhere(text, name, 'production')) uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
   saveState();
   renderProduction();
   var causes = res.causes ? ' · ' + todoPlural(res.causes, 'power cause') + ' added to the list' : '';

@@ -43,7 +43,12 @@ overview each, Insights in Today, Bills & notes split, a cheque in hand counted 
 spec that's still to be implemented. Combine them into one spec."*). Seven steps in one PR: TM1 the shell (with the phone's Filter
 and More, and P195, the benchmark's instrument), TM2 Today, TM3 Money, TM4 Floor, TM5 Office, TM6 across the app, TM7 the docs and
 the measures. Every surveyed screen has its step and its target (§3d), the calls the spec makes are listed for the owner (§1a), and
-no step may leave a screen longer (I10). **Not built: the build and the QA chain wait for the owner's word.**
+no step may leave a screen longer (I10). **Revised the same day with one look** (owner: *"UI still feels inconsistent to me … we
+need to plan properly"*): a census of every screen found the components consistent and the screens' assembly not (of 60 phone
+screens and views, 34 lead with no summary at all; the rest lead five different ways). §3e gives four kinds of screen (overview,
+work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
+row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Not built:
+the build and the QA chain wait for the owner's word.**
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -204,7 +209,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,623 tests, both layouts
+pnpm exec playwright test          # 1,630 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -1847,7 +1852,15 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     power cuts. A cut the pickling hand also reported is counted once (`prodDowntimeDay`): cuts from different sources
     that overlap or begin within ten minutes are joined; two cuts in one log are two, however close.
   - Smaller shapes: "VAT-2" names VAT A2; "12:45 AM" between 11:30 and 1:05 is noon (said); a day name is checked against
-    the date; a ditto-only last row is not a row; an END with no START starts where the batch before ended.
+    the date; a ditto-only last row is not a row.
+  - **A run that opens on an END starts where the batch before it ended**, the last END above it on the page: a batch with
+    no START written for it, or one its gauge split from its START's run (Mehta's 120s after their 98s under one START). With
+    no END above it, when it began is not known, said in amber. **Fixed 9 Oct 2026** (owner: *"Yes, fix the reader"*): the
+    review had said so since 28 Sep while the run kept its END as its start and lasted no time, and the 20 of 20 below had
+    checked the figures, not the starts. A run saved that way, from a photo or a file the reader built, is put right at start-up
+    from the END before it on its page and keeps the start it had (`startWas`, with no clock in it, so two devices write the
+    same and the merge holds nothing): on the owner's book, four runs on
+    VAT A2 (23 Sep twice, 24 Sep, 8 Oct). P85.
   - **A photo that is not a register page is refused**: the weekly hours sheet ("other"), and a customer's challan, which
     is offered to the challan scanner with the same file.
   **Instrument, and its limit:** the 20 pages were transcribed by hand into the shape the prompt asks Gemini for (scratch,
@@ -2314,7 +2327,8 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   hours), the recommendation, open items (set in Options' figures) and what is not counted. The options' figures are the
   30 May case's estimates until a quote replaces them.
 - **Import history** takes one file: its cuts as `sep-production` (merged by id into Production) and under `power` the
-  bills' details by month and the load. A detail fills only an empty field; a bill the file records is added where the app
+  bills' details by month and the load. A file with no cut and no bill in it is another screen's and is handed on (P196); one
+  with cuts merges whole, and the toast counts the cuts apart from its other entries (it had called every entry a cut). A detail fills only an empty field; a bill the file records is added where the app
   has none for that month, **at what was paid** (`paid`, else `amount`), with the bill's net payable kept as a detail and the
   basis in its note (Iuno H-6: which of the bill's figures is "the" bill is still BM's question); a month described without
   an amount is counted, never invented.
@@ -2540,6 +2554,14 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   edged in the accent). The `panel-w` thresholds for two, three and four across moved to 32.5rem and 43rem for the gap.
 - **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
   by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
+- **A file brought to another screen's Import is taken where it belongs** (`addFileElsewhere`, add.js; owner, 9 Oct 2026: the day's
+  production file, imported on Production → Equipment, read *Not a plant file* and stopped there). Every screen's Import (Equipment,
+  Roster, Register, Pay, Stock, Production, Power, Settings, Knowledge, Bank) asks before it refuses: the file is named for what it
+  is and the screen that imports it (*… is a production file (sep-production), not a plant register file (sep-plant). It is
+  imported on Production → Entries.*), and **Import it there** takes it by Add → File's own route (`addFileGo`) and guard question
+  (`addFileGuardOk`); Cancel imports nothing. Settings never asks to replace the book with a file that is not a backup. A file no
+  screen imports is refused where it was brought, as before. Add → File takes a knowledge file too (`sep-kb`, the owner's, asked
+  again as Knowledge's own Import asks). P196.
 - **WhatsApp, opened from beside each paste box** (`waLinksHtml`, add.js; owner, 7 Oct 2026: *"directly open the web.whatsapp.com
   page or the installed app"*): Add, Staff → Paste message and Today's inputs. WhatsApp Web answers `frame-ancestors
   https://*.whatsapp.com`, so no site can show it in a frame: the phone opens the installed app (Android by its package, Chrome
@@ -2567,7 +2589,7 @@ ground, a troubleshooting area, a record keeper, a tool used to make decisions"*
 `docs/KNOWLEDGE_BASE.md`. P154.
 - **In the book, never in the build** (`S.kb`: `articles`, `trained`, `paths`): this repo is public. The one exception is the app's own
   guides (`KB_APP_GUIDES`): how to use each screen, read-only, `src: 'build'`, holding nothing of the shop. **soma-internal owns the
-  rulings**; the app owns what is written in it. `sep-kb` v1 export and import, merged by id: a newer `version` replaces an older one,
+  rulings**; the app owns what is written in it. `sep-kb` v1 export and import (here or Add → File), merged by id: a newer `version` replaces an older one,
   which is kept in `versions`; nothing is deleted; photos never travel.
 - **Eight kinds** (`KB_KINDS`): how-to, process, part, client requirement, ruling, fault, incident, decision. Five views: Start, Library,
   Troubleshoot, Records, Training. The desktop's Library, Troubleshoot and Records are a list beside the open article (`kbHost`).

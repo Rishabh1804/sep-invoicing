@@ -89,10 +89,13 @@ test.describe('P160 learning from responses', () => {
     await stub(page, { owed90: [task('owed90', 1, { amount: 100 }), task('owed90', 2, { amount: 200 }), task('owed90', 3, { amount: 300 })] });
     await switchTab(page, 'pageTodo');
     await page.locator('[data-todo-sec="app"] [data-todo="app"]').first().click();
+    // The clock ticks between the members on a slow device (CI caught it, 9 Oct 2026): here it ticks on every reading.
+    await page.evaluate(() => { const now = Date.now.bind(Date); let n = 0; Date.now = () => now() + n++; });
     await page.locator('[data-action="invTodoSnooze"][data-v="sig"]').click();
     const r: any = await g(page, `todoData().resp`);
     expect(r.map((x: any) => x.key).sort()).toEqual(['owed90:1', 'owed90:2', 'owed90:3']);
     expect(r.every((x: any) => x.act === 'snooze')).toBe(true);
+    expect(new Set(r.map((x: any) => x.at)).size, 'one answer, one moment').toBe(1);
     expect(await g(page, `learnStats().owed90.snooze`)).toBe(1);
   });
 

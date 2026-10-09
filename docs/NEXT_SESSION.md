@@ -7,7 +7,25 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
-## Built 9 Oct 2026: production read whole, stock by line, one spec for the map and the load (read this first)
+## Built 9 Oct 2026, the second: a register run's start, and a file at the wrong Import (read this first)
+
+The owner sent the day's two register pages to be made into an import file; Samarth's batch on VAT A2 is written with its END
+and no START, and the reader saved it as 11:45 to 11:45. Asked, the owner: *"Yes, fix the reader"*. **A run that opens on an END
+starts where the batch before it ended** (the last END above it on the page), whether no START is written for it or its gauge
+split it from its START's run; with none above it, its start is amber. Runs saved before the fix, from a photo or a file the
+reader built, are put right at start-up from the END before them on their page (`startWas`): four on the owner's book. P85
+pins both and fails on the build before. **Data flow changed:** a plated register entry may carry `startWas` (the row below).
+
+**The spec was revised for one look** (owner: *"UI still feels inconsistent to me … we need to plan properly"*): `docs/TAB_MAP.md`
+§3e (four kinds of screen, one anatomy each, the verdict card, P197), §3d (every screen's kind and what its verdict card says),
+calls 9–14 in §1a for the owner, TM1's new pieces, TM6f, and a stop after TM2 for the owner to look.
+
+The owner then imported that file on Production → Equipment, which takes the plant register, and was told *Not a plant file* with
+no way on. **Every screen's Import now names another screen's file and offers Import it there**, through Add → File's route and
+guard (`addFileElsewhere`); Add → File takes a knowledge file too, and Power's import counts cuts apart from other entries. P196,
+failing on the build before. No data flow changed. Still the owner's: everything left under the section below.
+
+## Built 9 Oct 2026: production read whole, stock by line, one spec for the map and the load
 
 PR #144, from the owner's messages of 9 Oct 2026. CLAUDE.md has each part.
 - **Production typed as text** (P189): a slot a line (*"5 pm - 8 pm - Mehta clamp … = 1006 nos VAT A1"*) is its own kind of
@@ -27,7 +45,7 @@ PR #144, from the owner's messages of 9 Oct 2026. CLAUDE.md has each part.
 - On Stock → To check, *Use the new reading* on the 25–28 Sep zinc message and the 4–6 Oct 16 Salt message, so their uses are split
   by bath.
 - The order of PP2, PP4 and PP5 (`docs/PLANT_PICTURE.md`).
-- The calls the spec makes (`docs/TAB_MAP.md` §1a), and the word to build it.
+- The calls the spec makes (`docs/TAB_MAP.md` §1a, 1 to 14; 9 to 14 are one look's), and the word to build it.
 
 **Data flows changed:** stock entries gain `lines` (`sep-stock`); production gains `seriesRules` and `gaugeRuled`
 (`sep-production`); a client may carry `defaultKgPc`. The table below has the detail.
@@ -403,6 +421,7 @@ in the PR**, so the compile session knows to re-check.
 | **Bank statement import, 8 Oct 2026** | The statement may come as the .xlsx Excel saves it, and a two-page statement's page foot (its time under TRAN DATE, *Page 2 of* under BALANCE) is passed over. No record shape changed; the `sep-bank` export is as before. |
 | **Backup shape changed, 9 Oct 2026 (production and stock by line)** | Stock entries gain `lines: ['vat-a1' \| 'vat-a2' \| 'barrel', …]`, the baths a use or a charge went into, read from the message or picked by hand (*Into*). **A use whose message names baths is saved as one entry a bath**, each on its own day with its bath's words as its note, where it was one entry with every bath in its note; the quantity per item is unchanged, and a message read again with the new reader (Stock → To check) voids the old entry and adds the new ones. `S.production.seriesRules: [{id, clientId, family, kinds, racks, lines, prefix, except?, name, note, at}]` says which parts a round can be (Mehta's two set once, `_prodMehtaRounds2`); a run read again by a gauge rule keeps `gaugeRuled: {rack, at}`; a client may carry `defaultKgPc` (a kg a piece, `_clientKgPcDefault1`); a weight set from a run goes on the client's `pieceWeights` with `source: 'production'`. All travel with the book; the `sep-stock` and `sep-production` exports carry them, and soma-internal's compile reads both. |
 | **Today as cards, 8 Oct 2026** | Nothing in the book: a card's fold is per device (`sep_inv_folds`, keys `tdy-*`), like every fold. |
+| **Backup shape changed, 9 Oct 2026, the second (a register run's start)** | A plated register entry whose run opens on an END (no START written for it, or split from its START's run by its gauge) starts at the END before it on its page, where it had started at its own END. One saved before the fix, from a photo or a file the reader built, is corrected at start-up and carries `startWas` (the start it had, `HH:MM`; no clock, so two devices putting one run right write the same). **The `sep-production` export carries both**; the corrected copy is the newer one, so the compile should take it over the copy it holds, and any hours or pace worked out from the old start move with it. |
 | **Produces** captured production → `soma-internal` (the owner) | **Built 28 Sep 2026.** Production → Entries → Export writes `sep-production-YYYY-MM-DD.json`: `{format: 'sep-production', version: 1, exportedAt, build, entries, pastes, photos, imports, learn, powerCauses}` (`powerCauses` from 8 Oct 2026). Always whole; ids are stable, so the compile de-duplicates on them and keeps the newest copy of an entry (a void is a later copy). The inferred line is never exported. |
 | **Consumes** the production history ← `soma-internal` | Production → Entries → Import takes the same `sep-production` v1 shape. Merges by id and never overwrites; a client is kept by id only where the book holds that id under the same name, else found by name, and a name the book does not hold is counted and kept as written, never invented. Entries without `src` are stamped `import` and raise no To-do task. |
 | **Produces** attendance from the supervisor's rolls → `soma-internal` | **Built 25 Sep 2026.** Staff → Paste message reads the in/out-time rolls into `S.attendance` in the seed's own shape (marks by worker id, `coverage` / `block` EXTRA rows), so the compile reads pasted days exactly as it reads seeded ones. Each roll is kept whole in `relayPastes`. The parser was calibrated against `analysis/sep-attendance-seed-2026-09-{07,12}.json`; if the decode conventions change there, say so here. |

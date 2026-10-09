@@ -918,8 +918,13 @@ function powerImport() {
 }
 function powerImportData(obj, name) {
   if (!obj || typeof obj !== 'object') { uiAlert({ title: 'Not a power history file', body: 'The file could not be read as JSON.' }); return null; }
+  // A file with no cut and no bill in it is another screen's (a day's production, a stock file): said, and taken there.
+  var hasCut = obj.format === 'sep-production' && Array.isArray(obj.entries) && obj.entries.some(function(e) { return e && e.kind === 'downtime'; });
+  if (!hasCut && !obj.power && obj.format !== 'sep-power' && addFileElsewhere(obj, name, 'power')) return null;
   var res = { cuts: null, details: 0, noBill: [], load: false };
-  if (obj.format === 'sep-production') res.cuts = prodMergeImport(obj, name);
+  // A production file merges whole, as Production's Import merges it; what it adds is counted as cuts and as the rest.
+  var cutsHeld = function() { return prodData().entries.filter(function(e) { return e.kind === 'downtime'; }).length; }, held0 = cutsHeld();
+  if (obj.format === 'sep-production') { res.cuts = prodMergeImport(obj, name); res.cutsAdded = cutsHeld() - held0; }
   var pw = obj.power || (obj.format === 'sep-power' ? obj : null);
   res.refused = 0;
   if (pw && pw.bills && typeof pw.bills === 'object') Object.keys(pw.bills).forEach(function(m) {
@@ -954,8 +959,8 @@ function powerImportData(obj, name) {
   if (!(res.cuts && res.cuts.added) && !res.details && !res.load && !res.bills) { uiAlert({ title: 'Nothing imported', body: 'The file holds no power cuts or bill details this book does not already have.' + (res.noBill.length ? ' Bills not in the app for: ' + res.noBill.join(', ') + '.' : '') }); return res; }
   saveState();
   renderPower();
-  var c = res.cuts || {};
-  showToast([c.added ? c.added + ' cut' + (c.added === 1 ? '' : 's') + ' added' : c.ok ? 'no new cuts' : '', res.details ? res.details + ' bill detail' + (res.details === 1 ? '' : 's') + ' filled' : '',
+  var c = res.cuts || {}, cut = res.cutsAdded || 0, rest = (c.added || 0) - cut;
+  showToast([cut ? cut + ' cut' + (cut === 1 ? '' : 's') + ' added' : c.ok ? 'no new cuts' : '', rest > 0 ? todoPlural(rest, 'other production entry', 'other production entries') + ' added' : '', res.details ? res.details + ' bill detail' + (res.details === 1 ? '' : 's') + ' filled' : '',
     res.bills ? res.bills + ' bill' + (res.bills === 1 ? '' : 's') + ' added' : '', res.refused ? res.refused + ' refused' : '', res.noBill.length ? res.noBill.length + ' month' + (res.noBill.length === 1 ? '' : 's') + ' with no bill in the app' : ''].filter(Boolean).join(' · '));
   return res;
 }

@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="149351d5">
+<meta name="app-build" content="8bd50ca6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -12226,14 +12226,16 @@ function importData() {
     inp.value = '';
     if (!f) return;
     const reader = new FileReader();
-    reader.onload = (ev) => importDataText(ev.target.result);
+    reader.onload = (ev) => importDataText(ev.target.result, f.name);
     reader.readAsText(f);
   };
   inp.click();
 }
 
 /* A backup's text, from Settings → Import or from Add → File (add.js): checked, asked about, and only then the book replaced. */
-async function importDataText(text) {
+async function importDataText(text, name) {
+  // Another screen's file (a production export, a roster) is said and taken there, before anyone is asked to replace the book.
+  if (addFileElsewhere(text, name, 'backup')) return;
   // Whatever door it came through (Settings → Import, Add → File): replacing the book is the owner's (guard.js). Asked
   // once: the door's own question opened the window this one reads.
   if (typeof grdOk === 'function' && !grdOk('users') && !(await grdBookAsk('import a backup'))) return;
@@ -21938,21 +21940,21 @@ function importRoster() {
     var f = e.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(ev) { importRosterText(ev.target.result); };
+    reader.onload = function(ev) { importRosterText(ev.target.result, f.name); };
     reader.readAsText(f);
     inp.value = '';
   };
   inp.click();
 }
 /* A roster file's text, from Staff → Roster → Import or from Add → File (add.js). */
-function importRosterText(text) {
+function importRosterText(text, name) {
   var data;
   try { data = JSON.parse(text); }
   catch (err) { showToast('Not valid JSON: ' + err.message, 'error'); return; }
   // A file of workers' details (people.js) is the owner's, checked row by row before anything is kept.
   if (data && data.format === 'sep-people') { pplImportData(data); return; }
   var res = applyRosterImport(data);
-  if (res.error) { showToast(res.error, 'error'); return; }
+  if (res.error) { if (!addFileElsewhere(data, name, ['roster', 'people'])) showToast(res.error, 'error'); return; }
   saveState();
   renderAttendance();
   // Every count the merge dropped something on is stated. A silent import
@@ -24881,16 +24883,16 @@ function payrollImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) { payrollImportText(e2.target.result); };
+    reader.onload = function(e2) { payrollImportText(e2.target.result, f.name); };
     reader.readAsText(f);
   };
   inp.click();
 }
 /* A sep-payroll-paid file's text, from Pay's Import or from Add → File (add.js). */
-function payrollImportText(text) {
+function payrollImportText(text, name) {
   var res;
   try { res = payrollPaidImport(JSON.parse(text)); } catch (err) { res = { error: 'Not a payroll-as-paid file' }; }
-  if (res.error) { showToast(res.error, 'error'); return; }
+  if (res.error) { if (!addFileElsewhere(text, name, 'payroll')) showToast(res.error, 'error'); return; }
   saveState();
   renderAttendance();
   var bits = [];
@@ -26867,20 +26869,20 @@ function stockImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var reader = new FileReader();
-    reader.onload = function(e2) { stockImportText(e2.target.result); };
+    reader.onload = function(e2) { stockImportText(e2.target.result, f.name); };
     reader.readAsText(f);
   };
   inp.click();
 }
 /* A sep-stock file's text, from Stock's Import or from Add → File (add.js). */
-function stockImportText(text) {
+function stockImportText(text, name) {
   try {
     var added = stockMergeImport(JSON.parse(text));
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
     showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
-  } catch (err) { showToast('Not a stock file', 'error'); }
+  } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 
 /* ---------- Actions ---------- */
@@ -30127,7 +30129,7 @@ async function bankImportBuf(buf, name) {
   try {
     parsed = bankParseSheet((await bankReadSheet(buf)).rows);
     b = bankData();
-  } catch (err) { showToast(err.message || 'That file could not be read', 'error'); return; }
+  } catch (err) { if (!addFileElsewhere(buf, name, 'xls')) showToast(err.message || 'That file could not be read', 'error'); return; }
   if (b.account && parsed.account && parsed.account !== b.account &&
     !(await uiConfirm({ title: 'A different account', danger: true, okLabel: 'Import into the same record',
       body: 'This statement is for account ' + parsed.account + '; the rows held are for ' + b.account + '. Imported, its rows sit in one record with them, and the balances will not follow from one another. ' +
@@ -34834,7 +34836,11 @@ function addFileKind(buf) {
     at([0x66, 0x74, 0x79, 0x70, 0x68, 0x65, 0x69], 4)) return { kind: 'image' };
   var text;
   try { text = new TextDecoder('utf-8').decode(buf); } catch (e) { return { kind: 'binary' }; }
-  var t = text.replace(/^﻿/, '').trim();
+  return addTextKind(text);
+}
+/* What a file read as text is: a screen's own Import reads it that way. */
+function addTextKind(text) {
+  var t = String(text == null ? '' : text).replace(/^\ufeff/, '').trim();
   if (/^[[{]/.test(t)) {
     try { return { kind: 'json', text: t, obj: JSON.parse(t) }; } catch (e) { return { kind: 'badjson', error: e.message }; }
   }
@@ -34856,6 +34862,7 @@ function addJsonWhat(obj) {
   if (f === 'sep-att-register') return 'register';
   if (f === 'sep-people') return 'people';
   if (f === 'sep-plant') return 'plant';
+  if (f === 'sep-kb' || (!f && Array.isArray(obj.articles))) return 'kb';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -34874,6 +34881,8 @@ var ADD_FILE_GUARD = {
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
+  // Knowledge's own Import is the owner's and asks the PIN again whatever the window (knowledge.js kbImport).
+  kb: { grp: 'imports', what: 'import knowledge', page: 'pageKnow', owner: true, always: true },
   backup: { grp: 'users', what: 'import a backup' }
 };
 /* The guard's word on a file before anything is read into the book: true to go on. With the guard off, always. */
@@ -34884,8 +34893,9 @@ async function addFileGuardOk(key) {
     await uiAlert({ title: 'Not for this ID', body: 'Your ID does not open ' + (typeof wsPageName === 'function' ? wsPageName(gd.page) : 'that screen') + ', so this file cannot be imported here. Ask the owner.' });
     return false;
   }
+  if (gd.owner && typeof grdIsOwner === 'function' && !grdIsOwner()) { grdRefuse(gd.what); return false; }
   if (!gd.grp) return true;
-  return grdOk(gd.grp) || await guardAsk(gd.grp, gd.what);
+  return (!gd.always && grdOk(gd.grp)) || await guardAsk(gd.grp, gd.what);
 }
 async function addFileRoute(file, buf) {
   var name = file.name || '', k = addFileKind(buf);
@@ -34897,21 +34907,62 @@ async function addFileRoute(file, buf) {
   }
   var what = k.kind === 'json' ? addJsonWhat(k.obj) : '';
   if (what && !(await addFileGuardOk(what))) return;
-  var go = {
-    stock: function() { _stockView = 'list'; switchTab('pageStock'); stockImportText(k.text); },
-    production: function() { prodSetTab('entries'); _prodView = 'main'; switchTab('pageProduction'); prodImportText(k.text, name); },
-    power: function() { powerSetTab('cuts'); switchTab('pagePower'); powerImportData(k.obj, name); },
-    payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text); },
-    roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text); },
-    register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text); },
-    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
-    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text); },
-    // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
-    backup: function() { importDataText(k.text); }
-  }[what];
+  var go = what && addFileGo(what, k, name);
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll, the roster or the attendance register.' });
+    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register or the knowledge base.' });
+}
+/* Where each kind of file is imported, opened on the screen and view that import it. */
+function addFileGo(what, k, name) {
+  return {
+    stock: function() { _stockView = 'list'; switchTab('pageStock'); stockImportText(k.text, name); },
+    production: function() { prodSetTab('entries'); _prodView = 'main'; switchTab('pageProduction'); prodImportText(k.text, name); },
+    power: function() { powerSetTab('cuts'); switchTab('pagePower'); powerImportData(k.obj, name); },
+    payroll: function() { _attView = 'pay'; switchTab('pageStaff'); payrollImportText(k.text, name); },
+    roster: function() { _attView = 'roster'; switchTab('pageStaff'); importRosterText(k.text, name); },
+    register: function() { _attView = 'register'; switchTab('pageStaff'); aregImportText(k.text, name); },
+    people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
+    plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text, name); },
+    kb: function() { kbSetTab('library'); switchTab('pageKnow'); kbImportData(k.obj, name); },
+    // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
+    backup: function() { importDataText(k.text, name); }
+  }[what] || null;
+}
+/* What each kind of file is called, and the screen whose Import takes it. */
+var ADD_FILE_KINDS = {
+  stock: { title: 'A stock file', noun: 'a stock file (sep-stock)', page: 'pageStock' },
+  production: { title: 'A production file', noun: 'a production file (sep-production)', page: 'pageProduction', view: 'Entries' },
+  power: { title: 'A power history file', noun: 'a power history file (its cuts and bills)', page: 'pagePower', view: 'Cuts' },
+  payroll: { title: 'A payroll file', noun: 'the payroll as paid (sep-payroll-paid)', page: 'pageStaff', view: 'Pay' },
+  roster: { title: 'A roster', noun: 'a roster', page: 'pageStaff', view: 'Roster' },
+  register: { title: 'An attendance register', noun: 'an attendance register (sep-att-register)', page: 'pageStaff', view: 'Register' },
+  people: { title: 'Workers’ details', noun: 'a file of workers’ details (sep-people)', page: 'pageStaff', view: 'Roster' },
+  plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
+  kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
+  backup: { title: 'A backup', noun: 'a backup of the whole book', where: 'Settings → Data & device' },
+  xls: { noun: 'a bank statement' }
+};
+function addFileWhere(what) {
+  var x = ADD_FILE_KINDS[what];
+  return !x ? '' : x.where || (typeof wsPageName === 'function' ? wsPageName(x.page) : x.page) + (x.view ? ' → ' + x.view : '');
+}
+/* A file handed to one screen's Import that is another screen's (owner, 9 Oct 2026: the day's production file, imported on
+   Production → Equipment, was refused as "Not a plant file", with no way on). Each screen's Import asks this before it
+   refuses: the file is named for what it is and where it is imported, and Import it there takes it through Add → File's
+   own route, the guard's question included. `src` is the file's text, its bytes, or what was read from it; `here` the
+   kind or kinds this Import takes. True when the file is another screen's, and the caller stops: its refusal is not shown. */
+function addFileElsewhere(src, name, here) {
+  var k = src instanceof ArrayBuffer ? addFileKind(src) : typeof src === 'string' ? addTextKind(src)
+    : src && typeof src === 'object' ? { kind: 'json', obj: src, text: JSON.stringify(src) } : null;
+  var what = k && k.kind === 'json' ? addJsonWhat(k.obj) : '', mine = [].concat(here || []);
+  if (!what || mine.indexOf(what) >= 0 || !addFileGo(what, k, name)) return false;
+  var it = ADD_FILE_KINDS[what] || {}, at = ADD_FILE_KINDS[mine[0]];
+  uiConfirm({ title: it.title || 'Another screen’s file',
+    body: (name || 'This file') + ' is ' + (it.noun || 'another screen’s file') + (at ? ', not ' + at.noun : '') + '. It is imported on ' + addFileWhere(what) + '.',
+    okLabel: 'Import it there' })
+    .then(function(ok) { return ok && addFileGuardOk(what); })
+    .then(function(ok) { if (ok) addGo(addFileGo(what, k, name), { stay: what === 'backup' }); });
+  return true;
 }
 /* What arrived, in words, for a file no import takes. */
 function addFileWords(k) {
@@ -35713,16 +35764,16 @@ function aregImport() {
     var f = ev.target.files[0];
     if (!f) return;
     var r = new FileReader();
-    r.onload = function(e2) { aregImportText(e2.target.result); };
+    r.onload = function(e2) { aregImportText(e2.target.result, f.name); };
     r.readAsText(f);
   };
   inp.click();
 }
 /* A sep-att-register file's text, from the Register's Import or from Add → File (add.js). */
-function aregImportText(text) {
+function aregImportText(text, name) {
   var res;
   try { res = aregImportData(JSON.parse(text)); } catch (e) { res = { error: 'Not a register file' }; }
-  if (res.error) { showToast(res.error, 'error'); return; }
+  if (res.error) { if (!addFileElsewhere(text, name, 'register')) showToast(res.error, 'error'); return; }
   if (res.months.length) _aregMonth = res.months.sort()[res.months.length - 1];
   saveState();
   _attView = 'register';
@@ -36969,9 +37020,17 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // START / END: the END carries the run's figure; a START is where it began and is never a round of its own.
     out.rows.forEach(function(row, k) {
       if (row.start) { row.qty = null; return; }
-      if (row.end) row.batch = true;
-      if (row.end && !out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
-        row.issues.push({ tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting where the batch before it ended.' });
+      if (!row.end) return;
+      row.batch = true;
+      // A batch began where the batch before it ended: the last END above it, earlier on the clock (two shares of one round end
+      // together, and both began where the round before them ended). A run that opens on an END starts there (below), whether
+      // no START is written for it or its gauge split it from its START's run. Until 9 Oct 2026 the review said so and the run
+      // kept its END as its start: Samarth's batch of 10:30 to 11:45 read 11:45 to 11:45.
+      var before = row.min == null ? null : out.rows.slice(0, k).filter(function(x) { return x.end && x.min != null && x.min < row.min; }).pop();
+      if (before) row.fromMin = before.min;
+      if (!out.rows.slice(0, k).some(function(x) { return x.start && x.cust === row.cust && x.part === row.part; }))
+        row.issues.push(before ? { tone: 'info', code: 'nostart', text: 'An END with no START of its own: taken as starting at ' + relayClockLabel(before.min) + ', where the batch before it ended.' }
+          : { tone: 'amber', code: 'nostart', text: 'An END with no START of its own, and no batch ends before it on the page: when it started is not known. Check the page.' });
     });
   }
   // A part the register writes with no gauge takes the gauges its rack size means, by the owner's rule (prodGaugeRuleFor):
@@ -37036,6 +37095,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // A struck row cancelled does not stretch the run's hours (one not yet answered still does).
     var timed = run.rows.filter(function(x) { return !(x.struck && choices['struck' + x.i] === 'cancelled'); });
     var mins = (timed.length ? timed : run.rows).map(function(x) { return x.min; }).filter(function(x) { return x != null; });
+    // A run that opens on an END began where the batch before it ended.
+    var lead = (timed.length ? timed : run.rows)[0];
+    if (lead && lead.end && lead.fromMin != null) mins.push(lead.fromMin);
     var e = { kind: 'plated', date: out.date, time: prodHhmm(mins.length ? Math.min.apply(null, mins) : null), to: prodHhmm(mins.length ? Math.max.apply(null, mins) : null),
       line: out.line, lineSrc: out.line ? (out.line === readLine ? 'written' : 'set') : null, client: first.cust, clientId: it.clientId != null ? it.clientId : null, clientName: it.clientName || '',
       part: partText, gauge: lineGauge(partText.replace(/[×✕]/g, 'X')), qty: counted.length ? qty : null, unit: 'NOS', basis: 'register', src: 'photo',
@@ -41481,11 +41543,13 @@ function learnOpened(t) {
 /* `t` an app task (a fold's members answer each for itself), `act` go | list | snooze | week. */
 function learnRespond(t, act) {
   if (!t) return;
-  var td = learnData(), seen = learnSeenRead(), today = localDateStr();
+  // One answer, one moment: a fold's members share `at`, which learnStats counts once. Read per member, the clock could tick
+  // between them and one snooze count as two or three.
+  var td = learnData(), seen = learnSeenRead(), today = localDateStr(), at = Date.now();
   (t.rule === 'fold' ? t.members || [] : [t]).forEach(function(m) {
     if (!m || !m.key || m.rule === 'learn') return;
     var s = seen[m.key];
-    td.resp.push({ at: Date.now(), key: m.key, rule: m.rule, act: act, age: s && s.f ? Math.max(0, isoDaysBetween(s.f, today)) : null });
+    td.resp.push({ at: at, key: m.key, rule: m.rule, act: act, age: s && s.f ? Math.max(0, isoDaysBetween(s.f, today)) : null });
   });
   if (td.resp.length > LEARN_RESP_MAX) td.resp.splice(0, td.resp.length - LEARN_RESP_MAX);
   saveState();
@@ -44182,8 +44246,9 @@ function pltRiskClean(r) {
   var p = +r.p > 1 ? +r.p / 100 : +r.p;
   return { p: Math.min(1, p), cost: Math.max(0, +r.cost || 0), days: Math.max(0, +r.days || 0), say: String(r.say || '') };
 }
-function pltImportText(text) {
-  if (!pltOwnerOk(function() { pltImportText(text); })) return;
+function pltImportText(text, name) {
+  if (addFileElsewhere(text, name, 'plant')) return;
+  if (!pltOwnerOk(function() { pltImportText(text, name); })) return;
   var obj;
   try { obj = JSON.parse(text); } catch (e) { showToast('Not valid JSON: ' + e.message, 'error'); return; }
   var r = pltMergeImport(obj);
@@ -44195,9 +44260,9 @@ function pltImportText(text) {
 document.addEventListener('change', function(e) {
   var t = e.target;
   if (!t || t.id !== 'pltFileInput' || !t.files || !t.files[0]) return;
-  var reader = new FileReader();
-  reader.onload = function(ev) { pltImportText(ev.target.result); };
-  reader.readAsText(t.files[0]);
+  var reader = new FileReader(), f = t.files[0];
+  reader.onload = function(ev) { pltImportText(ev.target.result, f.name); };
+  reader.readAsText(f);
   t.value = '';
 });
 /* ===== PEOPLE: each worker's record, worked out from the book, and the owner's notes on them =====
@@ -46789,7 +46854,7 @@ function prodImportText(text, name) {
   var obj = null;
   try { obj = JSON.parse(text); } catch (err) { obj = null; }
   var res = obj ? prodMergeImport(obj, name) : { ok: false };
-  if (!res.ok) { uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
+  if (!res.ok) { if (!addFileElsewhere(text, name, 'production')) uiNotice('Not a production file: ' + (name || ''), 'error'); return; }
   saveState();
   renderProduction();
   var causes = res.causes ? ' · ' + todoPlural(res.causes, 'power cause') + ' added to the list' : '';
@@ -48667,8 +48732,13 @@ function powerImport() {
 }
 function powerImportData(obj, name) {
   if (!obj || typeof obj !== 'object') { uiAlert({ title: 'Not a power history file', body: 'The file could not be read as JSON.' }); return null; }
+  // A file with no cut and no bill in it is another screen's (a day's production, a stock file): said, and taken there.
+  var hasCut = obj.format === 'sep-production' && Array.isArray(obj.entries) && obj.entries.some(function(e) { return e && e.kind === 'downtime'; });
+  if (!hasCut && !obj.power && obj.format !== 'sep-power' && addFileElsewhere(obj, name, 'power')) return null;
   var res = { cuts: null, details: 0, noBill: [], load: false };
-  if (obj.format === 'sep-production') res.cuts = prodMergeImport(obj, name);
+  // A production file merges whole, as Production's Import merges it; what it adds is counted as cuts and as the rest.
+  var cutsHeld = function() { return prodData().entries.filter(function(e) { return e.kind === 'downtime'; }).length; }, held0 = cutsHeld();
+  if (obj.format === 'sep-production') { res.cuts = prodMergeImport(obj, name); res.cutsAdded = cutsHeld() - held0; }
   var pw = obj.power || (obj.format === 'sep-power' ? obj : null);
   res.refused = 0;
   if (pw && pw.bills && typeof pw.bills === 'object') Object.keys(pw.bills).forEach(function(m) {
@@ -48703,8 +48773,8 @@ function powerImportData(obj, name) {
   if (!(res.cuts && res.cuts.added) && !res.details && !res.load && !res.bills) { uiAlert({ title: 'Nothing imported', body: 'The file holds no power cuts or bill details this book does not already have.' + (res.noBill.length ? ' Bills not in the app for: ' + res.noBill.join(', ') + '.' : '') }); return res; }
   saveState();
   renderPower();
-  var c = res.cuts || {};
-  showToast([c.added ? c.added + ' cut' + (c.added === 1 ? '' : 's') + ' added' : c.ok ? 'no new cuts' : '', res.details ? res.details + ' bill detail' + (res.details === 1 ? '' : 's') + ' filled' : '',
+  var c = res.cuts || {}, cut = res.cutsAdded || 0, rest = (c.added || 0) - cut;
+  showToast([cut ? cut + ' cut' + (cut === 1 ? '' : 's') + ' added' : c.ok ? 'no new cuts' : '', rest > 0 ? todoPlural(rest, 'other production entry', 'other production entries') + ' added' : '', res.details ? res.details + ' bill detail' + (res.details === 1 ? '' : 's') + ' filled' : '',
     res.bills ? res.bills + ' bill' + (res.bills === 1 ? '' : 's') + ' added' : '', res.refused ? res.refused + ' refused' : '', res.noBill.length ? res.noBill.length + ' month' + (res.noBill.length === 1 ? '' : 's') + ' with no bill in the app' : ''].filter(Boolean).join(' · '));
   return res;
 }
@@ -53278,7 +53348,7 @@ var KB_RANK = { draft: 0, pending: 1, published: 2, superseded: 3, retired: 3 };
      nobody here has the name; a ruling the file publishes over another one here supersedes it. */
 function kbImportData(obj, name) {
   var arts = obj && (Array.isArray(obj) ? obj : obj.format === 'sep-kb' || Array.isArray(obj.articles) ? obj.articles : null);
-  if (!Array.isArray(arts)) { uiAlert({ title: 'Not a knowledge file', body: 'The file is not a sep-kb export.' }); return null; }
+  if (!Array.isArray(arts)) { if (!addFileElsewhere(obj, name, 'kb')) uiAlert({ title: 'Not a knowledge file', body: 'The file is not a sep-kb export.' }); return null; }
   var k = kbData(), res = { added: 0, updated: 0, same: 0, kept: 0, refused: 0, deleted: 0, trained: 0, notOnRoster: 0, paths: 0 };
   var clean = [], seen = {};
   arts.forEach(function(x) {
@@ -59454,6 +59524,46 @@ if (!S._cnSeriesStart1) {
   var p = prodData();
   if (prodLearnAliases(p.entries.filter(function(e) { return !e.voidedAt && /^\s*\d{3,5}\s*$/.test(e.part || ''); }))) prodTouch();
   S._prodBareCodes1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== A RUN OPENING ON AN END, FROM WHERE THE BATCH BEFORE IT ENDED =====
+   On a START / END page a batch began where the batch before it ended, and a run that opens on an END starts there
+   (prodFromRegisterRead): one with no START written for it, or one its gauge split from its START's run. Until 9 Oct 2026
+   the reader said so and saved the END as the run's start, so the run lasted no time at all (owner: "Yes, fix the reader").
+   A run read from one page (a photo, or a file built by the reader) that opens on an END and still starts at it is given
+   the latest END before it on the same page, and keeps the start it had (`startWas`, no clock in it: two devices putting one
+   run right write the same, and the merge has nothing to hold); one with none before it stays as it was. Structural: on a
+   pulled or imported book too, and a run put right no longer starts at its own END, so twice is a no-op. */
+(function() {
+  var page = function(e) { return e.src === 'photo' && e.photoId ? 'P' + e.photoId : e.src === 'import' && e.importId ? 'I' + e.importId : ''; };
+  var hm = function(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+  // A time as the register wrote it, read inside its run's own hours: the reader put every row of a run between them. The AM or
+  // PM written comes first, the other after it, as the reader takes "12:45 AM" between 11:30 and 1:05 for noon.
+  var at = function(text, e) {
+    var m = /(\d{1,2})[:.](\d{2})\s*([AaPp])?/.exec(String(text || '')), lo = hm(e.time), hi = hm(e.to);
+    if (!m || lo == null || hi == null) return null;
+    var am = (+m[1] % 12) * 60 + +m[2], c = m[3] && /p/i.test(m[3]) ? [am + 720, am] : [am, am + 720];
+    return c.filter(function(x) { return x >= lo && x <= hi; })[0];
+  };
+  var live = prodData().entries.filter(function(e) { return !e.voidedAt && e.kind === 'plated' && e.basis === 'register' && page(e); }), n = 0;
+  live.forEach(function(e) {
+    var r = Array.isArray(e.rounds) ? e.rounds : [];
+    if (!r.length || !r.every(function(x) { return x.batch; }) || !/(^| · )END( · |$)/.test(String(e.raw || '').split('\n')[0])) return;
+    var t = hm(e.time);
+    if (t == null || at(r[0].time, e) !== t) return;
+    var ends = [];
+    live.forEach(function(x) {
+      if (x === e || page(x) !== page(e) || x.line !== e.line || x.date !== e.date) return;
+      (x.rounds || []).forEach(function(y) { var m = y.batch ? at(y.time, x) : null; if (m != null && m < t) ends.push(m); });
+    });
+    if (!ends.length) return;
+    e.startWas = e.time;
+    e.time = prodHhmm(Math.max.apply(null, ends));
+    n++;
+  });
+  if (!n) return;
+  prodTouch();
   saveJSON(STORAGE_KEY, S);
 })();
 

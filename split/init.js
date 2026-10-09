@@ -603,6 +603,46 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== A RUN OPENING ON AN END, FROM WHERE THE BATCH BEFORE IT ENDED =====
+   On a START / END page a batch began where the batch before it ended, and a run that opens on an END starts there
+   (prodFromRegisterRead): one with no START written for it, or one its gauge split from its START's run. Until 9 Oct 2026
+   the reader said so and saved the END as the run's start, so the run lasted no time at all (owner: "Yes, fix the reader").
+   A run read from one page (a photo, or a file built by the reader) that opens on an END and still starts at it is given
+   the latest END before it on the same page, and keeps the start it had (`startWas`, no clock in it: two devices putting one
+   run right write the same, and the merge has nothing to hold); one with none before it stays as it was. Structural: on a
+   pulled or imported book too, and a run put right no longer starts at its own END, so twice is a no-op. */
+(function() {
+  var page = function(e) { return e.src === 'photo' && e.photoId ? 'P' + e.photoId : e.src === 'import' && e.importId ? 'I' + e.importId : ''; };
+  var hm = function(t) { var m = /^(\d{1,2}):(\d{2})$/.exec(t || ''); return m ? +m[1] * 60 + +m[2] : null; };
+  // A time as the register wrote it, read inside its run's own hours: the reader put every row of a run between them. The AM or
+  // PM written comes first, the other after it, as the reader takes "12:45 AM" between 11:30 and 1:05 for noon.
+  var at = function(text, e) {
+    var m = /(\d{1,2})[:.](\d{2})\s*([AaPp])?/.exec(String(text || '')), lo = hm(e.time), hi = hm(e.to);
+    if (!m || lo == null || hi == null) return null;
+    var am = (+m[1] % 12) * 60 + +m[2], c = m[3] && /p/i.test(m[3]) ? [am + 720, am] : [am, am + 720];
+    return c.filter(function(x) { return x >= lo && x <= hi; })[0];
+  };
+  var live = prodData().entries.filter(function(e) { return !e.voidedAt && e.kind === 'plated' && e.basis === 'register' && page(e); }), n = 0;
+  live.forEach(function(e) {
+    var r = Array.isArray(e.rounds) ? e.rounds : [];
+    if (!r.length || !r.every(function(x) { return x.batch; }) || !/(^| · )END( · |$)/.test(String(e.raw || '').split('\n')[0])) return;
+    var t = hm(e.time);
+    if (t == null || at(r[0].time, e) !== t) return;
+    var ends = [];
+    live.forEach(function(x) {
+      if (x === e || page(x) !== page(e) || x.line !== e.line || x.date !== e.date) return;
+      (x.rounds || []).forEach(function(y) { var m = y.batch ? at(y.time, x) : null; if (m != null && m < t) ends.push(m); });
+    });
+    if (!ends.length) return;
+    e.startWas = e.time;
+    e.time = prodHhmm(Math.max.apply(null, ends));
+    n++;
+  });
+  if (!n) return;
+  prodTouch();
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== THE CONNECTION'S LOAD, RECORDED ONCE =====
    Owner, 30 Sep 2026 ("Yes, record it"): the connection is billed at 25 kVA though 50 kVA was approved (decisions,
    18 May 2026), and the over-limit penalty runs on (about ₹5,000 a month). Set only on a book with electricity bills,

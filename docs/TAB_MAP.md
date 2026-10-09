@@ -139,6 +139,7 @@ removes the place** (never earlier: a row added before its step would hide a scr
 | TM3a | `pageFinance` · `bills` | `pageFinance` · `payments` |
 | TM4 | `pageStaff` · `overview` | `pageFloor` |
 | TM4 | `pageProduction` · `overview` | `pageFloor` |
+| TM4 | `pageProduction` · `overview/paste` / `overview/hand` / `overview/photo` | `pageProduction` · `lines/<the same sub-view>` (a form open stays open) |
 | TM4 | `pagePower` · `overview` | `pageFloor` |
 | TM4 | `pageStock` · `overview` | `pageStock` · `list` |
 
@@ -424,8 +425,57 @@ in-app questions.
 
 ## 8. Existing specs the steps must rewrite (not weaken)
 
-The list is in §8a (filled from the test survey). A builder rewrites each assertion to the new place of the same fact. A spec
-that asserted a screen which no longer exists asserts its successor (§5) instead.
+A builder rewrites each assertion to the new place of the same fact. A spec that asserted a screen which no longer exists
+asserts its successor (§5). **A widget that is now hidden by default is still a widget**: a spec about the widget itself sets a
+custom layout showing it (`localStorage sep_inv_home` with `preset: 'custom'`) rather than losing its assertions. A spec that
+needed a row to run past the phone's edge (P183's fade, P79's off-edge tab) picks a row that still does, or a narrower
+viewport, and says why. Two traps: **a selector that now matches two elements** (Playwright's strict mode throws; e.g. a tab
+and a switch both carrying `invAttView` `data-view="day"`: give the tab its own value), and **a default view that moved**
+(many specs open a page and assert its first view without clicking: Stats → overview, Staff → overview, Stock → overview,
+Production → overview, Power → overview).
+
+### 8a. By step (from the test survey of 9 Oct 2026; line-level detail in the session's research notes)
+
+**TM1, the shell.** `fixtures.ts` (`WS_OF`: pageStats, pageReports, pagePlanner → `today`; pageHistory, pageKnow → none, opened
+by the top bar or `navOpen`); `p134-workspaces(.desktop)` (the rows, the group label's sibling, the `MAP`, swipe orders, the
+rail); `p183-insights-in-sight(.desktop)` (the group is Today's now); `p164-phone-doors` (Insights' views); `p132-reports(.desktop)`
+(Reports after Stats in Today); `p154-knowledge.desktop`, `p155-kb-qa` (Knowledge by the book); `p103-leave-guard.desktop` (it
+clicked Stats from Challans: use another Office tab); `p139-search.desktop` (Ctrl+click History is the top bar's; the keys list);
+`p140-guard.desktop` (Office row's lists); `p53-appearance.desktop`, `p182-shell-tiles.desktop` (Stats selects Today's door);
+`p39-stock` (`wsOf` list), `p71-stock` (Floor row), `p100-navigation(.desktop)`, `p153-qa-step7`, `p58-sidebar-subviews.desktop`;
+`p68-clients` (Clients' row is three); `p80-page-scroll.desktop` (Quotations opened through Sales); `p131-quotations(.desktop)`,
+`p150` QA5-13, `p176-prospects` (Quotations and Prospects through Sales); `p13-pwa-install` (launch addresses).
+
+**TM2, Today.** The To-do: `p40-todo`, `p69-todo(.desktop)`, `p42-todo-relay.desktop`, `p41-relay` (quick task), `p111-shell-fold`
+(widget URLs, the Done fold), `p13-pwa-install` (the manifest shortcut), `p129-qa-platform` (`todoHandleLaunch`), `p152-guard-qa`
+(widget launch, `#todoContent`), `p158-ranked`, `p160-learn` (`#todoLearn` on Needs you), `p133-what-to-do(.desktop)`,
+`p88-prod-links`, `p136-add`, `p153-qa-step7.desktop`, `p134` (`MAP`), `p39-stock`, `sweep-fixture` (`PAGES` loses pageTodo; the
+`todo-*` dialogs stay), `p151-search-qa` (add-task). Stats: `fixtures.ts` `openStatsTab` (default `clients`), `p47-stats-intel`,
+`p73-stats(.desktop)`, `p128-qa-intel`, `p13-pwa-install`, `p100-navigation`, `p139-search.desktop`, `p182-shell-tiles.desktop`,
+`p147-desktop-layouts.desktop`, `p120-stats-stories` (→ Pulse's questions), `p133-what-to-do(.desktop)` (its local `openPulse`),
+`p150` QA5-5, QA5-12, QA5-14, `p159-why` (→ Pulse), `p105-stats-fold` (months and headline → Trends, In one line → Pulse),
+`p64-finance-links` (`#statsCash` → Pulse), `p48-insights` (the list goes: its tasks are on Needs you), `p132-reports`,
+`p14-stats-history`, `p16-derive-weights`, `p102-figures`, `p112-stats-credit-notes`, `golden-flows`, `p4-revenue-empty-state`
+(the headline → Trends), `p14`'s output tax and `p73`'s billing cards (→ Money → GST and Pipeline), `p77-part-invoice`
+(unbilled → Pipeline). The Planner: `p162-planner`, `p163-planner-qa` (eight views → four and the kinds), `p166-plant`. The
+presets: `p121-home-widgets`, `p128-qa-intel` G5-16, UX-4, `p180-no-white`, and the widget specs `p40`, `p69`, `p42`, `p41`
+(To-do card), `p3-home-empty-state`, `p104-state-shows`, `p76-v2-sweep` (crore, Recent), `p64`, `p102`, `p126-qa-finance`,
+`p137-pipeline`, `p152` (Money card), `p147.desktop`, `p178.desktop` (layout).
+
+**TM3, Money and Invoices.** `p56-bills-notes` (bills → Payments; notes → the Credit notes dialog), `p59-finance` (five tabs;
+the bills task), `p114-owner-rulings`, `p123-qa-billing` G1-6, `p126-qa-finance` G2-8, `p109-money-fold` BB5, `p136-add`
+(Add → Bill), `p151-search-qa` QA3-11, `p79-select-scroll` fixture (`'pageFinance › Bills-notes'` → Payments; the note form in
+the dialog) and its off-edge test (Money's row may now fit), `p46-cost`, `p73-stats` (Live cost's form → its link), `p57-bank`.
+
+**TM4, Floor.** People: `p72-staff(.desktop)` (four tabs, default `day`), `p140-guard`, `p152` QA4-7 (the fallback), `p65-overviews`
+(Staff and Stock Overviews → their new homes), `p149` QA6-6, `p119-staff-board`, `p150` QA5-6 (the report's text), the paste
+helpers in `p107`, `p124`, `p41`, `p43`, `p90`, `p98` (Paste message is on Day), `p183`'s People-row fade (pick a row that still
+overflows). Production: `p88-prod-links`, `p130-qa-screens`, `p138-floor-day`, `p110-production-fold`, `p166-plant`,
+`p153-qa-step7` (`overview/hand` → `lines/hand`), `p89-prod-store`. Stock: `p65`, `p99-zinc-trend` (Spend and prices),
+`p152` QA4-3/QA4-4 (the reorder callout), `p48`, `p71` (the reorder link), `sweep-fixture` `walkZinc`, every helper that clicked
+the Lines tab (`p39`, `p125`, `p46`, `p110`, `p141`, `p56`, `p71(.desktop)`, `p134`, `p182`, `p80` stop `Stock › Lines`, `p79`
+fixture key `pageStock › Lines`). Power: `p177-power-causes`, `p115-power`, `p117`, `p127` (Enter a cut on the default view).
+Floor: `p138-floor-day(.desktop)` and its fixture (the tiles → the heroes), `p151-search-qa(.desktop)` (the power tile).
 
 ## 9. Builder protocol
 

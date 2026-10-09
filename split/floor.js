@@ -239,7 +239,7 @@ function flrEffRowHtml(ef) {
 function flrUnweighedHtml(day) {
   var pic = prodDayPicture(day);
   if (!pic.names.length) return '';
-  return '<div class="inv-panel inv-panel-flush inv-panels-wide" id="flrUnweighed"><div class="inv-panel-head"><span class="inv-panel-title">Not weighed</span>' +
+  return '<div class="inv-panel inv-panel-flush" id="flrUnweighed"><div class="inv-panel-head"><span class="inv-panel-title">Not weighed</span>' +
     '<span class="inv-panel-count">' + escHtml(Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs') + '</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every day</button></div>' +
     prodUnweighedRowsHtml(pic.names) +

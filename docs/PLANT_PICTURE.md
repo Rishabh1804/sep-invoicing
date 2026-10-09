@@ -1,6 +1,6 @@
 # The plant picture
 
-**Status, 9 Oct 2026.** PP1 is built, on PR #144. PP2 to PP5 are proposals. The order is the owner's to set.
+**Status, 9 Oct 2026.** PP1 is built, on PR #144. The owner has answered the four questions in §5, and PP3 (stock by line) is next. PP2, PP4 and PP5 are proposals; their order is the owner's to set.
 
 ## 1. What the owner asked
 
@@ -104,10 +104,26 @@ Each of these is one PR.
     worth against labour, chemicals and power.
   - Floor's Overview (tab map TM4a) is the day's version of it.
 
-## 5. Questions for the owner
+## 5. Questions for the owner, and their answers (9 Oct 2026)
 
 1. **Kilos a round.** An A1 tank is set at 30 kg a round. Is that one rack in one tank? On the register's rounds, A1 plates about
    50 kg a round, though most of that weight is estimated. Efficiency rests on this figure.
+
+   *The owner asked: "50 kg a round or 50 kg an hour?"* It is 50 kg **a round**. A round is one line of the register. On A1 one is
+   logged about every 20 minutes, which comes to about 150 kg an hour (the median over 11 days, from 41 to 70 kg a round). On A2 it is
+   about 47 kg a round, one about every 36 minutes. **Still open:** is one round of the register a rack from one tank, or all the
+   working tanks at once? The app takes it as all of them (3 × 30 kg = 90 kg a round on A1), and so reads the racks as 58% to 78%
+   full.
 2. **Round times.** Are the planner's round times right: 19 minutes on A1, 20 on A2 and 75 on the barrel?
+
+   *"It is approximately right, till we have more concrete data."* Kept as set. The register is measuring A1's pace too, at 19
+   minutes over 7 days.
 3. **The bath named in a stock message.** Should the app read it? (PP3)
+
+   *"Exactly."* PP3 is next. A zinc line such as "use VAT A 2 / 25/09/26/ 150 kg VAT 1 / 28/09/26/ 175 kg berral use 75 kg" is saved
+   as one use for each bath, each on its own date. It was one 400 kg entry, the baths only noted. Zinc and chemicals can then be
+   counted per line against what each line plated.
 4. **Repairs.** Where are repairs paid and recorded today: a bill, or a bank payee? (PP4)
+
+   *"Nothing recorded as of yet."* PP4 gives a repair a place on its unit: what was done, on which day, and what it cost (typed,
+   or from a bill or a bank payment). It is recorded with the status change that brings the unit back to running.

@@ -64,8 +64,11 @@ test.describe('P88: Production in the rest of the app', () => {
     seq = 0;
     await load(page, [E('plated', wdBack(4), 'CLAMP 165X83', 400)]);
     await switchTab(page, 'pageProduction');
-    await expect(page.locator('#prodRaised .inv-panel-count')).toHaveText('1');
-    await page.locator('#prodRaised [data-action="invProdTask"]').click();
+    // Two questions: the run is not invoiced, and a piece client's part with no rate card and one challan has no weight
+    // anywhere (P190's follow-up list).
+    await expect(page.locator('#prodRaised .inv-panel-count')).toHaveText('2');
+    await expect(page.locator('#prodRaised [data-action="invProdTask"][data-key="prodUnweighed:11"]')).toContainText('400 pieces plated with no weight');
+    await page.locator('#prodRaised [data-action="invProdTask"][data-key="prodPlatedUnbilled:11"]').click();
     await expect(page.locator('[data-action="invProdTab"][data-tab="plant"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#prodPlantClient')).toHaveValue('11');
     // It reaches the To-do list like every other rule.

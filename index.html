@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="13360982">
+<meta name="app-build" content="4fc8aeaa">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -53227,7 +53227,7 @@ FLOW_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] =
 var FLOW_STAGE_WORD = { waiting: 'waiting to pickle', open: 'with no floor record', pickled: 'pickled, not plated', plated: 'plated, not invoiced' };
 var FLOW_STAGES = ['waiting', 'open', 'pickled', 'plated'];   // the least advanced first: a challan stands where its least advanced line does
 // Three clients or more past their targets, or three challans wanted, are one task each (todo.js todoFoldList).
-TODO_FOLD.flowLate = { title: function(n) { return n + ' clients\u2019 material is past its turnaround target'; }, go: prodGo('plant'), goLabel: 'Open In plant' };
+TODO_FOLD.flowLate = { title: function(n) { return n + ' clients past their turnaround target'; }, go: prodGo('plant'), goLabel: 'Open In plant' };
 TODO_FOLD.flowPriority = { title: function(n) { return n + ' challans wanted by a day have no plating recorded'; }, go: { kind: 'im' }, goLabel: 'Open challans' };
 TODO_RULE_FNS.flowLate = function() {
   var today = localDateStr(), since = isoAddDays(today, -FLOW_LATE_DAYS), by = {};
@@ -53292,8 +53292,9 @@ function flowStepsHtml(st, clientId) {
   var v = flowVerdict(st, clientId), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   var h = flowRow('Challan to pickling', escHtml(flowDayText(st.toPickle.d)), escHtml(st.toPickle.n ? 'median of ' + todoPlural(st.toPickle.n, 'line') + ' with a load set against it' : 'no load set against a challan yet'), null, ' data-flow-step="pickle"') +
     flowRow('Challan to plating', escHtml(flowDayText(st.toPlate.d)), escHtml(st.toPlate.n ? 'median of ' + todoPlural(st.toPlate.n, 'line') + ' with plating set against it' : 'no plating set against a challan yet'), null, ' data-flow-step="plate"') +
-    flowRow('Challan to despatch', escHtml(flowDayText(st.toDespatch.d)), escHtml((st.toDespatch.n ? 'median of ' + todoPlural(st.toDespatch.n, 'line') : 'nothing despatched yet') + ' · the target: ' + flowDaysWord(v.t.days) +
-      (st.within != null ? ' · ' + Math.round(st.within * 100) + '% of the value within it' : '')), v.tone === 'neutral' ? null : v.tone, ' data-flow-step="despatch"');
+    // Two facts a line (§3b-11): how many lines, the target; the share on target is the verdict's.
+    flowRow('Challan to despatch', escHtml(flowDayText(st.toDespatch.d)), escHtml((st.toDespatch.n ? 'median of ' + todoPlural(st.toDespatch.n, 'line') : 'nothing despatched yet') + ' · the target: ' + flowDaysWord(v.t.days)),
+      v.tone === 'neutral' ? null : v.tone, ' data-flow-step="despatch"');
   if (money) {
     var pay = st.pay, terms = st.terms.days, tone = pay ? (pay.d <= terms ? 'ok' : pay.d <= terms * 1.5 ? 'warning' : 'danger') : null;
     h += flowRow('Invoice to payment', pay ? escHtml(pay.d + ' d') : '—', escHtml((pay ? 'median of ' + todoPlural(pay.n, 'receipt') + ' set against invoices' : finSeen() ? 'no receipt set against an invoice yet' : 'no bank statement yet') + ' · terms ' + terms + ' days'), tone, ' data-flow-step="pay"');
@@ -53307,8 +53308,10 @@ function flowClientHtml(clientId, foldKey) {
   if (!S || clientId == null) return '';
   var st = flowStats(clientId), v = flowVerdict(st, clientId), terms = flowTerms(clientId), t = flowTarget(clientId, '');
   var head = '<span class="inv-panel-title">Turnaround</span><span class="inv-panel-count">' + escHtml(flowTargetWord(t.days) + ' · ' + terms.days + '-day terms') + '</span>';
-  var h = '<div class="inv-row inv-row-2" data-flow-verdict><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.head) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml([v.on, 'challans of the last 90 days, ' + todoPlural(st.lines, 'line'), st.usual.plant && st.toDespatch.n < FLOW_MIN ? 'under ' + FLOW_MIN + ' despatched: expected days at the plant’s pace' : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+  // Two facts (§3b-11): the share on target, and what the days rest on (the plant's pace under five despatched).
+  var plantPace = st.usual.plant && st.toDespatch.n < FLOW_MIN;
+  var h = foldKey ? '' : '<div class="inv-row inv-row-2" data-flow-verdict><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.head) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml([v.on || 'nothing despatched in 90 days', plantPace ? 'under ' + FLOW_MIN + ' despatched: the plant’s pace' : todoPlural(st.lines, 'line') + ' in 90 days'].join(' · ')) + '</span></span>' +
     '<span class="inv-row-end">' + uiDot(v.tone, escHtml(v.tone === 'ok' ? 'On target' : v.tone === 'warning' ? 'Slipping' : v.tone === 'danger' ? 'Past target' : 'Not read')) + '</span></div>';
   h += flowStepsHtml(st, clientId);
   // Open challans, the oldest first: when each is expected back, and why.
@@ -53319,9 +53322,10 @@ function flowClientHtml(clientId, foldKey) {
     if (!e) return '';
     // A day it was wanted by and will not make is red, as is a target missed by more than two working days; a target missed, amber.
     var tone = e.priority && e.priority < e.date ? 'danger' : e.over > FLOW_RED_AFTER ? 'danger' : e.late ? 'warning' : 'info';
-    var why = 'came in ' + stockShortDate(m.challanDate) + ' · ' + FLOW_STAGE_WORD[e.stage] + (e.ahead ? ' · ' + todoPlural(e.ahead, 'working day') + ' of work ahead of it on ' + PROD_LINE_LABEL[e.line] : '') +
-      ' · usually ' + flowDaysWord(e.usual) + (e.usualPlant ? ' (the plant’s)' : '') + (e.priority ? ' · wanted by ' + stockShortDate(e.priority) : '');
-    return '<div class="inv-row inv-row-2" data-flow-challan="' + escHtml(m.id) + '"' + (e.late ? ' data-flow-over="' + e.over + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">Challan ' + escHtml(m.challanNo || 'with no number') + '</span>' +
+    var ahead = e.ahead ? todoPlural(e.ahead, 'working day') + ' of work ahead on ' + PROD_LINE_LABEL[e.line] : '';
+    var why = 'came in ' + stockShortDate(m.challanDate) + ' · ' + (e.priority ? 'wanted by ' + stockShortDate(e.priority) : ahead || FLOW_STAGE_WORD[e.stage]);
+    var full = [FLOW_STAGE_WORD[e.stage], ahead, 'usually ' + flowDaysWord(e.usual) + (e.usualPlant ? ' (the plant’s)' : '')].filter(Boolean).join('; ');
+    return '<div class="inv-row inv-row-2" data-flow-challan="' + escHtml(m.id) + '"' + (e.late ? ' data-flow-over="' + e.over + '"' : '') + ' title="' + escHtml(full) + '"><span class="inv-row-main"><span class="inv-row-title">Challan ' + escHtml(m.challanNo || 'with no number') + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + '</span></span><span class="inv-row-end">' + uiDot(tone, escHtml((e.late ? 'Late · back ~' : 'Back ~') + stockShortDate(e.date))) + '</span></div>';
   }).filter(Boolean);
   // One row behind a "Show 1 more" takes the room of the row itself: six are shown whole.
@@ -53336,8 +53340,8 @@ function flowClientHtml(clientId, foldKey) {
       // Past its terms is red; past the day its client's pace (or the book's) gave it, amber; else the day it is expected.
       var tone = e.past ? 'danger' : e.date && e.date < today ? 'warning' : 'info';
       var word = e.past ? 'Past terms' : !e.date ? 'Due ' + stockShortDate(e.due) : e.date < today ? 'Slow · expected ~' + stockShortDate(e.date) : 'Expected ~' + stockShortDate(e.date);
-      return '<div class="inv-row inv-row-2" data-flow-invoice="' + escHtml(o.inv.id) + '" data-flow-pay="' + (e.past ? 'past' : e.date && e.date < today ? 'slow' : 'due') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label || o.inv.displayNumber || '') + '</span>' +
-        '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatCurrency(o.due) + ' · ' + formatDate(o.date) + ' · due ' + formatDate(e.due) + (e.days != null ? ' · ' + (e.own ? 'pays' : 'the book pays') + ' in ' + e.days + ' days' : '')) + '</span></span>' +
+      return '<div class="inv-row inv-row-2" data-flow-invoice="' + escHtml(o.inv.id) + '" data-flow-pay="' + (e.past ? 'past' : e.date && e.date < today ? 'slow' : 'due') + '" title="' + escHtml('of ' + formatDate(o.date) + ', due ' + formatDate(e.due)) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label || o.inv.displayNumber || '') + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatCurrency(o.due) + ' · ' + (e.days != null ? (e.own ? 'pays' : 'the book pays') + ' in ' + e.days + ' days' : 'due ' + formatDate(e.due))) + '</span></span>' +
         '<span class="inv-row-end">' + uiDot(tone, escHtml(word)) + '</span></div>';
     });
     if (irows.length) h += '<div class="inv-row-group"><span>Open invoices · expected paid</span></div>' + uiMoreHtml('flow-invoices-' + clientId, irows, { n: irows.length === 6 ? 6 : 5, noun: 'invoices' });

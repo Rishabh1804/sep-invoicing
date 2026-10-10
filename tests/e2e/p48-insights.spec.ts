@@ -72,7 +72,8 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     // Stats' list of them went with its Overview (the tab map, TM2b): they are tasks, on Needs you.
     await switchTab(page, 'pageHome');
     await expect(page.locator('#homeNeeds')).toContainText('QUIET WORKS: no challan for 40 days');
-    await page.locator('#homeNeeds [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS' }).click();
+    // By its own words: QUIET WORKS owes past its 45-day terms too, a task of its own (P204).
+    await page.locator('#homeNeeds [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS: no challan' }).click();
     await expect(page.locator('[data-todo-facts]')).toContainText('Usual gap');
     // Switched off in Settings, it is gone.
     await g(page, `(function(){ S.todoCheck = Object.assign({}, S.todoCheck, { insQuiet: false }); })()`);

@@ -23,7 +23,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // TM2. Needs you's one toolbar row is the To-do's Add (TM2a puts it there; the one budget a step has raised, and said so
   // at the stop, I10). Pulse took Stats → Overview's cards and gave the room back (three widgets hidden, the cards and the
   // widgets shut on the phone).
-  'Today › Needs you': { screens: 3, blocks: 1, chains: 2, toolbarRows: 1 },
+  // Raised 3 → 3.5 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): material past its turnaround target is a red
+  // task in Now, the long book's twelve clients folded into one card (3.09).
+  'Today › Needs you': { screens: 3.5, blocks: 1, chains: 2, toolbarRows: 1 },
   'Today › Pulse': { screens: 4, blocks: 0, chains: 1, toolbarRows: 1 },
   'Today › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -46,7 +48,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Office › Sales › Quotations': { screens: 1.5, blocks: 0, chains: 3, toolbarRows: 2 },
   // TM4. Floor's screens, each led by its verdict card, then one toolbar row. Production → Entries was 17.2 phone screens and
   // 109 chains; In plant 7.5 and 64; the case a document fitted to the screen. Causes has no toolbar of its own (§1a-12).
-  'Floor › Overview': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Raised 2.5 → 3 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): the fifth card, Turnaround, on a row of its
+  // own (2.62).
+  'Floor › Overview': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › People › Attendance': { screens: 2.5, blocks: 1, chains: 0, toolbarRows: 1 },
   'Floor › People › Attendance › Week': { screens: 2, blocks: 3, chains: 0, toolbarRows: 1 },
   'Floor › People › Attendance › Month': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },

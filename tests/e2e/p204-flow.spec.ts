@@ -147,7 +147,8 @@ test.describe('P204: the flow thread', () => {
     await hero.locator(':scope > summary').click();
     await expect(hero.locator('[data-flow-step="pickle"] .inv-row-end')).toHaveText('1 d');
     await expect(hero.locator('[data-flow-step="plate"] .inv-row-end')).toHaveText('—');
-    await expect(hero.locator('[data-flow-step="despatch"]')).toContainText('median of 3 lines · the target: 1 working day · 33% of the value within it');
+    // Two facts a line (§3b-11): the share on target is the card's own sentence.
+    await expect(hero.locator('[data-flow-step="despatch"] .inv-row-meta')).toHaveText('median of 3 lines · the target: 1 working day');
     await expect(hero.locator('[data-flow-step="pay"]')).toContainText('20 d');
     await expect(hero.locator('[data-flow-step="pay"]')).toContainText('median of 1 receipt set against invoices · terms 45 days');
     await expect(hero.locator('[data-flow-late]')).toContainText('2 with no floor record, 1 pickled, not plated');
@@ -165,14 +166,16 @@ test.describe('P204: the flow thread', () => {
     const p = page.locator('[data-client-flow="11"]');
     await expect(p.locator('.inv-panel-count')).toHaveText('1-day target · 45-day terms');
     await expect(p.locator('[data-flow-verdict] .inv-row-title')).toHaveText('Back in 3 working days');
-    await expect(p.locator('[data-flow-verdict] .inv-row-meta')).toHaveText('33% of the value on target · challans of the last 90 days, 6 lines · under 5 despatched: expected days at the plant’s pace');
+    await expect(p.locator('[data-flow-verdict] .inv-row-meta')).toHaveText('33% of the value on target · under 5 despatched: the plant’s pace');
     await expect(p.locator('[data-flow-verdict] .inv-row-end')).toContainText('Slipping');
     // Five working days old against a one-day target: late, and red past two; back today at the earliest.
     const c104 = p.locator('[data-flow-challan="IM-104"]');
     await expect(c104).toHaveAttribute('data-flow-over', '4');
     await expect(c104.locator('.inv-dot')).toHaveClass(/inv-dot-danger/);
     await expect(c104.locator('.inv-row-end')).toHaveText('Late · back ~' + short(T));
-    await expect(c104.locator('.inv-row-meta')).toHaveText('came in ' + short(wd[5]) + ' · with no floor record · usually 3 working days (the plant’s)');
+    // Two facts on its line; what its day rests on in its title.
+    await expect(c104.locator('.inv-row-meta')).toHaveText('came in ' + short(wd[5]) + ' · with no floor record');
+    await expect(c104).toHaveAttribute('title', 'with no floor record; usually 3 working days (the plant’s)');
     // Today's: back at the plant's usual three working days.
     await expect(p.locator('[data-flow-challan="IM-105"] .inv-row-end')).toHaveText('Back ~' + short(addWd(T, 3)));
     // The invoices: past the terms; slower than the twenty days the book pays in; expected.

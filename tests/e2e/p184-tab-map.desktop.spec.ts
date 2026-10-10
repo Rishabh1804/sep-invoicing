@@ -127,6 +127,8 @@ test.describe('P184: one look’s pieces on the desktop', () => {
   test('every page declares its kind on the desktop too; an article read in the pane is a work screen', async ({ page }) => {
     await loadAppWithState(page, book());
     const pages: string[] = await g(page, `Array.from(document.querySelectorAll('.inv-page')).map(function (p) { return p.id; })`) as string[];
+    // Mine is a person's (faces.js, the entry faces): opened as the owner looking at one with duties.
+    await g(page, `S.users = [{ id: 'U-face', name: 'Face Hand', role: 'floor', faces: ['stock'] }]; _faceUid = 'U-face'`);
     for (const id of pages) {
       await g(page, `switchTab(${JSON.stringify(id)})`);
       await expect(page.locator(`#${id}`)).toHaveClass(/inv-page-active/);

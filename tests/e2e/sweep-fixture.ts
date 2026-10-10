@@ -170,6 +170,9 @@ export function sweepState(): SepState {
     ka('KQ1', 'requirement', 'Beta needs certificates', { links: [{ type: 'client', id: '2', label: CLIENTS[1].name }] }),
     ka('KD2', 'part', 'Clamp gauges', { status: 'draft', src: 'import' })],
     trained: [{ id: 'kt1', staffId: 1, name: 'x', articleId: 'KG1', v: 1, on: dayOff(-3), at: recentTs(), by: 'Owner' }], paths: [] };
+  // A person with a face (faces.js, the entry faces), every duty on it: no PIN, so the guard stays off; the walks open Mine as the
+  // owner looking at it (_faceUid).
+  s.users = [{ id: 'U-face', name: 'Face Hand', role: 'floor', faces: ['roll-in', 'pickling', 'incoming', 'stock', 'attsheet', 'barrel', 'vat', 'roll-out'] }];
   return s;
 }
 
@@ -358,11 +361,17 @@ export async function shot(page: Page, name: string) {
 }
 
 export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory',
-  'pageFloor', 'pagePipeline', 'pageKnow'];
+  'pageFloor', 'pagePipeline', 'pageKnow', 'pageFace'];
+/* Mine is a person's (faces.js): with the guard off nobody is signed in, so a walk opens it as the owner looking at the sweep book's
+   face (its user, U-face). */
+export async function faceSeen(page: Page, id: string) {
+  if (id === 'pageFace') await page.evaluate(() => { (0, eval)("_faceUid = 'U-face'"); });
+}
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   for (const id of PAGES) {
+    await faceSeen(page, id);
     await switchTab(page, id);
     stops.push(await sweep(page, id));
     await shot(page, `${tag}-${id}`);

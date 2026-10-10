@@ -4,7 +4,7 @@
 const PAGE_TITLES = {
   pageHome: 'Today', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
   pageClients: 'Clients', pageFinance: 'Money', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
-  pageFloor: 'Floor overview', pagePipeline: 'Pipeline',
+  pageFloor: 'Floor overview', pagePipeline: 'Pipeline', pageFace: 'Mine',
   pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
 };
 
@@ -15,7 +15,7 @@ const PAGE_TITLES = {
    a page's own view can differ from the page (`page/view`), and a sub-view that is a form says so while it shows. */
 var SCREEN_KINDS = {
   pageHome: 'overview', pagePipeline: 'overview', pageIM: 'work', pageRegister: 'work', pageClients: 'work',
-  pageCreate: 'form', pageFloor: 'overview',
+  pageCreate: 'form', pageFloor: 'overview', pageFace: 'overview',
   pageStaff: 'work',
   pageProduction: 'work',
   pageStock: 'work', 'pageStock/item': 'form',
@@ -181,6 +181,8 @@ function tabRender(tabId, isDirty) {
     renderPower();
   } else if (tabId === 'pageFloor') {
     renderFloor();
+  } else if (tabId === 'pageFace') {
+    renderFace();
   } else if (tabId === 'pageStock') {
     renderStock();
   } else if (tabId === 'pageStaff') {

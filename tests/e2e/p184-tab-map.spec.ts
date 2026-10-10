@@ -53,7 +53,7 @@ test.describe('P184: the tab map on the phone', () => {
     await expect(own(page)).toHaveText(['Overview', 'Receivables', 'Payments', 'Bank', 'GST']);
     // No row is wider than five.
     for (const labels of Object.values(ROWS)) expect(labels.length).toBeLessThanOrEqual(5);
-    expect(await g(page, `WORKSPACES.map(function(w){ return w.id + ':' + w.views.length; }).join(' ')`)).toBe('today:5 office:5 floor:5 money:1');
+    expect(await g(page, `WORKSPACES.map(function(w){ return w.id + ':' + w.views.length; }).join(' ')`)).toBe('today:5 office:5 floor:5 money:1 mine:1');
   });
 
   test('Clients and Sales are one page with two rows: each draws only its own group, and a view lights its own door', async ({ page }) => {
@@ -419,6 +419,8 @@ test.describe('P184: the verdict card and the row end on the phone', () => {
   test('every page declares its kind, and a form sub-view says so while it shows', async ({ page }) => {
     await loadAppWithState(page, book());
     const pages: string[] = await g(page, `Array.from(document.querySelectorAll('.inv-page')).map(function (p) { return p.id; })`) as string[];
+    // Mine is a person's (faces.js, the entry faces): opened as the owner looking at one with duties.
+    await g(page, `S.users = [{ id: 'U-face', name: 'Face Hand', role: 'floor', faces: ['stock'] }]; _faceUid = 'U-face'`);
     for (const id of pages) {
       await g(page, `switchTab(${JSON.stringify(id)})`);
       await expect(page.locator(`#${id}`)).toHaveClass(/inv-page-active/);

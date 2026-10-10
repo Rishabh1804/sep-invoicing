@@ -1,7 +1,8 @@
 # Entry faces: each hand enters their own
 
-**Status: planned, 10 Oct 2026.** Nothing below is built yet. The steps are F1–F6, then the flow thread T1–T3, one commit each,
-on the tab map's branch (PR #146) ahead of TM5–TM7.
+**Status: F1 built (10 Oct 2026, P199): duties on a user, Mine, landing on it, its steps, what was entered, its paper and backup,
+Today hearing a face (CLAUDE.md *Entry faces*).** F2–F6, then the flow thread T1–T3, follow, one commit each, on the tab map's branch
+(PR #146) ahead of TM5–TM7.
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,

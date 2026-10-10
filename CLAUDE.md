@@ -26,6 +26,9 @@ about. Five steps, one PR each: I1 an entry checked before it is believed (built
 ranked list (built), I4 the change explained (built), I5 learning from responses (built). **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
+**The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
+employee to enter data"*, each on their own phone). F1, the shell, is built: duties on a user, Mine. F2–F6 and the flow thread follow.
+
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
 implementation … is done"*). One PR, steps PL1–PL5, then the QA chain. Nothing about the shop is written into the code: the
@@ -92,7 +95,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 85 modules, ~58,800 lines total.
+Split-file PWA. 86 modules, ~59,400 lines total.
 
 ```
 split/
@@ -165,6 +168,7 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the day's duties as steps, what they entered, their sheets, sent or not (~300 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -187,7 +191,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -217,7 +221,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,721 tests, both layouts
+pnpm exec playwright test          # 1,723 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2870,6 +2874,25 @@ on the build before. What it leaves as rules:
 - **A late focus never pulls the cursor back** (`focusSoon`, state.js: Create's client search and the challan form's, 100 ms after
   they open): skipped when a click or tap went elsewhere first, or another field took it. On a slow CI runner it pulled the cursor
   back, and P139's C, then its ?, were typed into the search.
+
+### Entry faces
+`docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
+all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2–F6 and T1–T3
+to come. No name is in the build: the people are the book's.
+- **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
+  attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
+  access → *Enters*); the users list says what each enters.
+- **Mine** is their screen (`pageFace`, an overview): the day (‹ › and Today, the address's `d`), the duties as steps read as
+  Today's inputs read them (in, late, not yet, not expected), each opening where the duty is entered on that day (Production's hand
+  form on its line, Challans' form, Stock's by hand, People's day as the board or the sheet) until its own form is on the face
+  (F2–F4); *What you entered* that day from the change log (`faceEntered`); the sheets to print, and whether their entries have
+  reached GitHub (`faceSyncState`).
+- **Its door is drawn only for an ID with a face** (`faceMineDoor`), first on the bar and after Add on the rail; `grdSees('pageFace')`
+  is the face's (`faceSees`), guard on or off. **Signing in lands on it** from the start's Today or when another person signs in; a
+  launch onto another screen is kept (`grdAfterUser`).
+- **The owner sees a person's screen as theirs** (*See their screen* on the users list: `_faceUid`, ended by the next sign-in).
+- **Today hears a face**: an input a person with that duty entered says so (*Entered by …*, `faceInputBy`, read off the change log).
+- **Search finds Mine** only where it opens (`srchSees`).
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

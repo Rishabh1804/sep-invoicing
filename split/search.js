@@ -131,6 +131,8 @@ function srchScreens() {
     ['cn-list', 'Credit notes', 'Office › Invoices', 'credit note cn rebate', { kind: 'cnList' }],
     ['audit', 'Number audit', 'Office › Invoices', 'void voided gaps serial numbers missing', { kind: 'audit' }],
     ['floor', 'Overview', 'Floor', 'floor day lines heads crew overview', at('pageFloor')],
+    // A person's own screen (faces.js): found only by an ID with duties set, as its door is shown only to one.
+    ['mine', 'Mine', 'Your duties', 'mine my duties my screen what I enter', at('pageFace')],
     // People's Overview went (the tab map, TM4b): People opens on Attendance, its day; Week and Month are the switch's.
     ['people', 'People', 'Floor · was Staff', 'staff attendance day', at('pageStaff', 'day')],
     ['att-day', 'Attendance', 'Floor › People', 'day marks present absent', at('pageStaff', 'day')],
@@ -222,6 +224,8 @@ var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'page
 var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
   worker: 'pageStaff', task: 'pageHome', todoDone: 'pageHome', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
+  // Mine is a person's (faces.js), guard on or off: listed only where it opens.
+  if (e && e.kind === 'screen' && e.go && e.go.kind === 'place' && e.go.loc && e.go.loc.tab === 'pageFace') return typeof faceSees === 'function' && faceSees();
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
     var go = e.go || {};

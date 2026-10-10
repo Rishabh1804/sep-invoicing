@@ -142,7 +142,12 @@ function tdyInput(def, day) {
     // Only the barrel list missing: it comes as a message, not a photo.
     if (miss.length === 1 && miss[0] === PROD_LINE_LABEL.barrel) o.move = 'paste';
   }
-  if (o.state === 'in') return o;
+  if (o.state === 'in') {
+    // Entered on a person's own screen (faces.js): said by whom, in place of "by hand".
+    var by = typeof faceInputBy === 'function' ? faceInputBy(def.k, day) : [];
+    if (by.length) { var bt = o.text.replace(/ · entered by hand$/, '').replace(/^entered by hand$/, ''); o.text = bt ? bt + ' · by ' + by.join(', ') : 'Entered by ' + by.join(', '); }
+    return o;
+  }
   var u = tdyUsual(def.k, day);
   o.usual = u.min;
   if (off) { o.state = 'off'; o.text = 'Not expected: ' + (new Date(day + 'T00:00:00').getDay() === 0 ? 'Sunday' : 'a paid holiday'); return o; }

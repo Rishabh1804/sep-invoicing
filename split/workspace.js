@@ -31,7 +31,8 @@ var WS_ICONS = {
   money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
   add: '<path d="M12 5v14M5 12h14"/>',
   search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
-  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>'
+  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>',
+  mine: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>'
 };
 function wsSvg(k) {
   return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
@@ -55,7 +56,10 @@ var WORKSPACES = [
   { id: 'floor', label: 'Floor', icon: 'floor', bar: true,
     views: [{ tab: 'pageFloor', label: 'Overview' }, { tab: 'pageStaff', label: 'People' }, { tab: 'pageProduction', label: 'Production' }, { tab: 'pageStock', label: 'Stock' }, { tab: 'pagePower', label: 'Power' }],
     members: [] },
-  { id: 'money', label: 'Money', icon: 'money', bar: true, views: [{ tab: 'pageFinance', label: 'Money' }], members: [] }
+  { id: 'money', label: 'Money', icon: 'money', bar: true, views: [{ tab: 'pageFinance', label: 'Money' }], members: [] },
+  // A person's own screen (faces.js, the entry faces): its door is drawn first, and only for an ID with a face (wsRenderBar,
+  // renderSidebar), never among the bar's own four.
+  { id: 'mine', label: 'Mine', icon: 'mine', bar: false, views: [{ tab: 'pageFace', label: 'Mine' }], members: [] }
 ];
 /* The page's own view a `vs` view stands for: the first part of the address's v while its page is on screen, else the one the
    page remembers (Clients' sub-view is kept on the device). */
@@ -191,7 +195,9 @@ function wsRenderBar() {
   if (!nav) return;
   var item = function(w) { return wsDoorHtml('inv-navbar-item', 'data-action="invWsGo" data-ws="' + w.id + '"', w.icon, w.label, w.id); };
   var bar = WORKSPACES.filter(function(w) { return w.bar; });
-  nav.innerHTML = bar.slice(0, 2).map(item).join('') +
+  // An ID with a face (faces.js) has its own door, Mine, first; the four and Add after it as ever.
+  var mine = typeof faceMineDoor === 'function' && faceMineDoor() ? item(wsGet('mine')) : '';
+  nav.innerHTML = mine + bar.slice(0, 2).map(item).join('') +
     wsDoorHtml('inv-navbar-item inv-navbar-add', 'data-action="invAddOpen" data-shell-primary', 'add', 'Add') +
     bar.slice(2).map(item).join('');
 }
@@ -270,6 +276,7 @@ function renderSidebar() {
   var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Soma Electro · Pulse"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
     '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg></button>' +
     wsDoorHtml('inv-side-item inv-navbar-add', 'data-action="invAddOpen" data-shell-primary aria-keyshortcuts="A" title="Add (A)"', 'add', 'Add');
+  if (typeof faceMineDoor === 'function' && faceMineDoor()) html += wsDoorHtml('inv-side-item', 'data-action="invWsGo" data-ws="mine"', 'mine', 'Mine', 'mine');
   WORKSPACES.forEach(function(w) {
     if (!w.bar || !wsViewsPresent(w).length) return;
     html += wsDoorHtml('inv-side-item', 'data-action="invWsGo" data-ws="' + w.id + '"', w.icon, w.label, w.id);
@@ -350,6 +357,8 @@ function wsUpdateCounts() {
    the sidebar's and the tab row's alike. */
 function wsRedraw() {
   if (_isDesktop) renderSidebar();
+  // The phone bar is drawn at load; Mine's door comes and goes with whoever signs in.
+  else if (!!document.querySelector('.inv-navbar-item[data-ws="mine"]') !== (typeof faceMineDoor === 'function' && faceMineDoor())) wsRenderBar();
   _wsRowSig = null;
   wsShellDraw();
 }

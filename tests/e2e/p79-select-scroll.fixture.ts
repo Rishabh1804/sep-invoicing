@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { switchTab } from './fixtures';
-import { PAGES } from './sweep-fixture';
+import { PAGES, faceSeen } from './sweep-fixture';
 
 // P79: a change inside a view never moves the page (owner, 27 Sep 2026: "check if clicking a drop down or selecting
 // an option from the drop-down is leading the page to go back to the top, I noticed this behaviour in receivables").
@@ -129,6 +129,7 @@ const probePage = (page: Page, where: string, jumps: Jump[], seen: Set<string>) 
 export async function walkSelects(page: Page, jumps: Jump[]) {
   const seen = new Set<string>();
   for (const id of PAGES) {
+    await faceSeen(page, id);
     await switchTab(page, id);
     await probePage(page, id, jumps, seen);
     const n = await page.locator(`#${id} .inv-viewtab:visible`).count();

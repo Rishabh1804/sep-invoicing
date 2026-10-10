@@ -136,6 +136,8 @@ function grdOk(group) {
 /* The role opens this page. Home always; while locked nobody is signed in and the lock covers the screen, so the page
    under it is checked again at the unlock (grdAfterUser), and nothing is drawn on it meanwhile (grdHeld). */
 function grdSees(tabId) {
+  // Mine is a person's, never a role's (faces.js): open to an ID with duties set, and to the owner looking at one.
+  if (tabId === 'pageFace') return typeof faceSees === 'function' && faceSees();
   // Knowledge is everyone's page: each article says which roles read it (knowledge.js kbCanRead).
   if (!grdOn() || tabId === 'pageHome' || tabId === 'pageKnow') return true;
   var u = grdUser();
@@ -609,12 +611,18 @@ function grdAfterUser() {
   var first = _grdLastUser == null, other = _grdLastUser !== u.id, stale = _grdDrawnFor !== grdDrawKey(u);
   _grdLastUser = u.id;
   if (other) {
+    // The owner looking at another's screen ends with whoever signs in next (faces.js).
+    if (typeof _faceUid !== 'undefined') { _faceUid = null; _faceDay = null; }
     if (document.querySelector('.inv-scrim-dialog') && typeof closeOverlay === 'function') closeOverlay();
     var pv = document.getElementById('invPrintView');
     if (pv && pv.classList.contains('inv-print-view-active') && typeof closePrintPreview === 'function') closePrintPreview();
   }
   var page = (document.querySelector('.inv-page-active') || {}).id;
-  if (page) {
+  // An ID with a face lands on it (docs/ENTRY_FACES.md §1.2): from the start's Today, and whenever another person signs in; a
+  // launch onto another screen (an address, the widget) is kept.
+  var face = typeof faceDuties === 'function' && faceDuties(u).length > 0;
+  if (face && (!page || page === 'pageHome' || (other && !first))) switchTab('pageFace');
+  else if (page) {
     var busy = typeof bookBusy === 'function' && bookBusy();
     // A challan form a launch opened before the first unlock (the New challan shortcut) is the person's who launched it:
     // drawn again, Challans would close it.
@@ -893,6 +901,8 @@ function grdFormOpen(mode, id) {
     body = grdFieldHtml('grdName', 'Name', '<input class="inv-input" id="grdName" autocomplete="off" maxlength="60" value="' + escHtml(u ? u.name : '') + '">') +
       (isOwner ? '<p class="inv-note inv-mb-8">The owner&rsquo;s role is fixed: everything.</p>' : grdFieldHtml('grdRole', 'Role', roleSel(u ? u.role : 'office'), 'What it opens and may change is set under the roles, below the users.')) +
       grdFieldHtml('grdStaff', 'Worker on the roster', staffSel(u ? u.staffId : ''), 'For a floor hand: links the ID to the roster.') +
+      // What this person enters on their own screen, Mine (faces.js): set on a person, never on a role.
+      (isOwner || typeof faceTicksHtml !== 'function' ? '' : faceTicksHtml(u ? u.faces : [])) +
       (mode === 'add' ? pins('PIN') : '');
   } else if (mode === 'pin') {
     body = '<p class="inv-note inv-mb-8">' + escHtml(u.name) + '&rsquo;s old PIN stops working at once. Tell them the new one.</p>' + pins('New PIN');
@@ -974,6 +984,8 @@ async function grdFormSave() {
     var staffId = grdVal('grdStaff');
     var nu = { id: grdUid(), name: name, role: role, secret: secret, active: true, createdAt: now, createdBy: me2 };
     if (staffId !== '') nu.staffId = isNaN(+staffId) ? staffId : +staffId;
+    var nf = typeof faceTicksRead === 'function' ? faceTicksRead(scrim) : [];
+    if (nf.length) nu.faces = nf;
     S.users.push(nu);
   } else if (f.mode === 'edit') {
     u = grdUserById(f.id);
@@ -982,6 +994,7 @@ async function grdFormSave() {
     if (u.role !== 'owner' && GRD_ROLES.indexOf(grdVal('grdRole')) > 0) u.role = grdVal('grdRole');
     var sid = grdVal('grdStaff');
     if (sid === '') delete u.staffId; else u.staffId = isNaN(+sid) ? sid : +sid;
+    if (u.role !== 'owner' && typeof faceTicksRead === 'function') { var ef = faceTicksRead(scrim); if (ef.length) u.faces = ef; else delete u.faces; }
     u.updatedAt = now;
   } else if (f.mode === 'pin') {
     u = grdUserById(f.id);
@@ -1037,8 +1050,11 @@ function grdUserRowsHtml() {
   var me = grdUserId();
   return list.map(function(u) {
     var w = u.staffId != null && typeof staffById === 'function' ? staffById(u.staffId) : null;
-    var meta = [grdRoleName(u.role), w ? 'worker ' + w.name : '', u.id === me ? 'signed in here' : ''].filter(Boolean).join(' · ');
+    var duties = typeof faceDutiesText === 'function' ? faceDutiesText(u) : '';
+    var meta = [grdRoleName(u.role), w ? 'worker ' + w.name : '', duties ? 'enters ' + duties : '', u.id === me ? 'signed in here' : ''].filter(Boolean).join(' · ');
     var acts = '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardEdit" data-id="' + escHtml(u.id) + '">Edit</button>';
+    // Their screen, as they see it (faces.js): the owner's look at a person's Mine.
+    if (duties && u.active !== false) acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceSee" data-id="' + escHtml(u.id) + '">See their screen</button>';
     if (u.active !== false) {
       // One's own row changes the PIN with the PIN it has; another's is reset (grdFormOpen).
       acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardResetPin" data-id="' + escHtml(u.id) + '">' + (u.id === me ? 'Change my PIN' : 'Reset PIN') + '</button>';

@@ -14,6 +14,57 @@ function _clientStatusDot(c) {
   return '<span class="inv-dot inv-dot-' + (c.isActive ? 'ok' : 'neutral') + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span>';
 }
 
+/* What the app has flagged about each client (the tab map, TM5d): the tasks a client's own page lists (todoClientTasks), gathered in
+   one pass over the rules, since each reads the whole book; worked out when the view is drawn, not at every key typed in its search.
+   String(clientId) → its tasks, the worst first. */
+var _clientFlags = {};
+function clientFlagsRead() {
+  var by = {}, all = [];
+  try { all = todoAppAll(); } catch (e) { all = []; }
+  all.forEach(function(t) {
+    if (t.clientId == null || todoIsSnoozed(t) || !todoSees(t)) return;
+    (by[String(t.clientId)] = by[String(t.clientId)] || []).push(t);
+  });
+  Object.keys(by).forEach(function(k) { by[k].sort(function(a, b) { return (TODO_TONE_RANK[a.tone] || 0) - (TODO_TONE_RANK[b.tone] || 0); }); });
+  return (_clientFlags = by);
+}
+/* Each rule's short word, as a row's end says it. */
+var CLIENT_FLAG_WORD = { owed90: 'past terms', payingSlower: 'paying slower', chequeHeld: 'cheque to deposit', insQuiet: 'gone quiet',
+  insClientDown: 'billing down', insLeak: 'realising low', insBelowVar: 'below cost', challan: 'to bill', cn: 'note due',
+  flowLate: 'past turnaround', flowPriority: 'wanted by a day', prodPlatedUnbilled: 'plated, not billed', prodGaugeUnknown: 'gauge unknown',
+  prodPickledNoChallan: 'challan missing', prodUnweighed: 'not weighed' };
+/* A client's worst flag as a dot and a word, every flag's title in its own title; none, nothing. */
+function clientFlagDotHtml(c) {
+  var list = _clientFlags[String(c.id)];
+  if (!list || !list.length) return '';
+  return '<span class="inv-dot inv-dot-' + uiTone(list[0].tone) + '" data-client-flag="' + escHtml(list[0].rule) + '" title="' +
+    escHtml(list.map(function(t) { return t.title; }).join(' · ')) + '">' + escHtml(CLIENT_FLAG_WORD[list[0].rule] || 'flagged') + '</span>';
+}
+/* The Clients view's verdict (the tab map, TM5d; it was the page-head line, "22 clients"): how many clients and the rule flagged
+   worst ("22 clients · 2 past terms"), one row on the phone (I10: two rules wrapped it on the owner's book); how many are flagged and
+   the next rules, worst first, its facts. */
+function clientsVerdictHtml() {
+  var by = {}, n = 0;
+  Object.keys(_clientFlags).forEach(function(id) {
+    if (!S.clients.some(function(c) { return String(c.id) === id; })) return;
+    n++;
+    _clientFlags[id].forEach(function(t) {
+      var r = by[t.rule] || (by[t.rule] = { n: 0, tone: 'info' });
+      r.n++;
+      if ((TODO_TONE_RANK[t.tone] || 0) < (TODO_TONE_RANK[r.tone] || 0)) r.tone = t.tone;
+    });
+  });
+  var rules = Object.keys(by).sort(function(a, b) { return (TODO_TONE_RANK[by[a].tone] || 0) - (TODO_TONE_RANK[by[b].tone] || 0) || by[b].n - by[a].n; });
+  var say = function(k) { return by[k].n + ' ' + (CLIENT_FLAG_WORD[k] || 'flagged'); };
+  var total = S.clients.length, inactive = S.clients.filter(function(c) { return !c.isActive; }).length;
+  var verdict = todoPlural(total, 'client') + (rules.length ? ' · ' + say(rules[0]) : '');
+  var facts = rules.slice(1).map(function(k) { return { text: say(k), tone: uiTone(by[k].tone) }; }).slice(0, 2);
+  facts.unshift(n ? n + ' flagged' : 'nothing flagged');
+  if (inactive) facts.push(inactive + ' inactive');
+  return uiVerdictHtml({ screen: 'Clients', tone: rules.length ? uiTone(by[rules[0]].tone) : total ? 'ok' : 'neutral', verdict: total ? verdict : 'No clients yet',
+    facts: facts.slice(0, 3), key: 'pageClients-clients', attrs: ' id="clientsVerdict" data-clients-flagged="' + n + '"' });
+}
+
 /* Does a client answer a search? Its name or its GSTIN, case ignored on both: a GSTIN is stored in capitals, and the
    challan form's search lower-cased what was typed and compared it with them, so "20aaack" found nobody. */
 function clientMatchesQuery(c, q) {
@@ -31,8 +82,6 @@ function renderClientList(filter) {
   const filtered = q ? sorted.filter(c => clientMatchesQuery(c, q)) : sorted;
   const el = document.getElementById('clientList');
   if (!el) return;
-  const countEl = document.getElementById('clientsCount');
-  if (countEl) countEl.textContent = filtered.length + (filtered.length === 1 ? ' client' : ' clients');
 
   // Desktop: a client filtered out of the list closes its pane.
   if (_isDesktop && _clientsActiveId && !filtered.some(function(c) { return c.id === _clientsActiveId; })) {
@@ -59,20 +108,22 @@ function renderClientList(filter) {
           '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
           '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
-          '<td>' + _clientStatusDot(c) + '</td></tr>';
+          // Its worst flag where it has one (TM5d), else whether it is active.
+          '<td>' + (c.isActive ? clientFlagDotHtml(c) || _clientStatusDot(c) : _clientStatusDot(c)) + '</td></tr>';
       }).join('') + '</tbody></table>';
     return;
   }
 
   el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
     const r = _clientRateNow(c);
-    const meta = [c.gstin || 'No GSTIN', CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ');
+    // Two facts (§3b-11): who it is to GST, and how it is billed with its overrides beside the mode.
+    const meta = [c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
       '<span class="inv-row-end"><span class="inv-row-stack">' +
       (r ? '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' : '<span class="inv-row-meta">No rate</span>') +
-      (c.isActive ? '' : _clientStatusDot(c)) + '</span></span></button>';
+      (c.isActive ? clientFlagDotHtml(c) : _clientStatusDot(c)) + '</span></span></button>';
   }).join('') + '</div>';
 }
 

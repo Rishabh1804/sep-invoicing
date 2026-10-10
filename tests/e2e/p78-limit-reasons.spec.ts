@@ -28,6 +28,8 @@ test('an over-bill needs a reason: the save is held, Other takes a note, and the
   const box = page.locator('#invImShare0');
   await expect(box.locator('[data-ack="over"]')).toContainText('Why does this line bill more than is left?');
   await expect(box.locator('[data-action="invOverReason"]')).toHaveText(['Customer dispatched more than the challan', 'Challan quantity was wrong', 'Other']);
+  // The field left (the tab map, TM5h: no error before): the save is held and the error names the line.
+  await page.locator('input[data-field="qty"][data-idx="0"]').blur();
   await expect(page.locator('#invSaveBtn')).toBeDisabled();
   await expect(page.locator('#invErrorsArea')).toContainText('Line 1: 30 over what is left on challan 301 — pick a reason');
 
@@ -125,11 +127,15 @@ test('an over-bill accepted before reasons were asked still loads and shows, and
   await expect(page.locator('[data-ack-tag]')).toContainText('Billed over the 100 left on its challan line: accepted, no reason recorded');
   await g(page, 'closeOverlay()');
 
-  // Edited while still over: the reason is asked for, and the save waits for it.
+  // Edited while still over: the reason is asked for, and the save waits for it. Nothing was typed, so the error shows on the
+  // first try (the tab map, TM5h), which saves nothing and holds the save.
   await g(page, "editInvoice('INV-3')");
   const box = page.locator('#invImShare0');
   await expect(box.locator('[data-ack="over"]')).toContainText('Accepted earlier with no reason recorded');
+  await page.locator('#invSaveBtn').click();
+  await expect(page.locator('#invErrorsArea')).toContainText('Line 1: 30 over what is left on challan 301 — pick a reason');
   await expect(page.locator('#invSaveBtn')).toBeDisabled();
+  expect((await readStoredState(page)).invoices[2].items[0].overBillAck.reason).toBeUndefined();
   await box.locator('[data-action="invOverReason"][data-reason="challan"]').click();
   await page.locator('#invSaveBtn').click();
   await expect(page.locator('.inv-toast')).toContainText('Invoice updated');

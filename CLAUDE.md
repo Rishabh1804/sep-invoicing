@@ -54,7 +54,7 @@ screens and views, 34 lead with no summary at all; the rest lead five different 
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
 row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
 (owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
-built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3 and TM4 are built (*The tab map* below); then TM5 to
+built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3, TM4 and TM5 are built (*The tab map* below); then TM6,
 TM7 and the QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
@@ -220,7 +220,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,748 tests, both layouts
+pnpm exec playwright test          # 1,762 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -465,7 +465,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 723 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -531,8 +531,9 @@ drawn before a print names a step reached and never skips past it. **Not printed
 never came out (`invNotPrinted`), stamp and all. P104.
 Stats' state tiles keep one tone per state (`INV_STATE_TONE`), since they count many invoices. A number is spent from
 Dispatched on, not from Printed. P94.
-**The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
-number* on the phone, where a number sort is grouped by series rather than by day. The order is the series prefix, so
+**The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and the phone's sort in
+Filter (*Highest number first*, *Lowest number first*; two buttons until the tab map, TM5c), where a number sort is grouped by
+series rather than by day. The order is the series prefix, so
 25-26 comes before 26-27, then the number read as a number, so `100` follows `00099` however it was padded (P70).
 **IM is built:** the worklist leads with *Awaiting invoice*, then *Invoiced*, each grouped by challan date; a challan
 expands to its lines (`inv-row-expander`). The desktop table and pane are the Register's, with the focus helpers shared
@@ -1015,7 +1016,7 @@ of the same workflow: tick the batch, export its register, raise the note off th
 
 **The register that goes with it is a DOCUMENT, not just a CSV.** A batch ships as two things and
 only one of them was printable: the CSV is a working paper for the accountant, and a spreadsheet is
-not what you send a customer alongside a GST document. Register → **Sales Register PDF** prints the
+not what you send a customer alongside a GST document. Register → More → **Sales register PDF** prints the
 same register through the same print view every other document here uses — no PDF library, because
 adding one to render a single table would be a second rendering path for a job the browser already
 does.
@@ -2680,6 +2681,46 @@ lowered for every Floor screen, P197's `ONE_LOOK` takes them, and the walk visit
   (3.74 → 2.72); Stock 1.26 → 1.07 (2.61 → 2.42); Cuts 2.21 → 2.20 (chains 61 → 1); Causes 2.82 → 1.56; Load & bills 1.00 →
   1.00 (1.93 → 1.14); Case 3.79 → 2.13 (4.38 → 2.41); the four page Overviews gone. Every toolbar is one row.
 - Fixtures: `prodEntryAct(page, id, action)` finds an entry's action in its row, its fold or the pane.
+
+### The tab map: Office (TM5)
+`docs/TAB_MAP.md` TM5 (10 Oct 2026): every Office screen leads with its verdict card, then one toolbar row; the long rows are two
+facts and the long cards fold. P193; P195's budgets lowered for every Office screen, P197's `ONE_LOOK` takes them.
+- **Pipeline** (`pipeline.js`): the verdict names the stage the page opens on (`pipeDefaultStage`) in its own words and tone, no
+  figure (its tile has the amount), the worst other late stage its one fact (`pipeLateSay`); the stages are coded tiles two across (`pipeStageTileHtml`), a stage with nothing to
+  judge plain. `pipeStateStage` reads one invoice state over a list, for Pipeline and the Register's verdict alike.
+- **One judge for a challan's wait** (`imWaitTone`, `imWaitDays`, im.js): IM's dot, Pipeline's first stage and the To-do's challan
+  task, amber from the To-do's challan days (5) and red from twice them; the task was info at any age. Challans' verdict
+  (`imVerdictHtml`): how many wait, what they bill, the oldest's days its figure. One row: Filter, Scan, **Add challan**, More
+  (*Duplicate check*).
+- **Invoices** (`renderRegisterToolbar`, `regVerdictHtml`): one row on both layouts: the search, Filter (client, month, state, the
+  range, the sort one picker), Select on the phone, More (Credit notes, Number audit, the register's CSV and PDF, GSTR-1 CSV, Bulk
+  mark filed); on the desktop the filters inline, the range a dialog (`regRangeOpen`), select-all the table head's box, a row that
+  never wraps. The verdict: the invoices late on a step over what the filter shows. A neutral badge stays on its More row.
+- **Clients** (`clientFlagsRead`, `clientFlagDotHtml`, `clientsVerdictHtml`, clients.js): a client's row ends in its worst flag, the
+  To-do's own tasks, as a dot and a short word (`CLIENT_FLAG_WORD`); the verdict names the rule flagged worst, the rest its facts.
+- **Parts** (`itemsVerdictHtml`): *N with no weight* in its tone with **Enter weights** in its foot; Filter (*No weight*, *Unused*,
+  the sort), **Add part**, More (Part weights with its count, Enter weights, Derive weights, Merge, Select unused); a part's row
+  its description and gauge, its end the rate over its kg a piece.
+- **Performance** (`cpVerdictHtml`, client-perf.js): the client's realisation against the live cost and its change, its flags coded
+  tiles that open their tasks (shut on the phone, open on the desktop); the cadence groups, Materials worked and By the hour folds,
+  shut on both layouts; By the hour's parts as fact rows. A client's flagged tasks and linked articles are brief rows
+  (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`), its Money panel two facts a line, the folded Turnaround card's head its title
+  and verdict.
+- **Sales**: Prospects' four tiles are its verdict's factors (`prsVerdictHtml`), the spare one figure (`prsSpare`, said under Pulse's
+  *Is the plant full?* too); **To reprice**, Pulse's reprice moves (`qtRepriceMoves`), is Quotations' card's body on the phone (one
+  card, the rest a tap away) and the desktop's pane while no quotation is open (`qtRepricePaneHtml`), where open above the list it
+  had made the page scroll (P80).
+- **Create** (`validateInvoiceKeyed`, `createErrorsShown`, `createErrorsRefresh`): an error shows once its field is left or a save
+  is tried, never on a form nobody has touched; Save is held only while one shows.
+- **The method went to a guide**: *Using the app: clients and sales* (`kbguides.js`, on the office path).
+- Measured, phone screens (P195's long book, worst of eleven days; then the owner's book, in a scratch harness never in the repo):
+  Pipeline 4.57 → 4.57 (owner's 3.04 → 3.02, chains 7 → 0); Awaiting invoice 3.71 → 3.71 (1.99 → 1.93); Invoices 3.65 → 3.33
+  (3.50 → 3.15, toolbar rows 8 → 2); Clients 1.47 → 1.50 (2.39 → 2.43: its card, said); Parts 1.00 → 1.00 (3.09 → 3.05, chains
+  30 → 0); Performance 2.69 → 2.56 (5.72 → 3.23, blocks 14 → 0, chains 57 → 0; the desktop's 7.79 → 3.69); Prospects and
+  Quotations 1.00 (one toolbar row each). Needs you 3.09 → 3.30 within its budget (the challan task red at ten days); Knowledge →
+  Library's budget raised 3.5 → 4 (3.48 → 3.56: the new guide).
+- Fixtures: `filterControl(page, sel)` and `setFilter(page, sel, value)` reach a screen's filter on either layout (in the phone's
+  Filter dialog, inline on the desktop) and set it.
 
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Overview, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.

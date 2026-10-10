@@ -31,7 +31,7 @@ test.describe('P101: how much a screen shows', () => {
     expect(await g(page, `uiMoreHtml('p101', [{parts:['<b>a</b>']}], { n: 0 })`)).toBe('<b>a</b>');
   });
 
-  test("a client's Materials shows ten of each group with its count; One-off shows none until asked", async ({ page }) => {
+  test("a client's Materials shows ten of each group with its count, each group a fold shut until asked", async ({ page }) => {
     const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
     s.clients = [{ id: 1, name: 'BIG CLIENT', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true, rates: [{ ratePerKg: 10, effectiveFrom: '2020-04-01' }], itemRates: [] }];
     // 14 parts invoiced often until 120 days ago (stopped), 12 invoiced once, long ago (one-off).
@@ -43,14 +43,20 @@ test.describe('P101: how much a screen shows', () => {
     await loadAppWithState(page, s as SepState);
     await g(page, `setItemsSubView('performance')`);
     await switchTab(page, 'pageClients');
+    // Each group is a fold, its head the count, shut until opened (the tab map, TM5f); open, it shows ten and the rest on asking.
     const stopped = page.locator('[data-cp-group="stopped"]');
-    await expect(stopped.locator('.inv-row-group')).toContainText('Stopped · 14');
+    await expect(stopped.locator(':scope > summary')).toContainText('Stopped · 14');
+    await expect(stopped.locator('[data-cp-mat]:visible')).toHaveCount(0);
+    await stopped.locator(':scope > summary').click();
     await expect(stopped.locator('[data-cp-mat]:visible')).toHaveCount(10);
     await stopped.locator('[data-action="invShowMore"]').click();
     await expect(stopped.locator('[data-cp-mat]:visible')).toHaveCount(14);
     const once = page.locator('[data-cp-group="oneoff"]');
+    await expect(once.locator(':scope > summary')).toContainText('One-off · 12');
     await expect(once.locator('[data-cp-mat]:visible')).toHaveCount(0);
-    await expect(once.locator('[data-action="invShowMore"]')).toContainText('Show 12 more parts');
+    await once.locator(':scope > summary').click();
+    await expect(once.locator('[data-cp-mat]:visible')).toHaveCount(10);
+    await expect(once.locator('[data-action="invShowMore"]')).toContainText('Show 2 more parts');
   });
 
   test('a client card of more than five rows folds to its head, and the fold is remembered', async ({ page }) => {

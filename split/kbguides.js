@@ -67,6 +67,25 @@ var KB_APP_GUIDES = [
     '- **A correction** (rate, goods returned, short quantity): Office → Invoices → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
     '- **A note already issued on paper**: Office → Invoices → **Credit notes** → **Record issued**, with its own number and the GST as printed.\n\n' +
     'A credit note is cancelled, never deleted.', { version: 2 }),
+  _kbg('clients', 'Using the app: clients and sales', 'Clients, their parts, how each is doing, and the work being won', ['pageClients'],
+    'Office → Clients has three views (Clients, Parts, Performance) and Office → Sales two (Prospects, Quotations). Each starts with a card that says how it stands.\n\n' +
+    '# Clients\n- A dot and a word beside a client name the worst thing raised about it: **past terms** (owed past its payment terms), **gone quiet**, **below cost**, **to bill** (challans waiting), **note due** (a rebate note due) and the rest. Open the client for every task about it.\n' +
+    '- The card at the top counts the clients with something raised, worst first.\n\n' +
+    '# Parts\n- **No weight** lists the parts with no weight a piece. They cannot be priced per kilo, so tonnage and realisation leave them out. **Derive weights** (under More) fills what a piece client’s rate card allows.\n' +
+    '- **Unused** lists the parts no invoice has billed. **Select unused** and **Merge** are under More.\n\n' +
+    '# Performance\n- One client at a time: month on month as revenue, tonnage or rate per kilo, then its parts by **cadence**.\n' +
+    '- A part is judged against its own rhythm, across invoices and challans. It is **stopped** once the gap since it last came is past both 1.75 times its usual gap and its usual gap plus three weeks. A fixed cut-off would call a quarterly part stopped in its second month.\n' +
+    '- **New** came first in the last 60 days. **Steady** keeps its rhythm. **One-off** came once, long ago, and never had a rhythm to fall out of.\n' +
+    '- A stopped part and a new one sharing their first six letters and digits are marked as possibly one part renamed. A part is its size or number and its gauge, so two spellings of one clamp are one part.\n' +
+    '- **Materials worked**: each part sent in a period, in pieces and kilos, with its challans, invoices and platings. A code another client also sends is counted apart, here and on Stats.\n' +
+    '- **By the hour**: a round is pickling, plating and a constant for logistics and the other steps (15 minutes, set on the panel). An hour costs the plant its cost over the last 90 days, spread over the working days × 3 lines × 16 hours. A part earning less than that an hour loses money by the hour.\n' +
+    '- Under a part, **what to look at**: plating slower than before (look at the jig loading, the bath’s current, temperature and concentration, and the waits between rounds); racks run short of their fullest (full racks earn more an hour on the same time); logistics a quarter or more of a round (longer lots, the next load staged before the round ends); pickling slower than plating (pickle the next load while this one plates); and a set plating time the record no longer bears out, which **Use** replaces with the measure.\n\n' +
+    '# Sales\n- **Prospects** are firms approached, by stage (new, contacted, sample, quoted, won, lost), each with its next follow-up. A follow-up due is amber, a week late red.\n' +
+    '- The **pipeline** is the tonnes a month the prospects would send, each weighted by the chance at its stage: new 10%, contacted 20%, sample 40%, quoted 60%. The chances are a working assumption, not measured.\n' +
+    '- The **spare** is what the plant could plate a month and does not: the last 90 days’ invoiced tonnes against about 2 t a shift, two shifts a working day.\n' +
+    '- **Won** opens the client form filled from the prospect.\n' +
+    '- **Quotations**: a draft holds no number, and **Issue** gives it one. An issued quotation is never edited: **Revise** makes the next revision. When one is accepted, its rates are offered to the client’s record, never written unasked.\n' +
+    '- **To reprice**, in the Quotations card, lists Pulse’s moves for the clients billed under the cost, each opening a draft quotation.'),
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
     '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Attendance → Day → **Paste message**).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
     '3. Check every line, then **Save**. A spelling you place is remembered.\n4. Paste the out-time roll the same way: it updates the day.\n\n' +
@@ -346,5 +365,5 @@ var KB_APP_GUIDES = [
 var KB_APP_PATHS = [
   { id: 'app-path-floor', title: 'New on the floor', role: 'floor', articles: ['app-mine', 'app-face-pickling', 'app-today', 'app-add', 'app-production', 'app-stock', 'app-knowledge'] },
   { id: 'app-path-supervisor', title: 'Supervisor', role: 'supervisor', articles: ['app-mine', 'app-face-supervisor', 'app-face-clerk', 'app-today', 'app-add', 'app-rolls', 'app-day', 'app-production', 'app-stock', 'app-power', 'app-knowledge'] },
-  { id: 'app-path-office', title: 'New in the office', role: 'office', articles: ['app-mine', 'app-face-clerk', 'app-today', 'app-add', 'app-challan', 'app-invoice', 'app-states', 'app-credit', 'app-search', 'app-knowledge'] }
+  { id: 'app-path-office', title: 'New in the office', role: 'office', articles: ['app-mine', 'app-face-clerk', 'app-today', 'app-add', 'app-challan', 'app-invoice', 'app-states', 'app-credit', 'app-clients', 'app-search', 'app-knowledge'] }
 ];

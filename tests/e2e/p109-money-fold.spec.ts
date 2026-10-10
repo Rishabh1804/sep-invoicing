@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { openFoldAt, answerAsk, bankImportDoor, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { openFoldAt, answerAsk, bankImportDoor, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
 // P109: the QA sweep over Finance, the bank statement, receivables, payments, the live cost, zinc and bills. Each test
 // pins one finding so it cannot come back. Every date is built from today; names and figures are made up, and the only
@@ -490,7 +490,7 @@ test('BB5: Record an issued note offers a client with no invoice in the book, an
   await loadAppWithState(page, s);
   // The forms are the Credit notes dialog's, in Office → Invoices (the tab map, TM3a).
   await switchTab(page, 'pageRegister');
-  await page.locator('#pageRegister [data-action="invCnList"]').click();
+  await toolbarMore(page, 'Credit notes');
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await expect(page.locator('#cnfClient option[value="5"]')).toHaveCount(0);
   await page.locator('[data-action="invCnFormCancel"]').click();

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, closeFilter, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
+import { answerAsk, closeFilter, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState, toolbarMore } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P186: Money's map (docs/TAB_MAP.md TM3a, TM3c). Bills & notes split: the bills went to Payments, beside what the bank paid for
@@ -149,9 +149,15 @@ test.describe('P186: Money’s map', () => {
   test('credit notes are made in Office → Invoices → Credit notes, empty and not; the Register’s badge and marks follow', async ({ page }) => {
     await loadAppWithState(page, state({ invoices: [inv(1, todayIso(), 23600), inv(2, todayIso(), 11800)] }));
     await switchTab(page, 'pageRegister');
-    const badge = page.locator('#pageRegister [data-action="invCnList"] .inv-badge');
-    await expect(badge).toHaveCount(0);
-    await page.locator('#pageRegister [data-action="invCnList"]').click();
+    // The count of notes is More's row's own (a count that waits on nothing is not carried to More's button, TM5c).
+    const cnCount = () => page.locator('#pageRegister [data-tb-more] template').evaluate(t => {
+      const row = Array.from((t as HTMLTemplateElement).content.querySelectorAll('[data-tb-pick]')).find(r => /Credit notes/.test(r.textContent || ''));
+      const b = row && row.querySelector('.inv-badge');
+      return b ? b.textContent : '';
+    });
+    expect(await cnCount()).toBe('');
+    await expect(page.locator('#pageRegister [data-action="invTbMore"] .inv-badge')).toHaveCount(0);
+    await toolbarMore(page, 'Credit notes');
     const dlg = page.locator('[data-cn-dialog]');
     await expect(dlg.locator('.inv-dialog-head [data-action="invCnFormOpen"]')).toHaveText(['Record issued', 'New note']);
     await expect(dlg.locator('.inv-dialog-head .inv-btn-primary')).toHaveCount(0);
@@ -169,7 +175,7 @@ test.describe('P186: Money’s map', () => {
     await dlg.locator('[data-action="invCnFormSave"]').click();
     await expect(dlg.locator('[data-cn-row]')).toHaveCount(1);
     await expect(dlg.locator('[data-cn-form]')).toBeVisible();
-    await expect(badge).toHaveText('1');
+    await expect.poll(cnCount).toBe('1');
     // Its line says two things, the date and the invoice it names; the reason a line of its own.
     const r1 = dlg.locator('[data-cn-row]').first();
     await expect(r1.locator('.inv-row-meta').first()).toHaveText(/^.+ · against T\/00001$/);
@@ -184,21 +190,21 @@ test.describe('P186: Money’s map', () => {
     await dlg.locator('[data-action="invCnFormSave"]').click();
     await expect(page.locator('#invPrintView')).toHaveClass(/inv-print-view-active/);
     await page.locator('[data-action="invClosePrint"]').first().click();
-    await expect(badge).toHaveText('2');
+    await expect.poll(cnCount).toBe('2');
     await expect(page.locator('#pageRegister [data-cn-mark]')).toHaveCount(2);
 
     // Cancelled from the list: the badge and the mark follow.
     const newOne = ((await readStoredState(page)) as any).creditNotes.find((c: any) => c.againstInvoiceId === 'INV-2').id;
-    if (!(await dlg.count())) await page.locator('#pageRegister [data-action="invCnList"]').click();
+    if (!(await dlg.count())) await toolbarMore(page, 'Credit notes');
     await dlg.locator(`[data-cn-row="${newOne}"] [data-action="invCnCancel"]`).click();
     await answerAsk(page, 'ok');
-    await expect(badge).toHaveText('1');
+    await expect.poll(cnCount).toBe('1');
     await expect(page.locator('#pageRegister [data-cn-mark]')).toHaveCount(1);
     // Closed by its ×, the form goes with it: the list opens again on its doors.
     await dlg.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
     await dlg.locator('.inv-dialog-close').click();
     await expect(dlg).toHaveCount(0);
-    await page.locator('#pageRegister [data-action="invCnList"]').click();
+    await toolbarMore(page, 'Credit notes');
     await expect(dlg.locator('[data-cn-form]')).toHaveCount(0);
     await expect(dlg.locator('.inv-dialog-head [data-action="invCnFormOpen"]')).toHaveCount(2);
   });

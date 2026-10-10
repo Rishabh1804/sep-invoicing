@@ -31,6 +31,7 @@ var QT_FILTERS = [['all', 'All quotations'], ['draft', 'Drafts'], ['issued', 'Li
 
 var _qtForm = null;       // {q, termsAuto}: the form open as a sub-view of Clients → Quotations
 var _qtActiveId = null;   // the quotation open in the desktop's pane
+var _qtMoves = [];        // Pulse's reprice moves as the view was last drawn (qtRepriceMoves): the phone's card, the desktop's pane
 var _qtSearch = '';
 var _qtStatus = 'all';
 
@@ -224,10 +225,11 @@ function qtSorted(list) {
 }
 function qtRowHtml(q) {
   var d = qtDaysLeft(q), lines = (q.lines || []).length;
-  var meta = [formatDate(q.date), todoPlural(lines, 'item'), qtRateSummary(q)];
-  if (q.status === 'issued' && d != null) meta.push(d < 0 ? 'expired' : 'expires in ' + d + ' d');
+  // Two facts (the tab map, TM5g): a live one's days left, else its date; and its rate. Its items in its title.
+  var meta = [q.status === 'issued' && d != null ? (d < 0 ? 'expired' : 'expires in ' + d + ' d') : formatDate(q.date), qtRateSummary(q)];
   var title = qtNumberText(q) + ' · ' + qtRecipient(q);
   return '<button class="inv-row inv-row-2' + (/^(superseded|void|declined)$/.test(q.status) ? ' inv-row-muted' : '') + '" data-action="invQtOpen" data-id="' + escHtml(q.id) + '"' +
+    ' title="' + escHtml(formatDate(q.date) + ', ' + todoPlural(lines, 'item')) + '"' +
     (_isDesktop && _qtActiveId === q.id ? ' aria-current="true"' : '') + '>' +
     '<span class="inv-row-main"><span class="inv-row-title" title="' + escHtml(title) + '">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta.join(' · ')) + '</span></span>' +
@@ -248,13 +250,56 @@ function qtListHtml() {
     grp(rest), false, ' data-qt-group="closed"');
   return h;
 }
+/* Quotations' verdict (the tab map, TM5g): how many are live, how many expire this week, the drafts; what waits on the owner (an
+   expired one unanswered, an accepted one whose rate is not posted) in its facts. */
+function qtVerdictHtml(moves) {
+  var all = getQuotations(), drafts = all.filter(function(q) { return q.status === 'draft'; }).length;
+  var live = all.filter(function(q) { return q.status === 'issued' && !qtExpired(q); });
+  var soon = live.filter(function(q) { var d = qtDaysLeft(q); return d != null && d <= 7; }).length;
+  var expired = all.filter(function(q) { return q.status === 'issued' && qtExpired(q); }).length;
+  var toPost = all.filter(function(q) { return q.status === 'accepted' && qtPostPlan(q).post.length; }).length;
+  var verdict = !all.length ? 'No quotations yet' : live.length + ' live' + (soon ? ' · ' + soon + ' expiring this week' : '') + (drafts ? ' · ' + todoPlural(drafts, 'draft') : '');
+  // The reprice moves are a fact here, and the phone's card's body, shut (I10: under the card they had put the owner's book past one
+  // screen); the desktop's are in the pane beside the list until a quotation is opened (qtShowPane), since under its open card they
+  // pushed the list below the screen's foot (P80).
+  moves = moves || [];
+  return uiVerdictHtml({ screen: 'Quotations', tone: expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral', verdict: verdict,
+    facts: [expired ? { text: expired + ' expired, unanswered', tone: 'warning' } : '', toPost ? { text: todoPlural(toPost, 'accepted one', 'accepted ones') + ' with a rate to post', tone: 'warning' } : '',
+      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: 'warning', money: true } : '',
+      all.filter(function(q) { return q.status === 'accepted'; }).length + ' accepted'].filter(Boolean).slice(0, 3),
+    body: _isDesktop ? null : qtRepriceMovesHtml(moves), key: 'pageClients-quotes', attrs: ' id="qtVerdict"' });
+}
+/* The reprice moves Pulse's questions draw (the tab map, TM5g), the same moves, each opening its draft. A role that does not see
+   money has none (they rest on the margins). */
+function qtRepriceMoves() {
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return [];
+  var qs = [], seen = {}, moves = [];
+  try { qs = advQuestions(statsPulseArgs(_statsPeriod)); } catch (e) { qs = []; }
+  qs.forEach(function(q) { (q.moves || []).forEach(function(mv) { if (mv && /^reprice:/.test(mv.key) && !seen[mv.key]) { seen[mv.key] = 1; moves.push(mv); } }); });
+  return moves;
+}
+/* The phone's, in the verdict card's body as a Pulse question holds its moves: the head, then the deck, one card and the rest a tap
+   away. */
+function qtRepriceMovesHtml(moves) {
+  if (!moves.length) return '';
+  return '<div class="inv-hero-moves" data-qt-reprice><div class="inv-hero-eyebrow inv-mt-8 inv-mb-8">To reprice <span class="inv-panel-count">' + moves.length + '</span></div>' +
+    advMovesDeckHtml(moves, 'quotes', 1) + '</div>';
+}
+/* The desktop's, in the pane while no quotation is open: its head, then the moves a card each, the pane scrolling inside itself. */
+function qtRepricePaneHtml(moves) {
+  return '<div class="inv-pane-head"><span class="inv-panel-title">To reprice <span class="inv-panel-count">' + moves.length + '</span></span>' +
+    '<span class="inv-note">Pulse’s moves</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
+}
 function qtViewHtml() {
   if (_qtForm) return qtFormHtml();
   var opts = QT_FILTERS.map(function(f) { return '<option value="' + f[0] + '"' + (_qtStatus === f[0] ? ' selected' : '') + '>' + f[1] + '</option>'; }).join('');
-  var tools = '<div class="inv-toolbar"><label class="inv-search">' + ICON_SEARCH +
+  var status = _qtStatus === 'all' ? '' : (QT_FILTERS.find(function(f) { return f[0] === _qtStatus; }) || [])[1] || '';
+  _qtMoves = qtRepriceMoves();
+  var tools = qtVerdictHtml(_qtMoves) + '<div class="inv-toolbar"><label class="inv-search">' + ICON_SEARCH +
     '<input type="search" id="qtSearch" value="' + escHtml(_qtSearch) + '" placeholder="Search quotations" autocomplete="off" aria-label="Search quotations"></label>' +
-    '<select class="inv-select inv-toolbar-item" id="qtStatusFilter" aria-label="Status">' + opts + '</select>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invQtNew">New quotation</button></div>';
+    uiFilterHtml({ key: 'qt', count: status ? 1 : 0, controls: '<select class="inv-select inv-toolbar-item" id="qtStatusFilter" aria-label="Status">' + opts + '</select>' }) +
+    '<button class="inv-btn inv-btn-primary" data-action="invQtNew">New quotation</button></div>' +
+    uiTokensHtml([{ key: 'Show', value: status, action: 'invQtStatusClear' }]);
   var list = '<div id="qtList">' + qtListHtml() + '</div>';
   return tools + (_isDesktop
     ? '<div class="inv-pane-host" id="qtHost"><div class="inv-pane-list" id="qtMaster">' + list + '</div><div class="inv-pane" id="qtPane"></div></div>'
@@ -322,9 +367,11 @@ function qtShowPane(id) {
   var host = document.getElementById('qtHost'), pane = document.getElementById('qtPane');
   var q = id ? qtFind(id) : null;
   _qtActiveId = q ? q.id : null;
-  if (host) host.classList.toggle('inv-pane-open', !!q);
+  // Nothing open: the reprice moves, where there are any (the tab map, TM5g).
+  var moves = q ? [] : _qtMoves || [];
+  if (host) host.classList.toggle('inv-pane-open', !!q || moves.length > 0);
   if (pane) pane.innerHTML = q ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(qtNumberText(q)) + '</span>', 'invQtClosePane') +
-    qtDetailBodyHtml(q) + '<div class="inv-toolbar">' + qtActionsHtml(q, false) + '</div>' : '';
+    qtDetailBodyHtml(q) + '<div class="inv-toolbar">' + qtActionsHtml(q, false) + '</div>' : moves.length ? qtRepricePaneHtml(moves) : '';
   document.querySelectorAll('#qtList [data-action="invQtOpen"]').forEach(function(r) {
     if (r.dataset.id === _qtActiveId) r.setAttribute('aria-current', 'true'); else r.removeAttribute('aria-current');
   });
@@ -913,6 +960,7 @@ function qtAction(action, btn) {
   var id = btn.dataset.id, f = _qtForm;
   switch (action) {
     case 'invQtNew': qtOpenForm(null); break;
+    case 'invQtStatusClear': _qtStatus = 'all'; renderClientsPage(); break;
     case 'invQtOpen': qtOpen(id, btn.dataset.go === '1' && !btn.closest('.inv-scrim-dialog')); break;
     case 'invQtClosePane': qtShowPane(null); break;
     case 'invQtEdit': qtOpenForm(id); break;

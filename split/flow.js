@@ -346,7 +346,10 @@ function flowClientHtml(clientId, foldKey) {
     if (irows.length) h += '<div class="inv-row-group"><span>Open invoices · expected paid</span></div>' + uiMoreHtml('flow-invoices-' + clientId, irows, { n: irows.length === 6 ? 6 : 5, noun: 'invoices' });
   }
   var attrs = ' data-client-flow="' + escHtml(String(clientId)) + '"';
-  if (foldKey) return uiFoldHtml(foldKey, head + uiDot(v.tone, escHtml(v.text)), h, _isDesktop, attrs + ' data-card="flow"');
+  // Folded, its head is the title and the verdict, which wraps rather than run under the chevron; the target and the terms
+  // are the steps' own (the despatch row, the payment row), and the verdict's title.
+  if (foldKey) return uiFoldHtml(foldKey, '<span class="inv-panel-title">Turnaround</span><span class="inv-dot inv-dot-' + uiTone(v.tone) + '" title="' +
+    escHtml(flowTargetWord(t.days) + ' · ' + terms.days + '-day terms') + '">' + escHtml(v.text) + '</span>', h, _isDesktop, attrs + ' data-card="flow"');
   return '<div class="inv-panel inv-panel-flush"' + attrs + '><div class="inv-panel-head">' + head + '</div>' + h + '</div>';
 }
 /* Floor's Overview: the plant's flow as a hero, shut to its line until opened, as the others are. */

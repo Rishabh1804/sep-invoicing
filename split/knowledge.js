@@ -186,14 +186,18 @@ function kbLinkedHtml(type, id, label, title) {
   var list = kbLinkedTo(type, id, label);
   if (!list.length) return '';
   return '<div class="inv-panel inv-panel-flush" data-kb-linked="' + escHtml(type) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(title || 'Knowledge') +
-    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + list.map(kbRowHtml).join('') + '</div>';
+    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + list.map(function(a) { return kbRowHtml(a, true); }).join('') + '</div>';
 }
-function kbRowHtml(a) {
-  var meta = [kbKindName(a.kind), a.kind === 'fault' ? a.symptom : a.summary, a.kind === 'ruling' && a.ruledOn ? formatDate(a.ruledOn) : '', a.kind === 'incident' && a.on ? formatDate(a.on) : ''].filter(Boolean).join(' · ');
+function kbRowHtml(a, brief) {
+  // Two facts (§3b-11): its kind with its day where it has one, and what it is about. `brief` (a panel on a client's, a part's or a
+  // stock line's page, the tab map TM5f): what it is about is the row's title, since a summary ran past 120 characters there.
+  var day = a.kind === 'ruling' && a.ruledOn ? a.ruledOn : a.kind === 'incident' && a.on ? a.on : '';
+  var about = a.kind === 'fault' ? a.symptom : a.summary;
+  var meta = [kbKindName(a.kind) + (day ? ', ' + formatDate(day) : ''), brief ? '' : about].filter(Boolean).join(' · ');
   // The article open beside the list is marked as the current row (aria-current, as the Register's), in Knowledge's own
   // lists only: a client's panel is not that list.
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
+    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (brief && about ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + (a.status === 'published' && !a.pending ? '' : kbStatusHtml(a)) + '</span></div>';
 }
 

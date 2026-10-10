@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, setFilter, phoneFilter } from './fixtures';
 
 /*
  * Register selection and CSV export.
@@ -60,7 +60,9 @@ async function captureExport(page: Page, action: string) {
       (window as any).__csv = { filename, rows };
     };
   });
-  await page.locator(`[data-action="${action}"]`).first().click();
+  // The register's files are under its toolbar's More (the tab map, TM5c).
+  await page.locator('.inv-page-active [data-action="invTbMore"]:visible').first().click();
+  await page.locator(`[data-tb-more-dialog] [data-action="${action}"]`).click();
   return page.evaluate(() => (window as any).__csv as { filename: string; rows: string[][] });
 }
 
@@ -107,7 +109,7 @@ test('P18: changing a filter drops the selection instead of hiding it', async ({
 
   // Filter to a state none of them are in. The rows leave the screen; without
   // this the selection survives and every bulk action still acts on it.
-  await page.locator('#regStateFilter').selectOption('filed');
+  await setFilter(page, '#regStateFilter', 'filed');
 
   await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveCount(0);
   const selected = await page.evaluate(() => Object.keys((window as any)._regSelected));
@@ -125,27 +127,29 @@ test('P18: a date range reaches invoices the month filter hides', async ({ page 
   // Default filter is the current month, so last month's invoice is not shown.
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00001');
 
-  await page.locator('#regDateFrom').fill(lastMonth);
-  await page.locator('#regDateTo').fill(lastMonth);
+  await setFilter(page, '#regDateFrom', lastMonth);
+  await setFilter(page, '#regDateTo', lastMonth);
 
   await expect(page.locator('#regList')).toContainText('SEP/TEST-00001');
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00002');
-  // The month it replaced is cleared, not left set and quietly ignored.
-  await expect(page.locator('#regMonthFilter')).toHaveValue('');
-  await expect(page.locator('[data-scope-note]')).toBeVisible();
+  // The month it replaced is cleared, not left set and quietly ignored; the range is said, as a token and in the card's eyebrow.
+  expect(await page.evaluate(() => (0, eval)('regFilter.month'))).toBe('');
+  await expect(page.locator('#pageRegister .inv-token[data-clear="month"]')).toHaveCount(0);
+  await expect(page.locator('#pageRegister .inv-token[data-clear="range"]')).toHaveCount(1);
+  await expect(page.locator('#regVerdict .inv-hero-eyebrow')).toContainText('–');
 });
 
 test('P18: setting a month clears the range, so only one of them is ever in force', async ({ page }) => {
   await loadAppWithState(page, stateWith([invoice(1)]));
   await switchTab(page, 'pageRegister');
 
-  await page.locator('#regDateFrom').fill(monthsAgoIso(1));
-  await expect(page.locator('#regMonthFilter')).toHaveValue('');
+  await setFilter(page, '#regDateFrom', monthsAgoIso(1));
+  expect(await page.evaluate(() => (0, eval)('regFilter.month'))).toBe('');
 
-  await page.locator('#regMonthFilter').fill(todayIso().slice(0, 7));
-  await expect(page.locator('#regDateFrom')).toHaveValue('');
-  await expect(page.locator('#regDateTo')).toHaveValue('');
-  await expect(page.locator('[data-scope-note]')).toHaveCount(0);
+  await setFilter(page, '#regMonthFilter', todayIso().slice(0, 7));
+  expect(await page.evaluate(() => (0, eval)('regFilter.dateFrom + regFilter.dateTo'))).toBe('');
+  await expect(page.locator('#pageRegister .inv-token[data-clear="range"]')).toHaveCount(0);
+  await expect(page.locator('#pageRegister .inv-token[data-clear="month"]')).toHaveCount(1);
 });
 
 test('P18: the sales register exports in serial order, with voids in their own slot', async ({ page }) => {
@@ -190,9 +194,9 @@ test('P18: the filename states the scope it was taken under', async ({ page }) =
   await loadAppWithState(page, stateWith([invoice(1, { date: lastMonth })]));
   await switchTab(page, 'pageRegister');
 
-  await page.locator('#regDateFrom').fill(lastMonth);
-  await page.locator('#regDateTo').fill(lastMonth);
-  await page.locator('#regClientFilter').selectOption('1');
+  await setFilter(page, '#regDateFrom', lastMonth);
+  await setFilter(page, '#regDateTo', lastMonth);
+  await setFilter(page, '#regClientFilter', '1');
 
   const csv = await captureExport(page, 'invExportSales');
   // Two exports under different filters must not land in the downloads folder
@@ -209,7 +213,8 @@ test('P18: clicking a filter control does not rebuild it out from under the poin
   // Mark the live elements. If a click rebuilds the toolbar, the marked nodes
   // are discarded with it — which is what shut the client dropdown the instant
   // it was opened, because the toolbar re-render replaced the <select> the
-  // native popup was hanging off.
+  // native popup was hanging off. On the phone they are in Filter's dialog (the tab map, TM5c).
+  await phoneFilter(page);
   await page.evaluate(() => {
     ['regClientFilter', 'regStateFilter', 'regMonthFilter', 'regDateFrom', 'regDateTo']
       .forEach((id) => { const el = document.getElementById(id); if (el) el.dataset.probe = 'live'; });
@@ -229,7 +234,7 @@ test('P18: choosing a client still filters — the change path is the one that a
   await loadAppWithState(page, s);
   await switchTab(page, 'pageRegister');
 
-  await page.locator('#regClientFilter').selectOption('2');
+  await setFilter(page, '#regClientFilter', '2');
   await expect(page.locator('#regList')).toContainText('SEP/TEST-00002');
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00001');
 });
@@ -247,11 +252,12 @@ test('P18: the phone list orders its days by invoice date, not by when each was 
     invoice(3, { date: day(2), createdAt: recentTs(1000) }),
   ]));
   await switchTab(page, 'pageRegister');
-  await page.locator('#regDateFrom').fill(day(5));
+  await setFilter(page, '#regDateFrom', day(5));
 
   const order = () => page.locator('#regList [data-invnum]').allInnerTexts();
   await expect.poll(order).toEqual(['SEP/TEST-00002', 'SEP/TEST-00001', 'SEP/TEST-00003']);
-  await page.locator('[data-action="invRegToggleSort"]').click();
+  // The sort is in Filter on the phone (the tab map, TM5c).
+  await setFilter(page, '#regSort', 'date-asc');
   await expect.poll(order).toEqual(['SEP/TEST-00003', 'SEP/TEST-00001', 'SEP/TEST-00002']);
 });
 

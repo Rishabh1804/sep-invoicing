@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
 // P56: the electricity bill and the credit note each had no door the owner could find (26 Sep 2026); a stock line's name had none at
 // all. They shared Finance → Bills & notes until the tab map (TM3a) put each where its work is: the bills on Money → Payments, the
@@ -39,7 +39,7 @@ async function openBills(page: Page) {
 }
 async function openNotes(page: Page) {
   await switchTab(page, 'pageRegister');
-  await page.locator('#pageRegister [data-action="invCnList"]').click();
+  await toolbarMore(page, 'Credit notes');
   await expect(page.locator('[data-cn-dialog]')).toBeVisible();
 }
 

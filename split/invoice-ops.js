@@ -228,11 +228,14 @@ function captureRegFilters(changedId) {
   var sf = document.getElementById('regStateFilter');
   var df = document.getElementById('regDateFrom');
   var dt = document.getElementById('regDateTo');
+  var so = document.getElementById('regSort');
   if (cf) regFilter.clientId = cf.value;
   if (sf) regFilter.state = sf.value;
   if (mf) regFilter.month = mf.value;
   if (df) regFilter.dateFrom = df.value;
   if (dt) regFilter.dateTo = dt.value;
+  // The phone's sort, one picker (it was two buttons, By date / By number and the direction): "number-asc" and the like.
+  if (so && so.value) { var sp = so.value.split('-'); regFilter.regSortBy = sp[0] === 'number' ? 'number' : 'date'; regFilter.regSortDir = sp[1] === 'asc' ? 'asc' : 'desc'; }
 
   // Month and range are alternatives. Setting one clears the other rather than
   // leaving both populated and one of them quietly ignored.
@@ -287,12 +290,15 @@ function toggleRegSelectAll() {
     : selectable.length + ' invoice' + (selectable.length !== 1 ? 's' : '') + ' selected');
 }
 
+/* Invoices' toolbar (the tab map, TM5c; it was three rows of controls, six on the phone, before the first invoice): one row. The
+   search; the filters, client, month, state, the range and on the phone the sort (inline on the desktop, whose table sorts by its
+   column heads; behind Filter on the phone, said under the row as tokens); Select on the phone (the desktop's table always ticks);
+   More: Credit notes, Number audit with its badge, the register's files. The verdict leads above it (regVerdictHtml). */
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
-
-  var sortDir = regFilter.regSortDir || 'desc';
-  var byNumber = regFilter.regSortBy === 'number';
+  var phone = !_isDesktop;
+  var sortKey = (regFilter.regSortBy === 'number' ? 'number' : 'date') + '-' + (regFilter.regSortDir === 'asc' ? 'asc' : 'desc');
   var unaccounted = unaccountedNumberCount();
   var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
   var cnCount = (S.creditNotes || []).filter(function(c) { return c.status !== 'cancelled'; }).length;
@@ -303,43 +309,41 @@ function renderRegisterToolbar() {
     const c = S.clients.find(x => x.id === cid);
     return c ? '<option value="' + cid + '"' + (regFilter.clientId == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>' : '';
   }).join('');
-  var stateOpt = function(v, label) { return '<option value="' + v + '"' + ((regFilter.state || '') === v ? ' selected' : '') + '>' + label + '</option>'; };
+  var opt = function(v, label, cur) { return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + label + '</option>'; };
+  var st = regFilter.state || '';
 
-  let html = '<div class="inv-toolbar">' +
-    '<label class="inv-search">' + ICON_SEARCH +
-    '<input type="text" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off" aria-label="Search the register"></label>' +
-    '<select class="inv-select inv-toolbar-item" id="regClientFilter" aria-label="Filter by client">' +
+  var filters = '<select class="inv-select inv-toolbar-item" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All clients</option>' + clientOpts + '</select>' +
     '<input type="month" class="inv-input inv-toolbar-item" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month">' +
     '<select class="inv-select inv-toolbar-item" id="regStateFilter" aria-label="Filter by state">' +
-    stateOpt('', 'All states') + stateOpt('created', 'Created') + stateOpt('printed', 'Printed') + stateOpt('dispatched', 'Dispatched') +
-    stateOpt('delivered', 'Delivered') + stateOpt('filed', 'Filed') + stateOpt('cancelled', 'Cancelled') + '</select>' +
-    '</div>' +
-    // Explicit range, for an export that does not line up with a calendar month.
-    '<div class="inv-toolbar">' +
-    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
-    '<input type="date" class="inv-input" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
-    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
-    '<input type="date" class="inv-input" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
-    (rangeActive ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-toolbar-end" data-action="invRegClearRange">Clear range</button>' : '') +
-    '</div>' +
-    (rangeActive ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-scope-note>Range in use — the month filter is ignored while it is set.</div>' : '') +
-    '<div class="inv-toolbar">' +
-    // The desktop table sorts by its column heads, and always shows its tick boxes.
-    (_isDesktop ? '' :
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSortBy">' + (byNumber ? 'By number' : 'By date') + '</button>' +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' +
-      (byNumber ? (sortDir === 'asc' ? 'Lowest first' : 'Highest first') : (sortDir === 'asc' ? 'Oldest first' : 'Newest first')) + '</button>' +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
-    // Offered wherever ticking is actually possible; kept in step with the selection by _renderRegSelBar.
-    '<span id="regSelectAllSlot"' + (_regSelectAllHtml() ? '' : ' hidden') + '>' + _regSelectAllHtml() + '</span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnList">Credit notes' +
-    (cnCount > 0 ? '<span class="inv-badge">' + cnCount + '</span>' : '') + '</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
-    (unaccounted > 0 ? '<span class="inv-badge inv-badge-warning" data-unaccounted>' + unaccounted + '</span>' : '') + '</button>' +
-    '</div>';
+    opt('', 'All states', st) + opt('created', 'Created', st) + opt('printed', 'Printed', st) + opt('dispatched', 'Dispatched', st) +
+    opt('delivered', 'Delivered', st) + opt('filed', 'Filed', st) + opt('cancelled', 'Cancelled', st) + '</select>' +
+    (phone ? regRangeFieldsHtml() + '<select class="inv-select inv-toolbar-item" id="regSort" aria-label="Sort">' + opt('date-desc', 'Newest first', sortKey) +
+      opt('date-asc', 'Oldest first', sortKey) + opt('number-desc', 'Highest number first', sortKey) + opt('number-asc', 'Lowest number first', sortKey) + '</select>'
+      // The desktop's range is a dialog of its own, so the row stays one; the button says the range in use.
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegRange" aria-haspopup="dialog" data-reg-range>' +
+        (rangeActive ? 'Range: ' + escHtml(regRangeWord()) : 'Range') + '</button>');
+  var count = (regFilter.clientId ? 1 : 0) + (regFilter.month && !rangeActive ? 1 : 0) + (st ? 1 : 0) + (rangeActive ? 1 : 0) + (phone && sortKey !== 'date-desc' ? 1 : 0);
+  var client = regFilter.clientId ? S.clients.find(function(c) { return String(c.id) === String(regFilter.clientId); }) : null;
+  var sortWord = { 'date-asc': 'Oldest first', 'number-desc': 'Highest number first', 'number-asc': 'Lowest number first' }[sortKey] || '';
+  var rangeWord = rangeActive ? regRangeWord() : '';
 
-  area.innerHTML = html;
+  area.innerHTML = '<div id="regVerdict">' + regVerdictHtml() + '</div><div class="inv-toolbar" data-reg-toolbar>' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off" aria-label="Search the register"></label>' +
+    uiFilterHtml({ key: 'reg', count: count, controls: filters }) +
+    (phone ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>' : '') +
+    // The phone's, in Select's mode, kept in step with the selection by _renderRegSelBar; the desktop's is the table's head.
+    (phone ? '<span id="regSelectAllSlot"' + (_regSelectAllHtml() ? '' : ' hidden') + '>' + _regSelectAllHtml() + '</span>' : '') +
+    uiToolbarMoreHtml([{ label: 'Credit notes', action: 'invCnList', badge: cnCount ? { n: cnCount, tone: 'neutral' } : null },
+      { label: 'Number audit', action: 'invShowNumberAudit', attrs: ' id="regNumberAudit"', badge: unaccounted ? { n: unaccounted, tone: 'warning' } : null },
+      { label: 'Sales register CSV', action: 'invExportSales' }, { label: 'Sales register PDF', action: 'invPrintSalesRegister' },
+      { label: 'GSTR-1 CSV', action: 'invExportGstr1' }, { label: 'Bulk mark filed', action: 'invBulkMarkFiled' }], { icon: phone }) + '</div>' +
+    uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invRegFilterClear', attrs: ' data-clear="client"' },
+      { key: 'Month', value: regFilter.month && !rangeActive ? imMonthLabel(regFilter.month) : '', action: 'invRegFilterClear', attrs: ' data-clear="month"' },
+      { key: 'State', value: st ? (st === 'cancelled' ? 'Cancelled' : INV_STATE_LABELS[st] || st) : '', action: 'invRegFilterClear', attrs: ' data-clear="state"' },
+      { key: 'Range', value: rangeWord, action: 'invRegFilterClear', attrs: ' data-clear="range"' },
+      { key: 'Sort', value: sortWord, action: 'invRegFilterClear', attrs: ' data-clear="sort"' }]);
 
   // Bind debounced search (200ms)
   const searchEl = document.getElementById('regSearch');
@@ -356,12 +360,45 @@ function renderRegisterToolbar() {
     });
   }
 }
+/* The range in use, in words: "1 Oct – 9 Oct". */
+function regRangeWord() {
+  return (regFilter.dateFrom ? stockShortDate(regFilter.dateFrom) : 'the start') + ' – ' + (regFilter.dateTo ? stockShortDate(regFilter.dateTo) : 'today');
+}
+/* The range's two dates and its clear: an explicit range, for an export that does not line up with a calendar month. Month and range
+   are alternatives, setting one clears the other (captureRegFilters). In the phone's Filter; on the desktop in a dialog of its own. */
+function regRangeFieldsHtml() {
+  return '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
+    '<input type="date" class="inv-input" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
+    '<input type="date" class="inv-input" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
+    (regFilter.dateFrom || regFilter.dateTo ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-toolbar-end" data-action="invRegClearRange">Clear range</button>' : '');
+}
+function regRangeOpen() {
+  var scrim = dialogOpen('<div class="inv-dialog" data-reg-range-dialog>' + dialogHeadHtml('Range', 'invTbFilterDone') +
+    '<div class="inv-dialog-body inv-toolbar" data-nodirty>' + regRangeFieldsHtml() + '</div>' +
+    '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invTbFilterDone">Done</button></div></div>', { dismiss: true });
+  // However it shuts, the row and the list are drawn with the range as it now stands (the dates apply as they change).
+  if (scrim) scrim._onClose = UI_FILTER_DONE.reg;
+}
+/* The Filter dialog shut on the phone: the row and the list drawn again with the filters as they now stand. */
+UI_FILTER_DONE.reg = function() { _regToolbarRendered = false; renderRegisterToolbar(); _regToolbarRendered = true; _renderRegView(); _renderRegSelBar(); };
+/* A filter's token tapped: that filter cleared (the sort back to the newest first), as captureRegFilters would, the selection with it. */
+function regFilterClear(which) {
+  if (which === 'client') regFilter.clientId = '';
+  else if (which === 'month') regFilter.month = '';
+  else if (which === 'state') regFilter.state = '';
+  else if (which === 'range') { regFilter.dateFrom = ''; regFilter.dateTo = ''; }
+  else if (which === 'sort') { regFilter.regSortBy = 'date'; regFilter.regSortDir = 'desc'; }
+  _regSelected = {};
+  saveRegFilter();
+  UI_FILTER_DONE.reg();
+}
 
 /* The select-all button, as the selection and the filter stand now. It was drawn with the toolbar only, so after a
    bulk action or a tick cleared the selection it still said "Clear selection" and then selected everything. */
 function _regSelectAllHtml() {
   var selectable = regSelectableInvoices();
-  if (!(_isDesktop || _regSelectMode) || !selectable.length) return '';
+  if (_isDesktop || !_regSelectMode || !selectable.length) return '';
   var allSelected = selectable.every(function(i) { return _regSelected[i.id]; });
   return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
     (allSelected ? 'Clear selection' : 'Select all (' + selectable.length + ')') + '</button>';
@@ -392,7 +429,7 @@ function renderRegisterList() {
   if (!area) return;
 
   const filtered = getFilteredInvoices();
-  let html = _regSummaryHtml(filtered);
+  let html = '';
 
   if (filtered.length === 0) {
     html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
@@ -426,7 +463,7 @@ function renderRegisterList() {
     html += uiMoreHtml('reg-list', regRows, { noun: 'invoices' }) + '</div>';
   }
 
-  area.innerHTML = html + _regExportHtml();
+  area.innerHTML = html;
 }
 
 /* A group's head in the register's list (a day, or a series when sorted by number): what it is, how many, and the
@@ -459,8 +496,8 @@ function regRowHtml(inv, opts) {
 /* ===== REGISTER DESKTOP TABLE ===== */
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();
-  var html = _regSummaryHtml(filtered);
-  if (filtered.length === 0) return html + '<div class="inv-empty">No invoices found</div>' + _regExportHtml();
+  var html = '';
+  if (filtered.length === 0) return '<div class="inv-empty">No invoices found</div>';
 
   var sc = getRegSortConfig();
   // The column heads the register sorts by; the rest are read-only.
@@ -470,8 +507,11 @@ function _buildRegisterTableHtml() {
       '<button class="inv-table-sort" data-action="invDesktopSort" data-col="' + key + '">' + label +
       (on ? '<span aria-hidden="true">' + (sc.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
   };
+  // Select all is the head's tick box (it was a button in the toolbar's row), kept in step as each row is ticked.
+  var selectable = regSelectableInvoices(), allOn = selectable.length > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
   html += '<table class="inv-table"><thead><tr>' +
-    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th>' + th('number', 'Invoice') + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
+    '<th class="inv-table-check">' + (selectable.length ? '<input type="checkbox" class="inv-check" data-action="invRegSelectAll"' + (allOn ? ' checked' : '') +
+      ' aria-label="' + (allOn ? 'Clear the selection' : 'Select all ' + selectable.length) + '">' : '<span class="inv-visually-hidden">Select</span>') + '</th>' + th('number', 'Invoice') + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
     '<th class="inv-col-opt2">Challans</th><th class="inv-num inv-col-opt2">kg</th>' + th('taxable', 'Taxable', 'inv-num inv-col-opt3') + '<th class="inv-num inv-col-opt1">GST</th>' +
     th('total', 'Total', 'inv-num') + th('state', 'State') + '</tr></thead><tbody>';
 
@@ -498,7 +538,7 @@ function _buildRegisterTableHtml() {
       '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
       '<td>' + getStateDotHtml(inv) + ' ' + cnInvoiceMarkHtml(inv) + '</td></tr>';
   });
-  return html + '</tbody></table>' + _regExportHtml();
+  return html + '</tbody></table>';
 }
 
 /* A list-and-pane view rebuilds its table and pane whole, which drops the keyboard to <body>.
@@ -580,6 +620,8 @@ function renderRegisterTable() {
 /* View dispatcher (Phase 8B) */
 function _renderRegView() {
   _isDesktop ? renderRegisterTable() : renderRegisterList();
+  var v = document.getElementById('regVerdict');
+  if (v) v.innerHTML = regVerdictHtml();
 }
 
 /* Backward-compat: renderRegister calls both */
@@ -698,25 +740,6 @@ async function regBulkSetState(targetState) {
   }
 }
 
-/* Phone: sort by the date an invoice was raised, or by its number. */
-function toggleRegSortBy() {
-  regFilter.regSortBy = regFilter.regSortBy === 'number' ? 'date' : 'number';
-  saveRegFilter();
-  _regToolbarRendered = false;
-  renderRegisterToolbar();
-  _regToolbarRendered = true;
-  _renderRegView();
-}
-
-function toggleRegSortDir() {
-  regFilter.regSortDir = (regFilter.regSortDir || 'desc') === 'desc' ? 'asc' : 'desc';
-  saveRegFilter();
-  _regToolbarRendered = false;
-  renderRegisterToolbar();
-  _regToolbarRendered = true;
-  _renderRegView();
-}
-
 /* Invoice detail on the phone: the same content as the desktop pane, in a sheet. */
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
@@ -757,19 +780,44 @@ function invStateShown(invId) {
   }
 }
 
-/* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
-function _regSummaryHtml(filtered) {
+/* Invoices' verdict (the tab map, TM5c; it was the page-head line, "N active invoices · ₹X taxable"): the invoices waiting late on
+   a step, by state and age, worst first, each state read as Pipeline reads it (pipeStateStage) over what the filter shows; the
+   taxable of the active ones its figure. */
+var REG_VERDICT_STATES = ['created', 'printed', 'dispatched', 'delivered'];
+function regVerdictHtml() {
+  var filtered = getFilteredInvoices(), now = Date.now();
   var active = filtered.filter(function(i) { return i.status === 'active'; });
-  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-reg-summary>' + active.length + ' active invoice' + (active.length !== 1 ? 's' : '') +
-    ' · <span class="inv-num">' + formatCurrency(gstRound(sumTaxable(active))) + '</span> taxable</span></div>';
-}
-
-function _regExportHtml() {
-  return '<div class="inv-toolbar inv-mt-16">' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invExportSales">Sales register CSV</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invPrintSalesRegister">Sales register PDF</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invExportGstr1">GSTR-1 CSV</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invBulkMarkFiled">Bulk mark filed</button></div>';
+  var stages = REG_VERDICT_STATES.map(function(st) {
+    var list = active.filter(function(i) { return getInvState(i) === st; })
+      .sort(function(a, b) { return String(a.date || '').localeCompare(String(b.date || '')) || (a.createdAt || 0) - (b.createdAt || 0); });
+    return Object.assign({ key: st }, pipeStateStage(st, list, now));
+  });
+  var late = stages.filter(function(x) { return x.late; }).sort(function(a, b) { return (UI_TONE_RANK[b.tone] || 0) - (UI_TONE_RANK[a.tone] || 0); });
+  // "3 created over 2 days"; a return due: "2 delivered, GSTR-1 due 11 Oct" (Pipeline's words).
+  var say = pipeLateSay;
+  var rangeOn = !!(regFilter.dateFrom || regFilter.dateTo);
+  var scope = rangeOn ? (regFilter.dateFrom ? stockShortDate(regFilter.dateFrom) : 'the start') + ' – ' + (regFilter.dateTo ? stockShortDate(regFilter.dateTo) : 'today')
+    : regFilter.month ? imMonthLabel(regFilter.month) : '';
+  var narrowed = !!(regFilter.clientId || regFilter.state || regFilter.search);
+  var screen = 'Invoices' + (scope ? ' · ' + scope : '') + (narrowed ? ' · filtered' : '');
+  var attrs = ' data-reg-summary="' + active.length + '" data-reg-late="' + late.reduce(function(t, x) { return t + x.late; }, 0) + '"';
+  if (!filtered.length) return uiVerdictHtml({ screen: screen, tone: 'neutral', verdict: S.invoices.length ? 'No invoices for this filter' : 'No invoices yet', key: 'pageRegister', attrs: attrs });
+  var verdict, tone;
+  if (late.length) {
+    verdict = say(late[0]);
+    if (late[1] && (verdict + ' · ' + say(late[1])).length <= UI_VERDICT_MAX) verdict += ' · ' + say(late[1]);
+    tone = late[0].tone;
+  } else {
+    var waiting = stages.reduce(function(t, x) { return t + x.n; }, 0);
+    verdict = waiting ? todoPlural(waiting, 'invoice') + ' on their way, none late' : active.length ? 'Every invoice filed' : 'Every invoice cancelled';
+    tone = active.length ? 'ok' : 'neutral';
+  }
+  var cancelled = filtered.length - active.length;
+  var facts = [{ text: 'taxable, ' + todoPlural(active.length, 'active invoice') }].concat(
+    late.filter(function(x) { return verdict.indexOf(say(x)) < 0; }).map(function(x) { return { text: say(x), tone: x.tone }; }),
+    cancelled ? [todoPlural(cancelled, 'cancelled', 'cancelled')] : []).slice(0, 3);
+  return uiVerdictHtml({ screen: screen, tone: tone, verdict: uiVerdictFit(verdict, ''), fig: '<span class="inv-num">' + escHtml(finRs(gstRound(sumTaxable(active)))) + '</span>',
+    facts: facts, key: 'pageRegister', attrs: attrs });
 }
 
 function _regCheckHtml(inv) {

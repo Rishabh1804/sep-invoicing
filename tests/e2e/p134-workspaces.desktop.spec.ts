@@ -83,6 +83,9 @@ test.describe('P134: workspaces on the desktop', () => {
     await expect(page.locator('body > #wsTabs')).toBeVisible();
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.locator('body > #wsTabs')).toBeVisible();
+    // The switch back is done once the phone's bar is gone (it waits 150 ms on a resize): a door picked before then is the
+    // phone's, hidden under the click on a busy machine.
+    await expect(page.locator('.inv-navbar')).toBeHidden();
     // A page whose name is its workspace's says its view only (Money · Overview reads "Money › Overview").
     await switchTab(page, 'pageFinance');
     await expect(page.locator('#topbarTitle')).toHaveText('Money');

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, recentTs, switchTab, todayIso } from './fixtures';
+import { loadAppWithState, recentTs, switchTab, todayIso, filterControl, closeFilter } from './fixtures';
 import { clientsState } from './clients-fixture';
 
 // P68 (phone): Clients / Items / Performance on the v2.0 components (design principles §9 step 3).
@@ -39,17 +39,22 @@ test.describe('P68: Clients, Items and Performance', () => {
   test('the sort select sorts on change and carries no action; a filter chip is pressed', async ({ page }) => {
     await loadAppWithState(page, clientsState());
     await openView(page, 'items');
-    const sort = page.locator('#itemsSort');
+    // The sort and the filters are in Parts' Filter on the phone (the tab map, TM5e).
+    const sort = await filterControl(page, '#itemsSort');
     await expect(sort).not.toHaveAttribute('data-action', /.*/);
     const first = page.locator('#itemsList [data-item-row] .inv-row-title').first();
     await expect(first).toHaveText('AAA PART');
     await sort.selectOption('rate');
+    await closeFilter(page);
     await expect(first).toHaveText('BBB PART');
 
-    const chip = page.locator('[data-action="invFilterNoWeight"]');
+    const chip = await filterControl(page, '[data-action="invFilterNoWeight"]');
     await expect(chip).toHaveAttribute('aria-pressed', 'false');
+    // One choice: picked, the dialog shuts and the list is drawn.
     await chip.click();
-    await expect(page.locator('[data-action="invFilterNoWeight"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('[data-tb-filter-dialog]')).toHaveCount(0);
+    await expect(await filterControl(page, '[data-action="invFilterNoWeight"]')).toHaveAttribute('aria-pressed', 'true');
+    await closeFilter(page);
     await expect(page.locator('#itemsList [data-item-row]')).toHaveCount(2);
   });
 

@@ -244,14 +244,16 @@ var TODO_RULE_FNS = {
       var list = byClient[cid].sort(function(a, b) { return String(a.challanDate).localeCompare(String(b.challanDate)); });
       var oldest = list[0], age = isoDaysBetween(oldest.challanDate, today);
       var nums = list.map(function(im) { return im.challanNo ? String(im.challanNo) : 'no number'; });
-      return { key: 'challan:' + cid, rule: 'challan', tone: 'info', clientId: cid, imIds: list.map(function(im) { return im.id; }),
+      // Toned as the challan's own dot is (imWaitTone, the tab map TM5b): amber from the rule's days, red from twice them.
+      var wt = imWaitTone(age);
+      return { key: 'challan:' + cid, rule: 'challan', tone: wt === 'danger' ? 'red' : wt === 'warning' ? 'amber' : 'info', clientId: cid, imIds: list.map(function(im) { return im.id; }),
         title: 'Bill ' + (oldest.clientName || 'challans') + ': ' + (list.length === 1 ? 'challan ' + nums[0] : todoPlural(list.length, 'challan')),
         sub: (list.length === 1 ? 'Received ' : 'Oldest received ') + todoPlural(age, 'day') + ' ago, not invoiced',
         why: 'Incoming material · rule: ' + cfg.challanDays + ' days',
         facts: [['Challans', nums.join(', ')], ['Oldest', formatDate(oldest.challanDate)]],
         clears: 'Clears itself when these challans are invoiced.',
         go: { kind: 'im', clientId: cid }, goLabel: 'Open challans',
-        sig: list.map(function(im) { return im.id; }).join(',') };
+        sig: wt + '|' + list.map(function(im) { return im.id; }).join(',') };
     });
   },
   dispatch: function() {
@@ -514,7 +516,7 @@ function todoClientCardHtml(clientId, fold) {
   if (!list.length) return '';
   var card = '<div class="inv-panel inv-panel-flush" data-card="client-tasks"><div class="inv-panel-head"><span class="inv-panel-title">Flagged' +
     ' <span class="inv-panel-count">' + list.length + '</span></span><span class="inv-badge">App</span></div>' +
-    list.map(todoAppRowHtml).join('') + '</div>';
+    list.map(function(t) { return todoAppRowHtml(t, true); }).join('') + '</div>';
   return fold ? uiFoldCard(fold, card, false) : card;
 }
 function todoIsSnoozed(t) {
@@ -564,12 +566,15 @@ function todoGlyph(tone) {
   return '<span class="inv-dot-mark inv-dot-mark-' + ui + '" aria-hidden="true">' + (tone === 'red' || tone === 'amber' ? '!' : 'i') + '</span>';
 }
 var TODO_TONE_WORD = { red: 'Act now', amber: 'Soon', info: 'To know' };
-function todoAppRowHtml(t) {
-  return '<button class="inv-row inv-row-2 inv-row-auto" data-todo="app" data-tone="' + escHtml(t.tone || '') + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
+/* `brief` (a client's page, which lists everything flagged about it): the task's title alone, its line and reason in the row's
+   title and in full on the tap that opens it (the tab map, TM5f: a line there ran to 150 characters). */
+function todoAppRowHtml(t, brief) {
+  return '<button class="inv-row ' + (brief ? '' : 'inv-row-2 ') + 'inv-row-auto" data-todo="app" data-tone="' + escHtml(t.tone || '') + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '"' +
+    (brief ? ' title="' + escHtml([t.sub, t.why].filter(Boolean).join(' · ')) + '"' : '') + '>' +
     '<span class="inv-row-lead">' + todoGlyph(t.tone) + '</span>' +
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(t.title) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.sub) + '</span>' +
-    (t.why ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span>' : '') + '</span>' +
+    (brief ? '' : '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.sub) + '</span>' +
+    (t.why ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span>' : '')) + '</span>' +
     // Red and amber say so in a word as well; an info task's i is its word.
     (t.tone === 'red' || t.tone === 'amber' ? '<span class="inv-row-end"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + TODO_TONE_WORD[t.tone] + '</span></span>' : '') + '</button>';
 }

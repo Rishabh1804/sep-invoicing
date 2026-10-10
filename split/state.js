@@ -1001,7 +1001,8 @@ function uiRowMoreHtml(actions) {
 /* The toolbar's More (§6.7, §1a-2, §1a-10): one button holding everything the row has no room for, on both layouts (files
    always: Export, Import, Print sheets, the register's CSVs). `items`: {label, action, attrs, badge: {n, tone}}. Each opens as a
    row of a dialog carrying the action and the data it had in the toolbar, so events.js routes it unchanged; a pick shuts the
-   dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it.
+   dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it;
+   a neutral one (a plain count) stays on its row.
    The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
    (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
 var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
@@ -1013,7 +1014,8 @@ function uiToolbarMoreHtml(items, opts) {
   var n = 0, worst = '';
   var rows = list.map(function(x) {
     var b = x.badge && x.badge.n ? x.badge : null;
-    if (b) { n += b.n; if (!worst || (UI_TONE_RANK[uiTone(b.tone)] || 0) > (UI_TONE_RANK[worst] || 0)) worst = uiTone(b.tone); }
+    // A count that waits on nothing (a neutral tone: how many credit notes there are) stays on its row; More carries the rest.
+    if (b && uiTone(b.tone) !== 'neutral') { n += b.n; if (!worst || (UI_TONE_RANK[uiTone(b.tone)] || 0) > (UI_TONE_RANK[worst] || 0)) worst = uiTone(b.tone); }
     return '<button type="button" class="inv-row" data-tb-pick data-action="' + escHtml(x.action) + '"' + (x.attrs || '') + '>' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
       (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';

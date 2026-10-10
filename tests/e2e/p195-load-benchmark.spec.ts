@@ -10,7 +10,7 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 //
 // A budget is a ceiling, never a target: each step that assembles a screen lowers its budget to the new measure in the same
 // commit, and no budget is raised to get green. The budgets below are TM1's, then each step's for the screens it assembled
-// (TM2: Today's; TM3: Money's; TM4: Floor's): every screen measured on eleven days of the calendar (a Sunday, a month's first
+// (TM2: Today's; TM3: Money's; TM4: Floor's; TM5: Office's): every screen measured on eleven days of the calendar (a Sunday, a month's first
 // and last days, the financial year's first, the year's), the worst of them kept, the length rounded up to the next half
 // screen. A toolbar's rows are its controls standing side by side, their heights overlapping (TM4: tops binned by 8px had
 // counted a smaller button centred in its row as a second row). The face is pinned
@@ -35,17 +35,17 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Today › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Planner › A day': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Planner › Moves': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Office › Pipeline': { screens: 5, blocks: 0, chains: 12, toolbarRows: 1 },
-  'Office › Challans › Awaiting invoice': { screens: 4, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 4 },
-  'Office › Invoices': { screens: 4, blocks: 0, chains: 0, toolbarRows: 8 },
-  'Office › Clients › Clients': { screens: 2, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Office › Clients › Parts': { screens: 1.5, blocks: 0, chains: 3, toolbarRows: 4 },
-  // Measured 9 chains on five of the eleven days on TM3's build as well (a November run would have failed): the budget was
-  // understated, corrected to the measure in TM4 and said in the PR (I10). TM5 assembles Performance.
-  'Office › Clients › Performance': { screens: 3, blocks: 5, chains: 9, toolbarRows: 1 },
-  'Office › Sales › Prospects': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Office › Sales › Quotations': { screens: 1.5, blocks: 0, chains: 3, toolbarRows: 2 },
+  // TM5. Office's screens, each led by its verdict card (Challans → Invoiced by its month's stepper), then one toolbar row; Invoices
+  // was eight rows of controls on the phone, Parts four. Performance's long cards fold, and its five blocks and nine chains went.
+  'Office › Pipeline': { screens: 5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Office › Challans › Awaiting invoice': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 2 },
+  'Office › Invoices': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 2 },
+  'Office › Clients › Clients': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Office › Clients › Parts': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Office › Clients › Performance': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Office › Sales › Prospects': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Office › Sales › Quotations': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
   // TM4. Floor's screens, each led by its verdict card, then one toolbar row. Production → Entries was 17.2 phone screens and
   // 109 chains; In plant 7.5 and 64; the case a document fitted to the screen. Causes has no toolbar of its own (§1a-12).
   // Raised 2.5 → 3 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): the fifth card, Turnaround, on a row of its
@@ -77,8 +77,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'History': { screens: 4.5, blocks: 0, chains: 4, toolbarRows: 5 },
   'Knowledge › Start': { screens: 2, blocks: 0, chains: 2, toolbarRows: 1 },
   // Raised 3 → 3.5 in TM4, said in the PR (I10): the guides took the Floor screens' method paragraphs (two new guides, five
-  // rewritten), and the Library lists them (2.86 → 3.05). TM6 assembles Knowledge.
-  'Knowledge › Library': { screens: 3.5, blocks: 0, chains: 2, toolbarRows: 5 },
+  // rewritten), and the Library lists them (2.86 → 3.05). Raised 3.5 → 4 in TM5, said in the PR: a new guide took Performance's
+  // and Sales' method (Using the app: clients and sales), one more row (3.48 → 3.56). TM6 assembles Knowledge.
+  'Knowledge › Library': { screens: 4, blocks: 0, chains: 2, toolbarRows: 5 },
   'Knowledge › Troubleshoot': { screens: 1.5, blocks: 0, chains: 2, toolbarRows: 2 },
   'Knowledge › Records': { screens: 1.5, blocks: 0, chains: 2, toolbarRows: 4 },
   'Knowledge › Training': { screens: 3, blocks: 0, chains: 14, toolbarRows: 1 },
@@ -96,6 +97,9 @@ const VERDICT: string[] = [
   'Floor › People › Pay', 'Floor › People › Areas', 'Floor › People › Roster',
   'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
   'Floor › Stock', 'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills',
+  // TM5: Office's (Challans → Invoiced is led by its month's stepper, with no card).
+  'Office › Pipeline', 'Office › Challans › Awaiting invoice', 'Office › Invoices', 'Office › Clients › Clients',
+  'Office › Clients › Parts', 'Office › Clients › Performance', 'Office › Sales › Prospects', 'Office › Sales › Quotations',
 ];
 
 test('every screen of the map is within its load budget on the long book', async ({ page }) => {

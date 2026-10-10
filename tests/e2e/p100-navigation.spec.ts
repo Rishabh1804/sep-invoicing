@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, openSettingsAt, switchTab, waitForBoot } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, openSettingsAt, switchTab, waitForBoot, setFilter } from './fixtures';
 import { imState } from './im-fixture';
 
 // P100: navigation (UX overhaul 2, step 1; owner, 28 Sep 2026: "Backspace goes back through the screens visited, with a
@@ -37,7 +37,8 @@ test.describe('P100: navigation on the phone', () => {
     await expect.poll(() => where(page)).toEqual(office);
     // A filter is not a place.
     await page.locator('#wsTabs [data-tab="pageIM"]').click();
-    await page.locator('#imStatusFilter').selectOption('pending');
+    // Under Filter on the phone (the tab map, TM5b): the dialog is a layer, and back passes over it once shut.
+    await setFilter(page, '#imStatusFilter', 'pending');
     await page.goBack();
     await expect.poll(() => where(page)).toEqual(office);
   });

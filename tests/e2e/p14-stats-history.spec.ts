@@ -203,7 +203,7 @@ test.describe('Stats — tonnage and realisation', () => {
     await expect(page.locator('#finGst')).toContainText('₹4,284.00');
     // Neither seeded invoice is filed: both stand in a stage, each counted there.
     await switchTab(page, 'pagePipeline');
-    await expect(page.locator('[data-pipe-stage="created"] .inv-panel-count')).toHaveText('2');
+    await expect(page.locator('[data-pipe-stage="created"] [data-pipe-n]')).toHaveText('2');
   });
 
   test('periods are measured on the invoice date, not on entry time', async ({ page }) => {

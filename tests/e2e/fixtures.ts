@@ -278,6 +278,21 @@ export async function closeFilter(page: Page): Promise<void> {
   const done = page.locator('[data-tb-filter-dialog] [data-action="invTbFilterDone"].inv-btn-primary');
   if (await done.count()) { await done.click(); await expect(page.locator('[data-tb-filter-dialog]')).toHaveCount(0); }
 }
+/** A control of the toolbar's filters (Office's screens, the tab map TM5): behind Filter on the phone, opened here where it is shut,
+ *  inline on the desktop. Hands back the control; `closeFilter` shuts the dialog when the caller is done with it. */
+export async function filterControl(page: Page, sel: string) {
+  const dlg = page.locator('[data-tb-filter-dialog]');
+  if (!(await dlg.count())) await phoneFilter(page);
+  return (await dlg.count()) ? dlg.locator(sel) : page.locator('.inv-page-active ' + sel);
+}
+/** Sets one filter as the hand does: a select picked, a date or month typed, then Filter's dialog shut (on the phone; on the desktop
+ *  the control is the row's and nothing opens). */
+export async function setFilter(page: Page, sel: string, value: string): Promise<void> {
+  const el = await filterControl(page, sel);
+  if ((await el.evaluate(e => e.tagName)) === 'SELECT') await el.selectOption(value);
+  else { await el.fill(value); await el.dispatchEvent('change'); }
+  await closeFilter(page);
+}
 /** The toolbar's More (§1a-2, §1a-10): opens it, on either layout, and picks the row named `label` (its dialog shuts first, then
  *  the row acts). Without a label it only opens the dialog. */
 export async function toolbarMore(page: Page, label?: string): Promise<void> {

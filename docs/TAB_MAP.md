@@ -49,7 +49,7 @@ Nothing here changes what the book records except TM3b.
 | ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | **Done** (10 Oct 2026, the owner: *"Go ahead"*) |
 | TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | **Built** (10 Oct 2026; what it decided is under TM3, *As built*) |
 | TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | **Built** (10 Oct 2026; what it decided is under TM4, *As built*) |
-| TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | Not built |
+| TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | **Built** (10 Oct 2026; what it decided is under TM5, *As built*) |
 | TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | Not built |
 | TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | Not built |
 
@@ -1263,6 +1263,89 @@ keep their places (§2); this step is their load.
 is one row on both layouts (its tokens under it on the phone) with every filter, the sort, Select, Credit notes and Number audit
 reachable and the audit's badge on More; Performance under four phone screens on the long book; Office's screens on `ONE_LOOK`
 (P197 extended). **Spec P193** (`p193-office-load(.desktop).spec.ts`); P195's budgets lowered for every Office screen.
+
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **Pipeline's verdict names the stage the page opens on** (`pipeDefaultStage`: the first holding a red, else the first holding
+  anything) in that stage's words and tone, with no figure (the stage's tile under it has its amount, I8, and beside a figure the
+  line took two rows on the owner's book); the worst other stage running late is its one fact, in its own words (`pipeLateSay`:
+  *11 challans over 10 days*, *9 created over 2 days*, *2 delivered, GSTR-1 due 11 Oct*): every stage's words are its tile's too,
+  and two facts took the card to a second line on the phone. Nothing in it folds (its stages are beside it), so it is a card, not a
+  fold. A date in a stage's words drops this year's number (`pipeNoThisYear`). **The stages are coded tiles two across** (the desktop's rail spans an odd last one), a stage
+  with nothing to judge plain (`data-tone="neutral"`); `inv-pipe-node` and `inv-pipe-stage`, the rows' rail, are deleted. A client
+  awaiting invoice is two facts (*3 challans · ₹X to bill*) with its oldest a line of its own in its tone.
+- **One judge for a challan's wait** (`imWaitTone`, `imWaitDays`): IM's dot, Pipeline's first stage and the To-do's challan task.
+  **The task is amber from the To-do's challan days and red from twice them** (5 and 10 by default); it was info at any age, so a
+  challan waiting ten days now leads Needs you's *Now*. A challan's meta is how long it has waited and its items; invoiced, its
+  vehicle and its items. Awaiting invoice's verdict carries the oldest's days as its figure (*12 d*), how many are over the days
+  and how many are part invoiced as facts; its list lost its own head, which said the count a second time. The toolbar is one row:
+  Filter (client, and the status on Awaiting), Scan, **Add challan**, and More holding *Duplicate check* with its count.
+- **Invoices' row holds the register's files too**: the row of four buttons under the list (Sales register CSV and PDF, GSTR-1
+  CSV, Bulk mark filed) went into More with Credit notes and Number audit. **The phone's sort is one picker** (*Newest first*,
+  *Oldest first*, *Highest number first*, *Lowest number first*; it was two buttons, by date or number and the direction), a token
+  when not the newest first. **On the desktop the filters are inline and the range is a dialog of its own** (*Range*, the button
+  saying the range in use), since at 1024px the six controls wanted 926px of the row's 872: the row never wraps, its search gives
+  up room first and its client picker is at most a column and a half. Select-all is the table head's tick box; the phone keeps
+  Select. **The verdict reads what the filter shows** (each state as Pipeline reads it, `pipeStateStage`), its screen line naming the
+  month or range and *filtered*; with nothing late it says how many are on their way, *none late*.
+- **A neutral badge stays on its row** (design §6.7): More carries a count only when it waits on something (the Number audit's
+  unaccounted numbers, the duplicate check's), never how many credit notes or part weights there are.
+- **A client's dot is its worst flag** (`clientFlagsRead`: the To-do's tasks naming the client, not snoozed, that the role sees,
+  read once when the view is drawn) in the rule's short word (`CLIENT_FLAG_WORD`: *past terms*, *gone quiet*, *below cost*, *to
+  bill*, *past turnaround*…), every flag in its title; an inactive client keeps *Inactive*. The verdict counts the clients and
+  names the rule flagged worst (*22 clients · 2 past terms*), one row on the phone (two rules had wrapped it on the owner's book);
+  how many are flagged and the next rules are its facts.
+- **Parts' tools are More's**: Part weights (its count a neutral badge on the row, redrawn when a weight is saved), Enter
+  weights, Derive weights (*Calc weights* until now: the Items Master's own word for `applyDerivedWeights`), Merge and Select
+  unused. *No weight* and *Unused* are one choice in the phone's Filter, so it shuts on the pick. A part's row is its description
+  and gauge, its end the rate over its kg a piece, else *No weight* (amber) or *Unused*.
+- **Performance's card is open on the desktop and shut on the phone**; its flags are coded tiles (up to four; a fifth keeps the
+  folded list under the picker) that open their tasks, and the card takes the worse of its realisation's tone and its worst flag's.
+  **Every fold under it is shut on both layouts**: the parts by Stopped, New, Steady and One-off (Stopped in warning, a question,
+  not a loss), Materials worked, and By the hour (open while its form is). Open on the desktop, they had run its page to 7.79
+  screens on the owner's book. By the hour's parts are fact rows, each hint a row with its tone (`say`, `sub`; the sentence in its title).
+- **A client's page lists its flags and linked articles brief** (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`): the title, the
+  line and reason in the row's title and in the task's dialog. A flagged task's line had run to 150 characters there. **Its Money
+  panel is two facts a line** (where receivables start in the head, the two oldest age bands, *matched exactly* in the title), and
+  **the folded Turnaround card's head is its title and the verdict**, the target and the terms in the verdict's title: on the phone
+  the head had run under the chevron.
+- **The method went to a guide**: *Using the app: clients and sales* (new, on the office path after credit notes): what the flags
+  mean, Parts, the cadence rule, Materials worked, By the hour's arithmetic and what to look at, Sales' chances, the spare, Won,
+  the quotation rules and *To reprice*.
+- **Prospects' four tiles are its verdict's factors** (the chance per stage in the pipeline's title), and a prospect's line is two
+  facts (its stage and size; the follow-up, else why it was lost, else the work). **Quotations' reprice moves are the phone's card's
+  body** (as a Pulse question holds its moves, one card, the rest a tap away), **and the desktop's pane** while no quotation is
+  open (as Stock's *Spend and prices* is): under the card, two had put Quotations over its budget on the long book (1.64) and one
+  put the owner's book past a screen (1.00 → 1.10), and on the desktop the open card with its moves pushed the list below the
+  screen's foot (54px at 1280×800, P80). The card's line says how many clients are to reprice. A quotation's line is its days left
+  (else its date) and its rate, its date and items in its title. **Pulse's *Is the plant full?* carries *Spare a month*** (the last
+  90 days, as Prospects reads it, `prsSpare`) beside the period's own spare.
+- **Create's errors are keyed** (`validateInvoiceKeyed`: client, date, lines, a line's part and quantity, a line's reasons, and
+  the form's own state): one shows once its field is left (`createFieldLeft`, on a change in the form) or a save is tried
+  (`_tried`), a line's reason once any of its fields is left, the form's state at once; a removed line's marks move up with the
+  lines under it (`createLeftDrop`). Save is held only while an error shows; tapped with errors hidden, it shows them and says the
+  first.
+- **The measures**, phone screens, the worst of eleven days on the long book (the build before TM5, 54e54ce → TM5), and the owner's
+  book (same book, before → TM5):
+
+  | Screen | Long book | Owner's book |
+  |---|---|---|
+  | Office → Pipeline | 4.57 → **4.57** (chains 12 → 0) | 3.04 → **3.02** (chains 7 → 0) |
+  | Challans → Awaiting invoice | 3.71 → **3.71** (toolbar rows 2 → 1) | 1.99 → **1.93** (toolbar rows 3 → 1) |
+  | Challans → Invoiced | 2.34 → **2.27** (toolbar rows 3 → 2) | — |
+  | Invoices | 3.65 → **3.33** (toolbar rows 8 → 2) | 3.50 → **3.15** (toolbar rows 8 → 2) |
+  | Clients → Clients | 1.47 → **1.50** (toolbar rows 2 → 1) | 2.39 → **2.43** (chains 1 → 0, toolbar rows 2 → 1) |
+  | Clients → Parts | 1.00 → **1.00** (chains 3 → 0, toolbar rows 4 → 1) | 3.09 → **3.05** (chains 30 → 0, toolbar rows 4 → 1) |
+  | Clients → Performance | 2.69 → **2.56** (blocks 5 → 0, chains 9 → 0) | 5.72 → **3.23** (blocks 14 → 0, chains 57 → 0); the desktop's 7.79 → **3.69** |
+  | Sales → Prospects | 1.00 → **1.00** (toolbar rows 2 → 1) | 1.00 → **1.00** (toolbar rows 2 → 1) |
+  | Sales → Quotations | 1.00 → **1.00** (chains 3 → 0, toolbar rows 2 → 1) | 1.00 → **1.00** (toolbar rows 2 → 1) |
+  | Create | — (not in the walk) | 1.01 → **1.00** |
+
+  Every Office screen's budget went to its new measure, and no Office budget rose. **Two screens grew**: Clients by 0.03 of a
+  screen on the long book and 0.04 on the owner's, its card standing where a page-head line and a second toolbar row were, which
+  did not pay for all of it (said, I10); and Today → Needs you, 3.09 → 3.30 within its 3.5, because the To-do's challan task is red
+  at ten days now (TM5b) and on the long book it moved from Later into Now. **One budget rose, said in the PR**: Knowledge →
+  Library's length 3.5 → 4 (3.48 → 3.56), the new guide one more row; TM6 assembles Knowledge. The owner's book is measured in a
+  scratch harness that never enters the repository.
 
 ### TM6 — Across the app
 

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, recentTs, switchTab, todayIso, waitForBoot,
-  type SepState } from './fixtures';
+  type SepState, toolbarMore } from './fixtures';
 
 // P123: the QA audit's billing findings (G1-1 … G1-13), each reproduced here before it was fixed: the invoice line's
 // part and description, a reissue that keeps its challan lines and credit notes, the numbers Settings may issue again,
@@ -302,7 +302,7 @@ test('G1-6: a credit note dated outside its series\' year is asked about, from t
 
   // A new note from Office → Invoices → Credit notes (the tab map, TM3a).
   await switchTab(page, 'pageRegister');
-  await page.locator('#pageRegister [data-action="invCnList"]').click();
+  await toolbarMore(page, 'Credit notes');
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await page.locator('#cnfDate').fill(BEFORE_FY);
   await page.locator('#cnfClient').selectOption('1');

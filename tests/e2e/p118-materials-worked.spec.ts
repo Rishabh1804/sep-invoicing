@@ -106,7 +106,13 @@ test('by the hour: a round is pickle + plate + 15 minutes; Samarth’s are set o
   // No pickling on record: 30 + 15 = 45 min a round. 56 × ₹9 over 0.75 h is ₹672 an hour; 156 × ₹3 is ₹624.
   await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('₹672.00');
   await expect(card.locator('[data-cp-time="PT-seed2"] summary')).toContainText('₹624.00');
-  await expect(card.locator('[data-cp-time="PT-seed1"] summary')).toContainText('+ plate 30 min (set) + 15 min logistics');
+  // Its make-up is fact rows under it (the tab map, TM5f; it was a sentence): plating as set, the constant on every round.
+  await card.locator('[data-cp-time="PT-seed1"] summary').click();
+  const step = (k: string) => card.locator(`[data-cp-time="PT-seed1"] [data-cp-step="${k}"]`);
+  await expect(step('plate').locator('.inv-row-end')).toHaveText('30 min');
+  await expect(step('plate').locator('.inv-row-meta')).toHaveText('set');
+  await expect(step('over').locator('.inv-row-end')).toHaveText('15 min');
+  await expect(step('round').locator('.inv-row-end')).toHaveText('45 min');
   // The constant is the owner's to change: 5 minutes makes a round 35.
   await card.locator('#cpOverhead').fill('5');
   await card.locator('#cpOverhead').dispatchEvent('change');
@@ -142,8 +148,10 @@ test('the times are learnt from the production record, the trend is read, and a 
   await openPerf(page, 3);
   const row = page.locator('[data-card="hours"] [data-cp-time="PT-seed1"]');
   await row.locator('summary').click();
-  await expect(row).toContainText('10 plating rounds timed');
-  await expect(row).toContainText('+33%');
+  // What the record measured is a fact row, and the slower rounds a row of what to look at (the tab map, TM5f).
+  await expect(row.locator('[data-cp-measured] .inv-row-title')).toHaveText('Plating rounds timed');
+  await expect(row.locator('[data-cp-measured] .inv-row-end')).toHaveText('10');
+  await expect(row.locator('[data-cp-hint]').filter({ hasText: 'Plating a round is slower' })).toContainText('+33%');
   // Set at 30, measured at 40 now: said, with a button to take the measure.
   await row.locator('[data-action="invCpTimeUseMeasured"]').click();
   const t = (await readStoredState(page)).clients.find((x: any) => x.id === 3).partTimes[0];

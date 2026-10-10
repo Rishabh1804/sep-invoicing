@@ -99,7 +99,7 @@ test.describe('P73: Stats', () => {
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
     await expect(page.locator('#pagePipeline')).toHaveClass(/inv-page-active/);
     // The one invoice still in Created is that stage's; the filed one is in no stage, and Pipeline says so.
-    await expect(page.locator('[data-pipe-stage="created"] .inv-panel-count')).toHaveText('1');
+    await expect(page.locator('[data-pipe-stage="created"] [data-pipe-n]')).toHaveText('1');
     await expect(page.locator('[data-pipe-note]')).toContainText('Filed and cancelled invoices are not stages');
     await switchTab(page, 'pageFinance');
     await page.locator('[data-action="invFinTab"][data-tab="gst"]').click();

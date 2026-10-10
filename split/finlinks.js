@@ -26,19 +26,25 @@ function finClientMoney(clientId) {
 function finClientMoneyHtml(clientId) {
   var m = finClientMoney(clientId);
   if (!m) return '';
-  var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
+  // Two facts a line (the tab map, TM5f): the rest of a line in its title. Receivables start on the head's day.
+  var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money' +
+    ' <span class="inv-panel-count">since ' + escHtml(stockShortDate(m.from)) + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(clientId)) + '">Open in Finance</button></div>';
   if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.</div></div>';
-  var row = function(k, v, sub) {
-    return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
+  var row = function(k, v, sub, title) {
+    return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
-  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + m.r.oldestDays + ' days' : '') + ' · since ' + escHtml(formatDate(m.from)));
+  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + todoPlural(m.r.oldestDays, 'day') : ''));
+  // By age: the two oldest bands that hold anything; every band in the line's title.
   var aged = m.bands.filter(function(b) { return b.amount > 0.005; });
-  if (aged.length) h += row('By age', '', aged.map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '));
+  if (aged.length) h += row('By age', '', aged.slice(-2).reverse().map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '),
+    aged.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(', '));
   h += row('Pays in', m.dtp && m.dtp.median != null ? Math.round(m.dtp.median) + ' days' : '&mdash;',
-    m.dtp ? m.dtp.n + ' receipt' + (m.dtp.n === 1 ? '' : 's') + ' set against invoices · last three at ' + Math.round(m.dtp.last3) + ' days · ' + Math.round(m.dtp.exactShare * 100) + '% matched exactly' : 'no receipt set against an invoice yet');
+    m.dtp ? m.dtp.n + ' receipt' + (m.dtp.n === 1 ? '' : 's') + ' set against invoices · last three at ' + Math.round(m.dtp.last3) + ' days' : 'no receipt set against an invoice yet',
+    m.dtp ? Math.round(m.dtp.exactShare * 100) + '% matched exactly' : '');
   if (m.last) h += row('Last receipt', escHtml(formatCurrency(m.last.cr)), escHtml(formatDate(m.last.date)) + (bankInstrument(m.last) ? ' · chq ' + escHtml(bankInstrument(m.last)) : ''));
-  if (m.series.length) h += row('Cheques', '', '<span class="inv-id">' + escHtml(m.series.slice(-6).join(' · ')) + '</span>');
+  // A list of numbers, not facts: commas.
+  if (m.series.length) h += row('Cheques', '', '<span class="inv-id">' + escHtml(m.series.slice(-6).join(', ')) + '</span>');
   return h + '</div>';
 }
 

@@ -136,7 +136,9 @@ test.describe('P128: Clients → Performance', () => {
     await expect(row.locator('summary')).toContainText('₹186.67');
     await row.locator('summary').click();
     await expect(row).toContainText('₹7.00/pc');
-    await expect(row).toContainText('₹140.00 a round');
+    // What a round earns is a fact row of its own (the tab map, TM5f: it was a sentence).
+    await expect(row.locator('[data-cp-earns]')).toContainText('A round earns');
+    await expect(row.locator('[data-cp-earns]')).toContainText('₹140.00');
   });
 
   test('G5-8: the materials period counts back whole months, clamped at a short month', async ({ page }) => {
@@ -167,12 +169,14 @@ test.describe('P128: Clients → Performance', () => {
     const worked = page.locator('[data-card="worked"]');
     await expect(worked).toHaveJSProperty('open', false);
     await expect(worked.locator(':scope > summary')).toContainText('Materials worked');
-    // Steady parts are counted on their head and shown when asked; stopped and new lead.
+    // Steady parts are counted on their fold's head and shown when it is opened (the tab map, TM5f); stopped and new lead.
     const steady = page.locator('[data-cp-group="steady"]');
-    const n = Number((await steady.locator('.inv-row-group').innerText()).replace(/\D+/g, ''));
+    const n = Number((await steady.locator(':scope > summary').innerText()).replace(/\D+/g, ''));
     expect(n).toBeGreaterThan(0);
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(0);
-    await steady.locator('[data-action="invShowMore"]').click();
+    await steady.locator(':scope > summary').click();
+    await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(Math.min(n, 10));
+    if (n > 10) await steady.locator('[data-action="invShowMore"]').click();
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(n);
     // The page was 3.1 phone screens on this book with every steady part and Materials worked drawn open.
     await page.reload();

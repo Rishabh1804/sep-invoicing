@@ -1355,8 +1355,16 @@ button.inv-token:hover { background: var(--surface-3); }
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
 .inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
+/* On the phone a search sharing its row takes what the row leaves, never under three quarters of a column, so the row stays one
+   (§1a-10: the search, Filter, the primary or Select, More). */
+body:not(.inv-desktop) .inv-toolbar > .inv-search:not(:only-child) { flex: 1 1 0; min-width: calc(var(--col-sm-w) * 0.75); }
 /* On the desktop a filter or sort picker is as wide as its choices, not the row: the search takes the room. */
 body.inv-desktop .inv-toolbar > :is(select, input[type="month"]).inv-toolbar-item { flex: 0 1 auto; max-width: calc(var(--col-sm-w) * 2); }
+/* Invoices' row is one row on the desktop at any width it is shown at (the tab map, TM5c): the search gives up its room before
+   anything wraps, and the client picker is never wider than a column and a half (a long name is cut in the picker, never the row). */
+body.inv-desktop [data-reg-toolbar] { flex-wrap: nowrap; }
+body.inv-desktop [data-reg-toolbar] > .inv-search { flex: 1 1 var(--col-sm-w); }
+body.inv-desktop [data-reg-toolbar] > #regClientFilter { max-width: calc(var(--col-sm-w) * 1.5); }
 /* A labelled field in a toolbar (a From / To date) is as wide as its control on the desktop too; each used to take half the row. */
 body.inv-desktop .inv-toolbar > .inv-field.inv-toolbar-item { flex: 0 0 auto; }
 /* A segmented control that is the toolbar's item (Pulse's period) fills the phone's row beside More, and is as wide as its
@@ -1494,7 +1502,8 @@ body:not(.inv-desktop) button.inv-row-main { min-height: var(--touch); }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }
-.inv-row-wrap .inv-dot { white-space: normal; }
+/* A dot's word wraps where its box is narrow: a row marked to wrap, and a tile's line (a tile is a fixed share of its strip). */
+.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot { white-space: normal; }
 /* On the phone and tablet a meta line may take two lines before it is cut (the polish pass's open items, 27 Sep 2026):
    one ellipsised line hid the date after a long client name ("GAMMA PRESS WORKS · 25…"). The title keeps one line, and
    whatever is still cut carries a title with its full text (uiOverflowCues, state.js). A meta line of names wraps whole
@@ -1724,22 +1733,13 @@ body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
 .inv-history-full { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-13); }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
-body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* Office → Pipeline: each stage a row whose lead is a node on one line, running up to the stage before and down to the
-   one after, its dot (12px) in the stage's tone. The stage open is pressed: the accent's soft fill and its rule at the
-   row's start. On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside
-   it, each scrolling inside itself: the page does not (the list-and-pane rule above). */
-.inv-pipe-node { position: relative; align-self: stretch; width: var(--sp-16); justify-content: center; }
-.inv-pipe-node > .inv-dot { position: relative; z-index: 1; }
-.inv-pipe-node > .inv-dot::before { width: var(--sp-12); height: var(--sp-12); }
-.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before,
-.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { content: ''; position: absolute; left: 50%; border-left: var(--hair) solid var(--border); }
-.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before { top: calc(-1 * var(--sp-6)); bottom: 50%; }
-.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { top: 50%; bottom: calc(-1 * (var(--sp-6) + var(--hair))); }
-button.inv-pipe-stage[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset var(--rule) 0 0 var(--accent); }
-button.inv-pipe-stage[aria-pressed="true"]:focus-visible { box-shadow: inset var(--rule) 0 0 var(--accent), var(--focus-ring); }
+body.inv-desktop :is(.inv-pane, .inv-pipe-rail) .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Office → Pipeline: the stages are coded tiles (§6.26), two across, each in its own age tone, the stage open pressed (§6.9).
+   On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside it, each scrolling
+   inside itself: the page does not (the list-and-pane rule above). */
 body.inv-desktop .inv-pipe-host { gap: var(--gap); }
 body.inv-desktop .inv-pipe-rail { flex: 0 0 var(--pane-w); min-width: 0; overflow-y: auto; }
+body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .inv-visually-hidden { position: absolute; width: var(--hair); height: var(--hair); padding: 0; margin: calc(var(--hair) * -1); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. */
@@ -1859,6 +1859,8 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-panel-fold:not([open]) > summary { border-bottom: none; }
 .inv-panel-flush > .inv-panel-body:last-child { border-bottom: none; }
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A dot and its words in a head (a folded card's verdict) take the room left and wrap, never running under the fold's chevron. */
+.inv-panel-head > .inv-dot { white-space: normal; min-width: 0; }
 
 /* §6.16 Overlays. A scrim holds a dialog (inv-scrim-dialog). */
 .inv-scrim {

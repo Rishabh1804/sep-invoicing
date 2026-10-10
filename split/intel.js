@@ -330,8 +330,11 @@ function statsStoryCards(a, ctx) {
   // 3. Is the plant full?
   var c3 = { key: 'plant', q: 'Is the plant full?' };
   var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  // The spare a month over the last 90 days (prsSpare), Prospects' own figure, beside the period's (the tab map, TM5g).
+  var sp90 = typeof prsSpare === 'function' ? prsSpare() : null;
   body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),
-    capPct != null ? figToneCapacity(capPct * 100) : ''));
+    capPct != null ? figToneCapacity(capPct * 100) : '') +
+    (sp90 ? statsTile('spare90', 'Spare a month', escHtml(formatNum(sp90.spareMonth / 1000, 1) + ' t'), statsTileSub('the last 90 days, as Prospects reads it'), '') : ''));
   var mk = months.filter(function(x) { return x.kg > 0; });
   if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month' }));
   var avg = real != null ? real : null;

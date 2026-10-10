@@ -370,7 +370,8 @@ test.describe('P152: the guard, after its QA', () => {
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup', 'flowLate:1']) expect(keys).toContain(k);
     const n = JSON.parse(await ev(page, 'JSON.stringify(wsRedCounts())') as string);
     expect(n.floor).toBe(3);
-    expect(n.today).toBe(3);
+    // The challan waiting ten days is red now, toned by its days as its row is (the tab map, TM5b; it was always to know).
+    expect(n.today).toBe(4);
     await page.locator('[data-action="invTodoNew"]').click();
     expect(await ev(page, `Array.prototype.map.call(document.querySelectorAll('#todoLinkKind option'), function (o) { return o.value; })`)).toEqual(['', 'client', 'invoice', 'challan', 'stock']);
   });

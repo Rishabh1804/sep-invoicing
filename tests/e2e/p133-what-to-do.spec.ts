@@ -178,7 +178,9 @@ test.describe('P133: what to do', () => {
     await go(`{ kind: 'prodLines', line: 'vat-a2', day: '${dayOff(-1)}' }`);
     await expect(page.locator('#pageProduction.inv-page-active [data-action="invProdLine"][data-line="vat-a2"]')).toHaveAttribute('aria-pressed', 'true');
     await go(`{ kind: 'quotes', status: 'issued' }`);
-    await expect(page.locator('#qtStatusFilter')).toHaveValue('issued');
+    // The status is Quotations' filter, behind Filter on the phone and said as its token (the tab map, TM5g).
+    expect(await page.evaluate(() => (0, eval)('_qtStatus'))).toBe('issued');
+    await expect(page.locator('#pageClients .inv-token[data-action="invQtStatusClear"]')).toHaveCount(1);
     await go(`{ kind: 'stats', tab: 'clients', anchor: 'statsWorst' }`);
     await expect(page.locator('#statsToolbar .inv-viewtab[aria-selected="true"]')).toHaveAttribute('data-tab', 'clients');
     await go(`{ kind: 'register', clientId: 2, month: '${dayOff(-40).slice(0, 7)}' }`);

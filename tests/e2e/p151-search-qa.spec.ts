@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, openVerdict } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, openVerdict, toolbarMore } from './fixtures';
 import { CLIENTS, challan, dayOff, inv, openSearch, search, searchBook, titles } from './p139-search.fixture';
 import { PINS, guardBook, withUsers, unlock, windowGone } from './p140-guard.fixture';
 import { pipeState } from './p137-pipeline.fixture';
@@ -175,7 +175,7 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
     // The office opens the Register and its audit, and may not void: told so, never asked a PIN, nothing written.
     await unlock(page, 'U-off', PINS.office);
     await switchTab(page, 'pageRegister');
-    await page.locator('#regNumberAudit').click();
+    await toolbarMore(page, 'Number audit');
     await page.locator('[data-action="invAccountForNumber"][data-num="2"]').click();
     await page.locator('#invGapReason').fill('spoiled, never issued');
     await page.locator('[data-action="invSaveGapReason"]').click();
@@ -189,7 +189,7 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
     await unlock(page, 'U-own', PINS.owner);
     await windowGone(page);
     await switchTab(page, 'pageRegister');
-    await page.locator('#regNumberAudit').click();
+    await toolbarMore(page, 'Number audit');
     await page.locator('[data-action="invAccountForNumber"][data-num="2"]').click();
     await page.locator('#invGapReason').fill('spoiled, never issued');
     await page.locator('[data-action="invSaveGapReason"]').click();

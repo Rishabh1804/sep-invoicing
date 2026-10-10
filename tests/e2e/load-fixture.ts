@@ -314,7 +314,7 @@ export async function census(page: Page): Promise<Census> {
 /* The box looks the census of 9 Oct 2026 found on every screen and view, both layouts (fill, edges, corners, lift, padding; the
    tone's colour aside): the closed list. A look not on it fails P197 until design §6 names it; a step that retires one takes it
    off. Measured over the long book on eleven days of the calendar, the same 38 every day; 39 since TM4c put the message as sent
-   (`inv-quote`) in an entry's fold on a walked screen. */
+   (`inv-quote`) in an entry's fold on a walked screen; 40 since TM5g opened the desktop's pane (`inv-pane`) on one. */
 export const LOOKS: string[] = [
   'fill edge:B1 r0 flat p0/0',
   'fill edge:B1 r0 flat p0/12',
@@ -331,6 +331,7 @@ export const LOOKS: string[] = [
   'fill edge:all1 r6 lift p10/12',
   'fill edge:all1 r8 flat p0/0',
   'fill edge:all1 r8 flat p16/12',
+  'fill edge:L1 r0 flat p16/16',     // inv-pane, the desktop's detail pane (design §6.14): Quotations' To reprice while nothing is open, since TM5g
   'fill edge:none r4 flat p6/8',     // inv-quote, the text as sent (design §6): in an entry's fold on Production → Entries since TM4c
   'fill edge:none r8 flat p10/12',
   'grad edge:T1 r0 flat p0/0',
@@ -372,6 +373,10 @@ export const ONE_LOOK: string[] = [
   'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
   'Floor › Stock',
   'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills', 'Floor › Power › Case',
+  // TM5: Office's Pipeline, Challans' Awaiting invoice (Invoiced is TM6f's), Invoices, Clients' three and Sales' two.
+  'Office › Pipeline', 'Office › Challans › Awaiting invoice', 'Office › Invoices',
+  'Office › Clients › Clients', 'Office › Clients › Parts', 'Office › Clients › Performance',
+  'Office › Sales › Prospects', 'Office › Sales › Quotations',
 ];
 
 /* What keeps the screen on show from its kind's anatomy (§3e), as a list of problems: none is one look. Read off what is drawn:

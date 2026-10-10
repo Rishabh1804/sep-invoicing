@@ -46,32 +46,19 @@ function pipeStages() {
   };
 
   // Awaiting invoice: amber at the To-do's unbilled days (Settings → Checks & alerts → To-do), red at twice them.
+  // The challan's own judge (imWaitTone): the stage, IM's dot and the To-do's task agree at any age.
   var amberD = todoCfg().challanDays, redD = amberD * 2, ims = pipeAwaitingChallans();
-  var ages = ims.map(function(im) { return im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, today)) : null; });
+  var ages = ims.map(imWaitDays);
   var redN = ages.filter(function(a) { return a != null && a >= redD; }).length;
   var amberN = ages.filter(function(a) { return a != null && a >= amberD; }).length;
-  add('awaiting', { n: ims.length, items: ims, of: 'to bill', amberD: amberD, redD: redD,
+  add('awaiting', { n: ims.length, items: ims, of: 'to bill', amberD: amberD, redD: redD, late: redN || amberN, lateDays: redN ? redD : amberN ? amberD : null,
     amount: gstRound(ims.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0)),
     tone: redN ? 'danger' : amberN ? 'warning' : 'neutral',
     word: redN ? redN + ' over ' + pipeDays(redD) : amberN ? amberN + ' over ' + pipeDays(amberD)
       : pipeOldestWord(ages.reduce(function(m, a) { return a != null && (m == null || a > m) ? a : m; }, null)) || 'no challan date' });
 
-  // Created, printed, dispatched: each invoice's own tone for its days in the state; the words count the worst of them
-  // against the days set for it. Delivered waits on its return: the earliest GSTR-1 due date, in the invoice's own words.
-  var c = invStateCheckCfg();
-  ['created', 'printed', 'dispatched', 'delivered'].forEach(function(st) {
-    var list = pipeInvoices(st), tones = list.map(function(i) { return invStateTone(i, now); });
-    var red = tones.filter(function(t) { return t === 'danger'; }).length, amber = tones.filter(function(t) { return t === 'warning'; }).length;
-    var word;
-    if (st === 'delivered') {
-      var due = list.filter(function(i) { return invFileDue(i); }).sort(function(a, b) { return invFileDue(a) - invFileDue(b); });
-      word = due.length ? invStateAgeText(due[0]) : 'no invoice date';
-    } else {
-      word = red ? red + ' over ' + pipeDays(c[st + 'Red']) : amber ? amber + ' over ' + pipeDays(c[st + 'Amber'])
-        : pipeOldestWord(list.reduce(function(m, i) { return Math.max(m, invStateDays(i, now)); }, 0));
-    }
-    add(st, { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word });
-  });
+  // Created, printed, dispatched, delivered: each invoice's own tone (pipeStateStage).
+  ['created', 'printed', 'dispatched', 'delivered'].forEach(function(st) { add(st, pipeStateStage(st, pipeInvoices(st), now)); });
 
   // Owed to us is the bank's receivables: money. A role that does not see money has no such stage, as Pulse has no Money
   // widget for it (homeWidgetSeen('money')): Office's defaults are "no wages, bank or margins" (QA3-2).
@@ -94,6 +81,39 @@ function pipeStages() {
   return out;
 }
 
+/* One invoice state over a list of its invoices (oldest first): {n, items, of, amount, tone, word, late, lateDays}. Created, printed
+   and dispatched take each invoice's own tone for its days in the state, and the words count the worst of them against the days
+   set for it (late of them over lateDays); delivered waits on its return, the earliest GSTR-1 due date in the invoice's own words.
+   Pipeline reads it over every active invoice, the Register's verdict over what its filter shows (invoice-ops.js). */
+function pipeStateStage(st, list, now) {
+  var c = invStateCheckCfg(), tones = list.map(function(i) { return invStateTone(i, now); });
+  var red = tones.filter(function(t) { return t === 'danger'; }).length, amber = tones.filter(function(t) { return t === 'warning'; }).length;
+  var word, late = red || amber, lateDays = null;
+  if (st === 'delivered') {
+    var due = list.filter(function(i) { return invFileDue(i); }).sort(function(a, b) { return invFileDue(a) - invFileDue(b); });
+    word = due.length ? invStateAgeText(due[0]) : 'no invoice date';
+  } else {
+    lateDays = red ? c[st + 'Red'] : amber ? c[st + 'Amber'] : null;
+    word = late ? late + ' over ' + pipeDays(lateDays) : pipeOldestWord(list.reduce(function(m, i) { return Math.max(m, invStateDays(i, now)); }, 0));
+  }
+  return { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word,
+    late: late, lateDays: lateDays };
+}
+
+/* A stage running late, in words with its own noun: "11 challans over 10 days", "9 created over 2 days", "2 delivered, GSTR-1 due
+   11 Oct", "owed: ₹1,20,000 over 90 days". Pipeline's hero and the Register's verdict say it alike. */
+/* A date in the stage's words without this year's number: "GSTR-1 due 11 Sep 2026" reads "GSTR-1 due 11 Sep" in 2026. */
+function pipeNoThisYear(w) {
+  var y = String(new Date().getFullYear());
+  return String(w || '').replace(/ (\d{4})$/, function(m, yr) { return yr === y ? '' : m; });
+}
+function pipeLateSay(s) {
+  if (s.key === 'awaiting') return todoPlural(s.late, 'challan') + ' over ' + pipeDays(s.lateDays);
+  if (s.key === 'delivered') return s.late + ' delivered, ' + pipeNoThisYear(s.word);
+  if (s.key === 'owed') return 'owed: ' + String(s.word).split(' · ')[0];
+  return s.late + ' ' + invStateLower(s.key) + ' over ' + pipeDays(s.lateDays);
+}
+
 /* The stage that opens when none is chosen: the first holding a red, else the first holding anything. */
 function pipeDefaultStage(stages) {
   var open = stages.filter(function(s) { return s.open; });
@@ -109,10 +129,37 @@ function renderPipeline() {
   if (!cur) { _pipeStage = pipeDefaultStage(stages); cur = stages.find(function(s) { return s.key === _pipeStage; }) || null; }
   // The pipeline's own column keeps its place on a short desktop screen: the stage just tapped stays under the pointer.
   var rail = el.querySelector('.inv-pipe-rail'), railTop = rail ? rail.scrollTop : 0;
-  el.innerHTML = '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create invoice</button></div>' +
+  el.innerHTML = pipeVerdictHtml(stages) + '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create invoice</button></div>' +
     '<div class="inv-pane-host inv-pipe-host" id="pipeHost"><div class="inv-pipe-rail">' + pipeRailHtml(stages) + pipeDispatchHtml() + '</div>' +
     '<div class="inv-pane-list" id="pipeList">' + pipeListHtml(cur) + '</div></div>';
   if (railTop) el.querySelector('.inv-pipe-rail').scrollTop = railTop;
+}
+
+/* The overview's hero (the tab map, TM5a): the stage that needs the owner first, the one the page opens on (the first holding a
+   red, else the first holding anything), in its own words and tone; the worst other stage running late as its fact. Its
+   amount is the stage's tile's, under it (I8), so the card carries no figure and its line keeps to one row on the phone (I10: with
+   the figure beside it, it took two on the owner's book). */
+var PIPE_VERDICT = {
+  awaiting: function(s) { return todoPlural(s.n, 'challan') + ' waiting'; },
+  created: function(s) { return todoPlural(s.n, 'invoice') + ' created, not printed'; },
+  printed: function(s) { return todoPlural(s.n, 'invoice') + ' printed, not sent'; },
+  dispatched: function(s) { return todoPlural(s.n, 'invoice') + ' sent, not delivered'; },
+  delivered: function(s) { return todoPlural(s.n, 'invoice') + ' delivered, to file'; },
+  owed: function(s) { return finRs(s.amount) + ' owed to us'; }
+};
+function pipeVerdictHtml(stages) {
+  var key = pipeDefaultStage(stages), s = stages.find(function(x) { return x.key === key; });
+  if (!s) return uiVerdictHtml({ screen: 'Pipeline', tone: 'ok', verdict: 'Nothing on its way', facts: ['every invoice filed, nothing waiting'], key: 'pipeline' });
+  // A stage's words are short (its oldest, or how many are over their days); what it adds after a dot is said as a fact.
+  var words = String(s.word || '').split(' · '), more = words.slice(1);
+  var late = stages.filter(function(x) { return x !== s && x.open && (x.tone === 'danger' || x.tone === 'warning'); })
+    .sort(function(a, b) { return (UI_TONE_RANK[uiTone(b.tone)] || 0) - (UI_TONE_RANK[uiTone(a.tone)] || 0); });
+  // One fact: the worst other stage running late, else what the stage's own words add (each is a tile's words too, under the card;
+  // two facts wrapped the card to a second line on the phone, I10).
+  var others = late.map(function(x) { return { text: pipeLateSay(x), tone: uiTone(x.tone), money: x.key === 'owed' }; });
+  var facts = (others.length ? others : more.map(function(t) { return { text: t, tone: 'warning' }; })).slice(0, 1);
+  return uiVerdictHtml({ screen: 'Pipeline', tone: uiTone(s.tone), verdict: uiVerdictFit(PIPE_VERDICT[s.key](s), words[0] ? ' · ' + words[0] : ''),
+    facts: facts, money: s.key === 'owed', plain: todoPlural(s.n, 'client') + ' owe us', key: 'pipeline' });
 }
 
 /* How long an invoice takes from created to dispatched and to delivered, under the stages (the tab map, TM2b; it was a card on
@@ -123,27 +170,29 @@ function pipeDispatchHtml() {
 }
 
 /* ---------- The pipeline ---------- */
+/* The stages as coded boxes (the tab map, TM5a; design §6.26): a tile each, in its own age tone, its count the figure, its
+   amount and how long its oldest has waited under it; a tile that holds something opens its list (aria-pressed). */
 function pipeRailHtml(stages) {
-  return '<div class="inv-panel inv-panel-flush" data-card="pipeline"><div class="inv-panel-head"><span class="inv-panel-title">Where the billing is</span></div>' +
-    stages.map(pipeStageRowHtml).join('') +
-    '<div class="inv-panel-body inv-note" data-pipe-note>Filed and cancelled invoices are not stages. Invoices count at their taxable, challans at what is left to bill.</div></div>';
+  return '<div class="inv-coded" data-card="pipeline"><div class="inv-tiles">' + stages.map(pipeStageTileHtml).join('') + '</div>' +
+    '<div class="inv-note" data-pipe-note>Filed and cancelled invoices are not stages. Invoices count at their taxable, challans at what is left to bill.</div></div>';
 }
-function pipeStageRowHtml(s) {
-  var node = '<span class="inv-row-lead inv-pipe-node" aria-hidden="true"><span class="inv-dot inv-dot-' + (s.open ? uiTone(s.tone) : 'neutral') + '"></span></span>';
-  var title = '<span class="inv-row-title">' + escHtml(s.label) + (s.open ? ' <span class="inv-panel-count">' + s.n + '</span>' : '') + '</span>';
+function pipeStageTileHtml(s) {
+  // A tile stating nothing to judge is drawn plain (data-tone neutral), never in a status colour (§6.26).
+  var tone = s.open ? uiTone(s.tone) : 'neutral', cls = 'inv-tile' + (tone !== 'neutral' ? ' inv-tile-' + tone : ''), plain = tone === 'neutral' ? ' data-tone="neutral"' : '';
+  var label = '<div class="inv-tile-label">' + escHtml(s.label) + '</div>';
   if (s.noBank) {
-    return '<div class="inv-row inv-row-2 inv-pipe-stage" data-pipe-stage="owed">' + node + '<span class="inv-row-main">' + title +
-      '<span class="inv-row-meta inv-row-wrap">Needs a bank statement</span></span>' +
-      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHomeImportBank">Import statement</button></span></div>';
+    return '<div class="' + cls + '" data-pipe-stage="owed"' + plain + '>' + label + '<div class="inv-tile-value">&mdash;</div>' +
+      '<div class="inv-tile-sub" data-pipe-word>Needs a bank statement</div>' +
+      '<div class="inv-tile-sub"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button></div></div>';
   }
   // A stage with nothing in it says so and does not open.
-  if (!s.open) {
-    return '<div class="inv-row inv-row-2 inv-pipe-stage" data-pipe-stage="' + s.key + '">' + node + '<span class="inv-row-main">' + title +
-      '<span class="inv-row-meta">None</span></span></div>';
-  }
-  return '<button class="inv-row inv-row-2 inv-pipe-stage" data-action="invPipeStage" data-pipe-stage="' + s.key + '" aria-pressed="' + (s.key === _pipeStage) + '">' + node +
-    '<span class="inv-row-main">' + title + '<span class="inv-row-meta inv-row-wrap">' + uiDot(s.tone, escHtml(s.word)) + '</span></span>' +
-    '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(s.amount) + '</span><span class="inv-row-meta">' + s.of + '</span></span></span></button>';
+  if (!s.open) return '<div class="' + cls + '" data-pipe-stage="' + s.key + '"' + plain + '>' + label + '<div class="inv-tile-value" data-pipe-n>0</div><div class="inv-tile-sub" data-pipe-word>None</div></div>';
+  var words = String(s.word || '').split(' · ');
+  return '<button type="button" class="' + cls + '" data-action="invPipeStage" data-pipe-stage="' + s.key + '"' + plain + ' aria-pressed="' + (s.key === _pipeStage) + '">' + label +
+    '<div class="inv-tile-value" data-pipe-n>' + s.n + '</div>' +
+    '<div class="inv-tile-sub" data-pipe-amount><span class="inv-num">' + formatCurrency(s.amount) + '</span> ' + escHtml(s.of) + '</div>' +
+    '<div class="inv-tile-sub" data-pipe-word>' + uiDot(s.tone, escHtml(pipeNoThisYear(words[0]))) + '</div>' +
+    words.slice(1).map(function(w) { return '<div class="inv-tile-sub">' + escHtml(w) + '</div>'; }).join('') + '</button>';
 }
 
 /* ---------- The open stage's list ---------- */
@@ -169,12 +218,12 @@ function pipeAwaitingHtml(s) {
   });
   var rows = order.map(function(k) {
     var list = byClient[k], name = list[0].clientName || 'No client';
-    var age = list[0].challanDate ? Math.max(0, isoDaysBetween(list[0].challanDate, today)) : null;
-    var tone = age == null ? 'neutral' : age >= s.redD ? 'danger' : age >= s.amberD ? 'warning' : 'neutral';
+    var age = imWaitDays(list[0]), tone = imWaitTone(age);
     var amt = gstRound(list.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0));
     var client = '<div class="inv-row inv-row-2" data-pipe-client="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(name) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + todoPlural(list.length, 'challan') + ' · ' + formatCurrency(amt) + ' to bill · ' +
-      uiDot(tone, age == null ? 'no challan date' : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
+      // Two facts on its line (§3b-11), its oldest a line of its own in its tone.
+      '<span class="inv-row-meta inv-row-wrap">' + todoPlural(list.length, 'challan') + ' · ' + formatCurrency(amt) + ' to bill</span>' +
+      '<span class="inv-row-meta">' + uiDot(tone, age == null ? 'no challan date' : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
       '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPipeInvoice" data-client="' + escHtml(k) + '" ' +
       'aria-label="' + escHtml('Create invoice from ' + name + '’s ' + todoPlural(list.length, 'challan')) + '">Create invoice</button></span></div>';
     var kids = '<div class="inv-row-children">' + list.map(function(im) {

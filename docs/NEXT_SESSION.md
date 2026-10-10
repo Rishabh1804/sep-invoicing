@@ -82,7 +82,11 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
      merged**: give each person an ID and their duties; type each barrel's kg a round on Production → Equipment, which the batch check
      reads first; rule the questions the sheet and the roll raise (on the 10 Oct book, 8 on 5 days); set the turnaround a client agreed
      where it is not a working day (Clients → the client → Turnaround and terms): the one-day target puts 7 lines past it today.
-- Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
+- **TM5**, Office: Pipeline, Challans, Invoices, Clients, Parts, Performance, Prospects and Quotations each led by its verdict card
+  with one toolbar row; a challan's wait judged once (`imWaitTone`: the To-do's challan task now amber at 5 days, red at 10); a
+  client's worst flag on its row; Performance's long cards folded; Quotations' card holds Pulse's reprice moves; Create's errors
+  only after a try (P193).
+- Then: TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
 spellings, lead time, GST, the balance on a day, totals as printed) and `supplierPays` (payments recorded here, voided with a reason),
@@ -138,7 +142,8 @@ and the payout's forecast and median carry them. Nothing exported changes.
 **Data flow changed (TM3):** `bank.cheques`; the `sep-bank` export carries it, and a `sep-bank` file is now taken in (Add → File),
 its cheques merged by id. The table below has the detail. **The pay history adds one key**: `labour.payCarryFrom` ('YYYY-MM', where
 monthly balances start), travelling with the book; nothing exported changes, and the bank's salary legs are read, never stored. **TM4 changes none**: no key, no export, nothing in the book moved; the
-device keys `sep_inv_prod_tab` and `sep_inv_power_tab` read a remembered `overview` as the first view.
+device keys `sep_inv_prod_tab` and `sep_inv_power_tab` read a remembered `overview` as the first view. **TM5 changes none**: no key,
+no export, nothing in the book moved (the To-do's challan task only changes its tone).
 
 ## Built 9 Oct 2026, the second: a register run's start, and a file at the wrong Import (read this first)
 

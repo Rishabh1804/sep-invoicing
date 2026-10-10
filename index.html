@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="4fc8aeaa">
+<meta name="app-build" content="d2e850de">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1377,8 +1377,16 @@ button.inv-token:hover { background: var(--surface-3); }
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
 .inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
+/* On the phone a search sharing its row takes what the row leaves, never under three quarters of a column, so the row stays one
+   (§1a-10: the search, Filter, the primary or Select, More). */
+body:not(.inv-desktop) .inv-toolbar > .inv-search:not(:only-child) { flex: 1 1 0; min-width: calc(var(--col-sm-w) * 0.75); }
 /* On the desktop a filter or sort picker is as wide as its choices, not the row: the search takes the room. */
 body.inv-desktop .inv-toolbar > :is(select, input[type="month"]).inv-toolbar-item { flex: 0 1 auto; max-width: calc(var(--col-sm-w) * 2); }
+/* Invoices' row is one row on the desktop at any width it is shown at (the tab map, TM5c): the search gives up its room before
+   anything wraps, and the client picker is never wider than a column and a half (a long name is cut in the picker, never the row). */
+body.inv-desktop [data-reg-toolbar] { flex-wrap: nowrap; }
+body.inv-desktop [data-reg-toolbar] > .inv-search { flex: 1 1 var(--col-sm-w); }
+body.inv-desktop [data-reg-toolbar] > #regClientFilter { max-width: calc(var(--col-sm-w) * 1.5); }
 /* A labelled field in a toolbar (a From / To date) is as wide as its control on the desktop too; each used to take half the row. */
 body.inv-desktop .inv-toolbar > .inv-field.inv-toolbar-item { flex: 0 0 auto; }
 /* A segmented control that is the toolbar's item (Pulse's period) fills the phone's row beside More, and is as wide as its
@@ -1516,7 +1524,8 @@ body:not(.inv-desktop) button.inv-row-main { min-height: var(--touch); }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }
-.inv-row-wrap .inv-dot { white-space: normal; }
+/* A dot's word wraps where its box is narrow: a row marked to wrap, and a tile's line (a tile is a fixed share of its strip). */
+.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot { white-space: normal; }
 /* On the phone and tablet a meta line may take two lines before it is cut (the polish pass's open items, 27 Sep 2026):
    one ellipsised line hid the date after a long client name ("GAMMA PRESS WORKS · 25…"). The title keeps one line, and
    whatever is still cut carries a title with its full text (uiOverflowCues, state.js). A meta line of names wraps whole
@@ -1746,22 +1755,13 @@ body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
 .inv-history-full { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-13); }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
-body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* Office → Pipeline: each stage a row whose lead is a node on one line, running up to the stage before and down to the
-   one after, its dot (12px) in the stage's tone. The stage open is pressed: the accent's soft fill and its rule at the
-   row's start. On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside
-   it, each scrolling inside itself: the page does not (the list-and-pane rule above). */
-.inv-pipe-node { position: relative; align-self: stretch; width: var(--sp-16); justify-content: center; }
-.inv-pipe-node > .inv-dot { position: relative; z-index: 1; }
-.inv-pipe-node > .inv-dot::before { width: var(--sp-12); height: var(--sp-12); }
-.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before,
-.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { content: ''; position: absolute; left: 50%; border-left: var(--hair) solid var(--border); }
-.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before { top: calc(-1 * var(--sp-6)); bottom: 50%; }
-.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { top: 50%; bottom: calc(-1 * (var(--sp-6) + var(--hair))); }
-button.inv-pipe-stage[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset var(--rule) 0 0 var(--accent); }
-button.inv-pipe-stage[aria-pressed="true"]:focus-visible { box-shadow: inset var(--rule) 0 0 var(--accent), var(--focus-ring); }
+body.inv-desktop :is(.inv-pane, .inv-pipe-rail) .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Office → Pipeline: the stages are coded tiles (§6.26), two across, each in its own age tone, the stage open pressed (§6.9).
+   On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside it, each scrolling
+   inside itself: the page does not (the list-and-pane rule above). */
 body.inv-desktop .inv-pipe-host { gap: var(--gap); }
 body.inv-desktop .inv-pipe-rail { flex: 0 0 var(--pane-w); min-width: 0; overflow-y: auto; }
+body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .inv-visually-hidden { position: absolute; width: var(--hair); height: var(--hair); padding: 0; margin: calc(var(--hair) * -1); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. */
@@ -1881,6 +1881,8 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-panel-fold:not([open]) > summary { border-bottom: none; }
 .inv-panel-flush > .inv-panel-body:last-child { border-bottom: none; }
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A dot and its words in a head (a folded card's verdict) take the room left and wrap, never running under the fold's chevron. */
+.inv-panel-head > .inv-dot { white-space: normal; min-width: 0; }
 
 /* §6.16 Overlays. A scrim holds a dialog (inv-scrim-dialog). */
 .inv-scrim {
@@ -3819,7 +3821,8 @@ function uiRowMoreHtml(actions) {
 /* The toolbar's More (§6.7, §1a-2, §1a-10): one button holding everything the row has no room for, on both layouts (files
    always: Export, Import, Print sheets, the register's CSVs). `items`: {label, action, attrs, badge: {n, tone}}. Each opens as a
    row of a dialog carrying the action and the data it had in the toolbar, so events.js routes it unchanged; a pick shuts the
-   dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it.
+   dialog first, then acts. A badge an item carries is carried by More too, in the worst tone, so nothing waiting hides behind it;
+   a neutral one (a plain count) stays on its row.
    The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
    (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
 var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
@@ -3831,7 +3834,8 @@ function uiToolbarMoreHtml(items, opts) {
   var n = 0, worst = '';
   var rows = list.map(function(x) {
     var b = x.badge && x.badge.n ? x.badge : null;
-    if (b) { n += b.n; if (!worst || (UI_TONE_RANK[uiTone(b.tone)] || 0) > (UI_TONE_RANK[worst] || 0)) worst = uiTone(b.tone); }
+    // A count that waits on nothing (a neutral tone: how many credit notes there are) stays on its row; More carries the rest.
+    if (b && uiTone(b.tone) !== 'neutral') { n += b.n; if (!worst || (UI_TONE_RANK[uiTone(b.tone)] || 0) > (UI_TONE_RANK[worst] || 0)) worst = uiTone(b.tone); }
     return '<button type="button" class="inv-row" data-tb-pick data-action="' + escHtml(x.action) + '"' + (x.attrs || '') + '>' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.label) + '</span></span>' +
       (b ? '<span class="inv-row-end"><span class="inv-badge inv-badge-' + uiTone(b.tone) + '">' + b.n + '</span></span>' : '') + '</button>';
@@ -8553,6 +8557,57 @@ function _clientStatusDot(c) {
   return '<span class="inv-dot inv-dot-' + (c.isActive ? 'ok' : 'neutral') + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span>';
 }
 
+/* What the app has flagged about each client (the tab map, TM5d): the tasks a client's own page lists (todoClientTasks), gathered in
+   one pass over the rules, since each reads the whole book; worked out when the view is drawn, not at every key typed in its search.
+   String(clientId) → its tasks, the worst first. */
+var _clientFlags = {};
+function clientFlagsRead() {
+  var by = {}, all = [];
+  try { all = todoAppAll(); } catch (e) { all = []; }
+  all.forEach(function(t) {
+    if (t.clientId == null || todoIsSnoozed(t) || !todoSees(t)) return;
+    (by[String(t.clientId)] = by[String(t.clientId)] || []).push(t);
+  });
+  Object.keys(by).forEach(function(k) { by[k].sort(function(a, b) { return (TODO_TONE_RANK[a.tone] || 0) - (TODO_TONE_RANK[b.tone] || 0); }); });
+  return (_clientFlags = by);
+}
+/* Each rule's short word, as a row's end says it. */
+var CLIENT_FLAG_WORD = { owed90: 'past terms', payingSlower: 'paying slower', chequeHeld: 'cheque to deposit', insQuiet: 'gone quiet',
+  insClientDown: 'billing down', insLeak: 'realising low', insBelowVar: 'below cost', challan: 'to bill', cn: 'note due',
+  flowLate: 'past turnaround', flowPriority: 'wanted by a day', prodPlatedUnbilled: 'plated, not billed', prodGaugeUnknown: 'gauge unknown',
+  prodPickledNoChallan: 'challan missing', prodUnweighed: 'not weighed' };
+/* A client's worst flag as a dot and a word, every flag's title in its own title; none, nothing. */
+function clientFlagDotHtml(c) {
+  var list = _clientFlags[String(c.id)];
+  if (!list || !list.length) return '';
+  return '<span class="inv-dot inv-dot-' + uiTone(list[0].tone) + '" data-client-flag="' + escHtml(list[0].rule) + '" title="' +
+    escHtml(list.map(function(t) { return t.title; }).join(' · ')) + '">' + escHtml(CLIENT_FLAG_WORD[list[0].rule] || 'flagged') + '</span>';
+}
+/* The Clients view's verdict (the tab map, TM5d; it was the page-head line, "22 clients"): how many clients and the rule flagged
+   worst ("22 clients · 2 past terms"), one row on the phone (I10: two rules wrapped it on the owner's book); how many are flagged and
+   the next rules, worst first, its facts. */
+function clientsVerdictHtml() {
+  var by = {}, n = 0;
+  Object.keys(_clientFlags).forEach(function(id) {
+    if (!S.clients.some(function(c) { return String(c.id) === id; })) return;
+    n++;
+    _clientFlags[id].forEach(function(t) {
+      var r = by[t.rule] || (by[t.rule] = { n: 0, tone: 'info' });
+      r.n++;
+      if ((TODO_TONE_RANK[t.tone] || 0) < (TODO_TONE_RANK[r.tone] || 0)) r.tone = t.tone;
+    });
+  });
+  var rules = Object.keys(by).sort(function(a, b) { return (TODO_TONE_RANK[by[a].tone] || 0) - (TODO_TONE_RANK[by[b].tone] || 0) || by[b].n - by[a].n; });
+  var say = function(k) { return by[k].n + ' ' + (CLIENT_FLAG_WORD[k] || 'flagged'); };
+  var total = S.clients.length, inactive = S.clients.filter(function(c) { return !c.isActive; }).length;
+  var verdict = todoPlural(total, 'client') + (rules.length ? ' · ' + say(rules[0]) : '');
+  var facts = rules.slice(1).map(function(k) { return { text: say(k), tone: uiTone(by[k].tone) }; }).slice(0, 2);
+  facts.unshift(n ? n + ' flagged' : 'nothing flagged');
+  if (inactive) facts.push(inactive + ' inactive');
+  return uiVerdictHtml({ screen: 'Clients', tone: rules.length ? uiTone(by[rules[0]].tone) : total ? 'ok' : 'neutral', verdict: total ? verdict : 'No clients yet',
+    facts: facts.slice(0, 3), key: 'pageClients-clients', attrs: ' id="clientsVerdict" data-clients-flagged="' + n + '"' });
+}
+
 /* Does a client answer a search? Its name or its GSTIN, case ignored on both: a GSTIN is stored in capitals, and the
    challan form's search lower-cased what was typed and compared it with them, so "20aaack" found nobody. */
 function clientMatchesQuery(c, q) {
@@ -8570,8 +8625,6 @@ function renderClientList(filter) {
   const filtered = q ? sorted.filter(c => clientMatchesQuery(c, q)) : sorted;
   const el = document.getElementById('clientList');
   if (!el) return;
-  const countEl = document.getElementById('clientsCount');
-  if (countEl) countEl.textContent = filtered.length + (filtered.length === 1 ? ' client' : ' clients');
 
   // Desktop: a client filtered out of the list closes its pane.
   if (_isDesktop && _clientsActiveId && !filtered.some(function(c) { return c.id === _clientsActiveId; })) {
@@ -8598,20 +8651,22 @@ function renderClientList(filter) {
           '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
           '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
-          '<td>' + _clientStatusDot(c) + '</td></tr>';
+          // Its worst flag where it has one (TM5d), else whether it is active.
+          '<td>' + (c.isActive ? clientFlagDotHtml(c) || _clientStatusDot(c) : _clientStatusDot(c)) + '</td></tr>';
       }).join('') + '</tbody></table>';
     return;
   }
 
   el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
     const r = _clientRateNow(c);
-    const meta = [c.gstin || 'No GSTIN', CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ');
+    // Two facts (§3b-11): who it is to GST, and how it is billed with its overrides beside the mode.
+    const meta = [c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
       '<span class="inv-row-end"><span class="inv-row-stack">' +
       (r ? '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' : '<span class="inv-row-meta">No rate</span>') +
-      (c.isActive ? '' : _clientStatusDot(c)) + '</span></span></button>';
+      (c.isActive ? clientFlagDotHtml(c) : _clientStatusDot(c)) + '</span></span></button>';
   }).join('') + '</div>';
 }
 
@@ -9509,14 +9564,17 @@ function renderClientsPage() {
 }
 
 function _buildClientsSubViewHtml() {
-  return '<div class="inv-toolbar">' +
+  clientFlagsRead();
+  return clientsVerdictHtml() + '<div class="inv-toolbar">' +
     '<label class="inv-search">' + ICON_SEARCH +
     '<input type="text" id="clientSearch" placeholder="Search clients" autocomplete="off" aria-label="Search clients"></label>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAddClient">Add client</button>' +
-    '</div>' +
-    '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="clientsCount">' + S.clients.length + ' clients</span></div>';
+    '</div>';
 }
 
+/* Parts' toolbar (the tab map, TM5e; it was three rows and a count): the search, Filter (No weight, Unused and the sort: inline on the
+   desktop, a dialog on the phone, said under the row as tokens), Add part the primary, and More for the tools. The parts with no
+   weight, the job waiting, are its verdict's (itemsVerdictHtml), with the move in its foot. */
 function _buildItemsSubViewHtml() {
   _invalidateUsageCache();
   var search = getItemsSearch();
@@ -9526,27 +9584,41 @@ function _buildItemsSubViewHtml() {
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
   var opt = function(v, l) { return '<option value="' + v + '"' + (sort === v ? ' selected' : '') + '>' + l + '</option>'; };
-
   // A <select> speaks through change only (events.js), never a data-action: the click that opens it must not run it.
-  return '<div class="inv-toolbar">' +
-    '<label class="inv-search">' + ICON_SEARCH +
-    '<input type="text" id="itemsSearch" placeholder="Search parts" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search parts"></label>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add part</button>' +
-    '</div>' +
-    '<div class="inv-toolbar">' +
-    '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
+  var controls = '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
     '<button class="inv-chip" data-action="invFilterUnused" aria-pressed="' + (filter === 'unused') + '">Unused (' + unusedCount + ')</button>' +
     '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort parts">' +
-    opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>' +
-    '</div>' +
-    '<div class="inv-toolbar">' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSelectAllUnused">Select unused</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCalcWeights">Calc weights</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenWeightEntry">Enter weights (' + noWeightCount + ')</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenPartWeights">Part weights (' + Object.keys(S.partWeights || {}).length + ')</button>' +
-    '</div>' +
-    '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="itemsCount">' + S.items.length + ' items</span></div>';
+    opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>';
+  var sortWord = { unit: 'Unit', rate: 'Rate', usage: 'Usage' }[sort] || '';
+  return itemsVerdictHtml(noWeightCount, unusedCount) + '<div class="inv-toolbar" data-items-toolbar>' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="itemsSearch" placeholder="Search parts" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search parts"></label>' +
+    uiFilterHtml({ key: 'items', count: (filter !== 'all' ? 1 : 0) + (sortWord ? 1 : 0), controls: controls }) +
+    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add part</button>' +
+    // Part weights' count is its own row's (a count that waits on nothing is not carried to More's button).
+    uiToolbarMoreHtml([{ label: 'Part weights', action: 'invOpenPartWeights', badge: Object.keys(S.partWeights || {}).length ? { n: Object.keys(S.partWeights || {}).length, tone: 'neutral' } : null },
+      { label: 'Enter weights', action: 'invOpenWeightEntry' },
+      { label: 'Derive weights', action: 'invCalcWeights' }, { label: 'Merge', action: 'invOpenMergeTool' }, { label: 'Select unused', action: 'invSelectAllUnused' }],
+      { icon: !_isDesktop }) + '</div>' +
+    uiTokensHtml([{ key: 'Show', value: filter === 'no-weight' ? 'No weight' : filter === 'unused' ? 'Unused' : '', action: 'invItemsFilterClear', attrs: ' data-clear="filter"' },
+      { key: 'Sort', value: sortWord, action: 'invItemsFilterClear', attrs: ' data-clear="sort"' }]);
+}
+/* Parts' verdict (the tab map, TM5e; the count was a page-head line and the parts with no weight a plain chip): how many parts, how
+   many have no weight a piece (they leave their lines out of tonnage), in its tone, with Enter weights in its foot. */
+function itemsVerdictHtml(noWeight, unused) {
+  var total = S.items.length;
+  return uiVerdictHtml({ screen: 'Parts', tone: !total ? 'neutral' : noWeight ? 'warning' : 'ok',
+    verdict: !total ? 'No parts yet' : todoPlural(total, 'part') + (noWeight ? ' · ' + noWeight + ' with no weight' : ', every one weighed'),
+    facts: total ? [unused ? todoPlural(unused, 'part') + ' unused' : 'every part used', todoPlural(Object.keys(S.partWeights || {}).length, 'NOS-to-kg weight')] : [],
+    links: noWeight ? ['<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenWeightEntry">Enter weights</button>'] : [],
+    key: 'pageClients-items', attrs: ' id="itemsVerdict" data-items-noweight="' + noWeight + '"' });
+}
+UI_FILTER_DONE.items = function() { renderClientsPage(); };
+/* A token tapped: its filter, or the sort, back to all and A to Z. */
+function itemsFilterClear(which) {
+  if (which === 'sort') regFilter.itemsSort = 'alpha'; else regFilter.itemsFilter = 'all';
+  saveRegFilter();
+  renderClientsPage();
 }
 
 /* The page's own row draws the group its sub-view is in (the tab map): Office's Clients covers Clients · Parts · Performance,
@@ -9693,17 +9765,18 @@ function _itemCheckHtml(it) {
 /* The phone row: a tick box, then the part (which opens its edit sheet), then its rate. */
 function _itemRowHtml(it) {
   var usageCount = _getUsageCount(it.partNumber);
-  var meta = [it.desc || '', it.gauge || '', it.unit || '',
-    it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '',
-    usageCount > 0 ? usageCount + ' ref' + (usageCount !== 1 ? 's' : '') : 'Unused'].filter(Boolean).join(' · ');
+  // Two things (the tab map, TM5e; it was five, the unit, weight and references among them): what the part is, its description
+  // and gauge. Its end: the rate, over its weight a piece, else what it waits on (no weight) or that nothing uses it.
+  var meta = [it.desc || 'No description', it.gauge || it.unit || ''].filter(Boolean).join(' · ');
+  var state = it.stdWeightKg == null ? uiDot('warning', 'No weight') : usageCount > 0 ? '<span class="inv-row-meta">' + formatNum(it.stdWeightKg, 3) + ' kg</span>' : uiDot('neutral', 'Unused');
   var hasRate = it.rate != null && it.rate > 0;
   return '<div class="inv-row inv-row-2' + (_itemsSelected[it.id] ? ' inv-row-selected' : '') + '" data-item-row="' + it.id + '">' +
     '<label class="inv-row-lead inv-row-tick">' + _itemCheckHtml(it) + '</label>' +
     '<button class="inv-row-main" data-action="invEditItem" data-id="' + it.id + '">' +
     '<span class="inv-row-title inv-id">' + escHtml(it.partNumber) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button>' +
-    '<span class="inv-row-end">' + (hasRate ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') + '</span>' +
-    '</div>';
+    '<span class="inv-row-end"><span class="inv-row-stack">' + (hasRate ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') +
+    state + '</span></span></div>';
 }
 
 /* The desktop table: the part number is a real button, so the row opens from the keyboard. Its first thirty rows, and
@@ -9732,7 +9805,6 @@ function _itemsTableHtml(list, moreKey) {
    used to draw its first thirty with no way to the rest: the Load more row was left off whenever something was typed. */
 function _renderItemsList() {
   var listEl = document.getElementById('itemsList');
-  var countEl = document.getElementById('itemsCount');
   if (!listEl) return;
 
   // What is and is not used is read fresh for each drawing: a part put on a challan since is no longer Unused, and
@@ -9746,7 +9818,6 @@ function _renderItemsList() {
 
   _itemsSorted = _getSortedFilteredItems();
   var total = _itemsSorted.length;
-  if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
 
   if (total === 0) {
     listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
@@ -10252,9 +10323,9 @@ function openPartWeights() {
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>', { dismiss: true });
 }
 
+/* After a weight is added or removed: Parts drawn again where it is on screen, so its card's count and More's row say it. */
 function _partWeightsCount() {
-  var b = document.querySelector('[data-action="invOpenPartWeights"]');
-  if (b) b.textContent = 'Part weights (' + Object.keys(S.partWeights || {}).length + ')';
+  if (document.querySelector('.inv-page-active [data-items-toolbar]')) renderClientsPage();
 }
 
 function renderPartWeightsList() {
@@ -10923,9 +10994,9 @@ function renderCreateForm() {
   html += '<div id="invTotalsArea" class="inv-panel inv-panel-flush">' + createTotalsHtml(client) + '</div>';
   html += '</div>';
 
-  // Validation + the action bar: the grand total, Clear, and the page's one primary.
-  const errors = validateInvoice();
-  html += '<div id="invErrorsArea">' + errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('') + '</div>';
+  // Validation + the action bar: the grand total, Clear, and the page's one primary. Only the errors due to show (TM5h).
+  const errors = createErrorsShown();
+  html += '<div id="invErrorsArea">' + createErrorsHtml(errors) + '</div>';
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Grand total</div>' +
     '<div class="inv-actionbar-value" id="invGrandTotal">' + formatCurrency(createTotals(client).grand) + '</div></div>' +
     '<button type="button" class="inv-btn inv-btn-secondary" data-action="invResetForm">Clear</button>' +
@@ -11416,42 +11487,88 @@ function invSavedLine(i) {
     ...(i._imItemId && i.unitChangeAck ? { unitChangeAck: i.unitChangeAck } : {}) };
 }
 
-function validateInvoice() {
+/* Create's errors (the tab map, TM5h; red errors showed on a form nobody had touched): each names what it is about (`key`), and
+   shows once that field has been left, typed in and left or picked (createFieldLeft), or a save was tried (`_tried`): a line's part
+   and quantity each by their own field, a reason a line needs by any of its fields. One about the form's own state (its client or its
+   invoice gone meanwhile) shows at once. Save is held only while an error shows; tapped with errors hidden, it shows them. */
+function validateInvoiceKeyed() {
   const errors = [];
-  if (!invoiceForm.clientId) errors.push('Select a client');
+  const add = (text, key) => errors.push({ text: text, key: key });
+  if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
-  else if (!S.clients.some(c => c.id === invoiceForm.clientId)) errors.push('The client chosen is no longer in the client master — choose the client again');
-  if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) errors.push('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it');
-  if (!invoiceForm.date) errors.push('Enter invoice date');
-  if (invoiceForm.items.length === 0) errors.push('Add at least one line item');
+  else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
+  if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
+  if (!invoiceForm.date) add('Enter invoice date', 'date');
+  if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');
   invoiceForm.items.forEach((item, i) => {
     // A line bills a part, some of it: a blank line saved a ₹0 invoice, reached a quality certificate, and an
     // amount with no quantity printed 0.00 NOS.
     // A line whose Part field was typed in is named by the field (the part number); one never touched may be named by its
     // description alone, as a challan line written with only a description is.
-    if (!String((item._partTyped ? item.partNumber : item.partNumber || item.desc) || '').trim()) errors.push('Line ' + (i+1) + ': name the part');
-    if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) errors.push('Line ' + (i+1) + ': enter the quantity'); }
-    if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
-    if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
-    if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
+    if (!String((item._partTyped ? item.partNumber : item.partNumber || item.desc) || '').trim()) add('Line ' + (i+1) + ': name the part', 'line:' + i + ':part');
+    if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) add('Line ' + (i+1) + ': enter the quantity', 'line:' + i + ':qty'); }
+    if (item.qty < 0) add('Line ' + (i+1) + ': Quantity cannot be negative', 'line:' + i + ':qty');
+    if (item.amount < 0) add('Line ' + (i+1) + ': Amount cannot be negative', 'line:' + i);
+    if (isZeroBilledLine(item) && !item.zeroReason) add('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason', 'line:' + i);
   });
   // A line the challan cannot vouch for: more than is left on it, or in another unit.
   if (invoiceForm.items.some(i => i._imItemId)) {
     const bIdx = imBilledIndex();
     createUnitChanges(bIdx).forEach(u => {
-      if (!createAckInit(u.item).unitReason) errors.push('Line ' + (u.idx + 1) + ': billed in ' + (u.to || 'another unit') + ', challan ' +
-        (u.sh.im.challanNo || '(no number)') + ' says ' + (u.from || 'no unit') + ' \u2014 pick a reason');
+      if (!createAckInit(u.item).unitReason) add('Line ' + (u.idx + 1) + ': billed in ' + (u.to || 'another unit') + ', challan ' +
+        (u.sh.im.challanNo || '(no number)') + ' says ' + (u.from || 'no unit') + ' \u2014 pick a reason', 'line:' + u.idx);
     });
     createOverBills(bIdx).forEach(o => {
-      if (!createAckInit(o.item).overReason) errors.push('Line ' + (o.idx + 1) + ': ' + createOverText(o) + ' \u2014 pick a reason');
+      if (!createAckInit(o.item).overReason) add('Line ' + (o.idx + 1) + ': ' + createOverText(o) + ' \u2014 pick a reason', 'line:' + o.idx);
     });
   }
   return errors;
 }
+function validateInvoice() { return validateInvoiceKeyed().map(e => e.text); }
+function createFieldLeft(key) { (invoiceForm._left = invoiceForm._left || {})[key] = true; }
+// A line removed: what was left on the lines under it moves up with them.
+function createLeftDrop(idx) {
+  const left = invoiceForm._left; if (!left) return;
+  const next = {};
+  Object.keys(left).forEach(k => {
+    const m = /^line:(\d+)(:.*)?$/.exec(k);
+    if (!m) { next[k] = left[k]; return; }
+    const i = +m[1];
+    if (i < idx) next[k] = left[k]; else if (i > idx) next['line:' + (i - 1) + (m[2] || '')] = left[k];
+  });
+  invoiceForm._left = next;
+}
+function createErrorsShown() {
+  const f = invoiceForm, left = f._left || {};
+  return validateInvoiceKeyed().filter(e => {
+    if (e.key === 'state' || f._tried || left[e.key]) return true;
+    // A line's reason shows once any of its fields was left.
+    const m = /^line:(\d+)$/.exec(e.key);
+    return !!m && Object.keys(left).some(k => k === e.key || k.indexOf(e.key + ':') === 0);
+  });
+}
+function createErrorsHtml(list) { return list.map(e => '<div class="inv-field-error">' + escHtml(e.text) + '</div>').join(''); }
+function createErrorsRefresh() {
+  const shown = createErrorsShown(), area = document.getElementById('invErrorsArea'), btn = document.getElementById('invSaveBtn');
+  if (area) area.innerHTML = createErrorsHtml(shown);
+  if (btn) btn.disabled = shown.length > 0;
+}
+// A field of the invoice form left after a change: its errors may show now (the line's own handlers run after this one).
+document.addEventListener('change', function(e) {
+  const t = e.target;
+  if (!t || !t.closest || !t.closest('#pageCreate')) return;
+  const idx = t.dataset ? t.dataset.idx : null;
+  const key = t.id === 'invDate' ? 'date' : idx != null && t.dataset.action === 'invEditLinePart' ? 'line:' + idx + ':part'
+    : idx != null && t.dataset.field ? 'line:' + idx + ':' + t.dataset.field : '';
+  if (!key) return;
+  createFieldLeft(key);
+  setTimeout(createErrorsRefresh, 0);
+});
 
 function selectClient(id) {
   captureOptionalFields();
   invoiceForm.clientId = id;
+  createFieldLeft('client');
   // PO and vehicle from the client's own history (insights.js): filled only
   // into an empty field, and only where the history clearly says what it is.
   predApplyToInvoice();
@@ -11501,7 +11618,8 @@ function createFyAsk() {
 
 async function saveInvoice() {
   const errors = validateInvoice();
-  if (errors.length > 0) { showToast(errors[0], 'error'); return; }
+  // A save tried: every error shows now, and the first is said.
+  if (errors.length > 0) { invoiceForm._tried = true; createErrorsRefresh(); showToast(errors[0], 'error'); return; }
   // P1 (guard.js): issuing or editing an invoice.
   if (!grdOk('billing') && !(await guardAsk('billing', invoiceForm.editingId ? 'save an edited invoice' : 'save an invoice'))) return;
 
@@ -14325,11 +14443,14 @@ function captureRegFilters(changedId) {
   var sf = document.getElementById('regStateFilter');
   var df = document.getElementById('regDateFrom');
   var dt = document.getElementById('regDateTo');
+  var so = document.getElementById('regSort');
   if (cf) regFilter.clientId = cf.value;
   if (sf) regFilter.state = sf.value;
   if (mf) regFilter.month = mf.value;
   if (df) regFilter.dateFrom = df.value;
   if (dt) regFilter.dateTo = dt.value;
+  // The phone's sort, one picker (it was two buttons, By date / By number and the direction): "number-asc" and the like.
+  if (so && so.value) { var sp = so.value.split('-'); regFilter.regSortBy = sp[0] === 'number' ? 'number' : 'date'; regFilter.regSortDir = sp[1] === 'asc' ? 'asc' : 'desc'; }
 
   // Month and range are alternatives. Setting one clears the other rather than
   // leaving both populated and one of them quietly ignored.
@@ -14384,12 +14505,15 @@ function toggleRegSelectAll() {
     : selectable.length + ' invoice' + (selectable.length !== 1 ? 's' : '') + ' selected');
 }
 
+/* Invoices' toolbar (the tab map, TM5c; it was three rows of controls, six on the phone, before the first invoice): one row. The
+   search; the filters, client, month, state, the range and on the phone the sort (inline on the desktop, whose table sorts by its
+   column heads; behind Filter on the phone, said under the row as tokens); Select on the phone (the desktop's table always ticks);
+   More: Credit notes, Number audit with its badge, the register's files. The verdict leads above it (regVerdictHtml). */
 function renderRegisterToolbar() {
   const area = document.getElementById('regToolbar');
   if (!area) return;
-
-  var sortDir = regFilter.regSortDir || 'desc';
-  var byNumber = regFilter.regSortBy === 'number';
+  var phone = !_isDesktop;
+  var sortKey = (regFilter.regSortBy === 'number' ? 'number' : 'date') + '-' + (regFilter.regSortDir === 'asc' ? 'asc' : 'desc');
   var unaccounted = unaccountedNumberCount();
   var rangeActive = !!(regFilter.dateFrom || regFilter.dateTo);
   var cnCount = (S.creditNotes || []).filter(function(c) { return c.status !== 'cancelled'; }).length;
@@ -14400,43 +14524,41 @@ function renderRegisterToolbar() {
     const c = S.clients.find(x => x.id === cid);
     return c ? '<option value="' + cid + '"' + (regFilter.clientId == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>' : '';
   }).join('');
-  var stateOpt = function(v, label) { return '<option value="' + v + '"' + ((regFilter.state || '') === v ? ' selected' : '') + '>' + label + '</option>'; };
+  var opt = function(v, label, cur) { return '<option value="' + v + '"' + (cur === v ? ' selected' : '') + '>' + label + '</option>'; };
+  var st = regFilter.state || '';
 
-  let html = '<div class="inv-toolbar">' +
-    '<label class="inv-search">' + ICON_SEARCH +
-    '<input type="text" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off" aria-label="Search the register"></label>' +
-    '<select class="inv-select inv-toolbar-item" id="regClientFilter" aria-label="Filter by client">' +
+  var filters = '<select class="inv-select inv-toolbar-item" id="regClientFilter" aria-label="Filter by client">' +
     '<option value="">All clients</option>' + clientOpts + '</select>' +
     '<input type="month" class="inv-input inv-toolbar-item" id="regMonthFilter" value="' + escHtml(regFilter.month || '') + '" aria-label="Filter by month">' +
     '<select class="inv-select inv-toolbar-item" id="regStateFilter" aria-label="Filter by state">' +
-    stateOpt('', 'All states') + stateOpt('created', 'Created') + stateOpt('printed', 'Printed') + stateOpt('dispatched', 'Dispatched') +
-    stateOpt('delivered', 'Delivered') + stateOpt('filed', 'Filed') + stateOpt('cancelled', 'Cancelled') + '</select>' +
-    '</div>' +
-    // Explicit range, for an export that does not line up with a calendar month.
-    '<div class="inv-toolbar">' +
-    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
-    '<input type="date" class="inv-input" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
-    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
-    '<input type="date" class="inv-input" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
-    (rangeActive ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-toolbar-end" data-action="invRegClearRange">Clear range</button>' : '') +
-    '</div>' +
-    (rangeActive ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-scope-note>Range in use — the month filter is ignored while it is set.</div>' : '') +
-    '<div class="inv-toolbar">' +
-    // The desktop table sorts by its column heads, and always shows its tick boxes.
-    (_isDesktop ? '' :
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSortBy">' + (byNumber ? 'By number' : 'By date') + '</button>' +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSort">' +
-      (byNumber ? (sortDir === 'asc' ? 'Lowest first' : 'Highest first') : (sortDir === 'asc' ? 'Oldest first' : 'Newest first')) + '</button>' +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>') +
-    // Offered wherever ticking is actually possible; kept in step with the selection by _renderRegSelBar.
-    '<span id="regSelectAllSlot"' + (_regSelectAllHtml() ? '' : ' hidden') + '>' + _regSelectAllHtml() + '</span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnList">Credit notes' +
-    (cnCount > 0 ? '<span class="inv-badge">' + cnCount + '</span>' : '') + '</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" id="regNumberAudit" data-action="invShowNumberAudit">Number audit' +
-    (unaccounted > 0 ? '<span class="inv-badge inv-badge-warning" data-unaccounted>' + unaccounted + '</span>' : '') + '</button>' +
-    '</div>';
+    opt('', 'All states', st) + opt('created', 'Created', st) + opt('printed', 'Printed', st) + opt('dispatched', 'Dispatched', st) +
+    opt('delivered', 'Delivered', st) + opt('filed', 'Filed', st) + opt('cancelled', 'Cancelled', st) + '</select>' +
+    (phone ? regRangeFieldsHtml() + '<select class="inv-select inv-toolbar-item" id="regSort" aria-label="Sort">' + opt('date-desc', 'Newest first', sortKey) +
+      opt('date-asc', 'Oldest first', sortKey) + opt('number-desc', 'Highest number first', sortKey) + opt('number-asc', 'Lowest number first', sortKey) + '</select>'
+      // The desktop's range is a dialog of its own, so the row stays one; the button says the range in use.
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegRange" aria-haspopup="dialog" data-reg-range>' +
+        (rangeActive ? 'Range: ' + escHtml(regRangeWord()) : 'Range') + '</button>');
+  var count = (regFilter.clientId ? 1 : 0) + (regFilter.month && !rangeActive ? 1 : 0) + (st ? 1 : 0) + (rangeActive ? 1 : 0) + (phone && sortKey !== 'date-desc' ? 1 : 0);
+  var client = regFilter.clientId ? S.clients.find(function(c) { return String(c.id) === String(regFilter.clientId); }) : null;
+  var sortWord = { 'date-asc': 'Oldest first', 'number-desc': 'Highest number first', 'number-asc': 'Lowest number first' }[sortKey] || '';
+  var rangeWord = rangeActive ? regRangeWord() : '';
 
-  area.innerHTML = html;
+  area.innerHTML = '<div id="regVerdict">' + regVerdictHtml() + '</div><div class="inv-toolbar" data-reg-toolbar>' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="regSearch" placeholder="Search invoice, client or challan" value="' + escHtml(regFilter.search) + '" autocomplete="off" aria-label="Search the register"></label>' +
+    uiFilterHtml({ key: 'reg', count: count, controls: filters }) +
+    (phone ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegToggleSelect" aria-pressed="' + _regSelectMode + '">' + (_regSelectMode ? 'Cancel select' : 'Select') + '</button>' : '') +
+    // The phone's, in Select's mode, kept in step with the selection by _renderRegSelBar; the desktop's is the table's head.
+    (phone ? '<span id="regSelectAllSlot"' + (_regSelectAllHtml() ? '' : ' hidden') + '>' + _regSelectAllHtml() + '</span>' : '') +
+    uiToolbarMoreHtml([{ label: 'Credit notes', action: 'invCnList', badge: cnCount ? { n: cnCount, tone: 'neutral' } : null },
+      { label: 'Number audit', action: 'invShowNumberAudit', attrs: ' id="regNumberAudit"', badge: unaccounted ? { n: unaccounted, tone: 'warning' } : null },
+      { label: 'Sales register CSV', action: 'invExportSales' }, { label: 'Sales register PDF', action: 'invPrintSalesRegister' },
+      { label: 'GSTR-1 CSV', action: 'invExportGstr1' }, { label: 'Bulk mark filed', action: 'invBulkMarkFiled' }], { icon: phone }) + '</div>' +
+    uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invRegFilterClear', attrs: ' data-clear="client"' },
+      { key: 'Month', value: regFilter.month && !rangeActive ? imMonthLabel(regFilter.month) : '', action: 'invRegFilterClear', attrs: ' data-clear="month"' },
+      { key: 'State', value: st ? (st === 'cancelled' ? 'Cancelled' : INV_STATE_LABELS[st] || st) : '', action: 'invRegFilterClear', attrs: ' data-clear="state"' },
+      { key: 'Range', value: rangeWord, action: 'invRegFilterClear', attrs: ' data-clear="range"' },
+      { key: 'Sort', value: sortWord, action: 'invRegFilterClear', attrs: ' data-clear="sort"' }]);
 
   // Bind debounced search (200ms)
   const searchEl = document.getElementById('regSearch');
@@ -14453,12 +14575,45 @@ function renderRegisterToolbar() {
     });
   }
 }
+/* The range in use, in words: "1 Oct – 9 Oct". */
+function regRangeWord() {
+  return (regFilter.dateFrom ? stockShortDate(regFilter.dateFrom) : 'the start') + ' – ' + (regFilter.dateTo ? stockShortDate(regFilter.dateTo) : 'today');
+}
+/* The range's two dates and its clear: an explicit range, for an export that does not line up with a calendar month. Month and range
+   are alternatives, setting one clears the other (captureRegFilters). In the phone's Filter; on the desktop in a dialog of its own. */
+function regRangeFieldsHtml() {
+  return '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
+    '<input type="date" class="inv-input" id="regDateFrom" value="' + escHtml(regFilter.dateFrom || '') + '"></label>' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
+    '<input type="date" class="inv-input" id="regDateTo" value="' + escHtml(regFilter.dateTo || '') + '"></label>' +
+    (regFilter.dateFrom || regFilter.dateTo ? '<button class="inv-btn inv-btn-secondary inv-btn-sm inv-toolbar-end" data-action="invRegClearRange">Clear range</button>' : '');
+}
+function regRangeOpen() {
+  var scrim = dialogOpen('<div class="inv-dialog" data-reg-range-dialog>' + dialogHeadHtml('Range', 'invTbFilterDone') +
+    '<div class="inv-dialog-body inv-toolbar" data-nodirty>' + regRangeFieldsHtml() + '</div>' +
+    '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invTbFilterDone">Done</button></div></div>', { dismiss: true });
+  // However it shuts, the row and the list are drawn with the range as it now stands (the dates apply as they change).
+  if (scrim) scrim._onClose = UI_FILTER_DONE.reg;
+}
+/* The Filter dialog shut on the phone: the row and the list drawn again with the filters as they now stand. */
+UI_FILTER_DONE.reg = function() { _regToolbarRendered = false; renderRegisterToolbar(); _regToolbarRendered = true; _renderRegView(); _renderRegSelBar(); };
+/* A filter's token tapped: that filter cleared (the sort back to the newest first), as captureRegFilters would, the selection with it. */
+function regFilterClear(which) {
+  if (which === 'client') regFilter.clientId = '';
+  else if (which === 'month') regFilter.month = '';
+  else if (which === 'state') regFilter.state = '';
+  else if (which === 'range') { regFilter.dateFrom = ''; regFilter.dateTo = ''; }
+  else if (which === 'sort') { regFilter.regSortBy = 'date'; regFilter.regSortDir = 'desc'; }
+  _regSelected = {};
+  saveRegFilter();
+  UI_FILTER_DONE.reg();
+}
 
 /* The select-all button, as the selection and the filter stand now. It was drawn with the toolbar only, so after a
    bulk action or a tick cleared the selection it still said "Clear selection" and then selected everything. */
 function _regSelectAllHtml() {
   var selectable = regSelectableInvoices();
-  if (!(_isDesktop || _regSelectMode) || !selectable.length) return '';
+  if (_isDesktop || !_regSelectMode || !selectable.length) return '';
   var allSelected = selectable.every(function(i) { return _regSelected[i.id]; });
   return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRegSelectAll">' +
     (allSelected ? 'Clear selection' : 'Select all (' + selectable.length + ')') + '</button>';
@@ -14489,7 +14644,7 @@ function renderRegisterList() {
   if (!area) return;
 
   const filtered = getFilteredInvoices();
-  let html = _regSummaryHtml(filtered);
+  let html = '';
 
   if (filtered.length === 0) {
     html += '<div class="inv-panel"><div class="inv-empty">No invoices found</div></div>';
@@ -14523,7 +14678,7 @@ function renderRegisterList() {
     html += uiMoreHtml('reg-list', regRows, { noun: 'invoices' }) + '</div>';
   }
 
-  area.innerHTML = html + _regExportHtml();
+  area.innerHTML = html;
 }
 
 /* A group's head in the register's list (a day, or a series when sorted by number): what it is, how many, and the
@@ -14556,8 +14711,8 @@ function regRowHtml(inv, opts) {
 /* ===== REGISTER DESKTOP TABLE ===== */
 function _buildRegisterTableHtml() {
   var filtered = getFilteredInvoices();
-  var html = _regSummaryHtml(filtered);
-  if (filtered.length === 0) return html + '<div class="inv-empty">No invoices found</div>' + _regExportHtml();
+  var html = '';
+  if (filtered.length === 0) return '<div class="inv-empty">No invoices found</div>';
 
   var sc = getRegSortConfig();
   // The column heads the register sorts by; the rest are read-only.
@@ -14567,8 +14722,11 @@ function _buildRegisterTableHtml() {
       '<button class="inv-table-sort" data-action="invDesktopSort" data-col="' + key + '">' + label +
       (on ? '<span aria-hidden="true">' + (sc.dir === 'asc' ? ' ▲' : ' ▼') + '</span>' : '') + '</button></th>';
   };
+  // Select all is the head's tick box (it was a button in the toolbar's row), kept in step as each row is ticked.
+  var selectable = regSelectableInvoices(), allOn = selectable.length > 0 && selectable.every(function(i) { return _regSelected[i.id]; });
   html += '<table class="inv-table"><thead><tr>' +
-    '<th class="inv-table-check"><span class="inv-visually-hidden">Select</span></th>' + th('number', 'Invoice') + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
+    '<th class="inv-table-check">' + (selectable.length ? '<input type="checkbox" class="inv-check" data-action="invRegSelectAll"' + (allOn ? ' checked' : '') +
+      ' aria-label="' + (allOn ? 'Clear the selection' : 'Select all ' + selectable.length) + '">' : '<span class="inv-visually-hidden">Select</span>') + '</th>' + th('number', 'Invoice') + th('client', 'Client', 'inv-col-grow') + th('date', 'Date', 'inv-col-opt3') +
     '<th class="inv-col-opt2">Challans</th><th class="inv-num inv-col-opt2">kg</th>' + th('taxable', 'Taxable', 'inv-num inv-col-opt3') + '<th class="inv-num inv-col-opt1">GST</th>' +
     th('total', 'Total', 'inv-num') + th('state', 'State') + '</tr></thead><tbody>';
 
@@ -14595,7 +14753,7 @@ function _buildRegisterTableHtml() {
       '<td class="inv-num">' + formatCurrency(inv.grandTotal) + '</td>' +
       '<td>' + getStateDotHtml(inv) + ' ' + cnInvoiceMarkHtml(inv) + '</td></tr>';
   });
-  return html + '</tbody></table>' + _regExportHtml();
+  return html + '</tbody></table>';
 }
 
 /* A list-and-pane view rebuilds its table and pane whole, which drops the keyboard to <body>.
@@ -14677,6 +14835,8 @@ function renderRegisterTable() {
 /* View dispatcher (Phase 8B) */
 function _renderRegView() {
   _isDesktop ? renderRegisterTable() : renderRegisterList();
+  var v = document.getElementById('regVerdict');
+  if (v) v.innerHTML = regVerdictHtml();
 }
 
 /* Backward-compat: renderRegister calls both */
@@ -14795,25 +14955,6 @@ async function regBulkSetState(targetState) {
   }
 }
 
-/* Phone: sort by the date an invoice was raised, or by its number. */
-function toggleRegSortBy() {
-  regFilter.regSortBy = regFilter.regSortBy === 'number' ? 'date' : 'number';
-  saveRegFilter();
-  _regToolbarRendered = false;
-  renderRegisterToolbar();
-  _regToolbarRendered = true;
-  _renderRegView();
-}
-
-function toggleRegSortDir() {
-  regFilter.regSortDir = (regFilter.regSortDir || 'desc') === 'desc' ? 'asc' : 'desc';
-  saveRegFilter();
-  _regToolbarRendered = false;
-  renderRegisterToolbar();
-  _regToolbarRendered = true;
-  _renderRegView();
-}
-
 /* Invoice detail on the phone: the same content as the desktop pane, in a sheet. */
 function openInvoiceDetail(invId) {
   const inv = S.invoices.find(i => i.id === invId);
@@ -14854,19 +14995,44 @@ function invStateShown(invId) {
   }
 }
 
-/* The count and the taxable of what the filter shows (cancelled invoices bill nothing). */
-function _regSummaryHtml(filtered) {
+/* Invoices' verdict (the tab map, TM5c; it was the page-head line, "N active invoices · ₹X taxable"): the invoices waiting late on
+   a step, by state and age, worst first, each state read as Pipeline reads it (pipeStateStage) over what the filter shows; the
+   taxable of the active ones its figure. */
+var REG_VERDICT_STATES = ['created', 'printed', 'dispatched', 'delivered'];
+function regVerdictHtml() {
+  var filtered = getFilteredInvoices(), now = Date.now();
   var active = filtered.filter(function(i) { return i.status === 'active'; });
-  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-reg-summary>' + active.length + ' active invoice' + (active.length !== 1 ? 's' : '') +
-    ' · <span class="inv-num">' + formatCurrency(gstRound(sumTaxable(active))) + '</span> taxable</span></div>';
-}
-
-function _regExportHtml() {
-  return '<div class="inv-toolbar inv-mt-16">' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invExportSales">Sales register CSV</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invPrintSalesRegister">Sales register PDF</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invExportGstr1">GSTR-1 CSV</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invBulkMarkFiled">Bulk mark filed</button></div>';
+  var stages = REG_VERDICT_STATES.map(function(st) {
+    var list = active.filter(function(i) { return getInvState(i) === st; })
+      .sort(function(a, b) { return String(a.date || '').localeCompare(String(b.date || '')) || (a.createdAt || 0) - (b.createdAt || 0); });
+    return Object.assign({ key: st }, pipeStateStage(st, list, now));
+  });
+  var late = stages.filter(function(x) { return x.late; }).sort(function(a, b) { return (UI_TONE_RANK[b.tone] || 0) - (UI_TONE_RANK[a.tone] || 0); });
+  // "3 created over 2 days"; a return due: "2 delivered, GSTR-1 due 11 Oct" (Pipeline's words).
+  var say = pipeLateSay;
+  var rangeOn = !!(regFilter.dateFrom || regFilter.dateTo);
+  var scope = rangeOn ? (regFilter.dateFrom ? stockShortDate(regFilter.dateFrom) : 'the start') + ' – ' + (regFilter.dateTo ? stockShortDate(regFilter.dateTo) : 'today')
+    : regFilter.month ? imMonthLabel(regFilter.month) : '';
+  var narrowed = !!(regFilter.clientId || regFilter.state || regFilter.search);
+  var screen = 'Invoices' + (scope ? ' · ' + scope : '') + (narrowed ? ' · filtered' : '');
+  var attrs = ' data-reg-summary="' + active.length + '" data-reg-late="' + late.reduce(function(t, x) { return t + x.late; }, 0) + '"';
+  if (!filtered.length) return uiVerdictHtml({ screen: screen, tone: 'neutral', verdict: S.invoices.length ? 'No invoices for this filter' : 'No invoices yet', key: 'pageRegister', attrs: attrs });
+  var verdict, tone;
+  if (late.length) {
+    verdict = say(late[0]);
+    if (late[1] && (verdict + ' · ' + say(late[1])).length <= UI_VERDICT_MAX) verdict += ' · ' + say(late[1]);
+    tone = late[0].tone;
+  } else {
+    var waiting = stages.reduce(function(t, x) { return t + x.n; }, 0);
+    verdict = waiting ? todoPlural(waiting, 'invoice') + ' on their way, none late' : active.length ? 'Every invoice filed' : 'Every invoice cancelled';
+    tone = active.length ? 'ok' : 'neutral';
+  }
+  var cancelled = filtered.length - active.length;
+  var facts = [{ text: 'taxable, ' + todoPlural(active.length, 'active invoice') }].concat(
+    late.filter(function(x) { return verdict.indexOf(say(x)) < 0; }).map(function(x) { return { text: say(x), tone: x.tone }; }),
+    cancelled ? [todoPlural(cancelled, 'cancelled', 'cancelled')] : []).slice(0, 3);
+  return uiVerdictHtml({ screen: screen, tone: tone, verdict: uiVerdictFit(verdict, ''), fig: '<span class="inv-num">' + escHtml(finRs(gstRound(sumTaxable(active)))) + '</span>',
+    facts: facts, key: 'pageRegister', attrs: attrs });
 }
 
 function _regCheckHtml(inv) {
@@ -15753,32 +15919,19 @@ function pipeStages() {
   };
 
   // Awaiting invoice: amber at the To-do's unbilled days (Settings → Checks & alerts → To-do), red at twice them.
+  // The challan's own judge (imWaitTone): the stage, IM's dot and the To-do's task agree at any age.
   var amberD = todoCfg().challanDays, redD = amberD * 2, ims = pipeAwaitingChallans();
-  var ages = ims.map(function(im) { return im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, today)) : null; });
+  var ages = ims.map(imWaitDays);
   var redN = ages.filter(function(a) { return a != null && a >= redD; }).length;
   var amberN = ages.filter(function(a) { return a != null && a >= amberD; }).length;
-  add('awaiting', { n: ims.length, items: ims, of: 'to bill', amberD: amberD, redD: redD,
+  add('awaiting', { n: ims.length, items: ims, of: 'to bill', amberD: amberD, redD: redD, late: redN || amberN, lateDays: redN ? redD : amberN ? amberD : null,
     amount: gstRound(ims.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0)),
     tone: redN ? 'danger' : amberN ? 'warning' : 'neutral',
     word: redN ? redN + ' over ' + pipeDays(redD) : amberN ? amberN + ' over ' + pipeDays(amberD)
       : pipeOldestWord(ages.reduce(function(m, a) { return a != null && (m == null || a > m) ? a : m; }, null)) || 'no challan date' });
 
-  // Created, printed, dispatched: each invoice's own tone for its days in the state; the words count the worst of them
-  // against the days set for it. Delivered waits on its return: the earliest GSTR-1 due date, in the invoice's own words.
-  var c = invStateCheckCfg();
-  ['created', 'printed', 'dispatched', 'delivered'].forEach(function(st) {
-    var list = pipeInvoices(st), tones = list.map(function(i) { return invStateTone(i, now); });
-    var red = tones.filter(function(t) { return t === 'danger'; }).length, amber = tones.filter(function(t) { return t === 'warning'; }).length;
-    var word;
-    if (st === 'delivered') {
-      var due = list.filter(function(i) { return invFileDue(i); }).sort(function(a, b) { return invFileDue(a) - invFileDue(b); });
-      word = due.length ? invStateAgeText(due[0]) : 'no invoice date';
-    } else {
-      word = red ? red + ' over ' + pipeDays(c[st + 'Red']) : amber ? amber + ' over ' + pipeDays(c[st + 'Amber'])
-        : pipeOldestWord(list.reduce(function(m, i) { return Math.max(m, invStateDays(i, now)); }, 0));
-    }
-    add(st, { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word });
-  });
+  // Created, printed, dispatched, delivered: each invoice's own tone (pipeStateStage).
+  ['created', 'printed', 'dispatched', 'delivered'].forEach(function(st) { add(st, pipeStateStage(st, pipeInvoices(st), now)); });
 
   // Owed to us is the bank's receivables: money. A role that does not see money has no such stage, as Pulse has no Money
   // widget for it (homeWidgetSeen('money')): Office's defaults are "no wages, bank or margins" (QA3-2).
@@ -15801,6 +15954,39 @@ function pipeStages() {
   return out;
 }
 
+/* One invoice state over a list of its invoices (oldest first): {n, items, of, amount, tone, word, late, lateDays}. Created, printed
+   and dispatched take each invoice's own tone for its days in the state, and the words count the worst of them against the days
+   set for it (late of them over lateDays); delivered waits on its return, the earliest GSTR-1 due date in the invoice's own words.
+   Pipeline reads it over every active invoice, the Register's verdict over what its filter shows (invoice-ops.js). */
+function pipeStateStage(st, list, now) {
+  var c = invStateCheckCfg(), tones = list.map(function(i) { return invStateTone(i, now); });
+  var red = tones.filter(function(t) { return t === 'danger'; }).length, amber = tones.filter(function(t) { return t === 'warning'; }).length;
+  var word, late = red || amber, lateDays = null;
+  if (st === 'delivered') {
+    var due = list.filter(function(i) { return invFileDue(i); }).sort(function(a, b) { return invFileDue(a) - invFileDue(b); });
+    word = due.length ? invStateAgeText(due[0]) : 'no invoice date';
+  } else {
+    lateDays = red ? c[st + 'Red'] : amber ? c[st + 'Amber'] : null;
+    word = late ? late + ' over ' + pipeDays(lateDays) : pipeOldestWord(list.reduce(function(m, i) { return Math.max(m, invStateDays(i, now)); }, 0));
+  }
+  return { n: list.length, items: list, of: 'taxable', amount: gstRound(sumTaxable(list)), tone: red ? 'danger' : amber ? 'warning' : 'neutral', word: word,
+    late: late, lateDays: lateDays };
+}
+
+/* A stage running late, in words with its own noun: "11 challans over 10 days", "9 created over 2 days", "2 delivered, GSTR-1 due
+   11 Oct", "owed: ₹1,20,000 over 90 days". Pipeline's hero and the Register's verdict say it alike. */
+/* A date in the stage's words without this year's number: "GSTR-1 due 11 Sep 2026" reads "GSTR-1 due 11 Sep" in 2026. */
+function pipeNoThisYear(w) {
+  var y = String(new Date().getFullYear());
+  return String(w || '').replace(/ (\d{4})$/, function(m, yr) { return yr === y ? '' : m; });
+}
+function pipeLateSay(s) {
+  if (s.key === 'awaiting') return todoPlural(s.late, 'challan') + ' over ' + pipeDays(s.lateDays);
+  if (s.key === 'delivered') return s.late + ' delivered, ' + pipeNoThisYear(s.word);
+  if (s.key === 'owed') return 'owed: ' + String(s.word).split(' · ')[0];
+  return s.late + ' ' + invStateLower(s.key) + ' over ' + pipeDays(s.lateDays);
+}
+
 /* The stage that opens when none is chosen: the first holding a red, else the first holding anything. */
 function pipeDefaultStage(stages) {
   var open = stages.filter(function(s) { return s.open; });
@@ -15816,10 +16002,37 @@ function renderPipeline() {
   if (!cur) { _pipeStage = pipeDefaultStage(stages); cur = stages.find(function(s) { return s.key === _pipeStage; }) || null; }
   // The pipeline's own column keeps its place on a short desktop screen: the stage just tapped stays under the pointer.
   var rail = el.querySelector('.inv-pipe-rail'), railTop = rail ? rail.scrollTop : 0;
-  el.innerHTML = '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create invoice</button></div>' +
+  el.innerHTML = pipeVerdictHtml(stages) + '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invCreateNew">Create invoice</button></div>' +
     '<div class="inv-pane-host inv-pipe-host" id="pipeHost"><div class="inv-pipe-rail">' + pipeRailHtml(stages) + pipeDispatchHtml() + '</div>' +
     '<div class="inv-pane-list" id="pipeList">' + pipeListHtml(cur) + '</div></div>';
   if (railTop) el.querySelector('.inv-pipe-rail').scrollTop = railTop;
+}
+
+/* The overview's hero (the tab map, TM5a): the stage that needs the owner first, the one the page opens on (the first holding a
+   red, else the first holding anything), in its own words and tone; the worst other stage running late as its fact. Its
+   amount is the stage's tile's, under it (I8), so the card carries no figure and its line keeps to one row on the phone (I10: with
+   the figure beside it, it took two on the owner's book). */
+var PIPE_VERDICT = {
+  awaiting: function(s) { return todoPlural(s.n, 'challan') + ' waiting'; },
+  created: function(s) { return todoPlural(s.n, 'invoice') + ' created, not printed'; },
+  printed: function(s) { return todoPlural(s.n, 'invoice') + ' printed, not sent'; },
+  dispatched: function(s) { return todoPlural(s.n, 'invoice') + ' sent, not delivered'; },
+  delivered: function(s) { return todoPlural(s.n, 'invoice') + ' delivered, to file'; },
+  owed: function(s) { return finRs(s.amount) + ' owed to us'; }
+};
+function pipeVerdictHtml(stages) {
+  var key = pipeDefaultStage(stages), s = stages.find(function(x) { return x.key === key; });
+  if (!s) return uiVerdictHtml({ screen: 'Pipeline', tone: 'ok', verdict: 'Nothing on its way', facts: ['every invoice filed, nothing waiting'], key: 'pipeline' });
+  // A stage's words are short (its oldest, or how many are over their days); what it adds after a dot is said as a fact.
+  var words = String(s.word || '').split(' · '), more = words.slice(1);
+  var late = stages.filter(function(x) { return x !== s && x.open && (x.tone === 'danger' || x.tone === 'warning'); })
+    .sort(function(a, b) { return (UI_TONE_RANK[uiTone(b.tone)] || 0) - (UI_TONE_RANK[uiTone(a.tone)] || 0); });
+  // One fact: the worst other stage running late, else what the stage's own words add (each is a tile's words too, under the card;
+  // two facts wrapped the card to a second line on the phone, I10).
+  var others = late.map(function(x) { return { text: pipeLateSay(x), tone: uiTone(x.tone), money: x.key === 'owed' }; });
+  var facts = (others.length ? others : more.map(function(t) { return { text: t, tone: 'warning' }; })).slice(0, 1);
+  return uiVerdictHtml({ screen: 'Pipeline', tone: uiTone(s.tone), verdict: uiVerdictFit(PIPE_VERDICT[s.key](s), words[0] ? ' · ' + words[0] : ''),
+    facts: facts, money: s.key === 'owed', plain: todoPlural(s.n, 'client') + ' owe us', key: 'pipeline' });
 }
 
 /* How long an invoice takes from created to dispatched and to delivered, under the stages (the tab map, TM2b; it was a card on
@@ -15830,27 +16043,29 @@ function pipeDispatchHtml() {
 }
 
 /* ---------- The pipeline ---------- */
+/* The stages as coded boxes (the tab map, TM5a; design §6.26): a tile each, in its own age tone, its count the figure, its
+   amount and how long its oldest has waited under it; a tile that holds something opens its list (aria-pressed). */
 function pipeRailHtml(stages) {
-  return '<div class="inv-panel inv-panel-flush" data-card="pipeline"><div class="inv-panel-head"><span class="inv-panel-title">Where the billing is</span></div>' +
-    stages.map(pipeStageRowHtml).join('') +
-    '<div class="inv-panel-body inv-note" data-pipe-note>Filed and cancelled invoices are not stages. Invoices count at their taxable, challans at what is left to bill.</div></div>';
+  return '<div class="inv-coded" data-card="pipeline"><div class="inv-tiles">' + stages.map(pipeStageTileHtml).join('') + '</div>' +
+    '<div class="inv-note" data-pipe-note>Filed and cancelled invoices are not stages. Invoices count at their taxable, challans at what is left to bill.</div></div>';
 }
-function pipeStageRowHtml(s) {
-  var node = '<span class="inv-row-lead inv-pipe-node" aria-hidden="true"><span class="inv-dot inv-dot-' + (s.open ? uiTone(s.tone) : 'neutral') + '"></span></span>';
-  var title = '<span class="inv-row-title">' + escHtml(s.label) + (s.open ? ' <span class="inv-panel-count">' + s.n + '</span>' : '') + '</span>';
+function pipeStageTileHtml(s) {
+  // A tile stating nothing to judge is drawn plain (data-tone neutral), never in a status colour (§6.26).
+  var tone = s.open ? uiTone(s.tone) : 'neutral', cls = 'inv-tile' + (tone !== 'neutral' ? ' inv-tile-' + tone : ''), plain = tone === 'neutral' ? ' data-tone="neutral"' : '';
+  var label = '<div class="inv-tile-label">' + escHtml(s.label) + '</div>';
   if (s.noBank) {
-    return '<div class="inv-row inv-row-2 inv-pipe-stage" data-pipe-stage="owed">' + node + '<span class="inv-row-main">' + title +
-      '<span class="inv-row-meta inv-row-wrap">Needs a bank statement</span></span>' +
-      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHomeImportBank">Import statement</button></span></div>';
+    return '<div class="' + cls + '" data-pipe-stage="owed"' + plain + '>' + label + '<div class="inv-tile-value">&mdash;</div>' +
+      '<div class="inv-tile-sub" data-pipe-word>Needs a bank statement</div>' +
+      '<div class="inv-tile-sub"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button></div></div>';
   }
   // A stage with nothing in it says so and does not open.
-  if (!s.open) {
-    return '<div class="inv-row inv-row-2 inv-pipe-stage" data-pipe-stage="' + s.key + '">' + node + '<span class="inv-row-main">' + title +
-      '<span class="inv-row-meta">None</span></span></div>';
-  }
-  return '<button class="inv-row inv-row-2 inv-pipe-stage" data-action="invPipeStage" data-pipe-stage="' + s.key + '" aria-pressed="' + (s.key === _pipeStage) + '">' + node +
-    '<span class="inv-row-main">' + title + '<span class="inv-row-meta inv-row-wrap">' + uiDot(s.tone, escHtml(s.word)) + '</span></span>' +
-    '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(s.amount) + '</span><span class="inv-row-meta">' + s.of + '</span></span></span></button>';
+  if (!s.open) return '<div class="' + cls + '" data-pipe-stage="' + s.key + '"' + plain + '>' + label + '<div class="inv-tile-value" data-pipe-n>0</div><div class="inv-tile-sub" data-pipe-word>None</div></div>';
+  var words = String(s.word || '').split(' · ');
+  return '<button type="button" class="' + cls + '" data-action="invPipeStage" data-pipe-stage="' + s.key + '"' + plain + ' aria-pressed="' + (s.key === _pipeStage) + '">' + label +
+    '<div class="inv-tile-value" data-pipe-n>' + s.n + '</div>' +
+    '<div class="inv-tile-sub" data-pipe-amount><span class="inv-num">' + formatCurrency(s.amount) + '</span> ' + escHtml(s.of) + '</div>' +
+    '<div class="inv-tile-sub" data-pipe-word>' + uiDot(s.tone, escHtml(pipeNoThisYear(words[0]))) + '</div>' +
+    words.slice(1).map(function(w) { return '<div class="inv-tile-sub">' + escHtml(w) + '</div>'; }).join('') + '</button>';
 }
 
 /* ---------- The open stage's list ---------- */
@@ -15876,12 +16091,12 @@ function pipeAwaitingHtml(s) {
   });
   var rows = order.map(function(k) {
     var list = byClient[k], name = list[0].clientName || 'No client';
-    var age = list[0].challanDate ? Math.max(0, isoDaysBetween(list[0].challanDate, today)) : null;
-    var tone = age == null ? 'neutral' : age >= s.redD ? 'danger' : age >= s.amberD ? 'warning' : 'neutral';
+    var age = imWaitDays(list[0]), tone = imWaitTone(age);
     var amt = gstRound(list.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0));
     var client = '<div class="inv-row inv-row-2" data-pipe-client="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(name) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + todoPlural(list.length, 'challan') + ' · ' + formatCurrency(amt) + ' to bill · ' +
-      uiDot(tone, age == null ? 'no challan date' : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
+      // Two facts on its line (§3b-11), its oldest a line of its own in its tone.
+      '<span class="inv-row-meta inv-row-wrap">' + todoPlural(list.length, 'challan') + ' · ' + formatCurrency(amt) + ' to bill</span>' +
+      '<span class="inv-row-meta">' + uiDot(tone, age == null ? 'no challan date' : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
       '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPipeInvoice" data-client="' + escHtml(k) + '" ' +
       'aria-label="' + escHtml('Create invoice from ' + name + '’s ' + todoPlural(list.length, 'challan')) + '">Create invoice</button></span></div>';
     var kids = '<div class="inv-row-children">' + list.map(function(im) {
@@ -16619,17 +16834,56 @@ function renderIMToolbar() {
   // The filters speak through change (events.js), never click: a click that re-rendered
   // the toolbar replaced the element the native list hangs off, and it shut unpicked.
   // Invoiced holds one status, so its status filter would only ever offer itself.
-  area.innerHTML = imViewTabsHtml() + '<div class="inv-toolbar">' +
-    '<select class="inv-select inv-toolbar-item" id="imClientFilter" aria-label="Filter by client">' +
+  // One row (the tab map, TM5b): the filters (inline on the desktop, behind Filter on the phone, said under the row as tokens), Add
+  // challan the one primary, Scan the one secondary, and the duplicate check behind More with its count.
+  var filters = '<select class="inv-select inv-toolbar-item" id="imClientFilter" aria-label="Filter by client">' +
     '<option value="">All clients</option>' + clientOpts + '</select>' +
     (_imTab === 'invoiced' ? '' : '<select class="inv-select inv-toolbar-item" id="imStatusFilter" aria-label="Filter by status">' +
-    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>') +
-    '<button class="inv-btn inv-btn-secondary" id="imDupeCheck" data-action="invRunDupeScan">Duplicate check' +
-    (dupeCount > 0 ? '<span class="inv-badge inv-badge-warning" data-dupes>' + dupeCount + '</span>' : '') + '</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
+    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>');
+  var client = _imFilter.clientId ? S.clients.find(function(c) { return String(c.id) === String(_imFilter.clientId); }) : null;
+  area.innerHTML = imViewTabsHtml() + '<div id="imVerdict">' + imVerdictHtml() + '</div>' + '<div class="inv-toolbar" data-im-toolbar>' +
+    uiFilterHtml({ key: 'im', count: (_imFilter.clientId ? 1 : 0) + (_imTab !== 'invoiced' && _imFilter.status ? 1 : 0), controls: filters }) +
     '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add challan</button>' +
-    '</div>' + (_imTab === 'invoiced' ? imMonthPagerHtml() : '');
+    '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
+    uiToolbarMoreHtml([{ label: 'Duplicate check', action: 'invRunDupeScan', attrs: ' id="imDupeCheck"', badge: dupeCount ? { n: dupeCount, tone: 'warning' } : null }], { icon: !_isDesktop }) +
+    '</div>' + uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invIMFilterClear', attrs: ' data-clear="client"' },
+      { key: 'Status', value: _imTab !== 'invoiced' && _imFilter.status ? (IM_STATUS_UI[_imFilter.status] || {}).word : '', action: 'invIMFilterClear', attrs: ' data-clear="status"' }]) +
+    (_imTab === 'invoiced' ? imMonthPagerHtml() : '');
   viewTabReveal(area.querySelector('.inv-viewtabs'));
+}
+UI_FILTER_DONE.im = function() { renderIMToolbar(); _renderIMView(); };
+/* A filter's token tapped: that filter cleared, the selection it made dropped (captureIMFilters' rule). */
+function imFilterClear(which) {
+  if (which === 'client') _imFilter.clientId = ''; else _imFilter.status = '';
+  _imSelected = {};
+  renderIMToolbar();
+  _renderIMView();
+}
+
+/* How long a challan has waited on its invoice, judged (the tab map, TM5b): amber from the To-do's challan days (Settings →
+   Checks & alerts → To-do, 5), red from twice that. The challan's dot, Pipeline's first stage and the To-do's challan task read it,
+   so the three agree at any age. */
+function imWaitTone(days) {
+  var d = (typeof todoCfg === 'function' && todoCfg().challanDays) || 5;
+  return days == null ? 'neutral' : days >= d * 2 ? 'danger' : days >= d ? 'warning' : 'neutral';
+}
+function imWaitDays(im) { return im && im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, localDateStr())) : null; }
+/* Awaiting invoice's verdict (the tab map, TM5b; it was the page-head line): how many challans wait and what they bill, in the
+   tone of the oldest, its days the card's figure. Invoiced has the month's stepper. */
+function imVerdictHtml() {
+  if (_imTab === 'invoiced') return '';
+  var list = getFilteredIM(), open = gstRound(list.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0));
+  var ages = list.map(imWaitDays).filter(function(a) { return a != null; }), oldest = ages.length ? Math.max.apply(null, ages) : null;
+  var d = todoCfg().challanDays || 5, late = ages.filter(function(a) { return a >= d; }).length, part = list.filter(imPartInvoiced).length;
+  var filtered = !!(_imFilter.clientId || _imFilter.status);
+  if (!list.length) return uiVerdictHtml({ screen: 'Awaiting invoice', tone: 'ok', verdict: filtered ? 'Nothing awaiting invoice for this filter' : 'Nothing awaiting invoice', key: 'pageIM-awaiting' });
+  return uiVerdictHtml({ screen: 'Awaiting invoice' + (filtered ? ' · filtered' : ''), tone: imWaitTone(oldest),
+    verdict: todoPlural(list.length, 'challan') + ' waiting · ' + finRs(open) + ' to bill',
+    fig: oldest != null ? escHtml(String(oldest)) + '<span class="inv-unit">d</span>' : '',
+    facts: [oldest != null ? { text: 'days the oldest has waited', tone: imWaitTone(oldest) === 'neutral' ? '' : imWaitTone(oldest) } : 'no challan date',
+      late ? { text: late + ' over ' + pipeDays(d), tone: ages.some(function(a) { return a >= d * 2; }) ? 'danger' : 'warning' } : '',
+      part ? todoPlural(part, 'part invoiced', 'part invoiced') : ''],
+    key: 'pageIM-awaiting', attrs: ' data-im-summary="' + list.length + '"' });
 }
 
 /* A selection belongs to the list it was made on. A jump that opens IM on one client — History's, Stats', the duplicate
@@ -16647,16 +16901,16 @@ function renderIMList() {
   if (!area) return;
   imSelectionGuard();
   const filtered = getFilteredIM();
-  let html = _imSummaryHtml(filtered);
+  let html = '';
 
   if (filtered.length === 0) {
     html += '<div class="inv-panel"><div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div></div>';
   } else {
     // Grouped by challan date with the day's value (§7): the tab says whether it is billed.
-    var title = _imTab === 'invoiced' ? 'Invoiced' : 'Awaiting invoice';
+    // Awaiting invoice's count and amount are its verdict's (imVerdictHtml): its list carries no head of its own.
     (function(list) {
-      html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
-        ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
+      html += '<div class="inv-panel inv-panel-flush">' + (_imTab === 'invoiced' ? '<div class="inv-panel-head"><span class="inv-panel-title">Invoiced' +
+        ' <span class="inv-panel-count">' + list.length + '</span></span></div>' : '');
       // The first thirty challans; the rest one tap away (UX overhaul 2, step 6: a month of billed challans ran 7.5 screens).
       var day = null, imRows = [];
       list.forEach(function(im, idx) {
@@ -16718,7 +16972,7 @@ function renderIMSelBar() {
 /* ===== IM DESKTOP TABLE ===== */
 function _buildIMTableHtml() {
   var filtered = getFilteredIM();
-  var html = _imSummaryHtml(filtered);
+  var html = '';
   if (filtered.length === 0) return html + '<div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div>';
 
   var sc = getIMSortConfig();
@@ -16806,8 +17060,11 @@ function renderIMTable() {
 }
 
 function imStatusDotHtml(im) {
-  var s = IM_STATUS_UI[getIMStatus(im)] || { word: getIMStatus(im), tone: 'neutral' };
-  return '<span class="inv-dot inv-dot-' + s.tone + '">' + escHtml(s.word) + '</span>';
+  var st = getIMStatus(im), s = IM_STATUS_UI[st] || { word: st, tone: 'neutral' };
+  // A challan waiting is toned by how long it has waited (imWaitTone); one invoiced whole is done.
+  var tone = st === 'invoiced' ? s.tone : imWaitTone(imWaitDays(im));
+  if (tone === 'neutral' && st === 'partial') tone = 'info';
+  return '<span class="inv-dot inv-dot-' + tone + '"' + (st !== 'invoiced' && imWaitDays(im) != null ? ' title="' + escHtml(pipeDays(imWaitDays(im)) + ' waiting') + '"' : '') + '>' + escHtml(s.word) + '</span>';
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
@@ -16829,19 +17086,16 @@ function imAmountHtml(im, awaiting) {
 /* A challan's row as IM's list draws it: its number and client over its vehicle and lines, and its end, the amount over
    its status. Office → Pipeline's Awaiting list draws the same (pipeline.js), with the Awaiting amount. */
 function imRowMainHtml(im) {
+  // Two things in its meta (§3b-11): waiting, how long and how many items; billed, the vehicle and the items.
+  var items = im.items.length + ' item' + (im.items.length !== 1 ? 's' : ''), age = imIsBilled(im) ? null : imWaitDays(im);
+  var first = age != null ? (age === 0 ? 'received today' : pipeDays(age) + ' waiting') : im.vehicleNo ? escHtml(im.vehicleNo) : '';
   return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + ' ' + flowPriorityBadgeHtml(im) + '</span>' +
-    '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span>';
+    '<span class="inv-row-meta">' + (first ? first + ' · ' : '') + items + '</span>';
 }
 function imRowEndHtml(im, awaiting) {
   return '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im, awaiting) + imStatusDotHtml(im) + '</span></span>';
 }
 
-function _imSummaryHtml(filtered) {
-  if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
-  var open = filtered.reduce(function(s, im) { return s + im.items.reduce(function(a, it) { return a + imLineOpen(it).amount; }, 0); }, 0);
-  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-im-summary>' + filtered.length + ' challan' + (filtered.length !== 1 ? 's' : '') +
-    ' awaiting invoice · <span class="inv-num">' + formatCurrency(gstRound(open)) + '</span> to bill</span></div>';
-}
 
 /* A challan line. A line with anything left to bill carries its tick box; a billed
    share names the invoices it went on, each one a link that opens it. */
@@ -16920,6 +17174,9 @@ function challanDetailHtml(im) {
 /* View dispatcher (Phase 8B) */
 function _renderIMView() {
   _isDesktop ? renderIMTable() : renderIMList();
+  // The verdict says what the list holds now (an invoice made, a filter changed); the rest of the toolbar stays as it is.
+  var v = document.getElementById('imVerdict');
+  if (v) v.innerHTML = imVerdictHtml();
 }
 
 function toggleIMExpand(imId) {
@@ -19043,6 +19300,7 @@ var QT_FILTERS = [['all', 'All quotations'], ['draft', 'Drafts'], ['issued', 'Li
 
 var _qtForm = null;       // {q, termsAuto}: the form open as a sub-view of Clients → Quotations
 var _qtActiveId = null;   // the quotation open in the desktop's pane
+var _qtMoves = [];        // Pulse's reprice moves as the view was last drawn (qtRepriceMoves): the phone's card, the desktop's pane
 var _qtSearch = '';
 var _qtStatus = 'all';
 
@@ -19236,10 +19494,11 @@ function qtSorted(list) {
 }
 function qtRowHtml(q) {
   var d = qtDaysLeft(q), lines = (q.lines || []).length;
-  var meta = [formatDate(q.date), todoPlural(lines, 'item'), qtRateSummary(q)];
-  if (q.status === 'issued' && d != null) meta.push(d < 0 ? 'expired' : 'expires in ' + d + ' d');
+  // Two facts (the tab map, TM5g): a live one's days left, else its date; and its rate. Its items in its title.
+  var meta = [q.status === 'issued' && d != null ? (d < 0 ? 'expired' : 'expires in ' + d + ' d') : formatDate(q.date), qtRateSummary(q)];
   var title = qtNumberText(q) + ' · ' + qtRecipient(q);
   return '<button class="inv-row inv-row-2' + (/^(superseded|void|declined)$/.test(q.status) ? ' inv-row-muted' : '') + '" data-action="invQtOpen" data-id="' + escHtml(q.id) + '"' +
+    ' title="' + escHtml(formatDate(q.date) + ', ' + todoPlural(lines, 'item')) + '"' +
     (_isDesktop && _qtActiveId === q.id ? ' aria-current="true"' : '') + '>' +
     '<span class="inv-row-main"><span class="inv-row-title" title="' + escHtml(title) + '">' + escHtml(title) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta.join(' · ')) + '</span></span>' +
@@ -19260,13 +19519,56 @@ function qtListHtml() {
     grp(rest), false, ' data-qt-group="closed"');
   return h;
 }
+/* Quotations' verdict (the tab map, TM5g): how many are live, how many expire this week, the drafts; what waits on the owner (an
+   expired one unanswered, an accepted one whose rate is not posted) in its facts. */
+function qtVerdictHtml(moves) {
+  var all = getQuotations(), drafts = all.filter(function(q) { return q.status === 'draft'; }).length;
+  var live = all.filter(function(q) { return q.status === 'issued' && !qtExpired(q); });
+  var soon = live.filter(function(q) { var d = qtDaysLeft(q); return d != null && d <= 7; }).length;
+  var expired = all.filter(function(q) { return q.status === 'issued' && qtExpired(q); }).length;
+  var toPost = all.filter(function(q) { return q.status === 'accepted' && qtPostPlan(q).post.length; }).length;
+  var verdict = !all.length ? 'No quotations yet' : live.length + ' live' + (soon ? ' · ' + soon + ' expiring this week' : '') + (drafts ? ' · ' + todoPlural(drafts, 'draft') : '');
+  // The reprice moves are a fact here, and the phone's card's body, shut (I10: under the card they had put the owner's book past one
+  // screen); the desktop's are in the pane beside the list until a quotation is opened (qtShowPane), since under its open card they
+  // pushed the list below the screen's foot (P80).
+  moves = moves || [];
+  return uiVerdictHtml({ screen: 'Quotations', tone: expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral', verdict: verdict,
+    facts: [expired ? { text: expired + ' expired, unanswered', tone: 'warning' } : '', toPost ? { text: todoPlural(toPost, 'accepted one', 'accepted ones') + ' with a rate to post', tone: 'warning' } : '',
+      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: 'warning', money: true } : '',
+      all.filter(function(q) { return q.status === 'accepted'; }).length + ' accepted'].filter(Boolean).slice(0, 3),
+    body: _isDesktop ? null : qtRepriceMovesHtml(moves), key: 'pageClients-quotes', attrs: ' id="qtVerdict"' });
+}
+/* The reprice moves Pulse's questions draw (the tab map, TM5g), the same moves, each opening its draft. A role that does not see
+   money has none (they rest on the margins). */
+function qtRepriceMoves() {
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return [];
+  var qs = [], seen = {}, moves = [];
+  try { qs = advQuestions(statsPulseArgs(_statsPeriod)); } catch (e) { qs = []; }
+  qs.forEach(function(q) { (q.moves || []).forEach(function(mv) { if (mv && /^reprice:/.test(mv.key) && !seen[mv.key]) { seen[mv.key] = 1; moves.push(mv); } }); });
+  return moves;
+}
+/* The phone's, in the verdict card's body as a Pulse question holds its moves: the head, then the deck, one card and the rest a tap
+   away. */
+function qtRepriceMovesHtml(moves) {
+  if (!moves.length) return '';
+  return '<div class="inv-hero-moves" data-qt-reprice><div class="inv-hero-eyebrow inv-mt-8 inv-mb-8">To reprice <span class="inv-panel-count">' + moves.length + '</span></div>' +
+    advMovesDeckHtml(moves, 'quotes', 1) + '</div>';
+}
+/* The desktop's, in the pane while no quotation is open: its head, then the moves a card each, the pane scrolling inside itself. */
+function qtRepricePaneHtml(moves) {
+  return '<div class="inv-pane-head"><span class="inv-panel-title">To reprice <span class="inv-panel-count">' + moves.length + '</span></span>' +
+    '<span class="inv-note">Pulse’s moves</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
+}
 function qtViewHtml() {
   if (_qtForm) return qtFormHtml();
   var opts = QT_FILTERS.map(function(f) { return '<option value="' + f[0] + '"' + (_qtStatus === f[0] ? ' selected' : '') + '>' + f[1] + '</option>'; }).join('');
-  var tools = '<div class="inv-toolbar"><label class="inv-search">' + ICON_SEARCH +
+  var status = _qtStatus === 'all' ? '' : (QT_FILTERS.find(function(f) { return f[0] === _qtStatus; }) || [])[1] || '';
+  _qtMoves = qtRepriceMoves();
+  var tools = qtVerdictHtml(_qtMoves) + '<div class="inv-toolbar"><label class="inv-search">' + ICON_SEARCH +
     '<input type="search" id="qtSearch" value="' + escHtml(_qtSearch) + '" placeholder="Search quotations" autocomplete="off" aria-label="Search quotations"></label>' +
-    '<select class="inv-select inv-toolbar-item" id="qtStatusFilter" aria-label="Status">' + opts + '</select>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invQtNew">New quotation</button></div>';
+    uiFilterHtml({ key: 'qt', count: status ? 1 : 0, controls: '<select class="inv-select inv-toolbar-item" id="qtStatusFilter" aria-label="Status">' + opts + '</select>' }) +
+    '<button class="inv-btn inv-btn-primary" data-action="invQtNew">New quotation</button></div>' +
+    uiTokensHtml([{ key: 'Show', value: status, action: 'invQtStatusClear' }]);
   var list = '<div id="qtList">' + qtListHtml() + '</div>';
   return tools + (_isDesktop
     ? '<div class="inv-pane-host" id="qtHost"><div class="inv-pane-list" id="qtMaster">' + list + '</div><div class="inv-pane" id="qtPane"></div></div>'
@@ -19334,9 +19636,11 @@ function qtShowPane(id) {
   var host = document.getElementById('qtHost'), pane = document.getElementById('qtPane');
   var q = id ? qtFind(id) : null;
   _qtActiveId = q ? q.id : null;
-  if (host) host.classList.toggle('inv-pane-open', !!q);
+  // Nothing open: the reprice moves, where there are any (the tab map, TM5g).
+  var moves = q ? [] : _qtMoves || [];
+  if (host) host.classList.toggle('inv-pane-open', !!q || moves.length > 0);
   if (pane) pane.innerHTML = q ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(qtNumberText(q)) + '</span>', 'invQtClosePane') +
-    qtDetailBodyHtml(q) + '<div class="inv-toolbar">' + qtActionsHtml(q, false) + '</div>' : '';
+    qtDetailBodyHtml(q) + '<div class="inv-toolbar">' + qtActionsHtml(q, false) + '</div>' : moves.length ? qtRepricePaneHtml(moves) : '';
   document.querySelectorAll('#qtList [data-action="invQtOpen"]').forEach(function(r) {
     if (r.dataset.id === _qtActiveId) r.setAttribute('aria-current', 'true'); else r.removeAttribute('aria-current');
   });
@@ -19925,6 +20229,7 @@ function qtAction(action, btn) {
   var id = btn.dataset.id, f = _qtForm;
   switch (action) {
     case 'invQtNew': qtOpenForm(null); break;
+    case 'invQtStatusClear': _qtStatus = 'all'; renderClientsPage(); break;
     case 'invQtOpen': qtOpen(id, btn.dataset.go === '1' && !btn.closest('.inv-scrim-dialog')); break;
     case 'invQtClosePane': qtShowPane(null); break;
     case 'invQtEdit': qtOpenForm(id); break;
@@ -33784,14 +34089,16 @@ var TODO_RULE_FNS = {
       var list = byClient[cid].sort(function(a, b) { return String(a.challanDate).localeCompare(String(b.challanDate)); });
       var oldest = list[0], age = isoDaysBetween(oldest.challanDate, today);
       var nums = list.map(function(im) { return im.challanNo ? String(im.challanNo) : 'no number'; });
-      return { key: 'challan:' + cid, rule: 'challan', tone: 'info', clientId: cid, imIds: list.map(function(im) { return im.id; }),
+      // Toned as the challan's own dot is (imWaitTone, the tab map TM5b): amber from the rule's days, red from twice them.
+      var wt = imWaitTone(age);
+      return { key: 'challan:' + cid, rule: 'challan', tone: wt === 'danger' ? 'red' : wt === 'warning' ? 'amber' : 'info', clientId: cid, imIds: list.map(function(im) { return im.id; }),
         title: 'Bill ' + (oldest.clientName || 'challans') + ': ' + (list.length === 1 ? 'challan ' + nums[0] : todoPlural(list.length, 'challan')),
         sub: (list.length === 1 ? 'Received ' : 'Oldest received ') + todoPlural(age, 'day') + ' ago, not invoiced',
         why: 'Incoming material · rule: ' + cfg.challanDays + ' days',
         facts: [['Challans', nums.join(', ')], ['Oldest', formatDate(oldest.challanDate)]],
         clears: 'Clears itself when these challans are invoiced.',
         go: { kind: 'im', clientId: cid }, goLabel: 'Open challans',
-        sig: list.map(function(im) { return im.id; }).join(',') };
+        sig: wt + '|' + list.map(function(im) { return im.id; }).join(',') };
     });
   },
   dispatch: function() {
@@ -34054,7 +34361,7 @@ function todoClientCardHtml(clientId, fold) {
   if (!list.length) return '';
   var card = '<div class="inv-panel inv-panel-flush" data-card="client-tasks"><div class="inv-panel-head"><span class="inv-panel-title">Flagged' +
     ' <span class="inv-panel-count">' + list.length + '</span></span><span class="inv-badge">App</span></div>' +
-    list.map(todoAppRowHtml).join('') + '</div>';
+    list.map(function(t) { return todoAppRowHtml(t, true); }).join('') + '</div>';
   return fold ? uiFoldCard(fold, card, false) : card;
 }
 function todoIsSnoozed(t) {
@@ -34104,12 +34411,15 @@ function todoGlyph(tone) {
   return '<span class="inv-dot-mark inv-dot-mark-' + ui + '" aria-hidden="true">' + (tone === 'red' || tone === 'amber' ? '!' : 'i') + '</span>';
 }
 var TODO_TONE_WORD = { red: 'Act now', amber: 'Soon', info: 'To know' };
-function todoAppRowHtml(t) {
-  return '<button class="inv-row inv-row-2 inv-row-auto" data-todo="app" data-tone="' + escHtml(t.tone || '') + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '">' +
+/* `brief` (a client's page, which lists everything flagged about it): the task's title alone, its line and reason in the row's
+   title and in full on the tap that opens it (the tab map, TM5f: a line there ran to 150 characters). */
+function todoAppRowHtml(t, brief) {
+  return '<button class="inv-row ' + (brief ? '' : 'inv-row-2 ') + 'inv-row-auto" data-todo="app" data-tone="' + escHtml(t.tone || '') + '" data-action="invTodoOpenApp" data-key="' + escHtml(t.key) + '"' +
+    (brief ? ' title="' + escHtml([t.sub, t.why].filter(Boolean).join(' · ')) + '"' : '') + '>' +
     '<span class="inv-row-lead">' + todoGlyph(t.tone) + '</span>' +
     '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(t.title) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.sub) + '</span>' +
-    (t.why ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span>' : '') + '</span>' +
+    (brief ? '' : '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.sub) + '</span>' +
+    (t.why ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span>' : '')) + '</span>' +
     // Red and amber say so in a word as well; an info task's i is its word.
     (t.tone === 'red' || t.tone === 'amber' ? '<span class="inv-row-end"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + TODO_TONE_WORD[t.tone] + '</span></span>' : '') + '</button>';
 }
@@ -35273,29 +35583,33 @@ function prsPipeline() {
 /* ---------- The list ---------- */
 function prsRowHtml(p) {
   var st = prsStage(p), late = prsLate(p), qs = prsQuotes(p);
-  var meta = [PRS_LABEL[st],
-    p.kgMonth > 0 ? formatNum(p.kgMonth / 1000, 1) + ' t a month' + (p.rate > 0 ? ' at ' + formatCurrency(p.rate) + '/kg' : '') : '',
-    p.process || '',
-    p.nextAt && prsOpen(p) ? (late > 0 ? 'follow-up ' + late + ' d late' : late === 0 ? 'follow up today' : 'follow up ' + formatDate(p.nextAt)) : '',
-    qs.length ? todoPlural(qs.length, 'quotation') : '',
-    st === 'lost' && p.lostReason ? p.lostReason : ''].filter(Boolean).join(' · ');
-  return '<div class="inv-row inv-row-2" data-prospect="' + escHtml(p.id) + '"><button type="button" class="inv-row-main" data-action="invPrsOpen" data-id="' + escHtml(p.id) + '">' +
+  var size = p.kgMonth > 0 ? formatNum(p.kgMonth / 1000, 1) + ' t a month' + (p.rate > 0 ? ' at ' + formatCurrency(p.rate) + '/kg' : '') : '';
+  var follow = p.nextAt && prsOpen(p) ? (late > 0 ? 'follow-up ' + late + ' d late' : late === 0 ? 'follow up today' : 'follow up ' + formatDate(p.nextAt)) : '';
+  // Two facts (the tab map, TM5g): its stage and size, then what is next (the follow-up, else why it was lost, else the work).
+  var meta = [PRS_LABEL[st] + (size ? ', ' + size : ''), follow || (st === 'lost' && p.lostReason) || p.process || ''].filter(Boolean).join(' · ');
+  var full = [p.process || '', qs.length ? todoPlural(qs.length, 'quotation') : ''].filter(Boolean).join(', ');
+  return '<div class="inv-row inv-row-2" data-prospect="' + escHtml(p.id) + '"' + (full ? ' title="' + escHtml(full) + '"' : '') + '><button type="button" class="inv-row-main" data-action="invPrsOpen" data-id="' + escHtml(p.id) + '">' +
     '<span class="inv-row-title">' + escHtml(p.name || 'Unnamed') + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></button>' +
     '<span class="inv-row-end">' + uiDot(prsTone(p), escHtml(late != null && late >= 0 ? 'Due' : PRS_LABEL[st])) + '</span></div>';
 }
-function prsSummaryHtml() {
-  var pl = prsPipeline(), sp = prsSpare(), due = getProspects().filter(function(p) { var l = prsLate(p); return l != null && l >= 0; }).length;
-  var tile = function(k, label, val, sub, tone) {
-    return '<div class="inv-tile" data-prs-tile="' + k + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value' + (tone ? ' inv-fig-' + tone : '') + '">' + val + '</div>' +
-      (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
-  };
+/* Prospects' verdict (the tab map, TM5g; its four tiles were a panel of their own): how many are open and the pipeline against the
+   spare, a month each, in the tone of the follow-ups due; the tiles its factors. The spare is one figure (prsSpare: the last 90 days,
+   a month), said with its period here and under Pulse's Is the plant full?. How the pipeline is weighted is in its tile's title. */
+function prsVerdictHtml() {
+  var pl = prsPipeline(), sp = prsSpare(), list = getProspects();
+  var due = list.filter(function(p) { var l = prsLate(p); return l != null && l >= 0; });
+  var tone = due.some(function(p) { return prsLate(p) >= 7; }) ? 'danger' : due.length ? 'warning' : pl.n ? 'ok' : 'neutral';
   var fill = sp && sp.spareMonth > 0 ? pl.weighted / sp.spareMonth : null;
-  return '<div class="inv-panel inv-panel-flush" data-card="prospects"><div class="inv-tiles">' +
-    tile('open', 'Open', String(pl.n), due ? todoPlural(due, 'follow-up') + ' due' : 'none due', due ? 'warning' : '') +
-    tile('pipeline', 'Pipeline', formatNum(pl.weighted / 1000, 1) + ' t', 'a month, weighted · ' + formatNum(pl.kg / 1000, 1) + ' t if all came') +
-    tile('spare', 'Spare', sp ? formatNum(sp.spareMonth / 1000, 1) + ' t' : '&mdash;', sp ? 'a month, last 90 days at ~2 t a shift' : 'no invoices to measure from') +
-    tile('fill', 'Fills', fill != null ? Math.round(fill * 100) + '%' : '&mdash;', fill != null ? 'of the spare' : '', fill != null ? figToneCapacity(fill * 100) : '') +
-    '</div><div class="inv-note" data-prs-chance>Weighted by the chance at each stage: new 10%, contacted 20%, sample 40%, quoted 60% (a working assumption).</div></div>';
+  return uiVerdictHtml({ screen: 'Prospects', tone: tone,
+    verdict: !list.length ? 'No prospects yet' : pl.n + ' open · ' + formatNum(pl.weighted / 1000, 1) + ' t a month' + (sp ? ' of ' + formatNum(sp.spareMonth / 1000, 1) + ' t spare' : ', weighted'),
+    facts: [due.length ? { text: todoPlural(due.length, 'follow-up') + ' due', tone: tone } : 'no follow-up due', sp ? 'the spare: the last 90 days at ~2 t a shift' : 'no invoices to measure the spare from'],
+    factors: [
+      { label: 'Open', fig: String(pl.n), sub: due.length ? due.length + ' due' : 'none due', tone: due.length ? tone : null, attrs: ' data-prs-tile="open"' },
+      { label: 'Pipeline', fig: escHtml(formatNum(pl.weighted / 1000, 1) + ' t'), sub: 'a month, weighted', attrs: ' data-prs-tile="pipeline" title="' +
+        escHtml('Weighted by the chance at each stage: new 10%, contacted 20%, sample 40%, quoted 60% (a working assumption); ' + formatNum(pl.kg / 1000, 1) + ' t if all came') + '"' },
+      { label: 'Spare', fig: sp ? escHtml(formatNum(sp.spareMonth / 1000, 1) + ' t') : '', sub: 'a month, the last 90 days', attrs: ' data-prs-tile="spare"' },
+      { label: 'Fills', fig: fill != null ? Math.round(fill * 100) + '%' : '', sub: 'of the spare', tone: fill != null ? figToneCapacity(fill * 100) : null, attrs: ' data-prs-tile="fill"' }],
+    key: 'pageClients-prospects', attrs: ' id="prsVerdict"' });
 }
 function prsListHtml() {
   var q = _prsSearch.trim().toLowerCase();
@@ -35319,12 +35633,14 @@ function prsRenderView(container, tabsHtml) {
   var opts = [['open', 'Open']].concat(PRS_STAGES, [['all', 'All']]).map(function(o) {
     return '<option value="' + o[0] + '"' + (_prsStageFilter === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
   }).join('');
-  container.innerHTML = tabsHtml +
+  // The verdict, then one row: the search, the stage behind Filter on the phone (a token under the row), Add prospect.
+  var stage = _prsStageFilter === 'open' ? '' : _prsStageFilter === 'all' ? 'All' : PRS_LABEL[_prsStageFilter] || _prsStageFilter;
+  container.innerHTML = tabsHtml + prsVerdictHtml() +
     '<div class="inv-toolbar"><label class="inv-search">' + ICON_SEARCH +
     '<input type="search" id="prsSearch" value="' + escHtml(_prsSearch) + '" placeholder="Search prospects" autocomplete="off" aria-label="Search prospects"></label>' +
-    '<select class="inv-select inv-toolbar-item" id="prsStageFilter" aria-label="Stage">' + opts + '</select>' +
+    uiFilterHtml({ key: 'prs', count: stage ? 1 : 0, controls: '<select class="inv-select inv-toolbar-item" id="prsStageFilter" aria-label="Stage">' + opts + '</select>' }) +
     '<button class="inv-btn inv-btn-primary" data-action="invPrsNew">Add prospect</button></div>' +
-    prsSummaryHtml() + '<div id="prsList" class="inv-mt-8">' + prsListHtml() + '</div>';
+    uiTokensHtml([{ key: 'Stage', value: stage, action: 'invPrsStageClear' }]) + '<div id="prsList">' + prsListHtml() + '</div>';
 }
 function prsRenderList() { var el = document.getElementById('prsList'); if (el) el.innerHTML = prsListHtml(); }
 
@@ -35409,8 +35725,8 @@ function prsSave(id) {
   return p;
 }
 function prsRenderSummary() {
-  var el = document.querySelector('[data-card="prospects"]');
-  if (el) el.outerHTML = prsSummaryHtml();
+  var el = document.getElementById('prsVerdict');
+  if (el) el.outerHTML = prsVerdictHtml();
 }
 /* A quotation addressed to the prospect, at its target rate per kg: the Quotations' own form, nothing stored until saved. */
 function prsDraft(id) {
@@ -35484,6 +35800,7 @@ function prsOnChange(el) {
 function prsAction(action, btn) {
   switch (action) {
     case 'invPrsNew': prsFormOpen(null); return true;
+    case 'invPrsStageClear': _prsStageFilter = 'open'; renderClientsPage(); return true;
     case 'invPrsOpen': prsFormOpen(btn.dataset.id); return true;
     case 'invPrsSave': prsSave(btn.dataset.id || null); return true;
     case 'invPrsDraft': prsDraft(btn.dataset.id); return true;
@@ -41527,8 +41844,11 @@ function statsStoryCards(a, ctx) {
   // 3. Is the plant full?
   var c3 = { key: 'plant', q: 'Is the plant full?' };
   var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  // The spare a month over the last 90 days (prsSpare), Prospects' own figure, beside the period's (the tab map, TM5g).
+  var sp90 = typeof prsSpare === 'function' ? prsSpare() : null;
   body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),
-    capPct != null ? figToneCapacity(capPct * 100) : ''));
+    capPct != null ? figToneCapacity(capPct * 100) : '') +
+    (sp90 ? statsTile('spare90', 'Spare a month', escHtml(formatNum(sp90.spareMonth / 1000, 1) + ' t'), statsTileSub('the last 90 days, as Prospects reads it'), '') : ''));
   var mk = months.filter(function(x) { return x.kg > 0; });
   if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month' }));
   var avg = real != null ? real : null;
@@ -42766,19 +43086,25 @@ function finClientMoney(clientId) {
 function finClientMoneyHtml(clientId) {
   var m = finClientMoney(clientId);
   if (!m) return '';
-  var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
+  // Two facts a line (the tab map, TM5f): the rest of a line in its title. Receivables start on the head's day.
+  var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money' +
+    ' <span class="inv-panel-count">since ' + escHtml(stockShortDate(m.from)) + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(clientId)) + '">Open in Finance</button></div>';
   if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.</div></div>';
-  var row = function(k, v, sub) {
-    return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
+  var row = function(k, v, sub, title) {
+    return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
-  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + m.r.oldestDays + ' days' : '') + ' · since ' + escHtml(formatDate(m.from)));
+  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + todoPlural(m.r.oldestDays, 'day') : ''));
+  // By age: the two oldest bands that hold anything; every band in the line's title.
   var aged = m.bands.filter(function(b) { return b.amount > 0.005; });
-  if (aged.length) h += row('By age', '', aged.map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '));
+  if (aged.length) h += row('By age', '', aged.slice(-2).reverse().map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '),
+    aged.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(', '));
   h += row('Pays in', m.dtp && m.dtp.median != null ? Math.round(m.dtp.median) + ' days' : '&mdash;',
-    m.dtp ? m.dtp.n + ' receipt' + (m.dtp.n === 1 ? '' : 's') + ' set against invoices · last three at ' + Math.round(m.dtp.last3) + ' days · ' + Math.round(m.dtp.exactShare * 100) + '% matched exactly' : 'no receipt set against an invoice yet');
+    m.dtp ? m.dtp.n + ' receipt' + (m.dtp.n === 1 ? '' : 's') + ' set against invoices · last three at ' + Math.round(m.dtp.last3) + ' days' : 'no receipt set against an invoice yet',
+    m.dtp ? Math.round(m.dtp.exactShare * 100) + '% matched exactly' : '');
   if (m.last) h += row('Last receipt', escHtml(formatCurrency(m.last.cr)), escHtml(formatDate(m.last.date)) + (bankInstrument(m.last) ? ' · chq ' + escHtml(bankInstrument(m.last)) : ''));
-  if (m.series.length) h += row('Cheques', '', '<span class="inv-id">' + escHtml(m.series.slice(-6).join(' · ')) + '</span>');
+  // A list of numbers, not facts: commas.
+  if (m.series.length) h += row('Cheques', '', '<span class="inv-id">' + escHtml(m.series.slice(-6).join(', ')) + '</span>');
   return h + '</div>';
 }
 
@@ -53347,7 +53673,10 @@ function flowClientHtml(clientId, foldKey) {
     if (irows.length) h += '<div class="inv-row-group"><span>Open invoices · expected paid</span></div>' + uiMoreHtml('flow-invoices-' + clientId, irows, { n: irows.length === 6 ? 6 : 5, noun: 'invoices' });
   }
   var attrs = ' data-client-flow="' + escHtml(String(clientId)) + '"';
-  if (foldKey) return uiFoldHtml(foldKey, head + uiDot(v.tone, escHtml(v.text)), h, _isDesktop, attrs + ' data-card="flow"');
+  // Folded, its head is the title and the verdict, which wraps rather than run under the chevron; the target and the terms
+  // are the steps' own (the despatch row, the payment row), and the verdict's title.
+  if (foldKey) return uiFoldHtml(foldKey, '<span class="inv-panel-title">Turnaround</span><span class="inv-dot inv-dot-' + uiTone(v.tone) + '" title="' +
+    escHtml(flowTargetWord(t.days) + ' · ' + terms.days + '-day terms') + '">' + escHtml(v.text) + '</span>', h, _isDesktop, attrs + ' data-card="flow"');
   return '<div class="inv-panel inv-panel-flush"' + attrs + '><div class="inv-panel-head">' + head + '</div>' + h + '</div>';
 }
 /* Floor's Overview: the plant's flow as a hero, shut to its line until opened, as the others are. */
@@ -57629,6 +57958,25 @@ var KB_APP_GUIDES = [
     '- **A correction** (rate, goods returned, short quantity): Office → Invoices → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
     '- **A note already issued on paper**: Office → Invoices → **Credit notes** → **Record issued**, with its own number and the GST as printed.\n\n' +
     'A credit note is cancelled, never deleted.', { version: 2 }),
+  _kbg('clients', 'Using the app: clients and sales', 'Clients, their parts, how each is doing, and the work being won', ['pageClients'],
+    'Office → Clients has three views (Clients, Parts, Performance) and Office → Sales two (Prospects, Quotations). Each starts with a card that says how it stands.\n\n' +
+    '# Clients\n- A dot and a word beside a client name the worst thing raised about it: **past terms** (owed past its payment terms), **gone quiet**, **below cost**, **to bill** (challans waiting), **note due** (a rebate note due) and the rest. Open the client for every task about it.\n' +
+    '- The card at the top counts the clients with something raised, worst first.\n\n' +
+    '# Parts\n- **No weight** lists the parts with no weight a piece. They cannot be priced per kilo, so tonnage and realisation leave them out. **Derive weights** (under More) fills what a piece client’s rate card allows.\n' +
+    '- **Unused** lists the parts no invoice has billed. **Select unused** and **Merge** are under More.\n\n' +
+    '# Performance\n- One client at a time: month on month as revenue, tonnage or rate per kilo, then its parts by **cadence**.\n' +
+    '- A part is judged against its own rhythm, across invoices and challans. It is **stopped** once the gap since it last came is past both 1.75 times its usual gap and its usual gap plus three weeks. A fixed cut-off would call a quarterly part stopped in its second month.\n' +
+    '- **New** came first in the last 60 days. **Steady** keeps its rhythm. **One-off** came once, long ago, and never had a rhythm to fall out of.\n' +
+    '- A stopped part and a new one sharing their first six letters and digits are marked as possibly one part renamed. A part is its size or number and its gauge, so two spellings of one clamp are one part.\n' +
+    '- **Materials worked**: each part sent in a period, in pieces and kilos, with its challans, invoices and platings. A code another client also sends is counted apart, here and on Stats.\n' +
+    '- **By the hour**: a round is pickling, plating and a constant for logistics and the other steps (15 minutes, set on the panel). An hour costs the plant its cost over the last 90 days, spread over the working days × 3 lines × 16 hours. A part earning less than that an hour loses money by the hour.\n' +
+    '- Under a part, **what to look at**: plating slower than before (look at the jig loading, the bath’s current, temperature and concentration, and the waits between rounds); racks run short of their fullest (full racks earn more an hour on the same time); logistics a quarter or more of a round (longer lots, the next load staged before the round ends); pickling slower than plating (pickle the next load while this one plates); and a set plating time the record no longer bears out, which **Use** replaces with the measure.\n\n' +
+    '# Sales\n- **Prospects** are firms approached, by stage (new, contacted, sample, quoted, won, lost), each with its next follow-up. A follow-up due is amber, a week late red.\n' +
+    '- The **pipeline** is the tonnes a month the prospects would send, each weighted by the chance at its stage: new 10%, contacted 20%, sample 40%, quoted 60%. The chances are a working assumption, not measured.\n' +
+    '- The **spare** is what the plant could plate a month and does not: the last 90 days’ invoiced tonnes against about 2 t a shift, two shifts a working day.\n' +
+    '- **Won** opens the client form filled from the prospect.\n' +
+    '- **Quotations**: a draft holds no number, and **Issue** gives it one. An issued quotation is never edited: **Revise** makes the next revision. When one is accepted, its rates are offered to the client’s record, never written unasked.\n' +
+    '- **To reprice**, in the Quotations card, lists Pulse’s moves for the clients billed under the cost, each opening a draft quotation.'),
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
     '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Attendance → Day → **Paste message**).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
     '3. Check every line, then **Save**. A spelling you place is remembered.\n4. Paste the out-time roll the same way: it updates the day.\n\n' +
@@ -57908,7 +58256,7 @@ var KB_APP_GUIDES = [
 var KB_APP_PATHS = [
   { id: 'app-path-floor', title: 'New on the floor', role: 'floor', articles: ['app-mine', 'app-face-pickling', 'app-today', 'app-add', 'app-production', 'app-stock', 'app-knowledge'] },
   { id: 'app-path-supervisor', title: 'Supervisor', role: 'supervisor', articles: ['app-mine', 'app-face-supervisor', 'app-face-clerk', 'app-today', 'app-add', 'app-rolls', 'app-day', 'app-production', 'app-stock', 'app-power', 'app-knowledge'] },
-  { id: 'app-path-office', title: 'New in the office', role: 'office', articles: ['app-mine', 'app-face-clerk', 'app-today', 'app-add', 'app-challan', 'app-invoice', 'app-states', 'app-credit', 'app-search', 'app-knowledge'] }
+  { id: 'app-path-office', title: 'New in the office', role: 'office', articles: ['app-mine', 'app-face-clerk', 'app-today', 'app-add', 'app-challan', 'app-invoice', 'app-states', 'app-credit', 'app-clients', 'app-search', 'app-knowledge'] }
 ];
 /* ===== THE KNOWLEDGE BASE (owner, 2–5 Oct 2026; docs/KNOWLEDGE_BASE.md) =====
    "I envision it as a training ground, as a troubleshooting area, as a record keeper, as a tool used to make decisions."
@@ -58098,14 +58446,18 @@ function kbLinkedHtml(type, id, label, title) {
   var list = kbLinkedTo(type, id, label);
   if (!list.length) return '';
   return '<div class="inv-panel inv-panel-flush" data-kb-linked="' + escHtml(type) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(title || 'Knowledge') +
-    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + list.map(kbRowHtml).join('') + '</div>';
+    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + list.map(function(a) { return kbRowHtml(a, true); }).join('') + '</div>';
 }
-function kbRowHtml(a) {
-  var meta = [kbKindName(a.kind), a.kind === 'fault' ? a.symptom : a.summary, a.kind === 'ruling' && a.ruledOn ? formatDate(a.ruledOn) : '', a.kind === 'incident' && a.on ? formatDate(a.on) : ''].filter(Boolean).join(' · ');
+function kbRowHtml(a, brief) {
+  // Two facts (§3b-11): its kind with its day where it has one, and what it is about. `brief` (a panel on a client's, a part's or a
+  // stock line's page, the tab map TM5f): what it is about is the row's title, since a summary ran past 120 characters there.
+  var day = a.kind === 'ruling' && a.ruledOn ? a.ruledOn : a.kind === 'incident' && a.on ? a.on : '';
+  var about = a.kind === 'fault' ? a.symptom : a.summary;
+  var meta = [kbKindName(a.kind) + (day ? ', ' + formatDate(day) : ''), brief ? '' : about].filter(Boolean).join(' · ');
   // The article open beside the list is marked as the current row (aria-current, as the Register's), in Knowledge's own
   // lists only: a client's panel is not that list.
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
+    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (brief && about ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + (a.status === 'published' && !a.pending ? '' : kbStatusHtml(a)) + '</span></div>';
 }
 
@@ -59853,21 +60205,20 @@ function cpPriorSameDays(clientId) {
    part says how long it has been gone; a possible rename says so. */
 function _cpMaterialRowList(list, renames) {
   return list.map(function(m) {
-    var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
-      (m.typicalGap > 0 ? ' · usually every ' + Math.round(m.typicalGap) + 'd' : '') +
-      (m.kg > 0 ? ' · ' + formatNum(m.kg, 0) + ' kg' : '');
+    // Two facts (the tab map, TM5f): how often and when last; its rhythm and kilograms in its title.
+    var meta = m.times + '× · last ' + formatDate(m.lastSeen);
+    var more = [m.typicalGap > 0 ? 'usually every ' + Math.round(m.typicalGap) + ' days' : '', m.kg > 0 ? formatNum(m.kg, 0) + ' kg' : ''].filter(Boolean).join(', ');
     var rename = renames && renames[m.key];
-    return '<div class="inv-row inv-row-auto" data-cp-mat>' +
+    return '<div class="inv-row inv-row-auto" data-cp-mat' + (more ? ' title="' + escHtml(more) + '"' : '') + '>' +
       '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(m.part) + '</span></span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
       (m.state === 'stopped'
-        ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-danger">' + m.sinceLast + ' days since the last one' +
+        ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-warning">' + m.sinceLast + ' days since the last one' +
           (m.overdueBy > 0 ? ', about ' + m.overdueBy + ' overdue' : '') + '</span></span>'
         : '') +
       (m.continuesAs ? '<span class="inv-row-meta inv-row-wrap">No gauge written; still comes as ' + escHtml(m.continuesAs) + '</span>' : '') +
       (m.stillComes ? '<span class="inv-note inv-row-wrap">The same size still comes as ' + escHtml(m.stillComes) + '.</span>' : '') +
-      (rename ? '<span class="inv-note inv-row-wrap">Possibly renamed to &ldquo;' + escHtml(rename) +
-        '&rdquo; — the spellings share a stem, so this may not be lost work.</span>' : '') +
+      (rename ? '<span class="inv-note inv-row-wrap">Possibly renamed to &ldquo;' + escHtml(rename) + '&rdquo;: the spellings share a stem</span>' : '') +
       '</span>' +
       // A part that only ever arrived on a challan has no revenue yet. Printing
       // Rs 0.00 for it reads as worthless work rather than unbilled work.
@@ -59875,6 +60226,39 @@ function _cpMaterialRowList(list, renames) {
       (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
       '</span></div>';
   });
+}
+
+/* Performance's verdict card (the tab map, TM5f): the client's realisation against the month's live cost, in its tone, and its
+   change on the month before (the same days, while a month runs); its flags (the tasks its own page lists) its factors, a coded
+   tile each that opens its task. Shut on the phone, its line names the worst flag. */
+function cpVerdictHtml(clientId, monthly, flags) {
+  var c = S.clients.find(function(x) { return x.id === clientId; }) || {};
+  var today = localDateStr(), last = monthly[monthly.length - 1] || null, prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
+  var partial = !!last && last.month === today.slice(0, 7), bench = !last ? null : partial ? cpPriorSameDays(clientId) : prev;
+  var bl = partial ? 'the same days' : prev ? prev.label : '';
+  var verdict, tone = 'neutral', delta = '', dTone = null;
+  if (last && last.realisation != null) {
+    var cost = cpMonthCost(last.month);
+    tone = (cost && figToneAgainst(last.realisation, cost.perKg, 5)) || 'neutral';
+    verdict = formatCurrency(last.realisation) + '/kg' + (cost ? ' against ' + formatCurrency(cost.perKg) + ' cost' : '');
+    if (bench && bench.realisation != null) { delta = figDeltaText(last.realisation, bench.realisation, bl); dTone = figDeltaTone(last.realisation, bench.realisation, 'up'); }
+  } else if (last) {
+    verdict = finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label);
+    if (bench) { delta = figDeltaText(last.revenue, bench.revenue, bl); dTone = figDeltaTone(last.revenue, bench.revenue, 'up'); }
+  } else verdict = 'Nothing billed in ' + CP_LOOKBACK_MONTHS + ' months';
+  if (delta && (verdict + ' · ' + delta).length <= UI_VERDICT_MAX) { verdict += ' · ' + delta; delta = ''; }
+  // The card is in the worse of the realisation's tone and the worst flag's.
+  var worst = flags[0], fTone = worst ? uiTone(worst.tone) : null;
+  if (fTone && (UI_TONE_RANK[fTone] || 0) > (UI_TONE_RANK[tone] || 0)) tone = fTone;
+  var word = function(t) { return typeof CLIENT_FLAG_WORD !== 'undefined' && CLIENT_FLAG_WORD[t.rule] || 'flagged'; };
+  var facts = [worst ? { text: word(worst) + (flags.length > 1 ? ' and ' + (flags.length - 1) + ' more' : ''), tone: /^(warning|danger)$/.test(fTone) ? fTone : '' } : 'nothing flagged',
+    delta ? { text: delta, tone: dTone || '' } : '',
+    last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
+  return uiVerdictHtml({ screen: 'Performance · ' + uiVerdictFit(c.name || '', ''), tone: tone, verdict: uiVerdictFit(verdict, ''), facts: facts,
+    factors: flags.slice(0, 4).map(function(t) {
+      return { label: word(t), fig: t.amount ? escHtml(finRs(t.amount)) : escHtml(String(t.n || 1)), tone: uiTone(t.tone),
+        action: 'invTodoOpenApp', attrs: ' data-key="' + escHtml(t.key) + '" title="' + escHtml(t.title) + '"' };
+    }), key: 'pageClients-performance', attrs: ' id="cpVerdict" data-cp-flags="' + flags.length + '"' });
 }
 
 /* "+12.3% on Aug", never an arrow alone (§5.4), coloured by whether it moved the good way (figDeltaHtml). */
@@ -59900,12 +60284,17 @@ function renderClientPerformance(container) {
     container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">No clients yet</div></div>';
     return;
   }
-  html += todoClientCardHtml(clientId, 'cpFlagged');
+  // The verdict leads (the tab map, TM5f), the client picker under it; the client's flags are its tiles, and only a fifth
+  // flag or more keeps the list of them (folded) under the picker.
+  var flags = [];
+  try { flags = todoClientTasks(clientId); } catch (e) { flags = []; }
+  var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
+  html = cpVerdictHtml(clientId, monthly, flags) + html;
+  if (flags.length > 4) html += todoClientCardHtml(clientId, 'cpFlagged');
   html += finClientMoneyHtml(clientId);
   html += flowClientHtml(clientId, 'cp-flow');
   html += kbLinkedHtml('client', clientId, ((S.clients || []).find(function(c) { return c.id === clientId; }) || {}).name, 'Knowledge');
 
-  var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
   var today = localDateStr();
   var history = cpBuildHistory(clientId);
   var classified = history.map(function(e) { return cpClassify(e, today); });
@@ -59965,7 +60354,7 @@ function renderClientPerformance(container) {
     html += '<div class="inv-tiles inv-tiles-flush">' +
       tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(bench && bench.revenue))) +
-      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
+      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
       tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), cost ? figToneAgainst(last.realisation, cost.perKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         cost ? (cost.live ? 'live cost ' : 'cost ') + formatCurrency(cost.perKg) + '/kg' : '',
         (bench && bench.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(bench.realisation)) : '') +
@@ -59977,28 +60366,21 @@ function renderClientPerformance(container) {
   }
   html += '</div>';
 
-  // Stopped first: it is the only one of the four that is a question. Stopped and New show their first ten (the count is on
-  // the head); Steady and One-off, which need nothing, show none until asked: SSS Mehta's card ran 23 phone screens with 101
-  // stopped parts and every part it ever sent (UX overhaul 2, step 6).
-  var group = function(key, title, tone, list, emptyText, note, renamesFor, n) {
+  // The parts by their cadence, each against its own rhythm (how it is judged is the guide's): a fold each, its head the count,
+  // stopped first and in warning, the only one that is a question. Shut on both layouts (the tab map, TM5f): the head says how many
+  // and in what tone, and the desktop's had run Performance to eight screens on the owner's book. Each shows its first ten when open: SSS Mehta's card ran 23 phone
+  // screens with 101 stopped parts and every part it ever sent (UX overhaul 2, step 6).
+  var group = function(key, title, tone, list, emptyText, renamesFor, open) {
     var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
-    return '<div data-cp-group="' + key + '">' +
-      '<div class="inv-row-group"><span class="inv-dot inv-dot-' + tone + '">' + title + ' · ' + list.length + '</span></div>' +
-      (list.length === 0
-        ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
-        : (note ? '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-note inv-row-wrap">' + note + '</span></div>' : '') +
-          uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: n == null ? 10 : n, noun: 'parts' })) +
-      '</div>';
+    return uiFoldHtml('cp-' + key, '<span class="inv-panel-title">' + uiDot(tone, escHtml(title + ' · ' + list.length)) + '</span>',
+      list.length === 0 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
+        : uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: 10, noun: 'parts' }), open, ' data-cp-group="' + key + '"');
   };
   html += cpWorkedHtml(clientId) + cpHoursHtml(clientId);
-  html += '<div class="inv-panel inv-panel-flush" data-card="materials">' +
-    '<div class="inv-panel-head"><span class="inv-panel-title">Cadence</span><span class="inv-note">each part against its own rhythm, across invoices and challans</span></div>' +
-    group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
-      'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
-    group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
-    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null, 0) +
-    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null, 0) : '') +
-    '</div>';
+  html += group('stopped', 'Stopped', 'warning', stopped, 'Nothing has fallen out of its rhythm.', renames, false) +
+    group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', null, false) +
+    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', null, false) +
+    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', null, false) : '');
 
   container.innerHTML = html;
 }
@@ -60170,7 +60552,8 @@ function cpWorkedListHtml(clientId) {
   if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
   var rows = list.map(function(r) {
     var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
-    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced', r.plated ? todoPlural(r.plated, 'plating') : '',
+    // Two facts (§3b-11): its documents, and when; its platings in its title.
+    var meta = [todoPlural(r.nChallans, 'challan') + ', ' + (r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced'),
       r.first ? (r.first === r.last ? formatDate(r.first) : formatDate(r.first) + ' – ' + formatDate(r.last)) : ''].filter(Boolean).join(' · ');
     var ev = r.events.map(function(e) {
       if (e.kind === 'plated') {
@@ -60185,11 +60568,12 @@ function cpWorkedListHtml(clientId) {
         '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
         '<span class="inv-row-end inv-num">' + escHtml(q) + '</span></div>';
     }).join('');
-    return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
+    return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"' + (r.plated ? ' title="' + escHtml(todoPlural(r.plated, 'plating')) + '"' : '') + '><span class="inv-row-main">' +
       '<span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(r.name) + '</span>' + (_cpScope === 'all' ? ' · ' + escHtml(r.clientName) : '') + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
-      (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared><span class="inv-dot inv-dot-info">Code shared</span> ' +
-        escHtml(others.join(', ')) + ' also ' + (others.length === 1 ? 'sends' : 'send') + ' it: counted apart, here and on Stats</span>' : '') +
+      // One client named; more counted, every name in its title (a list of ten names was a block of text).
+      (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared title="' + escHtml(others.join(', ')) + '"><span class="inv-dot inv-dot-info">Code shared</span> ' +
+        escHtml(others.length === 1 ? others[0] + ' also sends it' : others.length + ' other clients send it too') + ', counted apart</span>' : '') +
       '</span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(cpQtyText(r.nos, r.kg, r.kgUnknown)) + '</span>' +
       (r.revenue > 0 ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
       '<div class="inv-row-children">' + ev + '</div></details>';
@@ -60210,8 +60594,9 @@ function cpWorkedHtml(clientId) {
     '<input id="cpMatSearch" type="search" value="' + escHtml(_cpQuery) + '" placeholder="Part, size or word, e.g. clamp" aria-label="Search the materials" autocomplete="off"></label>' +
     '<div class="inv-seg" role="group" aria-label="Whose">' + seg('client', 'This client', 'invCpScope', _cpScope, 'data-s') + seg('all', 'All clients', 'invCpScope', _cpScope, 'data-s') + '</div></div>' +
     '</div><div id="cpWorkedList">' + cpWorkedListHtml(clientId) + '</div>';
+  // Shut on both layouts until opened (the tab map, TM5f), remembered on the device as every fold is.
   return uiFoldHtml('cp-worked', '<span class="inv-panel-title">Materials worked</span><span class="inv-note">what was sent and billed, and when</span>',
-    body, _isDesktop, ' data-card="worked"');
+    body, false, ' data-card="worked"');
 }
 /* The search redraws the list only, so the field keeps its focus and caret. */
 function cpWorkedRedraw() {
@@ -60359,25 +60744,33 @@ function cpRound(client, t) {
 function cpRoundHints(rd, t) {
   var h = [], m = rd.m;
   if (m.trendNow != null && m.trendBefore > 0) {
-    var ch = (m.trendNow - m.trendBefore) / m.trendBefore;
-    if (ch >= 0.1) h.push({ tone: 'warning', text: 'Plating a round takes ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (+' + Math.round(ch * 100) + '%). Look at the jig loading, the bath (current, temperature, concentration) and waits between rounds.' });
-    else if (ch <= -0.1) h.push({ tone: 'ok', text: 'Plating a round is faster: ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (' + Math.round(ch * 100) + '%). Worth keeping whatever changed.' });
+    var ch = (m.trendNow - m.trendBefore) / m.trendBefore, figs = Math.round(m.trendNow) + ' min in the last 30 days, ' + Math.round(m.trendBefore) + ' before';
+    if (ch >= 0.1) h.push({ tone: 'warning', say: 'Plating a round is slower', sub: figs + ' (+' + Math.round(ch * 100) + '%)',
+      text: 'Plating a round takes ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (+' + Math.round(ch * 100) + '%). Look at the jig loading, the bath (current, temperature, concentration) and waits between rounds.' });
+    else if (ch <= -0.1) h.push({ tone: 'ok', say: 'Plating a round is faster', sub: figs + ' (' + Math.round(ch * 100) + '%)',
+      text: 'Plating a round is faster: ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (' + Math.round(ch * 100) + '%). Worth keeping whatever changed.' });
   }
   if (m.pcs && m.pcsMax && m.pcs < m.pcsMax * 0.9 && rd.total) {
     var gain = (m.pcsMax / m.pcs - 1);
-    h.push({ tone: 'info', text: 'Rounds carry ' + Math.round(m.pcs) + ' pieces at the median against ' + m.pcsMax + ' at their fullest: full racks would earn about ' + Math.round(gain * 100) + '% more an hour on the same time.' });
+    h.push({ tone: 'info', say: 'Racks run short', sub: Math.round(m.pcs) + ' pieces a round against ' + m.pcsMax + ' at their fullest: about ' + Math.round(gain * 100) + '% more an hour full',
+      text: 'Rounds carry ' + Math.round(m.pcs) + ' pieces at the median against ' + m.pcsMax + ' at their fullest: full racks would earn about ' + Math.round(gain * 100) + '% more an hour on the same time.' });
   }
-  if (rd.total && rd.over / rd.total >= 0.25) h.push({ tone: 'info', text: 'Logistics and the other steps are ' + Math.round(rd.over / rd.total * 100) + '% of every round (' + rd.over + ' of ' + Math.round(rd.total) + ' min): running this part in longer lots, with the next load staged before the round ends, spreads it thinner.' });
-  if (rd.pickle.v && rd.plate.v && rd.pickle.v > rd.plate.v) h.push({ tone: 'warning', text: 'Pickling a round (' + rd.pickle.v + ' min) takes longer than plating it (' + rd.plate.v + ' min): the line waits on pickling. Pickle the next load while this one plates.' });
+  if (rd.total && rd.over / rd.total >= 0.25) h.push({ tone: 'info', say: 'Logistics is ' + Math.round(rd.over / rd.total * 100) + '% of a round', sub: rd.over + ' of ' + Math.round(rd.total) + ' min: longer lots spread it thinner',
+    text: 'Logistics and the other steps are ' + Math.round(rd.over / rd.total * 100) + '% of every round (' + rd.over + ' of ' + Math.round(rd.total) + ' min): running this part in longer lots, with the next load staged before the round ends, spreads it thinner.' });
+  if (rd.pickle.v && rd.plate.v && rd.pickle.v > rd.plate.v) h.push({ tone: 'warning', say: 'The line waits on pickling', sub: 'pickling ' + rd.pickle.v + ' min a round, plating ' + rd.plate.v + ' min',
+    text: 'Pickling a round (' + rd.pickle.v + ' min) takes longer than plating it (' + rd.plate.v + ' min): the line waits on pickling. Pickle the next load while this one plates.' });
   if (t && cpPlateSet(t) != null && m.plateMin != null && m.nPlate >= 5 && Math.abs(m.plateMin - cpPlateSet(t)) / cpPlateSet(t) > 0.15)
-    h.push({ tone: 'warning', text: 'The record now measures ' + Math.round(m.plateMin) + ' min a round against the ' + cpPlateSet(t) + ' set.', use: true });
+    h.push({ tone: 'warning', say: 'The record measures ' + Math.round(m.plateMin) + ' min a round', sub: 'against the ' + cpPlateSet(t) + ' set',
+      text: 'The record now measures ' + Math.round(m.plateMin) + ' min a round against the ' + cpPlateSet(t) + ' set.', use: true });
   return h;
 }
 function cpSrcWord(x) { return x.src === 'set' ? 'set' : x.src === 'measured' ? 'measured' : 'not known'; }
+/* A part under By the hour (the tab map, TM5f): its line says two things, the pieces and the minutes a round, and opens to the round
+   step by step, what it earns, what the record has timed and what to look at, each a fact row (they were sentences of up to 160
+   characters). How the figures are worked out is the guide's (Using the app: clients and sales). */
 function cpRoundRowHtml(client, t, ref, rg, auto) {
   var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null;
   var fig = function(x, unit) { return x.v != null ? x.v + (unit || '') + ' (' + cpSrcWord(x) + ')' : '? (' + cpSrcWord(x) + ')'; };
-  var breakdown = 'Pickle ' + fig(rd.pickle, ' min') + ' + plate ' + fig(rd.plate, ' min') + ' + ' + rd.over + ' min logistics and other steps' + (rd.total ? ' = ' + Math.round(rd.total) + ' min a round' : '');
   var mat = cpMaterials(client.id, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
   var pcs = mat.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = mat.reduce(function(a, x) { return a + x.revenue; }, 0);
   var hrs = rd.pcs.v > 0 && rd.total ? pcs / rd.pcs.v * rd.total / 60 : 0;
@@ -60385,22 +60778,28 @@ function cpRoundRowHtml(client, t, ref, rg, auto) {
   var id = auto ? 'auto-' + t.base + '|' + t.gauge : t.id;
   var h = '<details class="inv-row-fold" data-cp-time="' + escHtml(id) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
     '<span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span>' + (t.line ? ' · ' + escHtml(prodLineName(t.line)) : '') + (auto ? ' · <span class="inv-note">from the record</span>' : '') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + breakdown) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + (rd.total ? Math.round(rd.total) + ' min a round' : 'its minutes not known')) + '</span>' +
     (hints.length ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + hints[0].tone + '">' + todoPlural(hints.length, 'thing', 'things') + ' to look at</span></span>' : '') +
     '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
-    '<div class="inv-panel-body">';
-  h += '<div class="inv-row-meta inv-row-wrap">' + escHtml((rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') + ' (' + rd.rate.src + ')' : 'No rate on record') +
-    (rd.perRound != null ? ' · ' + formatCurrency(rd.perRound) + ' a round' : '') +
-    (ref && rd.perHour != null ? ' · an hour of the plant costs ' + formatCurrency(ref.cost) + ' and earns ' + formatCurrency(ref.revenue) : '')) + '</div>';
-  h += '<div class="inv-row-meta inv-row-wrap" data-cp-measured>' + escHtml('The record: ' + (rd.m.nPlate ? rd.m.nPlate + ' plating round' + (rd.m.nPlate === 1 ? '' : 's') + ' timed' : 'no plating round timed') +
-    ', ' + (rd.m.nPickle ? rd.m.nPickle + ' pickling load' + (rd.m.nPickle === 1 ? '' : 's') : 'no pickling load') + ' timed' + (rd.m.first ? ', ' + formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : '') +
-    '. The times fill in as the register photos and pickling messages come in.') + '</div>';
-  if (pcs > 0) h += '<div class="inv-row-meta inv-row-wrap">' + escHtml('In ' + rg.label + ': ' + cpNum(pcs) + ' pcs billed, about ' + formatNum(hrs, 1) + ' hours of rounds for ' + formatCurrency(rev) + (ref ? ', which cost the plant about ' + formatCurrency(hrs * ref.cost) : '')) + '</div>';
-  if (rd.m.weeks.length >= 2) h += chartLines(rd.m.weeks.map(function(w) { return formatDate(w.week).slice(0, 6); }), [{ label: 'Minutes a round', values: rd.m.weeks.map(function(w) { return Math.round(w.min); }) }], { unit: 'min', ariaLabel: 'Plating minutes a round by week' });
+    '<div class="inv-row-children">';
+  var step = function(label, x, key) { return uiFactRowHtml({ label: label, value: x.v != null ? x.v + ' min' : '', sub: cpSrcWord(x), attrs: ' data-cp-step="' + key + '"' }); };
+  h += step('Pickling', rd.pickle, 'pickle') + step('Plating', rd.plate, 'plate') +
+    uiFactRowHtml({ label: 'Logistics and other steps', value: rd.over + ' min', sub: 'every round, set on the panel', attrs: ' data-cp-step="over"' }) +
+    (rd.total ? uiFactRowHtml({ label: 'A round', value: Math.round(rd.total) + ' min', sub: fig(rd.pcs, ' pieces'), attrs: ' data-cp-step="round"' }) : '');
+  h += uiFactRowHtml({ label: 'Rate', value: rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') : '', sub: rd.rate ? rd.rate.src : 'no rate on record', attrs: ' data-cp-rate' }) +
+    (rd.perRound != null ? uiFactRowHtml({ label: 'A round earns', value: formatCurrency(rd.perRound), attrs: ' data-cp-earns' }) : '');
+  h += uiFactRowHtml({ label: 'Plating rounds timed', value: String(rd.m.nPlate || 0), attrs: ' data-cp-measured',
+    sub: [rd.m.nPickle ? todoPlural(rd.m.nPickle, 'pickling load') + ' timed' : 'no pickling load timed', rd.m.first ? formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : ''].filter(Boolean).join(' · ') });
+  if (pcs > 0) h += uiFactRowHtml({ label: 'In ' + rg.label, value: 'about ' + formatNum(hrs, 1) + ' h', attrs: ' data-cp-billed',
+    sub: cpNum(pcs) + ' pcs billed for ' + formatCurrency(rev) + (ref ? ' · cost about ' + formatCurrency(hrs * ref.cost) : '') });
+  // What to look at: a row each, its claim and its figures; the record's measure has Use at the end.
   hints.forEach(function(x) {
-    h += '<div class="inv-callout inv-callout-' + (x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info') + ' inv-mt-8">' + escHtml(x.text) +
-      (x.use && !auto ? ' <button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeUseMeasured" data-id="' + escHtml(t.id) + '">Use ' + Math.round(rd.m.plateMin) + ' min</button>' : '') + '</div>';
+    h += '<div class="inv-row inv-row-2" data-cp-hint title="' + escHtml(x.text) + '"><span class="inv-row-main"><span class="inv-row-title">' + uiDot(x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info', escHtml(x.say)) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(x.sub) + '</span></span>' +
+      (x.use && !auto ? '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeUseMeasured" data-id="' + escHtml(t.id) + '">Use ' + Math.round(rd.m.plateMin) + ' min</button></span>' : '') + '</div>';
   });
+  h += '</div><div class="inv-panel-body">';
+  if (rd.m.weeks.length >= 2) h += chartLines(rd.m.weeks.map(function(w) { return formatDate(w.week).slice(0, 6); }), [{ label: 'Minutes a round', values: rd.m.weeks.map(function(w) { return Math.round(w.min); }) }], { unit: 'min', ariaLabel: 'Plating minutes a round by week' });
   h += '<div class="inv-toolbar inv-mt-8">' + (auto
     ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd" data-key="' + escHtml(t.base + '|' + t.gauge) + '">Set its times</button>'
     : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeEdit" data-id="' + escHtml(t.id) + '">Edit</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCpTimeRemove" data-id="' + escHtml(t.id) + '">Remove</button>') + '</div>';
@@ -60425,10 +60824,13 @@ function cpHoursHtml(clientId) {
   var client = hp.client, times = hp.times, piece = hp.piece, auto = hp.auto;
   if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
   var ref = cpLineHourRef(), rg = cpPeriodRange();
-  var h = '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
-    (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg, ' + cpNum(ref.kg) + ' kg over ' + ref.days + ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours.'
-    : 'No weighed billing in the last 90 days, so an hour has no cost to be set against yet.') +
-    ' <label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
+  // An hour of the plant on average, the last 90 days: its figures on rows, how they are worked out in their title.
+  var basis = ref ? 'The last 90 days at ' + (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg: ' + cpNum(ref.kg) + ' kg over ' + ref.days +
+    ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours' : '';
+  var h = ref ? '<div data-cp-hour-ref title="' + escHtml(basis) + '">' + uiFactRowHtml({ label: 'An hour costs the plant', value: formatCurrency(ref.cost), sub: 'on average, the last 90 days' }) +
+      uiFactRowHtml({ label: 'An hour earns it', value: formatCurrency(ref.revenue), sub: 'at ' + (ref.live ? 'the live cost' : 'the typed cost') }) + '</div>'
+    : '<div class="inv-panel-body inv-note" data-cp-hour-ref>No weighed billing in 90 days: an hour has no cost to set against yet.</div>';
+  h += '<div class="inv-panel-body inv-note"><label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
   times.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, false); });
   auto.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, true); });
   if (_cpTimeForm) {
@@ -60446,13 +60848,13 @@ function cpHoursHtml(clientId) {
       '<div class="inv-note">Leave a figure blank to use what the production record measures.</div>' +
       '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeCancel">Cancel</button><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCpTimeSave">Save</button></div></div>';
   } else {
-    h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record. A part plated by the round is judged here by what an hour of it earns.</div>') +
+    h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record.</div>') +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd">Set a part’s times</button></div>';
   }
-  // Folded like Materials worked; open while its form is (Set or Edit was tapped inside it).
+  // Folded like Materials worked, shut on both layouts; open while its form is (Set or Edit was tapped inside it).
   var n = times.length + auto.length;
   return uiFoldHtml('cp-hours', '<span class="inv-panel-title">By the hour' + (n ? ' <span class="inv-panel-count">' + n + '</span>' : '') + '</span>' +
-    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span>', h, _isDesktop || !!_cpTimeForm, ' data-card="hours"');
+    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span>', h, !!_cpTimeForm, ' data-card="hours"');
 }
 var _cpTimeForm = false;
 function cpTimeFormOpen(key, id) {
@@ -61974,7 +62376,7 @@ function onDocClick(e) {
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
-    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
+    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); createLeftDrop(parseInt(btn.dataset.idx)); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
@@ -62006,6 +62408,8 @@ function onDocClick(e) {
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
     case 'invRegClearRange': regClearRange(); break;
+    case 'invRegFilterClear': regFilterClear(btn.dataset.clear); break;
+    case 'invRegRange': regRangeOpen(); break;
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
@@ -62108,6 +62512,7 @@ function onDocClick(e) {
     case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
+    case 'invIMFilterClear': imFilterClear(btn.dataset.clear); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
     case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
@@ -62221,22 +62626,19 @@ function onDocClick(e) {
     case 'invOpenPartWeights': openPartWeights(); break;
     case 'invSaveWeights': saveWeights(); break;
     case 'invDeriveWeights': deriveWeightsFromRates(); break;
-    case 'invFilterNoWeight': {
-      var curFilter = getItemsFilter();
-      regFilter.itemsFilter = curFilter === 'no-weight' ? 'all' : 'no-weight';
-      saveRegFilter();
-      _itemsRendered = 0;
-      renderClientsPage();
-      break;
-    }
+    case 'invFilterNoWeight':
     case 'invFilterUnused': {
-      var curFilter2 = getItemsFilter();
-      regFilter.itemsFilter = curFilter2 === 'unused' ? 'all' : 'unused';
+      var want = action === 'invFilterNoWeight' ? 'no-weight' : 'unused';
+      regFilter.itemsFilter = getItemsFilter() === want ? 'all' : want;
       saveRegFilter();
       _itemsRendered = 0;
+      // Picked in the phone's Filter: one choice, so the dialog shuts on it, and its close draws the page (UI_FILTER_DONE.items).
+      var fdlg = btn.closest('[data-tb-filter-dialog]');
+      if (fdlg) { dialogCloseScrim(fdlg.closest('.inv-scrim-dialog')); break; }
       renderClientsPage();
       break;
     }
+    case 'invItemsFilterClear': itemsFilterClear(btn.dataset.clear); break;
     case 'invSelectAllUnused': selectAllUnused(); break;
     case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
     case 'invClearItemSelection': clearItemSelection(); break;
@@ -62246,8 +62648,6 @@ function onDocClick(e) {
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
     case 'invClientsClosePane': closeClientsPane(); break;
     // Phase 6b: Register bulk operations
-    case 'invRegToggleSort': toggleRegSortDir(); break;
-    case 'invRegSortBy': toggleRegSortBy(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;
     case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
@@ -62357,12 +62757,8 @@ function updateTotalsDisplay() {
   container.innerHTML = createTotalsHtml(client);
   const grand = document.getElementById('invGrandTotal');
   if (grand) grand.textContent = formatCurrency(createTotals(client).grand);
-  // Update validation state
-  const errors = validateInvoice();
-  const errArea = document.getElementById('invErrorsArea');
-  if (errArea) errArea.innerHTML = errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('');
-  const saveBtn = document.getElementById('invSaveBtn');
-  if (saveBtn) saveBtn.disabled = errors.length > 0;
+  // The errors due to show (create.js, TM5h): only after a field is left or a save is tried.
+  createErrorsRefresh();
 }
 
 // Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
@@ -62431,8 +62827,8 @@ function onDocChange(e) {
   }
   // Register filters — one capture path, so a new filter control cannot end up
   // wired to the click delegate and not to this one.
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
-      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter' ||
+      e.target.id === 'regDateFrom' || e.target.id === 'regDateTo' || e.target.id === 'regSort') {
     captureRegFilters(e.target.id);
   }
   // IM filters

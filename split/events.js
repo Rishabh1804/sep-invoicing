@@ -147,7 +147,7 @@ function onDocClick(e) {
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
-    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
+    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); createLeftDrop(parseInt(btn.dataset.idx)); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
@@ -179,6 +179,8 @@ function onDocClick(e) {
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
     case 'invRegClearRange': regClearRange(); break;
+    case 'invRegFilterClear': regFilterClear(btn.dataset.clear); break;
+    case 'invRegRange': regRangeOpen(); break;
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
@@ -281,6 +283,7 @@ function onDocClick(e) {
     case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
+    case 'invIMFilterClear': imFilterClear(btn.dataset.clear); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
     case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
@@ -394,22 +397,19 @@ function onDocClick(e) {
     case 'invOpenPartWeights': openPartWeights(); break;
     case 'invSaveWeights': saveWeights(); break;
     case 'invDeriveWeights': deriveWeightsFromRates(); break;
-    case 'invFilterNoWeight': {
-      var curFilter = getItemsFilter();
-      regFilter.itemsFilter = curFilter === 'no-weight' ? 'all' : 'no-weight';
-      saveRegFilter();
-      _itemsRendered = 0;
-      renderClientsPage();
-      break;
-    }
+    case 'invFilterNoWeight':
     case 'invFilterUnused': {
-      var curFilter2 = getItemsFilter();
-      regFilter.itemsFilter = curFilter2 === 'unused' ? 'all' : 'unused';
+      var want = action === 'invFilterNoWeight' ? 'no-weight' : 'unused';
+      regFilter.itemsFilter = getItemsFilter() === want ? 'all' : want;
       saveRegFilter();
       _itemsRendered = 0;
+      // Picked in the phone's Filter: one choice, so the dialog shuts on it, and its close draws the page (UI_FILTER_DONE.items).
+      var fdlg = btn.closest('[data-tb-filter-dialog]');
+      if (fdlg) { dialogCloseScrim(fdlg.closest('.inv-scrim-dialog')); break; }
       renderClientsPage();
       break;
     }
+    case 'invItemsFilterClear': itemsFilterClear(btn.dataset.clear); break;
     case 'invSelectAllUnused': selectAllUnused(); break;
     case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
     case 'invClearItemSelection': clearItemSelection(); break;
@@ -419,8 +419,6 @@ function onDocClick(e) {
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
     case 'invClientsClosePane': closeClientsPane(); break;
     // Phase 6b: Register bulk operations
-    case 'invRegToggleSort': toggleRegSortDir(); break;
-    case 'invRegSortBy': toggleRegSortBy(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;
     case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
@@ -530,12 +528,8 @@ function updateTotalsDisplay() {
   container.innerHTML = createTotalsHtml(client);
   const grand = document.getElementById('invGrandTotal');
   if (grand) grand.textContent = formatCurrency(createTotals(client).grand);
-  // Update validation state
-  const errors = validateInvoice();
-  const errArea = document.getElementById('invErrorsArea');
-  if (errArea) errArea.innerHTML = errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('');
-  const saveBtn = document.getElementById('invSaveBtn');
-  if (saveBtn) saveBtn.disabled = errors.length > 0;
+  // The errors due to show (create.js, TM5h): only after a field is left or a save is tried.
+  createErrorsRefresh();
 }
 
 // Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
@@ -604,8 +598,8 @@ function onDocChange(e) {
   }
   // Register filters — one capture path, so a new filter control cannot end up
   // wired to the click delegate and not to this one.
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
-      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter' ||
+      e.target.id === 'regDateFrom' || e.target.id === 'regDateTo' || e.target.id === 'regSort') {
     captureRegFilters(e.target.id);
   }
   // IM filters

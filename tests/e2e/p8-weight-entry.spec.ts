@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, type SepState, toolbarMore } from './fixtures';
 
 // P8 assertion: the bulk weight-entry screen closes the gap Calc Weights
 // structurally cannot — parts billed per piece have no KG line to derive a
@@ -29,7 +29,8 @@ function stateWith(items: Item[], cost = 7.5): SepState {
 async function openEntry(page: import('@playwright/test').Page): Promise<void> {
   await switchTab(page, 'pageClients');
   await page.locator('[data-action="invSwitchSubView"][data-view="items"]').first().click();
-  await page.locator('[data-action="invOpenWeightEntry"]').click();
+  // Under Parts' More (the tab map, TM5e); the card's foot holds it too while parts lack a weight.
+  await toolbarMore(page, 'Enter weights');
 }
 
 test.describe('P8: bulk weight entry', () => {

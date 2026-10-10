@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, readStoredState, switchTab } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, readStoredState, switchTab, toolbarMore, filterControl } from './fixtures';
 import { readFileSync } from 'fs';
 
 // P111: the shell's share of the QA sweep of 29 Sep 2026 — the frame every screen sits in.
@@ -13,7 +13,7 @@ test.describe('P111: Escape closes the top layer, the way Back does', () => {
   test('a dialog showing something closes at once', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     await switchTab(page, 'pageRegister');
-    await page.locator('.inv-page-active [data-action="invCnList"]').click();
+    await toolbarMore(page, 'Credit notes');
     await expect(dialogs(page)).toHaveCount(1);
     await page.keyboard.press('Escape');
     await expect(dialogs(page)).toHaveCount(0);
@@ -329,7 +329,8 @@ test('an import draws every screen from the new book, and the same file can be c
   await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
   expect(await g(page, 'document.getElementById("importFileInput") ? document.getElementById("importFileInput").value : ""')).toBe('');
   await switchTab(page, 'pageRegister');
-  await expect(page.locator('#pageRegister select option', { hasText: 'IMPORTED CLIENT' })).toHaveCount(1);
+  // The client picker is in the toolbar's Filter on the phone (the tab map, TM5c).
+  await expect((await filterControl(page, '#regClientFilter')).locator('option', { hasText: 'IMPORTED CLIENT' })).toHaveCount(1);
 });
 
 test('opening a screen on a touch screen never focuses a field, so no keyboard rises', async ({ page }) => {

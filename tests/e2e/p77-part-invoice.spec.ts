@@ -123,7 +123,8 @@ test('billing more than is left warns, asks for a reason, and stamps the line', 
   await page.locator('input[data-field="qty"][data-idx="0"]').fill('130');
   await expect(page.locator('#invImShare0 [data-im-over]')).toContainText('30 over what is left on challan 301');
 
-  // No reason yet: the save is held, and the error names the line.
+  // No reason yet: once the field is left (the tab map, TM5h: no error before), the save is held and the error names the line.
+  await page.locator('input[data-field="qty"][data-idx="0"]').blur();
   await expect(page.locator('#invSaveBtn')).toBeDisabled();
   await expect(page.locator('#invErrorsArea')).toContainText('Line 1: 30 over what is left on challan 301');
   expect((await readStoredState(page)).invoices).toHaveLength(2);

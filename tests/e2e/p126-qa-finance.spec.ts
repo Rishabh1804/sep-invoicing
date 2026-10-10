@@ -233,7 +233,7 @@ test('G2-8: a recorded note\'s year typed as 2026-2027 or 26/27 is the 26-27 ser
   expect(await ev(page, 'cnSeriesHighest()')).toBe(12);
   // Office → Invoices → Credit notes (the tab map, TM3a).
   await switchTab(page, 'pageRegister');
-  await page.locator('#pageRegister [data-action="invCnList"]').click();
+  await toolbarMore(page, 'Credit notes');
   const record = async (num: string, fy: string) => {
     if (!(await page.locator('#cnfNum').count())) await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
     await page.locator('#cnfNum').fill(num);

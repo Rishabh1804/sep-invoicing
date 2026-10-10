@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState, openPulse, withHomeWidgets, openWidget } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openFoldAt, recentTs, switchTab, todayIso, type SepState, openPulse, withHomeWidgets, openWidget } from './fixtures';
 
 // P64: finance linked into every screen (docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 6). Each screen carries the
 // figure that belongs to it and a link that lands on the right place in Finance. Dates are built from today;
@@ -128,6 +128,8 @@ test('Staff → Pay shows the bank’s salary legs, and Payments links to it and
   // Payments' other sections link home too.
   await switchTab(page, 'pageFinance');
   await page.locator('[data-action="invFinTab"][data-tab="payments"]').click();
+  // The sections after what needs the owner are folds (the tab map, TM3c), shut on the phone.
+  await openFoldAt(page, 'pay-suppliers');
   await page.locator('#bankSuppliers [data-action="invGoStock"]').click();
   await expect(page.locator('#pageStock')).toHaveClass(/inv-page-active/);
 });

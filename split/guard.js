@@ -736,7 +736,7 @@ function grdMenuOpen() {
 var GRD_QUICK_PAGE = { challan: 'pageIM', stock: 'pageStock', attendance: 'pageStaff', paste: 'pageStaff', task: 'pageHome' };
 // Add → By hand: the screen each form is on (add.js ADD_HAND); a payment is Staff → Pay, so it needs the wages too.
 var GRD_ADD_PAGE = { challan: 'pageIM', invoice: 'pageCreate', quote: 'pageClients', stock: 'pageStock', production: 'pageProduction',
-  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', bill: 'pageFinance', task: 'pageHome' };
+  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', cheque: 'pageFinance', bill: 'pageFinance', task: 'pageHome' };
 function grdApplyDoors() {
   document.querySelectorAll('[data-grd-off]').forEach(function(el) { el.removeAttribute('data-grd-off'); });
   if (!grdOn() || !grdUser()) return;

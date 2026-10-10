@@ -56,8 +56,9 @@ test.describe('P137: Office → Pipeline', () => {
     // Receivables (Money's overview) say the same: what is owed and how many clients owe it.
     await switchTab(page, 'pageFinance');
     await page.locator('[data-action="invFinTab"][data-tab="overview"]').click();
-    await expect(page.locator('[data-fin-tile="owed"] .inv-tile-value')).toHaveText(seen.owed.amount);
-    await expect(page.locator('[data-fin-tile="owed"] .inv-tile-sub')).toContainText(`${seen.owed.n} clients`);
+    // Its Owed to us card (the tab map, TM3c) reads whole rupees and carries the exact figure in its title; its body lists who owes.
+    await expect(page.locator('[data-fin-tile="owed"] .inv-hero-fig [title]')).toHaveAttribute('title', seen.owed.amount);
+    await expect(page.locator('[data-fin-tile="owed"] [data-debtor]')).toHaveCount(Number(seen.owed.n));
     // Filed and cancelled are in no stage, and the pipeline says so.
     await openPipeline(page);
     await expect(page.locator('#pagePipeline [data-pipe-note]')).toContainText('Filed and cancelled invoices are not stages');

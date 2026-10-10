@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { openFoldAt, answerAsk, bankImportDoor, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P109: the QA sweep over Finance, the bank statement, receivables, payments, the live cost, zinc and bills. Each test
 // pins one finding so it cannot come back. Every date is built from today; names and figures are made up, and the only
@@ -99,7 +99,7 @@ function compound(stream: Buffer, shift: 9 | 12): Buffer {
 const serial = (iso: string) => { const p = iso.split('-').map(Number); return Math.round((Date.UTC(p[0], p[1] - 1, p[2]) - Date.UTC(1899, 11, 30)) / 86400000); };
 const HEAD = ['TRAN DATE', 'VALUE DATE', 'NARRATION', 'CHQ.NO.', 'WITHDRAWAL(DR)', 'DEPOSIT(CR)', 'BALANCE(INR)'];
 async function importBuffer(page: Page, buffer: Buffer) {
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('#bankHead [data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   await chooser.setFiles({ name: 'statement.xls', mimeType: 'application/vnd.ms-excel', buffer });
 }
 const xlsRows = (page: Page, buf: Buffer) => page.evaluate(b64 => {
@@ -191,6 +191,8 @@ test('B3: moving the month of a payment made a bill moves the bill, and the paym
   seq = 0;
   await loadAppWithState(page, state({ bank: bank([row(ym(-4) + '-01', 'SMS CHARGES', 1, 0), row(ym(-1) + '-10', 'BIJLI BIL JBVNL', 6000, 0), row(day(-1), 'SMS CHARGES', 1, 0)]) }));
   await openFinance(page, 'payments');
+  // What was paid is folded under what needs the owner (the tab map, TM3c).
+  await openFoldAt(page, 'pay-power');
   const pay = page.locator('#bankPower [data-power="BK-M2"]');
   await expect(pay.locator('select')).toHaveValue(ym(-2));
   await pay.locator('[data-action="invBankAddBill"]').click();
@@ -393,6 +395,8 @@ test('BB1: a tap on a month or a slice that redraws the Overview writes its exac
   await loadAppWithState(page, state({ bank: bank(overviewRows()) }));
   await openFinance(page, 'overview');
   await page.locator('[data-action="invFinRange"][data-range="ALL"]').click();
+  // The charts are folds under the heroes, shut on the phone (the tab map, TM3c): opened, they stay open across the redraws.
+  for (const k of ['fin-cash', 'fin-went']) await openFoldAt(page, k);
   const pt = page.locator(`#finCash .inv-chart-pt[data-key="${ym(-2)}"]`).first();
   const ptRead = await pt.getAttribute('data-read');
   await pt.click();
@@ -448,8 +452,10 @@ test('BB3: money on account that has since settled later invoices is not shown a
     invoices: [inv(1, day(-27), 1000), inv(2, day(-20), 5000), inv(3, day(-10), 1000)] }));
   expect(await ev(page, `(function() { var r = bankReceivables()[0]; return [r.carried, r.onAccount, r.owed]; })()`)).toEqual([7000, 1000, -1000]);
   await openFinance(page, 'receipts');
-  await expect(page.locator('[data-recv="1"]')).toContainText('₹1,000.00 on account');
-  await expect(page.locator('[data-recv="1"]')).not.toContainText('₹7,000.00 on account');
+  // What is on account is one of the facts in the client's fold (its line keeps two facts, the tab map, TM3c).
+  await page.locator('[data-recv="1"] [data-action="invBankClient"]').click();
+  await expect(page.locator('[data-recv-fact="account"]')).toContainText('₹1,000.00');
+  await expect(page.locator('[data-recv-fact="account"]')).not.toContainText('₹7,000.00');
 });
 
 /* ---------- BB4: a ninth category of money out ---------- */
@@ -480,7 +486,9 @@ test('BB5: Record an issued note offers a client with no invoice in the book, an
   const s = state({ invoices: [inv(1, day(-10), 5900)] }) as any;
   s.clients.push(Object.assign(client(5, 'OMEGA WORKS'), { add1: 'PLOT 9', state: 'JHARKHAND', stateCode: '20' }));
   await loadAppWithState(page, s);
-  await openFinance(page, 'bills');
+  // The forms are the Credit notes dialog's, in Office → Invoices (the tab map, TM3a).
+  await switchTab(page, 'pageRegister');
+  await page.locator('#pageRegister [data-action="invCnList"]').click();
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await expect(page.locator('#cnfClient option[value="5"]')).toHaveCount(0);
   await page.locator('[data-action="invCnFormCancel"]').click();

@@ -54,6 +54,10 @@ function todoCfg() {
 function todoUid() { return 'TD-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
 function todoToday() { return localDateStr(); }
 function todoPlural(n, one, many) { return n + ' ' + (n === 1 ? one : (many || one + 's')); }
+/* A task of the owner's own carries the label of the place its move opened when it was added; a place that has since moved
+   (the tab map, §5) is shown by the name of the place it opens now. */
+var TODO_GO_LABEL_NOW = { 'Bills & notes': 'Add the bill' };
+function todoGoLabel(t) { var l = (t && t.goLabel) || 'Open'; return TODO_GO_LABEL_NOW[l] || l; }
 
 /* ---------- Mine ---------- */
 function todoMineOpen() {
@@ -413,7 +417,7 @@ function todoPassMemo(k, f) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;
@@ -450,6 +454,7 @@ var TODO_FOLD = {
   challan: { title: function(n, w) { return 'Bill ' + n + ' clients\u2019 challans' + (w ? ', ' + formatCurrency(w) + ' waiting' : ''); }, go: { kind: 'im' }, goLabel: 'Open challans' },
   stock: { title: function(n) { return n + ' stock lines to order'; }, go: { kind: 'stockList' }, goLabel: 'Open stock lines' },
   payingSlower: { title: function(n) { return n + ' clients are paying slower'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
+  chequeHeld: { title: function(n, w) { return 'Deposit ' + n + ' cheques' + (w ? ', ' + formatCurrency(w) : ''); }, go: { kind: 'finance', tab: 'receipts', anchor: 'bankCheques' }, goLabel: 'Open the cheques' },
   insQuiet: { title: function(n) { return n + ' clients have gone quiet'; } },
   insClientDown: { title: function(n) { return n + ' clients\u2019 billing is down three months running'; } },
   insLeak: { title: function(n, w) { return n + ' clients realised under their usual rate' + (w ? ', ' + formatCurrency(w) + ' at stake' : ''); } },
@@ -581,7 +586,7 @@ function todoMineRowHtml(t) {
   var end = '';
   if (t.due && !t.doneAt) end += '<span class="inv-dot inv-dot-' + (tone ? uiTone(tone) : 'neutral') + '">' + escHtml(todoDueLabel(t.due)) + '</span>';
   // A task added from a move (advice.js) keeps the move's button: `go`, a place, where an older task has a `link`.
-  if (t.go) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(t.goLabel || 'Open') + '">' + escHtml(t.goLabel || 'Open') + '</button>';
+  if (t.go) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(todoGoLabel(t)) + '">' + escHtml(todoGoLabel(t)) + '</button>';
   else if (t.link) end += '<button class="inv-btn-link inv-col-grow-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '" title="' + escHtml(todoLinkLabel(t.link)) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
   return '<div class="inv-row inv-row-2 inv-row-auto' + (t.doneAt ? ' inv-row-done' : '') + '" data-todo="mine" data-tone="' + tone + '"' + (t.doneAt ? ' data-done="1"' : '') + '>' +
     '<label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '"' +
@@ -839,9 +844,13 @@ function todoGo(go) {
     case 'stockPaste': _stockView = 'paste'; switchTab('pageStock'); break;
     case 'stockCheck': _stockView = 'check'; switchTab('pageStock'); break;
     case 'bills':
-      finSetTab('bills');
+      // A bill is entered on Money → Payments (the tab map, TM3a; a task saved before still names `bills`), the form open on the
+      // month it names, the bills panel in sight.
+      finSetTab('payments');
       _costBillOpen = go.month ? { where: 'finance', month: go.month } : false;
       switchTab('pageFinance');
+      var bp = document.getElementById('billsPower');
+      if (bp) uiRevealEl(bp);
       break;
     case 'cnList': switchTab('pageRegister'); renderCreditNoteList(); break;
     case 'cnBatch': regJump({ clientId: go.clientId, dateFrom: go.from, dateTo: go.to, select: go.ids }); break;
@@ -874,6 +883,8 @@ function todoGo(go) {
       switchTab('pageFinance');
       var fa = go.anchor && document.getElementById(go.anchor);
       if (fa && fa.scrollIntoView) fa.scrollIntoView({ block: 'start' });
+      // A cheque in hand (chequeHeld): it opens itself, over Receivables.
+      if (go.cheque && navPageOf() === 'pageFinance') bankChequeOpen(go.cheque);
       break;
     case 'stats':
       // A move worked out for a period opens Stats on it, so the block it names is the one on screen (advice.js).

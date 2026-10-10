@@ -107,6 +107,8 @@ var CHG_TRACK = [
   { path: 'bank.opening', kind: 'map', noun: 'opening balance', cid: function(r, k) { return k; }, label: function(r, k) { return chgClientName(k) || k; } },
   { path: 'bank.gstNotes', kind: 'map', noun: 'GST note', label: function(r, k) { return k; } },
   { path: 'bank.bounces', kind: 'map', noun: 'returned cheque', label: function(r, k) { return k; } },
+  { path: 'bank.cheques', kind: 'arr', noun: 'cheque received', cid: function(r) { return r.clientId; },
+    label: function(r) { return chgJoin(chgClientName(r.clientId), r.number ? 'cheque ' + r.number : '', r.amount != null ? chgMoney(r.amount) : ''); } },
   { path: 'bank.reminders', kind: 'arr', noun: 'payment reminder', cid: function(r) { return r.clientId; }, label: function(r) { return chgJoin(chgClientName(r.clientId), r.amount != null ? formatCurrency(r.amount) : '', r.how); } },
   { path: 'todo.tasks', kind: 'arr', noun: 'task', label: function(r) { return r.text; } },
   { path: 'todo.snoozes', kind: 'map', noun: 'snooze', label: function(r, k) { return k; } },

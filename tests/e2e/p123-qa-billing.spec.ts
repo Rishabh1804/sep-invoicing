@@ -281,7 +281,7 @@ test('G1-6: an invoice dated outside the year its series names is asked about, n
   await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
 });
 
-test('G1-6: a credit note dated outside its series\' year is asked about, from the register and from Bills & notes', async ({ page }) => {
+test('G1-6: a credit note dated outside its series\' year is asked about, from the register and from the Credit notes dialog', async ({ page }) => {
   const s = book({ invPrefix: PREFIX, invNextNum: 3,
     invoices: [1, 2].map(n => inv(n, { prefix: PREFIX, invoiceState: 'dispatched', dispatchedAt: recentTs() })) });
   await loadAppWithState(page, s);
@@ -300,9 +300,9 @@ test('G1-6: a credit note dated outside its series\' year is asked about, from t
   await expect.poll(notes).toBe(1);
   await g(page, 'closePrintPreview()');
 
-  // A new note from Finance → Bills & notes.
-  await switchTab(page, 'pageFinance');
-  await page.locator('[data-action="invFinTab"][data-tab="bills"]').click();
+  // A new note from Office → Invoices → Credit notes (the tab map, TM3a).
+  await switchTab(page, 'pageRegister');
+  await page.locator('#pageRegister [data-action="invCnList"]').click();
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await page.locator('#cnfDate').fill(BEFORE_FY);
   await page.locator('#cnfClient').selectOption('1');

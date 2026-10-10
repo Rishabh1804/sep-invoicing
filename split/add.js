@@ -38,6 +38,7 @@ var ADD_HAND = [
   ['power', 'Power cut', '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
   ['attendance', 'Attendance', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>'],
   ['payment', 'Payment', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
+  ['cheque', 'Cheque', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h7M6 14h4M15 15l2-2 3 1"/>'],
   ['bill', 'Bill', '<path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>'],
   ['task', 'Task', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>']
 ];
@@ -355,6 +356,8 @@ function addJsonWhat(obj) {
   if (f === 'sep-people') return 'people';
   if (f === 'sep-plant') return 'plant';
   if (f === 'sep-kb' || (!f && Array.isArray(obj.articles))) return 'kb';
+  // This app's own bank export: its cheques received are taken from it (TM3b), never its statement rows.
+  if (f === 'sep-bank') return 'bank';
   if (obj.company && obj.clients) return 'backup';
   if (Array.isArray(obj.staff)) return 'roster';
   return '';
@@ -373,6 +376,7 @@ var ADD_FILE_GUARD = {
   register: { grp: 'imports', what: 'import a register', page: 'pageStaff' },
   people: { grp: 'payments', what: 'import workers’ details', page: 'pageStaff' },
   plant: { grp: 'settings', what: 'import the plant register', page: 'pageProduction' },
+  bank: { grp: 'payments', what: 'import cheques received', page: 'pageFinance' },
   // Knowledge's own Import is the owner's and asks the PIN again whatever the window (knowledge.js kbImport).
   kb: { grp: 'imports', what: 'import knowledge', page: 'pageKnow', owner: true, always: true },
   backup: { grp: 'users', what: 'import a backup' }
@@ -402,7 +406,7 @@ async function addFileRoute(file, buf) {
   var go = what && addFileGo(what, k, name);
   if (go) { addGo(go, { stay: what === 'backup' }); return; }
   uiAlert({ title: 'Not a file the app imports', body: (name || 'The file') + ' is ' + addFileWords(k) +
-    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register or the knowledge base.' });
+    '. Add takes a bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, the plant register, payroll, the roster, workers’ details, the attendance register, the knowledge base or the bank (its cheques received).' });
 }
 /* Where each kind of file is imported, opened on the screen and view that import it. */
 function addFileGo(what, k, name) {
@@ -416,6 +420,7 @@ function addFileGo(what, k, name) {
     people: function() { _attView = 'roster'; switchTab('pageStaff'); pplImportText(k.text); },
     plant: function() { prodSetTab('equipment'); _prodView = 'main'; switchTab('pageProduction'); pltImportText(k.text, name); },
     kb: function() { kbSetTab('library'); switchTab('pageKnow'); kbImportData(k.obj, name); },
+    bank: function() { finSetTab('receipts'); switchTab('pageFinance'); bankChequesImport(k.obj, name); },
     // It replaces the whole book: Settings → Import's own question is the guard, and Cancel leaves everything as it was.
     backup: function() { importDataText(k.text, name); }
   }[what] || null;
@@ -431,6 +436,7 @@ var ADD_FILE_KINDS = {
   people: { title: 'Workers’ details', noun: 'a file of workers’ details (sep-people)', page: 'pageStaff', view: 'Roster' },
   plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
   kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
+  bank: { title: 'A bank export', noun: 'this app’s bank export (sep-bank), whose cheques received are taken', page: 'pageFinance', view: 'Receivables' },
   backup: { title: 'A backup', noun: 'a backup of the whole book', where: 'Settings → Data & device' },
   xls: { noun: 'a bank statement' }
 };
@@ -461,7 +467,6 @@ function addFileWords(k) {
   if (k.kind === 'json') {
     var o = k.obj, f = o && !Array.isArray(o) ? o.format || o.kind : '';
     if (Array.isArray(o)) return 'a JSON list of ' + todoPlural(o.length, 'entry', 'entries') + ', not one the app imports';
-    if (f === 'sep-bank') return 'this app’s own bank export (sep-bank): a statement is imported from the .xls the bank exports, not from it';
     var keys = o && typeof o === 'object' ? Object.keys(o) : [];
     return 'a JSON file' + (f ? ' marked ' + f : '') + (keys.length ? ' with keys ' + keys.slice(0, 8).join(', ') + (keys.length > 8 ? ' and ' + (keys.length - 8) + ' more' : '') : ', empty') + ', not one the app imports';
   }
@@ -486,6 +491,8 @@ function addHand(go) {
     power: function() { powerAddCut(); },
     attendance: function() { homeQuick('attendance'); },
     payment: addPayment,
+    // A cheque received (TM3b): its form is a dialog of its own, over the screen Add was opened on.
+    cheque: function() { bankChequeFormOpen(null); },
     bill: addBill,
     task: function() { homeQuick('task'); }
   }[go];
@@ -501,7 +508,7 @@ function addPayment() {
   if (form) uiRevealEl(form);
   if (who) { try { who.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }
-/* Money → Bills & notes, the bill form open on the latest closed month with no electricity bill (else this month). Search's
+/* Money → Payments, the bill form open on the latest closed month with no electricity bill (else this month). Search's
    Add a bill opens it here too. A role that may not open Money is refused by todoGo, and nothing is focused. */
 function addBill() {
   todoGo({ kind: 'bills', month: addBillMonth() });

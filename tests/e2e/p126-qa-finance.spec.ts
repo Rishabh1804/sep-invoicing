@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { openFoldAt, toolbarMore, bankImportDoor, answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P126: the finance QA findings of 30 Sep 2026 (G2-2 … G2-11). The forecast says when it counts outflows only and when the
 // account is already overdrawn; an exact receipt settles its invoices to the paisa; notes and receipts are read in the order
@@ -231,8 +231,9 @@ test('G2-8: a recorded note\'s year typed as 2026-2027 or 26/27 is the 26-27 ser
   s.creditNotes = [{ ...note(12, day(-5), 'X-1', 118), displayNumber: 'CN/012/2026-27', recorded: true }];
   await loadAppWithState(page, s);
   expect(await ev(page, 'cnSeriesHighest()')).toBe(12);
-  await switchTab(page, 'pageFinance');
-  await finTab(page, 'bills');
+  // Office → Invoices → Credit notes (the tab map, TM3a).
+  await switchTab(page, 'pageRegister');
+  await page.locator('#pageRegister [data-action="invCnList"]').click();
   const record = async (num: string, fy: string) => {
     if (!(await page.locator('#cnfNum').count())) await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
     await page.locator('#cnfNum').fill(num);
@@ -281,7 +282,7 @@ test('G2-10: whole rupees round half away from zero, and a bill\'s price is roun
 
 /* ---------- G2-11: an import can be taken out; another account's statement asks as a danger ---------- */
 async function importXls(page: Page, file: string) {
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   const before = await page.evaluate(() => ((window as any).bankData().imports || []).length);
   await chooser.setFiles(file);
   await page.waitForFunction(n => (window as any).bankData().imports.length > n, before);
@@ -291,7 +292,7 @@ test('G2-11: a statement for another account asks as a danger, naming the act, a
   await loadAppWithState(page, state({ bank: { rows: [], imports: [], parties: {}, opening: {}, gstNotes: {}, account: '002XXXXXXXX111' } }));
   await switchTab(page, 'pageFinance');
   await finTab(page, 'bank');
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   await chooser.setFiles(JUL);
   const ask = page.locator('[data-ui-ask]').last();
   await expect(ask).toContainText('001XXXXXXXX999');
@@ -313,9 +314,11 @@ test('G2-11: an import is taken out with a reason: only the rows it added go, it
   const aug = await ev(page, 'bankData().imports[1].id') as string;
   // A returned cheque's link that names one of its rows goes with it.
   await push(page, `var id = bankData().rows.find(function(r) { return r.importId === '${aug}'; }).id; bankData().bounces['BK-REV'] = id; saveState(); renderFinance()`);
+  // The imports are folded under the statement (the tab map, TM3c).
+  await openFoldAt(page, 'bank-imports');
   const imp = page.locator(`#bankImports [data-bank-import="${aug}"]`);
   await expect(imp).toContainText('bank-jul-aug.xls');
-  await expect(imp).toContainText('4 added');
+  await expect(imp).toContainText('4 new');
   // Cancel leaves everything as it was.
   await imp.locator('[data-action="invBankImportRemove"]').click();
   await answerAsk(page, 'cancel');
@@ -326,7 +329,7 @@ test('G2-11: an import is taken out with a reason: only the rows it added go, it
   expect(await answerAsk(page, 'ok')).toContain('4 rows');
   await answerAsk(page, 'ok', 'Wrong statement');
   // The rows it re-read from the July statement stay: only its own four go.
-  await expect(page.locator('#bankHead')).toContainText('312 rows');
+  await expect(page.locator('#bankVerdict')).toContainText('312 rows');
   const b = (await readStoredState(page)).bank;
   expect(b.rows).toHaveLength(312);
   expect(b.rows.some((r: any) => r.importId === aug)).toBe(false);
@@ -339,7 +342,7 @@ test('G2-11: an import is taken out with a reason: only the rows it added go, it
   await expect(imp).toContainText('Wrong statement');
   await expect(imp.locator('[data-action="invBankImportRemove"]')).toHaveCount(0);
   // The record for soma-internal's compile carries the removal, so it drops the same rows.
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-action="invBankExportJson"]').click()]);
+  const [dl] = await Promise.all([page.waitForEvent('download'), toolbarMore(page, 'Export JSON for soma-internal')]);
   const json = JSON.parse(fs.readFileSync(await dl.path() as string, 'utf8'));
   expect(json.rows).toHaveLength(312);
   expect(json.imports[1]).toMatchObject({ id: aug, removeReason: 'Wrong statement', rowsRemoved: 4 });

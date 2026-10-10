@@ -7,7 +7,7 @@ test('every screen declares its kind and wears only the system’s looks; the sc
   test.setTimeout(300_000);
   await page.setViewportSize({ width: 1280, height: 800 });
   const { errs, bad, report } = await walkOneLook(page);
-  expect(Object.keys(report).length, 'the whole map walked').toBeGreaterThan(50);
+  expect(Object.keys(report).length, 'the whole map walked').toBeGreaterThanOrEqual(50);
   expect(errs, 'no page error on any screen').toEqual([]);
   expect(bad).toEqual([]);
 });

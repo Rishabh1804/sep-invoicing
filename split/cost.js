@@ -834,34 +834,14 @@ function renderLiveCostCard(period, tonnage) {
   return h + '</div>';
 }
 
-/* The bills on the card: a group of rows, Add a bill in its heading, the form in place below them. */
+/* The bills are entered on Money → Payments, where they are kept with their notes (the tab map, TM3a: the list here repeated it);
+   the card's electricity and other rows fold open to each bill's share of the period, which is the cost's own working. */
 function _costBillHtml() {
-  var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var open = _costBillOpen && _costBillOpen.where === 'stats';
-  var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
-    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
-  var rows = bills.slice(0, 12).map(function(b) {
-    // The bill's arithmetic, never its note: the note is the bill's own, read in full on Money → Bills & notes (one fact, one
-    // screen; a note imported with a bill ran to 270 characters here, the tab map's TM2b).
-    var meta = [b.units ? b.units + ' units' : ''].concat(costBillParts(b), [b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
-    return '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
-      (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
-      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
-  }).join('');
-  // The bills are Money's (Bills & notes): here they fold to one row, shut on the phone and open on the desktop until moved, so
-  // the cost reads first (the tab map, TM2b: Stats → Cost at or under three phone screens on the owner's book).
-  // The head counts and names the bills that stand; a voided one is listed inside, muted, and never leads.
-  var live = bills.filter(function(b) { return !b.voided; });
-  if (rows) h += '<details class="inv-row-fold" data-fold="cost-bills"' + (uiFoldOpen('cost-bills', !!_isDesktop) ? ' open' : '') + '><summary class="inv-row">' +
-    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(live.length ? todoPlural(live.length, 'bill') + ' entered, the latest ' + billsMonthLabel(live[0].month)
-      : todoPlural(bills.length, 'bill') + ' entered, all voided') + '</span></span>' +
-    '<span class="inv-row-end">' + (live.length ? '<span class="inv-num">' + formatCurrency(live[0].amount) + '</span>' : '') + '</span></summary><div class="inv-row-children">' + rows +
-    '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">Kept with their notes under Money &rarr; Bills &amp; notes</span></span></div></div></details>';
-  if (!open) return h + '</div>';
-  return h + '<div class="inv-panel-body">' + costBillFormHtml() + '</div></div>';
+  return '<div class="inv-row" data-cost-bills><span class="inv-row-main"><span class="inv-row-meta">Bills are entered in Money &rarr; Payments</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span></div>';
 }
 
-/* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */
+/* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). */
 function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
@@ -878,14 +858,12 @@ function costBillFormHtml() {
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
-function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
-/* The page a form or a button sits on. Both pages stay in the DOM when hidden, so a form left open
-   on Stats still holds the same ids as one opened on Stock, and a bare getElementById reads the
-   hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
-function costBillRoot(where) { return document.getElementById(where === 'finance' ? 'pageFinance' : 'pageStats') || document; }
+function costBillRedraw() { renderFinance(); }
+/* The page the form sits on: every lookup is scoped to it, since a hidden page stays in the DOM. */
+function costBillRoot() { return document.getElementById('pageFinance') || document; }
 
 async function costBillSave() {
-  var root = costBillRoot((_costBillOpen || {}).where);
+  var root = costBillRoot();
   var v = function(id) { return ((root.querySelector('#' + id) || {}).value || '').trim(); };
   var kind = v('costBillKind') === 'other' ? 'other' : 'power', month = v('costBillMonth'), amount = gstRound(parseFloat(v('costBillAmount')) || 0);
   if (!/^\d{4}-\d{2}$/.test(month)) { showToast('Pick the month the bill covers', 'error'); return; }
@@ -914,12 +892,12 @@ async function costBillSave() {
     var nk = next;
     if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
   }
-  _costBillOpen = { where: was.where, month: next, kind: kind, saved: (was.saved || 0) + 1 };
+  _costBillOpen = { where: 'finance', month: next, kind: kind, saved: (was.saved || 0) + 1 };
   saveState();
-  costBillRedraw(was.where);
+  costBillRedraw();
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
-async function costBillVoid(id, where) {
+async function costBillVoid(id) {
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b || b.voided) return;
   if (!grdOk('voids') && !(await guardAsk('voids', 'void a bill'))) return;   // P1 (guard.js)
@@ -931,22 +909,21 @@ async function costBillVoid(id, where) {
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
-  costBillRedraw(where);
+  costBillRedraw();
 }
 function costAction(action, btn) {
   switch (action) {
     case 'invCostBillOpen': {
-      var where = btn.dataset.where === 'finance' ? 'finance' : 'stats';
-      _costBillOpen = { where: where, month: btn.dataset.month || '' };
-      costBillRedraw(where);
-      var a = costBillRoot(where).querySelector('#costBillAmount'); if (a) a.focus();
+      _costBillOpen = { where: 'finance', month: btn.dataset.month || '' };
+      costBillRedraw();
+      var a = costBillRoot().querySelector('#costBillAmount'); if (a) a.focus();
       return true;
     }
-    case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
+    case 'invCostBillCancel': _costBillOpen = false; costBillRedraw(); return true;
     case 'invCostBillSave': costBillSave(); return true;
-    // Redraw the page the Void was tapped on, read from the button, not guessed from a hidden page's DOM:
-    // Finance → Bills & notes, or Stats → Live cost.
-    case 'invCostBillVoid': costBillVoid(btn.dataset.id, btn.closest('#pageFinance') ? 'finance' : 'stats'); return true;
+    case 'invCostBillVoid': costBillVoid(btn.dataset.id); return true;
+    // Live cost's link: the form on Payments, on the latest closed month with no electricity bill (add.js).
+    case 'invCostBillGo': addBill(); return true;
   }
   return false;
 }

@@ -285,6 +285,20 @@ export async function toolbarMore(page: Page, label?: string): Promise<void> {
   await dlg.waitFor();
   if (label != null) await dlg.locator('[data-tb-pick]', { hasText: label }).first().click();
 }
+/** A fold (`details[data-fold="key"]`, uiFoldCard / uiFoldHtml) opened where it is shut: shut on the phone and open on the desktop
+ *  by default, and a tap on an open one's head would shut it. */
+export async function openFoldAt(page: Page, key: string): Promise<void> {
+  const d = page.locator(`.inv-page-active details[data-fold="${key}"], .inv-scrim-dialog details[data-fold="${key}"]`).first();
+  await d.waitFor({ state: 'attached' });
+  if (!(await d.evaluate(el => (el as HTMLDetailsElement).open))) await d.locator(':scope > summary').click();
+}
+/** Money's Import of a bank statement (the tab map, TM3c): a door on the screen (the Bank toolbar's own button while no statement
+ *  is held, the empty Receivables' or Payments' link), else the Bank toolbar's More. Opens the file chooser; the caller waits on it. */
+export async function bankImportDoor(page: Page): Promise<void> {
+  const shown = page.locator('#pageFinance [data-action="invBankImport"]:visible');
+  if (await shown.count()) { await shown.first().click(); return; }
+  await toolbarMore(page, 'Import a statement');
+}
 /** The phone's name for toolbarMore, kept for the specs written before the desktop took the same row (§1a-10). */
 export const phoneMore = toolbarMore;
 /** A work screen's verdict card (§3e) is shut on the phone until opened: opens it where it is shut, on either layout. */

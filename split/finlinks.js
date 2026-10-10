@@ -53,7 +53,7 @@ function finInvoicePayment(inv) {
   if (!r) return null;
   var label = inv.displayNumber || inv.invoiceNumber, paid = [];
   r.allocs.forEach(function(a) {
-    a.parts.forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: a.v.row.date, amount: p.amount, how: a.how, chq: bankInstrument(a.v.row) }); });
+    a.parts.forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: a.v.row.date, amount: p.amount, how: a.how, chq: bankInstrument(a.v.row), pending: !!a.v.pending }); });
   });
   (r.credits || []).forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: '', amount: p.amount, how: 'account' }); });
   var open = r.open.find(function(o) { return o.inv && o.inv.id === inv.id; });
@@ -68,6 +68,12 @@ function finInvoicePaymentHtml(inv) {
     if (x.how === 'account') {
       h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-info">Settled from money on account</span></span>' +
         '<span class="inv-row-meta">paid before this invoice was raised</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
+      return;
+    }
+    // A cheque received and not yet in the bank pays it from the day it came (TM3b), and says so.
+    if (x.pending) {
+      h += '<div class="inv-row inv-row-2" data-inv-paid-cheque><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-info">Cheque in hand</span></span>' +
+        '<span class="inv-row-meta">received ' + escHtml(formatDate(x.date)) + (x.chq ? ' · chq ' + escHtml(x.chq) : '') + '</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
       return;
     }
     h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (x.how === 'exact' ? 'ok' : 'info') + '">' + (x.how === 'exact' ? 'Paid, exact' : 'Paid, oldest first') + '</span></span>' +
@@ -230,7 +236,6 @@ function finLinkAction(action, btn) {
     }
     case 'invHomeImportBank': finSetTab('bank'); switchTab('pageFinance'); bankImportFile(); return true;
     case 'invGoPay': _attView = 'pay'; switchTab('pageStaff'); return true;
-    case 'invGoBills': finSetTab('bills'); renderFinance(); return true;
     case 'invGoStock': _stockView = 'list'; switchTab('pageStock'); return true;
   }
   return false;

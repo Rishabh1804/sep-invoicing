@@ -627,7 +627,7 @@ function powerLoadHtml(a) {
   if (L.note) h += '<div class="inv-panel-body inv-note">' + escHtml(L.note) + '</div>';
   h += '</div>';
   h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button></div>';
-  if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Finance &rarr; Bills &amp; notes; their details (units, peak, charges) are set here.</div>';
+  if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money &rarr; Payments; their details (units, peak, charges) are set here.</div>';
   L.bills.slice().reverse().forEach(function(b) {
     var bits = [b.kwh ? formatNum(b.kwh, 0) + ' kWh' : (b.units ? formatNum(b.units, 0) + ' units' : ''), b.kvah ? formatNum(b.kvah, 0) + ' kVAh' : '',
       b.kwh && b.kvah ? 'PF ' + formatNum(b.kwh / b.kvah, 3) : '', b.md ? 'peak ' + formatNum(b.md, 2) + ' kVA' : '', b.kvaBilled ? 'billed at ' + formatNum(b.kvaBilled, 0) + ' kVA' : '',
@@ -975,7 +975,7 @@ function powerAction(action, btn) {
     case 'invPowerLoadSave': powerLoadSave(); return true;
     case 'invPowerBillEdit': powerBillEdit(btn.dataset.id); return true;
     case 'invPowerBillSave': powerBillSave(btn.dataset.id); return true;
-    case 'invPowerBillsGo': todoGo({ kind: 'bills' }); return true;
+    case 'invPowerBillsGo': addBill(); return true;
     case 'invPowerAddCut': powerAddCut(); return true;
     case 'invPowerImport': powerImport(); return true;
   }

@@ -140,6 +140,14 @@ function finForecast(days) {
   else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
     (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
   if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
+  // In: a cheque in hand (TM3b) reaches the bank the next working day, or on its own date where it is dated later. It already
+  // settled the invoices it pays (bankReceivables), so they are not expected twice.
+  var held = bankChequesHeld(ctx.cls), heldDay = bankChequeNextWorkday(today);
+  held.list.forEach(function(o) {
+    var amt = Number(o.ch.amount) || 0, on = o.ch.chequeDate && o.ch.chequeDate > heldDay ? o.ch.chequeDate : heldDay;
+    add(on, 'in', amt, amt, amt);
+  });
+  if (held.n) rests.push(todoPlural(held.n, 'cheque') + ' in hand, ' + formatCurrency(held.amount) + ', expected in the bank on ' + formatDate(heldDay) + ' (a post-dated one on its date).');
   var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows));
   if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
 
@@ -272,7 +280,8 @@ var FIN_RULES = [
   ['cashSwing', 'Finance: a week’s cash drawn is well short of its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
   ['runway', 'Finance: the cash forecast goes below zero'],
-  ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
+  ['bankBounce', 'Finance: a returned cheque is not matched to its deposit'],
+  ['chequeHeld', 'Finance: a cheque received is not yet in the bank']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 /* Who sees them (todo.js todoSees): every one reads the statement, which is money, whatever page its move lands on (a
@@ -364,7 +373,7 @@ TODO_RULE_FNS.gstNotInBank = function() {
   });
 };
 TODO_RULE_FNS.powerPaidNoBill = function() {
-  // Only the book's months: a payment for a month before the first invoice pays a bill Bills & notes never asks for
+  // Only the book's months: a payment for a month before the first invoice pays a bill Payments never asks for
   // (billsMissingPower) and nothing reads. Nor a month the power rule already asks for: one task per bill.
   var first = '';
   (S.invoices || []).forEach(function(i) { if (i.date && (!first || i.date < first)) first = i.date; });
@@ -478,6 +487,22 @@ TODO_RULE_FNS.bankBounce = function() {
     sub: formatCurrency(sum) + ' went back out; until each is linked to its deposit, that client reads as paid',
     why: 'Receivables · returned cheques', facts: open.map(function(v) { return [formatDate(v.row.date), formatCurrency(v.row.dr)]; }),
     clears: 'Clears itself when each is linked to its deposit or marked not a bounce.', go: finGo('receipts', { anchor: 'bankBounces' }), goLabel: 'Match them', sig: open.map(function(v) { return v.row.id; }).join('|') }];
+};
+/* A cheque received and still in hand (TM3b): amber at 3 days, red at 7, one task a cheque (three or more fold into one). It
+   says whether the statement reaches past the day it came, so "not in the bank" is a fact, else to import the statement. */
+TODO_RULE_FNS.chequeHeld = function() {
+  var ctx = finCtx(), end = ctx.rows.length ? ctx.rows[ctx.rows.length - 1].date : '';
+  return bankChequesHeld(ctx.cls).list.filter(function(o) { return o.days >= 3; }).map(function(o) {
+    var c = bankChequeClient(o.ch), past = end && end > o.ch.receivedOn, tone = o.days >= 7 ? 'red' : 'amber';
+    return { key: 'chequeHeld:' + o.ch.id, rule: 'chequeHeld', tone: tone, clientId: o.ch.clientId, amount: Number(o.ch.amount) || 0,
+      // The client is in its line, not its title: Needs you's groups name their tasks by title in one line (a long name made
+      // that line a block of text, P195).
+      title: 'Deposit cheque ' + o.ch.number,
+      sub: (c ? c.name + ' · ' : '') + formatCurrency(o.ch.amount) + ', received ' + formatDate(o.ch.receivedOn) + (past ? ': not in the bank by ' + formatDate(end) : ': import the statement to check'),
+      why: 'Receivables · cheque in hand', facts: [['Received', formatDate(o.ch.receivedOn)], ['In hand', todoPlural(o.days, 'day')], ['Statement to', end ? formatDate(end) : 'none yet']],
+      clears: 'Clears itself when its deposit is on the statement, or the cheque is voided.', go: finGo('receipts', { cheque: o.ch.id }), goLabel: 'Open the cheque',
+      sig: o.ch.id + '|' + tone };
+  });
 };
 TODO_RULE_FNS.runway = function() {
   var fc = finForecast(45);

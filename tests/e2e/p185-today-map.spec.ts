@@ -185,7 +185,7 @@ test.describe('P185: Today on the phone', () => {
     }
   });
 
-  test('Cost folds the bills to one row, led by the latest bill that stands; their notes stay on Money', async ({ page }) => {
+  test('Cost keeps no list of bills: one line says where they are entered and opens the form there; their notes are on Money', async ({ page }) => {
     // A bill two months back with a note, and a later one voided: the voided bill is listed inside, never the head.
     const ym = (back: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - back); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
     const book = longBook() as any;
@@ -196,15 +196,24 @@ test.describe('P185: Today on the phone', () => {
     await loadAppWithState(page, book);
     await switchTab(page, 'pageStats');
     await page.locator('#statsToolbar [data-action="invStatsTab"][data-tab="cost"]').click();
-    const fold = page.locator('[data-fold="cost-bills"]');
-    expect(await fold.evaluate(el => (el as HTMLDetailsElement).open), 'shut on the phone').toBe(false);
+    // The tab map, TM3a: the bills are entered and kept on Money → Payments; the card's list repeated them.
+    await expect(page.locator('[data-fold="cost-bills"]')).toHaveCount(0);
+    await expect(page.locator('#liveCost [data-bill]')).toHaveCount(0);
+    const line = page.locator('[data-cost-bills]');
+    await expect(line).toContainText('Bills are entered in Money → Payments');
+    await expect(line).not.toContainText('Paid at the counter');
+    await line.locator('[data-action="invCostBillGo"]').click();
+    await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageFinance [data-bill-form]')).toBeVisible();
+    // On Payments the bills fold to one row led by the latest that stands, the voided one muted inside, each with its note.
+    const fold = page.locator('[data-fold="bills-entered"]');
     const head = fold.locator(':scope > summary');
     await expect(head).toContainText('1 bill entered, the latest ' + await g(page, `billsMonthLabel('${ym(2)}')`));
     await expect(head).toContainText('₹41,234.50');
     await expect(head).not.toContainText('99,999');
     await openFold(fold);
     await expect(fold.locator('.inv-row-muted')).toContainText('void: entered twice');
-    await expect(page.locator('[data-cost-bills]')).not.toContainText('Paid at the counter');
+    await expect(fold).toContainText('Paid at the counter');
   });
 
   test('the dispatch cycle is Pipeline’s, over the last 90 days', async ({ page }) => {

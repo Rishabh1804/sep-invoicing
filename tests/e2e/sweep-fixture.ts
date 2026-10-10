@@ -117,7 +117,10 @@ export function sweepState(): SepState {
     { id: 'R4', date: dayOff(-2), valueDate: dayOff(-2), narration: 'NEFT-ALPHA FORGINGS PRIVATE LIMITED', chq: '', dr: 0, cr: 30000, balance: 132499, dayIdx: 0 },
     { id: 'R5', date: dayOff(-1), valueDate: dayOff(-1), narration: 'TO SELF', chq: '', dr: 20000, cr: 0, balance: 112499, dayIdx: 0 }];
   s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 'fake.xls', account: '', from: rows[0].date, to: rows[4].date, rows: 5, added: 5, closing: 112499 }],
-    parties: {}, opening: {}, gstNotes: {} };
+    parties: {}, opening: {}, gstNotes: {},
+    // Cheques received (the tab map, TM3): one in hand four days, one found in the bank by its number.
+    cheques: [{ id: 'CHQ1', clientId: 1, amount: 18000, number: '612301', receivedOn: dayOff(-4), at: 1 },
+      { id: 'CHQ2', clientId: 1, amount: 25000, number: '525428', receivedOn: monthOff(-1, 17), at: 1 }] };
   // A floor record: VAT A1 plated from a register photo, a barrel list, pickled loads with no line yet, a power cut.
   const pe: any[] = [];
   for (let k = 1; k <= 6; k++) {
@@ -467,6 +470,9 @@ export const DIALOGS: Array<[string, string]> = [
   ['number-audit', `showNumberAudit()`],
   ['account-for', `openAccountForNumber('4')`],
   ['credit-notes', `renderCreditNoteList()`],
+  // Its two forms, in the same dialog (the tab map, TM3).
+  ['credit-note-new', `renderCreditNoteList(); billsCnFormOpen('new')`],
+  ['credit-note-record', `renderCreditNoteList(); billsCnFormOpen('record')`],
   ['cn-against', `cnSetAgainstInvoice('CN1')`],
   ['cn-raise', `openCreditNoteForm(['INV-16'])`],
   ['invoice-detail', `openInvoiceDetail('INV-17')`],
@@ -502,6 +508,9 @@ export const DIALOGS: Array<[string, string]> = [
   ['office-qr', `ckSetupOpen()`],
   // A client's statement and reminder (P173) and the pay slips (P174).
   ['statement', `soaOpen((bankReceivables()[0] || { client: { id: 1 } }).client.id)`],
+  // A cheque received: the form, and one in hand opened (TM3).
+  ['cheque-form', `bankChequeFormOpen(1)`],
+  ['cheque', `bankChequeOpen('CHQ1')`],
   ['pay-slips', `_attWeekStart = attWeekStartOf(localDateStr()); psOpen()`],
   ['merge-held', `S.mergeHeld = [{ id: 'MH-sweep', at: Date.now(), coll: 'clients', rid: '1', field: 'phone', label: 'a client', why: 'both', kept: { side: 'm', v: '1111' }, other: { side: 't', v: '2222' }, status: 'open', from: 'Office PC' }]; mrgHeldOpenDialog()`],
   ['prospect-form', `prsFormOpen(null)`],

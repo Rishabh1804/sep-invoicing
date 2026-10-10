@@ -48,8 +48,9 @@ test('a statement that reaches back before the book: early receipts are left out
   const tab = page.locator('[data-action="invFinTab"][data-tab="receipts"]');
   await expect(tab.locator('.inv-badge')).toHaveText('1');
   await tab.click();
-  const panel = page.locator('#bankReceipts');
-  await expect(panel).toContainText('the first invoice in the book');
+  // One line on the face says where receipts start; why is the bank guide's (the tab map, TM3c).
+  await expect(page.locator('[data-recv-from]')).toContainText('Since ' + await ev(page, `formatDate('${day(-30)}')`));
+  expect(await ev(page, `KB_APP_GUIDES.find(function(g) { return g.id === 'app-bank'; }).body`)).toContain('the book’s first invoice');
   await expect(page.locator('[data-loose]')).toHaveCount(1);
   await expect(page.locator('[data-loose-early="1"]')).toContainText('from before');
 });
@@ -98,8 +99,10 @@ test('a receipt never pays an invoice raised after it: what it cannot place stay
   expect(await ev(page, `finInvoicePayment(S.invoices[2]).paid.map(function(p) { return p.how; })`)).toEqual(['account']);
   await switchTab(page, 'pageFinance');
   await page.locator('[data-action="invFinTab"][data-tab="receipts"]').click();
-  await expect(page.locator('[data-recv="1"]')).toContainText('on account');
+  await expect(page.locator('[data-recv="1"]')).toContainText('paid ahead');
   await page.locator('[data-recv="1"] [data-action="invBankClient"]').click();
+  // What is on account is a fact of its own in the client's fold (the tab map, TM3c: two facts in the row's line).
+  await expect(page.locator('[data-recv-fact="account"]')).toContainText('₹1,300.00');
   await expect(page.locator('[data-on-account]')).toContainText('more than was open to pay');
   await expect(page.locator('[data-alloc]')).toContainText('more than was open by then');
 });
@@ -120,8 +123,8 @@ test('what a client owed at the start is offered from its first weeks’ receipt
   await switchTab(page, 'pageFinance');
   await page.locator('[data-action="invFinTab"][data-tab="receipts"]').click();
   await expect(page.locator('[data-opening-hint="1"]')).toBeVisible();
-  await expect(page.locator('[data-recv="1"]')).toContainText('owed at start not set');
   await page.locator('[data-recv="1"] [data-action="invBankClient"]').click();
+  await expect(page.locator('[data-recv-fact="opening"]')).toContainText('not set');
   // Offered, never applied: nothing is stored until Use.
   expect(await ev(page, `JSON.stringify(bankData().opening)`)).toBe('{}');
   await page.locator('[data-opening-suggest="1"] [data-action="invBankOpeningUse"]').click();

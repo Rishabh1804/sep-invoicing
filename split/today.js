@@ -307,7 +307,7 @@ function tdyAppCardHtml(t) {
 /* A task of your own as a card: its tick box and its due date in the head, its words, the place it was added from. */
 function tdyMineCardHtml(t) {
   var tone = todoMineTone(t), go = '';
-  if (t.go) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(t.goLabel || 'Open') + '</button>';
+  if (t.go) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoGoLabel(t)) + '</button>';
   else if (t.link) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
   return '<article class="inv-deck-item" data-todo="mine" data-tone="' + escHtml(tone) + '">' +
     '<div class="inv-deck-head"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +

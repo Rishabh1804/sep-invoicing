@@ -58,11 +58,11 @@ var KB_APP_GUIDES = [
     'An invoice moves through five states: **Created → Printed → Dispatched → Delivered → Filed**.\n\n' +
     '- Print marks it Printed. Mark it Dispatched when it leaves, Delivered when the customer has it.\n- Its dot turns amber, then red, the longer it sits in one state.\n' +
     '- Delivered waits on the GST return, due on the 11th of the next month.\n- Office → Pipeline shows every invoice by state, with the oldest first.'),
-  _kbg('credit', 'Using the app: credit notes', 'A batch rebate, a correction, or a note issued on paper', ['pageRegister', 'pageFinance'],
+  _kbg('credit', 'Using the app: credit notes', 'A batch rebate, a correction, or a note issued on paper', ['pageRegister'],
     '- **A batch rebate**: tick the invoices of the batch in the Register, then raise the credit note from the selection.\n' +
-    '- **A correction** (rate, goods returned, short quantity): Money → Bills & notes → New note, against one invoice, with a reason.\n' +
-    '- **A note already issued on paper**: Bills & notes → Record an issued note, with its own number and the GST as printed.\n\n' +
-    'A credit note is cancelled, never deleted.'),
+    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
+    '- **A note already issued on paper**: Office → Invoices → **Credit notes** → **Record issued**, with its own number and the GST as printed.\n\n' +
+    'A credit note is cancelled, never deleted.', { version: 2 }),
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
     '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Paste message).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
     '3. Check every line, then **Save**. A spelling you place is remembered.\n4. Paste the out-time roll the same way: it updates the day.\n\n' +
@@ -101,9 +101,14 @@ var KB_APP_GUIDES = [
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
     '- Floor → People → **Pay**, for the pay week (Sunday to Saturday).\n- Each hand shows what was earned, what was paid and what is due. Tap a hand to record a payment or an advance.\n' +
     '- A wrong payment is voided with a reason, never deleted.\n- The weekly payout is predicted while the week is open.', { roles: ['owner'] }),
-  _kbg('bank', 'Using the app: the bank statement', 'Importing it, and placing each receipt', ['pageFinance'],
-    '- Money → Bank → **Import statement**: the bank’s own .xls file. Rows already in are skipped.\n- Money → Receivables: each receipt is set against the client’s invoices. A cheque with no name is offered to a client; place it with one tap.\n' +
-    '- A payee set once is remembered.', { roles: ['owner'] }),
+  _kbg('bank', 'Using the app: the bank statement', 'Importing it, placing each receipt, and cheques in hand', ['pageFinance'],
+    '- Money → Bank, in the toolbar’s More: **Import a statement**: the bank’s own .xls, or the same saved as .xlsx. Rows already in are skipped, so a statement that overlaps the last adds only what is new.\n' +
+    '- **Receivables start** on the later of the statement’s first day and the book’s first invoice: a receipt before then paid an invoice the app does not hold.\n' +
+    '- **A receipt is set against the client’s invoices**: exactly, where it adds up to one open invoice or a run of them to the rupee; otherwise against the oldest first, never against an invoice raised after it came. What it cannot place stays on account and settles the next invoices.\n' +
+    '- **Owed at the start** is what a client owed on the day receivables start. The app offers a figure from the money that came in first; it is never applied until you tap Use.\n' +
+    '- **A cheque received** (Receivables → Cheque received, or Add → Cheque) counts as paid the day it came. Its deposit on the statement, found by its number, takes over, so it is never counted twice.\n' +
+    '- A cheque deposit names nobody: it is offered to a client by its series or its amount; place it with one tap. A payee set once is remembered.\n' +
+    '- **GST**: a month’s due is its output tax less its credit notes; paid is what the bank sent the month after, since a return is paid by the 20th. Paid less than due is the input credit, not a shortfall.', { roles: ['owner'], version: 2 }),
   _kbg('search', 'Using the app: search and keys', 'Finding anything, and the shortcuts', ['pageHome'],
     '- Search (the magnifier, or Ctrl K) finds invoices, challans, clients, parts, workers, stock lines, quotations, credit notes, articles here, and screens.\n' +
     '- Numbers match whole: 834 finds invoice 00834, never 8341.\n- **A** opens Add. **Backspace** goes back. Ctrl+click opens a screen in a new window.'),

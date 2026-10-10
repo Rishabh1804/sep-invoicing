@@ -101,7 +101,9 @@ var NAV_REDIRECTS = [
   { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'pulse' }; } },
   { tab: 'pageStats', v: 'billing', to: function() { return { tab: 'pagePipeline', v: '' }; } },
   // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
-  { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } }
+  { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } },
+  // TM3a: Bills & notes split: its bills are Payments', its credit notes the Invoices' dialog.
+  { tab: 'pageFinance', v: 'bills', to: function() { return { tab: 'pageFinance', v: 'payments' }; } }
 ];
 function navRedirect(loc) {
   if (!loc || !loc.tab) return loc;

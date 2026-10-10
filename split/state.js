@@ -66,7 +66,7 @@ function getDefaultState() {
     production: { entries: [], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
     power: { load: {}, cfg: {}, items: {} },
     // The bank statement as imported (bank.js): rows merged by id, and what the operator set.
-    bank: { rows: [], imports: [], parties: {}, opening: {} },
+    bank: { rows: [], imports: [], parties: {}, opening: {}, cheques: [] },
     // Days of cover at which a line turns red / amber, and the cost model's
     // chemicals figure the measured one is reported against.
     stockCheck: { redDays: 3, amberDays: 7, chemModel: 1.57 },

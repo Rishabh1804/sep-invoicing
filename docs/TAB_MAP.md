@@ -46,8 +46,8 @@ Nothing here changes what the book records except TM3b.
 |---|---|---|
 | TM1 | The shell: the rows, the tools in the top bar, Sales, Parts, the redirect table, the names; the toolbar (Filter, More); one look's pieces (the verdict card, `data-screen`, the row end); the instruments (P195, P197) | **Built** (9 Oct 2026; what it decided is under TM1, *As built*) |
 | TM2 | Today: the To-do into Needs you, Pulse takes Stats → Overview and stays short, Stats' three tabs led by verdicts, Pulse's widgets, the Planner's Moves and header, Reports fitted | **Built** (9 Oct 2026; what it decided is under TM2, *As built*) |
-| ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | **Waiting**: the shots are in the PR |
-| TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | Not built |
+| ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | **Done** (10 Oct 2026, the owner: *"Go ahead"*) |
+| TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | **Built** (10 Oct 2026; what it decided is under TM3, *As built*) |
 | TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | Not built |
 | TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | Not built |
 | TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | Not built |
@@ -892,6 +892,66 @@ leads with its heroes inside the first phone screen; GST cuts nothing at 393 px;
 **Specs P186 (`p186-money-map.spec.ts`: TM3a
 and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Grep after:** `'Bills & notes'` in UI strings
 (none), `finSetTab('bills')`, `renderBillsNotes`, `invGoBills`, `data-where="stats"`.
+
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **A deposit is the cheque's by its number, whatever its amount.** A client who wrote ₹23,500 on a cheque typed as ₹23,600 has
+  still paid by that cheque, and matching on the number and the amount would leave it counted beside its own deposit; the
+  difference is said on its row (*In the bank: ₹23,500.00*, amber). An offer (**Link**) is a credit of the same amount, carrying
+  no number of four digits or more (one that does is that cheque's), not placed on another client, within 15 days.
+- **A post-dated cheque is expected in the bank on its own date** in the forecast, not on the next working day.
+- **A cheque deposit is named by its number** on the statement and in search (*Deposit of cheque 525428*, `bankRowTitle`): placed
+  on its cheque's client, its line had chained the client's name, the number and *a cheque received* past two lines on the phone
+  (P76). Its edit says whose cheque it was.
+- **Add's door reads *Cheque*** (its neighbours are one word: *Payment*, *Bill*); the form's title says *Cheque received*. Eleven
+  doors at the desktop's five across left the last alone, so a last door alone on its row takes the row, as an odd last tile does.
+- **The method went to the bank guide** (`kbguides.js` `bank`, version 2): where receipts start, how a receipt is set (exact,
+  else oldest first), the opening, the cheques received, GST due and paid. Receivables keeps one line (*Since 5 Aug 2026. A
+  receipt pays the invoices it adds up to exactly, else the oldest first.*); GST keeps none.
+- **A client's line is two facts** (*pays in 32 d · oldest 47 d*). What it chained before, money on account, the opening not
+  set and the last reminder, are in its fold: *On account* and *Owed at the start* as fact rows, the reminder beside
+  *Statement and reminder*.
+- **Payments' sections fold** (electricity paid, the wages, suppliers, other), shut on the phone: open, Payments measured 2.34
+  phone screens on the long book against its budget of 2. **GST shows its latest six months on the phone**, the rest one tap
+  away: twelve rows measured 1.58 against 1.5.
+- **What needs the owner shows its first few, the rest one tap away** (`uiMoreHtml`), the verdict and the panel's head counting
+  them all: five receipts with no client (ten before), three payees not yet sorted, the three latest months with no electricity
+  bill. The verdict, the toolbar and the cheques took that room on Receivables, and the bills on Payments; given back, neither
+  screen is longer than at TM2 (I10). A payee list is sorted by what was paid, so the three are the ones that matter most.
+- **The statement's line is two facts** (the day, and what it is): a cheque's number left it, since the row's narration carries it
+  when opened and search finds it (on the owner's book, every payment by the shop's own cheques chained a third). A line naming a
+  client or a hand wraps whole (`inv-row-wrap`): the name sits in its status dot, which does not wrap, and a long one was cut.
+- **The Overview's figures are whole rupees, each carrying its exact amount in its title** (`finHeroFig`), as the tiles' did.
+- **The cheque task names the cheque, and its line the client** (*Deposit cheque 612301*; *ALPHA FORGINGS · ₹18,000.00, received
+  6 Oct 2026: not in the bank by 8 Oct 2026*): Needs you's groups name their tasks by title in one line, and a long client name
+  made it a block.
+- **The long book's cheques are its own** (`longBook`): one in hand four days, one deposited on its statement. It had kept the sweep
+  book's, whose second is deposited on a row the long book does not hold, so it read 22 days in hand.
+- **The Overview's heroes are shut on the desktop too**: the four across (two under 80rem) are its first screen, and one opened
+  takes its row, as Pulse's do. Their links into the tabs are `invFinGo`, never the tab row's own action, which made the tab's
+  selector find two.
+- **The Credit notes dialog drops its form when it shuts** (`_onClose`); a typed form asks first (the dialog guard), and the
+  dialog opened again is the list. **Typed, it is redrawn inside its own sheet**, which keeps its place and does not slide in
+  again on every pick (P79 found a client picked halfway down sending it to its top).
+- **P79 reads the scroller drawn now** (a list redrawn by its id) and how far it can still scroll: a receipt placed leaves less
+  below than was scrolled past, and the probe had read the list left detached, whose scroll is always 0.
+- **Three toolbar budgets went from 0 to 1**: Receivables, Payments and Bank, the one toolbar row a work screen has (§3e).
+  Said to the owner with TM3 (I10).
+- **The measures**, phone screens, the worst of eleven days on the long book (the TM2 build → TM3, each budget lowered to its
+  measure but the three toolbar rows above):
+
+  | Screen | Long book | Owner's book (TM2 → TM3, same book) |
+  |---|---|---|
+  | Money → Overview | 6.53 → **1.41** (blocks 4 → 1) | 6.88 → **1.39** (blocks 3 → 1, chains 4 → 0) (target ≤ 3) |
+  | Money → Receivables | 3.09 → **2.92** (blocks 1 → 0, chains 12 → 0) | 2.39 → **2.22** (blocks 4 → 0, chains 17 → 0) |
+  | Money → Payments | 1.72 → **1.72** (blocks 1 → 0) | 3.05 → **1.55** (chains 0; blocks 1 → 2, below) |
+  | Money → Bank | 3.38 → **3.20** (chains 7 → 0) | 3.56 → **3.31** (chains 8 → 0) |
+  | Money → GST | 1.11 → **1.10** (blocks 1 → 0) | 1.11 → **1.10** (blocks 1 → 0) |
+  | Money → Bills & notes | 1.15 → gone | 2.17 → gone (2 blocks, 6 chains) |
+  | Office → Invoices | 3.65 → 3.65 | 3.50 → 3.50 |
+  | Today → Needs you | 2.83 → 2.86 (the cheque in hand's task) | 3.00 → 2.79 |
+
+  The Overview's one block is the forecast's *what it rests on*, inside its fold (TM6, the last long notes). Payments' two on the
+  owner's book are two imported bills' own notes, inside the bills' fold: the owner's words, kept whole.
 
 ### TM4 — Floor
 

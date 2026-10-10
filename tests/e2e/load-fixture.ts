@@ -128,6 +128,11 @@ export function longBook(): SepState {
   }
   s.bank.rows = rows;
   s.bank.imports = [{ id: 'BL', at: 1, file: 'long.xls', account: '', from: rows[0].date, to: rows[rows.length - 1].date, rows: rows.length, added: rows.length, closing: bal }];
+  // Its cheques received are its own, as the sweep book's are to its statement: one in hand four days, one gone in by its number
+  // (the sweep book's second is deposited on a row this statement does not hold).
+  const dep = rows.find(r => r.chq === '600154');
+  s.bank.cheques = [{ id: 'CHQ1', clientId: 1, amount: 18000, number: '612301', receivedOn: dayOff(-4), at: 1 },
+    { id: 'CHQ2', clientId: 1, amount: dep.cr, number: dep.chq, receivedOn: dayOff(-7), at: 1 }];
   return s;
 }
 
@@ -337,6 +342,8 @@ export const ONE_LOOK: string[] = [
   'Today › Needs you', 'Today › Pulse',
   'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
   'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+  // TM3: Money's five.
+  'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
 ];
 
 /* What keeps the screen on show from its kind's anatomy (§3e), as a list of problems: none is one look. Read off what is drawn:

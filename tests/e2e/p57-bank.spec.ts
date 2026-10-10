@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import path from 'path';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, type SepState } from './fixtures';
+import { openFoldAt, toolbarMore, bankImportDoor, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, type SepState } from './fixtures';
 
 // P57: Finance → Receivables, Payments and Bank (moved from Stock, 26 Sep 2026). The bank's own .xls export read as it is, rows merged across overlapping
 // statements, receipts set against invoices, and the payments set against what the app records.
@@ -52,7 +52,7 @@ async function finTab(page: Page, tab: string) {
   await page.locator(`[data-action="invFinTab"][data-tab="${tab}"]`).click();
 }
 async function importXls(page: Page, file: string) {
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   // The file is read asynchronously: wait for the import's own word that it landed, or the next
   // step races the reader (it did, under a loaded run, on a test that read state straight after).
   const before = await page.evaluate(() => ((window as any).bankData().imports || []).length);
@@ -64,8 +64,8 @@ test('the bank\'s own .xls is read as it is, and every balance follows from the 
   await loadAppWithState(page, state());
   await openBank(page);
   await importXls(page, JUL);
-  await expect(page.locator('#bankHead')).toContainText('312 rows');
-  await expect(page.locator('#bankHead')).toContainText('001XXXXXXXX999');
+  await expect(page.locator('#bankVerdict')).toContainText('312 rows');
+  await expect(page.locator('#bankVerdict')).toContainText('001XXXXXXXX999');
   await expect(page.locator('[data-bank-breaks="0"]')).toBeVisible();
   const b = (await readStoredState(page)).bank;
   expect(b.rows).toHaveLength(312);
@@ -78,7 +78,7 @@ test('an overlapping statement adds only its new rows, and the join holds', asyn
   await openBank(page);
   await importXls(page, JUL);
   await importXls(page, JUL_AUG);
-  await expect(page.locator('#bankHead')).toContainText('316 rows');
+  await expect(page.locator('#bankVerdict')).toContainText('316 rows');
   await expect(page.locator('[data-bank-breaks="0"]')).toBeVisible();
   const b = (await readStoredState(page)).bank;
   expect(b.imports.map((i: any) => i.added)).toEqual([312, 4]);
@@ -89,7 +89,7 @@ test('an overlapping statement adds only its new rows, and the join holds', asyn
 test('a file that is not a statement is refused with a reason', async ({ page }) => {
   await loadAppWithState(page, state());
   await openBank(page);
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   await chooser.setFiles({ name: 'notes.xls', mimeType: 'application/vnd.ms-excel', buffer: Buffer.from('not a spreadsheet') });
   await expect(page.locator('.inv-toast').last()).toContainText('Not an Excel file');
   expect((await readStoredState(page)).bank?.rows || []).toHaveLength(0);
@@ -145,6 +145,8 @@ test('an electricity payment becomes the month\'s bill, and wages are set agains
   await openBank(page);
   await importXls(page, JUL);
   await finTab(page, 'payments');
+  // What was paid is folded under what needs the owner (the tab map, TM3c).
+  await openFoldAt(page, 'pay-power');
   const pay = page.locator('#bankPower [data-power]');
   await expect(pay).toHaveCount(1);
   await expect(pay.locator('select')).toHaveValue('2026-06');
@@ -192,7 +194,7 @@ test('a missing electricity month offers what the bank says was paid', async ({ 
   await loadAppWithState(page, state());
   await openBank(page);
   await importXls(page, JUL);
-  // Bills & notes asks only for the last six closed months, so read the offer off the renderer
+  // Payments asks only for the last six closed months, so read the offer off the renderer
   // for June 2026 directly rather than off a list that depends on today's date.
   const offer = await page.evaluate(() => {
     const w = window as any;
@@ -220,7 +222,8 @@ test('Export Excel writes a clean workbook: sorted, real dates and numbers, and 
   await openBank(page);
   await importXls(page, JUL_AUG);   // imported first, so the file is not already in date order
   await importXls(page, JUL);
-  const [dl] = await Promise.all([page.waitForEvent('download'), page.locator('[data-action="invBankExport"]').click()]);
+  // The exports are behind the toolbar's More (the tab map, TM3c).
+  const [dl] = await Promise.all([page.waitForEvent('download'), toolbarMore(page, 'Export Excel')]);
   expect(dl.suggestedFilename()).toBe('bank-statement-2026-07-01-to-2026-08-14.xlsx');
   const zip = unzipStored(await (await import('fs')).promises.readFile((await dl.path())!));
   for (const part of ['[Content_Types].xml', '_rels/.rels', 'xl/workbook.xml', 'xl/styles.xml', 'xl/worksheets/sheet1.xml', 'xl/worksheets/sheet2.xml']) {

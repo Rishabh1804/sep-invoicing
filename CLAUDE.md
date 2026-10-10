@@ -49,7 +49,8 @@ screens and views, 34 lead with no summary at all; the rest lead five different 
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
 row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
 (owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
-built, then TM2 (*The tab map* below); the build stops there for the owner to look, then TM3 to TM7 and the QA chain.
+built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3 is built (*The tab map* below); then TM4 to TM7 and
+the QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -116,7 +117,7 @@ split/
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
-├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
+├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
 ├── quote.js           ← Quotations: Clients → Quotations, a number at issue, revisions, the printed quotation (~790 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars, and a card's sparkline, meter and day on one bar (~580 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
@@ -125,11 +126,11 @@ split/
 ├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, monthly payroll as paid, hours by area, Home attendance (547 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
-├── bills.js           ← Finance → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
+├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
-├── bank.js            ← Finance → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
-├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
+├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,760 lines)
+├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
 ├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
@@ -145,7 +146,7 @@ split/
 ├── intel.js           ← Stats' three tabs; the questions' stories and In one line for Pulse; six months; contribution by client (~230 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
-├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
+├── finintel.js        ← Finance intelligence: thirteen bank To-do rules, days to pay, the cash forecast (~520 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
@@ -327,7 +328,7 @@ layouts; builders fixed each area with its spec (P104–P113). What it leaves as
   keeps the old name as a spelling, so payroll slips still find them.
 - **What the sweep left to the owner, and their rulings (30 Sep 2026)**, all built (P114): `gstRound` rounds the decimal figure
   (*"change it"*, HR-8); a pay balance carries across periods until cleared with a reason (*"yes, unless stated otherwise and
-  notification cleared"*, Pay); a second electricity bill in a month is arrears plus a penalty (Bills & notes); *"night hold is
+  notification cleared"*, Pay); a second electricity bill in a month is arrears plus a penalty (Bills & notes, now Money → Payments); *"night hold is
   night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
   says so.
 
@@ -455,7 +456,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 719 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 720 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2557,6 +2558,40 @@ them before TM3. P185; P195's budgets lowered for Today's screens and P197's `ON
   figure went to the screen's guide (Stats', Today's; kbguides.js). **Needs you's toolbar budget went from 0 to 1**: the To-do's Add
   row TM2a puts there, the one budget a step has raised, said to the owner at the stop (I10).
 
+### The tab map: Money (TM3)
+`docs/TAB_MAP.md` TM3 (10 Oct 2026, after the owner's look: *"Go ahead"*): Money's five screens in one look, the bills on Payments,
+the credit notes in Invoices, and a cheque in hand counted as paid (*Cheques received*, under Bank). P186, P187; P195's budgets
+lowered for Money's screens, and P197's `ONE_LOOK` takes them.
+- **Money is Overview · Receivables · Payments · Bank · GST** (`FIN_TABS`). The bills are Payments' (*Bills & notes*, above); an
+  address or a saved step naming `bills` opens Payments (`NAV_REDIRECTS`), the To-do's bill task opens the form on its month, and a
+  saved task's *Bills & notes* reads *Add the bill* (`todoGoLabel`). Live cost keeps its bills' fold and loses its form: *Add a bill*
+  opens Payments' (`invCostBillGo`); Power's link goes there too. The credit notes are Invoices → **Credit notes**, a dialog whose head
+  carries **Record issued** and **New note** and whose body holds the form (`renderCreditNoteList`, `[data-cn-dialog]`).
+- **The Overview leads with four heroes** (`inv-heroes-4`: two across on the phone and on a desktop under 80rem, four from it): Cash
+  (carrying the verdict), Owed to us, GST and Paid out, each folding to its line on the phone; the six charts follow, each a fold shut
+  on the phone. The tiles that led went into the heroes. Its links to the tabs are `invFinGo`, never the tab row's `invFinTab`.
+- **Receivables, Payments, Bank and GST are work screens**, each led by its verdict card (`#bankRecvVerdict`, `#bankPayVerdict`,
+  `#bankVerdict`, `#finGstVerdict`) and one toolbar under it:
+  - **Receivables**: *Cheque received* in the toolbar; the returned cheques, the cheques received and the receipts with no client
+    lead; a client's row has owed at its end in its age tone and two facts of meta, and opens to fact rows, then its invoices. How
+    receipts are set is the bank guide's now (`kbguides.js` `bank`, version 2), with one line on the face.
+  - **Payments**: *Add a bill* the one primary; the payees not sorted first, then the bills (a missing month one row with one Add,
+    the bank's payment for it under it), then electricity paid, the wages, suppliers and other, each a fold.
+  - **Bank**: the search, Filter (the category, a token once set) and More (Import a statement, Export Excel, Export JSON) in one
+    toolbar; the statement, then the balance check (open when a balance breaks) and the imports, each a fold.
+  - **GST**: on the phone a row a month with its due and paid stacked at its end, the latest six and the rest one tap away; the
+    desktop keeps the table. What due and paid mean is the bank guide's.
+- **What needs the owner shows its first few, the rest one tap away**, the verdict and the panel's head counting all: five receipts
+  with no client, three payees not yet sorted, the latest three months with no electricity bill. The verdict, the toolbar and the
+  cheques took that room on Receivables and the bills on Payments; given back, neither is longer than at TM2 (I10).
+- **A statement line is two facts** (the day, and what it is); a cheque deposit is named by its number in its title (*Deposit of
+  cheque 525428*), a payment's cheque number is in its narration when opened, and a line naming a client wraps whole.
+- **Three toolbar budgets went from 0 to 1** (Receivables, Payments, Bank: the one row a work screen has), said to the owner (I10).
+- Measured, phone screens (P195's long book, worst of eleven days; then the owner's book, in a scratch harness never in the repo):
+  Overview 6.53 → 1.41 (owner's 6.88 → 1.39); Receivables 3.09 → 2.92 (2.39 → 2.22, chains 17 → 0); Payments 1.72 → 1.72
+  (3.05 → 1.55); Bank 3.38 → 3.20 (3.56 → 3.31, chains 8 → 0); GST 1.11 → 1.10; Bills & notes gone.
+- Fixtures: `openFoldAt(page, key)` opens a fold by its key, `bankImportDoor(page)` the statement's import wherever it is drawn.
+
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
 - **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More; the desktop's
@@ -2943,18 +2978,20 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
 Sidebar **Money → Finance**; More → **Finance** on the phone (`finance.js`; owner, 26 Sep 2026: *"The entire finance
 sector of our app needs a dashboard"* — a page of its own, leading with cash, what is owed, where money went and GST).
 Bank and Bills & notes lived under Stock, where they never belonged; they are tabs here: **Overview · Receivables ·
-Payments · Bank · Bills & notes · GST**. The open tab is remembered on the device (`sep_inv_fin_tab`).
+Payments · Bank · GST** (the tab map, TM3a, 10 Oct 2026: the bills went to Payments and the credit notes to Office → Invoices; an
+address or a saved step naming `bills` opens Payments). The open tab is remembered on the device (`sep_inv_fin_tab`).
 
-- **Overview**, whole rupees at a glance (every tab behind it keeps the paise, and a figure's title carries them):
-  - tiles: the **bank balance** with the day it is from — amber once the statement is over a week old, red when
-    overdrawn — **owed to us**, **paid out** in the last month on the statement, and **GST** for last month;
-  - **cash by month**: in, out, and the balance each month closed at, with the balance line drawn only when every
-    month closed in credit (the line chart has no negative axis);
-  - **owed to us** by age (0–30 · 31–60 · 61–90 · over 90 days, from the invoice date) and the five largest
-    debtors, each opening Receivables with its client expanded; receipts with no client are said, not counted;
-  - **where money went**: one month's outflow by category, SELF draws as *Wages (cash)*, beside what was invoiced
-    and received that month;
-  - **GST due and paid**, the last six months.
+- **Overview**, whole rupees at a glance (every tab behind it keeps the paise, and a figure's title carries them), an
+  overview in one look (the tab map, TM3c): four heroes, one a subject, each folding to its line on the phone, then the charts
+  below, each a fold shut on the phone:
+  - **Cash** carries the verdict: the **bank balance** with the day it is from (amber once the statement is over a week
+    old, red when overdrawn), the forecast's lowest point within 60 days as its title, the cheques in hand added
+    (*+ ₹X in cheques in hand*);
+  - **Owed to us**: the sum over 90 or 60 days as its title, the age bar (0–30 · 31–60 · 61–90 · over 90 days, from
+    the invoice date) and the five largest debtors, each opening Receivables with its client expanded; never red while
+    a receipt is unplaced, and receipts with no client are said, not counted;
+  - **GST** for last month, toned by its status;
+  - **Paid out** last month, where most of it went (SELF draws as *Wages (cash)*), and what came in.
 - **The Overview is interactive** (spec Phase 3; owner: *"more like financial dashboard with interactive pie
   charts, line charts, trends chart"*). One range chip row (`3M · 6M · FY · All`, kept per device as
   `sep_inv_fin_range`) drives every panel. **Cash**: balance, in and out on one axis, with the balance line
@@ -2970,7 +3007,7 @@ Payments · Bank · Bills & notes · GST**. The open tab is remembered on the de
   20th of the next month. Cash paid is output tax *less input credit*, so paying less than is due is the normal
   shape; the tab says so and never calls the gap a shortfall. The GST tab reads twelve months.
 - With no statement the Overview says what reads from it and still shows GST due, which reads from the invoices.
-- The To-do's missing electricity bill opens Finance → Bills & notes on the month (`todoGo` kind `bills`).
+- The To-do's missing electricity bill opens Money → Payments with the bill form on the month (`todoGo` kind `bills`).
 - **Cheques are placed, and tagged by their series** (owner, 26 Sep 2026: *"make sure we have a field to enter the
   client so that what the client owes starts coming down to the actual figure. Also tag cheque numbers to clients —
   their series will help in automation"*). The Overview's *"N receipts not placed"* is a link to them, and the
@@ -2990,14 +3027,17 @@ Payments · Bank · Bills & notes · GST**. The open tab is remembered on the de
   it); a note alone reads **Noted**. The tile follows. Nothing is seeded: July's note is the owner's to write.
 
 ### Bills & notes
-More → Finance → **Bills & notes** (`bills.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We don't have a place to enter electricity
+The bills are Money → **Payments**' (`#billsPower`, with or without a statement), the credit notes Office → Invoices →
+**Credit notes** (a dialog; the tab map, TM3a, 10 Oct 2026). `bills.js` keeps both forms. They had been a Finance tab of their
+own, *Bills & notes* (moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We don't have a place to enter electricity
 bills anywhere in the app. And even credit notes"*). The bill form existed, labelled *Power*, at the foot of
 Stats → Cost → Live cost; nobody found it. Credit notes could only be raised from a Register selection as a
 batch rebate.
 
 - **Electricity** (the `power` kind is labelled *Electricity* everywhere now). Every closed month with invoices
-  and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`). The
-  same form serves the Stats card (`costBillFormHtml`, `_costBillOpen = {where, month}`).
+  and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`), and the
+  bank's payment for that month under it with *Add as bill*. Live cost's *Add a bill* opens the same form on Payments
+  (`costBillFormHtml`, `_costBillOpen = {where: 'finance', month}`, `invCostBillGo`).
   To-do rule **`power`**: from the 10th, last month without a bill; amber from the 20th, `sig` the month.
 - **A second electricity bill in a month is arrears and a penalty** (owner, 30 Sep 2026: it *"only happens when a bit or all of
   a couple months ago was not paid in time, so it might include a penalty"*). A bill records the **arrears** in it (and the month
@@ -3005,7 +3045,8 @@ batch rebate.
   own bill, so a bill's cost is its amount less its arrears (`costBillCost`); the penalty stays in and is named on the bill and
   in Live cost. A second bill with no arrears entered asks first, never refuses. The owner mentioned paying about ₹5,000 a month
   since the load went to 50 while the bill still reads 25: that charge can be entered as the penalty or extra charge.
-- **Credit notes, two doors.** *Record an issued note* takes a note that already exists on paper, with its **own
+- **Credit notes, two doors**, in the head of Invoices → Credit notes, the form drawn in the dialog's body (a save or a cancel
+  redraws it with the Register's badge and CN marks, `cnRegisterRefresh`). *Record an issued note* takes a note that already exists on paper, with its **own
   number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
   CN/004's 3,749.29 at 9% + 9% rounds each half to 337.44 = ₹4,424.17 where the customer holds ₹4,424.16. The
   fields start at the computed figure. `recorded: true`; `cnNextNum` moves past it **only within its own financial
@@ -3026,7 +3067,7 @@ batch rebate.
   nothing.
 
 ### Bank
-More → Finance → **Receivables**, **Payments** and **Bank** (`bank.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
+Money → **Receivables**, **Payments** and **Bank** (`bank.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
 to read it in the app yet"* — all three of receipts, payments and the ledger, reading the bank's `.xls` as it is).
 
 - **The file is read as the bank exports it.** Bank of Baroda's `OpTransactionHistoryUX5.xls` is real Excel 97–2003
@@ -3085,7 +3126,7 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   client's open invoices — and only one client's — that client is **offered**; placing it is a tap. Placed on
   the row, never remembered as a payee, because `BY INST` is not a name.
 - **Payments.** An electricity payment defaults to the month before it and becomes that month's bill on a tap
-  (`bankId` on the bill); Bills & notes offers it on the missing month too. Transfers to a hand are set against
+  (`bankId` on the bill); Payments offers it under the missing month too. Transfers to a hand are set against
   the **payroll as paid** for the month before, per worker — the check that would have shown the crossed Behra
   legs of 14 Sep. Cash draws are set against the weekly payout by pay week. Suppliers are totalled beside the
   stock bills recorded from them.
@@ -3119,6 +3160,33 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
 - **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.
+
+### Cheques received
+Money → Receivables → **Cheque received**, and Add → By hand → **Cheque** (`bank.js`; the tab map, TM3b; owner, 9 Oct 2026: a cheque
+in hand counted as paid). A cheque handed over is money the client has paid, and until it reached the bank the statement could not
+say so: what the client owed read high for days. P187.
+- **The record** (`S.bank.cheques`: client, amount, number, the cheque's date, the bank it is drawn on, the day it came, a note; who
+  and when). One form (`bankChequeFormOpen`): the client, amount, number (digits) and the day it came are required, never a day after
+  today; the same client and number twice is refused. A Finance edit (`bankGate`). In the change log (*cheque received*) and the merge.
+- **Counted as paid from the day it came**: `bankReceivables` takes each cheque in hand as a receipt on its day (`pending`), placed by a
+  receipt's own rules (exact to the rupee, else oldest first, never an invoice raised after it). Owed, the ageing, days to pay, the
+  statement of account (*Cheque 525428 received, not yet in the bank*), Pipeline, a client's Money panel, the invoice detail (*Cheque in
+  hand*), Pulse and the finance rules follow with nothing else changed. It is never offered as an opening.
+- **Its deposit is found by its number** (`bankChequeLinks`, worked out on every read): a credit whose instrument number is the
+  cheque's, from three days before it came to 60 after, **whatever its amount** (a different amount is said: *In the bank: ₹23,500.00*).
+  From then the deposit counts and the cheque does not, so nothing counts twice, and the deposit is placed on the cheque's client
+  unless it was placed by hand. A credit of the same amount with no number, not placed on another client, within 15 days, is
+  **offered** (Link), never applied. The owner's choice (`deposit`: a row, or `null` for *not this deposit*) wins. A deposit returned
+  is the bounce logic's, and the cheque reads Returned.
+- **Void** with a reason, never deleted: what the client owes goes back up.
+- **On screen**: Receivables' *Cheques received* (`#bankCheques`), its head *2 cheques in hand · ₹X · the oldest 5 days* in the held
+  task's tone; a cheque opens a dialog with its facts and *Not this deposit*, *Unlink* and *Void*. Money's Cash hero adds *+ ₹X in
+  cheques in hand*, and Receivables' verdict counts them. A cheque deposit on the statement and in search is named by its number
+  (*Deposit of cheque 525428*, `bankRowTitle`), so its line need not carry the number, and its row's edit says whose cheque it was.
+- **To-do `chequeHeld`**: a cheque in hand 3 days is amber, 7 red, saying whether the statement reaches past the day it came (*not in
+  the bank by …*) or not (*import the statement to check*); three or more fold into one (*Deposit 3 cheques, ₹X*). It opens the cheque.
+- **The `sep-bank` export carries `cheques`, and a `sep-bank` file through Add → File (or Bank's Import, which hands it over) merges
+  them by id, never writing over; its statement rows are never read from it.** A data flow soma-internal reads.
 
 ### What the bank paid, as cost
 Stats → Cost → **Live cost** reads the statement as a second instrument beside the app's own record
@@ -3177,15 +3245,15 @@ being a statement of account and payment reminders). P173.
   pay (`S.bankDetails`), and the day the bank statement ends: a payment after it is not on it.
 - **The reminder** is a message from the same figures (the total and the oldest eight open invoices), editable, sent on WhatsApp to the
   client's mobile (`soaWaNumber`: the first Indian mobile on the client, else WhatsApp opens to pick the chat) or copied. **A reminder sent
-  is recorded** (`S.bank.reminders`: client, when, amount, how; in the change log, not in the `sep-bank` export), said on the client's
-  Receivables row and on the over-90-days chase, which gains a move, *Send a reminder* (`advRemindMove`, jump `soa`).
+  is recorded** (`S.bank.reminders`: client, when, amount, how; in the change log, not in the `sep-bank` export), said in the client's
+  fold on Receivables, beside *Statement and reminder* (its line since the tab map, TM3c), and on the over-90-days chase, which gains a move, *Send a reminder* (`advRemindMove`, jump `soa`).
 - **Said before anything goes out**: a bank statement ending more than three days ago, receipts with no client, an opening not set or
   set against another day. Statements show money: a role that does not see money is refused.
 
 ### The statement as intelligence
 Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
 
-- **Twelve To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+- **Thirteen To-do rules**, each switchable in Settings → Checks & alerts → To-do:
   - `bankStale`: the statement is 14 days old;
   - `bankLoose`: receipts still have no client a week on;
   - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
@@ -3198,12 +3266,14 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - `cashSwing`: last week's cash drawn is a quarter or more short of its payout (past it is drawings, 6 Oct 2026);
   - `costGap`: recorded against paid over three closed months;
   - `runway`: the forecast goes below zero within 45 days;
-  - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce.
+  - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce;
+  - `chequeHeld`: a cheque received is not yet in the bank, 3 days amber, 7 red (*Cheques received*, below).
 - **Days to pay** (`bankDaysToPay`) is weighted by amount. Each receipt counts the days from each invoice it paid, and
   opening balances are left out. Receivables and the Overview's debtor rows show it as *pays in N d*.
 - **Cash forecast, 60 days** (`finForecast`, Finance → Overview): the latest balance, plus what is expected in, less
   what is expected out, with a P25–P75 band.
-  - **In:** open invoices at the client's own days to pay, and new billing at the last eight weeks' pace.
+  - **In:** open invoices at the client's own days to pay, new billing at the last eight weeks' pace, and each cheque in
+    hand on the next working day (a post-dated one on its date).
   - **Out:** salaries, cash by Saturday, electricity, GST by the 20th, and every other payment spread by day.
   - **Cash, not cost:** drawings and tax count.
   - An invoice long past its usual day is **not expected at all**: on the real book that is ₹11.8L of mostly
@@ -3218,10 +3288,10 @@ than a zero.
 - **Home → Money:** balance, owed, pays-in and runway tiles, each opening Finance, plus *Import statement*.
 - **Stats:** *In one line* gets a Cash row. Contribution by client shows *owes · pays in* under each name.
 - **Clients:** a *Money* panel on the detail, the edit sheet and Performance.
-- **Register:** the detail says *Paid, exact* / *Paid, oldest first* with its receipt, or *Open, N days*.
+- **Register:** the detail says *Paid, exact* / *Paid, oldest first* with its receipt, *Cheque in hand*, or *Open, N days*.
 - **Staff → Pay:** the bank's wage legs beside the payroll as paid, one function shared with Payments.
 - **Stock:** what the bank paid each supplier. The reorder list sets its cost against the forecast's lowest point.
-- **Finance → Payments:** each section links to its home screen.
+- **Money → Payments:** each section links to its home screen.
 
 ### Staff and Stock open on an Overview
 Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens open

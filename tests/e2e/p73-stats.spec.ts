@@ -115,8 +115,10 @@ test.describe('P73: Stats', () => {
     await expect(labour.locator('.inv-row-children')).toBeHidden();
     await labour.locator('summary').click();
     await expect(labour.locator('.inv-row-children .inv-row').first()).toBeVisible();
-    await page.locator('#liveCost [data-action="invCostBillOpen"]').click();
-    await expect(page.locator('#liveCost .inv-panel-body #costBillAmount')).toBeVisible();
-    await expect(page.locator('#pageStats .inv-btn-primary:visible')).toHaveCount(1);
+    // The bills are entered on Money → Payments (the tab map, TM3a): Live cost carries a link there, no form of its own.
+    await expect(page.locator('#liveCost #costBillAmount')).toHaveCount(0);
+    await page.locator('[data-cost-bills] [data-action="invCostBillGo"]').click();
+    await expect(page.locator('#pageFinance [data-bill-form] #costBillAmount')).toBeVisible();
+    await expect(page.locator('#pageFinance .inv-btn-primary:visible')).toHaveCount(1);
   });
 });

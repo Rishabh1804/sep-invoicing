@@ -10,7 +10,7 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 //
 // A budget is a ceiling, never a target: each step that assembles a screen lowers its budget to the new measure in the same
 // commit, and no budget is raised to get green. The budgets below are TM1's, then each step's for the screens it assembled
-// (TM2: Today's): every screen measured on eleven days of the calendar (a Sunday, a month's first and last days, the financial
+// (TM2: Today's; TM3: Money's): every screen measured on eleven days of the calendar (a Sunday, a month's first and last days, the financial
 // year's first, the year's), the worst of them kept, the length rounded up to the next half screen. The face is pinned
 // (Liberation, as on every runner) and the clock to 11:30 on today, so a screen measures the same on any machine at any hour.
 // What is measured is what is drawn: a view or widget the page hides is not on the screen's face (TM2: Pulse had been charged
@@ -60,12 +60,14 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Floor › Power › Causes': { screens: 3, blocks: 2, chains: 2, toolbarRows: 1 },
   'Floor › Power › Load & bills': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Case': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Money › Overview': { screens: 7, blocks: 4, chains: 0, toolbarRows: 1 },
-  'Money › Receivables': { screens: 3.5, blocks: 1, chains: 12, toolbarRows: 0 },
-  'Money › Payments': { screens: 2, blocks: 1, chains: 0, toolbarRows: 0 },
-  'Money › Bank': { screens: 3.5, blocks: 0, chains: 7, toolbarRows: 0 },
-  'Money › Bills & notes': { screens: 1.5, blocks: 0, chains: 1, toolbarRows: 0 },
-  'Money › GST': { screens: 1.5, blocks: 1, chains: 0, toolbarRows: 0 },
+  // TM3. Receivables, Payments and Bank have the one toolbar row a work screen has (§3e: Cheque received; Add a bill; search,
+  // Filter and More), raised from 0 and said to the owner (I10). Each gave the room back: Receivables and Payments show the
+  // first few of what needs the owner, the Overview's charts fold, Payments' sections fold.
+  'Money › Overview': { screens: 1.5, blocks: 1, chains: 0, toolbarRows: 1 },
+  'Money › Receivables': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Money › Payments': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Money › Bank': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Money › GST': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 0 },
   'History': { screens: 4.5, blocks: 0, chains: 4, toolbarRows: 5 },
   'Knowledge › Start': { screens: 2, blocks: 0, chains: 2, toolbarRows: 1 },
   'Knowledge › Library': { screens: 3, blocks: 0, chains: 2, toolbarRows: 5 },
@@ -79,6 +81,8 @@ const VERDICT: string[] = [
   // TM2
   'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
   'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+  // TM3: Money's five (the Overview's first hero carries its verdict).
+  'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
 ];
 
 test('every screen of the map is within its load budget on the long book', async ({ page }) => {

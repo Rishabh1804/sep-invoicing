@@ -676,7 +676,7 @@ var ADV_TASK_MOVES = {
   },
   power: function(t) {
     return [{ key: 'bill:power:' + t.month, tone: t.tone, say: 'Add the electricity bill for ' + billsMonthLabel(t.month), worth: null, basis: 'until then the live cost reads electricity at the model',
-      go: { kind: 'bills', month: t.month }, goLabel: 'Bills & notes', task: 'Add the electricity bill for ' + billsMonthLabel(t.month) }];
+      go: { kind: 'bills', month: t.month }, goLabel: 'Add the bill', task: 'Add the electricity bill for ' + billsMonthLabel(t.month) }];
   },
   bankStale: function(t) {
     return [{ key: 'statement', tone: t.tone, say: 'Import the bank statement: ' + advLower(t.sub), worth: null, basis: t.why, go: { kind: 'finance', tab: 'bank' }, goLabel: 'Bank', task: 'Import the bank statement' }];

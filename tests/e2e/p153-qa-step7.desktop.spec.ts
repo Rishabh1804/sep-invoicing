@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse, recentTs, switchTab, todayIso, waitForBoot } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openFoldAt, openPulse, recentTs, switchTab, todayIso, waitForBoot } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P153 (desktop): the QA chain of 2 Oct 2026 over UX overhaul 2's step 7. The four new list-and-pane screens keep where the
@@ -109,6 +109,8 @@ test('Receivables: an address naming no client opens no pane; the receipts with 
   await page.locator('#recvList [data-action="invBankClient"]').first().click();
   await expect(page.locator('#recvHost')).toHaveClass(/inv-pane-open/);
   await page.locator('#pageFinance .inv-viewtab[data-tab="overview"]').click();
+  // The link is in the Owed to us hero's body (the tab map, TM3c), shut until opened.
+  await openFoldAt(page, 'fin-hero-owed');
   const link = page.locator('#pageFinance [data-action="invFinLoose"]');
   if (await link.count()) {
     await link.first().click();

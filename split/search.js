@@ -154,7 +154,8 @@ function srchScreens() {
     ['receivables', 'Receivables', 'Money', 'owed debtors receipts outstanding dues', at('pageFinance', 'receipts')],
     ['payments', 'Payments', 'Money', 'paid out expenses suppliers', at('pageFinance', 'payments')],
     ['bank', 'Bank', 'Money', 'statement ledger import', at('pageFinance', 'bank')],
-    ['bills', 'Bills & notes', 'Money', 'electricity bills credit notes', at('pageFinance', 'bills')],
+    ['bills', 'Bills', 'Money › Payments', 'electricity bills power bill other bills', at('pageFinance', 'payments')],
+    ['cheques', 'Cheques received', 'Money › Receivables', 'cheque in hand received not deposited', at('pageFinance', 'receipts')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
     ['stats', 'Stats', 'Today', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
     ['stats-clients', 'By client', 'Today › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
@@ -342,9 +343,10 @@ function srchData() {
       var r = v.row, out = r.dr > 0, amt = out ? r.dr : r.cr, inst = bankInstrument(r), chq = /^\d{4,}$/.test(inst) ? inst : '';
       var client = v.clientId != null ? ((S.clients || []).find(function(c) { return String(c.id) === String(v.clientId); }) || {}).name : '';
       var who = client || (v.staffId != null ? ((staffById(v.staffId) || {}).name || '') : '');
-      var cat = v.cat ? bankCatLabel(v.cat) : '', title = v.party || r.narration || 'Bank row';
+      // A cheque deposit is named by its number (bankRowTitle), so the line under it need not carry it again.
+      var cat = v.cat ? bankCatLabel(v.cat) : '', title = (typeof bankRowTitle === 'function' ? bankRowTitle(v) : '') || v.party || r.narration || 'Bank row';
       add({ kind: 'bank', id: String(r.id), title: title,
-        sub: [formatDate(r.date), (out ? '\u2212' : '+') + formatCurrency(amt), cat + (cat && who ? ': ' + who : ''), chq ? 'cheque ' + chq : ''].filter(Boolean).join(' · '),
+        sub: [formatDate(r.date), (out ? '\u2212' : '+') + formatCurrency(amt), cat + (cat && who ? ': ' + who : ''), chq && title.indexOf(chq) < 0 ? 'cheque ' + chq : ''].filter(Boolean).join(' · '),
         text: 'Bank ' + (out ? 'payment' : 'receipt') + ' on ' + formatDate(r.date) + ': ' + formatCurrency(amt) + ', ' + (r.narration || '') + (cat ? ', ' + cat : '') + (who ? ', ' + who : '') + (chq ? ', cheque ' + chq : '') + '.',
         go: { kind: 'bank', id: String(r.id) } },
         { title: title, words: [r.narration, v.party, who, cat, chq ? 'cheque chq' : ''], ids: [inst, r.chq], nums: [r.chq], primary: [chq],
@@ -1003,7 +1005,7 @@ function srchEntryLoc(e) {
   if (/^(invoice|challan|client|quote|stock)$/.test(go.kind)) return srchRecordLoc(go.kind, id);
   // An article (knowledge.js): its own list's view, open beside it.
   if (go.kind === 'kb') return typeof kbLocOf === 'function' ? kbLocOf(id) : null;
-  var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'bills'],
+  var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'payments'],
     cnList: ['pageRegister', ''], audit: ['pageRegister', ''], cn: ['pageRegister', ''] }[go.kind];
   // A worker opens in the roster's pane on the desktop (step 7); the phone's roster has no pane and ignores the id.
   return page ? { tab: page[0], v: page[1], id: go.kind === 'worker' ? id : '' } : null;

@@ -50,7 +50,8 @@ function soaCompute(clientId, from) {
   r.allocs.forEach(function(a, i) {
     var row = a.v.row, inst = bankInstrument(row);
     var paid = a.parts.filter(function(p) { return p.inv; }).map(function(p) { return p.label + (p.whole ? '' : ' (part)'); });
-    ev.push({ date: row.date, k: 3, i: i, kind: 'receipt', label: 'Received' + (inst ? ', cheque ' + inst : bankIsChequeDeposit(row) ? ', cheque' : ''),
+    // A cheque received and not yet in the bank (TM3b) is paid on the day it came, and says where it is.
+    ev.push({ date: row.date, k: 3, i: i, kind: 'receipt', label: a.v.pending ? 'Cheque ' + inst + ' received, not yet in the bank' : 'Received' + (inst ? ', cheque ' + inst : bankIsChequeDeposit(row) ? ', cheque' : ''),
       sub: paid.length ? 'for ' + paid.join(', ') : a.unapplied > 0.005 ? 'on account' : '', dr: 0, cr: gstRound(row.cr) });
     if (a.how === 'exact') {
       var sum = gstRound(a.parts.reduce(function(t, p) { return t + p.amount; }, 0)), diff = gstRound(sum - row.cr);

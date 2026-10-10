@@ -49,8 +49,9 @@ test.describe('P184: the tab map on the phone', () => {
     // Money has one view: no section row, its page's own row.
     await bar(page, 'money').click();
     await expect(page.locator('#wsTabs')).toHaveClass(/inv-hidden/);
-    await expect(own(page)).toHaveText(['Overview', 'Receivables', 'Payments', 'Bank', 'Bills & notes', 'GST']);
-    // No row is wider than six, and the sections' rows than five.
+    // Bills & notes split (TM3a): its bills are Payments', its credit notes the Invoices' dialog. Money's row is five.
+    await expect(own(page)).toHaveText(['Overview', 'Receivables', 'Payments', 'Bank', 'GST']);
+    // No row is wider than five.
     for (const labels of Object.values(ROWS)) expect(labels.length).toBeLessThanOrEqual(5);
     expect(await g(page, `WORKSPACES.map(function(w){ return w.id + ':' + w.views.length; }).join(' ')`)).toBe('today:5 office:5 floor:5 money:1');
   });

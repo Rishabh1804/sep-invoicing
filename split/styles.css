@@ -1274,6 +1274,8 @@ body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var
 /* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
+/* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). */
+body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:last-child:nth-child(5n+1) { grid-column: 1 / -1; }
 .inv-panel > .inv-btn-grid:last-child { margin-bottom: 0; }
 
 /* §6.4 View tabs — underline. The one control for switching views. */
@@ -2071,6 +2073,9 @@ body.inv-desktop .inv-hero-sheet { container: panel-w / inline-size; }
 body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .inv-heroes > .inv-hero { margin-bottom: 0; }
 .inv-heroes > details.inv-hero[open] { grid-column: 1 / -1; }
+/* Four subjects (Money's Overview: cash, owed, GST, paid out): two across, and four on a window wide enough for a crore in each. */
+body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 80rem) { body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
 
 /* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. A stack
    in a column of cards (the phone) keeps the gap under it, as every card has. */

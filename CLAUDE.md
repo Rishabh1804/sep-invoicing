@@ -57,6 +57,11 @@ sure the app is up to the mark for our cognitive load benchmark"*). Every screen
 (the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9). Its
 proposals, with its *Analysed data* list, are now the tab map's steps (above).
 
+**The entry faces are planned — read `docs/ENTRY_FACES.md`** (owner, 10 Oct 2026: *"develop app faces for each employee to enter
+data"*: the pickling hand, the supervisor and the register clerk each enter their own on their own phone, trusted and checked
+against the linked data, a WhatsApp copy during the changeover, every face's sheet printable). Six steps, F1–F6, and the flow
+thread (turnaround targets, payment terms) T1–T3; queued after the owner's other asks of 10 Oct (NEXT_SESSION).
+
 **The plant picture is begun — read `docs/PLANT_PICTURE.md`** (owner, 9 Oct 2026: *"There is no holistic vision that is being created
 using these details"*). PP1 is built: a day's plating in one unit, each line's efficiency colouring Floor's cards (half a line's units
 down is red), the pieces not weighed followed up. PP3 is built: the bath a stock message names, zinc and chemicals by line (*Stock by

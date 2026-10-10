@@ -306,7 +306,7 @@ var WS_GO_PAGE = {
   createFor: 'pageCreate',
   regState: 'pageRegister', register: 'pageRegister', audit: 'pageRegister', cnList: 'pageRegister', cnBatch: 'pageRegister', invoice: 'pageRegister',
   client: 'pageClients', perf: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', prospects: 'pageClients', prospect: 'pageClients',
-  staffRoster: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
+  staffRoster: 'pageStaff', staffDay: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',

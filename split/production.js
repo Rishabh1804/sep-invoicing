@@ -1068,29 +1068,133 @@ function prodDayPicture(date) {
 }
 /* What a day's plating is worth at its clients' rates on record: a piece client's part at its piece rate, a run in kilos at
    the client's ₹ a kg, a run in pieces at the client's ₹ a kg over its weight (estimated where the weight is). Rework is
-   not billed and is left out (owner, 28 Sep 2026). {amount, est, unpriced: pieces with neither}. */
-function prodDayWorth(date) {
-  var o = { amount: 0, est: false, unpriced: 0, runs: 0 };
+   not billed and is left out (owner, 28 Sep 2026). `line` keeps one line's runs (owner, 10 Oct 2026: "As we are calculating
+   production, why don't we calculate the earnings?"). {amount, est, runs priced, unpriced: pieces with no rate (a run with
+   no client written among them), unpricedKg: kilos written with none, names: what is not priced, by client and floor name;
+   kg and amountKg: the kilos of the priced runs that have a weight and what they earned, so a rupee a kilo is read over the
+   same runs as its kilos, never over a piece-priced run nothing weighs; pieces and kgWritten: the work it was read over}. */
+function prodDayWorth(date, line) {
+  var o = { amount: 0, est: false, unpriced: 0, unpricedKg: 0, runs: 0, kg: 0, amountKg: 0, pieces: 0, kgWritten: 0, names: [] };
+  var names = {};
+  var miss = function(e, client) {
+    if (e.unit === 'NOS') o.unpriced += e.qty; else if (e.unit === 'KG') o.unpricedKg += e.qty;
+    var k = (e.clientId != null ? String(e.clientId) : '?' + (e.client || '')) + '|' + String(e.part || '').toUpperCase();
+    var n = names[k] || (names[k] = { clientId: client ? client.id : null, client: client ? client.name : e.client || 'No client written', part: e.part || '', pieces: 0, kg: 0, id: e.id });
+    if (e.unit === 'NOS') n.pieces += e.qty; else if (e.unit === 'KG') n.kg += e.qty;
+  };
   prodIndex().counted.forEach(function(e) {
-    if (e.date !== date || e.kind !== 'plated' || e.qty == null || e.rework || e.clientId == null) return;
-    var client = (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
-    if (!client) { if (e.unit === 'NOS') o.unpriced += e.qty; return; }
+    if (e.date !== date || e.kind !== 'plated' || e.qty == null || e.rework || (line && e.line !== line)) return;
+    if (e.unit === 'NOS') o.pieces += e.qty; else if (e.unit === 'KG') o.kgWritten += e.qty;
+    var client = e.clientId == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
+    if (!client) { miss(e, null); return; }
     var pn = e.partNumber || prodWeighLearnt(e) || e.part || '', desc = (e.part || '') + (e.gauge ? ' (' + e.gauge + ')' : '');
     var rr = getRateOnRecord(client, e.date, { partNumber: pn, desc: desc, unit: e.unit === 'KG' ? 'KG' : 'NOS' });
-    var w = prodWeigh(e), amt = null;
+    var w = prodWeigh(e), amt = null, est = false;
     if (rr && rr.rate > 0 && rr.fits !== false) {
       if (rr.unit === 'piece' && e.unit === 'NOS') amt = rr.rate * e.qty;
-      else if (rr.unit === 'kg' && w.kg != null) { amt = rr.rate * w.kg; if (prodWeighEst(w)) o.est = true; }
+      else if (rr.unit === 'kg' && w.kg != null) { amt = rr.rate * w.kg; est = prodWeighEst(w); }
     }
     if (amt == null) {
       var per = clientLadderRate(client, e.date);
-      if (per > 0 && w.kg != null) { amt = per * w.kg; if (prodWeighEst(w)) o.est = true; }
+      if (per > 0 && w.kg != null) { amt = per * w.kg; est = prodWeighEst(w); }
     }
-    if (amt == null) { if (e.unit === 'NOS') o.unpriced += e.qty; return; }
+    if (amt == null) { miss(e, client); return; }
+    if (est) o.est = true;
     o.amount += amt; o.runs++;
+    if (w.kg != null && w.kg > 0) { o.kg += w.kg; o.amountKg += amt; }
   });
-  o.amount = gstRound(o.amount);
+  o.amount = gstRound(o.amount); o.amountKg = gstRound(o.amountKg);
+  o.names = Object.keys(names).map(function(k) { return names[k]; }).sort(function(a, b) { return b.pieces - a.pieces || b.kg - a.kg; });
+  // The share of the work with a rate: the pieces and the kilos written each, the lower of the two.
+  o.pricedShare = Math.min(o.pieces ? 1 - o.unpriced / o.pieces : 1, o.kgWritten ? 1 - o.unpricedKg / o.kgWritten : 1);
   return o;
+}
+/* ---------- A line against its usual day and its week against the four before ----------
+   Owner, 10 Oct 2026, on Floor's day: "corrections and comparisons are missing". A line's day in a few figures (what it plated
+   and what it earned), kept until the book changes, so a line's sixty days are read once: its usual day is the median of them,
+   and its week to the day is set against the same days of the four weeks before. */
+var _prodDaySum = null;
+function _prodDayMemo() {
+  var p = prodData();
+  if (!_prodDaySum || _prodDaySum.s !== S || _prodDaySum.w !== _bookWrites || _prodDaySum.v !== _prodVer || _prodDaySum.p !== p) _prodDaySum = { s: S, w: _bookWrites, v: _prodVer, p: p, m: {} };
+  return _prodDaySum.m;
+}
+function prodLineDaySum(date, line) {
+  var memo = _prodDayMemo(), k = 'd|' + date + '|' + line;
+  if (memo[k]) return memo[k];
+  var r = prodDayLine(date, line), wo = prodDayWorth(date, line);
+  return (memo[k] = { runs: r.entries.length, kg: r.kg, est: r.est > 0.0005, pieces: r.pieces, unweighed: r.unweighed, weighed: r.weighedShare,
+    worth: wo.amount, worthEst: wo.est, priced: wo.runs, unpriced: wo.unpriced, unpricedKg: wo.unpricedKg, pricedShare: wo.pricedShare, kgPriced: wo.kg, amountKg: wo.amountKg });
+}
+/* A line's usual day before this one: the median of its recorded days in the 60 before it, five at least: its kilos over the days
+   with nine tenths of their pieces weighed (the plant's usual day's rule, prodUsualDay), its earnings over the days with nine
+   tenths of the work priced. {kg, kgDays, worth, worthDays}; a figure null where fewer than five days qualify. */
+function prodLineUsual(line, date) {
+  var memo = _prodDayMemo(), key = 'u|' + date + '|' + line;
+  if (memo[key]) return memo[key];
+  var from = isoAddDays(date, -60), days = {}, kgs = [], worths = [];
+  prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && e.line === line && e.date >= from && e.date < date) days[e.date] = true; });
+  Object.keys(days).forEach(function(d) {
+    var x = prodLineDaySum(d, line);
+    if (x.kg > 0 && x.weighed >= 0.9) kgs.push(x.kg);
+    if (x.worth > 0 && x.pricedShare >= 0.9) worths.push(x.worth);
+  });
+  return (memo[key] = { kg: kgs.length >= 5 ? numMedian(kgs) : null, kgDays: kgs.length, worth: worths.length >= 5 ? gstRound(numMedian(worths)) : null, worthDays: worths.length });
+}
+/* A line's pay week to the day (Sunday on) against the same days of the four weeks before: the kilos and the earnings, each a
+   recorded day's average, since a day with no record is a gap, never a zero (the record began partway through a week, and a
+   week's total would read that week low). The day still running is left out of both sides (it reads low until it ends), so on a
+   week's first day there is nothing yet. A week before counts with nine tenths of its pieces weighed (for its earnings: of its
+   work priced); the four are taken together over the weeks that count, two at least. `line` null is the three lines together,
+   a day recorded on any of them. */
+function prodLineWeek(line, day) {
+  var memo = _prodDayMemo(), key = 'w|' + day + '|' + (line || '');
+  if (memo[key] !== undefined) return memo[key];
+  var today = localDateStr(), ws = attWeekStartOf(day), end = day < today ? day : isoAddDays(today, -1);
+  if (end < ws) return (memo[key] = null);
+  var n = isoDaysBetween(ws, end), lines = line ? [line] : PROD_LINES;
+  var sum = function(from) {
+    var o = { runs: 0, days: 0, kg: 0, est: false, pieces: 0, unweighed: 0, worth: 0, worthEst: false, worthDays: 0, workPcs: 0, unpriced: 0 };
+    for (var k = 0; k <= n; k++) {
+      var d = isoAddDays(from, k), any = false, priced = false;
+      lines.forEach(function(l) {
+        var x = prodLineDaySum(d, l);
+        if (!x.runs) return;
+        any = true; o.runs += x.runs; o.kg += x.kg; o.est = o.est || x.est; o.pieces += x.pieces; o.unweighed += x.unweighed;
+        if (x.priced) priced = true;
+        o.worth += x.worth; o.worthEst = o.worthEst || x.worthEst;
+        // The share priced, a day's lines weighing as their pieces (one, a line in kilos only).
+        var wgt = x.pieces || 1; o.workPcs += wgt; o.unpriced += wgt * (1 - x.pricedShare);
+      });
+      if (any) o.days++;
+      if (priced) o.worthDays++;
+    }
+    o.weighed = o.pieces ? 1 - o.unweighed / o.pieces : 1;
+    o.priced = o.workPcs ? 1 - o.unpriced / o.workPcs : 1;
+    o.worth = gstRound(o.worth);
+    o.kgDay = o.days ? o.kg / o.days : null;
+    o.worthDay = o.worthDays ? o.worth / o.worthDays : null;
+    return o;
+  };
+  var cur = sum(ws), before = [1, 2, 3, 4].map(function(w) { return sum(isoAddDays(ws, -7 * w)); });
+  var kgB = before.filter(function(b) { return b.days && b.weighed >= 0.9; }), wB = before.filter(function(b) { return b.worthDays && b.priced >= 0.9 && b.worth > 0; });
+  var per = function(list, f, d) { var t = list.reduce(function(a, b) { return a + b[f]; }, 0), dd = list.reduce(function(a, b) { return a + b[d]; }, 0); return dd ? t / dd : null; };
+  return (memo[key] = { from: ws, to: end, cur: cur,
+    kgDayBefore: kgB.length >= 2 ? per(kgB, 'kg', 'days') : null, kgWeeks: kgB.length,
+    worthDayBefore: wB.length >= 2 ? per(wB, 'worth', 'worthDays') : null, worthWeeks: wB.length });
+}
+/* What a kilo costs the plant as of a day, to set the day's earnings against: the live cost over the 90 days to it (Stats' own,
+   on the invoices' weighed kilos), else the full cost typed in Settings. {perKg, live, from, to}; null with neither. One kept. */
+var _prodCostRef = null;
+function prodCostRef(date) {
+  if (_prodCostRef && _prodCostRef.s === S && _prodCostRef.w === _bookWrites && _prodCostRef.date === date) return _prodCostRef.v;
+  var from = isoAddDays(date, -89), v = null;
+  var inv = statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= date; });
+  var w = inv.length ? weighLines(inv) : { kg: 0 };
+  if (w.kg > 0) { try { var c = liveCost(from, date, w.kg); if (c && c.perKg > 0) v = { perKg: c.perKg, live: true, from: from, to: date }; } catch (e) { v = null; } }
+  if (!v && S.defaultCostPerKg > 0) v = { perKg: Number(S.defaultCostPerKg), live: false, from: from, to: date };
+  _prodCostRef = { s: S, w: _bookWrites, date: date, v: v };
+  return v;
 }
 var PROD_DAY_START = 360;   // the shop's day on the clock: 6 AM, when the morning block starts, to 6 AM the next
 /* The plant's usual day before this one: the median kilograms of the recorded days in the 60 before it, each with nine

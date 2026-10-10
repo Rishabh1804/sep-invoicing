@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="3798d622">
+<meta name="app-build" content="09aaf593">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2840,7 +2840,7 @@ function getDefaultState() {
     // attendance gate on its rest days. restCreditMinDays is the daily tier's
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
-    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
+    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
@@ -3652,9 +3652,10 @@ function uiFoldCard(key, card, dflt) {
    the working is folded under them, shut until opened and remembered on the device: one fact a row, a label of a few words, its
    figure at the end, at most a few words under the label, and where a figure comes from as a badge, never a clause. How the
    analysis works is the screen's guide (kbguides.js). Every field is plain text, escaped here.
-   A fact: { label, value, sub, src: [tone, word], attrs, actions (HTML: the caller escapes) }. A value null or '' is withheld: a dash. */
+   A fact: { label, value, sub, src: [tone, word], tone (the figure's, §3c: whether it is good), attrs, actions (HTML: the caller
+   escapes) }. A value null or '' is withheld: a dash. */
 function _uiFactInner(f) {
-  var v = f.value != null && f.value !== '' ? escHtml(String(f.value)) : '&mdash;';
+  var v = f.value != null && f.value !== '' ? figHtml(escHtml(String(f.value)), /^(ok|warning|danger)$/.test(f.tone || '') ? f.tone : null) : '&mdash;';
   return '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) +
     (f.src ? ' <span class="inv-badge inv-badge-' + uiTone(f.src[0]) + '">' + escHtml(f.src[1]) + '</span>' : '') + '</span>' +
     (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
@@ -3748,13 +3749,14 @@ function uiVerdictKey() {
   return loc.tab + (v ? '-' + v : '');
 }
 /* A factor: a coded tile (§6.26). `f`: label and sub (text), fig (HTML: a figure, already formatted), tone; `badge` [tone, word]
-   says beside the label what the figure is not (measured, weighed: §3c's certainty as a badge); a factor that filters its list
+   says beside the label what the figure is not (measured, weighed: §3c's certainty as a badge); `delta` (HTML, figDeltaHtml's)
+   is the figure's change line against its benchmark, under the sub as Home's tiles carry it; a factor that filters its list
    carries `action` (and `attrs`, `pressed`), drawn as a button keeping aria-pressed. A fig left out reads as a dash. */
 function uiFactorTileHtml(f) {
   var tone = /^(danger|warning|ok|info|neutral)$/.test(f.tone) ? ' inv-tile-' + f.tone : '';
   var badge = f.badge ? ' <span class="inv-badge inv-badge-' + uiTone(f.badge[0]) + '">' + escHtml(f.badge[1]) + '</span>' : '';
   var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + badge + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
-    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '');
+    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '') + (f.delta ? '<div class="inv-tile-sub" data-tile-delta>' + f.delta + '</div>' : '');
   if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
     (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
   return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
@@ -4406,6 +4408,20 @@ function figDeltaTone(cur, prev, better) {
   var pct = ((cur - prev) / Math.abs(prev)) * 100;
   if (Math.abs(pct) <= FIG_FLAT_PCT) return null;
   return (better === 'up' ? pct > 0 : pct < 0) ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger';
+}
+/* The same change as plain text, for a fact row's sub or a title (escaped where it is drawn): "+12% on a usual day", whole
+   percents; "level with …" within FIG_FLAT_PCT; '' against nothing. */
+function figDeltaText(cur, prev, label) {
+  if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return '';
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(pct) <= FIG_FLAT_PCT) return 'level with ' + label;
+  return (pct > 0 ? '+' : '\u2212') + Math.round(Math.abs(pct)) + '% on ' + label;
+}
+/* The change alone, for a figure's own place: "+12%", "\u22128%", "level"; '' against nothing. */
+function figDeltaPct(cur, prev) {
+  if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return '';
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  return Math.abs(pct) <= FIG_FLAT_PCT ? 'level' : (pct > 0 ? '+' : '\u2212') + Math.round(Math.abs(pct)) + '%';
 }
 function figDeltaHtml(cur, prev, label, better) {
   if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return 'no figure for ' + escHtml(label);
@@ -5534,7 +5550,7 @@ var CHG_TRACK = [
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
-      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour',
+      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', snackOt: 'Overtime', snackNight: 'Overtime', modelPerKg: 'Modelled labour',
       payCarryFrom: 'Pay → monthly balances', '': 'Labour' },
     dflt: function() { return getDefaultState().labour; } },
   { path: 'rateCheck', kind: 'cfg', sec: 'Rate & weight check', dflt: function() { return RATE_CHECK_DEFAULTS; } },
@@ -11943,20 +11959,25 @@ var SETTINGS_SECS = {
     title: 'Overtime',
     summary: function() {
       var c = labourCfg();
-      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '');
+      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '') +
+        escHtml(' · snacks ') + _sRs(c.snackOt) + ' / ' + _sRs(c.snackNight);
     },
     body: function() {
       var c = labourCfg();
       return _sRow(_sfg('OT multiplier', 'setOtMult', _sNum('setOtMult', _sLab('otMult', 1.1), 0.01, 1)),
           _sfg('Monthly tier cap (&#8377;/h, after the multiplier)', 'setOtCap', _sNum('setOtCap', c.otCap, 0.01, 0))) +
-        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">');
+        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">') +
+        _sRow(_sfg('Snacks a person, regular OT (&#8377;)', 'setSnackOt', _sNum('setSnackOt', c.snackOt, 1, 0)),
+          _sfg('Snacks a person, night OT (&#8377;)', 'setSnackNight', _sNum('setSnackNight', c.snackNight, 1, 0)));
     },
-    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate.',
+    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate. <strong>Snacks</strong> are paid with the weekly payout, a person once a day at the higher rate: the night rate for a night block (or out past midnight), the regular rate for the evening one (or out from 6 PM); none for the 6 AM block or the gate&rsquo;s own hours (owner, 10 Oct 2026).',
     save: function() {
       if (!S.labour) S.labour = {};
-      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap');
+      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap'), so = _sNonNeg('setSnackOt'), sn = _sNonNeg('setSnackNight');
       if (m != null) S.labour.otMult = m;
       if (cap != null) S.labour.otCap = cap;
+      if (so != null) S.labour.snackOt = so;
+      if (sn != null) S.labour.snackNight = sn;
       S.labour.otCapFrom = _sVal('setOtCapFrom') || '';
     }
   },
@@ -23064,7 +23085,10 @@ function labourCfg() {
     modelPerKg: c.modelPerKg || 0,
     extraHoursPerHead: c.extraHoursPerHead != null ? c.extraHoursPerHead : 8,
     gateFull: c.gateFull != null ? c.gateFull : 0.9,
-    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8
+    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8,
+    // Snacks a person, paid with the weekly payout (owner, 10 Oct 2026: "20 per person regular OT, and 60 per person for night OT").
+    snackOt: c.snackOt != null ? c.snackOt : 20,
+    snackNight: c.snackNight != null ? c.snackNight : 60
   };
 }
 
@@ -24918,7 +24942,82 @@ function payPartWords(w, part) {
     (x ? ', the bank legs crossed with ' + x.name + '\u2019s' : '');
 }
 
-/* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
+/* ---------- Snacks, and a hand on a block their own times do not reach ----------
+   Owner, 10 Oct 2026, on the week of 4 Oct's Saturday payout: "The 640 is snacks paid for OT and night shifts", then "20 per
+   person regular OT, and 60 per person for night OT", and night "is when it passes 12 a.m., not before it". Paid with the
+   Saturday's cash, so a line of the weekly payout. A person once a day, at the higher of the two: night is a block running past
+   midnight, or an out past it (a block to 12 AM is regular, from whatever hour it starts); regular is a block from 5 PM, or an
+   out at 6 PM or later. The 6 AM block has none, nor the gate's own twelve hours: the week of 4 Oct comes
+   to the ₹840 paid only so (five on the evening of the 5th, four on the 7th, four on the night hold of the 8th, four on the night
+   of the 9th and three to 8 PM). Every tier: the monthly hands on a block had theirs too. Read off the day's marks and its
+   blocks' crews, so a hand named on a block counts even where their own out time stops short of it (payCrewGaps). */
+var PAY_SNACK_OUT = 1080;   // 6 PM: an out at it or later is the evening's overtime, not a late leave
+function paySnackKind(x) {
+  if (!x || x.kind !== 'block' || !Array.isArray(x.crew) || !x.crew.length) return 0;
+  var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+  if (a == null) return 0;
+  // On the day's clock: a block starting after midnight (before 4 AM) is already past it; an end at or before the start ran on.
+  var A = a < 240 ? a + 1440 : a, B = b == null ? A : (a < 240 ? b + 1440 : b <= a ? b + 1440 : b);
+  if (B > 1440) return 2;
+  return A >= 1020 ? 1 : 0;
+}
+function paySnacks(from, to) {
+  var cfg = labourCfg(), out = { amount: 0, regular: 0, night: 0, days: {} };
+  for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
+    var rec = (S.attendance || {})[d];
+    if (!rec) continue;
+    var who = {};
+    var put = function(id, k) { if (k > (who[id] || 0)) who[id] = k; };
+    Object.keys(rec.marks || {}).forEach(function(id) {
+      var m = rec.marks[id], o = m ? Number(m.outMin) : NaN;
+      if (!m || (m.st !== 'P' && m.st !== 'H') || m.area === 'gate' || !(o > 0)) return;
+      if (o > 1440) put(id, 2); else if (o >= PAY_SNACK_OUT) put(id, 1);
+    });
+    (rec.extra || []).forEach(function(x) { var k = paySnackKind(x); if (k) x.crew.forEach(function(c) { put(String(c), k); }); });
+    var day = { regular: 0, night: 0, amount: 0 };
+    Object.keys(who).forEach(function(id) { if (who[id] === 2) day.night++; else day.regular++; });
+    if (!day.regular && !day.night) continue;
+    day.amount = gstRound(day.regular * cfg.snackOt + day.night * cfg.snackNight);
+    out.days[d] = day; out.regular += day.regular; out.night += day.night; out.amount += day.amount;
+  }
+  out.amount = gstRound(out.amount);
+  return out;
+}
+/* A hand named on an overtime block whose own times do not reach it: on the evening or night block with an out at or before its
+   start, or on the 6 AM block with an in at or after its end, or marked absent. Their pay reads their own times, so the block's
+   hours are not in it (the week of 4 Oct: a mark's area changed by hand kept the out-time roll from carrying it to 6 AM, while
+   the roll named the hand on the night). [{date, staffId, name, from, to, why}], a hand once a day, the latest block. */
+function payCrewGaps(from, to) {
+  var out = [];
+  for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
+    var rec = (S.attendance || {})[d];
+    if (!rec) continue;
+    var seen = {};
+    (rec.extra || []).slice().reverse().forEach(function(x) {
+      if (!x || x.kind !== 'block' || !Array.isArray(x.crew)) return;
+      var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+      if (a == null || b == null) return;
+      var morning = a < RELAY_GENERAL;
+      x.crew.forEach(function(c) {
+        var id = String(c), m = (rec.marks || {})[id], w = staffById(id), why = '';
+        if (seen[id] || !w) return;
+        if (!m || (m.st !== 'P' && m.st !== 'H')) why = 'marked ' + (m && m.st === 'A' ? 'absent' : 'nothing');
+        else if (morning) { if (m.inMin != null && Number(m.inMin) >= b) why = 'in at ' + relayClockLabel(Number(m.inMin)); }
+        else if (m.outMin != null && Number(m.outMin) <= (a < 240 ? a + 1440 : a)) why = 'out at ' + relayClockLabel(Number(m.outMin));
+        if (!why) return;
+        seen[id] = true;
+        out.push({ date: d, staffId: w.id, name: w.name, from: x.from, to: x.to, why: why });
+      });
+    });
+  }
+  return out;
+}
+/* One gap in words: "9 Oct · on the 8 PM – 6 AM block, out at 5 PM". */
+function payGapText(gp) {
+  return stockShortDate(gp.date) + ' · on the ' + relayClockLabel(relayParseHhmm(gp.from)) + ' – ' + relayClockLabel(relayParseHhmm(gp.to)) + ' block, ' + gp.why;
+}
+
+/* One pay week's payout: the weekly tiers' earnings, the EXTRA pool and the snacks, as the Saturday's cash pays them. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
   var lab = labourForRange(weekStart, sat);
@@ -24932,8 +25031,9 @@ function payWeek(weekStart) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
     if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
-  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra,
-    total: gstRound(workers + lab.extra), paid: gstRound(paid),
+  var snacks = paySnacks(weekStart, sat);
+  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks,
+    total: gstRound(workers + lab.extra + snacks.amount), paid: gstRound(paid),
     recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
@@ -25053,10 +25153,23 @@ function _payVerdictHtml(ws) {
       { label: 'Usual week', fig: f.median == null ? '' : payMoney(f.median), sub: f.medianWeeks ? 'median of ' + f.medianWeeks + ' weeks' : 'no week before', attrs: ' data-tile="median"' },
       { label: 'Against its usual', fig: f.swing == null ? '' : '<span id="paySwing">' + paySigned(f.swing) + '</span>', tone: f.swing == null ? null : tone, sub: pct ? pct + ' on the median' : 'no week to compare', attrs: ' data-tile="swing"' }],
     body: '<div class="inv-hero-sheet">' + uiFactRowHtml({ label: 'Hourly and daily tiers', value: formatCurrency(wk.workers), sub: 'their pay, OT and rest credit' }) +
-      uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) + '</div>',
+      uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) +
+      uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
+        sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
+      _payGapsHtml(ws) + '</div>',
     attrs: ' id="payForecast"' });
 }
 
+/* The week's hands named on a block their own times do not reach (payCrewGaps), folded under one row, each with the day it opens:
+   the hours a block paid nobody for until the day is put right. */
+function _payGapsHtml(ws) {
+  var gaps = payCrewGaps(ws, isoAddDays(ws, 6));
+  if (!gaps.length) return '';
+  return uiFoldRowHtml('pay-gaps', { label: 'Hours to check', sub: 'on a block their own times do not reach', value: gaps.length, count: true }, gaps.map(function(gp) {
+    return { label: gp.name, sub: payGapText(gp), value: '', attrs: ' data-pay-gap="' + escHtml(String(gp.staffId)) + '"',
+      actions: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayGapDay" data-date="' + escHtml(gp.date) + '">Open the day</button>' };
+  }), ' data-pay-gaps');
+}
 /* A worker's or a week's figure on a pay card (§6.10): who or what, what it rests on, the money at the end. */
 function _payRow(title, sub, end, attrs, cls) {
   var tag = attrs && attrs.indexOf('data-action') >= 0 ? 'button' : 'div';
@@ -25605,6 +25718,7 @@ function payAction(action, btn) {
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
     case 'invPayHistory': payHistoryOpen(btn.dataset.id); return true;
+    case 'invPayGapDay': _attDate = btn.dataset.date || localDateStr(); _attWeekStart = attWeekStartOf(_attDate); attSetView('day'); viewTop(); return true;
     case 'invPayCarryFrom': payCarryFromOpen(); return true;
     case 'invPayCarryFromSave': payCarryFromSave(false); return true;
     case 'invPayCarryFromOff': payCarryFromSave(true); return true;
@@ -32567,7 +32681,7 @@ var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', in
 var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
 // A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
 var TODO_GO_FLOOR = { stock: 1, stockCheck: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
-  staffRoster: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
+  staffRoster: 1, staffDay: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
 function todoGuardOn() { return typeof grdOn === 'function' && grdOn(); }
 /* The page a move lands on (workspace.js WS_GO_PAGE; a move may name its page itself). */
 function todoGoPage(go) {
@@ -33159,6 +33273,7 @@ function todoGo(go) {
     }
     case 'power': powerSetTab(go.tab || 'cuts'); switchTab('pagePower'); break;
     case 'payDue': _attView = 'pay'; _attDate = localDateStr(); switchTab('pageStaff'); break;
+    case 'staffDay': _attView = 'day'; _attDate = go.date || localDateStr(); _attWeekStart = attWeekStartOf(_attDate); switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;
@@ -34734,6 +34849,12 @@ function parseRelayRoll(text, roster, sentOn) {
     }
 
     var numbered = bare.match(/^0*(\d{1,2})\s*[)\].]\s*(.*)$/);
+    // A number with no bracket after it ("14 NAME", as an out-time roll of 7 Oct 2026 wrote one) is a numbered line when what follows is a
+    // name on the roster as written: a quantity ("10 BAGS") or a note never is. Read as a note, the hand's out stayed at 5 PM.
+    if (!numbered) {
+      var nb = bare.match(/^0*(\d{1,2})\s+([A-Za-z].*)$/), nh = nb ? relayMatchName(nb[2].split(/[\s\-–,]+/).filter(Boolean), idx, false) : null;
+      if (nh && nh.sure) numbered = nb;
+    }
     var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
@@ -41152,6 +41273,21 @@ TODO_RULE_FNS.payCarry = function() {
     clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on People → Pay.',
     go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
 };
+/* A hand named on an overtime block whose own times do not reach it (payCrewGaps), this pay week and the last: the block's hours
+   are in nobody's pay until the day is put right (the week of 4 Oct, 10 Oct 2026). A floor entry, so the floor's task. */
+TODO_RULES.push(['payCrewGap', 'Attendance: a hand on an OT block their own times do not reach']);
+TODO_CHECK_DEFAULTS.payCrewGap = true;
+TODO_RULE_NEED.payCrewGap = 'floor';
+TODO_RULE_FNS.payCrewGap = function() {
+  var ws = attWeekStartOf(localDateStr()), gaps = payCrewGaps(isoAddDays(ws, -7), localDateStr());
+  if (!gaps.length) return [];
+  return [{ key: 'payCrewGap', rule: 'payCrewGap', tone: 'amber',
+    title: gaps.length === 1 ? gaps[0].name + ' is on an OT block their own times do not reach' : todoPlural(gaps.length, 'hand') + ' on an OT block their own times do not reach',
+    sub: gaps.slice(0, 3).map(function(gp) { return gp.name + ' ' + stockShortDate(gp.date); }).join(' · '),
+    why: 'Attendance · pay reads each hand’s own times', facts: gaps.slice(0, 4).map(function(gp) { return [gp.name, payGapText(gp)]; }),
+    clears: 'Clears itself when the hand’s in or out time reaches the block, or the hand is taken off its crew, on People → Attendance.',
+    go: { kind: 'staffDay', date: gaps[0].date }, goLabel: 'Open the day', sig: gaps.map(function(gp) { return gp.date + ':' + gp.staffId; }).join('|') }];
+};
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
 function _finRows() { return finCtx().rows; }
 
@@ -44140,29 +44276,133 @@ function prodDayPicture(date) {
 }
 /* What a day's plating is worth at its clients' rates on record: a piece client's part at its piece rate, a run in kilos at
    the client's ₹ a kg, a run in pieces at the client's ₹ a kg over its weight (estimated where the weight is). Rework is
-   not billed and is left out (owner, 28 Sep 2026). {amount, est, unpriced: pieces with neither}. */
-function prodDayWorth(date) {
-  var o = { amount: 0, est: false, unpriced: 0, runs: 0 };
+   not billed and is left out (owner, 28 Sep 2026). `line` keeps one line's runs (owner, 10 Oct 2026: "As we are calculating
+   production, why don't we calculate the earnings?"). {amount, est, runs priced, unpriced: pieces with no rate (a run with
+   no client written among them), unpricedKg: kilos written with none, names: what is not priced, by client and floor name;
+   kg and amountKg: the kilos of the priced runs that have a weight and what they earned, so a rupee a kilo is read over the
+   same runs as its kilos, never over a piece-priced run nothing weighs; pieces and kgWritten: the work it was read over}. */
+function prodDayWorth(date, line) {
+  var o = { amount: 0, est: false, unpriced: 0, unpricedKg: 0, runs: 0, kg: 0, amountKg: 0, pieces: 0, kgWritten: 0, names: [] };
+  var names = {};
+  var miss = function(e, client) {
+    if (e.unit === 'NOS') o.unpriced += e.qty; else if (e.unit === 'KG') o.unpricedKg += e.qty;
+    var k = (e.clientId != null ? String(e.clientId) : '?' + (e.client || '')) + '|' + String(e.part || '').toUpperCase();
+    var n = names[k] || (names[k] = { clientId: client ? client.id : null, client: client ? client.name : e.client || 'No client written', part: e.part || '', pieces: 0, kg: 0, id: e.id });
+    if (e.unit === 'NOS') n.pieces += e.qty; else if (e.unit === 'KG') n.kg += e.qty;
+  };
   prodIndex().counted.forEach(function(e) {
-    if (e.date !== date || e.kind !== 'plated' || e.qty == null || e.rework || e.clientId == null) return;
-    var client = (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
-    if (!client) { if (e.unit === 'NOS') o.unpriced += e.qty; return; }
+    if (e.date !== date || e.kind !== 'plated' || e.qty == null || e.rework || (line && e.line !== line)) return;
+    if (e.unit === 'NOS') o.pieces += e.qty; else if (e.unit === 'KG') o.kgWritten += e.qty;
+    var client = e.clientId == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(e.clientId); });
+    if (!client) { miss(e, null); return; }
     var pn = e.partNumber || prodWeighLearnt(e) || e.part || '', desc = (e.part || '') + (e.gauge ? ' (' + e.gauge + ')' : '');
     var rr = getRateOnRecord(client, e.date, { partNumber: pn, desc: desc, unit: e.unit === 'KG' ? 'KG' : 'NOS' });
-    var w = prodWeigh(e), amt = null;
+    var w = prodWeigh(e), amt = null, est = false;
     if (rr && rr.rate > 0 && rr.fits !== false) {
       if (rr.unit === 'piece' && e.unit === 'NOS') amt = rr.rate * e.qty;
-      else if (rr.unit === 'kg' && w.kg != null) { amt = rr.rate * w.kg; if (prodWeighEst(w)) o.est = true; }
+      else if (rr.unit === 'kg' && w.kg != null) { amt = rr.rate * w.kg; est = prodWeighEst(w); }
     }
     if (amt == null) {
       var per = clientLadderRate(client, e.date);
-      if (per > 0 && w.kg != null) { amt = per * w.kg; if (prodWeighEst(w)) o.est = true; }
+      if (per > 0 && w.kg != null) { amt = per * w.kg; est = prodWeighEst(w); }
     }
-    if (amt == null) { if (e.unit === 'NOS') o.unpriced += e.qty; return; }
+    if (amt == null) { miss(e, client); return; }
+    if (est) o.est = true;
     o.amount += amt; o.runs++;
+    if (w.kg != null && w.kg > 0) { o.kg += w.kg; o.amountKg += amt; }
   });
-  o.amount = gstRound(o.amount);
+  o.amount = gstRound(o.amount); o.amountKg = gstRound(o.amountKg);
+  o.names = Object.keys(names).map(function(k) { return names[k]; }).sort(function(a, b) { return b.pieces - a.pieces || b.kg - a.kg; });
+  // The share of the work with a rate: the pieces and the kilos written each, the lower of the two.
+  o.pricedShare = Math.min(o.pieces ? 1 - o.unpriced / o.pieces : 1, o.kgWritten ? 1 - o.unpricedKg / o.kgWritten : 1);
   return o;
+}
+/* ---------- A line against its usual day and its week against the four before ----------
+   Owner, 10 Oct 2026, on Floor's day: "corrections and comparisons are missing". A line's day in a few figures (what it plated
+   and what it earned), kept until the book changes, so a line's sixty days are read once: its usual day is the median of them,
+   and its week to the day is set against the same days of the four weeks before. */
+var _prodDaySum = null;
+function _prodDayMemo() {
+  var p = prodData();
+  if (!_prodDaySum || _prodDaySum.s !== S || _prodDaySum.w !== _bookWrites || _prodDaySum.v !== _prodVer || _prodDaySum.p !== p) _prodDaySum = { s: S, w: _bookWrites, v: _prodVer, p: p, m: {} };
+  return _prodDaySum.m;
+}
+function prodLineDaySum(date, line) {
+  var memo = _prodDayMemo(), k = 'd|' + date + '|' + line;
+  if (memo[k]) return memo[k];
+  var r = prodDayLine(date, line), wo = prodDayWorth(date, line);
+  return (memo[k] = { runs: r.entries.length, kg: r.kg, est: r.est > 0.0005, pieces: r.pieces, unweighed: r.unweighed, weighed: r.weighedShare,
+    worth: wo.amount, worthEst: wo.est, priced: wo.runs, unpriced: wo.unpriced, unpricedKg: wo.unpricedKg, pricedShare: wo.pricedShare, kgPriced: wo.kg, amountKg: wo.amountKg });
+}
+/* A line's usual day before this one: the median of its recorded days in the 60 before it, five at least: its kilos over the days
+   with nine tenths of their pieces weighed (the plant's usual day's rule, prodUsualDay), its earnings over the days with nine
+   tenths of the work priced. {kg, kgDays, worth, worthDays}; a figure null where fewer than five days qualify. */
+function prodLineUsual(line, date) {
+  var memo = _prodDayMemo(), key = 'u|' + date + '|' + line;
+  if (memo[key]) return memo[key];
+  var from = isoAddDays(date, -60), days = {}, kgs = [], worths = [];
+  prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && e.line === line && e.date >= from && e.date < date) days[e.date] = true; });
+  Object.keys(days).forEach(function(d) {
+    var x = prodLineDaySum(d, line);
+    if (x.kg > 0 && x.weighed >= 0.9) kgs.push(x.kg);
+    if (x.worth > 0 && x.pricedShare >= 0.9) worths.push(x.worth);
+  });
+  return (memo[key] = { kg: kgs.length >= 5 ? numMedian(kgs) : null, kgDays: kgs.length, worth: worths.length >= 5 ? gstRound(numMedian(worths)) : null, worthDays: worths.length });
+}
+/* A line's pay week to the day (Sunday on) against the same days of the four weeks before: the kilos and the earnings, each a
+   recorded day's average, since a day with no record is a gap, never a zero (the record began partway through a week, and a
+   week's total would read that week low). The day still running is left out of both sides (it reads low until it ends), so on a
+   week's first day there is nothing yet. A week before counts with nine tenths of its pieces weighed (for its earnings: of its
+   work priced); the four are taken together over the weeks that count, two at least. `line` null is the three lines together,
+   a day recorded on any of them. */
+function prodLineWeek(line, day) {
+  var memo = _prodDayMemo(), key = 'w|' + day + '|' + (line || '');
+  if (memo[key] !== undefined) return memo[key];
+  var today = localDateStr(), ws = attWeekStartOf(day), end = day < today ? day : isoAddDays(today, -1);
+  if (end < ws) return (memo[key] = null);
+  var n = isoDaysBetween(ws, end), lines = line ? [line] : PROD_LINES;
+  var sum = function(from) {
+    var o = { runs: 0, days: 0, kg: 0, est: false, pieces: 0, unweighed: 0, worth: 0, worthEst: false, worthDays: 0, workPcs: 0, unpriced: 0 };
+    for (var k = 0; k <= n; k++) {
+      var d = isoAddDays(from, k), any = false, priced = false;
+      lines.forEach(function(l) {
+        var x = prodLineDaySum(d, l);
+        if (!x.runs) return;
+        any = true; o.runs += x.runs; o.kg += x.kg; o.est = o.est || x.est; o.pieces += x.pieces; o.unweighed += x.unweighed;
+        if (x.priced) priced = true;
+        o.worth += x.worth; o.worthEst = o.worthEst || x.worthEst;
+        // The share priced, a day's lines weighing as their pieces (one, a line in kilos only).
+        var wgt = x.pieces || 1; o.workPcs += wgt; o.unpriced += wgt * (1 - x.pricedShare);
+      });
+      if (any) o.days++;
+      if (priced) o.worthDays++;
+    }
+    o.weighed = o.pieces ? 1 - o.unweighed / o.pieces : 1;
+    o.priced = o.workPcs ? 1 - o.unpriced / o.workPcs : 1;
+    o.worth = gstRound(o.worth);
+    o.kgDay = o.days ? o.kg / o.days : null;
+    o.worthDay = o.worthDays ? o.worth / o.worthDays : null;
+    return o;
+  };
+  var cur = sum(ws), before = [1, 2, 3, 4].map(function(w) { return sum(isoAddDays(ws, -7 * w)); });
+  var kgB = before.filter(function(b) { return b.days && b.weighed >= 0.9; }), wB = before.filter(function(b) { return b.worthDays && b.priced >= 0.9 && b.worth > 0; });
+  var per = function(list, f, d) { var t = list.reduce(function(a, b) { return a + b[f]; }, 0), dd = list.reduce(function(a, b) { return a + b[d]; }, 0); return dd ? t / dd : null; };
+  return (memo[key] = { from: ws, to: end, cur: cur,
+    kgDayBefore: kgB.length >= 2 ? per(kgB, 'kg', 'days') : null, kgWeeks: kgB.length,
+    worthDayBefore: wB.length >= 2 ? per(wB, 'worth', 'worthDays') : null, worthWeeks: wB.length });
+}
+/* What a kilo costs the plant as of a day, to set the day's earnings against: the live cost over the 90 days to it (Stats' own,
+   on the invoices' weighed kilos), else the full cost typed in Settings. {perKg, live, from, to}; null with neither. One kept. */
+var _prodCostRef = null;
+function prodCostRef(date) {
+  if (_prodCostRef && _prodCostRef.s === S && _prodCostRef.w === _bookWrites && _prodCostRef.date === date) return _prodCostRef.v;
+  var from = isoAddDays(date, -89), v = null;
+  var inv = statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= date; });
+  var w = inv.length ? weighLines(inv) : { kg: 0 };
+  if (w.kg > 0) { try { var c = liveCost(from, date, w.kg); if (c && c.perKg > 0) v = { perKg: c.perKg, live: true, from: from, to: date }; } catch (e) { v = null; } }
+  if (!v && S.defaultCostPerKg > 0) v = { perKg: Number(S.defaultCostPerKg), live: false, from: from, to: date };
+  _prodCostRef = { s: S, w: _bookWrites, date: date, v: v };
+  return v;
 }
 var PROD_DAY_START = 360;   // the shop's day on the clock: 6 AM, when the morning block starts, to 6 AM the next
 /* The plant's usual day before this one: the median kilograms of the recorded days in the 60 before it, each with nine
@@ -46920,16 +47160,39 @@ function prodDayMoreHtml(pic) {
   // What the work is worth at the rates on record, and the labour the day's record holds: shown to a role that sees money
   // and wages (guard.js), never a figure a role's screens do not show.
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), wages = typeof grdSeesWages !== 'function' || grdSeesWages();
-  var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date);
+  var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date), wo = pic.worth;
+  // The day's earnings against what its kilos cost (owner, 10 Oct 2026: "As we are calculating production, why don't we calculate
+  // the earnings?"): the live cost over the 90 days to the day, on the kilos of the runs priced, so what was left is read over the
+  // same runs as what they earned; the work no rate prices is listed to follow up.
+  var ref = money && wo.kg > 0 ? prodCostRef(pic.date) : null, cost = ref ? gstRound(ref.perKg * wo.kg) : null, real = wo.kg > 0 ? wo.amountKg / wo.kg : null;
+  var notPriced = wo.unpriced ? Math.round(wo.unpriced).toLocaleString('en-IN') + ' pcs' : '', notPricedKg = wo.unpricedKg ? formatNum(wo.unpricedKg, 0) + ' kg' : '';
+  var mayRates = (typeof grdCan !== 'function' || grdCan('rates')) && (typeof grdSees !== 'function' || grdSees('pageClients'));
+  // The week to the day against the same days of the four weeks before (the three lines together), in kilos and in earnings, a
+  // recorded day's average on each side: a day with no record is a gap, never a zero.
+  var w4 = prodLineWeek(null, pic.date), w4kg = w4 && w4.cur.days && w4.kgDayBefore != null && w4.cur.kg > 0, w4rs = money && w4 && w4.cur.worthDays && w4.worthDayBefore != null && w4.cur.worth > 0;
   h += '<div class="inv-row-group"><span>The day</span></div>' + [
-    money && pic.worth.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
-      value: (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount), attrs: ' data-prod-day-worth' } : null,
-    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
+    money && wo.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (wo.unpriced ? ' · ' + Math.round(wo.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
+      value: (wo.est ? '≈ ' : '') + formatCurrency(wo.amount), attrs: ' data-prod-day-worth' } : null,
+    cost != null ? { label: 'At the live cost', sub: formatCurrency(ref.perKg) + ' a kg × ' + prodKgFig(wo.kg, false) + (ref.live ? ', 90 days' : ', the full cost typed'), value: formatCurrency(cost), attrs: ' data-prod-day-cost' } : null,
+    cost != null ? { label: 'Left after it', sub: formatCurrency(real) + ' a kg earned' + (wo.kg > 0 && wo.amountKg < wo.amount - 0.005 ? ' · piece work nothing weighs left out' : ''),
+      value: (wo.est ? '≈ ' : '') + formatCurrency(gstRound(wo.amountKg - cost)), tone: figToneAgainst(real, ref.perKg, 5), attrs: ' data-prod-day-left' } : null,
+    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && wo.amount > 0 ? Math.round(pic.labour / wo.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
     { label: 'Power cuts', sub: pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') + (open ? ' · ' + open + ' with no time back' : '') : '',
       value: pic.cuts.length ? powerDur(mins) + ' dark' : 'none', attrs: ' data-prod-day-cuts' },
     { label: 'Pickling loads', value: pic.loads || 'none', attrs: ' data-prod-day-loads' },
-    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null
+    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null,
+    w4kg ? { label: 'This week, a day plated', sub: prodKgFig(w4.cur.kgDay, w4.cur.est, w4.cur.weighed < 0.9) + ' on ' + todoPlural(w4.cur.days, 'day') + ' · the ' + w4.kgWeeks + ' weeks before ' + prodKgFig(w4.kgDayBefore, true),
+      value: w4.cur.weighed >= 0.9 ? figDeltaPct(w4.cur.kgDay, w4.kgDayBefore) : 'reads low',
+      tone: w4.cur.weighed >= 0.9 ? figDeltaTone(w4.cur.kgDay, w4.kgDayBefore, 'up') : null, attrs: ' data-prod-day-week4' } : null,
+    w4rs ? { label: 'This week, a day earned', sub: (w4.cur.worthEst ? '≈ ' : '') + finRs(w4.cur.worthDay) + ' on ' + todoPlural(w4.cur.worthDays, 'day') + ' · the ' + w4.worthWeeks + ' weeks before ' + finRs(w4.worthDayBefore),
+      value: w4.cur.priced >= 0.9 ? figDeltaPct(w4.cur.worthDay, w4.worthDayBefore) : 'reads low',
+      tone: w4.cur.priced >= 0.9 ? figDeltaTone(w4.cur.worthDay, w4.worthDayBefore, 'up') : null, attrs: ' data-prod-day-week4-rs' } : null
   ].filter(Boolean).map(uiFactRowHtml).join('');
+  // Not priced: each floor name with its client and what it holds, and the door to the client's rates (a rate-card change).
+  if (money && wo.names.length) h += uiFoldRowHtml('prod-day-unpriced', { label: 'Not priced', sub: 'no rate on record for the part', value: [notPriced, notPricedKg].filter(Boolean).join(' + ') }, wo.names.slice(0, 8).map(function(n) {
+    return { label: n.part || 'No part written', sub: n.client, value: [n.pieces ? Math.round(n.pieces).toLocaleString('en-IN') + ' pcs' : '', n.kg ? formatNum(n.kg, 0) + ' kg' : ''].filter(Boolean).join(' + '), attrs: ' data-prod-unpriced',
+      actions: mayRates && n.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(n.clientId)) + '">Rates</button>' : '' };
+  }).concat(wo.names.length > 8 ? [{ label: todoPlural(wo.names.length - 8, 'more part'), value: '' }] : []), ' data-prod-day-unpriced');
   return h;
 }
 
@@ -47152,7 +47415,7 @@ function prodLinesHtml() {
         var txt = (x.kg > 0 ? (x.est > 0.0005 ? '≈ ' : '') + formatNum(x.kg, 0) : '') + (x.unweighed ? (x.kg > 0 ? ' + ' : '') + Math.round(x.unweighed).toLocaleString('en-IN') + ' pcs' : '');
         return '<td class="inv-num"' + (ef.eff != null ? ' title="' + escHtml(ef.word) + '"' : '') + '>' + figHtml(escHtml(txt), t === 'neutral' ? null : t) + '</td>';
       }).join('') + '</tr>';
-    }).join('') + '</tbody></table></div></div>';
+    }).join('') + prodWeekEarnedRowHtml(wd) + '</tbody></table></div></div>';
   h += uiFoldCard('prod-line-stock', prodLineStockHtml(line), false);
   // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
@@ -47163,6 +47426,23 @@ function prodLinesHtml() {
     escHtml(L.perKg != null ? todoPlural(L.days, 'day') + ' recorded · against the model ₹' + formatNum(model, 2) : todoPlural(L.days, 'day') + ' recorded · withheld under five') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + (L.perKg != null ? figHtml(escHtml('₹' + formatNum(L.perKg, 2) + '/kg'), lt) : '&mdash;') + '</span></div></div>';
   return h;
+}
+/* The week's earnings, the three lines together, a day a cell (prodDayWorth at the rates on record, "≈" where a weight is
+   estimated), each day's cell in its rupee a kilo's tone against what a kilo costs; a day with plating and nothing priced is a
+   dash. To a role that sees money. */
+function prodWeekEarnedRowHtml(days) {
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return '';
+  var any = false, cells = days.map(function(d) {
+    var amt = 0, est = false, runs = 0, kg = 0, amtKg = 0, ran = false;
+    PROD_LINES.forEach(function(l) { var x = prodLineDaySum(d, l); if (x.runs) ran = true; amt += x.worth; est = est || x.worthEst; runs += x.priced; kg += x.kgPriced; amtKg += x.amountKg; });
+    if (!ran) return '<td class="inv-num">&mdash;</td>';
+    if (!runs) return '<td class="inv-num" title="Nothing priced: no rate on record">&mdash;</td>';
+    any = true;
+    var ref = kg > 0 ? prodCostRef(d) : null, t = ref ? figToneAgainst(amtKg / kg, ref.perKg, 5) : null;
+    return '<td class="inv-num"' + (kg > 0 ? ' title="' + escHtml(formatCurrency(amtKg / kg) + ' a kg' + (ref ? ' against a cost of ' + formatCurrency(ref.perKg) : '')) + '"' : '') + '>' +
+      figHtml(escHtml((est ? '≈ ' : '') + finRs(amt)), t) + '</td>';
+  });
+  return any ? '<tr data-prod-week-earned><td>Earned</td>' + cells.join('') + '</tr>' : '';
 }
 /* A line's verdict for the day (§3e): its efficiency as Floor's line card judges it (prodLineEfficiency, flrEffHead's words), what it
    plated, the pieces, the rounds and the cuts its factors; how the efficiency splits (flrEffRowHtml) under them. Pickling: its loads. */
@@ -47184,13 +47464,32 @@ function prodLinesVerdictHtml(line, day) {
     : ef.over ? ef.word + ', ' + kg + ' plated' : judged.charAt(0).toUpperCase() + judged.slice(1) + ', ' + kg + ' plated';
   var hours = ef.minutes ? formatNum(ef.minutes / 60, 1).replace(/\.0$/, '') + ' h run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : '') : '';
   var head = typeof flrEffHead === 'function' ? flrEffHead(ef, null, isToday) : {};
+  // Against its usual day and its week against the four before (owner, 10 Oct 2026: "corrections and comparisons are missing"),
+  // and what it earned at the clients' rates on record ("why don't we calculate the earnings?"), to a role that sees money.
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), x = prodLineDaySum(day, line), u = prodLineUsual(line, day);
+  var kgDelta = !r.entries.length || u.kg == null ? '' : isToday ? 'a usual day ' + escHtml(prodKgFig(u.kg, true)) : r.weighedShare < 0.9 ? 'reads low: pieces not weighed'
+    : figDeltaHtml(r.kg, u.kg, 'a usual day', 'up');
+  var ref = money ? prodCostRef(day) : null, real = x.kgPriced > 0 ? x.amountKg / x.kgPriced : null;
+  var earned = { label: 'Earned', money: true, fig: x.priced ? figWrapHtml(escHtml((x.worthEst ? '≈ ' : '') + finRs(x.worth))) : '', attrs: ' data-prod-line-tile="earned"',
+    tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
+    sub: !r.entries.length ? 'nothing recorded' : !x.priced ? 'no rate on record' : real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : 'by the piece',
+    delta: !x.priced || u.worth == null ? '' : isToday ? 'a usual day ' + escHtml(finRs(u.worth)) : x.pricedShare < 0.9 ? escHtml(Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced')
+      : figDeltaHtml(x.worth, u.worth, 'a usual day', 'up') };
+  // The week to the day, a recorded day's average against the four weeks before's (a day with no record is a gap, never a zero).
+  var wk = prodLineWeek(line, day), wkFact = null;
+  if (wk && wk.cur.days && wk.kgDayBefore != null && wk.cur.kg > 0) {
+    var fair = wk.cur.weighed >= 0.9, wd = figDeltaText(wk.cur.kgDay, wk.kgDayBefore, 'the 4 before');
+    wkFact = { text: 'this week ' + prodKgFig(wk.cur.kgDay, wk.cur.est, !fair) + ' a day' + (fair && wd ? ', ' + wd : ''), tone: fair ? figDeltaTone(wk.cur.kgDay, wk.kgDayBefore, 'up') : null };
+  }
   return uiVerdictHtml({ screen: PROD_LINE_LABEL[line] + ' · ' + when, verdict: verdict, tone: ef.tone, viz: ef.eff != null ? head.viz || '' : '',
-    facts: [ef.ran && ef.eff == null ? ef.why : '', ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + unit + 's working' : '', hours],
+    facts: [ef.ran && ef.eff == null ? ef.why : '', wkFact, ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + unit + 's working' : '', hours].filter(Boolean).slice(0, 3),
     factors: [
-      { label: 'Plated', fig: kg ? figWrapHtml(escHtml(kg)) : '', sub: !r.entries.length ? 'nothing recorded' : r.kg > 0 ? (r.est > 0.0005 ? Math.round(r.est / r.kg * 100) + '% estimated' : 'every run weighed') : 'no run weighed', attrs: ' data-prod-line-tile="kg"' },
+      { label: 'Plated', fig: kg ? figWrapHtml(escHtml(kg)) : '', sub: !r.entries.length ? 'nothing recorded' : r.kg > 0 ? (r.est > 0.0005 ? Math.round(r.est / r.kg * 100) + '% estimated' : 'every run weighed') : 'no run weighed',
+        delta: kgDelta, attrs: ' data-prod-line-tile="kg"' },
       { label: 'Pieces', fig: escHtml(Math.round(r.nos).toLocaleString('en-IN')) + ' <span class="inv-tile-of">NOS</span>', tone: r.unweighed ? 'warning' : null,
         sub: r.unweighed ? Math.round(r.unweighed).toLocaleString('en-IN') + ' not weighed' : todoPlural(r.entries.length, 'run'), attrs: ' data-prod-line-tile="pieces"' },
-      { label: 'Rounds', fig: String(Math.round(r.rounds)), sub: 'racks or rounds counted', attrs: ' data-prod-line-tile="rounds"' },
+      // The rounds are in the efficiency's split under the tiles: a role that sees money reads what the line earned in their place.
+      money ? earned : { label: 'Rounds', fig: String(Math.round(r.rounds)), sub: 'racks or rounds counted', attrs: ' data-prod-line-tile="rounds"' },
       // Dark for so long, or, where no cut has its time back, how many: "0 min" read as no cut at all.
       { label: 'Power cuts', fig: mins > 0 ? escHtml(powerDur(mins)) : downtime.length ? String(downtime.length) : '', tone: downtime.length ? 'warning' : null,
         sub: !downtime.length ? 'none this day' : mins > 0 ? todoPlural(downtime.length, 'cut') + ' this day' : todoPlural(downtime.length, 'cut') + ' with no time back', attrs: ' data-prod-line-tile="cuts"' }],
@@ -48473,6 +48772,8 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
         '<span class="inv-row-meta">' + escHtml((isToday ? 'From ' : 'A gap, not a zero: from ') + FLR_SRC_TEXT[ln.src]) + '</span>') +
       (btn ? '<span class="inv-row-end inv-row-actions">' + btn + '</span>' : '') + '</div>';
   }
+  // What the line earned, against what its kilos cost and its usual day (one row; a role without money: the kilos against it).
+  if (last && ln.id !== 'pickling') h += flrEarnedRowHtml(day, isToday, ln.id);
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
   if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.
@@ -48504,6 +48805,29 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   return uiHeroHtml({ tone: tone, eyebrow: '<span class="inv-panel-title">' + escHtml(name) + '</span>' + (ef && ef.eff != null ? '<span class="inv-panel-count">' + escHtml(ef.word) + '</span>' : ''),
     title: escHtml(head.title), fig: head.fig ? escHtml(head.fig) : '', sub: head.sub ? escHtml(head.sub) : '', viz: head.viz || '',
     body: '<div class="inv-hero-sheet">' + h + '</div>', open: true, fold: 'flr-line-' + ln.id, foot: foot, attrs: ' data-line="' + ln.id + '"' + (ef ? ' data-flr-eff="' + escHtml(ef.eff != null ? String(Math.round(ef.eff * 100)) : '') + '"' : '') });
+}
+/* What a plating line earned on the day at its clients' rates on record (prodDayWorth; owner, 10 Oct 2026: "As we are calculating
+   production, why don't we calculate the earnings?"), coloured by whether its rupee a kilo clears what a kilo costs (the live cost,
+   prodCostRef), and set against its usual day ("corrections and comparisons are missing"). A day still running says so and is not
+   set against a whole one. A role that does not see money reads the kilos against the usual day instead (I4). One fact row. */
+function flrEarnedRowHtml(day, isToday, line) {
+  var x = prodLineDaySum(day, line), u = prodLineUsual(line, day);
+  if (!x.runs) return '';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  if (!money) {
+    if (u.kg == null || !(x.kg > 0)) return '';
+    if (isToday) return uiFactRowHtml({ label: 'A usual day', value: prodKgFig(u.kg, true), sub: 'so far ' + prodKgFig(x.kg, x.est, x.unweighed > 0) + ' · median of ' + u.kgDays + ' days', attrs: ' data-flr-usual' });
+    return uiFactRowHtml({ label: 'Against a usual day', value: figDeltaPct(x.kg, u.kg), tone: x.weighed >= 0.9 ? figDeltaTone(x.kg, u.kg, 'up') : null,
+      sub: 'a usual day ' + prodKgFig(u.kg, true) + ' · median of ' + u.kgDays + ' days' + (x.weighed < 0.9 ? ' · reads low: pieces not weighed' : ''), attrs: ' data-flr-usual' });
+  }
+  var ref = prodCostRef(day), real = x.kgPriced > 0 ? x.amountKg / x.kgPriced : null;
+  // Two facts (§3b): the rupee a kilo against the cost, then the usual day; where a tenth or more of the work has no rate, that
+  // instead, since the figure reads low against a whole day (the day card lists what is not priced).
+  var notPriced = x.unpriced ? Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced' : x.unpricedKg ? formatNum(x.unpricedKg, 0) + ' kg not priced' : '';
+  var vs = x.pricedShare < 0.9 ? notPriced : u.worth == null ? '' : isToday ? 'so far; a usual day ' + finRs(u.worth) : figDeltaText(x.worth, u.worth, 'a usual day');
+  var sub = [real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : '', vs].filter(Boolean).join(' · ');
+  return uiFactRowHtml({ label: 'Earned', value: x.priced ? (x.worthEst ? '≈ ' : '') + finRs(x.worth) : '', tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
+    sub: sub || 'nothing priced: no rate on record', attrs: ' data-flr-earned' });
 }
 /* A plating line's head: its efficiency as the figure, what it plated of what it could, and the inputs; or why it is not judged. */
 function flrEffHead(ef, last, isToday) {
@@ -53431,9 +53755,9 @@ var KB_APP_GUIDES = [
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
     '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Attendance → Day → **Paste message**).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
     '3. Check every line, then **Save**. A spelling you place is remembered.\n4. Paste the out-time roll the same way: it updates the day.\n\n' +
-    'A mark typed by hand is never overwritten by a roll.',
-    // Version 2: Paste message is Attendance's, on Day (the tab map, TM4b).
-    { version: 2 }),
+    'A mark typed or changed by hand (its area included) is never overwritten by a roll, even an out-time roll that puts the hand on a later block: Pay’s **Hours to check** names such a hand, so the day can be put right.',
+    // Version 3: a mark changed by hand and the hours to check (10 Oct 2026); version 2: Paste message is Attendance's, on Day (TM4b).
+    { version: 3 }),
   // Attendance (the tab map, TM4b): Day, Week and Month under one tab, and the method each screen used to print above its figures.
   _kbg('day', 'Using the app: attendance', 'Floor → People → Attendance: the day, the week and the month', ['pageStaff', 'pageFloor'],
     'Floor → People → **Attendance** has three views on a switch under its toolbar: **Day**, **Week** and **Month**. Each starts with a card that says how it stands; tap it on a phone for its figures.\n\n' +
@@ -53487,9 +53811,17 @@ var KB_APP_GUIDES = [
     '# The lines\n- A card per line, the worst first: red, then amber, green and blue.\n' +
     '- **Staffing**: the general shift’s heads against the day’s number (People → Attendance → Needed today). Barrel is barrel and barrel pickling, one unit.\n' +
     '- **Plated**: the figure that counts for each shift, as Production → Lines shows it. A day nobody recorded is a gap, not a zero.\n' +
+    '- **Earned** (to a role that sees money): **What a line earned** below. A role that does not see money reads the kilos against the line’s usual day.\n' +
     '- A line’s efficiency and how it splits: **Reading the plant’s figures**.\n\n' +
+    '# What a line earned\n- The line’s runs at their clients’ rates on record, before GST: a piece client’s part at its piece rate, a run in kilos at the client’s rate a kg, a run in pieces at that rate over its weight (≈ where the weight is estimated). Rework is not billed and is left out.\n' +
+    '- Green where its rupee a kilo clears what a kilo costs (the live cost over the 90 days to the day, else the full cost in Settings), amber just under, red below.\n' +
+    '- Under it, the line’s **usual day**: the middle of its recorded days in the 60 before, five at least, each with nine tenths of its work weighed (for the earnings, priced). A day still running says *so far*.\n' +
+    '- Where a tenth or more of the work has no rate, it says how much instead: the figure reads low.\n' +
+    '- The **Production** card, opened: what the day’s work is worth, **At the live cost** (what its kilos cost), **Left after it**, the labour on the record, and **This week, a day plated** and **a day earned** against the four weeks before (a recorded day’s average on each side: a day not recorded is a gap, not a zero). **Not priced** lists the work no rate prices, with the door to the client’s rates.\n\n' +
     '# Not weighed\n- Pieces plated with no weight anywhere in the book: no kg a piece on record, and no challan of them that counts their pieces.\n' +
-    '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.'),
+    '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.',
+    // Version 2: what a line earned, against its cost and its usual day; the week against the four before (owner, 10 Oct 2026).
+    { version: 2 }),
   // Stock as one screen (the tab map, TM4d), and the method its Overview printed under its charts.
   _kbg('stock', 'Using the app: stock', 'The stock message, entry by hand, and reordering', ['pageStock'],
     'Floor → **Stock** is one screen. The card at the top says what is out or low and what the reorder list costs with GST; its tiles (Out, the days-or-less group, OK, No rate) each show only their lines, and a second tap shows them all.\n\n' +
@@ -53511,9 +53843,10 @@ var KB_APP_GUIDES = [
     '# Taking it in\n- **Paste** the pickling loads and the production list from WhatsApp; every line is shown with what was read before anything is saved.\n' +
     '- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
     '- **Enter by hand** (under More) when there is nothing to paste. The form stays open for the next entry.\n- A figure is corrected by a new entry, never edited; a wrong one is voided with a reason.\n\n' +
-    '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, the rounds and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
+    '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, what it earned (the rounds, to a role that does not see money) and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
+    '- **Plated** and **Earned** each say how the day stands against the line’s usual day; the card’s facts give the week to the day against the four weeks before, a recorded day’s average on each side. How earnings are worked out: **Using the app: the floor**.\n' +
     '- **One record counts for each line and shift**: the register, else the supervisor’s relay, else an entry by hand. The others are shown as *also reported, not added*: they count the same work another way.\n' +
-    '- **The week, plated**: the kilograms each line plated each day, ≈ where any run is estimated, pieces nothing weighs added as pieces; each figure in its day’s efficiency’s colour. A dash is a day with no record for the line.\n' +
+    '- **The week, plated**: the kilograms each line plated each day, ≈ where any run is estimated, pieces nothing weighs added as pieces; each figure in its day’s efficiency’s colour. A dash is a day with no record for the line. **Earned** under the lines: the three lines’ earnings a day, coloured by their rupee a kilo against what a kilo costs.\n' +
     '- **Plated by line, 4 weeks**: kilograms a day; a gap is a day with no record, or a tenth of its pieces not weighed, never a zero.\n' +
     '- **Labour per kg, 30 days**: the variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), the VAT side’s pickling hands shared by each day’s kilos, over the same days as the kilos (days with nine tenths of the pieces weighed). The monthly crew is the standing crew and is not by line. Withheld under five days; set against the modelled labour (Settings → Labour).\n\n' +
     '# In plant\n- **Book**: everything open on the challans, not invoiced, the same figure as Today’s unbilled.\n' +
@@ -53525,8 +53858,8 @@ var KB_APP_GUIDES = [
     '- Its badges: where it came from (*register*, *relay*, *hand*, *message*, *import*), how its pieces were weighed (*written*, *record*, *challans*, *kind*, *default*, *not weighed*), and what it did not match (*no challan*, *no client*, *gauge unknown*).\n' +
     '- **Filter** (on a phone) lists one kind, or the entries a flag names, every date.\n\n' +
     '# Equipment\n- Every tank, barrel and machine, a card each in its status’s colour: running, standby, under repair, down, with its kg a round and how long it has stood. A line’s capacity is worked out from its units; every change of status is kept with its day.',
-    // Version 2: four views, a card on each, the method moved here (the tab map, TM4c).
-    { version: 2 }),
+    // Version 3: what a line earned, and the day and the week against the line's usual (owner, 10 Oct 2026).
+    { version: 3 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -53565,13 +53898,16 @@ var KB_APP_GUIDES = [
     '- While the week is open the payout is predicted at its own pace: the days recorded as they are, the rest at the week’s average for a working day. The Sunday is left out of that average, since it is overtime.\n' +
     '- **Due by worker**: each hand’s line is what is due. Tap it for the arithmetic (days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward) and **Pay** to record a payment or an advance.\n' +
     '- The weekly hands are paid by the week; the monthly hands by the calendar month the week’s Sunday is in. The EXTRA pool is in no one’s due: it is one line on the slip, paid out by the supervisor.\n' +
+    '- **Snacks** are a line of the payout: a person once a day, at ₹20 for regular overtime (an evening block, or out at 6 PM or later) and ₹60 for night overtime (a block or an out past midnight), every tier; none for the 6 AM block or the gate’s own hours. The two rates are in Settings → Labour → Overtime.\n' +
+    '- **Hours to check**, in the card: a hand named on an overtime block whose own in or out time does not reach it. Pay reads each hand’s own times, so the block’s hours are in nobody’s pay until the day is put right; **Open the day** goes to it.\n' +
     '- **Paid** is the bank’s salaries and the payments typed here. A salary on the statement is read as wages to the hand its name reads as (a name read only as a guess says so; set the payee on the statement once). A payment typed here that the statement also holds is counted once.\n' +
     '- A balance carries to the next period until it is paid, worked off or cleared with a reason (**Brought forward**, each month it is made of named). A monthly hand’s balance counts from the month you set (**Count from a month**): from it on, a month paid short is owed and a month paid over is taken back. A salary is owed from the 21st of the month after.\n' +
     '- **History** on a hand’s line: their last twelve months (or weeks), what each earned, every payment, what it left and the balance after it, and **Print the slip** for any of them. **Pay slips** prints a month picked for every monthly hand.\n' +
     '- A wrong payment is voided with a reason, never deleted.\n' +
     '- **Monthly payroll as paid** (under More: Import): a closed month’s slips. For a month before this one they are what the hands they name earned; with no payment for the month on record, the slip is taken as paid.',
-    // Version 3: paid from the bank's salaries, monthly balances from a month set, a hand's history and any month's slip (owner, 10 Oct 2026).
-    { roles: ['owner'], version: 3 }),
+    // Version 4: snacks in the payout and the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly
+    // balances from a month set, a hand's history and any month's slip (the same day).
+    { roles: ['owner'], version: 4 }),
   _kbg('bank', 'Using the app: the bank statement', 'Importing it, placing each receipt, and cheques in hand', ['pageFinance'],
     '- Money → Bank, in the toolbar’s More: **Import a statement**: the bank’s own .xls, or the same saved as .xlsx. Rows already in are skipped, so a statement that overlaps the last adds only what is new.\n' +
     '- **Receivables start** on the later of the statement’s first day and the book’s first invoice: a receipt before then paid an invoice the app does not hold.\n' +
@@ -58953,7 +59289,7 @@ var WS_GO_PAGE = {
   createFor: 'pageCreate',
   regState: 'pageRegister', register: 'pageRegister', audit: 'pageRegister', cnList: 'pageRegister', cnBatch: 'pageRegister', invoice: 'pageRegister',
   client: 'pageClients', perf: 'pageClients', quotes: 'pageClients', quoteDraft: 'pageClients', prospects: 'pageClients', prospect: 'pageClients',
-  staffRoster: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
+  staffRoster: 'pageStaff', staffDay: 'pageStaff', staffPaste: 'pageStaff', payDue: 'pageStaff', payWages: 'pageStaff', payWeek: 'pageStaff', areas: 'pageStaff',
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',

@@ -534,6 +534,12 @@ function parseRelayRoll(text, roster, sentOn) {
     }
 
     var numbered = bare.match(/^0*(\d{1,2})\s*[)\].]\s*(.*)$/);
+    // A number with no bracket after it ("14 NAME", as an out-time roll of 7 Oct 2026 wrote one) is a numbered line when what follows is a
+    // name on the roster as written: a quantity ("10 BAGS") or a note never is. Read as a note, the hand's out stayed at 5 PM.
+    if (!numbered) {
+      var nb = bare.match(/^0*(\d{1,2})\s+([A-Za-z].*)$/), nh = nb ? relayMatchName(nb[2].split(/[\s\-–,]+/).filter(Boolean), idx, false) : null;
+      if (nh && nh.sure) numbered = nb;
+    }
     var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;

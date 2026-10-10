@@ -128,7 +128,7 @@ split/
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
-├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout + forecast, monthly payroll as paid, hours by area (~830 lines)
+├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout (the snacks included) + forecast, the hours to check, monthly payroll as paid, hours by area (~1,150 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
@@ -156,14 +156,14 @@ split/
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
 ├── dash.js            ← The charts People and Stock explain with: attendance by week, labour ₹/kg, payroll vs bank (Pay); supplier spend, use, prices (Stock's Spend and prices) (~230 lines)
-├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; a line's efficiency; in plant; rules; export (~1,420 lines)
+├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; what a day and a line earned, a line's usual day and its week; a line's efficiency; in plant; rules; export (~1,820 lines)
 ├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~450 lines)
 ├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
 ├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
 ├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
-├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency; the pieces not weighed (~450 lines)
+├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -216,7 +216,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,652 tests, both layouts
+pnpm exec playwright test          # 1,715 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2073,6 +2073,33 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   plated, `source: 'production'`, behind the rates permission). Production → Entries → **Not weighed** lists every such run
   (`prodIsUnweighed`); To-do rule **`prodUnweighed`** asks per client over 30 days, amber, until each is weighed.
 
+### What a line earned, against its cost and its usual day
+Owner, 10 Oct 2026: *"As we are calculating production, why don't we calculate the earnings? I can see that 9th Oct production data is
+there and we have rate data, we can actually show the info there"*, and on Floor's day, *"corrections and comparisons are missing"*
+(the corrections are P198). `docs/PLANT_PICTURE.md` PP2, in part. P206.
+- **What a line earned** (`prodDayWorth(date, line)`; the day's whole when no line): its runs at their clients' rates on record before
+  GST, as the day card always read them (a piece client's part at its piece rate, a run in kilos at the client's ₹ a kg, a run in
+  pieces at that rate over its weight, ≈ where the weight is estimated; rework left out). It names the work no rate prices (`names`;
+  a run with no client among them, which had been passed over unsaid), and keeps the kilos of the priced runs that have a weight
+  with what they earned (`kg`, `amountKg`), so a rupee a kilo is read over the same runs as its kilos.
+- **Against what a kilo costs** (`prodCostRef`): the live cost over the 90 days to the day on the invoices' weighed kilos, Stats' own,
+  else the full cost in Settings, said which.
+- **Against the line's usual day** (`prodLineUsual`): the median of its recorded days in the 60 before, five at least, its kilos over
+  the days with nine tenths of their pieces weighed (the plant's usual day's rule) and its earnings over those with nine tenths of the
+  work priced. A day still running says *so far*.
+- **The week to the day against the four before** (`prodLineWeek`): the same days of each pay week, **a recorded day's average on each
+  side** (a day with no record is a gap, never a zero: the record began partway through a week, and a week's total read the one after
+  it 43% up on the owner's book), the day still running left out of both, two weeks before at least.
+- Read once a book (`prodLineDaySum`, kept until the book changes). **On screen**: Floor's line card a fact row, *Earned*, coloured by
+  its rupee a kilo against the cost, the usual day under it, or, where a tenth or more of the work has no rate, how much has none (a
+  role that does not see money reads the kilos against the usual day, `data-flr-usual`); Production → Lines' verdict an *Earned* tile
+  in the Rounds' place for that role (the rounds are in the efficiency's split), Plated and Earned with their change lines against
+  the usual day (`uiFactorTileHtml`'s `delta`), the week against the four before a fact; *The week, plated* an *Earned* row; the day
+  card (Floor's Production hero) *At the live cost*, *Left after it*, *This week, a day plated* and *a day earned*, and *Not priced*
+  listing what no rate prices with the door to the client's rates. On the owner's book of 9 Oct: 8 Oct's VAT A1 ≈ ₹12,530 at ₹5.40 a
+  kg (a piece client's clamps) against a cost of ₹7.20, red; VAT A2 ≈ ₹8,530 with 1,386 pieces not priced (the same pieces nothing
+  weighs).
+
 ### Workers and the plant
 `docs/WORKERS_AND_PLANT.md` (owner, 7 Oct 2026), steps W1–W5. P166–P170. **Nothing about the shop is in the build**: the units, the
 workers and every personal detail are the book's; the owner's private files (`sep-people`, `sep-plant`) are imported, never committed.
@@ -3545,6 +3572,9 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   are flagged *read as* with a picker already on the guess. A key two workers share matches neither;
   anything else is **asked, never guessed** — a numbered line not on the roster is red until placed
   or left out.
+- **A number with no bracket after it is a numbered line when a roster name follows** (`14 NAME`, as the out-time roll of 7 Oct
+  2026 wrote one): it had been read as a note, and the hand's out stayed at 5 PM. Only a name matched as written counts, so a
+  quantity (`10 BAGS`) or a note is never a person. P207.
 - **A spelling is learnt once** (owner, 25 Sep 2026: *"everytime I paste a message I have to go through
   and manually match them"*). A placement is kept on the worker **the moment it is picked**, and a
   *read as* the owner saved without correcting is kept on Save. Replayed over the real rolls against the
@@ -3699,6 +3729,18 @@ Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026)
   nothing. A weekly hand's balance still starts at the first payment typed for them (paid in cash, never on the statement by name).
   The month offered must have its earnings known (a slip or attendance). Once balances count, `wageVsSlip` stays quiet: Pay carries
   each month.
+- **Snacks are a line of the weekly payout** (`paySnacks`, in `payWeek`'s total; owner, 10 Oct 2026, on the week of 4 Oct's Saturday
+  cash: *"The 640 is snacks paid for OT and night shifts"*, *"20 per person regular OT, and 60 per person for night OT"*, night *"is when
+  it passes 12 a.m., not before it"*). A person once a day at the higher: night is a block running past midnight or an out past it (a
+  block to 12 AM is regular, whatever hour it starts), regular a block from 5 PM or an out at 6 PM or later; the 6 AM block has none,
+  nor the gate's own twelve hours; every tier. Read off the marks and the blocks' crews (`paySnackKind`). The rates are Settings →
+  Labour → Overtime (`labour.snackOt` 20, `snackNight` 60). The week of 4 Oct comes to the ₹840 paid only so (five on the evening of
+  the 5th, six to 12 AM on the 6th, four on the 7th, four on the night hold of the 8th, four on the night of the 9th and three to 8 PM);
+  the supervisor's sheet had priced the two nights at ₹40. The bank's cash split reads the payout, so the snacks are wages there too.
+- **Hours to check** (`payCrewGaps`, Pay's card and To-do rule **`payCrewGap`**, a floor task): a hand named on an overtime block whose
+  own times do not reach it (out at or before its start, in at or after the 6 AM block's end, or marked absent). Pay reads each
+  hand's own times, so the block's hours were in nobody's pay: on the week of 4 Oct a mark whose area was changed by hand kept the
+  out-time roll from carrying it to 6 AM (13 hours) while the roll named the hand on the night. **Open the day** goes to it. P207.
 - **Last month's salary is owed from the 21st** (`payOverdue`, `PAY_SALARY_BY_DAY`): the To-do's `payCarry` and the motivation index
   read the balance as of today, so the days before payday raise nothing; Pay itself shows last month's salary brought forward.
 - **A hand's history** (a due row's **History**, `payHistoryOpen`): the last twelve months (a weekly hand's weeks), newest first,

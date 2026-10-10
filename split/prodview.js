@@ -262,16 +262,39 @@ function prodDayMoreHtml(pic) {
   // What the work is worth at the rates on record, and the labour the day's record holds: shown to a role that sees money
   // and wages (guard.js), never a figure a role's screens do not show.
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), wages = typeof grdSeesWages !== 'function' || grdSeesWages();
-  var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date);
+  var wk = prodPlatedSummary(attWeekStartOf(pic.date), pic.date), wo = pic.worth;
+  // The day's earnings against what its kilos cost (owner, 10 Oct 2026: "As we are calculating production, why don't we calculate
+  // the earnings?"): the live cost over the 90 days to the day, on the kilos of the runs priced, so what was left is read over the
+  // same runs as what they earned; the work no rate prices is listed to follow up.
+  var ref = money && wo.kg > 0 ? prodCostRef(pic.date) : null, cost = ref ? gstRound(ref.perKg * wo.kg) : null, real = wo.kg > 0 ? wo.amountKg / wo.kg : null;
+  var notPriced = wo.unpriced ? Math.round(wo.unpriced).toLocaleString('en-IN') + ' pcs' : '', notPricedKg = wo.unpricedKg ? formatNum(wo.unpricedKg, 0) + ' kg' : '';
+  var mayRates = (typeof grdCan !== 'function' || grdCan('rates')) && (typeof grdSees !== 'function' || grdSees('pageClients'));
+  // The week to the day against the same days of the four weeks before (the three lines together), in kilos and in earnings, a
+  // recorded day's average on each side: a day with no record is a gap, never a zero.
+  var w4 = prodLineWeek(null, pic.date), w4kg = w4 && w4.cur.days && w4.kgDayBefore != null && w4.cur.kg > 0, w4rs = money && w4 && w4.cur.worthDays && w4.worthDayBefore != null && w4.cur.worth > 0;
   h += '<div class="inv-row-group"><span>The day</span></div>' + [
-    money && pic.worth.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (pic.worth.unpriced ? ' · ' + Math.round(pic.worth.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
-      value: (pic.worth.est ? '≈ ' : '') + formatCurrency(pic.worth.amount), attrs: ' data-prod-day-worth' } : null,
-    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && pic.worth.amount > 0 ? Math.round(pic.labour / pic.worth.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
+    money && wo.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (wo.unpriced ? ' · ' + Math.round(wo.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
+      value: (wo.est ? '≈ ' : '') + formatCurrency(wo.amount), attrs: ' data-prod-day-worth' } : null,
+    cost != null ? { label: 'At the live cost', sub: formatCurrency(ref.perKg) + ' a kg × ' + prodKgFig(wo.kg, false) + (ref.live ? ', 90 days' : ', the full cost typed'), value: formatCurrency(cost), attrs: ' data-prod-day-cost' } : null,
+    cost != null ? { label: 'Left after it', sub: formatCurrency(real) + ' a kg earned' + (wo.kg > 0 && wo.amountKg < wo.amount - 0.005 ? ' · piece work nothing weighs left out' : ''),
+      value: (wo.est ? '≈ ' : '') + formatCurrency(gstRound(wo.amountKg - cost)), tone: figToneAgainst(real, ref.perKg, 5), attrs: ' data-prod-day-left' } : null,
+    wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && wo.amount > 0 ? Math.round(pic.labour / wo.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
     { label: 'Power cuts', sub: pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') + (open ? ' · ' + open + ' with no time back' : '') : '',
       value: pic.cuts.length ? powerDur(mins) + ' dark' : 'none', attrs: ' data-prod-day-cuts' },
     { label: 'Pickling loads', value: pic.loads || 'none', attrs: ' data-prod-day-loads' },
-    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null
+    wk ? { label: 'The week, against capacity', sub: prodKgFig(wk.kg, wk.est > 0.0005) + ' on ' + todoPlural(wk.days, 'complete day'), value: Math.round(wk.perDay / wk.capacity * 100) + '%', attrs: ' data-prod-day-week' } : null,
+    w4kg ? { label: 'This week, a day plated', sub: prodKgFig(w4.cur.kgDay, w4.cur.est, w4.cur.weighed < 0.9) + ' on ' + todoPlural(w4.cur.days, 'day') + ' · the ' + w4.kgWeeks + ' weeks before ' + prodKgFig(w4.kgDayBefore, true),
+      value: w4.cur.weighed >= 0.9 ? figDeltaPct(w4.cur.kgDay, w4.kgDayBefore) : 'reads low',
+      tone: w4.cur.weighed >= 0.9 ? figDeltaTone(w4.cur.kgDay, w4.kgDayBefore, 'up') : null, attrs: ' data-prod-day-week4' } : null,
+    w4rs ? { label: 'This week, a day earned', sub: (w4.cur.worthEst ? '≈ ' : '') + finRs(w4.cur.worthDay) + ' on ' + todoPlural(w4.cur.worthDays, 'day') + ' · the ' + w4.worthWeeks + ' weeks before ' + finRs(w4.worthDayBefore),
+      value: w4.cur.priced >= 0.9 ? figDeltaPct(w4.cur.worthDay, w4.worthDayBefore) : 'reads low',
+      tone: w4.cur.priced >= 0.9 ? figDeltaTone(w4.cur.worthDay, w4.worthDayBefore, 'up') : null, attrs: ' data-prod-day-week4-rs' } : null
   ].filter(Boolean).map(uiFactRowHtml).join('');
+  // Not priced: each floor name with its client and what it holds, and the door to the client's rates (a rate-card change).
+  if (money && wo.names.length) h += uiFoldRowHtml('prod-day-unpriced', { label: 'Not priced', sub: 'no rate on record for the part', value: [notPriced, notPricedKg].filter(Boolean).join(' + ') }, wo.names.slice(0, 8).map(function(n) {
+    return { label: n.part || 'No part written', sub: n.client, value: [n.pieces ? Math.round(n.pieces).toLocaleString('en-IN') + ' pcs' : '', n.kg ? formatNum(n.kg, 0) + ' kg' : ''].filter(Boolean).join(' + '), attrs: ' data-prod-unpriced',
+      actions: mayRates && n.clientId != null ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invEditClient" data-id="' + escHtml(String(n.clientId)) + '">Rates</button>' : '' };
+  }).concat(wo.names.length > 8 ? [{ label: todoPlural(wo.names.length - 8, 'more part'), value: '' }] : []), ' data-prod-day-unpriced');
   return h;
 }
 
@@ -494,7 +517,7 @@ function prodLinesHtml() {
         var txt = (x.kg > 0 ? (x.est > 0.0005 ? '≈ ' : '') + formatNum(x.kg, 0) : '') + (x.unweighed ? (x.kg > 0 ? ' + ' : '') + Math.round(x.unweighed).toLocaleString('en-IN') + ' pcs' : '');
         return '<td class="inv-num"' + (ef.eff != null ? ' title="' + escHtml(ef.word) + '"' : '') + '>' + figHtml(escHtml(txt), t === 'neutral' ? null : t) + '</td>';
       }).join('') + '</tr>';
-    }).join('') + '</tbody></table></div></div>';
+    }).join('') + prodWeekEarnedRowHtml(wd) + '</tbody></table></div></div>';
   h += uiFoldCard('prod-line-stock', prodLineStockHtml(line), false);
   // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
@@ -505,6 +528,23 @@ function prodLinesHtml() {
     escHtml(L.perKg != null ? todoPlural(L.days, 'day') + ' recorded · against the model ₹' + formatNum(model, 2) : todoPlural(L.days, 'day') + ' recorded · withheld under five') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + (L.perKg != null ? figHtml(escHtml('₹' + formatNum(L.perKg, 2) + '/kg'), lt) : '&mdash;') + '</span></div></div>';
   return h;
+}
+/* The week's earnings, the three lines together, a day a cell (prodDayWorth at the rates on record, "≈" where a weight is
+   estimated), each day's cell in its rupee a kilo's tone against what a kilo costs; a day with plating and nothing priced is a
+   dash. To a role that sees money. */
+function prodWeekEarnedRowHtml(days) {
+  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return '';
+  var any = false, cells = days.map(function(d) {
+    var amt = 0, est = false, runs = 0, kg = 0, amtKg = 0, ran = false;
+    PROD_LINES.forEach(function(l) { var x = prodLineDaySum(d, l); if (x.runs) ran = true; amt += x.worth; est = est || x.worthEst; runs += x.priced; kg += x.kgPriced; amtKg += x.amountKg; });
+    if (!ran) return '<td class="inv-num">&mdash;</td>';
+    if (!runs) return '<td class="inv-num" title="Nothing priced: no rate on record">&mdash;</td>';
+    any = true;
+    var ref = kg > 0 ? prodCostRef(d) : null, t = ref ? figToneAgainst(amtKg / kg, ref.perKg, 5) : null;
+    return '<td class="inv-num"' + (kg > 0 ? ' title="' + escHtml(formatCurrency(amtKg / kg) + ' a kg' + (ref ? ' against a cost of ' + formatCurrency(ref.perKg) : '')) + '"' : '') + '>' +
+      figHtml(escHtml((est ? '≈ ' : '') + finRs(amt)), t) + '</td>';
+  });
+  return any ? '<tr data-prod-week-earned><td>Earned</td>' + cells.join('') + '</tr>' : '';
 }
 /* A line's verdict for the day (§3e): its efficiency as Floor's line card judges it (prodLineEfficiency, flrEffHead's words), what it
    plated, the pieces, the rounds and the cuts its factors; how the efficiency splits (flrEffRowHtml) under them. Pickling: its loads. */
@@ -526,13 +566,32 @@ function prodLinesVerdictHtml(line, day) {
     : ef.over ? ef.word + ', ' + kg + ' plated' : judged.charAt(0).toUpperCase() + judged.slice(1) + ', ' + kg + ' plated';
   var hours = ef.minutes ? formatNum(ef.minutes / 60, 1).replace(/\.0$/, '') + ' h run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : '') : '';
   var head = typeof flrEffHead === 'function' ? flrEffHead(ef, null, isToday) : {};
+  // Against its usual day and its week against the four before (owner, 10 Oct 2026: "corrections and comparisons are missing"),
+  // and what it earned at the clients' rates on record ("why don't we calculate the earnings?"), to a role that sees money.
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), x = prodLineDaySum(day, line), u = prodLineUsual(line, day);
+  var kgDelta = !r.entries.length || u.kg == null ? '' : isToday ? 'a usual day ' + escHtml(prodKgFig(u.kg, true)) : r.weighedShare < 0.9 ? 'reads low: pieces not weighed'
+    : figDeltaHtml(r.kg, u.kg, 'a usual day', 'up');
+  var ref = money ? prodCostRef(day) : null, real = x.kgPriced > 0 ? x.amountKg / x.kgPriced : null;
+  var earned = { label: 'Earned', money: true, fig: x.priced ? figWrapHtml(escHtml((x.worthEst ? '≈ ' : '') + finRs(x.worth))) : '', attrs: ' data-prod-line-tile="earned"',
+    tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
+    sub: !r.entries.length ? 'nothing recorded' : !x.priced ? 'no rate on record' : real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : 'by the piece',
+    delta: !x.priced || u.worth == null ? '' : isToday ? 'a usual day ' + escHtml(finRs(u.worth)) : x.pricedShare < 0.9 ? escHtml(Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced')
+      : figDeltaHtml(x.worth, u.worth, 'a usual day', 'up') };
+  // The week to the day, a recorded day's average against the four weeks before's (a day with no record is a gap, never a zero).
+  var wk = prodLineWeek(line, day), wkFact = null;
+  if (wk && wk.cur.days && wk.kgDayBefore != null && wk.cur.kg > 0) {
+    var fair = wk.cur.weighed >= 0.9, wd = figDeltaText(wk.cur.kgDay, wk.kgDayBefore, 'the 4 before');
+    wkFact = { text: 'this week ' + prodKgFig(wk.cur.kgDay, wk.cur.est, !fair) + ' a day' + (fair && wd ? ', ' + wd : ''), tone: fair ? figDeltaTone(wk.cur.kgDay, wk.kgDayBefore, 'up') : null };
+  }
   return uiVerdictHtml({ screen: PROD_LINE_LABEL[line] + ' · ' + when, verdict: verdict, tone: ef.tone, viz: ef.eff != null ? head.viz || '' : '',
-    facts: [ef.ran && ef.eff == null ? ef.why : '', ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + unit + 's working' : '', hours],
+    facts: [ef.ran && ef.eff == null ? ef.why : '', wkFact, ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + unit + 's working' : '', hours].filter(Boolean).slice(0, 3),
     factors: [
-      { label: 'Plated', fig: kg ? figWrapHtml(escHtml(kg)) : '', sub: !r.entries.length ? 'nothing recorded' : r.kg > 0 ? (r.est > 0.0005 ? Math.round(r.est / r.kg * 100) + '% estimated' : 'every run weighed') : 'no run weighed', attrs: ' data-prod-line-tile="kg"' },
+      { label: 'Plated', fig: kg ? figWrapHtml(escHtml(kg)) : '', sub: !r.entries.length ? 'nothing recorded' : r.kg > 0 ? (r.est > 0.0005 ? Math.round(r.est / r.kg * 100) + '% estimated' : 'every run weighed') : 'no run weighed',
+        delta: kgDelta, attrs: ' data-prod-line-tile="kg"' },
       { label: 'Pieces', fig: escHtml(Math.round(r.nos).toLocaleString('en-IN')) + ' <span class="inv-tile-of">NOS</span>', tone: r.unweighed ? 'warning' : null,
         sub: r.unweighed ? Math.round(r.unweighed).toLocaleString('en-IN') + ' not weighed' : todoPlural(r.entries.length, 'run'), attrs: ' data-prod-line-tile="pieces"' },
-      { label: 'Rounds', fig: String(Math.round(r.rounds)), sub: 'racks or rounds counted', attrs: ' data-prod-line-tile="rounds"' },
+      // The rounds are in the efficiency's split under the tiles: a role that sees money reads what the line earned in their place.
+      money ? earned : { label: 'Rounds', fig: String(Math.round(r.rounds)), sub: 'racks or rounds counted', attrs: ' data-prod-line-tile="rounds"' },
       // Dark for so long, or, where no cut has its time back, how many: "0 min" read as no cut at all.
       { label: 'Power cuts', fig: mins > 0 ? escHtml(powerDur(mins)) : downtime.length ? String(downtime.length) : '', tone: downtime.length ? 'warning' : null,
         sub: !downtime.length ? 'none this day' : mins > 0 ? todoPlural(downtime.length, 'cut') + ' this day' : todoPlural(downtime.length, 'cut') + ' with no time back', attrs: ' data-prod-line-tile="cuts"' }],

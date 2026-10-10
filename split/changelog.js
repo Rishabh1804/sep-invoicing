@@ -129,7 +129,7 @@ var CHG_TRACK = [
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
-      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour',
+      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', snackOt: 'Overtime', snackNight: 'Overtime', modelPerKg: 'Modelled labour',
       payCarryFrom: 'Pay → monthly balances', '': 'Labour' },
     dflt: function() { return getDefaultState().labour; } },
   { path: 'rateCheck', kind: 'cfg', sec: 'Rate & weight check', dflt: function() { return RATE_CHECK_DEFAULTS; } },

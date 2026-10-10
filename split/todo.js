@@ -316,7 +316,7 @@ var TODO_RULE_NEED = { zinc: 'money', insQuiet: 'money', insRealLow: 'money', in
 var TODO_GO_WAGES = { payDue: 1, payWages: 1, payWeek: 1 };
 // A task of your own made from a move (advice.js) reads money unless its place is the floor's or the challans'.
 var TODO_GO_FLOOR = { stock: 1, stockCheck: 1, stockPaste: 1, stockList: 1, reorder: 1, production: 1, prodLines: 1, power: 1, powerCase: 1, staffPaste: 1,
-  staffRoster: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
+  staffRoster: 1, staffDay: 1, areas: 1, payDue: 1, payWages: 1, payWeek: 1, home: 1, settings: 1, im: 1, challan: 1 };
 function todoGuardOn() { return typeof grdOn === 'function' && grdOn(); }
 /* The page a move lands on (workspace.js WS_GO_PAGE; a move may name its page itself). */
 function todoGoPage(go) {
@@ -908,6 +908,7 @@ function todoGo(go) {
     }
     case 'power': powerSetTab(go.tab || 'cuts'); switchTab('pagePower'); break;
     case 'payDue': _attView = 'pay'; _attDate = localDateStr(); switchTab('pageStaff'); break;
+    case 'staffDay': _attView = 'day'; _attDate = go.date || localDateStr(); _attWeekStart = attWeekStartOf(_attDate); switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;
     case 'client': switchTab('pageClients'); openClientEdit(parseInt(go.id, 10)); break;

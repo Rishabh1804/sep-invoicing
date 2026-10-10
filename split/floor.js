@@ -266,6 +266,8 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
         '<span class="inv-row-meta">' + escHtml((isToday ? 'From ' : 'A gap, not a zero: from ') + FLR_SRC_TEXT[ln.src]) + '</span>') +
       (btn ? '<span class="inv-row-end inv-row-actions">' + btn + '</span>' : '') + '</div>';
   }
+  // What the line earned, against what its kilos cost and its usual day (one row; a role without money: the kilos against it).
+  if (last && ln.id !== 'pickling') h += flrEarnedRowHtml(day, isToday, ln.id);
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
   if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.
@@ -297,6 +299,29 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   return uiHeroHtml({ tone: tone, eyebrow: '<span class="inv-panel-title">' + escHtml(name) + '</span>' + (ef && ef.eff != null ? '<span class="inv-panel-count">' + escHtml(ef.word) + '</span>' : ''),
     title: escHtml(head.title), fig: head.fig ? escHtml(head.fig) : '', sub: head.sub ? escHtml(head.sub) : '', viz: head.viz || '',
     body: '<div class="inv-hero-sheet">' + h + '</div>', open: true, fold: 'flr-line-' + ln.id, foot: foot, attrs: ' data-line="' + ln.id + '"' + (ef ? ' data-flr-eff="' + escHtml(ef.eff != null ? String(Math.round(ef.eff * 100)) : '') + '"' : '') });
+}
+/* What a plating line earned on the day at its clients' rates on record (prodDayWorth; owner, 10 Oct 2026: "As we are calculating
+   production, why don't we calculate the earnings?"), coloured by whether its rupee a kilo clears what a kilo costs (the live cost,
+   prodCostRef), and set against its usual day ("corrections and comparisons are missing"). A day still running says so and is not
+   set against a whole one. A role that does not see money reads the kilos against the usual day instead (I4). One fact row. */
+function flrEarnedRowHtml(day, isToday, line) {
+  var x = prodLineDaySum(day, line), u = prodLineUsual(line, day);
+  if (!x.runs) return '';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  if (!money) {
+    if (u.kg == null || !(x.kg > 0)) return '';
+    if (isToday) return uiFactRowHtml({ label: 'A usual day', value: prodKgFig(u.kg, true), sub: 'so far ' + prodKgFig(x.kg, x.est, x.unweighed > 0) + ' · median of ' + u.kgDays + ' days', attrs: ' data-flr-usual' });
+    return uiFactRowHtml({ label: 'Against a usual day', value: figDeltaPct(x.kg, u.kg), tone: x.weighed >= 0.9 ? figDeltaTone(x.kg, u.kg, 'up') : null,
+      sub: 'a usual day ' + prodKgFig(u.kg, true) + ' · median of ' + u.kgDays + ' days' + (x.weighed < 0.9 ? ' · reads low: pieces not weighed' : ''), attrs: ' data-flr-usual' });
+  }
+  var ref = prodCostRef(day), real = x.kgPriced > 0 ? x.amountKg / x.kgPriced : null;
+  // Two facts (§3b): the rupee a kilo against the cost, then the usual day; where a tenth or more of the work has no rate, that
+  // instead, since the figure reads low against a whole day (the day card lists what is not priced).
+  var notPriced = x.unpriced ? Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced' : x.unpricedKg ? formatNum(x.unpricedKg, 0) + ' kg not priced' : '';
+  var vs = x.pricedShare < 0.9 ? notPriced : u.worth == null ? '' : isToday ? 'so far; a usual day ' + finRs(u.worth) : figDeltaText(x.worth, u.worth, 'a usual day');
+  var sub = [real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : '', vs].filter(Boolean).join(' · ');
+  return uiFactRowHtml({ label: 'Earned', value: x.priced ? (x.worthEst ? '≈ ' : '') + finRs(x.worth) : '', tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
+    sub: sub || 'nothing priced: no rate on record', attrs: ' data-flr-earned' });
 }
 /* A plating line's head: its efficiency as the figure, what it plated of what it could, and the inputs; or why it is not judged. */
 function flrEffHead(ef, last, isToday) {

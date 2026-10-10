@@ -318,20 +318,25 @@ var SETTINGS_SECS = {
     title: 'Overtime',
     summary: function() {
       var c = labourCfg();
-      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '');
+      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '') +
+        escHtml(' · snacks ') + _sRs(c.snackOt) + ' / ' + _sRs(c.snackNight);
     },
     body: function() {
       var c = labourCfg();
       return _sRow(_sfg('OT multiplier', 'setOtMult', _sNum('setOtMult', _sLab('otMult', 1.1), 0.01, 1)),
           _sfg('Monthly tier cap (&#8377;/h, after the multiplier)', 'setOtCap', _sNum('setOtCap', c.otCap, 0.01, 0))) +
-        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">');
+        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">') +
+        _sRow(_sfg('Snacks a person, regular OT (&#8377;)', 'setSnackOt', _sNum('setSnackOt', c.snackOt, 1, 0)),
+          _sfg('Snacks a person, night OT (&#8377;)', 'setSnackNight', _sNum('setSnackNight', c.snackNight, 1, 0)));
     },
-    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate.',
+    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate. <strong>Snacks</strong> are paid with the weekly payout, a person once a day at the higher rate: the night rate for a night block (or out past midnight), the regular rate for the evening one (or out from 6 PM); none for the 6 AM block or the gate&rsquo;s own hours (owner, 10 Oct 2026).',
     save: function() {
       if (!S.labour) S.labour = {};
-      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap');
+      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap'), so = _sNonNeg('setSnackOt'), sn = _sNonNeg('setSnackNight');
       if (m != null) S.labour.otMult = m;
       if (cap != null) S.labour.otCap = cap;
+      if (so != null) S.labour.snackOt = so;
+      if (sn != null) S.labour.snackNight = sn;
       S.labour.otCapFrom = _sVal('setOtCapFrom') || '';
     }
   },

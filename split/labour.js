@@ -63,7 +63,10 @@ function labourCfg() {
     modelPerKg: c.modelPerKg || 0,
     extraHoursPerHead: c.extraHoursPerHead != null ? c.extraHoursPerHead : 8,
     gateFull: c.gateFull != null ? c.gateFull : 0.9,
-    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8
+    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8,
+    // Snacks a person, paid with the weekly payout (owner, 10 Oct 2026: "20 per person regular OT, and 60 per person for night OT").
+    snackOt: c.snackOt != null ? c.snackOt : 20,
+    snackNight: c.snackNight != null ? c.snackNight : 60
   };
 }
 

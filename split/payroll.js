@@ -213,7 +213,82 @@ function payPartWords(w, part) {
     (x ? ', the bank legs crossed with ' + x.name + '\u2019s' : '');
 }
 
-/* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
+/* ---------- Snacks, and a hand on a block their own times do not reach ----------
+   Owner, 10 Oct 2026, on the week of 4 Oct's Saturday payout: "The 640 is snacks paid for OT and night shifts", then "20 per
+   person regular OT, and 60 per person for night OT", and night "is when it passes 12 a.m., not before it". Paid with the
+   Saturday's cash, so a line of the weekly payout. A person once a day, at the higher of the two: night is a block running past
+   midnight, or an out past it (a block to 12 AM is regular, from whatever hour it starts); regular is a block from 5 PM, or an
+   out at 6 PM or later. The 6 AM block has none, nor the gate's own twelve hours: the week of 4 Oct comes
+   to the ₹840 paid only so (five on the evening of the 5th, four on the 7th, four on the night hold of the 8th, four on the night
+   of the 9th and three to 8 PM). Every tier: the monthly hands on a block had theirs too. Read off the day's marks and its
+   blocks' crews, so a hand named on a block counts even where their own out time stops short of it (payCrewGaps). */
+var PAY_SNACK_OUT = 1080;   // 6 PM: an out at it or later is the evening's overtime, not a late leave
+function paySnackKind(x) {
+  if (!x || x.kind !== 'block' || !Array.isArray(x.crew) || !x.crew.length) return 0;
+  var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+  if (a == null) return 0;
+  // On the day's clock: a block starting after midnight (before 4 AM) is already past it; an end at or before the start ran on.
+  var A = a < 240 ? a + 1440 : a, B = b == null ? A : (a < 240 ? b + 1440 : b <= a ? b + 1440 : b);
+  if (B > 1440) return 2;
+  return A >= 1020 ? 1 : 0;
+}
+function paySnacks(from, to) {
+  var cfg = labourCfg(), out = { amount: 0, regular: 0, night: 0, days: {} };
+  for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
+    var rec = (S.attendance || {})[d];
+    if (!rec) continue;
+    var who = {};
+    var put = function(id, k) { if (k > (who[id] || 0)) who[id] = k; };
+    Object.keys(rec.marks || {}).forEach(function(id) {
+      var m = rec.marks[id], o = m ? Number(m.outMin) : NaN;
+      if (!m || (m.st !== 'P' && m.st !== 'H') || m.area === 'gate' || !(o > 0)) return;
+      if (o > 1440) put(id, 2); else if (o >= PAY_SNACK_OUT) put(id, 1);
+    });
+    (rec.extra || []).forEach(function(x) { var k = paySnackKind(x); if (k) x.crew.forEach(function(c) { put(String(c), k); }); });
+    var day = { regular: 0, night: 0, amount: 0 };
+    Object.keys(who).forEach(function(id) { if (who[id] === 2) day.night++; else day.regular++; });
+    if (!day.regular && !day.night) continue;
+    day.amount = gstRound(day.regular * cfg.snackOt + day.night * cfg.snackNight);
+    out.days[d] = day; out.regular += day.regular; out.night += day.night; out.amount += day.amount;
+  }
+  out.amount = gstRound(out.amount);
+  return out;
+}
+/* A hand named on an overtime block whose own times do not reach it: on the evening or night block with an out at or before its
+   start, or on the 6 AM block with an in at or after its end, or marked absent. Their pay reads their own times, so the block's
+   hours are not in it (the week of 4 Oct: a mark's area changed by hand kept the out-time roll from carrying it to 6 AM, while
+   the roll named the hand on the night). [{date, staffId, name, from, to, why}], a hand once a day, the latest block. */
+function payCrewGaps(from, to) {
+  var out = [];
+  for (var d = from, g = 0; d <= to && g < 400; d = isoAddDays(d, 1), g++) {
+    var rec = (S.attendance || {})[d];
+    if (!rec) continue;
+    var seen = {};
+    (rec.extra || []).slice().reverse().forEach(function(x) {
+      if (!x || x.kind !== 'block' || !Array.isArray(x.crew)) return;
+      var a = relayParseHhmm(x.from), b = relayParseHhmm(x.to);
+      if (a == null || b == null) return;
+      var morning = a < RELAY_GENERAL;
+      x.crew.forEach(function(c) {
+        var id = String(c), m = (rec.marks || {})[id], w = staffById(id), why = '';
+        if (seen[id] || !w) return;
+        if (!m || (m.st !== 'P' && m.st !== 'H')) why = 'marked ' + (m && m.st === 'A' ? 'absent' : 'nothing');
+        else if (morning) { if (m.inMin != null && Number(m.inMin) >= b) why = 'in at ' + relayClockLabel(Number(m.inMin)); }
+        else if (m.outMin != null && Number(m.outMin) <= (a < 240 ? a + 1440 : a)) why = 'out at ' + relayClockLabel(Number(m.outMin));
+        if (!why) return;
+        seen[id] = true;
+        out.push({ date: d, staffId: w.id, name: w.name, from: x.from, to: x.to, why: why });
+      });
+    });
+  }
+  return out;
+}
+/* One gap in words: "9 Oct · on the 8 PM – 6 AM block, out at 5 PM". */
+function payGapText(gp) {
+  return stockShortDate(gp.date) + ' · on the ' + relayClockLabel(relayParseHhmm(gp.from)) + ' – ' + relayClockLabel(relayParseHhmm(gp.to)) + ' block, ' + gp.why;
+}
+
+/* One pay week's payout: the weekly tiers' earnings, the EXTRA pool and the snacks, as the Saturday's cash pays them. */
 function payWeek(weekStart) {
   var sat = isoAddDays(weekStart, 6);
   var lab = labourForRange(weekStart, sat);
@@ -227,8 +302,9 @@ function payWeek(weekStart) {
     if (p.voidedAt || p.date < weekStart || p.date > sat) return;
     if (payIsWeekly(staffById(p.staffId))) paid += Number(p.amount) || 0;
   });
-  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra,
-    total: gstRound(workers + lab.extra), paid: gstRound(paid),
+  var snacks = paySnacks(weekStart, sat);
+  return { start: weekStart, sat: sat, lab: lab, workers: gstRound(workers), extra: lab.extra, snacks: snacks,
+    total: gstRound(workers + lab.extra + snacks.amount), paid: gstRound(paid),
     recordedDays: lab.daysRecorded, workingDays: lab.workingDays, sundays: lab.sundaysRecorded };
 }
 
@@ -348,10 +424,23 @@ function _payVerdictHtml(ws) {
       { label: 'Usual week', fig: f.median == null ? '' : payMoney(f.median), sub: f.medianWeeks ? 'median of ' + f.medianWeeks + ' weeks' : 'no week before', attrs: ' data-tile="median"' },
       { label: 'Against its usual', fig: f.swing == null ? '' : '<span id="paySwing">' + paySigned(f.swing) + '</span>', tone: f.swing == null ? null : tone, sub: pct ? pct + ' on the median' : 'no week to compare', attrs: ' data-tile="swing"' }],
     body: '<div class="inv-hero-sheet">' + uiFactRowHtml({ label: 'Hourly and daily tiers', value: formatCurrency(wk.workers), sub: 'their pay, OT and rest credit' }) +
-      uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) + '</div>',
+      uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) +
+      uiFactRowHtml({ label: 'Snacks', value: formatCurrency(wk.snacks.amount), attrs: ' data-pay-snacks',
+        sub: wk.snacks.regular || wk.snacks.night ? [wk.snacks.regular ? wk.snacks.regular + ' on overtime' : '', wk.snacks.night ? wk.snacks.night + ' on a night' : ''].filter(Boolean).join(', ') : 'nobody on overtime' }) +
+      _payGapsHtml(ws) + '</div>',
     attrs: ' id="payForecast"' });
 }
 
+/* The week's hands named on a block their own times do not reach (payCrewGaps), folded under one row, each with the day it opens:
+   the hours a block paid nobody for until the day is put right. */
+function _payGapsHtml(ws) {
+  var gaps = payCrewGaps(ws, isoAddDays(ws, 6));
+  if (!gaps.length) return '';
+  return uiFoldRowHtml('pay-gaps', { label: 'Hours to check', sub: 'on a block their own times do not reach', value: gaps.length, count: true }, gaps.map(function(gp) {
+    return { label: gp.name, sub: payGapText(gp), value: '', attrs: ' data-pay-gap="' + escHtml(String(gp.staffId)) + '"',
+      actions: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayGapDay" data-date="' + escHtml(gp.date) + '">Open the day</button>' };
+  }), ' data-pay-gaps');
+}
 /* A worker's or a week's figure on a pay card (§6.10): who or what, what it rests on, the money at the end. */
 function _payRow(title, sub, end, attrs, cls) {
   var tag = attrs && attrs.indexOf('data-action') >= 0 ? 'button' : 'div';
@@ -900,6 +989,7 @@ function payAction(action, btn) {
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
     case 'invPayHistory': payHistoryOpen(btn.dataset.id); return true;
+    case 'invPayGapDay': _attDate = btn.dataset.date || localDateStr(); _attWeekStart = attWeekStartOf(_attDate); attSetView('day'); viewTop(); return true;
     case 'invPayCarryFrom': payCarryFromOpen(); return true;
     case 'invPayCarryFromSave': payCarryFromSave(false); return true;
     case 'invPayCarryFromOff': payCarryFromSave(true); return true;

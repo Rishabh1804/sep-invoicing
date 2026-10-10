@@ -56,7 +56,7 @@ function getDefaultState() {
     // attendance gate on its rest days. restCreditMinDays is the daily tier's
     // own weekly gate. The hourly pool needs none of them — every hour at one
     // rate. extraRate prices the area-booked "extra hours", which carry no name.
-    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8 },
+    labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
@@ -868,9 +868,10 @@ function uiFoldCard(key, card, dflt) {
    the working is folded under them, shut until opened and remembered on the device: one fact a row, a label of a few words, its
    figure at the end, at most a few words under the label, and where a figure comes from as a badge, never a clause. How the
    analysis works is the screen's guide (kbguides.js). Every field is plain text, escaped here.
-   A fact: { label, value, sub, src: [tone, word], attrs, actions (HTML: the caller escapes) }. A value null or '' is withheld: a dash. */
+   A fact: { label, value, sub, src: [tone, word], tone (the figure's, §3c: whether it is good), attrs, actions (HTML: the caller
+   escapes) }. A value null or '' is withheld: a dash. */
 function _uiFactInner(f) {
-  var v = f.value != null && f.value !== '' ? escHtml(String(f.value)) : '&mdash;';
+  var v = f.value != null && f.value !== '' ? figHtml(escHtml(String(f.value)), /^(ok|warning|danger)$/.test(f.tone || '') ? f.tone : null) : '&mdash;';
   return '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) +
     (f.src ? ' <span class="inv-badge inv-badge-' + uiTone(f.src[0]) + '">' + escHtml(f.src[1]) + '</span>' : '') + '</span>' +
     (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' +
@@ -964,13 +965,14 @@ function uiVerdictKey() {
   return loc.tab + (v ? '-' + v : '');
 }
 /* A factor: a coded tile (§6.26). `f`: label and sub (text), fig (HTML: a figure, already formatted), tone; `badge` [tone, word]
-   says beside the label what the figure is not (measured, weighed: §3c's certainty as a badge); a factor that filters its list
+   says beside the label what the figure is not (measured, weighed: §3c's certainty as a badge); `delta` (HTML, figDeltaHtml's)
+   is the figure's change line against its benchmark, under the sub as Home's tiles carry it; a factor that filters its list
    carries `action` (and `attrs`, `pressed`), drawn as a button keeping aria-pressed. A fig left out reads as a dash. */
 function uiFactorTileHtml(f) {
   var tone = /^(danger|warning|ok|info|neutral)$/.test(f.tone) ? ' inv-tile-' + f.tone : '';
   var badge = f.badge ? ' <span class="inv-badge inv-badge-' + uiTone(f.badge[0]) + '">' + escHtml(f.badge[1]) + '</span>' : '';
   var inner = '<div class="inv-tile-label">' + escHtml(f.label || '') + badge + '</div><div class="inv-tile-value">' + (f.fig == null || f.fig === '' ? '&mdash;' : f.fig) + '</div>' +
-    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '');
+    (f.sub ? '<div class="inv-tile-sub">' + escHtml(f.sub) + '</div>' : '') + (f.delta ? '<div class="inv-tile-sub" data-tile-delta>' + f.delta + '</div>' : '');
   if (f.action) return '<button type="button" class="inv-tile' + tone + '" data-action="' + escHtml(f.action) + '"' + (f.attrs || '') +
     (f.pressed != null ? ' aria-pressed="' + !!f.pressed + '"' : '') + '>' + inner + '</button>';
   return '<div class="inv-tile' + tone + '"' + (f.attrs || '') + '>' + inner + '</div>';
@@ -1622,6 +1624,20 @@ function figDeltaTone(cur, prev, better) {
   var pct = ((cur - prev) / Math.abs(prev)) * 100;
   if (Math.abs(pct) <= FIG_FLAT_PCT) return null;
   return (better === 'up' ? pct > 0 : pct < 0) ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger';
+}
+/* The same change as plain text, for a fact row's sub or a title (escaped where it is drawn): "+12% on a usual day", whole
+   percents; "level with …" within FIG_FLAT_PCT; '' against nothing. */
+function figDeltaText(cur, prev, label) {
+  if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return '';
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  if (Math.abs(pct) <= FIG_FLAT_PCT) return 'level with ' + label;
+  return (pct > 0 ? '+' : '\u2212') + Math.round(Math.abs(pct)) + '% on ' + label;
+}
+/* The change alone, for a figure's own place: "+12%", "\u22128%", "level"; '' against nothing. */
+function figDeltaPct(cur, prev) {
+  if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return '';
+  var pct = ((cur - prev) / Math.abs(prev)) * 100;
+  return Math.abs(pct) <= FIG_FLAT_PCT ? 'level' : (pct > 0 ? '+' : '\u2212') + Math.round(Math.abs(pct)) + '%';
 }
 function figDeltaHtml(cur, prev, label, better) {
   if (prev == null || !isFinite(prev) || prev === 0 || cur == null || !isFinite(cur)) return 'no figure for ' + escHtml(label);

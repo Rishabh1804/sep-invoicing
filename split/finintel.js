@@ -313,6 +313,21 @@ TODO_RULE_FNS.payCarry = function() {
     clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on People → Pay.',
     go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
 };
+/* A hand named on an overtime block whose own times do not reach it (payCrewGaps), this pay week and the last: the block's hours
+   are in nobody's pay until the day is put right (the week of 4 Oct, 10 Oct 2026). A floor entry, so the floor's task. */
+TODO_RULES.push(['payCrewGap', 'Attendance: a hand on an OT block their own times do not reach']);
+TODO_CHECK_DEFAULTS.payCrewGap = true;
+TODO_RULE_NEED.payCrewGap = 'floor';
+TODO_RULE_FNS.payCrewGap = function() {
+  var ws = attWeekStartOf(localDateStr()), gaps = payCrewGaps(isoAddDays(ws, -7), localDateStr());
+  if (!gaps.length) return [];
+  return [{ key: 'payCrewGap', rule: 'payCrewGap', tone: 'amber',
+    title: gaps.length === 1 ? gaps[0].name + ' is on an OT block their own times do not reach' : todoPlural(gaps.length, 'hand') + ' on an OT block their own times do not reach',
+    sub: gaps.slice(0, 3).map(function(gp) { return gp.name + ' ' + stockShortDate(gp.date); }).join(' · '),
+    why: 'Attendance · pay reads each hand’s own times', facts: gaps.slice(0, 4).map(function(gp) { return [gp.name, payGapText(gp)]; }),
+    clears: 'Clears itself when the hand’s in or out time reaches the block, or the hand is taken off its crew, on People → Attendance.',
+    go: { kind: 'staffDay', date: gaps[0].date }, goLabel: 'Open the day', sig: gaps.map(function(gp) { return gp.date + ':' + gp.staffId; }).join('|') }];
+};
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
 function _finRows() { return finCtx().rows; }
 

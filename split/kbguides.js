@@ -66,9 +66,9 @@ var KB_APP_GUIDES = [
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
     '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Attendance → Day → **Paste message**).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
     '3. Check every line, then **Save**. A spelling you place is remembered.\n4. Paste the out-time roll the same way: it updates the day.\n\n' +
-    'A mark typed by hand is never overwritten by a roll.',
-    // Version 2: Paste message is Attendance's, on Day (the tab map, TM4b).
-    { version: 2 }),
+    'A mark typed or changed by hand (its area included) is never overwritten by a roll, even an out-time roll that puts the hand on a later block: Pay’s **Hours to check** names such a hand, so the day can be put right.',
+    // Version 3: a mark changed by hand and the hours to check (10 Oct 2026); version 2: Paste message is Attendance's, on Day (TM4b).
+    { version: 3 }),
   // Attendance (the tab map, TM4b): Day, Week and Month under one tab, and the method each screen used to print above its figures.
   _kbg('day', 'Using the app: attendance', 'Floor → People → Attendance: the day, the week and the month', ['pageStaff', 'pageFloor'],
     'Floor → People → **Attendance** has three views on a switch under its toolbar: **Day**, **Week** and **Month**. Each starts with a card that says how it stands; tap it on a phone for its figures.\n\n' +
@@ -122,9 +122,17 @@ var KB_APP_GUIDES = [
     '# The lines\n- A card per line, the worst first: red, then amber, green and blue.\n' +
     '- **Staffing**: the general shift’s heads against the day’s number (People → Attendance → Needed today). Barrel is barrel and barrel pickling, one unit.\n' +
     '- **Plated**: the figure that counts for each shift, as Production → Lines shows it. A day nobody recorded is a gap, not a zero.\n' +
+    '- **Earned** (to a role that sees money): **What a line earned** below. A role that does not see money reads the kilos against the line’s usual day.\n' +
     '- A line’s efficiency and how it splits: **Reading the plant’s figures**.\n\n' +
+    '# What a line earned\n- The line’s runs at their clients’ rates on record, before GST: a piece client’s part at its piece rate, a run in kilos at the client’s rate a kg, a run in pieces at that rate over its weight (≈ where the weight is estimated). Rework is not billed and is left out.\n' +
+    '- Green where its rupee a kilo clears what a kilo costs (the live cost over the 90 days to the day, else the full cost in Settings), amber just under, red below.\n' +
+    '- Under it, the line’s **usual day**: the middle of its recorded days in the 60 before, five at least, each with nine tenths of its work weighed (for the earnings, priced). A day still running says *so far*.\n' +
+    '- Where a tenth or more of the work has no rate, it says how much instead: the figure reads low.\n' +
+    '- The **Production** card, opened: what the day’s work is worth, **At the live cost** (what its kilos cost), **Left after it**, the labour on the record, and **This week, a day plated** and **a day earned** against the four weeks before (a recorded day’s average on each side: a day not recorded is a gap, not a zero). **Not priced** lists the work no rate prices, with the door to the client’s rates.\n\n' +
     '# Not weighed\n- Pieces plated with no weight anywhere in the book: no kg a piece on record, and no challan of them that counts their pieces.\n' +
-    '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.'),
+    '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.',
+    // Version 2: what a line earned, against its cost and its usual day; the week against the four before (owner, 10 Oct 2026).
+    { version: 2 }),
   // Stock as one screen (the tab map, TM4d), and the method its Overview printed under its charts.
   _kbg('stock', 'Using the app: stock', 'The stock message, entry by hand, and reordering', ['pageStock'],
     'Floor → **Stock** is one screen. The card at the top says what is out or low and what the reorder list costs with GST; its tiles (Out, the days-or-less group, OK, No rate) each show only their lines, and a second tap shows them all.\n\n' +
@@ -146,9 +154,10 @@ var KB_APP_GUIDES = [
     '# Taking it in\n- **Paste** the pickling loads and the production list from WhatsApp; every line is shown with what was read before anything is saved.\n' +
     '- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
     '- **Enter by hand** (under More) when there is nothing to paste. The form stays open for the next entry.\n- A figure is corrected by a new entry, never edited; a wrong one is voided with a reason.\n\n' +
-    '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, the rounds and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
+    '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, what it earned (the rounds, to a role that does not see money) and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
+    '- **Plated** and **Earned** each say how the day stands against the line’s usual day; the card’s facts give the week to the day against the four weeks before, a recorded day’s average on each side. How earnings are worked out: **Using the app: the floor**.\n' +
     '- **One record counts for each line and shift**: the register, else the supervisor’s relay, else an entry by hand. The others are shown as *also reported, not added*: they count the same work another way.\n' +
-    '- **The week, plated**: the kilograms each line plated each day, ≈ where any run is estimated, pieces nothing weighs added as pieces; each figure in its day’s efficiency’s colour. A dash is a day with no record for the line.\n' +
+    '- **The week, plated**: the kilograms each line plated each day, ≈ where any run is estimated, pieces nothing weighs added as pieces; each figure in its day’s efficiency’s colour. A dash is a day with no record for the line. **Earned** under the lines: the three lines’ earnings a day, coloured by their rupee a kilo against what a kilo costs.\n' +
     '- **Plated by line, 4 weeks**: kilograms a day; a gap is a day with no record, or a tenth of its pieces not weighed, never a zero.\n' +
     '- **Labour per kg, 30 days**: the variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), the VAT side’s pickling hands shared by each day’s kilos, over the same days as the kilos (days with nine tenths of the pieces weighed). The monthly crew is the standing crew and is not by line. Withheld under five days; set against the modelled labour (Settings → Labour).\n\n' +
     '# In plant\n- **Book**: everything open on the challans, not invoiced, the same figure as Today’s unbilled.\n' +
@@ -160,8 +169,8 @@ var KB_APP_GUIDES = [
     '- Its badges: where it came from (*register*, *relay*, *hand*, *message*, *import*), how its pieces were weighed (*written*, *record*, *challans*, *kind*, *default*, *not weighed*), and what it did not match (*no challan*, *no client*, *gauge unknown*).\n' +
     '- **Filter** (on a phone) lists one kind, or the entries a flag names, every date.\n\n' +
     '# Equipment\n- Every tank, barrel and machine, a card each in its status’s colour: running, standby, under repair, down, with its kg a round and how long it has stood. A line’s capacity is worked out from its units; every change of status is kept with its day.',
-    // Version 2: four views, a card on each, the method moved here (the tab map, TM4c).
-    { version: 2 }),
+    // Version 3: what a line earned, and the day and the week against the line's usual (owner, 10 Oct 2026).
+    { version: 3 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -200,13 +209,16 @@ var KB_APP_GUIDES = [
     '- While the week is open the payout is predicted at its own pace: the days recorded as they are, the rest at the week’s average for a working day. The Sunday is left out of that average, since it is overtime.\n' +
     '- **Due by worker**: each hand’s line is what is due. Tap it for the arithmetic (days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward) and **Pay** to record a payment or an advance.\n' +
     '- The weekly hands are paid by the week; the monthly hands by the calendar month the week’s Sunday is in. The EXTRA pool is in no one’s due: it is one line on the slip, paid out by the supervisor.\n' +
+    '- **Snacks** are a line of the payout: a person once a day, at ₹20 for regular overtime (an evening block, or out at 6 PM or later) and ₹60 for night overtime (a block or an out past midnight), every tier; none for the 6 AM block or the gate’s own hours. The two rates are in Settings → Labour → Overtime.\n' +
+    '- **Hours to check**, in the card: a hand named on an overtime block whose own in or out time does not reach it. Pay reads each hand’s own times, so the block’s hours are in nobody’s pay until the day is put right; **Open the day** goes to it.\n' +
     '- **Paid** is the bank’s salaries and the payments typed here. A salary on the statement is read as wages to the hand its name reads as (a name read only as a guess says so; set the payee on the statement once). A payment typed here that the statement also holds is counted once.\n' +
     '- A balance carries to the next period until it is paid, worked off or cleared with a reason (**Brought forward**, each month it is made of named). A monthly hand’s balance counts from the month you set (**Count from a month**): from it on, a month paid short is owed and a month paid over is taken back. A salary is owed from the 21st of the month after.\n' +
     '- **History** on a hand’s line: their last twelve months (or weeks), what each earned, every payment, what it left and the balance after it, and **Print the slip** for any of them. **Pay slips** prints a month picked for every monthly hand.\n' +
     '- A wrong payment is voided with a reason, never deleted.\n' +
     '- **Monthly payroll as paid** (under More: Import): a closed month’s slips. For a month before this one they are what the hands they name earned; with no payment for the month on record, the slip is taken as paid.',
-    // Version 3: paid from the bank's salaries, monthly balances from a month set, a hand's history and any month's slip (owner, 10 Oct 2026).
-    { roles: ['owner'], version: 3 }),
+    // Version 4: snacks in the payout and the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly
+    // balances from a month set, a hand's history and any month's slip (the same day).
+    { roles: ['owner'], version: 4 }),
   _kbg('bank', 'Using the app: the bank statement', 'Importing it, placing each receipt, and cheques in hand', ['pageFinance'],
     '- Money → Bank, in the toolbar’s More: **Import a statement**: the bank’s own .xls, or the same saved as .xlsx. Rows already in are skipped, so a statement that overlaps the last adds only what is new.\n' +
     '- **Receivables start** on the later of the statement’s first day and the book’s first invoice: a receipt before then paid an invoice the app does not hold.\n' +

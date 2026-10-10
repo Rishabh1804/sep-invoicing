@@ -954,23 +954,28 @@ function stockReorderList() {
   stockData().items.filter(function(i) { return i.active !== false; }).forEach(function(it) {
     var st = stockStatus(it), rate = st.rate && st.rate.rate ? st.rate.rate : null, level = st.level == null ? 0 : Math.max(0, st.level);
     var typed = _stockReorder && _stockReorder.qty[it.id];
+    // Who it is ordered from and by when (suppliers.js): the supplier's own lead time where set, else the list's.
+    var pick = suppReorderPick(it, st.group === 'out' || (st.level != null && st.level <= 0) ? 0 : rate ? st.daysLeft : null);
     if (!rate) {
-      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true });
+      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true, pick: pick });
       else skipped.norate.push(it.name);
       return;
     }
-    var need = rate * (cfg.leadDays + cfg.coverDays) - level;
+    var lead = pick && pick.lead ? pick.lead.max : cfg.leadDays;
+    var need = rate * (lead + cfg.coverDays) - level;
     var pack = stockPackSize(it);
     var suggest = need > 0 ? (pack ? Math.ceil(need / pack) * pack : Math.ceil(need)) : 0;
     if (suggest <= 0 && !typed) { skipped.enough++; return; }
-    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative) });
+    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative), pick: pick, lead: lead });
   });
   rows.forEach(function(r) {
     var typed = _stockReorder && _stockReorder.qty[r.item.id];
     r.qty = typed != null && typed !== '' ? Math.max(0, parseFloat(typed) || 0) : (r.suggest || 0);
     var lp = stockPriceAt(r.item.id, '9999-12-31');
-    r.price = lp ? lp.price : null;
-    r.supplier = lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    // At the price of the supplier it is ordered from: the last it came from, or the cheaper one that can deliver in time.
+    r.price = r.pick ? r.pick.price : lp ? lp.price : null;
+    r.supplier = r.pick && r.pick.sp ? r.pick.name : lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    r.lastFrom = r.pick && r.pick.last ? r.pick.last.name : r.supplier;
     r.amount = r.price != null ? gstRound(r.qty * r.price) : null;
   });
   var groups = {};
@@ -998,11 +1003,11 @@ function renderStockReorder() {
   // Not a form: lead and cover save as they change, and a typed quantity is a working figure for the message copied
   // from it (the list starts afresh each time it opens). Leaving asks nothing.
   h += '<div class="inv-panel" data-nodirty><div class="inv-fields">' +
-    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time (days)</label>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time where a supplier’s is not set (days)</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-input inv-input-num" value="' + cfg.leadDays + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="stockCoverDays">Days to cover after it lands</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
-    '<div class="inv-note">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div></div>';
+    '<div class="inv-note">Suggested = daily use × (lead time + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. The lead time is the supplier’s where it is set on them (Money → Payments → Suppliers), else these ' + cfg.leadDays + ' days. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
     h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
   } else {
@@ -1030,10 +1035,10 @@ function renderStockReorder() {
 }
 function stockReorderNote(L) { return 'At the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); }
 function stockReorderWhy(r, full) {
-  var unit = r.item.unit || '';
-  if (r.noRate) return 'out, and no daily use on record: enter a quantity';
+  var unit = r.item.unit || '', pick = r.pick ? suppPickText(r.pick) + (r.pick.why ? '. ' + r.pick.why : '') : '';
+  if (r.noRate) return 'out, and no daily use on record: enter a quantity' + (pick ? ' · ' + pick : '');
   return (full ? stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') + ' · ' : '') +
-    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
+    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '') + (pick ? ' · ' + pick : '');
 }
 function stockReorderInput(r) {
   return '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">';

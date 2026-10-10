@@ -449,6 +449,7 @@ function onDocClick(e) {
       if (uiToolbarAction(action, btn)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
+      if (suppAction(action, btn)) break;
       if (soaAction(action, btn)) break;
       if (psAction(action, btn)) break;
       if (mrgAction(action, btn)) break;
@@ -751,6 +752,7 @@ document.addEventListener('input', function(e) {
   if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
+  if (suppOnInput(e.target)) return;
   if (prodOnInput(e.target)) return;
   if (qtOnInput(e.target) || qtSearchInput(e.target) || prsOnInput(e.target) || pcsOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {

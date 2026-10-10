@@ -88,9 +88,14 @@ function finInvoicePaymentHtml(inv) {
    one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
   if (!name || !finSeen()) return null;
+  // The supplier as Payments reads it (suppliers.js): every spelling the owner gave it, "&" as AND.
+  var sp = suppOfName(name), out = { paid: 0, n: 0, last: null };
+  if (sp) {
+    sp.bank.forEach(function(v) { out.paid = gstRound(out.paid + v.row.dr); out.n++; if (!out.last || v.row.date >= out.last.date) out.last = v.row; });
+    return out.n ? out : null;
+  }
   var k = bankKey(name);
   if (k.length < 4) return null;
-  var out = { paid: 0, n: 0, last: null };
   finCtx().cls.forEach(function(v) {
     if (!(v.row.dr > 0) || v.cat !== 'supplier' || !bankSupplierIs(bankSupplierWritten(v), k)) return;
     out.paid = gstRound(out.paid + v.row.dr); out.n++; out.last = v.row;

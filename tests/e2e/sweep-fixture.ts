@@ -518,6 +518,11 @@ export const DIALOGS: Array<[string, string]> = [
   ['cheque-form', `bankChequeFormOpen(1)`],
   ['cheque', `bankChequeOpen('CHQ1')`],
   ['pay-slips', `_attWeekStart = attWeekStartOf(localDateStr()); psOpen()`],
+  // A supplier (suppliers.js): its bills and payments, and its three forms.
+  ['supplier', `suppOpen(suppRows()[0].sp.id, '')`],
+  ['supplier-pay', `suppOpen(suppRows()[0].sp.id, 'pay')`],
+  ['supplier-balance', `suppOpen(suppRows()[0].sp.id, 'balance')`],
+  ['supplier-set', `suppOpen(suppRows()[0].sp.id, 'set')`],
   ['merge-held', `S.mergeHeld = [{ id: 'MH-sweep', at: Date.now(), coll: 'clients', rid: '1', field: 'phone', label: 'a client', why: 'both', kept: { side: 'm', v: '1111' }, other: { side: 't', v: '2222' }, status: 'open', from: 'Office PC' }]; mrgHeldOpenDialog()`],
   ['prospect-form', `prsFormOpen(null)`],
   // A power cut completed (P177): the time back, why it went, where it hit, what brought it back; and a reason on the list.

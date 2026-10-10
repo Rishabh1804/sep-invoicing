@@ -1641,8 +1641,9 @@ function renderStockCheck() {
 function stockExport() {
   var st = stockData();
   var meta = document.querySelector('meta[name="app-build"]');
+  // The suppliers travel with their bills (suppliers.js): what the owner set on each, and the payments recorded here.
   var out = { format: 'sep-stock', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '',
-    items: st.items, entries: st.entries, pastes: st.pastes };
+    items: st.items, entries: st.entries, pastes: st.pastes, suppliers: suppData(), supplierPays: suppPays() };
   downloadJson('sep-stock-' + localDateStr() + '.json', out, 2);
   showToast('Stock exported: ' + st.entries.length + ' entries');
 }
@@ -1704,6 +1705,29 @@ function stockMergeImport(src) {
     if (!p || !p.id || st.pastes.some(function(x) { return x.id === p.id; })) return;
     st.pastes.push(JSON.parse(JSON.stringify(p))); added.pastes++;
   });
+  // Suppliers and the payments recorded to them: merged by id, never over one held here; a field a file sends is kept only in
+  // the shape the app writes it (suppliers.js).
+  added.suppliers = 0; added.supplierPays = 0;
+  var day = function(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); };
+  (Array.isArray(src.suppliers) ? src.suppliers : []).forEach(function(r) {
+    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim() || suppData().some(function(x) { return x.id === r.id; })) return;
+    var c = { id: r.id, name: r.name.trim(), names: (Array.isArray(r.names) ? r.names : []).filter(function(n) { return typeof n === 'string' && n.trim(); }).map(function(n) { return n.trim(); }),
+      at: num(r.at) ? r.at : Date.now(), by: r.by || null };
+    if (num(r.leadMax) && r.leadMax >= 0 && r.leadMax <= 60) { c.leadMax = r.leadMax; c.leadMin = num(r.leadMin) && r.leadMin >= 0 && r.leadMin <= r.leadMax ? r.leadMin : r.leadMax; }
+    if (num(r.gstPct) && r.gstPct >= 0 && r.gstPct <= 28) c.gstPct = r.gstPct;
+    if (r.opening && num(r.opening.amount) && day(r.opening.date)) c.opening = { amount: r.opening.amount, date: r.opening.date, note: typeof r.opening.note === 'string' ? r.opening.note : null, at: num(r.opening.at) ? r.opening.at : null, by: r.opening.by || null };
+    if (Array.isArray(r.inOpening)) c.inOpening = r.inOpening.filter(function(x) { return typeof x === 'string'; });
+    if (r.totals && typeof r.totals === 'object') { c.totals = {}; Object.keys(r.totals).forEach(function(k) { if (num(r.totals[k]) && r.totals[k] >= 0) c.totals[k] = r.totals[k]; }); }
+    if (typeof r.note === 'string' && r.note.trim()) c.note = r.note.trim();
+    suppData().push(c); added.suppliers++;
+  });
+  (Array.isArray(src.supplierPays) ? src.supplierPays : []).forEach(function(p) {
+    if (!p || typeof p.id !== 'string' || typeof p.supplierId !== 'string' || !day(p.date) || !num(p.amount) || !(p.amount > 0) || suppPays().some(function(x) { return x.id === p.id; })) return;
+    var c = { id: p.id, supplierId: p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
+      chq: typeof p.chq === 'string' && p.chq ? p.chq : null, note: typeof p.note === 'string' && p.note ? p.note : null, at: num(p.at) ? p.at : Date.now(), by: p.by || null };
+    if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
+    suppPays().push(c); added.supplierPays++;
+  });
   return added;
 }
 
@@ -1727,7 +1751,8 @@ function stockImportText(text, name) {
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
-    showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
+    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '');
+    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
   } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 

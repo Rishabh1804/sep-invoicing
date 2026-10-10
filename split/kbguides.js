@@ -139,15 +139,15 @@ var KB_APP_GUIDES = [
     '- **Paste message** from the supervisor. Every line is shown with what was read. A line that contradicts itself is red: pick the working or the figure written.\n' +
     '- **Enter by hand** for a count, a delivery (with its bill: company, invoice number, price), a use or a charge into the bath.\n' +
     '- A wrong entry is **corrected**, never edited: it is voided and the right figure entered in its place.\n' +
-    '- Under **More**: the **Reorder list** (what to order from each supplier), **Print sheets**, Export and Import.\n\n' +
+    '- Under **More**: the **Reorder list** (what to order, from which supplier and by when: each supplier’s lead time, set on Money → Payments → Suppliers), **Print sheets**, Export and Import.\n\n' +
     '# Days left\n- A line’s level over its daily use: the use over the last three weeks of record, Sundays out. Under three days of record the figure carries a ?.\n' +
     '- Red at a few days or fewer, amber at a week (Settings → Checks & alerts → Stock alerts). A line charged into a bath is never red at an empty shelf: the delivery going into the bath is the normal state.\n\n' +
     '# Spend and prices\n- At the foot of the list on a phone, in the pane beside it on a computer.\n' +
     '- **Spend by supplier**: six months of bills, before GST. Tap a supplier for its bills and what the bank paid it.\n' +
     '- **Used, by week**: each use at the price paid for that line on the day; a line with no price is named and not counted.\n' +
     '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.',
-    // Version 2: one screen, its card and Spend and prices (the tab map, TM4d).
-    { version: 2 }),
+    // Version 2: one screen, its card and Spend and prices (the tab map, TM4d). Version 3: the reorder list's supplier and its lead time.
+    { version: 3 }),
   // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +
@@ -227,6 +227,18 @@ var KB_APP_GUIDES = [
     '- **A cheque received** (Receivables → Cheque received, or Add → Cheque) counts as paid the day it came. Its deposit on the statement, found by its number, takes over, so it is never counted twice.\n' +
     '- A cheque deposit names nobody: it is offered to a client by its series or its amount; place it with one tap. A payee set once is remembered.\n' +
     '- **GST**: a month’s due is its output tax less its credit notes; paid is what the bank sent the month after, since a return is paid by the 20th. Paid less than due is the input credit, not a shortfall.', { roles: ['owner'], version: 2 }),
+  // Suppliers (suppliers.js; owner, 10 Oct 2026): what is owed to each, and how long each takes.
+  _kbg('suppliers', 'Using the app: suppliers', 'What is owed to each, their payments, and how long each takes to deliver', ['pageFinance', 'pageStock'],
+    'Money → Payments → **Suppliers** lists every supplier the book names: the company on a stock bill, and a payee set to Supplier on the statement. A row says what is owed and since when, and how long they take to deliver; it opens the supplier.\n\n' +
+    '- **Set the balance** from their statement: the figure after its last entry, and that entry’s day. The bills after that day are added and the payments after it taken off. With none set, nothing is said to be owed.\n' +
+    '- **A bill** is the stock entries of one invoice: its company, number and date. Its total is its lines before GST with the supplier’s GST (18% unless changed), rounded to the rupee; tap a bill to set its total as printed. One number on two days is flagged: one of them may be typed wrong.\n' +
+    '- **Record a payment**: a cheque handed over counts from that day, as their book counts it; when the statement shows it clear by its number, that row is this payment, never a second one. A transfer is the statement’s row of the same amount within a week; cash is recorded here only. A wrong one is voided with a reason.\n' +
+    '- A cheque they had credited before the balance’s day that cleared after it: **In their balance** on its row, so it is not counted twice.\n' +
+    '- **Change**: the name (the old one is kept as a spelling, so its bills stay), other spellings (the bank’s, a short form), the lead time in working days, the GST. A payee whose initials are a supplier’s short name is offered on Payments → Not yet sorted: **Same supplier** makes its payments theirs.\n\n' +
+    '# Lead times and the reorder list\n- Each line is ordered from the supplier it last came from, unless another sold it cheaper in the last six months and can deliver before the line runs out: that one, with the day to order by.\n' +
+    '- When the one it came from cannot deliver in time, the fastest that can, and what the hurry costs a unit.\n' +
+    '- A supplier with no lead time set is never chosen over the last one: it is named, so its lead time can be set. Zinc follows the market, so its last supplier stands.\n' +
+    '- The To-do names a balance whose oldest unpaid part is over 30 days old, only to know.', { roles: ['owner'] }),
   _kbg('search', 'Using the app: search and keys', 'Finding anything, and the shortcuts', ['pageHome'],
     '- Search (the magnifier, or Ctrl K) finds invoices, challans, clients, parts, workers, stock lines, quotations, credit notes, articles here, and screens.\n' +
     '- Numbers match whole: 834 finds invoice 00834, never 8341.\n- **A** opens Add. **Backspace** goes back. Ctrl+click opens a screen in a new window.'),

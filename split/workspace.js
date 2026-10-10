@@ -310,7 +310,7 @@ var WS_GO_PAGE = {
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
-  finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance',
+  finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance', supplier: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
   kb: 'pageKnow', todoLearn: 'pageHome'
 };

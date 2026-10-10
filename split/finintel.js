@@ -276,6 +276,7 @@ var FIN_RULES = [
   ['gstNotInBank', 'Finance: a month’s GST is not on the statement'],
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
   ['supplierNoBill', 'Finance: a supplier paid with no stock bill'],
+  ['supplierOwed', 'Finance: a supplier is owed for a bill over 30 days old'],
   ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
   ['cashSwing', 'Finance: a week’s cash drawn is well short of its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
@@ -414,31 +415,42 @@ TODO_RULE_FNS.powerPaidNoBill = function() {
     why: 'Payments · electricity', facts: ms.map(function(m) { return [billsMonthLabel(m), formatCurrency(miss[m])]; }),
     clears: 'Clears itself when each month has its bill (one tap on Payments: Add as bill).', go: finGo('payments', { anchor: 'bankPower' }), goLabel: 'Add as bills', sig: ms.join('|') }];
 };
+/* A payment to a supplier with no stock bill from them that month or the one before (a bill is paid after it is raised), read through
+   the suppliers (suppliers.js): every spelling the owner gave one is theirs, and "&" is AND, so a payment the statement writes one
+   way is set against bills written the other. */
 TODO_RULE_FNS.supplierNoBill = function() {
-  var today = localDateStr(), byKey = {}, bills = {};
-  stockData().entries.forEach(function(e) {
-    if (e.voided || !e.supplier || !(e.kind === 'bill' || e.kind === 'received')) return;
-    var k = bankKey(e.supplier), m = String(e.billDate || e.date || '').slice(0, 7);
-    if (k && m) bills[k + '|' + m] = 1;
+  var today = localDateStr(), out = [];
+  suppIndex().list.forEach(function(sp) {
+    var months = {}, by = {};
+    sp.bills.forEach(function(b) { months[b.date.slice(0, 7)] = 1; });
+    sp.bank.forEach(function(v) {
+      if (isoDaysBetween(v.row.date, today) > 90) return;
+      var m = v.row.date.slice(0, 7);
+      if (months[m] || months[bankPrevMonth(m + '-01')]) return;
+      var e = by[m] || (by[m] = { month: m, paid: 0, n: 0 });
+      e.paid = gstRound(e.paid + v.row.dr); e.n++;
+    });
+    Object.keys(by).forEach(function(m) {
+      var e = by[m];
+      out.push({ key: 'supplierNoBill:' + (sp.keys[0] || sp.id) + '|' + m, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + sp.name + ', ' + billsMonthLabel(m),
+        sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
+        why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(m)]],
+        clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' });
+    });
   });
-  var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
-  finCtx().cls.forEach(function(v) {
-    if (v.cat !== 'supplier' || !(v.row.dr > 0) || isoDaysBetween(v.row.date, today) > 90) return;
-    // The payee, or the narration where the payee is too short to read, read as finSupplierPaid reads it (one
-    // matcher, bank.js): prefix here and substring there made a payment covered on one screen and not the other.
-    var wk = bankSupplierWritten(v), m = v.row.date.slice(0, 7);
-    // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
-    if (billKeys.some(function(b) { return bankSupplierIs(wk, b) && (bills[b + '|' + m] || bills[b + '|' + bankPrevMonth(m + '-01')]); })) return;
-    var gk = wk + '|' + m;
-    var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
-    e.paid = gstRound(e.paid + v.row.dr); e.n++;
-  });
-  return Object.keys(byKey).map(function(k) {
-    var e = byKey[k];
-    return { key: 'supplierNoBill:' + k, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + e.name + ', ' + billsMonthLabel(e.month),
-      sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
-      why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(e.month)]],
-      clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' };
+  return out;
+};
+/* A supplier with a balance set whose oldest unpaid part is over SUPP_OWED_DAYS old (suppliers.js: the payments settle the oldest
+   first). Only to know: when to pay is the owner's. */
+TODO_RULE_FNS.supplierOwed = function() {
+  return suppTotals().rows.filter(function(x) { return x.L.balance > 0.5 && x.L.oldest && suppAgeDays(x.L.oldest.date) > SUPP_OWED_DAYS; }).map(function(x) {
+    var L = x.L, o = L.oldest;
+    return { key: 'supplierOwed:' + x.sp.id, rule: 'supplierOwed', tone: 'info', title: 'Pay ' + x.sp.name + ': ' + formatCurrency(L.balance) + ' owed',
+      sub: 'Unpaid from ' + formatDate(o.date) + ', ' + todoPlural(suppAgeDays(o.date), 'day') + ' ago',
+      why: 'Payments · suppliers', amount: L.balance,
+      facts: [['Owed', formatCurrency(L.balance)], ['Unpaid from', formatDate(o.date)], ['Balance set', formatCurrency(L.op.amount) + ' on ' + formatDate(L.op.date)]],
+      clears: 'Clears itself when nothing unpaid is over ' + SUPP_OWED_DAYS + ' days old.', go: { kind: 'supplier', id: x.sp.id }, goLabel: 'Open the supplier',
+      sig: L.balance + '|' + o.date };
   });
 };
 TODO_RULE_FNS.wageVsSlip = function() {

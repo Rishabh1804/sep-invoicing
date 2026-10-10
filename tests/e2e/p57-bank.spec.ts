@@ -158,7 +158,9 @@ test('an electricity payment becomes the month\'s bill, and wages are set agains
 
   // Payments says it in one line (one fact, one screen) and opens Staff → Pay, where the card lives.
   await expect(page.locator('#bankWages')).toContainText('1 off the slip');
-  await expect(page.locator('#bankSuppliers')).toContainText('stock bills recorded ₹15,000.00');
+  // The suppliers' card (suppliers.js): the payment is the bills' supplier's.
+  await expect(page.locator('#bankSuppliers [data-supplier]')).toContainText('Acme Chemicals');
+  expect(await page.evaluate(() => (0, eval)(`(function() { var sp = suppOfName('Acme Chemicals'); return [sp.bills[0].base, sp.bank.length]; })()`))).toEqual([15000, 1]);
   await page.locator('#bankWages [data-action="invGoPay"]').click();
   // July's transfers pay June's slip: Ramu as the slip, Gita ₹500 short of it; a leg off its slip opens the card.
   await expect(page.locator('#payBankWages')).toHaveAttribute('open', '');

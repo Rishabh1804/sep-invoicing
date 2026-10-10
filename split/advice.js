@@ -209,7 +209,8 @@ function advStockMoves(ctx) {
     var it = x.it, st = x.st, r = rows[it.id], unit = it.unit || '', out = st.group === 'out';
     var basis = [st.level != null ? stockFmtQty(Math.max(0, st.level)) + ' ' + unit + ' on the shelf' : '',
       st.rate && st.rate.rate ? 'uses ' + stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : 'no daily use on record',
-      r && r.price != null ? 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit : 'no price on record'].filter(Boolean).join(' · ');
+      r && r.price != null ? (r.lastFrom && r.supplier !== r.lastFrom ? 'order from ' + r.supplier + ' at ' + formatCurrency(r.price) + '/' + unit + ', ' + suppLeadText(r.pick && r.pick.lead)
+        : 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit) : 'no price on record'].filter(Boolean).join(' · ');
     return { key: 'stock:' + it.id, tone: 'red', soon: out ? 0 : Math.max(0, st.daysLeft || 0), cat: 0, what: it.name + (out ? ' out' : ' running out'),
       say: 'Order ' + it.name + (out ? ': it is out' : ': about ' + stockDaysText(st.daysLeft, !!(st.rate && st.rate.tentative)) + ' left'),
       worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + unit + ' at the last price, before GST' } : null,

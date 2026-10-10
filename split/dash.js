@@ -178,7 +178,9 @@ function stockSpendHtml() {
     // Newest first across every line the supplier sold, not line by line; two facts a line (§3b-11), the bill's number in its title
     // (it is what the paper says, so a bill can be found again).
     var bills = sel.bills.slice().sort(function(a, b) { return a.b.date < b.b.date ? 1 : a.b.date > b.b.date ? -1 : 0; });
-    rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
+    // The supplier itself first: its lead time and, to a role that sees money, what is owed; it opens the supplier (suppliers.js).
+    var ssp = sel.named ? suppOfName(sel.name) : null;
+    rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + (ssp ? suppSpendRowHtml(ssp) : '') + bills.map(function(x) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name + (x.b.e.billNo ? ', bill ' + x.b.e.billNo : '')) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
         ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';

@@ -117,10 +117,12 @@ var TODO_RULE_FNS = {
       var open = Object.keys(stockEntryChecks(it.id)).length;
       var conf = open ? { level: 'check', say: todoPlural(open, 'entry', 'entries') + ' on this line to check' }
         : asOf ? { level: 'stale', say: 'nothing recorded since ' + stockShortDate(lastFig.date) } : null;
+      // Who it is ordered from and by when: the supplier's lead time against the days left (suppliers.js).
+      var pick = suppReorderPick(it, st.group === 'out' ? 0 : st.daysLeft);
       out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, itemId: it.id, title: 'Order ' + it.name, sub: sub,
         why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
         facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
-          ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
+          ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]].concat(pick && pick.sp ? [['Order from', suppPickText(pick)]] : []),
         clears: 'Clears itself when a delivery or a count lifts the line out of ' + (st.tone === 'red' ? 'red' : 'amber') + '.',
         go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group, conf: conf });
     });
@@ -417,7 +419,7 @@ function todoPassMemo(k, f) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': case 'supplierOwed': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;
@@ -852,6 +854,8 @@ function todoGo(go) {
       var bp = document.getElementById('billsPower');
       if (bp) uiRevealEl(bp);
       break;
+    // A supplier: Money → Payments, its dialog open on its bills and payments (suppliers.js).
+    case 'supplier': finSetTab('payments'); switchTab('pageFinance'); if (go.id) suppOpen(go.id, ''); break;
     case 'cnList': switchTab('pageRegister'); renderCreditNoteList(); break;
     case 'cnBatch': regJump({ clientId: go.clientId, dateFrom: go.from, dateTo: go.to, select: go.ids }); break;
     // ids: those invoices ticked, so the bulk bar's Mark reaches exactly them (a move, advice.js).

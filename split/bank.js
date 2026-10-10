@@ -195,7 +195,13 @@ function bankMatchClient(party) {
 }
 function bankSupplierKeys() {
   var keys = {};
-  (stockData().entries || []).forEach(function(e) { if (e.supplier) keys[bankKey(e.supplier)] = e.supplier; });
+  // A name as written and as compared ("&" is AND: suppliers.js suppKey), so a bill's "<A> & Brothers" is the statement's "<A> AND
+  // BROTHERS"; then every spelling the owner gave a supplier, under its own name.
+  var put = function(s, as) { [bankKey(s), suppKey(s)].forEach(function(k) { if (k) keys[k] = as; }); };
+  (stockData().entries || []).forEach(function(e) { if (e.supplier) put(e.supplier, e.supplier); });
+  (Array.isArray(S.suppliers) ? S.suppliers : []).forEach(function(r) {
+    if (r && r.name) [r.name].concat(Array.isArray(r.names) ? r.names : []).forEach(function(s) { if (s) put(s, r.name); });
+  });
   return keys;
 }
 /* The one reading of "this payment went to that supplier", wherever a payment is set against the stock bills
@@ -1143,7 +1149,8 @@ function _bankPaymentsTabHtml(rows) {
   // Add a bill is the screen's one primary; while its form is open here, the form's Save is, and the row goes.
   var tb = _costBillOpen && _costBillOpen.where === 'finance' ? '' :
     '<div class="inv-toolbar" data-bank-toolbar="payments"><button class="inv-btn inv-btn-primary" data-action="invCostBillOpen" data-where="finance">Add a bill</button></div>';
-  if (!rows.length) return _bankPayVerdictHtml(cls, rows) + tb + _billsPowerHtml() + _bankNoStatementHtml('Payments read');
+  if (!rows.length) return _bankPayVerdictHtml(cls, rows) + tb + _billsPowerHtml() + _bankNoStatementHtml('Payments read') +
+    (suppRows().length ? uiFoldCard('pay-suppliers', suppPanelHtml(), !!_isDesktop) : '');
   return _bankPayVerdictHtml(cls, rows) + tb + _bankPaymentsHtml(cls);
 }
 /* Payments' verdict: the payees not yet sorted and the months with no electricity bill, what went out and came in last month. */
@@ -1161,8 +1168,14 @@ function _bankPayVerdictHtml(cls, rows) {
       { label: 'Not yet sorted', fig: String(un.keys.length), tone: un.keys.length ? 'warning' : 'ok', sub: 'payees to set once', attrs: ' data-pay-unsorted="' + un.keys.length + '"' },
       { label: 'Bills missing', fig: String(miss.length), tone: miss.length ? 'warning' : 'ok', sub: 'electricity months', attrs: ' data-pay-missing="' + miss.length + '"' },
       { label: 'Paid out', fig: escHtml(finRs(lm.dr)), sub: billsMonthLabel(lm.month), money: true },
-      { label: 'Came in', fig: escHtml(finRs(lm.cr)), sub: billsMonthLabel(lm.month), money: true }],
+      _bankSuppFactor()],
     attrs: ' id="bankPayVerdict"' });
+}
+/* The verdict's tile for the suppliers: what is owed to those with a balance set, and how many have none (suppliers.js). */
+function _bankSuppFactor() {
+  var t = suppTotals();
+  return { label: 'Owed to suppliers', fig: t.set ? escHtml(finRs(t.owed)) : '', money: true, attrs: ' data-pay-supp-owed="' + (t.set ? t.owed : '') + '"',
+    sub: t.set ? (t.unset ? todoPlural(t.unset, 'more') + ' with no balance set' : todoPlural(t.set, 'supplier')) : t.rows.length ? 'no balance set yet' : 'no supplier yet' };
 }
 function _bankUnsortedHtml(un) {
   if (!un.keys.length) return '';
@@ -1170,8 +1183,13 @@ function _bankUnsortedHtml(un) {
   // The three paid most first; the rest one tap away (the bills took the room under them, TM3a, I10). The verdict counts them all.
   return h + uiMoreHtml('bank-unsorted', un.keys.map(function(k) {
     var u = un.map[k];
-    return '<div class="inv-row inv-row-2" data-unsorted="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta inv-row-wrap">' + todoPlural(u.n, 'payment') + ' · last ' + escHtml(formatDate(u.last.date)) + '</span></span>' +
+    var row = '<div class="inv-row inv-row-2" data-unsorted="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta inv-row-wrap">' + todoPlural(u.n, 'payment') + ' · last ' + escHtml(formatDate(u.last.date)) + '</span></span>' +
       '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(u.paid) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankSort" data-id="' + escHtml(u.last.id) + '" data-q="' + escHtml(k) + '">Sort</button></span></div>';
+    // A payee whose initials are a supplier's short name (a bill written under them): offered as that supplier, a line of its own.
+    var sp = suppInitialsOffer(k);
+    if (!sp) return row;
+    return { parts: [row, '<div class="inv-row-children"><div class="inv-row" data-supp-offer="' + escHtml(k) + '"><span class="inv-row-main inv-row-meta">' + escHtml('May be ' + sp.name + ': its initials') + '</span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppSame" data-id="' + escHtml(sp.id) + '" data-payee="' + escHtml(k) + '">Same supplier</button></span></div></div>'] };
   }), { n: 3, noun: 'payees' }) + '</div>';
 }
 /* What needs the owner first (§3e, §1a-8): the payees not yet sorted, then the bills (the form when open, the months with no
@@ -1203,27 +1221,8 @@ function _bankPaymentsHtml(cls) {
   // Wages: the same panel Staff → Pay draws.
   h += finWagesHtml(cls, 'payments');
 
-  // Suppliers, and everything else by category.
-  var sup = {};
-  cls.forEach(function(v) { if (v.cat === 'supplier' && v.row.dr > 0) { var k = v.party || v.row.narration; (sup[k] = sup[k] || { paid: 0, n: 0, name: v.supplier || v.party, written: bankSupplierWritten(v) }); sup[k].paid = gstRound(sup[k].paid + v.row.dr); sup[k].n++; } });
-  var billed = {};
-  // A delivery typed by hand before its amount was kept carries its price: price × quantity is its bill.
-  (stockData().entries || []).forEach(function(e) {
-    var amt = e.amount ? Number(e.amount) : e.price > 0 && e.qty > 0 ? gstRound(e.price * e.qty) : 0;
-    if (!e.voided && e.supplier && amt) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + amt);
-  });
-  var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; }), q = '';
-  q += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid <span class="inv-panel-count">' + sk.length + '</span></span></div>';
-  if (!sk.length) q += '<div class="inv-empty">No payment matched to a stock supplier. Set a payee to Supplier on the statement and it is remembered.</div>';
-  sk.forEach(function(k) {
-    var s = sup[k], key = Object.keys(billed).find(function(bk) { return bankSupplierIs(s.written, bk); });
-    q += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta">' + todoPlural(s.n, 'payment') +
-      (key ? ' · stock bills recorded ' + escHtml(formatCurrency(billed[key])) : ' · no stock bills recorded') + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(s.paid) + '</span></div>';
-  });
-  // Its door to the stock bills, a row of its own at its foot (a button in its head would keep it from folding).
-  q += '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bills these pay are kept on each stock line</span><span class="inv-row-end">' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></span></div>';
-  h += fold('pay-suppliers', q + '</div>');
+  // Suppliers: what is owed to each and since when, their lead times (suppliers.js); each opens its bills and payments.
+  h += fold('pay-suppliers', suppPanelHtml());
   var tot = {};
   cls.forEach(function(v) { if (['gst', 'tax', 'charges', 'other'].indexOf(v.cat) >= 0 && v.row.dr > 0 && !(v.cat === 'other' && v.auto)) tot[v.cat] = gstRound((tot[v.cat] || 0) + v.row.dr); });
   var o = '<div class="inv-panel inv-panel-flush" id="bankOther"><div class="inv-panel-head"><span class="inv-panel-title">Everything else paid</span></div>';

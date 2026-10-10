@@ -287,7 +287,9 @@ test('B7: a payee carrying a word before the supplier’s name is that supplier�
   await loadAppWithState(page, supplierState());
   expect(await ev(page, `(function() { var v = bankClassify()[1]; return [v.cat, v.supplier]; })()`)).toEqual(['supplier', 'Acme Chemicals']);
   await openFinance(page, 'payments');
-  await expect(page.locator('#bankSuppliers')).toContainText('stock bills recorded ₹15,000.00');
+  // The suppliers' card (suppliers.js) sets it against the supplier's own bills.
+  await expect(page.locator('#bankSuppliers [data-supplier]')).toContainText('Acme Chemicals');
+  expect(await ev(page, `(function() { var sp = suppOfName('Acme Chemicals'); return [sp.bills[0].base, sp.bank.length]; })()`)).toEqual([15000, 1]);
 });
 
 test('B7: supplierNoBill and the stock line read a payment the same way', async ({ page }) => {

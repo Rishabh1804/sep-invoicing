@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="09aaf593">
+<meta name="app-build" content="33beecc5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2877,6 +2877,10 @@ function getDefaultState() {
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     payrollPaid: [],
+    // Suppliers (suppliers.js): what the owner set on each (its balance on a day, lead time, GST, spellings), and the payments
+    // made to them recorded here (cash, a cheque handed over), voided with a reason, never deleted.
+    suppliers: [],
+    supplierPays: [],
     // Fallbacks the live cost uses only where nothing is recorded yet.
     costModel: { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 },
     // Which rules may raise a task, and their day thresholds.
@@ -3397,7 +3401,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
   'devices'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
@@ -5490,6 +5494,9 @@ var CHG_TRACK = [
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
   { path: 'payrollPaid', kind: 'arr', noun: 'payroll as paid', plural: 'payrolls as paid', label: function(r) { return chgJoin(r.month, r.source); } },
+  { path: 'suppliers', kind: 'arr', noun: 'supplier', label: function(r) { return r.name; } },
+  { path: 'supplierPays', kind: 'arr', noun: 'payment to a supplier', plural: 'payments to suppliers',
+    label: function(r) { var sp = (S.suppliers || []).find(function(x) { return x.id === r.supplierId; }); return chgJoin(sp ? sp.name : '', chgMoney(r.amount), r.how, r.date ? chgDay(r.date) : ''); } },
   { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
@@ -27519,8 +27526,9 @@ function renderStockCheck() {
 function stockExport() {
   var st = stockData();
   var meta = document.querySelector('meta[name="app-build"]');
+  // The suppliers travel with their bills (suppliers.js): what the owner set on each, and the payments recorded here.
   var out = { format: 'sep-stock', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '',
-    items: st.items, entries: st.entries, pastes: st.pastes };
+    items: st.items, entries: st.entries, pastes: st.pastes, suppliers: suppData(), supplierPays: suppPays() };
   downloadJson('sep-stock-' + localDateStr() + '.json', out, 2);
   showToast('Stock exported: ' + st.entries.length + ' entries');
 }
@@ -27582,6 +27590,29 @@ function stockMergeImport(src) {
     if (!p || !p.id || st.pastes.some(function(x) { return x.id === p.id; })) return;
     st.pastes.push(JSON.parse(JSON.stringify(p))); added.pastes++;
   });
+  // Suppliers and the payments recorded to them: merged by id, never over one held here; a field a file sends is kept only in
+  // the shape the app writes it (suppliers.js).
+  added.suppliers = 0; added.supplierPays = 0;
+  var day = function(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); };
+  (Array.isArray(src.suppliers) ? src.suppliers : []).forEach(function(r) {
+    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim() || suppData().some(function(x) { return x.id === r.id; })) return;
+    var c = { id: r.id, name: r.name.trim(), names: (Array.isArray(r.names) ? r.names : []).filter(function(n) { return typeof n === 'string' && n.trim(); }).map(function(n) { return n.trim(); }),
+      at: num(r.at) ? r.at : Date.now(), by: r.by || null };
+    if (num(r.leadMax) && r.leadMax >= 0 && r.leadMax <= 60) { c.leadMax = r.leadMax; c.leadMin = num(r.leadMin) && r.leadMin >= 0 && r.leadMin <= r.leadMax ? r.leadMin : r.leadMax; }
+    if (num(r.gstPct) && r.gstPct >= 0 && r.gstPct <= 28) c.gstPct = r.gstPct;
+    if (r.opening && num(r.opening.amount) && day(r.opening.date)) c.opening = { amount: r.opening.amount, date: r.opening.date, note: typeof r.opening.note === 'string' ? r.opening.note : null, at: num(r.opening.at) ? r.opening.at : null, by: r.opening.by || null };
+    if (Array.isArray(r.inOpening)) c.inOpening = r.inOpening.filter(function(x) { return typeof x === 'string'; });
+    if (r.totals && typeof r.totals === 'object') { c.totals = {}; Object.keys(r.totals).forEach(function(k) { if (num(r.totals[k]) && r.totals[k] >= 0) c.totals[k] = r.totals[k]; }); }
+    if (typeof r.note === 'string' && r.note.trim()) c.note = r.note.trim();
+    suppData().push(c); added.suppliers++;
+  });
+  (Array.isArray(src.supplierPays) ? src.supplierPays : []).forEach(function(p) {
+    if (!p || typeof p.id !== 'string' || typeof p.supplierId !== 'string' || !day(p.date) || !num(p.amount) || !(p.amount > 0) || suppPays().some(function(x) { return x.id === p.id; })) return;
+    var c = { id: p.id, supplierId: p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
+      chq: typeof p.chq === 'string' && p.chq ? p.chq : null, note: typeof p.note === 'string' && p.note ? p.note : null, at: num(p.at) ? p.at : Date.now(), by: p.by || null };
+    if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
+    suppPays().push(c); added.supplierPays++;
+  });
   return added;
 }
 
@@ -27605,7 +27636,8 @@ function stockImportText(text, name) {
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
-    showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
+    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '');
+    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
   } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 
@@ -28655,23 +28687,28 @@ function stockReorderList() {
   stockData().items.filter(function(i) { return i.active !== false; }).forEach(function(it) {
     var st = stockStatus(it), rate = st.rate && st.rate.rate ? st.rate.rate : null, level = st.level == null ? 0 : Math.max(0, st.level);
     var typed = _stockReorder && _stockReorder.qty[it.id];
+    // Who it is ordered from and by when (suppliers.js): the supplier's own lead time where set, else the list's.
+    var pick = suppReorderPick(it, st.group === 'out' || (st.level != null && st.level <= 0) ? 0 : rate ? st.daysLeft : null);
     if (!rate) {
-      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true });
+      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true, pick: pick });
       else skipped.norate.push(it.name);
       return;
     }
-    var need = rate * (cfg.leadDays + cfg.coverDays) - level;
+    var lead = pick && pick.lead ? pick.lead.max : cfg.leadDays;
+    var need = rate * (lead + cfg.coverDays) - level;
     var pack = stockPackSize(it);
     var suggest = need > 0 ? (pack ? Math.ceil(need / pack) * pack : Math.ceil(need)) : 0;
     if (suggest <= 0 && !typed) { skipped.enough++; return; }
-    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative) });
+    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative), pick: pick, lead: lead });
   });
   rows.forEach(function(r) {
     var typed = _stockReorder && _stockReorder.qty[r.item.id];
     r.qty = typed != null && typed !== '' ? Math.max(0, parseFloat(typed) || 0) : (r.suggest || 0);
     var lp = stockPriceAt(r.item.id, '9999-12-31');
-    r.price = lp ? lp.price : null;
-    r.supplier = lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    // At the price of the supplier it is ordered from: the last it came from, or the cheaper one that can deliver in time.
+    r.price = r.pick ? r.pick.price : lp ? lp.price : null;
+    r.supplier = r.pick && r.pick.sp ? r.pick.name : lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    r.lastFrom = r.pick && r.pick.last ? r.pick.last.name : r.supplier;
     r.amount = r.price != null ? gstRound(r.qty * r.price) : null;
   });
   var groups = {};
@@ -28699,11 +28736,11 @@ function renderStockReorder() {
   // Not a form: lead and cover save as they change, and a typed quantity is a working figure for the message copied
   // from it (the list starts afresh each time it opens). Leaving asks nothing.
   h += '<div class="inv-panel" data-nodirty><div class="inv-fields">' +
-    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time (days)</label>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time where a supplier’s is not set (days)</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-input inv-input-num" value="' + cfg.leadDays + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="stockCoverDays">Days to cover after it lands</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
-    '<div class="inv-note">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div></div>';
+    '<div class="inv-note">Suggested = daily use × (lead time + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. The lead time is the supplier’s where it is set on them (Money → Payments → Suppliers), else these ' + cfg.leadDays + ' days. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
     h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
   } else {
@@ -28731,10 +28768,10 @@ function renderStockReorder() {
 }
 function stockReorderNote(L) { return 'At the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); }
 function stockReorderWhy(r, full) {
-  var unit = r.item.unit || '';
-  if (r.noRate) return 'out, and no daily use on record: enter a quantity';
+  var unit = r.item.unit || '', pick = r.pick ? suppPickText(r.pick) + (r.pick.why ? '. ' + r.pick.why : '') : '';
+  if (r.noRate) return 'out, and no daily use on record: enter a quantity' + (pick ? ' · ' + pick : '');
   return (full ? stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') + ' · ' : '') +
-    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
+    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '') + (pick ? ' · ' + pick : '');
 }
 function stockReorderInput(r) {
   return '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">';
@@ -29823,7 +29860,13 @@ function bankMatchClient(party) {
 }
 function bankSupplierKeys() {
   var keys = {};
-  (stockData().entries || []).forEach(function(e) { if (e.supplier) keys[bankKey(e.supplier)] = e.supplier; });
+  // A name as written and as compared ("&" is AND: suppliers.js suppKey), so a bill's "<A> & Brothers" is the statement's "<A> AND
+  // BROTHERS"; then every spelling the owner gave a supplier, under its own name.
+  var put = function(s, as) { [bankKey(s), suppKey(s)].forEach(function(k) { if (k) keys[k] = as; }); };
+  (stockData().entries || []).forEach(function(e) { if (e.supplier) put(e.supplier, e.supplier); });
+  (Array.isArray(S.suppliers) ? S.suppliers : []).forEach(function(r) {
+    if (r && r.name) [r.name].concat(Array.isArray(r.names) ? r.names : []).forEach(function(s) { if (s) put(s, r.name); });
+  });
   return keys;
 }
 /* The one reading of "this payment went to that supplier", wherever a payment is set against the stock bills
@@ -30771,7 +30814,8 @@ function _bankPaymentsTabHtml(rows) {
   // Add a bill is the screen's one primary; while its form is open here, the form's Save is, and the row goes.
   var tb = _costBillOpen && _costBillOpen.where === 'finance' ? '' :
     '<div class="inv-toolbar" data-bank-toolbar="payments"><button class="inv-btn inv-btn-primary" data-action="invCostBillOpen" data-where="finance">Add a bill</button></div>';
-  if (!rows.length) return _bankPayVerdictHtml(cls, rows) + tb + _billsPowerHtml() + _bankNoStatementHtml('Payments read');
+  if (!rows.length) return _bankPayVerdictHtml(cls, rows) + tb + _billsPowerHtml() + _bankNoStatementHtml('Payments read') +
+    (suppRows().length ? uiFoldCard('pay-suppliers', suppPanelHtml(), !!_isDesktop) : '');
   return _bankPayVerdictHtml(cls, rows) + tb + _bankPaymentsHtml(cls);
 }
 /* Payments' verdict: the payees not yet sorted and the months with no electricity bill, what went out and came in last month. */
@@ -30789,8 +30833,14 @@ function _bankPayVerdictHtml(cls, rows) {
       { label: 'Not yet sorted', fig: String(un.keys.length), tone: un.keys.length ? 'warning' : 'ok', sub: 'payees to set once', attrs: ' data-pay-unsorted="' + un.keys.length + '"' },
       { label: 'Bills missing', fig: String(miss.length), tone: miss.length ? 'warning' : 'ok', sub: 'electricity months', attrs: ' data-pay-missing="' + miss.length + '"' },
       { label: 'Paid out', fig: escHtml(finRs(lm.dr)), sub: billsMonthLabel(lm.month), money: true },
-      { label: 'Came in', fig: escHtml(finRs(lm.cr)), sub: billsMonthLabel(lm.month), money: true }],
+      _bankSuppFactor()],
     attrs: ' id="bankPayVerdict"' });
+}
+/* The verdict's tile for the suppliers: what is owed to those with a balance set, and how many have none (suppliers.js). */
+function _bankSuppFactor() {
+  var t = suppTotals();
+  return { label: 'Owed to suppliers', fig: t.set ? escHtml(finRs(t.owed)) : '', money: true, attrs: ' data-pay-supp-owed="' + (t.set ? t.owed : '') + '"',
+    sub: t.set ? (t.unset ? todoPlural(t.unset, 'more') + ' with no balance set' : todoPlural(t.set, 'supplier')) : t.rows.length ? 'no balance set yet' : 'no supplier yet' };
 }
 function _bankUnsortedHtml(un) {
   if (!un.keys.length) return '';
@@ -30798,8 +30848,13 @@ function _bankUnsortedHtml(un) {
   // The three paid most first; the rest one tap away (the bills took the room under them, TM3a, I10). The verdict counts them all.
   return h + uiMoreHtml('bank-unsorted', un.keys.map(function(k) {
     var u = un.map[k];
-    return '<div class="inv-row inv-row-2" data-unsorted="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta inv-row-wrap">' + todoPlural(u.n, 'payment') + ' · last ' + escHtml(formatDate(u.last.date)) + '</span></span>' +
+    var row = '<div class="inv-row inv-row-2" data-unsorted="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta inv-row-wrap">' + todoPlural(u.n, 'payment') + ' · last ' + escHtml(formatDate(u.last.date)) + '</span></span>' +
       '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(u.paid) + '</span><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankSort" data-id="' + escHtml(u.last.id) + '" data-q="' + escHtml(k) + '">Sort</button></span></div>';
+    // A payee whose initials are a supplier's short name (a bill written under them): offered as that supplier, a line of its own.
+    var sp = suppInitialsOffer(k);
+    if (!sp) return row;
+    return { parts: [row, '<div class="inv-row-children"><div class="inv-row" data-supp-offer="' + escHtml(k) + '"><span class="inv-row-main inv-row-meta">' + escHtml('May be ' + sp.name + ': its initials') + '</span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppSame" data-id="' + escHtml(sp.id) + '" data-payee="' + escHtml(k) + '">Same supplier</button></span></div></div>'] };
   }), { n: 3, noun: 'payees' }) + '</div>';
 }
 /* What needs the owner first (§3e, §1a-8): the payees not yet sorted, then the bills (the form when open, the months with no
@@ -30831,27 +30886,8 @@ function _bankPaymentsHtml(cls) {
   // Wages: the same panel Staff → Pay draws.
   h += finWagesHtml(cls, 'payments');
 
-  // Suppliers, and everything else by category.
-  var sup = {};
-  cls.forEach(function(v) { if (v.cat === 'supplier' && v.row.dr > 0) { var k = v.party || v.row.narration; (sup[k] = sup[k] || { paid: 0, n: 0, name: v.supplier || v.party, written: bankSupplierWritten(v) }); sup[k].paid = gstRound(sup[k].paid + v.row.dr); sup[k].n++; } });
-  var billed = {};
-  // A delivery typed by hand before its amount was kept carries its price: price × quantity is its bill.
-  (stockData().entries || []).forEach(function(e) {
-    var amt = e.amount ? Number(e.amount) : e.price > 0 && e.qty > 0 ? gstRound(e.price * e.qty) : 0;
-    if (!e.voided && e.supplier && amt) billed[bankKey(e.supplier)] = gstRound((billed[bankKey(e.supplier)] || 0) + amt);
-  });
-  var sk = Object.keys(sup).sort(function(a, b) { return sup[b].paid - sup[a].paid; }), q = '';
-  q += '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers paid <span class="inv-panel-count">' + sk.length + '</span></span></div>';
-  if (!sk.length) q += '<div class="inv-empty">No payment matched to a stock supplier. Set a payee to Supplier on the statement and it is remembered.</div>';
-  sk.forEach(function(k) {
-    var s = sup[k], key = Object.keys(billed).find(function(bk) { return bankSupplierIs(s.written, bk); });
-    q += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span><span class="inv-row-meta">' + todoPlural(s.n, 'payment') +
-      (key ? ' · stock bills recorded ' + escHtml(formatCurrency(billed[key])) : ' · no stock bills recorded') + '</span></span><span class="inv-row-end inv-num">' + formatCurrency(s.paid) + '</span></div>';
-  });
-  // Its door to the stock bills, a row of its own at its foot (a button in its head would keep it from folding).
-  q += '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bills these pay are kept on each stock line</span><span class="inv-row-end">' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></span></div>';
-  h += fold('pay-suppliers', q + '</div>');
+  // Suppliers: what is owed to each and since when, their lead times (suppliers.js); each opens its bills and payments.
+  h += fold('pay-suppliers', suppPanelHtml());
   var tot = {};
   cls.forEach(function(v) { if (['gst', 'tax', 'charges', 'other'].indexOf(v.cat) >= 0 && v.row.dr > 0 && !(v.cat === 'other' && v.auto)) tot[v.cat] = gstRound((tot[v.cat] || 0) + v.row.dr); });
   var o = '<div class="inv-panel inv-panel-flush" id="bankOther"><div class="inv-panel-head"><span class="inv-panel-title">Everything else paid</span></div>';
@@ -31403,6 +31439,689 @@ function bankAction(action, btn) {
     case 'invChequeUnlink': bankChequeSetDeposit(btn.dataset.id, undefined); return true;
   }
   return false;
+}
+/**
+ * suppliers.js — Suppliers: what is owed to each, and how long each takes to deliver.
+ *
+ * Owner, 10 Oct 2026, of one supplier: "Balance payment remaining from us to <it>, no way to record this in the app"; of the
+ * lead times: none for three of them, and "3-4 working days for material to be delivered if ordered through <another>, they
+ * offer a cheaper price but the material comes from Kolkata". Nothing about a supplier is in the build: the book names them
+ * (the stock bills' company, the statement's payees), and what the owner sets on one is a record of the book (S.suppliers).
+ *
+ * - A supplier is every spelling that names it: "&" is AND and BROS is BROTHERS when names are compared (suppKey), and any
+ *   other spelling (the bank's, a short form) is added to it once. A payee whose initials are a supplier's short name is
+ *   offered as the same supplier, never taken unseen.
+ * - A bill is the stock entries of one invoice (its company, number and date). Its total is the lines before GST with the
+ *   supplier's GST, rounded to the rupee as the paper is, unless its total was set as printed. One number on two days is said:
+ *   one of them may be typed wrong.
+ * - A payment is a debit on the statement read as theirs, or one recorded here (cash, a cheque handed over, a transfer). A
+ *   cheque recorded here is the statement's row of its number once that clears: one payment, on the day it was handed over,
+ *   which is the day the supplier's own book credits it. A transfer recorded here is the statement's row of the same amount
+ *   within a week.
+ * - The balance counts from what was owed at the end of a day, typed off their statement: the bills after it, less the
+ *   payments after it. A payment the statement shows after that day which their figure already counts is marked so. With
+ *   none set, nothing is said to be owed (unknown is not nothing); the bills and payments are still listed.
+ * - What is still unpaid is read oldest first: the payments settle the balance set first, then each bill in turn.
+ * - Each supplier's lead time, in working days, feeds the reorder list (cost.js): when to order, and whether the cheaper
+ *   supplier can still deliver before the line runs out.
+ */
+
+var SUPP_GST = 18;               // a supplier's GST on its bills, %, until set on it (the chemicals and the zinc are at 18)
+var SUPP_OWED_DAYS = 30;         // the To-do names a balance whose oldest unpaid part is this many days old
+var SUPP_PRICE_DAYS = 180;       // a supplier's last price older than this is not set against another's
+var SUPP_NEAR_DAYS = 30;         // a statement payment this close after the balance's day can be marked as in it
+var SUPP_NO_NUMBER = /^(NA|N\/A|NIL|NONE|-+|\?+|0+)$/;
+var _suppMemo = null;            // { S, w (the book's saves), v: the index }, for one turn
+var _suppOpenId = null;          // the supplier open in its dialog
+var _suppForm = '';              // the form open in it: pay | balance | set
+
+function suppData() { if (!Array.isArray(S.suppliers)) S.suppliers = []; return S.suppliers; }
+function suppPays() { if (!Array.isArray(S.supplierPays)) S.supplierPays = []; return S.supplierPays; }
+function suppUid(p) { return p + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
+function suppBy() { return typeof grdUserId === 'function' ? grdUserId() : null; }
+
+/* A name as compared: "&" is AND, BROS is BROTHERS, PVT and LTD in full, M/S left out; letters only, as the bank's payee
+   key is (bankKey), so "<A> & BROTHERS" on a bill and "<A> AND BROTHERS" on the statement are one supplier. */
+function suppKey(s) {
+  return relayKey(String(s || '').toUpperCase().replace(/&/g, ' AND ').replace(/\bM\s*\/\s*S\b\.?/g, ' ')
+    .replace(/\bBROS\b\.?/g, ' BROTHERS ').replace(/\bPVT\b\.?/g, ' PRIVATE ').replace(/\bLTD\b\.?/g, ' LIMITED '));
+}
+/* A name's initials, AND, OF and THE left out: three words or more make a short form a bill may be written under. */
+function suppInitials(s) {
+  var w = String(s || '').toUpperCase().split(/[^A-Z]+/).filter(function(x) { return x && !/^(AND|OF|THE)$/.test(x); });
+  return w.length >= 3 ? w.map(function(x) { return x[0]; }).join('') : '';
+}
+/* A bill's number as compared: spaces out, leading zeros of a number out ("06" is 6); NA and the like are no number. */
+function suppNoKey(no) {
+  var s = String(no == null ? '' : no).trim().toUpperCase().replace(/\s+/g, '');
+  return !s || SUPP_NO_NUMBER.test(s) ? '' : s.replace(/^0+(?=\d)/, '');
+}
+function suppByDate(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }
+/* The statement's rows as read (finintel.js finCtx, worked out once a turn). */
+function suppCls() { return typeof finCtx === 'function' ? finCtx().cls : (bankRows().length ? bankClassify(bankRows()) : []); }
+
+/* ---------- The suppliers, their bills and their payments ---------- */
+/* Worked out from the book once a save: { list, byId, byKey, find(name) }. Each supplier: { id (its record's, or k:<key> for
+   one the book names that nobody has set anything on), rec, name, names, keys, bills, bank (the statement's payments read as
+   theirs), hand (recorded here), cleared (a hand payment's id → the statement row it cleared as), pays (the ledger's payments) }. */
+function suppIndex() {
+  var w = typeof _bookWrites === 'number' ? _bookWrites : 0;
+  if (_suppMemo && _suppMemo.S === S && _suppMemo.w === w) return _suppMemo.v;
+  // Kept for the turn, as the statement's reading is (finCtx): a figure changed in place before its save is read afresh next turn.
+  Promise.resolve().then(function() { _suppMemo = null; });
+  var list = [], byId = {}, byKey = {};
+  var mk = function(id, rec, name) { return { id: id, rec: rec, name: name, names: [], keys: [], bills: [], bank: [], hand: [], cleared: {}, pays: [] }; };
+  var add = function(sp) { list.push(sp); byId[sp.id] = sp; return sp; };
+  var name = function(sp, s) {
+    s = String(s || '').trim();
+    if (!s) return;
+    if (sp.names.indexOf(s) < 0) sp.names.push(s);
+    [suppKey(s), bankKey(s)].forEach(function(k) { if (k && sp.keys.indexOf(k) < 0) { sp.keys.push(k); if (!byKey[k]) byKey[k] = sp; } });
+  };
+  var find = function(s) { return byKey[suppKey(s)] || byKey[bankKey(s)] || null; };
+  // The owner's records first: each holds every spelling it was given.
+  suppData().forEach(function(r) {
+    if (!r || !r.id || !String(r.name || '').trim() || byId[r.id]) return;
+    var sp = add(mk(r.id, r, String(r.name).trim()));
+    [r.name].concat(Array.isArray(r.names) ? r.names : []).forEach(function(s) { name(sp, s); });
+  });
+  // Every other company on a stock bill, by its name as compared.
+  var entries = stockData().entries;
+  entries.forEach(function(e) {
+    var s = String(e.supplier || '').trim();
+    if (!s || e.voided) return;
+    var sp = find(s);
+    if (!sp) { var k = suppKey(s); if (!k) return; sp = add(mk('k:' + k, null, s)); }
+    name(sp, s);
+  });
+  // The bills: one invoice is its company, its number and its date.
+  var bills = {};
+  entries.forEach(function(e) {
+    if (e.voided || !(e.kind === 'received' || e.kind === 'bill')) return;
+    var sp = find(e.supplier);
+    if (!sp) return;
+    var date = /^\d{4}-\d{2}-\d{2}$/.test(e.billDate || '') ? e.billDate : e.date, nk = suppNoKey(e.billNo);
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '')) return;
+    var key = (nk || '-') + '|' + date, bk = sp.id + '|' + key;
+    var b = bills[bk] || (bills[bk] = { sp: sp, key: key, no: String(e.billNo == null ? '' : e.billNo).trim(), nk: nk, date: date, lines: [], base: 0, unpriced: 0, twice: 0, twins: [] });
+    var amt = typeof e.amount === 'number' && isFinite(e.amount) ? e.amount : e.price > 0 && e.qty > 0 ? gstRound(e.price * e.qty) : null;
+    // A delivery and its own bill typed again: the same line, quantity and price on one bill counts once.
+    if (b.lines.some(function(l) { return l.e.itemId === e.itemId && l.e.qty === e.qty && l.e.price === e.price && l.e.kind !== e.kind; })) { b.twice++; return; }
+    b.lines.push({ e: e, amount: amt });
+    if (amt == null) b.unpriced++; else b.base = gstRound(b.base + amt);
+  });
+  Object.keys(bills).forEach(function(k) {
+    var b = bills[k], sp = b.sp, set = sp.rec && sp.rec.totals ? sp.rec.totals[b.key] : null;
+    b.gst = suppGst(sp);
+    b.calc = gstRound(b.base * (1 + b.gst / 100), 0);
+    b.typed = typeof set === 'number' && isFinite(set) && set >= 0;
+    b.total = b.typed ? set : b.calc;
+    sp.bills.push(b);
+  });
+  // The statement's payments: a debit set to Supplier is its named supplier's; one whose payee names nobody yet is a supplier of
+  // its own, by the payee's name. Every cheque number on a debit, for a cheque recorded here to clear against.
+  var cls = suppCls(), chq = {};
+  cls.forEach(function(v) {
+    if (!(v.row.dr > 0)) return;
+    var c = bankChequeKey(v.row.chq);
+    if (c) (chq[c] = chq[c] || []).push(v);
+    if (v.cat !== 'supplier') return;
+    var sp = (v.supplier && find(v.supplier)) || suppMatchWritten(v, list);
+    if (!sp) {
+      // The payee, or the narration where the bank wrote none the reader knows (bankSupplierWritten's rule).
+      var nm = String(v.party || v.row.narration || '').trim(), pk = suppKey(nm);
+      if (pk.length < 4) return;
+      sp = byKey[pk] || add(mk('k:' + pk, null, nm));
+      name(sp, nm);
+    }
+    sp.bank.push(v);
+  });
+  suppPays().forEach(function(p) { if (p && p.id && byId[p.supplierId]) byId[p.supplierId].hand.push(p); });
+  list.forEach(function(sp) {
+    sp.bills.sort(suppByDate);
+    // One number on two days: one of them may be typed wrong.
+    var byNo = {};
+    sp.bills.forEach(function(b) { if (b.nk) (byNo[b.nk] = byNo[b.nk] || []).push(b); });
+    Object.keys(byNo).forEach(function(n) {
+      var g = byNo[n];
+      if (g.length > 1) g.forEach(function(b) { b.twins = g.filter(function(x) { return x !== b; }).map(function(x) { return x.date; }); });
+    });
+    // A cheque recorded here clears as the statement's row of its number; one with no number, or a transfer, as the row of the
+    // same amount soon after. A row clears one payment.
+    var claimed = {};
+    sp.hand.slice().sort(suppByDate).forEach(function(p) {
+      if (p.voidedAt || p.how === 'cash') return;
+      var c = bankChequeKey(p.chq), from = isoAddDays(p.date, -3), hit = null;
+      if (p.how === 'cheque' && c) hit = (chq[c] || []).find(function(v) { return !claimed[v.row.id] && v.row.date >= from && (v.cat !== 'supplier' || sp.bank.indexOf(v) >= 0); }) || null;
+      if (!hit) {
+        var to = isoAddDays(p.date, p.how === 'cheque' ? 45 : 7);
+        hit = sp.bank.filter(function(v) { return !claimed[v.row.id] && Math.abs(v.row.dr - Number(p.amount)) < 0.5 && v.row.date >= isoAddDays(p.date, -2) && v.row.date <= to; })
+          .sort(function(a, b) { return Math.abs(isoDaysBetween(p.date, a.row.date)) - Math.abs(isoDaysBetween(p.date, b.row.date)); })[0] || null;
+      }
+      if (hit) { claimed[hit.row.id] = p.id; sp.cleared[p.id] = hit; }
+    });
+    sp.pays = sp.hand.filter(function(p) { return !p.voidedAt; }).map(function(p) {
+      return { kind: 'hand', id: p.id, date: p.date, amount: Number(p.amount) || 0, p: p, cleared: sp.cleared[p.id] || null };
+    }).concat(sp.bank.filter(function(v) { return !claimed[v.row.id]; }).map(function(v) {
+      return { kind: 'bank', id: v.row.id, date: v.row.date, amount: v.row.dr, v: v };
+    })).sort(suppByDate);
+  });
+  var v = { list: list, byId: byId, byKey: byKey, find: find };
+  _suppMemo = { S: S, w: w, v: v };
+  return v;
+}
+/* The supplier a payment set to Supplier by a rule names, read as every supplier figure reads it (bankSupplierIs): the longest
+   name that fits wins. */
+function suppMatchWritten(v, list) {
+  var w = [bankSupplierWritten(v), suppKey(v.party || '')].filter(function(x) { return x && x.length >= 4; });
+  var best = null, len = 0;
+  list.forEach(function(sp) {
+    sp.keys.forEach(function(k) { if (k.length > len && w.some(function(x) { return bankSupplierIs(x, k); })) { best = sp; len = k.length; } });
+  });
+  return best;
+}
+function suppById(id) { return id ? suppIndex().byId[id] || null : null; }
+function suppOfName(name) { return name ? suppIndex().find(name) : null; }
+
+function suppLead(sp) {
+  var r = sp && sp.rec;
+  if (!r || typeof r.leadMax !== 'number' || !(r.leadMax >= 0)) return null;
+  return { min: typeof r.leadMin === 'number' && r.leadMin >= 0 && r.leadMin <= r.leadMax ? r.leadMin : r.leadMax, max: r.leadMax };
+}
+/* A lead time in words: "same day", "3–4 working days"; `says` makes it a phrase of its own ("delivers the same day"), for a
+   line that does not name it. */
+function suppLeadText(lead, says) {
+  if (!lead) return 'lead time not set';
+  if (!lead.max) return says ? 'delivers the same day' : 'same day';
+  var t = (lead.min !== lead.max ? lead.min + '–' + lead.max : String(lead.max)) + ' working day' + (lead.min === lead.max && lead.max === 1 ? '' : 's');
+  return says ? 'delivers in ' + t : t;
+}
+function suppGst(sp) { var g = sp && sp.rec ? sp.rec.gstPct : null; return typeof g === 'number' && g >= 0 && g <= 28 ? g : SUPP_GST; }
+/* A day so many working days on, Sundays out (the shop's own count, as days left are). */
+function suppAddWorkingDays(iso, n) {
+  var d = iso, k = 0;
+  while (k < n) { d = isoAddDays(d, 1); if (new Date(d + 'T00:00:00').getDay() !== 0) k++; }
+  return d;
+}
+function suppBillName(b) { return b.no && b.nk ? 'Bill ' + b.no : 'Bill, no number'; }
+function suppPayName(p) {
+  if (p.kind === 'bank') {
+    var c = bankChequeKey(p.v.row.chq);
+    return /MICR|CLG|CHQ|CHEQUE/i.test(p.v.row.narration || '') && c ? 'Cheque ' + p.v.row.chq : 'Paid from the bank';
+  }
+  var q = p.p;
+  return q.how === 'cash' ? 'Cash' : q.how === 'transfer' ? 'Transfer' + (q.chq ? ' ' + q.chq : '') : 'Cheque' + (q.chq ? ' ' + q.chq : '');
+}
+
+/* ---------- The balance ---------- */
+/* { op (the balance set: {amount, date}), lines (bills and payments by date), before, after (those the balance counts), balance
+   (null with none set), billed, paid (after the day), open ([{kind, date, amount, left, b}] still unpaid, oldest first), oldest,
+   ahead (paid past everything) }. A bill comes before a payment on its day. */
+function suppLedger(sp) {
+  var r = sp.rec, op = r && r.opening && /^\d{4}-\d{2}-\d{2}$/.test(r.opening.date || '') && typeof r.opening.amount === 'number' && isFinite(r.opening.amount) ? r.opening : null;
+  var inOp = {};
+  ((r && Array.isArray(r.inOpening)) ? r.inOpening : []).forEach(function(id) { inOp[id] = true; });
+  var lines = sp.bills.map(function(b) { return { kind: 'bill', date: b.date, amount: b.total, b: b, id: 'bill|' + b.key }; })
+    .concat(sp.pays.map(function(p) { return { kind: 'pay', date: p.date, amount: p.amount, pay: p, id: p.kind + '|' + p.id }; }));
+  lines.sort(function(a, b) { return suppByDate(a, b) || (a.kind === 'bill' ? 0 : 1) - (b.kind === 'bill' ? 0 : 1); });
+  var out = { op: op, lines: lines, before: [], after: [], balance: null, billed: 0, paid: 0, open: [], oldest: null, ahead: 0 };
+  if (!op) { out.after = lines; return out; }
+  lines.forEach(function(l) {
+    var counted = l.date > op.date && !(l.kind === 'pay' && l.pay.kind === 'bank' && inOp[l.pay.id]);
+    (counted ? out.after : out.before).push(l);
+  });
+  var bal = op.amount;
+  out.after.forEach(function(l) {
+    if (l.kind === 'bill') { bal = gstRound(bal + l.amount); out.billed = gstRound(out.billed + l.amount); }
+    else { bal = gstRound(bal - l.amount); out.paid = gstRound(out.paid + l.amount); }
+    l.bal = bal;
+  });
+  out.balance = bal;
+  var owed = [{ kind: 'opening', date: op.date, amount: op.amount, left: Math.max(0, op.amount) }].concat(out.after.filter(function(l) { return l.kind === 'bill'; })
+    .map(function(l) { return { kind: 'bill', date: l.date, amount: l.amount, left: l.amount, b: l.b }; }));
+  var pay = gstRound(out.paid + Math.max(0, -op.amount));
+  owed.forEach(function(o) { var t = Math.min(o.left, pay); o.left = gstRound(o.left - t); pay = gstRound(pay - t); });
+  out.ahead = pay;
+  out.open = owed.filter(function(o) { return o.left >= 0.5; });
+  out.oldest = out.open[0] || null;
+  return out;
+}
+/* Every supplier the book names, with its balance: what is owed first, the largest first; then those with none set, the latest
+   bill first. */
+function suppRows() {
+  return suppIndex().list.filter(function(sp) { return sp.rec || sp.bills.length || sp.pays.length; }).map(function(sp) {
+    return { sp: sp, L: suppLedger(sp), lead: suppLead(sp), last: sp.bills.length ? sp.bills[sp.bills.length - 1] : null };
+  }).sort(function(a, b) {
+    var as = a.L.balance != null, bs = b.L.balance != null;
+    if (as !== bs) return as ? -1 : 1;
+    if (as) return b.L.balance - a.L.balance;
+    var ad = a.last ? a.last.date : '', bd = b.last ? b.last.date : '';
+    return ad < bd ? 1 : ad > bd ? -1 : a.sp.name.localeCompare(b.sp.name);
+  });
+}
+function suppTotals() {
+  var rows = suppRows(), owed = 0, set = 0;
+  rows.forEach(function(x) { if (x.L.balance != null) { set++; if (x.L.balance > 0) owed = gstRound(owed + x.L.balance); } });
+  return { rows: rows, owed: owed, set: set, unset: rows.length - set };
+}
+function suppAgeDays(iso) { return Math.max(0, isoDaysBetween(iso, localDateStr())); }
+/* The oldest still unpaid, in one fact (a row's meta holds two). */
+function suppOldestText(L) {
+  var o = L.oldest;
+  if (!o) return L.ahead > 0 ? 'paid ahead' : 'nothing unpaid';
+  return 'unpaid from ' + stockShortDate(o.date) + ', ' + todoPlural(suppAgeDays(o.date), 'day');
+}
+/* A payee read as Other only because nothing recognised it, whose initials are a supplier's short name: offered as that supplier. */
+function suppInitialsOffer(party) {
+  var ini = suppInitials(party);
+  if (ini.length < 3) return null;
+  return suppIndex().list.find(function(sp) { return sp.names.some(function(n) { return relayKey(n) === ini && String(n).replace(/[^A-Za-z]/g, '').length <= 5; }); }) || null;
+}
+
+/* ---------- Payments: the suppliers' card ---------- */
+/* Money → Payments' fold: a supplier a row, what is owed and since when, its lead time; the row opens the supplier. */
+function suppPanelHtml() {
+  var t = suppTotals(), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var h = '<div class="inv-panel inv-panel-flush" id="bankSuppliers"><div class="inv-panel-head"><span class="inv-panel-title">Suppliers <span class="inv-panel-count">' + t.rows.length + '</span></span>' +
+    (t.set && money ? '<span class="inv-dot inv-dot-' + (t.owed > 0 ? 'warning' : 'ok') + '" data-supp-owed-all="' + t.owed + '">' + escHtml(t.owed > 0 ? finRs(t.owed) + ' owed' : 'nothing owed') + '</span>' : '') + '</div>';
+  if (!t.rows.length) h += '<div class="inv-empty">No supplier yet: a stock bill names its company, and a payment set to Supplier on the statement its payee.</div>';
+  h += uiMoreHtml('supp-rows', t.rows.map(function(x) {
+    var L = x.L, set = L.balance != null;
+    var meta = [set ? suppOldestText(L) : x.last ? 'last bill ' + stockShortDate(x.last.date) : todoPlural(x.sp.pays.length, 'payment'), suppLeadText(x.lead, true)];
+    var end = set ? (money ? '<span class="inv-row-end inv-num">' + figHtml(escHtml(formatCurrency(Math.abs(L.balance))), L.balance < 0 ? null : L.oldest && suppAgeDays(L.oldest.date) > SUPP_OWED_DAYS ? 'warning' : null) + (L.balance < 0 ? ' ahead' : '') + '</span>' : '')
+      : '<span class="inv-row-end"><span class="inv-dot inv-dot-neutral">No balance set</span></span>';
+    return '<div class="inv-row inv-row-2" data-supplier="' + escHtml(x.sp.id) + '"><button type="button" class="inv-row-main" data-action="invSuppOpen" data-id="' + escHtml(x.sp.id) + '">' +
+      '<span class="inv-row-title">' + escHtml(x.sp.name) + '</span><span class="inv-row-meta">' + escHtml(meta.join(' · ')) + '</span></button>' + end + '</div>';
+  }), { n: 8, noun: 'suppliers' });
+  // Its door to the stock bills, a row of its own at its foot (a button in its head would keep it from folding).
+  h += '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bills are kept on each stock line</span><span class="inv-row-end">' +
+    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoStock">Open Stock</button></span></div>';
+  return h + '</div>';
+}
+
+/* Stock → Spend and prices: the supplier tapped on the pie, its lead time and what is owed (to a role that sees money), and its door. */
+function suppSpendRowHtml(sp) {
+  var L = suppLedger(sp), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var sub = suppLeadText(suppLead(sp), true) + (money && L.balance != null ? ', ' + (L.balance > 0.5 ? finRs(L.balance) + ' owed' : L.balance < -0.5 ? 'paid ahead' : 'nothing owed') : '');
+  return '<div class="inv-row inv-row-2" data-supp-spend="' + escHtml(sp.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(sp.name) + '</span><span class="inv-row-meta">' + escHtml(sub) + '</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppOpen" data-id="' + escHtml(sp.id) + '">Open</button></span></div>';
+}
+
+/* ---------- The supplier, in a dialog ---------- */
+function suppOpen(id, form) {
+  var sp = suppById(id);
+  if (!sp) { showToast('That supplier is no longer in the book', 'error'); return; }
+  _suppOpenId = sp.id;
+  _suppForm = form || '';
+  var html = suppDialogHtml(sp), open = document.querySelector('[data-supp-dialog]');
+  if (open) {
+    var sc = open.closest('.inv-scrim-dialog');
+    if (sc) { delete sc.dataset.typed; sc.innerHTML = html; focusFirstInteractive(sc.querySelector('.inv-dialog')); return; }
+  }
+  dialogOpen(html, { dismiss: true });
+}
+/* Redrawn where it stands once something in it changed (a save, a void): the record may have been made since, so it is found by
+   its name when its id has moved. */
+function suppRedraw(id) {
+  var sp = suppById(id) || suppById(_suppOpenId);
+  if (navPageOf() === 'pageFinance' && typeof renderFinance === 'function') keepScroll(renderFinance);
+  else if (navPageOf() === 'pageStock' && typeof renderStock === 'function') keepScroll(renderStock);
+  if (sp && document.querySelector('[data-supp-dialog]')) suppOpen(sp.id, _suppForm);
+}
+function suppDialogClose() {
+  var el = document.querySelector('[data-supp-dialog]'), sc = el && el.closest('.inv-scrim-dialog');
+  if (!sc) return;
+  delete sc.dataset.typed;
+  dialogCloseScrim(sc);
+}
+/* A fact of the dialog: a figure at the row's end in the figures' face (uiFactRowHtml), or words there in the text's. */
+function suppFactHtml(f) {
+  if (!('words' in f)) return uiFactRowHtml(f);
+  return '<div class="inv-row' + (f.sub ? ' inv-row-2' : '') + '"' + (f.attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(f.label) + '</span>' +
+    (f.sub ? '<span class="inv-row-meta">' + escHtml(f.sub) + '</span>' : '') + '</span>' + (f.words ? '<span class="inv-row-end">' + escHtml(f.words) + '</span>' : '') + '</div>';
+}
+function suppField(id, label, control, wide) {
+  return '<label class="inv-field' + (wide ? ' inv-kv-wide' : '') + '"><span class="inv-field-label">' + label + '</span>' + control + '</label>';
+}
+function suppDialogHtml(sp) {
+  var L = suppLedger(sp), lead = suppLead(sp), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var h = '<div class="inv-dialog" data-supp-dialog="' + escHtml(sp.id) + '">' + dialogHeadHtml(escHtml(sp.name));
+  if (_suppForm === 'pay') return h + suppPayFormHtml(sp) + '</div>';
+  if (_suppForm === 'balance') return h + suppBalanceFormHtml(sp, L) + '</div>';
+  if (_suppForm === 'set') return h + suppSetFormHtml(sp, lead) + '</div>';
+  // What it comes to.
+  var facts = [];
+  if (!money) facts.push({ label: 'Owed', words: '', sub: 'what is owed is shown to a role that sees money' });
+  else if (L.op) facts.push({ label: L.balance < 0 ? 'Paid ahead' : 'Owed', value: formatCurrency(Math.abs(L.balance)), tone: L.balance > 0 && L.oldest && suppAgeDays(L.oldest.date) > SUPP_OWED_DAYS ? 'warning' : null,
+    sub: formatCurrency(L.op.amount) + ' owed on ' + formatDate(L.op.date) + ', bills ' + finRs(L.billed) + ', paid ' + finRs(L.paid) + ' since', attrs: ' data-supp-owed="' + L.balance + '"' });
+  else facts.push({ label: 'Owed', words: 'not set', sub: 'what was owed on a day, from their statement', attrs: ' data-supp-owed=""' });
+  if (money && L.op) {
+    var nb = L.open.filter(function(o) { return o.kind === 'bill'; }).length, part = L.open.some(function(o) { return o.kind === 'opening'; });
+    facts.push({ label: 'Unpaid', words: L.open.length ? (part ? 'the balance set' + (nb ? ' and ' + todoPlural(nb, 'bill') : '') : todoPlural(nb, 'bill')) : 'nothing', sub: suppOldestText(L), attrs: ' data-supp-oldest' });
+  }
+  facts.push({ label: 'Lead time', words: suppLeadText(lead), sub: lead ? 'from the order to the goods, Sundays out' : 'the reorder list uses its own until set', attrs: ' data-supp-lead' });
+  facts.push({ label: 'GST on its bills', value: suppGst(sp) + '%', sub: 'each bill rounded to the rupee' });
+  if (sp.names.length > 1) facts.push({ label: 'Also written', words: '', sub: sp.names.filter(function(n) { return n !== sp.name; }).join(', ') });
+  if (sp.rec && sp.rec.note) facts.push({ label: 'Note', words: '', sub: sp.rec.note });
+  h += '<div class="inv-panel inv-panel-flush" data-supp-facts>' + facts.map(suppFactHtml).join('') + '</div>';
+  if (money) h += suppLedgerHtml(sp, L);
+  var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="set">Change</button>' +
+    (money ? '<button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="balance">' + (L.op ? 'Set the balance again' : 'Set the balance') + '</button>' +
+      '<button class="inv-btn inv-btn-primary" data-action="invSuppForm" data-form="pay">Record a payment</button>' : '');
+  return h + '<div class="inv-dialog-foot">' + foot + '</div></div>';
+}
+/* The ledger, the latest first: each bill and payment with the balance after it; those before the balance's day folded. */
+function suppLedgerHtml(sp, L) {
+  var near = L.op ? isoAddDays(L.op.date, SUPP_NEAR_DAYS) : '';
+  var row = function(l, counted) {
+    var attrs = ' data-supp-line="' + escHtml(l.id) + '"';
+    if (l.kind === 'bill') {
+      var b = l.b, meta = [stockShortDate(b.date), finRs(b.base) + ' + ' + b.gst + '% GST' + (b.typed ? ', total as printed' : '') + (b.unpriced ? ', ' + todoPlural(b.unpriced, 'line') + ' with no price' : '')];
+      var flag = b.twins.length ? '<span class="inv-dot inv-dot-warning" data-supp-twin>' + escHtml('Same number on ' + b.twins.map(stockShortDate).join(', ')) + '</span>' : '';
+      return '<div class="inv-row inv-row-2' + (counted ? '' : ' inv-row-muted') + '"' + attrs + '><button type="button" class="inv-row-main" data-action="invSuppBillTotal" data-id="' + escHtml(sp.id) + '" data-key="' + escHtml(b.key) + '" aria-label="' + escHtml(suppBillName(b) + ': set its total as printed') + '">' +
+        '<span class="inv-row-title">' + escHtml(suppBillName(b) + ' · ' + todoPlural(b.lines.length, 'line')) + '</span><span class="inv-row-meta">' + escHtml(meta.join(' · ')) + '</span></button>' +
+        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + escHtml(formatCurrency(b.total)) + '</span>' + (flag || (counted && l.bal != null ? '<span class="inv-row-meta inv-num">' + escHtml('owed ' + finRs(l.bal)) + '</span>' : '')) + '</span></div>';
+    }
+    var p = l.pay, meta2 = [stockShortDate(p.date)];
+    if (p.kind === 'hand') meta2.push((p.cleared ? 'cleared ' + stockShortDate(p.cleared.row.date) : p.p.how === 'cash' ? 'recorded here' : 'not on the statement yet') + (p.p.note ? ', ' + p.p.note : ''));
+    else meta2.push('on the statement');
+    var acts = [];
+    if (p.kind === 'hand') acts.push('<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppVoidPay" data-id="' + escHtml(p.id) + '">Void</button>');
+    else if (L.op && p.date > L.op.date && p.date <= near) acts.push('<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppInOpening" data-id="' + escHtml(sp.id) + '" data-row="' + escHtml(p.id) + '">' + (counted ? 'In their balance' : 'Count it') + '</button>');
+    return '<div class="inv-row inv-row-2' + (acts.length ? ' inv-row-flow' : '') + (counted ? '' : ' inv-row-muted') + '"' + attrs + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(suppPayName(p)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(meta2.join(' · ')) + '</span></span>' +
+      '<span class="inv-row-end' + (acts.length ? ' inv-row-actions' : ' inv-row-end-stack') + '"><span class="inv-num">' + escHtml('−' + formatCurrency(p.amount)) + '</span>' +
+      (acts.length ? acts.join('') : counted && l.bal != null ? '<span class="inv-row-meta inv-num">' + escHtml('owed ' + finRs(l.bal)) + '</span>' : '') + '</span></div>';
+  };
+  var after = L.after.slice().reverse(), before = L.before.slice().reverse();
+  var h = '<div class="inv-panel inv-panel-flush" data-supp-ledger><div class="inv-panel-head"><span class="inv-panel-title">' + (L.op ? 'Since ' + escHtml(formatDate(L.op.date)) : 'Bills and payments') +
+    ' <span class="inv-panel-count">' + after.length + '</span></span></div>';
+  if (!after.length) h += '<div class="inv-empty">' + (L.op ? 'Nothing since: what is owed is the balance set.' : 'No bill or payment on record.') + '</div>';
+  h += uiMoreHtml('supp-ledger-' + sp.id, after.map(function(l) { return row(l, !!L.op); }), { n: 12, noun: 'lines' });
+  if (L.op) h += '<div class="inv-row" data-supp-opening><span class="inv-row-main"><span class="inv-row-title">Owed on ' + escHtml(formatDate(L.op.date)) + '</span>' +
+    (L.op.note ? '<span class="inv-row-meta">' + escHtml(L.op.note) + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(L.op.amount)) + '</span></div>';
+  h += '</div>';
+  if (before.length) {
+    h += uiFoldHtml('supp-before', '<span class="inv-panel-title">In the balance set, or before it <span class="inv-panel-count">' + before.length + '</span></span>',
+      uiMoreHtml('supp-before-' + sp.id, before.map(function(l) { return row(l, false); }), { n: 12, noun: 'lines' }), false, ' data-supp-before');
+  }
+  return h;
+}
+function suppPayFormHtml(sp) {
+  var today = localDateStr();
+  return '<div class="inv-fields" data-supp-pay-form>' +
+    suppField('suppPayDate', 'Paid on', '<input class="inv-input" id="suppPayDate" type="date" max="' + today + '" value="' + today + '">') +
+    suppField('suppPayAmount', 'Amount', '<input class="inv-input inv-input-num" id="suppPayAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
+    suppField('suppPayHow', 'How', '<select class="inv-select" id="suppPayHow"><option value="cheque">Cheque handed over</option><option value="transfer">Transfer</option><option value="cash">Cash</option></select>') +
+    suppField('suppPayChq', 'Cheque or reference no.', '<input class="inv-input" id="suppPayChq" autocomplete="off">') +
+    suppField('suppPayNote', 'Note', '<input class="inv-input" id="suppPayNote" autocomplete="off">', true) +
+    '</div><div class="inv-note">A cheque counts from the day it is handed over, as their book counts it; when the statement shows it clear by its number, that row is this payment, never a second one.</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSuppSavePay">Save payment</button></div>';
+}
+function suppBalanceFormHtml(sp, L) {
+  var op = L.op || {}, today = localDateStr();
+  return '<div class="inv-fields" data-supp-balance-form>' +
+    suppField('suppBalAmount', 'Owed to them', '<input class="inv-input inv-input-num" id="suppBalAmount" type="number" step="0.01" inputmode="decimal" value="' + escHtml(op.amount != null ? String(op.amount) : '') + '">') +
+    suppField('suppBalDate', 'At the end of', '<input class="inv-input" id="suppBalDate" type="date" max="' + today + '" value="' + escHtml(op.date || '') + '">') +
+    suppField('suppBalNote', 'Note', '<input class="inv-input" id="suppBalNote" autocomplete="off" placeholder="Their statement, the page for the month" value="' + escHtml(op.note || '') + '">', true) +
+    '</div><div class="inv-note" id="suppBalPreview" aria-live="polite">' + escHtml(suppBalPreview(sp, op.amount, op.date)) + '</div>' +
+    '<div class="inv-note">The figure on their statement after its last entry, and that entry’s day. The bills and payments after it are counted; a cheque they had credited before the day that clears after it can be marked as in their figure.</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSuppSaveBalance">Save balance</button></div>';
+}
+/* What a balance typed would come to now: the bills and payments on record after its day. */
+function suppBalPreview(sp, amount, date) {
+  var a = parseFloat(amount);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date || '') || isNaN(a)) return 'Type the figure and its day to see what it comes to now.';
+  var billed = 0, paid = 0;
+  sp.bills.forEach(function(b) { if (b.date > date) billed = gstRound(billed + b.total); });
+  sp.pays.forEach(function(p) { if (p.date > date) paid = gstRound(paid + p.amount); });
+  var now = gstRound(a + billed - paid);
+  return 'Owed now: ' + formatCurrency(now) + ' (bills ' + finRs(billed) + ' and payments ' + finRs(paid) + ' after ' + formatDate(date) + ').';
+}
+function suppSetFormHtml(sp, lead) {
+  var r = sp.rec || {}, others = sp.names.filter(function(n) { return n !== sp.name; });
+  var num = function(id, v, max) { return '<input class="inv-input inv-input-num" id="' + id + '" type="number" min="0" max="' + max + '" step="1" inputmode="numeric" value="' + escHtml(v == null ? '' : String(v)) + '">'; };
+  return '<div class="inv-fields" data-supp-set-form>' +
+    suppField('suppSetName', 'Name', '<input class="inv-input" id="suppSetName" autocomplete="off" value="' + escHtml(sp.name) + '">', true) +
+    suppField('suppSetLeadMin', 'Lead time, at least (working days)', num('suppSetLeadMin', lead ? lead.min : '', 60)) +
+    suppField('suppSetLeadMax', 'Lead time, at most (working days)', num('suppSetLeadMax', lead ? lead.max : '', 60)) +
+    suppField('suppSetGst', 'GST on its bills (%)', num('suppSetGst', suppGst(sp), 28)) +
+    suppField('suppSetNames', 'Also written (one a line)', '<textarea class="inv-textarea" id="suppSetNames" rows="3">' + escHtml(others.join('\n')) + '</textarea>', true) +
+    suppField('suppSetNote', 'Note', '<input class="inv-input" id="suppSetNote" autocomplete="off" value="' + escHtml(r.note || '') + '">', true) +
+    '</div><div class="inv-note">0 is the same day. Another spelling (the bank’s, a short form) makes its bills and payments this supplier’s.</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSuppSaveSet">Save</button></div>';
+}
+
+/* ---------- Saving ---------- */
+/* The supplier's record, made the first time something is set on it: every spelling the book had for it goes with it. */
+function suppRecord(sp) {
+  if (sp.rec) return sp.rec;
+  var r = { id: suppUid('SUP-'), name: sp.name, names: sp.names.filter(function(n) { return n !== sp.name; }), at: Date.now(), by: suppBy() };
+  suppData().push(r);
+  sp.rec = r;
+  return r;
+}
+function suppFormVal(sel, id) { var f = document.querySelector(sel), el = f && f.parentNode.querySelector('#' + id); return el ? String(el.value).trim() : ''; }
+function suppSavePay() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return;
+  var v = function(id) { return suppFormVal('[data-supp-pay-form]', id); };
+  var date = v('suppPayDate'), amount = gstRound(parseFloat(v('suppPayAmount')) || 0), how = v('suppPayHow') || 'cheque', chq = v('suppPayChq').replace(/\s+/g, '');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDateStr()) { showToast('The day it was paid cannot be after today', 'error'); return; }
+  if (!(amount > 0)) { showToast('Enter the amount', 'error'); return; }
+  if (how === 'cheque' && chq && !/^\d+$/.test(chq)) { showToast('A cheque number is digits only', 'error'); return; }
+  var ck = bankChequeKey(chq);
+  if (how === 'cheque' && ck && suppPays().some(function(p) { return !p.voidedAt && p.how === 'cheque' && bankChequeKey(p.chq) === ck; })) { showToast('Cheque ' + chq + ' is already recorded', 'error'); return; }
+  // A Finance edit (bankGate, P1): the form stays as typed while the PIN is asked, and the same Save runs once it is given.
+  if (!bankGate('record a payment to a supplier', function() { suppSavePay(); })) return;
+  var r = suppRecord(sp);
+  suppPays().push({ id: suppUid('SPY-'), supplierId: r.id, date: date, amount: amount, how: how === 'transfer' || how === 'cash' ? how : 'cheque', chq: chq || null,
+    note: v('suppPayNote') || null, at: Date.now(), by: suppBy() });
+  _suppOpenId = r.id; _suppForm = '';
+  saveState();
+  suppRedraw(r.id);
+  showToast(formatCurrency(amount) + ' to ' + sp.name + ' recorded' + (how === 'cheque' && chq ? ': cheque ' + chq + ' clears against the statement by its number' : ''));
+}
+function suppSaveBalance() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return;
+  var v = function(id) { return suppFormVal('[data-supp-balance-form]', id); };
+  var amt = parseFloat(v('suppBalAmount')), date = v('suppBalDate');
+  if (isNaN(amt)) { showToast('Enter what was owed', 'error'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDateStr()) { showToast('Pick the day it was owed at the end of, not after today', 'error'); return; }
+  if (!bankGate('set what is owed to a supplier', function() { suppSaveBalance(); })) return;
+  var r = suppRecord(sp);
+  r.opening = { amount: gstRound(amt), date: date, note: v('suppBalNote') || null, at: Date.now(), by: suppBy() };
+  // A payment marked as in the figure belonged to the day it was set against.
+  delete r.inOpening;
+  _suppOpenId = r.id; _suppForm = '';
+  saveState();
+  suppRedraw(r.id);
+  var L = suppLedger(suppById(r.id));
+  showToast('Balance set: ' + formatCurrency(L.balance) + ' owed to ' + r.name + ' now');
+}
+function suppSaveSet() {
+  var sp = suppById(_suppOpenId);
+  if (!sp) return;
+  var v = function(id) { return suppFormVal('[data-supp-set-form]', id); };
+  var name = v('suppSetName').replace(/\s+/g, ' '), lmin = v('suppSetLeadMin'), lmax = v('suppSetLeadMax'), gst = v('suppSetGst');
+  if (!name) { showToast('Name the supplier', 'error'); return; }
+  var nmin = lmin === '' ? null : parseInt(lmin, 10), nmax = lmax === '' ? null : parseInt(lmax, 10);
+  if (nmax == null && nmin != null) nmax = nmin;
+  if (nmin == null && nmax != null) nmin = nmax;
+  if ((nmax != null && (isNaN(nmax) || nmax < 0 || nmax > 60)) || (nmin != null && (isNaN(nmin) || nmin < 0 || nmin > nmax))) { showToast('A lead time is 0 to 60 working days, the least not above the most', 'error'); return; }
+  var g = gst === '' ? SUPP_GST : parseFloat(gst);
+  if (isNaN(g) || g < 0 || g > 28) { showToast('GST is 0 to 28%', 'error'); return; }
+  var names = v('suppSetNames').split(/\n+/).map(function(s) { return s.trim().replace(/\s+/g, ' '); }).filter(Boolean);
+  // A spelling already another supplier's would make two suppliers one by accident: refused, said which.
+  var idx = suppIndex(), clash = null;
+  [name].concat(names).some(function(s) { var o = idx.find(s); if (o && o !== sp) { clash = { s: s, o: o }; return true; } return false; });
+  if (clash) { showToast('“' + clash.s + '” is ' + clash.o.name + '’s already', 'error'); return; }
+  if (!bankGate('change a supplier', function() { suppSaveSet(); })) return;
+  var r = suppRecord(sp), old = r.name;
+  r.name = name;
+  // A rename keeps the old name as a spelling, so the bills that carry it stay this supplier's.
+  var keep = names.slice();
+  if (old && old !== name && keep.indexOf(old) < 0) keep.push(old);
+  sp.names.forEach(function(n) { if (n !== name && keep.indexOf(n) < 0 && stockData().entries.some(function(e) { return String(e.supplier || '').trim() === n; })) keep.push(n); });
+  r.names = keep.filter(function(n) { return n !== name; });
+  if (nmax == null) { delete r.leadMin; delete r.leadMax; } else { r.leadMin = nmin; r.leadMax = nmax; }
+  if (g === SUPP_GST) delete r.gstPct; else r.gstPct = g;
+  var note = v('suppSetNote');
+  if (note) r.note = note; else delete r.note;
+  r.setAt = Date.now(); r.setBy = suppBy();
+  _suppOpenId = r.id; _suppForm = '';
+  saveState();
+  suppRedraw(r.id);
+  showToast(name + ' saved' + (nmax != null ? ': ' + suppLeadText({ min: nmin, max: nmax }) : ''));
+}
+async function suppVoidPay(id) {
+  var p = suppPays().find(function(x) { return x.id === id; });
+  if (!p || p.voidedAt) return;
+  if (!bankGate('void a payment to a supplier', function() { suppVoidPay(id); })) return;
+  var reason = await uiPrompt({ title: 'Void this payment', body: formatCurrency(p.amount) + ' on ' + formatDate(p.date) + '. It stays on the record and stops counting.',
+    label: 'Why is it void?', okLabel: 'Void payment', danger: true, required: true, requiredText: 'A void needs a reason.' });
+  if (reason == null) return;
+  if (!reason.trim()) { showToast('A void needs a reason', 'error'); return; }
+  p = suppPays().find(function(x) { return x.id === id; });
+  if (!p || p.voidedAt) return;
+  p.voidedAt = Date.now(); p.voidReason = reason.trim(); p.voidBy = suppBy();
+  saveState();
+  suppRedraw(p.supplierId);
+  showToast('Payment voided: ' + formatCurrency(p.amount) + ' is owed again');
+}
+/* A statement payment soon after the balance's day: in their figure already (a cheque they credited before it cleared), or counted. */
+function suppInOpening(id, rowId) {
+  var sp = suppById(id);
+  if (!sp || !rowId) return;
+  if (!bankGate('change what a supplier’s balance counts', function() { suppInOpening(id, rowId); })) return;
+  var r = suppRecord(sp), list = Array.isArray(r.inOpening) ? r.inOpening : (r.inOpening = []), at = list.indexOf(rowId);
+  if (at >= 0) list.splice(at, 1); else list.push(rowId);
+  if (!list.length) delete r.inOpening;
+  _suppOpenId = r.id;
+  saveState();
+  suppRedraw(r.id);
+  showToast(at >= 0 ? 'Counted after the balance’s day' : 'Marked as in their balance: not counted again');
+}
+/* A bill's total as printed, where the paper differs from its lines with GST (freight, another rate); blank puts it back. */
+async function suppBillTotal(id, key) {
+  var sp = suppById(id), b = sp && sp.bills.find(function(x) { return x.key === key; });
+  if (!b) return;
+  if (!bankGate('set a supplier bill’s total', function() { suppBillTotal(id, key); })) return;
+  var v = await uiPrompt({ title: suppBillName(b) + ', ' + formatDate(b.date), body: 'Worked out: ' + formatCurrency(b.base) + ' before GST, ' + formatCurrency(b.calc) + ' with ' + b.gst + '%. Type the total printed on the bill, or leave it blank for the worked-out one.',
+    label: 'Total on the bill', value: b.typed ? String(b.total) : '', okLabel: 'Save total' });
+  if (v == null) return;
+  var n = String(v).trim() === '' ? null : parseFloat(v);
+  if (n != null && (isNaN(n) || n < 0)) { showToast('A total is a figure', 'error'); return; }
+  sp = suppById(id);
+  if (!sp) return;
+  var r = suppRecord(sp);
+  r.totals = r.totals && typeof r.totals === 'object' ? r.totals : {};
+  if (n == null) delete r.totals[key]; else r.totals[key] = gstRound(n);
+  if (!Object.keys(r.totals).length) delete r.totals;
+  _suppOpenId = r.id;
+  saveState();
+  suppRedraw(r.id);
+  showToast(n == null ? 'The worked-out total stands' : 'Total set as printed: ' + formatCurrency(n));
+}
+/* A payee on the statement is this supplier (its initials, or the owner's word): its name becomes one of the supplier's spellings. */
+function suppSameAs(id, payee) {
+  var sp = suppById(id);
+  if (!sp || !payee) return;
+  if (!bankGate('name a supplier’s payee', function() { suppSameAs(id, payee); })) return;
+  var r = suppRecord(sp);
+  r.names = Array.isArray(r.names) ? r.names : [];
+  if (r.names.indexOf(payee) < 0 && r.name !== payee) r.names.push(payee);
+  saveState();
+  if (navPageOf() === 'pageFinance' && typeof renderFinance === 'function') keepScroll(renderFinance);
+  showToast(payee + ' is ' + r.name + ' now: its payments are theirs');
+}
+function suppOnInput(t) {
+  if (!t || (t.id !== 'suppBalAmount' && t.id !== 'suppBalDate')) return false;
+  var sp = suppById(_suppOpenId), el = document.getElementById('suppBalPreview');
+  if (sp && el) el.textContent = suppBalPreview(sp, suppFormVal('[data-supp-balance-form]', 'suppBalAmount'), suppFormVal('[data-supp-balance-form]', 'suppBalDate'));
+  return true;
+}
+function suppAction(action, btn) {
+  switch (action) {
+    case 'invSuppOpen': suppOpen(btn.dataset.id, ''); return true;
+    case 'invSuppForm': {
+      // Cancel from a typed form is a discard somebody chose: nothing asks.
+      var sc = btn.closest('.inv-scrim-dialog');
+      if (sc) delete sc.dataset.typed;
+      suppOpen(_suppOpenId, btn.dataset.form || '');
+      return true;
+    }
+    case 'invSuppSavePay': suppSavePay(); return true;
+    case 'invSuppSaveBalance': suppSaveBalance(); return true;
+    case 'invSuppSaveSet': suppSaveSet(); return true;
+    case 'invSuppVoidPay': suppVoidPay(btn.dataset.id); return true;
+    case 'invSuppInOpening': suppInOpening(btn.dataset.id, btn.dataset.row); return true;
+    case 'invSuppBillTotal': suppBillTotal(btn.dataset.id, btn.dataset.key); return true;
+    case 'invSuppSame': suppSameAs(btn.dataset.id, btn.dataset.payee); return true;
+  }
+  return false;
+}
+
+/* ---------- The reorder list ---------- */
+/* Which supplier a line is ordered from, and by when (cost.js stockReorderList; the line's task in todo.js). Every supplier who sold
+   the line within SUPP_PRICE_DAYS is weighed at its last price: of those whose lead time lets the goods come before the line runs
+   out, the cheapest; when the one it last came from cannot make it, the fastest that can, and what the hurry costs. A supplier
+   whose lead time is not set is never chosen over the last one: it is named. With no daily use on record nothing runs out, so
+   the cheapest with a lead time set is chosen. Zinc follows the market (zinc.js sets each bill against it), so an older bill is
+   not a price to weigh: its last supplier stands.
+   Returns { sp, name, price, lead, orderBy, late, daysLeft, why, last: {sp, name, price} }. */
+function suppReorderPick(item, daysLeft) {
+  var buys = stockPurchases(item.id);
+  if (!buys.length) return null;
+  var idx = suppIndex(), today = localDateStr(), from = isoAddDays(today, -SUPP_PRICE_DAYS), by = {};
+  buys.forEach(function(b) {
+    var sp = idx.find(b.e.supplier || ''), k = sp ? sp.id : '';
+    by[k] = { sp: sp, name: sp ? sp.name : 'No supplier on record', price: b.e.price, date: b.date, lead: sp ? suppLead(sp) : null };
+  });
+  var lastB = buys[buys.length - 1], lastSp = idx.find(lastB.e.supplier || ''), last = by[lastSp ? lastSp.id : ''];
+  var others = item.key === 'ZINC' ? [] : Object.keys(by).map(function(k) { return by[k]; }).filter(function(x) { return x.sp && x !== last && x.date >= from; });
+  var fits = function(x) { return x.lead && (daysLeft == null || x.lead.max <= daysLeft); };
+  var dear = function(a, b) { return a.price - b.price || a.lead.max - b.lead.max; };
+  var pick = last, why = '';
+  if (last.lead && daysLeft != null && last.lead.max > daysLeft) {
+    // The one it last came from cannot make it: the fastest that can, else it stays, late.
+    var can = others.filter(fits).sort(function(a, b) { return a.lead.max - b.lead.max || a.price - b.price; })[0];
+    if (can) {
+      pick = can;
+      var d = gstRound(can.price - last.price, 2);
+      why = last.name + ' takes ' + suppLeadText(last.lead) + ': it would run out first; ' + (d > 0 ? formatCurrency(d) + ' a unit more' : d < 0 ? formatCurrency(-d) + ' a unit less' : 'the same price') + ' from ' + can.name;
+    }
+  } else {
+    var cheaper = others.filter(function(x) { return fits(x) && x.price < last.price - 0.005; }).sort(dear)[0];
+    if (cheaper) { pick = cheaper; why = formatCurrency(gstRound(last.price - cheaper.price, 2)) + ' a unit less than ' + last.name + ', ' + suppLeadText(cheaper.lead); }
+    else {
+      var named = others.filter(function(x) { return !x.lead && x.price < last.price - 0.005; }).sort(function(a, b) { return a.price - b.price; })[0];
+      var slow = others.filter(function(x) { return x.lead && x.price < last.price - 0.005; }).sort(function(a, b) { return a.price - b.price; })[0];
+      if (slow) why = slow.name + ' is ' + formatCurrency(gstRound(last.price - slow.price, 2)) + ' a unit less but takes ' + suppLeadText(slow.lead) + ': it would run out first';
+      else if (named) why = named.name + ' sold it ' + formatCurrency(gstRound(last.price - named.price, 2)) + ' a unit less on ' + stockShortDate(named.date) + '; set its lead time to weigh it';
+    }
+  }
+  var lead = pick.lead, orderBy = null, late = false;
+  if (lead && daysLeft != null) {
+    var spare = Math.floor(daysLeft - lead.max);
+    late = spare < 0;
+    orderBy = late ? today : suppAddWorkingDays(today, spare);
+  }
+  return { sp: pick.sp, name: pick.name, price: pick.price, lead: lead, orderBy: orderBy, late: late, daysLeft: daysLeft, why: why,
+    last: { sp: last.sp, name: last.name, price: last.price } };
+}
+/* The pick in words, for the list's row and the line's task: who, how long, by when. */
+function suppPickText(pk) {
+  if (!pk || !pk.sp) return '';
+  var when = '';
+  if (pk.orderBy) when = pk.late ? (pk.daysLeft != null && pk.daysLeft <= 0 ? ', order now: it is out' : ', order now: it runs out before it can come')
+    : pk.orderBy === localDateStr() ? ', order today' : ', order by ' + stockShortDate(pk.orderBy);
+  return pk.name + ': ' + suppLeadText(pk.lead) + when;
 }
 /* ===== FINANCE (Money on the phone bar and the rail) =====
  * The money side of the shop in one place (owner, 26 Sep 2026: "The entire finance sector of our
@@ -32482,10 +33201,12 @@ var TODO_RULE_FNS = {
       var open = Object.keys(stockEntryChecks(it.id)).length;
       var conf = open ? { level: 'check', say: todoPlural(open, 'entry', 'entries') + ' on this line to check' }
         : asOf ? { level: 'stale', say: 'nothing recorded since ' + stockShortDate(lastFig.date) } : null;
+      // Who it is ordered from and by when: the supplier's lead time against the days left (suppliers.js).
+      var pick = suppReorderPick(it, st.group === 'out' ? 0 : st.daysLeft);
       out.push({ key: 'stock:' + it.id, rule: 'stock', tone: st.tone, itemId: it.id, title: 'Order ' + it.name, sub: sub,
         why: 'Stock' + (rate && st.group !== 'out' ? ' · uses ' + rate : ''),
         facts: [['Level', stockFmtQty(st.level) + ' ' + unit], ['Daily use', rate || '—'],
-          ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]],
+          ['Days left', st.daysLeft == null ? '—' : String(Math.round(st.daysLeft * 10) / 10)]].concat(pick && pick.sp ? [['Order from', suppPickText(pick)]] : []),
         clears: 'Clears itself when a delivery or a count lifts the line out of ' + (st.tone === 'red' ? 'red' : 'amber') + '.',
         go: { kind: 'stock', id: it.id }, goLabel: 'Open the line', sig: st.tone + '|' + st.group, conf: conf });
     });
@@ -32782,7 +33503,7 @@ function todoPassMemo(k, f) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': case 'supplierOwed': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;
@@ -33217,6 +33938,8 @@ function todoGo(go) {
       var bp = document.getElementById('billsPower');
       if (bp) uiRevealEl(bp);
       break;
+    // A supplier: Money → Payments, its dialog open on its bills and payments (suppliers.js).
+    case 'supplier': finSetTab('payments'); switchTab('pageFinance'); if (go.id) suppOpen(go.id, ''); break;
     case 'cnList': switchTab('pageRegister'); renderCreditNoteList(); break;
     case 'cnBatch': regJump({ clientId: go.clientId, dateFrom: go.from, dateTo: go.to, select: go.ids }); break;
     // ids: those invoices ticked, so the bulk bar's Mark reaches exactly them (a move, advice.js).
@@ -41236,6 +41959,7 @@ var FIN_RULES = [
   ['gstNotInBank', 'Finance: a month’s GST is not on the statement'],
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
   ['supplierNoBill', 'Finance: a supplier paid with no stock bill'],
+  ['supplierOwed', 'Finance: a supplier is owed for a bill over 30 days old'],
   ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
   ['cashSwing', 'Finance: a week’s cash drawn is well short of its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
@@ -41374,31 +42098,42 @@ TODO_RULE_FNS.powerPaidNoBill = function() {
     why: 'Payments · electricity', facts: ms.map(function(m) { return [billsMonthLabel(m), formatCurrency(miss[m])]; }),
     clears: 'Clears itself when each month has its bill (one tap on Payments: Add as bill).', go: finGo('payments', { anchor: 'bankPower' }), goLabel: 'Add as bills', sig: ms.join('|') }];
 };
+/* A payment to a supplier with no stock bill from them that month or the one before (a bill is paid after it is raised), read through
+   the suppliers (suppliers.js): every spelling the owner gave one is theirs, and "&" is AND, so a payment the statement writes one
+   way is set against bills written the other. */
 TODO_RULE_FNS.supplierNoBill = function() {
-  var today = localDateStr(), byKey = {}, bills = {};
-  stockData().entries.forEach(function(e) {
-    if (e.voided || !e.supplier || !(e.kind === 'bill' || e.kind === 'received')) return;
-    var k = bankKey(e.supplier), m = String(e.billDate || e.date || '').slice(0, 7);
-    if (k && m) bills[k + '|' + m] = 1;
+  var today = localDateStr(), out = [];
+  suppIndex().list.forEach(function(sp) {
+    var months = {}, by = {};
+    sp.bills.forEach(function(b) { months[b.date.slice(0, 7)] = 1; });
+    sp.bank.forEach(function(v) {
+      if (isoDaysBetween(v.row.date, today) > 90) return;
+      var m = v.row.date.slice(0, 7);
+      if (months[m] || months[bankPrevMonth(m + '-01')]) return;
+      var e = by[m] || (by[m] = { month: m, paid: 0, n: 0 });
+      e.paid = gstRound(e.paid + v.row.dr); e.n++;
+    });
+    Object.keys(by).forEach(function(m) {
+      var e = by[m];
+      out.push({ key: 'supplierNoBill:' + (sp.keys[0] || sp.id) + '|' + m, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + sp.name + ', ' + billsMonthLabel(m),
+        sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
+        why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(m)]],
+        clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' });
+    });
   });
-  var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
-  finCtx().cls.forEach(function(v) {
-    if (v.cat !== 'supplier' || !(v.row.dr > 0) || isoDaysBetween(v.row.date, today) > 90) return;
-    // The payee, or the narration where the payee is too short to read, read as finSupplierPaid reads it (one
-    // matcher, bank.js): prefix here and substring there made a payment covered on one screen and not the other.
-    var wk = bankSupplierWritten(v), m = v.row.date.slice(0, 7);
-    // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
-    if (billKeys.some(function(b) { return bankSupplierIs(wk, b) && (bills[b + '|' + m] || bills[b + '|' + bankPrevMonth(m + '-01')]); })) return;
-    var gk = wk + '|' + m;
-    var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
-    e.paid = gstRound(e.paid + v.row.dr); e.n++;
-  });
-  return Object.keys(byKey).map(function(k) {
-    var e = byKey[k];
-    return { key: 'supplierNoBill:' + k, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + e.name + ', ' + billsMonthLabel(e.month),
-      sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
-      why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(e.month)]],
-      clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' };
+  return out;
+};
+/* A supplier with a balance set whose oldest unpaid part is over SUPP_OWED_DAYS old (suppliers.js: the payments settle the oldest
+   first). Only to know: when to pay is the owner's. */
+TODO_RULE_FNS.supplierOwed = function() {
+  return suppTotals().rows.filter(function(x) { return x.L.balance > 0.5 && x.L.oldest && suppAgeDays(x.L.oldest.date) > SUPP_OWED_DAYS; }).map(function(x) {
+    var L = x.L, o = L.oldest;
+    return { key: 'supplierOwed:' + x.sp.id, rule: 'supplierOwed', tone: 'info', title: 'Pay ' + x.sp.name + ': ' + formatCurrency(L.balance) + ' owed',
+      sub: 'Unpaid from ' + formatDate(o.date) + ', ' + todoPlural(suppAgeDays(o.date), 'day') + ' ago',
+      why: 'Payments · suppliers', amount: L.balance,
+      facts: [['Owed', formatCurrency(L.balance)], ['Unpaid from', formatDate(o.date)], ['Balance set', formatCurrency(L.op.amount) + ' on ' + formatDate(L.op.date)]],
+      clears: 'Clears itself when nothing unpaid is over ' + SUPP_OWED_DAYS + ' days old.', go: { kind: 'supplier', id: x.sp.id }, goLabel: 'Open the supplier',
+      sig: L.balance + '|' + o.date };
   });
 };
 TODO_RULE_FNS.wageVsSlip = function() {
@@ -41595,9 +42330,14 @@ function finInvoicePaymentHtml(inv) {
    one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
   if (!name || !finSeen()) return null;
+  // The supplier as Payments reads it (suppliers.js): every spelling the owner gave it, "&" as AND.
+  var sp = suppOfName(name), out = { paid: 0, n: 0, last: null };
+  if (sp) {
+    sp.bank.forEach(function(v) { out.paid = gstRound(out.paid + v.row.dr); out.n++; if (!out.last || v.row.date >= out.last.date) out.last = v.row; });
+    return out.n ? out : null;
+  }
   var k = bankKey(name);
   if (k.length < 4) return null;
-  var out = { paid: 0, n: 0, last: null };
   finCtx().cls.forEach(function(v) {
     if (!(v.row.dr > 0) || v.cat !== 'supplier' || !bankSupplierIs(bankSupplierWritten(v), k)) return;
     out.paid = gstRound(out.paid + v.row.dr); out.n++; out.last = v.row;
@@ -41958,7 +42698,8 @@ function advStockMoves(ctx) {
     var it = x.it, st = x.st, r = rows[it.id], unit = it.unit || '', out = st.group === 'out';
     var basis = [st.level != null ? stockFmtQty(Math.max(0, st.level)) + ' ' + unit + ' on the shelf' : '',
       st.rate && st.rate.rate ? 'uses ' + stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : 'no daily use on record',
-      r && r.price != null ? 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit : 'no price on record'].filter(Boolean).join(' · ');
+      r && r.price != null ? (r.lastFrom && r.supplier !== r.lastFrom ? 'order from ' + r.supplier + ' at ' + formatCurrency(r.price) + '/' + unit + ', ' + suppLeadText(r.pick && r.pick.lead)
+        : 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit) : 'no price on record'].filter(Boolean).join(' · ');
     return { key: 'stock:' + it.id, tone: 'red', soon: out ? 0 : Math.max(0, st.daysLeft || 0), cat: 0, what: it.name + (out ? ' out' : ' running out'),
       say: 'Order ' + it.name + (out ? ': it is out' : ': about ' + stockDaysText(st.daysLeft, !!(st.rate && st.rate.tentative)) + ' left'),
       worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + unit + ' at the last price, before GST' } : null,
@@ -43064,7 +43805,9 @@ function stockSpendHtml() {
     // Newest first across every line the supplier sold, not line by line; two facts a line (§3b-11), the bill's number in its title
     // (it is what the paper says, so a bill can be found again).
     var bills = sel.bills.slice().sort(function(a, b) { return a.b.date < b.b.date ? 1 : a.b.date > b.b.date ? -1 : 0; });
-    rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
+    // The supplier itself first: its lead time and, to a role that sees money, what is owed; it opens the supplier (suppliers.js).
+    var ssp = sel.named ? suppOfName(sel.name) : null;
+    rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + (ssp ? suppSpendRowHtml(ssp) : '') + bills.map(function(x) {
       return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name + (x.b.e.billNo ? ', bill ' + x.b.e.billNo : '')) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
         ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';
@@ -53828,15 +54571,15 @@ var KB_APP_GUIDES = [
     '- **Paste message** from the supervisor. Every line is shown with what was read. A line that contradicts itself is red: pick the working or the figure written.\n' +
     '- **Enter by hand** for a count, a delivery (with its bill: company, invoice number, price), a use or a charge into the bath.\n' +
     '- A wrong entry is **corrected**, never edited: it is voided and the right figure entered in its place.\n' +
-    '- Under **More**: the **Reorder list** (what to order from each supplier), **Print sheets**, Export and Import.\n\n' +
+    '- Under **More**: the **Reorder list** (what to order, from which supplier and by when: each supplier’s lead time, set on Money → Payments → Suppliers), **Print sheets**, Export and Import.\n\n' +
     '# Days left\n- A line’s level over its daily use: the use over the last three weeks of record, Sundays out. Under three days of record the figure carries a ?.\n' +
     '- Red at a few days or fewer, amber at a week (Settings → Checks & alerts → Stock alerts). A line charged into a bath is never red at an empty shelf: the delivery going into the bath is the normal state.\n\n' +
     '# Spend and prices\n- At the foot of the list on a phone, in the pane beside it on a computer.\n' +
     '- **Spend by supplier**: six months of bills, before GST. Tap a supplier for its bills and what the bank paid it.\n' +
     '- **Used, by week**: each use at the price paid for that line on the day; a line with no price is named and not counted.\n' +
     '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.',
-    // Version 2: one screen, its card and Spend and prices (the tab map, TM4d).
-    { version: 2 }),
+    // Version 2: one screen, its card and Spend and prices (the tab map, TM4d). Version 3: the reorder list's supplier and its lead time.
+    { version: 3 }),
   // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +
@@ -53916,6 +54659,18 @@ var KB_APP_GUIDES = [
     '- **A cheque received** (Receivables → Cheque received, or Add → Cheque) counts as paid the day it came. Its deposit on the statement, found by its number, takes over, so it is never counted twice.\n' +
     '- A cheque deposit names nobody: it is offered to a client by its series or its amount; place it with one tap. A payee set once is remembered.\n' +
     '- **GST**: a month’s due is its output tax less its credit notes; paid is what the bank sent the month after, since a return is paid by the 20th. Paid less than due is the input credit, not a shortfall.', { roles: ['owner'], version: 2 }),
+  // Suppliers (suppliers.js; owner, 10 Oct 2026): what is owed to each, and how long each takes.
+  _kbg('suppliers', 'Using the app: suppliers', 'What is owed to each, their payments, and how long each takes to deliver', ['pageFinance', 'pageStock'],
+    'Money → Payments → **Suppliers** lists every supplier the book names: the company on a stock bill, and a payee set to Supplier on the statement. A row says what is owed and since when, and how long they take to deliver; it opens the supplier.\n\n' +
+    '- **Set the balance** from their statement: the figure after its last entry, and that entry’s day. The bills after that day are added and the payments after it taken off. With none set, nothing is said to be owed.\n' +
+    '- **A bill** is the stock entries of one invoice: its company, number and date. Its total is its lines before GST with the supplier’s GST (18% unless changed), rounded to the rupee; tap a bill to set its total as printed. One number on two days is flagged: one of them may be typed wrong.\n' +
+    '- **Record a payment**: a cheque handed over counts from that day, as their book counts it; when the statement shows it clear by its number, that row is this payment, never a second one. A transfer is the statement’s row of the same amount within a week; cash is recorded here only. A wrong one is voided with a reason.\n' +
+    '- A cheque they had credited before the balance’s day that cleared after it: **In their balance** on its row, so it is not counted twice.\n' +
+    '- **Change**: the name (the old one is kept as a spelling, so its bills stay), other spellings (the bank’s, a short form), the lead time in working days, the GST. A payee whose initials are a supplier’s short name is offered on Payments → Not yet sorted: **Same supplier** makes its payments theirs.\n\n' +
+    '# Lead times and the reorder list\n- Each line is ordered from the supplier it last came from, unless another sold it cheaper in the last six months and can deliver before the line runs out: that one, with the day to order by.\n' +
+    '- When the one it came from cannot deliver in time, the fastest that can, and what the hurry costs a unit.\n' +
+    '- A supplier with no lead time set is never chosen over the last one: it is named, so its lead time can be set. Zinc follows the market, so its last supplier stands.\n' +
+    '- The To-do names a balance whose oldest unpaid part is over 30 days old, only to know.', { roles: ['owner'] }),
   _kbg('search', 'Using the app: search and keys', 'Finding anything, and the shortcuts', ['pageHome'],
     '- Search (the magnifier, or Ctrl K) finds invoices, challans, clients, parts, workers, stock lines, quotations, credit notes, articles here, and screens.\n' +
     '- Numbers match whole: 834 finds invoice 00834, never 8341.\n- **A** opens Add. **Backspace** goes back. Ctrl+click opens a screen in a new window.'),
@@ -58301,6 +59056,7 @@ function onDocClick(e) {
       if (uiToolbarAction(action, btn)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
+      if (suppAction(action, btn)) break;
       if (soaAction(action, btn)) break;
       if (psAction(action, btn)) break;
       if (mrgAction(action, btn)) break;
@@ -58603,6 +59359,7 @@ document.addEventListener('input', function(e) {
   if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
+  if (suppOnInput(e.target)) return;
   if (prodOnInput(e.target)) return;
   if (qtOnInput(e.target) || qtSearchInput(e.target) || prsOnInput(e.target) || pcsOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
@@ -59293,7 +60050,7 @@ var WS_GO_PAGE = {
   production: 'pageProduction', prodLines: 'pageProduction',
   stock: 'pageStock', stockCheck: 'pageStock', stockPaste: 'pageStock', stockList: 'pageStock', reorder: 'pageStock',
   power: 'pagePower', powerCase: 'pagePower', powerCut: 'pagePower', plantUnit: 'pageProduction',
-  finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance',
+  finance: 'pageFinance', bills: 'pageFinance', soa: 'pageFinance', supplier: 'pageFinance',
   stats: 'pageStats', liveCost: 'pageStats', report: 'pageReports', planner: 'pagePlanner',
   kb: 'pageKnow', todoLearn: 'pageHome'
 };

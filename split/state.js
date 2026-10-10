@@ -93,6 +93,10 @@ function getDefaultState() {
     // Power and other monthly bills, for the live cost (voided, never deleted).
     costBills: [],
     payrollPaid: [],
+    // Suppliers (suppliers.js): what the owner set on each (its balance on a day, lead time, GST, spellings), and the payments
+    // made to them recorded here (cash, a cheque handed over), voided with a reason, never deleted.
+    suppliers: [],
+    supplierPays: [],
     // Fallbacks the live cost uses only where nothing is recorded yet.
     costModel: { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 },
     // Which rules may raise a task, and their day thresholds.
@@ -613,7 +617,7 @@ function hideStorageBanner(kind) {
 // Containers hold the user's records, so a missing one is filled EMPTY — the
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
-  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'bank', 'production', 'quotations',
+  'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
   'devices'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so

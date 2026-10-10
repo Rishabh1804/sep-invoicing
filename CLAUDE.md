@@ -92,7 +92,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 84 modules, ~58,100 lines total.
+Split-file PWA. 85 modules, ~58,800 lines total.
 
 ```
 split/
@@ -135,6 +135,7 @@ split/
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
 ├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,760 lines)
+├── suppliers.js       ← Suppliers: every spelling one supplier, its bills with GST, payments (a cheque cleared once), the balance from a day, lead times for the reorder list (~680 lines)
 ├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from Staff → Pay's own rows, any month's: two to an A4 page (~220 lines)
@@ -186,7 +187,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -216,7 +217,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,715 tests, both layouts
+pnpm exec playwright test          # 1,719 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -3153,6 +3154,44 @@ batch rebate.
   message in the old name still finds the line; a unit change on a line with entries asks first and converts
   nothing.
 
+### Suppliers
+Money → Payments → **Suppliers** (`suppliers.js`; owner, 10 Oct 2026, of one supplier: *"Balance payment remaining from us to <it>, no
+way to record this in the app"*; of the lead times: none for three, *"3-4 working days … if ordered through <another>, they offer a
+cheaper price but the material comes from Kolkata"*). P208. Nothing about a supplier is in the build.
+- **A supplier is every spelling that names it** (`suppIndex`): the company on a stock bill, and a payee set to Supplier on the
+  statement, compared folded (`suppKey`: "&" is AND, BROS is BROTHERS, PVT and LTD in full), so a bill's "<A> & Brothers" is the
+  statement's "<A> AND BROTHERS"; the bank's own guess reads the same keys (`bankSupplierKeys`). What the owner sets on one is its
+  record (`S.suppliers`: name, other spellings, lead time, GST, the balance on a day, a note); a rename keeps the old name as a
+  spelling. **A payee whose initials are a supplier's short name** is offered on Payments → Not yet sorted (*May be <short name>: its
+  initials*, **Same supplier**), never taken unseen.
+- **A bill** is the stock entries of one invoice (company, number, date): its lines before GST with the supplier's GST (18% until
+  set), rounded to the rupee as the paper is, unless its total is set as printed (`rec.totals`). A delivery and its own bill typed
+  again count once. **One number on two days is flagged**: one of them may be typed wrong.
+- **A payment** is a debit on the statement read as theirs, or one recorded here (`S.supplierPays`: cash, a cheque handed over, a
+  transfer; voided with a reason, never deleted). A cheque recorded here is the statement's row of its number once it clears (else of
+  the same amount within 45 days; a transfer within a week): one payment, dated the day it was handed over, the day the supplier's own
+  book credits it.
+- **The balance counts from what was owed at the end of a day**, typed off their statement (`rec.opening`): the bills after it, less
+  the payments after it (`suppLedger`). A statement payment in the 30 days after that day which their figure already counts is marked
+  **In their balance** (`rec.inOpening`). With none set nothing is said to be owed (unknown is not nothing), and the bills and
+  payments are still listed. What is unpaid is read oldest first (`L.open`).
+- **On screen**: Payments' verdict has an *Owed to suppliers* tile; the Suppliers fold a row a supplier (what is owed and since when,
+  its lead time), which opens its dialog: the figures, the bills and payments the latest first with the balance after each (those
+  before the balance's day folded), Set the balance, Record a payment, Change. Stock → Spend and prices names the supplier tapped,
+  its lead time and what is owed. Money edits behind the payments permission (`bankGate`); a role without money sees no figure owed.
+- **The reorder list weighs a lead time against the days left** (`suppReorderPick`): a line is ordered from the supplier it last came
+  from, unless another sold it cheaper within six months and can deliver before the line runs out (*₹13.90 a unit less than …, 3–4
+  working days*, with the day to order by); when the one it came from cannot make it, the fastest that can, and what the hurry costs
+  a unit. A supplier with no lead time set is named, never chosen; zinc follows the market, so its last supplier stands. The quantity
+  covers that supplier's lead time (the list's own where none is set). The line's To-do task says who to order from and by when.
+- **To-do `supplierOwed`** (info): a balance whose oldest unpaid part is over 30 days old. `supplierNoBill` reads through the
+  suppliers, so a payment spelt the bank's way finds the bills spelt the shop's.
+- **Measured on the owner's book** (10 Oct 2026, a scratch harness never committed): five suppliers; the "&"/AND fold makes two
+  payments (₹71,435) one supplier's; the initials offer names ₹2,50,437 of payments to another; with the balance off one supplier's
+  September page (₹33,877 after its bill of 9 Sep) the app owes ₹58,716, the 10 Oct delivery's bill added; a line out within a day
+  is ordered from the same-day supplier at ₹55.20 a unit more, two others from the cheaper one with the day to order by; three bill
+  numbers are each on two days.
+
 ### Bank
 Money → **Receivables**, **Payments** and **Bank** (`bank.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
 to read it in the app yet"* — all three of receipts, payments and the ledger, reading the bank's `.xls` as it is).
@@ -3460,7 +3499,8 @@ PP3 of `docs/PLANT_PICTURE.md` (owner, 9 Oct 2026: *"Exactly"*, to the app readi
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:
 **use × (lead time + days to cover) − on hand**, rounded up to the **pack it is bought in** (the smallest
 purchase, when every purchase is a whole number of it), priced at the **last price paid** and grouped by
-the **supplier it last came from**. Lead time (10) and cover (30) are set on the list and kept on the
+the **supplier it is ordered from**: the one it last came from, or a cheaper one that can deliver in time, by its own lead time
+(*Suppliers*, above). Cover (30) and the lead time where a supplier's is not set (10) are set on the list and kept on the
 device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days of record is flagged
 *check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
 message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.

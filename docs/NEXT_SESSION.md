@@ -21,15 +21,21 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
   Pay · Areas · Roster; Production is Lines · In plant · Entries · Equipment; Stock is one screen; Power is Cuts · Causes ·
   Load & bills · Case; every Floor screen led by its verdict card, the old Overview addresses redirected (P188).
 - **Asked by the owner on 10 Oct 2026, next, before TM5** (the order put to the owner, theirs to change):
-  1. **A past day corrected where it is seen**: a day is checked on Floor → Day, but a run, a load or a cut there has no Correct
-     or Void, and Production → Entries cannot be opened on a day (*"corrections and comparisons are missing"*).
-  2. **The day's earnings and the line over time** (`docs/PLANT_PICTURE.md` PP2): *"As we are calculating production, why don't we
+  1. **A past day corrected where it is seen** (*"corrections and comparisons are missing"*): **built (P198)**. Floor → Day's
+     line card opens Production → Lines on its line and day; each run and pickling load there opens to what it holds, its Correct
+     and its Void; a correction goes back to that day; Enter by hand from a day stepped to starts on it and its line; Entries opens
+     on a day (Lines' More → *Every entry of this day*, or Entries' own Day filter).
+  2. **Pay history** (asked the same day, before the salary run of about 14 Oct): *"no way to see and print the pay slip of each
+     employee and/or what they have been paid"*; August's two salaries went to each other's accounts and the gate hand's ruled
+     figure was paid short, to be adjusted in September's pay. The bank's salary legs are to count as paid, a slip month compared
+     with them rather than read as settled, balances carried from a month the owner sets, each hand's months with any month's slip.
+  3. **The day's earnings and the line over time** (`docs/PLANT_PICTURE.md` PP2): *"As we are calculating production, why don't we
      calculate the earnings?"* The worth at the rates on record is worked out (`prodDayWorth`) but shown only inside the day
      card; each line card is to say what it earned, the day earned against its labour and the live cost, a day against the
      line's usual and a week against the four before.
-  3. **Suppliers**: what we owe each (the owner keeps it on paper: an opening, each bill with GST, the payments), and each
+  4. **Suppliers**: what we owe each (the owner keeps it on paper: an opening, each bill with GST, the payments), and each
      supplier's lead time in the reorder list (the local ones the same day; one cheaper, three to four working days away).
-  4. **The entry faces** (`docs/ENTRY_FACES.md`, written after TM4): each hand enters their own on their own phone.
+  5. **The entry faces** (`docs/ENTRY_FACES.md`, written after TM4): each hand enters their own on their own phone.
 - Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow changed (TM3):** `bank.cheques`; the `sep-bank` export carries it, and a `sep-bank` file is now taken in (Add → File),

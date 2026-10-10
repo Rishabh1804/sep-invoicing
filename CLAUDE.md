@@ -1801,6 +1801,12 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   voided.
 - **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
   corrected by a new entry that names the old one (`replaces`), never edited; a wrong one is voided with a reason.
+- **A past day is corrected where it is checked** (owner, 10 Oct 2026: *"we can check, its just not in the production tab, it is in
+  the day tab but corrections and comparisons are missing"*). Floor → Day's line card opens Production → Lines on its line and day,
+  and there each run and pickling load opens to what it holds, its Correct and its Void (`prodEntryFoldRowHtml`, Entries' phone
+  fold, on both layouts); a correction goes back to that day. Enter by hand from Lines starts on the day stepped to (a fresh Lines
+  shows the last recorded day, and a new entry there is today's) and on its line. Entries opens on a day (*A day* in its Filter;
+  Lines' More, *Every entry of this day*): every entry of it, whatever its kind. P198.
 - **One figure per line and shift.** Per (day, line, general | overtime) the register counts, else the supervisor's
   relay, else an entry by hand; the others are shown **also reported**, never added — they count the same work a
   different way. On a day with the supervisor's whole-day barrel list, the roll's barrel OT blocks are *also reported*

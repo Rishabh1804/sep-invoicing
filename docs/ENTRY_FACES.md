@@ -151,13 +151,13 @@ The owner's answers on the material-flow study:
 
 | Step | What | Spec |
 |---|---|---|
-| F1 | The face shell: duties on a user, the face's screen and door, the guard, Today hearing a face, print and WhatsApp doors | P198 |
-| F2 | The pickling face (a load, material in, rework) and its checks | P199 |
-| F3 | The supervisor's face (the two rolls, stock, the barrel per batch) and its checks | P200 |
-| F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other | P201 |
-| F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) | P202 |
+| F1 | The face shell: duties on a user, the face's screen and door, the guard, Today hearing a face, print and WhatsApp doors | P199 |
+| F2 | The pickling face (a load, material in, rework) and its checks | P200 |
+| F3 | The supervisor's face (the two rolls, stock, the barrel per batch) and its checks | P201 |
+| F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other | P202 |
+| F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) | P203 |
 | F6 | The guides (*Using the app: my face*, one per face, by role), docs, the full suite | — |
-| T1–T3 | The flow thread, as §5 | P203 |
+| T1–T3 | The flow thread, as §5 | P204 |
 
 Each spec uses made-up names in the shop's shapes, and each fails on the build before its step.
 

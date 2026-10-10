@@ -315,15 +315,30 @@ function prodUnknownHtml(unknown) {
 
 /* A pickled load: two facts (when, how much), and its line at the end: as written, from plating, set, or unknown with its usual line
    to use (one action). */
-function prodLoadRowHtml(e) {
+function prodLoadRowParts(e) {
   var L = prodLoadLine(e), m = prodIndex().match[e.id];
   var lineTxt = L.line ? prodLineName(L.line) + (L.how === 'plating' ? ', from plating' : L.how === 'set' ? ', set by you' : '') : L.how === 'split' ? 'Split: ' + L.lines.map(prodLineName).join(' + ') : 'Line unknown';
   var qty = e.qty != null ? prodQtyText(e.qty, e.unit) : (m && m.qty != null ? '~' + prodQtyText(m.qty, e.unit) + ' from plating' : 'no quantity');
-  var h = '<div class="inv-row inv-row-2 inv-row-flow" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty) + '</span></span><span class="inv-row-end">';
-  if (L.how === 'unknown' && L.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + L.hint.line + '" title="' + escHtml('Usually ' + prodLineName(L.hint.line) + ' (' + L.hint.days + ' of ' + L.hint.total + ' days)') + '">Use ' + escHtml(prodLineName(L.hint.line)) + '</button>';
-  else h += '<span class="inv-dot inv-dot-' + (L.how === 'unknown' ? 'warning' : 'neutral') + '">' + escHtml(lineTxt) + '</span>';
-  return h + '</span></div>';
+  var main = '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty) + '</span>';
+  var end = L.how === 'unknown' && L.hint ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + L.hint.line + '" title="' + escHtml('Usually ' + prodLineName(L.hint.line) + ' (' + L.hint.days + ' of ' + L.hint.total + ' days)') + '">Use ' + escHtml(prodLineName(L.hint.line)) + '</button>'
+    : '<span class="inv-dot inv-dot-' + (L.how === 'unknown' ? 'warning' : 'neutral') + '">' + escHtml(lineTxt) + '</span>';
+  return { main: main, end: '<span class="inv-row-end">' + end + '</span>' };
+}
+function prodLoadRowHtml(e) {
+  var r = prodLoadRowParts(e);
+  return '<div class="inv-row inv-row-2 inv-row-flow" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main">' + r.main + '</span>' + r.end + '</div>';
+}
+/* An entry's row that opens to what it holds and what can be done to it, on both layouts: Lines' runs and loads (owner, 10 Oct 2026:
+   a past day is checked on Floor → Day, "but corrections and comparisons are missing"; a run there had nothing to tap). `main` and
+   `end` are the row as its screen draws it, `omit` the action already at its end; the fold is Entries' phone row's (prodEntryKv,
+   prodEntryMoreHtml, prodEntryActionsHtml). */
+function prodEntryFoldRowHtml(e, idx, main, end, muted, omit) {
+  var key = 'prod-entry-' + e.id, acts = prodEntryActionsHtml(e, idx, omit);
+  return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-prod-entry="' + escHtml(e.id) + '"' + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
+    '<summary class="inv-row inv-row-2' + (muted || e.voidedAt ? ' inv-row-muted' : '') + '"><span class="inv-row-main">' + main + '</span>' + end + '</summary>' +
+    '<div class="inv-row-children"><div class="inv-panel-body">' + prodKvHtml(prodEntryKv(e)) + prodEntryMoreHtml(e, idx) + '</div>' +
+    (acts ? '<div class="inv-row-actions" data-row-more>' + acts + '</div>' : '') + '</div></details>';
 }
 
 /* ---------- In plant ---------- */
@@ -440,7 +455,8 @@ function prodLinesHtml() {
   // The phone's row has no room for the day's name beside the doors: the card above names it.
   var lead = _attStepInRow('invProdDay', phone ? '' : '<span class="inv-stepper-title">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>', 'Day before', 'Day after') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdDayLast"' + (!last || day === last ? ' disabled' : '') + '>Last recorded</button>');
-  var h = prodLinesVerdictHtml(line, day) + prodToolbarHtml(lead, phone && last && day !== last ? [{ label: 'Go to the last recorded day', action: 'invProdDayLast' }] : []) +
+  var h = prodLinesVerdictHtml(line, day) + prodToolbarHtml(lead, (phone && last && day !== last ? [{ label: 'Go to the last recorded day', action: 'invProdDayLast' }] : [])
+      .concat([{ label: 'Every entry of this day', action: 'invProdDayEntries' }])) +
     '<div class="inv-seg inv-mb-8" role="group" aria-label="Line" data-prod-line-switch>' + PROD_LINES.concat(['pickling']).map(function(l) {
       return '<button type="button" class="inv-seg-btn" data-action="invProdLine" data-line="' + l + '" aria-pressed="' + (line === l) + '">' + (l === 'pickling' ? 'Pickling' : PROD_LINE_LABEL[l]) + '</button>';
     }).join('') + '</div>';
@@ -448,7 +464,7 @@ function prodLinesHtml() {
   if (line === 'pickling') {
     var loads = prodDayLoads(day);
     return h + '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
-      (loads.length ? loads.map(prodLoadRowHtml).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
+      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end); }).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
   }
   var r = prodDayLine(day, line);
   var groups = { general: [], ot: [] };
@@ -561,10 +577,11 @@ function prodRunRowHtml(e, muted) {
   // A run in pieces says what it weighs and how that was found (prodWeigh); one nothing weighs says so.
   var w = e.unit === 'NOS' ? prodWeigh(e) : null;
   var kg = !w ? '' : w.kg == null ? 'not weighed' : prodKgFig(w.kg, prodWeighEst(w)) + (w.how === 'kind' ? ' by kind' : w.how === 'challans' ? ' from challans' : w.how === 'default' ? ' at the client’s default' : '');
-  return '<div class="inv-row inv-row-2' + (muted ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
+  // The run opens to what it holds, its Correct and its Void (prodEntryFoldRowHtml): a past day is corrected where it is checked.
+  return prodEntryFoldRowHtml(e, prodIndex(), '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta"><span class="inv-badge inv-badge-neutral" data-prod-src>' + prodSrcBadge(e) + '</span>' + (e.rework ? ' <span class="inv-badge inv-badge-info">rework</span>' : '') +
-    (meta ? ' ' + escHtml(meta) : '') + '</span></span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
-    (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span></div>';
+    (meta ? ' ' + escHtml(meta) : '') + '</span>', '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(prodQtyText(e.qty, e.unit)) + '</span>' +
+    (kg ? '<span class="inv-row-meta inv-num" data-prod-run-kg>' + escHtml(kg) + '</span>' : '') + '</span></span>', muted);
 }
 
 /* ---------- Entries ---------- */
@@ -609,18 +626,23 @@ function prodEntriesHtml() {
   var chips = PROD_ENTRY_KINDS.map(function(c) { return chip('data-kind', c[0], c[1], kindN[c[0]], f.kind === c[0] && !f.flag); }).join('') +
     PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient'; }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
   var on = f.flag ? (PROD_ENTRY_FLAGS.find(function(c) { return c[0] === f.flag; }) || [])[1] : f.kind ? (PROD_ENTRY_KINDS.find(function(c) { return c[0] === f.kind; }) || [])[1] : '';
+  // A day: every entry of it, whatever its kind (owner, 10 Oct 2026: a past day's records, to check and correct).
+  var dayField = '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">A day</span><input type="date" id="prodEntriesDay" class="inv-input" max="' + today + '" value="' + escHtml(f.day || '') + '" aria-label="A day"></label>';
   h += prodToolbarHtml('', [{ label: 'Export', action: 'invProdExport' }, { label: 'Import', action: 'invProdImport' }],
-    uiFilterHtml({ key: 'prodEntries', count: on ? 1 : 0, controls: chips })) +
-    uiTokensHtml([{ key: 'Show', value: on, action: 'invProdFilter', attrs: f.flag ? ' data-flag="' + escHtml(f.flag) + '"' : ' data-kind=""' }]);
+    uiFilterHtml({ key: 'prodEntries', count: (on ? 1 : 0) + (f.day ? 1 : 0), controls: chips + dayField })) +
+    uiTokensHtml([{ key: 'Show', value: on, action: 'invProdFilter', attrs: f.flag ? ' data-flag="' + escHtml(f.flag) + '"' : ' data-kind=""' },
+      { key: 'Day', value: f.day ? stockShortDate(f.day) : '', action: 'invProdDayClear' }]);
   // What needs a look heads the list: the loads with the line unknown, then the record's coverage, folded. On the desktop they head
   // the list's column, so the list and the pane still fill the room under the toolbar (P80).
   var head = prodUnknownHtml(unknown) + uiFoldCard('prod-coverage', prodCoverageHtml(), false);
   var list = all.filter(function(e) {
     if (f.client && String(e.clientId) !== String(f.client)) return false;
+    if (f.day && e.date !== f.day) return false;
     if (f.flag) return prodEntryFlagged(e, f.flag, idx);
-    return e.date >= from && (!f.kind || e.kind === f.kind);
+    return (f.day || e.date >= from) && (!f.kind || e.kind === f.kind);
   }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : String(b.time || '').localeCompare(String(a.time || '')); });
-  var lh = '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">' + (f.flag ? 'Entries, every date' : 'Entries, 60 days') + '</span><span class="inv-panel-count">' + list.length + '</span></div>';
+  var lh = '<div class="inv-panel inv-panel-flush" id="prodEntries"><div class="inv-panel-head"><span class="inv-panel-title">' +
+    (f.day ? 'Entries, ' + formatDate(f.day) : f.flag ? 'Entries, every date' : 'Entries, 60 days') + '</span><span class="inv-panel-count">' + list.length + '</span></div>';
   if (!list.length) lh += '<div class="inv-empty">Nothing here.</div>';
   var rows = [], last = '';
   list.slice(0, 300).forEach(function(e) {
@@ -756,11 +778,7 @@ function prodEntryRowHtml(e, idx) {
       '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' + main + '</button>' + end + '</div>';
   }
   // The phone: the row folds open to what the pane would show, and the actions its end has no room for.
-  var key = 'prod-entry-' + e.id, rest = prodEntryActionsHtml(e, idx, one);
-  return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-prod-entry="' + escHtml(e.id) + '"' + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
-    '<summary class="inv-row inv-row-2' + (e.voidedAt ? ' inv-row-muted' : '') + '"><span class="inv-row-main">' + main + '</span>' + end + '</summary>' +
-    '<div class="inv-row-children"><div class="inv-panel-body">' + prodKvHtml(prodEntryKv(e)) + prodEntryMoreHtml(e, idx) + '</div>' +
-    (rest ? '<div class="inv-row-actions" data-row-more>' + rest + '</div>' : '') + '</div></details>';
+  return prodEntryFoldRowHtml(e, idx, main, end, false, one);
 }
 /* What can be done to an entry: in its pane (desktop) and its fold (phone), less `omit` (the button already at the row's end). A void
    entry takes nothing. */
@@ -1229,7 +1247,14 @@ function prodOpenHand(fromId, from) {
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
 function prodHandBlank() {
-  return { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
+  var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
+  // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
+  // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's.
+  if (_prodTab === 'lines' && _prodView === 'main') {
+    if (_prodDay) f.date = _prodDay;
+    if (_prodLine === 'pickling') f.kind = 'pickled'; else if (PROD_LINES.indexOf(_prodLine) >= 0) f.line = _prodLine;
+  }
+  return f;
 }
 function prodHandHtml() {
   var f = _prodHand;
@@ -1461,6 +1486,9 @@ function prodAction(action, btn) {
       renderProduction(); return true;
     }
     case 'invProdDayLast': _prodDay = null; renderProduction(); return true;
+    case 'invProdDayClear': _prodFilter = { kind: '', flag: '', client: _prodFilter.client || '', day: '' }; renderProduction(); return true;
+    // Lines' More: every entry of the day on screen, on Entries (a day's runs are Lines', its loads, cuts and arrivals too there).
+    case 'invProdDayEntries': _prodFilter = { kind: '', flag: '', client: '', day: prodLinesDay() }; _prodEntryOpen = null; prodSetTab('entries'); renderProduction(); return true;
     case 'invProdFilter': {
       // A pressed chip or tile on Entries lets its flag go; Line unknown's "All N" (data-set) always opens the loads it counts, on
       // Entries too, where it has stood since the tab map (TM4c) beside the tile that toggles the same flag.
@@ -1484,6 +1512,12 @@ function prodAction(action, btn) {
 function prodOnChange(t) {
   if (!t) return false;
   if (t.id === 'prodPlantClient') { _prodPlantClient = t.value; renderProduction(); return true; }
+  if (t.id === 'prodEntriesDay') {
+    _prodFilter = { kind: '', flag: '', client: _prodFilter.client || '', day: t.value || '' };
+    var fdlg = t.closest('[data-tb-filter-dialog]');
+    if (fdlg) { dialogCloseScrim(fdlg.closest('.inv-scrim-dialog')); return true; }
+    renderProduction(); return true;
+  }
   if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
   if (t.dataset && t.dataset.prodClient !== undefined) {
     var key = t.dataset.prodClient, v = t.value === 'asWritten' ? t.value : prodHeldId(t.value), rc = _prodReview.choices;

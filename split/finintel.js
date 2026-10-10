@@ -297,9 +297,12 @@ TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier pe
 TODO_CHECK_DEFAULTS.payCarry = true;
 TODO_RULE_NEED.payCarry = 'wages';
 TODO_RULE_FNS.payCarry = function() {
-  if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
-  var ws = attWeekStartOf(localDateStr());
-  var rows = payDue(ws).rows.filter(function(r) { return r.carried; });
+  if (!staffPayments().some(function(p) { return !p.voidedAt; }) && !payCarryFrom()) return [];
+  // What is owed as of today (payOverdue): last month's salary is not owed before the day it is paid by, so the days before
+  // payday raise nothing.
+  var ws = attWeekStartOf(localDateStr()), lab = payLabMemo();
+  var rows = payDue(ws).rows.map(function(r) { var o = payOverdue(r.w, null, lab); return { w: r.w, carried: Math.abs(o.amount) >= 1 ? o.amount : 0 }; })
+    .filter(function(r) { return r.carried; });
   if (!rows.length) return [];
   var owed = rows.filter(function(r) { return r.carried > 0; }), adv = rows.filter(function(r) { return r.carried < 0; });
   var sum = function(list) { return gstRound(list.reduce(function(t, r) { return t + Math.abs(r.carried); }, 0)); };
@@ -433,6 +436,9 @@ TODO_RULE_FNS.wageVsSlip = function() {
   return Object.keys(byMonth).map(function(m) {
     var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (!slip) return null;
+    // Once monthly balances are counted (Pay, Count from a month) a month's difference is Pay's: from that month on it carries to the
+    // next month's due, said there by month; the months before it the owner settled as they stand.
+    if (payCarryFrom()) return null;
     // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
     var off = [], byW = payrollRowsByWorker(slip.rows);
     Object.keys(byMonth[m]).forEach(function(id) {

@@ -108,7 +108,7 @@ function pplMotivation(w, st, labMemo) {
   var sig = [], today = localDateStr(), pen = 0;
   var add = function(key, word, weight) { sig.push({ key: key, word: word, weight: weight }); pen += weight; };
   try {
-    var carry = payCarried(w, payPeriodOf(w, today), labMemo || payLabMemo());
+    var carry = payOverdue(w, today, labMemo || payLabMemo());
     if (carry.amount >= 1) add('owed', formatCurrency(carry.amount) + ' owed, carried from ' + (carry.periods || 1) + ' period' + (carry.periods === 1 ? '' : 's'), 20);
   } catch (e) { /* a pay record that will not read says nothing here */ }
   var wk = attWeekStartOf(today), adv = 0;

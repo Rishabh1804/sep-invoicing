@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="d2bf71f9">
+<meta name="app-build" content="3798d622">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -5534,7 +5534,8 @@ var CHG_TRACK = [
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
-      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour', '': 'Labour' },
+      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour',
+      payCarryFrom: 'Pay → monthly balances', '': 'Labour' },
     dflt: function() { return getDefaultState().labour; } },
   { path: 'rateCheck', kind: 'cfg', sec: 'Rate & weight check', dflt: function() { return RATE_CHECK_DEFAULTS; } },
   { path: 'invStateCheck', kind: 'cfg', sec: 'Invoice states', dflt: function() { return INV_STATE_CHECK_DEFAULTS; } },
@@ -24760,16 +24761,48 @@ function payMonthPaidFor(p) {
   if (!/^\d{4}-\d{2}-\d{2}$/.test(d)) return '';
   return p.kind !== 'advance' && +d.slice(8, 10) <= PAY_SALARY_BY_DAY ? payMonthStart(isoAddDays(payMonthStart(d), -1)) : payMonthStart(d);
 }
-/* What was paid for a worker's own period: the weekly tiers' by the date (a week is paid on its Saturday), a monthly
+/* ===== What was paid: the bank's salary legs and the payments typed here =====
+   Owner, 10 Oct 2026: "no way to see and print the pay slip of each employee and/or what they have been paid, we have all the
+   information in our data but not linked yet": August's two salaries had gone to each other's accounts and a ruled figure was paid
+   short, to be adjusted the month after. A salary paid by transfer is on the bank statement, read as wages to
+   a hand on the roster (bank.js: the payee's name read as a roll reads one, or set on the row or the payee by hand): it is a
+   payment, as one typed on Pay is. A payment typed here that the statement also holds (the same hand, within a rupee, three days
+   apart) is that leg, counted once. A leg the name only reads as (a folded spelling) counts, as the bank's wages panel counts it,
+   and says so. Paid used to be the typed payments alone: every salary paid by transfer read as unpaid. */
+var PAY_LEG_DAYS = 3;
+function payBankLegs() {
+  if (typeof finCtx !== 'function' || typeof bankRows !== 'function') return [];
+  var ctx = finCtx();
+  if (!ctx._payLegs) ctx._payLegs = ctx.cls.filter(function(v) { return v.cat === 'wages' && !v.cash && v.staffId != null && v.row.dr > 0; })
+    .map(function(v) { return { id: 'bank:' + v.row.id, rowId: v.row.id, staffId: v.staffId, date: v.row.date, amount: gstRound(v.row.dr), kind: 'payment', how: 'bank', guess: !!v.guess }; });
+  return ctx._payLegs;
+}
+function payHandPays(staffId) {
+  return staffPayments().filter(function(p) { return !p.voidedAt && String(p.staffId) === String(staffId); });
+}
+/* Every payment to one hand, oldest first: the bank's legs, and the payments typed here less those the statement holds. */
+function payPaymentsOf(staffId) {
+  var out = payBankLegs().filter(function(l) { return String(l.staffId) === String(staffId); }).map(function(l) { return Object.assign({}, l); });
+  payHandPays(staffId).forEach(function(p) {
+    var amt = gstRound(Number(p.amount) || 0);
+    var leg = p.kind !== 'advance' && out.find(function(l) { return l.how === 'bank' && !l.typed && Math.abs(l.amount - amt) < 1 && Math.abs(isoDaysBetween(l.date, p.date)) <= PAY_LEG_DAYS; });
+    if (leg) { leg.typed = p.id; return; }
+    out.push({ id: p.id, staffId: p.staffId, date: p.date, amount: amt, kind: p.kind === 'advance' ? 'advance' : 'payment', how: 'hand', note: p.note || '', at: p.at || 0 });
+  });
+  return out.sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0); });
+}
+/* The payments counted for a worker's own period: the weekly tiers' by the date (a week is paid on its Saturday), a monthly
    hand's by the month each payment pays for. */
-function payPaidFor(w, from, to) {
-  if (payIsWeekly(w)) return payPaidBetween(w.id, from, to);
-  var id = String(w.id);
-  return gstRound(staffPayments().reduce(function(s, p) {
-    if (p.voidedAt || String(p.staffId) !== id) return s;
+function payPaymentsFor(w, from, to) {
+  var weekly = payIsWeekly(w);
+  return payPaymentsOf(w.id).filter(function(p) {
+    if (weekly) return p.date >= from && p.date <= to;
     var m = payMonthPaidFor(p);
-    return m && m >= payMonthStart(from) && m <= to ? s + (Number(p.amount) || 0) : s;
-  }, 0));
+    return !!m && m >= payMonthStart(from) && m <= to;
+  });
+}
+function payPaidFor(w, from, to) {
+  return gstRound(payPaymentsFor(w, from, to).reduce(function(s, p) { return s + p.amount; }, 0));
 }
 
 /* ===== What carries from one period to the next =====
@@ -24794,28 +24827,95 @@ function payLabMemo() {
   var memo = {};
   return function(from, to) { var k = from + '|' + to; return memo[k] || (memo[k] = labourForRange(from, to)); };
 }
+/* Where a monthly hand's balance starts (owner's month, `S.labour.payCarryFrom`, 'YYYY-MM'). The bank's legs go back months
+   before anything here was set against them (the statement from January, the slips from April), so they never start a balance
+   on their own: the owner says from which month the months are counted. A weekly hand's balance still starts at the first
+   payment typed for them: they are paid in cash on Saturday, never on the statement by name. */
+function payCarryFrom() {
+  var c = S.labour && S.labour.payCarryFrom;
+  return /^\d{4}-\d{2}$/.test(c || '') ? c : '';
+}
+/* One period as Pay reads it: what was earned (and from where), each payment for it, and what it leaves. A month on the payroll
+   as paid is earned as its slip says; with no payment known for it, it is settled by the slip, as it always was (the bank's legs
+   may not reach it, or the hand is paid in cash). A payment known for it is set against the slip: the August legs that crossed
+   are a difference again, not two months settled. Paid in whole rupees, the paise dropped (as the shop pays), is paid: a
+   difference under a rupee is none. */
+function payPeriodRow(w, from, to, lr) {
+  var weekly = payIsWeekly(w), e = lr.byWorker[w.id] || null, pays = payPaymentsFor(w, from, to);
+  var paid = gstRound(pays.reduce(function(s, p) { return s + p.amount; }, 0));
+  var guess = !weekly && (lr.paidGuess || {})[w.id];
+  var slip = !weekly && !!((e && e.asPaid) || guess);
+  var earned = e ? gstRound(e.total) : 0;
+  // A month whose payroll is on record but does not name this hand, with no payment for them known: they were paid off the slip
+  // (a voucher of their own, the weekly pool while on it), not left owed the month (a hand new to the monthly tier read the
+  // whole of August as unpaid).
+  var offSlip = !weekly && !slip && !pays.length && (lr.paidMonths || []).some(function(m) { return m.month === from.slice(0, 7); });
+  var out = { from: from, to: to, lr: lr, e: e, earned: earned, pays: pays, paid: paid, slip: slip, guess: guess || '', offSlip: offSlip,
+    source: slip ? 'slip' : e && (e.days || e.hours || e.total) ? 'marks' : 'none' };
+  // A slip row only guessed to be this hand keeps its money under its own name (labourForRange): settled by the slip.
+  out.settled = (slip && (!pays.length || !!guess)) || offSlip;
+  out.diff = out.settled ? 0 : gstRound(earned - paid);
+  if (pays.length && Math.abs(out.diff) < 1) out.diff = 0;
+  return out;
+}
 function payCarried(w, periodFrom, lab) {
-  var id = String(w.id);
-  // Any payment dates the start, one in this period included: a salary paid in October for September must carry
-  // September into October, not read as an advance against October.
-  var pays = staffPayments().filter(function(p) { return !p.voidedAt && String(p.staffId) === id; });
-  if (!pays.length) return { amount: 0, periods: 0 };
-  var first = pays.reduce(function(m, p) { return p.date < m ? p.date : m; }, pays[0].date);
-  var start = payPeriodOf(w, first);
-  if (!payIsWeekly(w)) start = payMonthStart(isoAddDays(start, -1));
+  var id = String(w.id), weekly = payIsWeekly(w), start = null, cf = weekly ? '' : payCarryFrom();
+  if (cf) start = cf + '-01';
+  else {
+    // A typed payment dates the start, one in this period included: a salary paid in October for September must carry
+    // September into October, not read as an advance against October.
+    var pays = payHandPays(id);
+    if (!pays.length) return { amount: 0, periods: 0, parts: [] };
+    var first = pays.reduce(function(m, p) { return p.date < m ? p.date : m; }, pays[0].date);
+    start = payPeriodOf(w, first);
+    if (!weekly) start = payMonthStart(isoAddDays(start, -1));
+  }
   var clear = payCarryClears().filter(function(c) { return !c.voidedAt && String(c.staffId) === id && c.through < periodFrom; })
     .sort(function(a, b) { return a.through < b.through ? 1 : a.through > b.through ? -1 : (b.at || 0) - (a.at || 0); })[0] || null;
   if (clear) { var next = payPeriodOf(w, isoAddDays(clear.through, 1)); if (next > start) start = next; }
-  var amt = 0, periods = 0;
+  var amt = 0, periods = 0, parts = [];
   for (var p = start, guard = 0; p < periodFrom && guard < 260; guard++) {
-    var end = payPeriodEnd(w, p), lr = lab(p, end), e = lr.byWorker[w.id];
+    var end = payPeriodEnd(w, p), row = payPeriodRow(w, p, end, lab(p, end));
     periods++;
-    // A month on a slip is settled: its own earnings and the salary paid for it. What was paid in it for the month
-    // before counts for that month (payPaidFor). A slip row only guessed to be this hand settles it too (labourForRange).
-    if (!(!payIsWeekly(w) && ((e && e.asPaid) || (lr.paidGuess || {})[w.id]))) amt += (e ? e.total : 0) - payPaidFor(w, p, end);
+    if (row.diff) {
+      // A month whose payment settles what it earned and what was brought into it, each to the rupee (the paise of both
+      // dropped, as the shop pays), leaves nothing.
+      var before = amt;
+      amt = gstRound(amt + row.diff);
+      if (row.pays.length && before && Math.abs(amt) < 2) amt = 0;
+      parts.push(row);
+    }
     p = isoAddDays(end, 1);
   }
-  return { amount: gstRound(amt), from: start, periods: periods, clear: clear };
+  return { amount: gstRound(amt), from: start, periods: periods, clear: clear, parts: parts.filter(function(r) { return r.diff; }) };
+}
+/* The balance a worker is owed or has been advanced as of today, for the To-do and the motivation index: last month's salary is
+   not owed before the day it is paid by (PAY_SALARY_BY_DAY), so a monthly hand's balance then stops at the month before. */
+function payOverdue(w, today, lab) {
+  today = today || localDateStr();
+  var from = payPeriodOf(w, today);
+  if (!payIsWeekly(w) && +today.slice(8, 10) <= PAY_SALARY_BY_DAY) from = payMonthStart(isoAddDays(from, -1));
+  return payCarried(w, from, lab || payLabMemo());
+}
+/* Two hands' salaries paid to each other: each was paid, to the rupee, what the other earned (August 2026: the owner's two salaries
+   that went to each other's accounts). Said wherever the difference is, so it reads as what it is. */
+function payCrossedWith(w, from, to, lr) {
+  if (payIsWeekly(w)) return null;
+  var me = payPeriodRow(w, from, to, lr);
+  if (!me.pays.length || Math.abs(me.diff) < 1) return null;
+  return (S.staff || []).find(function(o) {
+    if (String(o.id) === String(w.id) || payIsWeekly(o)) return false;
+    var r = payPeriodRow(o, from, to, lr);
+    return r.pays.length > 0 && Math.abs(r.paid - me.earned) < 1 && Math.abs(me.paid - r.earned) < 1;
+  }) || null;
+}
+/* A period's difference in words: "August 2026: paid ₹12,456.00 against ₹15,796.80", the crossing named. */
+function payPartWords(w, part) {
+  var label = payIsWeekly(w) ? 'Week ' + attPayWeekNumber(part.from) : _monthLabel(part.from.slice(0, 7));
+  if (!part.pays.length) return label + ': ' + formatCurrency(part.earned) + ' earned, nothing paid';
+  var x = !payIsWeekly(w) ? payCrossedWith(w, part.from, part.to, part.lr) : null;
+  return label + ': paid ' + formatCurrency(part.paid) + ' against ' + formatCurrency(part.earned) + (part.slip ? ' on the slip' : ' earned') +
+    (x ? ', the bank legs crossed with ' + x.name + '\u2019s' : '');
 }
 
 /* One pay week's payout: the weekly tiers' earnings plus the EXTRA pool. */
@@ -24901,13 +25001,12 @@ function payDue(weekStart) {
     var carry = payCarried(w, weekly ? weekStart : mFrom, lab), c = Math.abs(carry.amount) >= 1 ? carry.amount : 0;
     var e = (weekly ? wk : mo).byWorker[w.id] || { total: 0, days: 0, hours: 0, otHours: 0, base: 0, ot: 0, rest: 0 };
     var from = weekly ? weekStart : mFrom, to = weekly ? sat : mTo;
-    var paid = payPaidFor(w, from, to);
-    // A closed month on record as paid is settled by the slip: what it paid is
-    // what was earned, so nothing is due on it however the marks read. So is one
-    // whose slip row is only guessed to be this hand (its money stays on the row).
-    var guess = !weekly && (mo.paidGuess || {})[w.id];
-    if (!weekly && (e.asPaid || guess)) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true, asPaidAs: guess || '' };
-    return { w: w, weekly: weekly, earned: e, paid: paid, due: gstRound(e.total - paid + c), carried: c, carry: carry, from: from, to: to };
+    // The period as Pay reads it (payPeriodRow): a closed month on the payroll as paid is earned as its slip says, and settled by
+    // it while no payment for it is known; a payment known for it is set against the slip.
+    var row = payPeriodRow(w, from, to, weekly ? wk : mo);
+    if (row.slip && row.settled) return { w: w, weekly: weekly, earned: e, paid: e.total, due: c, carried: c, carry: carry, from: from, to: to, asPaid: true, asPaidAs: row.guess, pays: row.pays };
+    return { w: w, weekly: weekly, earned: e, paid: row.paid, due: gstRound(row.diff + c), carried: c, carry: carry, from: from, to: to, asPaid: row.slip, asPaidAs: row.guess, compared: row.slip, pays: row.pays,
+      crossed: row.slip || !weekly ? payCrossedWith(w, from, to, weekly ? wk : mo) : null };
   });
   return { rows: rows, extra: wk.extra, extraHours: wk.extraHours, weekStart: weekStart, sat: sat, mFrom: mFrom, mTo: mTo };
 }
@@ -24996,38 +25095,55 @@ function _payDueCard(ws) {
 function _payDueRowHtml(r) {
   var e = r.earned, w = r.w, id = String(w.id), money = function(n) { return formatCurrency(n); };
   var facts = [];
-  if (r.asPaid) facts.push({ label: 'As paid, from the slip', value: money(r.paid), sub: r.asPaidAs ? 'its row “' + r.asPaidAs + '”, only read as this hand' : 'a closed month on record' });
+  if (r.asPaid && !r.compared) facts.push({ label: 'As paid, from the slip', value: money(r.paid), sub: r.asPaidAs ? 'its row “' + r.asPaidAs + '”, only read as this hand' : 'no payment for it on record' });
   else {
-    if (w.comp === 'hourly' && e.hours) facts.push({ label: formatNum(e.hours, 1) + ' h × ' + money(e.base / e.hours), value: money(e.base) });
-    else if (e.days) facts.push({ label: formatNum(e.days, 1) + ' day' + (e.days === 1 ? '' : 's') + ' × ' + money(e.base / e.days), value: money(e.base) });
-    if (e.rest) facts.push({ label: 'Rest days' + (e.restDays ? ', ' + formatNum(e.restDays, 1) : ''), value: money(e.rest) });
-    if (e.otHours) facts.push({ label: formatNum(e.otHours, 1) + ' h overtime × ' + money(e.ot / e.otHours), value: money(e.ot) });
-    if (e.hourless) facts.push({ label: todoPlural(e.hourless, 'day') + ' present with no hours', value: money(0), sub: 'priced at nothing' });
-    facts.push({ label: 'Earned', value: money(e.total) });
-    if (r.paid) facts.push({ label: 'Paid', value: '− ' + money(r.paid) });
+    if (r.compared) facts.push({ label: 'Earned, as the slip says', value: money(e.total), sub: 'the month’s payroll as paid' });
+    else {
+      if (w.comp === 'hourly' && e.hours) facts.push({ label: formatNum(e.hours, 1) + ' h × ' + money(e.base / e.hours), value: money(e.base) });
+      else if (e.days) facts.push({ label: formatNum(e.days, 1) + ' day' + (e.days === 1 ? '' : 's') + ' × ' + money(e.base / e.days), value: money(e.base) });
+      if (e.rest) facts.push({ label: 'Rest days' + (e.restDays ? ', ' + formatNum(e.restDays, 1) : ''), value: money(e.rest) });
+      if (e.otHours) facts.push({ label: formatNum(e.otHours, 1) + ' h overtime × ' + money(e.ot / e.otHours), value: money(e.ot) });
+      if (e.hourless) facts.push({ label: todoPlural(e.hourless, 'day') + ' present with no hours', value: money(0), sub: 'priced at nothing' });
+      facts.push({ label: 'Earned', value: money(e.total) });
+    }
+    // Each payment for the period, the bank's and the typed (payPaymentsFor), so what was paid is seen, not only its sum.
+    (r.pays || []).forEach(function(p) { facts.push(payPaymentFact(w, p)); });
+    if (r.crossed) facts.push({ label: 'The bank legs crossed', value: null, src: ['warning', 'check'], sub: w.name + ' was paid what ' + r.crossed.name + ' earned' });
   }
-  if (r.carried) facts.push({ label: r.carried > 0 ? 'Owed from before' : 'Advanced before', value: (r.carried > 0 ? '+ ' : '− ') + money(Math.abs(r.carried)) });
+  if (r.carried) facts.push({ label: r.carried > 0 ? 'Owed from before' : 'Advanced before', value: (r.carried > 0 ? '+ ' : '− ') + money(Math.abs(r.carried)),
+    sub: (r.carry.parts || []).slice(-2).map(function(pt) { return payPartWords(w, pt); }).join('; ') });
   facts.push({ label: r.due < 0 ? 'Advance to work off' : 'Due', value: money(r.due) });
-  var meta = r.asPaid ? 'as paid, from the slip' : 'earned ' + money(e.total) + (r.paid ? ' · paid ' + money(r.paid) : '');
+  var meta = r.asPaid && !r.compared ? 'as paid, from the slip' : 'earned ' + money(e.total) + (r.paid ? ' · paid ' + money(r.paid) : '');
   var key = 'pay-due-' + id;
   return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-pay-row="' + escHtml(id) + '"' + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
     '<summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) +
     (w.active === false ? ' <span class="inv-badge inv-badge-neutral">Left</span>' : '') + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
     '<span class="inv-row-end' + (r.due < 0 ? ' inv-row-end-stack' : '') + '"><span class="inv-num">' + payMoney(r.due) + '</span>' + (r.due < 0 ? '<span class="inv-dot inv-dot-warning">Advance</span>' : '') + '</span></summary>' +
     '<div class="inv-row-children">' + facts.map(uiFactRowHtml).join('') +
-    '<div class="inv-row"><span class="inv-row-main"></span><span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayPick" data-id="' + escHtml(id) + '" data-due="' + r.due + '">' +
-    (r.due > 0 ? 'Pay ' + payMoney(r.due) : 'Record a payment') + '</button></span></div></div></details>';
+    // Its two moves on a line of their own (one look: a row's end holds one action).
+    '<div class="inv-row-actions" data-row-more><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayPick" data-id="' + escHtml(id) + '" data-due="' + r.due + '">' +
+    (r.due > 0 ? 'Pay ' + payMoney(r.due) : 'Record a payment') + '</button>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayHistory" data-id="' + escHtml(id) + '">History</button></div></div></details>';
+}
+/* One payment as a fact: the day, by bank or typed here, an advance said; a leg the bank's name only reads as this hand says so. */
+function payPaymentFact(w, p) {
+  return { label: (p.kind === 'advance' ? 'Advance ' : 'Paid ') + formatDate(p.date) + (p.how === 'bank' ? ', by bank' : ''),
+    value: '− ' + formatCurrency(p.amount), src: p.guess ? ['warning', 'name read as'] : null,
+    sub: p.how === 'bank' ? (p.typed ? 'also typed on Pay, counted once' : p.guess ? 'confirm the payee on the statement' : '') : p.note || '' };
 }
 
 /* The balances brought forward, each clearable with a reason ("stated otherwise"). */
 function _payCarriedHtml(d) {
   var rows = d.rows.filter(function(r) { return r.carried; }), h = '';
+  h += _payCarryFromRowHtml(d);
   if (rows.length) h += '<div class="inv-row-group">Brought forward</div>';
   rows.forEach(function(r) {
-    var owed = r.carried > 0;
+    var owed = r.carried > 0, parts = (r.carry.parts || []).slice(-2);
+    // Two facts a line: what it is and since when; the months it is made of, each on a line of their own.
     h += _payRow(escHtml(r.w.name),
       (owed ? 'Owed' : 'Advanced') + ' from before ' + escHtml(formatDate(r.from)) + ' · counted since ' + escHtml(formatDate(r.carry.from)) +
-        (r.carry.clear ? ' (cleared up to ' + escHtml(formatDate(r.carry.clear.through)) + ')' : ''),
+        (r.carry.clear ? ' (cleared up to ' + escHtml(formatDate(r.carry.clear.through)) + ')' : '') +
+        parts.map(function(pt) { return '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(payPartWords(r.w, pt)); }).join(''),
       '<span class="inv-row-stack"><span class="inv-num" data-pay-carried="' + escHtml(r.w.id) + '">' + payMoney(r.carried) + '</span><span class="inv-dot inv-dot-warning">' + (owed ? 'Owed' : 'Advance') + '</span></span>' +
         '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayClear" data-id="' + escHtml(r.w.id) + '" data-through="' + escHtml(isoAddDays(r.from, -1)) + '" data-amount="' + r.carried + '">Clear</button>',
       ' data-carried-row="' + escHtml(r.w.id) + '"');
@@ -25043,6 +25159,52 @@ function _payCarriedHtml(d) {
     });
   }
   return h;
+}
+
+/* Where monthly balances start, said on Pay with its Change; where none is set and the statement pays monthly hands, the one line
+   that asks for it. Months before it are settled as they stand; from it on, what each month earned and what was paid for it
+   carry to the next, the brought-forward lines naming each month. */
+function _payCarryFromRowHtml(d) {
+  var cf = payCarryFrom(), monthly = d.rows.filter(function(r) { return !r.weekly; });
+  if (!monthly.length) return '';
+  if (cf) return _payRow('Monthly balances', 'counted from ' + escHtml(_monthLabel(cf)) + ' · months before it are settled as they stand',
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayCarryFrom">Change</button>', ' data-pay-carry-from="' + escHtml(cf) + '"');
+  var legs = payBankLegs().filter(function(l) { var w = staffById(l.staffId); return w && !payIsWeekly(w); });
+  if (!legs.length) return '';
+  return _payRow('Salaries paid from the bank', 'counted as paid; a month paid more or less than it earned is not carried to the next until you say from which month',
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayCarryFrom">Count from a month</button>', ' data-pay-carry-from=""');
+}
+/* The months a balance may start from: each month with a slip on record or a salary on the statement, to last month. */
+function payCarryFromMonths() {
+  var set = {}, last = payMonthStart(isoAddDays(payMonthStart(localDateStr()), -1)).slice(0, 7);
+  // Only a month whose earnings are known (a slip, or attendance recorded): from one that has neither, every salary on the
+  // statement would read as paid over.
+  payrollPaidRecords().forEach(function(r) { if (!r.voidedAt && r.month <= last) set[r.month] = 1; });
+  Object.keys(S.attendance || {}).forEach(function(d) { var m = d.slice(0, 7); if (/^\d{4}-\d{2}$/.test(m) && m <= last && Object.keys((S.attendance[d] || {}).marks || {}).length) set[m] = 1; });
+  set[last] = 1;
+  return Object.keys(set).sort().reverse();
+}
+function payCarryFromOpen() {
+  if (!grdGate('payments', 'set where monthly balances start', payCarryFromOpen)) return;   // P1 (guard.js)
+  var cf = payCarryFrom(), months = payCarryFromMonths();
+  var dflt = cf || (payrollPaidRecords().filter(function(r) { return !r.voidedAt; }).map(function(r) { return r.month; }).sort().pop()) || months[0];
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="payCfTitle" data-pay-carry-dialog>' + dialogHeadHtml('<span id="payCfTitle">Count monthly balances from</span>') +
+    '<div class="inv-panel-body"><p class="inv-note">From this month on, what each monthly hand earned and what was paid for it (the bank&rsquo;s salaries and the payments typed here) carry to the next month: paid short is owed, paid over is taken back. Months before it are settled as they stand.</p>' +
+    '<div class="inv-field"><label class="inv-field-label" for="payCfMonth">Month</label><select class="inv-select" id="payCfMonth">' +
+    months.map(function(m) { return '<option value="' + m + '"' + (m === dflt ? ' selected' : '') + '>' + escHtml(_monthLabel(m)) + '</option>'; }).join('') + '</select></div></div>' +
+    '<div class="inv-dialog-foot">' + (cf ? '<button class="inv-btn inv-btn-ghost" data-action="invPayCarryFromOff">Stop counting</button>' : '') +
+    '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPayCarryFromSave">Count from this month</button></div></div>', { dismiss: true });
+}
+function payCarryFromSave(off) {
+  if (!grdGate('payments', 'set where monthly balances start')) return;
+  var m = off ? '' : ((document.getElementById('payCfMonth') || {}).value || '');
+  if (!off && !/^\d{4}-\d{2}$/.test(m)) { showToast('Pick a month', 'error'); return; }
+  if (!S.labour) S.labour = {};
+  S.labour.payCarryFrom = m;
+  closeTopOverlay();
+  saveState();
+  renderAttendance();
+  showToast(off ? 'Monthly balances are no longer carried' : 'Monthly balances counted from ' + _monthLabel(m));
 }
 
 var _payLast = null;   // the kind and date of the last payment recorded, carried to the next (several go in at a sitting)
@@ -25064,24 +25226,27 @@ function _payFormHtml(d) {
 }
 
 function _payListHtml(d) {
-  // A monthly hand's payment is listed in the month it is dated in and in the month it pays for, and says which it pays.
-  var list = staffPayments().filter(function(p) {
+  // A monthly hand's payment is listed in the month it is dated in and in the month it pays for, and says which it pays. The
+  // bank's salary legs are listed too, without a Void: the statement is their record.
+  var inPeriod = function(p) {
     var w = staffById(p.staffId);
     var weekly = payIsWeekly(w);
     return weekly ? (p.date >= d.weekStart && p.date <= d.sat) : (p.date >= d.mFrom && p.date <= d.mTo) || payMonthPaidFor(p) === d.mFrom;
-  }).sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
+  };
+  var list = staffPayments().filter(inPeriod).concat(payBankLegs().filter(inPeriod))
+    .sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!list.length) return '';
   var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
-    var w = staffById(p.staffId), forM = payIsWeekly(w) ? '' : payMonthPaidFor(p);
+    var w = staffById(p.staffId), forM = payIsWeekly(w) ? '' : payMonthPaidFor(p), bank = p.how === 'bank';
     // Two facts a line (§3b-11): the day and the kind; a note, or why it was voided, on a line of its own.
-    var said = p.voidedAt ? 'void: ' + (p.voidReason || '') : p.note || '';
+    var said = p.voidedAt ? 'void: ' + (p.voidReason || '') : bank ? (p.guess ? 'the statement’s name read as this hand' : '') : p.note || '';
     h += _payRow(escHtml(w ? w.name : 'Removed worker'),
-      escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'advance' : 'payment') +
+      escHtml(formatDate(p.date)) + ' · ' + (bank ? 'by bank' : p.kind === 'advance' ? 'advance' : 'payment') +
         (forM && forM !== payMonthStart(p.date) ? ' for ' + escHtml(_monthLabel(forM.slice(0, 7))) : '') +
         (said ? '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(said) : ''),
       '<span class="inv-num">' + payMoney(Number(p.amount) || 0) + '</span>' +
-        (p.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>'),
+        (p.voidedAt || bank ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>'),
       ' data-payment="' + escHtml(p.id) + '"', p.voidedAt ? 'inv-row-muted' : '');
   });
   return h;
@@ -25107,6 +25272,83 @@ function _payHistoryCard(ws) {
       '<span class="inv-row-stack"><span class="inv-num">' + payMoney(w.total) + '</span>' + (swing != null ? '<span class="inv-row-meta inv-num" title="' + escHtml('against the median, ' + payMoney(median)) + '">' + paySigned(swing) + '</span>' : '') + '</span>', ' data-week="' + w.start + '"');
   });
   return h + '</div>';
+}
+
+/* ===== A hand's pay, period by period =====
+   Owner, 10 Oct 2026: "no way to see and print the pay slip of each employee and/or what they have been paid". A hand's last twelve
+   months (a weekly hand's weeks), newest first, from the first with anything in it: what was paid as the row's figure, its state
+   as a word (paid, paid short, paid over, not paid, as the slip, to date), what it earned and what it left as its facts; opened,
+   where the earnings came from, each payment, a crossing, the balance after it, and its slip. The figures are Pay's own
+   (payPeriodRow, payCarried): nothing is worked out a second way. */
+var PAY_HISTORY_PERIODS = 12;
+function payHistoryRows(w) {
+  var today = localDateStr(), weekly = payIsWeekly(w), lab = payLabMemo(), cf = weekly ? '' : payCarryFrom();
+  var periods = [];
+  for (var i = 0, p = payPeriodOf(w, today); i < PAY_HISTORY_PERIODS; i++) { periods.push(p); p = weekly ? isoAddDays(p, -7) : payMonthStart(isoAddDays(p, -1)); }
+  var rows = periods.map(function(p) {
+    var end = payPeriodEnd(w, p), running = end >= today;
+    var row = payPeriodRow(w, p, end, lab(p, running ? today : end));
+    row.running = running;
+    row.counted = !running && (cf ? p >= cf + '-01' : null);
+    return row;
+  });
+  // From the first period with anything in it: what came before it is nothing to show.
+  while (rows.length && !rows[rows.length - 1].earned && !rows[rows.length - 1].pays.length && !rows[rows.length - 1].slip) rows.pop();
+  rows.forEach(function(r) {
+    var next = isoAddDays(r.to, 1);
+    r.balanceAfter = r.running ? null : payCarried(w, next, lab);
+  });
+  return rows;
+}
+function payHistoryState(r) {
+  if (r.running) return ['info', 'to date'];
+  if (r.offSlip) return ['neutral', 'not on the slip'];
+  if (r.slip && r.settled) return ['neutral', 'as the slip'];
+  // Paid for a month whose earnings nobody recorded (the statement reaches back before the marks and the slips): what it earned
+  // is not known, so neither is a difference.
+  if (r.source === 'none' && r.pays.length) return ['neutral', 'no earnings recorded'];
+  if (!r.pays.length) return r.earned ? ['warning', 'not paid'] : ['neutral', 'nothing'];
+  return r.diff > 0 ? ['danger', 'paid short'] : r.diff < 0 ? ['warning', 'paid over'] : ['ok', 'paid'];
+}
+function payHistoryHtml(w) {
+  var weekly = payIsWeekly(w), rows = payHistoryRows(w), cf = weekly ? '' : payCarryFrom(), lab = payLabMemo();
+  var now = payCarried(w, payPeriodOf(w, localDateStr()), lab);
+  var h = '<div class="inv-panel inv-panel-flush" data-pay-history="' + escHtml(String(w.id)) + '">';
+  h += uiFactRowHtml({ label: Math.abs(now.amount) < 1 ? 'Nothing carried into this ' + (weekly ? 'week' : 'month') : now.amount > 0 ? 'Owed from before' : 'Advanced before, to work off',
+    value: Math.abs(now.amount) < 1 ? null : formatCurrency(Math.abs(now.amount)),
+    sub: weekly ? (payHandPays(w.id).length ? 'counted from the first payment typed for them' : 'no payment typed for them yet') :
+      cf ? 'monthly balances counted from ' + _monthLabel(cf) : 'monthly balances are not counted yet: Pay, Count from a month',
+    attrs: ' data-pay-history-now="' + gstRound(now.amount) + '"' });
+  if (!rows.length) return h + '<div class="inv-empty">Nothing earned or paid in the last ' + PAY_HISTORY_PERIODS + (weekly ? ' weeks' : ' months') + '.</div></div>';
+  rows.forEach(function(r) {
+    var label = weekly ? 'Week ' + attPayWeekNumber(r.from) + ' · ' + formatDate(r.to) : _monthLabel(r.from.slice(0, 7));
+    var st = payHistoryState(r), key = 'pay-hist-' + w.id + '-' + r.from;
+    var facts = [{ label: r.slip ? 'Earned, as the slip says' : 'Earned', value: formatCurrency(r.earned), src: r.slip ? ['neutral', 'slip'] : r.source === 'marks' ? ['neutral', 'worked out'] : ['neutral', 'not recorded'] }];
+    r.pays.forEach(function(p) { facts.push(payPaymentFact(w, p)); });
+    var x = !weekly && r.diff ? payCrossedWith(w, r.from, r.to, r.lr) : null;
+    if (x) facts.push({ label: 'The bank legs crossed', value: null, src: ['warning', 'check'], sub: w.name + ' was paid what ' + x.name + ' earned' });
+    if (r.diff && !r.running && r.source !== 'none') facts.push({ label: r.diff > 0 ? (r.pays.length ? 'Paid short' : 'Not paid') : 'Paid over', value: formatCurrency(Math.abs(r.diff)),
+      sub: r.counted === false ? 'before monthly balances are counted: not carried' : '' });
+    if (r.balanceAfter && Math.abs(r.balanceAfter.amount) >= 1) facts.push({ label: r.balanceAfter.amount > 0 ? 'Owed after it' : 'Advanced after it', value: formatCurrency(Math.abs(r.balanceAfter.amount)) });
+    var sub = (r.source === 'none' ? 'earnings not recorded' : 'earned ' + formatCurrency(r.earned)) +
+      (r.diff && !r.running && r.source !== 'none' && r.pays.length ? ' · ' + (r.diff > 0 ? 'short ' : 'over ') + formatCurrency(Math.abs(r.diff)) : '');
+    h += '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-pay-period="' + escHtml(r.from) + '"' + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
+      '<summary class="inv-row inv-row-2">' + _uiFactInner({ label: label, value: formatCurrency(r.paid), src: st, sub: sub }) + '</summary>' +
+      '<div class="inv-row-children">' + facts.map(uiFactRowHtml).join('') +
+      '<div class="inv-row"><span class="inv-row-main"></span><span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPsOne" data-id="' + escHtml(String(w.id)) + '" data-from="' + escHtml(r.from) + '">Print the slip</button></span></div>' +
+      '</div></details>';
+  });
+  return h + '</div>';
+}
+function payHistoryOpen(id) {
+  var w = staffById(id);
+  if (!w) return;
+  if (typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
+  dialogOpen('<div class="inv-dialog inv-dialog-wide" role="dialog" aria-modal="true" aria-labelledby="payHistTitle" data-pay-history-dialog>' +
+    dialogHeadHtml('<span id="payHistTitle">' + escHtml(w.name) + '’s pay</span>') +
+    '<div class="inv-note">' + escHtml(compClass(w.comp).label + (payIsWeekly(w) ? ': the last ' + PAY_HISTORY_PERIODS + ' pay weeks, newest first' : ': the last ' + PAY_HISTORY_PERIODS + ' months, newest first') + '. Paid is the bank’s salaries and the payments typed on Pay.') + '</div>' +
+    payHistoryHtml(w) +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>', { dismiss: true });
 }
 
 /* ===== The monthly payroll AS PAID =====
@@ -25362,6 +25604,10 @@ function payAction(action, btn) {
     case 'invPayOpenAtt': homeQuick('attendance'); return true;
     case 'invPayrollImport': payrollImport(); return true;
     case 'invPayrollVoid': payrollVoid(btn.dataset.id); return true;
+    case 'invPayHistory': payHistoryOpen(btn.dataset.id); return true;
+    case 'invPayCarryFrom': payCarryFromOpen(); return true;
+    case 'invPayCarryFromSave': payCarryFromSave(false); return true;
+    case 'invPayCarryFromOff': payCarryFromSave(true); return true;
   }
   return false;
 }
@@ -31823,14 +32069,10 @@ function psMarks(w, from, to) {
   });
   return out;
 }
-/* The payments a slip lists: the ones Pay counted as paid for this period (payPaidFor's own reading). */
-function psPayments(w, from, to, weekly) {
-  return staffPayments().filter(function(p) {
-    if (p.voidedAt || String(p.staffId) !== String(w.id)) return false;
-    if (weekly) return p.date >= from && p.date <= to;
-    var m = payMonthPaidFor(p);
-    return !!m && m >= payMonthStart(from) && m <= to;
-  }).sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : (a.at || 0) - (b.at || 0); });
+/* The payments a slip lists: the ones Pay counted as paid for this period (payPaymentsFor: the bank's salary legs and the
+   payments typed on Pay, a typed one the statement also holds once). */
+function psPayments(w, from, to) {
+  return payPaymentsFor(w, from, to);
 }
 function psPeriodLabel(r) {
   if (r.weekly) return 'Week ' + attPayWeekNumber(r.from) + ' · ' + formatDate(r.from) + ' to ' + formatDate(r.to);
@@ -31847,9 +32089,9 @@ function psLines(r) {
   var rate = function(amt, qty) { return qty > 0 ? gstRound(amt / qty) : 0; };
   if (r.asPaid) {
     var row = (payrollPaidFor(r.from.slice(0, 7)) || { rows: [] }).rows.filter(function(x) { var m = payrollMatch(x); return m && m.w && String(m.w.id) === String(w.id); })[0] || {};
-    out.push({ what: 'Days, as paid', qty: Number(row.worked) || 0, unit: 'days', rate: Number(row.rate) || 0, amt: gstRound(Number(row.dayPay) || 0) });
+    out.push({ what: 'Days, on the month’s slip', qty: Number(row.worked) || 0, unit: 'days', rate: Number(row.rate) || 0, amt: gstRound(Number(row.dayPay) || 0) });
     if (Number(row.restDays)) out.push({ what: 'of which rest days', qty: Number(row.restDays) || 0, unit: 'days', rate: 0, amt: null });
-    if (Number(row.ot)) out.push({ what: 'Overtime, as paid', qty: Number(row.otHours) || 0, unit: 'h', rate: rate(Number(row.ot) || 0, Number(row.otHours) || 0), amt: gstRound(Number(row.ot) || 0) });
+    if (Number(row.ot)) out.push({ what: 'Overtime, on the month’s slip', qty: Number(row.otHours) || 0, unit: 'h', rate: rate(Number(row.ot) || 0, Number(row.otHours) || 0), amt: gstRound(Number(row.ot) || 0) });
     return out;
   }
   if (w.comp === 'hourly') {
@@ -31865,7 +32107,7 @@ function psLines(r) {
 function psSlipHtml(r) {
   var co = S.company || {}, w = r.w, p = w.profile || {}, e = r.earned || {};
   var addr = [co.add1, co.add2, co.add3].map(function(x) { return String(x || '').trim(); }).filter(Boolean).join(', ');
-  var marks = psMarks(w, r.from, r.to > localDateStr() ? localDateStr() : r.to), lines = psLines(r), pays = psPayments(w, r.from, r.to, r.weekly);
+  var marks = psMarks(w, r.from, r.to > localDateStr() ? localDateStr() : r.to), lines = psLines(r), pays = psPayments(w, r.from, r.to), settled = r.asPaid && !r.compared;
   var gross = r.asPaid ? gstRound(lines.reduce(function(t, l) { return t + (l.amt || 0); }, 0)) : gstRound(e.total || 0);
   var m = function(n) { return escHtml(formatCurrency(n)); };
   var kv = [['Name', w.name], ['Card', w.card || ''], ['Designation', p.designation || ''], ['Area', w.area && w.area !== 'flex' ? areaLabel(w.area) : ''],
@@ -31878,19 +32120,24 @@ function psSlipHtml(r) {
       '<div class="inv-ps-sub" data-ps-ref>' + escHtml(psRef(r)) + '</div></div></div>' +
     '<div class="inv-ps-body"><dl class="inv-ps-kv">' + kv.map(function(x) { return '<dt>' + escHtml(x[0]) + '</dt><dd>' + escHtml(x[1]) + '</dd>'; }).join('') + '</dl>' +
       '<div class="inv-ps-att"><div class="inv-ps-lbl">Attendance</div><div data-ps-att>Present ' + marks.P + ' · Half day ' + marks.H + ' · Absent ' + marks.A + '</div>' +
-        (r.asPaid ? '<div class="inv-ps-sub">As paid, from the month\'s payroll</div>' : '') + '</div></div>' +
+        (r.asPaid ? '<div class="inv-ps-sub">Earned as the month\'s payroll says</div>' : '') + '</div></div>' +
     '<table class="inv-ps-table"><thead><tr><th>Earnings</th><th class="inv-ps-n">Qty</th><th class="inv-ps-n">Rate</th><th class="inv-ps-n">Amount</th></tr></thead><tbody>' +
     lines.map(function(l) {
       return '<tr><td>' + escHtml(l.what) + '</td><td class="inv-ps-n">' + escHtml(formatNum(l.qty, l.qty % 1 ? 1 : 0)) + ' ' + l.unit + '</td>' +
         '<td class="inv-ps-n">' + (l.rate ? m(l.rate) : '') + '</td><td class="inv-ps-n">' + (l.amt == null ? '' : m(l.amt)) + '</td></tr>';
     }).join('') +
     '<tr class="inv-ps-strong"><td colspan="3">Earned</td><td class="inv-ps-n" data-ps-gross>' + m(gross) + '</td></tr>';
-  // A month on record as paid is settled by its payroll: one line, as Pay reads it (payDue), so the slip foots.
-  if (!r.asPaid) pays.forEach(function(x) {
-    h += '<tr><td colspan="3">' + (x.kind === 'advance' ? 'Advance' : 'Paid') + ' on ' + escHtml(formatDate(x.date)) + (x.note ? ' · ' + escHtml(x.note) : '') + '</td><td class="inv-ps-n">&minus;' + m(Number(x.amount) || 0) + '</td></tr>';
+  // A month on record as paid with no payment for it known is settled by its payroll: one line, as Pay reads it (payDue), so the
+  // slip foots. Otherwise each payment for the period, by bank or typed on Pay.
+  if (!settled) pays.forEach(function(x) {
+    h += '<tr><td colspan="3">' + (x.kind === 'advance' ? 'Advance' : 'Paid') + ' on ' + escHtml(formatDate(x.date)) + (x.how === 'bank' ? ', by bank' : '') +
+      (x.note ? ' · ' + escHtml(x.note) : '') + '</td><td class="inv-ps-n">&minus;' + m(Number(x.amount) || 0) + '</td></tr>';
   });
-  if (r.asPaid) h += '<tr><td colspan="3">Paid against the month\'s payroll</td><td class="inv-ps-n">&minus;' + m(gross) + '</td></tr>';
-  if (r.carried) h += '<tr><td colspan="3">' + (r.carried > 0 ? 'Owed from before' : 'Advanced before, to work off') + '</td><td class="inv-ps-n">' + (r.carried > 0 ? '+' : '&minus;') + m(Math.abs(r.carried)) + '</td></tr>';
+  if (settled) h += '<tr><td colspan="3">Paid against the month\'s payroll</td><td class="inv-ps-n">&minus;' + m(gross) + '</td></tr>';
+  // What is brought forward names the periods it is made of (August's legs paid to each other, a ruled figure paid short).
+  if (r.carried) h += '<tr data-ps-carried><td colspan="3">' + (r.carried > 0 ? 'Owed from before' : 'Paid over before, taken back') +
+    ((r.carry && r.carry.parts) || []).slice(-3).map(function(pt) { return '<div class="inv-ps-sub">' + escHtml(payPartWords(w, pt)) + '</div>'; }).join('') +
+    '</td><td class="inv-ps-n">' + (r.carried > 0 ? '+' : '&minus;') + m(Math.abs(r.carried)) + '</td></tr>';
   h += '<tr class="inv-ps-strong inv-ps-due"><td colspan="3">' + (r.due < -0.005 ? 'Advance still to work off' : 'Due to you') + '</td><td class="inv-ps-n" data-ps-due>' + m(Math.abs(r.due)) + '</td></tr></tbody></table>' +
     (r.weekly ? '<div class="inv-ps-sub">EXTRA hours are paid from the floor\'s pool by the supervisor and are not on this slip.</div>' : '') +
     '<div class="inv-ps-sign"><div class="inv-ps-line">Received by (signature or thumb)</div><div class="inv-ps-line">For ' + escHtml(co.name || '') + '</div></div></div>';
@@ -31905,17 +32152,37 @@ function psSheetsHtml(rows) {
   return h;
 }
 
-/* ---------- The dialog: who, for the week on Pay ---------- */
+/* ---------- The dialog: who, for the week on Pay, or a month picked ---------- */
+/* Any month's slips (owner, 10 Oct 2026: "no way to see and print the pay slip of each employee"): the dialog's month picks the
+   monthly hands' month; the weekly hands' slips stay the week on Pay's. */
+var _psMonth = null;   // 'YYYY-MM' picked in the dialog; null is the month of the week on Pay
+/* The pay week a month's slips are read through: payDue reads a monthly hand's month off the week's Sunday, so the first Sunday
+   on or after the month's first day. */
+function psMonthWeek(month) {
+  var first = month + '-01', ws = attWeekStartOf(first);
+  return ws < first ? isoAddDays(ws, 7) : ws;
+}
+function psWeekMonth() { return payMonthStart(_attWeekStart || attWeekStartOf(localDateStr())).slice(0, 7); }
+function psPicked() { return _psMonth && _psMonth !== psWeekMonth() ? _psMonth : null; }
 function psRows() {
-  return payDue(_attWeekStart || attWeekStartOf(localDateStr())).rows.filter(function(r) {
+  var month = psPicked();
+  return payDue(month ? psMonthWeek(month) : (_attWeekStart || attWeekStartOf(localDateStr()))).rows.filter(function(r) {
+    if (month && r.weekly) return false;
     var e = r.earned || {};
     return r.asPaid || e.total || e.days || e.hours || r.paid || r.carried || r.due;
   });
 }
-function psOpen() {
+/* The months the picker offers: this month and the eleven before. */
+function psMonths() {
+  var out = [], m = localDateStr().slice(0, 7);
+  for (var i = 0; i < 12; i++) { out.push(m); m = payMonthStart(isoAddDays(m + '-01', -1)).slice(0, 7); }
+  return out;
+}
+function psOpen(keepMonth) {
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
+  if (!keepMonth) _psMonth = null;
   var rows = psRows();
-  if (!rows.length) return uiAlert({ title: 'Nothing to put on a slip', body: 'No worker earned, was paid or carries a balance in this week or its month.' });
+  if (!rows.length && !keepMonth) return uiAlert({ title: 'Nothing to put on a slip', body: 'No worker earned, was paid or carries a balance in this week or its month.' });
   var group = function(title, list) {
     if (!list.length) return '';
     return '<div class="inv-row-group">' + escHtml(title) + '</div>' + list.map(function(r) {
@@ -31925,22 +32192,47 @@ function psOpen() {
     }).join('');
   };
   var weekly = rows.filter(function(r) { return r.weekly; }), monthly = rows.filter(function(r) { return !r.weekly; });
+  var month = psPicked() || psWeekMonth();
+  // The month is a <select> that speaks through change (psOnChange), never a data-action.
+  var pick = '<div class="inv-field"><label class="inv-field-label" for="psMonth">Monthly hands’ month</label><select class="inv-select" id="psMonth">' +
+    psMonths().map(function(m) { return '<option value="' + m + '"' + (m === month ? ' selected' : '') + '>' + escHtml(_monthLabel(m)) + '</option>'; }).join('') + '</select></div>';
   dialogOpen('<div class="inv-dialog" data-ps-dialog role="dialog" aria-modal="true" aria-labelledby="psTitle">' + dialogHeadHtml('<span id="psTitle">Pay slips</span>') +
-    '<div class="inv-note">One slip a worker for their own period, the figures Pay shows: two to an A4 page.</div>' +
+    '<div class="inv-note">One slip a worker for their own period, the figures Pay shows: two to an A4 page.' + (psPicked() ? ' The weekly hands’ slips follow the week on Pay.' : '') + '</div>' +
+    '<div class="inv-panel-body">' + pick + '</div>' +
     '<div class="inv-panel inv-panel-flush inv-mt-8">' +
       group(weekly.length ? 'Weekly · ' + psPeriodLabel(weekly[0]) : '', weekly) +
-      group(monthly.length ? 'Monthly · ' + psPeriodLabel(monthly[0]) : '', monthly) + '</div>' +
+      group(monthly.length ? 'Monthly · ' + psPeriodLabel(monthly[0]) : '', monthly) +
+      (rows.length ? '' : '<div class="inv-empty">Nobody earned, was paid or carries a balance in ' + escHtml(_monthLabel(month)) + '.</div>') + '</div>' +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
-      '<button class="inv-btn inv-btn-primary" data-action="invPsPrint">Preview</button></div></div>', { dismiss: true });
+      '<button class="inv-btn inv-btn-primary" data-action="invPsPrint"' + (rows.length ? '' : ' disabled') + '>Preview</button></div></div>', { dismiss: true, replace: !!keepMonth });
+}
+function psOnChange(el) {
+  if (!el || el.id !== 'psMonth') return false;
+  _psMonth = el.value || null;
+  psOpen(true);
+  return true;
 }
 function psPrint() {
   var picked = {};
   document.querySelectorAll('[data-ps-pick]').forEach(function(c) { if (c.checked) picked[c.getAttribute('data-ps-pick')] = true; });
   var rows = psRows().filter(function(r) { return picked[String(r.w.id)]; });
   if (!rows.length) { showToast('Tick at least one worker', 'error'); return; }
+  closeTopOverlay();
+  psShow(rows);
+}
+/* One hand's slip for one period, from their pay history. */
+function psOne(id, from) {
+  var w = staffById(id);
+  if (!w || !/^\d{4}-\d{2}-\d{2}$/.test(from || '')) return;
+  if (typeof grdSeesWages === 'function' && !grdSeesWages()) { showToast('Your ID doesn’t open Pay', 'warning'); return; }
+  var r = payDue(payIsWeekly(w) ? from : psMonthWeek(from.slice(0, 7))).rows.find(function(x) { return String(x.w.id) === String(id); });
+  if (!r) { showToast('Nothing to put on a slip for that period', 'warning'); return; }
+  closeTopOverlay();
+  psShow([r]);
+}
+function psShow(rows) {
   var body = document.getElementById('invPrintBody');
   if (!body) return;
-  closeTopOverlay();
   body.innerHTML = psSheetsHtml(rows);
   document.getElementById('invPrintView').classList.add('inv-print-view-active');
   _printInvId = null;
@@ -31949,10 +32241,11 @@ function psPrint() {
   document._savedTitle = document.title;
   document.title = 'Pay slips ' + (rows[0].weekly ? rows[0].to : rows[0].from.slice(0, 7));
 }
-function psAction(action) {
+function psAction(action, btn) {
   switch (action) {
     case 'invPsOpen': psOpen(); return true;
     case 'invPsPrint': psPrint(); return true;
+    case 'invPsOne': psOne(btn.dataset.id, btn.dataset.from); return true;
   }
   return false;
 }
@@ -40843,9 +41136,12 @@ TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier pe
 TODO_CHECK_DEFAULTS.payCarry = true;
 TODO_RULE_NEED.payCarry = 'wages';
 TODO_RULE_FNS.payCarry = function() {
-  if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
-  var ws = attWeekStartOf(localDateStr());
-  var rows = payDue(ws).rows.filter(function(r) { return r.carried; });
+  if (!staffPayments().some(function(p) { return !p.voidedAt; }) && !payCarryFrom()) return [];
+  // What is owed as of today (payOverdue): last month's salary is not owed before the day it is paid by, so the days before
+  // payday raise nothing.
+  var ws = attWeekStartOf(localDateStr()), lab = payLabMemo();
+  var rows = payDue(ws).rows.map(function(r) { var o = payOverdue(r.w, null, lab); return { w: r.w, carried: Math.abs(o.amount) >= 1 ? o.amount : 0 }; })
+    .filter(function(r) { return r.carried; });
   if (!rows.length) return [];
   var owed = rows.filter(function(r) { return r.carried > 0; }), adv = rows.filter(function(r) { return r.carried < 0; });
   var sum = function(list) { return gstRound(list.reduce(function(t, r) { return t + Math.abs(r.carried); }, 0)); };
@@ -40979,6 +41275,9 @@ TODO_RULE_FNS.wageVsSlip = function() {
   return Object.keys(byMonth).map(function(m) {
     var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
     if (!slip) return null;
+    // Once monthly balances are counted (Pay, Count from a month) a month's difference is Pay's: from that month on it carries to the
+    // next month's due, said there by month; the months before it the owner settled as they stand.
+    if (payCarryFrom()) return null;
     // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
     var off = [], byW = payrollRowsByWorker(slip.rows);
     Object.keys(byMonth[m]).forEach(function(id) {
@@ -45095,7 +45394,7 @@ function pplMotivation(w, st, labMemo) {
   var sig = [], today = localDateStr(), pen = 0;
   var add = function(key, word, weight) { sig.push({ key: key, word: word, weight: weight }); pen += weight; };
   try {
-    var carry = payCarried(w, payPeriodOf(w, today), labMemo || payLabMemo());
+    var carry = payOverdue(w, today, labMemo || payLabMemo());
     if (carry.amount >= 1) add('owed', formatCurrency(carry.amount) + ' owed, carried from ' + (carry.periods || 1) + ' period' + (carry.periods === 1 ? '' : 's'), 20);
   } catch (e) { /* a pay record that will not read says nothing here */ }
   var wk = attWeekStartOf(today), adv = 0;
@@ -53266,11 +53565,13 @@ var KB_APP_GUIDES = [
     '- While the week is open the payout is predicted at its own pace: the days recorded as they are, the rest at the week’s average for a working day. The Sunday is left out of that average, since it is overtime.\n' +
     '- **Due by worker**: each hand’s line is what is due. Tap it for the arithmetic (days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward) and **Pay** to record a payment or an advance.\n' +
     '- The weekly hands are paid by the week; the monthly hands by the calendar month the week’s Sunday is in. The EXTRA pool is in no one’s due: it is one line on the slip, paid out by the supervisor.\n' +
-    '- A balance carries to the next period until it is paid, worked off or cleared with a reason (**Brought forward**).\n' +
+    '- **Paid** is the bank’s salaries and the payments typed here. A salary on the statement is read as wages to the hand its name reads as (a name read only as a guess says so; set the payee on the statement once). A payment typed here that the statement also holds is counted once.\n' +
+    '- A balance carries to the next period until it is paid, worked off or cleared with a reason (**Brought forward**, each month it is made of named). A monthly hand’s balance counts from the month you set (**Count from a month**): from it on, a month paid short is owed and a month paid over is taken back. A salary is owed from the 21st of the month after.\n' +
+    '- **History** on a hand’s line: their last twelve months (or weeks), what each earned, every payment, what it left and the balance after it, and **Print the slip** for any of them. **Pay slips** prints a month picked for every monthly hand.\n' +
     '- A wrong payment is voided with a reason, never deleted.\n' +
-    '- **Monthly payroll as paid** (under More: Import): a closed month’s slips, as paid. For a month before this one they replace the model for the hands they name.',
-    // Version 2: the payout's change against its usual, the due rows' arithmetic folded, the payroll's import under More (TM4b).
-    { roles: ['owner'], version: 2 }),
+    '- **Monthly payroll as paid** (under More: Import): a closed month’s slips. For a month before this one they are what the hands they name earned; with no payment for the month on record, the slip is taken as paid.',
+    // Version 3: paid from the bank's salaries, monthly balances from a month set, a hand's history and any month's slip (owner, 10 Oct 2026).
+    { roles: ['owner'], version: 3 }),
   _kbg('bank', 'Using the app: the bank statement', 'Importing it, placing each receipt, and cheques in hand', ['pageFinance'],
     '- Money → Bank, in the toolbar’s More: **Import a statement**: the bank’s own .xls, or the same saved as .xlsx. Rows already in are skipped, so a statement that overlaps the last adds only what is new.\n' +
     '- **Receivables start** on the later of the statement’s first day and the book’s first invoice: a receipt before then paid an invoice the app does not hold.\n' +
@@ -57665,7 +57966,7 @@ function onDocClick(e) {
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (soaAction(action, btn)) break;
-      if (psAction(action)) break;
+      if (psAction(action, btn)) break;
       if (mrgAction(action, btn)) break;
       if (prsAction(action, btn)) break;
       if (financeAction(action, btn)) break;
@@ -57745,6 +58046,7 @@ function updateTotalsDisplay() {
 document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
 function onDocChange(e) {
   if (errOnChange(e.target)) return;
+  if (psOnChange(e.target)) return;
   if (rptOnChange(e.target)) return;
   if (flrOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;

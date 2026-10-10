@@ -128,7 +128,7 @@ split/
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
-├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, monthly payroll as paid, hours by area, Home attendance (547 lines)
+├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout + forecast, monthly payroll as paid, hours by area (~830 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
 ├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
@@ -137,7 +137,7 @@ split/
 ├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,760 lines)
 ├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
-├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
+├── payslip.js         ← Pay slips from Staff → Pay's own rows, any month's: two to an A4 page (~220 lines)
 ├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
 ├── prospects.js       ← Clients → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
@@ -3679,6 +3679,33 @@ Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026)
   month on record as paid is settled. Staff → Pay lists **Brought forward**, each with **Clear**, which asks for a reason and
   settles every period up to the one before (`S.payCarryClears`, undone, never deleted); the To-do rule **`payCarry`** asks until
   each balance is paid, worked off or cleared.
+- **Paid is the bank's salaries and the payments typed here** (owner, 10 Oct 2026: *"no way to see and print the pay slip of each
+  employee and/or what they have been paid, we have all the information in our data but not linked yet"*: August's two salaries
+  paid to each other's accounts, and the gate hand's ruled figure paid short, were to be adjusted in September; P205). A salary
+  transfer on the statement read as wages to a hand on the roster (`payBankLegs`: the bank's own reading of the payee, a guessed
+  name said as one) is a payment (`payPaymentsOf`, `payPaymentsFor`, `payPaidFor`); a payment typed here that the statement also
+  holds (the same hand, within a rupee, three days apart) is counted once. Paid had been the typed payments alone, so every salary
+  paid by transfer read as unpaid, and the August legs paid to each other's accounts were invisible.
+- **A month on the payroll as paid is set against what was paid for it** (`payPeriodRow`): the slip is what was earned; with no
+  payment for the month known it is settled by the slip, as before; with one, the difference stands (a difference under a rupee is
+  none: the shop pays whole rupees). A month whose payroll is on record but does not name the hand, with nothing paid to them, is
+  settled too (*not on the slip*: a hand new to the monthly tier had read the whole month as unpaid). Two hands each paid what the
+  other earned are named (`payCrossedWith`): *the bank legs crossed with … 's*.
+- **Monthly balances count from a month the owner sets** (`S.labour.payCarryFrom`, Pay → *Count from a month*, P1 payments): from
+  it on, a month paid short is owed and a month paid over is taken back; before it, months are settled as they stand. The
+  statement's legs never start a balance by themselves (they reach back months before any earnings were recorded). Each
+  brought-forward line names its months (`payPartWords`): *August 2026: paid ₹12,456.00 against ₹15,796.80 on the slip, the bank
+  legs crossed with …'s*; a month's payment that settles what it earned and what was brought into it, each to the rupee, leaves
+  nothing. A weekly hand's balance still starts at the first payment typed for them (paid in cash, never on the statement by name).
+  The month offered must have its earnings known (a slip or attendance). Once balances count, `wageVsSlip` stays quiet: Pay carries
+  each month.
+- **Last month's salary is owed from the 21st** (`payOverdue`, `PAY_SALARY_BY_DAY`): the To-do's `payCarry` and the motivation index
+  read the balance as of today, so the days before payday raise nothing; Pay itself shows last month's salary brought forward.
+- **A hand's history** (a due row's **History**, `payHistoryOpen`): the last twelve months (a weekly hand's weeks), newest first,
+  from the first with anything in it, each a row with what was paid as its figure and a word for its state (paid, paid short, paid
+  over, not paid, as the slip, not on the slip, no earnings recorded, to date); opened, where the earnings came from, each payment,
+  a crossing, the balance after it, and **Print the slip** (`psOne`). Payments in these periods lists the bank's legs too, without a
+  Void.
 - **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,
   kind: payment|advance, note, at, voidedAt?, voidReason?}]`). A wrong one is **voided with a
   reason, never deleted**. A negative due is an advance not yet worked off. Tapping a worker fills
@@ -3750,6 +3777,9 @@ Staff → Pay → Due by worker → **Pay slips** (`payslip.js`; owner, 7 Oct 20
   hours × the hour rate), the worker's card, designation, area, tier and rate. The EXTRA pool is not on it, and a weekly slip says so.
 - **Two to an A4 page** with a line to cut along (`inv-ps-*`, its sizes declared once); the reference is derived (`PS/<period>/<card or
   id>`), so a reprint is the same slip and nothing is written when one is printed. Only a role that opens Pay reaches it.
+- **Any month's slips** (owner, 10 Oct 2026; P205): the dialog's *Monthly hands' month* picks the month (`_psMonth`, read through the
+  month's first Sunday, `psMonthWeek`); the weekly hands' slips stay the week on Pay's. A hand's history prints one period's slip. A
+  slip lists each payment *by bank* or typed, and its brought-forward line names the months it is made of (`data-ps-carried`).
 
 ### The monthly payroll AS PAID
 A closed month is not a thing to re-derive: somebody was paid against a slip, and the slip is the fact. The
@@ -3759,7 +3789,8 @@ short or paid on a rule since changed (July and August's missing overtime).
 `S.payrollPaid: [{id, month, status: paid/computed, source, note, at, rows: [{name, staffId?, rate, worked,
 restDays, dayPay, otHours, ot, paid?, note}], voidedAt?, voidReason?}]`. **For a month before the current one,
 a record REPLACES the model for the hands it names** — on the Pay view (that month's due reads settled, *as
-paid, from the slip*), the labour card and the live cost — pro-rata to the share of the month a range covers.
+paid, from the slip*, while no payment for the month is known; with one, the slip is what was earned and the payment what was
+paid: *Pay* above), the labour card and the live cost — pro-rata to the share of the month a range covers.
 A monthly hand the record does not name (paid on a voucher of their own) is still modelled, and a name the
 roster does not hold still costs what it was paid. The month in progress is always modelled.
 
@@ -3767,9 +3798,11 @@ Staff → Pay → **Monthly payroll as paid → Import** takes a `sep-payroll-pa
 roll's (`relayKey`, and the worker's spellings), never by id. The same figures twice are skipped; different
 figures for a month **supersede**, and the old record is voided with the reason — never overwritten. Wages
 never enter this public repo: the file is built privately from the slips. **April, May, July and August**
-exist; **June does not** — only its projection is on disk, not the slip it was paid on. August is
+exist; **June does not** — only its projection is on disk, not the slip it was paid on. August was
 **Revision 5 as paid on 14 Sep** (₹1,01,768.43), not Revision 15's ruled ₹1,02,247.46: the gate hand's row carries
-the ₹479.03 still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs.
+the ₹479.03 still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs. Since what was paid is read off
+the statement (10 Oct 2026), the file handed over then carries August as **Revision 15, as ruled** (the gate hand at ₹8,129.03):
+the slip is what was earned, the statement what was paid, and the two differences carry.
 
 The salaried tier is `monthly` and **is not a flat salary**: the payout slips are written in
 ₹/day, and a flat monthly divided by calendar days neither matches them nor moves when somebody

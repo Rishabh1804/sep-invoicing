@@ -450,7 +450,7 @@ function onDocClick(e) {
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
       if (soaAction(action, btn)) break;
-      if (psAction(action)) break;
+      if (psAction(action, btn)) break;
       if (mrgAction(action, btn)) break;
       if (prsAction(action, btn)) break;
       if (financeAction(action, btn)) break;
@@ -530,6 +530,7 @@ function updateTotalsDisplay() {
 document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
 function onDocChange(e) {
   if (errOnChange(e.target)) return;
+  if (psOnChange(e.target)) return;
   if (rptOnChange(e.target)) return;
   if (flrOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;

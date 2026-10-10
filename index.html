@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="178555d0">
+<meta name="app-build" content="650a5cbc">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -57296,8 +57296,9 @@ var KB_APP_GUIDES = [
     '- Its badges: where it came from (*register*, *relay*, *hand*, *message*, *import*), how its pieces were weighed (*written*, *record*, *challans*, *kind*, *default*, *not weighed*), and what it did not match (*no challan*, *no client*, *gauge unknown*).\n' +
     '- **Filter** (on a phone) lists one kind, or the entries a flag names, every date.\n\n' +
     '# Equipment\n- Every tank, barrel and machine, a card each in its status’s colour: running, standby, under repair, down, with its kg a round and how long it has stood. A line’s capacity is worked out from its units; every change of status is kept with its day.',
-    // Version 3: what a line earned, and the day and the week against the line's usual (owner, 10 Oct 2026).
-    { version: 3 }),
+    // Version 4: Print sheets (the entry faces' F5, 10 Oct 2026). Version 3: what a line earned, and the day and the week against
+    // the line's usual (owner, 10 Oct 2026).
+    { version: 4 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -57395,13 +57396,76 @@ var KB_APP_GUIDES = [
     '- Upgrade costs are estimates until a quote replaces them: **Cost** on each level.\n- **Make the report** prints the plan for a lender or a meeting.',
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
     // card and More (TM2d).
-    { version: 3 })
+    { version: 3 }),
+  // The entry faces (docs/ENTRY_FACES.md, F6): Mine, one guide a face, and the owner's. Each person reads the one for what they
+  // enter; the top bar's book on Mine lists them, and the role paths below carry them.
+  _kbg('mine', 'Using the app: my screen (Mine)', 'Your day, what you enter, your sheets and the group’s message', ['pageFace'],
+    'Signing in opens **Mine**, your own screen: what you enter, and nothing else in the way. It is the first door on your bar.\n\n' +
+    '# Your day\n- The day is at the top: **‹ ›** step a day back or on, **Today** comes back. A day past can be entered late.\n' +
+    '- The card lists what you enter, in the day’s order, each **in**, **late** or **not yet**. **Enter** opens its form on the day shown.\n' +
+    '- A form stays open for the next entry: what repeats is kept, the figures start again. **Done** (or the back arrow) returns to Mine.\n\n' +
+    '# What you entered\n- Every record you saved on the day, the latest first. A load, a count or a batch made here shows what it says, with **Send to the group**, **Copy** and **Correct**.\n' +
+    '- **Correct** never edits: the corrected entry stays on the record, marked corrected, and the new one takes its place.\n' +
+    '- **To check** under an entry means the data it links to does not bear it out (say, a load with no plating found). Nothing is held: your entry counts at once. The owner looks, then keeps it as entered (**Looks right**) or puts it right.\n\n' +
+    '# The group\n- **Send to the group** opens WhatsApp with the message written in the shop’s own shape, so the group sees what it always saw. Pick the group and send.\n' +
+    '- The same message pasted into the app later is known as already entered and never counted twice.\n\n' +
+    '# Paper and backup\n- **Print my sheets**: the blank sheet for each thing you enter, to fill by hand when the phone is not to hand.\n' +
+    '- **Print the day as entered**: the day as the app holds it, to file. Each row says how it came in.\n' +
+    '- **Sent to GitHub** says whether your entries have left this phone. Offline, they are kept on the phone and go when it is back online.'),
+  _kbg('face-pickling', 'Using the app: pickling on Mine', 'A load into the tank, material in, and re-pickling', ['pageFace', 'pageProduction'],
+    'The pickling hand’s screen has two forms: **Pickling loads** and **Material in**.\n\n' +
+    '# A load into the tank\n1. **Client**: the clients with material open come first.\n' +
+    '2. **Part**: that client’s parts, those open on a challan first, with what is open on them. A part not listed: **Not listed: type its name**, written as the floor names it; the owner is asked which part it is.\n' +
+    '3. **Quantity** and **Unit** (pieces or kilograms).\n4. **Into the tank at**: now, unless you change it.\n' +
+    '5. Tick **Re-pickling or rework** for work done again: it counts as work, never billed.\n6. **Save**, then **Send to the group**, or enter the next load.\n\n' +
+    '# Material in\n1. **Client**, then **Challan**: their challans of the week, newest first.\n2. Count each line as it arrives and type the count beside it; a line left blank is not counted.\n' +
+    '3. A challan not in the book yet: **Not in the book yet**, then the part, the count and the challan number if one is written. It is matched when the challan is entered.\n4. **Came in at**, then **Save**.\n\n' +
+    '# What the owner is asked\n- A load with no plating found by noon of the next working day, where every line it can have gone to was recorded.\n' +
+    '- A load past what its challans hold, or with no challan open at all.\n- A count the challan does not bear out (short is red), or a count with no challan in the book a working day on.\n' +
+    '- Each is a question, not a refusal: the entry counts as you saved it.'),
+  _kbg('face-supervisor', 'Using the app: the supervisor’s screen', 'The in-time and out-time rolls, stock, and the barrel’s batches', ['pageFace', 'pageStaff'],
+    'The supervisor’s screen writes the rolls the group receives, enters the stock, and keeps the barrel’s register a batch at a time.\n\n' +
+    '# The in-time roll\n1. Each hand is a row: pick where they stand. **Usual places** fills everyone from their own area; change only who moved.\n' +
+    '2. **Mark the rest absent** marks whoever is left unplaced (a hand on a 6 AM block is on site).\n' +
+    '3. **Add a 6 AM block** for the early shift: tap its lines and its crew, its EXTRA hours and the work done.\n4. **EXTRA on the 8:30 shift**: the hours booked to a line for a hand short.\n' +
+    '5. **Save**: the day is written exactly as the same roll pasted would write it. Then **Send to the group**.\n' +
+    '- A mark someone typed by hand on the day (People → Attendance, a card scan) is left as it is; the roll says so.\n- Saved again, the roll restates the day rather than adding to it.\n\n' +
+    '# The out-time roll\n- **Went home**: everyone present and on no late block, at 5:00 PM unless a time is set.\n' +
+    '- **Add a block** for each late slot: from 5:00 PM, or 8:00 PM for the night hold, to when they went out; its lines, its crew, its EXTRA and the work done.\n- **Save**, then **Send to the group**.\n\n' +
+    '# Stock\n- **Stock** opens Stock’s own form by hand: a count, a delivery with its bill, a use or a charge into the bath.\n\n' +
+    '# The barrel\n1. A batch a row: the **Barrel**, the client, the part, the quantity, when it **went in** and when it **came out**.\n' +
+    '2. Tick **Rework** for work done again.\n3. **Save**, then **Send to the group**.\n' +
+    '- A batch more than a quarter heavier than its barrel takes is asked of the owner: its kg a round on Production → Equipment, or the barrel’s usual load.'),
+  _kbg('face-clerk', 'Using the app: the register clerk’s screen', 'The VAT register page and the attendance sheet', ['pageFace', 'pageStaff', 'pageProduction'],
+    'The register clerk’s screen has the **VAT register** page and the **attendance sheet**.\n\n' +
+    '# The VAT register page\n1. Pick the line: **VAT A1** or **VAT A2**. A1 is kept a round a row; A2 a batch a row (when it began, when it ended). **Rounds · Batches** changes it for a page kept the other way.\n' +
+    '2. Where a run begins, pick the **Client** and write the **Part, as written** on the page. The rows under it carry them, as the paper’s ditto does: **Another client or part** starts the next run.\n' +
+    '3. Each round: its **Time** and its **Figure**, exactly as written (120, 3+4×156, 98×8+1). The app adds it up and says under the row what it read.\n' +
+    '4. Two clients in one round are a row each, at the same time. A round struck on paper is a row taken off.\n5. **Day total on the paper page**, if it has one: a total the rounds do not meet is said.\n' +
+    '6. **Save the page**, then **Send to the group**.\n' +
+    '- The page is kept on this phone as you type it, until it is saved: closing the app loses nothing. Saved again, only what changed is put right.\n\n' +
+    '# Power cuts\n- **Power cut at** and **Power back at**, then **Save the cut**: it is saved at once, on the day’s one power log, which both lines’ pages show.\n- A cut with no time back has **Power back** to close it later.\n\n' +
+    '# The attendance sheet\n- **Attendance sheet** opens People → Attendance → Day as the sheet: a hand a row, P / H / A, the area, in and out.\n' +
+    '- Each mark you type carries your name. Where it disagrees with the supervisor’s roll (present on one and absent on the other, a half day, another line), the owner is asked; your mark stands until the owner rules.'),
+  _kbg('faces-owner', 'Setting up each person’s screen', 'Who enters what, seeing their screen, and what reaches you', ['pageFace', 'pageHome'],
+    'Each person who enters data has their own screen, **Mine**, on their own phone.\n\n' +
+    '# Setting it up\n1. Give each person an ID: Settings → Access → **Users & access**.\n' +
+    '2. On their user, **Enters**: tick what they enter (the in-time roll, pickling loads, material in, stock, the attendance sheet, barrel batches, the VAT register, the out-time roll). A face is a person’s, never a role’s.\n' +
+    '3. Register their phone (Settings → Access → **Devices**, with you present), so what they enter reaches the book through GitHub.\n' +
+    '4. **See their screen** on the users list shows Mine as they see it; the next sign-in ends it.\n\n' +
+    '# What reaches you\n- Their entries are records at once, marked as entered by them. **Needs you** says who entered each of the day’s inputs.\n' +
+    '- Where an entry and what it links to disagree, one task a check and a day asks you to look: **Looks right** keeps it as entered, **Correct** puts it right. The attendance sheet against the roll: **Use the roll’s** or **Looks right**, a hand at a time.\n' +
+    '- The WhatsApp group keeps getting its messages: each save offers **Send to the group** in the shop’s own shape.\n\n' +
+    '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. Production → More → **Print sheets** prints the pickling sheet, the barrel batches and the VAT pages for any day.',
+    { roles: ['owner'] })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
+/* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of
+   that role may be given. */
 var KB_APP_PATHS = [
-  { id: 'app-path-floor', title: 'New on the floor', role: 'floor', articles: ['app-today', 'app-add', 'app-production', 'app-stock', 'app-knowledge'] },
-  { id: 'app-path-supervisor', title: 'Supervisor', role: 'supervisor', articles: ['app-today', 'app-add', 'app-rolls', 'app-day', 'app-production', 'app-stock', 'app-power', 'app-knowledge'] },
-  { id: 'app-path-office', title: 'New in the office', role: 'office', articles: ['app-today', 'app-add', 'app-challan', 'app-invoice', 'app-states', 'app-credit', 'app-search', 'app-knowledge'] }
+  { id: 'app-path-floor', title: 'New on the floor', role: 'floor', articles: ['app-mine', 'app-face-pickling', 'app-today', 'app-add', 'app-production', 'app-stock', 'app-knowledge'] },
+  { id: 'app-path-supervisor', title: 'Supervisor', role: 'supervisor', articles: ['app-mine', 'app-face-supervisor', 'app-face-clerk', 'app-today', 'app-add', 'app-rolls', 'app-day', 'app-production', 'app-stock', 'app-power', 'app-knowledge'] },
+  { id: 'app-path-office', title: 'New in the office', role: 'office', articles: ['app-mine', 'app-face-clerk', 'app-today', 'app-add', 'app-challan', 'app-invoice', 'app-states', 'app-credit', 'app-search', 'app-knowledge'] }
 ];
 /* ===== THE KNOWLEDGE BASE (owner, 2–5 Oct 2026; docs/KNOWLEDGE_BASE.md) =====
    "I envision it as a training ground, as a troubleshooting area, as a record keeper, as a tool used to make decisions."

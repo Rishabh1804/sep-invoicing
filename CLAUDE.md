@@ -28,7 +28,7 @@ ranked list (built), I4 the change explained (built), I5 learning from responses
 
 **The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
 employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand), F3 (the
-supervisor), F4 (the register clerk) and F5 (the sheets on paper) are built; F6 and the flow thread follow.
+supervisor), F4 (the register clerk), F5 (the sheets on paper) and F6 (the guides) are built; the flow thread follows.
 
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
@@ -218,7 +218,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,738 tests, both layouts
+pnpm exec playwright test          # 1,739 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2875,7 +2875,7 @@ on the build before. What it leaves as rules:
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
 all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
-forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, the sheets on paper (P203); F6 and T1–T3 to come. No name is in the
+forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, the sheets on paper (P203); F6, the guides (P199); T1–T3 to come. No name is in the
 build: the people are the book's.
 - **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
@@ -3019,6 +3019,13 @@ build: the people are the book's.
   them (the register's *1:05* is the afternoon, never turned into 1:05 AM). Production → More → **Print sheets** prints the floor's
   three for any day, blank or as entered (a sheet with nothing entered is left out, and the toast says which). The roll filled on
   Mine says *As entered in the app*, not a worked example (`attSheetShyamHtml`'s `note`). Printing writes nothing to the book.
+- **The guides** (F6, `kbguides.js`, P199): *Using the app: my screen (Mine)* (`app-mine`: the day, the steps, what was entered,
+  Correct and To check, the group, the paper, GitHub), one a face (`app-face-pickling`, `app-face-supervisor`, `app-face-clerk`:
+  every form as it is on the screen, and what the owner is asked), and the owner's *Setting up each person's screen*
+  (`app-faces-owner`, `roles: ['owner']`: Enters, Devices, See their screen, what reaches the owner). All link to Mine, so its book
+  lists them. Each role's path (`KB_APP_PATHS`) leads with Mine and the face a hand of that role is most often given (floor: the
+  pickling hand's; supervisor: the supervisor's and the clerk's; office: the clerk's). *Using the app: production* is version 4
+  (Print sheets).
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

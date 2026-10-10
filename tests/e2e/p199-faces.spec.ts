@@ -96,4 +96,30 @@ test.describe('P199: entry faces, the shell', () => {
     await page.locator('[data-action="invFaceToday"]').click();
     await expect(page.locator('#faceDate')).toHaveValue(todayIso());
   });
+  // F6: the guides. One for Mine and one a face, read from Mine's own book; the owner's set-up the owner's alone; each role's
+  // path leads with Mine and the face a hand of that role is most often given.
+  test('Mine’s book opens the guides: Mine and one a face; the owner’s set-up is the owner’s alone; each role’s path leads with them', async ({ page }) => {
+    await unlock(page, 'U-sup', PINS.super);
+    await expect(page.locator('#pageFace.inv-page-active')).toBeVisible();
+    await page.locator('.inv-topbar [data-action="invKbHelp"]:visible').click();
+    await page.locator('#pageKnow.inv-page-active').waitFor();
+    const rows = page.locator('#knowContent [data-kb-row]');
+    await expect(rows).toHaveCount(4);
+    expect((await rows.evaluateAll(els => els.map(e => e.getAttribute('data-kb-row')))).sort()).toEqual(['app-face-clerk', 'app-face-pickling', 'app-face-supervisor', 'app-mine']);
+    await page.locator('#knowContent [data-kb-row="app-face-supervisor"] [data-action="invKbOpen"]').click();
+    await expect(page.locator('[data-kb-article="app-face-supervisor"]')).toBeVisible();
+    await expect(page.locator('#knowContent .inv-kb-body')).toContainText('Usual places');
+    await expect(page.locator('#knowContent .inv-kb-body')).toContainText('Send to the group');
+    // The owner reads the set-up guide as well.
+    await lockNow(page);
+    await unlock(page, 'U-own', PINS.owner);
+    expect((await ev(page, `kbLinkedTo('screen', 'pageFace').map(function(a) { return a.id; }).sort()`))).toEqual(['app-face-clerk', 'app-face-pickling', 'app-face-supervisor', 'app-faces-owner', 'app-mine']);
+    // The paths by role: Mine first, then the face a hand of that role is most often given.
+    expect(await ev(page, `KB_APP_PATHS.map(function(p) { return [p.role, p.articles.slice(0, 3)]; })`)).toEqual([
+      ['floor', ['app-mine', 'app-face-pickling', 'app-today']],
+      ['supervisor', ['app-mine', 'app-face-supervisor', 'app-face-clerk']],
+      ['office', ['app-mine', 'app-face-clerk', 'app-today']]]);
+    // A guide holds nothing of the shop: no person's name from the book is in any of them.
+    expect(await ev(page, `KB_APP_GUIDES.filter(function(a) { return /mine|face/.test(a.id) && /Asha|Esha|Chitra/.test(a.body); }).length`)).toBe(0);
+  });
 });

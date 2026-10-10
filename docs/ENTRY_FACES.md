@@ -7,8 +7,9 @@ P201): the supervisor's two rolls written on Mine and saved as the roll, the bar
 barrel. F4 built (10 Oct 2026, P202): the register clerk's VAT page on Mine, read by the register photo's own reader, its power log
 and its checks, and the clerk's attendance sheet set against the supervisor's roll. F5 built (10 Oct 2026, P203): each face's paper,
 blank and the day as entered, and the three new sheets (the pickling sheet, the barrel batch sheet, the VAT register pages), which
-Production prints for any day too.** F6, then the flow thread T1–T3, follow, one commit each, on the tab map's branch (PR #146) ahead
-of TM5–TM7.
+Production prints for any day too. F6 built (10 Oct 2026, P199): the guides, one for Mine, one a face, and the owner's set-up, on
+Mine's book and in each role's path.** The flow thread T1–T3 follows, one commit each, on the tab map's branch (PR #146) ahead of
+TM5–TM7.
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,
@@ -211,7 +212,7 @@ The owner's answers on the material-flow study:
 | F3 | The supervisor's face (the two rolls, stock, the barrel per batch) and its checks | P201 |
 | F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other (built) | P202 |
 | F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) (built) | P203 |
-| F6 | The guides (*Using the app: my face*, one per face, by role), docs, the full suite | — |
+| F6 | The guides (*Using the app: my face*, one per face, by role), docs, the full suite (built) | P199 |
 | T1–T3 | The flow thread, as §5 | P204 |
 
 Each spec uses made-up names in the shop's shapes, and each fails on the build before its step.

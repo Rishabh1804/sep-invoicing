@@ -401,8 +401,9 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   await walkFaceForms(page, tag, stops);
 }
 
-/* Mine's own forms (faces.js, F2), which no tab reaches: a load into the tank with a client and its first part picked, and material
-   counted in against the client's latest challan (else as not in the book yet). Opened as the owner looking at the sweep book's face. */
+/* Mine's own forms (faces.js, F2, F3), which no tab reaches: a load into the tank with a client and its first part picked, material
+   counted in against the client's latest challan (else as not in the book yet), the two rolls each with a block of their own, and a
+   barrel batch with its barrel, client and part picked. Opened as the owner looking at the sweep book's face. */
 export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
   await faceSeen(page, 'pageFace');
   await switchTab(page, 'pageFace');
@@ -411,6 +412,11 @@ export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
       var p = faceClientParts(_faceForm.clientId)[0]; if (p) _faceForm.part = p.key; })(); renderFace()`],
     ['in', `faceFormOpen('incoming'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
       var m = faceInChallans(_faceForm)[0]; _faceForm.challan = m ? m.id : '__none'; })(); renderFace()`],
+    ['roll-in', `faceFormOpen('roll-in'); _faceForm.blocks.push({ area: 'vat-a1', crew: [], extra: '3', work: '' }); renderFace()`],
+    ['roll-out', `faceFormOpen('roll-out'); _faceForm.blocks.push({ out: '20:00', area: 'vat-a2', crew: [], extra: '6', work: '' }); renderFace()`],
+    ['barrel', `faceFormOpen('barrel'); (function(){ var u = pltUnits('barrel')[0]; _faceForm.barrel = u ? u.id : '2';
+      var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
+      var p = faceClientParts(_faceForm.clientId)[0]; if (p) _faceForm.part = p.key; })(); renderFace()`],
   ];
   for (const [name, js] of views) {
     await page.evaluate(src => (0, eval)(src), js);

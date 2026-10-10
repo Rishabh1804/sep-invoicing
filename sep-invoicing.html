@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="f0edc390">
+<meta name="app-build" content="4c0ab3f3">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -7908,6 +7908,7 @@ const PAGE_TITLES = {
 var SCREEN_KINDS = {
   pageHome: 'overview', pagePipeline: 'overview', pageIM: 'work', pageRegister: 'work', pageClients: 'work',
   pageCreate: 'form', pageFloor: 'overview', pageFace: 'overview', 'pageFace/pickling': 'form', 'pageFace/incoming': 'form',
+  'pageFace/roll-in': 'form', 'pageFace/roll-out': 'form', 'pageFace/barrel': 'form',
   pageStaff: 'work',
   pageProduction: 'work',
   pageStock: 'work', 'pageStock/item': 'form',
@@ -35756,9 +35757,11 @@ function relayStockParts(msgs) {
 
 /* One roll → per-day records. Each line keeps what it was read as, so the
    review can show the message beside the reading. */
-function parseRelayRoll(text, roster, sentOn) {
+function parseRelayRoll(text, roster, sentOn, opts) {
   var idx = relayRosterIndex(roster);
-  var learn = (roster && roster.learn) || { heads: {}, slots: {} };
+  // A roll written on a face (faces.js) is read exactly as written: its headings are picks, never free text, so a lesson
+  // learnt from a correction to a pasted roll's heading would only move them (an evening "VAT A1" read as three areas).
+  var learn = (!(opts && opts.exact) && roster && roster.learn) || { heads: {}, slots: {} };
   var lines = String(text || '').split('\n');
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
@@ -36264,7 +36267,7 @@ function relayPlan(rv) {
   roster.forEach(function(w) { byId[w.id] = w; });
   var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn), h = relayHash(m.text);
+    var r = parseRelayRoll(m.text, roster, m.sentOn, m.exact ? { exact: true } : null), h = relayHash(m.text);
     m.parsed = r;
     // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
     m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;
@@ -36646,22 +36649,15 @@ function relayParseHhmm(s) {
   return m ? +m[1] * 60 + +m[2] : null;
 }
 
-function relaySave() {
-  var rv = _relay;
-  if (!rv) return;
-  if (!grdGate('floor', 'save attendance', relaySave)) return;   // the guard (guard.js): a floor entry, never re-asked
-  var plan = relayPlan(rv);
-  if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
-  // Placements were remembered as they were made. A spelling READ AS somebody
-  // and saved without correction is the owner's confirmation: remember it too,
-  // so the next roll matches it outright.
-  plan.issues.forEach(function(is) {
-    if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
-  });
+/* A checked roll written into its days as a paste writes it: the marks and EXTRA rows relayPlan worked out, the hands' slot picks
+   over the roll's crews, the notes; and the roll kept whole (S.relayPastes), so the same roll is refused when it comes again. The
+   paste's Save and a person's own screen (faces.js, `o.face`: who entered it there, kept on the roll) both write through here. */
+function relayApplyPlan(rv, plan, o) {
+  o = o || {};
   var marks = 0, extras = 0;
   plan.days.forEach(function(d) {
     // Read again, the day is rebuilt: it goes to the log as it was, and starts over from what was entered by hand.
-    var rec = rv.reread ? relayRereadBase(d.iso) : attDay(d.iso, true);
+    var rec = rv.reread ? relayRereadBase(d.iso, rv.rereadWhy) : attDay(d.iso, true);
     d.rows.forEach(function(r) {
       if (r.change === 'kept' || (r.change === 'same' && !rv.reread)) return;
       var n = r.next;
@@ -36679,18 +36675,38 @@ function relaySave() {
     add.forEach(function(a) { if (String(rec.note || '').indexOf(a) < 0) rec.note = (rec.note ? rec.note + '\n' : '') + a; });
     _attPrune(d.iso);
   });
-  var at = Date.now();
-  // Read again, the rolls are already on record. A roll that saved no day (no date to put it on) is not recorded: kept, it
-  // refused the same roll pasted again with the date it lacked.
-  if (!rv.reread) rv.msgs.forEach(function(m) {
+  var at = Date.now(), ids = [];
+  // Read again, the rolls are already on record; a roll new to the reading (`fresh`: a face's roll written again, faces.js) is
+  // recorded. A roll that saved no day (no date to put it on) is not recorded: kept, it refused the same roll pasted again with
+  // the date it lacked.
+  rv.msgs.forEach(function(m) {
+    if (rv.reread && !m.fresh) return;
     var ds = m.parsed ? Object.keys(m.parsed.days).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }) : [];
     if (m.dup || m.repeat || !ds.length) return;
     // The days it saved (a roll can carry a second day's block): a day deleted by hand takes its rolls with it (attDeleteDay).
     // When WhatsApp sent it (`sentAt`, minutes on `sentOn`): the text is the roll's body alone, so without it the roll read
     // as arriving the minute it was pasted (Today, tdyArrival).
-    relayPastes().push({ id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
-      sentBy: m.sentBy || '', sentOn: m.sentOn || '', sentAt: m.sentAt != null ? m.sentAt : null, kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
+    var rp = { id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
+      sentBy: m.sentBy || '', sentOn: m.sentOn || '', sentAt: m.sentAt != null ? m.sentAt : null, kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text };
+    if (o.face) rp.face = o.face;
+    relayPastes().push(rp);
+    ids.push(rp.id);
   });
+  return { marks: marks, extras: extras, ids: ids };
+}
+function relaySave() {
+  var rv = _relay;
+  if (!rv) return;
+  if (!grdGate('floor', 'save attendance', relaySave)) return;   // the guard (guard.js): a floor entry, never re-asked
+  var plan = relayPlan(rv);
+  if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
+  // Placements were remembered as they were made. A spelling READ AS somebody
+  // and saved without correction is the owner's confirmation: remember it too,
+  // so the next roll matches it outright.
+  plan.issues.forEach(function(is) {
+    if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
+  });
+  var done = relayApplyPlan(rv, plan), marks = done.marks, extras = done.extras;
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
   _relay = null; _relayView = 'paste';
@@ -36712,7 +36728,8 @@ function relaySave() {
 function relayRollsFor(iso) {
   var roster = null;
   return relayPastes().filter(function(p) {
-    if (!p || (p.kind !== 'in' && p.kind !== 'out')) return false;
+    // A roll written again on a face is read in its new form; the old is kept to refuse it when pasted (`replacedBy`).
+    if (!p || (p.kind !== 'in' && p.kind !== 'out') || p.replacedBy) return false;
     if (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)) return true;
     if (Array.isArray(p.days)) return false;
     // Saved before the days were kept on the roll: one dated another day that carries this day's block is read to see.
@@ -36723,7 +36740,7 @@ function relayRollsFor(iso) {
 /* Whether Day shows the action: a cheap test, drawn on every render (a roll saved before its days were kept is found by
    its own date). */
 function relayDayHasRolls(iso) {
-  return relayPastes().some(function(p) { return p && (p.kind === 'in' || p.kind === 'out') && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); });
+  return relayPastes().some(function(p) { return p && !p.replacedBy && (p.kind === 'in' || p.kind === 'out') && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); });
 }
 async function relayRereadOpen(iso) {
   var rolls = relayRollsFor(iso);
@@ -36734,17 +36751,18 @@ async function relayRereadOpen(iso) {
       'what was entered or corrected by hand is kept, and the day as it is now goes to the log.' });
   if (!ok) return;
   _relay = { text: rolls.map(function(p) { return p.text; }).join('\n\n'), reread: iso, choices: {}, stock: 0, other: 0, prod: 0,
-    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text }; }) };
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face }; }) };
   _relayView = 'review';
   _relayShowLines = false;
   _attView = 'paste';
   renderAttendance();
   viewTop();
 }
-/* The day as it was goes to the log whole; what comes back is only what was entered or corrected by hand. */
-function relayRereadBase(iso) {
+/* The day as it was goes to the log whole (with why it was read again); what comes back is only what was entered or corrected
+   by hand. */
+function relayRereadBase(iso, why) {
   if (!(S.attendance || {})[iso]) return attDay(iso, true);
-  var was = attDeleteRecord(iso, 'read the rolls again', 'reread').day, rec = attDay(iso, true);
+  var was = attDeleteRecord(iso, why || 'read the rolls again', 'reread').day, rec = attDay(iso, true);
   var copy = function(o) { return JSON.parse(JSON.stringify(o)); };
   Object.keys(was).forEach(function(k) { if (k !== 'marks' && k !== 'extra') rec[k] = copy(was[k]); });
   Object.keys(was.marks || {}).forEach(function(id) { if (was.marks[id] && was.marks[id].src !== 'relay') rec.marks[id] = copy(was.marks[id]); });
@@ -50696,15 +50714,15 @@ function tdyAction(action, btn) {
 /* The duties a face can carry, in the day's order. `input` is Today's (TDY_INPUTS), whose state and usual time the step reads;
    `lines` are Production's lines the duty records; `page` is where it is entered until its own form is built; `sheet` the paper. */
 var FACE_DUTIES = [
-  { id: 'roll-in', title: 'In-time roll', input: 'roll-in', page: 'pageStaff', sheet: 'att' },
+  { id: 'roll-in', title: 'In-time roll', input: 'roll-in', page: 'pageFace', sheet: 'att' },
   // Entered on the face itself (F2): the face's own page is the door.
   { id: 'pickling', title: 'Pickling loads', input: 'pickling', page: 'pageFace' },
   { id: 'incoming', title: 'Material in', page: 'pageFace' },
   { id: 'stock', title: 'Stock', input: 'stock', page: 'pageStock', sheet: 'stock' },
   { id: 'attsheet', title: 'Attendance sheet', page: 'pageStaff', sheet: 'att' },
-  { id: 'barrel', title: 'Barrel batches', lines: ['barrel'], page: 'pageProduction' },
+  { id: 'barrel', title: 'Barrel batches', lines: ['barrel'], page: 'pageFace' },
   { id: 'vat', title: 'VAT register', lines: ['vat-a1', 'vat-a2'], page: 'pageProduction' },
-  { id: 'roll-out', title: 'Out-time roll', input: 'roll-out', page: 'pageStaff', sheet: 'att' }
+  { id: 'roll-out', title: 'Out-time roll', input: 'roll-out', page: 'pageFace', sheet: 'att' }
 ];
 /* Today's inputs a duty fills, for "entered by" on Needs you (tdyInput). */
 var FACE_INPUT_DUTIES = { 'roll-in': ['roll-in', 'attsheet'], 'roll-out': ['roll-out', 'attsheet'], pickling: ['pickling'], stock: ['stock'], production: ['barrel', 'vat'] };
@@ -50902,13 +50920,13 @@ function faceOpen(id) {
   var d = faceDuty(id), day = faceDayIso();
   if (!d) return;
   if (typeof grdSees === 'function' && !grdSees(d.page)) { showToast(grdPageName(d.page) + ' is not open to this ID', 'warning'); return; }
-  // The pickling hand's forms are on the face itself (F2).
-  if (id === 'pickling' || id === 'incoming') { faceFormOpen(id); return; }
-  if (id === 'barrel' || id === 'vat') {
-    // Production's hand form on the day and its line (prodHandBlank reads Lines' line and day): a run for the barrel and the
-    // register, until their own forms are on the face (F3, F4).
+  // The pickling hand's forms (F2) and the supervisor's (F3) are on the face itself.
+  if (FACE_FORM_TITLE[id]) { faceFormOpen(id); return; }
+  if (id === 'vat') {
+    // Production's hand form on the day and its line (prodHandBlank reads Lines' line and day): a run for the register, until
+    // its own form is on the face (F4).
     prodSetTab('lines');
-    _prodView = 'main'; _prodDay = day; _prodLine = id === 'barrel' ? 'barrel' : 'vat-a1';
+    _prodView = 'main'; _prodDay = day; _prodLine = 'vat-a1';
     switchTab('pageProduction');
     prodOpenHand();
     return;
@@ -50958,15 +50976,36 @@ function faceAction(action, btn) {
     case 'invFaceCopy': faceCopy(btn.dataset.id); return true;
     case 'invFaceCorrect': faceFormOpen(faceDutyOfEntry(btn.dataset.id), btn.dataset.id); return true;
     case 'invFaceCheckOk': faceCheckOk(btn.dataset.id, btn.dataset.code); return true;
+    case 'invFaceCrew': faceRollEdit(function(f) { var b = f.blocks[+btn.dataset.i]; if (!b) return; var id = String(btn.dataset.id), j = b.crew.indexOf(id); if (j >= 0) b.crew.splice(j, 1); else b.crew.push(id); }); return true;
+    case 'invFaceBlkAdd': faceRollEdit(function(f) { f.blocks.push(f.duty === 'roll-out' ? { from: '17:00', out: '20:00', areas: [], crew: [], extra: '', work: '' } : { areas: [], crew: [], extra: '', work: '' }); }); return true;
+    case 'invFaceBlkArea': faceRollEdit(function(f) { var b = f.blocks[+btn.dataset.i]; if (!b) return; var a = btn.dataset.area; b.areas = b.areas || []; var j = b.areas.indexOf(a); if (j >= 0) b.areas.splice(j, 1); else b.areas.push(a); }); return true;
+    case 'invFaceBlkDel': faceRollEdit(function(f) { f.blocks.splice(+btn.dataset.i, 1); }); return true;
+    case 'invFaceUsual': faceRollEdit(function(f) { faceRollRoster(f.date).forEach(function(w) { var id = String(w.id); if (!f.place[id] && !faceMarkByHand(f.date, id)) { var sec = faceSectionOf(w.area); if (sec) f.place[id] = sec; } }); }); return true;
+    // The rest: nobody placed and on no block (a hand on a 6 AM block is on site).
+    case 'invFaceRestAbsent': faceRollEdit(function(f) {
+      var on = {}; (f.blocks || []).forEach(function(b) { (b.crew || []).forEach(function(id) { on[id] = true; }); });
+      faceRollRoster(f.date).forEach(function(w) { var id = String(w.id); if (!f.place[id] && !on[id] && !faceMarkByHand(f.date, id)) f.place[id] = 'absent'; });
+    }); return true;
+    case 'invFaceCopyRoll': faceRollCopy(btn.dataset.id); return true;
   }
   return false;
 }
 /* The form an entry is corrected on: a count of what came in on Material in, a load on Pickling loads. */
-function faceDutyOfEntry(id) { var e = prodIndex().byId[id]; return e && e.kind === 'arrived' ? 'incoming' : 'pickling'; }
+function faceDutyOfEntry(id) { var e = prodIndex().byId[id]; return !e ? 'pickling' : e.kind === 'arrived' ? 'incoming' : e.kind === 'plated' ? 'barrel' : 'pickling'; }
 function faceOnChange(t) {
   if (!t) return false;
   if (t.id === 'faceDate') { faceSetDay(t.value); renderFace(); return true; }
   var f = _faceForm;
+  if (f && t.dataset && t.dataset.facePlace !== undefined) {
+    var hand = t.dataset.facePlace;
+    f.place[hand] = t.value;
+    // Absent is off site, so off every block too: the roll would name the hand twice.
+    if (t.value === 'absent') (f.blocks || []).forEach(function(b) { b.crew = (b.crew || []).filter(function(x) { return x !== hand; }); });
+    _pageTyped = true; renderFace(); return true;
+  }
+  if (f && t.dataset && t.dataset.faceBlk !== undefined) { var b = f.blocks[+t.dataset.faceBlk]; if (b) { b[t.dataset.k] = t.value; _pageTyped = true; if (t.tagName === 'SELECT') renderFace(); } return true; }
+  if (f && t.dataset && t.dataset.faceExtra !== undefined) { f.extra[t.dataset.faceExtra] = t.value; return true; }
+  if (f && t.dataset && t.dataset.faceOut !== undefined) { (f.outAt = f.outAt || {})[t.dataset.faceOut] = t.value; _pageTyped = true; return true; }
   if (!f || !t.dataset || (t.dataset.faceF === undefined && t.dataset.faceCnt === undefined)) return false;
   if (t.dataset.faceCnt !== undefined) { f.counts[t.dataset.faceCnt] = t.value; return true; }
   var k = t.dataset.faceF;
@@ -50982,6 +51021,8 @@ function faceOnChange(t) {
 function faceOnInput(t) {
   var f = _faceForm;
   if (!f || !t || !t.dataset || t.type === 'checkbox') return false;
+  if (t.dataset.faceBlk !== undefined && t.tagName !== 'SELECT') { var b = f.blocks[+t.dataset.faceBlk]; if (b) b[t.dataset.k] = t.value; return true; }
+  if (t.dataset.faceExtra !== undefined) { f.extra[t.dataset.faceExtra] = t.value; return true; }
   if (t.dataset.faceCnt !== undefined) { f.counts[t.dataset.faceCnt] = t.value; return true; }
   if (t.dataset.faceF === undefined || t.tagName === 'SELECT') return false;
   f[t.dataset.faceF] = t.value;
@@ -51023,8 +51064,10 @@ function faceUserName() { var u = typeof grdUser === 'function' ? grdUser() : nu
    (`replaces`) and the entry stays, marked corrected. */
 function faceFormMake(duty, fromId) {
   var day = faceDayIso();
+  if (duty === 'roll-in' || duty === 'roll-out') return faceRollMake(duty, day);
   var f = { duty: duty, date: day, clientId: '', part: '', partText: '', qty: '', unit: 'NOS', time: day === localDateStr() ? faceNowHhmm() : '', rework: false, replaces: null, saved: [] };
   if (duty === 'incoming') { f.challan = ''; f.counts = {}; f.challanNo = ''; f.link = null; }
+  if (duty === 'barrel') { f.barrel = ''; f.timeOut = ''; }
   var idx = prodIndex(), src = fromId ? idx.byId[fromId] : null;
   if (src && !src.voidedAt && !idx.replaced[src.id]) {
     f.replaces = src.id; f.date = src.date; f.clientId = src.clientId != null ? String(src.clientId) : '';
@@ -51032,6 +51075,7 @@ function faceFormMake(duty, fromId) {
     if (hit) f.part = hit.key; else { f.part = FACE_TYPED; f.partText = src.part || ''; }
     f.qty = src.qty != null ? String(src.qty) : ''; f.unit = src.unit || 'NOS'; f.time = src.time || ''; f.rework = !!src.rework;
     if (duty === 'incoming') { f.challan = FACE_NOCHALLAN; f.challanNo = src.challanNo || ''; f.link = src.imItemId ? { imId: src.imId, imItemId: src.imItemId } : null; }
+    if (duty === 'barrel') { f.barrel = src.unitId || src.barrel || ''; f.timeOut = src.to || ''; }
   }
   return f;
 }
@@ -51050,7 +51094,7 @@ function faceFormFromNav(v, id) {
   if (!FACE_FORM_TITLE[duty] || !faceDuties(faceUser()).some(function(d) { return d.id === duty; })) { _faceForm = null; return; }
   if (_faceForm && _faceForm.duty === duty && (_faceForm.replaces || '') === (id || '')) return;
   var src = id ? prodIndex().byId[id] : null;
-  _faceForm = faceFormMake(duty, src && src.src === 'face' && src.kind === (duty === 'incoming' ? 'arrived' : 'pickled') ? src.id : null);
+  _faceForm = faceFormMake(duty, src && src.src === 'face' && src.kind === ({ incoming: 'arrived', barrel: 'plated' }[duty] || 'pickled') ? src.id : null);
 }
 
 /* The clients, those with material open on a challan first: the work on the floor. */
@@ -51092,7 +51136,10 @@ function faceOpenText(x) {
 }
 
 /* ---------- The forms ---------- */
-function renderFaceForm(el) { el.innerHTML = _faceForm.duty === 'incoming' ? faceInHtml(_faceForm) : faceLoadHtml(_faceForm); }
+function renderFaceForm(el) {
+  var f = _faceForm, draw = { incoming: faceInHtml, 'roll-in': faceRollInHtml, 'roll-out': faceRollOutHtml, barrel: faceBarrelHtml }[f.duty] || faceLoadHtml;
+  el.innerHTML = draw(f);
+}
 function faceBackBar(title) {
   return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="invFaceFormDone">' + STOCK_BACK_ICON + 'Mine</button>' +
     '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
@@ -51194,7 +51241,9 @@ function faceSavedHtml(f) {
 /* One entry a face made: what it is, its question where the data does not bear it out, and its message and Correct. */
 function faceEntryRowHtml(e) {
   var idx = prodIndex(), checks = faceCheckOf(e), gone = !!(e.voidedAt || idx.replaced[e.id]), t = relayParseHhmm(e.time);
-  var what = (e.kind === 'arrived' ? 'Came in' : e.rework ? 'Re-pickled' : 'Into the tank') + (t != null ? ' at ' + relayClockLabel(t) : '') + ' · ' + prodQtyText(e.qty, e.unit) +
+  var t2 = relayParseHhmm(e.to);
+  var what = e.kind === 'plated' ? (e.barrel ? String(e.barrel).replace(/^(?!barrel)/i, 'Barrel ') + ' · ' : '') + 'in ' + (t != null ? relayClockLabel(t) : '—') + (t2 != null ? ', out ' + relayClockLabel(t2) : '') + ' · ' + prodQtyText(e.qty, e.unit) + (e.rework ? ' · rework' : '') :
+    (e.kind === 'arrived' ? 'Came in' : e.rework ? 'Re-pickled' : 'Into the tank') + (t != null ? ' at ' + relayClockLabel(t) : '') + ' · ' + prodQtyText(e.qty, e.unit) +
     (e.kind === 'arrived' && e.challanNo ? ' · challan ' + e.challanNo : '');
   var note = e.voidedAt ? uiDot('neutral', 'Void') : idx.replaced[e.id] ? uiDot('neutral', 'Corrected') : checks.length ? uiDot(checks[0].tone, escHtml('To check: ' + checks[0].text)) : '';
   var acts = gone ? '' : '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' +
@@ -51208,13 +51257,23 @@ function faceEntryRowHtml(e) {
 /* ---------- The message for the group ---------- */
 /* The shop's own shape, so the group reads what it reads today, and the reader takes it back as the same record: the day first
    (so the message dates itself, whenever it is sent or pasted), the client, each part with its figure, then the time. */
+/* A time as the shop writes it in a message: hours and minutes, AM or PM ("8:00 PM", never "8 PM"). */
+function faceClock(min) {
+  if (min == null) return '';
+  var m = ((min % 1440) + 1440) % 1440;
+  return ((m / 60 | 0) % 12 || 12) + ':' + String(m % 60).padStart(2, '0') + ' ' + (m >= 720 ? 'PM' : 'AM');
+}
 function faceMsgOf(list) {
   var e0 = list[0], d = String(e0.date).split('-'), t = relayParseHhmm(e0.time);
-  var clock = t == null ? '' : ((t / 60 | 0) % 12 || 12) + ':' + String(t % 60).padStart(2, '0') + ' ' + (t >= 720 ? 'PM' : 'AM');
+  var clock = faceClock(t);
   var client = String(prodClientName(e0.clientId) || e0.client || '').toUpperCase();
   var qty = function(e) { return e.qty == null ? '' : ' - ' + (e.unit === 'KG' ? String(+(+e.qty).toFixed(2)) + ' KG' : String(Math.round(e.qty)) + ' NOS'); };
   var part = function(e) { var p = String(e.part || '').toUpperCase(); return p + (e.gauge && p.replace(/[×✕]/g, 'X').indexOf(String(e.gauge).toUpperCase()) < 0 ? ' (' + e.gauge + ')' : '') + qty(e); };
   var head = d[2] + '/' + d[1] + '/' + String(d[0]).slice(2);
+  // A barrel batch: the barrel and its times, then the client and the part (never the barrel list's head, which would read
+  // as the day's whole list).
+  if (e0.kind === 'plated') { var t2 = relayParseHhmm(e0.to), out = t2 == null ? '' : ' - ' + faceClock(t2);
+    return [head, 'BARREL ' + String(e0.barrel || '').toUpperCase().replace(/^BARREL\s*/, '') + ': ' + clock + out, client].concat(list.map(part)).join('\n'); }
   if (e0.kind === 'arrived') return [head, 'INCOMING MATERIAL TIME ' + clock, client].concat(list.map(part)).join('\n');
   return [head, client].concat(list.map(part), e0.rework ? ['RE-PICKLING'] : [], ['PICKLING TIME ' + clock]).join('\n');
 }
@@ -51238,6 +51297,8 @@ function faceCopy(id) {
 async function faceSave() {
   var f = _faceForm;
   if (!f) return;
+  if (f.duty === 'roll-in' || f.duty === 'roll-out') return faceRollSave();
+  if (f.duty === 'barrel') return faceBarrelSave();
   if (!grdOk('floor') && !(await guardAsk('floor', f.duty === 'incoming' ? 'save what came in' : 'save a pickling load'))) return;
   if (_faceForm !== f) return;
   var err = function(msg, id) { showToast(msg, 'error'); var el = id && document.getElementById(id); if (el) try { el.focus(); } catch (x) { /* a convenience */ } };
@@ -51320,16 +51381,20 @@ async function faceSave() {
      the challan bills what did not come.
    - inNoChallan: material counted in with no challan of it in the book a working day on.
    - noload: on a day the pickling hand entered on a face, a VAT run no load became (the barrel has its own pickling). A run before
-     the day's first load is left out unless the face was in use the working day before too. */
+     the day's first load is left out unless the face was in use the working day before too.
+   - heavy (F3): a barrel batch over a quarter heavier than its barrel takes (the kg a round typed on the unit, else the median
+     of five or more of its own batches). */
 var FACE_CHECK_DAYS = 30;
 var FACE_CHECK_TITLE = {
   noplate: function(n) { return todoPlural(n, 'load') + ' pickled with no plating found'; },
   over: function(n) { return todoPlural(n, 'load') + ' past what their challans hold'; },
   count: function(n) { return todoPlural(n, 'line') + ' counted in against the challan'; },
   inNoChallan: function(n) { return todoPlural(n, 'arrival') + ' with no challan in the book'; },
-  noload: function(n) { return todoPlural(n, 'run') + ' plated with no pickling load'; }
+  noload: function(n) { return todoPlural(n, 'run') + ' plated with no pickling load'; },
+  heavy: function(n) { return todoPlural(n, 'barrel batch', 'barrel batches') + ' heavier than the barrel takes'; }
 };
-var FACE_CHECK_WHY = { noplate: 'a load and the plating it became', over: 'a load and its challans', count: 'a count and its challan', inNoChallan: 'a count and its challan', noload: 'a run and the load it came from' };
+var FACE_CHECK_WHY = { noplate: 'a load and the plating it became', over: 'a load and its challans', count: 'a count and its challan', inNoChallan: 'a count and its challan', noload: 'a run and the load it came from',
+  heavy: 'a batch and its barrel' };
 var _faceChecksMemo = null;
 function faceChecks() {
   var key = [_prodVer, typeof _bookWrites !== 'undefined' ? _bookWrites : 0, localDateStr(), Math.floor(Date.now() / 600000)].join('|');
@@ -51381,6 +51446,13 @@ function faceChecks() {
     var diff = e.qty - want;
     if (Math.abs(diff) <= (e.unit === 'KG' ? Math.abs(want) * 0.03 : 0.5)) return;
     add(e, 'count', diff < 0 ? 'red' : 'amber', 'challan ' + (ln.m.challanNo || 'with no number') + ' says ' + prodQtyText(want, e.unit) + ': ' + prodQtyText(Math.abs(diff), e.unit) + (diff < 0 ? ' short' : ' over'));
+  });
+  // A barrel batch heavier than its barrel takes: the kg a round typed on the barrel, else the median of its own batches (F3).
+  live.filter(function(e) { return e.kind === 'plated' && e.line === 'barrel' && e.src === 'face' && !e.rework; }).forEach(function(e) {
+    if (ruled(e, 'heavy')) return;
+    var u = faceBarrelUsual(e), w = prodWeigh(e);
+    if (!u || !w || !(w.kg > u.kg * 1.25)) return;
+    add(e, 'heavy', 'amber', prodKgFig(w.kg, prodWeighEst(w)) + ', past the ' + formatNum(u.kg, 0) + ' kg its barrel takes' + (u.src === 'set' ? '' : ' by its own batches'));
   });
   // A run of a day the face was in use that no load became.
   var first = {};
@@ -51459,6 +51531,445 @@ TODO_RULE_FNS.faceCheck = function() {
       go: prodGo('entries', { flag: 'check' }), goLabel: 'Open the entries', sig: g.tone + '|' + g.ids.slice().sort().join(',') };
   });
 };
+
+/* ---------- F3: the supervisor's own forms (docs/ENTRY_FACES.md §2, F-supervisor) ----------
+   The two rolls are written on the face in the shop's own shape and saved through the roll's own reader and save (relayPlan,
+   relayApplyPlan): the day holds exactly what the same roll pasted from WhatsApp would give (the marks, their hours and OT, the
+   EXTRA rows, the blocks' crews), so Areas, Pay and the labour card read it unchanged; the roll is kept whole, marked as entered on
+   a face, and the same roll pasted later is refused as saved before. The roll IS the record, so its marks are the roll's
+   (`src: 'relay'`): the next roll updates them, and Read the rolls again reads it like any roll. A barrel batch is the barrel's
+   register at last: a plated entry on the barrel line, `basis: 'register'`, so it is counted over the supervisor's relayed list. */
+var FACE_ROLL_SECTIONS = [
+  { id: 'vat-a1', title: 'VAT A1', head: 'VAT A1', floor: true, areas: ['vat-a1'] },
+  { id: 'vat-a2', title: 'VAT A2', head: 'VAT A2', floor: true, areas: ['vat-a2'] },
+  // The barrel alone, as the roll sometimes heads it, and the barrel unit with its pickling, where each hand stands at their own
+  // post (the roll's reader places a hand at their own area when the heading names it).
+  { id: 'barrel', title: 'Barrel', head: 'BARREL', floor: true, areas: ['barrel'] },
+  { id: 'barrel-pick', title: 'Barrel & pickling', head: 'BARREL & PICKLING', floor: true, areas: ['barrel', 'pickling-barrel'] },
+  { id: 'pickling-vat', title: 'Pickling A1 & A2', head: 'PICKLING A1 & A2', floor: true, areas: ['pickling-vat'] },
+  { id: 'office', title: 'Office & gate', head: 'OFFICE & GATE', areas: ['office', 'gate'] },
+  { id: 'civil', title: 'Civil', head: 'CIVIL', areas: ['civil'] }
+];
+/* The lines a block can run on, as the roll writes them: one block may run on several (the night hold on the barrel and VAT A2). */
+var FACE_BLOCK_AREAS = [['vat-a1', 'VAT A1'], ['vat-a2', 'VAT A2'], ['barrel', 'Barrel'], ['pickling-vat', 'Pickling A1 & A2'], ['pickling-barrel', 'Barrel pickling']];
+var FACE_BLOCK_FROM = [['17:00', '5:00 PM'], ['20:00', '8:00 PM, the night hold']];   // when a late block began
+/* Where the 8:30 shift's EXTRA is booked: a line's own section (the barrel unit's, for the barrel). */
+function faceExtraSection(area) {
+  var s = FACE_ROLL_SECTIONS.filter(function(x) { return x.floor; }).filter(function(x) { return x.areas.indexOf(area) >= 0; });
+  return s.length ? s[s.length - 1].id : '';
+}
+FACE_FORM_TITLE['roll-in'] = 'In-time roll';
+FACE_FORM_TITLE['roll-out'] = 'Out-time roll';
+FACE_FORM_TITLE.barrel = 'A barrel batch';
+
+function faceSectionOf(area) { var s = FACE_ROLL_SECTIONS.find(function(x) { return x.areas.indexOf(area) >= 0; }); return s ? s.id : ''; }
+/* The day's roster, as the Day view lists it. */
+function faceRollRoster(day) { return attDayRoster(S.attendance && S.attendance[day]); }
+/* A name as the roll writes it: the roster's own, in capitals, so the reader finds it exactly. */
+function faceRollName(w) { return String(w.name || '').toUpperCase().replace(/\s+/g, ' ').trim(); }
+
+/* The form, filled from the day as it stands: where each hand stood, the early and late blocks with their crews and EXTRA. */
+function faceRollMake(duty, day) {
+  var rec = S.attendance && S.attendance[day], f = { duty: duty, date: day, saved: [], blocks: [] };
+  var blockOf = function(x) { return { areas: faceBlockAreasOf(x), crew: (x.crew || []).map(String), extra: x.hours ? String(x.hours) : '', work: '' }; };
+  if (duty === 'roll-in') {
+    f.place = {}; f.extra = {};
+    if (rec) {
+      Object.keys(rec.marks || {}).forEach(function(id) {
+        var m = rec.marks[id];
+        if (!m) return;
+        if (m.st === 'A') f.place[id] = 'absent';
+        else { var sec = faceSectionOf(m.area); if (sec) f.place[id] = sec; }
+      });
+      (rec.extra || []).forEach(function(x) {
+        if (x.slotMade) return;
+        // A line's EXTRA on the 8:30 shift is one figure on the face: the rows a roll wrote where the face writes it back are added
+        // (a roll read twice had booked it twice). A row typed by hand, or on another area, is the day's own: a roll leaves it.
+        if (x.kind !== 'block') {
+          var sec = faceExtraSection(x.area), at = FACE_ROLL_SECTIONS.filter(function(z) { return z.id === sec; })[0];
+          if (at && at.areas[0] === x.area && x.src === 'relay' && x.hours) f.extra[sec] = String(+((parseFloat(f.extra[sec]) || 0) + x.hours).toFixed(2));
+          return;
+        }
+        if (attBlockSlot(x) === 'morning') f.blocks.push(blockOf(x));
+      });
+    }
+  } else {
+    f.outAt = {};
+    var late = {};
+    if (rec) (rec.extra || []).forEach(function(x) {
+      if (x.kind !== 'block' || x.slotMade) return;
+      var slot = attBlockSlot(x);
+      if (slot !== 'evening' && slot !== 'night') return;
+      var b = blockOf(x), to = relayParseHhmm(x.to);
+      b.from = x.from === '20:00' ? '20:00' : '17:00';
+      b.out = to != null ? relayHhmm(to) : b.from === '20:00' ? '06:00' : '20:00';
+      b.crew.forEach(function(id) { late[id] = true; });
+      f.blocks.push(b);
+    });
+    // A hand who went home at their own time, on no block: the roll writes the time after the name ("ALFA 7:00 PM").
+    if (rec) Object.keys(rec.marks || {}).forEach(function(id) {
+      var m = rec.marks[id];
+      if (!m || m.st === 'A' || late[id] || !m.outKnown || m.outMin == null || m.outMin === RELAY_GENERAL_OUT) return;
+      f.outAt[id] = relayHhmm(m.outMin);
+    });
+  }
+  return f;
+}
+/* A block's lines as the form ticks them. */
+function faceBlockAreasOf(x) {
+  var a = x.areas && x.areas.length ? x.areas : x.area ? [x.area] : [];
+  return FACE_BLOCK_AREAS.map(function(c) { return c[0]; }).filter(function(id) { return a.indexOf(id) >= 0; });
+}
+/* The heading a block is written under, which the roll's reader (relayHeaderAreas) reads back as its lines: the barrel with VAT lines,
+   the barrel alone or with its pickling, the VAT lines, pickling of both sides, of the VAT side or of the barrel's. A VAT line's
+   pickling hands are the line's own (the Areas check folds them in), so ticked beside a VAT line pickling is not written. '' with
+   no line ticked. */
+function faceBlockHead(areas) {
+  var has = function(a) { return (areas || []).indexOf(a) >= 0; };
+  var vat = [['vat-a1', 'VAT A1'], ['vat-a2', 'VAT A2']].filter(function(v) { return has(v[0]); }).map(function(v) { return v[1]; });
+  if (has('barrel') && vat.length) return ['BARREL'].concat(vat).join(' & ');
+  if (has('barrel')) return has('pickling-barrel') ? 'BARREL & PICKLING' : 'BARREL';
+  if (vat.length) return vat.join(' & ');
+  if (has('pickling-vat') && has('pickling-barrel')) return 'PICKLING 2 SIDE';
+  if (has('pickling-vat')) return 'PICKLING A1 & A2';
+  if (has('pickling-barrel')) return 'BARREL & PICKLING';
+  return '';
+}
+/* What a block's heading reads back as (the barrel with its pickling is the unit's pickling side, a block's way, as on a paste). */
+function faceBlockReads(areas) {
+  var head = faceBlockHead(areas), read = head ? relayHeaderAreas(head) : [];
+  return read.length === 2 && read[0] === 'barrel' && read[1] === 'pickling-barrel' ? ['pickling-barrel'] : read;
+}
+/* Out times, half-hourly, from `from` minutes to 6 AM the next morning; one the day holds off the list is kept in its place. */
+function faceOutTimes(from, keep) {
+  var out = [], key = function(t) { return (relayParseHhmm(t) - 720 + 1440) % 1440; };
+  for (var m = from; m <= 1440 + 360; m += 30) out.push(relayHhmm(m));
+  if (keep && relayParseHhmm(keep) != null && out.indexOf(keep) < 0) { out.push(keep); out.sort(function(a, b) { return key(a) - key(b); }); }
+  return out;
+}
+/* sm: a row end's small select */
+function faceOutSelectHtml(id, attrs, val, from, sm) {
+  return '<select id="' + id + '" class="inv-select' + (sm ? ' inv-select-sm' : '') + '" ' + attrs + '>' +
+    faceOutTimes(from, val).map(function(t) { return '<option value="' + t + '"' + (t === val ? ' selected' : '') + '>' + escHtml(relayClockLabel(relayParseHhmm(t))) + '</option>'; }).join('') + '</select>';
+}
+/* A mark entered on the day itself (People → Attendance, a card scan, a check-in): a roll leaves it as it is, so the face shows it
+   and does not offer to change it. */
+function faceMarkByHand(day, id) { var rec = S.attendance && S.attendance[day], m = rec && rec.marks && rec.marks[id]; return !!(m && m.src !== 'relay'); }
+var FACE_BY_HAND = 'Entered on the day (People → Attendance): the roll leaves it';
+/* Who is present on the day, as the marks have it: the out-time roll's 5 PM list is everyone present on no late block. */
+function facePresentIds(day) {
+  var rec = S.attendance && S.attendance[day];
+  return rec ? Object.keys(rec.marks || {}).filter(function(id) { var m = rec.marks[id]; return m && m.st !== 'A' && staffById(id); }) : [];
+}
+
+/* The roll as the supervisor writes it, from the form: the day's head, the slots, a numbered line a hand, each area's EXTRA, the
+   absent by tier. Lines of work done are written as typed, never numbered (a numbered line is a name). */
+function faceRollText(f) {
+  var d = String(f.date).split('-'), head = d[2] + '/' + d[1] + '/' + String(d[0]).slice(2) + '/ ', n = 0, out = [];
+  var name = function(id) { var w = staffById(id); return w ? (++n) + ') ' + faceRollName(w) : null; };
+  var work = function(t) { return String(t || '').split('\n').map(function(l) { return l.replace(/^\s*\d+\s*[).]\s*/, '').trim(); }).filter(Boolean); };
+  var extra = function(v) { var h = parseFloat(v); return h > 0 ? ['EXTRA ' + (+h.toFixed(2)) + ' HOURS'] : []; };
+  if (f.duty === 'roll-in') {
+    out.push(head + 'in time');
+    var onSite = function(id) { return f.place[String(id)] !== 'absent'; };
+    var early = (f.blocks || []).filter(function(b) { return (b.crew || []).some(onSite); });
+    if (early.length) {
+      out.push('----6:00 AM----');
+      early.forEach(function(b) { out.push('----' + faceBlockHead(b.areas) + '----'); b.crew.filter(onSite).map(name).filter(Boolean).forEach(function(l) { out.push(l); }); out = out.concat(extra(b.extra), work(b.work)); });
+    }
+    var roster = faceRollRoster(f.date);
+    out.push('----8:30 AM----');
+    FACE_ROLL_SECTIONS.forEach(function(s) {
+      var ids = roster.filter(function(w) { return f.place[String(w.id)] === s.id; }).map(function(w) { return String(w.id); });
+      var ex = faceExtraSection(s.areas[0]) === s.id;   // the section the line's EXTRA is booked under
+      if (!ids.length && !(ex && parseFloat(f.extra[s.id]) > 0)) return;
+      out.push('----' + s.head + '----');
+      ids.map(name).filter(Boolean).forEach(function(l) { out.push(l); });
+      if (ex) out = out.concat(extra(f.extra[s.id]));
+    });
+    var absent = roster.filter(function(w) { return f.place[String(w.id)] === 'absent'; });
+    [['monthly', 'MONTHLY ABSENT'], ['weekly', 'WEEKLY ABSENT']].forEach(function(t) {
+      var ids = absent.filter(function(w) { return (w.comp === 'monthly') === (t[0] === 'monthly'); }).map(function(w) { return String(w.id); });
+      if (!ids.length) return;
+      out.push('----' + t[1] + '----');
+      ids.map(name).forEach(function(l) { out.push(l); });
+    });
+  } else {
+    out.push(head + 'out time');
+    var late = {}, blocks = (f.blocks || []).filter(function(b) { return (b.crew || []).length; });
+    blocks.forEach(function(b) { b.crew.forEach(function(id) { late[String(id)] = true; }); });
+    var five = (f.present || facePresentIds(f.date)).filter(function(id) { return !late[id]; });
+    // Home at five unless their own time is set, which the roll writes after the name.
+    if (five.length) {
+      out.push('----5:00 PM----');
+      five.forEach(function(id) { var l = name(id), t = f.outAt && relayParseHhmm(f.outAt[id]); if (l) out.push(t != null && t !== RELAY_GENERAL_OUT ? l + ' ' + faceClock(t) : l); });
+    }
+    // The blocks from five under their out times, in the order they fall after five; a night hold from eight under its own heading
+    // with both its ends ("NIGHT HOLD 8 PM TO 5 AM").
+    var after5 = function(t) { return (relayParseHhmm(t) - RELAY_GENERAL_OUT + 1440) % 1440; }, outs = [];
+    var crewOf = function(b) { b.crew.map(name).filter(Boolean).forEach(function(l) { out.push(l); }); out = out.concat(extra(b.extra), work(b.work)); };
+    var five5 = blocks.filter(function(b) { return b.from !== '20:00'; });
+    five5.forEach(function(b) { if (relayParseHhmm(b.out) != null && outs.indexOf(b.out) < 0) outs.push(b.out); });
+    outs.sort(function(a, b) { return after5(a) - after5(b); }).forEach(function(o) {
+      out.push('----' + faceClock(relayParseHhmm(o)) + '----');
+      five5.filter(function(b) { return b.out === o; }).forEach(function(b) { out.push(faceBlockHead(b.areas)); crewOf(b); });
+    });
+    blocks.filter(function(b) { return b.from === '20:00'; }).forEach(function(b) {
+      out.push('NIGHT HOLD 8 PM TO ' + relayClockLabel(relayParseHhmm(b.out)).toUpperCase(), '----' + faceBlockHead(b.areas) + '----'); crewOf(b);
+    });
+  }
+  return out.join('\n');
+}
+/* Each name the roll writes is placed on the hand it was written for: the reader never has to guess between two spellings. */
+function faceRollChoices(text, f) {
+  var ch = {};
+  var ids = f.duty === 'roll-in' ? Object.keys(f.place).filter(function(id) { return f.place[id]; }) : facePresentIds(f.date);
+  (f.blocks || []).forEach(function(b) { (b.crew || []).forEach(function(id) { if (ids.indexOf(String(id)) < 0) ids.push(String(id)); }); });
+  ids.forEach(function(id) { var w = staffById(id); if (w) ch[relayKey(faceRollName(w))] = String(w.id); });
+  return ch;
+}
+
+/* ---------- The rolls on screen ---------- */
+function faceCrewChipsHtml(i, crew, roster) {
+  return '<div class="inv-field-label">Crew <span class="inv-panel-count">' + crew.length + '</span></div><div class="inv-toolbar" role="group" aria-label="Who stood the block" data-face-crew="' + i + '">' +
+    (roster.length ? roster.map(function(w) {
+      return '<button type="button" class="inv-chip" data-action="invFaceCrew" data-i="' + i + '" data-id="' + escHtml(String(w.id)) + '" aria-pressed="' + (crew.indexOf(String(w.id)) >= 0) + '">' + escHtml(w.name) + '</button>';
+    }).join('') : '<span class="inv-note">No roster yet: the owner imports it on People → Roster.</span>') + '</div>';
+}
+/* A block: when it ended (the out-time roll), the lines it ran on as chips and what the roll will read them as, its crew, its EXTRA
+   and the work it did. */
+function faceBlockHtml(f, b, i, roster) {
+  var areas = b.areas || [], read = faceBlockReads(areas);
+  var folded = areas.some(function(a) { return /^pickling/.test(a) && read.indexOf(a) < 0; });
+  var h = '<div class="inv-panel" data-face-block="' + i + '">';
+  if (f.duty === 'roll-out') h += '<div class="inv-fields">' +
+    faceField('faceBlkFrom' + i, 'From', '<select id="faceBlkFrom' + i + '" class="inv-select" data-face-blk="' + i + '" data-k="from">' +
+      FACE_BLOCK_FROM.map(function(o) { return '<option value="' + o[0] + '"' + ((b.from || '17:00') === o[0] ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>'; }).join('') + '</select>') +
+    faceField('faceBlkOut' + i, 'Out at', faceOutSelectHtml('faceBlkOut' + i, 'data-face-blk="' + i + '" data-k="out"', b.out, 1050)) + '</div>';
+  h += '<div class="inv-field-label">Line</div><div class="inv-toolbar" role="group" aria-label="The lines the block ran on" data-face-blk-areas="' + i + '">' +
+    FACE_BLOCK_AREAS.map(function(c) {
+      return '<button type="button" class="inv-chip" data-action="invFaceBlkArea" data-i="' + i + '" data-area="' + c[0] + '" aria-pressed="' + (areas.indexOf(c[0]) >= 0) + '">' + escHtml(c[1]) + '</button>';
+    }).join('') + '</div>' +
+    '<div class="inv-note inv-mb-8" data-face-blk-read="' + i + '">' + escHtml(read.length ? 'Booked to ' + read.map(relayAreaName).join(' + ') + (folded ? ' (pickling with a line is counted in the line’s block)' : '')
+      : 'Tick the line it ran on') + '</div>';
+  h += faceCrewChipsHtml(i, b.crew || [], roster) + '<div class="inv-fields inv-mt-8">' +
+    faceField('faceBlkExtra' + i, 'EXTRA hours', '<input type="number" inputmode="decimal" step="any" min="0" id="faceBlkExtra' + i + '" class="inv-input inv-input-num" data-face-blk="' + i + '" data-k="extra" value="' + escHtml(b.extra || '') + '">') +
+    faceField('faceBlkWork' + i, 'Work done', '<input id="faceBlkWork' + i + '" class="inv-input" data-face-blk="' + i + '" data-k="work" value="' + escHtml(b.work || '') + '" autocomplete="off" placeholder="e.g. MEHTA CLAMP 1000 NOS">') +
+    '</div><div class="inv-toolbar inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceBlkDel" data-i="' + i + '">Take this block off</button></div></div>';
+  return h;
+}
+function faceRollInHtml(f) {
+  var roster = faceRollRoster(f.date), counts = {}, unmarked = 0;
+  roster.forEach(function(w) { var p = f.place[String(w.id)]; if (p) counts[p] = (counts[p] || 0) + 1; else if (!faceMarkByHand(f.date, String(w.id))) unmarked++; });
+  var h = faceBackBar(FACE_FORM_TITLE['roll-in']) + faceRollSavedHtml(f), present = roster.filter(function(w) { return f.place[String(w.id)] !== 'absent'; });
+  h += '<div class="inv-panel inv-panel-flush" data-face-early><div class="inv-panel-head"><span class="inv-panel-title">6:00 AM <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a 6 AM block</button></div>' +
+    (f.blocks.length ? '' : '<div class="inv-empty">No early block today.</div>') + '</div>' + f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, present); }).join('');
+  // Where each hand stood: a row a hand in the Day view's order, its place one pick; the counts above them.
+  var opts = function(v) {
+    return '<option value=""' + (!v ? ' selected' : '') + '>Not marked</option>' + FACE_ROLL_SECTIONS.map(function(s) { return '<option value="' + s.id + '"' + (v === s.id ? ' selected' : '') + '>' + escHtml(s.title) + '</option>'; }).join('') +
+      '<option value="absent"' + (v === 'absent' ? ' selected' : '') + '>Absent</option>';
+  };
+  var chips = FACE_ROLL_SECTIONS.filter(function(s) { return counts[s.id]; }).map(function(s) { return s.title + ' ' + counts[s.id]; })
+    .concat(counts.absent ? ['Absent ' + counts.absent] : [], unmarked ? ['Not marked ' + unmarked] : []);
+  h += '<div class="inv-panel inv-panel-flush" data-face-general><div class="inv-panel-head"><span class="inv-panel-title">8:30 AM <span class="inv-panel-count">' + roster.length + '</span></span>' +
+    (unmarked ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceUsual">Usual places</button>' : '') + '</div>' +
+    '<div class="inv-panel-body inv-note" data-face-counts>' + escHtml(chips.join(' · ') || 'Nobody on the roster yet') + '</div>' +
+    roster.map(function(w) {
+      var id = String(w.id), sel = 'facePlace' + id.replace(/[^A-Za-z0-9_-]/g, ''), kept = faceMarkByHand(f.date, id);
+      var comp = (COMP_CLASSES.find(function(c) { return c.id === w.comp; }) || {}).label || '';
+      return '<div class="inv-row inv-row-2 inv-row-flow" data-face-hand="' + escHtml(id) + '"><span class="inv-row-main"><label class="inv-row-title" for="' + sel + '">' + escHtml(w.name) + '</label>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(kept ? FACE_BY_HAND : [comp, w.area ? 'usually ' + areaLabel(w.area) : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+        '<span class="inv-row-end"><select id="' + sel + '" class="inv-select inv-select-sm" data-face-place="' + escHtml(id) + '"' + (kept ? ' disabled' : '') + '>' + opts(f.place[id] || '') + '</select></span></div>';
+    }).join('') + (unmarked ? '<div class="inv-toolbar inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceRestAbsent">Mark the rest absent</button></div>' : '') + '</div>';
+  // The EXTRA booked to each floor area on the general shift.
+  h += '<div class="inv-panel" data-face-extra><div class="inv-panel-title">EXTRA on the 8:30 shift</div><div class="inv-fields">' + FACE_ROLL_SECTIONS.filter(function(s) { return s.floor && faceExtraSection(s.areas[0]) === s.id; }).map(function(s) {
+    return faceField('faceExtra' + s.id, s.title + ', hours', '<input type="number" inputmode="decimal" step="any" min="0" id="faceExtra' + s.id + '" class="inv-input inv-input-num" data-face-extra="' + s.id + '" value="' + escHtml(f.extra[s.id] || '') + '">');
+  }).join('') + '</div></div>';
+  return h + faceActionBarHtml(unmarked ? unmarked + ' not marked · roll of' : 'In-time roll of', f);
+}
+function faceRollOutHtml(f) {
+  var present = facePresentIds(f.date), roster = present.map(staffById).filter(Boolean);
+  if (!roster.length) roster = faceRollRoster(f.date);
+  var late = {};
+  f.blocks.forEach(function(b) { (b.crew || []).forEach(function(id) { late[String(id)] = true; }); });
+  var five = present.filter(function(id) { return !late[id]; }).map(staffById).filter(Boolean);
+  var h = faceBackBar(FACE_FORM_TITLE['roll-out']) + faceRollSavedHtml(f);
+  if (!present.length) h += '<div class="inv-callout inv-callout-warning">The in-time roll of this day is not in: the out-time roll names only the blocks’ crews.</div>';
+  // Everyone present on no late block went home at five, unless their own time is set (the roll writes it after the name).
+  h += '<div class="inv-panel inv-panel-flush" data-face-five><div class="inv-panel-head"><span class="inv-panel-title">Went home <span class="inv-panel-count">' + five.length + '</span></span></div>' +
+    (five.length ? five.map(function(w) {
+      var id = String(w.id), sel = 'faceOut' + id.replace(/[^A-Za-z0-9_-]/g, ''), kept = faceMarkByHand(f.date, id);
+      return '<div class="inv-row inv-row-2 inv-row-flow" data-face-left="' + escHtml(id) + '"><span class="inv-row-main"><label class="inv-row-title" for="' + sel + '">' + escHtml(w.name) + '</label>' +
+        (kept ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(FACE_BY_HAND) + '</span>' : '') + '</span>' +
+        '<span class="inv-row-end">' + faceOutSelectHtml(sel, 'data-face-out="' + escHtml(id) + '"' + (kept ? ' disabled' : ''), (f.outAt && f.outAt[id]) || '17:00', 720, true) + '</span></div>';
+    }).join('') : '<div class="inv-empty">Nobody: everyone present is on a late block.</div>') +
+    '<div class="inv-panel-body inv-note">At 5:00 PM unless a time is set. A hand on a block below goes home with the block.</div></div>';
+  h += '<div class="inv-panel inv-panel-flush" data-face-late><div class="inv-panel-head"><span class="inv-panel-title">Late blocks <span class="inv-panel-count">' + f.blocks.length + '</span></span>' +
+    '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceBlkAdd">Add a block</button></div>' + (f.blocks.length ? '' : '<div class="inv-empty">No late block today.</div>') + '</div>' +
+    f.blocks.map(function(b, i) { return faceBlockHtml(f, b, i, roster); }).join('');
+  return h + faceActionBarHtml('Out-time roll of', f);
+}
+/* The roll saved from this form: its message for the group, and the day as the roll gave it. */
+function faceRollSavedHtml(f) {
+  var rp = (f.saved || []).map(function(id) { return relayPastes().find(function(p) { return p && p.id === id; }); }).filter(Boolean).pop();
+  if (!rp) return '';
+  var t = new Date(rp.at);
+  return '<div class="inv-panel inv-panel-flush" data-card="faceRollSaved"><div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">Saved at ' +
+    escHtml(relayClockLabel(t.getHours() * 60 + t.getMinutes())) + '</span><span class="inv-row-meta inv-row-wrap">Send the group the roll as written here; change anything below and save again to restate the day.</span></span>' +
+    '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight"><a class="inv-btn inv-btn-secondary inv-btn-sm" data-face-send-roll href="' + escHtml(faceWaHref(rp.text)) + '" target="_blank" rel="noopener">Send to the group</a>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceCopyRoll" data-id="' + escHtml(rp.id) + '">Copy</button></span></div>' +
+    '<div class="inv-panel-body"><div class="inv-quote" data-face-roll-text>' + escHtml(rp.text) + '</div></div></div>';
+}
+async function faceRollSave() {
+  var f = _faceForm;
+  if (!f || (f.duty !== 'roll-in' && f.duty !== 'roll-out')) return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'save the roll'))) return;
+  if (_faceForm !== f) return;
+  var night = function(b) { return b.from === '20:00' && (relayParseHhmm(b.out) - RELAY_GENERAL_OUT + 1440) % 1440 <= 180; };   // a night hold over by eight
+  var bad = (f.blocks || []).findIndex(function(b) { return (b.crew || []).length ? !faceBlockHead(b.areas) || night(b) : (b.areas || []).length || parseFloat(b.extra) > 0; });
+  if (bad >= 0) {
+    var bb = f.blocks[bad];
+    showToast(!(bb.crew || []).length ? 'Put the crew on block ' + (bad + 1) + ', or take it off' : night(bb) ? 'Block ' + (bad + 1) + ' ends before the night hold begins at 8 PM'
+      : 'Tick the line block ' + (bad + 1) + ' ran on', 'error');
+    var el = document.querySelector('[data-face-block="' + bad + '"]'); if (el) uiRevealEl(el);
+    return;
+  }
+  var text = faceRollText(f), hash = relayHash(text), kind = f.duty === 'roll-in' ? 'in' : 'out', day = f.date;
+  if (relayPastes().some(function(p) { return p && !p.replacedBy && p.hash === hash; })) { showToast('Saved already: nothing has changed since', 'info'); return; }
+  // A roll of this kind already written on a face for the day is restated, never added to: a roll pasted on top only adds (a
+  // hand taken off a block, an EXTRA cleared, stayed), so the day is read again from its rolls with this one in that one's place,
+  // as Staff → Day's Read the rolls again reads it: what was entered by hand is kept, and the day as it was goes to the log.
+  var rolls = relayRollsFor(day), was = rolls.filter(function(p) { return p.face && p.kind === kind; });
+  var msg = { sentBy: '', sentOn: null, sentAt: null, wa: '', text: text, fresh: true, exact: true }, rv, outMsg = null, wasOut = [];
+  if (was.length) {
+    // The in-time roll written again after the face's out-time roll: who went home at five was worked out from the places, never
+    // written, so it is worked out again with them (a hand now absent is not sent home, nor kept on a block).
+    if (kind === 'in') wasOut = rolls.filter(function(p) { return p.face && p.kind === 'out'; });
+    if (wasOut.length) {
+      var fo = faceRollMake('roll-out', day), gone = {}, set = {};
+      Object.keys(f.place).forEach(function(id) { if (f.place[id] === 'absent') gone[id] = true; });
+      facePresentIds(day).concat(Object.keys(f.place).filter(function(id) { return f.place[id] && staffById(id); }))
+        .forEach(function(id) { if (!gone[id]) set[id] = true; });
+      fo.present = Object.keys(set);
+      fo.blocks.forEach(function(b) { b.crew = b.crew.filter(function(id) { return !gone[id]; }); });
+      var outText = faceRollText(fo);
+      if (wasOut.some(function(p) { return p.text === outText; })) wasOut = [];
+      else outMsg = { sentBy: '', sentOn: null, sentAt: null, wa: '', text: outText, fresh: true, exact: true };
+    }
+    var msgs = [];
+    rolls.forEach(function(p) {
+      // Each in the old one's place, so a later roll's out times still read last.
+      if (was.indexOf(p) >= 0) { if (msgs.indexOf(msg) < 0) msgs.push(msg); }
+      else if (wasOut.indexOf(p) >= 0) { if (msgs.indexOf(outMsg) < 0) msgs.push(outMsg); }
+      else msgs.push({ sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face });
+    });
+    rv = { text: msgs.map(function(m) { return m.text; }).join('\n\n'), msgs: msgs, reread: day, choices: faceRollChoices(text, f),
+      rereadWhy: 'the ' + (kind === 'in' ? 'in-time' : 'out-time') + ' roll written again on ' + faceUserName() + '’s screen' };
+  } else rv = { text: text, msgs: [msg], choices: faceRollChoices(text, f) };
+  var plan = relayPlan(rv), mi = rv.msgs.indexOf(msg);
+  if (msg.dup) { showToast('Saved already: nothing has changed since', 'info'); return; }
+  // Only this roll's own questions stop it: the day's other rolls were checked when they were saved.
+  var red = plan.issues.filter(function(x) { return x.tone === 'red' && x.mi === mi; });
+  if (red.length) { uiAlert({ title: 'The roll could not be read back', body: red.map(function(x) { return x.text; }).join('\n') }); return; }
+  var mine = msg.parsed && msg.parsed.days && msg.parsed.days[day];
+  if (!plan.days.length || !mine || (!Object.keys(mine.people || {}).length && !(mine.extra || []).length)) {
+    showToast(f.duty === 'roll-in' ? 'Mark where the hands stood first' : 'Put a hand on a block first', 'error'); return;
+  }
+  var done = relayApplyPlan(rv, plan, { face: faceUserName() }), now = Date.now();
+  var made = done.ids.map(function(x) { return relayPastes().find(function(p) { return p && p.id === x; }); }).filter(Boolean);
+  var mineRp = made.filter(function(p) { return p.kind === kind; }).pop(), outRp = outMsg ? made.filter(function(p) { return p.kind === 'out'; }).pop() : null;
+  if (mineRp) {
+    f.saved.push(mineRp.id);
+    was.forEach(function(p) { p.replacedBy = mineRp.id; p.replacedAt = now; });
+  }
+  if (outRp) wasOut.forEach(function(p) { p.replacedBy = outRp.id; p.replacedAt = now; });
+  saveState();
+  _pageTyped = false;
+  renderFace();
+  viewTop();
+  showToast((was.length ? 'The day restated from its rolls' + (outRp ? ', the out-time roll worked out again with it (open it to send it to the group)' : '') + ': ' : 'Saved: ') +
+    todoPlural(done.marks, 'mark') + ', ' + todoPlural(done.extras, 'EXTRA row') + ' · send it to the group', 'success');
+}
+function faceRollCopy(id) {
+  var rp = relayPastes().find(function(p) { return p && p.id === id; });
+  if (!rp) return;
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(rp.text).then(function() { showToast('Roll copied: paste it in the group'); }, function() { uiAlert({ title: 'Copy the roll', body: rp.text }); });
+  else uiAlert({ title: 'Copy the roll', body: rp.text });
+}
+
+/* A change to a roll's form by a tap (a crew chip, a block added or taken off, the usual places): the form is redrawn where it
+   stands, and counts as typed (a tap that leaves asks first). */
+function faceRollEdit(fn) {
+  var f = _faceForm;
+  if (!f || !f.blocks) return;
+  fn(f);
+  _pageTyped = true;
+  keepScroll(renderFace);
+}
+
+/* ---------- A barrel batch ---------- */
+/* Its form is the load's (the client, the part, the figure), with the barrel it went into and when it went in and came out. */
+function faceBarrelHtml(f) {
+  var parts = faceClientParts(f.clientId), units = pltUnits('barrel');
+  var h = faceBackBar(f.replaces ? 'Correct a batch' : FACE_FORM_TITLE.barrel);
+  if (f.replaces) h += '<div class="inv-callout inv-callout-info">This batch takes the place of the one corrected, which stays on the record, marked corrected.</div>';
+  var barrel = units.length ? '<select id="faceBarrel" class="inv-select" data-face-f="barrel"><option value="">Pick the barrel</option>' +
+      units.map(function(u) { return '<option value="' + escHtml(u.id) + '"' + (f.barrel === u.id ? ' selected' : '') + '>' + escHtml(u.name) + '</option>'; }).join('') + '</select>'
+    : '<input id="faceBarrel" class="inv-input" data-face-f="barrel" value="' + escHtml(f.barrel || '') + '" autocomplete="off" placeholder="e.g. 2">';
+  h += '<div class="inv-panel" data-face-form="barrel"><div class="inv-fields">' + faceField('faceBarrel', 'Barrel', barrel) + faceClientSelectHtml(f) + facePartFieldsHtml(f, parts) + faceQtyFieldsHtml(f) +
+    faceField('faceTime', 'Went in at', '<input type="time" id="faceTime" class="inv-input" data-face-f="time" value="' + escHtml(f.time) + '">') +
+    faceField('faceTimeOut', 'Came out at', '<input type="time" id="faceTimeOut" class="inv-input" data-face-f="timeOut" value="' + escHtml(f.timeOut || '') + '">') +
+    '<label class="inv-field-check"><input type="checkbox" class="inv-check" id="faceRework" data-face-f="rework"' + (f.rework ? ' checked' : '') + '><span>Rework (counted as work, never billed)</span></label>' +
+    '</div></div>';
+  return h + faceSavedHtml(f) + faceActionBarHtml(f.replaces ? 'Correcting the batch of' : 'Plated on', f);
+}
+async function faceBarrelSave() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'barrel') return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'save a barrel batch'))) return;
+  if (_faceForm !== f) return;
+  var err = function(msg, id) { showToast(msg, 'error'); var el = id && document.getElementById(id); if (el) try { el.focus(); } catch (x) { /* a convenience */ } };
+  if (!String(f.barrel || '').trim()) return err('Pick the barrel', 'faceBarrel');
+  if (!f.clientId) return err('Pick the client', 'faceClient');
+  if (!f.part || (f.part === FACE_TYPED && !String(f.partText || '').trim())) return err('Pick the part', f.part === FACE_TYPED ? 'facePartText' : 'facePart');
+  var qty = parseFloat(f.qty);
+  if (!(qty > 0)) return err('Enter the quantity', 'faceQty');
+  if (!/^\d{1,2}:\d{2}$/.test(f.time || '')) return err('Enter when it went in', 'faceTime');
+  if (f.timeOut && !/^\d{1,2}:\d{2}$/.test(f.timeOut)) return err('Enter when it came out, or leave it', 'faceTimeOut');
+  var cid = prodHeldId(f.clientId), x = faceClientParts(f.clientId).find(function(p) { return p.key === f.part; }), t = relayParseHhmm(f.time);
+  var unit = pltUnitById(f.barrel);
+  var e = { id: prodUid('PE'), kind: 'plated', date: f.date, time: f.time, to: f.timeOut || null, line: 'barrel', lineSrc: 'written',
+    slot: t < 510 || t >= 1020 ? 'ot' : 'general', clientId: cid, client: prodClientName(cid), qty: qty, unit: f.unit === 'KG' ? 'KG' : 'NOS', rework: !!f.rework,
+    basis: 'register', src: 'face', by: faceUserName(), at: Date.now() };
+  if (unit) { e.unitId = unit.id; e.barrel = unit.name; } else e.barrel = String(f.barrel).trim();
+  if (x) { e.part = x.part; if (x.partNumber) e.partNumber = x.partNumber; e.gauge = x.gauge || null; }
+  else { e.part = String(f.partText || '').trim(); e.gauge = prodGaugeOf(e.part, e.part) || null; }
+  if (f.replaces) e.replaces = f.replaces;
+  e.msgHash = prodMsgKey(f.date, faceMsgOf([e]));
+  if (f.part === FACE_TYPED) prodLearnAliases([e]);
+  prodData().entries.push(prodSparse(e));
+  prodTouch();
+  saveState();
+  _pageTyped = false;
+  if (f.replaces) { _faceForm = null; renderFace(); viewTop(); showToast('Correction saved; the batch it corrects is kept, marked corrected', 'success'); return; }
+  f.saved.push(e.id);
+  f.part = ''; f.partText = ''; f.qty = ''; f.rework = false; f.timeOut = '';
+  f.time = f.date === localDateStr() ? faceNowHhmm() : f.time;
+  renderFace();
+  showToast('Saved · send it to the group, or enter the next', 'success');
+}
+/* What a batch's barrel takes: the kg a round typed on the unit, else the median of five or more of that barrel's own batches (a
+   barrel of the plant register by its id, one typed where the register has none by its number as written). */
+function faceBarrelKey(e) { return e.unitId ? 'u:' + e.unitId : 'b:' + String(e.barrel || '').trim().toUpperCase(); }
+function faceBarrelUsual(batch) {
+  var u = batch.unitId ? pltUnitById(batch.unitId) : null;
+  if (u && u.kg > 0) return { kg: u.kg, src: 'set' };
+  var key = faceBarrelKey(batch);
+  var kg = prodIndex().live.filter(function(e) { return e.kind === 'plated' && e.line === 'barrel' && e.src === 'face' && !e.rework && faceBarrelKey(e) === key; })
+    .map(function(e) { var w = prodWeigh(e); return w && w.kg; }).filter(function(v) { return v > 0; });
+  return kg.length >= 5 ? { kg: numMedian(kg), src: 'batches' } : null;
+}
 /* ===== POWER — the cuts, the connection's load, and the case for reliable supply =====
  * Floor → Power (owner, 30 Sep 2026: "Make a power cut tab, we have built a business case
  * for power cut and how to resolve it, find it, read it and update it"). The case was written once, on 30 May, over 56

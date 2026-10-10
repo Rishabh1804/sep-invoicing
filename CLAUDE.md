@@ -27,7 +27,8 @@ ranked list (built), I4 the change explained (built), I5 learning from responses
 6 Oct 2026), which I2 builds on.
 
 **The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
-employee to enter data"*, each on their own phone). F1, the shell, is built: duties on a user, Mine. F2–F6 and the flow thread follow.
+employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand) and F3 (the
+supervisor) are built; F4–F6 and the flow thread follow.
 
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
@@ -59,11 +60,6 @@ TM7 and the QA chain.
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
 (the 6-second test, what needs the owner leads, length, one fact one screen, Today's card language, the design rules, HR-9). Its
 proposals, with its *Analysed data* list, are now the tab map's steps (above).
-
-**The entry faces are planned — read `docs/ENTRY_FACES.md`** (owner, 10 Oct 2026: *"develop app faces for each employee to enter
-data"*: the pickling hand, the supervisor and the register clerk each enter their own on their own phone, trusted and checked
-against the linked data, a WhatsApp copy during the changeover, every face's sheet printable). Six steps, F1–F6, and the flow
-thread (turnaround targets, payment terms) T1–T3; queued after the owner's other asks of 10 Oct (NEXT_SESSION).
 
 **The plant picture is begun — read `docs/PLANT_PICTURE.md`** (owner, 9 Oct 2026: *"There is no holistic vision that is being created
 using these details"*). PP1 is built: a day's plating in one unit, each line's efficiency colouring Floor's cards (half a line's units
@@ -168,7 +164,7 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
-├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms and the group's message, the checks against what they link to, what was entered, the sheets (~770 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the group's message, the checks against what they link to, what was entered, the sheets (~1,250 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -221,7 +217,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,727 tests, both layouts
+pnpm exec playwright test          # 1,730 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2878,7 +2874,7 @@ on the build before. What it leaves as rules:
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
 all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
-forms and the checks (P200); F3–F6 and T1–T3 to come. No name is in the build: the people are the book's.
+forms and the checks (P200); F3, the supervisor's (P201); F4–F6 and T1–T3 to come. No name is in the build: the people are the book's.
 - **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
   access → *Enters*); the users list says what each enters.
@@ -2916,6 +2912,47 @@ forms and the checks (P200); F3–F6 and T1–T3 to come. No name is in the buil
   kind alone, never another part's; never a run linked already. On the owner's book, the 68 loads since 1 Sep: the first pass linked
   12, the second 11 more, and the line read from plating went from 7 loads to 18 (of the 45 left, 17 are a client with no plating on
   record within five days).
+- **The supervisor writes the rolls on Mine** (F3, P201). *In-time roll*: a hand of the day's roster a row, placed with one pick (the
+  places the roll writes: VAT A1, VAT A2, Barrel, Barrel & pickling, Pickling A1 & A2, Office & gate, Civil; or Absent; under a heading
+  naming two, each hand stands at their own area, as the roll's reader places them), *Usual places* fills the unmarked from each
+  hand's own area and *Mark the rest absent* the rest (a hand on a 6 AM block is on site); the 6 AM blocks; the EXTRA on the 8:30 shift
+  by line (the barrel's on the unit). *Out-time roll*: who went home is worked out (everyone present on no late block), at 5 PM unless
+  their own time is set (the roll writes it after the name, *ALFA 7:00 PM*); each late block from 5 PM, or 8 PM for the night hold
+  (*NIGHT HOLD 8 PM TO 5 AM*), to any half hour up to 6 AM. **A block runs on one line or several** (chips: VAT A1, VAT A2, Barrel,
+  Pickling A1 & A2, Barrel pickling), written under the heading the reader takes back as those lines (`faceBlockHead`: *BARREL & VAT
+  A2*; a VAT line's pickling is the line's own, folded in by the Areas check, and the block says *Booked to VAT A1 (pickling with a
+  line is counted in the line’s block)*), with its crew, EXTRA and work done; a block with its crew and no line, a night hold over by
+  8 PM, or a block with nobody on it is refused at Save. Either roll opens filled from the day as it stands (a line's EXTRA the rolls
+  booked twice added into one figure; one typed by hand left as the day's own). **A mark entered on the day itself** (People →
+  Attendance, a card scan, a check-in) is left by any roll, so the face shows it in its place, says *the roll leaves it* and does not
+  offer to change it (`faceMarkByHand`); *Usual places* and *Mark the rest absent* pass it by.
+- **A roll saved on a face is the roll** (`faceRollText`, `relayApplyPlan`): the form writes the message in the shop's shape (the
+  day's head, the slots, a numbered line a hand, each area's EXTRA, the absent by tier) and saves it through the roll's own reader and
+  save, each name written placed on the hand it was written for (`faceRollChoices`), so the day holds what the same roll pasted
+  gives: the marks the roll's (`src: 'relay'`: the next roll updates them, *Read the rolls again* reads it), the EXTRA rows, the
+  blocks' crews. **It is read exactly as written** (`parseRelayRoll`'s `exact`, for every roll with `face`): a heading's lesson learnt
+  from the owner's correction of a pasted roll would move a pick (on the owner's book an evening *VAT A1* had been taught to read as
+  three areas). A block on the barrel unit reads as its pickling side, as a paste does (one unit of five to the reconciler). The roll
+  is kept naming who wrote it (`relayPastes[].face`); the same roll pasted later is refused as saved before, a save with nothing
+  changed says so, and *Send to the group* and *Copy* send it as written. **Saved again, it restates the day**, where a roll pasted on
+  top only adds (a hand taken off a block, an EXTRA cleared, stayed): the day is read again from its rolls with the new roll in the old
+  one's place (*Read the rolls again*'s reading, the new roll `fresh` so it is recorded), what was typed by hand kept and the day as it
+  was logged with why; the old roll is kept, `replacedBy`, so it is refused if pasted and never read again. A hand marked absent
+  leaves every block. **The in-time roll restated after the face's out-time roll works that one out again with it**: who went home
+  was worked out from the places, never written, so a hand now absent is not sent home at five (the blocks and own times stand; a
+  pasted out-time roll is the supervisor's text and is read as written). **Stock** stays Stock's own form by hand: the duty's step
+  opens it.
+- **Measured on the owner's book** (the 37 recorded days since 1 Sep, a scratch harness never committed): each day's rolls written
+  on the face from the day as it stands and saved unchanged. The out-time roll changes nothing on any day (314 marks the same, 244
+  typed by hand kept, every EXTRA row the same); the first build, with one line a block, block ends to midnight and no own times,
+  changed 11 days and 40 marks. The in-time roll changes 3 days, each one the stored day contradicting itself: three hands on a 6 AM
+  block whose marks said 8:30 on no line (the face reads the block), a hand marked absent on a block (left off it), and a line's
+  EXTRA booked twice, 8 h and 8 h (one 16 h row: the same hours).
+- **A barrel batch** (F3): the barrel (the plant register's barrels, else its number typed), the client and part as a load has them,
+  the figure, in and out, rework. A `plated` entry on the barrel line, `basis: 'register'` (the register the barrel never had), with
+  `unitId` or `barrel`, `to` and `msgHash`: counted over the supervisor's relayed list for that day, which reads *also reported*. Its
+  message is the day, *BARREL 2: 9:30 AM - 10:30 AM*, the client, the part and figure. A batch over a quarter heavier than its barrel
+  takes (the kg a round typed on the unit, else the median of five or more of that barrel's own batches) is asked (`heavy`, amber).
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

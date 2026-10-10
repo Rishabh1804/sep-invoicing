@@ -2,8 +2,9 @@
 
 **Status: F1 built (10 Oct 2026, P199): duties on a user, Mine, landing on it, its steps, what was entered, its paper and backup,
 Today hearing a face. F2 built (10 Oct 2026, P200): the pickling hand's two forms on Mine, the group's message and its key, Correct,
-the checks of §4 that touch a load or a count, and the matcher's second pass (CLAUDE.md *Entry faces*).** F3–F6, then the flow thread
-T1–T3, follow, one commit each, on the tab map's branch (PR #146) ahead of TM5–TM7.
+the checks of §4 that touch a load or a count, and the matcher's second pass (CLAUDE.md *Entry faces*). F3 built (10 Oct 2026,
+P201): the supervisor's two rolls written on Mine and saved as the roll, the barrel's batches, and the check of a batch against its
+barrel.** F4–F6, then the flow thread T1–T3, follow, one commit each, on the tab map's branch (PR #146) ahead of TM5–TM7.
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,
@@ -89,10 +90,27 @@ at a sitting).
 - **The in-time roll**: the day's roster by area as the supervisor writes it (an area card each, tap the hands standing there; the
   6:00 AM blocks with their crew and EXTRA). Written as the roll is (`S.attendance`, `src: 'face'` instead of `'relay'`, the
   EXTRA rows), so Areas, Pay and the labour card read it unchanged.
+  *Built (F3), one step further than planned:* the form writes the roll's own message and saves it through the roll's reader and
+  save (`relayPlan`, `relayApplyPlan`), so the day is what the same roll pasted gives, to the mark, read exactly as written (no
+  lesson learnt from a pasted roll's heading moves a pick). The marks stay `src: 'relay'` (a face's roll IS a roll: the next one
+  updates it, and *Read the rolls again* reads it); the roll kept in `relayPastes` names who wrote it (`face`). Saved again from the
+  face, a roll restates the day rather than adding to it: the day is read again from its rolls with the new one in the old one's
+  place, and the old is kept marked `replacedBy` (refused if pasted, never read again); the face's out-time roll, if saved, is worked
+  out again with it, since who went home was worked out from the places. A hand a row with one pick for the place (not
+  an area card each: one list reads in one look on a phone, and *Usual places* fills it from each hand's own area); the barrel alone
+  is a place beside *Barrel & pickling*, as the roll sometimes heads it. A mark entered on the day itself (People → Attendance, a
+  card scan) is left by any roll, so the face shows it and does not offer to change it.
 - **The out-time roll**: who left at 5:00 PM, then the evening and night blocks (out at, area, crew, EXTRA, work done).
+  *Built (F3):* who went home is worked out (everyone present on no late block), at five unless the hand's own time is set; a
+  block runs from five, or from eight as the night hold, to any half hour up to 6 AM, on one line or several (the night hold on the
+  barrel and VAT A2). Measured on the owner's 37 days since 1 Sep, each roll written from the day and saved unchanged leaves the
+  out-time side as it was on every day, and the in-time side on all but three, each a day that contradicted itself.
 - **Stock**: the counts and use as the stock message carries them (Stock's form by hand, the lines in the message's order).
+  *Built as planned:* the duty's step opens Stock's own form; a face has no second door to it.
 - **The barrel register, per batch**: barrel, client, part, quantity, in and out (§1.6). Written as `plated` entries on the barrel
   line, `basis: 'register'` (a batch is the barrel's register, which it has never had).
+  *Built (F3):* the barrel is one of the plant register's barrels (`unitId`), else its number typed; the message for the group is
+  the day, *BARREL n: in - out*, the client and each part with its figure.
 
 ### F-clerk: the register clerk
 - **The attendance sheet**: Staff → Day → Sheet on the phone, a hand a row (P/H/A, area, in, out, the OT slots), the clerk's own
@@ -131,7 +149,10 @@ entry, as `checkOk` is on stock):
   office check-in that disagrees with either.
 - **The roll's EXTRA against the shortfall** (the Areas check, as now).
 - **A barrel batch against the zinc and chemicals charged into the barrel** that day (stock by line), and its kilos against the
-  barrel's usual load.
+  barrel's usual load. *Built (F3), the second half:* a batch over a quarter heavier than its barrel takes (the kg a round typed on
+  the unit, else the median of five or more of that barrel's own batches), `heavy`, amber. *Not built:* the charge. Stock by line
+  (PP3) already sets a day's zinc and chemicals on the barrel against everything the barrel plated that day, its batches included;
+  one batch against a day's charge is no comparison.
 - **A VAT round against the line's usual round** (its rack sizes and the gauge rules), and the register's day total against its
   rounds.
 - **Stock** as now (`stockEntryChecks`: twice, overlap, below zero, large, a count off the level).
@@ -173,7 +194,12 @@ Each spec uses made-up names in the shop's shapes, and each fails on the build b
 
 - Records a face writes are the records a paste writes, with `src: 'face'` and `by`: the `sep-production` and `sep-stock` exports
   carry them unchanged in shape, and the compile reads them as it reads a paste's. A barrel batch is a `plated` entry on the barrel
-  line with `basis: 'register'`, where the barrel had only the supervisor's relayed list (`basis: 'relay'`).
+  line with `basis: 'register'`, where the barrel had only the supervisor's relayed list (`basis: 'relay'`), and carries `unitId`
+  (or `barrel`, the number typed), `to` (when it came out) and `msgHash`.
+- A roll written on a face is a roll (F3): the day's marks and EXTRA rows are the ones its paste would write, the marks
+  `src: 'relay'`, and the roll is kept in `relayPastes` with `face` (the name of who wrote it). The attendance seed and the compile
+  read it as a pasted roll. A roll written again on the face keeps the old one with `replacedBy` (the new roll's id) and
+  `replacedAt`: a reader of the kept rolls skips it, as *Read the rolls again* does.
 - New on the book: `users[].faces` (the duties a user enters), an accepted disagreement kept on the entry it answers (`checkOk:
   {codes, at, by}`, as stock's is; built so in F2 rather than as a store of its own),
   `client.payTermsDays`, `client.turnaroundDays` and per part, a challan's `priority`. They travel with the book; NEXT_SESSION's

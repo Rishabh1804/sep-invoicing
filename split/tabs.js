@@ -16,6 +16,7 @@ const PAGE_TITLES = {
 var SCREEN_KINDS = {
   pageHome: 'overview', pagePipeline: 'overview', pageIM: 'work', pageRegister: 'work', pageClients: 'work',
   pageCreate: 'form', pageFloor: 'overview', pageFace: 'overview', 'pageFace/pickling': 'form', 'pageFace/incoming': 'form',
+  'pageFace/roll-in': 'form', 'pageFace/roll-out': 'form', 'pageFace/barrel': 'form',
   pageStaff: 'work',
   pageProduction: 'work',
   pageStock: 'work', 'pageStock/item': 'form',

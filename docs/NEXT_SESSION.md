@@ -64,8 +64,11 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
      opening where each duty is entered, what they entered, their sheets and whether it reached GitHub; Today says who entered an
      input. **F2 built (P200)**: the pickling hand's forms on Mine (a load, material in), the group's message and its key, Correct,
      the checks against what each entry links to (To-do faceCheck, Production → Entries → To check, Looks right), and a second
-     matching pass for a named load. **Next**: F3 the supervisor's, F4 the clerk's, F5 the sheets, F6 the guides; then T1–T3.
-     **The owner's, once merged**: give each person an ID and their duties.
+     matching pass for a named load. **F3 built (P201)**: the supervisor's two rolls written on Mine and saved as the roll (the day
+     as the same roll pasted gives it, the roll kept naming who wrote it, *Send to the group*), Stock left to its own form, the
+     barrel's batches (the register it never had, counted over the relayed list) and a batch heavier than its barrel takes asked.
+     **Next**: F4 the clerk's, F5 the sheets, F6 the guides; then T1–T3. **The owner's, once merged**: give each person an ID and
+     their duties; type each barrel's kg a round on Production → Equipment, which the batch check reads first.
 - Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
@@ -79,6 +82,15 @@ the book's users (backups, GitHub, the compile), and nothing else changes: what 
 carries `imId`, `imItemId` and `challanNo`; an entry the owner kept as entered carries `checkOk: {codes, at, by}`. All of it in the
 `sep-production` export, merged by id as before; the compile reads a face's entry as it reads a paste's. The matcher's second pass
 changes which line a load is inferred to (shown, never stored, never exported).
+
+**Data flow (10 Oct 2026, P201, entry faces F3):** a roll written on a face is a pasted roll: the day's marks (`src: 'relay'`) and EXTRA
+rows are what its paste writes, and the roll is kept in `relayPastes` with a new field, `face` (the name of who wrote it); written
+again on the face, the old roll is kept with `replacedBy` (the new roll's id) and `replacedAt`, and a reader of the kept rolls should
+skip it, as the app does. A barrel
+batch is a production entry, `kind: 'plated'`, `line: 'barrel'`, `basis: 'register'` (new on the barrel), `src: 'face'`, with
+`unitId` (the plant register's barrel) or `barrel` (its number typed), `to` (when it came out) and `msgHash`; a batch the owner kept
+carries `checkOk` with the code `heavy`. In the `sep-production` export, merged by id; the compile should count a day's batches over the
+supervisor's relayed barrel list, as the app does (*also reported*).
 
 **Data flow (10 Oct 2026, P209, compare suppliers):** a stock line may carry `orderFrom` (the supplier chosen for it) and a supplier's
 record `quotes` (prices quoted, a line each); both in the `sep-stock` export as part of the items and the suppliers.
@@ -512,6 +524,7 @@ in the PR**, so the compile session knows to re-check.
 | **Backup shape changed, 9 Oct 2026, the second (a register run's start)** | A plated register entry whose run opens on an END (no START written for it, or split from its START's run by its gauge) starts at the END before it on its page, where it had started at its own END. One saved before the fix, from a photo or a file the reader built, is corrected at start-up and carries `startWas` (the start it had, `HH:MM`; no clock, so two devices putting one run right write the same). **The `sep-production` export carries both**; the corrected copy is the newer one, so the compile should take it over the copy it holds, and any hours or pace worked out from the old start move with it. |
 | **Backup shape changed, 10 Oct 2026 (suppliers, P208)** | New top-level `suppliers: [{id, name, names[], leadMin?, leadMax? (working days), gstPct?, opening?: {amount, date, note, at, by}, inOpening?: [statement row ids], totals?: {'<bill no>|<date>': amount}, note?, at, by, setAt?, setBy?}]` and `supplierPays: [{id, supplierId, date, amount, how: cash/cheque/transfer, chq, note, at, by, voidedAt?, voidReason?, voidBy?}]`; both in the `sep-stock` export. **For the compile**: a supplier's bills are its stock entries (`bill`, `received`) grouped by company, number and date; what is owed is the balance set, plus the bills after its day with GST rounded to the rupee, less the payments after it, a cheque recorded here and the statement's row of its number being one payment. |
 | **Backup shape changed, 10 Oct 2026 (compare suppliers, P209)** | A stock line (`stock.items[]`) may carry `orderFrom: {supplierId, name, at, by}`: the supplier the owner chose to order it from (Stock → Compare suppliers), which the reorder list, the line and its task follow over the app's own pick; a supplier's record may carry `quotes: [{id, itemId, price (before GST, a unit), date, note, at, by}]`, a price quoted, weighed beside the bills for 90 days. Both travel in the `sep-stock` export (items whole, suppliers whole). **For the compile**: a quote is not a purchase and never a bill; `orderFrom` is a choice, not a record of what was bought. |
+| **Backup shape changed, 10 Oct 2026 (entry faces F3, P201)** | A pasted roll's record (`relayPastes[]`) may carry `face` (the name of who wrote it on their own screen), and `replacedBy` and `replacedAt` (written again on the face: kept to refuse it when pasted, never read again); its day's marks and EXTRA rows are those a paste writes. A production entry may be a barrel batch: `kind: 'plated'`, `line: 'barrel'`, `basis: 'register'`, `src: 'face'`, with `unitId` or `barrel`, `to` and `msgHash`, and `checkOk.codes` may hold `heavy`. In the backups and the `sep-production` export; merged by id. |
 | **Backup shape changed, 10 Oct 2026 (entry faces F2, P200)** | A production entry (`production.entries[]`) may carry `src: 'face'` (entered on a person's own screen), `msgHash` (the key of the message it gave the WhatsApp group: that message pasted is refused), `imId` and `imItemId` (the challan and line a count was made against), `challanNo` (as written), and `checkOk: {codes: [...], at, by}` (the checks the owner kept it through: `noplate`, `over`, `count`, `inNoChallan`, `noload`). In the `sep-production` export; merged by id. |
 | **Backup shape changed, 10 Oct 2026 (entry faces, P199)** | A user (`users[]`) may carry `faces: [duty, …]` (`roll-in`, `pickling`, `incoming`, `stock`, `attsheet`, `barrel`, `vat`, `roll-out`): what that person enters on their own screen, Mine. It travels with the users (backups, GitHub, the compile); nothing outside the app reads it, and the records a face enters are those the forms already write. |
 | **Backup shape changed, 10 Oct 2026 (snacks, P207)** | New `labour.snackOt` (20) and `labour.snackNight` (60): snacks a person on regular and on night overtime, paid with the weekly payout (owner, 10 Oct 2026). **For the compile**: a week's payout (`payWeek`) is now the weekly tiers, the EXTRA pool and the snacks (`paySnacks`: a person once a day at the higher, from the blocks' crews and the outs; night is past midnight; none for the 6 AM block or the gate), so the cash a week paid as wages reads that much higher. Nothing exported changes. |

@@ -419,7 +419,7 @@ function todoPassMemo(k, f) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': case 'supplierOwed': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': case 'supplierOwed': case 'flowLate': case 'flowPriority': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;
@@ -452,7 +452,7 @@ function todoAppCmp(a, b) {
    the questions (advice.js), a screen's own tasks (`only`) and the client card read every task as it was raised. */
 var TODO_FOLD_MIN = 3;
 var TODO_FOLD = {
-  owed90: { title: function(n, w) { return n + ' clients owe ' + (w ? formatCurrency(w) + ' ' : 'money ') + 'over 90 days'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
+  owed90: { title: function(n, w) { return n + ' clients owe ' + (w ? formatCurrency(w) + ' ' : 'money ') + 'past their terms'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
   challan: { title: function(n, w) { return 'Bill ' + n + ' clients\u2019 challans' + (w ? ', ' + formatCurrency(w) + ' waiting' : ''); }, go: { kind: 'im' }, goLabel: 'Open challans' },
   stock: { title: function(n) { return n + ' stock lines to order'; }, go: { kind: 'stockList' }, goLabel: 'Open stock lines' },
   payingSlower: { title: function(n) { return n + ' clients are paying slower'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },

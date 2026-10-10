@@ -563,6 +563,19 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== THE PAYMENT TERMS THE REBATE BUYS, SET ONCE (docs/ENTRY_FACES.md §5, T1) =====
+   Owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every other client 45 days". Every other client reads the plant's 45
+   days (Settings → Checks & alerts → Turnaround and terms); the client whose name reads Mehta is set to 7, only where it has no terms
+   of its own, and once: the flag travels with the state, so terms the owner changes or clears stay so. */
+(function() {
+  if (S._clientTerms1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  if (!(+c.payTermsDays > 0)) c.payTermsDays = 7;
+  S._clientTerms1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
    Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
    and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule

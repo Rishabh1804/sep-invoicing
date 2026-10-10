@@ -39,7 +39,7 @@ function _challanRestoreFocus(target) {
 function showAddChallanForm() {
   _challanForm = {
     clientId: null, challanNo: '', challanDate: localDateStr(),
-    vehicleNo: '', items: [{ partNumber: '', desc: '', hsn: '998873', unit: 'KG', qty: 0, rate: 0, amount: 0, nosQty: null }],
+    vehicleNo: '', priority: '', items: [{ partNumber: '', desc: '', hsn: '998873', unit: 'KG', qty: 0, rate: 0, amount: 0, nosQty: null }],
     notes: ''
   };
   renderAddChallanForm();
@@ -79,7 +79,11 @@ function renderAddChallanForm() {
     '<input type="date" class="inv-input inv-id" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="imVehicleNo">Vehicle no.</label>' +
     '<input class="inv-input inv-id" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
-    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div></div></div>';
+    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div>' +
+    // The day the client wants it back by, where they asked (flow.js, the entry faces' T1): asked of on the day if not plated.
+    '<div class="inv-field"><label class="inv-field-label" for="imWantedBy">Wanted by</label>' +
+    '<input type="date" class="inv-input inv-id" id="imWantedBy" data-k="priority" value="' + escHtml(_challanForm.priority || '') + '">' +
+    '<div class="inv-field-hint">Only where the client asked for it by a day.</div></div></div></div></div>';
 
   // Lines, on the invoice form's line editor.
   html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
@@ -211,6 +215,8 @@ function captureChallanFields() {
   if (cn) _challanForm.challanNo = cn.value.trim();
   if (cd) _challanForm.challanDate = cd.value;
   if (vn) _challanForm.vehicleNo = vn.value.trim();
+  var wb = document.getElementById('imWantedBy');
+  if (wb) _challanForm.priority = wb.value || '';
 }
 
 function selectChallanClient(clientId) {
@@ -369,6 +375,7 @@ function saveChallan() {
     existing.vehicleNo = _challanForm.vehicleNo;
     existing.receivedDate = _challanForm.challanDate || localDateStr();
     existing.notes = _challanForm.notes || '';
+    if (_challanForm.priority) existing.priority = _challanForm.priority; else delete existing.priority;
     if (dupeAck) existing.dupeAck = dupeAck;
     // A line keeps its id and what the form does not hold (the corrections an invoice made to it); a line added in the
     // edit takes an id no line of this challan has ever had, so nothing pointing at a removed line finds another.
@@ -405,6 +412,7 @@ function saveChallan() {
     createdAt: now,
     dupeAck: dupeAck
   };
+  if (_challanForm.priority) entry.priority = _challanForm.priority;
 
   S.incomingMaterial.push(entry);
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
@@ -539,6 +547,7 @@ function editChallan(imId) {
     challanNo: im.challanNo || '',
     challanDate: im.challanDate || localDateStr(),
     vehicleNo: im.vehicleNo || '',
+    priority: im.priority || '',
     items: im.items.map(function(it) {
       return {
         _id: it.id,   // the line's own id, kept by the save (challanLineSaved)

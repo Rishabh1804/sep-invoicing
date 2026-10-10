@@ -59,6 +59,8 @@ function getDefaultState() {
     labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
+    // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice.
+    flowCfg: { turnDays: 1, termsDays: 45 },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
@@ -623,7 +625,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg'];
 
 function ensureStateShape(s) {
   if (!s) return s;

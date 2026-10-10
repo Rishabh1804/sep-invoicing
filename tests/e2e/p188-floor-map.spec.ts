@@ -51,11 +51,12 @@ async function withFloorUsers(page: Page) {
 const heroes = (page: Page) => page.locator('#flrHeroes > [data-card]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.card));
 
 test.describe('P188: Floor’s map', () => {
-  test('Floor’s row is five; its Overview leads with four heroes, People carrying the verdict, then the line cards worst first', async ({ page }) => {
+  test('Floor’s row is five; its Overview leads with five heroes, People carrying the verdict, then the line cards worst first', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageFloor');
     expect(await page.locator('#wsTabs .inv-viewtab').allInnerTexts()).toEqual(['Overview', 'People', 'Production', 'Stock', 'Power']);
-    expect(await heroes(page)).toEqual(['flr-people', 'flr-prod', 'flr-stock', 'flr-power']);
+    // The turnaround joined them with the flow thread (docs/ENTRY_FACES.md §5, T3).
+    expect(await heroes(page)).toEqual(['flr-people', 'flr-prod', 'flr-stock', 'flr-power', 'flr-flow']);
     await expect(page.locator('#flrHeroes > [data-card="flr-people"]')).toHaveAttribute('data-verdict', '');
     await expect(page.locator('#floorContent [data-verdict]')).toHaveCount(1);
     // The stepper, the heroes, the line cards: no tile strip leads the page any more (on site, plated and power are the heroes').
@@ -107,12 +108,12 @@ test.describe('P188: Floor’s map', () => {
     expect(await g(page, `srchData().list.filter(function(x) { return x.kind === 'screen' && /^(power|production|stock|people)$/.test(x.key); }).map(function(x) { return x.key + '>' + JSON.stringify(x.go); })`)).not.toContainEqual(expect.stringContaining('overview'));
   });
 
-  test('each role sees the heroes of the screens it opens: the floor role People without its link, Production and Stock, no Power', async ({ page }) => {
+  test('each role sees the heroes of the screens it opens: the floor role People without its link, Production, Stock and the turnaround, no Power', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await withFloorUsers(page);
     await unlock(page, 'U-flr', PINS.floor);
     await switchTab(page, 'pageFloor');
-    expect(await heroes(page)).toEqual(['flr-people', 'flr-prod', 'flr-stock']);
+    expect(await heroes(page)).toEqual(['flr-people', 'flr-prod', 'flr-stock', 'flr-flow']);
     await expect(page.locator('#flrHeroes [data-card="flr-people"] [data-action="invFlrStaff"]')).toHaveCount(0);
     await expect(page.locator('#flrHeroes [data-card="flr-people"]')).toHaveAttribute('data-verdict', '');
     // The reorder's cash is Stock's own figure, which Stock shows every role that opens it (QA4-4): the hero says it too.
@@ -124,7 +125,7 @@ test.describe('P188: Floor’s map', () => {
     await page.locator('[data-grd-menu] [data-action="invGuardLockNow"]').click();
     await unlock(page, 'U-sup', PINS.super);
     await switchTab(page, 'pageFloor');
-    expect(await heroes(page)).toEqual(['flr-people', 'flr-prod', 'flr-stock', 'flr-power']);
+    expect(await heroes(page)).toEqual(['flr-people', 'flr-prod', 'flr-stock', 'flr-power', 'flr-flow']);
     await expect(page.locator('#flrHeroes [data-card="flr-people"] [data-action="invFlrStaff"]')).toHaveCount(1);
   });
 

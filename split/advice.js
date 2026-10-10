@@ -519,11 +519,11 @@ function advPlantMoves(ctx) {
 }
 
 /* ---------- 5. Is cash coming in? ---------- */
-/* A debt over 90 days: a call where the client's master has a number, and its receivables either way. */
+/* A debt past the client's terms: a call where the client's master has a number, and its receivables either way. */
 function advOwedMove(t) {
-  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c);
-  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' over 90 days';
-  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed over 90 days' },
+  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c), past = t.terms ? 'past its ' + t.terms + '-day terms' : 'past its terms';
+  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' ' + past;
+  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed ' + past },
     basis: todoPlural(t.n, 'invoice') + ', the oldest ' + formatDate(t.oldest) + ' · owed in all ' + advRs(t.owed),
     go: { kind: 'finance', tab: 'receipts', client: t.clientId }, goLabel: 'Receivables', task: say };
   if (ct) { mv.href = ct.href; mv.hrefLabel = ct.label; }
@@ -562,13 +562,13 @@ function advRunwayMove(t) {
 function advCashMoves(ctx) {
   if (!finHasBank()) return { moves: [], none: '' };
   var out = [];
-  // The To-do's own tests: owed over 90 days (the three largest), receipts with no client, a client paying slower than
+  // The To-do's own tests: owed past the client's terms (the three largest), receipts with no client, a client paying slower than
   // usual, the forecast below zero within 45 days.
   ctx.rule('owed90').slice().sort(function(a, b) { return b.amount - a.amount; }).slice(0, 3).forEach(function(t) { out.push(advOwedMove(t)); });
   ctx.rule('bankLoose').forEach(function(t) { out.push(advLooseMove(t)); });
   ctx.rule('payingSlower').forEach(function(t) { out.push(advSlowerMove(t)); });
   ctx.rule('runway').forEach(function(t) { out.push(advRunwayMove(t)); });
-  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes over 90 days, every receipt a week old is placed, and the forecast stays above zero.' };
+  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes past their terms, every receipt a week old is placed, and the forecast stays above zero.' };
 }
 
 /* ---------- 6. What changed? The insights, each with its own moves ---------- */

@@ -50,7 +50,7 @@ test.describe('P158 one ranked list', () => {
     const shown: any = await g(page, `todoApp().map(function (t) { return { key: t.key, tone: t.tone, title: t.title, sub: t.sub, n: (t.members || []).length }; })`);
     expect(shown).toHaveLength(1);
     expect(shown[0]).toMatchObject({ key: 'fold:owed90', tone: 'red', n: 3 });
-    expect(shown[0].title).toBe('3 clients owe ₹850.00 over 90 days');
+    expect(shown[0].title).toBe('3 clients owe ₹850.00 past their terms');
     expect(shown[0].sub).toBe('BETA ₹500.00 · GAMMA ₹250.00 · ALPHA ₹100.00');
     // The list as raised is untouched: the moves and the client card read it.
     expect(await g(page, `todoAppAll(['owed90']).length`)).toBe(3);

@@ -106,8 +106,11 @@ function flrHeroesHtml(day, isToday, att, cuts, recorded, lines) {
     flrSees('pageProduction') ? prodDayHeroHtml(day, { fold: 'flr-hero-prod', open: false, vital: true, floor: true, lead: flrProdLead(lines), label: 'Production',
       when: flrWhen(day, isToday), attrs: ' data-card="flr-prod"' }) : '',
     flrSees('pageStock') ? flrStockHeroHtml() : '',
-    flrSees('pagePower') ? flrPowerHeroHtml(day, isToday, cuts, recorded) : ''].filter(Boolean);
-  return '<div class="inv-heroes' + (cards.length === 4 ? ' inv-heroes-4' : '') + '" id="flrHeroes">' + cards.join('') + '</div>';
+    flrSees('pagePower') ? flrPowerHeroHtml(day, isToday, cuts, recorded) : '',
+    // The flow (the entry faces' T3): how fast material comes back, against the target; where Production is the role's.
+    flrSees('pageProduction') ? flowHeroHtml() : ''].filter(Boolean);
+  // Four or five subjects: two across, four on a wide window, and a fifth on a row of its own (styles.css).
+  return '<div class="inv-heroes' + (cards.length >= 4 ? ' inv-heroes-4' : '') + '" id="flrHeroes">' + cards.join('') + '</div>';
 }
 function flrLink(page, action, label, attrs) {
   return flrSees(page) ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + action + '"' + (attrs || '') + '>' + label + '</button>' : '';

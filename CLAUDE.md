@@ -28,7 +28,8 @@ ranked list (built), I4 the change explained (built), I5 learning from responses
 
 **The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
 employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand), F3 (the
-supervisor), F4 (the register clerk), F5 (the sheets on paper) and F6 (the guides) are built; the flow thread follows.
+supervisor), F4 (the register clerk), F5 (the sheets on paper) and F6 (the guides) are built, and so is the flow thread (T1–T3:
+turnaround targets and payment terms, the tasks they raise, the flow on Floor's Overview and a client's page).
 
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
@@ -91,7 +92,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 87 modules, ~62,700 lines total.
+Split-file PWA. 88 modules, ~63,200 lines total.
 
 ```
 split/
@@ -166,6 +167,7 @@ split/
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
 ├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
 ├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
+├── flow.js            ← The flow thread: turnaround targets and payment terms, a challan wanted by a day, the tasks they raise, the flow on Floor's Overview and a client's page (~360 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -188,7 +190,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -218,7 +220,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,739 tests, both layouts
+pnpm exec playwright test          # 1,748 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2640,7 +2642,7 @@ lowered for Money's screens, and P197's `ONE_LOOK` takes them.
 `docs/TAB_MAP.md` TM4 (10 Oct 2026): Floor is **Overview · People · Production · Stock · Power**, and the Overviews of People,
 Production, Stock and Power are gone; every Floor screen leads with its verdict card, then one toolbar row. P188; P195's budgets
 lowered for every Floor screen, P197's `ONE_LOOK` takes them, and the walk visits Attendance's Week and Month.
-- **Floor → Overview** (`floor.js`; it was Floor → Day): the day stepper, then four heroes, People (carrying the verdict:
+- **Floor → Overview** (`floor.js`; it was Floor → Day): the day stepper, then four heroes (five with the flow thread's *Turnaround*, T3), People (carrying the verdict:
   who is on site against the roster, `attOnSiteTone`, the lines short by name), Production (the day's card, led by the worst
   line), Stock (now: out and low, the reorder's cash with GST) and Power (the day's cuts, the month, a year at
   this rate, the load to chase), each shown to a role that opens its screen (the floor role sees People without its link,
@@ -2783,8 +2785,8 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
 - **Office → Pipeline** (`pipeline.js`, P137): awaiting invoice → created → printed → dispatched → delivered → owed to us,
   each a count, an amount and a tone by age, read off the function its own screen uses; a stage opens its list and its
   action goes through the screen that owns it. *Owed to us* is money: a role that does not see money has no such stage.
-- **Floor → Overview** (`floor.js`, P138; Floor → Day until the tab map, TM4a, P188): four heroes for the day (people, production,
-  stock, power; each to a role that opens its screen, People carrying the verdict), then a card per line, the worst first, with
+- **Floor → Overview** (`floor.js`, P138; Floor → Day until the tab map, TM4a, P188): heroes for the day (people, production,
+  stock, power and the turnaround; each to a role that opens its screen, People carrying the verdict), then a card per line, the worst first, with
   the heads against the day's number, the EXTRA, what it is running, what it has plated and who plated it. A day is
   `?tab=pageFloor&d=…`. It and
   Home count the day's roster as Staff → Day does (`attDayRoster`: the active hands and anyone marked that day who has left).
@@ -2875,7 +2877,7 @@ on the build before. What it leaves as rules:
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
 all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
-forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, the sheets on paper (P203); F6, the guides (P199); T1–T3 to come. No name is in the
+forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, the sheets on paper (P203); F6, the guides (P199); T1–T3, the flow thread (P204). No name is in the
 build: the people are the book's.
 - **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
@@ -3025,7 +3027,41 @@ build: the people are the book's.
   (`app-faces-owner`, `roles: ['owner']`: Enters, Devices, See their screen, what reaches the owner). All link to Mine, so its book
   lists them. Each role's path (`KB_APP_PATHS`) leads with Mine and the face a hand of that role is most often given (floor: the
   pickling hand's; supervisor: the supervisor's and the clerk's; office: the clerk's). *Using the app: production* is version 4
-  (Print sheets).
+  (Print sheets). Training shows a path's first five lessons, the rest one tap away (P195's budget for Training held).
+- **The flow thread** (T1–T3, `flow.js`, P204; owner, 10 Oct 2026: *"Target default one day, can be edited as per material or overall as
+  well. Say, they ask for a particular material to be done on a priority basis - we can plan that out"*; *"Mehta 7 days - as we give 2%
+  discount, every other client 45 days"*).
+  - **The targets and terms** (T1). A turnaround target from a challan's day to its despatch, in working days (Sundays out; despatch is
+    the invoice's despatch date, else its date): the plant's (Settings → Checks & alerts → Turnaround and terms, `S.flowCfg.turnDays`,
+    1; 0 is the same day), the client's (`client.turnaroundDays`) and a part's on the client (`client.turnaroundParts`, by `rateKey`), the
+    part's winning. Payment terms from the invoice's date: the plant's 45 (`S.flowCfg.termsDays`) or the client's (`client.payTermsDays`).
+    Both on the client's form (*Turnaround and terms*). The client whose name reads Mehta is set to 7 once, where it has none
+    (`_clientTerms1`). **A challan wanted by a day** (`priority` on the challan, or on a line, which wins): *Wanted by* on the challan
+    form and among a challan's actions (a dialog, the whole challan or each open line); the challan is badged while anything on it is
+    open (*Wanted 12 Oct*: blue ahead, amber on the day, red after).
+  - **The tasks** (T2). `flowLate`, per client: challan lines of the last 30 days past their target, red two working days past, in
+    quantities, never rupees, saying where they stand by In plant's reading. *Waiting to pickle* is said only where the floor's record
+    covers the month, as In plant withholds it; under that, *with no floor record*. `flowPriority`, per challan: wanted by today or
+    before with no plating recorded, amber on the day, red after. `owed90` reads each client's terms where it read 90 days; its id is
+    kept, so a switch or a snooze set on it stands, and its fold and its move say *past its terms*. Three or more fold (`TODO_FOLD`).
+  - **The flow on screen** (T3). Floor's Overview's fifth hero, *Turnaround*, for a role that opens Production, shut to its line: the
+    plant's median working days from the challan to despatch, weighted by value, against the target, and the share of the value back
+    within it. Open, it shows the challan to its first pickling and plating (In plant's attribution) and to despatch; the invoice to
+    its payment against the terms (a role that sees money); the lines past the target now; the jobs wanted by today. Its door is In
+    plant. A client's page (the pane, the phone's sheet, Performance) shows the same steps, then:
+    - each open challan's expected day back: the client's usual turnaround (the plant's under five despatched), or later where the
+      work ahead of it on its usual line, at the line's pace, says so; *Late* past its target, red two working days past;
+    - each open invoice: past its terms, slower than its client's pace (the book's under three receipts), or expected.
+
+    **A hero alone on the last row takes the row** (styles.css), so a grid of heroes never ends in a blank cell.
+  - **Measured on the owner's book** (10 Oct, counts only):
+    - 1,587 challan lines in 90 days, 1,562 despatched, back in a median one working day, 71% of the value within the one-day
+      target;
+    - to pickling 1 day (12 lines with a load set against them) and to plating 1 (86); the plant's days to pay 34 (30 receipts);
+    - seven lines past the target now, in 2 tasks. The floor's record covers 4% of line-days in the month (the barrel 1 of 27),
+      so none is said to be waiting to pickle;
+    - the owed task went from 4 clients over 90 days to 10 past their terms, 2 of them red, the rebate client's 7 days among
+      them.
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.
@@ -3555,7 +3591,8 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
 - **Thirteen To-do rules**, each switchable in Settings → Checks & alerts → To-do:
   - `bankStale`: the statement is 14 days old;
   - `bankLoose`: receipts still have no client a week on;
-  - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
+  - `owed90`: invoices past the client's payment terms, per client (45 days, the client's own where set; it read a
+    fixed 90 days until the flow thread, T2). Never red while any receipt is unplaced, because that money may
     already be in; the task says so;
   - `payingSlower`: a client's last three receipts are 25% slower than its usual;
   - `gstNotInBank`: a month's GST has no payment and no note, and the statement reaches its due date;

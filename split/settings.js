@@ -14,7 +14,7 @@ var SETTINGS_UI_KEY = 'sep_inv_settings_ui';
 
 var SETTINGS_GROUPS = [
   { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn', 'quotes'] },
-  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'stockAlerts', 'todo'] },
+  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
@@ -205,6 +205,22 @@ var SETTINGS_SECS = {
       });
       var f = _sPos('setIsFile');
       if (f) S.invStateCheck.fileWarnDays = f;
+    }
+  },
+  flow: {
+    title: 'Turnaround and terms',
+    summary: function() { var c = flowCfg(); return escHtml(flowBackWord(c.turnDays) + ' · paid in ' + c.termsDays + ' days'); },
+    body: function() {
+      var c = flowCfg();
+      return _sRow(_sfg('Turnaround target, working days', 'setFlowTurn', _sNum('setFlowTurn', c.turnDays, 1, 0), '0 is the same day'),
+        _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1)));
+    },
+    why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day. Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
+    save: function() {
+      if (!S.flowCfg) S.flowCfg = {};
+      var t = _sNonNeg('setFlowTurn'), d = _sPos('setFlowTerms');
+      if (t != null) S.flowCfg.turnDays = Math.round(t);
+      if (d) S.flowCfg.termsDays = Math.round(d);
     }
   },
   stockAlerts: {

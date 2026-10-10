@@ -271,7 +271,7 @@ function finForecastHtml() {
 var FIN_RULES = [
   ['bankStale', 'Finance: the bank statement is out of date'],
   ['bankLoose', 'Finance: receipts not placed on a client'],
-  ['owed90', 'Finance: a client owes invoices over 90 days old'],
+  ['owed90', 'Finance: a client owes invoices past its payment terms'],
   ['payingSlower', 'Finance: a client is paying slower than usual'],
   ['gstNotInBank', 'Finance: a month’s GST is not on the statement'],
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
@@ -350,20 +350,24 @@ TODO_RULE_FNS.bankLoose = function() {
     why: 'Receivables · a week or more unplaced', facts: [['Receipts', String(loose.length)], ['Amount', formatCurrency(sum)], ['Oldest', formatDate(loose[0].row.date)]],
     clears: 'Clears itself when every receipt a week old is placed.', go: finGo('receipts', { anchor: 'bankLoose' }), goLabel: 'Place them', sig: loose.length + '|' + sum }];
 };
+/* An invoice past its client's payment terms (the entry faces' T2; owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every
+   other client 45 days"): the receivables' ageing against each client's terms (flow.js flowTerms), where it read a fixed 90 days. The
+   rule keeps its first name, so a switch or a snooze set on it before stands. */
 TODO_RULE_FNS.owed90 = function() {
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   return recv.map(function(r) {
-    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > 90; });
+    var terms = flowTerms(r.client.id).days;
+    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > terms; });
     if (!old.length) return null;
-    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0));
+    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0)), past = isoDaysBetween(old[0].date, today) - terms;
     return { key: 'owed90:' + r.client.id, rule: 'owed90', tone: !loose && book > 0 && sum >= book * 0.1 ? 'red' : 'amber',
-      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed,
-      title: r.client.name + ' owes ' + formatCurrency(sum) + ' over 90 days', sub: todoPlural(old.length, 'invoice') + ', oldest ' + formatDate(old[0].date) +
+      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed, terms: terms,
+      title: r.client.name + ' owes ' + formatCurrency(sum) + ' past its ' + terms + '-day terms', sub: todoPlural(old.length, 'invoice') + ', the oldest ' + formatDate(old[0].date) + ', ' + todoPlural(past, 'day') + ' past them' +
         (loose ? ' · ' + todoPlural(loose, 'receipt') + ' not placed yet may have paid some' : ''),
-      why: 'Receivables · over 90 days', facts: [['Over 90 days', formatCurrency(sum)], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
-      clears: 'Clears itself when they are paid, or the opening balance is corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
+      why: 'Receivables · past the payment terms', facts: [['Past terms', formatCurrency(sum)], ['Terms', terms + ' days'], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
+      clears: 'Clears itself when they are paid, or the opening balance or the client’s terms are corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
   }).filter(Boolean);
 };
 TODO_RULE_FNS.payingSlower = function() {

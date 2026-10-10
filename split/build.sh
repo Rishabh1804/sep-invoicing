@@ -90,6 +90,7 @@ JS_SOURCES=(
     "$DIR/today.js" \
     "$DIR/faces.js" \
     "$DIR/facesheet.js" \
+    "$DIR/flow.js" \
     "$DIR/power.js" \
     "$DIR/powercause.js" \
     "$DIR/report.js" \

@@ -321,6 +321,7 @@ function renderClientPerformance(container) {
   }
   html += todoClientCardHtml(clientId, 'cpFlagged');
   html += finClientMoneyHtml(clientId);
+  html += flowClientHtml(clientId, 'cp-flow');
   html += kbLinkedHtml('client', clientId, ((S.clients || []).find(function(c) { return c.id === clientId; }) || {}).name, 'Knowledge');
 
   var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);

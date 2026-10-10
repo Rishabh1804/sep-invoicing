@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="f6956e1d">
+<meta name="app-build" content="13360982">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2131,6 +2131,8 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 /* Four subjects (Money's Overview: cash, owed, GST, paid out): two across, and four on a window wide enough for a crore in each. */
 body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 80rem) { body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A hero left alone on the last row takes the row, so a grid of heroes never ends in a blank cell (Floor's Overview holds five). */
+body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.inv-desktop .inv-heroes-4 > .inv-hero:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. A stack
    in a column of cards (the phone) keeps the gap under it, as every card has. */
@@ -2875,6 +2877,8 @@ function getDefaultState() {
     labour: { otMult: 1.1, otCap: 68.2, otCapFrom: '2026-09-01', holidays: ['01-26', '08-15', '10-02'], restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, extraHoursPerHead: 8, snackOt: 20, snackNight: 60 },
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
+    // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice.
+    flowCfg: { turnDays: 1, termsDays: 45 },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
@@ -3439,7 +3443,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -8678,7 +8682,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   }
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
-    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
+    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + flowClientHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
     _cfield('ceditGstin', 'GSTIN', _cinput('ceditGstin', c.gstin, 'inv-id', ' maxlength="15"')) +
@@ -8699,7 +8703,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
       opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
     '</div>' +
-    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) +
+    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) + _clientFlowFieldsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
@@ -8744,6 +8748,26 @@ function _clientFloorDefaultsHtml(c) {
     '<div class="inv-field-hint">For a piece plated with no weight of its own: the floor wrote a name with no part (CLAMP and a gauge) and no challan links it. Empty for none.</div></div>' +
     '</div></div></div>';
 }
+/* The client's own turnaround and terms (flow.js, the entry faces' T1; owner, 10 Oct 2026: "Target default one day, can be edited as
+   per material or overall as well", "Mehta 7 days - as we give 2% discount, every other client 45 days"). Empty for the plant's (Settings
+   → Checks & alerts → Turnaround and terms); a part of its own on a row each, two rows free for a new one. */
+function _clientFlowFieldsHtml(c) {
+  var cfg = flowCfg(), parts = (Array.isArray(c.turnaroundParts) ? c.turnaroundParts : []).concat([{ part: '', days: '' }, { part: '', days: '' }]);
+  return '<div class="inv-panel inv-panel-flush" data-client-terms><div class="inv-panel-head"><span class="inv-panel-title">Turnaround and terms</span></div>' +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTerms">Payment terms, days</label>' +
+    _cinput('ceditTerms', +c.payTermsDays > 0 ? String(c.payTermsDays) : '', 'inv-input-num', ' type="number" step="1" min="1" inputmode="numeric" placeholder="' + cfg.termsDays + '"') +
+    '<div class="inv-field-hint">From the invoice’s date. Empty: the plant’s ' + cfg.termsDays + ' days.</div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTurn">Turnaround target, working days</label>' +
+    _cinput('ceditTurn', flowSetNum(c.turnaroundDays) ? String(c.turnaroundDays) : '', 'inv-input-num', ' type="number" step="1" min="0" inputmode="numeric" placeholder="' + cfg.turnDays + '"') +
+    '<div class="inv-field-hint">From the challan to despatch; 0 is the same day. Empty: the plant’s target (' + escHtml(flowDaysWord(cfg.turnDays)) + ').</div></div></div>' +
+    '<div class="inv-field-hint">A part with a target of its own:</div>' + parts.map(function(p, i) {
+      return '<div class="inv-fields" data-client-turn-part="' + i + '"><div class="inv-field"><label class="inv-field-label" for="ceditTurnPart' + i + '">Part</label>' +
+        _cinput('ceditTurnPart' + i, p.part || '', 'inv-id', ' autocomplete="off" data-turn-part') + '</div>' +
+        '<div class="inv-field"><label class="inv-field-label" for="ceditTurnDays' + i + '">Working days</label>' +
+        _cinput('ceditTurnDays' + i, flowSetNum(p.days) ? String(p.days) : '', 'inv-input-num', ' type="number" step="1" min="0" inputmode="numeric" data-turn-days') + '</div></div>';
+    }).join('') + '</div></div>';
+}
 function clientPoExampleRefresh(input) {
   var ex = document.getElementById('ceditPoEx');
   if (!ex) return;
@@ -8787,6 +8811,21 @@ function _readClientForm(excludeId) {
   if (!clientPoTemplateOk(poTpl.trim())) { showToast('The P.O. pattern needs {challan} where the number goes', 'error'); return null; }
   const dkEl = document.getElementById('ceditDefaultKgPc'), dk = dkEl ? String(dkEl.value || '').trim() : '';
   if (dk !== '' && !(+dk > 0 && +dk <= 100)) { showToast('The default kg per piece is a weight above 0 and up to 100', 'error'); return null; }
+  // Turnaround and terms: a figure typed is the client's own; empty is the plant's.
+  const termsEl = document.getElementById('ceditTerms'), terms = termsEl ? String(termsEl.value || '').trim() : '';
+  if (terms !== '' && !(+terms >= 1 && +terms <= 365)) { showToast('Payment terms are days, from 1 to 365', 'error'); return null; }
+  const turnEl = document.getElementById('ceditTurn'), turn = turnEl ? String(turnEl.value || '').trim() : '';
+  if (turn !== '' && !(+turn >= 0 && +turn <= 60)) { showToast('A turnaround target is working days, from 0 to 60', 'error'); return null; }
+  const turnParts = [];
+  let turnBad = '';
+  document.querySelectorAll('[data-client-turn-part]').forEach(function(row) {
+    const part = String((row.querySelector('[data-turn-part]') || {}).value || '').trim(), days = String((row.querySelector('[data-turn-days]') || {}).value || '').trim();
+    if (!part && days === '') return;
+    if (!part || days === '' || !(+days >= 0 && +days <= 60)) { turnBad = turnBad || (part ? part + ': give its working days, from 0 to 60' : 'A part’s target needs the part'); return; }
+    if (turnParts.some(function(x) { return rateKey(x.part) === rateKey(part); })) { turnBad = turnBad || part + ' has two targets'; return; }
+    turnParts.push({ part: part, days: Math.round(+days) });
+  });
+  if (turnBad) { showToast(turnBad, 'error'); return null; }
 
   return {
     name: name,
@@ -8805,6 +8844,9 @@ function _readClientForm(excludeId) {
     defaultTransport: ((document.getElementById('ceditTransport') || {}).value || '').trim().toUpperCase(),
     poFromChallan: poTpl.trim(),
     defaultKgPc: dk === '' ? undefined : Math.round(+dk * 10000) / 10000,
+    payTermsDays: terms === '' ? undefined : Math.round(+terms),
+    turnaroundDays: turn === '' ? undefined : Math.round(+turn),
+    turnaroundParts: turnParts.length ? turnParts : undefined,
     isActive: document.getElementById('ceditActive').checked
   };
 }
@@ -9025,6 +9067,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
 
     html += todoClientCardHtml(c.id);
     html += finClientMoneyHtml(c.id);
+    html += flowClientHtml(c.id);
     html += qtClientPanelHtml(c.id);
     html += kbLinkedHtml('client', c.id, c.name, 'Knowledge');
 
@@ -11720,7 +11763,7 @@ var SETTINGS_UI_KEY = 'sep_inv_settings_ui';
 
 var SETTINGS_GROUPS = [
   { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn', 'quotes'] },
-  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'stockAlerts', 'todo'] },
+  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
@@ -11911,6 +11954,22 @@ var SETTINGS_SECS = {
       });
       var f = _sPos('setIsFile');
       if (f) S.invStateCheck.fileWarnDays = f;
+    }
+  },
+  flow: {
+    title: 'Turnaround and terms',
+    summary: function() { var c = flowCfg(); return escHtml(flowBackWord(c.turnDays) + ' · paid in ' + c.termsDays + ' days'); },
+    body: function() {
+      var c = flowCfg();
+      return _sRow(_sfg('Turnaround target, working days', 'setFlowTurn', _sNum('setFlowTurn', c.turnDays, 1, 0), '0 is the same day'),
+        _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1)));
+    },
+    why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day. Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
+    save: function() {
+      if (!S.flowCfg) S.flowCfg = {};
+      var t = _sNonNeg('setFlowTurn'), d = _sPos('setFlowTerms');
+      if (t != null) S.flowCfg.turnDays = Math.round(t);
+      if (d) S.flowCfg.termsDays = Math.round(d);
     }
   },
   stockAlerts: {
@@ -16689,7 +16748,7 @@ function _buildIMTableHtml() {
       '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
       '<td class="inv-num"><span class="inv-row-stack">' + imAmountHtml(im) + '</span></td>' +
-      '<td>' + imStatusDotHtml(im) + '</td></tr>';
+      '<td>' + imStatusDotHtml(im) + ' ' + flowPriorityBadgeHtml(im) + '</td></tr>';
   });
   return html + '</tbody></table>';
 }
@@ -16770,7 +16829,7 @@ function imAmountHtml(im, awaiting) {
 /* A challan's row as IM's list draws it: its number and client over its vehicle and lines, and its end, the amount over
    its status. Office → Pipeline's Awaiting list draws the same (pipeline.js), with the Awaiting amount. */
 function imRowMainHtml(im) {
-  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
+  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + ' ' + flowPriorityBadgeHtml(im) + '</span>' +
     '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span>';
 }
 function imRowEndHtml(im, awaiting) {
@@ -16823,16 +16882,18 @@ function _imItemRowHtml(it) {
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
 function _imActionsHtml(im, primary) {
   var status = getIMStatus(im), billed = im.items.filter(imLineBilled).length, id = escHtml(im.id);
+  // The day it is wanted by is set while anything on it is open, billed in part or not (flow.js).
+  var wanted = status !== 'invoiced' ? '<button class="inv-btn inv-btn-ghost' + (primary ? '' : ' inv-btn-sm') + '" data-action="invFlowPrio" data-id="' + id + '">Wanted by</button>' : '';
   if (billed === 0) {
     // Secondary: the page's one primary is Add challan (DR-3).
-    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' +
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' + wanted +
       '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
   }
   if (status !== 'invoiced') {
     // Shown as disabled, yet a tap or a click still says why: a button that took no pointer (inv-btn-disabled) told
     // only somebody on a keyboard.
     var why = 'Cannot edit: ' + billed + ' item' + (billed > 1 ? 's' : '') + ' already invoiced';
-    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>' + wanted;
   }
   return '';
 }
@@ -16845,6 +16906,7 @@ function challanDetailHtml(im) {
     '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(im.clientName) + '</div></div>' +
     (im.vehicleNo ? '<div><div class="inv-kv-k">Vehicle</div><div class="inv-id">' + escHtml(im.vehicleNo) + '</div></div>' : '') +
     '<div><div class="inv-kv-k">Status</div><div>' + imStatusDotHtml(im) + '</div></div>' +
+    (flowPriorityBadgeHtml(im) ? '<div><div class="inv-kv-k">Wanted by</div><div>' + flowPriorityBadgeHtml(im) + '</div></div>' : '') +
     (im.notes ? '<div class="inv-kv-wide"><div class="inv-kv-k">Notes</div><div>' + escHtml(im.notes) + '</div></div>' : '') +
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +
@@ -33897,7 +33959,7 @@ function todoPassMemo(k, f) {
 function todoWorth(t) {
   var n = function(v) { v = Number(v); return isFinite(v) && v > 0 ? v : 0; };
   switch (t.rule) {
-    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': case 'supplierOwed': return n(t.amount);
+    case 'owed90': case 'bankLoose': case 'powerLoad': case 'powerCause': case 'chequeHeld': case 'supplierOwed': case 'flowLate': case 'flowPriority': return n(t.amount);
     case 'insLeak': return n(t.gap);
     case 'insClientDown': return n(t.fall);
     case 'insQuiet': return n(t.rev3) / 3;
@@ -33930,7 +33992,7 @@ function todoAppCmp(a, b) {
    the questions (advice.js), a screen's own tasks (`only`) and the client card read every task as it was raised. */
 var TODO_FOLD_MIN = 3;
 var TODO_FOLD = {
-  owed90: { title: function(n, w) { return n + ' clients owe ' + (w ? formatCurrency(w) + ' ' : 'money ') + 'over 90 days'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
+  owed90: { title: function(n, w) { return n + ' clients owe ' + (w ? formatCurrency(w) + ' ' : 'money ') + 'past their terms'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
   challan: { title: function(n, w) { return 'Bill ' + n + ' clients\u2019 challans' + (w ? ', ' + formatCurrency(w) + ' waiting' : ''); }, go: { kind: 'im' }, goLabel: 'Open challans' },
   stock: { title: function(n) { return n + ' stock lines to order'; }, go: { kind: 'stockList' }, goLabel: 'Open stock lines' },
   payingSlower: { title: function(n) { return n + ' clients are paying slower'; }, go: { kind: 'finance', tab: 'receipts' }, goLabel: 'Open Receivables' },
@@ -42386,7 +42448,7 @@ function finForecastHtml() {
 var FIN_RULES = [
   ['bankStale', 'Finance: the bank statement is out of date'],
   ['bankLoose', 'Finance: receipts not placed on a client'],
-  ['owed90', 'Finance: a client owes invoices over 90 days old'],
+  ['owed90', 'Finance: a client owes invoices past its payment terms'],
   ['payingSlower', 'Finance: a client is paying slower than usual'],
   ['gstNotInBank', 'Finance: a month’s GST is not on the statement'],
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
@@ -42465,20 +42527,24 @@ TODO_RULE_FNS.bankLoose = function() {
     why: 'Receivables · a week or more unplaced', facts: [['Receipts', String(loose.length)], ['Amount', formatCurrency(sum)], ['Oldest', formatDate(loose[0].row.date)]],
     clears: 'Clears itself when every receipt a week old is placed.', go: finGo('receipts', { anchor: 'bankLoose' }), goLabel: 'Place them', sig: loose.length + '|' + sum }];
 };
+/* An invoice past its client's payment terms (the entry faces' T2; owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every
+   other client 45 days"): the receivables' ageing against each client's terms (flow.js flowTerms), where it read a fixed 90 days. The
+   rule keeps its first name, so a switch or a snooze set on it before stands. */
 TODO_RULE_FNS.owed90 = function() {
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   return recv.map(function(r) {
-    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > 90; });
+    var terms = flowTerms(r.client.id).days;
+    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > terms; });
     if (!old.length) return null;
-    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0));
+    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0)), past = isoDaysBetween(old[0].date, today) - terms;
     return { key: 'owed90:' + r.client.id, rule: 'owed90', tone: !loose && book > 0 && sum >= book * 0.1 ? 'red' : 'amber',
-      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed,
-      title: r.client.name + ' owes ' + formatCurrency(sum) + ' over 90 days', sub: todoPlural(old.length, 'invoice') + ', oldest ' + formatDate(old[0].date) +
+      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed, terms: terms,
+      title: r.client.name + ' owes ' + formatCurrency(sum) + ' past its ' + terms + '-day terms', sub: todoPlural(old.length, 'invoice') + ', the oldest ' + formatDate(old[0].date) + ', ' + todoPlural(past, 'day') + ' past them' +
         (loose ? ' · ' + todoPlural(loose, 'receipt') + ' not placed yet may have paid some' : ''),
-      why: 'Receivables · over 90 days', facts: [['Over 90 days', formatCurrency(sum)], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
-      clears: 'Clears itself when they are paid, or the opening balance is corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
+      why: 'Receivables · past the payment terms', facts: [['Past terms', formatCurrency(sum)], ['Terms', terms + ' days'], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
+      clears: 'Clears itself when they are paid, or the opening balance or the client’s terms are corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
   }).filter(Boolean);
 };
 TODO_RULE_FNS.payingSlower = function() {
@@ -43440,11 +43506,11 @@ function advPlantMoves(ctx) {
 }
 
 /* ---------- 5. Is cash coming in? ---------- */
-/* A debt over 90 days: a call where the client's master has a number, and its receivables either way. */
+/* A debt past the client's terms: a call where the client's master has a number, and its receivables either way. */
 function advOwedMove(t) {
-  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c);
-  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' over 90 days';
-  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed over 90 days' },
+  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c), past = t.terms ? 'past its ' + t.terms + '-day terms' : 'past its terms';
+  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' ' + past;
+  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed ' + past },
     basis: todoPlural(t.n, 'invoice') + ', the oldest ' + formatDate(t.oldest) + ' · owed in all ' + advRs(t.owed),
     go: { kind: 'finance', tab: 'receipts', client: t.clientId }, goLabel: 'Receivables', task: say };
   if (ct) { mv.href = ct.href; mv.hrefLabel = ct.label; }
@@ -43483,13 +43549,13 @@ function advRunwayMove(t) {
 function advCashMoves(ctx) {
   if (!finHasBank()) return { moves: [], none: '' };
   var out = [];
-  // The To-do's own tests: owed over 90 days (the three largest), receipts with no client, a client paying slower than
+  // The To-do's own tests: owed past the client's terms (the three largest), receipts with no client, a client paying slower than
   // usual, the forecast below zero within 45 days.
   ctx.rule('owed90').slice().sort(function(a, b) { return b.amount - a.amount; }).slice(0, 3).forEach(function(t) { out.push(advOwedMove(t)); });
   ctx.rule('bankLoose').forEach(function(t) { out.push(advLooseMove(t)); });
   ctx.rule('payingSlower').forEach(function(t) { out.push(advSlowerMove(t)); });
   ctx.rule('runway').forEach(function(t) { out.push(advRunwayMove(t)); });
-  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes over 90 days, every receipt a week old is placed, and the forecast stays above zero.' };
+  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes past their terms, every receipt a week old is placed, and the forecast stays above zero.' };
 }
 
 /* ---------- 6. What changed? The insights, each with its own moves ---------- */
@@ -49886,8 +49952,11 @@ function flrHeroesHtml(day, isToday, att, cuts, recorded, lines) {
     flrSees('pageProduction') ? prodDayHeroHtml(day, { fold: 'flr-hero-prod', open: false, vital: true, floor: true, lead: flrProdLead(lines), label: 'Production',
       when: flrWhen(day, isToday), attrs: ' data-card="flr-prod"' }) : '',
     flrSees('pageStock') ? flrStockHeroHtml() : '',
-    flrSees('pagePower') ? flrPowerHeroHtml(day, isToday, cuts, recorded) : ''].filter(Boolean);
-  return '<div class="inv-heroes' + (cards.length === 4 ? ' inv-heroes-4' : '') + '" id="flrHeroes">' + cards.join('') + '</div>';
+    flrSees('pagePower') ? flrPowerHeroHtml(day, isToday, cuts, recorded) : '',
+    // The flow (the entry faces' T3): how fast material comes back, against the target; where Production is the role's.
+    flrSees('pageProduction') ? flowHeroHtml() : ''].filter(Boolean);
+  // Four or five subjects: two across, four on a wide window, and a fifth on a row of its own (styles.css).
+  return '<div class="inv-heroes' + (cards.length >= 4 ? ' inv-heroes-4' : '') + '" id="flrHeroes">' + cards.join('') + '</div>';
 }
 function flrLink(page, action, label, attrs) {
   return flrSees(page) ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + action + '"' + (attrs || '') + '>' + label + '</button>' : '';
@@ -52929,6 +52998,370 @@ function fshProdPreview(kind) {
   closeOverlay();
   fshShow(h, (filled ? 'Production as entered ' : 'Production sheets ') + day);
   if (left.length) showToast('Left out, nothing entered: ' + left.join(', '), 'warning');
+}
+/* ===== THE FLOW THREAD (docs/ENTRY_FACES.md §5, T1–T3) =====
+   The owner's answers on the material-flow study (10 Oct 2026): turnaround, *"Target default one day, can be edited as per material
+   or overall as well. Say, they ask for a particular material to be done on a priority basis - we can plan that out"*; payment terms,
+   *"Mehta 7 days - as we give 2% discount, every other client 45 days"*. Material comes in on a challan, is pickled, plated, despatched
+   and invoiced, and is paid for: this module holds the targets each step is held to and reads how each client's material moves.
+   - T1, THE TARGETS AND TERMS: a turnaround target from the challan's day to the material's despatch, one working day for the plant
+     (Settings → Checks & alerts → Turnaround and terms, `S.flowCfg.turnDays`), the client's own (`client.turnaroundDays`) and a part's
+     own on the client (`client.turnaroundParts`); payment terms, 45 days for the plant (`S.flowCfg.termsDays`), the client's own
+     (`client.payTermsDays`); and a challan or one of its lines wanted by a day (`priority`, Challans).
+   - T2, THE TASKS: material past its target, by where it stands (In plant's stages); a job wanted by a day and not plated by it; an
+     invoice past its client's terms (finintel.js, the rule that read a fixed 90 days).
+   - T3, THE FLOW ON SCREEN: on a client's page and Floor's Overview, the median working days from the challan to pickling, to
+     plating and to despatch, and the days from invoice to payment, against the target and the terms; each open challan's expected
+     despatch day and each open invoice's expected payment day.
+   Days of work are working days (Sundays out, statsWorkingDays): a challan of Saturday back on Monday met a one-day target. Days to
+   pay are calendar days, as the terms are. Despatch is the day written on the invoice as despatched (the invoice's own date is the
+   day its challans are collected, the owner's word), else the invoice's date. Pickling and plating are In plant's own reading of
+   which load and which run went against which challan line, oldest first (production.js prodInPlant): estimates for one line, firm
+   as medians. */
+
+var FLOW_DAYS = 90;          // the medians read the challans of the last 90 days
+var FLOW_MIN = 5;            // a client's own median needs five lines; under it, the plant's is used and said
+var FLOW_LATE_DAYS = 30;     // the task looks at the challans of the last 30 days: older open lines are the unbilled rule's
+var FLOW_RED_AFTER = 2;      // working days past the target before material past it is red
+
+function flowCfg() {
+  var c = (S && S.flowCfg) || {};
+  return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45 };
+}
+function flowClient(id) { return id == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(id); }) || null; }
+function flowSetNum(v) { return v !== '' && v != null && isFinite(+v) && +v >= 0; }
+/* A client's payment terms: its own, else the plant's. */
+function flowTerms(clientId) {
+  var c = flowClient(clientId);
+  return c && +c.payTermsDays > 0 ? { days: +c.payTermsDays, src: 'client' } : { days: flowCfg().termsDays, src: 'plant' };
+}
+/* The turnaround a part is held to: the part's own on its client, the client's, else the plant's. */
+function flowTarget(clientId, part) {
+  var c = flowClient(clientId), k = part ? rateKey(part) : '';
+  var p = c && k && Array.isArray(c.turnaroundParts) ? c.turnaroundParts.find(function(x) { return x && flowSetNum(x.days) && rateKey(x.part) === k; }) : null;
+  if (p) return { days: +p.days, src: 'part' };
+  if (c && flowSetNum(c.turnaroundDays)) return { days: +c.turnaroundDays, src: 'client' };
+  return { days: flowCfg().turnDays, src: 'plant' };
+}
+function flowDaysWord(n) { return n === 0 ? 'the same day' : todoPlural(n, 'working day'); }
+/* "Back in 3 working days", "back the same day": the turnaround said as a verdict. */
+function flowBackWord(n) { return n === 0 ? 'back the same day' : 'back in ' + todoPlural(n, 'working day'); }
+/* "a 1-day target", "a same-day target": a target named in a head. */
+function flowTargetWord(n) { return (n === 0 ? 'same-day' : n + '-day') + ' target'; }
+/* Working days after `a` up to `b` (the day of `a` itself is day 0); never below 0. */
+function flowWd(a, b) { return a && b && b > a ? prodWorkingDaysBetween(a, b) : 0; }
+/* The working day `n` working days after `iso`. */
+function flowAddWd(iso, n) {
+  var d = iso, g = 0;
+  while (n > 0 && g++ < 400) { d = isoAddDays(d, 1); if (new Date(d + 'T00:00:00').getDay() !== 0) n--; }
+  return d;
+}
+/* A median weighted by value (a line of ₹40,000 says more about the flow than one of ₹40); plain where nothing carries a value. */
+function flowWMedian(list) {
+  if (!list.length) return null;
+  var w = list.some(function(x) { return x.w > 0; }), s = list.slice().sort(function(a, b) { return a.d - b.d; }), tot = 0, acc = 0;
+  s.forEach(function(x) { tot += w ? Math.max(0, x.w) : 1; });
+  for (var i = 0; i < s.length; i++) { acc += w ? Math.max(0, s[i].w) : 1; if (acc >= tot / 2) return s[i].d; }
+  return s[s.length - 1].d;
+}
+
+/* ---------- The priority: a challan, or a line on it, wanted by a day ---------- */
+function flowPriorityOf(m, it) { return (it && it.priority) || (m && m.priority) || null; }
+var _flowPrio = null;   // the dialog's challan
+function flowPriorityOpen(imId) {
+  var m = (S.incomingMaterial || []).find(function(x) { return x.id === imId; });
+  if (!m) return;
+  _flowPrio = imId;
+  var open = (m.items || []).filter(function(it) { return !it.invoiced; });
+  var row = function(it) {
+    var id = 'flowPrio' + String(it.id).replace(/[^A-Za-z0-9_-]/g, '');
+    return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + escHtml(lineLabel(it)) + '</label>' +
+      '<input type="date" class="inv-input inv-id" id="' + id + '" data-flow-prio="' + escHtml(it.id) + '" value="' + escHtml(it.priority || '') + '" min="' + escHtml(m.challanDate || '') + '"></div>';
+  };
+  dialogOpen('<div class="inv-dialog">' + dialogHeadHtml('Wanted by · challan ' + escHtml(m.challanNo || 'with no number')) +
+    '<div class="inv-field"><label class="inv-field-label" for="flowPrioAll">The whole challan</label>' +
+    '<input type="date" class="inv-input inv-id" id="flowPrioAll" value="' + escHtml(m.priority || '') + '" min="' + escHtml(m.challanDate || '') + '">' +
+    '<div class="inv-field-hint">The day the client wants this material back by. The To-do asks on the day if it is not plated by then, and the challan says so until it goes out.</div></div>' +
+    (open.length > 1 ? '<div class="inv-field-label">Or a line of its own, which wins over the whole challan’s day</div>' + open.map(row).join('') : '') +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invFlowPrioSave">Save</button></div></div>', { dismiss: true });
+}
+/* Saved as the challan form saves it: a challan's day is no P1 change (the guard asks nothing of the form either). */
+function flowPrioritySave() {
+  var m = (S.incomingMaterial || []).find(function(x) { return x.id === _flowPrio; });
+  if (!m) { closeOverlay(); return; }
+  var iso = /^\d{4}-\d{2}-\d{2}$/;
+  var all = (document.getElementById('flowPrioAll') || {}).value || '';
+  if (all && !iso.test(all)) { showToast('Pick a day', 'error'); return; }
+  if (all && m.challanDate && all < m.challanDate) { showToast('A day before the challan came in', 'error'); return; }
+  if (all) m.priority = all; else delete m.priority;
+  document.querySelectorAll('[data-flow-prio]').forEach(function(el) {
+    var it = (m.items || []).find(function(x) { return String(x.id) === el.dataset.flowPrio; });
+    if (!it) return;
+    if (el.value && iso.test(el.value)) it.priority = el.value; else delete it.priority;
+  });
+  saveState();
+  closeOverlay();
+  if (typeof _renderIMView === 'function' && navPageOf() === 'pageIM') _renderIMView();
+  showToast(all ? 'Wanted by ' + formatDate(all) : 'Saved', 'success');
+}
+/* The badge a challan carries while a day it is wanted by stands and its material is not out. */
+function flowPriorityBadgeHtml(m) {
+  var days = [m.priority].concat((m.items || []).filter(function(it) { return !it.invoiced; }).map(function(it) { return it.priority; })).filter(Boolean).sort();
+  if (!days.length || (m.items || []).every(function(it) { return it.invoiced; })) return '';
+  var d = days[0], today = localDateStr(), tone = d < today ? 'danger' : d === today ? 'warning' : 'info';
+  return '<span class="inv-badge inv-badge-' + tone + '" data-flow-wanted="' + escHtml(d) + '" title="' + escHtml('Wanted by ' + formatDate(d)) + '">Wanted ' + escHtml(stockShortDate(d)) + '</span>';
+}
+
+/* ---------- T3: how material moves ---------- */
+/* Every challan line with the days it took: to its first pickling, its first plating, its despatch (the day its last share went
+   out), each in working days from the challan's day; its value, its target, where an open one stands. Where it stands is In plant's
+   reading, and as In plant does, material is said to be waiting to pickle only where the floor's record covers the month (90% of
+   line-days): under that a share with no load or run set against it is 'open', with no floor record, never 'waiting'. Read once a
+   book. */
+var _flowMemo = null;
+function flowLines() {
+  var key = (typeof _bookWrites !== 'undefined' ? _bookWrites : 0) + '|' + (typeof _prodVer !== 'undefined' ? _prodVer : 0) + '|' + localDateStr();
+  if (_flowMemo && _flowMemo.key === key && _flowMemo.S === S) return _flowMemo.v;
+  var inv = {};
+  (S.invoices || []).forEach(function(v) { if (v && v.id) inv[v.id] = v; });
+  var plant = prodInPlant(), rowOf = new Map();
+  plant.rows.forEach(function(x) { rowOf.set(x.r, x); });
+  var out = plant.lines.map(function(r) {
+    var m = r.m, it = r.it, row = rowOf.get(r) || null, first = function(list) { return list.map(function(x) { return x.e.date; }).sort()[0] || null; };
+    var pk = first(r.A.P), pl = first(r.A.L), desp = null;
+    if (it.invoiced) {
+      var ids = it.invoiceIds && it.invoiceIds.length ? it.invoiceIds : (it.invoiceId ? [it.invoiceId] : []);
+      desp = ids.map(function(id) { var v = inv[id]; return v && v.status !== 'cancelled' ? (v.despatchDate || v.date || '') : ''; }).filter(Boolean).sort().pop() || null;
+    }
+    var date = m.challanDate || '', t = flowTarget(m.clientId, it.partNumber || it.desc);
+    return { m: m, it: it, clientId: m.clientId, date: date, amount: Number(it.amount) || 0, target: t,
+      pickled: pk, plated: pl, despatched: desp && desp >= date ? desp : desp ? date : null,
+      toPickle: pk && pk >= date ? flowWd(date, pk) : null, toPlate: pl && pl >= date ? flowWd(date, pl) : null, toDespatch: desp ? flowWd(date, desp >= date ? desp : date) : null,
+      row: row, stage: row ? (row.waiting > 0.0005 ? (plant.floorOk ? 'waiting' : 'open') : row.pickledNotPlated > 0.0005 ? 'pickled' : 'plated') : null,
+      priority: flowPriorityOf(m, it) };
+  });
+  _flowMemo = { key: key, S: S, v: out };
+  return out;
+}
+/* The flow of a client (or the plant), over the challans of the last 90 days: the median working days to each step, the share of
+   the value despatched within its target, and the days to pay against the terms. */
+function flowStats(clientId) {
+  var today = localDateStr(), since = isoAddDays(today, -FLOW_DAYS);
+  var all = flowLines().filter(function(x) { return x.date >= since && x.date <= today; });
+  var mine = clientId == null ? all : all.filter(function(x) { return String(x.clientId) === String(clientId); });
+  var med = function(list, k) {
+    var have = list.filter(function(x) { return x[k] != null; });
+    return { d: flowWMedian(have.map(function(x) { return { d: x[k], w: x.amount }; })), n: have.length };
+  };
+  var out = { since: since, lines: mine.length, own: true };
+  out.toPickle = med(mine, 'toPickle'); out.toPlate = med(mine, 'toPlate'); out.toDespatch = med(mine, 'toDespatch');
+  // A client with under five lines despatched reads at the plant's pace, and says so.
+  if (clientId != null && out.toDespatch.n < FLOW_MIN) { var p = med(all, 'toDespatch'); out.usual = { d: p.d, n: p.n, plant: true }; }
+  else out.usual = { d: out.toDespatch.d, n: out.toDespatch.n, plant: clientId == null };
+  var done = mine.filter(function(x) { return x.toDespatch != null; }), wIn = 0, wAll = 0;
+  done.forEach(function(x) { var w = x.amount > 0 ? x.amount : 0; wAll += w; if (x.toDespatch <= x.target.days) wIn += w; });
+  out.within = wAll > 0 ? wIn / wAll : done.length ? done.filter(function(x) { return x.toDespatch <= x.target.days; }).length / done.length : null;
+  out.done = done.length;
+  // Days to pay: the receipts set against invoices (Finance), from the invoice's date, a median by value.
+  if (typeof finSeen === 'function' && finSeen()) {
+    var hist = bankPayHistory(finCtx().recv());
+    var d = clientId != null ? bankDaysToPay(clientId, hist) : bankBookDaysToPay(hist);
+    out.pay = d && d.median != null ? { d: Math.round(d.median), n: d.n } : null;
+  }
+  out.terms = clientId != null ? flowTerms(clientId) : { days: flowCfg().termsDays, src: 'plant' };
+  return out;
+}
+/* A line's median kilos plated on a working day it ran, over the 30 days to today: the pace the work ahead of a challan is read at. */
+function flowLinePace(line) {
+  var today = localDateStr(), kg = [];
+  for (var d = isoAddDays(today, -30); d < today; d = isoAddDays(d, 1)) { var r = prodDayLine(d, line); if (r.entries.length && r.kg > 0) kg.push(r.kg); }
+  return kg.length >= 3 ? numMedian(kg) : null;
+}
+/* The kilos still to be done on an open line: its open pieces at the part's weight, else its open kilos; null where neither is known. */
+function flowOpenKg(x) {
+  var r = x.row;
+  if (!r) return null;
+  var left = r.waiting + r.pickledNotPlated;
+  if (r.unit === 'KG') return left;
+  return r.kpp && r.kpp.kg > 0 ? left * r.kpp.kg : null;
+}
+/* When an open challan is expected back: the later of its client's usual turnaround from the challan's day, and today plus the work
+   ahead of it on its line (open material on that line from challans that came in before it, at the line's pace). Past its target
+   is the task's reading (flowLate): working days since the challan came in, past the least target of its open lines. */
+function flowExpectChallan(m) {
+  var lines = flowLines().filter(function(x) { return x.m === m && x.row; });
+  if (!lines.length) return null;
+  var today = localDateStr(), st = flowStats(m.clientId), usual = st.usual.d != null ? st.usual.d : flowTarget(m.clientId, '').days;
+  var from = m.challanDate || today, target = Math.min.apply(null, lines.map(function(x) { return x.target.days; }));
+  var byUsual = flowAddWd(from, usual), over = flowWd(from, today) - target, stage = FLOW_STAGES.find(function(k) { return lines.some(function(x) { return x.stage === k; }); }) || 'plated';
+  var key = prodChallanKey(m, lines[0].it), u = prodUsualLine(key), line = u && u.line ? u.line : null, ahead = 0, pace = null;
+  if (line && stage !== 'plated') {
+    pace = flowLinePace(line);
+    if (pace) {
+      var kg = 0;
+      flowLines().forEach(function(x) {
+        if (!x.row || x.m === m || !(x.date < m.challanDate || (x.date === m.challanDate && (x.m.createdAt || 0) < (m.createdAt || 0)))) return;
+        var lu = prodUsualLine(prodChallanKey(x.m, x.it));
+        if (!lu || lu.line !== line) return;
+        var k = flowOpenKg(x); if (k > 0) kg += k;
+      });
+      ahead = Math.ceil(kg / pace);
+    }
+  }
+  var byQueue = flowAddWd(today, ahead), date = byQueue > byUsual ? byQueue : byUsual;
+  return { date: date < today ? today : date, due: flowAddWd(from, target), over: over, late: over > 0, usual: usual, usualPlant: !!st.usual.plant, stage: stage, line: line,
+    ahead: ahead, pace: pace, target: target, priority: lines.map(function(x) { return x.priority; }).filter(Boolean).sort()[0] || null };
+}
+/* When an open invoice is expected to be paid: its date and the client's own days to pay (three receipts or more), else the book's;
+   past its terms on its date and the client's terms. */
+function flowExpectInvoice(clientId, o, hist, bookMed) {
+  var d = bankDaysToPay(clientId, hist), med = d && d.n >= 3 ? d.median : bookMed;
+  var terms = flowTerms(clientId).days, due = isoAddDays(o.date, terms);
+  return { date: med != null ? isoAddDays(o.date, Math.round(med)) : null, days: med != null ? Math.round(med) : null, own: !!(d && d.n >= 3), due: due, past: due < localDateStr() };
+}
+
+/* ---------- T2: the tasks ---------- */
+var FLOW_RULES = [['flowLate', 'Turnaround: material past its target'], ['flowPriority', 'Turnaround: a job wanted by a day, not plated']];
+FLOW_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
+var FLOW_STAGE_WORD = { waiting: 'waiting to pickle', open: 'with no floor record', pickled: 'pickled, not plated', plated: 'plated, not invoiced' };
+var FLOW_STAGES = ['waiting', 'open', 'pickled', 'plated'];   // the least advanced first: a challan stands where its least advanced line does
+// Three clients or more past their targets, or three challans wanted, are one task each (todo.js todoFoldList).
+TODO_FOLD.flowLate = { title: function(n) { return n + ' clients\u2019 material is past its turnaround target'; }, go: prodGo('plant'), goLabel: 'Open In plant' };
+TODO_FOLD.flowPriority = { title: function(n) { return n + ' challans wanted by a day have no plating recorded'; }, go: { kind: 'im' }, goLabel: 'Open challans' };
+TODO_RULE_FNS.flowLate = function() {
+  var today = localDateStr(), since = isoAddDays(today, -FLOW_LATE_DAYS), by = {};
+  flowLines().forEach(function(x) {
+    if (!x.row || x.date < since || x.date > today || x.clientId == null) return;
+    var over = flowWd(x.date, today) - x.target.days;
+    if (over <= 0) return;
+    var c = by[x.clientId] || (by[x.clientId] = { n: 0, amount: 0, nos: 0, kg: 0, stages: {}, oldest: x.date, worst: 0, challans: {} });
+    c.n++; c.amount += x.row.amount || 0; c.stages[x.stage] = (c.stages[x.stage] || 0) + 1; c.worst = Math.max(c.worst, over); c.challans[x.m.id] = true;
+    if (x.row.unit === 'NOS') c.nos += x.row.open; else c.kg += x.row.open;
+    if (x.date < c.oldest) c.oldest = x.date;
+  });
+  return Object.keys(by).map(function(id) {
+    var c = by[id], name = prodClientName(id) || 'A client', tone = c.worst > FLOW_RED_AFTER ? 'red' : 'amber';
+    var where = FLOW_STAGES.filter(function(k) { return c.stages[k]; }).map(function(k) { return c.stages[k] + ' ' + FLOW_STAGE_WORD[k]; }).join(', ');
+    var t = flowTarget(id, ''), what = (c.nos ? Math.round(c.nos).toLocaleString('en-IN') + ' NOS' : '') + (c.nos && c.kg ? ' + ' : '') + (c.kg ? formatNum(c.kg, 1) + ' kg' : '');
+    // Quantities, never rupees: the floor reads this task (the value ranks it, and Today shows it only to a role that sees money).
+    return { key: 'flowLate:' + id, rule: 'flowLate', tone: tone, clientId: id, amount: gstRound(c.amount), n: c.n,
+      title: name + ': ' + todoPlural(c.n, 'challan line') + ' past ' + (t.src === 'plant' ? 'the' : 'its') + ' turnaround target',
+      sub: where + ' · the oldest from ' + formatDate(c.oldest),
+      why: 'Turnaround · from the challan to despatch', facts: [['Lines past', String(c.n)], ['Challans', String(Object.keys(c.challans).length)], ['Target', flowDaysWord(t.days)],
+        ['Most past it', todoPlural(c.worst, 'working day')], ['Open on them', what || '—']],
+      clears: 'Clears itself as the material is invoiced, or when the target is set to what the client agreed (Clients → the client → Turnaround and terms).',
+      go: prodGo('plant', { client: id }), goLabel: 'Open In plant', sig: tone + '|' + c.n };
+  });
+};
+TODO_RULE_FNS.flowPriority = function() {
+  var today = localDateStr(), by = {};
+  flowLines().forEach(function(x) {
+    if (!x.row || !x.priority || x.stage === 'plated' || x.priority > today) return;
+    var c = by[x.m.id] || (by[x.m.id] = { m: x.m, n: 0, day: x.priority, amount: 0 });
+    c.n++; c.amount += x.row.amount || 0; if (x.priority < c.day) c.day = x.priority;
+  });
+  return Object.keys(by).map(function(id) {
+    var c = by[id], past = c.day < today, name = prodClientName(c.m.clientId) || c.m.clientName || 'A client';
+    return { key: 'flowPriority:' + id, rule: 'flowPriority', tone: past ? 'red' : 'amber', clientId: c.m.clientId, amount: gstRound(c.amount), n: c.n,
+      title: name + ' challan ' + (c.m.challanNo || 'with no number') + (past ? ' was wanted by ' + formatDate(c.day) : ' is wanted today'),
+      sub: todoPlural(c.n, 'line') + ' with no plating recorded' + (past ? ' · ' + todoPlural(flowWd(c.day, today), 'working day') + ' late' : ''),
+      why: 'Turnaround · wanted by a day', facts: [['Wanted by', formatDate(c.day)], ['Lines with no plating', String(c.n)], ['Challan of', formatDate(c.m.challanDate)]],
+      clears: 'Clears itself once it is plated, or when the day is changed or taken off (Challans → the challan → Wanted by).',
+      go: { kind: 'challan', id: c.m.id }, goLabel: 'Open the challan', sig: (past ? 'red' : 'amber') + '|' + c.day };
+  });
+};
+
+/* ---------- T3: the flow, drawn ---------- */
+function flowDayText(d) { return d == null ? '—' : d === 0 ? 'same day' : d + ' d'; }
+/* What the flow says in one line, and its tone: within the target, or how far past it; against the terms where days to pay are known. */
+function flowVerdict(st, clientId) {
+  var t = clientId != null ? flowTarget(clientId, '') : { days: flowCfg().turnDays };
+  var u = st.toDespatch.d, within = st.within;
+  var tone = u == null ? 'neutral' : u <= t.days ? (within == null || within >= 0.8 ? 'ok' : 'warning') : u <= t.days + FLOW_RED_AFTER ? 'warning' : 'danger';
+  var head = u == null ? 'Nothing despatched in 90 days to read' : flowBackWord(u).charAt(0).toUpperCase() + flowBackWord(u).slice(1);
+  return { tone: tone, t: t, head: head, on: within != null ? Math.round(within * 100) + '% of the value on target' : '',
+    text: head + (u != null && within != null ? ', ' + Math.round(within * 100) + '% of the value on target' : '') };
+}
+function flowRow(title, fig, sub, tone, attrs) {
+  return '<div class="inv-row inv-row-2"' + (attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + title + '</span>' + (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
+    '<span class="inv-row-end">' + (tone ? uiDot(tone, fig) : '<span class="inv-num">' + fig + '</span>') + '</span></div>';
+}
+/* The steps of the flow as rows: challan to pickling, to plating, to despatch; and invoice to payment for a role that sees money. */
+function flowStepsHtml(st, clientId) {
+  var v = flowVerdict(st, clientId), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var h = flowRow('Challan to pickling', escHtml(flowDayText(st.toPickle.d)), escHtml(st.toPickle.n ? 'median of ' + todoPlural(st.toPickle.n, 'line') + ' with a load set against it' : 'no load set against a challan yet'), null, ' data-flow-step="pickle"') +
+    flowRow('Challan to plating', escHtml(flowDayText(st.toPlate.d)), escHtml(st.toPlate.n ? 'median of ' + todoPlural(st.toPlate.n, 'line') + ' with plating set against it' : 'no plating set against a challan yet'), null, ' data-flow-step="plate"') +
+    flowRow('Challan to despatch', escHtml(flowDayText(st.toDespatch.d)), escHtml((st.toDespatch.n ? 'median of ' + todoPlural(st.toDespatch.n, 'line') : 'nothing despatched yet') + ' · the target: ' + flowDaysWord(v.t.days) +
+      (st.within != null ? ' · ' + Math.round(st.within * 100) + '% of the value within it' : '')), v.tone === 'neutral' ? null : v.tone, ' data-flow-step="despatch"');
+  if (money) {
+    var pay = st.pay, terms = st.terms.days, tone = pay ? (pay.d <= terms ? 'ok' : pay.d <= terms * 1.5 ? 'warning' : 'danger') : null;
+    h += flowRow('Invoice to payment', pay ? escHtml(pay.d + ' d') : '—', escHtml((pay ? 'median of ' + todoPlural(pay.n, 'receipt') + ' set against invoices' : finSeen() ? 'no receipt set against an invoice yet' : 'no bank statement yet') + ' · terms ' + terms + ' days'), tone, ' data-flow-step="pay"');
+  }
+  return h;
+}
+/* A client's page: its flow over 90 days, each open challan's expected despatch, and each open invoice's expected payment.
+   Given a fold's key (Performance, a page of analyses whose tools fold), it folds to its head, shut on the phone like the
+   others there, and the head says the verdict. */
+function flowClientHtml(clientId, foldKey) {
+  if (!S || clientId == null) return '';
+  var st = flowStats(clientId), v = flowVerdict(st, clientId), terms = flowTerms(clientId), t = flowTarget(clientId, '');
+  var head = '<span class="inv-panel-title">Turnaround</span><span class="inv-panel-count">' + escHtml(flowTargetWord(t.days) + ' · ' + terms.days + '-day terms') + '</span>';
+  var h = '<div class="inv-row inv-row-2" data-flow-verdict><span class="inv-row-main"><span class="inv-row-title">' + escHtml(v.head) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml([v.on, 'challans of the last 90 days, ' + todoPlural(st.lines, 'line'), st.usual.plant && st.toDespatch.n < FLOW_MIN ? 'under ' + FLOW_MIN + ' despatched: expected days at the plant’s pace' : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+    '<span class="inv-row-end">' + uiDot(v.tone, escHtml(v.tone === 'ok' ? 'On target' : v.tone === 'warning' ? 'Slipping' : v.tone === 'danger' ? 'Past target' : 'Not read')) + '</span></div>';
+  h += flowStepsHtml(st, clientId);
+  // Open challans, the oldest first: when each is expected back, and why.
+  var open = (S.incomingMaterial || []).filter(function(m) { return String(m.clientId) === String(clientId) && (m.items || []).some(function(it) { return !it.invoiced; }); })
+    .sort(function(a, b) { return (a.challanDate || '').localeCompare(b.challanDate || ''); });
+  var rows = open.map(function(m) {
+    var e = flowExpectChallan(m);
+    if (!e) return '';
+    // A day it was wanted by and will not make is red, as is a target missed by more than two working days; a target missed, amber.
+    var tone = e.priority && e.priority < e.date ? 'danger' : e.over > FLOW_RED_AFTER ? 'danger' : e.late ? 'warning' : 'info';
+    var why = 'came in ' + stockShortDate(m.challanDate) + ' · ' + FLOW_STAGE_WORD[e.stage] + (e.ahead ? ' · ' + todoPlural(e.ahead, 'working day') + ' of work ahead of it on ' + PROD_LINE_LABEL[e.line] : '') +
+      ' · usually ' + flowDaysWord(e.usual) + (e.usualPlant ? ' (the plant’s)' : '') + (e.priority ? ' · wanted by ' + stockShortDate(e.priority) : '');
+    return '<div class="inv-row inv-row-2" data-flow-challan="' + escHtml(m.id) + '"' + (e.late ? ' data-flow-over="' + e.over + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">Challan ' + escHtml(m.challanNo || 'with no number') + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(why) + '</span></span><span class="inv-row-end">' + uiDot(tone, escHtml((e.late ? 'Late · back ~' : 'Back ~') + stockShortDate(e.date))) + '</span></div>';
+  }).filter(Boolean);
+  // One row behind a "Show 1 more" takes the room of the row itself: six are shown whole.
+  if (rows.length) h += '<div class="inv-row-group"><span>Open challans · expected back</span></div>' + uiMoreHtml('flow-challans-' + clientId, rows, { n: rows.length === 6 ? 6 : 5, noun: 'challans' });
+  // Open invoices: when each is expected to be paid at the client's pace, and past its terms.
+  if ((typeof grdSeesMoney !== 'function' || grdSeesMoney()) && typeof finSeen === 'function' && finSeen()) {
+    var recv = finCtx().recv(), r = recv.find(function(x) { return String(x.client.id) === String(clientId); }), hist = bankPayHistory(recv), book = bankBookDaysToPay(hist);
+    var invs = r ? r.open.filter(function(o) { return o.inv && o.due > 0.005; }) : [];
+    var today = localDateStr();
+    var irows = invs.map(function(o) {
+      var e = flowExpectInvoice(clientId, o, hist, book ? book.median : null);
+      // Past its terms is red; past the day its client's pace (or the book's) gave it, amber; else the day it is expected.
+      var tone = e.past ? 'danger' : e.date && e.date < today ? 'warning' : 'info';
+      var word = e.past ? 'Past terms' : !e.date ? 'Due ' + stockShortDate(e.due) : e.date < today ? 'Slow · expected ~' + stockShortDate(e.date) : 'Expected ~' + stockShortDate(e.date);
+      return '<div class="inv-row inv-row-2" data-flow-invoice="' + escHtml(o.inv.id) + '" data-flow-pay="' + (e.past ? 'past' : e.date && e.date < today ? 'slow' : 'due') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label || o.inv.displayNumber || '') + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatCurrency(o.due) + ' · ' + formatDate(o.date) + ' · due ' + formatDate(e.due) + (e.days != null ? ' · ' + (e.own ? 'pays' : 'the book pays') + ' in ' + e.days + ' days' : '')) + '</span></span>' +
+        '<span class="inv-row-end">' + uiDot(tone, escHtml(word)) + '</span></div>';
+    });
+    if (irows.length) h += '<div class="inv-row-group"><span>Open invoices · expected paid</span></div>' + uiMoreHtml('flow-invoices-' + clientId, irows, { n: irows.length === 6 ? 6 : 5, noun: 'invoices' });
+  }
+  var attrs = ' data-client-flow="' + escHtml(String(clientId)) + '"';
+  if (foldKey) return uiFoldHtml(foldKey, head + uiDot(v.tone, escHtml(v.text)), h, _isDesktop, attrs + ' data-card="flow"');
+  return '<div class="inv-panel inv-panel-flush"' + attrs + '><div class="inv-panel-head">' + head + '</div>' + h + '</div>';
+}
+/* Floor's Overview: the plant's flow as a hero, shut to its line until opened, as the others are. */
+function flowHeroHtml() {
+  var st = flowStats(null), v = flowVerdict(st, null), today = localDateStr(), since = isoAddDays(today, -FLOW_LATE_DAYS);
+  var late = flowLines().filter(function(x) { return x.row && x.date >= since && x.date <= today && flowWd(x.date, today) > x.target.days; });
+  var wanted = flowLines().filter(function(x) { return x.row && x.priority && x.stage !== 'plated' && x.priority <= today; });
+  var tone = wanted.some(function(x) { return x.priority < today; }) ? 'danger' : late.length ? (v.tone === 'danger' ? 'danger' : 'warning') : v.tone;
+  var stages = {};
+  late.forEach(function(x) { stages[x.stage] = (stages[x.stage] || 0) + 1; });
+  var body = '<div class="inv-hero-sheet">' + flowStepsHtml(st, null) +
+    flowRow('Past the target now', String(late.length), escHtml(late.length ? FLOW_STAGES.filter(function(k) { return stages[k]; }).map(function(k) { return stages[k] + ' ' + FLOW_STAGE_WORD[k]; }).join(', ') : 'nothing open past its target'), late.length ? 'warning' : 'ok', ' data-flow-late') +
+    (wanted.length ? flowRow('Wanted by today, not plated', String(wanted.length), escHtml(todoPlural(wanted.length, 'line') + ' on challans wanted by a day'), wanted.some(function(x) { return x.priority < today; }) ? 'danger' : 'warning', ' data-flow-wanted-now') : '') + '</div>';
+  var link = typeof flrLink === 'function' ? flrLink('pageProduction', 'invFlowPlant', 'Open In plant') : '';
+  return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Turnaround</span><span class="inv-panel-count">90 days</span>',
+    fig: st.toDespatch.d != null ? escHtml(String(st.toDespatch.d)) + '<span class="inv-unit">d</span>' : '&mdash;', title: escHtml(v.text),
+    sub: escHtml(late.length ? todoPlural(late.length, 'line') + ' past the target now' : 'nothing open past its target'),
+    body: body, fold: 'flr-hero-flow', open: false, attrs: ' data-card="flr-flow"', foot: link });
 }
 /* ===== POWER — the cuts, the connection's load, and the case for reliable supply =====
  * Floor → Power (owner, 30 Sep 2026: "Make a power cut tab, we have built a business case
@@ -57173,7 +57606,11 @@ var KB_APP_GUIDES = [
     '3. Add each line: choose the part and the rate and weight fill from the client’s record. Change them if the paper says otherwise.\n' +
     '4. A rate or weight far from the record is flagged. A red flag needs a reason before the challan saves (one tap: the customer’s challan says so, the rate changed, the weight differs).\n' +
     '5. **Save**, or **Save, add another** for the next challan of the same client and day.\n\n' +
-    '**Never** enter one challan twice. If the app warns of a duplicate, open the one it names first.'),
+    '**Never** enter one challan twice. If the app warns of a duplicate, open the one it names first.\n\n' +
+    '# Wanted by a day\n- Where the client asks for the material back by a day, put it in **Wanted by** on the form, or open the challan and tap **Wanted by**: the whole challan, or a line of its own (a line’s day wins).\n' +
+    '- The challan says *Wanted* and the day beside its name until its material goes out: blue ahead, amber on the day, red after. On the day, if nothing of it is plated, the To-do asks.',
+    // Version 2: a challan wanted by a day (the flow thread, 10 Oct 2026).
+    { version: 2 }),
   _kbg('invoice', 'Using the app: making an invoice', 'From the challans waiting to be billed', ['pageCreate', 'pageIM'],
     '1. Office → Challans: tick the challans to bill, then **Create invoice**. Or open Create and pick the client: its unbilled challans are tick boxes.\n' +
     '2. Each line comes in at what is **left to bill** on its challan. Type less to dispatch part of it; the rest stays waiting.\n' +
@@ -57237,12 +57674,13 @@ var KB_APP_GUIDES = [
     '# The extra, paid pro-rata\n- The area’s present crew receive its extra between them (owner, 28 Aug 2026). It stays one pooled figure under EXTRA on the slip, paid out by the supervisor; the shares are the split he pays it by, and nothing here enters a hand’s own wage.\n' +
     '- A share over a shift a day (24 hours of cover against two hands is twelve each) is marked: check it against the record before reading it as pay.'),
   // Floor's Overview (the tab map, TM4a): how its cards are read, which used to be a note under them (§1a-5).
-  _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock and power', ['pageFloor'],
+  _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock, power and turnaround', ['pageFloor'],
     'Floor opens on its **Overview**: the day across the plant, a card each, then a card per line. The arrows step through the days; **Today** comes back.\n\n' +
-    '# The four cards\n- **People**: who is on site against the day’s roster, and the lines short of the day’s number. Green at 90% on site; amber at 80%, or when the floor is short of its number; red under 80%.\n' +
+    '# The cards\n- **People**: who is on site against the day’s roster, and the lines short of the day’s number. Green at 90% on site; amber at 80%, or when the floor is short of its number; red under 80%.\n' +
     '- **Production**: what the day plated (≈ where part of it is estimated, ≥ where pieces nothing weighs are left out), and the line that did worst.\n' +
     '- **Stock**: the lines out and low now, whatever the day shown, and what the reorder list costs with GST.\n' +
     '- **Power**: the day’s cuts and how long it was dark, the month to that day, a year at this rate, and the load to chase while an approved load is not on the bill.\n' +
+    '- **Turnaround**: how many working days material takes from its challan to going out, the middle of the last 90 days weighted by value, against the target (Settings → Checks & alerts → Turnaround and terms, one working day; a client’s own, or a part’s, on the client). Open, it shows the days to pickling, to plating, to despatch and, where you see money, from the invoice to its payment against the terms; then the lines past the target now and the jobs wanted by today. Its link opens In plant.\n' +
     '- Tap a card for what it rests on; its link opens its screen. A role sees the cards of the screens it opens.\n\n' +
     '# The lines\n- A card per line, the worst first: red, then amber, green and blue.\n' +
     '- **Staffing**: the general shift’s heads against the day’s number (People → Attendance → Needed today). Barrel is barrel and barrel pickling, one unit.\n' +
@@ -57257,7 +57695,8 @@ var KB_APP_GUIDES = [
     '# Not weighed\n- Pieces plated with no weight anywhere in the book: no kg a piece on record, and no challan of them that counts their pieces.\n' +
     '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.',
     // Version 2: what a line earned, against its cost and its usual day; the week against the four before (owner, 10 Oct 2026).
-    { version: 2 }),
+    // Version 3: the turnaround card (the flow thread, 10 Oct 2026).
+    { version: 3 }),
   // Stock as one screen (the tab map, TM4d), and the method its Overview printed under its charts.
   _kbg('stock', 'Using the app: stock', 'The stock message, entry by hand, and reordering', ['pageStock'],
     'Floor → **Stock** is one screen. The card at the top says what is out or low and what the reorder list costs with GST; its tiles (Out, the days-or-less group, OK, No rate) each show only their lines, and a second tap shows them all.\n\n' +
@@ -59459,6 +59898,7 @@ function renderClientPerformance(container) {
   }
   html += todoClientCardHtml(clientId, 'cpFlagged');
   html += finClientMoneyHtml(clientId);
+  html += flowClientHtml(clientId, 'cp-flow');
   html += kbLinkedHtml('client', clientId, ((S.clients || []).find(function(c) { return c.id === clientId; }) || {}).name, 'Knowledge');
 
   var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
@@ -60117,7 +60557,7 @@ function _challanRestoreFocus(target) {
 function showAddChallanForm() {
   _challanForm = {
     clientId: null, challanNo: '', challanDate: localDateStr(),
-    vehicleNo: '', items: [{ partNumber: '', desc: '', hsn: '998873', unit: 'KG', qty: 0, rate: 0, amount: 0, nosQty: null }],
+    vehicleNo: '', priority: '', items: [{ partNumber: '', desc: '', hsn: '998873', unit: 'KG', qty: 0, rate: 0, amount: 0, nosQty: null }],
     notes: ''
   };
   renderAddChallanForm();
@@ -60157,7 +60597,11 @@ function renderAddChallanForm() {
     '<input type="date" class="inv-input inv-id" id="imChallanDate" data-k="challanDate" value="' + escHtml(_challanForm.challanDate) + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="imVehicleNo">Vehicle no.</label>' +
     '<input class="inv-input inv-id" id="imVehicleNo" data-k="vehicleNo" value="' + escHtml(_challanForm.vehicleNo) + '" list="imVehicleList" autocomplete="off">' +
-    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div></div></div></div>';
+    '<datalist id="imVehicleList">' + getVehicleSuggestions(_challanForm.clientId) + '</datalist></div>' +
+    // The day the client wants it back by, where they asked (flow.js, the entry faces' T1): asked of on the day if not plated.
+    '<div class="inv-field"><label class="inv-field-label" for="imWantedBy">Wanted by</label>' +
+    '<input type="date" class="inv-input inv-id" id="imWantedBy" data-k="priority" value="' + escHtml(_challanForm.priority || '') + '">' +
+    '<div class="inv-field-hint">Only where the client asked for it by a day.</div></div></div></div></div>';
 
   // Lines, on the invoice form's line editor.
   html += '<div class="inv-panel inv-panel-flush inv-panels-wide"><div class="inv-panel-head"><span class="inv-panel-title">Lines</span>' +
@@ -60289,6 +60733,8 @@ function captureChallanFields() {
   if (cn) _challanForm.challanNo = cn.value.trim();
   if (cd) _challanForm.challanDate = cd.value;
   if (vn) _challanForm.vehicleNo = vn.value.trim();
+  var wb = document.getElementById('imWantedBy');
+  if (wb) _challanForm.priority = wb.value || '';
 }
 
 function selectChallanClient(clientId) {
@@ -60447,6 +60893,7 @@ function saveChallan() {
     existing.vehicleNo = _challanForm.vehicleNo;
     existing.receivedDate = _challanForm.challanDate || localDateStr();
     existing.notes = _challanForm.notes || '';
+    if (_challanForm.priority) existing.priority = _challanForm.priority; else delete existing.priority;
     if (dupeAck) existing.dupeAck = dupeAck;
     // A line keeps its id and what the form does not hold (the corrections an invoice made to it); a line added in the
     // edit takes an id no line of this challan has ever had, so nothing pointing at a removed line finds another.
@@ -60483,6 +60930,7 @@ function saveChallan() {
     createdAt: now,
     dupeAck: dupeAck
   };
+  if (_challanForm.priority) entry.priority = _challanForm.priority;
 
   S.incomingMaterial.push(entry);
   saveVehicleToClient(_challanForm.clientId, _challanForm.vehicleNo);
@@ -60617,6 +61065,7 @@ function editChallan(imId) {
     challanNo: im.challanNo || '',
     challanDate: im.challanDate || localDateStr(),
     vehicleNo: im.vehicleNo || '',
+    priority: im.priority || '',
     items: im.items.map(function(it) {
       return {
         _id: it.id,   // the line's own id, kept by the save (challanLineSaved)
@@ -61620,6 +62069,10 @@ function onDocClick(e) {
     // The floor's own sheets (F5): Production → More → Print sheets, blank or as entered.
     case 'invFshOpen': fshProdOpen(); break;
     case 'invFshPreview': fshProdPreview(btn.dataset.kind); break;
+    // The flow thread (T1–T3): a challan's day it is wanted by; Floor's Turnaround card's door.
+    case 'invFlowPrio': flowPriorityOpen(btn.dataset.id); break;
+    case 'invFlowPrioSave': flowPrioritySave(); break;
+    case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
     case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
@@ -65113,6 +65566,19 @@ if (!S._cnSeriesStart1) {
   if (!c) return;
   if (!(+c.defaultKgPc > 0)) c.defaultKgPc = 0.56;
   S._clientKgPcDefault1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== THE PAYMENT TERMS THE REBATE BUYS, SET ONCE (docs/ENTRY_FACES.md §5, T1) =====
+   Owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every other client 45 days". Every other client reads the plant's 45
+   days (Settings → Checks & alerts → Turnaround and terms); the client whose name reads Mehta is set to 7, only where it has no terms
+   of its own, and once: the flag travels with the state, so terms the owner changes or clears stay so. */
+(function() {
+  if (S._clientTerms1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  if (!(+c.payTermsDays > 0)) c.payTermsDays = 7;
+  S._clientTerms1 = true;
   saveJSON(STORAGE_KEY, S);
 })();
 

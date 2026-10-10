@@ -2109,6 +2109,8 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
 /* Four subjects (Money's Overview: cash, owed, GST, paid out): two across, and four on a window wide enough for a crore in each. */
 body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 @media (min-width: 80rem) { body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A hero left alone on the last row takes the row, so a grid of heroes never ends in a blank cell (Floor's Overview holds five). */
+body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.inv-desktop .inv-heroes-4 > .inv-hero:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. A stack
    in a column of cards (the phone) keeps the gap under it, as every card has. */

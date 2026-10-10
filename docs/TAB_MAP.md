@@ -245,7 +245,7 @@ and P197 checks the anatomy. The targets are for the owner's book; P195 holds th
 | Money → Bank | W | 1.8–3.1 C | TM3c | *To 08 Oct · ₹1.12L · 1 break in the balance* · the statement first; imports and the balance check folded |
 | Money → GST | W | 1.0 C | TM3c | *Sep ₹6,567 due by 20 Oct · Jul not in the bank* · a row a month on the phone |
 | Money → Bills & notes | — | 1.8–3.1 C | TM3a | goes (bills to Payments, notes to Invoices) |
-| Floor → Overview (was Day) | O | 1.5 (1.0) C | TM4a | the stepper; heroes for People, Production, Stock and Power; the line cards worst first; *Not weighed* |
+| Floor → Overview (was Day) | O | 1.5 (1.0) C | TM4a | the stepper; heroes for People, Production, Stock and Power, and the flow thread's Turnaround (10 Oct 2026, ENTRY_FACES §5, on a row of its own); the line cards worst first; *Not weighed* |
 | People → Overview | — | 2.7 (1.6) N | TM4b | goes |
 | People → Attendance · Day | W | 6.7 (2.5) N | TM4b | *12 of 16 on site · VAT A1 short 1* (on site, half day, absent, unmarked its factors; the tile strip goes into it) · the board; EXTRA rows folded; ≤ 4 |
 | People → Attendance · Week | W | 3.8 (2.5) N | TM4b | *Week 41: 92% present · Thu not recorded* · attendance by week, the grid; ≤ 3 |
@@ -1103,7 +1103,8 @@ and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Gr
 **TM4f. Redirect rows** for TM4 (§5).
 
 **Acceptance:** Floor's row is Overview · People · Production · Stock · Power; the Overview shows the four heroes per role (owner
-all four, supervisor all four, the floor role People without a link, Production and Stock, no Power), the line cards worst first
+all four, supervisor all four, the floor role People without a link, Production and Stock, no Power; since the flow thread, 10 Oct
+2026, a fifth, Turnaround, to each role that opens Production, on a row of its own), the line cards worst first
 and the stepper; People's row is four with the Day · Week · Month switch and unchanged addresses; Week leads with its verdict and
 attendance by week, Pay with labour ₹/kg and payroll against the bank (no bank series without money); Day's EXTRA rows are one line
 each until opened; Areas leads with its verdict and the rows to explain; Production's row is four, Lines leads with plated by line,

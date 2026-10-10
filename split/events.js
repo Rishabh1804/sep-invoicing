@@ -246,6 +246,10 @@ function onDocClick(e) {
     // The floor's own sheets (F5): Production → More → Print sheets, blank or as entered.
     case 'invFshOpen': fshProdOpen(); break;
     case 'invFshPreview': fshProdPreview(btn.dataset.kind); break;
+    // The flow thread (T1–T3): a challan's day it is wanted by; Floor's Turnaround card's door.
+    case 'invFlowPrio': flowPriorityOpen(btn.dataset.id); break;
+    case 'invFlowPrioSave': flowPrioritySave(); break;
+    case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
     case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;

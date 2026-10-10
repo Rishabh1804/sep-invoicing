@@ -75,9 +75,13 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
      of each duty) and *Print the day as entered* (each duty's record of the day, whoever entered it, voided and corrected records
      never), and the three new sheets (the pickling sheet, the barrel batch sheet, the VAT register pages), which Production → More →
      Print sheets prints for any day. Printing writes nothing. **F6 built**: the guides (Mine, one a face, the owner's set-up), on
-     Mine's book and leading each role's path. **Next**: T1–T3, the flow thread. **The owner's, once
+     Mine's book and leading each role's path. **T1–T3 built (P204)**, the flow thread: a turnaround target (1 working day, the
+     client's or a part's own) and payment terms (45 days, 7 on the rebate client, the client's own), a challan wanted by a day,
+     the tasks for material past its target, a job not plated by its day and an invoice past its terms, and the flow on Floor's
+     Overview (a fifth hero, *Turnaround*) and on a client's page, with each open challan and invoice expected. **The owner's, once
      merged**: give each person an ID and their duties; type each barrel's kg a round on Production → Equipment, which the batch check
-     reads first; rule the questions the sheet and the roll raise (on the 10 Oct book, 8 on 5 days).
+     reads first; rule the questions the sheet and the roll raise (on the 10 Oct book, 8 on 5 days); set the turnaround a client agreed
+     where it is not a working day (Clients → the client → Turnaround and terms): the one-day target puts 7 lines past it today.
 - Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
@@ -100,6 +104,15 @@ batch is a production entry, `kind: 'plated'`, `line: 'barrel'`, `basis: 'regist
 `unitId` (the plant register's barrel) or `barrel` (its number typed), `to` (when it came out) and `msgHash`; a batch the owner kept
 carries `checkOk` with the code `heavy`. In the `sep-production` export, merged by id; the compile should count a day's batches over the
 supervisor's relayed barrel list, as the app does (*also reported*).
+
+**Data flow (10 Oct 2026, P204, the flow thread T1–T3):** new in the book and nothing read from soma-internal:
+- `S.flowCfg` `{turnDays, termsDays}`;
+- on a client, `payTermsDays`, `turnaroundDays` and `turnaroundParts: [{part, days}]`, each absent where the plant's stands;
+- on a challan (`incomingMaterial[]`) and on a challan line, `priority` (a date it is wanted by);
+- the once-only flag `_clientTerms1`, which set 7 days on the client whose name reads Mehta.
+
+All travel with the book: backups, GitHub, the compile. **For the compile**, the To-do's `owed90` keeps its id and now means past the
+client's terms, not 90 days; a reader that rebuilt it from the book should read `payTermsDays`, else 45.
 
 **Data flow (10 Oct 2026, P202, entry faces F4):** a VAT register page entered on a face is kept whole in a new production store,
 `production.pages` (`{id, date, line, style: 'rounds'|'batches', rows: [{time, to, client, part, fig}], total?, counted, fp, by, uid,
@@ -544,6 +557,7 @@ in the PR**, so the compile session knows to re-check.
 | **Backup shape changed, 9 Oct 2026, the second (a register run's start)** | A plated register entry whose run opens on an END (no START written for it, or split from its START's run by its gauge) starts at the END before it on its page, where it had started at its own END. One saved before the fix, from a photo or a file the reader built, is corrected at start-up and carries `startWas` (the start it had, `HH:MM`; no clock, so two devices putting one run right write the same). **The `sep-production` export carries both**; the corrected copy is the newer one, so the compile should take it over the copy it holds, and any hours or pace worked out from the old start move with it. |
 | **Backup shape changed, 10 Oct 2026 (suppliers, P208)** | New top-level `suppliers: [{id, name, names[], leadMin?, leadMax? (working days), gstPct?, opening?: {amount, date, note, at, by}, inOpening?: [statement row ids], totals?: {'<bill no>|<date>': amount}, note?, at, by, setAt?, setBy?}]` and `supplierPays: [{id, supplierId, date, amount, how: cash/cheque/transfer, chq, note, at, by, voidedAt?, voidReason?, voidBy?}]`; both in the `sep-stock` export. **For the compile**: a supplier's bills are its stock entries (`bill`, `received`) grouped by company, number and date; what is owed is the balance set, plus the bills after its day with GST rounded to the rupee, less the payments after it, a cheque recorded here and the statement's row of its number being one payment. |
 | **Backup shape changed, 10 Oct 2026 (compare suppliers, P209)** | A stock line (`stock.items[]`) may carry `orderFrom: {supplierId, name, at, by}`: the supplier the owner chose to order it from (Stock → Compare suppliers), which the reorder list, the line and its task follow over the app's own pick; a supplier's record may carry `quotes: [{id, itemId, price (before GST, a unit), date, note, at, by}]`, a price quoted, weighed beside the bills for 90 days. Both travel in the `sep-stock` export (items whole, suppliers whole). **For the compile**: a quote is not a purchase and never a bill; `orderFrom` is a choice, not a record of what was bought. |
+| **Backup shape changed, 10 Oct 2026 (the flow thread, P204)** | New config `flowCfg: {turnDays: 1, termsDays: 45}` (filled key by key on an old backup); a client may carry `payTermsDays`, `turnaroundDays` and `turnaroundParts: [{part, days}]`; a challan and a challan line may carry `priority` (`YYYY-MM-DD`); `_clientTerms1` set once. In the backups and GitHub; no export file changes. `todoCheck` gains `flowLate`, `flowPriority`. |
 | **Backup shape changed, 10 Oct 2026 (entry faces F3, P201)** | A pasted roll's record (`relayPastes[]`) may carry `face` (the name of who wrote it on their own screen), and `replacedBy` and `replacedAt` (written again on the face: kept to refuse it when pasted, never read again); its day's marks and EXTRA rows are those a paste writes. A production entry may be a barrel batch: `kind: 'plated'`, `line: 'barrel'`, `basis: 'register'`, `src: 'face'`, with `unitId` or `barrel`, `to` and `msgHash`, and `checkOk.codes` may hold `heavy`. In the backups and the `sep-production` export; merged by id. |
 | **Backup shape changed, 10 Oct 2026 (entry faces F2, P200)** | A production entry (`production.entries[]`) may carry `src: 'face'` (entered on a person's own screen), `msgHash` (the key of the message it gave the WhatsApp group: that message pasted is refused), `imId` and `imItemId` (the challan and line a count was made against), `challanNo` (as written), and `checkOk: {codes: [...], at, by}` (the checks the owner kept it through: `noplate`, `over`, `count`, `inNoChallan`, `noload`). In the `sep-production` export; merged by id. |
 | **Backup shape changed, 10 Oct 2026 (entry faces, P199)** | A user (`users[]`) may carry `faces: [duty, …]` (`roll-in`, `pickling`, `incoming`, `stock`, `attsheet`, `barrel`, `vat`, `roll-out`): what that person enters on their own screen, Mine. It travels with the users (backups, GitHub, the compile); nothing outside the app reads it, and the records a face enters are those the forms already write. |

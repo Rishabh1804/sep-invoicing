@@ -350,11 +350,13 @@ test.describe('P152: the guard, after its QA', () => {
     const appKeys = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#homeNeeds [data-todo="app"]'), function (b) { return b.dataset.tdyTask; })`) as Promise<string[]>;
     let keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).not.toContain(k);
+    // The challan's material past its turnaround target is a floor fact on Production, in quantities, which the supervisor opens (P204).
+    expect(keys).toContain('flowLate:1');
     // Opened by its key (the widget's launch), a task not the role's is not shown.
     await g(page, "todoOpenApp('supplierNoBill:x')");
     await expect(page.locator('[data-todo-facts]')).toHaveCount(0);
-    // The bar counts only what the role sees: nothing red here.
-    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0, mine: 0 }));
+    // The bar counts only what the role sees: of the red, the turnaround alone.
+    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 1, office: 0, floor: 1, money: 0, mine: 0 }));
     // The link picker: a stock line, nothing else; no invoice, challan or client is listed.
     await page.locator('[data-action="invTodoNew"]').click();
     expect(await ev(page, `Array.prototype.map.call(document.querySelectorAll('#todoLinkKind option'), function (o) { return o.value; })`)).toEqual(['', 'stock']);
@@ -365,10 +367,10 @@ test.describe('P152: the guard, after its QA', () => {
     await switchUser(page, 'U-own', PINS.owner);
     await switchTab(page, 'pageHome');
     keys = await appKeys(page);
-    for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).toContain(k);
+    for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup', 'flowLate:1']) expect(keys).toContain(k);
     const n = JSON.parse(await ev(page, 'JSON.stringify(wsRedCounts())') as string);
-    expect(n.floor).toBe(2);
-    expect(n.today).toBe(2);
+    expect(n.floor).toBe(3);
+    expect(n.today).toBe(3);
     await page.locator('[data-action="invTodoNew"]').click();
     expect(await ev(page, `Array.prototype.map.call(document.querySelectorAll('#todoLinkKind option'), function (o) { return o.value; })`)).toEqual(['', 'client', 'invoice', 'challan', 'stock']);
   });

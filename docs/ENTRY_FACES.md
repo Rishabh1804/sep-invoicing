@@ -8,8 +8,9 @@ barrel. F4 built (10 Oct 2026, P202): the register clerk's VAT page on Mine, rea
 and its checks, and the clerk's attendance sheet set against the supervisor's roll. F5 built (10 Oct 2026, P203): each face's paper,
 blank and the day as entered, and the three new sheets (the pickling sheet, the barrel batch sheet, the VAT register pages), which
 Production prints for any day too. F6 built (10 Oct 2026, P199): the guides, one for Mine, one a face, and the owner's set-up, on
-Mine's book and in each role's path.** The flow thread T1–T3 follows, one commit each, on the tab map's branch (PR #146) ahead of
-TM5–TM7.
+Mine's book and in each role's path. The flow thread T1–T3 built (10 Oct 2026, P204): turnaround targets and payment terms, a
+challan wanted by a day, the tasks they raise, and the flow on Floor's Overview and a client's page (§5).** TM5–TM7 follow on the
+tab map's branch (PR #146).
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,
@@ -203,6 +204,22 @@ The owner's answers on the material-flow study:
   despatch day (its client's and line's usual turnaround and the work ahead of it on its line), each open invoice's expected
   payment day (`bankDaysToPay`).
 
+**Built (10 Oct 2026, P204), as CLAUDE.md *Entry faces* says in full.** `flow.js`.
+- **T1.** The plant's target and terms are Settings → Checks & alerts → *Turnaround and terms* (`S.flowCfg`: `turnDays` 1, 0 the same
+  day; `termsDays` 45). A client's own, and a part's own on it, are on the client's form (`client.payTermsDays`,
+  `client.turnaroundDays`, `client.turnaroundParts`). The client whose name reads Mehta takes 7 days once, where it has none
+  (`_clientTerms1`). A challan or one of its lines is wanted by a day (`priority`): set on the challan form or with *Wanted by*
+  among its actions, and badged while anything on it is open.
+- **T2.** `flowLate`: material past its target, per client, red two working days past, saying where it stands. Waiting to pickle
+  only where the floor's record covers the month, as In plant withholds it, else *with no floor record*. `flowPriority`: a challan
+  wanted by today with no plating recorded. `owed90`: past the client's terms.
+- **T3.** Floor's Overview's fifth hero, *Turnaround*. A client's page carries the same steps, each open challan's expected day back
+  (the client's usual turnaround, or later where the work ahead of it on its line says so), and each open invoice past its terms,
+  slow, or expected. A hero alone on the last row takes the row.
+- **Measured on the owner's book** (counts only): back in a median one working day, 71% of the value within the one-day target. Seven
+  lines past it now, in 2 tasks. The floor's record covers 4% of the month's line-days, so nothing is said to be waiting to pickle.
+  The owed task: 4 clients over 90 days became 10 past their terms, 2 red.
+
 ## 6. Steps and specs
 
 | Step | What | Spec |
@@ -213,7 +230,7 @@ The owner's answers on the material-flow study:
 | F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other (built) | P202 |
 | F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) (built) | P203 |
 | F6 | The guides (*Using the app: my face*, one per face, by role), docs, the full suite (built) | P199 |
-| T1–T3 | The flow thread, as §5 | P204 |
+| T1–T3 | The flow thread, as §5 (built) | P204 |
 
 Each spec uses made-up names in the shop's shapes, and each fails on the build before its step.
 
@@ -235,6 +252,13 @@ Each spec uses made-up names in the shop's shapes, and each fails on the build b
   {codes, at, by}`, as stock's is; built so in F2 rather than as a store of its own),
   `client.payTermsDays`, `client.turnaroundDays` and per part, a challan's `priority`. They travel with the book; NEXT_SESSION's
   table gets their shape when each is built.
+- The flow thread (T1–T3) adds to the book:
+  - `S.flowCfg` `{turnDays, termsDays}`, the plant's target and terms;
+  - on a client, `payTermsDays`, `turnaroundDays` and `turnaroundParts` (`[{part, days}]`), each absent where the plant's stands;
+  - on a challan and on a line, `priority` (a date);
+  - the once-only flag `_clientTerms1`.
+
+  The `owed90` task's id is unchanged; it now reads past each client's terms. Nothing is read from soma-internal for them.
 
 ## 8. Open, to be settled with the owner as the faces are tried
 

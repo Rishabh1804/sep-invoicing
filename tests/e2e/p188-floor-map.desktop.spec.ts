@@ -11,15 +11,19 @@ const where = (p: Page) => p.evaluate(() => { const l = (window as any).navLoc()
 const tabs = (page: Page, page_: string) => page.locator(`#${page_} .inv-viewtabs:not(#wsTabs) .inv-viewtab`);
 
 test.describe('P188: Floor’s map on the desktop', () => {
-  test('the Overview’s four heroes go across, People carrying the verdict; the line cards follow', async ({ page }) => {
+  test('the Overview’s four heroes go across, People carrying the verdict, the turnaround on a row of its own; the line cards follow', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await switchTab(page, 'pageFloor');
     await expect(page.locator('#flrHeroes')).toHaveClass(/inv-heroes-4/);
-    const tops = await page.locator('#flrHeroes > [data-card]').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
-    expect(tops).toHaveLength(4);
-    // Four across from 80rem; two to a row under it.
+    const boxes = await page.locator('#flrHeroes > [data-card]').evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.width)]; }));
+    expect(boxes).toHaveLength(5);
+    // Four across from 80rem; two to a row under it. The fifth (the flow thread's turnaround, T3) is alone on the last row and
+    // takes it, so the grid never ends in a blank cell.
     const wide = await page.evaluate(() => window.innerWidth >= 80 * parseFloat(getComputedStyle(document.documentElement).fontSize));
-    expect(new Set(tops).size).toBe(wide ? 1 : 2);
+    expect(new Set(boxes.slice(0, 4).map(b => b[0])).size).toBe(wide ? 1 : 2);
+    expect(boxes[4][0]).toBeGreaterThan(boxes[3][0]);
+    const row = await page.locator('#flrHeroes').evaluate(e => Math.round(e.getBoundingClientRect().width));
+    expect(Math.abs(boxes[4][1] - row)).toBeLessThanOrEqual(1);
     await expect(page.locator('#flrHeroes > [data-card="flr-people"]')).toHaveAttribute('data-verdict', '');
     await expect(page.locator('#flrLines > [data-line]')).toHaveCount(4);
   });

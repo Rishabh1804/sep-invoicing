@@ -48,7 +48,11 @@ var KB_APP_GUIDES = [
     '3. Add each line: choose the part and the rate and weight fill from the client’s record. Change them if the paper says otherwise.\n' +
     '4. A rate or weight far from the record is flagged. A red flag needs a reason before the challan saves (one tap: the customer’s challan says so, the rate changed, the weight differs).\n' +
     '5. **Save**, or **Save, add another** for the next challan of the same client and day.\n\n' +
-    '**Never** enter one challan twice. If the app warns of a duplicate, open the one it names first.'),
+    '**Never** enter one challan twice. If the app warns of a duplicate, open the one it names first.\n\n' +
+    '# Wanted by a day\n- Where the client asks for the material back by a day, put it in **Wanted by** on the form, or open the challan and tap **Wanted by**: the whole challan, or a line of its own (a line’s day wins).\n' +
+    '- The challan says *Wanted* and the day beside its name until its material goes out: blue ahead, amber on the day, red after. On the day, if nothing of it is plated, the To-do asks.',
+    // Version 2: a challan wanted by a day (the flow thread, 10 Oct 2026).
+    { version: 2 }),
   _kbg('invoice', 'Using the app: making an invoice', 'From the challans waiting to be billed', ['pageCreate', 'pageIM'],
     '1. Office → Challans: tick the challans to bill, then **Create invoice**. Or open Create and pick the client: its unbilled challans are tick boxes.\n' +
     '2. Each line comes in at what is **left to bill** on its challan. Type less to dispatch part of it; the rest stays waiting.\n' +
@@ -112,12 +116,13 @@ var KB_APP_GUIDES = [
     '# The extra, paid pro-rata\n- The area’s present crew receive its extra between them (owner, 28 Aug 2026). It stays one pooled figure under EXTRA on the slip, paid out by the supervisor; the shares are the split he pays it by, and nothing here enters a hand’s own wage.\n' +
     '- A share over a shift a day (24 hours of cover against two hands is twelve each) is marked: check it against the record before reading it as pay.'),
   // Floor's Overview (the tab map, TM4a): how its cards are read, which used to be a note under them (§1a-5).
-  _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock and power', ['pageFloor'],
+  _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock, power and turnaround', ['pageFloor'],
     'Floor opens on its **Overview**: the day across the plant, a card each, then a card per line. The arrows step through the days; **Today** comes back.\n\n' +
-    '# The four cards\n- **People**: who is on site against the day’s roster, and the lines short of the day’s number. Green at 90% on site; amber at 80%, or when the floor is short of its number; red under 80%.\n' +
+    '# The cards\n- **People**: who is on site against the day’s roster, and the lines short of the day’s number. Green at 90% on site; amber at 80%, or when the floor is short of its number; red under 80%.\n' +
     '- **Production**: what the day plated (≈ where part of it is estimated, ≥ where pieces nothing weighs are left out), and the line that did worst.\n' +
     '- **Stock**: the lines out and low now, whatever the day shown, and what the reorder list costs with GST.\n' +
     '- **Power**: the day’s cuts and how long it was dark, the month to that day, a year at this rate, and the load to chase while an approved load is not on the bill.\n' +
+    '- **Turnaround**: how many working days material takes from its challan to going out, the middle of the last 90 days weighted by value, against the target (Settings → Checks & alerts → Turnaround and terms, one working day; a client’s own, or a part’s, on the client). Open, it shows the days to pickling, to plating, to despatch and, where you see money, from the invoice to its payment against the terms; then the lines past the target now and the jobs wanted by today. Its link opens In plant.\n' +
     '- Tap a card for what it rests on; its link opens its screen. A role sees the cards of the screens it opens.\n\n' +
     '# The lines\n- A card per line, the worst first: red, then amber, green and blue.\n' +
     '- **Staffing**: the general shift’s heads against the day’s number (People → Attendance → Needed today). Barrel is barrel and barrel pickling, one unit.\n' +
@@ -132,7 +137,8 @@ var KB_APP_GUIDES = [
     '# Not weighed\n- Pieces plated with no weight anywhere in the book: no kg a piece on record, and no challan of them that counts their pieces.\n' +
     '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.',
     // Version 2: what a line earned, against its cost and its usual day; the week against the four before (owner, 10 Oct 2026).
-    { version: 2 }),
+    // Version 3: the turnaround card (the flow thread, 10 Oct 2026).
+    { version: 3 }),
   // Stock as one screen (the tab map, TM4d), and the method its Overview printed under its charts.
   _kbg('stock', 'Using the app: stock', 'The stock message, entry by hand, and reordering', ['pageStock'],
     'Floor → **Stock** is one screen. The card at the top says what is out or low and what the reorder list costs with GST; its tiles (Out, the days-or-less group, OK, No rate) each show only their lines, and a second tap shows them all.\n\n' +

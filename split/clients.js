@@ -143,7 +143,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   }
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
-    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
+    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + flowClientHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
     _cfield('ceditGstin', 'GSTIN', _cinput('ceditGstin', c.gstin, 'inv-id', ' maxlength="15"')) +
@@ -164,7 +164,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
       opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
     '</div>' +
-    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) +
+    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) + _clientFlowFieldsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
@@ -209,6 +209,26 @@ function _clientFloorDefaultsHtml(c) {
     '<div class="inv-field-hint">For a piece plated with no weight of its own: the floor wrote a name with no part (CLAMP and a gauge) and no challan links it. Empty for none.</div></div>' +
     '</div></div></div>';
 }
+/* The client's own turnaround and terms (flow.js, the entry faces' T1; owner, 10 Oct 2026: "Target default one day, can be edited as
+   per material or overall as well", "Mehta 7 days - as we give 2% discount, every other client 45 days"). Empty for the plant's (Settings
+   → Checks & alerts → Turnaround and terms); a part of its own on a row each, two rows free for a new one. */
+function _clientFlowFieldsHtml(c) {
+  var cfg = flowCfg(), parts = (Array.isArray(c.turnaroundParts) ? c.turnaroundParts : []).concat([{ part: '', days: '' }, { part: '', days: '' }]);
+  return '<div class="inv-panel inv-panel-flush" data-client-terms><div class="inv-panel-head"><span class="inv-panel-title">Turnaround and terms</span></div>' +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTerms">Payment terms, days</label>' +
+    _cinput('ceditTerms', +c.payTermsDays > 0 ? String(c.payTermsDays) : '', 'inv-input-num', ' type="number" step="1" min="1" inputmode="numeric" placeholder="' + cfg.termsDays + '"') +
+    '<div class="inv-field-hint">From the invoice’s date. Empty: the plant’s ' + cfg.termsDays + ' days.</div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTurn">Turnaround target, working days</label>' +
+    _cinput('ceditTurn', flowSetNum(c.turnaroundDays) ? String(c.turnaroundDays) : '', 'inv-input-num', ' type="number" step="1" min="0" inputmode="numeric" placeholder="' + cfg.turnDays + '"') +
+    '<div class="inv-field-hint">From the challan to despatch; 0 is the same day. Empty: the plant’s target (' + escHtml(flowDaysWord(cfg.turnDays)) + ').</div></div></div>' +
+    '<div class="inv-field-hint">A part with a target of its own:</div>' + parts.map(function(p, i) {
+      return '<div class="inv-fields" data-client-turn-part="' + i + '"><div class="inv-field"><label class="inv-field-label" for="ceditTurnPart' + i + '">Part</label>' +
+        _cinput('ceditTurnPart' + i, p.part || '', 'inv-id', ' autocomplete="off" data-turn-part') + '</div>' +
+        '<div class="inv-field"><label class="inv-field-label" for="ceditTurnDays' + i + '">Working days</label>' +
+        _cinput('ceditTurnDays' + i, flowSetNum(p.days) ? String(p.days) : '', 'inv-input-num', ' type="number" step="1" min="0" inputmode="numeric" data-turn-days') + '</div></div>';
+    }).join('') + '</div></div>';
+}
 function clientPoExampleRefresh(input) {
   var ex = document.getElementById('ceditPoEx');
   if (!ex) return;
@@ -252,6 +272,21 @@ function _readClientForm(excludeId) {
   if (!clientPoTemplateOk(poTpl.trim())) { showToast('The P.O. pattern needs {challan} where the number goes', 'error'); return null; }
   const dkEl = document.getElementById('ceditDefaultKgPc'), dk = dkEl ? String(dkEl.value || '').trim() : '';
   if (dk !== '' && !(+dk > 0 && +dk <= 100)) { showToast('The default kg per piece is a weight above 0 and up to 100', 'error'); return null; }
+  // Turnaround and terms: a figure typed is the client's own; empty is the plant's.
+  const termsEl = document.getElementById('ceditTerms'), terms = termsEl ? String(termsEl.value || '').trim() : '';
+  if (terms !== '' && !(+terms >= 1 && +terms <= 365)) { showToast('Payment terms are days, from 1 to 365', 'error'); return null; }
+  const turnEl = document.getElementById('ceditTurn'), turn = turnEl ? String(turnEl.value || '').trim() : '';
+  if (turn !== '' && !(+turn >= 0 && +turn <= 60)) { showToast('A turnaround target is working days, from 0 to 60', 'error'); return null; }
+  const turnParts = [];
+  let turnBad = '';
+  document.querySelectorAll('[data-client-turn-part]').forEach(function(row) {
+    const part = String((row.querySelector('[data-turn-part]') || {}).value || '').trim(), days = String((row.querySelector('[data-turn-days]') || {}).value || '').trim();
+    if (!part && days === '') return;
+    if (!part || days === '' || !(+days >= 0 && +days <= 60)) { turnBad = turnBad || (part ? part + ': give its working days, from 0 to 60' : 'A part’s target needs the part'); return; }
+    if (turnParts.some(function(x) { return rateKey(x.part) === rateKey(part); })) { turnBad = turnBad || part + ' has two targets'; return; }
+    turnParts.push({ part: part, days: Math.round(+days) });
+  });
+  if (turnBad) { showToast(turnBad, 'error'); return null; }
 
   return {
     name: name,
@@ -270,6 +305,9 @@ function _readClientForm(excludeId) {
     defaultTransport: ((document.getElementById('ceditTransport') || {}).value || '').trim().toUpperCase(),
     poFromChallan: poTpl.trim(),
     defaultKgPc: dk === '' ? undefined : Math.round(+dk * 10000) / 10000,
+    payTermsDays: terms === '' ? undefined : Math.round(+terms),
+    turnaroundDays: turn === '' ? undefined : Math.round(+turn),
+    turnaroundParts: turnParts.length ? turnParts : undefined,
     isActive: document.getElementById('ceditActive').checked
   };
 }
@@ -490,6 +528,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
 
     html += todoClientCardHtml(c.id);
     html += finClientMoneyHtml(c.id);
+    html += flowClientHtml(c.id);
     html += qtClientPanelHtml(c.id);
     html += kbLinkedHtml('client', c.id, c.name, 'Knowledge');
 

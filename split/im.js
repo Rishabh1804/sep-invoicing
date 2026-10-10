@@ -460,7 +460,7 @@ function _buildIMTableHtml() {
       '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
       '<td class="inv-num"><span class="inv-row-stack">' + imAmountHtml(im) + '</span></td>' +
-      '<td>' + imStatusDotHtml(im) + '</td></tr>';
+      '<td>' + imStatusDotHtml(im) + ' ' + flowPriorityBadgeHtml(im) + '</td></tr>';
   });
   return html + '</tbody></table>';
 }
@@ -541,7 +541,7 @@ function imAmountHtml(im, awaiting) {
 /* A challan's row as IM's list draws it: its number and client over its vehicle and lines, and its end, the amount over
    its status. Office → Pipeline's Awaiting list draws the same (pipeline.js), with the Awaiting amount. */
 function imRowMainHtml(im) {
-  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
+  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + ' ' + flowPriorityBadgeHtml(im) + '</span>' +
     '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span>';
 }
 function imRowEndHtml(im, awaiting) {
@@ -594,16 +594,18 @@ function _imItemRowHtml(it) {
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
 function _imActionsHtml(im, primary) {
   var status = getIMStatus(im), billed = im.items.filter(imLineBilled).length, id = escHtml(im.id);
+  // The day it is wanted by is set while anything on it is open, billed in part or not (flow.js).
+  var wanted = status !== 'invoiced' ? '<button class="inv-btn inv-btn-ghost' + (primary ? '' : ' inv-btn-sm') + '" data-action="invFlowPrio" data-id="' + id + '">Wanted by</button>' : '';
   if (billed === 0) {
     // Secondary: the page's one primary is Add challan (DR-3).
-    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' +
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' + wanted +
       '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
   }
   if (status !== 'invoiced') {
     // Shown as disabled, yet a tap or a click still says why: a button that took no pointer (inv-btn-disabled) told
     // only somebody on a keyboard.
     var why = 'Cannot edit: ' + billed + ' item' + (billed > 1 ? 's' : '') + ' already invoiced';
-    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>' + wanted;
   }
   return '';
 }
@@ -616,6 +618,7 @@ function challanDetailHtml(im) {
     '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(im.clientName) + '</div></div>' +
     (im.vehicleNo ? '<div><div class="inv-kv-k">Vehicle</div><div class="inv-id">' + escHtml(im.vehicleNo) + '</div></div>' : '') +
     '<div><div class="inv-kv-k">Status</div><div>' + imStatusDotHtml(im) + '</div></div>' +
+    (flowPriorityBadgeHtml(im) ? '<div><div class="inv-kv-k">Wanted by</div><div>' + flowPriorityBadgeHtml(im) + '</div></div>' : '') +
     (im.notes ? '<div class="inv-kv-wide"><div class="inv-kv-k">Notes</div><div>' + escHtml(im.notes) + '</div></div>' : '') +
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +

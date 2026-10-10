@@ -212,7 +212,7 @@ what clears it, and a `sig` so a snooze holds until the figures change. **Warn, 
 |---|---|---|
 | `bankStale` | newest statement row is 14+ days old | a newer statement is imported |
 | `bankLoose` | a receipt has no client for 7+ days (one task, counts them; red at 10+ or ₹1L+) | every receipt is placed |
-| `owed90` | a client has invoices over 90 days open (per client; red at 10% of the book) | paid or the opening is corrected |
+| `owed90` | a client has invoices over 90 days open (per client; red at 10% of the book); since 10 Oct 2026 (the flow thread, `docs/ENTRY_FACES.md` §5) past the client's payment terms, 45 days or its own | paid or the opening is corrected |
 | `payingSlower` | a client's last three receipts took 25%+ longer than its own median days-to-pay | back within its median |
 | `gstNotInBank` | a closed month has GST due, no payment on the statement, and no note | paid, or a note is added (Phase 1c) |
 | `powerPaidNoBill` | an electricity payment's month has no bill | the bill is added (one tap from the task: *Add as bill*) |

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, answerAsk, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, answerAsk, type SepState, openAttendance, toolbarMore } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 
 // P169 (owner, 7 Oct 2026, docs/WORKERS_AND_PLANT.md W4): ID cards with a QR code, and the scanner that logs them into the day.
@@ -72,8 +72,8 @@ test.describe('P169 ID cards and the scanner', () => {
     await loadAppWithState(page, book());
     await g(page, `idcEnsure(staffById(2)); saveState()`);
     await switchTab(page, 'pageStaff');
-    await page.locator('#pageStaff .inv-viewtab[data-view="day"]').click();
-    await page.locator('[data-action="invIdcScan"]').click();
+    await openAttendance(page, 'day');
+    await toolbarMore(page, 'Scan cards');   // Day's More (TM4b)
     const card: string = await g(page, `staffById(2).card`);
     await page.fill('#idcType', card);
     await page.keyboard.press('Enter');
@@ -89,7 +89,7 @@ test.describe('P169 ID cards and the scanner', () => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-    await page.locator('#pageStaff [data-action="invIdcPrint"]').first().click();
+    await toolbarMore(page, 'ID cards');   // the Roster toolbar's More (TM4b)
     await page.locator('[data-action="invIdcPreview"]').click();
     const cards = page.locator('#invPrintBody .inv-idc');
     const fronts = page.locator('#invPrintBody [data-idc-card]');

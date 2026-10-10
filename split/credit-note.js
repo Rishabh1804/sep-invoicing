@@ -58,8 +58,8 @@ function cnNoteFy(cn) {
   return p.length > 2 ? p.slice(2).join('/') : '';
 }
 /* A note of the current series: this financial year's, or one that states no
-   year. A note recorded from an earlier year (Finance → Bills & notes takes the
-   year as printed) holds a number in THAT year's series, never in this one's. */
+   year. A note recorded from an earlier year (Credit notes → Record issued takes
+   the year as printed) holds a number in THAT year's series, never in this one's. */
 function cnInSeries(cn) {
   var fy = cnNoteFy(cn);
   return !fy || billsCnFy(fy) === cnFyShort();   // a year stored as typed (2026-27) is this series' 26-27 (bills.js)
@@ -355,7 +355,8 @@ async function saveCreditNote() {
   _cnForm = null;
   closeOverlay();
   _regSelected = {};
-  _renderRegView();
+  // The rows' CN marks and the toolbar's count both change.
+  cnRegisterRefresh();
   _renderRegSelBar();
   // Said above the preview, where it is seen: a toast is painted under the print view.
   showCreditNotePreview(cn.id, cn.displayNumber + ' raised — ' + formatCurrency(cn.grandTotal) + '. Print it, or close to go back to the register.');
@@ -376,9 +377,9 @@ async function cancelCreditNote(cnId) {
   cn.cancelledAt = Date.now();
   cn.updatedAt = Date.now();
   saveState();
-  // Cancelled from wherever the note is listed: the Register's overlay, or Finance → Bills & notes.
-  if (document.querySelector('.inv-scrim-dialog')) { closeOverlay(); renderCreditNoteList(); }
-  else if (document.querySelector('#pageFinance.inv-page-active')) renderFinance();
+  // Cancelled from the Credit notes dialog: it is drawn again, and the Register's badge and marks with it.
+  if (document.querySelector('[data-cn-dialog]')) renderCreditNoteList(true);
+  cnRegisterRefresh();
   showToast(cn.displayNumber + ' cancelled — the number stays in the series');
 }
 
@@ -674,7 +675,7 @@ function cnSetAgainstInvoice(id) {
     return { num: num, idx: idx, inv: inv };
   });
 
-  var html = '<div class="inv-dialog">' + dialogHeadHtml('Against invoice &mdash; ' + escHtml(cn.displayNumber)) +
+  var html = '<div class="inv-dialog" data-cn-pick>' + dialogHeadHtml('Against invoice &mdash; ' + escHtml(cn.displayNumber)) +
     '<div class="inv-note inv-mb-8">Pick the invoice this credit note is taken against. It must carry ' +
     formatCurrency(need) + ' taxable.</div><div class="inv-panel inv-panel-flush">';
 
@@ -713,7 +714,7 @@ function cnPickAgainst(id, idx) {
     delete cn.againstInvoice; delete cn.againstInvoiceId; delete cn.againstInvoiceDate;
     saveState();
     showToast('Reference cleared \u2014 the rule will choose again', 'success');
-    renderCreditNoteList(); return;
+    renderCreditNoteList(); cnRegisterRefresh(); return;
   }
   var invId = (cn.invoiceIds || [])[idx];
   var inv = (S.invoices || []).find(function(i) { return i.id === invId; });
@@ -728,6 +729,7 @@ function cnPickAgainst(id, idx) {
   saveState();
   showToast('Now taken against ' + inv.displayNumber, 'success');
   renderCreditNoteList();
+  cnRegisterRefresh();
 }
 
 /* The DATE of the invoice named on the face. Stamped at creation; for a note
@@ -861,13 +863,23 @@ function cnSerialCompare(a, b) {
   return (parseInt(a.cnNumber, 10) || 0) - (parseInt(b.cnNumber, 10) || 0);
 }
 
-function renderCreditNoteList() {
+/* Office → Invoices → Credit notes (the tab map, TM3a): every note, and the two doors for a note made outside a Register batch,
+   Record issued (a note already on paper) and New note (against one invoice, for a reason), in the head with or without notes.
+   Their form (bills.js) draws at the top of this dialog and redraws it as it is typed. The dialog is found by its own mark, so a
+   redraw never writes over another dialog that happens to be on top; shut by any road, the form goes with it. `keepForm`: the
+   form's own redraw (anything else opening the list starts it with no form). */
+function renderCreditNoteList(keepForm) {
+  // The reference picker is drawn in the list's own scrim (cnSetAgainstInvoice), and the list comes back in it.
+  var open = document.querySelector('[data-cn-dialog], [data-cn-pick]'), scrim = open && open.closest('.inv-scrim-dialog');
+  if (!scrim && !keepForm) _billForm = null;
   var notes = getCreditNotes().slice().sort(function(a, b) { return cnSerialCompare(b, a); });
-
-  var html = '<div class="inv-dialog">' + dialogHeadHtml('Credit notes');
+  var doors = _billForm ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnFormOpen" data-mode="record">Record issued</button>' +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnFormOpen" data-mode="new">New note</button>';
+  var html = '<div class="inv-dialog" data-cn-dialog>' + dialogHeadHtml('Credit notes', 'invCnListClose', 'Close', doors);
+  if (_billForm) html += '<div data-cn-form>' + _billsCnFormHtml() + '</div>';
 
   if (notes.length === 0) {
-    html += '<div class="inv-empty">No credit notes yet. Select a batch of invoices in the register to raise one.</div>';
+    html += '<div class="inv-empty">No credit notes yet. A batch rebate is raised from a Register selection; any other note, or one already issued, from the head of this list.</div>';
   } else {
     html += '<div class="inv-panel inv-panel-flush">';
     notes.forEach(function(cn) {
@@ -875,22 +887,20 @@ function renderCreditNoteList() {
       var n = (cn.invoiceNumbers || []).length;
       // A batch note states its batch; a recorded or adjustment note has none, so it states its reason.
       var batch = cnIsRebate(cn) && !cn.recorded && cn.discountPct;
-      var basis = batch
-        ? escHtml(cn.discountPct) + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '')
-        : escHtml((cn.reason || 'Credit note') + (cn.recorded ? ' · recorded' : ''));
-      // The actions are an end of their own, so on a phone they drop under the figures rather than squeezing the lines.
-      html += '<div class="inv-row inv-row-auto inv-row-flow' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + '>' +
+      var basis = batch ? cn.discountPct + '% of ' + formatCurrency(cn.batchTaxable) + ' over ' + n + ' invoice' + (n !== 1 ? 's' : '')
+        : (cn.reason || 'Credit note') + (cn.recorded ? ' · recorded' : '');
+      // Two facts in its line, its date and the invoice it names (the customer identifies the note by that one number), and its
+      // reason on a line of its own. The actions are an end of their own, so on a phone they drop under the figures.
+      html += '<div class="inv-row inv-row-auto inv-row-flow' + (cancelled ? ' inv-row-muted' : '') + '"' + (cancelled ? ' data-cancelled' : '') + ' data-cn-row="' + escHtml(cn.id) + '">' +
         '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
-        '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> ' +
-        (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
-        '<span class="inv-row-meta">' + escHtml(formatDate(cn.date)) + ' · ' + escHtml(cn.clientName) + '</span>' +
-        '<span class="inv-row-meta">' + basis + '</span>' +
-        // The customer identifies this note by ONE invoice number now, so that
-        // number belongs on the row rather than behind a preview.
-        '<span class="inv-row-meta">Against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span></button>' +
+        '<span class="inv-row-title"><span class="inv-id" data-invnum>' + escHtml(cn.displayNumber) + '</span> · ' + escHtml(cn.clientName) +
+        (cancelled ? ' <span class="inv-dot inv-dot-danger">Cancelled</span>' : '') + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(formatDate(cn.date)) + ' · against ' + escHtml(cnAgainstInvoiceLabel(cn)) + '</span>' +
+        '<span class="inv-row-meta" data-cn-reason>' + escHtml(basis) + '</span></button>' +
         '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
         '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span></span></span>' +
-        (cancelled ? '' :
+        // A form open above the list has its own Cancel; the list's would cancel a GST note at a tap.
+        (cancelled || _billForm ? '' :
           '<span class="inv-row-end inv-row-actions inv-toolbar inv-toolbar-tight">' +
           // Only a batch has invoices to choose among. A recorded note carries the number
           // printed on the customer's copy, and "Clear" would erase it for good.
@@ -905,7 +915,26 @@ function renderCreditNoteList() {
   }
   html += '</div>';
 
-  dialogOpen(html, { replace: true, dismiss: true });
+  // Drawn again in its own scrim as the form is typed: the list's sheet is kept and only what is in it replaced, so it keeps
+  // where it was scrolled and does not slide in again (a client or a reason picked halfway down had sent it to its top, P79).
+  // Coming back from the reference picker, the sheet is the picker's, and is replaced.
+  var was = scrim && scrim.querySelector('.inv-dialog[data-cn-dialog]');
+  if (was) {
+    var tpl = document.createElement('template');
+    tpl.innerHTML = html;
+    var top = was.scrollTop;
+    was.innerHTML = tpl.content.firstElementChild.innerHTML;
+    if (was.scrollTop !== top) was.scrollTop = top;
+  } else if (scrim) scrim.innerHTML = html;
+  else scrim = dialogOpen(html, { dismiss: true });
+  scrim._onClose = function() { _billForm = null; };
+  // Saved or cancelled, nothing typed is left to ask about.
+  if (!_billForm) delete scrim.dataset.typed;
+}
+/* A credit note made, cancelled or re-referenced changes the Register's badge and its rows' CN marks: drawn again where shown. */
+function cnRegisterRefresh() {
+  _regToolbarRendered = false;
+  if (navPageOf() === 'pageRegister') renderRegister();
 }
 
 /* ===== EXPORT =====

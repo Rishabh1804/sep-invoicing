@@ -799,27 +799,30 @@ function reopenAreaExplain(key) {
 }
 
 /* ===== VIEW ===== */
+/* One look (the tab map, TM4b): the verdict (the extra checks out, or how many bookings are to explain), one toolbar row (the span
+   and the week), the extra checked with the disagreements first, each with Explain, and its working folded; the staffing by area;
+   the hours and the pro-rata split folded. How the extra is checked is the guide's (People: the areas and the extra). */
 function _attAreasView() {
   // The span runs BACK from the week shown: 4 weeks is this one and the three before (it ran forward, into weeks to come).
   var to = isoAddDays(_attWeekStart, 6);
   var from = isoAddDays(_attWeekStart, -(_areaSpan - 1) * 7);
-  var stats = areaStats(from, to);
+  var stats = areaStats(from, to), phone = !_isDesktop, thisWeek = _attWeekStart === attWeekStartOf(localDateStr());
+  var flags = _areaFlagsOf(stats);
 
-  var html = _attStepper('invAttWeekStep', _attWeekLabel(_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks',
-    formatDate(from) + ' &ndash; ' + formatDate(to)), 'invAttThisWeek', 'This week', 'Earlier', 'Later');
-
-  html += '<div class="inv-seg inv-mb-8" role="group" aria-label="Span">' +
-    [[1, '1 week'], [4, '4 weeks'], [12, '12 weeks']].map(function(s) {
-      return '<button class="inv-seg-btn" aria-pressed="' + (_areaSpan === s[0]) + '" data-action="invAreaSpan" data-span="' + s[0] + '">' + s[1] + '</button>';
-    }).join('') + '</div>';
+  var html = _areaVerdictHtml(stats, flags, from, to) + '<div class="inv-toolbar" data-att-toolbar="areas">' +
+    _attStepInRow('invAttWeekStep', phone ? '' : '<span class="inv-stepper-title">' + (_areaSpan === 1 ? 'Week ' + attPayWeekNumber(from) : _areaSpan + ' weeks') + '</span>', 'Earlier', 'Later') +
+    '<span class="inv-seg inv-toolbar-item" role="group" aria-label="Span">' +
+    [[1, '1 week'], [4, '4 weeks'], [12, '12 weeks']].map(function(x) {
+      return '<button class="inv-seg-btn" aria-pressed="' + (_areaSpan === x[0]) + '" data-action="invAreaSpan" data-span="' + x[0] + '">' + x[1] + '</button>';
+    }).join('') + '</span>' +
+    (phone ? (thisWeek ? '' : uiToolbarMoreHtml([{ label: 'Go to this week', action: 'invAttThisWeek' }], { icon: true }))
+      : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') + '</div>';
 
   if (stats.recordedDays === 0) {
-    return html + '<div class="inv-panel"><div class="inv-empty">' +
-      'No attendance recorded in this range. Mark some days and the floor appears here.</div></div>';
+    return html + '<div class="inv-panel"><div class="inv-empty">No attendance recorded in this range.</div></div>';
   }
 
-  html += uiFoldCard('areaHours', areaHoursCard(from, to), false);
-  html += _areaExtraCard(stats);
+  html += _areaExtraCard(stats, flags);
 
   // Ranked by the hours the area actually consumed, because that is what
   // staffing is spent on — a bigger crew standing idle and a smaller one
@@ -830,53 +833,70 @@ function _attAreasView() {
     return (b.paidHours + b.extraHours + b.dayTierDays * 8) - (a.paidHours + a.extraHours + a.dayTierDays * 8);
   });
 
-  html += '<div class="inv-panel inv-panel-flush" id="areaStaffing"><div class="inv-panel-head"><span class="inv-panel-title">Staffing by area</span></div>' +
-    '<div class="inv-panel-body inv-note">Heads are counted from the day’s marks, so a worker moved to another area ' +
-    'counts where they actually stood. Set a complement to see the variance; leave it blank and the area’s own ' +
-    'median stands as the only reference &mdash; and the extra above cannot be checked without one. ' +
-    'Averages are over the <strong>' + stats.recordedDays +
-    ' recorded day' + (stats.recordedDays === 1 ? '' : 's') + '</strong> in this range, not over the calendar.</div>';
-
+  html += '<div class="inv-panel inv-panel-flush" id="areaStaffing"><div class="inv-panel-head"><span class="inv-panel-title">Staffing by area</span>' +
+    '<span class="inv-panel-count">' + todoPlural(stats.recordedDays, 'recorded day') + '</span></div>';
   rows.forEach(function(a) { html += _areaRow(a); });
-
   var flex = stats.rows.find(function(a) { return a.id === 'flex'; });
   if (flex && flex.headDays > 0) {
-    html += _labCallout('<strong>' + formatNum(flex.headDays, 0) + ' worker-day' +
-      (flex.headDays === 1 ? '' : 's') + '</strong> sit on Flex and are counted against no area. ' +
-      'A floating hand is a fact about the day rather than a gap to fill by guesswork &mdash; but every one of ' +
-      'them is missing from the staffing figures above. Set the area on the day view to move them.');
+    html += '<div class="inv-row inv-row-2" data-area-flex><span class="inv-row-main"><span class="inv-row-title">Flex: counted against no area</span>' +
+      '<span class="inv-row-meta">set the area on the Day view to place them</span></span><span class="inv-row-end inv-row-end-stack"><span class="inv-num">' +
+      formatNum(flex.headDays, 0) + '</span>' + uiDot('warning', flex.headDays === 1 ? 'worker-day' : 'worker-days') + '</span></div>';
   }
   html += '</div>';
 
+  html += uiFoldCard('areaHours', areaHoursCard(from, to), false);
   html += uiFoldCard('areaAbsorb', _areaAbsorptionCard(stats), false);
   return html;
 }
 
-/* The extra, examined. This is the card the view was asked for.
+/* The disagreements, each a thing to explain: a unit-day booked at or above its complement (the case the rule forbids), a unit-day
+   booked but not the predicted amount, and a block whose booking its shortfall does not explain. Each is keyed as the exception
+   ledger keys it, so one explained leaves the list and comes back the moment its figures move (stale). */
+function _areaFlagsOf(stats) {
+  var cfg = labourCfg(), shift = [];
+  (stats.units || []).forEach(function(u) {
+    u.bookedAtNorm.forEach(function(d) {
+      shift.push({ iso: d.iso, scope: u.id, key: 'shift', kind: 'atNorm', label: u.label, expected: 0, booked: d.booked, tone: 'danger',
+        detail: formatNum(d.booked, 1) + ' h on ' + d.heads + '/' + d.norm });
+    });
+    u.mismatched.forEach(function(d) {
+      var exp = gstRound(d.short * cfg.extraHoursPerHead);
+      shift.push({ iso: d.iso, scope: u.id, key: 'shift', kind: 'mismatch', label: u.label, expected: exp, booked: d.booked, tone: 'warning',
+        detail: formatNum(d.booked, 1) + ' h against ' + formatNum(exp, 1) + ' h' });
+    });
+  });
+  var blocks = (stats.blockMismatched || []).map(function(b) {
+    return Object.assign({}, b, { tone: 'warning', detail: formatNum(b.booked, 1) + ' h against ' + formatNum(b.expected, 1) + ' h' });
+  });
+  var part = _partitionExceptions(shift.concat(blocks));
+  part.open.sort(function(x, y) { return (x.tone === 'danger' ? 0 : 1) - (y.tone === 'danger' ? 0 : 1) || (x.iso < y.iso ? 1 : x.iso > y.iso ? -1 : 0); });
+  return part;
+}
+function _areaVerdictHtml(stats, flags, from, to) {
+  var cfg = labourCfg(), span = _areaSpan === 1 ? 'week ' + attPayWeekNumber(from) : _areaSpan + ' weeks';
+  var screen = 'Areas · ' + span + ', ' + stockShortDate(from) + ' – ' + stockShortDate(to);
+  if (stats.recordedDays === 0) return uiVerdictHtml({ screen: screen, verdict: 'No attendance recorded in this range', tone: 'neutral', attrs: ' id="areaVerdict"' });
+  var n = flags.open.length, danger = flags.open.some(function(f) { return f.tone === 'danger'; });
+  var gap = gstRound(stats.bookedInNormed - stats.expectedExtra), none = stats.bookedExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0;
+  var unchecked = stats.blockIncomplete.reduce(function(s, b) { return s + b.booked; }, 0);
+  var verdict = n ? todoPlural(n, 'booking') + ' to explain' : !stats.normed ? 'No complement set: the extra is only counted' : none ? 'No extra booked' : 'The extra checks out';
+  var tone = n ? (danger ? 'danger' : 'warning') : !stats.normed ? 'warning' : 'ok';
+  return uiVerdictHtml({ screen: screen, verdict: verdict, tone: tone, fig: formatNum(stats.bookedExtra, 1) + '<span class="inv-tile-of"> h</span>',
+    facts: [!stats.normed ? '' : Math.abs(gap) < 0.001 ? 'booked exactly as predicted' : formatNum(Math.abs(gap), 1) + ' h ' + (gap > 0 ? 'more than the shortfall explains' : 'less than the shortfall allows'),
+      unchecked > 0 ? formatNum(unchecked, 1) + ' h not checkable' : ''],
+    factors: [
+      { label: 'Expected', fig: formatNum(stats.expectedExtra, 1) + '<span class="inv-tile-of"> h</span>', sub: formatNum(cfg.extraHoursPerHead, 0) + ' h a missing hand', attrs: ' data-tile="expected"' },
+      { label: 'Booked', fig: formatNum(stats.bookedInNormed, 1) + '<span class="inv-tile-of"> h</span>', tone: !stats.normed ? null : gap > 0.001 ? 'warning' : Math.abs(gap) < 0.001 ? 'ok' : null,
+        sub: 'on the areas with a complement', attrs: ' data-tile="booked"' },
+      { label: 'To explain', fig: String(n), tone: n ? (danger ? 'danger' : 'warning') : stats.normed ? 'ok' : null, sub: flags.acked.length ? flags.acked.length + ' explained' : 'unit-days and blocks', attrs: ' data-tile="explain"' },
+      { label: 'Not checkable', fig: formatNum(unchecked, 1) + '<span class="inv-tile-of"> h</span>', tone: unchecked > 0 ? 'warning' : null, sub: 'counted in the bill', attrs: ' data-tile="unchecked"' }],
+    attrs: ' id="areaVerdict"' });
+}
 
-   The rule is `8 × (norm − heads)` per UNIT, per day: a hand missing from an
-   area running at full tilt is covered by the crew who are there, and eight
-   hours are booked to the area for it. So the extra is not an unexplained
-   line — it is a *prediction*, and a prediction can be checked against what was
-   actually booked.
-
-   Be exact about which half of that is ruled. The 11 Jun ruling fixes the label
-   under the short sub-area and gives a worked example — A1 3/4, A2 3/4, pickling
-   2/3 → 24 h — in which every gap is ONE, so it cannot distinguish 8-per-missing
-   -hand from 8-per-short-area. The per-hand scaling is the **owner's, confirmed
-   27 Aug 2026**. Two recorded days contradict it: W27 Mon 29 Jun and W28 Fri
-   10 Jul, both VAT A1 at 2 of 4, both tagged 8 where per-hand predicts 16. The
-   app follows the owner's rule and surfaces those as *booked but not the
-   predicted amount* rather than smoothing them away. `extraHoursPerHead` is in
-   Settings because the question is not closed.
-
-   The one thing this cannot do is judge capacity. The rule holds when the area
-   is running at full tilt; an area that was short *and* running light needs no
-   coverage and should book nothing. Nothing in this app measures per-area
-   output, so the expected figure is an **upper bound**, and booking under it is
-   as likely to mean a light day as a missed tag. The card says that where it
-   matters rather than dressing the bound up as a target. */
-function _areaExtraCard(stats) {
+/* The extra, checked (the rule: `8 × (norm − heads)` per unit and day, an upper bound, the owner's per-hand scaling; the guide has the
+   reasoning). The disagreements lead, each with Explain; then the ones explained; then how the check is worked out, folded: the
+   expected and booked, what is not counted, each OT block's own reconciliation. */
+function _areaExtraCard(stats, flags) {
   var cfg = labourCfg();
   var totalExtra = stats.bookedExtra;
   var totalPaid = stats.rows.reduce(function(s, a) { return s + a.paidHours; }, 0);
@@ -884,216 +904,102 @@ function _areaExtraCard(stats) {
   var unmannedDays = stats.units.reduce(function(s, u) { return s + u.unmannedDays; }, 0);
 
   var html = _labPanelHead('extra', 'The extra, checked', formatNum(totalExtra, 1) + ' h', '', 'areaExtra');
-
   if (totalExtra === 0 && stats.expectedExtra === 0 && stats.blockHours === 0) {
-    // Nothing to reconcile — but say WHY nothing was expected, because on a
-    // day with lines standing idle that is an assumption doing real work.
-    var idleQuiet = stats.idleDays;
-    return html + '<div class="inv-empty">No extra hours booked, and every area ' +
-      'that ran was at its complement' +
-      (idleQuiet > 0 ? ' &mdash; ' + idleQuiet + ' unit-day' + (idleQuiet === 1 ? '' : 's') +
-        ' were idle and not counted' : '') + '</div></div>';
+    // Nothing to reconcile, and why nothing was expected: an idle line is an assumption doing real work.
+    return html + '<div class="inv-empty">No extra hours booked, and every area that ran was at its complement' +
+      (stats.idleDays > 0 ? ': ' + stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's') + ' idle and not counted' : '') + '</div></div>';
+  }
+  // The card above says the extra is only counted; this row is what to do about it (the floor's own full house, ruled 11 Jun 2026).
+  if (!stats.normed) html += '<div class="inv-row inv-row-2" data-area-nonorm><span class="inv-row-main"><span class="inv-row-title">Set each area’s complement below</span>' +
+    '<span class="inv-row-meta">the full house: VAT A1 and A2 4, Barrel 3, Barrel pickling 2, Pickling 3</span></span>' +
+    '<span class="inv-row-end">' + uiDot('warning', 'Not checked') + '</span></div>';
+
+  // What needs the owner first (§3e): every disagreement nobody has explained, the danger ones first, each with Explain.
+  if (flags.open.length) {
+    html += '<div class="inv-row-group" data-area-to-explain><span>To explain</span><span class="inv-num">' + flags.open.length + '</span></div>';
+    flags.open.slice(0, 8).forEach(function(f) {
+      var stale = flags.stale.some(function(x) { return exceptionKey(x.d) === exceptionKey(f); });
+      html += _areaFlagRow(f.tone, f.label, f.iso, f.detail, stale ? 'its explanation no longer matches' : '', f.key === 'shift' ? 'shift' : 'block',
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" data-ex="' + encodeURIComponent(JSON.stringify({
+          iso: f.iso, scope: f.scope, key: f.key, kind: f.kind, label: f.label, expected: f.expected, booked: f.booked })) + '">Explain</button>');
+    });
+    if (flags.open.length > 8) html += '<div class="inv-row" data-flag="more"><span class="inv-row-meta">' + (flags.open.length - 8) + ' more</span></div>';
+  } else if (stats.normed) {
+    html += '<div class="inv-row" data-area-passed><span class="inv-row-main"><span class="inv-row-title">Every booking answers a shortfall</span></span>' +
+      '<span class="inv-row-end">' + uiDot('ok', 'Passed') + '</span></div>';
+  }
+  if (flags.acked.length) {
+    html += '<div class="inv-row-group"><span>Explained</span><span class="inv-num">' + flags.acked.length + '</span></div>';
+    flags.acked.slice(0, 8).forEach(function(a) {
+      html += _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso, a.d.detail || formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason), a.d.key === 'shift' ? 'shift' : 'block',
+        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
+    });
   }
 
-  // The headline comparison, when there is a norm to compare against.
-  if (stats.normed > 0) {
-    var gap = stats.bookedInNormed - stats.expectedExtra;
-    // More booked than the shortfall explains is the case the rule forbids (a caution); less is an upper
-    // bound read loosely, not an error, so it takes no tone.
-    html += '<div class="inv-tiles inv-tiles-flush">' +
-      _labTile('expected', 'Expected', formatNum(stats.expectedExtra, 1) + '<span class="inv-tile-of"> h</span>',
-        formatNum(cfg.extraHoursPerHead, 0) + ' h &times; each missing hand') +
-      _labTile('booked', 'Booked', formatNum(stats.bookedInNormed, 1) + '<span class="inv-tile-of"> h</span>',
-        Math.abs(gap) < 0.001 ? 'exactly as predicted'
-          : formatNum(Math.abs(gap), 1) + ' h ' + (gap > 0 ? 'more than the shortfall explains' : 'less than the shortfall allows'),
-        gap > 0.001 ? 'warning' : (Math.abs(gap) < 0.001 ? 'ok' : '')) + '</div>';
-
-    if (gap > 0.001) {
-      html += _labCallout('<strong>More was booked than the shortfall explains.</strong> ' +
-        'Under the rule every extra hour answers a missing hand, so a surplus has to come from somewhere the ' +
-        'rule does not describe &mdash; hours on top of named columns rather than instead of them, a tag on a ' +
-        'full area, or a quantity written larger than the gap. The rows below say which areas and which days.', 'warning');
-    } else if (gap < -0.001) {
-      html += _labNote('Less was booked than the shortfall allows. That is not in itself ' +
-        'wrong: the rule applies to an area running at full tilt, and an area that was short <em>and</em> ' +
-        'running light needs no coverage. Nothing here measures per-area output, so the expected figure is an ' +
-        '<strong>upper bound</strong> rather than a target.');
-    }
-  } else {
-    html += _labCallout('No complement is set on any area, so there is no shortfall to ' +
-      'predict from and the extra cannot be checked &mdash; only counted. Set the norms below ' +
-      '(VAT A1 and A2 at 4, Barrel 3, Barrel pickling 2, Pickling A1+A2 3 is the floor\u2019s own full house) ' +
-      'and this card starts answering the question it exists for.');
-  }
-
+  // How it is worked out: a fact a row, folded (§3c).
+  var unbooked = 0, idle = stats.idleDays;
+  (stats.units || []).forEach(function(u) { unbooked += u.shortUnbooked.length; });
   var share = (totalPaid + totalExtra) > 0 ? (totalExtra / (totalPaid + totalExtra)) * 100 : 0;
-  // The rupees are wages (the guard's "wages" setting): a role that may not see them sees the hours.
-  if (attSeesWages()) html += _labRow('Extra at the contract tier', formatCurrency(totalExtra * cfg.extraRate),
-    formatNum(totalExtra, 1) + ' h &times; ' + formatCurrency(cfg.extraRate) + ' &middot; ' +
-    formatNum(share, 1) + '% of paid hours');
-  else html += _labRow('Extra hours', formatNum(totalExtra, 1) + ' h', formatNum(share, 1) + '% of paid hours');
-
-  // Three disagreements, kept apart because they mean different things.
-  var atNorm = [], unbooked = [], mism = [];
-  (stats.units || []).forEach(function(u) {
-    u.bookedAtNorm.forEach(function(d) { atNorm.push({ a: u, d: d }); });
-    u.shortUnbooked.forEach(function(d) { unbooked.push({ a: u, d: d }); });
-    u.mismatched.forEach(function(d) { mism.push({ a: u, d: d }); });
-  });
-
-  if (atNorm.length > 0) {
-    html += _labRow('Booked at or above complement', atNorm.length + ' unit-day' + (atNorm.length === 1 ? '' : 's'),
-      'the rule predicts nothing here');
-    html += _areaFlagList(atNorm, function(f) {
-      return formatNum(f.d.booked, 1) + ' h on ' + f.d.heads + '/' + f.d.norm;
-    }, 'danger');
-  }
-  if (unmannedDays > 0) {
-    html += _labRow('Read as fully short', formatNum(unmannedH, 1) + ' h',
-      'across ' + unmannedDays + ' unit-day' + (unmannedDays === 1 ? '' : 's') +
-      ' nobody was marked on');
-  }
-  if (mism.length > 0) {
-    html += _labRow('Booked, but not the predicted amount', mism.length + ' unit-day' + (mism.length === 1 ? '' : 's'),
-      'short, and covered by a different number of hours');
-    html += _areaFlagList(mism, function(f) {
-      return formatNum(f.d.booked, 1) + ' h against ' + formatNum(f.d.short * cfg.extraHoursPerHead, 1) + ' h';
-    }, 'warning');
-  }
-  if (unbooked.length > 0) {
-    html += _labRow('Short, nothing booked', unbooked.length + ' unit-day' + (unbooked.length === 1 ? '' : 's'),
-      'a light day, or a tag nobody wrote');
-  }
-  if (stats.idleDays > 0) {
-    html += _labRow('Not running, not counted', stats.idleDays + ' unit-day' + (stats.idleDays === 1 ? '' : 's'),
-      'nobody stood on it and nothing was booked to it');
-  }
-  if (unmannedDays > 0) {
-    html += _labNote('A unit nobody was marked on that still carries hours is ' +
-      'read as <strong>fully short and fully covered</strong> &mdash; a zero-head pickling row against ' +
-      'a norm of three booking 24 hours is 8 &times; 3 exactly. It counts on both sides of the check ' +
-      'rather than neither, so it does not fail it. What it does say is that the marks for that day ' +
-      'were never typed.');
-  }
-  if (stats.blockHours > 0) html += _areaBlockSection(stats);
-
-  // `unmannedDays` is deliberately NOT a gate. A unit nobody was marked on that
-  // carries a booking is read as fully short and fully covered — the ruling this
-  // card follows — so it can and does reconcile to the hour. Holding it against
-  // the check would mean the canonical case could never pass. It is reported
-  // above because the marks were not typed, which is worth knowing on its own.
-  // The pass note speaks for the WHOLE card, so it must clear the block
-  // disagreements too. Gated on the shift ones alone it rendered "30.0 h
-  // against 14.0 h" and "every booking reconciles exactly" one after the other.
-  if (atNorm.length === 0 && mism.length === 0 && stats.blockMismatched.length === 0 && stats.normed > 0) {
-    html += _labNote('<span class="inv-dot inv-dot-ok">Passed</span> Every booking in this range sits on an area that was short by ' +
-      'exactly the hands the hours pay for. That is the whole cross-check the record supports, and it passes.');
-  } else if (atNorm.length > 0) {
-    html += _labCallout('These are flags on the <strong>paperwork</strong>. Hours booked to ' +
-      'the wrong area, an area assignment nobody typed, and hours that were never worked all look identical ' +
-      'from here, and so does a day the relay simply recorded loosely. What the card gives you is the area and ' +
-      'the date &mdash; the sheet settles the rest.');
-  }
-
-  html += _labNote('<strong>extra /head-day</strong> in the staffing rows below is the area&rsquo;s extra ' +
-    'hours divided by its worker-days &mdash; the hours each body standing there carried beyond their own ' +
-    'recorded time. Under the norm-gap rule that absorption is real and pro-rata, which is what the ' +
-    'card below it ranks; it stays out of the wage arithmetic because the payout is pooled, not per-worker.');
-
+  var unchecked = stats.blockIncomplete.reduce(function(s, b) { return s + b.booked; }, 0);
+  var facts = [
+    stats.normed ? { label: 'Expected', value: formatNum(stats.expectedExtra, 1) + ' h', sub: formatNum(cfg.extraHoursPerHead, 0) + ' h × each missing hand' } : null,
+    stats.normed ? { label: 'Booked', value: formatNum(stats.bookedInNormed, 1) + ' h', sub: Math.abs(stats.bookedInNormed - stats.expectedExtra) < 0.001 ? 'exactly as predicted'
+      : formatNum(Math.abs(stats.bookedInNormed - stats.expectedExtra), 1) + ' h ' + (stats.bookedInNormed > stats.expectedExtra ? 'more than the shortfall explains' : 'less than the shortfall allows: an upper bound') } : null,
+    // The rupees are wages (the guard's "wages" setting): a role that may not see them sees the hours.
+    attSeesWages() ? { label: 'Extra at the contract tier', value: formatCurrency(totalExtra * cfg.extraRate), sub: formatNum(share, 1) + '% of paid hours' }
+      : { label: 'Extra hours', value: formatNum(totalExtra, 1) + ' h', sub: formatNum(share, 1) + '% of paid hours' },
+    unbooked ? { label: 'Short, nothing booked', value: todoPlural(unbooked, 'unit-day'), sub: 'a light day, or a tag nobody wrote' } : null,
+    idle ? { label: 'Not running, not counted', value: todoPlural(idle, 'unit-day'), sub: 'nobody on it, nothing booked' } : null,
+    unmannedDays ? { label: 'Read as fully short', value: formatNum(unmannedH, 1) + ' h', sub: todoPlural(unmannedDays, 'unit-day') + ' nobody was marked on' } : null,
+    stats.blockReconciled ? { label: 'OT blocks, expected', value: formatNum(stats.blockExpected, 1) + ' h', sub: 'shortfall × each block’s own length' } : null,
+    stats.blockReconciled ? { label: 'OT blocks, booked', value: formatNum(stats.blockBooked, 1) + ' h', sub: todoPlural(stats.blockReconciled, 'block row') } : null,
+    stats.blockIncomplete.length ? { label: 'Not checkable', value: formatNum(unchecked, 1) + ' h', sub: todoPlural(stats.blockIncomplete.length, 'row') + ' missing times, crew or a complement' } : null
+  ];
+  html += uiWorkingHtml('area-extra-working', facts, null, ' data-area-working');
+  html += _areaBlockFoldsHtml(stats);
   return html + '</div>';
 }
-
-/* OT blocks, reconciled on their own terms.
-
-   Same rule as the general shift, different multiplier: a missing hand is
-   credited the block's own length rather than a full 8. Kept in its own
-   section rather than summed into the shift figures, because the two answer
-   different questions — a plant short-handed all day and a plant short-handed
-   for a 3-hour morning slot are not the same finding, and one total would
-   report neither. */
-function _areaBlockSection(stats) {
-  var html = '<div id="areaBlocks"><div class="inv-row-group">OT blocks</div>' + _labNote('<strong>OT blocks</strong> ' +
-    'book the extra the same way a general shift does &mdash; against the shortfall in the area ' +
-    'that ran &mdash; credited the block&rsquo;s own hours rather than a full eight. The named ' +
-    'hands&rsquo; own overtime is a separate figure and is not in here.');
-
-  if (stats.blockReconciled > 0) {
-    html += _labRow('Expected across the blocks', formatNum(stats.blockExpected, 1) + ' h',
-      'shortfall &times; each block\u2019s own length');
-    html += _labRow('Booked', formatNum(stats.blockBooked, 1) + ' h',
-      'across ' + stats.blockReconciled + ' block row' + (stats.blockReconciled === 1 ? '' : 's'));
-  }
-
-  var part = _partitionExceptions(stats.blockMismatched);
-  if (part.open.length > 0) {
-    html += _labRow('Booked, but not the predicted amount', part.open.length + ' block' +
-      (part.open.length === 1 ? '' : 's'), 'the block\u2019s shortfall explains a different number');
-    part.open.slice(0, 8).forEach(function(b) {
-      html += _areaFlagRow('warning', b.label, b.iso, formatNum(b.booked, 1) + ' h against ' + formatNum(b.expected, 1) + ' h', '',
-        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" ' +
-        'data-ex="' + encodeURIComponent(JSON.stringify({
-          iso: b.iso, scope: b.scope, key: b.key, kind: b.kind,
-          label: b.label, expected: b.expected, booked: b.booked
-        })) + '">Explain</button>');
-    });
-  } else if (stats.blockReconciled > 0 && part.acked.length === 0) {
-    html += _labNote('<span class="inv-dot inv-dot-ok">Passed</span> Every block row sits on a shortfall that explains its ' +
-      'hours exactly. That is the whole cross-check the record supports, and it passes.');
-  }
-
-  if (part.stale.length > 0) {
-    html += _labRow('Explanation no longer matches', part.stale.length + ' block' +
-      (part.stale.length === 1 ? '' : 's'), 'the figures moved since it was written');
-    html += _labCallout('An exception is granted against the numbers it was ' +
-      'written about. These have changed since &mdash; a crew corrected, a tag retyped &mdash; so ' +
-      'the note no longer describes what is here and the disagreement is listed again above. ' +
-      'Explain it afresh rather than letting an old note quietly cover a new problem.', 'warning');
-  }
-
-  if (part.acked.length > 0) {
-    html += _labRow('Explained exceptions', part.acked.length + ' block' +
-      (part.acked.length === 1 ? '' : 's'), 'examined, and the reason is on the record');
-    part.acked.slice(0, 8).forEach(function(a) {
-      html += _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso,
-        formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason),
-        '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" ' +
-        'data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
-    });
-    html += _labNote('These are the cases the rule does <strong>not</strong> ' +
-      'reproduce, kept as records rather than smoothed away. A rule whose exceptions are named is ' +
-      'one you can trust the rest of; a rule with none is one nobody has tested.');
-  }
-
-  // Never reconciled at a guess, and never silently dropped either.
-  if (stats.blockIncomplete.length > 0) {
-    var ih = stats.blockIncomplete.reduce(function(s, b) { return s + b.booked; }, 0);
-    html += _labRow('Not checkable', formatNum(ih, 1) + ' h',
-      stats.blockIncomplete.length + ' row' + (stats.blockIncomplete.length === 1 ? '' : 's') +
-      ' missing times, crew or a complement');
-    html += _labCallout('A block is checked against <strong>its own length ' +
-      '&times; its own shortfall</strong>, so it needs all three: the in and out times give the ' +
-      'multiplier, the named crew gives the head count (the day&rsquo;s marks cannot &mdash; a hand ' +
-      'on one area all day turns up in another area&rsquo;s evening block), and the areas it covers ' +
-      'give the complement. These hours are still counted in the bill; they are simply not ' +
-      'evidence about staffing.');
-  }
-
-  return html + '</div>';
+/* Each OT block's own reconciliation, folded (§3c): its norm, its heads, the shortfall, the hours a hand, predicted against booked. */
+function _areaBlockFoldsHtml(stats) {
+  var by = {}, order = [];
+  (stats.blocks || []).filter(function(b) { return !b.incomplete; }).forEach(function(b) {
+    var k = b.iso + '|' + b.key;
+    if (!by[k]) { by[k] = { iso: b.iso, key: b.key, rows: [] }; order.push(k); }
+    by[k].rows.push(b);
+  });
+  if (!order.length) return '';
+  var h = '<div id="areaBlocks"><div class="inv-row-group"><span>OT blocks</span><span class="inv-num">' + order.length + '</span></div>';
+  order.slice().reverse().slice(0, 12).forEach(function(k) {
+    var g = by[k], rows = g.rows, sum = function(f) { return rows.reduce(function(s, r) { return s + (r[f] || 0); }, 0); };
+    var exp = gstRound(sum('expected')), booked = gstRound(sum('booked')), ok = Math.abs(exp - booked) < 0.001;
+    var labels = rows.map(function(r) { return r.label; }).filter(function(l, i, a) { return a.indexOf(l) === i; }).join(' + ');
+    h += uiFoldRowHtml('area-block-' + k, { label: labels + ', ' + stockShortDate(g.iso), value: formatNum(booked, 1) + ' h', sub: ok ? 'matches its shortfall' : 'predicted ' + formatNum(exp, 1) + ' h',
+      attrs: ' data-area-block="' + escHtml(k) + '"' }, [
+      { label: 'Norm', value: formatNum(sum('norm'), 1).replace(/\.0$/, '') },
+      { label: 'Heads on it', value: sum('heads') },
+      { label: 'Short', value: formatNum(sum('short'), 1).replace(/\.0$/, '') },
+      { label: 'Hours a hand', value: formatNum(rows[0].hours, 1) + ' h', sub: 'the block’s own length' },
+      { label: 'Predicted', value: formatNum(exp, 1) + ' h' },
+      { label: 'Booked', value: formatNum(booked, 1) + ' h' }]);
+  });
+  return h + '</div>';
 }
 
 /* A disagreement on the card: the area and the day, the hours, and — once somebody has examined it — the
    reason on the record. `tone` is danger (booked at complement), warning (not the predicted amount) or ack
    (explained: a record, not a flag, so it reads neutral). */
 var AREA_FLAG_WORD = { danger: 'At complement', warning: 'Differs', ack: 'Explained' };
-function _areaFlagRow(tone, label, iso, hours, reason, action) {
-  return '<div class="inv-row inv-row-2" data-flag="' + tone + '"><span class="inv-row-main">' +
+function _areaFlagRow(tone, label, iso, hours, reason, of, action) {
+  return '<div class="inv-row inv-row-2" data-flag="' + tone + '"' + (of ? ' data-flag-of="' + of + '"' : '') + '><span class="inv-row-main">' +
     '<span class="inv-row-title"><span class="inv-dot inv-dot-' + (tone === 'ack' ? 'neutral' : tone) + '">' + escHtml(label) + '</span></span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + formatDate(iso) + ' &middot; ' + AREA_FLAG_WORD[tone] + (reason ? ' &middot; ' + reason : '') + '</span></span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + formatDate(iso) + ' &middot; ' + AREA_FLAG_WORD[tone] + '</span>' +
+    // The reason on the record (or why it no longer covers the figures): a line of its own, two facts a line (§3b-11).
+    (reason ? '<span class="inv-row-meta inv-row-wrap" data-flag-reason>' + reason + '</span>' : '') + '</span>' +
     '<span class="inv-row-end"><span class="inv-num">' + hours + '</span>' + (action || '') + '</span></div>';
 }
 function _areaFlagList(flags, detail, tone) {
   var html = '';
-  flags.slice(0, 8).forEach(function(f) { html += _areaFlagRow(tone, f.a.label, f.d.iso, detail(f)); });
+  flags.slice(0, 8).forEach(function(f) { html += _areaFlagRow(tone, f.a.label, f.d.iso, detail(f), '', 'shift'); });
   if (flags.length > 8) {
     html += '<div class="inv-row" data-flag="more"><span class="inv-row-meta">' + (flags.length - 8) + ' more</span></div>';
   }
@@ -1107,12 +1013,9 @@ function _areaAbsorptionCard(stats) {
   if (!rows || rows.length === 0) return '';
   var cfg = labourCfg(), wages = attSeesWages();   // the shares in rupees are wages; a role that may not see them sees hours
   var total = rows.reduce(function(s, r) { return s + r.hours; }, 0);
+  // The ruling behind the split (owner, 28 Aug 2026) is the guide's; the card keeps the one line that says what it is.
   var html = _labPanelHead('absorb', 'The extra, paid pro-rata', wages ? formatCurrency(gstRound(total * cfg.extraRate)) : formatNum(total, 1) + ' h', '', 'areaAbsorb') +
-    _labNote('The extra is booked to an area, and <strong>the area&rsquo;s present crew ' +
-    'receive it pro-rata</strong> (owner, 28 Aug 2026). It stays under the <strong>EXTRA</strong> line of the ' +
-    'bill &mdash; one pooled figure, <strong>disbursed by the supervisor on the floor</strong> &mdash; and these shares ' +
-    'are the split he disburses it by. Nothing here enters the per-worker wage arithmetic; the bill counts the ' +
-    'extra exactly once, and this card says who it reaches.');
+    _labNote('Each hand’s share of the pooled EXTRA, disbursed by the supervisor on the floor.');
   var flagged = 0;
   rows.slice(0, 12).forEach(function(r) {
     if (r.implausible) flagged++;
@@ -1123,10 +1026,8 @@ function _areaAbsorptionCard(stats) {
       (wages ? '<span class="inv-num">' + formatCurrency(gstRound(r.hours * cfg.extraRate)) + '</span>' : '') + '</span></div>';
   });
   if (flagged > 0) {
-    html += _labCallout('Marked rows are paid more in a day than a body could stand on top ' +
-      'of their own shift &mdash; twenty-four coverage hours against two present hands is twelve each. The ' +
-      'ruling names the payee; it does not repeal arithmetic. Check those rows against the record before ' +
-      'reading them as settled pay.', 'warning');
+    html += '<div class="inv-row inv-row-2" data-area-implausible><span class="inv-row-main"><span class="inv-row-title">Check the marked rows against the record</span>' +
+      '<span class="inv-row-meta">more in a day than a hand could stand on top of a shift</span></span><span class="inv-row-end">' + uiDot('warning', todoPlural(flagged, 'row')) + '</span></div>';
   }
   return html + '</div>';
 }
@@ -1151,21 +1052,21 @@ function _areaRow(a) {
   // cost does not follow the area it happened to stand in) and includes the
   // daily tier's rest credit (which is not worked in any area). Two questions,
   // two bases; the label below says which this is.
+  // Two facts a line (§3b-11): the heads and the extra; the hours worked and the extra's share of them. The diagnostics behind
+  // them (the median heads, the extra a head-day, the tiers' hours) are the meta's title.
   var bits = [];
   if (a.dayTierDays > 0) bits.push(formatNum(a.dayTierDays, 1) + ' day-tier day' + (a.dayTierDays === 1 ? '' : 's'));
   if (a.hours > 0) bits.push(formatNum(a.hours, 1) + ' pool h');
   if (a.otHours > 0) bits.push(formatNum(a.otHours, 1) + ' OT h');
-
-  var figs = formatNum(a.avgHeads, 1) + ' avg heads · ' + formatNum(a.medianHeads, 1) + ' median · ' +
-    formatNum(a.extraHours, 1) + ' extra h' + (a.blockHours > 0 ? ' (' + formatNum(a.blockHours, 0) + ' blk)' : '') + ' · ' +
-    (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '—') + ' extra /head-day';
+  var more = 'median ' + formatNum(a.medianHeads, 1) + ' heads, ' + (a.impliedPerHead != null ? formatNum(a.impliedPerHead, 1) : '—') + ' extra h a head-day' +
+    (a.blockHours > 0 ? ', ' + formatNum(a.blockHours, 0) + ' h of it in blocks' : '') + (bits.length ? '; ' + bits.join(', ') : '');
 
   return '<div class="inv-row inv-row-flow inv-row-auto inv-row-top" data-area-row="' + a.id + '" data-staffing="' + staffing + '">' +
     '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) +
     (a.floor ? '' : ' <span class="inv-badge">Off floor</span>') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + figs + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + (bits.length ? escHtml(bits.join(' · ')) : 'nothing recorded') +
-    (a.extraShare > 0 ? ' · extra is ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span></span>' +
+    '<span class="inv-row-meta inv-row-wrap" title="' + escHtml(more) + '">' + formatNum(a.avgHeads, 1) + ' heads a day · ' + formatNum(a.extraHours, 1) + ' extra h</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + (a.paidHours > 0 ? formatNum(a.paidHours, 1) + ' h worked' : 'nothing recorded') +
+    (a.extraShare > 0 ? ' · extra ' + formatNum(a.extraShare * 100, 0) + '% of its hours' : '') + '</span></span>' +
     '<span class="inv-row-end">' +
     '<span class="inv-row-stack"><span class="inv-dot inv-dot-' + tone + '">' + word + '</span>' +
     // Wages (the guard's "wages" setting): a role that may not see them sees the heads and hours above, not the rupees.

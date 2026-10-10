@@ -69,10 +69,13 @@ var CHG_TRACK = [
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
   { path: 'payrollPaid', kind: 'arr', noun: 'payroll as paid', plural: 'payrolls as paid', label: function(r) { return chgJoin(r.month, r.source); } },
+  { path: 'suppliers', kind: 'arr', noun: 'supplier', label: function(r) { return r.name; } },
+  { path: 'supplierPays', kind: 'arr', noun: 'payment to a supplier', plural: 'payments to suppliers',
+    label: function(r) { var sp = (S.suppliers || []).find(function(x) { return x.id === r.supplierId; }); return chgJoin(sp ? sp.name : '', chgMoney(r.amount), r.how, r.date ? chgDay(r.date) : ''); } },
   { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
-  { path: 'areaTargets', kind: 'cfg', sec: 'Staff → Areas → complements' },
+  { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
   { path: 'relayPastes', kind: 'raw', noun: 'roll', label: function(r) { return chgJoin(r.kind === 'in' ? 'in-time' : r.kind === 'out' ? 'out-time' : r.kind, r.date ? chgDay(r.date) : ''); } },
   { path: 'relayLearn', kind: 'skip' },
   { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
@@ -95,6 +98,7 @@ var CHG_TRACK = [
     label: function(r) { return chgJoin(r.kind, r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
   { path: 'production.pastes', kind: 'raw', noun: 'production message', label: function(r) { return chgJoin(r.kind, r.day ? chgDay(r.day) : ''); } },
   { path: 'production.photos', kind: 'raw', noun: 'register photo', label: function(r) { return r.name; } },
+  { path: 'production.pages', kind: 'raw', noun: 'register page', label: function(r) { return chgJoin(typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.date ? chgDay(r.date) : ''); } },
   { path: 'production.learn', kind: 'skip' },
   { path: 'kb.articles', kind: 'arr', noun: 'article', omit: ['versions'],
     label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },
@@ -107,6 +111,8 @@ var CHG_TRACK = [
   { path: 'bank.opening', kind: 'map', noun: 'opening balance', cid: function(r, k) { return k; }, label: function(r, k) { return chgClientName(k) || k; } },
   { path: 'bank.gstNotes', kind: 'map', noun: 'GST note', label: function(r, k) { return k; } },
   { path: 'bank.bounces', kind: 'map', noun: 'returned cheque', label: function(r, k) { return k; } },
+  { path: 'bank.cheques', kind: 'arr', noun: 'cheque received', cid: function(r) { return r.clientId; },
+    label: function(r) { return chgJoin(chgClientName(r.clientId), r.number ? 'cheque ' + r.number : '', r.amount != null ? chgMoney(r.amount) : ''); } },
   { path: 'bank.reminders', kind: 'arr', noun: 'payment reminder', cid: function(r) { return r.clientId; }, label: function(r) { return chgJoin(chgClientName(r.clientId), r.amount != null ? formatCurrency(r.amount) : '', r.how); } },
   { path: 'todo.tasks', kind: 'arr', noun: 'task', label: function(r) { return r.text; } },
   { path: 'todo.snoozes', kind: 'map', noun: 'snooze', label: function(r, k) { return k; } },
@@ -127,7 +133,8 @@ var CHG_TRACK = [
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
-      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour', '': 'Labour' },
+      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', snackOt: 'Overtime', snackNight: 'Overtime', modelPerKg: 'Modelled labour',
+      payCarryFrom: 'Pay → monthly balances', '': 'Labour' },
     dflt: function() { return getDefaultState().labour; } },
   { path: 'rateCheck', kind: 'cfg', sec: 'Rate & weight check', dflt: function() { return RATE_CHECK_DEFAULTS; } },
   { path: 'invStateCheck', kind: 'cfg', sec: 'Invoice states', dflt: function() { return INV_STATE_CHECK_DEFAULTS; } },
@@ -625,7 +632,8 @@ function chgHealthText() {
 
 /* ---------- History (stats.js) ---------- */
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
-var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier' };
+var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
+  orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';

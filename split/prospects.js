@@ -74,29 +74,33 @@ function prsPipeline() {
 /* ---------- The list ---------- */
 function prsRowHtml(p) {
   var st = prsStage(p), late = prsLate(p), qs = prsQuotes(p);
-  var meta = [PRS_LABEL[st],
-    p.kgMonth > 0 ? formatNum(p.kgMonth / 1000, 1) + ' t a month' + (p.rate > 0 ? ' at ' + formatCurrency(p.rate) + '/kg' : '') : '',
-    p.process || '',
-    p.nextAt && prsOpen(p) ? (late > 0 ? 'follow-up ' + late + ' d late' : late === 0 ? 'follow up today' : 'follow up ' + formatDate(p.nextAt)) : '',
-    qs.length ? todoPlural(qs.length, 'quotation') : '',
-    st === 'lost' && p.lostReason ? p.lostReason : ''].filter(Boolean).join(' · ');
-  return '<div class="inv-row inv-row-2" data-prospect="' + escHtml(p.id) + '"><button type="button" class="inv-row-main" data-action="invPrsOpen" data-id="' + escHtml(p.id) + '">' +
+  var size = p.kgMonth > 0 ? formatNum(p.kgMonth / 1000, 1) + ' t a month' + (p.rate > 0 ? ' at ' + formatCurrency(p.rate) + '/kg' : '') : '';
+  var follow = p.nextAt && prsOpen(p) ? (late > 0 ? 'follow-up ' + late + ' d late' : late === 0 ? 'follow up today' : 'follow up ' + formatDate(p.nextAt)) : '';
+  // Two facts (the tab map, TM5g): its stage and size, then what is next (the follow-up, else why it was lost, else the work).
+  var meta = [PRS_LABEL[st] + (size ? ', ' + size : ''), follow || (st === 'lost' && p.lostReason) || p.process || ''].filter(Boolean).join(' · ');
+  var full = [p.process || '', qs.length ? todoPlural(qs.length, 'quotation') : ''].filter(Boolean).join(', ');
+  return '<div class="inv-row inv-row-2" data-prospect="' + escHtml(p.id) + '"' + (full ? ' title="' + escHtml(full) + '"' : '') + '><button type="button" class="inv-row-main" data-action="invPrsOpen" data-id="' + escHtml(p.id) + '">' +
     '<span class="inv-row-title">' + escHtml(p.name || 'Unnamed') + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></button>' +
     '<span class="inv-row-end">' + uiDot(prsTone(p), escHtml(late != null && late >= 0 ? 'Due' : PRS_LABEL[st])) + '</span></div>';
 }
-function prsSummaryHtml() {
-  var pl = prsPipeline(), sp = prsSpare(), due = getProspects().filter(function(p) { var l = prsLate(p); return l != null && l >= 0; }).length;
-  var tile = function(k, label, val, sub, tone) {
-    return '<div class="inv-tile" data-prs-tile="' + k + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value' + (tone ? ' inv-fig-' + tone : '') + '">' + val + '</div>' +
-      (sub ? '<div class="inv-tile-sub">' + sub + '</div>' : '') + '</div>';
-  };
+/* Prospects' verdict (the tab map, TM5g; its four tiles were a panel of their own): how many are open and the pipeline against the
+   spare, a month each, in the tone of the follow-ups due; the tiles its factors. The spare is one figure (prsSpare: the last 90 days,
+   a month), said with its period here and under Pulse's Is the plant full?. How the pipeline is weighted is in its tile's title. */
+function prsVerdictHtml() {
+  var pl = prsPipeline(), sp = prsSpare(), list = getProspects();
+  var due = list.filter(function(p) { var l = prsLate(p); return l != null && l >= 0; });
+  var tone = due.some(function(p) { return prsLate(p) >= 7; }) ? 'danger' : due.length ? 'warning' : pl.n ? 'ok' : 'neutral';
   var fill = sp && sp.spareMonth > 0 ? pl.weighted / sp.spareMonth : null;
-  return '<div class="inv-panel inv-panel-flush" data-card="prospects"><div class="inv-tiles">' +
-    tile('open', 'Open', String(pl.n), due ? todoPlural(due, 'follow-up') + ' due' : 'none due', due ? 'warning' : '') +
-    tile('pipeline', 'Pipeline', formatNum(pl.weighted / 1000, 1) + ' t', 'a month, weighted · ' + formatNum(pl.kg / 1000, 1) + ' t if all came') +
-    tile('spare', 'Spare', sp ? formatNum(sp.spareMonth / 1000, 1) + ' t' : '&mdash;', sp ? 'a month, last 90 days at ~2 t a shift' : 'no invoices to measure from') +
-    tile('fill', 'Fills', fill != null ? Math.round(fill * 100) + '%' : '&mdash;', fill != null ? 'of the spare' : '', fill != null ? figToneCapacity(fill * 100) : '') +
-    '</div><div class="inv-note" data-prs-chance>Weighted by the chance at each stage: new 10%, contacted 20%, sample 40%, quoted 60% (a working assumption).</div></div>';
+  return uiVerdictHtml({ screen: 'Prospects', tone: tone,
+    verdict: !list.length ? 'No prospects yet' : pl.n + ' open · ' + formatNum(pl.weighted / 1000, 1) + ' t a month' + (sp ? ' of ' + formatNum(sp.spareMonth / 1000, 1) + ' t spare' : ', weighted'),
+    facts: [due.length ? { text: todoPlural(due.length, 'follow-up') + ' due', tone: tone } : 'no follow-up due', sp ? 'the spare: the last 90 days at ~2 t a shift' : 'no invoices to measure the spare from'],
+    factors: [
+      { label: 'Open', fig: String(pl.n), sub: due.length ? due.length + ' due' : 'none due', tone: due.length ? tone : null, attrs: ' data-prs-tile="open"' },
+      { label: 'Pipeline', fig: escHtml(formatNum(pl.weighted / 1000, 1) + ' t'), sub: 'a month, weighted', attrs: ' data-prs-tile="pipeline" title="' +
+        escHtml('Weighted by the chance at each stage: new 10%, contacted 20%, sample 40%, quoted 60% (a working assumption); ' + formatNum(pl.kg / 1000, 1) + ' t if all came') + '"' },
+      { label: 'Spare', fig: sp ? escHtml(formatNum(sp.spareMonth / 1000, 1) + ' t') : '', sub: 'a month, the last 90 days', attrs: ' data-prs-tile="spare"' },
+      { label: 'Fills', fig: fill != null ? Math.round(fill * 100) + '%' : '', sub: 'of the spare', tone: fill != null ? figToneCapacity(fill * 100) : null, attrs: ' data-prs-tile="fill"' }],
+    key: 'pageClients-prospects', attrs: ' id="prsVerdict"' });
 }
 function prsListHtml() {
   var q = _prsSearch.trim().toLowerCase();
@@ -120,12 +124,14 @@ function prsRenderView(container, tabsHtml) {
   var opts = [['open', 'Open']].concat(PRS_STAGES, [['all', 'All']]).map(function(o) {
     return '<option value="' + o[0] + '"' + (_prsStageFilter === o[0] ? ' selected' : '') + '>' + o[1] + '</option>';
   }).join('');
-  container.innerHTML = tabsHtml +
+  // The verdict, then one row: the search, the stage behind Filter on the phone (a token under the row), Add prospect.
+  var stage = _prsStageFilter === 'open' ? '' : _prsStageFilter === 'all' ? 'All' : PRS_LABEL[_prsStageFilter] || _prsStageFilter;
+  container.innerHTML = tabsHtml + prsVerdictHtml() +
     '<div class="inv-toolbar"><label class="inv-search">' + ICON_SEARCH +
     '<input type="search" id="prsSearch" value="' + escHtml(_prsSearch) + '" placeholder="Search prospects" autocomplete="off" aria-label="Search prospects"></label>' +
-    '<select class="inv-select inv-toolbar-item" id="prsStageFilter" aria-label="Stage">' + opts + '</select>' +
+    uiFilterHtml({ key: 'prs', count: stage ? 1 : 0, controls: '<select class="inv-select inv-toolbar-item" id="prsStageFilter" aria-label="Stage">' + opts + '</select>' }) +
     '<button class="inv-btn inv-btn-primary" data-action="invPrsNew">Add prospect</button></div>' +
-    prsSummaryHtml() + '<div id="prsList" class="inv-mt-8">' + prsListHtml() + '</div>';
+    uiTokensHtml([{ key: 'Stage', value: stage, action: 'invPrsStageClear' }]) + '<div id="prsList">' + prsListHtml() + '</div>';
 }
 function prsRenderList() { var el = document.getElementById('prsList'); if (el) el.innerHTML = prsListHtml(); }
 
@@ -210,8 +216,8 @@ function prsSave(id) {
   return p;
 }
 function prsRenderSummary() {
-  var el = document.querySelector('[data-card="prospects"]');
-  if (el) el.outerHTML = prsSummaryHtml();
+  var el = document.getElementById('prsVerdict');
+  if (el) el.outerHTML = prsVerdictHtml();
 }
 /* A quotation addressed to the prospect, at its target rate per kg: the Quotations' own form, nothing stored until saved. */
 function prsDraft(id) {
@@ -285,6 +291,7 @@ function prsOnChange(el) {
 function prsAction(action, btn) {
   switch (action) {
     case 'invPrsNew': prsFormOpen(null); return true;
+    case 'invPrsStageClear': _prsStageFilter = 'open'; renderClientsPage(); return true;
     case 'invPrsOpen': prsFormOpen(btn.dataset.id); return true;
     case 'invPrsSave': prsSave(btn.dataset.id || null); return true;
     case 'invPrsDraft': prsDraft(btn.dataset.id); return true;

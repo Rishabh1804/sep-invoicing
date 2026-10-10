@@ -691,8 +691,9 @@ function stockCommitPaste(parsed, res, meta) {
 }
 
 /* ---------- Screens ---------- */
-var _stockView = 'overview';
-var _stockHome = 'overview';   // Overview or Lines, whichever was open last: where Back returns to
+var _stockView = 'list';
+var _stockHome = 'list';   // where Back returns to: the list (Stock is one screen since the tab map, TM4d)
+var _stockSpendOpen = false;   // the desktop's pane holds Spend and prices (no line open)
 var _stockReview = null;   // { text, parsed, choices, sentBy }
 var _stockManual = null;   // { mode, date, supplier, billNo, bath, vals: {itemId: {qty, price}} }
 var _stockItemId = null;
@@ -752,17 +753,17 @@ function stockUnsettled(item) {
   return !!(last && last.unsettled);
 }
 
-/* The view tabs, and the toolbar under them: Paste message is the page's one primary. */
+/* The toolbar (§1a-12): Paste message the one primary, Enter by hand beside it, the rest behind More (the reorder list, the paper,
+   the files). On the desktop Spend and prices opens in the pane beside the list; on the phone it is the fold at the list's foot. */
 function stockToolbarHtml() {
-  var lines = _stockView !== 'overview';
-  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
+  var phone = !_isDesktop;
+  return '<div class="inv-toolbar" data-stock-toolbar><button class="inv-btn inv-btn-primary" data-action="invStockPaste">Paste message</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invStockManual">Enter by hand</button>' +
-    // The paper route for the day: the supervisor's message, Deepak's entry, the day as entered (stocksheet.js).
-    '<button class="inv-btn inv-btn-secondary" data-action="invStockSheetOpen">Print sheets</button>' +
-    (lines ? '<button class="inv-btn inv-btn-ghost" data-action="invStockReorder">Reorder list</button>' +
-      '<button class="inv-btn inv-btn-ghost" data-action="invStockExport">Export</button>' +
-      '<button class="inv-btn inv-btn-ghost" data-action="invStockImport">Import</button>' +
-      '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden">' : '') + '</div>';
+    (phone ? '' : '<button class="inv-btn inv-btn-secondary" data-action="invStockSpend" aria-pressed="' + (_stockSpendOpen && !(_stockView === 'item' && stockItem(_stockItemId))) + '">Spend and prices</button>') +
+    // The paper route for the day (stocksheet.js), the reorder list and the files: behind More.
+    uiToolbarMoreHtml([{ label: 'Reorder list', action: 'invStockReorder' }, { label: 'Print sheets', action: 'invStockSheetOpen' },
+      { label: 'Export', action: 'invStockExport' }, { label: 'Import', action: 'invStockImport' }], { icon: phone }) +
+    '<input type="file" accept=".json,application/json" id="stockFileInput" class="inv-hidden"></div>';
 }
 
 function renderStock() {
@@ -773,11 +774,10 @@ function renderStock() {
   else if (_stockView === 'review' && _stockReview) el.innerHTML = renderStockReview();
   else if (_stockView === 'manual' && _stockManual) el.innerHTML = renderStockManual();
   // On the desktop a line opens in the pane beside the table; on the phone it is a page of its own.
-  else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = _isDesktop ? stockViewTabsHtml() + renderStockList(stockItem(_stockItemId)) : renderStockItem(stockItem(_stockItemId));
+  else if (_stockView === 'item' && stockItem(_stockItemId)) el.innerHTML = _isDesktop ? renderStockList(stockItem(_stockItemId)) : renderStockItem(stockItem(_stockItemId));
   else if (_stockView === 'reorder' && _stockReorder) el.innerHTML = renderStockReorder();
   else if (_stockView === 'check') el.innerHTML = renderStockCheck();
-  else if (_stockView === 'overview') { _stockHome = 'overview'; el.innerHTML = stockViewTabsHtml() + stockToolbarHtml() + stockOverviewHtml(); }
-  else { _stockView = _stockHome = 'list'; el.innerHTML = stockViewTabsHtml() + renderStockList(null); }
+  else { _stockView = _stockHome = 'list'; el.innerHTML = renderStockList(null); }
   updateStockBadge();
 }
 
@@ -791,46 +791,62 @@ function stockSetView(v) {
   if (moved) viewTop();
 }
 
+/* Stock (the tab map, TM4d): one screen. Its verdict card says what is out and what to order (the status tiles its factors, still
+   filtering; the reorder's cash and, for a role that sees money with a statement, the forecast's low), one toolbar row, what needs
+   a check, then the lines grouped by status (a table beside the open line on the desktop); Spend and prices folded at the foot on
+   the phone, in the pane on the desktop. */
 function renderStockList(open) {
   var st = stockData();
   var items = st.items.filter(function(i) { return i.active !== false; });
   var lastCount = null;
   st.entries.forEach(function(e) { if (!e.voided && e.kind === 'count' && (!lastCount || e.date > lastCount.date || (e.date === lastCount.date && e.at > lastCount.at))) lastCount = e; });
-  var h = '<div class="inv-pagehead"><span class="inv-pagehead-meta">' + items.length + (items.length === 1 ? ' line' : ' lines') +
-    (lastCount ? ' · last count ' + escHtml(stockShortDate(lastCount.date)) + (lastCount.sentBy ? ', ' + escHtml(lastCount.sentBy) : '') : '') + '</span></div>' +
-    stockToolbarHtml() + stockCheckCalloutHtml();
-
-  if (!items.length) {
-    return h + '<div class="inv-panel"><div class="inv-empty">No stock recorded yet. Paste the supervisor\'s stock message: ' +
-      'its lines become the list, and every figure keeps the text it came from. Or import a stock file.</div></div>';
-  }
   var groups = { out: [], low: [], ok: [], bath: [], none: [] };
-  items.forEach(function(i) { var s = stockStatus(i); groups[s.group].push({ item: i, st: s }); });
+  items.forEach(function(i) { var s2 = stockStatus(i); groups[s2.group].push({ item: i, st: s2 }); });
   groups.low.sort(function(a, b) { return a.st.daysLeft - b.st.daysLeft; });
   groups.ok.sort(function(a, b) { return a.st.daysLeft - b.st.daysLeft; });
   ['out', 'bath', 'none'].forEach(function(g) { groups[g].sort(function(a, b) { return a.item.name < b.item.name ? -1 : 1; }); });
-
-  // Each tile filters the list to its lines; pressed again, it lets them all back.
+  var h = stockVerdictHtml(items, groups, lastCount) + stockToolbarHtml() + stockCheckCalloutHtml();
+  // No line yet: the card says so and the toolbar takes the first message.
+  if (!items.length) return h;
   var amber = stockCfg().amberDays;
-  var tile = function(g, n, label, tone) {
-    return '<button class="inv-tile' + (n && tone ? ' inv-tile-' + tone : '') + '" data-action="invStockFilter" data-v="' + g + '" aria-pressed="' + (_stockFilter === g) + '">' +
-      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + n + '</div></button>';
-  };
-  h += '<div class="inv-tiles inv-tiles-4" id="stockTiles">' + tile('out', groups.out.length, 'Out', 'danger') + tile('low', groups.low.length, amber + ' days or less', 'warning') +
-    tile('ok', groups.ok.length, 'OK', '') + tile('none', groups.none.length + groups.bath.length, 'No rate', '') + '</div>';
-
   var titles = { out: 'Out', low: amber + ' days or less', ok: 'OK', bath: 'Charged to the bath', none: 'No daily rate yet' };
   var shown = ['out', 'low', 'ok', 'bath', 'none'].filter(function(g) {
     return groups[g].length && (!_stockFilter || _stockFilter === g || (_stockFilter === 'none' && g === 'bath'));
   });
-  if (!shown.length) return h + '<div class="inv-panel"><div class="inv-empty">No line in this group. Press the tile again to see every line.</div></div>';
   if (_isDesktop) return h + stockLinesTableHtml(groups, shown, titles, open);
-  h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
-  shown.forEach(function(g) {
-    h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-num">' + groups[g].length + '</span></div>';
-    groups[g].forEach(function(x) { h += stockRowHtml(x.item, x.st); });
-  });
-  return h + '</div>';
+  if (!shown.length) h += '<div class="inv-panel"><div class="inv-empty">No line in this group. Press its tile again to see every line.</div></div>';
+  else {
+    h += '<div class="inv-panel inv-panel-flush" id="stockLines">';
+    shown.forEach(function(g) {
+      h += '<div class="inv-row-group"><span>' + escHtml(titles[g]) + '</span><span class="inv-num">' + groups[g].length + '</span></div>';
+      groups[g].forEach(function(x) { h += stockRowHtml(x.item, x.st); });
+    });
+    h += '</div>';
+  }
+  return h + uiFoldHtml('stock-spend', '<span class="inv-panel-title">Spend and prices</span>', stockSpendHtml(), false, ' id="stockSpend"');
+}
+/* The card (§3e): the lines out (else low) and the reorder's cash with GST, in the worst line's tone; the status tiles its factors,
+   each filtering the list; the count's day its eyebrow; the forecast's low after the order, for a role that sees money (the order's
+   cost is every role's that opens Stock, the forecast the bank's: the QA audit, QA4-4). */
+function stockVerdictHtml(items, groups, lastCount) {
+  if (!items.length) return uiVerdictHtml({ screen: 'Stock', verdict: 'No stock recorded yet', tone: 'neutral', attrs: ' id="stockVerdict"',
+    facts: ['paste the supervisor’s stock message, or import a stock file'] });
+  var amber = stockCfg().amberDays, out = groups.out.length, low = groups.low.length;
+  var red = groups.low.some(function(x) { return x.st.tone === 'red'; });
+  var L = stockReorderList(), need = gstRound(L.total * 1.18), fc = finSeen() ? finForecast(45) : null;
+  var words = out ? todoPlural(out, 'line') + ' out' : low ? todoPlural(low, 'line') + ' at ' + amber + ' days or less' : 'Every line stocked';
+  var tile = function(g, n, label, tone) {
+    return { label: label, fig: String(n), tone: n && tone ? tone : null, action: 'invStockFilter', attrs: ' data-v="' + g + '"', pressed: _stockFilter === g };
+  };
+  return uiVerdictHtml({ screen: 'Stock · ' + todoPlural(items.length, 'line') + (lastCount ? ', last count ' + stockShortDate(lastCount.date) + (lastCount.sentBy ? ', ' + lastCount.sentBy : '') : ''),
+    verdict: words + (need > 0 ? ', reorder ' + formatInrShort(need) + ' with GST' : ''),
+    tone: out || red ? 'danger' : low ? 'warning' : 'ok',
+    facts: [fc && need > 0 ? { text: 'after the order, the low is ' + formatInrShort(gstRound(fc.min.bal - need)) + ' on ' + stockShortDate(fc.min.date), tone: fc.min.bal - need < 0 ? 'danger' : 'ok', money: true } : '',
+      L.unpriced ? todoPlural(L.unpriced, 'line') + ' to order with no price' : ''],
+    factors: [tile('out', out, 'Out', 'danger'), tile('low', low, amber + ' days or less', 'warning'), tile('ok', groups.ok.length, 'OK', ''),
+      tile('none', groups.none.length + groups.bath.length, 'No rate', '')],
+    tilesAttrs: ' id="stockTiles"',
+    links: ['<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button>'], attrs: ' id="stockVerdict"' });
 }
 
 function stockRowHtml(item, s) {
@@ -842,7 +858,7 @@ function stockRowHtml(item, s) {
 
 /* The desktop: one table grouped by status, and the open line in the pane beside it. */
 function stockLinesTableHtml(groups, shown, titles, open) {
-  var h = '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-pane-list" id="stockLines">' +
+  var h = '<div class="inv-pane-host' + (open || _stockSpendOpen ? ' inv-pane-open' : '') + '" id="stockMasterDetail"><div class="inv-pane-list" id="stockLines">' +
     '<table class="inv-table"><thead><tr><th class="inv-col-grow">Line</th><th class="inv-num">On hand</th><th class="inv-col-opt1">Record</th>' +
     '<th>Status</th></tr></thead><tbody>';
   shown.forEach(function(g) {
@@ -859,6 +875,9 @@ function stockLinesTableHtml(groups, shown, titles, open) {
   h += '</tbody></table></div><div class="inv-pane" id="stockDetail">';
   if (open) {
     h += paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.name) + '</span>', 'invStockPaneClose') + stockItemBodyHtml(open);
+  } else if (_stockSpendOpen) {
+    // Spend and prices, with no line open: the list and the pane still fill the room under the toolbar (P80).
+    h += paneHeadHtml('<span class="inv-panel-title">Spend and prices</span>', 'invStockPaneClose') + '<div class="inv-panel inv-panel-flush" id="stockSpend">' + stockSpendHtml() + '</div>';
   }
   return h + '</div></div>';
 }
@@ -1577,8 +1596,10 @@ function stockCheckCalloutHtml() {
   var parts = [];
   if (c.messages) parts.push(c.messages + (c.messages === 1 ? ' message reads' : ' messages read') + ' differently now');
   if (c.entries) parts.push(c.entries + (c.entries === 1 ? ' entry does' : ' entries do') + ' not fit the record');
-  return '<div class="inv-callout inv-callout-warning inv-mb-8" id="stockCheckNote">' + escHtml(parts.join(' · ')) + '. Until checked, they count as entered in the days left and the live cost. ' +
-    '<button class="inv-btn-link" data-action="invStockCheckOpen">Check them</button></div>';
+  // What needs the owner is a row, never a callout (the tab map, §3e): what to check, and the one door to it.
+  return '<div class="inv-panel inv-panel-flush" id="stockCheckNote"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">To check</span>' +
+    '<span class="inv-row-meta">' + escHtml(parts.join(' · ') + ': until checked, they count as entered in the days left and the live cost') + '</span></span>' +
+    uiRowEndHtml('', null, '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invStockCheckOpen">Check them</button>') + '</div></div>';
 }
 function renderStockCheck() {
   var h = stockBackBar('Stock', 'To check');
@@ -1620,8 +1641,9 @@ function renderStockCheck() {
 function stockExport() {
   var st = stockData();
   var meta = document.querySelector('meta[name="app-build"]');
+  // The suppliers travel with their bills (suppliers.js): what the owner set on each, and the payments recorded here.
   var out = { format: 'sep-stock', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.content : '',
-    items: st.items, entries: st.entries, pastes: st.pastes };
+    items: st.items, entries: st.entries, pastes: st.pastes, suppliers: suppData(), supplierPays: suppPays() };
   downloadJson('sep-stock-' + localDateStr() + '.json', out, 2);
   showToast('Stock exported: ' + st.entries.length + ' entries');
 }
@@ -1683,6 +1705,29 @@ function stockMergeImport(src) {
     if (!p || !p.id || st.pastes.some(function(x) { return x.id === p.id; })) return;
     st.pastes.push(JSON.parse(JSON.stringify(p))); added.pastes++;
   });
+  // Suppliers and the payments recorded to them: merged by id, never over one held here; a field a file sends is kept only in
+  // the shape the app writes it (suppliers.js).
+  added.suppliers = 0; added.supplierPays = 0;
+  var day = function(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); };
+  (Array.isArray(src.suppliers) ? src.suppliers : []).forEach(function(r) {
+    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim() || suppData().some(function(x) { return x.id === r.id; })) return;
+    var c = { id: r.id, name: r.name.trim(), names: (Array.isArray(r.names) ? r.names : []).filter(function(n) { return typeof n === 'string' && n.trim(); }).map(function(n) { return n.trim(); }),
+      at: num(r.at) ? r.at : Date.now(), by: r.by || null };
+    if (num(r.leadMax) && r.leadMax >= 0 && r.leadMax <= 60) { c.leadMax = r.leadMax; c.leadMin = num(r.leadMin) && r.leadMin >= 0 && r.leadMin <= r.leadMax ? r.leadMin : r.leadMax; }
+    if (num(r.gstPct) && r.gstPct >= 0 && r.gstPct <= 28) c.gstPct = r.gstPct;
+    if (r.opening && num(r.opening.amount) && day(r.opening.date)) c.opening = { amount: r.opening.amount, date: r.opening.date, note: typeof r.opening.note === 'string' ? r.opening.note : null, at: num(r.opening.at) ? r.opening.at : null, by: r.opening.by || null };
+    if (Array.isArray(r.inOpening)) c.inOpening = r.inOpening.filter(function(x) { return typeof x === 'string'; });
+    if (r.totals && typeof r.totals === 'object') { c.totals = {}; Object.keys(r.totals).forEach(function(k) { if (num(r.totals[k]) && r.totals[k] >= 0) c.totals[k] = r.totals[k]; }); }
+    if (typeof r.note === 'string' && r.note.trim()) c.note = r.note.trim();
+    suppData().push(c); added.suppliers++;
+  });
+  (Array.isArray(src.supplierPays) ? src.supplierPays : []).forEach(function(p) {
+    if (!p || typeof p.id !== 'string' || typeof p.supplierId !== 'string' || !day(p.date) || !num(p.amount) || !(p.amount > 0) || suppPays().some(function(x) { return x.id === p.id; })) return;
+    var c = { id: p.id, supplierId: p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
+      chq: typeof p.chq === 'string' && p.chq ? p.chq : null, note: typeof p.note === 'string' && p.note ? p.note : null, at: num(p.at) ? p.at : Date.now(), by: p.by || null };
+    if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
+    suppPays().push(c); added.supplierPays++;
+  });
   return added;
 }
 
@@ -1706,7 +1751,8 @@ function stockImportText(text, name) {
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
-    showToast((added.entries || added.items || added.bills ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
+    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '');
+    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
   } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 
@@ -1721,8 +1767,10 @@ function stockAction(action, btn) {
       // A bill left open under a delivery on the hand form goes with it (it would reappear on the line's page).
       if (_stockView === 'manual') _stockBill = null;
       _stockReview = null; _stockManual = null; _stockReorder = null; stockSetView(_stockHome); break;
-    case 'invStockOpen': _stockItemId = btn.dataset.id; stockSetView('item'); break;
-    case 'invStockPaneClose': stockSetView('list'); break;
+    case 'invStockOpen': _stockItemId = btn.dataset.id; _stockSpendOpen = false; stockSetView('item'); break;
+    case 'invStockPaneClose': _stockSpendOpen = false; stockSetView('list'); break;
+    // The desktop's Spend and prices: the pane beside the list, in place of an open line (a second press shuts it).
+    case 'invStockSpend': _stockSpendOpen = !(_stockSpendOpen && _stockView !== 'item'); _stockView = 'list'; renderStock(); break;
     case 'invStockFilter': _stockFilter = _stockFilter === btn.dataset.v ? null : btn.dataset.v; stockSetView('list'); break;
     case 'invStockBal':
       if (_stockReview) { _stockReview.choices['bal' + btn.dataset.i] = btn.dataset.v; renderStock(); }

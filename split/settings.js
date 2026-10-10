@@ -14,7 +14,7 @@ var SETTINGS_UI_KEY = 'sep_inv_settings_ui';
 
 var SETTINGS_GROUPS = [
   { key: 'business', label: 'Business', secs: ['company', 'bank', 'invoice', 'cn', 'quotes'] },
-  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'stockAlerts', 'todo'] },
+  { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
   { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
@@ -207,6 +207,22 @@ var SETTINGS_SECS = {
       if (f) S.invStateCheck.fileWarnDays = f;
     }
   },
+  flow: {
+    title: 'Turnaround and terms',
+    summary: function() { var c = flowCfg(); return escHtml(flowBackWord(c.turnDays) + ' · paid in ' + c.termsDays + ' days'); },
+    body: function() {
+      var c = flowCfg();
+      return _sRow(_sfg('Turnaround target, working days', 'setFlowTurn', _sNum('setFlowTurn', c.turnDays, 1, 0), '0 is the same day'),
+        _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1)));
+    },
+    why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day. Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
+    save: function() {
+      if (!S.flowCfg) S.flowCfg = {};
+      var t = _sNonNeg('setFlowTurn'), d = _sPos('setFlowTerms');
+      if (t != null) S.flowCfg.turnDays = Math.round(t);
+      if (d) S.flowCfg.termsDays = Math.round(d);
+    }
+  },
   stockAlerts: {
     title: 'Stock alerts',
     summary: function() { var c = stockCfg(); return escHtml('red at ' + c.redDays + ' days left · amber at ' + c.amberDays); },
@@ -239,7 +255,7 @@ var SETTINGS_SECS = {
     title: 'Full cost',
     summary: function() { return _sRs(S.defaultCostPerKg || 8.55) + '/kg'; },
     body: function() { return _sfg('Default cost per kg (&#8377;)', 'setDefaultCost', _sNum('setDefaultCost', S.defaultCostPerKg || 8.55, 0.01, 0.01)); },
-    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Items Master reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
+    why: 'Full cost, not just materials. Stats judges &ldquo;below cost&rdquo; against the period&rsquo;s live cost and uses this only where there is no tonnage to divide by; Parts reads it for break-even. The Apr&ndash;Jul 2026 rebuild put it at &#8377;8.55/kg.',
     save: function() { var v = _sPos('setDefaultCost'); if (v) S.defaultCostPerKg = v; }
   },
   fallbacks: {
@@ -318,20 +334,25 @@ var SETTINGS_SECS = {
     title: 'Overtime',
     summary: function() {
       var c = labourCfg();
-      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '');
+      return escHtml('×' + _sLab('otMult', 1.1) + ' · cap ') + _sRs(c.otCap) + '/h' + (c.otCapFrom ? escHtml(' from ' + formatDate(c.otCapFrom)) : '') +
+        escHtml(' · snacks ') + _sRs(c.snackOt) + ' / ' + _sRs(c.snackNight);
     },
     body: function() {
       var c = labourCfg();
       return _sRow(_sfg('OT multiplier', 'setOtMult', _sNum('setOtMult', _sLab('otMult', 1.1), 0.01, 1)),
           _sfg('Monthly tier cap (&#8377;/h, after the multiplier)', 'setOtCap', _sNum('setOtCap', c.otCap, 0.01, 0))) +
-        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">');
+        _sfg('Cap applies to OT dated from', 'setOtCapFrom', '<input type="date" class="inv-input inv-id" id="setOtCapFrom" value="' + escHtml(c.otCapFrom || '') + '">') +
+        _sRow(_sfg('Snacks a person, regular OT (&#8377;)', 'setSnackOt', _sNum('setSnackOt', c.snackOt, 1, 0)),
+          _sfg('Snacks a person, night OT (&#8377;)', 'setSnackNight', _sNum('setSnackNight', c.snackNight, 1, 0)));
     },
-    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate.',
+    why: '<strong>Monthly</strong> OT is weekday hours over 8 at day rate &divide; 8 &times; the multiplier, capped per hour from the date above (owner, 25 Sep 2026: capped at &#8377;68.20 from September; July and August were paid uncapped). A Sunday&rsquo;s hours are that day, never OT. <strong>Daily</strong> OT is at the multiplier, uncapped. <strong>Hourly</strong> hands have no OT: every hour is paid at one rate. <strong>Snacks</strong> are paid with the weekly payout, a person once a day at the higher rate: the night rate for a night block (or out past midnight), the regular rate for the evening one (or out from 6 PM); none for the 6 AM block or the gate&rsquo;s own hours (owner, 10 Oct 2026).',
     save: function() {
       if (!S.labour) S.labour = {};
-      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap');
+      var m = _sNonNeg('setOtMult'), cap = _sNonNeg('setOtCap'), so = _sNonNeg('setSnackOt'), sn = _sNonNeg('setSnackNight');
       if (m != null) S.labour.otMult = m;
       if (cap != null) S.labour.otCap = cap;
+      if (so != null) S.labour.snackOt = so;
+      if (sn != null) S.labour.snackNight = sn;
       S.labour.otCapFrom = _sVal('setOtCapFrom') || '';
     }
   },

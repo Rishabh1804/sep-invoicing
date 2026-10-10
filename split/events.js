@@ -147,7 +147,7 @@ function onDocClick(e) {
     case 'invCreatePickChallan': createPickChallan(btn.dataset.id); break;
     case 'invClearClient': createClearClient(); break;
     case 'invAddLineItem': captureOptionalFields(); addLineItem(); break;
-    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); renderCreateForm(); break;
+    case 'invRemoveLineItem': captureOptionalFields(); invoiceForm.items.splice(parseInt(btn.dataset.idx), 1); createLeftDrop(parseInt(btn.dataset.idx)); renderCreateForm(); break;
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
@@ -179,15 +179,22 @@ function onDocClick(e) {
     case 'invExportGstr1': exportGSTR1CSV(); break;
     case 'invSelectPart': selectPartForLine(parseInt(btn.dataset.idx), parseInt(btn.dataset.partId)); break;
     case 'invRegClearRange': regClearRange(); break;
+    case 'invRegFilterClear': regFilterClear(btn.dataset.clear); break;
+    case 'invRegRange': regRangeOpen(); break;
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
+    // Day, Week and Month are Attendance's own views (TM4b): a view opens at its top, as a view tab does, its card first.
+    case 'invAttPeriod': attSetView(btn.dataset.view); viewTop(); break;
     case 'invAreaSpan': setAreaSpan(btn.dataset.span); break;
     case 'invAttStep': attStepDay(parseInt(btn.dataset.step, 10)); break;
     case 'invAttToday': attGoToday(); break;
     case 'invAttWeekStep': attStepWeek(parseInt(btn.dataset.step, 10)); break;
     case 'invAttThisWeek': attThisWeek(); break;
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
+    // The clerk's sheet against the supervisor's roll: the owner's rulings, a hand at a time (faces.js, F4).
+    case 'invAttRollUse': faceAttUseRoll(_attDate, btn.dataset.id); break;
+    case 'invAttRollOk': faceAttOk(_attDate, btn.dataset.id); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttDayAs': attDayAsSet(btn.dataset.v); renderAttendance(); break;
     case 'invAttAllPresent': attAllPresent(); break;
@@ -211,6 +218,7 @@ function onDocClick(e) {
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
     case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
     case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
+    case 'invAttRosterFilter': _attRosterFilter = _attRosterFilter === btn.dataset.v ? '' : btn.dataset.v; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     case 'invAttMergeWorker': mergeWorkerInto(parseInt(btn.dataset.id, 10)); break;
@@ -237,6 +245,13 @@ function onDocClick(e) {
     case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invStockSheetOpen': stockSheetOpen(); break;
     case 'invStockSheetPreview': stockSheetPreview(); break;
+    // The floor's own sheets (F5): Production → More → Print sheets, blank or as entered.
+    case 'invFshOpen': fshProdOpen(); break;
+    case 'invFshPreview': fshProdPreview(btn.dataset.kind); break;
+    // The flow thread (T1–T3): a challan's day it is wanted by; Floor's Turnaround card's door.
+    case 'invFlowPrio': flowPriorityOpen(btn.dataset.id); break;
+    case 'invFlowPrioSave': flowPrioritySave(); break;
+    case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
     case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
@@ -268,6 +283,7 @@ function onDocClick(e) {
     case 'invSaveGapReason': saveGapReason(); break;
     // IM duplicate guard
     case 'invRunDupeScan': runIMDuplicateScan(); break;
+    case 'invIMFilterClear': imFilterClear(btn.dataset.clear); break;
     case 'invDupeSaveAnyway': acceptChallanDuplicates(); break;
     case 'invDupeLocate': imLocateChallan(btn.dataset.id); break;
     case 'invChallanPeek': imChallanPeek(btn.dataset.id); break;
@@ -276,10 +292,9 @@ function onDocClick(e) {
     case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
-    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; renderStats(); break;
+    // One period for Stats and Today → Pulse (the tab map, TM2b): a change redraws whichever is on screen.
+    case 'invStatsPeriod': _statsPeriod = btn.dataset.period; if (navPageOf() === 'pageHome') renderHome(); else renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
-    case 'invStatsGo': statsSetTab(btn.dataset.tab); break;
-    case 'invStatsInsightsAll': uiRevealEl(document.getElementById('statsInsights')); break;
     // P9: Trend granularity chips (day/week/month)
     case 'invStatsTrendGran': _statsTrendGran = btn.dataset.gran; renderStats(); break;
     // Chart controls: what the trend plots, how it is drawn, and how the
@@ -382,22 +397,19 @@ function onDocClick(e) {
     case 'invOpenPartWeights': openPartWeights(); break;
     case 'invSaveWeights': saveWeights(); break;
     case 'invDeriveWeights': deriveWeightsFromRates(); break;
-    case 'invFilterNoWeight': {
-      var curFilter = getItemsFilter();
-      regFilter.itemsFilter = curFilter === 'no-weight' ? 'all' : 'no-weight';
-      saveRegFilter();
-      _itemsRendered = 0;
-      renderClientsPage();
-      break;
-    }
+    case 'invFilterNoWeight':
     case 'invFilterUnused': {
-      var curFilter2 = getItemsFilter();
-      regFilter.itemsFilter = curFilter2 === 'unused' ? 'all' : 'unused';
+      var want = action === 'invFilterNoWeight' ? 'no-weight' : 'unused';
+      regFilter.itemsFilter = getItemsFilter() === want ? 'all' : want;
       saveRegFilter();
       _itemsRendered = 0;
+      // Picked in the phone's Filter: one choice, so the dialog shuts on it, and its close draws the page (UI_FILTER_DONE.items).
+      var fdlg = btn.closest('[data-tb-filter-dialog]');
+      if (fdlg) { dialogCloseScrim(fdlg.closest('.inv-scrim-dialog')); break; }
       renderClientsPage();
       break;
     }
+    case 'invItemsFilterClear': itemsFilterClear(btn.dataset.clear); break;
     case 'invSelectAllUnused': selectAllUnused(); break;
     case 'invToggleItemSelect': e.stopPropagation(); toggleItemSelect(parseInt(btn.dataset.id)); break;
     case 'invClearItemSelection': clearItemSelection(); break;
@@ -407,8 +419,6 @@ function onDocClick(e) {
     case 'invSelectItemRow': _renderItemDetail(parseInt(btn.dataset.id)); break;
     case 'invClientsClosePane': closeClientsPane(); break;
     // Phase 6b: Register bulk operations
-    case 'invRegToggleSort': toggleRegSortDir(); break;
-    case 'invRegSortBy': toggleRegSortBy(); break;
     case 'invRegToggleSelect': toggleRegSelectMode(); break;
     case 'invRegToggleInv': e.stopPropagation(); toggleRegInv(btn.dataset.id); break;
     case 'invRegBulkState': regBulkSetState(btn.dataset.state); break;
@@ -443,10 +453,13 @@ function onDocClick(e) {
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
+      // The toolbar's More and Filter (state.js, one look).
+      if (uiToolbarAction(action, btn)) break;
       if (billsAction(action, btn)) break;
       if (bankAction(action, btn)) break;
+      if (suppAction(action, btn)) break;
       if (soaAction(action, btn)) break;
-      if (psAction(action)) break;
+      if (psAction(action, btn)) break;
       if (mrgAction(action, btn)) break;
       if (prsAction(action, btn)) break;
       if (financeAction(action, btn)) break;
@@ -472,6 +485,7 @@ function onDocClick(e) {
       if (aregAction(action, btn)) break;
       if (addAction(action, btn)) break;
       if (flrAction(action, btn)) break;
+      if (faceAction(action, btn)) break;
       if (tdyAction(action, btn)) break;
       if (srchAction(action, btn)) break;
       if (typeof devAction === 'function' && devAction(action, btn)) break;
@@ -514,20 +528,18 @@ function updateTotalsDisplay() {
   container.innerHTML = createTotalsHtml(client);
   const grand = document.getElementById('invGrandTotal');
   if (grand) grand.textContent = formatCurrency(createTotals(client).grand);
-  // Update validation state
-  const errors = validateInvoice();
-  const errArea = document.getElementById('invErrorsArea');
-  if (errArea) errArea.innerHTML = errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('');
-  const saveBtn = document.getElementById('invSaveBtn');
-  if (saveBtn) saveBtn.disabled = errors.length > 0;
+  // The errors due to show (create.js, TM5h): only after a field is left or a save is tried.
+  createErrorsRefresh();
 }
 
 // Every change re-renders inside keepScroll (state.js): a pick in a drop-down never moves the page (P79).
 document.addEventListener('change', function(e) { keepScroll(function() { onDocChange(e); }); });
 function onDocChange(e) {
   if (errOnChange(e.target)) return;
+  if (psOnChange(e.target)) return;
   if (rptOnChange(e.target)) return;
   if (flrOnChange(e.target)) return;
+  if (faceOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
@@ -586,8 +598,8 @@ function onDocChange(e) {
   }
   // Register filters — one capture path, so a new filter control cannot end up
   // wired to the click delegate and not to this one.
-  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' ||
-      e.target.id === 'regStateFilter' || e.target.id === 'regDateFrom' || e.target.id === 'regDateTo') {
+  if (e.target.id === 'regClientFilter' || e.target.id === 'regMonthFilter' || e.target.id === 'regStateFilter' ||
+      e.target.id === 'regDateFrom' || e.target.id === 'regDateTo' || e.target.id === 'regSort') {
     captureRegFilters(e.target.id);
   }
   // IM filters
@@ -746,7 +758,9 @@ document.addEventListener('input', function(e) {
   if (e.target.tagName === 'INPUT' && /^cnf/.test(e.target.id) && billsCnFormInput(e.target)) return;
   if (e.target.id === 'bankSearch' && bankInput(e.target)) return;
   if (relayOnInput(e.target)) return;
+  if (suppOnInput(e.target)) return;
   if (prodOnInput(e.target)) return;
+  if (faceOnInput(e.target)) return;
   if (qtOnInput(e.target) || qtSearchInput(e.target) || prsOnInput(e.target) || pcsOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);

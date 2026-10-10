@@ -26,6 +26,11 @@ about. Five steps, one PR each: I1 an entry checked before it is believed (built
 ranked list (built), I4 the change explained (built), I5 learning from responses (built). **Self draws are wages and personal drawings** (owner,
 6 Oct 2026), which I2 builds on.
 
+**The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
+employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand), F3 (the
+supervisor), F4 (the register clerk), F5 (the sheets on paper) and F6 (the guides) are built, and so is the flow thread (T1–T3:
+turnaround targets and payment terms, the tasks they raise, the flow on Floor's Overview and a client's page).
+
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
 implementation … is done"*). One PR, steps PL1–PL5, then the QA chain. Nothing about the shop is written into the code: the
@@ -47,8 +52,10 @@ no step may leave a screen longer (I10). **Revised the same day with one look** 
 need to plan properly"*): a census of every screen found the components consistent and the screens' assembly not (of 60 phone
 screens and views, 34 lead with no summary at all; the rest lead five different ways). §3e gives four kinds of screen (overview,
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
-row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Not built:
-the build and the QA chain wait for the owner's word.**
+row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
+(owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
+built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3, TM4 and TM5 are built (*The tab map* below); then TM6,
+TM7 and the QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -85,7 +92,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 84 modules, ~58,100 lines total.
+Split-file PWA. 88 modules, ~63,200 lines total.
 
 ```
 split/
@@ -94,13 +101,13 @@ split/
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid (~2,250 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More) (~2,450 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History → Changes (~670 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
 ├── guard.js           ← The gate: IDs and PINs, roles, the lock, the re-ask before a P1 change, what each role opens (~1,030 lines)
 ├── zinc.js            ← Zinc market rate: store, display, metals.dev refresh, uplift from bills (~350 lines)
-├── tabs.js            ← switchTab (9-step protocol) + renderHome (188 lines)
+├── tabs.js            ← switchTab (9-step protocol) + renderHome; the names (PAGE_TITLES) and each screen’s kind (SCREEN_KINDS, data-screen) (~600 lines)
 ├── clients.js         ← Client Master CRUD + overlay (343 lines)
 ├── items.js           ← Items Master: subview, CRUD, merge, weights (1,262 lines)
 ├── create.js          ← Invoice creation form, 3 billing modes (312 lines)
@@ -113,25 +120,26 @@ split/
 ├── exports.js         ← Sales CSV + GSTR1 CSV + printed sales register (291 lines)
 ├── im.js              ← Incoming Material list + selection (535 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
-├── print.js           ← formatInvoiceData + print preview (224 lines)
+├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room (224 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
-├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export (557 lines)
+├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
 ├── quote.js           ← Quotations: Clients → Quotations, a number at issue, revisions, the printed quotation (~790 lines)
 ├── charts.js          ← Reusable SVG charts: line, bar, pie, ranked bars, and a card's sparkline, meter and day on one bar (~580 lines)
 ├── staff.js           ← Roster + attendance + roster import: day, week, extra hours (1,013 lines)
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
-├── payroll.js         ← Pay: due by worker, payments, weekly payout + forecast, monthly payroll as paid, hours by area, Home attendance (547 lines)
+├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout (the snacks included) + forecast, the hours to check, monthly payroll as paid, hours by area (~1,150 lines)
 ├── stock.js           ← Stock: WhatsApp message parser, event replay, More sheet, chemicals ₹/kg (1,189 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Live cost with every source shown (~390 lines)
-├── bills.js           ← Finance → Bills & notes: electricity bills by month, credit notes recorded or issued, stock line edit (~400 lines)
+├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
-├── bank.js            ← Finance → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, payments vs bills and Pay (~560 lines)
-├── finance.js         ← Finance: the page, its six tabs, and the Overview read across them (~230 lines)
+├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,760 lines)
+├── suppliers.js       ← Suppliers: every spelling one supplier, its bills with GST, payments (a cheque cleared once), the balance from a day, lead times for the reorder list (~680 lines)
+├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
-├── payslip.js         ← Pay slips from Staff → Pay's own rows: two to an A4 page (~170 lines)
-├── todo.js            ← To-do: your tasks + tasks raised from the data, Home card, Windows widget payload (726 lines)
+├── payslip.js         ← Pay slips from Staff → Pay's own rows, any month's: two to an A4 page (~220 lines)
+├── todo.js            ← The To-do's engine: your tasks + tasks raised from the data, Needs you's rows, Windows widget payload (726 lines)
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
 ├── prospects.js       ← Clients → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
@@ -141,28 +149,31 @@ split/
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
 ├── stats.js           ← Stats dashboard + History activity log (1,195 lines)
-├── intel.js           ← Stats tabs; Overview at the live cost; six months; contribution by client (~230 lines)
+├── intel.js           ← Stats' three tabs; the questions' stories and In one line for Pulse; six months; contribution by client (~230 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
-├── finintel.js        ← Finance intelligence: eleven bank To-do rules, days to pay, the cash forecast (~400 lines)
+├── finintel.js        ← Finance intelligence: thirteen bank To-do rules, days to pay, the cash forecast (~520 lines)
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
-├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
-├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; a line's efficiency; in plant; rules; export (~1,420 lines)
+├── dash.js            ← The charts People and Stock explain with: attendance by week, labour ₹/kg, payroll vs bank (Pay); supplier spend, use, prices (Stock's Spend and prices) (~230 lines)
+├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; what a day and a line earned, a line's usual day and its week; a line's efficiency; in plant; rules; export (~1,820 lines)
 ├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~450 lines)
 ├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
 ├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
 ├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
-├── prodview.js        ← Production page: the day's card, Overview, In plant, Lines, Entries; paste, photo and hand sub-views; Set its weight (~1,320 lines)
-├── floor.js           ← Floor → Day: a card per line coded by its efficiency, heads against the number, running, plated, crew, EXTRA; the pieces not weighed (~300 lines)
-├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks) and Pulse (the questions) (~440 lines)
+├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
+├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
+├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
+├── flow.js            ← The flow thread: turnaround targets and payment terms, a challan wanted by a day, the tasks they raise, the flow on Floor's Overview and a client's page (~360 lines)
+├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
 ├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~610 lines)
-├── planview.js        ← The planner's screens: Play, Ledger, A day, Plant, Tech tree, Staff, Clients, Finance; registers; the report (~990 lines)
+├── planview.js        ← The planner's screens: Play, Ledger, A day, Moves (Plant, Tech tree, Staff, Clients, Finance); its verdict; registers; the report (~990 lines)
 ├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
 ├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,670 lines)
 ├── client-perf.js     ← Client performance: month on month + material cadence (314 lines)
@@ -171,15 +182,15 @@ split/
 ├── vision.js          ← One Gemini photo read: the scanner's request unchanged, a schema for the register (~100 lines)
 ├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
-├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row, the red counts (~300 lines)
+├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row (a view may cover several of a page's own: Clients, Sales), the red counts (~360 lines)
 ├── swipe.js           ← Swipe navigation: within the open workspace's views (38 lines)
-├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail (~330 lines)
+├── nav.js             ← Navigation: an address per screen, view and record; one history trail; back arrow and trail; the redirect table for places that moved (~490 lines)
 ├── search.js          ← Search, keys and new windows: one index of records and screens, the palette, the shortcuts (~930 lines)
 ├── seed.js            ← seedIncomingMaterial(), called from boot (10 lines)
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -209,14 +220,14 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,630 tests, both layouts
+pnpm exec playwright test          # 1,762 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else. The suite takes about 13 minutes on
-a CI runner's two workers (the job allows 30, since the apt step behind Chromium's install has
-taken 5 on its own) and about as long in a constrained sandbox — don't read a slow run as a hang.
+`playwright.config.ts` reads; unset everywhere else. The suite takes about 27 minutes on
+a CI runner's two workers (26.6 on 10 Oct 2026, 1,734 tests; the job allows 45, since the apt step behind Chromium's
+install has taken 5 on its own) — don't read a slow run as a hang.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
@@ -326,7 +337,7 @@ layouts; builders fixed each area with its spec (P104–P113). What it leaves as
   keeps the old name as a spelling, so payroll slips still find them.
 - **What the sweep left to the owner, and their rulings (30 Sep 2026)**, all built (P114): `gstRound` rounds the decimal figure
   (*"change it"*, HR-8); a pay balance carries across periods until cleared with a reason (*"yes, unless stated otherwise and
-  notification cleared"*, Pay); a second electricity bill in a month is arrears plus a penalty (Bills & notes); *"night hold is
+  notification cleared"*, Pay); a second electricity bill in a month is arrears plus a penalty (Bills & notes, now Money → Payments); *"night hold is
   night shift"* on the in-time roll too; a correction on a new invoice reaches its challan with a note; Home nets credit notes and
   says so.
 
@@ -454,7 +465,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 719 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -520,8 +531,9 @@ drawn before a print names a step reached and never skips past it. **Not printed
 never came out (`invNotPrinted`), stamp and all. P104.
 Stats' state tiles keep one tone per state (`INV_STATE_TONE`), since they count many invoices. A number is spent from
 Dispatched on, not from Printed. P94.
-**The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and *By date / By
-number* on the phone, where a number sort is grouped by series rather than by day. The order is the series prefix, so
+**The register sorts by invoice number too** (owner, 26 Sep 2026): the desktop's Invoice column head, and the phone's sort in
+Filter (*Highest number first*, *Lowest number first*; two buttons until the tab map, TM5c), where a number sort is grouped by
+series rather than by day. The order is the series prefix, so
 25-26 comes before 26-27, then the number read as a number, so `100` follows `00099` however it was padded (P70).
 **IM is built:** the worklist leads with *Awaiting invoice*, then *Invoiced*, each grouped by challan date; a challan
 expands to its lines (`inv-row-expander`). The desktop table and pane are the Register's, with the focus helpers shared
@@ -1004,7 +1016,7 @@ of the same workflow: tick the batch, export its register, raise the note off th
 
 **The register that goes with it is a DOCUMENT, not just a CSV.** A batch ships as two things and
 only one of them was printable: the CSV is a working paper for the accountant, and a spreadsheet is
-not what you send a customer alongside a GST document. Register → **Sales Register PDF** prints the
+not what you send a customer alongside a GST document. Register → More → **Sales register PDF** prints the
 same register through the same print view every other document here uses — no PDF library, because
 adding one to render a single table would be a second rendering path for a job the browser already
 does.
@@ -1794,6 +1806,12 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   voided.
 - **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
   corrected by a new entry that names the old one (`replaces`), never edited; a wrong one is voided with a reason.
+- **A past day is corrected where it is checked** (owner, 10 Oct 2026: *"we can check, its just not in the production tab, it is in
+  the day tab but corrections and comparisons are missing"*). Floor → Day's line card opens Production → Lines on its line and day,
+  and there each run and pickling load opens to what it holds, its Correct and its Void (`prodEntryFoldRowHtml`, Entries' phone
+  fold, on both layouts); a correction goes back to that day. Enter by hand from Lines starts on the day stepped to (a fresh Lines
+  shows the last recorded day, and a new entry there is today's) and on its line. Entries opens on a day (*A day* in its Filter;
+  Lines' More, *Every entry of this day*): every entry of it, whatever its kind. P198.
 - **One figure per line and shift.** Per (day, line, general | overtime) the register counts, else the supervisor's
   relay, else an entry by hand; the others are shown **also reported**, never added — they count the same work a
   different way. On a day with the supervisor's whole-day barrel list, the roll's barrel OT blocks are *also reported*
@@ -1824,7 +1842,7 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   included. The row says *100 kg ≈ 400 NOS at 0.25 kg/pc (client card)*, each client's head says how many lines were
   worked out, and a line with no weight known stays in kg and is named with where to put the weight. Before this a
   kilo line with no count took none of the floor's piece counts, which all read *on the floor, no challan open*.
-- **Linked in.** Stats → Overview gets *Plated (floor)*, only on **complete days** (attendance recorded and every
+- **Linked in.** *In one line* (Today → Pulse; Stats → Overview's until the tab map) gets *Plated (floor)*, only on **complete days** (attendance recorded and every
   staffed line with a general-shift record), never a zero. Lines shows labour ₹/kg by line: variable labour of the
   line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg. Two To-do
   rules, both blind to imported history and rework: **plated, not invoiced** (amber at 3 working days, red at 6,
@@ -2060,6 +2078,33 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   plated, `source: 'production'`, behind the rates permission). Production → Entries → **Not weighed** lists every such run
   (`prodIsUnweighed`); To-do rule **`prodUnweighed`** asks per client over 30 days, amber, until each is weighed.
 
+### What a line earned, against its cost and its usual day
+Owner, 10 Oct 2026: *"As we are calculating production, why don't we calculate the earnings? I can see that 9th Oct production data is
+there and we have rate data, we can actually show the info there"*, and on Floor's day, *"corrections and comparisons are missing"*
+(the corrections are P198). `docs/PLANT_PICTURE.md` PP2, in part. P206.
+- **What a line earned** (`prodDayWorth(date, line)`; the day's whole when no line): its runs at their clients' rates on record before
+  GST, as the day card always read them (a piece client's part at its piece rate, a run in kilos at the client's ₹ a kg, a run in
+  pieces at that rate over its weight, ≈ where the weight is estimated; rework left out). It names the work no rate prices (`names`;
+  a run with no client among them, which had been passed over unsaid), and keeps the kilos of the priced runs that have a weight
+  with what they earned (`kg`, `amountKg`), so a rupee a kilo is read over the same runs as its kilos.
+- **Against what a kilo costs** (`prodCostRef`): the live cost over the 90 days to the day on the invoices' weighed kilos, Stats' own,
+  else the full cost in Settings, said which.
+- **Against the line's usual day** (`prodLineUsual`): the median of its recorded days in the 60 before, five at least, its kilos over
+  the days with nine tenths of their pieces weighed (the plant's usual day's rule) and its earnings over those with nine tenths of the
+  work priced. A day still running says *so far*.
+- **The week to the day against the four before** (`prodLineWeek`): the same days of each pay week, **a recorded day's average on each
+  side** (a day with no record is a gap, never a zero: the record began partway through a week, and a week's total read the one after
+  it 43% up on the owner's book), the day still running left out of both, two weeks before at least.
+- Read once a book (`prodLineDaySum`, kept until the book changes). **On screen**: Floor's line card a fact row, *Earned*, coloured by
+  its rupee a kilo against the cost, the usual day under it, or, where a tenth or more of the work has no rate, how much has none (a
+  role that does not see money reads the kilos against the usual day, `data-flr-usual`); Production → Lines' verdict an *Earned* tile
+  in the Rounds' place for that role (the rounds are in the efficiency's split), Plated and Earned with their change lines against
+  the usual day (`uiFactorTileHtml`'s `delta`), the week against the four before a fact; *The week, plated* an *Earned* row; the day
+  card (Floor's Production hero) *At the live cost*, *Left after it*, *This week, a day plated* and *a day earned*, and *Not priced*
+  listing what no rate prices with the door to the client's rates. On the owner's book of 9 Oct: 8 Oct's VAT A1 ≈ ₹12,530 at ₹5.40 a
+  kg (a piece client's clamps) against a cost of ₹7.20, red; VAT A2 ≈ ₹8,530 with 1,386 pieces not priced (the same pieces nothing
+  weighs).
+
 ### Workers and the plant
 `docs/WORKERS_AND_PLANT.md` (owner, 7 Oct 2026), steps W1–W5. P166–P170. **Nothing about the shop is in the build**: the units, the
 workers and every personal detail are the book's; the owner's private files (`sep-people`, `sep-plant`) are imported, never committed.
@@ -2068,7 +2113,8 @@ workers and every personal detail are the book's; the owner's private files (`se
   round** (owner): available = the kg a round of the units running or on standby over all of them (by count, and said, where no kg is
   typed); used is what the register measures a line plating a round (`prodTankLoad`, the register's own rounds; the planner's
   `plnBase().lines` for a line with none), *not measured* without either. Production →
-  **Equipment**, a strip per line leading Production's Overview, Floor → Day's line cards (*1 of 4 down*). The planner's machines are
+  **Equipment**, a deck card a unit, two across on the phone (the tab map, TM4c; a strip per line until then), the status changes folded
+  under them, Floor → Overview's line cards (*1 of 4 down*). The planner's machines are
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
   **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the
   first day of a unit's first line) stood before it, whatever its *since*, which is the day it was recorded; only a unit written in
@@ -2082,7 +2128,9 @@ workers and every personal detail are the book's; the owner's private files (`se
   signals, each with its reason (pay owed, advances, OT climbing, a newer hand of the tier paid more, absences rising, no rise in a year),
   and the owner's monthly **check-in** (1–5, `S.peopleCheckins`) weighs half; not firm without a check-in in 60 days, and never red
   unless firm. **Personal details and motivation are the owner's alone**; the change log never compares a profile, a check-in's score or
-  note. The roster row carries three bars (reliability, consistency, workload) and the top skills (P168). To-do `pplCheckin`, `pplWatch`.
+  note. The roster row carries the area and the pay as its meta (the tier is its group), three bars (reliability, consistency,
+  workload) and the top skills (P168); a badge only for a state (*Motivation 42*, *Inactive*). Its verdict's *To watch* and *Check-ins due* show those hands alone
+  (TM4f: a check-in due on every row had marked 21 of 23). To-do `pplCheckin`, `pplWatch`.
   `sep-people` v1 through Staff → Roster → Import or Add → File: matched by name like a roll, each match checked before a field is written.
   **Skills and relationships each have a Change on their own panel** (owner: *"once I set the skill there is no way to change the skill
   level"*: the only door was *Details, skills and ties* at the foot of the record); a dialog opened on one part writes only that part.
@@ -2121,9 +2169,12 @@ workers and every personal detail are the book's; the owner's private files (`se
   - Card numbers never return (`S.cardSeq`); ten cards fit one A4 page (measured under print media).
 
 ### The planner
-Office → **Planner** (in its Insights; the Insights workspace's until 8 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
+Today → **Planner** (in its Insights; Office's until the tab map of 9 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
 clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
 prototypes). P162.
+- **Four views: Play · Ledger · A day · Moves** (the tab map, TM2d; eight until then), Moves a switch over Plant · Tech tree · Staff ·
+  Clients · Finance. One verdict card leads every view (the plan's margin a month against the goal), and one toolbar row (Roll, the
+  month, the plan where there are two, More). *The tab map: Today (TM2)* above.
 - **A month is built from the book's parts up** (`plnBase`, `plnMonth`): the last three full months' invoices by client and part
   (`statsInvoices`, `lineWeightKg`, `cpPartIdentity`), each part on its own usual line from the production record, else its client's,
   else VAT A2 (*assumed*). A line plates **kg a round every so many minutes** (from the register's rounds a day against the book's
@@ -2150,7 +2201,7 @@ prototypes). P162.
   planner*; **Make the report** prints the plan in the report generator's frame. A money page for the guard.
 
 ### Quotations
-Clients → **Quotations** (`quote.js`; owner, 1 Oct 2026: *"a quotation generator as well … I think we have the template for that
+Office → Sales → **Quotations** (Clients → Quotations until the tab map of 9 Oct 2026; `quote.js`; owner, 1 Oct 2026: *"a quotation generator as well … I think we have the template for that
 in our Soma internal repo"*). Built to the rules of soma-internal's quotation register (`operations/quotations/README.md`) and in the
 layout of its issued quotations; both are read-only references, and nothing of them is in this repo. P131.
 - **A draft holds no number.** Its face says DRAFT and its number reads *Draft*: the register's duplicate `001` came from drafts that
@@ -2189,12 +2240,12 @@ layout of its issued quotations; both are read-only references, and nothing of t
 - **Left open:** a per-kg quotation for "all components" (no part number) is not posted to the ₹/kg ladder; it says to set it by hand.
 
 ### Prospects
-Clients → **Prospects** (`prospects.js`, P176; owner, 7 Oct 2026: *"start with 3 and 4"*). The plant runs about three quarters full (~24 t
+Office → Sales → **Prospects** (Clients' fifth view until the tab map of 9 Oct 2026; `prospects.js`, P176; owner, 7 Oct 2026: *"start with 3 and 4"*). The plant runs about three quarters full (~24 t
 a month spare), and nothing kept who was approached, what they were offered or when to call again.
 - **A prospect** (`S.prospects`): the firm, a contact, phone and e-mail, the work (process and parts), tonnes a month as estimated, a
   target ₹/kg, a stage (**new · contacted · sample · quoted · won · lost**), the next follow-up, notes, and a dated log of each stage.
   Lost needs a reason; a name already on the list is refused. In the change log.
-- **The list** is the fifth view tab: search, a stage `<select>` (Open by default), **Add prospect** the one primary; the follow-ups due
+- **The list** is Sales' first view: search, a stage `<select>` (Open by default), **Add prospect** the one primary; the follow-ups due
   first, most late first. Four tiles: open (and how many due), the **pipeline** (tonnes a month weighted by a chance per stage: new 10%,
   contacted 20%, sample 40%, quoted 60%, said on the screen as a working assumption, beside the tonnes if all came), the **spare** (the
   last 90 days' invoiced tonnes against ~2 t a shift, two shifts, Stats' capacity), and what share of the spare the pipeline fills.
@@ -2206,13 +2257,15 @@ a month spare), and nothing kept who was approached, what they were offered or w
   spare with what it would bill a month, weighted (`prsPlantMove`). Search finds the screen.
 
 ### Reports
-Office → **Reports** (in its Insights, after Stats; the Insights workspace's until 8 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
+Today → **Reports** (in its Insights, after Stats; Office's until the tab map of 9 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
 quarterly yearly report generator"*). Shaped on soma-internal's hand-compiled daily, weekly and monthly reports (`reports/`); a
 quarterly and a yearly follow the monthly's shape. P132.
 - **Kinds and periods**: Daily · Weekly · Monthly · Quarterly · Yearly; a day, the pay week Sun–Sat numbered by its Saturday's ISO week,
   a month, a quarter of the financial year (Q1 Apr–Jun), a financial year. ‹ › steppers (never past the current period), a picker, Now,
   and **Print** the one primary. A period not yet ended reads *to date* and stops at today. Kept per device (`sep_inv_report`); the
-  address is `?tab=pageReports&v=<kind>/<first day>`. Stats → Overview → *Make a report* opens it on the same period.
+  address is `?tab=pageReports&v=<kind>/<first day>`. Pulse's head → More → *Make a report* opens it on the same period.
+- **The report on the page is the paper, fitted** (the tab map, TM2f): laid out at the sheet's width and zoomed to the screen
+  (`paperFit`, print.js, the print view's own fit), so its tables never run past a phone's edge.
 - **One document, drawn from the data every time** — the Power case's contract: `rptHtml(kind, from, to)` is the page and the print
   (`rptPrint`), and a save in another window redraws both.
 - **Sections by kind**: headline tiles with a change line against the period before of the same length (same days while one runs);
@@ -2236,8 +2289,9 @@ quarterly and a yearly follow the monthly's shape. P132.
 
 ### Power
 More → **Power** (sidebar Floor → Power; `power.js`; owner, 30 Sep 2026: *"Make a power cut tab, we have built a business
-case for power cut and how to resolve it, find it, read it and update it"*). Five views: **Overview · Cuts · Causes · Load &
-bills · Case**. The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
+case for power cut and how to resolve it, find it, read it and update it"*). Four views since the tab map (TM4e): **Cuts ·
+Causes · Load & bills · Case**, each led by its verdict card (the Overview went: its month, cost and year are Cuts' card and Floor's
+Power hero). The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
 keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is the dated refresh.
 
 - **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
@@ -2438,7 +2492,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
   `prodGeneralLines` / `prodStaffedLines`, `cpHourParts`, `qtToFromClient`); a worth that cannot be worked out is left out of
   the sentence, never guessed. **Nothing is applied**: a move opens a place or a draft, and nothing is written until the owner
   saves there.
-- **The six questions** on Stats → Overview (and, with Direction B, Today → Pulse: `advPulseHtml(period)`), each ending in
+- **The six questions** on Today → Pulse (Stats → Overview's too until the tab map, TM2b), each ending in
   *What you can do* — three moves shown, ranked by worth then tone, the rest behind *Show N more moves*; where none can be
   worked out, one line says what would make one appear:
   1. **Is the plant running smoothly?** (new) A stock line out or red, with the reorder list's cost; this month's cuts, with
@@ -2474,16 +2528,212 @@ of things in the app that can answer itself but that linkage is missing."*). The
 - **Left open**: the rebate move opens the whole credit-note list (no client filter there yet); a quotation draft's prefill is
   not restored by browser Back/Forward.
 
-### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
+### The tab map: the shell (TM1)
+`docs/TAB_MAP.md` (owner, 8–9 Oct 2026; *"Merge and go with all 14"*). TM1 built what every later step stands on. P184, P195, P197.
+- **The rows** (`WORKSPACES`): Today is Needs you, Pulse, then its *Insights* Stats, Reports and the Planner; Office is Pipeline,
+  Challans, Invoices, Clients and Sales; Floor is Overview, People, Production, Stock and Power; Money is its page's own row. Stats
+  keeps its five tabs and the Planner its eight until TM2.
+- **Clients and Sales are one page** (`pageClients`): a view may cover several of a page's own (`vs`). Clients covers clients,
+  items and performance; Sales covers prospects and quotes. Each draws only its group's row (`CLIENTS_GROUPS`, items.js), an address
+  lights its own (`?tab=pageClients&v=quotes` lights Sales), and each returns to the sub-view it was left on (`wsVsPut`). The parts
+  master is called **Parts** wherever the user reads it; its sub-view's id stays `items`.
+- **History and Knowledge are tools in the top bar** on every screen (History a clock, `invGoHistory`; Knowledge the book), in no
+  workspace: no door lit, no row, their own title, no swipe. History's tool is hidden from a role that does not open it.
+- **The names the user reads** (`PAGE_TITLES`, so the guard's refusals and roles grid too): Today, Invoices, People, Money, Floor
+  overview.
+- **A place that moves is followed through one table** (`navRedirect`, `NAV_REDIRECTS`, nav.js), applied to an address and to every
+  place applied (a step of the trail an older build saved). It is empty until a step removes a place; that step adds its row.
+- **One look's pieces** (state.js; design §6.6, §6.7, §6.10, §6.28), applied to no screen until TM2:
+  - the verdict card (`uiVerdictHtml`): a sentence of 60 characters at most in its tone, three facts, four factors as tiles, two
+    links; shut on the phone and open on the desktop; its count for a role without money;
+  - the row end (`uiRowEndHtml`: a figure and a status, or one action; `uiRowMoreHtml`: the rest in the row's fold on the phone);
+  - the toolbar's Filter (the phone's dialog, its tokens under the row: `uiFilterHtml`, `uiTokensHtml`) and More (both layouts,
+    its badges summed in the worst tone: `uiToolbarMoreHtml`).
+
+  Every page declares its kind (`data-screen` from `SCREEN_KINDS`, tabs.js: overview, work, document or form; a sub-view that is a
+  form says so while it shows).
+- **The instruments.** The long book (`longBook()`, `tests/e2e/load-fixture.ts`) is the sweep's book scaled toward the owner's
+  shape, every name made up. **P195** holds every screen of the map on the phone within its budget: length in screens, blocks of
+  text over 120 characters, meta lines chaining three facts, toolbar rows. Each budget is the worst of eleven days of the calendar,
+  with the face and the clock pinned. **P197** holds every screen's kind and box looks (`LOOKS`, the census's 38) on both layouts,
+  and each assembled screen (`ONE_LOOK`, empty after TM1) to its kind's anatomy. A budget is never raised to get green; each step
+  lowers its own screens'.
+- **The top bar's title gives way**: on a form whose back arrow, name and four tools are wider than a phone (Create), the name
+  ends in an ellipsis with its full text in a `title`, never a page wider than the screen (P76).
+- Fixtures: `phoneFilter`, `closeFilter`, `toolbarMore` (`phoneMore`), `openVerdict`, `openSales`; `switchTab` opens History by
+  its tool.
+
+### The tab map: Today (TM2)
+`docs/TAB_MAP.md` TM2 (9 Oct 2026): the first screens assembled to one look (§3e), and the build's stop (§1a-14): the owner looks at
+them before TM3. P185; P195's budgets lowered for Today's screens and P197's `ONE_LOOK` filled with them.
+- **The To-do is Needs you's** (TM2a). The tasks stack opens with the To-do's toolbar (`#todoNew`, **Add** the view's one primary,
+  **Details**), then Now, This week and Later as before, then **Snoozed** (Wake) and **Done** (the tick reopens), each a fold shut,
+  and *Learnt from your answers* (`#todoLearn`) at the foot for a role that may change settings. `#pageTodo` is gone: an address, a
+  saved step of the trail, the widget's launch and the manifest's shortcut land on Needs you (`navRedirect`), `todo=add` with
+  `#todoNew` focused, `todo=open:…` on the task's dialog. The engine is unchanged (`todoRanked`, `todoGo`, the dialogs, the widget).
+- **Pulse takes Stats → Overview** (TM2b). Under its head (the period, `MTD · QTD · YTD · All`, one `_statsPeriod` with Stats, and
+  More: *Make a report*, *Open Stats*, *Edit Home*), the questions and *Do first* as before, then **Why it moved** (`#statsWhy`),
+  **In one line** (`#statsOverview`, with its Cash and plated rows) and **This month at its pace** (`#statsPace`), each a hero led by
+  its verdict, shut on the phone and open on the desktop. A period changed on Stats redraws Pulse when it is next shown
+  (`_homeDrawnPeriod`). **Edit Home** is in More (the bar under the widgets is gone); a role without money sees that button alone.
+  **The widgets are shut on the phone too** until opened (each a hero whose line answers at a glance): open, they alone ran past
+  three phone screens on the owner's book.
+- **Stats is three tabs, each led by its verdict card** (`statsVerdictHtml`, `#statsVerdict`):
+  - **By client**: how many large accounts sit below their variable or full cost, the worst named with its ₹/kg; then contribution,
+    the next challans, revenue, and realisation and concentration, the last three folds shut on the phone.
+  - **Cost**: *Live cost ₹/kg · N% measured*, toned by the share measured; then labour and the live cost. *Recorded against paid*
+    names on its row the months it compares and the ones it leaves out; the bills fold to one row (*12 bills entered, the latest
+    Sep 2026*, a voided bill listed inside and never the head) without their notes, which stay on Money's bills.
+  - **Trends**: the period's headline as the verdict (revenue, tonnage, realisation and margin its factors, each old callout a badge
+    on its factor and one line); then six months, the trend and top items (a fold shut on the phone).
+
+  A tab remembered from before (Overview, Billing) opens By client. Billing's cards went: output tax and invoice states are Money →
+  GST's and Pipeline's facts, and the **dispatch cycle** is Pipeline's (`#pipeDispatch`, the last 90 days). The insight list went: an
+  insight is a task on Needs you.
+- **Every preset of Pulse's widgets hides To-do, Recent and Money** (TM2c; Needs you holds them). A device on a preset follows the
+  build's preset; a layout of the owner's own is kept.
+- **The Planner is Play · Ledger · A day · Moves** (TM2d). Moves is a switch over Plant · Tech tree · Staff · Clients · Finance
+  (`invPlnMoves`; the address `v=moves/<kind>`, an old kind's name opening Moves on it); a kind switched keeps the page where it is,
+  a control inside the view and not a navigation (P79). One verdict card on every view
+  (`#plnVerdict`: the plan's margin a month against the goal, cash's low, CQI-11, the trials' stars) replaces the goal callout and the
+  heads-up tiles. The toolbar is one row: Roll, the month ‹ ›, the plan's picker where there are two plans, and More (New card, Make
+  the report, Copy, Rename, Suggest a start, Start over, the goal). On the phone a register's or a move's row carries two facts and
+  one thing at its end, the rest folded under it (`plnRowHtml`); the desktop keeps its tables.
+- **Reports, fitted** (TM2f): the report on the page is laid out at the sheet's width and zoomed to the screen (`paperFit`, print.js,
+  which the print view calls too).
+- **What is measured is what is drawn** (P195): a view or widget the page hides is not on a screen's face. The notes that explained a
+  figure went to the screen's guide (Stats', Today's; kbguides.js). **Needs you's toolbar budget went from 0 to 1**: the To-do's Add
+  row TM2a puts there, the one budget a step has raised, said to the owner at the stop (I10).
+
+### The tab map: Money (TM3)
+`docs/TAB_MAP.md` TM3 (10 Oct 2026, after the owner's look: *"Go ahead"*): Money's five screens in one look, the bills on Payments,
+the credit notes in Invoices, and a cheque in hand counted as paid (*Cheques received*, under Bank). P186, P187; P195's budgets
+lowered for Money's screens, and P197's `ONE_LOOK` takes them.
+- **Money is Overview · Receivables · Payments · Bank · GST** (`FIN_TABS`). The bills are Payments' (*Bills & notes*, above); an
+  address or a saved step naming `bills` opens Payments (`NAV_REDIRECTS`), the To-do's bill task opens the form on its month, and a
+  saved task's *Bills & notes* reads *Add the bill* (`todoGoLabel`). Live cost keeps its bills' fold and loses its form: *Add a bill*
+  opens Payments' (`invCostBillGo`); Power's link goes there too. The credit notes are Invoices → **Credit notes**, a dialog whose head
+  carries **Record issued** and **New note** and whose body holds the form (`renderCreditNoteList`, `[data-cn-dialog]`).
+- **The Overview leads with four heroes** (`inv-heroes-4`: two across on the phone and on a desktop under 80rem, four from it): Cash
+  (carrying the verdict), Owed to us, GST and Paid out, each folding to its line on the phone; the six charts follow, each a fold shut
+  on the phone. The tiles that led went into the heroes. Its links to the tabs are `invFinGo`, never the tab row's `invFinTab`.
+- **Receivables, Payments, Bank and GST are work screens**, each led by its verdict card (`#bankRecvVerdict`, `#bankPayVerdict`,
+  `#bankVerdict`, `#finGstVerdict`) and one toolbar under it:
+  - **Receivables**: *Cheque received* in the toolbar; the returned cheques, the cheques received and the receipts with no client
+    lead; a client's row has owed at its end in its age tone and two facts of meta, and opens to fact rows, then its invoices. How
+    receipts are set is the bank guide's now (`kbguides.js` `bank`, version 2), with one line on the face.
+  - **Payments**: *Add a bill* the one primary; the payees not sorted first, then the bills (a missing month one row with one Add,
+    the bank's payment for it under it), then electricity paid, the wages, suppliers and other, each a fold.
+  - **Bank**: the search, Filter (the category, a token once set) and More (Import a statement, Export Excel, Export JSON) in one
+    toolbar; the statement, then the balance check (open when a balance breaks) and the imports, each a fold.
+  - **GST**: on the phone a row a month with its due and paid stacked at its end, the latest six and the rest one tap away; the
+    desktop keeps the table. What due and paid mean is the bank guide's.
+- **What needs the owner shows its first few, the rest one tap away**, the verdict and the panel's head counting all: five receipts
+  with no client, three payees not yet sorted, the latest three months with no electricity bill. The verdict, the toolbar and the
+  cheques took that room on Receivables and the bills on Payments; given back, neither is longer than at TM2 (I10).
+- **A statement line is two facts** (the day, and what it is); a cheque deposit is named by its number in its title (*Deposit of
+  cheque 525428*), a payment's cheque number is in its narration when opened, and a line naming a client wraps whole.
+- **Three toolbar budgets went from 0 to 1** (Receivables, Payments, Bank: the one row a work screen has), said to the owner (I10).
+- Measured, phone screens (P195's long book, worst of eleven days; then the owner's book, in a scratch harness never in the repo):
+  Overview 6.53 → 1.41 (owner's 6.88 → 1.39); Receivables 3.09 → 2.92 (2.39 → 2.22, chains 17 → 0); Payments 1.72 → 1.72
+  (3.05 → 1.55); Bank 3.38 → 3.20 (3.56 → 3.31, chains 8 → 0); GST 1.11 → 1.10; Bills & notes gone.
+- Fixtures: `openFoldAt(page, key)` opens a fold by its key, `bankImportDoor(page)` the statement's import wherever it is drawn.
+
+### The tab map: Floor (TM4)
+`docs/TAB_MAP.md` TM4 (10 Oct 2026): Floor is **Overview · People · Production · Stock · Power**, and the Overviews of People,
+Production, Stock and Power are gone; every Floor screen leads with its verdict card, then one toolbar row. P188; P195's budgets
+lowered for every Floor screen, P197's `ONE_LOOK` takes them, and the walk visits Attendance's Week and Month.
+- **Floor → Overview** (`floor.js`; it was Floor → Day): the day stepper, then four heroes (five with the flow thread's *Turnaround*, T3), People (carrying the verdict:
+  who is on site against the roster, `attOnSiteTone`, the lines short by name), Production (the day's card, led by the worst
+  line), Stock (now: out and low, the reorder's cash with GST) and Power (the day's cuts, the month, a year at
+  this rate, the load to chase), each shown to a role that opens its screen (the floor role sees People without its link,
+  Production and Stock, no Power); then the line cards, **the worst first**; then *Not weighed*.
+- **People is Attendance · Pay · Areas · Roster**; Attendance is a switch Day · Week · Month (`data-att-period`), its tab
+  returning to the last of the three; the addresses are unchanged (`v=day`, `week`, `register/<month>`). Day's EXTRA rows are one
+  line each until opened (`details[data-extra-row]`); Week leads with attendance by week (folded); Pay with its payout against
+  the usual week, labour ₹/kg and the payroll against the bank folded; Pay's payment form folds on the phone (`#payFormFold`);
+  Areas leads with the extra checked, its hours by area a table (`[data-area-hours]`); Roster's *To watch* is the To-do's `pplWatch`, and its card's *To watch* and *Check-ins due*
+  show those hands alone (`invAttRosterFilter`; a check-in due is no badge on the row); the tier is the group, the area and the
+  pay (the base rate with an overtime hour's) the row's two facts (`workerRateShort`), the hands who left under *Left*. A period in a toolbar row is `inv-tb-step`.
+- **Production is Lines · In plant · Entries · Equipment** (`PROD_TABS`, default Lines). Paste message is the primary on Lines and
+  Entries only; Equipment's is Add a unit; In plant has none. Entries shows thirty with only qualifying badges on the phone, its
+  flags as the card's filter tiles; In plant folds each client; Equipment's units are deck cards, two across on the phone
+  (`data-deck-sm`), the status changes folded (`plt-log`).
+- **Stock is one screen** (`_stockView` `list`; no view tabs): the verdict (out, low, the reorder's cash; the status tiles its
+  filtering factors), one toolbar row, *To check* a row, the lines grouped by status, **Spend and prices** (`stockSpendHtml`)
+  folded at the foot on the phone and in the pane on the desktop (`invStockSpend`).
+- **Power is Cuts · Causes · Load & bills · Case** (default Cuts), each its own toolbar: Cuts' *To look at* leads with the load
+  approved and not billed (red), then the cuts to complete; a cut is two facts; the charts fold after the cuts. Causes' tiles are
+  coloured only from three cuts (`uiVerdictFit` keeps a long cause in the card). Load & bills says each figure once. The case is
+  paper fitted to the screen (`paperFit`, `#powerCaseSheet`).
+- **The redirect rows** (§5): `pageStaff·overview`, `pageProduction·overview`, `pagePower·overview` → Floor's Overview;
+  `pageProduction·overview/<paste|hand|photo>` → that form on Lines; `pageStock·overview` → `list`. A remembered `overview` in
+  `sep_inv_prod_tab` or `sep_inv_power_tab` opens the first view; a saved task with `tab: 'overview'` too.
+- **Who sees a rupee is unchanged**: the reorder's cash, a cut's cost and In plant's book are every role's that opens their screen,
+  on Floor's heroes as on the screens; only the bank's forecast waits on the money setting (the guard's audit, QA4-4).
+- **The guides took the method** (`kbguides.js`): the floor (new), attendance (v2), the areas and the extra (new), pay (v2),
+  production (v2), stock (v2), power cuts (v2).
+- Measured, phone screens (P195's long book, worst of eleven days; then the owner's book, in a scratch harness never in the repo):
+  Floor's Overview 2.22 → 2.43 (owner's 2.51 → 2.72: the four heroes above the line cards); Attendance · Day 2.73 → 2.07
+  (4.08 → 3.42); Week 3.17 → 1.68 (4.36 → 2.56); Month 1.00 → 1.00 (4.57 → 3.15, chains 9 → 0); Pay 3.49 → 2.12 (4.49 → 3.14);
+  Areas 2.86 → 1.79 (4.68 → 3.18, chains 19 → 0); Roster 2.27 → 2.27 (4.72 → 4.56); Lines 2.51 → 1.59 (3.39 → 2.32); In plant
+  7.50 → 2.29 (6.69 → 1.74, chains 31 → 0); Entries 17.20 → 3.85 (28.52 → 3.81, chains 184 → 0); Equipment 1.72 → 1.50
+  (3.74 → 2.72); Stock 1.26 → 1.07 (2.61 → 2.42); Cuts 2.21 → 2.20 (chains 61 → 1); Causes 2.82 → 1.56; Load & bills 1.00 →
+  1.00 (1.93 → 1.14); Case 3.79 → 2.13 (4.38 → 2.41); the four page Overviews gone. Every toolbar is one row.
+- Fixtures: `prodEntryAct(page, id, action)` finds an entry's action in its row, its fold or the pane.
+
+### The tab map: Office (TM5)
+`docs/TAB_MAP.md` TM5 (10 Oct 2026): every Office screen leads with its verdict card, then one toolbar row; the long rows are two
+facts and the long cards fold. P193; P195's budgets lowered for every Office screen, P197's `ONE_LOOK` takes them.
+- **Pipeline** (`pipeline.js`): the verdict names the stage the page opens on (`pipeDefaultStage`) in its own words and tone, no
+  figure (its tile has the amount), the worst other late stage its one fact (`pipeLateSay`); the stages are coded tiles two across (`pipeStageTileHtml`), a stage with nothing to
+  judge plain. `pipeStateStage` reads one invoice state over a list, for Pipeline and the Register's verdict alike.
+- **One judge for a challan's wait** (`imWaitTone`, `imWaitDays`, im.js): IM's dot, Pipeline's first stage and the To-do's challan
+  task, amber from the To-do's challan days (5) and red from twice them; the task was info at any age. Challans' verdict
+  (`imVerdictHtml`): how many wait, what they bill, the oldest's days its figure. One row: Filter, Scan, **Add challan**, More
+  (*Duplicate check*).
+- **Invoices** (`renderRegisterToolbar`, `regVerdictHtml`): one row on both layouts: the search, Filter (client, month, state, the
+  range, the sort one picker), Select on the phone, More (Credit notes, Number audit, the register's CSV and PDF, GSTR-1 CSV, Bulk
+  mark filed); on the desktop the filters inline, the range a dialog (`regRangeOpen`), select-all the table head's box, a row that
+  never wraps. The verdict: the invoices late on a step over what the filter shows. A neutral badge stays on its More row.
+- **Clients** (`clientFlagsRead`, `clientFlagDotHtml`, `clientsVerdictHtml`, clients.js): a client's row ends in its worst flag, the
+  To-do's own tasks, as a dot and a short word (`CLIENT_FLAG_WORD`); the verdict names the rule flagged worst, the rest its facts.
+- **Parts** (`itemsVerdictHtml`): *N with no weight* in its tone with **Enter weights** in its foot; Filter (*No weight*, *Unused*,
+  the sort), **Add part**, More (Part weights with its count, Enter weights, Derive weights, Merge, Select unused); a part's row
+  its description and gauge, its end the rate over its kg a piece.
+- **Performance** (`cpVerdictHtml`, client-perf.js): the client's realisation against the live cost and its change, its flags coded
+  tiles that open their tasks (shut on the phone, open on the desktop); the cadence groups, Materials worked and By the hour folds,
+  shut on both layouts; By the hour's parts as fact rows. A client's flagged tasks and linked articles are brief rows
+  (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`), its Money panel two facts a line, the folded Turnaround card's head its title
+  and verdict.
+- **Sales**: Prospects' four tiles are its verdict's factors (`prsVerdictHtml`), the spare one figure (`prsSpare`, said under Pulse's
+  *Is the plant full?* too); **To reprice**, Pulse's reprice moves (`qtRepriceMoves`), is Quotations' card's body on the phone (one
+  card, the rest a tap away) and the desktop's pane while no quotation is open (`qtRepricePaneHtml`), where open above the list it
+  had made the page scroll (P80).
+- **Create** (`validateInvoiceKeyed`, `createErrorsShown`, `createErrorsRefresh`): an error shows once its field is left or a save
+  is tried, never on a form nobody has touched; Save is held only while one shows.
+- **The method went to a guide**: *Using the app: clients and sales* (`kbguides.js`, on the office path).
+- Measured, phone screens (P195's long book, worst of eleven days; then the owner's book, in a scratch harness never in the repo):
+  Pipeline 4.57 → 4.57 (owner's 3.04 → 3.02, chains 7 → 0); Awaiting invoice 3.71 → 3.71 (1.99 → 1.93); Invoices 3.65 → 3.33
+  (3.50 → 3.15, toolbar rows 8 → 2); Clients 1.47 → 1.50 (2.39 → 2.43: its card, said); Parts 1.00 → 1.00 (3.09 → 3.05, chains
+  30 → 0); Performance 2.69 → 2.56 (5.72 → 3.23, blocks 14 → 0, chains 57 → 0; the desktop's 7.79 → 3.69); Prospects and
+  Quotations 1.00 (one toolbar row each). Needs you 3.09 → 3.30 within its budget (the challan task red at ten days); Knowledge →
+  Library's budget raised 3.5 → 4 (3.48 → 3.56: the new guide).
+- Fixtures: `filterControl(page, sel)` and `setFilter(page, sel, value)` reach a screen's filter on either layout (in the phone's
+  Filter dialog, inline on the desktop) and set it.
+
+### Direction B: workspaces, Today, Add, Pipeline, Floor → Overview, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
 - **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More; the desktop's
   rail is the same doors (the mark, Add, the four workspaces, Settings). A workspace is a layer over the pages that exist: every
   page keeps its id, its address and its own view tabs, and the workspace draws its views as a tab row under the top bar
-  (`#wsTabs`; `WORKSPACES` is the one map). Office holds Pipeline, Challans (pageIM), Invoices (pageRegister) and Clients, then
-  its Insights under their name: Stats, Reports, the Planner, History and Knowledge; Create is a page it holds without a tab. Floor
-  holds Day, People (pageStaff), Production, Stock and Power. Money is Finance. Opening a workspace from the bar or the rail is a
-  step of its own (its last view this session, else its first), so Back from Challans goes to the Office view it came from.
-  Swiping stays inside the open workspace (Clients to Stats crosses into the Insights).
+  (`#wsTabs`; `WORKSPACES` is the one map). Since the tab map (9 Oct 2026, below): Today holds Needs you and Pulse, then its
+  Insights under their name (Stats, Reports, the Planner); Office holds Pipeline, Challans (pageIM), Invoices (pageRegister),
+  Clients and Sales (one page, pageClients); Create is a page it holds without a tab. Floor holds its Overview (pageFloor),
+  People (pageStaff), Production, Stock and Power. Money is Finance. History and Knowledge are the top bar's tools, in no
+  workspace. Opening a workspace from the bar or the rail is a step of its own (its last view this session, else its first),
+  so Back from Challans goes to the Office view it came from. Swiping stays inside the open workspace (Pulse to Stats crosses
+  into the Insights).
 - **Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
   that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
   understand the hierarchy. What do you think?"*, and *"Move insights into office tab, that way we have 5 icons again, which can
@@ -2491,8 +2741,8 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   5.5rem, the bar stood on its side), and nothing under it is listed there; its **views** are the tab row under the top bar,
   on the desktop too (it stood in the top bar, and the sidebar listed every view again beside the workspaces); a **page's own
   views** are the row under that. `--fill-h` takes the row off the room a list-and-pane screen fills. Insights was a workspace,
-  the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it is Office's Insights
-  now. **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
+  the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it was Office's
+  Insights (8 Oct 2026), and is Today's since the tab map (9 Oct 2026). **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
   line; the workspace on screen fills its pill in the accent's soft colour, Add (the centre door) in the accent, never raised;
   the red count sits on the mark's corner. The rail's mark opens Pulse, and opens it in a new window on a Ctrl+click.
 - **A group is named in its row, and a row past the screen says so** (owner, 8 Oct 2026: *"Insights seems to be missing on
@@ -2502,15 +2752,19 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   a tap on it brings the group in (`wsGroupReveal`), choosing no view. That row's tabs are a step tighter on the phone and a step
   more under 24rem (a 360 px screen), so the name stands after Clients' word, never over it; on the desktop a hairline sets it
   off. A page's own tab row that runs past the screen fades on the side with more (`data-more`, set by the overflow pass,
-  `_ovMoreSet`, as a table's is); the workspace's row is never faded, since its cue is the name.
+  `_ovMoreSet`, as a table's is); the workspace's row is never faded, since its cue is the name. **Since the tab map (TM1) the
+  group is Today's Insights, and Today's row fits a phone**: where the whole row fits, the name is a hairline between Pulse and
+  Stats (`data-group="rule"`); only a row that would run past the screen keeps the word as its cue (`data-group="word"`), measured
+  on every draw and resize (`wsRowFit`, workspace.js). On the desktop the name stands in its row as before.
 - **Today** (`today.js`, P135) is pageHome, two views with addresses (`?tab=pageHome&v=needs|pulse`). **Needs you** (the
   default): the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records, the
   out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
   the shop's own time), with its door; on the desktop, the floor now; **the last five invoices, each with its print button**
   (`tdyRecentHtml`, the Pulse widget's own rows, `homeRecentRowHtml`; owner, 6 Oct 2026: *"to print a recent invoice is 4
   clicks"*: the list had been only on Pulse, under the questions; now Today → print → Print, P164); then every open task grouped **Now** (red, and your
-  own due today or late), **This week** and **Later**, each with its one-tap move. **Pulse**: the questions with what to do
-  (advice.js), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
+  own due today or late), **This week** and **Later**, each with its one-tap move (and since the tab map the To-do's Add, Snoozed,
+  Done and Learnt, TM2a). **Pulse**: the period, the questions with what to do (advice.js), Why it moved, In one line and the
+  month's pace (Stats → Overview's until TM2b), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
   a spec reaching one opens Pulse first (`openPulse` in the fixtures).
 - **Today is cards** (owner, 8 Oct 2026: *"need the pulse screen and needs you screen to have less cognitive load, data
   presentation on these screens are still primitive"*; *"If it is in list form, it should be presented better, maybe as a card or
@@ -2524,7 +2778,8 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   and mark open Pulse** (`invGoPulse`), where Today's own item opens Needs you; the phone's bar has no name or mark.
 - **Pulse's widgets are cards too** (owner, 8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed
   space"*; P180). Each is a hero with its eyebrow, a one-line verdict, its figure where the line is not one, a meter or sparkline,
-  coded by the worst of what it holds, open at first and remembered per device (`fold: 'pulse-<widget>'`), its links in its foot
+  coded by the worst of what it holds, shut on the phone and open on the desktop until moved, remembered per device (`fold:
+  'pulse-<widget>'`; open at first until the tab map, TM2c), its links in its foot
   (`inv-hero-foot`): Month to date (`homeMtdCard`: billing against the same days last month, realisation against the cost, the
   tiles coded by their change, `figDeltaTone`), Money (owed past 60 and 90 days, the ageing as a meter, `FIN_AGE_TONE`), To-do
   (grouped as Needs you groups it), Attendance (on site, the day as a meter; `attDayPanelHtml(d, null, …)` draws the panel with no
@@ -2571,8 +2826,10 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
 - **Office → Pipeline** (`pipeline.js`, P137): awaiting invoice → created → printed → dispatched → delivered → owed to us,
   each a count, an amount and a tone by age, read off the function its own screen uses; a stage opens its list and its
   action goes through the screen that owns it. *Owed to us* is money: a role that does not see money has no such stage.
-- **Floor → Day** (`floor.js`, P138): a card per line with the heads against the day's number, the EXTRA, what it is
-  running, what it has plated and who plated it; tiles for on site, plated and power. A day is `?tab=pageFloor&d=…`. It and
+- **Floor → Overview** (`floor.js`, P138; Floor → Day until the tab map, TM4a, P188): heroes for the day (people, production,
+  stock, power and the turnaround; each to a role that opens its screen, People carrying the verdict), then a card per line, the worst first, with
+  the heads against the day's number, the EXTRA, what it is running, what it has plated and who plated it. A day is
+  `?tab=pageFloor&d=…`. It and
   Home count the day's roster as Staff → Day does (`attDayRoster`: the active hands and anyone marked that day who has left).
 - **Search, keys and new windows** (`search.js`, P139): one index of records, screens and actions, built when first
   needed and kept until the book changes; numbers match whole, amounts to the paisa, dates by day. `Ctrl K` / the bar's
@@ -2584,7 +2841,7 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   00021 as well as 21 Sep); a worker opens in Roster's pane on the desktop; *Add a bill* works out its month when opened.
 
 ### The knowledge base
-Office → **Knowledge** (its Insights' last view; the Insights workspace's until 8 Oct 2026), and the book in the top bar on every screen (`knowledge.js`, `kbguides.js`; owner, 2–5 Oct 2026: *"a training
+The top bar's book, on every screen (a tool since the tab map of 9 Oct 2026; Office's Insights' last view before it) (`knowledge.js`, `kbguides.js`; owner, 2–5 Oct 2026: *"a training
 ground, a troubleshooting area, a record keeper, a tool used to make decisions"*). The plan and the owner's rulings are
 `docs/KNOWLEDGE_BASE.md`. P154.
 - **In the book, never in the build** (`S.kb`: `articles`, `trained`, `paths`): this repo is public. The one exception is the app's own
@@ -2658,6 +2915,195 @@ on the build before. What it leaves as rules:
   they open): skipped when a click or tap went elsewhere first, or another field took it. On a slow CI runner it pulled the cursor
   back, and P139's C, then its ?, were typed into the search.
 
+### Entry faces
+`docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
+all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
+forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, the sheets on paper (P203); F6, the guides (P199); T1–T3, the flow thread (P204). No name is in the
+build: the people are the book's.
+- **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
+  attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
+  access → *Enters*); the users list says what each enters.
+- **Mine** is their screen (`pageFace`, an overview): the day (‹ › and Today, the address's `d`), the duties as steps read as
+  Today's inputs read them (in, late, not yet, not expected), each opening where the duty is entered on that day (its own form on
+  the face, F2–F4; Stock's by hand; People's day as the sheet for the attendance sheet); *What you entered* that day from the change log (`faceEntered`); their paper (*Print my sheets*, *Print the day as entered*, F5), and whether their entries have
+  reached GitHub (`faceSyncState`).
+- **Its door is drawn only for an ID with a face** (`faceMineDoor`), first on the bar and after Add on the rail; `grdSees('pageFace')`
+  is the face's (`faceSees`), guard on or off. A reload within the sign-in window draws it too (`grdBoot` draws the shell again: the
+  phone's bar had been drawn before the book said who was in, and Mine's door was left off until the next sign-in; F4). **Signing in lands on it** from the start's Today or when another person signs in; a
+  launch onto another screen is kept (`grdAfterUser`).
+- **The owner sees a person's screen as theirs** (*See their screen* on the users list: `_faceUid`, ended by the next sign-in).
+- **Today hears a face**: an input a person with that duty entered says so (*Entered by …*, `faceInputBy`, read off the change log).
+- **Search finds Mine** only where it opens (`srchSees`).
+- **The pickling hand enters on Mine itself** (F2, P200): *A load into the tank* (the client, those with material open first; its parts
+  as the challans name them, those open first with what is open on them, or a name typed as written; pieces or kilograms; the time it
+  went in, now by default; re-pickling or rework) and *Material in* (a challan in the book counted line by line against its own figure,
+  or what came with no challan in the book yet). A save is the record a paste makes (`pickled`, `basis: 'pickling'`; `arrived`,
+  `basis: 'floor-in'` with `imId`, `imItemId`, `challanNo`), with `src: 'face'` and `by` the person; the form stays for the next and
+  lists what was saved from it. **Correct** opens the form on the entry; saved, it takes the entry's place (`replaces`).
+- **The group still gets its message**: each saved entry has *Send to the group* (WhatsApp with the message in the shop's shape: the
+  day, the client, each part and its figure, the time) and *Copy*. The entries carry the message's key (`msgHash`), so that message
+  pasted later is refused as entered on a face (`prodPasteSeen`), and a load or count retyped (the same day, client, part and figure,
+  within twenty minutes) is left out of a paste (`prodFaceTwin`).
+- **Trusted, checked, never held** (`faceChecks`): a load with no plating found by noon the next working day, where every line it can
+  have gone to was recorded (its usual line, else its client's lines in sixty days, else all three: the barrel keeps no register); a
+  load past what its challans hold (In plant's own setting of loads against challan lines, `over`); a count the challan
+  does not bear out (short is red); a count with no challan a working day on; a VAT run no load became on a day the face was in use.
+  The entry carries the question (on Mine; Production → Entries → *To check*), To-do `faceCheck` asks the owner (one task a check and a
+  day), and *Looks right* keeps it as entered (`checkOk: {codes, at, by}`, the `voids` permission). A load with no challan at all is
+  Production's own rule (`prodPickledNoChallan`), never asked twice.
+- **A load meets the register's run of its kind or code** (`prodMatchAll`, a second pass): a load its own part or family linked to
+  nothing takes, in the same window, a run of its client sharing a 4-digit code, else a run of its kind (pads and liners one kind) at a
+  gauge that fits, a run's gauges read off its round included (the family's key cannot hold them); a named load only a run naming its
+  kind alone, never another part's; never a run linked already. On the owner's book, the 68 loads since 1 Sep: the first pass linked
+  12, the second 11 more, and the line read from plating went from 7 loads to 18 (of the 45 left, 17 are a client with no plating on
+  record within five days).
+- **The supervisor writes the rolls on Mine** (F3, P201). *In-time roll*: a hand of the day's roster a row, placed with one pick (the
+  places the roll writes: VAT A1, VAT A2, Barrel, Barrel & pickling, Pickling A1 & A2, Office & gate, Civil; or Absent; under a heading
+  naming two, each hand stands at their own area, as the roll's reader places them), *Usual places* fills the unmarked from each
+  hand's own area and *Mark the rest absent* the rest (a hand on a 6 AM block is on site); the 6 AM blocks; the EXTRA on the 8:30 shift
+  by line (the barrel's on the unit). *Out-time roll*: who went home is worked out (everyone present on no late block), at 5 PM unless
+  their own time is set (the roll writes it after the name, *ALFA 7:00 PM*); each late block from 5 PM, or 8 PM for the night hold
+  (*NIGHT HOLD 8 PM TO 5 AM*), to any half hour up to 6 AM. **A block runs on one line or several** (chips: VAT A1, VAT A2, Barrel,
+  Pickling A1 & A2, Barrel pickling), written under the heading the reader takes back as those lines (`faceBlockHead`: *BARREL & VAT
+  A2*; a VAT line's pickling is the line's own, folded in by the Areas check, and the block says *Booked to VAT A1 (pickling with a
+  line is counted in the line’s block)*), with its crew, EXTRA and work done; a block with its crew and no line, a night hold over by
+  8 PM, or a block with nobody on it is refused at Save. Either roll opens filled from the day as it stands (a line's EXTRA the rolls
+  booked twice added into one figure; one typed by hand left as the day's own). **A mark entered on the day itself** (People →
+  Attendance, a card scan, a check-in) is left by any roll, so the face shows it in its place, says *the roll leaves it* and does not
+  offer to change it (`faceMarkByHand`); *Usual places* and *Mark the rest absent* pass it by.
+- **A roll saved on a face is the roll** (`faceRollText`, `relayApplyPlan`): the form writes the message in the shop's shape (the
+  day's head, the slots, a numbered line a hand, each area's EXTRA, the absent by tier) and saves it through the roll's own reader and
+  save, each name written placed on the hand it was written for (`faceRollChoices`), so the day holds what the same roll pasted
+  gives: the marks the roll's (`src: 'relay'`: the next roll updates them, *Read the rolls again* reads it), the EXTRA rows, the
+  blocks' crews. **It is read exactly as written** (`parseRelayRoll`'s `exact`, for every roll with `face`): a heading's lesson learnt
+  from the owner's correction of a pasted roll would move a pick (on the owner's book an evening *VAT A1* had been taught to read as
+  three areas). A block on the barrel unit reads as its pickling side, as a paste does (one unit of five to the reconciler). The roll
+  is kept naming who wrote it (`relayPastes[].face`); the same roll pasted later is refused as saved before, a save with nothing
+  changed says so, and *Send to the group* and *Copy* send it as written. **Saved again, it restates the day**, where a roll pasted on
+  top only adds (a hand taken off a block, an EXTRA cleared, stayed): the day is read again from its rolls with the new roll in the old
+  one's place (*Read the rolls again*'s reading, the new roll `fresh` so it is recorded), what was typed by hand kept and the day as it
+  was logged with why; the old roll is kept, `replacedBy`, so it is refused if pasted and never read again. A hand marked absent
+  leaves every block. **The in-time roll restated after the face's out-time roll works that one out again with it**: who went home
+  was worked out from the places, never written, so a hand now absent is not sent home at five (the blocks and own times stand; a
+  pasted out-time roll is the supervisor's text and is read as written). **Stock** stays Stock's own form by hand: the duty's step
+  opens it.
+- **Measured on the owner's book** (the 37 recorded days since 1 Sep, a scratch harness never committed): each day's rolls written
+  on the face from the day as it stands and saved unchanged. The out-time roll changes nothing on any day (314 marks the same, 244
+  typed by hand kept, every EXTRA row the same); the first build, with one line a block, block ends to midnight and no own times,
+  changed 11 days and 40 marks. The in-time roll changes 3 days, each one the stored day contradicting itself: three hands on a 6 AM
+  block whose marks said 8:30 on no line (the face reads the block), a hand marked absent on a block (left off it), and a line's
+  EXTRA booked twice, 8 h and 8 h (one 16 h row: the same hours).
+- **A barrel batch** (F3): the barrel (the plant register's barrels, else its number typed), the client and part as a load has them,
+  the figure, in and out, rework. A `plated` entry on the barrel line, `basis: 'register'` (the register the barrel never had), with
+  `unitId` or `barrel`, `to` and `msgHash`: counted over the supervisor's relayed list for that day, which reads *also reported*. Its
+  message is the day, *BARREL 2: 9:30 AM - 10:30 AM*, the client, the part and figure. A batch over a quarter heavier than its barrel
+  takes (the kg a round typed on the unit, else the median of five or more of that barrel's own batches) is asked (`heavy`, amber).
+- **The register clerk's VAT page on Mine** (F4, P202): a page per line and day as the register keeps it (`faceVatHtml`): VAT A1 a
+  round a row (its time, the figure as written), VAT A2 a batch a row (when it began and ended, the figure at its end: the register's
+  START and END; a start left blank began where the batch before ended), *Rounds · Batches* for a page kept the other way (a round's
+  time is a batch's end). The client and the part as the floor names it (the floor's names and the client's challan parts offered)
+  appear only where a run begins, the rounds under it carrying them as the paper's ditto; *Another client or part* on the last round
+  begins a run, and a run's part changed moves the rounds under it that were the same. Two clients in one round are a row each at
+  the same time. **Read by the register photo's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`): the figure
+  added up as the register means it (*3+4×156* is seven racks of 156, *98×8+1*), the START rule, the gauge, part and series rules,
+  the shift's edges, a round its line has not run, the day total written against the rounds; each row says what was read under it,
+  a run what it was read as. The rows redraw around the field being typed (`faceVatRedraw`, People → Day's way), so a tap on the next
+  field lands. The face opens on the line with nothing recorded that day, else the one being typed (`?tab=pageFace&v=vat/vat-a2`).
+- **Kept on the phone until the page is saved** (`sep_inv_face_page`: a page per person, day and line; dropped a fortnight unsaved;
+  *Start again* / *Put back as saved*), since a page is a day's rounds and a save at every round would void a run at every next one;
+  Mine's step says a page is typed and not saved. **Saved**, its runs are a register photo's (`plated`, `basis: 'register'`,
+  `lineSrc: 'written'`, the rounds) with `src: 'face'`, `pageId` and `msgHash` (the page's message, *Send to the group*), and the
+  page is kept (`production.pages`: date, line, style, the rows as typed, the total written, who, the reader's fingerprint). **Saved
+  again, it puts right what changed**: a run whose rows read as before stays (its id, whatever the owner set on it), a changed one is
+  voided (*The page was entered again on Mine*) and its reading added, and the page before is kept, `replacedBy`. A page with a run
+  the owner corrected or voided in Production is the owner's: saving it again is refused, saying so. A figure the reader cannot add
+  up is refused at Save, never saved as nothing.
+- **A page a photo also holds is warned both ways**: on the face before it is entered and at its save (*Count the day twice?*), and
+  on the photo's check (*The VAT A1 page for this day was entered on Mine by …*, *with the same rounds* where the fingerprints
+  match). Register runs of one line and day from two sources both count, so the warning is the guard.
+- **The power log is the day's**: a cut saved at once from the page (cut at, power back if it is), one log a day whichever line's page
+  (`logId`: two close cuts in it are two, a cut the pickling message also sent is one), the day's cuts from every record listed with
+  *Power back* or *Why* (the cut's completion, `pcsOpen`).
+- **Its checks** (`faceChecks`): `rack`, a round of a size its part never ran at on its line before the page's day (three rounds or
+  more on record; half the usual rack on VAT A2 is the line's own way), and `total`, a page whose day total written the rounds do not
+  meet (a run put right counted as put right).
+- **Measured on the owner's book** (the 23 register pages since 23 Sep, a scratch harness never committed): each page retyped on the
+  face from its own saved rounds reads exactly as saved on 19 (every client and part's pieces, the rounds, the hours). Three hold a
+  run with no client written, which the face asks for; one splits a figure for two codes by what is open on their challans, which has
+  changed since.
+- **The clerk's attendance sheet against the supervisor's roll** (F4, P202): the sheet is People → Attendance → Day as the sheet (the
+  duty opens it), and every mark typed on the day now carries who typed it (`by`, with the guard on, `_attHandEdit`). Each hand the
+  clerk marked is set against the day's saved rolls read alone (`relayRollsReading`: relayPlan `bare`, nothing on the day beside
+  them): present on one and absent on the other, a half day on one, another line (where both name one; the barrel and its own
+  pickling one place, which the roll writes either way), or present with the rolls naming them nowhere (`faceAttDiffs`). The
+  sheet's mark stands (a roll never writes over a mark typed by hand). Said on the hand's row and over the day, on the clerk's Mine
+  (*N differ from the roll*) and to the owner (To-do `faceAttRoll`, one task a day); the owner rules a hand at a time, in its day:
+  **Use the roll's** (the roll's mark on the day, the roll's again) or **Looks right** (`rollOk`, against the roll's reading it was
+  given: a roll saved later that reads otherwise asks again). Which is the day's truth stays the owner's (ENTRY_FACES §8).
+- **Measured on the owner's book**: the 55 marks typed by hand on the 25 days since 1 Sep with rolls, as the clerk's sheet: 8
+  questions on 5 days, 7 another line and 1 not on the roll, none present against absent (15 before the barrel and its pickling were
+  one place and a sheet naming no line was let pass).
+- **The sheets on paper** (F5, `facesheet.js`, P203; owner: *"Every one will have an option to print out their sheets as well, if they
+  want to fill in manually and file it in my table"*). Mine's *My sheets* prints the blank sheet of each duty the person enters, in the
+  day's order (**Print my sheets**), and **Print the day as entered**, to file (offered only when the day holds something for one of
+  them): the roll front and back and the attendance sheet (attsheet.js), the stock message and the stock as entered (stocksheet.js;
+  as entered with its bills and prices only for a role that sees money, else the stock message filled: a face never prints a money
+  figure its role does not see), and three new ones on the same page styles (`FSH_SHEETS`), each one A4 sheet (measured at the sheet's width under print media, and a
+  PDF of as many pages as sheets):
+  - **the pickling sheet**: a load a row (into the tank at, client, part and gauge, quantity, NOS / KG, re-pickled), and Material in
+    under it where the face counts what comes in (the challan, the part, what was counted);
+  - **the barrel batch sheet**: barrel, client, part, quantity, in, out, rework;
+  - **the VAT register pages**: VAT A1 a round a row (the figure as written), VAT A2 a batch a row (began, ended); the day total
+    written and what the app counts; the day's power log with why each cut came.
+
+  Filled, a sheet is the app's record of the day, whoever entered it, each row saying through which door (Mine and who, WhatsApp
+  and who sent it, a register photo, by hand); a voided or corrected record never reaches paper. A VAT page entered on Mine prints as
+  typed (the paper's ditto under a run's client and part); a day read from a photo or a message prints its rounds as the page wrote
+  them (the register's *1:05* is the afternoon, never turned into 1:05 AM). Production → More → **Print sheets** prints the floor's
+  three for any day, blank or as entered (a sheet with nothing entered is left out, and the toast says which). The roll filled on
+  Mine says *As entered in the app*, not a worked example (`attSheetShyamHtml`'s `note`). Printing writes nothing to the book.
+- **The guides** (F6, `kbguides.js`, P199): *Using the app: my screen (Mine)* (`app-mine`: the day, the steps, what was entered,
+  Correct and To check, the group, the paper, GitHub), one a face (`app-face-pickling`, `app-face-supervisor`, `app-face-clerk`:
+  every form as it is on the screen, and what the owner is asked), and the owner's *Setting up each person's screen*
+  (`app-faces-owner`, `roles: ['owner']`: Enters, Devices, See their screen, what reaches the owner). All link to Mine, so its book
+  lists them. Each role's path (`KB_APP_PATHS`) leads with Mine and the face a hand of that role is most often given (floor: the
+  pickling hand's; supervisor: the supervisor's and the clerk's; office: the clerk's). *Using the app: production* is version 4
+  (Print sheets). Training shows a path's first five lessons, the rest one tap away (P195's budget for Training held).
+- **The flow thread** (T1–T3, `flow.js`, P204; owner, 10 Oct 2026: *"Target default one day, can be edited as per material or overall as
+  well. Say, they ask for a particular material to be done on a priority basis - we can plan that out"*; *"Mehta 7 days - as we give 2%
+  discount, every other client 45 days"*).
+  - **The targets and terms** (T1). A turnaround target from a challan's day to its despatch, in working days (Sundays out; despatch is
+    the invoice's despatch date, else its date): the plant's (Settings → Checks & alerts → Turnaround and terms, `S.flowCfg.turnDays`,
+    1; 0 is the same day), the client's (`client.turnaroundDays`) and a part's on the client (`client.turnaroundParts`, by `rateKey`), the
+    part's winning. Payment terms from the invoice's date: the plant's 45 (`S.flowCfg.termsDays`) or the client's (`client.payTermsDays`).
+    Both on the client's form (*Turnaround and terms*). The client whose name reads Mehta is set to 7 once, where it has none
+    (`_clientTerms1`). **A challan wanted by a day** (`priority` on the challan, or on a line, which wins): *Wanted by* on the challan
+    form and among a challan's actions (a dialog, the whole challan or each open line); the challan is badged while anything on it is
+    open (*Wanted 12 Oct*: blue ahead, amber on the day, red after).
+  - **The tasks** (T2). `flowLate`, per client: challan lines of the last 30 days past their target, red two working days past, in
+    quantities, never rupees, saying where they stand by In plant's reading. *Waiting to pickle* is said only where the floor's record
+    covers the month, as In plant withholds it; under that, *with no floor record*. `flowPriority`, per challan: wanted by today or
+    before with no plating recorded, amber on the day, red after. `owed90` reads each client's terms where it read 90 days; its id is
+    kept, so a switch or a snooze set on it stands, and its fold and its move say *past its terms*. Three or more fold (`TODO_FOLD`).
+  - **The flow on screen** (T3). Floor's Overview's fifth hero, *Turnaround*, for a role that opens Production, shut to its line: the
+    plant's median working days from the challan to despatch, weighted by value, against the target, and the share of the value back
+    within it. Open, it shows the challan to its first pickling and plating (In plant's attribution) and to despatch; the invoice to
+    its payment against the terms (a role that sees money); the lines past the target now; the jobs wanted by today. Its door is In
+    plant. A client's page (the pane, the phone's sheet, Performance) shows the same steps, then:
+    - each open challan's expected day back: the client's usual turnaround (the plant's under five despatched), or later where the
+      work ahead of it on its usual line, at the line's pace, says so; *Late* past its target, red two working days past;
+    - each open invoice: past its terms, slower than its client's pace (the book's under three receipts), or expected.
+
+    **A hero alone on the last row takes the row** (styles.css), so a grid of heroes never ends in a blank cell.
+  - **Measured on the owner's book** (10 Oct, counts only):
+    - 1,587 challan lines in 90 days, 1,562 despatched, back in a median one working day, 71% of the value within the one-day
+      target;
+    - to pickling 1 day (12 lines with a load set against them) and to plating 1 (86); the plant's days to pay 34 (30 receipts);
+    - seven lines past the target now, in 2 tasks. The floor's record covers 4% of line-days in the month (the barrel 1 of 27),
+      so none is said to be waiting to pickle;
+    - the owed task went from 4 clients over 90 days to 10 past their terms, 2 of them red, the rebate client's 7 days among
+      them.
+
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.
 - **No owner, no guard**: until the owner's ID is created (Settings → Access → Users & access) the app works as it always
@@ -2712,31 +3158,32 @@ on the build before. What it leaves as rules:
 - **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
   compile). A PIN, a token or a key never does.
 
-### Stats in tabs, and the overview
-Stats is five tabs over one period chip row (owner, 25 Sep 2026: *"break up the stats page into multiple
-grouped tabs"*): **Overview** (the headline four, *In one line*, six months), **Clients** (contribution by
-client, revenue, realisation, concentration), **Cost** (labour, live cost), **Billing** (GST, invoice
-states, unbilled, dispatch) and **Trends** (the trend chart, top items). The open tab is remembered on
-the device. `renderStats()` still draws every card; `take()` files each into its tab.
+### Stats in tabs, and the questions on Pulse
+Stats is three tabs over one period chip row since the tab map (TM2b, 9 Oct 2026; five from 25 Sep 2026, owner: *"break up the stats
+page into multiple grouped tabs"*): **By client** (contribution by client, the next challans, revenue, realisation, concentration),
+**Cost** (labour, live cost) and **Trends** (the headline, six months, the trend chart, top items), each led by its verdict card. The
+open tab is remembered on the device; `renderStats()` draws the open tab's cards.
 
-- **The Overview opens on the owner's questions, each a story** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
-  and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoriesHtml`, intel.js):
+- **The owner's questions, each a story, are Today → Pulse's** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
+  and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoryCards`, intel.js;
+  Stats → Overview's until the tab map):
   *Are we making money?* (realisation and what a kilo leaves, six months against the cost), *Who is driving it?* (the four largest
   clients by tonnage, the worst-priced large account, the biggest mover against the period before), *Is the plant full?* (capacity and
   tonnes by month), *What changed?* (the month's pace and the three most urgent insights) and, with a statement, *Is cash coming in?*.
-  Each says what it means in one sentence with its tone (`data-story-say`) and links to its tab (`invStatsGo`). They read the figures the
-  panels under them read; the headline, *In one line*, the pace and six months follow, and **the whole insight list closes the page**. P120.
-- **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so the
-  headline and the Overview cannot disagree. The typed figure is used only where there is no tonnage to
+  Each says what it means in one sentence with its tone (`data-story-say`). They read the figures the panels beside them read: on Pulse,
+  *Why it moved*, *In one line* and the pace follow them; the headline and six months are Trends'; the insights are tasks on Needs you.
+  P120, P185.
+- **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so
+  Trends' headline and Pulse's *In one line* cannot disagree. The typed figure is used only where there is no tonnage to
   divide by (and still by Items Master's break-even).
-- **In one line**: realisation, live cost, contribution per kg and on the period, and capacity against
-  ~2 t per shift × two shifts × working days. Whatever is not measured is named under it.
-- **Six months**: each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
+- **In one line** (Pulse): realisation, live cost, contribution per kg and on the period, and capacity against
+  ~2 t per shift × two shifts × working days. Whatever is not measured is a badge on its tile.
+- **Six months** (Trends): each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
   recorded and the share of cost measured.
 - **Credit notes are netted across all of Stats** (owner, 30 Sep 2026): each note's credit is spread over the invoices it names in
   proportion to their taxable (`statsInvoices`, `cnCreditByInvoice`), and the headline, realisation, clients, six months, the trend,
   the insights and Clients → Performance read those net invoices; tonnage is untouched. A note naming no invoice in the book is
-  counted apart and said on the Overview. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
+  counted apart and said on Trends' verdict. **Home's month to date is net of them too** (owner, 30 Sep 2026: *"yes, it should and
   it should be mentioned"*): the Revenue tile reads *taxable, net of ₹200.00 in credit notes*, and its comparison with the same
   days last month is net on both sides. The tile will link to the notes once the hover previews are built.
 - **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
@@ -2766,7 +3213,7 @@ stock lines and three clients' challans each a row of its own, in the rules' ord
   now too).
 
 ### Why it moved
-Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Stats → Overview → **Why it moved**, under the questions, for the period shown
+Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Today → Pulse → **Why it moved** (Stats → Overview's until the tab map), under the questions, for the period shown
 against the one before (Stats' own: same days last month, quarter, year), and *What changed?* names realisation's largest cause.
 Every cause carries its ₹ and **the causes add up to the change exactly**; the top few are listed and the rest is one line.
 - **Realisation** (`whyRealisation`) over the weighed lines, the figure Stats shows: each client's own rate (its share now × its
@@ -2802,7 +3249,7 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
 
 - **An insight is a To-do rule.** It has the same shape as an app task (tone, figures, what to do, what
   clears it, a snooze against its figures), so it reaches the To-do list, the Home card and the Windows
-  widget with nothing new, and **Stats → Overview → Insights** lists them all. Each can be switched off in
+  widget with nothing new (Stats → Overview → Insights listed them all until the tab map; they are Needs you's tasks). Each can be switched off in
   Settings → Checks & alerts → To-do. There are eight:
   - **a client gone quiet** — judged against its own rhythm: overdue once its gap passes both 1.75× its
     median gap and median + 21 days, with 5+ challans and ₹20k+ in three months. Red at 10%+ of the book;
@@ -2815,7 +3262,7 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
   - **last pay week with no attendance**;
   - **stock lines used in 30 days with no price**.
 - **Predictions**, each saying what it rests on:
-  - **This month at its pace** (Overview): revenue and tonnage per working day so far × the month's
+  - **This month at its pace** (Today → Pulse): revenue and tonnage per working day so far × the month's
     working days, a band from how much those days varied, and unbilled challans in hand.
   - **Next challan expected** (Clients): each client's median gap after its last challan; late past it,
     quiet past the rule above.
@@ -2852,18 +3299,20 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
 Sidebar **Money → Finance**; More → **Finance** on the phone (`finance.js`; owner, 26 Sep 2026: *"The entire finance
 sector of our app needs a dashboard"* — a page of its own, leading with cash, what is owed, where money went and GST).
 Bank and Bills & notes lived under Stock, where they never belonged; they are tabs here: **Overview · Receivables ·
-Payments · Bank · Bills & notes · GST**. The open tab is remembered on the device (`sep_inv_fin_tab`).
+Payments · Bank · GST** (the tab map, TM3a, 10 Oct 2026: the bills went to Payments and the credit notes to Office → Invoices; an
+address or a saved step naming `bills` opens Payments). The open tab is remembered on the device (`sep_inv_fin_tab`).
 
-- **Overview**, whole rupees at a glance (every tab behind it keeps the paise, and a figure's title carries them):
-  - tiles: the **bank balance** with the day it is from — amber once the statement is over a week old, red when
-    overdrawn — **owed to us**, **paid out** in the last month on the statement, and **GST** for last month;
-  - **cash by month**: in, out, and the balance each month closed at, with the balance line drawn only when every
-    month closed in credit (the line chart has no negative axis);
-  - **owed to us** by age (0–30 · 31–60 · 61–90 · over 90 days, from the invoice date) and the five largest
-    debtors, each opening Receivables with its client expanded; receipts with no client are said, not counted;
-  - **where money went**: one month's outflow by category, SELF draws as *Wages (cash)*, beside what was invoiced
-    and received that month;
-  - **GST due and paid**, the last six months.
+- **Overview**, whole rupees at a glance (every tab behind it keeps the paise, and a figure's title carries them), an
+  overview in one look (the tab map, TM3c): four heroes, one a subject, each folding to its line on the phone, then the charts
+  below, each a fold shut on the phone:
+  - **Cash** carries the verdict: the **bank balance** with the day it is from (amber once the statement is over a week
+    old, red when overdrawn), the forecast's lowest point within 60 days as its title, the cheques in hand added
+    (*+ ₹X in cheques in hand*);
+  - **Owed to us**: the sum over 90 or 60 days as its title, the age bar (0–30 · 31–60 · 61–90 · over 90 days, from
+    the invoice date) and the five largest debtors, each opening Receivables with its client expanded; never red while
+    a receipt is unplaced, and receipts with no client are said, not counted;
+  - **GST** for last month, toned by its status;
+  - **Paid out** last month, where most of it went (SELF draws as *Wages (cash)*), and what came in.
 - **The Overview is interactive** (spec Phase 3; owner: *"more like financial dashboard with interactive pie
   charts, line charts, trends chart"*). One range chip row (`3M · 6M · FY · All`, kept per device as
   `sep_inv_fin_range`) drives every panel. **Cash**: balance, in and out on one axis, with the balance line
@@ -2879,7 +3328,7 @@ Payments · Bank · Bills & notes · GST**. The open tab is remembered on the de
   20th of the next month. Cash paid is output tax *less input credit*, so paying less than is due is the normal
   shape; the tab says so and never calls the gap a shortfall. The GST tab reads twelve months.
 - With no statement the Overview says what reads from it and still shows GST due, which reads from the invoices.
-- The To-do's missing electricity bill opens Finance → Bills & notes on the month (`todoGo` kind `bills`).
+- The To-do's missing electricity bill opens Money → Payments with the bill form on the month (`todoGo` kind `bills`).
 - **Cheques are placed, and tagged by their series** (owner, 26 Sep 2026: *"make sure we have a field to enter the
   client so that what the client owes starts coming down to the actual figure. Also tag cheque numbers to clients —
   their series will help in automation"*). The Overview's *"N receipts not placed"* is a link to them, and the
@@ -2899,14 +3348,17 @@ Payments · Bank · Bills & notes · GST**. The open tab is remembered on the de
   it); a note alone reads **Noted**. The tile follows. Nothing is seeded: July's note is the owner's to write.
 
 ### Bills & notes
-More → Finance → **Bills & notes** (`bills.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We don't have a place to enter electricity
+The bills are Money → **Payments**' (`#billsPower`, with or without a statement), the credit notes Office → Invoices →
+**Credit notes** (a dialog; the tab map, TM3a, 10 Oct 2026). `bills.js` keeps both forms. They had been a Finance tab of their
+own, *Bills & notes* (moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We don't have a place to enter electricity
 bills anywhere in the app. And even credit notes"*). The bill form existed, labelled *Power*, at the foot of
 Stats → Cost → Live cost; nobody found it. Credit notes could only be raised from a Register selection as a
 batch rebate.
 
 - **Electricity** (the `power` kind is labelled *Electricity* everywhere now). Every closed month with invoices
-  and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`). The
-  same form serves the Stats card (`costBillFormHtml`, `_costBillOpen = {where, month}`).
+  and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`), and the
+  bank's payment for that month under it with *Add as bill*. Live cost's *Add a bill* opens the same form on Payments
+  (`costBillFormHtml`, `_costBillOpen = {where: 'finance', month}`, `invCostBillGo`).
   To-do rule **`power`**: from the 10th, last month without a bill; amber from the 20th, `sig` the month.
 - **A second electricity bill in a month is arrears and a penalty** (owner, 30 Sep 2026: it *"only happens when a bit or all of
   a couple months ago was not paid in time, so it might include a penalty"*). A bill records the **arrears** in it (and the month
@@ -2914,7 +3366,8 @@ batch rebate.
   own bill, so a bill's cost is its amount less its arrears (`costBillCost`); the penalty stays in and is named on the bill and
   in Live cost. A second bill with no arrears entered asks first, never refuses. The owner mentioned paying about ₹5,000 a month
   since the load went to 50 while the bill still reads 25: that charge can be entered as the penalty or extra charge.
-- **Credit notes, two doors.** *Record an issued note* takes a note that already exists on paper, with its **own
+- **Credit notes, two doors**, in the head of Invoices → Credit notes, the form drawn in the dialog's body (a save or a cancel
+  redraws it with the Register's badge and CN marks, `cnRegisterRefresh`). *Record an issued note* takes a note that already exists on paper, with its **own
   number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
   CN/004's 3,749.29 at 9% + 9% rounds each half to 337.44 = ₹4,424.17 where the customer holds ₹4,424.16. The
   fields start at the computed figure. `recorded: true`; `cnNextNum` moves past it **only within its own financial
@@ -2934,8 +3387,63 @@ batch rebate.
   message in the old name still finds the line; a unit change on a line with entries asks first and converts
   nothing.
 
+### Suppliers
+Money → Payments → **Suppliers** (`suppliers.js`; owner, 10 Oct 2026, of one supplier: *"Balance payment remaining from us to <it>, no
+way to record this in the app"*; of the lead times: none for three, *"3-4 working days … if ordered through <another>, they offer a
+cheaper price but the material comes from Kolkata"*). P208. Nothing about a supplier is in the build.
+- **A supplier is every spelling that names it** (`suppIndex`): the company on a stock bill, and a payee set to Supplier on the
+  statement, compared folded (`suppKey`: "&" is AND, BROS is BROTHERS, PVT and LTD in full), so a bill's "<A> & Brothers" is the
+  statement's "<A> AND BROTHERS"; the bank's own guess reads the same keys (`bankSupplierKeys`). What the owner sets on one is its
+  record (`S.suppliers`: name, other spellings, lead time, GST, the balance on a day, a note); a rename keeps the old name as a
+  spelling. **A payee whose initials are a supplier's short name** is offered on Payments → Not yet sorted (*May be <short name>: its
+  initials*, **Same supplier**), never taken unseen.
+- **A bill** is the stock entries of one invoice (company, number, date): its lines before GST with the supplier's GST (18% until
+  set), rounded to the rupee as the paper is, unless its total is set as printed (`rec.totals`). A delivery and its own bill typed
+  again count once. **One number on two days is flagged**: one of them may be typed wrong.
+- **A payment** is a debit on the statement read as theirs, or one recorded here (`S.supplierPays`: cash, a cheque handed over, a
+  transfer; voided with a reason, never deleted). A cheque recorded here is the statement's row of its number once it clears (else of
+  the same amount within 45 days; a transfer within a week): one payment, dated the day it was handed over, the day the supplier's own
+  book credits it.
+- **The balance counts from what was owed at the end of a day**, typed off their statement (`rec.opening`): the bills after it, less
+  the payments after it (`suppLedger`). A statement payment in the 30 days after that day which their figure already counts is marked
+  **In their balance** (`rec.inOpening`). With none set nothing is said to be owed (unknown is not nothing), and the bills and
+  payments are still listed. What is unpaid is read oldest first (`L.open`).
+- **On screen**: Payments' verdict has an *Owed to suppliers* tile; the Suppliers fold a row a supplier (what is owed and since when,
+  its lead time), which opens its dialog: the figures, the bills and payments the latest first with the balance after each (those
+  before the balance's day folded), Set the balance, Record a payment, Change. Stock → Spend and prices names the supplier tapped,
+  its lead time and what is owed. Money edits behind the payments permission (`bankGate`); a role without money sees no figure owed.
+- **The reorder list weighs a lead time against the days left** (`suppReorderPick`): a line is ordered from the supplier it last came
+  from, unless another sold it cheaper within six months and can deliver before the line runs out (*₹13.90 a unit less than …, 3–4
+  working days*, with the day to order by); when the one it came from cannot make it, the fastest that can, and what the hurry costs
+  a unit. A supplier with no lead time set is named, never chosen; zinc follows the market, so its last supplier stands. The quantity
+  covers that supplier's lead time (the list's own where none is set). The line's To-do task says who to order from and by when.
+  The owner's pick (below) wins over it.
+- **Compare suppliers** (owner, 10 Oct 2026: *"When ordering stocks let's have an option to select and compare between suppliers,
+  pros and cons. Right now, we don't have that option while ordering or planning for stock"*; P209). From the reorder list (under
+  each line) and a line's page (*Order from*), every supplier of the line as a card (`suppCompare`, a deck in a dialog): its price a
+  unit and what it rests on (its last bill on the line, or a price quoted since), its lead time against the days the line has left
+  (the day to order by, or *the line runs out in 2 days*), what this order comes to, what is owed to it (to a role that sees money),
+  and what speaks for and against it in words, each a dot: cheapest by so much, so much more on this order, comes in time or
+  cannot, the same day, bought from most, one bill, up or down on their bill before, a price over six months old (a quote over
+  three) said and never weighed, no lead time set, owed past a month. A card is coded by the worst of what is against it.
+  - **Order from them** keeps the choice on the line (`item.orderFrom`: the supplier's id and name, so a record made later still
+    finds it): the list, the line and its task follow it, the app's own pick said beside it where it differs (*Your pick; the app
+    would order from <it>: ₹19.00 a unit less*); **Let the app pick** clears it. A choice whose supplier no longer sells the line
+    is said, and the app picks until another is made.
+  - **Add a price quoted** (`rec.quotes`, on the supplier's record; a supplier typed new is made one): weighed beside the bills for
+    90 days, so a supplier that never sold the line is compared; removed with a word.
+  - A card with no lead time opens its supplier on *Set its lead time*, over the comparison, which follows the change; the
+    supplier's dialog closes on itself alone. The choice and the quotes are Floor entries (`grdGate('floor')`).
+- **To-do `supplierOwed`** (info): a balance whose oldest unpaid part is over 30 days old. `supplierNoBill` reads through the
+  suppliers, so a payment spelt the bank's way finds the bills spelt the shop's.
+- **Measured on the owner's book** (10 Oct 2026, a scratch harness never committed): five suppliers; the "&"/AND fold makes two
+  payments (₹71,435) one supplier's; the initials offer names ₹2,50,437 of payments to another; with the balance off one supplier's
+  September page (₹33,877 after its bill of 9 Sep) the app owes ₹58,716, the 10 Oct delivery's bill added; a line out within a day
+  is ordered from the same-day supplier at ₹55.20 a unit more, two others from the cheaper one with the day to order by; three bill
+  numbers are each on two days.
+
 ### Bank
-More → Finance → **Receivables**, **Payments** and **Bank** (`bank.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
+Money → **Receivables**, **Payments** and **Bank** (`bank.js`, moved from Stock 26 Sep 2026; owner, 26 Sep 2026: *"We have the bank statement as well right? There is no way
 to read it in the app yet"* — all three of receipts, payments and the ledger, reading the bank's `.xls` as it is).
 
 - **The file is read as the bank exports it.** Bank of Baroda's `OpTransactionHistoryUX5.xls` is real Excel 97–2003
@@ -2994,7 +3502,7 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
   client's open invoices — and only one client's — that client is **offered**; placing it is a tap. Placed on
   the row, never remembered as a payee, because `BY INST` is not a name.
 - **Payments.** An electricity payment defaults to the month before it and becomes that month's bill on a tap
-  (`bankId` on the bill); Bills & notes offers it on the missing month too. Transfers to a hand are set against
+  (`bankId` on the bill); Payments offers it under the missing month too. Transfers to a hand are set against
   the **payroll as paid** for the month before, per worker — the check that would have shown the crossed Behra
   legs of 14 Sep. Cash draws are set against the weekly payout by pay week. Suppliers are totalled beside the
   stock bills recorded from them.
@@ -3028,6 +3536,33 @@ to read it in the app yet"* — all three of receipts, payments and the ledger, 
 - **Owned by soma-internal**, like stock: *Export JSON* writes `sep-bank` JSON (rows with their resolved category,
   payee rules, openings). The statement is never committed here; the specs read two fake statements in the
   bank's layout, `tests/fixtures/bank-*.xls`.
+
+### Cheques received
+Money → Receivables → **Cheque received**, and Add → By hand → **Cheque** (`bank.js`; the tab map, TM3b; owner, 9 Oct 2026: a cheque
+in hand counted as paid). A cheque handed over is money the client has paid, and until it reached the bank the statement could not
+say so: what the client owed read high for days. P187.
+- **The record** (`S.bank.cheques`: client, amount, number, the cheque's date, the bank it is drawn on, the day it came, a note; who
+  and when). One form (`bankChequeFormOpen`): the client, amount, number (digits) and the day it came are required, never a day after
+  today; the same client and number twice is refused. A Finance edit (`bankGate`). In the change log (*cheque received*) and the merge.
+- **Counted as paid from the day it came**: `bankReceivables` takes each cheque in hand as a receipt on its day (`pending`), placed by a
+  receipt's own rules (exact to the rupee, else oldest first, never an invoice raised after it). Owed, the ageing, days to pay, the
+  statement of account (*Cheque 525428 received, not yet in the bank*), Pipeline, a client's Money panel, the invoice detail (*Cheque in
+  hand*), Pulse and the finance rules follow with nothing else changed. It is never offered as an opening.
+- **Its deposit is found by its number** (`bankChequeLinks`, worked out on every read): a credit whose instrument number is the
+  cheque's, from three days before it came to 60 after, **whatever its amount** (a different amount is said: *In the bank: ₹23,500.00*).
+  From then the deposit counts and the cheque does not, so nothing counts twice, and the deposit is placed on the cheque's client
+  unless it was placed by hand. A credit of the same amount with no number, not placed on another client, within 15 days, is
+  **offered** (Link), never applied. The owner's choice (`deposit`: a row, or `null` for *not this deposit*) wins. A deposit returned
+  is the bounce logic's, and the cheque reads Returned.
+- **Void** with a reason, never deleted: what the client owes goes back up.
+- **On screen**: Receivables' *Cheques received* (`#bankCheques`), its head *2 cheques in hand · ₹X · the oldest 5 days* in the held
+  task's tone; a cheque opens a dialog with its facts and *Not this deposit*, *Unlink* and *Void*. Money's Cash hero adds *+ ₹X in
+  cheques in hand*, and Receivables' verdict counts them. A cheque deposit on the statement and in search is named by its number
+  (*Deposit of cheque 525428*, `bankRowTitle`), so its line need not carry the number, and its row's edit says whose cheque it was.
+- **To-do `chequeHeld`**: a cheque in hand 3 days is amber, 7 red, saying whether the statement reaches past the day it came (*not in
+  the bank by …*) or not (*import the statement to check*); three or more fold into one (*Deposit 3 cheques, ₹X*). It opens the cheque.
+- **The `sep-bank` export carries `cheques`, and a `sep-bank` file through Add → File (or Bank's Import, which hands it over) merges
+  them by id, never writing over; its statement rows are never read from it.** A data flow soma-internal reads.
 
 ### What the bank paid, as cost
 Stats → Cost → **Live cost** reads the statement as a second instrument beside the app's own record
@@ -3086,18 +3621,19 @@ being a statement of account and payment reminders). P173.
   pay (`S.bankDetails`), and the day the bank statement ends: a payment after it is not on it.
 - **The reminder** is a message from the same figures (the total and the oldest eight open invoices), editable, sent on WhatsApp to the
   client's mobile (`soaWaNumber`: the first Indian mobile on the client, else WhatsApp opens to pick the chat) or copied. **A reminder sent
-  is recorded** (`S.bank.reminders`: client, when, amount, how; in the change log, not in the `sep-bank` export), said on the client's
-  Receivables row and on the over-90-days chase, which gains a move, *Send a reminder* (`advRemindMove`, jump `soa`).
+  is recorded** (`S.bank.reminders`: client, when, amount, how; in the change log, not in the `sep-bank` export), said in the client's
+  fold on Receivables, beside *Statement and reminder* (its line since the tab map, TM3c), and on the over-90-days chase, which gains a move, *Send a reminder* (`advRemindMove`, jump `soa`).
 - **Said before anything goes out**: a bank statement ending more than three days ago, receipts with no client, an opening not set or
   set against another day. Statements show money: a role that does not see money is refused.
 
 ### The statement as intelligence
 Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
 
-- **Twelve To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+- **Thirteen To-do rules**, each switchable in Settings → Checks & alerts → To-do:
   - `bankStale`: the statement is 14 days old;
   - `bankLoose`: receipts still have no client a week on;
-  - `owed90`: invoices over 90 days, per client. Never red while any receipt is unplaced, because that money may
+  - `owed90`: invoices past the client's payment terms, per client (45 days, the client's own where set; it read a
+    fixed 90 days until the flow thread, T2). Never red while any receipt is unplaced, because that money may
     already be in; the task says so;
   - `payingSlower`: a client's last three receipts are 25% slower than its usual;
   - `gstNotInBank`: a month's GST has no payment and no note, and the statement reaches its due date;
@@ -3107,12 +3643,14 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - `cashSwing`: last week's cash drawn is a quarter or more short of its payout (past it is drawings, 6 Oct 2026);
   - `costGap`: recorded against paid over three closed months;
   - `runway`: the forecast goes below zero within 45 days;
-  - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce.
+  - `bankBounce`: a returned cheque is not linked to its deposit, or marked not a bounce;
+  - `chequeHeld`: a cheque received is not yet in the bank, 3 days amber, 7 red (*Cheques received*, below).
 - **Days to pay** (`bankDaysToPay`) is weighted by amount. Each receipt counts the days from each invoice it paid, and
   opening balances are left out. Receivables and the Overview's debtor rows show it as *pays in N d*.
 - **Cash forecast, 60 days** (`finForecast`, Finance → Overview): the latest balance, plus what is expected in, less
   what is expected out, with a P25–P75 band.
-  - **In:** open invoices at the client's own days to pay, and new billing at the last eight weeks' pace.
+  - **In:** open invoices at the client's own days to pay, new billing at the last eight weeks' pace, and each cheque in
+    hand on the next working day (a post-dated one on its date).
   - **Out:** salaries, cash by Saturday, electricity, GST by the 20th, and every other payment spread by day.
   - **Cash, not cost:** drawings and tax count.
   - An invoice long past its usual day is **not expected at all**: on the real book that is ₹11.8L of mostly
@@ -3127,14 +3665,18 @@ than a zero.
 - **Home → Money:** balance, owed, pays-in and runway tiles, each opening Finance, plus *Import statement*.
 - **Stats:** *In one line* gets a Cash row. Contribution by client shows *owes · pays in* under each name.
 - **Clients:** a *Money* panel on the detail, the edit sheet and Performance.
-- **Register:** the detail says *Paid, exact* / *Paid, oldest first* with its receipt, or *Open, N days*.
+- **Register:** the detail says *Paid, exact* / *Paid, oldest first* with its receipt, *Cheque in hand*, or *Open, N days*.
 - **Staff → Pay:** the bank's wage legs beside the payroll as paid, one function shared with Payments.
 - **Stock:** what the bank paid each supplier. The reorder list sets its cost against the forecast's lowest point.
-- **Finance → Payments:** each section links to its home screen.
+- **Money → Payments:** each section links to its home screen.
 
-### Staff and Stock open on an Overview
-Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens open
-on an Overview built from the Phase 2 charts.
+### People's and Stock's charts
+Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens opened
+on an Overview built from the Phase 2 charts. **The tab map (TM4b, TM4d) took the Overviews away** and put each chart on the view
+it explains: today's attendance is Floor → Overview's People hero; attendance by week is Attendance → Week's (folded); labour ₹/kg
+by month and the payroll against the bank are Pay's (folded; the bank's series only for a role that sees money); OT and EXTRA by
+area are Areas'; days left are Stock's groups, and spend by supplier, use and prices are Stock's **Spend and prices** (the fold
+at the list's foot on the phone, the pane on the desktop). What each showed, as first built:
 
 - **Staff → Overview:**
   - today's attendance (the Home card's panel, one function);
@@ -3208,7 +3750,8 @@ PP3 of `docs/PLANT_PICTURE.md` (owner, 9 Oct 2026: *"Exactly"*, to the app readi
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:
 **use × (lead time + days to cover) − on hand**, rounded up to the **pack it is bought in** (the smallest
 purchase, when every purchase is a whole number of it), priced at the **last price paid** and grouped by
-the **supplier it last came from**. Lead time (10) and cover (30) are set on the list and kept on the
+the **supplier it is ordered from**: the one it last came from, or a cheaper one that can deliver in time, by its own lead time,
+or the one the owner picked on **Compare suppliers**, under each line (*Suppliers*, above). Cover (30) and the lead time where a supplier's is not set (10) are set on the list and kept on the
 device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days of record is flagged
 *check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
 message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.
@@ -3220,8 +3763,10 @@ screen which user can adjust"*; they chose **presets and an edit mode, kept per 
   **production** (the last day plated, by line), **power cuts** (this month's and the last), **stock running low** (red and amber lines,
   soonest out first), GitHub sync, zinc, recent invoices. The three new ones are drawn only while shown (`renderHomeExtraCards`).
 - **Presets**: *Owner* is the Home there was (the three new widgets hidden), *Floor* leads with quick actions, attendance, production,
-  stock and power, *Money* with the month, money, unbilled and recent invoices.
-- **Edit Home** (at the foot of Home): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
+  stock and power, *Money* with the month and unbilled. **Every preset hides To-do, Recent invoices and Money since the tab map** (TM2c:
+  Needs you holds them, and Pulse gave the room to the cards it took from Stats), and a device on a preset follows the preset as the
+  build defines it; a layout of the owner's own is kept as it is.
+- **Edit Home** (Pulse's head → More; a bar at the foot until the tab map): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
   one column). Any change makes the layout *your own* (`preset: 'custom'`). A widget added by a later build joins at the end, hidden, so a
   new build never rearranges a Home. Kept in localStorage, never in the book: a backup or a pull does not rearrange another device. P121.
 
@@ -3233,7 +3778,8 @@ messages to Production's; it opens without a roster), Add task (the
 box focused). Three across on the phone, six on the desktop.
 
 ### To-do
-More → **To-do**, a Home card, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
+Today → **Needs you** (the To-do page joined it in the tab map, TM2a: its Add, Snoozed, Done and Learnt are Needs you's), Pulse's
+To-do card, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
 *just me*, *both, labelled*, *Windows 11*, *in SEP Invoicing for now*, *not the phone yet*). `S.todo`
 is self-contained so it can move to `sep-dashboard` whole.
 
@@ -3251,9 +3797,8 @@ is self-contained so it can move to `sep-dashboard` whole.
   come back every time a litre is used.
 - One rule failing on an unexpected shape is caught; it must not take the list with it.
 - **Your own tasks lead** (owner, 26 Sep 2026: *"once I add a todo of my own, it still stays at the end of all the
-  system generated one, that makes it easy to miss"*). The page draws *Mine* before *From your data* (on the left on
-  the desktop), and `todoRanked()` — the Home card, the widget — puts every open task of yours ahead of every raised
-  one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
+  system generated one, that makes it easy to miss"*). `todoRanked()` (Needs you, Pulse's card, the widget) puts every
+  open task of yours ahead of every raised one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
   an undated task of yours had no tone and fell below every info task the data raised (P69).
 
 **The widget cannot be the app's HTML.** Windows draws an Adaptive Card (`widgets/todo-template.json`)
@@ -3264,7 +3809,8 @@ whole book) and written to a small database of their own, **`sep-invoicing-widge
 **Done tapped on the card** is queued, dropped from the card at once, and applied when the app is next
 shown (or at once if open, by message). The queue is read and emptied in one transaction, and the
 payload is only written after the queue is applied, so a tick cannot be lost or come back. Tapping a
-row opens `?tab=pageTodo&todo=open:<m|a>:<id>`; Add task opens `&todo=add`.
+row opens `?tab=pageHome&v=needs&todo=open:<m|a>:<id>`; Add task opens `&todo=add` (an older `?tab=pageTodo` address is
+redirected there, `navRedirect`).
 
 ⚠ **Nothing here can test the widget host.** It exists only in Edge on Windows 11 (setup: Developer
 Mode + WinAppSDK 1.2, install from Edge, Win+W → Add widgets → SEP To-do). The spec tests everything
@@ -3317,6 +3863,9 @@ rate ÷ 8 × 1.1, capped at ₹68.20/h), so the older seed understates it.
   are flagged *read as* with a picker already on the guess. A key two workers share matches neither;
   anything else is **asked, never guessed** — a numbered line not on the roster is red until placed
   or left out.
+- **A number with no bracket after it is a numbered line when a roster name follows** (`14 NAME`, as the out-time roll of 7 Oct
+  2026 wrote one): it had been read as a note, and the hand's out stayed at 5 PM. Only a name matched as written counts, so a
+  quantity (`10 BAGS`) or a note is never a person. P207.
 - **A spelling is learnt once** (owner, 25 Sep 2026: *"everytime I paste a message I have to go through
   and manually match them"*). A placement is kept on the worker **the moment it is picked**, and a
   *read as* the owner saved without correcting is kept on Save. Replayed over the real rolls against the
@@ -3451,6 +4000,45 @@ Staff → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026)
   month on record as paid is settled. Staff → Pay lists **Brought forward**, each with **Clear**, which asks for a reason and
   settles every period up to the one before (`S.payCarryClears`, undone, never deleted); the To-do rule **`payCarry`** asks until
   each balance is paid, worked off or cleared.
+- **Paid is the bank's salaries and the payments typed here** (owner, 10 Oct 2026: *"no way to see and print the pay slip of each
+  employee and/or what they have been paid, we have all the information in our data but not linked yet"*: August's two salaries
+  paid to each other's accounts, and the gate hand's ruled figure paid short, were to be adjusted in September; P205). A salary
+  transfer on the statement read as wages to a hand on the roster (`payBankLegs`: the bank's own reading of the payee, a guessed
+  name said as one) is a payment (`payPaymentsOf`, `payPaymentsFor`, `payPaidFor`); a payment typed here that the statement also
+  holds (the same hand, within a rupee, three days apart) is counted once. Paid had been the typed payments alone, so every salary
+  paid by transfer read as unpaid, and the August legs paid to each other's accounts were invisible.
+- **A month on the payroll as paid is set against what was paid for it** (`payPeriodRow`): the slip is what was earned; with no
+  payment for the month known it is settled by the slip, as before; with one, the difference stands (a difference under a rupee is
+  none: the shop pays whole rupees). A month whose payroll is on record but does not name the hand, with nothing paid to them, is
+  settled too (*not on the slip*: a hand new to the monthly tier had read the whole month as unpaid). Two hands each paid what the
+  other earned are named (`payCrossedWith`): *the bank legs crossed with … 's*.
+- **Monthly balances count from a month the owner sets** (`S.labour.payCarryFrom`, Pay → *Count from a month*, P1 payments): from
+  it on, a month paid short is owed and a month paid over is taken back; before it, months are settled as they stand. The
+  statement's legs never start a balance by themselves (they reach back months before any earnings were recorded). Each
+  brought-forward line names its months (`payPartWords`): *August 2026: paid ₹12,456.00 against ₹15,796.80 on the slip, the bank
+  legs crossed with …'s*; a month's payment that settles what it earned and what was brought into it, each to the rupee, leaves
+  nothing. A weekly hand's balance still starts at the first payment typed for them (paid in cash, never on the statement by name).
+  The month offered must have its earnings known (a slip or attendance). Once balances count, `wageVsSlip` stays quiet: Pay carries
+  each month.
+- **Snacks are a line of the weekly payout** (`paySnacks`, in `payWeek`'s total; owner, 10 Oct 2026, on the week of 4 Oct's Saturday
+  cash: *"The 640 is snacks paid for OT and night shifts"*, *"20 per person regular OT, and 60 per person for night OT"*, night *"is when
+  it passes 12 a.m., not before it"*). A person once a day at the higher: night is a block running past midnight or an out past it (a
+  block to 12 AM is regular, whatever hour it starts), regular a block from 5 PM or an out at 6 PM or later; the 6 AM block has none,
+  nor the gate's own twelve hours; every tier. Read off the marks and the blocks' crews (`paySnackKind`). The rates are Settings →
+  Labour → Overtime (`labour.snackOt` 20, `snackNight` 60). The week of 4 Oct comes to the ₹840 paid only so (five on the evening of
+  the 5th, six to 12 AM on the 6th, four on the 7th, four on the night hold of the 8th, four on the night of the 9th and three to 8 PM);
+  the supervisor's sheet had priced the two nights at ₹40. The bank's cash split reads the payout, so the snacks are wages there too.
+- **Hours to check** (`payCrewGaps`, Pay's card and To-do rule **`payCrewGap`**, a floor task): a hand named on an overtime block whose
+  own times do not reach it (out at or before its start, in at or after the 6 AM block's end, or marked absent). Pay reads each
+  hand's own times, so the block's hours were in nobody's pay: on the week of 4 Oct a mark whose area was changed by hand kept the
+  out-time roll from carrying it to 6 AM (13 hours) while the roll named the hand on the night. **Open the day** goes to it. P207.
+- **Last month's salary is owed from the 21st** (`payOverdue`, `PAY_SALARY_BY_DAY`): the To-do's `payCarry` and the motivation index
+  read the balance as of today, so the days before payday raise nothing; Pay itself shows last month's salary brought forward.
+- **A hand's history** (a due row's **History**, `payHistoryOpen`): the last twelve months (a weekly hand's weeks), newest first,
+  from the first with anything in it, each a row with what was paid as its figure and a word for its state (paid, paid short, paid
+  over, not paid, as the slip, not on the slip, no earnings recorded, to date); opened, where the earnings came from, each payment,
+  a crossing, the balance after it, and **Print the slip** (`psOne`). Payments in these periods lists the bank's legs too, without a
+  Void.
 - **Payments and advances** are recorded here (`S.staffPayments: [{id, staffId, date, amount,
   kind: payment|advance, note, at, voidedAt?, voidReason?}]`). A wrong one is **voided with a
   reason, never deleted**. A negative due is an advance not yet worked off. Tapping a worker fills
@@ -3522,6 +4110,9 @@ Staff → Pay → Due by worker → **Pay slips** (`payslip.js`; owner, 7 Oct 20
   hours × the hour rate), the worker's card, designation, area, tier and rate. The EXTRA pool is not on it, and a weekly slip says so.
 - **Two to an A4 page** with a line to cut along (`inv-ps-*`, its sizes declared once); the reference is derived (`PS/<period>/<card or
   id>`), so a reprint is the same slip and nothing is written when one is printed. Only a role that opens Pay reaches it.
+- **Any month's slips** (owner, 10 Oct 2026; P205): the dialog's *Monthly hands' month* picks the month (`_psMonth`, read through the
+  month's first Sunday, `psMonthWeek`); the weekly hands' slips stay the week on Pay's. A hand's history prints one period's slip. A
+  slip lists each payment *by bank* or typed, and its brought-forward line names the months it is made of (`data-ps-carried`).
 
 ### The monthly payroll AS PAID
 A closed month is not a thing to re-derive: somebody was paid against a slip, and the slip is the fact. The
@@ -3531,7 +4122,8 @@ short or paid on a rule since changed (July and August's missing overtime).
 `S.payrollPaid: [{id, month, status: paid/computed, source, note, at, rows: [{name, staffId?, rate, worked,
 restDays, dayPay, otHours, ot, paid?, note}], voidedAt?, voidReason?}]`. **For a month before the current one,
 a record REPLACES the model for the hands it names** — on the Pay view (that month's due reads settled, *as
-paid, from the slip*), the labour card and the live cost — pro-rata to the share of the month a range covers.
+paid, from the slip*, while no payment for the month is known; with one, the slip is what was earned and the payment what was
+paid: *Pay* above), the labour card and the live cost — pro-rata to the share of the month a range covers.
 A monthly hand the record does not name (paid on a voucher of their own) is still modelled, and a name the
 roster does not hold still costs what it was paid. The month in progress is always modelled.
 
@@ -3539,9 +4131,11 @@ Staff → Pay → **Monthly payroll as paid → Import** takes a `sep-payroll-pa
 roll's (`relayKey`, and the worker's spellings), never by id. The same figures twice are skipped; different
 figures for a month **supersede**, and the old record is voided with the reason — never overwritten. Wages
 never enter this public repo: the file is built privately from the slips. **April, May, July and August**
-exist; **June does not** — only its projection is on disk, not the slip it was paid on. August is
+exist; **June does not** — only its projection is on disk, not the slip it was paid on. August was
 **Revision 5 as paid on 14 Sep** (₹1,01,768.43), not Revision 15's ruled ₹1,02,247.46: the gate hand's row carries
-the ₹479.03 still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs.
+the ₹479.03 still owed as a note, and Shyam's and Rupa's rows note their crossed bank legs. Since what was paid is read off
+the statement (10 Oct 2026), the file handed over then carries August as **Revision 15, as ruled** (the gate hand at ₹8,129.03):
+the slip is what was earned, the statement what was paid, and the two differences carry.
 
 The salaried tier is `monthly` and **is not a flat salary**: the payout slips are written in
 ₹/day, and a flat monthly divided by calendar days neither matches them nor moves when somebody

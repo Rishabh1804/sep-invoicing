@@ -67,9 +67,9 @@ test.describe('P134: workspaces on the desktop', () => {
     await expect(page.locator('#wsTabs [aria-selected="true"]')).toHaveText('Challans');
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
     await expect(page.locator('#topbarCtx')).toHaveText('Challans · Awaiting invoice');
-    // Office's work, then its Insights after their name.
-    await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Pipeline', 'Challans', 'Invoices', 'Clients', 'Stats', 'Reports', 'Planner', 'History', 'Knowledge']);
-    expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-group').nextElementSibling.dataset.tab`)).toBe('pageStats');
+    // Office's work (the tab map, 9 Oct 2026: its Insights are Today's, History and Knowledge the top bar's tools).
+    await expect(page.locator('#wsTabs .inv-viewtab')).toHaveText(['Pipeline', 'Challans', 'Invoices', 'Clients', 'Sales']);
+    await expect(page.locator('#wsTabs .inv-viewtab-group')).toHaveCount(0);
     // The bar keeps its height and the row sits on its foot, one tab tall, so the list-and-pane screens keep the room under
     // both (P80).
     const m = await g(page, `(function() { var b = document.querySelector('.inv-topbar').getBoundingClientRect(), r = document.getElementById('wsTabs').getBoundingClientRect(),
@@ -83,6 +83,9 @@ test.describe('P134: workspaces on the desktop', () => {
     await expect(page.locator('body > #wsTabs')).toBeVisible();
     await page.setViewportSize({ width: 1280, height: 800 });
     await expect(page.locator('body > #wsTabs')).toBeVisible();
+    // The switch back is done once the phone's bar is gone (it waits 150 ms on a resize): a door picked before then is the
+    // phone's, hidden under the click on a busy machine.
+    await expect(page.locator('.inv-navbar')).toBeHidden();
     // A page whose name is its workspace's says its view only (Money · Overview reads "Money › Overview").
     await switchTab(page, 'pageFinance');
     await expect(page.locator('#topbarTitle')).toHaveText('Money');
@@ -94,7 +97,7 @@ test.describe('P134: workspaces on the desktop', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await loadAppWithState(page, state());
     const marked = () => side(page).locator('[aria-current]');
-    for (const [tab, ws] of [['pageIM', 'office'], ['pageStats', 'office'], ['pageStock', 'floor'], ['pageFinance', 'money']]) {
+    for (const [tab, ws] of [['pageIM', 'office'], ['pageStats', 'today'], ['pageStock', 'floor'], ['pageFinance', 'money']]) {
       await switchTab(page, tab);
       await expect(marked()).toHaveCount(1);
       await expect(side(page).locator(`[data-ws="${ws}"]`)).toHaveAttribute('aria-current', 'true');

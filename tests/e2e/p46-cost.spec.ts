@@ -39,7 +39,6 @@ test.describe('P46: prices, purchases and the live cost', () => {
   test('a pasted delivery gets its bill; a past bill never moves the stock; the line shows its pattern', async ({ page }) => {
     await loadAppWithState(page, stockState());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' }).click();
     await expect(page.locator('#stockLevel')).toContainText('88');
     await expect(page.locator('#stockSummary')).toContainText('No price yet');
@@ -83,7 +82,6 @@ test.describe('P46: prices, purchases and the live cost', () => {
   test('Received by hand asks for the company, the invoice number and its date', async ({ page }) => {
     await loadAppWithState(page, stockState());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('[data-action="invStockManual"]').click();
     await page.locator('[data-action="invStockMode"][data-mode="received"]').click();
     await expect(page.locator('#stockManualList .inv-row-group')).toContainText('per unit, before GST');
@@ -142,12 +140,15 @@ test.describe('P46: prices, purchases and the live cost', () => {
     await expect(card.locator('[data-cost]').filter({ hasText: 'Zinc' }).locator('[data-src]')).toHaveText('market rate');
     await expect(card.locator('[data-cost]').filter({ hasText: 'Electricity' }).locator('[data-src]')).toHaveText('measured');
 
-    // A bill for the other costs replaces the model figure.
-    await card.locator('[data-action="invCostBillOpen"]').click();
+    // A bill for the other costs replaces the model figure. Bills are entered on Money → Payments (the tab map, TM3a): Live
+    // cost's Add a bill opens the form there.
+    await page.locator('[data-cost-bills] [data-action="invCostBillGo"]').click();
+    await expect(page.locator('#pageFinance [data-bill-form]')).toBeVisible();
     await page.locator('#costBillKind').selectOption('other');
     await page.locator('#costBillMonth').fill(month);
     await page.locator('#costBillAmount').fill('9000');
     await page.locator('[data-action="invCostBillSave"]').click();
+    await openStatsTab(page, 'cost');
     await expect(page.locator('#liveCost [data-cost]').filter({ hasText: 'Consumables' }).locator('[data-src]')).toHaveText('measured');
     expect((await readStoredState(page)).costBills).toHaveLength(2);
   });

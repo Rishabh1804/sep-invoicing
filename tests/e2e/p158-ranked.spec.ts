@@ -50,13 +50,14 @@ test.describe('P158 one ranked list', () => {
     const shown: any = await g(page, `todoApp().map(function (t) { return { key: t.key, tone: t.tone, title: t.title, sub: t.sub, n: (t.members || []).length }; })`);
     expect(shown).toHaveLength(1);
     expect(shown[0]).toMatchObject({ key: 'fold:owed90', tone: 'red', n: 3 });
-    expect(shown[0].title).toBe('3 clients owe ₹850.00 over 90 days');
+    expect(shown[0].title).toBe('3 clients owe ₹850.00 past their terms');
     expect(shown[0].sub).toBe('BETA ₹500.00 · GAMMA ₹250.00 · ALPHA ₹100.00');
     // The list as raised is untouched: the moves and the client card read it.
     expect(await g(page, `todoAppAll(['owed90']).length`)).toBe(3);
 
-    await switchTab(page, 'pageTodo');
-    const rows = page.locator('[data-todo-sec="app"] [data-todo="app"]');
+    // Needs you holds the tasks (the tab map, TM2a): the fold is one card there.
+    await switchTab(page, 'pageHome');
+    const rows = page.locator('#homeNeeds [data-todo="app"] [data-action="invTodoOpenApp"]');
     await expect(rows).toHaveCount(1);
     await rows.first().click();
     const dlg = page.locator('[data-todo-fold="owed90"]');
@@ -78,8 +79,8 @@ test.describe('P158 one ranked list', () => {
     await g(page, `todoSnooze('fold:owed90', 'sig')`);
     expect(await g(page, `todoApp().length`)).toBe(0);
     expect(await g(page, `todoData().snoozes['fold:owed90'].rule`)).toBe('owed90');
-    await switchTab(page, 'pageTodo');
-    await expect(page.locator('[data-todo-sec="snoozed"]')).toContainText('1');
+    await switchTab(page, 'pageHome');
+    await expect(page.locator('#homeNeeds [data-card="snoozed"] .inv-panel-count')).toHaveText('1');
     // A fourth client: the figures it was snoozed on are not the figures now.
     await stub(page, { owed90: [owed(1, 100), owed(2, 500), owed(3, 250), owed(4, 50)] });
     expect(await g(page, `todoApp().map(function (t) { return t.key; })`)).toEqual(['fold:owed90']);

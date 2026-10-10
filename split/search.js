@@ -58,11 +58,11 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
   worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn', kb: 'knowledge article how why' };
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
-   that this build holds (Office's Pipeline and Floor's Day arrive with B5; until then Challans and People). Insights is
-   a group in Office's row since 8 Oct 2026. */
+   that this build holds. Since the tab map (9 Oct 2026) the Insights are a group in Today's row, Sales ends Office's, and
+   History and Knowledge are the top bar's tools, in no workspace. */
 var SRCH_SPACES = [
-  ['t', 'Today', ['needs', 'pulse', 'todo']],
-  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'stats', 'reports', 'history']],
+  ['t', 'Today', ['needs', 'pulse', 'stats', 'reports', 'planner']],
+  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'sales']],
   ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power']],
   ['m', 'Money', ['money']]
 ];
@@ -114,37 +114,42 @@ function srchScreens() {
   var act = function(a) { return { kind: 'act', act: a }; };
   var list = [
     ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
-    ['pulse', 'Pulse', 'Today', 'home questions what to do widgets', at('pageHome', 'pulse')],
-    ['todo', 'To-do', 'Today', 'tasks todo my list needs you', at('pageTodo', 'open')],
-    ['todo-done', 'To-do, done', 'Today', 'tasks ticked done', at('pageTodo', 'done')],
+    ['pulse', 'Pulse', 'Today', 'home questions what to do widgets why it moved in one line pace contribution capacity overview', at('pageHome', 'pulse')],
+    // The To-do joined Needs you (the tab map, TM2a): its tasks are there, its Done a fold there.
+    ['todo', 'Your tasks', 'Today › Needs you', 'tasks todo to-do my list needs you', at('pageHome', 'needs')],
+    ['todo-done', 'Done tasks', 'Today › Needs you', 'tasks todo to-do ticked done', { kind: 'act', act: 'todoDone' }],
     ['pipeline', 'Pipeline', 'Office', 'awaiting created printed dispatched delivered owed stages', at('pagePipeline')],
     ['im', 'Challans', 'Office · was IM', 'im incoming material awaiting invoice', at('pageIM', 'awaiting')],
     ['im-invoiced', 'Challans, invoiced', 'Office · was IM', 'im incoming material billed', at('pageIM', 'invoiced')],
     ['register', 'Invoices', 'Office · was Register', 'register invoice list sales', at('pageRegister')],
     ['clients', 'Clients', 'Office', 'customers parties', at('pageClients', 'clients')],
-    ['items', 'Items', 'Office › Clients', 'parts items master part numbers weights', at('pageClients', 'items')],
+    ['items', 'Parts', 'Office › Clients', 'parts items master part numbers weights', at('pageClients', 'items')],
     ['performance', 'Performance', 'Office › Clients', 'client performance materials worked by the hour stopped parts', at('pageClients', 'performance')],
-    ['quotes', 'Quotations', 'Office › Clients', 'quotation quote qtn rates', at('pageClients', 'quotes')],
-    ['prospects', 'Prospects', 'Office › Clients', 'prospect lead enquiry new customer spare capacity', at('pageClients', 'prospects')],
+    ['sales', 'Sales', 'Office', 'sales prospects quotations leads new business', at('pageClients', 'prospects')],
+    ['quotes', 'Quotations', 'Office › Sales', 'quotation quote qtn rates', at('pageClients', 'quotes')],
+    ['prospects', 'Prospects', 'Office › Sales', 'prospect lead enquiry new customer spare capacity', at('pageClients', 'prospects')],
     ['cn-list', 'Credit notes', 'Office › Invoices', 'credit note cn rebate', { kind: 'cnList' }],
     ['audit', 'Number audit', 'Office › Invoices', 'void voided gaps serial numbers missing', { kind: 'audit' }],
-    ['floor', 'Day', 'Floor', 'floor lines heads crew', at('pageFloor')],
-    ['people', 'People', 'Floor · was Staff', 'staff attendance overview', at('pageStaff', 'overview')],
+    ['floor', 'Overview', 'Floor', 'floor day lines heads crew overview', at('pageFloor')],
+    // A person's own screen (faces.js): found only by an ID with duties set, as its door is shown only to one.
+    ['mine', 'Mine', 'Your duties', 'mine my duties my screen what I enter', at('pageFace')],
+    // People's Overview went (the tab map, TM4b): People opens on Attendance, its day; Week and Month are the switch's.
+    ['people', 'People', 'Floor · was Staff', 'staff attendance day', at('pageStaff', 'day')],
     ['att-day', 'Attendance', 'Floor › People', 'day marks present absent', at('pageStaff', 'day')],
-    ['att-week', 'Week', 'Floor › People', 'attendance week grid', at('pageStaff', 'week')],
-    ['att-register', 'Attendance book', 'Floor › People', 'monthly attendance register page ot totals check', at('pageStaff', 'register')],
+    ['att-week', 'Attendance, week', 'Floor › People › Attendance', 'attendance week grid by week', at('pageStaff', 'week')],
+    ['att-register', 'Attendance, month', 'Floor › People › Attendance', 'monthly attendance register book page ot totals check', at('pageStaff', 'register')],
     ['pay', 'Pay', 'Floor › People', 'payroll wages salary payout due advance', at('pageStaff', 'pay')],
     ['areas', 'Areas', 'Floor › People', 'staffing complement needed today extra hours', at('pageStaff', 'areas')],
     ['roster', 'Roster', 'Floor › People', 'workers staff list hands', at('pageStaff', 'roster')],
-    ['production', 'Production', 'Floor', 'plated pickled register output', at('pageProduction', 'overview')],
+    ['production', 'Production', 'Floor', 'plated pickled register output lines', at('pageProduction', 'lines')],
+    ['equipment', 'Equipment', 'Floor › Production', 'plant register tanks barrels units machines down repair', at('pageProduction', 'equipment')],
     ['prod-plant', 'In plant', 'Floor › Production', 'material in plant waiting pickled plated', at('pageProduction', 'plant')],
     ['prod-lines', 'Lines', 'Floor › Production', 'vat a1 a2 barrel line output', at('pageProduction', 'lines')],
     ['prod-entries', 'Production entries', 'Floor › Production', 'entries record', at('pageProduction', 'entries')],
-    ['stock', 'Stock', 'Floor', 'chemicals overview days left', at('pageStock', 'overview')],
+    ['stock', 'Stock', 'Floor', 'chemicals days left lines spend prices', at('pageStock', 'list')],
     ['stock-lines', 'Stock lines', 'Floor › Stock', 'chemicals levels', at('pageStock', 'list')],
     ['reorder', 'Reorder list', 'Floor › Stock', 'order purchase buy', at('pageStock', 'reorder')],
-    ['power', 'Power', 'Floor', 'power cuts electricity outage', at('pagePower', 'overview')],
-    ['power-cuts', 'Power cuts', 'Floor › Power', 'cuts outages damage', at('pagePower', 'cuts')],
+    ['power', 'Power cuts', 'Floor › Power', 'power cuts electricity outage outages damage', at('pagePower', 'cuts')],
     ['power-causes', 'Power causes', 'Floor › Power', 'why power cut reason fix cause breaker feeder trip restore', at('pagePower', 'causes')],
     ['power-load', 'Load & bills', 'Floor › Power', 'load kva sanctioned connection electricity bills', at('pagePower', 'load')],
     ['power-case', 'Power case', 'Floor › Power', 'case for backup generator inverter tsuisl payback', at('pagePower', 'case')],
@@ -152,34 +157,36 @@ function srchScreens() {
     ['receivables', 'Receivables', 'Money', 'owed debtors receipts outstanding dues', at('pageFinance', 'receipts')],
     ['payments', 'Payments', 'Money', 'paid out expenses suppliers', at('pageFinance', 'payments')],
     ['bank', 'Bank', 'Money', 'statement ledger import', at('pageFinance', 'bank')],
-    ['bills', 'Bills & notes', 'Money', 'electricity bills credit notes', at('pageFinance', 'bills')],
+    ['bills', 'Bills', 'Money › Payments', 'electricity bills power bill other bills', at('pageFinance', 'payments')],
+    ['cheques', 'Cheques received', 'Money › Receivables', 'cheque in hand received not deposited', at('pageFinance', 'receipts')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
-    ['stats', 'Stats', 'Office', 'statistics overview realisation tonnage', at('pageStats', 'overview')],
-    ['stats-clients', 'Contribution by client', 'Office › Stats', 'stats clients realisation concentration revenue', at('pageStats', 'clients')],
-    ['live-cost', 'Live cost', 'Office › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
-    ['stats-billing', 'Billing', 'Office › Stats', 'invoice states unbilled dispatch', at('pageStats', 'billing')],
-    ['trends', 'Trends', 'Office › Stats', 'trend chart top items', at('pageStats', 'trends')],
-    ['reports', 'Reports', 'Office', 'report daily weekly monthly quarterly yearly print', at('pageReports')],
-    ['planner', 'Planner', 'Office', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade', at('pagePlanner', 'play')],
-    ['planner-ledger', 'Planner ledger', 'Office › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
-    ['planner-day', 'A day, simulated', 'Office › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
-    ['planner-plant', 'Upgrade trees', 'Office › Planner', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'plant')],
-    ['planner-tech', 'Tech tree', 'Office › Planner', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'tech')],
-    ['planner-staff', 'Planner staff', 'Office › Planner', 'hire specialist lab hand night crew training', at('pagePlanner', 'staff')],
-    ['planner-clients', 'Planner clients', 'Office › Planner', 'ask rate held back work certificates turnaround', at('pagePlanner', 'clients')],
-    ['planner-finance', 'Planner finance', 'Office › Planner', 'loan lenders interest instalment rates heard', at('pagePlanner', 'finance')],
-    ['history', 'History', 'Office', 'activity log audit trail events', at('pageHistory')],
-    ['know', 'Knowledge', 'Knowledge', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
-    ['know-lib', 'Library', 'Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
-    ['know-trouble', 'Troubleshoot', 'Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
-    ['know-records', 'Records', 'Knowledge', 'rulings decisions incidents record', at('pageKnow', 'records')],
-    ['know-train', 'Training', 'Knowledge', 'training lessons paths trained', at('pageKnow', 'training')],
+    ['stats', 'Stats', 'Today', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
+    ['stats-clients', 'By client', 'Today › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
+    ['live-cost', 'Live cost', 'Today › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
+    ['stats-billing', 'Dispatch cycle', 'Office › Pipeline', 'dispatch delivered cycle days invoice states', at('pagePipeline')],
+    ['trends', 'Trends', 'Today › Stats', 'trend chart top items headline six months', at('pageStats', 'trends')],
+    ['reports', 'Reports', 'Today', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
+    ['planner', 'Planner', 'Today', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
+    ['planner-ledger', 'Planner ledger', 'Today › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
+    ['planner-day', 'A day, simulated', 'Today › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
+    ['planner-plant', 'Upgrade trees', 'Today › Planner › Moves', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'moves/plant')],
+    ['planner-tech', 'Tech tree', 'Today › Planner › Moves', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'moves/tech')],
+    ['planner-staff', 'Planner staff', 'Today › Planner › Moves', 'hire specialist lab hand night crew training', at('pagePlanner', 'moves/staff')],
+    ['planner-clients', 'Planner clients', 'Today › Planner › Moves', 'ask rate held back work certificates turnaround', at('pagePlanner', 'moves/clients')],
+    ['planner-finance', 'Planner finance', 'Today › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
+    // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
+    ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
+    ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
+    ['know-lib', 'Library', 'Top bar › Knowledge', 'articles how-tos process parts client requirements', at('pageKnow', 'library')],
+    ['know-trouble', 'Troubleshoot', 'Top bar › Knowledge', 'fault problem defect peeling dull rust incident', at('pageKnow', 'troubleshoot')],
+    ['know-records', 'Records', 'Top bar › Knowledge', 'rulings decisions incidents record', at('pageKnow', 'records')],
+    ['know-train', 'Training', 'Top bar › Knowledge', 'training lessons paths trained', at('pageKnow', 'training')],
     // Actions: each opens its place on the job.
     ['new-invoice', 'New invoice', 'Add', 'create invoice', act('invoice')],
     ['new-challan', 'New challan', 'Add', 'add challan incoming material', act('challan')],
     ['new-quote', 'New quotation', 'Add', 'quote qtn', act('quote')],
     ['add-client', 'Add client', 'Add', 'new client customer', act('client')],
-    ['add-item', 'Add item', 'Add', 'new part', act('item')],
+    ['add-item', 'Add part', 'Add', 'new part item', act('item')],
     ['add-worker', 'Add worker', 'Add', 'new worker hand staff', act('worker')],
     ['add-task', 'Add task', 'Add', 'new task to-do', act('task')],
     ['stock-entry', 'Stock entry', 'Add', 'enter by hand count received used charged', act('stock')],
@@ -215,8 +222,10 @@ var SRCH_KIND_PAGE = { invoice: 'pageRegister', cn: 'pageRegister', challan: 'pa
    credit notes and the Number audit, which opened over Home after switchTab had refused the Register. */
 var SRCH_GO_PAGE = { cnList: 'pageRegister', audit: 'pageRegister', bills: 'pageFinance' };
 var SRCH_ACT_PAGE = { invoice: 'pageCreate', challan: 'pageIM', quote: 'pageClients', client: 'pageClients', item: 'pageClients',
-  worker: 'pageStaff', task: 'pageTodo', stock: 'pageStock', paste: 'pageStaff' };
+  worker: 'pageStaff', task: 'pageHome', todoDone: 'pageHome', stock: 'pageStock', paste: 'pageStaff' };
 function srchSees(e) {
+  // Mine is a person's (faces.js), guard on or off: listed only where it opens.
+  if (e && e.kind === 'screen' && e.go && e.go.kind === 'place' && e.go.loc && e.go.loc.tab === 'pageFace') return typeof faceSees === 'function' && faceSees();
   if (!e || typeof grdOn !== 'function' || !grdOn()) return true;
   if (e.kind === 'screen') {
     var go = e.go || {};
@@ -339,9 +348,10 @@ function srchData() {
       var r = v.row, out = r.dr > 0, amt = out ? r.dr : r.cr, inst = bankInstrument(r), chq = /^\d{4,}$/.test(inst) ? inst : '';
       var client = v.clientId != null ? ((S.clients || []).find(function(c) { return String(c.id) === String(v.clientId); }) || {}).name : '';
       var who = client || (v.staffId != null ? ((staffById(v.staffId) || {}).name || '') : '');
-      var cat = v.cat ? bankCatLabel(v.cat) : '', title = v.party || r.narration || 'Bank row';
+      // A cheque deposit is named by its number (bankRowTitle), so the line under it need not carry it again.
+      var cat = v.cat ? bankCatLabel(v.cat) : '', title = (typeof bankRowTitle === 'function' ? bankRowTitle(v) : '') || v.party || r.narration || 'Bank row';
       add({ kind: 'bank', id: String(r.id), title: title,
-        sub: [formatDate(r.date), (out ? '\u2212' : '+') + formatCurrency(amt), cat + (cat && who ? ': ' + who : ''), chq ? 'cheque ' + chq : ''].filter(Boolean).join(' · '),
+        sub: [formatDate(r.date), (out ? '\u2212' : '+') + formatCurrency(amt), cat + (cat && who ? ': ' + who : ''), chq && title.indexOf(chq) < 0 ? 'cheque ' + chq : ''].filter(Boolean).join(' · '),
         text: 'Bank ' + (out ? 'payment' : 'receipt') + ' on ' + formatDate(r.date) + ': ' + formatCurrency(amt) + ', ' + (r.narration || '') + (cat ? ', ' + cat : '') + (who ? ', ' + who : '') + (chq ? ', cheque ' + chq : '') + '.',
         go: { kind: 'bank', id: String(r.id) } },
         { title: title, words: [r.narration, v.party, who, cat, chq ? 'cheque chq' : ''], ids: [inst, r.chq], nums: [r.chq], primary: [chq],
@@ -863,6 +873,7 @@ function srchAct(a) {
     case 'challan': homeQuick('challan'); break;
     case 'stock': homeQuick('stock'); break;
     case 'task': homeQuick('task'); break;
+    case 'todoDone': tdyShowDone(); break;
     case 'paste': relayOpen(); break;
     case 'quote': qtOpenForm(null); break;
     case 'client': _qtForm = null; setItemsSubView('clients'); switchTab('pageClients'); openClientAdd(); break;
@@ -999,7 +1010,7 @@ function srchEntryLoc(e) {
   if (/^(invoice|challan|client|quote|stock)$/.test(go.kind)) return srchRecordLoc(go.kind, id);
   // An article (knowledge.js): its own list's view, open beside it.
   if (go.kind === 'kb') return typeof kbLocOf === 'function' ? kbLocOf(id) : null;
-  var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'bills'],
+  var page = { part: ['pageClients', 'items'], worker: ['pageStaff', 'roster'], bank: ['pageFinance', 'bank'], bills: ['pageFinance', 'payments'],
     cnList: ['pageRegister', ''], audit: ['pageRegister', ''], cn: ['pageRegister', ''] }[go.kind];
   // A worker opens in the roster's pane on the desktop (step 7); the phone's roster has no pane and ignores the id.
   return page ? { tab: page[0], v: page[1], id: go.kind === 'worker' ? id : '' } : null;
@@ -1019,8 +1030,9 @@ function srchLocOf(el) {
   // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
   // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
   if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
-  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail.
+  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail; the top bar's History, History.
   if (act === 'invGoPulse') return { tab: 'pageHome', v: 'pulse', id: '' };
+  if (act === 'invGoHistory') return { tab: 'pageHistory', v: '', id: '' };
   if (act === 'invWsGo') {
     var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
     var go = sp ? srchGTarget(sp[0]) : null;
@@ -1046,10 +1058,11 @@ function srchLocOf(el) {
   if (act === 'invPipeStage') return pipeStageKey(d.pipeStage) ? { tab: 'pagePipeline', v: d.pipeStage, id: '' } : null;
   if (act === 'invPipeChallan') return srchRecordLoc('challan', String(d.id));
   if (act === 'invFinGo') return { tab: 'pageFinance', v: d.tab || 'overview', id: d.tab === 'receipts' && d.client ? String(d.client) : '' };
-  // Floor → Day: a line's card is Production → Lines, the tiles and the staffing and EXTRA words their own screens. The line
-  // and the day are not in those screens' addresses: the new window opens on their own line and day.
-  if (act === 'invFlrLine' || act === 'invFlrPlated') return { tab: 'pageProduction', v: 'lines', id: '' };
+  // Floor → Overview: a line's card and the Production hero are Production → Lines, the heroes' links and the staffing and EXTRA
+  // words their own screens. The line and the day are not in those screens' addresses: the new window opens on its own.
+  if (act === 'invFlrLine' || act === 'invProdDayLines') return { tab: 'pageProduction', v: 'lines', id: '' };
   if (act === 'invFlrStaff') return { tab: 'pageStaff', v: 'day', id: '' };
+  if (act === 'invFlrStock') return { tab: 'pageStock', v: 'list', id: '' };
   if (act === 'invFlrAreas') return { tab: 'pageStaff', v: 'areas', id: '' };
   if (act === 'invFlrPower') return { tab: 'pagePower', v: 'cuts', id: '' };
   return null;

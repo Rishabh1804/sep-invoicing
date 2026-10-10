@@ -126,11 +126,13 @@ function pltUsed(station, cap) {
   if (!L || L.src !== 'register') return { kgRound: null, pct: null, why: 'not measured: no register read for this line' };
   return { kgRound: L.kgRound, pct: cap.kgAvail > 0 ? L.kgRound / cap.kgAvail : null, why: 'the register’s rounds against the book’s kilos, ' + L.register.days + ' days' };
 }
+/* A line's units in two facts (TM4f: three had been a chain on Floor's line cards): how many work, then what it is plating at where
+   the register measures it, else the share of its kg a round available. */
 function pltCapWords(cap) {
   if (!cap.n) return 'No unit recorded';
   var noun = cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrel' : cap.units.every(function(u) { return u.kind === 'tank'; }) ? 'tank' : 'unit';
-  return cap.nAvail + ' of ' + cap.n + ' ' + noun + (cap.n === 1 ? '' : 's') + ' working · ' + Math.round(cap.pct * 100) + '% available' +
-    (cap.used && cap.used.pct != null ? ' · running at ' + Math.round(cap.used.pct * 100) + '%' : '');
+  return cap.nAvail + ' of ' + cap.n + ' ' + noun + (cap.n === 1 ? '' : 's') + ' working · ' +
+    (cap.used && cap.used.pct != null ? 'running at ' + Math.round(cap.used.pct * 100) + '%' : Math.round(cap.pct * 100) + '% available');
 }
 function pltCapTone(cap) { return !cap.n ? 'neutral' : cap.nAvail === 0 ? 'danger' : cap.nAvail < cap.n ? 'warning' : 'ok'; }
 function pltCapDot(cap) {
@@ -147,13 +149,15 @@ function pltBarHtml(cap) {
     '<rect class="inv-unit-bar-track" x="0" y="0" width="100" height="6"></rect><rect class="inv-unit-bar-avail" x="0" y="0" width="' + a + '" height="6"></rect>' +
     (u != null ? '<rect class="inv-unit-bar-used" x="0" y="0" width="' + u + '" height="6"></rect>' : '') + '</svg>';
 }
-/* One unit as a tile: its name, its status in a word and a colour, its kg a round and how long it has been so. */
+/* One unit as a deck card (§6.22; the tab map, §1a-13: a thing with a status of its own, edged and filled in its tone): its status as
+   a dot and a word, its name, its kg a round and how long it has stood so. The card is the door to the unit. */
 function pltTileHtml(u, iso) {
   var s = pltStatus(iso ? pltStatusOn(u, iso) : u.status), days = iso ? null : pltDaysIn(u);
   var sub = [+u.kgRound > 0 ? formatNum(+u.kgRound, 0) + ' kg a round' : 'kg a round not set', s[0] !== 'run' && days != null ? (days ? days + ' day' + (days === 1 ? '' : 's') : 'today') : ''].filter(Boolean).join(' · ');
-  return '<button type="button" class="inv-plt-unit" data-status="' + s[0] + '" data-action="invPltEdit" data-id="' + escHtml(u.id) + '" data-plt-unit="' + escHtml(u.id) + '"' +
-    ' aria-label="' + escHtml(u.name + ': ' + s[1] + (u.reason && s[0] !== 'run' ? ', ' + u.reason : '')) + '">' +
-    '<span class="inv-unit-name">' + escHtml(u.name) + '</span>' + uiDot(s[2], s[1]) + '<span class="inv-unit-sub">' + escHtml(sub) + '</span></button>';
+  return '<article class="inv-deck-item" data-tone="' + s[2] + '" data-status="' + s[0] + '" data-plt-unit="' + escHtml(u.id) + '">' +
+    '<div class="inv-deck-head">' + uiDot(s[2], s[1]) + '</div>' +
+    '<button type="button" class="inv-deck-main" data-action="invPltEdit" data-id="' + escHtml(u.id) + '" aria-label="' + escHtml(u.name + ': ' + s[1] + (u.reason && s[0] !== 'run' ? ', ' + u.reason : '')) + '">' +
+    '<span class="inv-deck-title">' + escHtml(u.name) + '</span><span class="inv-deck-sub">' + escHtml(sub) + '</span></button></article>';
 }
 /* A small square per unit, coloured by its status: the strip at a glance (Overview, Floor → Day). */
 function pltPipsHtml(cap, iso) {
@@ -166,14 +170,17 @@ function pltStationHtml(station) {
   var cap = pltCapacity(station), name = pltStationName(station);
   var h = '<div class="inv-panel inv-panel-flush" data-plt-station="' + station + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(name) +
     ' <span class="inv-panel-count">' + (cap.n ? cap.nAvail + ' of ' + cap.n : 'none') + '</span></span>' + pltCapDot(cap) + '</div>';
-  if (!cap.n) return h + '<div class="inv-empty">No unit recorded for ' + escHtml(name) + '.' + (pltCanEdit() ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button>' : '') + '</div></div>';
+  // A line with no unit is one row with its move (an empty panel took a phone's third of a screen for one sentence).
+  if (!cap.n) return h + '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta">No unit recorded for ' + escHtml(name) + '</span></span>' +
+    (pltCanEdit() ? '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPltEdit" data-station="' + station + '">Add one</button></span>' : '') + '</div></div>';
   h += '<div class="inv-panel-body"><div class="inv-unit-cap" data-plt-cap><span class="inv-unit-cap-words">' + escHtml(pltCapWords(cap)) + '</span>' + pltBarHtml(cap) +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.note + (cap.byKg ? ': ' + formatNum(cap.kgAvail, 0) + ' of ' + formatNum(cap.kgTotal, 0) + ' kg a round' : '')) +
     // What it plates a round, and where that comes from as a badge (§6.27); how it was measured is the line's working on Floor.
     (cap.used && cap.used.kgRound != null ? escHtml(' · plating ' + formatNum(cap.used.kgRound, 0) + ' kg a round') + ' <span class="inv-badge inv-badge-' + (cap.used.firm ? 'ok' : 'neutral') + '" data-plt-used="' +
       (cap.used.firm ? 'measured' : cap.used.firm === false ? 'notfirm' : 'book') + '">' + (cap.used.firm ? 'measured' : cap.used.firm === false ? 'not firm' : 'from the book') + '</span>'
       : cap.used && PLT_LINE_STATIONS[station] ? escHtml(' · ' + cap.used.why) : '') + '</span></div>' +
-    '<div class="inv-unit-strip">' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
+    // A unit's card is small (a word, a name, a figure), so the deck takes the small cards' width: two across on the phone (§6.22).
+    '</div><div class="inv-panel-body"><div class="inv-deck" data-deck-sm>' + cap.units.map(function(u) { return pltTileHtml(u); }).join('') + '</div></div>';
   // The power cuts that hit this line (powercause.js), when any were tied to it.
   if (typeof pcsStationNote === 'function') h += pcsStationNote(station);
   return h + '</div>';
@@ -190,7 +197,8 @@ function pltSupportHtml() {
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + uiDot(s[2], s[1]) + '</span></div>';
     }).join('') + '</div>';
 }
-/* The status changes, newest first. */
+/* The status changes, newest first: the plant's history, folded until opened (TM4f: seventeen rows ran 1.4 phone screens under the
+   units on the owner's book). */
 function pltLogHtml() {
   var log = pltRead().log.slice().sort(function(a, b) { return a.date < b.date ? 1 : a.date > b.date ? -1 : (b.at || 0) - (a.at || 0); });
   if (!log.length) return '';
@@ -200,19 +208,32 @@ function pltLogHtml() {
     return '<div class="inv-row inv-row-2" data-plt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml((u ? u.name + ' · ' + pltStationName(u.station) : 'A unit')) + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
   });
-  return '<div class="inv-panel inv-panel-flush" id="pltLog"><div class="inv-panel-head"><span class="inv-panel-title">Status changes <span class="inv-panel-count">' + log.length + '</span></span></div>' +
-    uiMoreHtml('pltLog', rows, { noun: 'change' }) + '</div>';
+  return uiFoldCard('plt-log', '<div class="inv-panel inv-panel-flush" id="pltLog"><div class="inv-panel-head"><span class="inv-panel-title">Status changes <span class="inv-panel-count">' + log.length + '</span></span></div>' +
+    uiMoreHtml('pltLog', rows, { noun: 'change' }) + '</div>', false);
 }
-/* Production → Equipment. */
+/* Production → Equipment (the tab map, TM4c): its verdict (the line most down, the lines its factors), Add a unit the one primary
+   and the files behind More (the owner's), then each line's units as deck cards, the supporting equipment and the changes. */
 function pltEquipmentHtml() {
-  var h = pltCanEdit() ? '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary" data-action="invPltEdit">Add a unit</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invPltExport">Export</button><button class="inv-btn inv-btn-ghost" data-action="invPltImport">Import</button>' +
-    '<input type="file" accept=".json,application/json" id="pltFileInput" class="inv-hidden"></div>' : '';
-  if (!pltUnits().length) {
-    return h + '<div class="inv-empty" id="pltEmpty">No unit recorded yet. Add each barrel and tank: its line, its kg a round and whether it is working. ' +
-      'The line’s capacity is worked out from them, and every change of status is kept with its day.</div>';
-  }
-  h += '<div class="inv-panels">' + PLT_STATIONS.filter(function(s) { return s[2]; }).map(function(s) { return pltStationHtml(s[0]); }).join('') + '</div>';
+  var phone = !_isDesktop, lines = PLT_STATIONS.filter(function(s) { return s[2]; });
+  var caps = lines.map(function(s) { return { s: s, cap: pltCapacity(s[0]) }; });
+  var rank = { neutral: 0, ok: 1, warning: 2, danger: 3 }, worst = null;
+  caps.forEach(function(x) { if (x.cap.n && (!worst || rank[pltCapTone(x.cap)] > rank[pltCapTone(worst.cap)] || (pltCapTone(x.cap) === pltCapTone(worst.cap) && x.cap.down.length > worst.cap.down.length))) worst = x; });
+  var units = pltUnits(), down = caps.reduce(function(n, x) { return n + x.cap.down.length; }, 0);
+  var noun = function(cap) { return cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrel' : cap.units.every(function(u) { return u.kind === 'tank'; }) ? 'tank' : 'unit'; };
+  var verdict = !units.length ? 'No unit recorded yet' : !down ? 'Every unit working'
+    : worst.cap.down.length + ' of ' + worst.cap.n + ' ' + noun(worst.cap) + (worst.cap.n === 1 ? '' : 's') + ' down on ' + worst.s[1];
+  var h = uiVerdictHtml({ screen: 'Equipment', verdict: verdict, tone: !units.length ? 'neutral' : worst ? pltCapTone(worst.cap) : 'ok',
+    facts: [units.length ? todoPlural(units.length, 'unit') + ' on record' : 'each barrel and tank, its line and kg a round', down > (worst ? worst.cap.down.length : 0) ? todoPlural(down, 'unit') + ' down in all' : ''],
+    factors: caps.map(function(x) {
+      return { label: x.s[1], fig: x.cap.n ? x.cap.nAvail + '<span class="inv-tile-of">/' + x.cap.n + '</span>' : '', tone: x.cap.n ? pltCapTone(x.cap) : null,
+        sub: x.cap.n ? Math.round(x.cap.pct * 100) + '% available' : 'none recorded', attrs: ' data-plt-factor="' + x.s[0] + '"' };
+    // With no unit recorded the card is the empty state (it was a paragraph under the toolbar).
+    }), attrs: units.length ? ' id="pltVerdict"' : ' id="pltEmpty"' });
+  if (pltCanEdit()) h += '<div class="inv-toolbar" data-prod-toolbar="equipment"><button class="inv-btn inv-btn-primary" data-action="invPltEdit">Add a unit</button>' +
+    uiToolbarMoreHtml([{ label: 'Export', action: 'invPltExport' }, { label: 'Import', action: 'invPltImport' }], { icon: phone }) +
+    '<input type="file" accept=".json,application/json" id="pltFileInput" class="inv-hidden"></div>';
+  if (!units.length) return h;
+  h += '<div class="inv-panels">' + lines.map(function(s) { return pltStationHtml(s[0]); }).join('') + '</div>';
   h += '<div class="inv-panels">' + pltSupportHtml() + pltLogHtml() + '</div>';
   return h;
 }
@@ -227,12 +248,22 @@ function pltGlanceHtml() {
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(pltCapWords(cap)) + '</span></button><span class="inv-row-end">' + (cap.n ? pltPipsHtml(cap) : '') + pltCapDot(cap) + '</span></div>';
     }).join('') + '</div>';
 }
+/* The units not working, a status at a time: *Down: Barrel 3, Barrel 4* (a name a fact had read as a chain of three). */
+function pltDownWords(down, day) {
+  var by = {}, order = [];
+  down.forEach(function(u) {
+    var w = pltStatus(day ? pltStatusOn(u, day) : u.status)[1];
+    if (!by[w]) { by[w] = []; order.push(w); }
+    by[w].push(u.name);
+  });
+  return order.map(function(w) { return w + ': ' + by[w].join(', '); }).join(' · ');
+}
 /* Floor → Day: the line's units on the day shown, one row under its card. */
 function pltFloorRowHtml(lineId, day) {
   var station = lineId === 'pickling' ? 'pick' : lineId, cap = pltCapacity(station, day);
   if (!cap.n) return '';
   return '<div class="inv-row inv-row-2" data-flr-units><button class="inv-row-main" data-action="invPltOpen"><span class="inv-row-title">' + escHtml(pltCapWords(cap)) + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.down.length ? cap.down.map(function(u) { return u.name + ' ' + pltStatus(pltStatusOn(u, day))[1].toLowerCase(); }).join(' · ') : 'every unit working') + '</span></button>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(cap.down.length ? pltDownWords(cap.down, day) : 'every unit working') + '</span></button>' +
     '<span class="inv-row-end">' + pltPipsHtml(cap, day) + '</span></div>';
 }
 

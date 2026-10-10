@@ -16,7 +16,7 @@ const CLIENTS = [
   { id: 3, name: 'GAMMA PRESS WORKS', rate: 11 },
 ];
 
-function inv(n: number, date: string, c: typeof CLIENTS[number], kg: number, state: string, status = 'active') {
+export function inv(n: number, date: string, c: { id: number; name: string; rate: number }, kg: number, state: string, status = 'active') {
   const taxable = Math.round(kg * c.rate * 100) / 100;
   const tax = Math.round(taxable * 0.09 * 100) / 100;
   return {
@@ -32,7 +32,7 @@ function inv(n: number, date: string, c: typeof CLIENTS[number], kg: number, sta
   };
 }
 
-function challan(n: number, c: typeof CLIENTS[number], date: string, invoiced: string | null) {
+export function challan(n: number, c: { id: number; name: string; rate: number }, date: string, invoiced: string | null) {
   return {
     id: 'IM-' + n, challanNo: String(800 + n), challanDate: date, clientId: c.id, clientName: c.name, vehicleNo: 'JH 05AN 0878',
     items: [
@@ -117,7 +117,10 @@ export function sweepState(): SepState {
     { id: 'R4', date: dayOff(-2), valueDate: dayOff(-2), narration: 'NEFT-ALPHA FORGINGS PRIVATE LIMITED', chq: '', dr: 0, cr: 30000, balance: 132499, dayIdx: 0 },
     { id: 'R5', date: dayOff(-1), valueDate: dayOff(-1), narration: 'TO SELF', chq: '', dr: 20000, cr: 0, balance: 112499, dayIdx: 0 }];
   s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 'fake.xls', account: '', from: rows[0].date, to: rows[4].date, rows: 5, added: 5, closing: 112499 }],
-    parties: {}, opening: {}, gstNotes: {} };
+    parties: {}, opening: {}, gstNotes: {},
+    // Cheques received (the tab map, TM3): one in hand four days, one found in the bank by its number.
+    cheques: [{ id: 'CHQ1', clientId: 1, amount: 18000, number: '612301', receivedOn: dayOff(-4), at: 1 },
+      { id: 'CHQ2', clientId: 1, amount: 25000, number: '525428', receivedOn: monthOff(-1, 17), at: 1 }] };
   // A floor record: VAT A1 plated from a register photo, a barrel list, pickled loads with no line yet, a power cut.
   const pe: any[] = [];
   for (let k = 1; k <= 6; k++) {
@@ -167,6 +170,9 @@ export function sweepState(): SepState {
     ka('KQ1', 'requirement', 'Beta needs certificates', { links: [{ type: 'client', id: '2', label: CLIENTS[1].name }] }),
     ka('KD2', 'part', 'Clamp gauges', { status: 'draft', src: 'import' })],
     trained: [{ id: 'kt1', staffId: 1, name: 'x', articleId: 'KG1', v: 1, on: dayOff(-3), at: recentTs(), by: 'Owner' }], paths: [] };
+  // A person with a face (faces.js, the entry faces), every duty on it: no PIN, so the guard stays off; the walks open Mine as the
+  // owner looking at it (_faceUid).
+  s.users = [{ id: 'U-face', name: 'Face Hand', role: 'floor', faces: ['roll-in', 'pickling', 'incoming', 'stock', 'attsheet', 'barrel', 'vat', 'roll-out'] }];
   return s;
 }
 
@@ -354,12 +360,18 @@ export async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${dir}/${name}.png`, fullPage: !(await page.locator('.inv-scrim-dialog').count()) });
 }
 
-export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageTodo', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory',
-  'pageFloor', 'pagePipeline', 'pageKnow'];
+export const PAGES = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pageFinance', 'pageProduction', 'pagePower', 'pageStock', 'pageStaff', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory',
+  'pageFloor', 'pagePipeline', 'pageKnow', 'pageFace'];
+/* Mine is a person's (faces.js): with the guard off nobody is signed in, so a walk opens it as the owner looking at the sweep book's
+   face (its user, U-face). */
+export async function faceSeen(page: Page, id: string) {
+  if (id === 'pageFace') await page.evaluate(() => { (0, eval)("_faceUid = 'U-face'"); });
+}
 
 /* Every page, then every view tab on it (re-read after each click, since a tab can redraw the row). */
 export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   for (const id of PAGES) {
+    await faceSeen(page, id);
     await switchTab(page, id);
     stops.push(await sweep(page, id));
     await shot(page, `${tag}-${id}`);
@@ -386,13 +398,54 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   await walkQuoteForm(page, tag, stops);
   await walkZinc(page, tag, stops);
   await walkStockCheck(page, tag, stops);
+  await walkFaceForms(page, tag, stops);
 }
 
-/* Stock → Overview's price trend on Zinc: the market against the bills, which the page opens on another line. Drawn as it
-   opens, then with a supplier's bills listed under it. */
+/* Mine's own forms (faces.js, F2–F4), which no tab reaches: a load into the tank with a client and its first part picked, material
+   counted in against the client's latest challan (else as not in the book yet), the two rolls each with a block of their own, a
+   barrel batch with its barrel, client and part picked, and the VAT register page in rounds and in batches. Opened as the owner
+   looking at the sweep book's face. */
+export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
+  await faceSeen(page, 'pageFace');
+  await switchTab(page, 'pageFace');
+  const views: Array<[string, string]> = [
+    ['load', `faceFormOpen('pickling'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
+      var p = faceClientParts(_faceForm.clientId)[0]; if (p) _faceForm.part = p.key; })(); renderFace()`],
+    ['in', `faceFormOpen('incoming'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
+      var m = faceInChallans(_faceForm)[0]; _faceForm.challan = m ? m.id : '__none'; })(); renderFace()`],
+    ['roll-in', `faceFormOpen('roll-in'); _faceForm.blocks.push({ area: 'vat-a1', crew: [], extra: '3', work: '' }); renderFace()`],
+    ['roll-out', `faceFormOpen('roll-out'); _faceForm.blocks.push({ out: '20:00', area: 'vat-a2', crew: [], extra: '6', work: '' }); renderFace()`],
+    ['barrel', `faceFormOpen('barrel'); (function(){ var u = pltUnits('barrel')[0]; _faceForm.barrel = u ? u.id : '2';
+      var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
+      var p = faceClientParts(_faceForm.clientId)[0]; if (p) _faceForm.part = p.key; })(); renderFace()`],
+    // The register clerk's page (F4): VAT A1's rounds, a run's client and part, a sum the reader adds up and a day total it does not
+    // meet; VAT A2's batches, one with its start left to the batch before.
+    ['vat', `faceFormOpen('vat'); _faceForm = faceVatMake(faceDayIso(), 'vat-a1'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return;
+      var id = String(cl.id); _faceForm.rows = [{ time: '09:45', to: '', client: id, part: 'CLAMP', fig: '120' }, { time: '10:20', to: '', client: id, part: 'CLAMP', fig: '3+4x156' },
+      { time: '', to: '', client: id, part: 'CLAMP', fig: '' }]; _faceForm.total = '1300'; })(); renderFace()`],
+    ['vat-batches', `faceFormOpen('vat'); _faceForm = faceVatMake(faceDayIso(), 'vat-a2'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return;
+      var id = String(cl.id); _faceForm.rows = [{ time: '10:30', to: '11:45', client: id, part: 'TINA(3303)', fig: '3x156' }, { time: '', to: '13:05', client: id, part: 'TINA(3303)', fig: '98x8+1' }]; })(); renderFace()`],
+  ];
+  for (const [name, js] of views) {
+    await page.evaluate(src => (0, eval)(src), js);
+    await expect(page.locator('#faceContent .inv-pagehead')).toBeVisible();
+    stops.push(await sweep(page, 'pageFace › ' + name));
+    await shot(page, `${tag}-pageFace-${name}`);
+    await page.evaluate(() => (0, eval)(`_faceForm = null; renderFace()`));
+  }
+}
+
+/* Stock's price trend on Zinc (Spend and prices since the tab map, TM4d: the fold at the list's foot on the phone, the pane beside it
+   on the desktop): the market against the bills, which the page opens on another line. Drawn as it opens, then with a supplier's
+   bills listed under it. */
 export async function walkZinc(page: Page, tag: string, stops: Stop[]) {
   await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invDashStockView"][data-view="overview"]').first().click();
+  const spend = page.locator('#pageStock [data-action="invStockSpend"]');
+  if (await spend.count()) { if ((await spend.getAttribute('aria-pressed')) !== 'true') await spend.click(); }
+  else {
+    const fold = page.locator('#pageStock details[data-fold="stock-spend"]');
+    if (!(await fold.evaluate(el => (el as HTMLDetailsElement).open))) await fold.locator(':scope > summary').click();
+  }
   await page.locator('#dashPriceLine').selectOption('ZN');
   await expect(page.locator('#dashPrice [data-zinc-suppliers]')).toBeVisible();
   stops.push(await sweep(page, 'pageStock › zinc market'));
@@ -467,6 +520,9 @@ export const DIALOGS: Array<[string, string]> = [
   ['number-audit', `showNumberAudit()`],
   ['account-for', `openAccountForNumber('4')`],
   ['credit-notes', `renderCreditNoteList()`],
+  // Its two forms, in the same dialog (the tab map, TM3).
+  ['credit-note-new', `renderCreditNoteList(); billsCnFormOpen('new')`],
+  ['credit-note-record', `renderCreditNoteList(); billsCnFormOpen('record')`],
   ['cn-against', `cnSetAgainstInvoice('CN1')`],
   ['cn-raise', `openCreditNoteForm(['INV-16'])`],
   ['invoice-detail', `openInvoiceDetail('INV-17')`],
@@ -502,7 +558,18 @@ export const DIALOGS: Array<[string, string]> = [
   ['office-qr', `ckSetupOpen()`],
   // A client's statement and reminder (P173) and the pay slips (P174).
   ['statement', `soaOpen((bankReceivables()[0] || { client: { id: 1 } }).client.id)`],
+  // A cheque received: the form, and one in hand opened (TM3).
+  ['cheque-form', `bankChequeFormOpen(1)`],
+  ['cheque', `bankChequeOpen('CHQ1')`],
   ['pay-slips', `_attWeekStart = attWeekStartOf(localDateStr()); psOpen()`],
+  // A supplier (suppliers.js): its bills and payments, and its three forms.
+  ['supplier', `suppOpen(suppRows()[0].sp.id, '')`],
+  ['supplier-pay', `suppOpen(suppRows()[0].sp.id, 'pay')`],
+  ['supplier-balance', `suppOpen(suppRows()[0].sp.id, 'balance')`],
+  ['supplier-set', `suppOpen(suppRows()[0].sp.id, 'set')`],
+  // Compare suppliers (P209): a line's suppliers side by side, and the form for a price one quoted.
+  ['supplier-compare', `suppCompareOpen('N', '')`],
+  ['supplier-quote', `suppCompareOpen('N', 'quote')`],
   ['merge-held', `S.mergeHeld = [{ id: 'MH-sweep', at: Date.now(), coll: 'clients', rid: '1', field: 'phone', label: 'a client', why: 'both', kept: { side: 'm', v: '1111' }, other: { side: 't', v: '2222' }, status: 'open', from: 'Office PC' }]; mrgHeldOpenDialog()`],
   ['prospect-form', `prsFormOpen(null)`],
   // A power cut completed (P177): the time back, why it went, where it hit, what brought it back; and a reason on the list.

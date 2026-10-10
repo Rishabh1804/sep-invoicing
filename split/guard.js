@@ -44,9 +44,9 @@ var GRD_GROUPS = [['billing', 'Invoices and credit notes'], ['rates', 'Rates and
   ['payments', 'Payments and wages'], ['imports', 'Imports (stock, production, power, roster)'], ['settings', 'Settings'], ['floor', 'Floor entries']];
 /* Every page a role may be given, in the bar's order; a page this build does not have (Direction B's Pipeline and Floor
    day) is kept in a role's list and skipped on screen. */
-var GRD_PAGE_IDS = ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
+var GRD_PAGE_IDS = ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline', 'pageFloor',
   'pageStaff', 'pageProduction', 'pageStock', 'pagePower', 'pageFinance', 'pageStats', 'pageReports', 'pagePlanner', 'pageHistory'];
-var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor day' };
+var GRD_PAGE_FALLBACK = { pagePipeline: 'Pipeline', pageFloor: 'Floor overview' };
 /* Pages that are money: opened only by a role that sees money, whatever its page switches say. */
 var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1, pagePlanner: 1 };
 
@@ -54,9 +54,9 @@ var GRD_MONEY_PAGES = { pageFinance: 1, pageStats: 1, pageReports: 1, pagePlanne
 function grdRoleDefaults() {
   return {
     owner: { pages: GRD_PAGE_IDS.slice(), may: GRD_GROUPS.map(function(g) { return g[0]; }).concat('users'), wages: true, finance: true },
-    office: { pages: ['pageHome', 'pageTodo', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: false },
-    supervisor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: false, finance: false },
-    floor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageProduction', 'pageStock'], may: ['floor'], wages: false, finance: false }
+    office: { pages: ['pageHome', 'pageCreate', 'pageIM', 'pageRegister', 'pageClients', 'pagePipeline'], may: ['billing'], wages: false, finance: false },
+    supervisor: { pages: ['pageHome', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: ['floor'], wages: false, finance: false },
+    floor: { pages: ['pageHome', 'pageFloor', 'pageProduction', 'pageStock'], may: ['floor'], wages: false, finance: false }
   };
 }
 function grdCfgDefaults() { return { lockMinutes: 15, askMinutes: 5, roles: grdRoleDefaults(), recovery: null }; }
@@ -136,6 +136,8 @@ function grdOk(group) {
 /* The role opens this page. Home always; while locked nobody is signed in and the lock covers the screen, so the page
    under it is checked again at the unlock (grdAfterUser), and nothing is drawn on it meanwhile (grdHeld). */
 function grdSees(tabId) {
+  // Mine is a person's, never a role's (faces.js): open to an ID with duties set, and to the owner looking at one.
+  if (tabId === 'pageFace') return typeof faceSees === 'function' && faceSees();
   // Knowledge is everyone's page: each article says which roles read it (knowledge.js kbCanRead).
   if (!grdOn() || tabId === 'pageHome' || tabId === 'pageKnow') return true;
   var u = grdUser();
@@ -609,12 +611,18 @@ function grdAfterUser() {
   var first = _grdLastUser == null, other = _grdLastUser !== u.id, stale = _grdDrawnFor !== grdDrawKey(u);
   _grdLastUser = u.id;
   if (other) {
+    // The owner looking at another's screen ends with whoever signs in next (faces.js).
+    if (typeof _faceUid !== 'undefined') { _faceUid = null; _faceDay = null; _faceForm = null; }
     if (document.querySelector('.inv-scrim-dialog') && typeof closeOverlay === 'function') closeOverlay();
     var pv = document.getElementById('invPrintView');
     if (pv && pv.classList.contains('inv-print-view-active') && typeof closePrintPreview === 'function') closePrintPreview();
   }
   var page = (document.querySelector('.inv-page-active') || {}).id;
-  if (page) {
+  // An ID with a face lands on it (docs/ENTRY_FACES.md §1.2): from the start's Today, and whenever another person signs in; a
+  // launch onto another screen (an address, the widget) is kept.
+  var face = typeof faceDuties === 'function' && faceDuties(u).length > 0;
+  if (face && (!page || page === 'pageHome' || (other && !first))) switchTab('pageFace');
+  else if (page) {
     var busy = typeof bookBusy === 'function' && bookBusy();
     // A challan form a launch opened before the first unlock (the New challan shortcut) is the person's who launched it:
     // drawn again, Challans would close it.
@@ -733,10 +741,10 @@ function grdMenuOpen() {
 /* The bar, the sidebar, the workspace tabs, Add's forms and Home's quick actions show only the pages this role opens (G3:
    the shell draws a workspace's views from what the role sees, workspace.js wsViewsPresent, and a workspace with none
    loses its door). A door hidden here is refused anyway (switchTab), so a door missed is a word, not a hole. */
-var GRD_QUICK_PAGE = { challan: 'pageIM', stock: 'pageStock', attendance: 'pageStaff', paste: 'pageStaff', task: 'pageTodo' };
+var GRD_QUICK_PAGE = { challan: 'pageIM', stock: 'pageStock', attendance: 'pageStaff', paste: 'pageStaff', task: 'pageHome' };
 // Add → By hand: the screen each form is on (add.js ADD_HAND); a payment is Staff → Pay, so it needs the wages too.
 var GRD_ADD_PAGE = { challan: 'pageIM', invoice: 'pageCreate', quote: 'pageClients', stock: 'pageStock', production: 'pageProduction',
-  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', bill: 'pageFinance', task: 'pageTodo' };
+  power: 'pagePower', attendance: 'pageStaff', payment: 'pageStaff', cheque: 'pageFinance', bill: 'pageFinance', task: 'pageHome' };
 function grdApplyDoors() {
   document.querySelectorAll('[data-grd-off]').forEach(function(el) { el.removeAttribute('data-grd-off'); });
   if (!grdOn() || !grdUser()) return;
@@ -758,6 +766,8 @@ function grdApplyDoors() {
     if (to && !grdSees(to)) off(el);
   });
   if (!grdCan('settings')) document.querySelectorAll('.inv-topbar [data-action="invOpenSettings"], #invSidebar [data-action="invOpenSettings"]').forEach(off);
+  // History is a tool in the top bar (the tab map): its door goes with the page.
+  if (!grdSees('pageHistory')) document.querySelectorAll('.inv-topbar [data-action="invGoHistory"]').forEach(off);
 }
 var _grdDoorsQueued = false;
 function grdApplyDoorsSoon() {
@@ -787,6 +797,9 @@ function grdBoot() {
   grdSessWrite(s);
   _grdLastUser = u.id;
   grdUserBtnDraw();
+  // The phone's bar was drawn at load, before the book said who is signed in: a face's own door (Mine) is drawn now, or a
+  // reload within the sign-in window left it off (F4).
+  if (typeof wsRedraw === 'function') wsRedraw();
   grdApplyDoors();
 }
 /* A book loaded from another window, an import or a pull: users or roles may have changed. A deactivated user is locked
@@ -891,6 +904,8 @@ function grdFormOpen(mode, id) {
     body = grdFieldHtml('grdName', 'Name', '<input class="inv-input" id="grdName" autocomplete="off" maxlength="60" value="' + escHtml(u ? u.name : '') + '">') +
       (isOwner ? '<p class="inv-note inv-mb-8">The owner&rsquo;s role is fixed: everything.</p>' : grdFieldHtml('grdRole', 'Role', roleSel(u ? u.role : 'office'), 'What it opens and may change is set under the roles, below the users.')) +
       grdFieldHtml('grdStaff', 'Worker on the roster', staffSel(u ? u.staffId : ''), 'For a floor hand: links the ID to the roster.') +
+      // What this person enters on their own screen, Mine (faces.js): set on a person, never on a role.
+      (isOwner || typeof faceTicksHtml !== 'function' ? '' : faceTicksHtml(u ? u.faces : [])) +
       (mode === 'add' ? pins('PIN') : '');
   } else if (mode === 'pin') {
     body = '<p class="inv-note inv-mb-8">' + escHtml(u.name) + '&rsquo;s old PIN stops working at once. Tell them the new one.</p>' + pins('New PIN');
@@ -972,6 +987,8 @@ async function grdFormSave() {
     var staffId = grdVal('grdStaff');
     var nu = { id: grdUid(), name: name, role: role, secret: secret, active: true, createdAt: now, createdBy: me2 };
     if (staffId !== '') nu.staffId = isNaN(+staffId) ? staffId : +staffId;
+    var nf = typeof faceTicksRead === 'function' ? faceTicksRead(scrim) : [];
+    if (nf.length) nu.faces = nf;
     S.users.push(nu);
   } else if (f.mode === 'edit') {
     u = grdUserById(f.id);
@@ -980,6 +997,7 @@ async function grdFormSave() {
     if (u.role !== 'owner' && GRD_ROLES.indexOf(grdVal('grdRole')) > 0) u.role = grdVal('grdRole');
     var sid = grdVal('grdStaff');
     if (sid === '') delete u.staffId; else u.staffId = isNaN(+sid) ? sid : +sid;
+    if (u.role !== 'owner' && typeof faceTicksRead === 'function') { var ef = faceTicksRead(scrim); if (ef.length) u.faces = ef; else delete u.faces; }
     u.updatedAt = now;
   } else if (f.mode === 'pin') {
     u = grdUserById(f.id);
@@ -1035,8 +1053,11 @@ function grdUserRowsHtml() {
   var me = grdUserId();
   return list.map(function(u) {
     var w = u.staffId != null && typeof staffById === 'function' ? staffById(u.staffId) : null;
-    var meta = [grdRoleName(u.role), w ? 'worker ' + w.name : '', u.id === me ? 'signed in here' : ''].filter(Boolean).join(' · ');
+    var duties = typeof faceDutiesText === 'function' ? faceDutiesText(u) : '';
+    var meta = [grdRoleName(u.role), w ? 'worker ' + w.name : '', duties ? 'enters ' + duties : '', u.id === me ? 'signed in here' : ''].filter(Boolean).join(' · ');
     var acts = '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardEdit" data-id="' + escHtml(u.id) + '">Edit</button>';
+    // Their screen, as they see it (faces.js): the owner's look at a person's Mine.
+    if (duties && u.active !== false) acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceSee" data-id="' + escHtml(u.id) + '">See their screen</button>';
     if (u.active !== false) {
       // One's own row changes the PIN with the PIN it has; another's is reset (grdFormOpen).
       acts += '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invGuardResetPin" data-id="' + escHtml(u.id) + '">' + (u.id === me ? 'Change my PIN' : 'Reset PIN') + '</button>';
@@ -1067,8 +1088,8 @@ function grdRolesGridHtml() {
   h += '<tr class="inv-table-group"><td colspan="4">What it may change</td></tr>';
   GRD_GROUPS.forEach(function(g) { h += row(g[1], 'data-grd-may="' + g[0] + '"', function(x) { return x.may.indexOf(g[0]) >= 0; }); });
   h += '<tr class="inv-table-group"><td colspan="4">What it sees</td></tr>' +
-    row('Wages (Staff → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
-    row('Money (Finance, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
+    row('Wages (People → Pay)', 'data-grd-flag="wages"', function(x) { return x.wages; }) +
+    row('Money (Money, Stats, Reports, Planner)', 'data-grd-flag="finance"', function(x) { return x.finance; });
   return h + '</tbody></table></div>';
 }
 function grdUsersBody() {

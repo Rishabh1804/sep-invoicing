@@ -1,13 +1,25 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import zlib from 'zlib';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse as openToday, openSales, readStoredState, switchTab, todayIso, toolbarMore, waitForBoot, type SepState } from './fixtures';
 import { adviceState, ORION } from './p133-what-to-do.fixture';
 
 // P150: the QA chain of 2 Oct 2026 over Quotations, Reports and What to do (QA5-1 … QA5-14), and the rate-pricing code
 // they reach. Each test names its finding. Names, parts and figures are made up; every date is built from today.
 
 const g = (p: Page, expr: string) => p.evaluate(e => (0, eval)(e), expr);
+/** Today → Pulse over the whole book, with the questions named opened (the questions were Stats → Overview's until the tab
+ *  map, TM2b). */
+async function openPulse(p: Page, ...qs: string[]) {
+  await openToday(p);
+  const all = p.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="all"]');
+  await all.click();
+  await expect(all).toHaveAttribute('aria-pressed', 'true');
+  for (const k of qs) {
+    const q = p.locator(`[data-tdy-q="${k}"]`);
+    if (!(await q.evaluate(el => (el as HTMLDetailsElement).open))) await q.locator(':scope > summary').click();
+  }
+}
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
 const dayOff = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return isoOf(d); };
@@ -285,11 +297,10 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
 
   test('QA5-5: one decision is one key, each move says which full cost it asks for, and a tap acts on the move under it', async ({ page }) => {
     await loadAppWithState(page, adviceState());
-    await openStatsTab(page, 'overview');
-    await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+    await openPulse(page, 'clients', 'smooth');
     // The question asks for the period's full cost, and says it is the period's.
-    await expect(page.locator('[data-story="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
-    await expect(page.locator('[data-story="clients"] [data-adv-move="reprice:1"]')).toContainText('the full cost over the whole book');
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText('the full cost over the whole book');
     // An insight's move asks for its month's, says so, and is the same decision.
     const ins = await g(page, `advTaskMoves({ rule: 'insBelowVar', key: 'insBelowVar:1', clientId: 1, month: '${lastMonth}', net: 2, varKg: 5, fullKg: 9.22, kg: 1000 })
       .map(function(m){ return [m.key, m.say, m.task]; })`) as string[][];
@@ -310,15 +321,16 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
         go: { kind: 'quoteDraft', clientId: 1, lines: [{ item: 'B', partNumber: 'B', basis: 'kg', rate: 2 }], note: 'second draft' } });
       var host = document.createElement('div'); host.id = 'p150Moves';
       host.innerHTML = advMovesHtml([a], 'p150a') + advMovesHtml([b], 'p150b');
-      document.getElementById('statsContent').prepend(host);
+      document.getElementById('homeQuestions').prepend(host);
     })()`);
     await page.locator('#p150Moves [data-adv-move="reprice:9"]').first().locator('[data-action="invAdvGo"]').click();
     await expect(page.locator('#clientsPageContent [data-qt-draft-note]')).toHaveText('first draft');
     expect(await g(page, '_qtForm.q.lines[0].rate')).toBe(1);
-    await g(page, `_qtForm = null; _pageTyped = false; switchTab('pageStats')`);
-    await g(page, `(function(){ var host = document.createElement('div'); host.id = 'p150Moves';
+    await g(page, `_qtForm = null; _pageTyped = false`);
+    await openToday(page);
+    await g(page, `(function(){ var old = document.getElementById('p150Moves'); if (old) old.remove(); var host = document.createElement('div'); host.id = 'p150Moves';
       host.innerHTML = advMovesHtml([_advRows['reprice:9#Ask X for ₹1.00/kg, the full cost this month']], 'p150a') + advMovesHtml([_advRows['reprice:9#Ask X for ₹2.00/kg, the full cost in ${monthName}']], 'p150b');
-      document.getElementById('statsContent').prepend(host); })()`);
+      document.getElementById('homeQuestions').prepend(host); })()`);
     await page.locator('#p150Moves [data-adv-move="reprice:9"]').nth(1).locator('[data-action="invAdvTask"]').click();
     const tasks = (await readStoredState(page)).todo.tasks.filter((t: any) => t.advKey === 'reprice:9');
     expect(tasks.map((t: any) => t.text)).toEqual(['second task']);
@@ -326,9 +338,9 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await expect(page.locator('#p150Moves [data-adv-move="reprice:9"] [data-adv-listed]')).toHaveCount(2);
     // A task added before the keys were one (order:<id>, reprice:<client>:<month>) is the same decision: no second task.
     await g(page, `todoData().tasks.push({ id: 'T-OLD', text: 'Order Pickling acid', due: '', note: '', link: null, advKey: 'order:PA', createdAt: 1, doneAt: null },
-      { id: 'T-OLD2', text: 'Ask for the full cost', due: '', note: '', link: null, advKey: 'reprice:1:${lastMonth}', createdAt: 1, doneAt: null }); renderStats()`);
-    await expect(page.locator('[data-story="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
-    await expect(page.locator('[data-story="clients"] [data-adv-move="reprice:1"] [data-adv-listed]')).toBeVisible();
+      { id: 'T-OLD2', text: 'Ask for the full cost', due: '', note: '', link: null, advKey: 'reprice:1:${lastMonth}', createdAt: 1, doneAt: null }); renderHome()`);
+    await expect(page.locator('[data-tdy-q="smooth"] [data-adv-move="stock:PA"] [data-adv-listed]')).toBeVisible();
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"] [data-adv-listed]')).toBeVisible();
   });
 
   test('QA5-6: the report reads attendance by Staff → Overview\'s rule: Monday to Saturday, a half day half, over the marks typed', async ({ page }) => {
@@ -354,7 +366,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     const doc = page.locator('#rptSheet [data-rpt-doc]');
     await expect(doc).toHaveAttribute('data-from', ws);
     await expect(doc.locator('[data-rpt-tile="attendance"] .inv-rpt-tile-v')).toHaveText('79%');
-    await expect(doc.locator('[data-rpt-tile="attendance"]')).toContainText('as Staff → Overview reads it');
+    await expect(doc.locator('[data-rpt-tile="attendance"]')).toContainText('as People → Attendance reads it');
     // By day: the Sunday is not attendance; Monday 3.5 of 4, Tuesday 2 of 3; the foot is the week's own figure.
     const rows = doc.locator('[data-rpt-table="breakdown"] tbody tr');
     await expect(rows.nth(0).locator('td').nth(6)).toHaveText('—');
@@ -451,20 +463,18 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await expect(page.locator('#rptSheet [data-rpt-doc]')).toHaveAttribute('data-from', lastMonth + '-01');
     await expect(page.locator('#rptSheet [data-rpt-doc]')).toHaveAttribute('data-kind', 'monthly');
     // The question's labour move carries its period: Stats opens there, whatever the chip held.
-    await openStatsTab(page, 'overview');
-    await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
-    const go = await g(page, `_advRows[document.querySelector('[data-story="clients"] [data-adv-move="labour:1"] [data-action="invAdvGo"]').dataset.advRow].go`) as any;
+    await openPulse(page, 'clients');
+    const go = await g(page, `_advRows[document.querySelector('[data-tdy-q="clients"] [data-adv-move="labour:1"] [data-action="invAdvGo"]').dataset.advRow].go`) as any;
     expect(go).toMatchObject({ kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: 'all' });
-    await page.locator('[data-action="invStatsPeriod"][data-period="mtd"]').click();
+    await page.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="mtd"]').click();
     await g(page, `todoGo(${JSON.stringify(go)})`);
     expect(await g(page, '_statsPeriod')).toBe('all');
-    await expect(page.locator('[data-action="invStatsPeriod"][data-period="all"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]')).toHaveAttribute('aria-pressed', 'true');
   });
 
   test('QA5-13: a rate keeps its four places and prints as typed; a quotation with no GST rate is not issued', async ({ page }) => {
     await loadAppWithState(page, rateState());
-    await switchTab(page, 'pageClients');
-    await page.locator('#pageClients .inv-viewtab[data-view="quotes"]').click();
+    await openSales(page, 'quotes');
     await page.locator('[data-action="invQtNew"]').click();
     await page.locator('#qtClient').selectOption('1');
     await page.locator('#qtL0item').fill('WASHER');
@@ -502,13 +512,12 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await page.locator('[data-action="invRptKind"][data-kind="quarterly"]').click();
     const qFrom = await doc.getAttribute('data-from');
     await expect(page.locator('#rptPick')).toHaveValue(qFrom!);
-    // Stats over the whole book: the report is the year to date, and it says so.
-    await openStatsTab(page, 'overview');
-    await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
-    await page.locator('#statsMakeReport').click();
+    // Pulse over the whole book: the report is the year to date, and it says so.
+    await openPulse(page);
+    await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
     await expect(doc).toHaveAttribute('data-kind', 'yearly');
-    await expect(page.locator('.inv-toast')).toContainText('not the whole book Stats showed');
+    await expect(page.locator('.inv-toast')).toContainText('not the whole book');
     // No company name: none printed, rather than one written into the build.
     await g(page, `S.company.name = ''; renderReports()`);
     await expect(doc.locator('.inv-rpt-co')).toHaveCount(0);

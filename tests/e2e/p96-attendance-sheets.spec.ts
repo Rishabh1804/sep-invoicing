@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openAttendance, toolbarMore } from './fixtures';
 
 // P96: the attendance paper route (owner, 29 Sep 2026). Staff → Day → Print sheets gives, for the day on screen:
 // Shyam's sheet (his WhatsApp roll on paper: In time with the 6 AM blocks and the 8:30 AM areas in his order, numbered
@@ -31,14 +31,14 @@ function state(withDay: boolean): SepState {
 const g = (p: Page, expr: string) => p.evaluate(e => (0, eval)(e), expr);
 async function openDay(page: Page) {
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
 }
 
 test.describe('P96: attendance sheets', () => {
   test('Print sheets on the Day view offers the three and previews them, each page one A4 sheet', async ({ page }) => {
     await loadAppWithState(page, state(true));
     await openDay(page);
-    await page.locator('[data-action="invAttSheetOpen"]').click();
+    await toolbarMore(page, 'Print sheets');   // Day's More (TM4b)
     await expect(page.locator('[data-as-pick="filled"]')).toBeEnabled();
     await page.locator('[data-action="invAttSheetPreview"]').click();
     const pages = page.locator('.inv-print-view-active .inv-as-page');
@@ -93,7 +93,7 @@ test.describe('P96: attendance sheets', () => {
   test('with nothing entered for the day, the filled copy cannot be picked', async ({ page }) => {
     await loadAppWithState(page, state(false));
     await openDay(page);
-    await page.locator('[data-action="invAttSheetOpen"]').click();
+    await toolbarMore(page, 'Print sheets');   // Day's More (TM4b)
     await expect(page.locator('[data-as-pick="filled"]')).toBeDisabled();
     await page.locator('[data-action="invAttSheetPreview"]').click();
     await expect(page.locator('.inv-print-view-active .inv-as-page')).toHaveCount(3);

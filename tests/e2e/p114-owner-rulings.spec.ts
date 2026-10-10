@@ -111,8 +111,9 @@ test.describe('P114: a second electricity bill in a month', () => {
   };
   async function openForm(page: Page) {
     await switchTab(page, 'pageFinance');
-    await page.locator('[data-action="invFinTab"][data-tab="bills"]').click();
-    await page.locator('#billsPower [data-action="invCostBillOpen"]').first().click();
+    // A bill is entered on Money → Payments, its toolbar's Add a bill (the tab map, TM3a).
+    await page.locator('[data-action="invFinTab"][data-tab="payments"]').click();
+    await page.locator('[data-bank-toolbar="payments"] [data-action="invCostBillOpen"]').click();
     await page.locator('#costBillMonth').fill(monthsBack(1));
   }
 

@@ -365,9 +365,11 @@ function relayStockParts(msgs) {
 
 /* One roll → per-day records. Each line keeps what it was read as, so the
    review can show the message beside the reading. */
-function parseRelayRoll(text, roster, sentOn) {
+function parseRelayRoll(text, roster, sentOn, opts) {
   var idx = relayRosterIndex(roster);
-  var learn = (roster && roster.learn) || { heads: {}, slots: {} };
+  // A roll written on a face (faces.js) is read exactly as written: its headings are picks, never free text, so a lesson
+  // learnt from a correction to a pasted roll's heading would only move them (an evening "VAT A1" read as three areas).
+  var learn = (!(opts && opts.exact) && roster && roster.learn) || { heads: {}, slots: {} };
   var lines = String(text || '').split('\n');
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
@@ -534,6 +536,12 @@ function parseRelayRoll(text, roster, sentOn) {
     }
 
     var numbered = bare.match(/^0*(\d{1,2})\s*[)\].]\s*(.*)$/);
+    // A number with no bracket after it ("14 NAME", as an out-time roll of 7 Oct 2026 wrote one) is a numbered line when what follows is a
+    // name on the roster as written: a quantity ("10 BAGS") or a note never is. Read as a note, the hand's out stayed at 5 PM.
+    if (!numbered) {
+      var nb = bare.match(/^0*(\d{1,2})\s+([A-Za-z].*)$/), nh = nb ? relayMatchName(nb[2].split(/[\s\-–,]+/).filter(Boolean), idx, false) : null;
+      if (nh && nh.sure) numbered = nb;
+    }
     var body = numbered ? numbered[2].replace(/^[.)\]:\s]+/, '').trim() : bare;
     var words = body.split(/[\s\-–,]+/).filter(Boolean);
     var hit = words.length && /^[A-Za-z]/.test(words[0]) ? relayMatchName(words, idx, !!numbered) : null;
@@ -854,6 +862,8 @@ function relayPastes() {
    reading may carry into the new one (an out, an in or an area the bug wrote). A row the owner corrected by hand has lost
    its `src` (_attHandEdit) and is theirs: kept, and the rolls' rows for its slot are not added, as on any paste. */
 function relayBaseDay(rv, iso) {
+  // Read bare, the rolls alone: nothing on the day beside them (the register clerk's sheet is set against this, faces.js F4).
+  if (rv.bare) return { marks: {}, extra: [], note: '' };
   var rec = S.attendance && S.attendance[iso];
   if (!rv.reread || !rec) return rec;
   var marks = {};
@@ -867,7 +877,7 @@ function relayPlan(rv) {
   roster.forEach(function(w) { byId[w.id] = w; });
   var days = {}, issues = [], lines = [], dupes = 0, repeats = 0, seen = {};
   rv.msgs.forEach(function(m, mi) {
-    var r = parseRelayRoll(m.text, roster, m.sentOn), h = relayHash(m.text);
+    var r = parseRelayRoll(m.text, roster, m.sentOn, m.exact ? { exact: true } : null), h = relayHash(m.text);
     m.parsed = r;
     // Read again, the rolls are the ones saved for the day: the refusal of a roll already saved is not for them.
     m.dup = rv.reread ? null : relayPastes().find(function(p) { return p.hash === h; }) || null;
@@ -1025,7 +1035,7 @@ function relayOpen(text) {
 /* A sub-view of Staff (§6.2): the way back to the view it was opened from, and its own title. */
 function relayBackBar(action, label, title) {
   return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + action + '"' +
-    (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'overview') + '"' : '') + '>' +
+    (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'day') + '"' : '') + '>' +
     STAFF_BACK_ICON + escHtml(label) + '</button><h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
 }
 
@@ -1099,7 +1109,7 @@ function relayRead() {
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
   // Only a roll needs the roster: a stock message goes to Stock above whether or not anyone is on it yet.
-  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
+  if (!(S.staff || []).length) { showToast('Add the roster first: People → Roster', 'error'); return; }
   // The stock beside the rolls, its own messages and what was written under a roll, is kept for Read in Stock: it was
   // dropped, with a word pointing at the retired More sheet (QA3-10).
   var stockParts = relayStockParts(msgs);
@@ -1249,22 +1259,15 @@ function relayParseHhmm(s) {
   return m ? +m[1] * 60 + +m[2] : null;
 }
 
-function relaySave() {
-  var rv = _relay;
-  if (!rv) return;
-  if (!grdGate('floor', 'save attendance', relaySave)) return;   // the guard (guard.js): a floor entry, never re-asked
-  var plan = relayPlan(rv);
-  if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
-  // Placements were remembered as they were made. A spelling READ AS somebody
-  // and saved without correction is the owner's confirmation: remember it too,
-  // so the next roll matches it outright.
-  plan.issues.forEach(function(is) {
-    if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
-  });
+/* A checked roll written into its days as a paste writes it: the marks and EXTRA rows relayPlan worked out, the hands' slot picks
+   over the roll's crews, the notes; and the roll kept whole (S.relayPastes), so the same roll is refused when it comes again. The
+   paste's Save and a person's own screen (faces.js, `o.face`: who entered it there, kept on the roll) both write through here. */
+function relayApplyPlan(rv, plan, o) {
+  o = o || {};
   var marks = 0, extras = 0;
   plan.days.forEach(function(d) {
     // Read again, the day is rebuilt: it goes to the log as it was, and starts over from what was entered by hand.
-    var rec = rv.reread ? relayRereadBase(d.iso) : attDay(d.iso, true);
+    var rec = rv.reread ? relayRereadBase(d.iso, rv.rereadWhy) : attDay(d.iso, true);
     d.rows.forEach(function(r) {
       if (r.change === 'kept' || (r.change === 'same' && !rv.reread)) return;
       var n = r.next;
@@ -1282,18 +1285,38 @@ function relaySave() {
     add.forEach(function(a) { if (String(rec.note || '').indexOf(a) < 0) rec.note = (rec.note ? rec.note + '\n' : '') + a; });
     _attPrune(d.iso);
   });
-  var at = Date.now();
-  // Read again, the rolls are already on record. A roll that saved no day (no date to put it on) is not recorded: kept, it
-  // refused the same roll pasted again with the date it lacked.
-  if (!rv.reread) rv.msgs.forEach(function(m) {
+  var at = Date.now(), ids = [];
+  // Read again, the rolls are already on record; a roll new to the reading (`fresh`: a face's roll written again, faces.js) is
+  // recorded. A roll that saved no day (no date to put it on) is not recorded: kept, it refused the same roll pasted again with
+  // the date it lacked.
+  rv.msgs.forEach(function(m) {
+    if (rv.reread && !m.fresh) return;
     var ds = m.parsed ? Object.keys(m.parsed.days).filter(function(k) { return /^\d{4}-\d{2}-\d{2}$/.test(k); }) : [];
     if (m.dup || m.repeat || !ds.length) return;
     // The days it saved (a roll can carry a second day's block): a day deleted by hand takes its rolls with it (attDeleteDay).
     // When WhatsApp sent it (`sentAt`, minutes on `sentOn`): the text is the roll's body alone, so without it the roll read
     // as arriving the minute it was pasted (Today, tdyArrival).
-    relayPastes().push({ id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
-      sentBy: m.sentBy || '', sentOn: m.sentOn || '', sentAt: m.sentAt != null ? m.sentAt : null, kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text });
+    var rp = { id: 'RP-' + at.toString(36) + Math.random().toString(36).slice(2, 5), at: at, hash: relayHash(m.text),
+      sentBy: m.sentBy || '', sentOn: m.sentOn || '', sentAt: m.sentAt != null ? m.sentAt : null, kind: m.parsed ? m.parsed.kind : '', date: m.parsed ? m.parsed.date : '', days: ds, text: m.text };
+    if (o.face) rp.face = o.face;
+    relayPastes().push(rp);
+    ids.push(rp.id);
   });
+  return { marks: marks, extras: extras, ids: ids };
+}
+function relaySave() {
+  var rv = _relay;
+  if (!rv) return;
+  if (!grdGate('floor', 'save attendance', relaySave)) return;   // the guard (guard.js): a floor entry, never re-asked
+  var plan = relayPlan(rv);
+  if (!plan.days.length) { showToast('Nothing to save', 'error'); return; }
+  // Placements were remembered as they were made. A spelling READ AS somebody
+  // and saved without correction is the owner's confirmation: remember it too,
+  // so the next roll matches it outright.
+  plan.issues.forEach(function(is) {
+    if (is.tone === 'amber' && is.key && is.id != null && !(is.key in rv.choices)) relayRemember(is.key, is.id);
+  });
+  var done = relayApplyPlan(rv, plan), marks = done.marks, extras = done.extras;
   saveState();
   var first = plan.days[0].iso, reread = !!rv.reread;
   _relay = null; _relayView = 'paste';
@@ -1315,7 +1338,8 @@ function relaySave() {
 function relayRollsFor(iso) {
   var roster = null;
   return relayPastes().filter(function(p) {
-    if (!p || (p.kind !== 'in' && p.kind !== 'out')) return false;
+    // A roll written again on a face is read in its new form; the old is kept to refuse it when pasted (`replacedBy`).
+    if (!p || (p.kind !== 'in' && p.kind !== 'out') || p.replacedBy) return false;
     if (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)) return true;
     if (Array.isArray(p.days)) return false;
     // Saved before the days were kept on the roll: one dated another day that carries this day's block is read to see.
@@ -1323,10 +1347,27 @@ function relayRollsFor(iso) {
     return !!parseRelayRoll(p.text, roster, p.sentOn || null).days[iso];
   }).map(function(p, i) { return { p: p, i: i }; }).sort(function(a, b) { return (a.p.at || 0) - (b.p.at || 0) || a.i - b.i; }).map(function(x) { return x.p; });
 }
+/* What the day's saved rolls say alone, a hand at a time: each mark as the rolls give it, with nothing entered on the day beside it
+   (the register clerk's sheet is set against this, faces.js F4). Null where no roll is saved for the day. Worked out once a save. */
+var _relayReadingMemo = { key: null, by: {} };
+function relayRollsReading(iso) {
+  var key = (typeof _bookWrites !== 'undefined' ? _bookWrites : 0) + '|' + relayPastes().length;
+  if (_relayReadingMemo.key !== key || _relayReadingMemo.s !== S) _relayReadingMemo = { key: key, s: S, by: {} };
+  if (iso in _relayReadingMemo.by) return _relayReadingMemo.by[iso];
+  var rolls = relayRollsFor(iso), out = null;
+  if (rolls.length) {
+    var rv = { reread: iso, bare: true, choices: {}, msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face }; }) };
+    var day = relayPlan(rv).days.find(function(d) { return d.iso === iso; });
+    out = {};
+    if (day) day.rows.forEach(function(r) { if (r.w) out[String(r.w.id)] = r.next; });
+  }
+  _relayReadingMemo.by[iso] = out;
+  return out;
+}
 /* Whether Day shows the action: a cheap test, drawn on every render (a roll saved before its days were kept is found by
    its own date). */
 function relayDayHasRolls(iso) {
-  return relayPastes().some(function(p) { return p && (p.kind === 'in' || p.kind === 'out') && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); });
+  return relayPastes().some(function(p) { return p && !p.replacedBy && (p.kind === 'in' || p.kind === 'out') && (p.date === iso || (Array.isArray(p.days) && p.days.indexOf(iso) >= 0)); });
 }
 async function relayRereadOpen(iso) {
   var rolls = relayRollsFor(iso);
@@ -1337,17 +1378,18 @@ async function relayRereadOpen(iso) {
       'what was entered or corrected by hand is kept, and the day as it is now goes to the log.' });
   if (!ok) return;
   _relay = { text: rolls.map(function(p) { return p.text; }).join('\n\n'), reread: iso, choices: {}, stock: 0, other: 0, prod: 0,
-    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text }; }) };
+    msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face }; }) };
   _relayView = 'review';
   _relayShowLines = false;
   _attView = 'paste';
   renderAttendance();
   viewTop();
 }
-/* The day as it was goes to the log whole; what comes back is only what was entered or corrected by hand. */
-function relayRereadBase(iso) {
+/* The day as it was goes to the log whole (with why it was read again); what comes back is only what was entered or corrected
+   by hand. */
+function relayRereadBase(iso, why) {
   if (!(S.attendance || {})[iso]) return attDay(iso, true);
-  var was = attDeleteRecord(iso, 'read the rolls again', 'reread').day, rec = attDay(iso, true);
+  var was = attDeleteRecord(iso, why || 'read the rolls again', 'reread').day, rec = attDay(iso, true);
   var copy = function(o) { return JSON.parse(JSON.stringify(o)); };
   Object.keys(was).forEach(function(k) { if (k !== 'marks' && k !== 'extra') rec[k] = copy(was[k]); });
   Object.keys(was.marks || {}).forEach(function(id) { if (was.marks[id] && was.marks[id].src !== 'relay') rec.marks[id] = copy(was.marks[id]); });

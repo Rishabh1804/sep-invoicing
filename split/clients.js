@@ -14,6 +14,57 @@ function _clientStatusDot(c) {
   return '<span class="inv-dot inv-dot-' + (c.isActive ? 'ok' : 'neutral') + '">' + (c.isActive ? 'Active' : 'Inactive') + '</span>';
 }
 
+/* What the app has flagged about each client (the tab map, TM5d): the tasks a client's own page lists (todoClientTasks), gathered in
+   one pass over the rules, since each reads the whole book; worked out when the view is drawn, not at every key typed in its search.
+   String(clientId) → its tasks, the worst first. */
+var _clientFlags = {};
+function clientFlagsRead() {
+  var by = {}, all = [];
+  try { all = todoAppAll(); } catch (e) { all = []; }
+  all.forEach(function(t) {
+    if (t.clientId == null || todoIsSnoozed(t) || !todoSees(t)) return;
+    (by[String(t.clientId)] = by[String(t.clientId)] || []).push(t);
+  });
+  Object.keys(by).forEach(function(k) { by[k].sort(function(a, b) { return (TODO_TONE_RANK[a.tone] || 0) - (TODO_TONE_RANK[b.tone] || 0); }); });
+  return (_clientFlags = by);
+}
+/* Each rule's short word, as a row's end says it. */
+var CLIENT_FLAG_WORD = { owed90: 'past terms', payingSlower: 'paying slower', chequeHeld: 'cheque to deposit', insQuiet: 'gone quiet',
+  insClientDown: 'billing down', insLeak: 'realising low', insBelowVar: 'below cost', challan: 'to bill', cn: 'note due',
+  flowLate: 'past turnaround', flowPriority: 'wanted by a day', prodPlatedUnbilled: 'plated, not billed', prodGaugeUnknown: 'gauge unknown',
+  prodPickledNoChallan: 'challan missing', prodUnweighed: 'not weighed' };
+/* A client's worst flag as a dot and a word, every flag's title in its own title; none, nothing. */
+function clientFlagDotHtml(c) {
+  var list = _clientFlags[String(c.id)];
+  if (!list || !list.length) return '';
+  return '<span class="inv-dot inv-dot-' + uiTone(list[0].tone) + '" data-client-flag="' + escHtml(list[0].rule) + '" title="' +
+    escHtml(list.map(function(t) { return t.title; }).join(' · ')) + '">' + escHtml(CLIENT_FLAG_WORD[list[0].rule] || 'flagged') + '</span>';
+}
+/* The Clients view's verdict (the tab map, TM5d; it was the page-head line, "22 clients"): how many clients and the rule flagged
+   worst ("22 clients · 2 past terms"), one row on the phone (I10: two rules wrapped it on the owner's book); how many are flagged and
+   the next rules, worst first, its facts. */
+function clientsVerdictHtml() {
+  var by = {}, n = 0;
+  Object.keys(_clientFlags).forEach(function(id) {
+    if (!S.clients.some(function(c) { return String(c.id) === id; })) return;
+    n++;
+    _clientFlags[id].forEach(function(t) {
+      var r = by[t.rule] || (by[t.rule] = { n: 0, tone: 'info' });
+      r.n++;
+      if ((TODO_TONE_RANK[t.tone] || 0) < (TODO_TONE_RANK[r.tone] || 0)) r.tone = t.tone;
+    });
+  });
+  var rules = Object.keys(by).sort(function(a, b) { return (TODO_TONE_RANK[by[a].tone] || 0) - (TODO_TONE_RANK[by[b].tone] || 0) || by[b].n - by[a].n; });
+  var say = function(k) { return by[k].n + ' ' + (CLIENT_FLAG_WORD[k] || 'flagged'); };
+  var total = S.clients.length, inactive = S.clients.filter(function(c) { return !c.isActive; }).length;
+  var verdict = todoPlural(total, 'client') + (rules.length ? ' · ' + say(rules[0]) : '');
+  var facts = rules.slice(1).map(function(k) { return { text: say(k), tone: uiTone(by[k].tone) }; }).slice(0, 2);
+  facts.unshift(n ? n + ' flagged' : 'nothing flagged');
+  if (inactive) facts.push(inactive + ' inactive');
+  return uiVerdictHtml({ screen: 'Clients', tone: rules.length ? uiTone(by[rules[0]].tone) : total ? 'ok' : 'neutral', verdict: total ? verdict : 'No clients yet',
+    facts: facts.slice(0, 3), key: 'pageClients-clients', attrs: ' id="clientsVerdict" data-clients-flagged="' + n + '"' });
+}
+
 /* Does a client answer a search? Its name or its GSTIN, case ignored on both: a GSTIN is stored in capitals, and the
    challan form's search lower-cased what was typed and compared it with them, so "20aaack" found nobody. */
 function clientMatchesQuery(c, q) {
@@ -31,8 +82,6 @@ function renderClientList(filter) {
   const filtered = q ? sorted.filter(c => clientMatchesQuery(c, q)) : sorted;
   const el = document.getElementById('clientList');
   if (!el) return;
-  const countEl = document.getElementById('clientsCount');
-  if (countEl) countEl.textContent = filtered.length + (filtered.length === 1 ? ' client' : ' clients');
 
   // Desktop: a client filtered out of the list closes its pane.
   if (_isDesktop && _clientsActiveId && !filtered.some(function(c) { return c.id === _clientsActiveId; })) {
@@ -59,20 +108,22 @@ function renderClientList(filter) {
           '<td class="inv-id inv-col-opt2">' + escHtml(c.gstin || '') + '</td>' +
           '<td class="inv-col-opt1">' + escHtml([CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ')) + '</td>' +
           '<td class="inv-num">' + (r ? formatCurrency(r.ratePerKg) : '&mdash;') + '</td>' +
-          '<td>' + _clientStatusDot(c) + '</td></tr>';
+          // Its worst flag where it has one (TM5d), else whether it is active.
+          '<td>' + (c.isActive ? clientFlagDotHtml(c) || _clientStatusDot(c) : _clientStatusDot(c)) + '</td></tr>';
       }).join('') + '</tbody></table>';
     return;
   }
 
   el.innerHTML = '<div class="inv-panel inv-panel-flush">' + filtered.map(c => {
     const r = _clientRateNow(c);
-    const meta = [c.gstin || 'No GSTIN', CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(' · ');
+    // Two facts (§3b-11): who it is to GST, and how it is billed with its overrides beside the mode.
+    const meta = [c.gstin || 'No GSTIN', [CLIENT_MODE_LABEL[c.billingMode] || c.billingMode, overrides(c)].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<button class="inv-row inv-row-2' + (c.isActive ? '' : ' inv-row-muted') + '" data-action="invEditClient" data-id="' + escHtml(String(c.id)) + '">' +
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
       '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
       '<span class="inv-row-end"><span class="inv-row-stack">' +
       (r ? '<span class="inv-num">' + formatCurrency(r.ratePerKg) + '/kg</span>' : '<span class="inv-row-meta">No rate</span>') +
-      (c.isActive ? '' : _clientStatusDot(c)) + '</span></span></button>';
+      (c.isActive ? clientFlagDotHtml(c) : _clientStatusDot(c)) + '</span></span></button>';
   }).join('') + '</div>';
 }
 
@@ -143,7 +194,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
   }
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml((isAdd ? 'Add client' : 'Edit client')) +
-    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
+    (isAdd ? '' : todoClientCardHtml(c.id) + finClientMoneyHtml(c.id) + flowClientHtml(c.id) + qtClientPanelHtml(c.id) + kbLinkedHtml('client', c.id, c.name, 'Knowledge')) +
     _cfield('ceditName', 'Name', _cinput('ceditName', c.name)) +
     '<div class="inv-fields">' +
     _cfield('ceditGstin', 'GSTIN', _cinput('ceditGstin', c.gstin, 'inv-id', ' maxlength="15"')) +
@@ -164,7 +215,7 @@ function _showClientOverlay(client, isAdd, inPlace) {
     _cfield('ceditGstType', 'GST type', '<select class="inv-select" id="ceditGstType">' +
       opt('intra', c.gstType, 'Intra (CGST+SGST)') + opt('inter', c.gstType, 'Inter (IGST)') + '</select>') +
     '</div>' +
-    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) +
+    _clientDocDefaultsHtml(c) + _clientFloorDefaultsHtml(c) + _clientFlowFieldsHtml(c) +
     _cfield('ceditNotes', 'Notes', '<textarea class="inv-textarea" id="ceditNotes" rows="2">' + escHtml(c.notes) + '</textarea>') +
     '<label class="inv-field inv-toolbar"><input type="checkbox" class="inv-check" id="ceditActive"' + (c.isActive ? ' checked' : '') + '> Active</label>' +
     // A new client takes an optional opening rate; an existing one keeps its dated cards.
@@ -209,6 +260,26 @@ function _clientFloorDefaultsHtml(c) {
     '<div class="inv-field-hint">For a piece plated with no weight of its own: the floor wrote a name with no part (CLAMP and a gauge) and no challan links it. Empty for none.</div></div>' +
     '</div></div></div>';
 }
+/* The client's own turnaround and terms (flow.js, the entry faces' T1; owner, 10 Oct 2026: "Target default one day, can be edited as
+   per material or overall as well", "Mehta 7 days - as we give 2% discount, every other client 45 days"). Empty for the plant's (Settings
+   → Checks & alerts → Turnaround and terms); a part of its own on a row each, two rows free for a new one. */
+function _clientFlowFieldsHtml(c) {
+  var cfg = flowCfg(), parts = (Array.isArray(c.turnaroundParts) ? c.turnaroundParts : []).concat([{ part: '', days: '' }, { part: '', days: '' }]);
+  return '<div class="inv-panel inv-panel-flush" data-client-terms><div class="inv-panel-head"><span class="inv-panel-title">Turnaround and terms</span></div>' +
+    '<div class="inv-panel-body"><div class="inv-fields">' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTerms">Payment terms, days</label>' +
+    _cinput('ceditTerms', +c.payTermsDays > 0 ? String(c.payTermsDays) : '', 'inv-input-num', ' type="number" step="1" min="1" inputmode="numeric" placeholder="' + cfg.termsDays + '"') +
+    '<div class="inv-field-hint">From the invoice’s date. Empty: the plant’s ' + cfg.termsDays + ' days.</div></div>' +
+    '<div class="inv-field"><label class="inv-field-label" for="ceditTurn">Turnaround target, working days</label>' +
+    _cinput('ceditTurn', flowSetNum(c.turnaroundDays) ? String(c.turnaroundDays) : '', 'inv-input-num', ' type="number" step="1" min="0" inputmode="numeric" placeholder="' + cfg.turnDays + '"') +
+    '<div class="inv-field-hint">From the challan to despatch; 0 is the same day. Empty: the plant’s target (' + escHtml(flowDaysWord(cfg.turnDays)) + ').</div></div></div>' +
+    '<div class="inv-field-hint">A part with a target of its own:</div>' + parts.map(function(p, i) {
+      return '<div class="inv-fields" data-client-turn-part="' + i + '"><div class="inv-field"><label class="inv-field-label" for="ceditTurnPart' + i + '">Part</label>' +
+        _cinput('ceditTurnPart' + i, p.part || '', 'inv-id', ' autocomplete="off" data-turn-part') + '</div>' +
+        '<div class="inv-field"><label class="inv-field-label" for="ceditTurnDays' + i + '">Working days</label>' +
+        _cinput('ceditTurnDays' + i, flowSetNum(p.days) ? String(p.days) : '', 'inv-input-num', ' type="number" step="1" min="0" inputmode="numeric" data-turn-days') + '</div></div>';
+    }).join('') + '</div></div>';
+}
 function clientPoExampleRefresh(input) {
   var ex = document.getElementById('ceditPoEx');
   if (!ex) return;
@@ -252,6 +323,21 @@ function _readClientForm(excludeId) {
   if (!clientPoTemplateOk(poTpl.trim())) { showToast('The P.O. pattern needs {challan} where the number goes', 'error'); return null; }
   const dkEl = document.getElementById('ceditDefaultKgPc'), dk = dkEl ? String(dkEl.value || '').trim() : '';
   if (dk !== '' && !(+dk > 0 && +dk <= 100)) { showToast('The default kg per piece is a weight above 0 and up to 100', 'error'); return null; }
+  // Turnaround and terms: a figure typed is the client's own; empty is the plant's.
+  const termsEl = document.getElementById('ceditTerms'), terms = termsEl ? String(termsEl.value || '').trim() : '';
+  if (terms !== '' && !(+terms >= 1 && +terms <= 365)) { showToast('Payment terms are days, from 1 to 365', 'error'); return null; }
+  const turnEl = document.getElementById('ceditTurn'), turn = turnEl ? String(turnEl.value || '').trim() : '';
+  if (turn !== '' && !(+turn >= 0 && +turn <= 60)) { showToast('A turnaround target is working days, from 0 to 60', 'error'); return null; }
+  const turnParts = [];
+  let turnBad = '';
+  document.querySelectorAll('[data-client-turn-part]').forEach(function(row) {
+    const part = String((row.querySelector('[data-turn-part]') || {}).value || '').trim(), days = String((row.querySelector('[data-turn-days]') || {}).value || '').trim();
+    if (!part && days === '') return;
+    if (!part || days === '' || !(+days >= 0 && +days <= 60)) { turnBad = turnBad || (part ? part + ': give its working days, from 0 to 60' : 'A part’s target needs the part'); return; }
+    if (turnParts.some(function(x) { return rateKey(x.part) === rateKey(part); })) { turnBad = turnBad || part + ' has two targets'; return; }
+    turnParts.push({ part: part, days: Math.round(+days) });
+  });
+  if (turnBad) { showToast(turnBad, 'error'); return null; }
 
   return {
     name: name,
@@ -270,6 +356,9 @@ function _readClientForm(excludeId) {
     defaultTransport: ((document.getElementById('ceditTransport') || {}).value || '').trim().toUpperCase(),
     poFromChallan: poTpl.trim(),
     defaultKgPc: dk === '' ? undefined : Math.round(+dk * 10000) / 10000,
+    payTermsDays: terms === '' ? undefined : Math.round(+terms),
+    turnaroundDays: turn === '' ? undefined : Math.round(+turn),
+    turnaroundParts: turnParts.length ? turnParts : undefined,
     isActive: document.getElementById('ceditActive').checked
   };
 }
@@ -455,13 +544,15 @@ function closeOverlay() {
 function closeTopOverlay() {
   const all = document.querySelectorAll('.inv-scrim-dialog');
   if (all.length > 0) {
-    all[all.length - 1].remove();
+    const top = all[all.length - 1];
+    top.remove();
     popFocus();
     // The last one shut: the page scrolls again, and a layout switch deferred while it was open runs now.
     if (document.querySelectorAll('.inv-scrim-dialog').length === 0) {
       document.body.style.overflow = '';
       if (_pendingModeSwitch) { _pendingModeSwitch = false; updateLayoutMode(); }
     }
+    dialogClosed(top);
   }
 }
 
@@ -488,6 +579,7 @@ function _renderClientDetail(clientId, skipMasterRefresh) {
 
     html += todoClientCardHtml(c.id);
     html += finClientMoneyHtml(c.id);
+    html += flowClientHtml(c.id);
     html += qtClientPanelHtml(c.id);
     html += kbLinkedHtml('client', c.id, c.name, 'Knowledge');
 

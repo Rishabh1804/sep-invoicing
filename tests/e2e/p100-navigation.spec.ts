@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, openSettingsAt, switchTab, waitForBoot } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, openSettingsAt, switchTab, waitForBoot, setFilter } from './fixtures';
 import { imState } from './im-fixture';
 
 // P100: navigation (UX overhaul 2, step 1; owner, 28 Sep 2026: "Backspace goes back through the screens visited, with a
@@ -37,7 +37,8 @@ test.describe('P100: navigation on the phone', () => {
     await expect.poll(() => where(page)).toEqual(office);
     // A filter is not a place.
     await page.locator('#wsTabs [data-tab="pageIM"]').click();
-    await page.locator('#imStatusFilter').selectOption('pending');
+    // Under Filter on the phone (the tab map, TM5b): the dialog is a layer, and back passes over it once shut.
+    await setFilter(page, '#imStatusFilter', 'pending');
     await page.goBack();
     await expect.poll(() => where(page)).toEqual(office);
   });
@@ -122,7 +123,8 @@ test.describe('P100: navigation on the phone', () => {
     await expect.poll(() => where(page)).toEqual(['pageStats', 'cost']);
     await page.locator('#topbarTitle').click();
     await page.keyboard.press('Backspace');
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="overview"][aria-selected="true"]')).toHaveCount(1);
+    // Back to the tab Stats opened on (By client since the tab map, TM2b).
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="clients"][aria-selected="true"]')).toHaveCount(1);
     await switchTab(page, 'pageRegister');
     const search = page.locator('#pageRegister input[type="search"], #pageRegister .inv-search input').first();
     await search.fill('x');

@@ -1,9 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, openVerdict, toolbarMore } from './fixtures';
 import { CLIENTS, challan, dayOff, inv, openSearch, search, searchBook, titles } from './p139-search.fixture';
 import { PINS, guardBook, withUsers, unlock, windowGone } from './p140-guard.fixture';
 import { pipeState } from './p137-pipeline.fixture';
-import { floorBook, openFloor, tile } from './p138-floor-day.fixture';
+import { floorBook, openFloor, hero } from './p138-floor-day.fixture';
 
 // P151: the QA chain of 2 Oct 2026 on search, Add, Office → Pipeline and Floor → Day (QA3-1 … QA3-12, QA4-1). Search showed
 // a role the screens and actions its pages hide, and a To-do jump drew its dialog over Home after the page was refused; a
@@ -152,14 +152,14 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
       await expect(page.locator('#pageStock')).toHaveClass(/inv-page-active/);
     };
     // The credit notes and the number audit (with its Record, which writes a void) drew their dialogs over Home.
-    await nothing(`todoGo({ kind: 'cnList' })`, 'Register');
-    await nothing(`todoGo({ kind: 'audit' })`, 'Register');
+    await nothing(`todoGo({ kind: 'cnList' })`, 'Invoices');
+    await nothing(`todoGo({ kind: 'audit' })`, 'Invoices');
     // A task linked to an invoice showed the invoice, its Mark buttons included; one linked to a client its rate ladder.
-    await nothing(`todoGoLink('T-INV')`, 'Register');
+    await nothing(`todoGoLink('T-INV')`, 'Invoices');
     await expect(page.locator('[data-inv-detail]')).toHaveCount(0);
     await nothing(`todoGoLink('T-CL')`, 'Clients');
     await expect(page.locator('[data-action="invSaveClient"]')).toHaveCount(0);
-    await nothing(`todoGo({ kind: 'bills', month: '${ym(1)}' })`, 'Finance');
+    await nothing(`todoGo({ kind: 'bills', month: '${ym(1)}' })`, 'Money');
     await nothing(`todoGo({ kind: 'payWages' })`, 'Pay');
     // A page it does open still opens.
     await g(page, `todoGo({ kind: 'staffRoster' })`);
@@ -175,7 +175,7 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
     // The office opens the Register and its audit, and may not void: told so, never asked a PIN, nothing written.
     await unlock(page, 'U-off', PINS.office);
     await switchTab(page, 'pageRegister');
-    await page.locator('#regNumberAudit').click();
+    await toolbarMore(page, 'Number audit');
     await page.locator('[data-action="invAccountForNumber"][data-num="2"]').click();
     await page.locator('#invGapReason').fill('spoiled, never issued');
     await page.locator('[data-action="invSaveGapReason"]').click();
@@ -189,7 +189,7 @@ test.describe('P151: a role finds and opens only what its screens show', () => {
     await unlock(page, 'U-own', PINS.owner);
     await windowGone(page);
     await switchTab(page, 'pageRegister');
-    await page.locator('#regNumberAudit').click();
+    await toolbarMore(page, 'Number audit');
     await page.locator('[data-action="invAccountForNumber"][data-num="2"]').click();
     await page.locator('#invGapReason').fill('spoiled, never issued');
     await page.locator('[data-action="invSaveGapReason"]').click();
@@ -308,17 +308,18 @@ Durga auto 0101--400 nos` : '');
     expect(src.match(/['"][^'"\n]*More →[^'"\n]*['"]/g) || []).toEqual([]);
   });
 
-  test('QA3-9: Floor → Day counts the day\'s roster as Staff → Day does: a hand marked that day who has since left', async ({ page }) => {
+  test('QA3-9: Floor\'s Overview counts the day\'s roster as People → Day does: a hand marked that day who has since left', async ({ page }) => {
     const s: any = floorBook();
     s.staff[0].active = false;   // Alfa left after today's marks
     await loadAppWithState(page, s);
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="day"]').click();
+    await openAttendance(page, 'day');
+    await openVerdict(page);   // the day's card is shut on the phone until opened (TM4b)
     const staffOn = await page.locator('#attOnSite').innerText();
-    const staffOf = await page.locator('#attDayTiles .inv-tile-of').first().innerText();
+    const staffOf = await page.locator('#attDayVerdict .inv-tile-of').first().innerText();
     expect(staffOn + staffOf).toBe('16/17');
     await openFloor(page);
-    await expect(tile(page, 'onsite').locator('.inv-tile-value')).toHaveText('16/17');
+    await expect(hero(page, 'people').locator('.inv-hero-fig')).toHaveText('16/17');
   });
 
   test('QA3-11: search\'s Add a bill opens the latest month with no electricity bill, as Add → Bill does', async ({ page }) => {

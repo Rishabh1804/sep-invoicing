@@ -1,6 +1,6 @@
 import { test, expect, Page } from '@playwright/test';
 import {
-  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab, workdayIso } from './fixtures';
+  emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, workingDaysBack, openStatsTab, workdayIso, openAttendance } from './fixtures';
 
 /**
  * Staff tab + labour breakdown.
@@ -33,7 +33,7 @@ function staffState(extra: Record<string, unknown> = {}) {
 }
 
 // Staff opens on its Overview (spec 7a); these tests are about the Day view, so they open it.
-const openStaff = async (page: Page) => { await switchTab(page, 'pageStaff'); await page.locator('[data-action="invAttView"][data-view="day"]').click(); };
+const openStaff = async (page: Page) => { await switchTab(page, 'pageStaff'); await openAttendance(page, 'day'); };
 /** Today, unless today is a Sunday: then the Saturday before. A Sunday worked is paid as a day, never as OT, so a spec
  *  about overtime that marks "today" only held six days a week. */
 /** The Day view on a given date, through the date field the operator uses. */
@@ -116,7 +116,7 @@ test('an hourly worker has no half day to reach, in either view', async ({ page 
   await expect(page.locator(`[data-action="invAttSet"][data-id="${POOL.id}"][data-st="H"]`)).toHaveCount(0);
   await expect(page.locator(`[data-action="invAttSet"][data-id="${LEAD.id}"][data-st="H"]`)).toBeVisible();
 
-  await page.locator('[data-action="invAttView"][data-view="week"]').click();
+  await openAttendance(page, 'week');
   const cell = page.locator(`[data-action="invAttCycle"][data-id="${POOL.id}"][data-date="${todayIso()}"]`);
   await cell.click();
   await expect(cell).toHaveText('P');
@@ -129,7 +129,7 @@ test('an hourly worker has no half day to reach, in either view', async ({ page 
 test('the week grid cycles a monthly worker through the half day', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await openStaff(page);
-  await page.locator('[data-action="invAttView"][data-view="week"]').click();
+  await openAttendance(page, 'week');
 
   const cell = page.locator(`[data-action="invAttCycle"][data-id="${LEAD.id}"][data-date="${todayIso()}"]`);
   await expect(cell).toHaveText('·');
@@ -717,7 +717,9 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
   await expect(card.locator('[data-tile="perkg-withheld"]')).toBeVisible();
   await expect(card).toContainText('₹/kg withheld');
   await expect(card).toContainText('working days are recorded');
-  await expect(card).toContainText('never neutral');
+  // One line says it reads low (the tab map, TM2b); why an incomplete record reads low, never neutral, is the screen's guide.
+  await expect(card).toContainText(/Reads low: \d+ working days not recorded/);
+  expect(await page.evaluate(() => (window as any).KB_APP_GUIDES.find((a: any) => a.id === 'app-stats').body)).toContain('Labour reads **low** when days are not recorded');
 });
 
 test('Stats stays silent about labour while the roster is empty', async ({ page }) => {

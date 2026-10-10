@@ -174,7 +174,8 @@ export async function readStoredState(page: Page): Promise<any> {
   return page.evaluate(async () => JSON.parse((await (window as any).readPersistedStateRaw()) || '{}'));
 }
 
-/** Stats is grouped into tabs (Overview, Clients, Cost, Billing, Trends): open one. */
+/** Stats is grouped into tabs (By client, Cost, Trends; the tab map, TM2: Overview's cards are Pulse's, Billing's dispatch cycle
+ *  Pipeline's): open one by its id (`clients`, `cost`, `trends`). */
 export async function openStatsTab(page: Page, tab: string): Promise<void> {
   await switchTab(page, 'pageStats');
   await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
@@ -182,14 +183,15 @@ export async function openStatsTab(page: Page, tab: string): Promise<void> {
 }
 
 /* The workspaces (DIRECTION_B), restated from split/workspace.js WORKSPACES: which workspace holds each page. The phone
-   bar and the desktop's rail carry Today, Office, Floor and Money; Office holds what was Insights as its review (8 Oct 2026).
-   Create and the To-do are held without a tab. */
+   bar and the desktop's rail carry Today, Office, Floor and Money. The tab map (9 Oct 2026): Today holds its Insights (Stats,
+   Reports, the Planner); History and Knowledge are tools in the top bar and belong to no workspace. Create is held without a
+   tab; the To-do joined Needs you (TM2). */
 const WS_OF: Record<string, string> = {
-  pageHome: 'today', pageTodo: 'today',
+  pageHome: 'today', pageStats: 'today', pageReports: 'today', pagePlanner: 'today',
   pagePipeline: 'office', pageIM: 'office', pageRegister: 'office', pageClients: 'office', pageCreate: 'office',
-  pageStats: 'office', pageReports: 'office', pagePlanner: 'office', pageHistory: 'office', pageKnow: 'office',
   pageFloor: 'floor', pageStaff: 'floor', pageProduction: 'floor', pageStock: 'floor', pagePower: 'floor',
   pageFinance: 'money',
+  pageFace: 'mine',
 };
 
 export async function switchTab(page: Page, tabId: string): Promise<void> {
@@ -197,6 +199,11 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   // one works; the first is taken, so the helper is layout-agnostic.
   const door = () => page.locator(`[data-action="invSwitchTab"][data-tab="${tabId}"]:visible`);
   const active = page.locator(`#${tabId}.inv-page-active`);
+  // History is the top bar's (its clock, on both layouts).
+  if (tabId === 'pageHistory' && !(await active.count())) {
+    const tool = page.locator('.inv-topbar [data-action="invGoHistory"]:visible');
+    if (await tool.count()) { await tool.first().click(); await active.waitFor(); return; }
+  }
   let opened = false;
   if ((await door().count()) === 0) {
     // None on screen: open the page's workspace (its bar item on the phone, its head in the sidebar), whose tab row then
@@ -213,8 +220,8 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   if (opened && (await active.count())) { /* the workspace opened on the page itself (Money, Today) */ }
   else if (await door().count()) await door().first().click();
   else {
-    // The last resort, where the shell has no door to the page: the pages a workspace holds without a tab (Create, the
-    // To-do) when nothing on screen links to them. Opened the way a jump opens them, then recorded as a click's step would be.
+    // The last resort, where the shell has no door to the page: the page a workspace holds without a tab (Create) when
+    // nothing on screen links to it. Opened the way a jump opens them, then recorded as a click's step would be.
     await page.evaluate(id => { (window as any).switchTab(id); (window as any).navSoon(); }, tabId);
   }
   await active.waitFor();
@@ -228,6 +235,145 @@ export async function openPulse(page: Page): Promise<void> {
   const tab = page.locator('#wsTabs [data-v="pulse"]');
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
   await page.locator('#homePulse:not(.inv-hidden)').waitFor();
+}
+
+/** A Pulse widget opened to its body: each is a hero shut on the phone until opened (the tab map, TM2c), its line answering at a
+ *  glance and its tiles, rows and buttons inside. Opens Pulse first. */
+export async function openWidget(page: Page, key: string): Promise<void> {
+  await openPulse(page);
+  const hero = page.locator(`[data-home-w="${key}"] details.inv-hero`).first();
+  if ((await hero.count()) && !(await hero.evaluate(el => (el as HTMLDetailsElement).open))) await hero.locator(':scope > summary').click();
+}
+/** Pulse's widgets every preset hides since the tab map (TM2c: To-do, Recent invoices and Money are Needs you's and Money's),
+ *  shown on this device as Edit Home's switch shows them, the layout then the owner's own. Call before loadAppWithState: the
+ *  layout is written before each load. */
+export async function withHomeWidgets(page: Page, keys: string[]): Promise<void> {
+  await page.addInitScript(ks => {
+    try {
+      const hidden: Record<string, boolean> = { production: true, power: true, stock: true, money: true, todo: true, recent: true };
+      ks.forEach(k => { delete hidden[k]; });
+      localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', hidden, wide: { mtd: true, quick: true, recent: true },
+        order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'production', 'power', 'stock', 'sync', 'zinc', 'recent'] }));
+    } catch { /* storage refused: the presets stand */ }
+  }, keys);
+}
+
+/** Office → Sales (the tab map, 9 Oct 2026): Prospects and Quotations are Sales' own row, on the page Clients shares. Opens Sales
+ *  through Office's row, then `view`. */
+export async function openSales(page: Page, view: 'prospects' | 'quotes' = 'prospects'): Promise<void> {
+  await switchTab(page, 'pageClients');
+  await page.locator('#wsTabs [data-action="invSwitchTab"][data-tab="pageClients"][data-v="prospects"]').click();
+  if (view !== 'prospects') await page.locator(`#pageClients .inv-viewtab[data-view="${view}"]`).click();
+  await page.locator(`#pageClients .inv-viewtab[data-view="${view}"][aria-selected="true"]`).waitFor();
+}
+/** The toolbar's Filter (one look, docs/TAB_MAP.md §1a-2): on the phone the screen's filters and sort sit in a dialog opened by
+ *  Filter; on the desktop they are inline and this does nothing. Done or Esc shuts it (`closeFilter`). */
+export async function phoneFilter(page: Page): Promise<void> {
+  const btn = page.locator('.inv-page-active [data-action="invTbFilter"]:visible');
+  if (!(await btn.count())) return;
+  await btn.first().click();
+  await page.locator('[data-tb-filter-dialog]').waitFor();
+}
+export async function closeFilter(page: Page): Promise<void> {
+  const done = page.locator('[data-tb-filter-dialog] [data-action="invTbFilterDone"].inv-btn-primary');
+  if (await done.count()) { await done.click(); await expect(page.locator('[data-tb-filter-dialog]')).toHaveCount(0); }
+}
+/** A control of the toolbar's filters (Office's screens, the tab map TM5): behind Filter on the phone, opened here where it is shut,
+ *  inline on the desktop. Hands back the control; `closeFilter` shuts the dialog when the caller is done with it. */
+export async function filterControl(page: Page, sel: string) {
+  const dlg = page.locator('[data-tb-filter-dialog]');
+  if (!(await dlg.count())) await phoneFilter(page);
+  return (await dlg.count()) ? dlg.locator(sel) : page.locator('.inv-page-active ' + sel);
+}
+/** Sets one filter as the hand does: a select picked, a date or month typed, then Filter's dialog shut (on the phone; on the desktop
+ *  the control is the row's and nothing opens). */
+export async function setFilter(page: Page, sel: string, value: string): Promise<void> {
+  const el = await filterControl(page, sel);
+  if ((await el.evaluate(e => e.tagName)) === 'SELECT') await el.selectOption(value);
+  else { await el.fill(value); await el.dispatchEvent('change'); }
+  await closeFilter(page);
+}
+/** The toolbar's More (§1a-2, §1a-10): opens it, on either layout, and picks the row named `label` (its dialog shuts first, then
+ *  the row acts). Without a label it only opens the dialog. */
+export async function toolbarMore(page: Page, label?: string): Promise<void> {
+  await page.locator('.inv-page-active [data-action="invTbMore"]:visible').first().click();
+  const dlg = page.locator('[data-tb-more-dialog]');
+  await dlg.waitFor();
+  if (label != null) await dlg.locator('[data-tb-pick]', { hasText: label }).first().click();
+}
+/** The labels under the toolbar's More (§1a-10), read by opening it and shut again: what the screen on show offers there. */
+export async function toolbarMoreLabels(page: Page): Promise<string[]> {
+  const btn = page.locator('.inv-page-active [data-action="invTbMore"]:visible').first();
+  if (!(await btn.count())) return [];
+  await btn.click();
+  const dlg = page.locator('[data-tb-more-dialog]');
+  await dlg.waitFor();
+  const labels = await dlg.locator('[data-tb-pick] .inv-row-title').allInnerTexts();
+  await page.keyboard.press('Escape');
+  await expect(dlg).toHaveCount(0);
+  return labels;
+}
+/** Production → Entries (the tab map, TM4c): a flag the list is filtered by is a tile of the screen's card, which is shut on the
+ *  phone until opened. */
+export async function prodFlag(page: Page, flag: string): Promise<void> {
+  const v = page.locator('#prodEntriesVerdict');
+  if (await v.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await v.locator(':scope > summary').click();
+  await v.locator(`[data-action="invProdFilter"][data-flag="${flag}"]`).click();
+}
+/** An entry's action on Production → Entries: at the row's end, else in its fold on the phone (opened first), else in the pane
+ *  beside the list on the desktop, as the hand does. A panel above the list (Line unknown, Not weighed) can name the same entry with
+ *  the same mark, so the list's own row is the one acted on. */
+export async function prodEntryAct(page: Page, id: string, action: string): Promise<void> {
+  const shown = page.locator(`#pageProduction [data-prod-entry="${id}"] [data-action="${action}"]`).first();
+  if (await shown.isVisible().catch(() => false)) { await shown.click(); return; }
+  const fold = page.locator(`#pageProduction details[data-prod-entry="${id}"]`).first();
+  if (await fold.count()) {
+    if (!(await fold.evaluate(el => (el as HTMLDetailsElement).open))) await fold.locator(':scope > summary').click({ position: { x: 12, y: 12 } });
+    await fold.locator(`[data-action="${action}"]`).first().click();
+    return;
+  }
+  await page.locator(`#pageProduction [data-action="invProdEntryOpen"][data-id="${id}"]`).first().click();
+  await page.locator(`#prodEntryPane [data-action="${action}"]`).first().click();
+}
+/* People → Attendance's Day, Week or Month (the tab map, TM4b): a switch under Attendance's toolbar, the tab returning to the last
+   of the three. From anywhere on People, the Attendance tab first where the switch is not on screen. */
+export async function openAttendance(page: Page, view: 'day' | 'week' | 'register' = 'day'): Promise<void> {
+  const sw = page.locator(`#pageStaff [data-att-period] [data-view="${view}"]`);
+  if (!(await sw.isVisible())) await page.locator('#pageStaff .inv-viewtab[data-action="invAttView"][data-view="attendance"]').click();
+  // An empty roster draws Attendance's way in and no switch: there is nothing yet to read by day, week or month.
+  if (!(await page.locator('#pageStaff [data-att-period]').count())) return;
+  await sw.click();
+}
+/** People → Attendance → Day as the board or as Deepak's sheet (the tab map, TM4b): the toolbar's switch on the desktop, More's
+ *  row on the phone, which offers only the way the day is not shown (nothing to do when it already is). */
+export async function attDayAs(page: Page, as: 'board' | 'sheet'): Promise<void> {
+  const seg = page.locator(`#pageStaff [data-att-toolbar="day"] [data-action="invAttDayAs"][data-v="${as}"]`);
+  if (await seg.count()) { await seg.click(); return; }
+  if ((await page.evaluate(() => (window as any).attDayAsSheet())) === (as === 'sheet')) return;
+  await toolbarMore(page, as === 'sheet' ? 'Show as Deepak' : 'Show as the board');
+  await page.locator(as === 'sheet' ? '#attSheetEntry' : '#pageStaff .inv-board').first().waitFor();
+}
+/** A fold (`details[data-fold="key"]`, uiFoldCard / uiFoldHtml) opened where it is shut: shut on the phone and open on the desktop
+ *  by default, and a tap on an open one's head would shut it. */
+export async function openFoldAt(page: Page, key: string): Promise<void> {
+  const d = page.locator(`.inv-page-active details[data-fold="${key}"], .inv-scrim-dialog details[data-fold="${key}"]`).first();
+  await d.waitFor({ state: 'attached' });
+  if (!(await d.evaluate(el => (el as HTMLDetailsElement).open))) await d.locator(':scope > summary').click();
+}
+/** Money's Import of a bank statement (the tab map, TM3c): a door on the screen (the Bank toolbar's own button while no statement
+ *  is held, the empty Receivables' or Payments' link), else the Bank toolbar's More. Opens the file chooser; the caller waits on it. */
+export async function bankImportDoor(page: Page): Promise<void> {
+  const shown = page.locator('#pageFinance [data-action="invBankImport"]:visible');
+  if (await shown.count()) { await shown.first().click(); return; }
+  await toolbarMore(page, 'Import a statement');
+}
+/** The phone's name for toolbarMore, kept for the specs written before the desktop took the same row (§1a-10). */
+export const phoneMore = toolbarMore;
+/** A work screen's verdict card (§3e) is shut on the phone until opened: opens it where it is shut, on either layout. */
+export async function openVerdict(page: Page): Promise<void> {
+  const v = page.locator('.inv-page-active [data-verdict]').first();
+  await v.waitFor();
+  if (await v.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await v.locator(':scope > summary').click();
 }
 
 /** Open Settings the way the operator does and bring one section into view:

@@ -184,7 +184,10 @@ test('training is recorded against the roster, and a lesson changed since makes 
   await page.locator('#kbTrainWho').selectOption('1');
   await page.locator('[data-kb-train-a="L1"]').check();
   await page.locator('[data-action="invKbTrainSave"]').click();
-  await expect(page.locator('#kbRoster')).toContainText('trained on 1 of 1');
+  // Of every lesson the role reads, the app's own guides included: "1 of 1" had passed only as part of "1 of 19".
+  const lessons = await page.evaluate(() => (window as any).kbReadable().filter((window as any).kbIsLesson).length);
+  expect(lessons).toBeGreaterThan(1);
+  await expect(page.locator('#kbRoster [data-action="invKbTrain"][data-staff="1"]')).toContainText(`trained on 1 of ${lessons}`);
   let st: any = await readStoredState(page);
   expect(st.kb.trained[0]).toMatchObject({ staffId: 1, articleId: 'L1', v: 1, name: 'Alfa Kumar' });
   // The lesson changes: the training is due again, and the To-do says so.

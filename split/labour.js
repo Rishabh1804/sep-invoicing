@@ -63,7 +63,10 @@ function labourCfg() {
     modelPerKg: c.modelPerKg || 0,
     extraHoursPerHead: c.extraHoursPerHead != null ? c.extraHoursPerHead : 8,
     gateFull: c.gateFull != null ? c.gateFull : 0.9,
-    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8
+    gateHalf: c.gateHalf != null ? c.gateHalf : 0.8,
+    // Snacks a person, paid with the weekly payout (owner, 10 Oct 2026: "20 per person regular OT, and 60 per person for night OT").
+    snackOt: c.snackOt != null ? c.snackOt : 20,
+    snackNight: c.snackNight != null ? c.snackNight : 60
   };
 }
 
@@ -431,7 +434,7 @@ function _labPanelHead(card, title, total, extraClass, id) {
    Permanent payroll is not in here and the caption says so. A monthly salary
    cannot be attributed to a day, let alone to the area that day was worked in;
    splitting it by home area would print an allocation that nobody measured. */
-function _labAreaRows(lab) {
+function _labAreaRows(lab, compact) {
   var keys = Object.keys(lab.byArea).filter(function(k) { return lab.byArea[k].cost > 0; });
   if (keys.length === 0) return '';
   keys.sort(function(a, b) { return lab.byArea[b].cost - lab.byArea[a].cost; });
@@ -455,6 +458,12 @@ function _labAreaRows(lab) {
     };
   });
 
+  // On Stats → Cost the chart is the rest (§3e): a row that folds open to it, shut on the phone, with one line under it; why the
+  // monthly crew is left out is the guide's (kbguides.js, Reading Stats). The tab map, TM2b.
+  if (compact) return '<details class="inv-row-fold" data-fold="stats-lab-areas"' + (uiFoldOpen('stats-lab-areas', !!_isDesktop) ? ' open' : '') + ' data-lab-areas>' +
+    '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Variable labour by area</span></span><span class="inv-row-end inv-num">' + formatCurrency(total) + '</span></summary>' +
+    '<div class="inv-panel-body">' + chartRankedBars(rows, { unit: 'money' }) +
+    '<div class="inv-note inv-mt-8">The monthly crew’s day pay and rest days are not by area; its overtime is.</div></div></details>';
   return '<div class="inv-row-group">Variable labour by area</div>' +
     '<div class="inv-panel-body">' + chartRankedBars(rows, { unit: 'money' }) +
     '<div class="inv-note inv-mt-8">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
@@ -466,9 +475,15 @@ function _labAreaRows(lab) {
 
 /* The breakdown card. Used by the Attendance tab for a day or a week (cash
    only) and by Stats for the period (cash and ₹/kg). */
-function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
+/* `opts.compact` (Stats → Cost, the tab map TM2b): the record's coverage is a badge on the measured figure and the card says one
+   line at most; why an incomplete record reads low, and what the extra is, are the guide's (kbguides.js, Reading Stats). */
+function renderLabourCard(fromIso, toIso, title, tonnage, extraClass, opts) {
   var lab = labourForRange(fromIso, toIso);
   var cfg = labourCfg();
+  var compact = !!(opts && opts.compact);
+  var covPct = Math.round(lab.coverage * 100);
+  var covBadge = ' <span class="inv-badge inv-badge-' + (lab.coverage >= 0.9 ? 'ok' : lab.coverage >= 0.5 ? 'warning' : 'danger') + '" data-lab-cov>' +
+    lab.daysRecorded + ' of ' + lab.workingDays + ' days</span>';
   var html = _labPanelHead('labour', title || 'Labour', formatCurrency(lab.total), extraClass);
 
   if (lab.rosterSize === 0) {
@@ -484,25 +499,25 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
     var verdict = labourPerKgVerdict(lab, tonnage.kg);
     if (verdict.ok) {
       var gap = cfg.modelPerKg > 0 ? verdict.perKg - cfg.modelPerKg : null;
-      tiles += _labTile('perkg', 'Measured labour', formatCurrency(verdict.perKg) + '<span class="inv-tile-of">/kg</span>',
+      tiles += _labTile('perkg', 'Measured labour' + (compact ? covBadge : ''), formatCurrency(verdict.perKg) + '<span class="inv-tile-of">/kg</span>',
         gap != null
           ? 'against ' + formatCurrency(cfg.modelPerKg) + '/kg modelled &mdash; ' + (Math.abs(gap) < 0.005 ? 'the same figure'
               : formatCurrency(Math.abs(gap)) + '/kg ' + (gap > 0 ? 'higher' : 'lower'))
           : '');
-      if (lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
+      if (!compact && lab.rangeDays < LABOUR_PERKG_LAG_DAYS) {
         after += _labCallout('Read that as an order of magnitude, not a rate. The labour is ' +
           'this period&rsquo;s; the tonnage under it is what was <strong>billed</strong> in this period, and ' +
           'material is plated weeks before it is invoiced. Over a quarter or a year the two line up; over ' +
           'a month they measure partly different work.');
       }
-      if (tonnage.coverage < 0.999) {
+      if (!compact && tonnage.coverage < 0.999) {
         after += _labCallout('That ₹/kg divides the whole labour bill by tonnage covering <strong>' +
           Math.round(tonnage.coverage * 100) + '% of revenue</strong>. The unweighed lines are the piece-billed work, ' +
           'so the real denominator is larger and the true labour cost per kilo is <strong>lower</strong> than this. ' +
-          'Items Master &rarr; Derive weights from rates closes it.');
+          'Clients &rarr; Parts &rarr; Derive weights from rates closes it.');
       }
     } else {
-      tiles += _labTile('perkg-withheld', '₹/kg withheld', '&mdash;', verdict.why);
+      tiles += _labTile('perkg-withheld', '₹/kg withheld' + (compact ? covBadge : ''), '&mdash;', verdict.why);
     }
   }
   html += '<div class="inv-tiles inv-tiles-flush">' + tiles + '</div>' + after;
@@ -541,9 +556,10 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
 
   // Coverage, always, in the same place whether it is complete or not. A card
   // that only mentions its gaps when it has them teaches the reader to stop
-  // looking for the line.
-  var covPct = Math.round(lab.coverage * 100);
-  html += _labNote('Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
+  // looking for the line. Compact: the badge on the figure says it, and one line says it reads low.
+  if (compact) {
+    if (lab.coverage < 0.999) html += _labNote('Reads low: ' + todoPlural(lab.workingDays - lab.daysRecorded, 'working day') + ' not recorded (' + covPct + '% recorded).');
+  } else html += _labNote('Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
     ' working days</strong> in this range (' + covPct + '%)' +
     (lab.sundaysRecorded > 0 ? ', plus ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') + '. ' +
     (lab.coverage < 0.999
@@ -569,9 +585,9 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass) {
 
   // The allocation answer sits last: it is a breakdown of a figure the reader
   // has already been given.
-  html += _labAreaRows(lab);
+  html += _labAreaRows(lab, compact);
 
-  if (lab.extra > 0) {
+  if (lab.extra > 0 && !compact) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
     html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
       'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
@@ -601,5 +617,5 @@ function renderLabourStatsCard(period, tonnage) {
   if ((S.staff || []).length === 0) return '';
   var r = labourRangeForPeriod(period);
   if (!r) return '';
-  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' labour', tonnage, 'inv-panels-wide');
+  return renderLabourCard(r.from, r.to, (PERIOD_LABELS[period] || '') + ' labour', tonnage, 'inv-panels-wide', { compact: true });
 }

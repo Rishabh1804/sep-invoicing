@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore, filterControl, closeFilter } from './fixtures';
 
 // P106: the QA sweep of 29 Sep 2026 in Challans (IM), Items Master and Clients. Names and figures are made up.
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
@@ -263,7 +263,7 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
     await loadAppWithState(page, mergeState());
     expect(await g(page, 'findDuplicateGroups(S.items).map(function(gr){ return gr.items.map(function(i){ return i.id; }); })')).toEqual([[2, 3]]);
     await openItems(page);
-    await page.locator('[data-action="invOpenMergeTool"]').click();
+    await toolbarMore(page, 'Merge');
     await expect(page.locator('#mergeGroup0 [data-gauge]').first()).toHaveText('40X6');
     await page.locator('[data-action="invMergeGroup"][data-group="0"]').click();
     await expect(page.locator('#mergeGroup0')).toContainText('Lines left as issued');
@@ -286,9 +286,12 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
   test('C8, C15, C14: usage is read fresh, a hidden tick is dropped, a delete takes its tick, an edit cannot make a twin', async ({ page }) => {
     await loadAppWithState(page, mergeState());
     await openItems(page);
-    await expect(page.locator('[data-action="invFilterUnused"]')).toHaveText('Unused (2)');
+    // Unused is a choice in Parts' Filter on the phone (the tab map, TM5e).
+    await expect(await filterControl(page, '[data-action="invFilterUnused"]')).toHaveText('Unused (2)');
+    await closeFilter(page);
     await g(page, 'S.incomingMaterial.push({ id: "IM-N", clientId: 1, challanDate: "2026-09-01", items: [{ id: "IM-N-0", partNumber: "CLAMP 165X83 (NT)", unit: "NOS", qty: 1 }] }); renderClientsPage(); 1');
-    await expect(page.locator('[data-action="invFilterUnused"]')).toHaveText('Unused (0)');
+    await expect(await filterControl(page, '[data-action="invFilterUnused"]')).toHaveText('Unused (0)');
+    await closeFilter(page);
     await page.locator('[data-item-row="1"] .inv-row-tick').click();
     await page.locator('#itemsSearch').fill('CLMP');
     await expect(page.locator('#itemsSelBar .inv-selbar')).toHaveCount(0);
@@ -331,7 +334,7 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
     s.invoices = [inv('D1', 'filed', [{ partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', unit: 'NOS', qty: 10, rate: 4.89, amount: 48.9 }])];
     await loadAppWithState(page, s);
     await openItems(page);
-    await page.locator('[data-action="invOpenWeightEntry"]').click();
+    await toolbarMore(page, 'Enter weights');
     await expect(page.locator('[data-two-gauge]')).toContainText('held in two gauges');
     await expect(page.locator('[data-action="invDeriveWeights"]')).toHaveCount(0);
   });

@@ -272,21 +272,20 @@ function cpPriorSameDays(clientId) {
    part says how long it has been gone; a possible rename says so. */
 function _cpMaterialRowList(list, renames) {
   return list.map(function(m) {
-    var meta = m.times + '× · last ' + formatDate(m.lastSeen) +
-      (m.typicalGap > 0 ? ' · usually every ' + Math.round(m.typicalGap) + 'd' : '') +
-      (m.kg > 0 ? ' · ' + formatNum(m.kg, 0) + ' kg' : '');
+    // Two facts (the tab map, TM5f): how often and when last; its rhythm and kilograms in its title.
+    var meta = m.times + '× · last ' + formatDate(m.lastSeen);
+    var more = [m.typicalGap > 0 ? 'usually every ' + Math.round(m.typicalGap) + ' days' : '', m.kg > 0 ? formatNum(m.kg, 0) + ' kg' : ''].filter(Boolean).join(', ');
     var rename = renames && renames[m.key];
-    return '<div class="inv-row inv-row-auto" data-cp-mat>' +
+    return '<div class="inv-row inv-row-auto" data-cp-mat' + (more ? ' title="' + escHtml(more) + '"' : '') + '>' +
       '<span class="inv-row-main"><span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(m.part) + '</span></span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
       (m.state === 'stopped'
-        ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-danger">' + m.sinceLast + ' days since the last one' +
+        ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-warning">' + m.sinceLast + ' days since the last one' +
           (m.overdueBy > 0 ? ', about ' + m.overdueBy + ' overdue' : '') + '</span></span>'
         : '') +
       (m.continuesAs ? '<span class="inv-row-meta inv-row-wrap">No gauge written; still comes as ' + escHtml(m.continuesAs) + '</span>' : '') +
       (m.stillComes ? '<span class="inv-note inv-row-wrap">The same size still comes as ' + escHtml(m.stillComes) + '.</span>' : '') +
-      (rename ? '<span class="inv-note inv-row-wrap">Possibly renamed to &ldquo;' + escHtml(rename) +
-        '&rdquo; — the spellings share a stem, so this may not be lost work.</span>' : '') +
+      (rename ? '<span class="inv-note inv-row-wrap">Possibly renamed to &ldquo;' + escHtml(rename) + '&rdquo;: the spellings share a stem</span>' : '') +
       '</span>' +
       // A part that only ever arrived on a challan has no revenue yet. Printing
       // Rs 0.00 for it reads as worthless work rather than unbilled work.
@@ -294,6 +293,39 @@ function _cpMaterialRowList(list, renames) {
       (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
       '</span></div>';
   });
+}
+
+/* Performance's verdict card (the tab map, TM5f): the client's realisation against the month's live cost, in its tone, and its
+   change on the month before (the same days, while a month runs); its flags (the tasks its own page lists) its factors, a coded
+   tile each that opens its task. Shut on the phone, its line names the worst flag. */
+function cpVerdictHtml(clientId, monthly, flags) {
+  var c = S.clients.find(function(x) { return x.id === clientId; }) || {};
+  var today = localDateStr(), last = monthly[monthly.length - 1] || null, prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
+  var partial = !!last && last.month === today.slice(0, 7), bench = !last ? null : partial ? cpPriorSameDays(clientId) : prev;
+  var bl = partial ? 'the same days' : prev ? prev.label : '';
+  var verdict, tone = 'neutral', delta = '', dTone = null;
+  if (last && last.realisation != null) {
+    var cost = cpMonthCost(last.month);
+    tone = (cost && figToneAgainst(last.realisation, cost.perKg, 5)) || 'neutral';
+    verdict = formatCurrency(last.realisation) + '/kg' + (cost ? ' against ' + formatCurrency(cost.perKg) + ' cost' : '');
+    if (bench && bench.realisation != null) { delta = figDeltaText(last.realisation, bench.realisation, bl); dTone = figDeltaTone(last.realisation, bench.realisation, 'up'); }
+  } else if (last) {
+    verdict = finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label);
+    if (bench) { delta = figDeltaText(last.revenue, bench.revenue, bl); dTone = figDeltaTone(last.revenue, bench.revenue, 'up'); }
+  } else verdict = 'Nothing billed in ' + CP_LOOKBACK_MONTHS + ' months';
+  if (delta && (verdict + ' · ' + delta).length <= UI_VERDICT_MAX) { verdict += ' · ' + delta; delta = ''; }
+  // The card is in the worse of the realisation's tone and the worst flag's.
+  var worst = flags[0], fTone = worst ? uiTone(worst.tone) : null;
+  if (fTone && (UI_TONE_RANK[fTone] || 0) > (UI_TONE_RANK[tone] || 0)) tone = fTone;
+  var word = function(t) { return typeof CLIENT_FLAG_WORD !== 'undefined' && CLIENT_FLAG_WORD[t.rule] || 'flagged'; };
+  var facts = [worst ? { text: word(worst) + (flags.length > 1 ? ' and ' + (flags.length - 1) + ' more' : ''), tone: /^(warning|danger)$/.test(fTone) ? fTone : '' } : 'nothing flagged',
+    delta ? { text: delta, tone: dTone || '' } : '',
+    last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
+  return uiVerdictHtml({ screen: 'Performance · ' + uiVerdictFit(c.name || '', ''), tone: tone, verdict: uiVerdictFit(verdict, ''), facts: facts,
+    factors: flags.slice(0, 4).map(function(t) {
+      return { label: word(t), fig: t.amount ? escHtml(finRs(t.amount)) : escHtml(String(t.n || 1)), tone: uiTone(t.tone),
+        action: 'invTodoOpenApp', attrs: ' data-key="' + escHtml(t.key) + '" title="' + escHtml(t.title) + '"' };
+    }), key: 'pageClients-performance', attrs: ' id="cpVerdict" data-cp-flags="' + flags.length + '"' });
 }
 
 /* "+12.3% on Aug", never an arrow alone (§5.4), coloured by whether it moved the good way (figDeltaHtml). */
@@ -319,11 +351,17 @@ function renderClientPerformance(container) {
     container.innerHTML = html + '<div class="inv-panel"><div class="inv-empty">No clients yet</div></div>';
     return;
   }
-  html += todoClientCardHtml(clientId, 'cpFlagged');
+  // The verdict leads (the tab map, TM5f), the client picker under it; the client's flags are its tiles, and only a fifth
+  // flag or more keeps the list of them (folded) under the picker.
+  var flags = [];
+  try { flags = todoClientTasks(clientId); } catch (e) { flags = []; }
+  var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
+  html = cpVerdictHtml(clientId, monthly, flags) + html;
+  if (flags.length > 4) html += todoClientCardHtml(clientId, 'cpFlagged');
   html += finClientMoneyHtml(clientId);
+  html += flowClientHtml(clientId, 'cp-flow');
   html += kbLinkedHtml('client', clientId, ((S.clients || []).find(function(c) { return c.id === clientId; }) || {}).name, 'Knowledge');
 
-  var monthly = cpMonthly(clientId, CP_LOOKBACK_MONTHS);
   var today = localDateStr();
   var history = cpBuildHistory(clientId);
   var classified = history.map(function(e) { return cpClassify(e, today); });
@@ -383,7 +421,7 @@ function renderClientPerformance(container) {
     html += '<div class="inv-tiles inv-tiles-flush">' +
       tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(bench && bench.revenue))) +
-      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', formatNum(last.kg, 0) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
+      tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
       tile('Realisation', last.realisation != null ? figHtml(formatCurrency(last.realisation), cost ? figToneAgainst(last.realisation, cost.perKg, 5) : null) + '<span class="inv-tile-of">/kg</span>' : '&mdash;',
         cost ? (cost.live ? 'live cost ' : 'cost ') + formatCurrency(cost.perKg) + '/kg' : '',
         (bench && bench.realisation != null && last.realisation != null) ? _cpDelta(last.realisation, p(bench.realisation)) : '') +
@@ -395,28 +433,21 @@ function renderClientPerformance(container) {
   }
   html += '</div>';
 
-  // Stopped first: it is the only one of the four that is a question. Stopped and New show their first ten (the count is on
-  // the head); Steady and One-off, which need nothing, show none until asked: SSS Mehta's card ran 23 phone screens with 101
-  // stopped parts and every part it ever sent (UX overhaul 2, step 6).
-  var group = function(key, title, tone, list, emptyText, note, renamesFor, n) {
+  // The parts by their cadence, each against its own rhythm (how it is judged is the guide's): a fold each, its head the count,
+  // stopped first and in warning, the only one that is a question. Shut on both layouts (the tab map, TM5f): the head says how many
+  // and in what tone, and the desktop's had run Performance to eight screens on the owner's book. Each shows its first ten when open: SSS Mehta's card ran 23 phone
+  // screens with 101 stopped parts and every part it ever sent (UX overhaul 2, step 6).
+  var group = function(key, title, tone, list, emptyText, renamesFor, open) {
     var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
-    return '<div data-cp-group="' + key + '">' +
-      '<div class="inv-row-group"><span class="inv-dot inv-dot-' + tone + '">' + title + ' · ' + list.length + '</span></div>' +
-      (list.length === 0
-        ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
-        : (note ? '<div class="inv-row inv-row-auto"><span class="inv-row-main inv-note inv-row-wrap">' + note + '</span></div>' : '') +
-          uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: n == null ? 10 : n, noun: 'parts' })) +
-      '</div>';
+    return uiFoldHtml('cp-' + key, '<span class="inv-panel-title">' + uiDot(tone, escHtml(title + ' · ' + list.length)) + '</span>',
+      list.length === 0 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
+        : uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: 10, noun: 'parts' }), open, ' data-cp-group="' + key + '"');
   };
   html += cpWorkedHtml(clientId) + cpHoursHtml(clientId);
-  html += '<div class="inv-panel inv-panel-flush" data-card="materials">' +
-    '<div class="inv-panel-head"><span class="inv-panel-title">Cadence</span><span class="inv-note">each part against its own rhythm, across invoices and challans</span></div>' +
-    group('stopped', 'Stopped', 'danger', stopped, 'Nothing has fallen out of its rhythm.',
-      'Overdue against the gap each part usually keeps, not a fixed cut-off — a quarterly part is not called stopped in month two.', renames) +
-    group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', '', null) +
-    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', '', null, 0) +
-    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', 'Handled once and long ago. Never had a cadence to fall out of.', null, 0) : '') +
-    '</div>';
+  html += group('stopped', 'Stopped', 'warning', stopped, 'Nothing has fallen out of its rhythm.', renames, false) +
+    group('new', 'New', 'info', fresh, 'Nothing new in the last ' + CP_NEW_DAYS + ' days.', null, false) +
+    group('steady', 'Steady', 'ok', steady, 'No part is running to a regular cadence.', null, false) +
+    (oneoff.length > 0 ? group('oneoff', 'One-off', 'neutral', oneoff, '', null, false) : '');
 
   container.innerHTML = html;
 }
@@ -588,7 +619,8 @@ function cpWorkedListHtml(clientId) {
   if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
   var rows = list.map(function(r) {
     var others = Object.keys(owners[r.base] || {}).filter(function(c) { return String(c) !== String(r.clientId); }).map(function(c) { return names[c] || 'another client'; });
-    var meta = [todoPlural(r.nChallans, 'challan'), r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced', r.plated ? todoPlural(r.plated, 'plating') : '',
+    // Two facts (§3b-11): its documents, and when; its platings in its title.
+    var meta = [todoPlural(r.nChallans, 'challan') + ', ' + (r.nInvoices ? todoPlural(r.nInvoices, 'invoice') : 'not invoiced'),
       r.first ? (r.first === r.last ? formatDate(r.first) : formatDate(r.first) + ' – ' + formatDate(r.last)) : ''].filter(Boolean).join(' · ');
     var ev = r.events.map(function(e) {
       if (e.kind === 'plated') {
@@ -603,11 +635,12 @@ function cpWorkedListHtml(clientId) {
         '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
         '<span class="inv-row-end inv-num">' + escHtml(q) + '</span></div>';
     }).join('');
-    return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
+    return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"' + (r.plated ? ' title="' + escHtml(todoPlural(r.plated, 'plating')) + '"' : '') + '><span class="inv-row-main">' +
       '<span class="inv-row-title inv-row-wrap"><span class="inv-id">' + escHtml(r.name) + '</span>' + (_cpScope === 'all' ? ' · ' + escHtml(r.clientName) : '') + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' +
-      (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared><span class="inv-dot inv-dot-info">Code shared</span> ' +
-        escHtml(others.join(', ')) + ' also ' + (others.length === 1 ? 'sends' : 'send') + ' it: counted apart, here and on Stats</span>' : '') +
+      // One client named; more counted, every name in its title (a list of ten names was a block of text).
+      (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared title="' + escHtml(others.join(', ')) + '"><span class="inv-dot inv-dot-info">Code shared</span> ' +
+        escHtml(others.length === 1 ? others[0] + ' also sends it' : others.length + ' other clients send it too') + ', counted apart</span>' : '') +
       '</span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(cpQtyText(r.nos, r.kg, r.kgUnknown)) + '</span>' +
       (r.revenue > 0 ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
       '<div class="inv-row-children">' + ev + '</div></details>';
@@ -628,8 +661,9 @@ function cpWorkedHtml(clientId) {
     '<input id="cpMatSearch" type="search" value="' + escHtml(_cpQuery) + '" placeholder="Part, size or word, e.g. clamp" aria-label="Search the materials" autocomplete="off"></label>' +
     '<div class="inv-seg" role="group" aria-label="Whose">' + seg('client', 'This client', 'invCpScope', _cpScope, 'data-s') + seg('all', 'All clients', 'invCpScope', _cpScope, 'data-s') + '</div></div>' +
     '</div><div id="cpWorkedList">' + cpWorkedListHtml(clientId) + '</div>';
+  // Shut on both layouts until opened (the tab map, TM5f), remembered on the device as every fold is.
   return uiFoldHtml('cp-worked', '<span class="inv-panel-title">Materials worked</span><span class="inv-note">what was sent and billed, and when</span>',
-    body, _isDesktop, ' data-card="worked"');
+    body, false, ' data-card="worked"');
 }
 /* The search redraws the list only, so the field keeps its focus and caret. */
 function cpWorkedRedraw() {
@@ -777,25 +811,33 @@ function cpRound(client, t) {
 function cpRoundHints(rd, t) {
   var h = [], m = rd.m;
   if (m.trendNow != null && m.trendBefore > 0) {
-    var ch = (m.trendNow - m.trendBefore) / m.trendBefore;
-    if (ch >= 0.1) h.push({ tone: 'warning', text: 'Plating a round takes ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (+' + Math.round(ch * 100) + '%). Look at the jig loading, the bath (current, temperature, concentration) and waits between rounds.' });
-    else if (ch <= -0.1) h.push({ tone: 'ok', text: 'Plating a round is faster: ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (' + Math.round(ch * 100) + '%). Worth keeping whatever changed.' });
+    var ch = (m.trendNow - m.trendBefore) / m.trendBefore, figs = Math.round(m.trendNow) + ' min in the last 30 days, ' + Math.round(m.trendBefore) + ' before';
+    if (ch >= 0.1) h.push({ tone: 'warning', say: 'Plating a round is slower', sub: figs + ' (+' + Math.round(ch * 100) + '%)',
+      text: 'Plating a round takes ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (+' + Math.round(ch * 100) + '%). Look at the jig loading, the bath (current, temperature, concentration) and waits between rounds.' });
+    else if (ch <= -0.1) h.push({ tone: 'ok', say: 'Plating a round is faster', sub: figs + ' (' + Math.round(ch * 100) + '%)',
+      text: 'Plating a round is faster: ' + Math.round(m.trendNow) + ' min in the last 30 days against ' + Math.round(m.trendBefore) + ' before (' + Math.round(ch * 100) + '%). Worth keeping whatever changed.' });
   }
   if (m.pcs && m.pcsMax && m.pcs < m.pcsMax * 0.9 && rd.total) {
     var gain = (m.pcsMax / m.pcs - 1);
-    h.push({ tone: 'info', text: 'Rounds carry ' + Math.round(m.pcs) + ' pieces at the median against ' + m.pcsMax + ' at their fullest: full racks would earn about ' + Math.round(gain * 100) + '% more an hour on the same time.' });
+    h.push({ tone: 'info', say: 'Racks run short', sub: Math.round(m.pcs) + ' pieces a round against ' + m.pcsMax + ' at their fullest: about ' + Math.round(gain * 100) + '% more an hour full',
+      text: 'Rounds carry ' + Math.round(m.pcs) + ' pieces at the median against ' + m.pcsMax + ' at their fullest: full racks would earn about ' + Math.round(gain * 100) + '% more an hour on the same time.' });
   }
-  if (rd.total && rd.over / rd.total >= 0.25) h.push({ tone: 'info', text: 'Logistics and the other steps are ' + Math.round(rd.over / rd.total * 100) + '% of every round (' + rd.over + ' of ' + Math.round(rd.total) + ' min): running this part in longer lots, with the next load staged before the round ends, spreads it thinner.' });
-  if (rd.pickle.v && rd.plate.v && rd.pickle.v > rd.plate.v) h.push({ tone: 'warning', text: 'Pickling a round (' + rd.pickle.v + ' min) takes longer than plating it (' + rd.plate.v + ' min): the line waits on pickling. Pickle the next load while this one plates.' });
+  if (rd.total && rd.over / rd.total >= 0.25) h.push({ tone: 'info', say: 'Logistics is ' + Math.round(rd.over / rd.total * 100) + '% of a round', sub: rd.over + ' of ' + Math.round(rd.total) + ' min: longer lots spread it thinner',
+    text: 'Logistics and the other steps are ' + Math.round(rd.over / rd.total * 100) + '% of every round (' + rd.over + ' of ' + Math.round(rd.total) + ' min): running this part in longer lots, with the next load staged before the round ends, spreads it thinner.' });
+  if (rd.pickle.v && rd.plate.v && rd.pickle.v > rd.plate.v) h.push({ tone: 'warning', say: 'The line waits on pickling', sub: 'pickling ' + rd.pickle.v + ' min a round, plating ' + rd.plate.v + ' min',
+    text: 'Pickling a round (' + rd.pickle.v + ' min) takes longer than plating it (' + rd.plate.v + ' min): the line waits on pickling. Pickle the next load while this one plates.' });
   if (t && cpPlateSet(t) != null && m.plateMin != null && m.nPlate >= 5 && Math.abs(m.plateMin - cpPlateSet(t)) / cpPlateSet(t) > 0.15)
-    h.push({ tone: 'warning', text: 'The record now measures ' + Math.round(m.plateMin) + ' min a round against the ' + cpPlateSet(t) + ' set.', use: true });
+    h.push({ tone: 'warning', say: 'The record measures ' + Math.round(m.plateMin) + ' min a round', sub: 'against the ' + cpPlateSet(t) + ' set',
+      text: 'The record now measures ' + Math.round(m.plateMin) + ' min a round against the ' + cpPlateSet(t) + ' set.', use: true });
   return h;
 }
 function cpSrcWord(x) { return x.src === 'set' ? 'set' : x.src === 'measured' ? 'measured' : 'not known'; }
+/* A part under By the hour (the tab map, TM5f): its line says two things, the pieces and the minutes a round, and opens to the round
+   step by step, what it earns, what the record has timed and what to look at, each a fact row (they were sentences of up to 160
+   characters). How the figures are worked out is the guide's (Using the app: clients and sales). */
 function cpRoundRowHtml(client, t, ref, rg, auto) {
   var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null;
   var fig = function(x, unit) { return x.v != null ? x.v + (unit || '') + ' (' + cpSrcWord(x) + ')' : '? (' + cpSrcWord(x) + ')'; };
-  var breakdown = 'Pickle ' + fig(rd.pickle, ' min') + ' + plate ' + fig(rd.plate, ' min') + ' + ' + rd.over + ' min logistics and other steps' + (rd.total ? ' = ' + Math.round(rd.total) + ' min a round' : '');
   var mat = cpMaterials(client.id, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
   var pcs = mat.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = mat.reduce(function(a, x) { return a + x.revenue; }, 0);
   var hrs = rd.pcs.v > 0 && rd.total ? pcs / rd.pcs.v * rd.total / 60 : 0;
@@ -803,22 +845,28 @@ function cpRoundRowHtml(client, t, ref, rg, auto) {
   var id = auto ? 'auto-' + t.base + '|' + t.gauge : t.id;
   var h = '<details class="inv-row-fold" data-cp-time="' + escHtml(id) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main">' +
     '<span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span>' + (t.line ? ' · ' + escHtml(prodLineName(t.line)) : '') + (auto ? ' · <span class="inv-note">from the record</span>' : '') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + breakdown) + '</span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + (rd.total ? Math.round(rd.total) + ' min a round' : 'its minutes not known')) + '</span>' +
     (hints.length ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + hints[0].tone + '">' + todoPlural(hints.length, 'thing', 'things') + ' to look at</span></span>' : '') +
     '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
-    '<div class="inv-panel-body">';
-  h += '<div class="inv-row-meta inv-row-wrap">' + escHtml((rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') + ' (' + rd.rate.src + ')' : 'No rate on record') +
-    (rd.perRound != null ? ' · ' + formatCurrency(rd.perRound) + ' a round' : '') +
-    (ref && rd.perHour != null ? ' · an hour of the plant costs ' + formatCurrency(ref.cost) + ' and earns ' + formatCurrency(ref.revenue) : '')) + '</div>';
-  h += '<div class="inv-row-meta inv-row-wrap" data-cp-measured>' + escHtml('The record: ' + (rd.m.nPlate ? rd.m.nPlate + ' plating round' + (rd.m.nPlate === 1 ? '' : 's') + ' timed' : 'no plating round timed') +
-    ', ' + (rd.m.nPickle ? rd.m.nPickle + ' pickling load' + (rd.m.nPickle === 1 ? '' : 's') : 'no pickling load') + ' timed' + (rd.m.first ? ', ' + formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : '') +
-    '. The times fill in as the register photos and pickling messages come in.') + '</div>';
-  if (pcs > 0) h += '<div class="inv-row-meta inv-row-wrap">' + escHtml('In ' + rg.label + ': ' + cpNum(pcs) + ' pcs billed, about ' + formatNum(hrs, 1) + ' hours of rounds for ' + formatCurrency(rev) + (ref ? ', which cost the plant about ' + formatCurrency(hrs * ref.cost) : '')) + '</div>';
-  if (rd.m.weeks.length >= 2) h += chartLines(rd.m.weeks.map(function(w) { return formatDate(w.week).slice(0, 6); }), [{ label: 'Minutes a round', values: rd.m.weeks.map(function(w) { return Math.round(w.min); }) }], { unit: 'min', ariaLabel: 'Plating minutes a round by week' });
+    '<div class="inv-row-children">';
+  var step = function(label, x, key) { return uiFactRowHtml({ label: label, value: x.v != null ? x.v + ' min' : '', sub: cpSrcWord(x), attrs: ' data-cp-step="' + key + '"' }); };
+  h += step('Pickling', rd.pickle, 'pickle') + step('Plating', rd.plate, 'plate') +
+    uiFactRowHtml({ label: 'Logistics and other steps', value: rd.over + ' min', sub: 'every round, set on the panel', attrs: ' data-cp-step="over"' }) +
+    (rd.total ? uiFactRowHtml({ label: 'A round', value: Math.round(rd.total) + ' min', sub: fig(rd.pcs, ' pieces'), attrs: ' data-cp-step="round"' }) : '');
+  h += uiFactRowHtml({ label: 'Rate', value: rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') : '', sub: rd.rate ? rd.rate.src : 'no rate on record', attrs: ' data-cp-rate' }) +
+    (rd.perRound != null ? uiFactRowHtml({ label: 'A round earns', value: formatCurrency(rd.perRound), attrs: ' data-cp-earns' }) : '');
+  h += uiFactRowHtml({ label: 'Plating rounds timed', value: String(rd.m.nPlate || 0), attrs: ' data-cp-measured',
+    sub: [rd.m.nPickle ? todoPlural(rd.m.nPickle, 'pickling load') + ' timed' : 'no pickling load timed', rd.m.first ? formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : ''].filter(Boolean).join(' · ') });
+  if (pcs > 0) h += uiFactRowHtml({ label: 'In ' + rg.label, value: 'about ' + formatNum(hrs, 1) + ' h', attrs: ' data-cp-billed',
+    sub: cpNum(pcs) + ' pcs billed for ' + formatCurrency(rev) + (ref ? ' · cost about ' + formatCurrency(hrs * ref.cost) : '') });
+  // What to look at: a row each, its claim and its figures; the record's measure has Use at the end.
   hints.forEach(function(x) {
-    h += '<div class="inv-callout inv-callout-' + (x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info') + ' inv-mt-8">' + escHtml(x.text) +
-      (x.use && !auto ? ' <button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeUseMeasured" data-id="' + escHtml(t.id) + '">Use ' + Math.round(rd.m.plateMin) + ' min</button>' : '') + '</div>';
+    h += '<div class="inv-row inv-row-2" data-cp-hint title="' + escHtml(x.text) + '"><span class="inv-row-main"><span class="inv-row-title">' + uiDot(x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info', escHtml(x.say)) + '</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(x.sub) + '</span></span>' +
+      (x.use && !auto ? '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeUseMeasured" data-id="' + escHtml(t.id) + '">Use ' + Math.round(rd.m.plateMin) + ' min</button></span>' : '') + '</div>';
   });
+  h += '</div><div class="inv-panel-body">';
+  if (rd.m.weeks.length >= 2) h += chartLines(rd.m.weeks.map(function(w) { return formatDate(w.week).slice(0, 6); }), [{ label: 'Minutes a round', values: rd.m.weeks.map(function(w) { return Math.round(w.min); }) }], { unit: 'min', ariaLabel: 'Plating minutes a round by week' });
   h += '<div class="inv-toolbar inv-mt-8">' + (auto
     ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd" data-key="' + escHtml(t.base + '|' + t.gauge) + '">Set its times</button>'
     : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeEdit" data-id="' + escHtml(t.id) + '">Edit</button><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCpTimeRemove" data-id="' + escHtml(t.id) + '">Remove</button>') + '</div>';
@@ -843,10 +891,13 @@ function cpHoursHtml(clientId) {
   var client = hp.client, times = hp.times, piece = hp.piece, auto = hp.auto;
   if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
   var ref = cpLineHourRef(), rg = cpPeriodRange();
-  var h = '<div class="inv-panel-body inv-note" data-cp-hour-ref>' + (ref ? 'An hour costs the plant <strong class="inv-num">' + formatCurrency(ref.cost) + '</strong> and earns it <strong class="inv-num">' + formatCurrency(ref.revenue) + '</strong> on average: the last 90 days at ' +
-    (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg, ' + cpNum(ref.kg) + ' kg over ' + ref.days + ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours.'
-    : 'No weighed billing in the last 90 days, so an hour has no cost to be set against yet.') +
-    ' <label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
+  // An hour of the plant on average, the last 90 days: its figures on rows, how they are worked out in their title.
+  var basis = ref ? 'The last 90 days at ' + (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg: ' + cpNum(ref.kg) + ' kg over ' + ref.days +
+    ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours' : '';
+  var h = ref ? '<div data-cp-hour-ref title="' + escHtml(basis) + '">' + uiFactRowHtml({ label: 'An hour costs the plant', value: formatCurrency(ref.cost), sub: 'on average, the last 90 days' }) +
+      uiFactRowHtml({ label: 'An hour earns it', value: formatCurrency(ref.revenue), sub: 'at ' + (ref.live ? 'the live cost' : 'the typed cost') }) + '</div>'
+    : '<div class="inv-panel-body inv-note" data-cp-hour-ref>No weighed billing in 90 days: an hour has no cost to set against yet.</div>';
+  h += '<div class="inv-panel-body inv-note"><label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
   times.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, false); });
   auto.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, true); });
   if (_cpTimeForm) {
@@ -864,13 +915,13 @@ function cpHoursHtml(clientId) {
       '<div class="inv-note">Leave a figure blank to use what the production record measures.</div>' +
       '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeCancel">Cancel</button><button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCpTimeSave">Save</button></div></div>';
   } else {
-    h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record. A part plated by the round is judged here by what an hour of it earns.</div>') +
+    h += '<div class="inv-panel-body">' + (times.length || auto.length ? '' : '<div class="inv-note inv-mb-8">No part of this client has its round timed yet, set or in the production record.</div>') +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCpTimeAdd">Set a part’s times</button></div>';
   }
-  // Folded like Materials worked; open while its form is (Set or Edit was tapped inside it).
+  // Folded like Materials worked, shut on both layouts; open while its form is (Set or Edit was tapped inside it).
   var n = times.length + auto.length;
   return uiFoldHtml('cp-hours', '<span class="inv-panel-title">By the hour' + (n ? ' <span class="inv-panel-count">' + n + '</span>' : '') + '</span>' +
-    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span>', h, _isDesktop || !!_cpTimeForm, ' data-card="hours"');
+    '<span class="inv-note">pickle + plate + ' + cpOverheadMin() + ' min a round</span>', h, !!_cpTimeForm, ' data-card="hours"');
 }
 var _cpTimeForm = false;
 function cpTimeFormOpen(key, id) {

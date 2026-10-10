@@ -208,13 +208,14 @@ test.describe('P139: keys and new windows on the desktop', () => {
     await page.locator('#invSidebar [data-ws="office"]').click();
     const here = await page.evaluate(() => (document.querySelector('.inv-page-active') as HTMLElement).id);
     await page.locator('#wsTabs [data-tab="pageRegister"]').click({ modifiers: ['Control'] });
-    await page.locator('#wsTabs [data-tab="pageClients"]').click({ button: 'middle' });
-    await page.locator('#wsTabs [data-tab="pageHistory"]').click({ modifiers: ['Control'] });
+    await page.locator('#wsTabs [data-tab="pageClients"][data-v="clients"]').click({ button: 'middle' });
+    // History is the top bar's tool since the tab map (9 Oct 2026): its clock opens it in a new window the same way.
+    await page.locator('.inv-topbar [data-action="invGoHistory"]:visible').click({ modifiers: ['Control'] });
     await expect(page.locator('#' + here)).toHaveClass(/inv-page-active/);
     // A view tab: its page at that view.
     await switchTab(page, 'pageStats');
     await page.locator('[data-action="invStatsTab"][data-tab="cost"]').click({ modifiers: ['Control'] });
-    await expect(page.locator('[data-action="invStatsTab"][data-tab="overview"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('[data-action="invStatsTab"][data-tab="clients"]')).toHaveAttribute('aria-selected', 'true');
     // A row: its record. A challan on its tab and month.
     await switchTab(page, 'pageRegister');
     await allMonths(page);
@@ -225,7 +226,7 @@ test.describe('P139: keys and new windows on the desktop', () => {
     // The top bar's New window: the place on screen.
     await page.locator('.inv-topbar [data-action="invNewWindow"]').click();
     expect(await opened(page)).toEqual([
-      ['pageFloor', '', '', '_blank'], ['pageRegister', '', '', '_blank'], ['pageClients', '', '', '_blank'], ['pageHistory', '', '', '_blank'],
+      ['pageFloor', '', '', '_blank'], ['pageRegister', '', '', '_blank'], ['pageClients', 'clients', '', '_blank'], ['pageHistory', '', '', '_blank'],
       ['pageStats', 'cost', '', '_blank'], ['pageRegister', '', 'INV-900', '_blank'], ['pageIM', 'awaiting', 'IM-8341', '_blank'],
       ['pageIM', 'awaiting', '', '_blank'],
     ]);

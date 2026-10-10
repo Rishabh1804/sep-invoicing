@@ -331,17 +331,56 @@ function renderIMToolbar() {
   // The filters speak through change (events.js), never click: a click that re-rendered
   // the toolbar replaced the element the native list hangs off, and it shut unpicked.
   // Invoiced holds one status, so its status filter would only ever offer itself.
-  area.innerHTML = imViewTabsHtml() + '<div class="inv-toolbar">' +
-    '<select class="inv-select inv-toolbar-item" id="imClientFilter" aria-label="Filter by client">' +
+  // One row (the tab map, TM5b): the filters (inline on the desktop, behind Filter on the phone, said under the row as tokens), Add
+  // challan the one primary, Scan the one secondary, and the duplicate check behind More with its count.
+  var filters = '<select class="inv-select inv-toolbar-item" id="imClientFilter" aria-label="Filter by client">' +
     '<option value="">All clients</option>' + clientOpts + '</select>' +
     (_imTab === 'invoiced' ? '' : '<select class="inv-select inv-toolbar-item" id="imStatusFilter" aria-label="Filter by status">' +
-    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>') +
-    '<button class="inv-btn inv-btn-secondary" id="imDupeCheck" data-action="invRunDupeScan">Duplicate check' +
-    (dupeCount > 0 ? '<span class="inv-badge inv-badge-warning" data-dupes>' + dupeCount + '</span>' : '') + '</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
+    opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>');
+  var client = _imFilter.clientId ? S.clients.find(function(c) { return String(c.id) === String(_imFilter.clientId); }) : null;
+  area.innerHTML = imViewTabsHtml() + '<div id="imVerdict">' + imVerdictHtml() + '</div>' + '<div class="inv-toolbar" data-im-toolbar>' +
+    uiFilterHtml({ key: 'im', count: (_imFilter.clientId ? 1 : 0) + (_imTab !== 'invoiced' && _imFilter.status ? 1 : 0), controls: filters }) +
     '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add challan</button>' +
-    '</div>' + (_imTab === 'invoiced' ? imMonthPagerHtml() : '');
+    '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
+    uiToolbarMoreHtml([{ label: 'Duplicate check', action: 'invRunDupeScan', attrs: ' id="imDupeCheck"', badge: dupeCount ? { n: dupeCount, tone: 'warning' } : null }], { icon: !_isDesktop }) +
+    '</div>' + uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invIMFilterClear', attrs: ' data-clear="client"' },
+      { key: 'Status', value: _imTab !== 'invoiced' && _imFilter.status ? (IM_STATUS_UI[_imFilter.status] || {}).word : '', action: 'invIMFilterClear', attrs: ' data-clear="status"' }]) +
+    (_imTab === 'invoiced' ? imMonthPagerHtml() : '');
   viewTabReveal(area.querySelector('.inv-viewtabs'));
+}
+UI_FILTER_DONE.im = function() { renderIMToolbar(); _renderIMView(); };
+/* A filter's token tapped: that filter cleared, the selection it made dropped (captureIMFilters' rule). */
+function imFilterClear(which) {
+  if (which === 'client') _imFilter.clientId = ''; else _imFilter.status = '';
+  _imSelected = {};
+  renderIMToolbar();
+  _renderIMView();
+}
+
+/* How long a challan has waited on its invoice, judged (the tab map, TM5b): amber from the To-do's challan days (Settings →
+   Checks & alerts → To-do, 5), red from twice that. The challan's dot, Pipeline's first stage and the To-do's challan task read it,
+   so the three agree at any age. */
+function imWaitTone(days) {
+  var d = (typeof todoCfg === 'function' && todoCfg().challanDays) || 5;
+  return days == null ? 'neutral' : days >= d * 2 ? 'danger' : days >= d ? 'warning' : 'neutral';
+}
+function imWaitDays(im) { return im && im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, localDateStr())) : null; }
+/* Awaiting invoice's verdict (the tab map, TM5b; it was the page-head line): how many challans wait and what they bill, in the
+   tone of the oldest, its days the card's figure. Invoiced has the month's stepper. */
+function imVerdictHtml() {
+  if (_imTab === 'invoiced') return '';
+  var list = getFilteredIM(), open = gstRound(list.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0));
+  var ages = list.map(imWaitDays).filter(function(a) { return a != null; }), oldest = ages.length ? Math.max.apply(null, ages) : null;
+  var d = todoCfg().challanDays || 5, late = ages.filter(function(a) { return a >= d; }).length, part = list.filter(imPartInvoiced).length;
+  var filtered = !!(_imFilter.clientId || _imFilter.status);
+  if (!list.length) return uiVerdictHtml({ screen: 'Awaiting invoice', tone: 'ok', verdict: filtered ? 'Nothing awaiting invoice for this filter' : 'Nothing awaiting invoice', key: 'pageIM-awaiting' });
+  return uiVerdictHtml({ screen: 'Awaiting invoice' + (filtered ? ' · filtered' : ''), tone: imWaitTone(oldest),
+    verdict: todoPlural(list.length, 'challan') + ' waiting · ' + finRs(open) + ' to bill',
+    fig: oldest != null ? escHtml(String(oldest)) + '<span class="inv-unit">d</span>' : '',
+    facts: [oldest != null ? { text: 'days the oldest has waited', tone: imWaitTone(oldest) === 'neutral' ? '' : imWaitTone(oldest) } : 'no challan date',
+      late ? { text: late + ' over ' + pipeDays(d), tone: ages.some(function(a) { return a >= d * 2; }) ? 'danger' : 'warning' } : '',
+      part ? todoPlural(part, 'part invoiced', 'part invoiced') : ''],
+    key: 'pageIM-awaiting', attrs: ' data-im-summary="' + list.length + '"' });
 }
 
 /* A selection belongs to the list it was made on. A jump that opens IM on one client — History's, Stats', the duplicate
@@ -359,16 +398,16 @@ function renderIMList() {
   if (!area) return;
   imSelectionGuard();
   const filtered = getFilteredIM();
-  let html = _imSummaryHtml(filtered);
+  let html = '';
 
   if (filtered.length === 0) {
     html += '<div class="inv-panel"><div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div></div>';
   } else {
     // Grouped by challan date with the day's value (§7): the tab says whether it is billed.
-    var title = _imTab === 'invoiced' ? 'Invoiced' : 'Awaiting invoice';
+    // Awaiting invoice's count and amount are its verdict's (imVerdictHtml): its list carries no head of its own.
     (function(list) {
-      html += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">' + title +
-        ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
+      html += '<div class="inv-panel inv-panel-flush">' + (_imTab === 'invoiced' ? '<div class="inv-panel-head"><span class="inv-panel-title">Invoiced' +
+        ' <span class="inv-panel-count">' + list.length + '</span></span></div>' : '');
       // The first thirty challans; the rest one tap away (UX overhaul 2, step 6: a month of billed challans ran 7.5 screens).
       var day = null, imRows = [];
       list.forEach(function(im, idx) {
@@ -430,7 +469,7 @@ function renderIMSelBar() {
 /* ===== IM DESKTOP TABLE ===== */
 function _buildIMTableHtml() {
   var filtered = getFilteredIM();
-  var html = _imSummaryHtml(filtered);
+  var html = '';
   if (filtered.length === 0) return html + '<div class="inv-empty">' + (_imTab === 'invoiced' ? 'No challan invoiced' : 'Nothing awaiting invoice') + (_imFilter.clientId || _imFilter.status ? ' for this filter' : '') + '</div>';
 
   var sc = getIMSortConfig();
@@ -460,7 +499,7 @@ function _buildIMTableHtml() {
       '<td class="inv-id inv-col-opt2">' + escHtml(im.vehicleNo || '') + '</td>' +
       '<td class="inv-num inv-col-opt2">' + im.items.length + '</td>' +
       '<td class="inv-num"><span class="inv-row-stack">' + imAmountHtml(im) + '</span></td>' +
-      '<td>' + imStatusDotHtml(im) + '</td></tr>';
+      '<td>' + imStatusDotHtml(im) + ' ' + flowPriorityBadgeHtml(im) + '</td></tr>';
   });
   return html + '</tbody></table>';
 }
@@ -518,8 +557,11 @@ function renderIMTable() {
 }
 
 function imStatusDotHtml(im) {
-  var s = IM_STATUS_UI[getIMStatus(im)] || { word: getIMStatus(im), tone: 'neutral' };
-  return '<span class="inv-dot inv-dot-' + s.tone + '">' + escHtml(s.word) + '</span>';
+  var st = getIMStatus(im), s = IM_STATUS_UI[st] || { word: st, tone: 'neutral' };
+  // A challan waiting is toned by how long it has waited (imWaitTone); one invoiced whole is done.
+  var tone = st === 'invoiced' ? s.tone : imWaitTone(imWaitDays(im));
+  if (tone === 'neutral' && st === 'partial') tone = 'info';
+  return '<span class="inv-dot inv-dot-' + tone + '"' + (st !== 'invoiced' && imWaitDays(im) != null ? ' title="' + escHtml(pipeDays(imWaitDays(im)) + ' waiting') + '"' : '') + '>' + escHtml(s.word) + '</span>';
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
@@ -541,19 +583,16 @@ function imAmountHtml(im, awaiting) {
 /* A challan's row as IM's list draws it: its number and client over its vehicle and lines, and its end, the amount over
    its status. Office → Pipeline's Awaiting list draws the same (pipeline.js), with the Awaiting amount. */
 function imRowMainHtml(im) {
-  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + '</span>' +
-    '<span class="inv-row-meta">' + (im.vehicleNo ? escHtml(im.vehicleNo) + ' · ' : '') + im.items.length + ' item' + (im.items.length !== 1 ? 's' : '') + '</span>';
+  // Two things in its meta (§3b-11): waiting, how long and how many items; billed, the vehicle and the items.
+  var items = im.items.length + ' item' + (im.items.length !== 1 ? 's' : ''), age = imIsBilled(im) ? null : imWaitDays(im);
+  var first = age != null ? (age === 0 ? 'received today' : pipeDays(age) + ' waiting') : im.vehicleNo ? escHtml(im.vehicleNo) : '';
+  return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + ' ' + flowPriorityBadgeHtml(im) + '</span>' +
+    '<span class="inv-row-meta">' + (first ? first + ' · ' : '') + items + '</span>';
 }
 function imRowEndHtml(im, awaiting) {
   return '<span class="inv-row-end"><span class="inv-row-stack">' + imAmountHtml(im, awaiting) + imStatusDotHtml(im) + '</span></span>';
 }
 
-function _imSummaryHtml(filtered) {
-  if (_imTab === 'invoiced') return '';   // the month's pager says how many and how much
-  var open = filtered.reduce(function(s, im) { return s + im.items.reduce(function(a, it) { return a + imLineOpen(it).amount; }, 0); }, 0);
-  return '<div class="inv-pagehead"><span class="inv-pagehead-meta" data-im-summary>' + filtered.length + ' challan' + (filtered.length !== 1 ? 's' : '') +
-    ' awaiting invoice · <span class="inv-num">' + formatCurrency(gstRound(open)) + '</span> to bill</span></div>';
-}
 
 /* A challan line. A line with anything left to bill carries its tick box; a billed
    share names the invoices it went on, each one a link that opens it. */
@@ -594,16 +633,18 @@ function _imItemRowHtml(it) {
 /* Edit and delete while nothing on the challan is billed; once a line is, the edit says why not. */
 function _imActionsHtml(im, primary) {
   var status = getIMStatus(im), billed = im.items.filter(imLineBilled).length, id = escHtml(im.id);
+  // The day it is wanted by is set while anything on it is open, billed in part or not (flow.js).
+  var wanted = status !== 'invoiced' ? '<button class="inv-btn inv-btn-ghost' + (primary ? '' : ' inv-btn-sm') + '" data-action="invFlowPrio" data-id="' + id + '">Wanted by</button>' : '';
   if (billed === 0) {
     // Secondary: the page's one primary is Add challan (DR-3).
-    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' +
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" data-action="invEditChallan" data-id="' + id + '">Edit</button>' + wanted +
       '<button class="inv-btn inv-btn-danger' + (primary ? '' : ' inv-btn-sm') + '" data-action="invDeleteChallan" data-id="' + id + '">Delete challan</button>';
   }
   if (status !== 'invoiced') {
     // Shown as disabled, yet a tap or a click still says why: a button that took no pointer (inv-btn-disabled) told
     // only somebody on a keyboard.
     var why = 'Cannot edit: ' + billed + ' item' + (billed > 1 ? 's' : '') + ' already invoiced';
-    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>';
+    return '<button class="inv-btn inv-btn-secondary' + (primary ? '' : ' inv-btn-sm') + '" aria-disabled="true" title="' + why + '" data-action="invEditChallanGuard" data-count="' + billed + '">Edit</button>' + wanted;
   }
   return '';
 }
@@ -616,6 +657,7 @@ function challanDetailHtml(im) {
     '<div class="inv-kv-wide"><div class="inv-kv-k">Client</div><div>' + escHtml(im.clientName) + '</div></div>' +
     (im.vehicleNo ? '<div><div class="inv-kv-k">Vehicle</div><div class="inv-id">' + escHtml(im.vehicleNo) + '</div></div>' : '') +
     '<div><div class="inv-kv-k">Status</div><div>' + imStatusDotHtml(im) + '</div></div>' +
+    (flowPriorityBadgeHtml(im) ? '<div><div class="inv-kv-k">Wanted by</div><div>' + flowPriorityBadgeHtml(im) + '</div></div>' : '') +
     (im.notes ? '<div class="inv-kv-wide"><div class="inv-kv-k">Notes</div><div>' + escHtml(im.notes) + '</div></div>' : '') +
     '</div>';
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row-group"><span>Lines · ' + im.items.length + '</span></div>' +
@@ -629,6 +671,9 @@ function challanDetailHtml(im) {
 /* View dispatcher (Phase 8B) */
 function _renderIMView() {
   _isDesktop ? renderIMTable() : renderIMList();
+  // The verdict says what the list holds now (an invoice made, a filter changed); the rest of the toolbar stays as it is.
+  var v = document.getElementById('imVerdict');
+  if (v) v.innerHTML = imVerdictHtml();
 }
 
 function toggleIMExpand(imId) {

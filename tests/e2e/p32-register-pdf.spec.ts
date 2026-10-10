@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, toolbarMore, setFilter } from './fixtures';
 
 /*
  * The sales register as a DOCUMENT.
@@ -45,7 +45,7 @@ function stateWith(invoices: unknown[]): SepState {
 
 const openDoc = async (page: Page) => {
   await switchTab(page, 'pageRegister');
-  await page.locator('[data-action="invPrintSalesRegister"]').first().click();
+  await toolbarMore(page, 'Sales register PDF');
   return page.locator('.inv-sr-doc');
 };
 
@@ -97,7 +97,7 @@ test('P32: a ticked batch scopes the document, and the face says so', async ({ p
   await page.locator('[data-action="invRegToggleInv"][data-id="INV-1"]').first().click();
   await page.locator('[data-action="invRegToggleInv"][data-id="INV-3"]').first().click();
 
-  await page.locator('[data-action="invPrintSalesRegister"]').first().click();
+  await toolbarMore(page, 'Sales register PDF');
   const doc = page.locator('.inv-sr-doc');
 
   const nums = await doc.locator('tbody .inv-sr-num').allInnerTexts();
@@ -211,10 +211,10 @@ test('P32: a DATE RANGE scopes voids, on the document and in the CSV', async ({ 
   ];
   await loadAppWithState(page, s);
   await switchTab(page, 'pageRegister');
-  await page.locator('#regDateFrom').fill('2026-08-01');
-  await page.locator('#regDateTo').fill('2026-08-31');
+  await setFilter(page, '#regDateFrom', '2026-08-01');
+  await setFilter(page, '#regDateTo', '2026-08-31');
 
-  await page.locator('[data-action="invPrintSalesRegister"]').first().click();
+  await toolbarMore(page, 'Sales register PDF');
   const nums = await page.locator('.inv-sr-doc tbody .inv-sr-num').allInnerTexts();
   expect(nums).toEqual(['SEP/TEST-00001', 'SEP/TEST-00002']);
   expect(nums).not.toContain('SEP/TEST-00003');

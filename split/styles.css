@@ -79,9 +79,9 @@
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
 
-  /* Today's cards: a card in a deck at least this wide; a sparkline's and a meter's height; a step's node; the small row a
-     packed grid counts in. */
-  --deck-min: 15rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
+  /* Today's cards: a card in a deck at least this wide (a deck of small cards, `data-deck-sm`, the narrower: a unit of the plant);
+     a sparkline's and a meter's height; a step's node; the small row a packed grid counts in. */
+  --deck-min: 15rem; --deck-min-sm: 9rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
@@ -136,7 +136,9 @@ input, select, textarea, button { font-family: inherit; font-size: var(--fs-14);
   height: var(--bar-h); padding: 0 var(--sp-8) 0 var(--sp-16);
   background: var(--surface); color: var(--text-1); border-bottom: var(--hair) solid var(--border);
 }
-.inv-topbar-title { font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; }
+/* The title gives way first (a back arrow and four tools on the phone leave a long title little room: Create invoice ran the page
+   21px past a 393px screen). An ellipsis, and the cue pass titles it. */
+.inv-topbar-title { min-width: 0; font-size: var(--fs-17); font-weight: 600; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-topbar-ctx { font-size: var(--fs-13); color: var(--text-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .inv-topbar-ctx:empty { display: none; }
 .inv-topbar-spacer { flex: 1; }
@@ -266,6 +268,8 @@ body:not(.inv-booted) { pointer-events: none; }
   --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
   --as-line: 6.5mm; --as-line-tall: 8.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
   --as-col-name: 36mm; --as-col-area: 16mm; --as-col-time: 16mm; --as-col-fig: 10mm;
+  --as-col-client: 30mm; --as-col-part: 44mm; --as-col-qty: 16mm; --as-col-unit: 12mm; --as-col-yes: 12mm; --as-col-challan: 18mm;
+  --as-col-barrel: 14mm; --as-col-fig2: 30mm; --as-col-reason: 50mm;
   --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
@@ -292,7 +296,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-grid + .inv-as-table { margin-top: var(--as-gap); }
 /* Rows written in by hand across several fields (the stock message) get more room. */
 .inv-as-tall td { height: var(--as-line-tall); }
-.inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; }
+.inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; padding: 0; }
 /* Deepak's entry sheet is written by hand: every column has a fixed width, so In and Out get room for a time
    (they had 7 and 10 mm once the four shift areas were added) and an area column takes a word. 182 mm of 186. */
 .inv-as-table[data-as-entry] { table-layout: fixed; }
@@ -302,6 +306,16 @@ body:not(.inv-booted) { pointer-events: none; }
 [data-as-col="area"] { width: var(--as-col-area); }
 [data-as-col="time"] { width: var(--as-col-time); }
 [data-as-col="fig"] { width: var(--as-col-fig); }
+/* The floor's sheets (facesheet.js, F5): a load, a batch or a round a row, the note taking what is left of 186 mm. */
+[data-as-col="client"] { width: var(--as-col-client); }
+[data-as-col="part"] { width: var(--as-col-part); }
+[data-as-col="qty"] { width: var(--as-col-qty); }
+[data-as-col="unit"] { width: var(--as-col-unit); }
+[data-as-col="yes"] { width: var(--as-col-yes); }
+[data-as-col="challan"] { width: var(--as-col-challan); }
+[data-as-col="barrel"] { width: var(--as-col-barrel); }
+[data-as-col="fig2"] { width: var(--as-col-fig2); }
+[data-as-col="reason"] { width: var(--as-col-reason); }
 .inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
 .inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
 .inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }
@@ -1155,6 +1169,10 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   padding: var(--sp-12); border: var(--hair) solid var(--border);
 }
 .inv-rpt-sheet { min-width: 0; }
+/* The report on the page is the paper (the tab map, TM2f): laid out at the sheet's width and zoomed to the screen (paperFit). */
+.inv-rpt-sheet > .inv-rpt-doc { width: var(--rpt-sheet-w); max-width: none; padding: var(--rpt-gutter-top) var(--rpt-gutter-side); zoom: var(--pp-zoom, 1); }
+/* The power case on the page is the paper too (TM4e): its sheet zoomed to the screen. */
+.inv-rpt-sheet > .inv-sr-doc { zoom: var(--pp-zoom, 1); }
 body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-side); }
 .inv-print-body .inv-rpt-doc { width: var(--rpt-sheet-w); max-width: none; padding: var(--rpt-gutter-top) var(--rpt-gutter-side); }
 /* Five kinds share a phone's width by their words, so "Quarterly" is never the one cut. */
@@ -1270,6 +1288,8 @@ body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var
 /* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
+/* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). */
+body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:last-child:nth-child(5n+1) { grid-column: 1 / -1; }
 .inv-panel > .inv-btn-grid:last-child { margin-bottom: 0; }
 
 /* §6.4 View tabs — underline. The one control for switching views. */
@@ -1313,6 +1333,10 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
   border-radius: var(--r-md); background: var(--surface-2); color: var(--text-1); font-size: var(--fs-12); font-weight: 500; white-space: nowrap;
 }
 .inv-token-key { color: var(--text-3); font-weight: 400; }
+/* The filters applied, under the toolbar on the phone (one look, §6.6): each a button that clears its own. */
+.inv-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: calc(-1 * var(--sp-4)) 0 var(--sp-12); }
+button.inv-token { border: none; cursor: pointer; font-family: inherit; }
+button.inv-token:hover { background: var(--surface-3); }
 .inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
 .inv-token-add { background: none; border: var(--hair) dashed var(--border); color: var(--text-2); cursor: pointer; }
 
@@ -1331,16 +1355,31 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 .inv-search input:focus-visible { box-shadow: none; }
 /* Filters in a toolbar share the line, wrapping two to a row on the phone; a labelled one keeps its label above. */
 .inv-toolbar > .inv-toolbar-item { flex: 1 1 var(--filter-w); min-width: 0; width: auto; }
+/* On the phone a search sharing its row takes what the row leaves, never under three quarters of a column, so the row stays one
+   (§1a-10: the search, Filter, the primary or Select, More). */
+body:not(.inv-desktop) .inv-toolbar > .inv-search:not(:only-child) { flex: 1 1 0; min-width: calc(var(--col-sm-w) * 0.75); }
 /* On the desktop a filter or sort picker is as wide as its choices, not the row: the search takes the room. */
 body.inv-desktop .inv-toolbar > :is(select, input[type="month"]).inv-toolbar-item { flex: 0 1 auto; max-width: calc(var(--col-sm-w) * 2); }
+/* Invoices' row is one row on the desktop at any width it is shown at (the tab map, TM5c): the search gives up its room before
+   anything wraps, and the client picker is never wider than a column and a half (a long name is cut in the picker, never the row). */
+body.inv-desktop [data-reg-toolbar] { flex-wrap: nowrap; }
+body.inv-desktop [data-reg-toolbar] > .inv-search { flex: 1 1 var(--col-sm-w); }
+body.inv-desktop [data-reg-toolbar] > #regClientFilter { max-width: calc(var(--col-sm-w) * 1.5); }
 /* A labelled field in a toolbar (a From / To date) is as wide as its control on the desktop too; each used to take half the row. */
 body.inv-desktop .inv-toolbar > .inv-field.inv-toolbar-item { flex: 0 0 auto; }
+/* A segmented control that is the toolbar's item (Pulse's period) fills the phone's row beside More, and is as wide as its
+   segments on the desktop. */
+body.inv-desktop .inv-toolbar > .inv-seg.inv-toolbar-item { flex: 0 0 auto; }
 .inv-toolbar .inv-field { margin-bottom: 0; }
 .inv-toolbar-end { align-self: flex-end; }
 .inv-toolbar-tight { gap: var(--sp-4); margin-bottom: 0; justify-content: flex-end; }
 .inv-toolbar-flush { margin-bottom: 0; }
 /* A period stepper: previous · the period (a date field, or its title over its dates) · next · back to now. */
 .inv-stepper { flex-wrap: nowrap; }
+/* A period stepper inside a toolbar row (§6.7: the Planner's month, People's day and week): ‹ the period › as one item beside the
+   row's primary and More; an item after it takes what the row leaves on the phone, so the row stays one (§1a-10). */
+.inv-tb-step { display: flex; align-items: center; gap: var(--sp-4); flex: 0 0 auto; min-width: 0; }
+.inv-toolbar > .inv-tb-step ~ .inv-toolbar-item { flex: 1 1 0; }
 .inv-stepper-label { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); text-align: center; }
 .inv-stepper-label > .inv-input { max-width: calc(var(--col-sm-w) * 1.5); text-align: center; }
 .inv-stepper-title { font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
@@ -1463,7 +1502,8 @@ body:not(.inv-desktop) button.inv-row-main { min-height: var(--touch); }
 .inv-row-main > .inv-row-title, .inv-row-main > .inv-row-meta { display: block; }
 .inv-row-stack { display: flex; flex-direction: column; align-items: flex-end; gap: var(--sp-2); }
 .inv-row-wrap { display: block; white-space: normal; }
-.inv-row-wrap .inv-dot { white-space: normal; }
+/* A dot's word wraps where its box is narrow: a row marked to wrap, and a tile's line (a tile is a fixed share of its strip). */
+.inv-row-wrap .inv-dot, .inv-tile-sub .inv-dot { white-space: normal; }
 /* On the phone and tablet a meta line may take two lines before it is cut (the polish pass's open items, 27 Sep 2026):
    one ellipsised line hid the date after a long client name ("GAMMA PRESS WORKS · 25…"). The title keeps one line, and
    whatever is still cut carries a title with its full text (uiOverflowCues, state.js). A meta line of names wraps whole
@@ -1693,22 +1733,13 @@ body.inv-desktop .inv-pane-host.inv-pane-open > .inv-pane { display: flex; }
 .inv-history-full { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-13); }
 /* Panels stacked in the pane keep their height and scroll with it, never squeezed to fit (the pane is a flex column). */
 .inv-pane > .inv-panel { flex-shrink: 0; margin-bottom: 0; }
-body.inv-desktop .inv-pane .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-/* Office → Pipeline: each stage a row whose lead is a node on one line, running up to the stage before and down to the
-   one after, its dot (12px) in the stage's tone. The stage open is pressed: the accent's soft fill and its rule at the
-   row's start. On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside
-   it, each scrolling inside itself: the page does not (the list-and-pane rule above). */
-.inv-pipe-node { position: relative; align-self: stretch; width: var(--sp-16); justify-content: center; }
-.inv-pipe-node > .inv-dot { position: relative; z-index: 1; }
-.inv-pipe-node > .inv-dot::before { width: var(--sp-12); height: var(--sp-12); }
-.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before,
-.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { content: ''; position: absolute; left: 50%; border-left: var(--hair) solid var(--border); }
-.inv-pipe-stage + .inv-pipe-stage > .inv-pipe-node::before { top: calc(-1 * var(--sp-6)); bottom: 50%; }
-.inv-pipe-stage:has(+ .inv-pipe-stage) > .inv-pipe-node::after { top: 50%; bottom: calc(-1 * (var(--sp-6) + var(--hair))); }
-button.inv-pipe-stage[aria-pressed="true"] { background: var(--accent-soft); box-shadow: inset var(--rule) 0 0 var(--accent); }
-button.inv-pipe-stage[aria-pressed="true"]:focus-visible { box-shadow: inset var(--rule) 0 0 var(--accent), var(--focus-ring); }
+body.inv-desktop :is(.inv-pane, .inv-pipe-rail) .inv-tiles { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+/* Office → Pipeline: the stages are coded tiles (§6.26), two across, each in its own age tone, the stage open pressed (§6.9).
+   On the desktop the pipeline is a column the pane's width and the open stage's list fills the rest beside it, each scrolling
+   inside itself: the page does not (the list-and-pane rule above). */
 body.inv-desktop .inv-pipe-host { gap: var(--gap); }
 body.inv-desktop .inv-pipe-rail { flex: 0 0 var(--pane-w); min-width: 0; overflow-y: auto; }
+body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .inv-visually-hidden { position: absolute; width: var(--hair); height: var(--hair); padding: 0; margin: calc(var(--hair) * -1); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 
 /* §6.15 Fields and the sticky action bar. */
@@ -1782,6 +1813,21 @@ body.inv-desktop .inv-line-num { font-family: var(--ff-mono); }
 body.inv-desktop .inv-line-num::before { content: none; }
 body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
 body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--hair); height: var(--hair); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* §6.29 A register page entered on Mine (faces.js, F4): a round a row (its time, its figure, remove), or on a batch page a batch
+   a row (when it began and ended, remove, then its figure); the client and the part only where a run begins, as the paper's
+   ditto carries them down; a row's reading or question under it. One grid on both layouts: the page is a person's own phone. */
+.inv-rnd-row {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) var(--ctl-h); gap: var(--sp-6) var(--sp-8); align-items: end;
+  padding: var(--sp-6) var(--pad-x); border-bottom: var(--hair) solid var(--border);
+}
+.inv-rnd-batch { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--ctl-h); }
+.inv-rnd-row .inv-field { margin-bottom: 0; min-width: 0; }
+.inv-rnd-row :is(.inv-input, .inv-select) { min-width: 0; padding: 0 var(--sp-8); }
+.inv-rnd-head { min-height: var(--row-h); align-items: center; padding-top: 0; padding-bottom: 0; background: var(--bg); font-size: var(--fs-12); font-weight: 500; color: var(--text-3); }
+.inv-rnd-run { background: var(--surface-2); }
+.inv-rnd-wide { grid-column: 1 / -1; }
+.inv-rnd-tail { grid-column: 2 / -1; }
+.inv-rnd-lead { grid-column: 1 / 3; }
 /* A line's verdict (rate, weight): the dot and its word, then the working in mono. The field it
    judges carries the verdict too, so a Check reads on the Rate box itself. */
 .inv-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-8); }
@@ -1813,6 +1859,8 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
 .inv-panel-fold:not([open]) > summary { border-bottom: none; }
 .inv-panel-flush > .inv-panel-body:last-child { border-bottom: none; }
 .inv-panel-head .inv-panel-count { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* A dot and its words in a head (a folded card's verdict) take the room left and wrap, never running under the fold's chevron. */
+.inv-panel-head > .inv-dot { white-space: normal; min-width: 0; }
 
 /* §6.16 Overlays. A scrim holds a dialog (inv-scrim-dialog). */
 .inv-scrim {
@@ -2008,6 +2056,9 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-sub { grid-column: 1 / -1; min-width: 0; font-size: var(--fs-13); line-height: 1.4; color: var(--text-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .inv-hero-viz { grid-column: 1 / -1; min-width: 0; margin-top: var(--sp-4); }
+/* The verdict card's facts (§6.28): up to three, each its own, set apart by the stylesheet rather than run together in one line
+   of text. */
+.inv-hero-fact + .inv-hero-fact::before { content: '\00B7'; padding: 0 var(--sp-6); color: var(--text-3); }
 .inv-hero-body { padding: 0 var(--sp-12) var(--sp-12); }
 /* A hero's own links and buttons (Import statement, Refresh, Back up now), under its head or its body. */
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
@@ -2057,6 +2108,11 @@ body.inv-desktop .inv-hero-sheet { container: panel-w / inline-size; }
 body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--gap); }
 .inv-heroes > .inv-hero { margin-bottom: 0; }
 .inv-heroes > details.inv-hero[open] { grid-column: 1 / -1; }
+/* Four subjects (Money's Overview: cash, owed, GST, paid out): two across, and four on a window wide enough for a crore in each. */
+body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 80rem) { body.inv-desktop .inv-heroes-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); } }
+/* A hero left alone on the last row takes the row, so a grid of heroes never ends in a blank cell (Floor's Overview holds five). */
+body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.inv-desktop .inv-heroes-4 > .inv-hero:last-child:nth-child(odd) { grid-column: 1 / -1; }
 
 /* Heroes stacked (Needs you's tasks), and a hero in a grid of panels: the grid's gap is the only space between them. A stack
    in a column of cards (the phone) keeps the gap under it, as every card has. */
@@ -2071,6 +2127,7 @@ body.inv-desktop .inv-heroes { grid-template-columns: repeat(3, minmax(0, 1fr));
    edge marked in the tone so the code reads at a glance. */
 /* auto-fit: the cards there are take the row between them, so two or three never leave a blank column beside them. */
 .inv-deck { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, var(--deck-min)), 1fr)); gap: var(--sp-8); }
+.inv-deck[data-deck-sm] { --deck-min: var(--deck-min-sm); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
   border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--border)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
@@ -2289,7 +2346,7 @@ a.inv-btn { text-decoration: none; }
 body:not(.inv-desktop) .inv-dialog-palette { height: 100%; max-height: none; border-radius: 0; }
 body.inv-desktop .inv-dialog-palette { height: min(var(--dialog-max-h-desk), var(--palette-h)); }
 /* The top bar's New window button (the place on screen, in another window) is the desktop's: a phone has one window. */
-body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn[data-action="invKbHelp"] { display: none; }
+body:not(.inv-desktop) [data-action="invNewWindow"], body:not(.inv-desktop) .inv-topbar .inv-btn:is([data-action="invKbHelp"], [data-action="invGoHistory"]) { display: none; }
 
 /* ===== THE GUARD (guard.js): the lock, who is signed in, the recovery code =====
    The lock is a layer over every other (--z-lock, above the print view and the toasts), opaque so no figure shows through;
@@ -2366,6 +2423,11 @@ body.inv-desktop .inv-viewtab-group::before { content: ''; width: var(--hair); h
    narrow phone (a 360 px screen). */
 body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-10); }
 @media (max-width: 24rem) { body:not(.inv-desktop) > .inv-ws-tabs:has(.inv-viewtab-group) > .inv-viewtab { padding: 0 var(--sp-6); } }
+/* Where the row's views fit with the group set off by a rule, the name is that rule, as on the desktop (wsRowFit, the tab map):
+   the word is the cue for a group out of sight, and a row with nothing out of sight needs none. */
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group { position: static; padding: 0 var(--sp-4); font-size: 0; background: none; cursor: default; }
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group::after { content: none; }
+body:not(.inv-desktop) > .inv-ws-tabs[data-group="rule"] > .inv-viewtab-group::before { content: ''; width: var(--hair); height: var(--sp-16); background: var(--border); }
 /* Under it, a page that opens on its own tabs: that row sits flush under the first, a step smaller (the secondary row). */
 body:has(> .inv-ws-tabs:not(.inv-hidden)) .inv-page:has(> .inv-viewtabs:first-child, > :first-child > .inv-viewtabs:first-child) { padding-top: 0; }
 body:has(> .inv-ws-tabs:not(.inv-hidden)) :is(.inv-page > .inv-viewtabs:first-child, .inv-page > :first-child > .inv-viewtabs:first-child) { margin-bottom: var(--sp-8); }
@@ -2394,11 +2456,9 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 
 /* The planner (planner.js, planview.js; docs/PLANNER.md): the plans as chips, the goal with its level, the strip with its
    month stepper and stars, a move's month with its arrows. Everything else is the shared components. */
-.inv-pl-chips { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-6); min-width: 0; }
-.inv-pl-chips > .inv-chip { max-width: calc(var(--col-sm-w) * 2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.inv-pl-goal { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8) var(--sp-12); margin-bottom: var(--sp-12); }
-.inv-pl-hud { margin-bottom: var(--sp-12); }
-.inv-pl-step { display: flex; align-items: center; gap: var(--sp-4); }
+/* Moves' switch sizes each kind to its word (the tab map, TM2d). */
+.inv-pl-moves { margin-bottom: var(--sp-12); }
+.inv-pl-moves > .inv-seg-btn { flex: 1 1 auto; padding: 0 var(--sp-6); }
 .inv-pl-stars { width: calc(var(--sp-16) * 3); height: var(--sp-16); vertical-align: middle; margin-right: var(--sp-4); }
 .inv-pl-star { fill: var(--surface-3); }
 .inv-pl-star-on { fill: var(--warning); }
@@ -2439,23 +2499,10 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
 .inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
-body:not(.inv-desktop) .inv-pl-step .inv-tile-value { font-size: var(--fs-17); }
 
-/* The plant register (plant.js, owner 7 Oct 2026): a line's units side by side, each a tile edged in its status's colour and
-   named in a word beside its dot (DR-1, DR-8); a pip per unit where the line is one row; a bar for what is available and
-   what is used of it. The bar is an SVG, so its widths are attributes, never a style. */
-.inv-unit-strip { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--tile-min), 1fr)); gap: var(--sp-8); margin-top: var(--sp-10); }
-body:not(.inv-desktop) .inv-unit-strip { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-.inv-plt-unit { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-4); min-width: 0; min-height: var(--touch); padding: var(--sp-8) var(--sp-10);
-  border: var(--hair) solid var(--border); border-left: var(--sp-4) solid var(--text-3); border-radius: var(--r-md); background: var(--surface); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; }
-.inv-plt-unit:hover { background: var(--surface-2); }
-.inv-plt-unit:focus-visible { box-shadow: var(--focus-ring); outline: none; }
-.inv-plt-unit[data-status="run"] { border-left-color: var(--ok); }
-.inv-plt-unit[data-status="standby"] { border-left-color: var(--info); }
-.inv-plt-unit[data-status="repair"] { border-left-color: var(--warning); background: var(--warning-bg); }
-.inv-plt-unit[data-status="down"] { border-left-color: var(--danger); background: var(--danger-bg); }
-.inv-unit-name { max-width: 100%; overflow-wrap: anywhere; font-size: var(--fs-14); font-weight: 600; }
-.inv-unit-sub { font-size: var(--fs-12); color: var(--text-3); }
+/* The plant register (plant.js, owner 7 Oct 2026): a line's units are deck cards in their status's tone (§6.22; the tab map,
+   TM4c), a pip per unit where the line is one row, a bar for what is available and what is used of it. The bar is an SVG, so its
+   widths are attributes, never a style. */
 .inv-unit-cap { display: flex; flex-direction: column; gap: var(--sp-4); }
 .inv-unit-cap-words { font-size: var(--fs-14); font-weight: 600; }
 .inv-unit-bar { display: block; width: 100%; height: var(--sp-8); border-radius: var(--r-full); overflow: hidden; }

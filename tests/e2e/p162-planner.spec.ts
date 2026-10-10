@@ -1,11 +1,23 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, waitForBoot, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, toolbarMore, waitForBoot, type SepState } from './fixtures';
 
 // P162: the planner (docs/PLANNER.md). A month is built from the book's parts up; a move changes an input, never a total;
 // the ledger's rows add up to the plan; a scenario never writes the book; the registers are records.
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
+/** A register's row: on the phone its actions are under it, in its fold (TM2d), opened first. */
+async function rowAct(page: Page, row: string, action: string) {
+  const r = page.locator(row);
+  if (await r.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await r.locator(':scope > summary').click();
+  await r.locator(`[data-action="${action}"]`).click();
+}
+/** Moves, on a kind (the tab map, TM2d: Plant, Tech tree, Staff, Clients and Finance were views of their own). */
+async function openMoves(page: Page, kind: string) {
+  await page.locator('#pagePlanner [data-action="invPlnView"][data-v="moves"]').click();
+  await page.locator(`#pagePlanner [data-action="invPlnMoves"][data-k="${kind}"]`).click();
+  await expect(page.locator(`#pagePlanner [data-action="invPlnMoves"][data-k="${kind}"]`)).toHaveAttribute('aria-pressed', 'true');
+}
 /* The 10th of each of the last three full months. */
 function lastMonths(): string[] {
   const out: string[] = [];
@@ -45,7 +57,7 @@ test.describe('P162 the planner', () => {
   test('a move changes an input, the ledger adds up, and the book is not touched', async ({ page }) => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner [data-action="invPlnView"][data-v="clients"]').click();
+    await openMoves(page, 'clients');
     await page.locator('[data-pl-client="2"] [data-action="invPlnClient"]').click();
     await page.locator('#plnAsk input[data-pl-ask="to"]').fill('15');
     await page.locator('#plnAsk input[data-pl-ask="to"]').dispatchEvent('change');
@@ -77,7 +89,7 @@ test.describe('P162 the planner', () => {
     // The machines are the plant register's units (plant.js, P166): added and edited in its editor, from the planner too.
     await loadAppWithState(page, book());
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner [data-action="invPlnView"][data-v="plant"]').click();
+    await openMoves(page, 'plant');
     await page.locator('#plnMachines [data-action="invPltEdit"]').click();
     await page.fill('#pltName', 'Rectifier 2');
     await page.selectOption('#pltStation', 'vat-a2');
@@ -86,7 +98,7 @@ test.describe('P162 the planner', () => {
     await page.locator('[data-action="invPltSave"]').click();
     await expect(page.locator('[data-pl-machine]')).toHaveCount(1);
     expect(await g(page, `todoApp().filter(function (t) { return t.rule === 'plnMachine'; }).length`)).toBe(1);
-    await page.locator('[data-pl-machine] [data-action="invPltEdit"]').click();
+    await rowAct(page, '[data-pl-machine]', 'invPltEdit');
     await page.locator('[data-action="invPltRetire"]').click();
     await answerAsk(page, 'ok', 'sold');
     await expect(page.locator('[data-pl-machine]')).toHaveCount(0);
@@ -98,12 +110,14 @@ test.describe('P162 the planner', () => {
   test('a plan is played: the CQI-11 path, the trials, the board and the report', async ({ page }) => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner [data-action="invPlnCopy"]').click();
-    await page.locator('#pagePlanner [data-action="invPlnStart"]').click();
+    // Start a plan, then a suggested start: both in the toolbar's More (one row, §1a-10).
+    await toolbarMore(page, 'Start a plan');
+    await toolbarMore(page, 'Suggest a start');
     expect(await g(page, `plnPlanned().ready.cqi`)).toBeGreaterThan(0);
     await expect(page.locator('#plnBoard .inv-pl-pin')).toHaveCount(10);
     await page.locator('#pagePlanner [data-action="invPlnRoll"]').click();
-    await expect(page.locator('[data-pl-hud="score"] .inv-tile-value')).toHaveText(/%$/);
+    // The verdict's factor: the share of trials reaching the goal, then its stars.
+    await expect(page.locator('[data-pl-hud="score"] .inv-tile-value')).toHaveText(/\d+%/);
     await expect(page.locator('#plnOutcome [data-pl-ach]').first()).toBeVisible();
     // A move on the board shifts a month from its dialog.
     const before = await g(page, `plnScenario().plan.cqi`);
@@ -111,7 +125,7 @@ test.describe('P162 the planner', () => {
     await page.locator('[data-pl-pin-dialog] [data-action="invPlnShift"][data-step="1"]').click();
     expect(await g(page, `plnScenario().plan.cqi`)).toBe(before + 1);
     await page.locator('[data-pl-pin-dialog] .inv-dialog-foot [data-action="invCloseOverlay"]').click();
-    await page.locator('#pagePlanner [data-action="invPlnReport"]').click();
+    await toolbarMore(page, 'Make the report');
     await expect(page.locator('#invPrintBody [data-pl-report]')).toBeVisible();
     await expect(page.locator('#invPrintBody [data-pl-report]')).toContainText('CQI-11 self-assessed');
   });

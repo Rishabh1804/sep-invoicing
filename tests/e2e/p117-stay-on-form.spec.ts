@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 import { partStateBilled } from './p77-part-invoice.fixture';
 
 // P117 (owner, 30 Sep 2026): entering by hand stays on the form for the next entry (Production, Power, Stock), what was
@@ -13,7 +13,7 @@ const CLIENTS = [{ id: 11, name: 'NOVA CLAMPS PVT. LTD.', billingMode: 'piece', 
 test('Production by hand stays on the form: the kind, day, line and client carry over, and each save is listed', async ({ page }) => {
   await loadAppWithState(page, { ...emptyState(), clients: CLIENTS, incomingMaterial: noSeedIM() } as SepState);
   await switchTab(page, 'pageProduction');
-  await page.locator('#pageProduction [data-action="invProdHand"]').click();
+  await toolbarMore(page, 'Enter by hand');   // the toolbar's More (TM4c)
   await page.locator('#prodHandLine').selectOption('vat-a2');
   await page.locator('#prodHandClient').selectOption('11');
   for (const [part, qty] of [['CLAMP 165X83 (40X6)', '420'], ['CLAMP 105X83 (40X6)', '300']]) {
@@ -29,7 +29,7 @@ test('Production by hand stays on the form: the kind, day, line and client carry
     ['CLAMP 165X83 (40X6)', 420, 'vat-a2'], ['CLAMP 105X83 (40X6)', 300, 'vat-a2']]);
   // Nothing typed since the save, so Done leaves without asking.
   await page.locator('[data-card="prodHandSaved"] [data-action="invProdHandDone"]').click();
-  await expect(page.locator('#pageProduction [data-action="invProdHand"]')).toBeVisible();
+  await expect(page.locator('#pageProduction [data-prod-toolbar]')).toBeVisible();
 });
 
 test('Power → Enter a cut takes several cuts in a row and comes back to Power', async ({ page }) => {

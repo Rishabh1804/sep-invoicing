@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse, openWidget, openAttendance } from './fixtures';
 
 // P44: pay. The pay week runs Sunday to Saturday (paid Saturday); what each
 // worker is due (earned minus paid); the week's payout, predicted at its own
@@ -52,7 +52,7 @@ test.describe('P44: pay', () => {
   test('the week grid runs Sunday to Saturday and is numbered by its Saturday', async ({ page }) => {
     await load(page);
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="week"]').click();
+    await openAttendance(page, 'week');
     const heads = page.locator('#attWeekGrid thead th:not(:first-child)');
     await expect(heads).toHaveCount(7);
     await expect(heads.first()).toContainText('Sun');
@@ -82,23 +82,31 @@ test.describe('P44: pay', () => {
     expect(f.swing).toBe(300);
 
     await openPay(page);
-    await expect(page.locator('#payForecast')).toContainText('2 of 6 working days recorded + Sunday');
-    await expect(page.locator('#paySwing')).toContainText('+13%');
+    await expect(page.locator('#payForecast')).toContainText('2 of 6 days recorded, and the Sunday');
+    // The swing is a tile since TM4b: its figure in rupees, the share of the median under it.
+    await expect(page.locator('#paySwing')).toHaveText('+₹300.00');
+    await expect(page.locator('[data-tile="swing"]')).toContainText('+13% on the median');
     await expect(page.locator('#payHistory [data-week]')).toHaveCount(12);
-    await expect(page.locator('#payHistory [data-week]').nth(1)).toContainText('+₹600.00 against the median');
+    // The week's payout and, under it, its difference from the median the panel's head names (TM4b: two facts a row).
+    await expect(page.locator('#payHistory .inv-panel-count')).toContainText('median ₹2,400.00');
+    await expect(page.locator('#payHistory [data-week]').nth(1)).toContainText('+₹600.00');
+    await expect(page.locator('#payHistory [data-week]').nth(1).locator('[title^="against the median"]')).toHaveText('+₹600.00');
   });
 
   test('due is earned minus paid, recorded from the due list, and a void keeps the record', async ({ page }) => {
     await load(page);
     await openPay(page);
-    const bala = page.locator('#payDue [data-action="invPayPick"][data-id="2"]');
-    await expect(bala).toContainText('₹1,100.00');
-    await bala.click();
+    // A hand's line is its due; its fold holds the sum and the Pay that fills the form (TM4b).
+    const bala = page.locator('#payDue [data-pay-row="2"]');
+    await expect(bala.locator('> summary .inv-num')).toHaveText('₹1,100.00');
+    await bala.locator('> summary').click();
+    await expect(bala.locator('[data-action="invPayPick"]')).toHaveText('Pay ₹1,100.00');
+    await bala.locator('[data-action="invPayPick"]').click();
     await expect(page.locator('#payWorker')).toHaveValue('2');
     await expect(page.locator('#payAmount')).toHaveValue('1100');
     await page.locator('[data-action="invPaySave"]').click();
-    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="2"]')).toContainText('paid ₹1,100.00');
-    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="2"] .inv-num')).toHaveText('₹0.00');
+    await expect(bala.locator('> summary')).toContainText('paid ₹1,100.00');
+    await expect(bala.locator('> summary .inv-num')).toHaveText('₹0.00');
 
     // An advance to the monthly hand is taken off the month.
     await page.locator('#payWorker').selectOption('1');
@@ -129,14 +137,15 @@ test.describe('P44: pay', () => {
     expect(r).toEqual([['barrel', 22, 0, 3], ['vat-a1', 19, 3, 2]]);
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="areas"]').click();
-    await page.locator('[data-action="invAttThisWeek"]').click();
+    // Areas opens on this week; its way back is under More only once another week is shown (TM4b).
+    await expect(page.locator('#pageStaff [data-action="invAttThisWeek"]')).toHaveCount(0);
     await expect(page.locator('#areaHours')).toContainText('41.0 h');
   });
 
   test('Home carries the day\'s attendance', async ({ page }) => {
     const t = todayIso();
     await load(page, { attendance: { [t]: { marks: { 1: { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }, 2: { st: 'A', ot: 0, hours: 0, area: 'flex' } }, extra: [{ kind: 'coverage', area: 'vat-a1', hours: 8 }], note: '' } } } as any);
-    await openPulse(page);
+    await openWidget(page, 'attendance');
     const card = page.locator('#homeAttCard');
     await expect(card).toContainText('today');
     await expect(page.locator('#homeAttOnSite')).toHaveText('1/3');

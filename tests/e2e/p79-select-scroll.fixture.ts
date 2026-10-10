@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { switchTab } from './fixtures';
-import { PAGES } from './sweep-fixture';
+import { PAGES, faceSeen } from './sweep-fixture';
 
 // P79: a change inside a view never moves the page (owner, 27 Sep 2026: "check if clicking a drop down or selecting
 // an option from the drop-down is leading the page to go back to the top, I noticed this behaviour in receivables").
@@ -19,6 +19,10 @@ export const NAVIGATES: Array<[RegExp, string]> = [
   // Settings → Appearance repaints the whole app (theme, palette, density); nothing to hold in place, and the spacing
   // itself changes under a density switch, so a row moving there is the point of it.
   [/invAppearance/, 'density and theme change every size on the screen'],
+  // Day, Week and Month are Attendance's own views, and a line is Lines' own view, each led by its card (the tab map, TM4b, TM4c):
+  // a view opens at its top, as a view tab does.
+  [/invAttPeriod/, 'Attendance’s views'],
+  [/invProdLine"/, 'a line on Lines'],
 ];
 
 const SPACER = 'p79Spacer';
@@ -72,7 +76,12 @@ export async function probeStop(page: Page, where: string, scope: string, jumps:
         return null;
       };
       const sc = scrollerOf(el);
-      const top = () => (sc ? sc.scrollTop : window.scrollY);
+      // A redraw replaces a list or a pane that scrolls inside itself: read the one drawn now (by its id), never the one left
+      // detached, whose scrollTop is always 0.
+      const now = () => (sc && !sc.isConnected && sc.id ? document.getElementById(sc.id) : sc);
+      const top = () => { const s = now(); return s ? s.scrollTop : window.scrollY; };
+      // How far it can still scroll: a change that takes rows away can leave less below than was scrolled past.
+      const room = () => { const s = now(); return s ? s.scrollHeight - s.clientHeight : document.documentElement.scrollHeight - window.innerHeight; };
       // Near the top of what is showing, so the tabs and toolbar above it are out of sight.
       if (sc) sc.scrollTop += el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 40;
       else window.scrollTo(0, window.scrollY + el.getBoundingClientRect().top - 140);
@@ -97,7 +106,7 @@ export async function probeStop(page: Page, where: string, scope: string, jumps:
       const moved = (document.querySelector('.inv-page-active') as HTMLElement | null)?.id !== pageId;
       const again = (root && root.isConnected ? root : document).querySelector(key as string) as HTMLElement | null;
       const after = again && again.checkVisibility() ? again.getBoundingClientRect().top : null;
-      return { before, after, scrollBefore, scrollAfter: top(), opened, moved };
+      return { before, after, scrollBefore, scrollAfter: top(), room: room(), opened, moved };
     }, [scope, key, kind] as const);
     if (!r) continue;
     probed.push(where + ' ' + key);
@@ -106,8 +115,10 @@ export async function probeStop(page: Page, where: string, scope: string, jumps:
       await page.evaluate(() => { const b = Array.from(document.querySelectorAll('.inv-scrim-dialog')).pop()?.querySelector('[data-ans="cancel"], [data-action="invCloseOverlay"]') as HTMLElement | null; if (b) b.click(); else (window as any).closeOverlay(); });
     }
     if (r.moved) continue;
-    const toTop = r.scrollBefore > 200 && r.scrollAfter < 40;
-    const shifted = r.after != null ? Math.abs(r.after - r.before) > 60 : Math.abs(r.scrollAfter - r.scrollBefore) > 60;
+    // Kept means where it was, or as far down as what is left allows.
+    const keep = Math.min(r.scrollBefore, Math.max(0, r.room));
+    const toTop = keep > 200 && r.scrollAfter < 40;
+    const shifted = r.after != null ? Math.abs(r.after - r.before) > 60 : Math.abs(r.scrollAfter - keep) > 60;
     if (toTop || shifted) jumps.push({ where, control: key, before: Math.round(r.before), after: r.after == null ? -1 : Math.round(r.after), scrollBefore: Math.round(r.scrollBefore), scrollAfter: Math.round(r.scrollAfter) });
   }
 }
@@ -118,6 +129,7 @@ const probePage = (page: Page, where: string, jumps: Jump[], seen: Set<string>) 
 export async function walkSelects(page: Page, jumps: Jump[]) {
   const seen = new Set<string>();
   for (const id of PAGES) {
+    await faceSeen(page, id);
     await switchTab(page, id);
     await probePage(page, id, jumps, seen);
     const n = await page.locator(`#${id} .inv-viewtab:visible`).count();
@@ -133,7 +145,7 @@ export async function walkSelects(page: Page, jumps: Jump[]) {
       const opens: Record<string, string[]> = {
         'pageFinance › Receivables': ['[data-action="invBankClient"]', '[data-action="invBankChange"]'],
         'pageFinance › Bank': ['[data-action="invBankEdit"]'],
-        'pageFinance › Bills-notes': ['[data-action="invCostBillOpen"]', '[data-action="invCnFormOpen"][data-mode="new"]'],
+        'pageFinance › Payments': ['[data-action="invCostBillOpen"]'],
         'pageStock › Lines': ['[data-action="invStockOpen"]'],
       };
       for (const sel of opens[where] || []) {
@@ -146,7 +158,8 @@ export async function walkSelects(page: Page, jumps: Jump[]) {
     }
   }
   // Dialogs whose form carries selects.
-  for (const [name, js] of [['client-edit', 'openClientEdit(1)'], ['worker-edit', 'openWorkerEdit(1)'], ['item-edit', 'openItemEdit(1)'], ['todo-new', 'todoOpenEdit(null)'], ['settings', 'openSettings()']]) {
+  // The credit notes are a dialog of Invoices (the tab map, TM3), its New note a form in it.
+  for (const [name, js] of [['client-edit', 'openClientEdit(1)'], ['worker-edit', 'openWorkerEdit(1)'], ['item-edit', 'openItemEdit(1)'], ['todo-new', 'todoOpenEdit(null)'], ['credit-note-new', "renderCreditNoteList(); billsCnFormOpen('new')"], ['settings', 'openSettings()']]) {
     await page.evaluate(src => { (window as any).closeOverlay(); (window as any).closeSettings?.(); (0, eval)(src); }, js);
     // A sheet slides in: measure once it has landed, or the slide reads as a jump.
     await page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished.catch(() => null))));

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, answerAsk, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, switchTab, answerAsk, type SepState, toolbarMore } from './fixtures';
 
 // P50: Settings in seven groups (Access joined 1 Oct 2026), each section folded to a line that says what it
 // is set to, each section saved on its own; desktop two-pane. Part weights moved
@@ -95,8 +95,11 @@ test.describe('P50: Settings', () => {
     await load(page, { partWeights: { 'HINGE PIN': 0.045 } } as Partial<SepState>);
     await switchTab(page, 'pageClients');
     await page.locator('[data-action="invSwitchSubView"][data-view="items"]').first().click();
-    const btn = page.locator('[data-action="invOpenPartWeights"]');
-    await expect(btn).toHaveText('Part weights (1)');
+    // Under Parts' More (the tab map, TM5e), its count a badge on its row.
+    await toolbarMore(page);
+    const btn = page.locator('[data-tb-more-dialog] [data-tb-pick][data-action="invOpenPartWeights"]');
+    await expect(btn).toContainText('Part weights');
+    await expect(btn.locator('.inv-badge')).toHaveText('1');
     await btn.click();
     await expect(page.locator('#setPWList')).toContainText('HINGE PIN');
     await page.locator('#setPWPart').fill('bolt 10');
@@ -104,7 +107,12 @@ test.describe('P50: Settings', () => {
     await page.locator('[data-action="invAddPartWeight"]').click();
     await expect(page.locator('#setPWList')).toContainText('BOLT 10');
     expect((await readStoredState(page)).partWeights).toEqual({ 'HINGE PIN': 0.045, 'BOLT 10': 0.02 });
-    await expect(btn).toHaveText('Part weights (2)');
+    // The page under the dialog is drawn again, its More row counting both (read from the row's template, where More keeps them).
+    await expect.poll(() => page.evaluate(() => {
+      const t = document.querySelector('.inv-page-active [data-items-toolbar] [data-tb-more] template') as HTMLTemplateElement | null;
+      const b = t && t.content.querySelector('[data-action="invOpenPartWeights"] .inv-badge');
+      return b ? b.textContent : null;
+    })).toBe('2');
   });
 
   test('the uplift is measured from zinc bills against LME on their dates, and offered, not applied', async ({ page }) => {

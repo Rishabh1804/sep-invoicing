@@ -148,14 +148,16 @@ test('a piece-billed line with no catalogue row is still weighed', async ({ page
   };
   state.items = [];
   await loadAppWithState(page, state);
-  await switchTab(page, 'pageStats');
+  // The period's headline is Stats → Trends' verdict card (the tab map, TM2b).
+  await openStatsTab(page, 'trends');
 
   // 540 / 5.40 = 100 kg, and realisation is the contract rate.
-  const band = page.locator('[data-card="headline"] .inv-tiles');
+  const band = page.locator('#statsHeadline .inv-tiles');
   await expect(band).toContainText('0.10 t');
   await expect(band).toContainText('5.40');
-  // Fully covered, so no shortfall caveat.
-  await expect(page.locator('[data-card="headline"] .inv-callout').filter({ hasText: 'no weight on file' })).toHaveCount(0);
+  // Fully covered, so no shortfall line and no badge.
+  await expect(page.locator('#statsHeadline [data-callout="coverage"]')).toHaveCount(0);
+  await expect(page.locator('#statsHeadline [data-tile="tonnage"] .inv-badge')).toHaveCount(0);
 });
 
 test('the same part in two gauges is left for manual entry, never averaged', async ({ page }) => {
@@ -179,8 +181,8 @@ test('the same part in two gauges is left for manual entry, never averaged', asy
 
   // Withholding the catalogue figure costs no tonnage: the line is still
   // weighed from its own amount. 489 / 5.40 = 90.56 kg.
-  await switchTab(page, 'pageStats');
-  await expect(page.locator('[data-card="headline"] .inv-tiles')).toContainText('0.09 t');
+  await openStatsTab(page, 'trends');
+  await expect(page.locator('#statsHeadline .inv-tiles')).toContainText('0.09 t');
 });
 
 test('picking a part on a challan keeps the gauge in the line description', async ({ page }) => {

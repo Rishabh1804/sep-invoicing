@@ -73,11 +73,12 @@ test('days to pay is weighted by amount, and a client paying slower is raised', 
   await expect(page.locator('[data-recv="1"]')).toContainText('pays in 10 d');
 });
 
-test('owed90 raises per client, red at a tenth of the book, and amber while receipts are unplaced', async ({ page }) => {
+test('owed90 raises per client past its terms, red at a tenth of the book, and amber while receipts are unplaced', async ({ page }) => {
   seq = 0;
   const rows = [row(day(-150), 'SMS CHARGES', 1, 0)];
   await loadAppWithState(page, state({ bank: bank(rows), invoices: [inv(1, day(-100), 50000), inv(2, day(-10), 50000)] }));
-  expect(await tasks(page, 'owed90')).toMatchObject([{ key: 'owed90:1', tone: 'red', title: 'ALPHA FORGINGS owes ₹50,000.00 over 90 days' }]);
+  // The 100-day invoice is past the plant's 45-day terms (the flow thread, T2: the rule read a fixed 90 days); the 10-day one is not.
+  expect(await tasks(page, 'owed90')).toMatchObject([{ key: 'owed90:1', tone: 'red', title: 'ALPHA FORGINGS owes ₹50,000.00 past its 45-day terms' }]);
   await push(page, `bankData().rows.push({ id: 'BK-L', date: '${day(-5)}', valueDate: '${day(-5)}', narration: 'BY INST 777001', chq: '', dr: 0, cr: 50000, balance: 1, dayIdx: 0 })`);
   const t = await tasks(page, 'owed90');
   expect(t[0].tone).toBe('amber');
@@ -143,5 +144,5 @@ test('each finance rule can be switched off in Settings', async ({ page }) => {
   seq = 0;
   await loadAppWithState(page, state({ bank: bank([row(day(-40), 'NEFT-ALPHA FORGINGS', 0, 5000)]), todoCheck: { bankStale: false } }));
   expect(await tasks(page, 'bankStale')).toEqual([]);
-  expect(await ev(page, `TODO_RULES.filter(function(r) { return FIN_RULES.some(function(f) { return f[0] === r[0]; }); }).length`)).toBe(12);
+  expect(await ev(page, `TODO_RULES.filter(function(r) { return FIN_RULES.some(function(f) { return f[0] === r[0]; }); }).length`)).toBe(14);
 });

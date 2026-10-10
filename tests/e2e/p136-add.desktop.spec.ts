@@ -3,7 +3,7 @@ import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
 
 // P136 on the desktop: the key A opens Add (never from a field, never over a layer), the sheet is centred, the box takes a
-// paste at once and Ctrl+Enter reads it, and By hand lays its ten forms out five across.
+// paste at once and Ctrl+Enter reads it, and By hand lays its eleven forms out five across, the last alone taking its row.
 
 function dmy(offset: number) {
   const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + offset);
@@ -27,9 +27,14 @@ test.describe('P136 desktop: Add on a keyboard', () => {
     const box = (await sheet(page).boundingBox())!, vp = page.viewportSize()!;
     expect(Math.abs(box.x + box.width / 2 - vp.width / 2)).toBeLessThan(2);
     expect(Math.abs(box.y + box.height / 2 - vp.height / 2)).toBeLessThan(2);
-    const rows = await page.locator('[data-action="invAddHand"]').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
-    expect(new Set(rows).size).toBe(2);
+    const doors = await page.locator('[data-action="invAddHand"]').evaluateAll(els => els.map(e => { const r = e.getBoundingClientRect(); return { top: Math.round(r.top), w: r.width }; }));
+    const rows = doors.map(d => d.top);
+    expect(doors).toHaveLength(11);
+    expect(new Set(rows).size).toBe(3);
     expect(rows.filter(t => t === rows[0])).toHaveLength(5);
+    // The eleventh, alone on its row, takes the row rather than leaving four cells blank beside it.
+    const grid = (await page.locator('[data-add-sec="hand"] .inv-btn-grid').boundingBox())!;
+    expect(Math.abs(doors[10].w - grid.width)).toBeLessThan(2);
     // Over the sheet (a layer) the key is a letter in the box, never a second sheet.
     await page.keyboard.press('a');
     await expect(page.locator('#addPasteText')).toHaveValue('a');

@@ -186,14 +186,18 @@ function kbLinkedHtml(type, id, label, title) {
   var list = kbLinkedTo(type, id, label);
   if (!list.length) return '';
   return '<div class="inv-panel inv-panel-flush" data-kb-linked="' + escHtml(type) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(title || 'Knowledge') +
-    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + list.map(kbRowHtml).join('') + '</div>';
+    ' <span class="inv-panel-count">' + list.length + '</span></span></div>' + list.map(function(a) { return kbRowHtml(a, true); }).join('') + '</div>';
 }
-function kbRowHtml(a) {
-  var meta = [kbKindName(a.kind), a.kind === 'fault' ? a.symptom : a.summary, a.kind === 'ruling' && a.ruledOn ? formatDate(a.ruledOn) : '', a.kind === 'incident' && a.on ? formatDate(a.on) : ''].filter(Boolean).join(' · ');
+function kbRowHtml(a, brief) {
+  // Two facts (§3b-11): its kind with its day where it has one, and what it is about. `brief` (a panel on a client's, a part's or a
+  // stock line's page, the tab map TM5f): what it is about is the row's title, since a summary ran past 120 characters there.
+  var day = a.kind === 'ruling' && a.ruledOn ? a.ruledOn : a.kind === 'incident' && a.on ? a.on : '';
+  var about = a.kind === 'fault' ? a.symptom : a.summary;
+  var meta = [kbKindName(a.kind) + (day ? ', ' + formatDate(day) : ''), brief ? '' : about].filter(Boolean).join(' · ');
   // The article open beside the list is marked as the current row (aria-current, as the Register's), in Knowledge's own
   // lists only: a client's panel is not that list.
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
+    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (brief && about ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + (a.status === 'published' && !a.pending ? '' : kbStatusHtml(a)) + '</span></div>';
 }
 
@@ -587,14 +591,17 @@ function kbTrainingHtml() {
   if (!paths.length) h += '<div class="inv-empty">No training path yet.</div>';
   paths.forEach(function(p) {
     var arts = kbPathArticles(p), who = kbPathWho(p, roster);
+    // A path shows its first five lessons, the rest one tap away (the length pass's rule): the paths grew with the entry
+    // faces' guides (F6), and Training ran past its budget (P195).
+    var rows = arts.map(function(a, i) {
+      var done = 0, due = 0;
+      who.forEach(function(w) { var st = kbTrainState(w.id, a).state; if (st === 'yes') done++; else if (st === 'due') due++; });
+      return '<div class="inv-row"><button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + (i + 1) + '. ' + escHtml(a.title) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(kbKindName(a.kind) + ' · v' + kbVer(a) + (who.length ? ' · trained ' + done + ' of ' + who.length : '')) + '</span></button>' +
+        '<span class="inv-row-end">' + (due ? '<span class="inv-dot inv-dot-warning">' + due + ' due again</span>' : '') + '</span></div>';
+    });
     h += '<div class="inv-panel inv-panel-flush" data-kb-path="' + escHtml(p.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(p.title) + ' <span class="inv-panel-count">' + arts.length + '</span></span></div>' +
-      (arts.length ? arts.map(function(a, i) {
-        var done = 0, due = 0;
-        who.forEach(function(w) { var st = kbTrainState(w.id, a).state; if (st === 'yes') done++; else if (st === 'due') due++; });
-        return '<div class="inv-row"><button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + (i + 1) + '. ' + escHtml(a.title) + '</span>' +
-          '<span class="inv-row-meta">' + escHtml(kbKindName(a.kind) + ' · v' + kbVer(a) + (who.length ? ' · trained ' + done + ' of ' + who.length : '')) + '</span></button>' +
-          '<span class="inv-row-end">' + (due ? '<span class="inv-dot inv-dot-warning">' + due + ' due again</span>' : '') + '</span></div>';
-      }).join('') : '<div class="inv-empty">None of this path&rsquo;s lessons is published yet.</div>') + '</div>';
+      (rows.length ? uiMoreHtml('kb-path-' + p.id, rows, { n: rows.length === 6 ? 6 : 5, noun: 'lessons' }) : '<div class="inv-empty">None of this path&rsquo;s lessons is published yet.</div>') + '</div>';
   });
   if (!sees) return h + '<div class="inv-note">Who was trained is kept against the roster, which People and Floor show.</div>';
   // The roster against every lesson given.

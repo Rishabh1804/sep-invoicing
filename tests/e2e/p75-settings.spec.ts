@@ -21,7 +21,7 @@ test.describe('P75: Settings', () => {
     await load(page);
     await page.locator('[data-action="invOpenSettings"]').first().click();
     const secs = page.locator('#settingsScrim details.inv-panel.inv-panel-fold[data-sec]');
-    expect(await secs.count()).toBe(23);   // 29 Sep 2026: Invoice states; 1 Oct 2026: Quotations, Users & access, Devices
+    expect(await secs.count()).toBe(24);   // 29 Sep 2026: Invoice states; 1 Oct 2026: Quotations, Users & access, Devices; 10 Oct 2026: Turnaround and terms
     // Open every section, so each module's fields (To-do, GitHub sync, appearance, backup) are drawn.
     for (const d of await secs.all()) {
       if (!(await d.evaluate(x => (x as HTMLDetailsElement).open))) await d.locator(':scope > summary').click();

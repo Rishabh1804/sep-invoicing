@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, type SepState } from './fixtures';
 
 // P159: why it moved (the intelligence's fourth step, 6 Oct 2026). A figure that moved is broken into its causes, each with
 // its ₹, and the causes add up to the change exactly. Made-up clients and figures; where the period matters the clock is set.
@@ -94,24 +94,24 @@ test.describe('P159 why it moved', () => {
       ['Receipts with no client, ₹0 → ₹500', 500], ['Paid out, wages, ₹0 → ₹100', -100]]);
   });
 
-  test('Stats → Overview draws the panel, and What changed? names the largest cause', async ({ page }) => {
+  test('Pulse draws the panel (Stats → Overview’s until the tab map), and What changed? names the largest cause', async ({ page }) => {
     // 20 Oct 2026, a Tuesday: seventeen working days into the month, past the early mark.
     await page.clock.install({ time: new Date('2026-10-20T11:00:00+05:30') });
     await loadAppWithState(page, book({ invoices: [inv('A0', 1, '2026-09-05', 100, 10), inv('B0', 2, '2026-09-06', 100, 20),
       inv('A1', 1, '2026-10-05', 100, 9), inv('B1', 2, '2026-10-06', 300, 20)] }));
-    await switchTab(page, 'pageStats');
+    await openPulse(page);
     const why = page.locator('#statsWhy');
     await expect(why.locator('[data-why="real"]')).toContainText('₹15.00 → ₹17.25/kg');
     await expect(why.locator('[data-why="real"]')).toContainText('+₹2.25/kg');
     await expect(why.locator('[data-why-cause="mix"]')).toHaveCount(2);
     await expect(why.locator('[data-why-early]')).toHaveCount(0);
-    await expect(page.locator('[data-story="changed"], [data-card="changed"]').first()).toContainText('Realisation rose ₹2.25/kg against same days last month');
+    await expect(page.locator('[data-tdy-q="changed"]')).toContainText('Realisation rose ₹2.25/kg against same days last month');
   });
 
   test('a month under ten working days in is said to be early', async ({ page }) => {
     await page.clock.install({ time: new Date('2026-10-06T11:00:00+05:30') });
     await loadAppWithState(page, book({ invoices: [inv('A0', 1, '2026-09-02', 100, 10), inv('A1', 1, '2026-10-02', 100, 12)] }));
-    await switchTab(page, 'pageStats');
+    await openPulse(page);
     await expect(page.locator('#statsWhy [data-why-early]')).toContainText('5 working days in');
   });
 });

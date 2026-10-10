@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
 
-// P72 (phone): Staff on the v2.0 components (design principles §7, §9 step 3). View tabs that scroll the
-// open one into view (the survey's cut-off sub-tabs); Paste message the one primary on Overview and Day,
+// P72 (phone): People on the v2.0 components (design principles §7, §9 step 3), its row Attendance · Pay · Areas · Roster since
+// the tab map (TM4b). View tabs that scroll the open one into view (the survey's cut-off sub-tabs); Paste message the one primary on Day,
 // opening a sub-view with its way back; Day's stat strip and rows with P / H / A pressed in their tone —
 // visible in dark as in light; Week a grid table; the labour card a flush panel of tiles and rows; the
 // attendance paste as rows, callouts, tiles and an action bar. No v1.0 class is drawn on any of it.
@@ -42,15 +42,26 @@ const noV1 = async (page: Page, primaries: number) => {
   await expect(page.locator('#pageStaff .inv-btn-primary:visible')).toHaveCount(primaries);
 };
 const tab = (page: Page, v: string) => page.locator(`#attToolbar .inv-viewtab[data-view="${v}"]`);
+// Attendance's Day · Week · Month are a switch under its toolbar (the tab map, TM4b).
+const period = (page: Page, v: string) => page.locator(`[data-att-period] [data-view="${v}"]`);
 
 test.describe('P72: Staff', () => {
-  test('view tabs: six, the open one selected and scrolled into view; one primary per view; no v1.0 class', async ({ page }) => {
+  test('view tabs: four, Attendance a switch of Day · Week · Month; the open one selected and in view; one primary at most; no v1.0 class', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStaff');
-    await expect(page.locator('#attToolbar .inv-viewtabs[role="tablist"] .inv-viewtab')).toHaveText(['Overview', 'Day', 'Week', 'Register', 'Pay', 'Areas', 'Roster']);
-    await expect(tab(page, 'overview')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#attToolbar .inv-viewtabs[role="tablist"] .inv-viewtab')).toHaveText(['Attendance', 'Pay', 'Areas', 'Roster']);
+    await expect(tab(page, 'attendance')).toHaveAttribute('aria-selected', 'true');
+    await expect(period(page, 'day')).toHaveAttribute('aria-pressed', 'true');
     await noV1(page, 1);
-    for (const [v, primaries] of [['day', 1], ['week', 0], ['pay', 1], ['areas', 0], ['roster', 1]] as [string, number][]) {
+    // Week has no primary; Month's is Start this month while it has no page.
+    for (const [v, primaries] of [['week', 0], ['register', 1], ['day', 1]] as [string, number][]) {
+      await period(page, v).click();
+      await expect(period(page, v)).toHaveAttribute('aria-pressed', 'true');
+      await expect(tab(page, 'attendance')).toHaveAttribute('aria-selected', 'true');
+      await noV1(page, primaries);
+    }
+    // Pay's Save payment is in its form, folded on the phone.
+    for (const [v, primaries] of [['pay', 0], ['areas', 0], ['roster', 1]] as [string, number][]) {
       await tab(page, v).click();
       await expect(tab(page, v)).toHaveAttribute('aria-selected', 'true');
       await noV1(page, primaries);
@@ -61,10 +72,14 @@ test.describe('P72: Staff', () => {
       return r.left >= list.left - 1 && r.right <= list.right + 1;
     });
     expect(inView).toBe(true);
-    // Roster: whole-row buttons, an inactive hand muted and badged.
+    // Roster: whole-row buttons, an inactive hand muted and badged. The tier is the group, the area and the rate the row's meta
+    // (TM4f: the tier and the area as badges took a line of their own on every row), and the hands who left close the list.
     const chand = page.locator('#attRoster [data-action="invAttEditWorker"][data-id="3"]');
     await expect(chand).toHaveClass(/inv-row-muted/);
-    await expect(chand.locator('.inv-badge')).toContainText(['Hourly', 'VAT A2', 'Inactive']);
+    await expect(chand.locator('[data-roster-meta]')).toHaveText('VAT A2 · ₹47.50/h, every hour');
+    await expect(chand.locator('.inv-badge')).toHaveText(['Inactive']);
+    await expect(page.locator('#attRoster [data-roster-group="left"]')).toContainText('Left');
+    await expect(page.locator('#attRoster [data-roster-group^="tier-"]').first()).toBeVisible();
     await chand.click();
     await expect(page.locator('.inv-dialog .inv-field-label[for="wedName"]')).toHaveText('Name');
     await expect(page.locator('.inv-dialog .inv-form-group, .inv-dialog .inv-form-input')).toHaveCount(0);
@@ -74,7 +89,7 @@ test.describe('P72: Staff', () => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStaff');
-    await tab(page, 'day').click();
+    await period(page, 'day').click();
     await expect(page.locator('#attOnSite')).toHaveText('2');
     await expect(page.locator('#attHalf')).toHaveText('1');
     const arun = page.locator('[data-att-row="1"]');
@@ -112,7 +127,7 @@ test.describe('P72: Staff', () => {
   test('Week is a grid table; a cell cycles; Sunday and today are marked', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStaff');
-    await tab(page, 'week').click();
+    await period(page, 'week').click();
     const grid = page.locator('#attWeekGrid table.inv-table.inv-table-grid');
     await expect(grid.locator('thead th')).toHaveCount(8);
     await expect(grid.locator('thead th').nth(1)).toHaveAttribute('data-sun', '');
@@ -127,14 +142,15 @@ test.describe('P72: Staff', () => {
   test('Paste message: a sub-view with its way back; the check as tiles, callouts, rows and an action bar', async ({ page }) => {
     await loadAppWithState(page, { ...state(), attendance: {} } as SepState);
     await switchTab(page, 'pageStaff');
-    await tab(page, 'day').click();
+    await period(page, 'day').click();
     await page.locator('[data-action="invAttView"][data-view="paste"]').click();
     await expect(page.locator('#attToolbar .inv-viewtabs')).toHaveCount(0);
     await expect(page.locator('#attContent .inv-pagehead-title')).toHaveText('Paste message');
     await noV1(page, 1);
     // The way back returns to the view it was opened from.
     await page.locator('#attContent .inv-pagehead-back').click();
-    await expect(tab(page, 'day')).toHaveAttribute('aria-selected', 'true');
+    await expect(tab(page, 'attendance')).toHaveAttribute('aria-selected', 'true');
+    await expect(period(page, 'day')).toHaveAttribute('aria-pressed', 'true');
     await page.locator('[data-action="invAttView"][data-view="paste"]').click();
     await page.locator('#relayPasteText').fill(`${dmy(-1)}/ in time\n----8:30 AM---\n---VAT A 1---\n1) ARUN\n---berral---\n2) BALA\n3) ZORO\nEXTRA 8 HOURS`);
     await page.locator('[data-action="invRelayRead"]').click();

@@ -81,7 +81,18 @@ test.describe('PWA manifest', () => {
     await expect(page.locator('#pageStats')).toHaveClass(/inv-page-active/);
     // The address stays live (UX overhaul 2, navigation): it names the screen and its view, so a refresh returns there.
     expect(new URL(page.url()).searchParams.get('tab')).toBe('pageStats');
-    expect(new URL(page.url()).searchParams.get('v')).toBe('overview');
+    // Stats opens on By client since the tab map (TM2b: its Overview is Pulse's).
+    expect(new URL(page.url()).searchParams.get('v')).toBe('clients');
+  });
+
+  test('the shortcut that opened the To-do opens Needs you, where the tasks are', async ({ page, request }) => {
+    const manifest = await (await request.get('/manifest.json')).json();
+    const s = (manifest.shortcuts || []).find((x: any) => x.name === 'Needs you');
+    expect(s && s.url).toBe('./?tab=pageHome&v=needs');
+    await loadAppWithState(page, emptyState());
+    await page.goto('/?tab=pageHome&v=needs');
+    await page.waitForSelector('body.inv-booted', { state: 'attached' });
+    await expect(page.locator('#homeNeeds')).toBeVisible();
   });
 });
 

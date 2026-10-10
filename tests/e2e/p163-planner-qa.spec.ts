@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, toolbarMore, type SepState } from './fixtures';
 
 // P163: the planner's QA chain (6 Oct 2026). The engine reproduces a large book, a faster line never plates less, a refusal and a
 // hire start when they can, weights carry a move's prerequisites, the cache follows the book; the screens keep a tap, a typed
@@ -95,7 +95,9 @@ test.describe('P163 the planner, its QA chain', () => {
   test('a figure typed and then a tap: both land', async ({ page }) => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner [data-action="invPlnView"][data-v="clients"]').click();
+    // Clients is a kind under Moves since the tab map (TM2d).
+    await page.locator('#pagePlanner [data-action="invPlnView"][data-v="moves"]').click();
+    await page.locator('#pagePlanner [data-action="invPlnMoves"][data-k="clients"]').click();
     await page.locator('[data-pl-client="1"] [data-action="invPlnClient"]').click();
     await page.locator('#plnAsk input[data-pl-ask="to"]').fill('17');
     await page.locator('#plnAsk [data-action="invPlnPlan"]').click();
@@ -135,11 +137,12 @@ test.describe('P163 the planner, its QA chain', () => {
   test('drawing every view writes nothing; a copied plan’s name does not grow', async ({ page }) => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner [data-action="invPlnCopy"]').click();
+    await toolbarMore(page, 'Start a plan');
     const w0 = await g(page, `_bookWrites`);
-    for (const v of ['play', 'ledger', 'day', 'plant', 'tech', 'staff', 'clients', 'finance']) await g(page, `(function () { plnSetView('${v}'); renderPlanner(); })()`);
+    // Every view, and each kind of move by its old name (a saved address's) and by its own.
+    for (const v of ['play', 'ledger', 'day', 'plant', 'tech', 'staff', 'clients', 'finance', 'moves/plant', 'moves/finance']) await g(page, `(function () { plnSetView('${v}'); renderPlanner(); })()`);
     expect(await g(page, `_bookWrites`)).toBe(w0);
-    for (let i = 0; i < 3; i++) await page.locator('#pagePlanner [data-action="invPlnCopy"]').click();
+    for (let i = 0; i < 3; i++) await toolbarMore(page, 'Copy the plan');
     const names: any = await g(page, `plnScenarios().map(function (s) { return s.name; })`);
     expect(names).toEqual(['My plan', 'My plan (copy)', 'My plan (copy 2)', 'My plan (copy 3)']);
   });

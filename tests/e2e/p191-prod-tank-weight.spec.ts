@@ -60,6 +60,18 @@ function weighBook(): SepState {
 }
 const weigh = (page: Page, id: string) => g(page, `(function(){ var r = prodWeigh(prodIndex().byId['${id}']); return [r.how, r.kg == null ? null : Math.round(r.kg * 100) / 100, r.src || '']; })()`);
 
+/* The day's card is Floor → Overview's Production hero since the tab map (TM4a), for the day on Floor's stepper; it is shut to
+   its line on both layouts until opened. */
+async function dayCard(page: Page, day = D) {
+  await switchTab(page, 'pageFloor');
+  await page.locator('#flrDate').fill(day);
+  await page.locator('#flrDate').dispatchEvent('change');
+  const card = page.locator('#flrHeroes [data-card="flr-prod"]');
+  await expect(card).toHaveAttribute('data-prod-day', day);
+  if (!(await card.evaluate(el => (el as HTMLDetailsElement).open))) await card.locator(':scope > summary').click();
+  return card;
+}
+
 test.describe('P191: what a piece weighs, and what a tank takes a round', () => {
   test('a name that writes a size is that part; the default comes after the links and a kind whose parts agree', async ({ page }) => {
     await loadAppWithState(page, weighBook());
@@ -76,17 +88,17 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // Two brackets of one size weigh apart: neither is guessed; ORION has no default, so its usual by kind.
     expect((await weigh(page, 'R5'))[0]).toBe('kind');
     // The day's weighing names the default, with the door that changes it.
-    await switchTab(page, 'pageProduction');
-    const row = page.locator('[data-prod-weigh="default"]').first();
+    const card = await dayCard(page);
+    const row = card.locator('[data-prod-weigh="default"]').first();
     await expect(row).toContainText('At MEHTA TEST INDUSTRIES’s default');
     await expect(row.locator('.inv-row-meta')).toHaveText('0.560 kg a piece · 194 pcs');
   });
 
   test('the default is adjustable on the client: changed, the runs follow; cleared, the kind is used again', async ({ page }) => {
     await loadAppWithState(page, weighBook());
-    await switchTab(page, 'pageProduction');
+    await dayCard(page);
     // The routes are folded under "How it was weighed" (§6.27): opened, the default's Change is there.
-    await page.locator('[data-prod-day-weighing] > summary').click();
+    await page.locator('#flrHeroes [data-prod-day-weighing] > summary').click();
     await page.locator('[data-prod-weigh="default"] [data-action="invEditClient"]').first().click();
     const f = page.locator('#ceditDefaultKgPc');
     await expect(f).toHaveValue('0.56');

@@ -65,10 +65,10 @@ function navLoc() {
       if (_stockView === 'item' && _stockItemId) id = _stockItemId;
       break;
     case 'pageHome': v = tdyView(); break;
-    case 'pageTodo': v = _todoShowDone ? 'done' : 'open'; break;
     case 'pageReports': v = rptNavV(); break;
-    case 'pagePlanner': v = _plnView; break;
+    case 'pagePlanner': v = plnViewKey(); break;
     case 'pageFloor': d = flrNavD(); break;
+    case 'pageFace': d = faceNavD(); if (_faceForm) { v = _faceForm.duty === 'vat' ? 'vat/' + _faceForm.line : _faceForm.duty; if (_faceForm.replaces) id = _faceForm.replaces; } break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
     case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
   }
@@ -83,8 +83,51 @@ function navLocFromUrl(search) {
   var p;
   try { p = new URLSearchParams(search); } catch (e) { return null; }
   var tab = p.get('tab');
-  if (!tab || !isPageId(tab)) return null;
-  return { tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' };
+  if (!tab) return null;
+  // A place that moved (the redirect table) is followed before the page is checked: a page that is gone still lands.
+  var loc = navRedirect({ tab: tab, v: p.get('v') || '', id: p.get('id') || '', d: p.get('d') || '' });
+  return isPageId(loc.tab) ? loc : null;
+}
+
+/* ---------- Places that moved (docs/TAB_MAP.md §5) ----------
+   Every old address still opens where its screen went: a bookmark, a manifest shortcut, the Windows widget's launch, a step of
+   the back trail an older build saved, a new window, a link in an article, a task saved naming an old view. One table, one pure
+   helper, applied to an address (navLocFromUrl) and to every place applied (navApply), so a saved step lands too. A row is added
+   by the step that removes its place, never before: a row naming a screen that still exists would hide it.
+   A row: { tab, v: a view's first part, a list of them, or null for any; to: function(loc) → {tab, v, id, d} }. */
+var NAV_REDIRECTS = [
+  // TM2a: the To-do joined Needs you. A widget's launch (todo=) still works: init.js reads it once the address has landed here.
+  { tab: 'pageTodo', v: null, to: function() { return { tab: 'pageHome', v: 'needs' }; } },
+  // TM2b: Stats → Overview went to Today → Pulse; Stats → Billing's dispatch cycle to Pipeline, its other cards to Money → GST.
+  { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'pulse' }; } },
+  { tab: 'pageStats', v: 'billing', to: function() { return { tab: 'pagePipeline', v: '' }; } },
+  // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
+  { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } },
+  // TM3a: Bills & notes split: its bills are Payments', its credit notes the Invoices' dialog.
+  { tab: 'pageFinance', v: 'bills', to: function() { return { tab: 'pageFinance', v: 'payments' }; } },
+  // TM4b: People's Overview went: who is on site is Floor → Overview's People card, its charts Attendance's and Pay's.
+  { tab: 'pageStaff', v: 'overview', to: function() { return { tab: 'pageFloor', v: '' }; } },
+  // TM4c: Production's Overview went: the day is Floor → Overview's Production card. A form opened over it stays open, on Lines.
+  { tab: 'pageProduction', v: 'overview', to: function(loc) {
+    var sub = String(loc.v || '').split('/')[1];
+    return /^(paste|hand|photo)$/.test(sub || '') ? { tab: 'pageProduction', v: 'lines/' + sub } : { tab: 'pageFloor', v: '' };
+  } },
+  // TM4d: Stock is one screen: its Overview is the list (its charts Spend and prices).
+  { tab: 'pageStock', v: 'overview', to: function() { return { tab: 'pageStock', v: 'list' }; } },
+  // TM4e: Power's Overview went: the month, its cost and a year at this rate are Cuts' card, and Floor → Overview's Power card.
+  { tab: 'pagePower', v: 'overview', to: function() { return { tab: 'pageFloor', v: '' }; } }
+];
+function navRedirect(loc) {
+  if (!loc || !loc.tab) return loc;
+  var first = String(loc.v || '').split('/')[0];
+  for (var i = 0; i < NAV_REDIRECTS.length; i++) {
+    var r = NAV_REDIRECTS[i];
+    if (r.tab !== loc.tab) continue;
+    if (r.v != null && (Array.isArray(r.v) ? r.v.indexOf(first) < 0 : r.v !== first)) continue;
+    var to = r.to(loc) || {};
+    return { tab: to.tab || loc.tab, v: to.v || '', id: to.id || '', d: to.d || '' };
+  }
+  return loc;
 }
 
 /* What a place is called: the page, then the view and the record ("Challans", "Invoiced, Aug 2026 · Ch. 301"). */
@@ -103,7 +146,7 @@ function navLabel(loc) {
       break;
     case 'pagePipeline': sub.push(pipeStageLabel(parts[0])); break;
     case 'pageClients':
-      sub.push({ clients: 'Clients', items: 'Items', performance: 'Performance', quotes: 'Quotations' }[parts[0]] || '');
+      sub.push({ clients: 'Clients', items: 'Parts', performance: 'Performance', quotes: 'Quotations', prospects: 'Prospects' }[parts[0]] || '');
       if (parts[1] === 'form') sub.push('Quotation form');
       var c = loc.id && parts[0] !== 'quotes' && S.clients.find(function(x) { return String(x.id) === loc.id; });
       if (c) rec = c.name;
@@ -124,19 +167,21 @@ function navLabel(loc) {
     case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff':
-      sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0]));
+      // Attendance's three views are a switch under one tab (the tab map, TM4b): "Attendance · Month, Sep 2026".
+      if (attIsPeriod(parts[0])) { sub.push('Attendance'); sub.push(_navFind(ATT_PERIODS, parts[0]) + (parts[0] === 'register' && /^\d{4}-\d{2}$/.test(parts[1] || '') ? ', ' + imMonthLabel(parts[1]) : '')); }
+      else sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0]));
       var sw = loc.id && parts[0] === 'roster' && staffById(loc.id);
       if (sw) rec = sw.name;
       break;
     case 'pageStock':
-      sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list' }[parts[0]] || '');
+      sub.push({ paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
-    case 'pageTodo': sub.push(parts[0] === 'done' ? 'Done' : 'Open'); break;
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
-    case 'pagePlanner': sub.push(_navFind(PLN_VIEWS, parts[0])); break;
+    case 'pagePlanner': sub.push(_navFind(PLN_VIEWS, parts[0])); if (parts[0] === 'moves') sub.push(_navFind(PLN_MOVES, parts[1])); break;
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
+    case 'pageFace': sub.push(flrNavLabel(loc.d)); if (parts[0] && FACE_FORM_TITLE[parts[0]]) sub.push(loc.id ? 'Correct' : FACE_FORM_TITLE[parts[0]] + (parts[0] === 'vat' && PROD_LINE_LABEL[parts[1]] ? ' · ' + PROD_LINE_LABEL[parts[1]] : '')); break;
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
     case 'pageKnow': { var kl = kbNavLabel(loc.v, loc.id); sub = sub.concat(kl.sub); rec = kl.rec; break; }
@@ -162,6 +207,7 @@ function navPlaceText(t, afterWs) {
 
 /* Puts the app where loc says. Every screen's own setters, then one draw; the record last, once the list exists. */
 function navApply(loc) {
+  loc = navRedirect(loc);
   _navHold++;
   try {
     var tab = loc && isPageId(loc.tab) ? loc.tab : 'pageHome';
@@ -187,7 +233,7 @@ function navApply(loc) {
         finSetTab(parts[0]); _bankEdit = null;
         if (_isDesktop) _bankOpen = parts[0] === 'receipts' && id && S.clients.some(function(c) { return String(c.id) === id; }) ? id : null;
         break;
-      case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'overview'); } catch (e) { /* per device only */ } break;
+      case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'clients'); } catch (e) { /* per device only */ } break;
       case 'pageProduction':
         prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
@@ -196,12 +242,12 @@ function navApply(loc) {
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
-        _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview';
+        _attView = attViewOk(parts[0]) ? parts[0] : 'day';
         if (parts[0] === 'register' && /^\d{4}-\d{2}$/.test(parts[1] || '')) _aregMonth = parts[1];
         if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
         break;
       case 'pageStock':
-        var sv = /^(overview|list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'overview';
+        var sv = /^(list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'list';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
         if (sv === 'item') _stockItemId = id;
         // Enter by hand and the reorder list are drawn from their own state: opened by an address it is made here, the
@@ -211,10 +257,10 @@ function navApply(loc) {
         _stockView = sv;
         break;
       case 'pageHome': tdySetView(parts[0]); break;
-      case 'pageTodo': _todoShowDone = parts[0] === 'done'; break;
       case 'pageReports': rptNavApply(loc && loc.v); break;
-      case 'pagePlanner': plnSetView(parts[0]); break;
+      case 'pagePlanner': plnSetView(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
+      case 'pageFace': faceSetDay(loc && loc.d); faceFormFromNav(loc && loc.v, id); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
       case 'pageKnow': kbNavApply(loc && loc.v, id); break;
     }
@@ -310,7 +356,9 @@ function navLeaveOk() {
    Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
    layer over the screen and leave nothing. */
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1 };
+// So do the top bar's History and the brand's mark (Pulse): both leave the screen.
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
+  invGoHistory: 1, invGoPulse: 1, invFaceFormDone: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));

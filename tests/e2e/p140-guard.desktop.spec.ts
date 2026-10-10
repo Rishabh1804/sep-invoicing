@@ -81,7 +81,11 @@ test.describe('P140: the guard (desktop)', () => {
     await expect(side.locator('.inv-side-item[data-ws]')).toHaveCount(4);
     await expect(side.locator('[data-ws="money"]')).toBeVisible();
     await side.locator('[data-ws="office"]').click();
-    for (const t of ['pageIM', 'pageRegister', 'pageStats', 'pageHistory']) await expect(page.locator(`#wsTabs [data-tab="${t}"]`)).toBeVisible();
+    for (const t of ['pageIM', 'pageRegister', 'pageClients']) await expect(page.locator(`#wsTabs [data-tab="${t}"]`).first()).toBeVisible();
+    // The Insights are Today's, and History is the top bar's tool (the tab map, 9 Oct 2026).
+    await side.locator('[data-ws="today"]').click();
+    for (const t of ['pageStats', 'pageReports', 'pagePlanner']) await expect(page.locator(`#wsTabs [data-tab="${t}"]`)).toBeVisible();
+    await expect(page.locator('.inv-topbar [data-action="invGoHistory"]:visible')).toHaveCount(1);
     await side.locator('[data-ws="floor"]').click();
     await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff [data-action="invAttView"][data-view="pay"]').first()).toBeVisible();

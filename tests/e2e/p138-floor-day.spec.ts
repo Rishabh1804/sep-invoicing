@@ -1,18 +1,21 @@
 import { test, expect } from '@playwright/test';
 import { loadAppWithState, switchTab, openPulse } from './fixtures';
 import { sweep, problems, type Stop } from './sweep-fixture';
-import { floorBook, openFloor, card, tile, dayOff, g, T, Y, D2 } from './p138-floor-day.fixture';
+import { floorBook, openFloor, card, hero, dayOff, g, T, Y, D2 } from './p138-floor-day.fixture';
 
-// P138 (Direction B, step 5; owner, 1 Oct 2026): Floor → Day, the line board. A card per line (VAT A1, VAT A2, Barrel,
-// Pickling): the heads against the day's number, the EXTRA booked to it, what it is running and its last round, what it
-// plated and who plated it; tiles for on site, plated and power. Every figure is the one its own screen shows: Staff →
-// Day and Areas, Production → Lines and Overview, Power. A day is a place (?tab=pageFloor&d=…). Made-up names and parts.
+// P138 (Direction B, step 5; owner, 1 Oct 2026): Floor → Day, the line board, now Floor → Overview (the tab map, TM4a). A card
+// per line (VAT A1, VAT A2, Barrel, Pickling), the worst first: the heads against the day's number, the EXTRA booked to it, what
+// it is running and its last round, what it plated and who plated it; the heroes say on site, plated and power. Every figure is
+// the one its own screen shows: People → Day and Areas, Production → Lines, Power. A day is a place (?tab=pageFloor&d=…).
+// Made-up names and parts.
 
 test('each line’s card: its staffing against the day’s number, its EXTRA, what it ran and plated, and who plated it', async ({ page }) => {
   await loadAppWithState(page, floorBook());
   await openFloor(page);
   await expect(page.locator('#flrLines > .inv-hero')).toHaveCount(4);
-  await expect(page.locator('#flrLines .inv-panel-title')).toHaveText(['VAT A1', 'VAT A2', 'Barrel', 'Pickling']);
+  // The worst first (TM4a): Pickling is judged by its heads (met, ok); the plating lines have no units on record here, so their
+  // efficiency is not judged (neutral) and they keep the line order after it.
+  await expect(page.locator('#flrLines .inv-panel-title')).toHaveText(['Pickling', 'VAT A1', 'VAT A2', 'Barrel']);
   // Staffing: heads against areaNeedOn (A1's day number is 4, its usual 3); Barrel is barrel and barrel pickling, one unit of five.
   await expect(card(page, 'vat-a1').locator('[data-flr-staff]')).toHaveText('Short 1 · 3/4');
   await expect(card(page, 'vat-a1').locator('[data-flr-staff] .inv-dot')).toHaveClass(/inv-dot-warning/);
@@ -69,11 +72,11 @@ test('the cards say what Staff → Day, Production → Lines and Entries say for
   await card(page, 'vat-a1').locator('[data-action="invFlrLine"]').click();
   await expect(page.locator('#pageProduction.inv-page-active')).toBeVisible();
   await expect(page.locator('#productionContent [data-action="invProdLine"][data-line="vat-a1"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#productionContent .inv-stepper-title')).toHaveText(await g(page, `formatDate('${T}')`) as string);
+  // Lines' card names the day (the phone's toolbar has no room for it) and its factors say what the Floor card says.
+  await expect(page.locator('#prodLinesVerdict .inv-hero-eyebrow')).toContainText(await g(page, `stockShortDate('${T}')`) as string);
   await expect(page.locator('#prodRuns [data-prod-entry="R2"] .inv-row-title')).toHaveText(floor.a1Title);
-  const tiles = page.locator('#productionContent .inv-tiles').first();
-  await expect(tiles.locator('.inv-tile').nth(0).locator('.inv-tile-value')).toHaveText(floor.a1Plated);
-  await expect(tiles.locator('.inv-tile').nth(1).locator('.inv-tile-value')).toHaveText(floor.a1Kg);
+  await expect(page.locator('#prodLinesVerdict [data-prod-line-tile="kg"] .inv-tile-value')).toHaveText(floor.a1Plated);
+  await expect(page.locator('#prodLinesVerdict [data-prod-line-tile="pieces"] .inv-tile-value')).toHaveText(floor.a1Kg);
   // Production → Entries names the same crew for that run.
   await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
   await expect(page.locator('[data-prod-entry="R2"] [data-prod-crew]')).toHaveText(floor.a1Crew);
@@ -84,32 +87,30 @@ test('the cards say what Staff → Day, Production → Lines and Entries say for
   await expect(page.locator('#areaExtra')).toBeVisible();
 });
 
-test('the tiles: on site, plated and power as Staff, Production and Power count them', async ({ page }) => {
+test('the heroes: on site, plated and power as People, Production and Power count them', async ({ page }) => {
   await loadAppWithState(page, floorBook());
   await openPulse(page);
   await openFloor(page);
-  await expect(tile(page, 'onsite').locator('.inv-tile-value')).toHaveText('16/17');
-  await expect(tile(page, 'onsite').locator('.inv-tile-sub')).toHaveText('1 absent');
-  await expect(tile(page, 'onsite')).toHaveClass(/inv-tile-ok/);
-  await expect(tile(page, 'plated').locator('.inv-tile-label')).toHaveText('Plated so far');
-  await expect(tile(page, 'plated').locator('.inv-tile-value')).toHaveText('374 kg');
-  await expect(tile(page, 'plated').locator('.inv-tile-sub')).toHaveText('1,938 pieces recorded · every run weighed');
-  await expect(tile(page, 'power').locator('.inv-tile-value')).toHaveText('1 cut');
-  await expect(tile(page, 'power').locator('.inv-tile-sub')).toHaveText('12 min dark');
-  const onSite = await tile(page, 'onsite').locator('.inv-tile-value').innerText();
-  const plated = await tile(page, 'plated').locator('.inv-tile-value').innerText();
-  // Home's attendance card (Staff's own figure) and Production's Overview tile say the same.
+  await expect(hero(page, 'people').locator('.inv-hero-fig')).toHaveText('16/17');
+  await expect(hero(page, 'people').locator('.inv-hero-sub')).toContainText('1 absent');
+  // 16 of 17 clears the rest-day gate's 90%, but VAT A1 stood 3 against the day's 4: the floor's number codes it (attOnSiteTone).
+  await expect(hero(page, 'people')).toHaveClass(/inv-hero-warning/);
+  await expect(hero(page, 'people').locator('.inv-hero-title')).toHaveText('VAT A1 short 1');
+  await expect(hero(page, 'prod').locator('.inv-hero-fig')).toHaveText('374 kg');
+  await expect(hero(page, 'power').locator('.inv-hero-fig')).toHaveText('1 cut');
+  await expect(hero(page, 'power').locator('.inv-hero-title')).toHaveText('12 min dark');
+  const onSite = await hero(page, 'people').locator('.inv-hero-fig').innerText();
+  // Home's attendance card (People's own figure) says the same.
   await openPulse(page);
   await expect(page.locator('#homeAttOnSite')).toHaveText(onSite);
+  // Power: the cut reported twice is one, of 12 minutes; Lines' power factor and Power → Cuts say so.
   await switchTab(page, 'pageProduction');
-  await page.locator('[data-action="invProdTab"][data-tab="overview"]').click();
-  await expect(page.locator('[data-prod-day] .inv-hero-fig')).toHaveText(plated);
-  // Power: the cut reported twice is one, of 12 minutes; Lines' power tile and Power → Cuts say so.
   await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
-  await expect(page.locator('#productionContent .inv-tiles .inv-tile').nth(3).locator('.inv-tile-value')).toHaveText('12 min');
-  await expect(page.locator('#productionContent .inv-tiles .inv-tile').nth(3).locator('.inv-tile-sub')).toHaveText('1 cut this day');
+  await expect(page.locator('#prodLinesVerdict [data-prod-line-tile="cuts"] .inv-tile-value')).toHaveText('12 min');
+  await expect(page.locator('#prodLinesVerdict [data-prod-line-tile="cuts"] .inv-tile-sub')).toHaveText('1 cut this day');
   await openFloor(page);
-  await tile(page, 'power').click();
+  await hero(page, 'power').locator('summary').click();
+  await hero(page, 'power').locator('[data-action="invFlrPower"]').click();
   await expect(page.locator('#pagePower [data-action="invPowerTab"][data-tab="cuts"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator(`[data-power-cut="${T}|665"]`)).toContainText('12 min');
 });
@@ -120,18 +121,19 @@ test('a day with no record says so: a dash with its reason, and the move that fi
   // Yesterday: nothing at all.
   await page.locator('[data-action="invFlrStep"][data-step="-1"]').click();
   await expect(page.locator('#flrDate')).toHaveValue(Y);
-  await expect(tile(page, 'onsite').locator('.inv-tile-value')).toHaveText('—');
-  await expect(tile(page, 'onsite').locator('.inv-tile-sub')).toHaveText('no attendance recorded');
-  await expect(tile(page, 'plated').locator('.inv-tile-value')).toHaveText('—');
-  await expect(tile(page, 'power').locator('.inv-tile-value')).toHaveText('—');
-  await expect(tile(page, 'power').locator('.inv-tile-sub')).toHaveText('no floor record this day');
+  await expect(hero(page, 'people').locator('.inv-hero-fig')).toHaveText('—');
+  await expect(hero(page, 'people').locator('.inv-hero-title')).toHaveText('No attendance recorded');
+  await expect(hero(page, 'people').locator('.inv-hero-sub')).toHaveText('a gap, not a day off');
+  await expect(hero(page, 'prod').locator('.inv-hero-fig')).toHaveText('—');
+  await expect(hero(page, 'power').locator('.inv-hero-fig')).toHaveText('—');
+  await expect(hero(page, 'power').locator('.inv-hero-title')).toHaveText('No floor record this day');
   await expect(card(page, 'vat-a1').locator('[data-flr-staff]')).toHaveText('No attendance');
   // Two days back: attendance, nothing plated. The staffing is judged, the run is a gap, the hands on the line are named.
   await page.locator('[data-action="invFlrStep"][data-step="-1"]').click();
   await expect(page.locator('#flrDate')).toHaveValue(D2);
   await expect(card(page, 'vat-a1').locator('[data-flr-staff]')).toHaveText('Short 1 · 2/3');
-  await expect(tile(page, 'power').locator('.inv-tile-value')).toHaveText('0 cuts');
-  await expect(tile(page, 'power').locator('.inv-tile-sub')).toHaveText('no cut reported');
+  await expect(hero(page, 'power').locator('.inv-hero-fig')).toHaveText('0 cuts');
+  await expect(hero(page, 'power').locator('.inv-hero-title')).toHaveText('No cut reported');
   const a1 = card(page, 'vat-a1');
   await expect(a1.locator('[data-flr-run] .inv-row-title')).toHaveText('No record this day');
   await expect(a1.locator('[data-flr-crew]')).toHaveText('On the line: Alfa, Bravo');
@@ -147,7 +149,7 @@ test('a day with no record says so: a dash with its reason, and the move that fi
   await chooser;
   await expect(page.locator('#pageProduction.inv-page-active')).toBeVisible();
   await expect(page.locator('#productionContent [data-action="invProdLine"][data-line="vat-a1"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#productionContent .inv-stepper-title')).toHaveText(await g(page, `formatDate('${D2}')`) as string);
+  await expect(page.locator('#prodLinesVerdict .inv-hero-eyebrow')).toContainText(await g(page, `stockShortDate('${D2}')`) as string);
   // Paste message opens Production's paste box.
   await openFloor(page);
   await expect(page.locator('#flrDate')).toHaveValue(D2);

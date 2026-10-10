@@ -1,18 +1,18 @@
-/* ===== FLOOR → DAY: the line board (Direction B, step 5; P138) =====
- * The floor's day on one screen (owner, 1 Oct 2026, direction B): a card per line (VAT A1, VAT A2, Barrel, Pickling) with
- * the heads on it against the day's number, the EXTRA booked to it, what it is running and when its last round was, what
- * it has plated and who plated it; tiles for on site, plated and power above the cards.
+/* ===== FLOOR → OVERVIEW: the day across the plant (Direction B, step 5; P138; the tab map's TM4a, P188) =====
+ * The floor's day on one screen (owner, 1 Oct 2026, direction B): a card each for people, production, stock and power; then a
+ * card per line (VAT A1, VAT A2, Barrel, Pickling), the worst first, with the heads on it against the day's number, the EXTRA
+ * booked to it, what it is running and when its last round was, what it has plated and who plated it.
  *
  * Nothing is stored here, and nothing is worked out twice: each figure is read from the function its own screen uses.
  * Staffing: areaStats (the heads where each mark says, as Staff → Day's board and Areas count them) against areaNeedOn;
  * Barrel is barrel and barrel pickling, the one unit of five Areas reads. EXTRA: areaStats' hours booked to the line's
  * areas (a row over two areas shared between them, as Areas shares it). Running and plated: prodDayLine (the figure that
- * counts per line and shift, as Production → Lines shows it) and prodDayLoads; the crew, prodCrew. The tiles: Staff's
- * own attDaySummary, Production's prodDayPlated and Power's powerCuts. A figure the record cannot give is a dash with
- * its reason, never 0.
+ * counts per line and shift, as Production → Lines shows it) and prodDayLoads; the crew, prodCrew. The heroes: Staff's
+ * own attDaySummary, Production's day card (prodDayHeroHtml), Stock's stockStatus and reorder list, Power's powerCuts and
+ * powerAnalysis. A figure the record cannot give is a dash with its reason, never 0.
  *
  * A day is a place: ?tab=pageFloor&d=YYYY-MM-DD, today with no d (nav.js). A card opens Production → Lines on its line
- * and day; the staffing word opens Staff → Day; the EXTRA badge opens Areas. */
+ * and day; the staffing word opens People → Attendance; the EXTRA badge opens Areas. */
 
 var FLR_LINES = [
   { id: 'vat-a1', areas: ['vat-a1'], src: 'photo' },
@@ -65,6 +65,13 @@ function renderFloor() {
   el.innerHTML = flrHtml(flrDayIso());
 }
 
+/* Floor's Overview (the tab map, TM4a): the day stepper; a hero each for people, production, stock and power, each shown to a
+   role that opens its screen (People's heads to every role that opens Floor, with no link where People is not theirs), the
+   first carrying the screen's verdict; the line cards under them, the worst first; the pieces nothing weighs. */
+var FLR_TONE_RANK = { danger: 0, warning: 1, ok: 2, info: 3, neutral: 4 };
+function flrSees(page) { return typeof grdSees !== 'function' || grdSees(page); }
+/* A hero's day, short: the stepper above names it in full. */
+function flrWhen(day, isToday) { return isToday ? 'today' : stockShortDate(day); }
 function flrHtml(day) {
   var isToday = day === localDateStr();
   var att = attDaySummary(day), plated = prodDayPlated(day), cuts = powerCuts(day, day);
@@ -72,12 +79,12 @@ function flrHtml(day) {
   var recorded = att.marked || Object.keys(plated.lines).length > 0;
   var stats = areaStats(day, day), byArea = {};
   stats.rows.forEach(function(a) { byArea[a.id] = a; });
-  return flrStepperHtml(day, isToday) +
-    '<div class="inv-tiles inv-tiles-3" id="flrTiles">' + flrOnSiteTile(att, isToday) + flrPlatedTile(plated, isToday, prodDayEfficiency(day)) + flrPowerTile(cuts, recorded, isToday) + '</div>' +
-    '<div class="inv-panels" id="flrLines">' + FLR_LINES.map(function(ln) { return flrCardHtml(day, isToday, ln, byArea, att.marked); }).join('') + '</div>' +
-    flrUnweighedHtml(day) +
-    '<div class="inv-note inv-mt-8" id="flrNote">Staffing: the general shift&rsquo;s heads against the day&rsquo;s number (Staff &rarr; Day); Barrel is barrel and barrel pickling, one unit. ' +
-    'Plated: the figure that counts for each shift, as Production &rarr; Lines shows it. A day nobody recorded is a gap, not a zero.</div>';
+  // The line cards lead with the worst (§1a-1): danger, then warning, ok and info, ties in line order.
+  var lines = FLR_LINES.map(function(ln, i) { return { ln: ln, i: i, j: flrLineJudge(day, ln, byArea, att.marked) }; })
+    .sort(function(x, y) { return (FLR_TONE_RANK[x.j.tone] - FLR_TONE_RANK[y.j.tone]) || x.i - y.i; });
+  return flrStepperHtml(day, isToday) + flrHeroesHtml(day, isToday, att, cuts, recorded, lines) +
+    '<div class="inv-panels" id="flrLines">' + lines.map(function(x) { return flrCardHtml(day, isToday, x.ln, byArea, att.marked, x.j); }).join('') + '</div>' +
+    flrUnweighedHtml(day);
 }
 
 /* ‹ the day › and back to today; never past today. */
@@ -90,37 +97,107 @@ function flrStepperHtml(day, isToday) {
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFlrToday"' + (isToday ? ' disabled' : '') + '>Today</button></div>';
 }
 
-/* ---------- The tiles ---------- */
-function flrTile(key, label, value, sub, tone, action) {
-  return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="' + action + '" data-flr-tile="' + key + '">' +
-    '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
+/* ---------- The heroes ---------- */
+/* Side by side on the desktop (two, four across from 80rem), two to a row on the phone, each shut to its line until opened, as
+   Money's Overview's are: one opened takes its row. People and Production read the day on screen, Stock now, Power the day
+   and its month to date. The figures that led the page as tiles (on site, plated, power) are theirs now (I8). */
+function flrHeroesHtml(day, isToday, att, cuts, recorded, lines) {
+  var cards = [flrPeopleHeroHtml(day, isToday, att, lines),
+    flrSees('pageProduction') ? prodDayHeroHtml(day, { fold: 'flr-hero-prod', open: false, vital: true, floor: true, lead: flrProdLead(lines), label: 'Production',
+      when: flrWhen(day, isToday), attrs: ' data-card="flr-prod"' }) : '',
+    flrSees('pageStock') ? flrStockHeroHtml() : '',
+    flrSees('pagePower') ? flrPowerHeroHtml(day, isToday, cuts, recorded) : '',
+    // The flow (the entry faces' T3): how fast material comes back, against the target; where Production is the role's.
+    flrSees('pageProduction') ? flowHeroHtml() : ''].filter(Boolean);
+  // Four or five subjects: two across, four on a wide window, and a fifth on a row of its own (styles.css).
+  return '<div class="inv-heroes' + (cards.length >= 4 ? ' inv-heroes-4' : '') + '" id="flrHeroes">' + cards.join('') + '</div>';
 }
-/* On site against the active roster, judged at the rest-day gate's 90% and 80% as Staff's own panel judges it. */
-function flrOnSiteTile(d, isToday) {
-  if (!d.marked) return flrTile('onsite', 'On site', '&mdash;', isToday ? 'nothing recorded yet' : 'no attendance recorded', '', 'invFlrStaff');
-  var on = d.p + d.half, pct = d.roster.length && !d.unmarked ? on / d.roster.length * 100 : null;
-  return flrTile('onsite', 'On site', on + '<span class="inv-tile-of">/' + d.roster.length + '</span>',
-    escHtml((d.half ? todoPlural(d.half, 'half day') + ' · ' : '') + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '')), figTonePct(pct, 90, 80), 'invFlrStaff');
+function flrLink(page, action, label, attrs) {
+  return flrSees(page) ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + action + '"' + (attrs || '') + '>' + label + '</button>' : '';
 }
-/* The day's plating across the lines in one unit (prodDayPlated: every run weighed by the surest route the book holds, "≈"
-   where any is estimated), with what it rests on under it. */
-function flrPlatedTile(pl, isToday, de) {
-  var label = 'Plated' + (isToday ? ' so far' : '');
-  if (!Object.keys(pl.lines).length) return flrTile('plated', label, '&mdash;', isToday ? 'nothing recorded yet' : 'not recorded: a gap', '', 'invFlrPlated');
-  // Coded by the plant's efficiency, the lines' cards' own reading (prodDayEfficiency).
-  // A tile's line is short (the day card has the rest): how efficient, and the pieces left out, else how much is estimated.
-  var sub = [de && de.eff != null ? Math.round(de.eff * 100) + '% efficient' : '', pl.unweighed ? Math.round(pl.unweighed).toLocaleString('en-IN') + ' pcs not weighed'
-    : pl.est > 0.0005 ? Math.round(pl.est / pl.kg * 100) + '% estimated' : ''].filter(Boolean).join(' · ') || pl.sub;
-  return flrTile('plated', label, figWrapHtml(escHtml(pl.text)), escHtml(sub), de && de.eff != null ? de.tone : '', 'invFlrPlated');
+/* People: who is on site against the day's roster (attOnSiteTone: the rest-day gate and the floor's number), the lines short of
+   their number by name, the day's attendance panel inside. Heads only, never a rupee, so every role that opens Floor sees it. */
+function flrPeopleHeroHtml(day, isToday, d, lines) {
+  var eyebrow = '<span>People</span><span class="inv-panel-count">' + escHtml(flrWhen(day, isToday)) + '</span>';
+  // People leads (every role that opens Floor sees it), so it carries the screen's verdict (§3e, an overview).
+  var link = flrLink('pageStaff', 'invFlrStaff', 'Open Attendance'), attrs = ' data-card="flr-people" data-verdict';
+  if (!d.marked) {
+    return uiHeroHtml({ tone: 'neutral', vital: true, eyebrow: eyebrow, fig: '&mdash;', title: isToday ? 'Nothing recorded yet' : 'No attendance recorded',
+      sub: isToday ? 'the in-time roll fills it' : 'a gap, not a day off', attrs: attrs, foot: link });
+  }
+  var on = d.p + d.half, n = d.roster.length;
+  // Short where the line cards say short: the general shift's heads against the day's number, Barrel with barrel pickling.
+  var short = lines.filter(function(x) { return x.j.st.need != null && x.j.st.heads < x.j.st.need; });
+  var anyNeed = lines.some(function(x) { return x.j.st.need != null; });
+  var title = short.length ? short.slice(0, 2).map(function(x) { return flrLineName(x.ln.id) + ' short ' + (x.j.st.need - x.j.st.heads); }).join(', ') + (short.length > 2 ? ', +' + (short.length - 2) : '')
+    : anyNeed ? 'Every line at its number' : on + ' of ' + n + ' on site';
+  var sub = [d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' : '', todoPlural(d.absent.length, 'absent', 'absent') + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '')].filter(Boolean).join(' · ');
+  var viz = chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
+    { title: d.p + ' present, ' + d.half + ' half day, ' + d.absent.length + ' absent' + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '') });
+  return uiHeroHtml({ tone: attOnSiteTone(d) || 'ok', vital: true, eyebrow: eyebrow, fig: on + '<span class="inv-tile-of">/' + n + '</span>', title: escHtml(title), sub: escHtml(sub), viz: viz,
+    body: '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'flrAtt') + '</div>', fold: 'flr-hero-people', open: false, attrs: attrs, foot: link });
 }
-/* The day's cuts, one per event as Power counts them (a cut the register and the pickling hand both report is one), and
-   the minutes they were dark. */
-function flrPowerTile(cuts, recorded, isToday) {
-  if (!cuts.length) return flrTile('power', 'Power', recorded ? '0<span class="inv-tile-of"> cuts</span>' : '&mdash;',
-    recorded ? 'no cut reported' : isToday ? 'nothing recorded yet' : 'no floor record this day', '', 'invFlrPower');
+/* The line the Production card names: the worst card's, where it is not ok (the line cards' own order). */
+function flrProdLead(lines) {
+  var w = lines.filter(function(x) { return x.ln.id !== 'pickling' && x.j.ef && (x.j.tone === 'danger' || x.j.tone === 'warning'); })[0];
+  if (!w) return null;
+  var ef = w.j.ef, name = flrLineName(w.ln.id), unit = ef.unitWord || 'unit';
+  return { tone: w.j.tone, line: w.ln.id,
+    title: ef.halfDown ? name + ': ' + (ef.n - ef.nAvail) + ' of ' + ef.n + ' ' + unit + 's down' : ef.missing ? name + ' had heads and no record'
+      : ef.eff != null ? name + ' plated ' + Math.round(ef.eff * 100) + '% of what it could' : name + ': ' + (ef.word || 'not judged').toLowerCase() };
+}
+/* Stock, now (not the day on screen, and it says so): the lines out and low, the first three by name, and what the reorder list
+   would cost with GST (Stock shows it to every role that opens it; the QA audit, QA4-4). */
+function flrStockHeroHtml() {
+  var eyebrow = '<span>Stock</span><span class="inv-panel-count">now</span>', attrs = ' data-card="flr-stock"';
+  var link = flrLink('pageStock', 'invFlrStock', 'Open Stock');
+  var items = stockData().items.filter(function(i) { return i.active !== false; });
+  if (!items.length) return uiHeroHtml({ tone: 'neutral', vital: true, eyebrow: eyebrow, fig: '&mdash;', title: 'No stock recorded yet', sub: 'the supervisor’s stock message starts it', attrs: attrs, foot: link });
+  var cfg = stockCfg(), rows = items.map(function(i) { return { item: i, s: stockStatus(i) }; });
+  var out = rows.filter(function(x) { return x.s.group === 'out'; }).sort(function(a, b) { return a.item.name < b.item.name ? -1 : 1; });
+  var low = rows.filter(function(x) { return x.s.group === 'low'; }).sort(function(a, b) { return a.s.daysLeft - b.s.daysLeft; });
+  var red = out.length + low.filter(function(x) { return x.s.tone === 'red'; }).length;
+  var tone = red ? 'danger' : low.length ? 'warning' : 'ok';
+  var title = out.length ? todoPlural(out.length, 'line') + ' out' + (low.length ? ', ' + low.length + ' low' : '') : low.length ? todoPlural(low.length, 'line') + ' at ' + cfg.amberDays + ' days or less' : 'Every line above ' + cfg.amberDays + ' days';
+  var L = stockReorderList(), need = gstRound(L.total * 1.18);
+  var first = out.concat(low).slice(0, 3);
+  var body = first.map(function(x) {
+    return '<div class="inv-row" data-flr-stock-line="' + escHtml(x.item.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.item.name) + '</span></span>' +
+      '<span class="inv-row-end">' + stockStatusDot(x.s, true) + '</span></div>';
+  }).join('') + (out.length + low.length > 3 ? uiFactRowHtml({ label: 'More out or low', value: out.length + low.length - 3 }) : '') +
+    (need > 0 ? uiFactRowHtml({ label: 'The reorder list, with GST', value: formatCurrency(need), sub: L.unpriced ? todoPlural(L.unpriced, 'line') + ' without a price' : 'at the last prices', attrs: ' data-flr-reorder' }) : '');
+  return uiHeroHtml({ tone: tone, vital: true, eyebrow: eyebrow, fig: String(out.length + low.length) + '<span class="inv-tile-of">/' + items.length + '</span>', title: escHtml(title),
+    sub: escHtml(need > 0 ? 'reorder ' + finRs(need) + ' with GST' : out.length + low.length ? 'lines out or low' : todoPlural(items.length, 'line') + ' on record'),
+    body: body ? '<div class="inv-hero-sheet">' + body + '</div>' : null, fold: 'flr-hero-stock', open: false, attrs: attrs, foot: link });
+}
+/* Power: the day's cuts and how long it was dark, its month to the day, a year at the record's rate, and the load to chase while
+   an approved load is not on the bill (the To-do's own tone: red once a penalty has been billed for it). */
+function flrPowerHeroHtml(day, isToday, cuts, recorded) {
+  var eyebrow = '<span>Power</span><span class="inv-panel-count">' + escHtml(flrWhen(day, isToday)) + '</span>';
+  // What a cut cost is Power's own figure, shown to every role that opens Power; this card says the same.
+  var a = powerAnalysis(), L = a.load;
   var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), open = cuts.filter(function(c) { return c.open; }).length;
-  return flrTile('power', 'Power', cuts.length + '<span class="inv-tile-of"> ' + (cuts.length === 1 ? 'cut' : 'cuts') + '</span>',
-    escHtml([mins ? powerDur(mins) + ' dark' : '', open ? open + ' with no time back' : ''].filter(Boolean).join(' · ')), 'warning', 'invFlrPower');
+  var month = a.cuts.filter(function(c) { return c.date >= day.slice(0, 7) + '-01' && c.date <= day; });
+  var mCost = gstRound(month.reduce(function(s, c) { return s + ((c.cost && c.cost.total) || 0); }, 0)), mMin = month.reduce(function(s, c) { return s + (c.min || 0); }, 0);
+  var loadTone = L.pending ? (L.penaltySince > 0 ? 'danger' : 'warning') : '';
+  var dayTone = cuts.length ? 'warning' : recorded ? 'ok' : 'neutral';
+  var tone = loadTone === 'danger' ? 'danger' : loadTone || dayTone;
+  var dayTitle = cuts.length ? (mins ? powerDur(mins) + ' dark' : todoPlural(cuts.length, 'cut')) + (open ? ', ' + open + ' with no time back' : '')
+    : recorded ? 'No cut reported' : isToday ? 'Nothing recorded yet' : 'No floor record this day';
+  var loadTitle = L.pending ? formatNum(L.approved, 0) + ' kVA approved, billed at ' + formatNum(L.sanctioned, 0) : '';
+  var title = loadTone === 'danger' && !cuts.length ? loadTitle : dayTitle;
+  var sub = 'this month ' + todoPlural(month.length, 'cut') + (mCost > 0 ? ', ' + finRs(mCost) : '');
+  var facts = [
+    { label: 'This month to ' + stockShortDate(day), value: todoPlural(month.length, 'cut'), sub: mMin ? powerHours(mMin) + ' dark' + (mCost > 0 ? ' · ' + formatCurrency(mCost) : '') : '', attrs: ' data-flr-power="month"' },
+    a.year ? { label: 'A year at this rate', value: formatCurrency(a.year.base), sub: 'the last 90 days’ record', attrs: ' data-flr-power="year"' } : null,
+    L.pending ? { label: 'Load to chase', value: loadTitle, sub: L.penaltySince > 0 ? formatCurrency(L.penaltySince) + ' penalty since approval' : 'not yet on the bill', attrs: ' data-flr-power="load"' } : null
+  ].filter(Boolean);
+  var viz = cuts.length ? chartDayStrip(cuts.map(function(c) { return { from: c.from, to: c.to, tone: 'danger' }; }),
+    // Its hours named under it on the desktop; a phone's half-width card has no room for them (the title says the times).
+    { axis: !!_isDesktop, title: 'Power cut ' + cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ', no time back'); }).join(', ') }) : '';
+  return uiHeroHtml({ tone: tone, vital: true, eyebrow: eyebrow, fig: recorded || cuts.length ? String(cuts.length) + '<span class="inv-tile-of"> ' + (cuts.length === 1 ? 'cut' : 'cuts') + '</span>' : '&mdash;',
+    title: escHtml(title), sub: escHtml(sub), viz: viz, body: '<div class="inv-hero-sheet">' + facts.map(uiFactRowHtml).join('') + '</div>',
+    fold: 'flr-hero-power', open: false, attrs: ' data-card="flr-power"' + (loadTone ? ' data-flr-load="' + loadTone + '"' : ''), foot: flrLink('pagePower', 'invFlrPower', 'Open Cuts') });
 }
 
 /* ---------- A line's card ---------- */
@@ -139,12 +216,20 @@ function flrStaffing(day, ln, byArea, marked) {
   return { tone: 'ok', word: 'Met ' + heads + '/' + need, heads: heads, need: need };
 }
 
-function flrCardHtml(day, isToday, ln, byArea, marked) {
-  var name = flrLineName(ln.id), st = flrStaffing(day, ln, byArea, marked);
+/* How a line's card is judged: a plating line by its efficiency (owner, 9 Oct 2026: "that is how the colour code of the gradient
+   for cards in this tab will be decided"), half or more of its units down, and a general shift with heads and no record;
+   pickling by its heads against the day's number. The cards are ordered by it, worst first. */
+function flrLineJudge(day, ln, byArea, marked) {
+  var st = flrStaffing(day, ln, byArea, marked), ef = ln.id === 'pickling' ? null : prodLineEfficiency(day, ln.id);
+  return { st: st, ef: ef, tone: ef ? ef.tone : st.tone === 'warning' ? 'warning' : st.tone === 'ok' ? 'ok' : 'neutral' };
+}
+function flrCardHtml(day, isToday, ln, byArea, marked, j) {
+  j = j || flrLineJudge(day, ln, byArea, marked);
+  var name = flrLineName(ln.id), st = j.st, ef = j.ef;
   var extra = ln.areas.reduce(function(s, a) { return s + ((byArea[a] && byArea[a].extraHours) || 0); }, 0);
-  // A plating line is coded by its efficiency (owner, 9 Oct 2026: "that is how the colour code of the gradient for cards in this
-  // tab will be decided"), half or more of its units down, and a general shift with heads and no record; pickling by its heads.
-  var ef = ln.id === 'pickling' ? null : prodLineEfficiency(day, ln.id);
+  // Its doors open Production and People: drawn as plain words for a role that does not open them (the guard, I4).
+  var prodOk = flrSees('pageProduction'), staffOk = flrSees('pageStaff');
+  var main = function(inner) { return prodOk ? '<button class="inv-row-main" data-action="invFlrLine" data-line="' + ln.id + '">' + inner + '</button>' : '<span class="inv-row-main">' + inner + '</span>'; };
   var last, title, meta, end;
   if (ln.id === 'pickling') {
     var loads = prodDayLoads(day);
@@ -172,18 +257,20 @@ function flrCardHtml(day, isToday, ln, byArea, marked) {
   }
   var h = '';
   if (last) {
-    h += '<div class="inv-row inv-row-2" data-flr-run="' + escHtml(last.id) + '"><button class="inv-row-main" data-action="invFlrLine" data-line="' + ln.id + '">' +
-      '<span class="inv-row-title">' + escHtml(title) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></button>' +
+    h += '<div class="inv-row inv-row-2" data-flr-run="' + escHtml(last.id) + '">' +
+      main('<span class="inv-row-title">' + escHtml(title) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span>') +
       '<span class="inv-row-end">' + end + '</span></div>';
   } else {
     // No record: where it comes from, and the one move that fills it (a line of its own under the row on the phone).
-    var btn = ln.src === 'photo' ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrPhoto" data-line="' + ln.id + '">Read register photo</button>'
+    var btn = !prodOk ? '' : ln.src === 'photo' ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrPhoto" data-line="' + ln.id + '">Read register photo</button>'
       : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrPaste" data-line="' + ln.id + '">Paste message</button>';
-    h += '<div class="inv-row inv-row-2 inv-row-flow" data-flr-run=""><button class="inv-row-main" data-action="invFlrLine" data-line="' + ln.id + '">' +
-      '<span class="inv-row-title">' + (isToday ? 'No record yet today' : 'No record this day') + '</span>' +
-      '<span class="inv-row-meta">' + escHtml((isToday ? 'From ' : 'A gap, not a zero: from ') + FLR_SRC_TEXT[ln.src]) + '</span></button>' +
-      '<span class="inv-row-end inv-row-actions">' + btn + '</span></div>';
+    h += '<div class="inv-row inv-row-2 inv-row-flow" data-flr-run="">' +
+      main('<span class="inv-row-title">' + (isToday ? 'No record yet today' : 'No record this day') + '</span>' +
+        '<span class="inv-row-meta">' + escHtml((isToday ? 'From ' : 'A gap, not a zero: from ') + FLR_SRC_TEXT[ln.src]) + '</span>') +
+      (btn ? '<span class="inv-row-end inv-row-actions">' + btn + '</span>' : '') + '</div>';
   }
+  // What the line earned, against what its kilos cost and its usual day (one row; a role without money: the kilos against it).
+  if (last && ln.id !== 'pickling') h += flrEarnedRowHtml(day, isToday, ln.id);
   // The efficiency's parts, so a figure that looks wrong can be followed to the input that made it.
   if (ef && ef.eff != null) h += flrEffRowHtml(ef, ln.id);
   // Who plated it: the run's crew (prodCrew, as Production → Entries names it); with no run, the hands marked on the line.
@@ -204,15 +291,40 @@ function flrCardHtml(day, isToday, ln, byArea, marked) {
     else if (adds.length) h += uiFoldRowHtml('flr-bath-' + ln.id, { label: 'Into the bath', value: adds.length, count: true }, adds.map(addFact), ' data-flr-bath');
   }
   h += '<div class="inv-row inv-row-auto" data-flr-crew><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(crew) + '</span></span></div>';
-  // The head: what the line is judged on; the foot: its staffing, its EXTRA and its record, each a door.
-  var tone = ef ? ef.tone : st.tone === 'warning' ? 'warning' : st.tone === 'ok' ? 'ok' : 'neutral';
+  // The head: what the line is judged on; the foot: its staffing and its EXTRA, each a door to People where the role opens it.
+  var tone = j.tone;
   var head = flrEffHead(ef, last, isToday);
-  var foot = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrStaff" data-flr-staff aria-label="' + escHtml(name + ' staffing: ' + st.word + '. Open Staff, Day') + '">' + uiDot(st.tone, escHtml(st.word)) + '</button>' +
-    (extra > 0.0005 ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrAreas" data-flr-extra aria-label="' + escHtml('EXTRA ' + flrHours(extra) + ' hours booked to ' + name + '. Open Areas') + '">' +
-      '<span class="inv-badge inv-badge-warning">EXTRA ' + flrHours(extra) + ' h</span></button>' : '');
+  var extraBadge = '<span class="inv-badge inv-badge-warning">EXTRA ' + flrHours(extra) + ' h</span>';
+  var foot = (staffOk ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrStaff" data-flr-staff aria-label="' + escHtml(name + ' staffing: ' + st.word + '. Open People, Attendance') + '">' + uiDot(st.tone, escHtml(st.word)) + '</button>'
+      : '<span data-flr-staff>' + uiDot(st.tone, escHtml(st.word)) + '</span>') +
+    (extra > 0.0005 ? (staffOk ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrAreas" data-flr-extra aria-label="' + escHtml('EXTRA ' + flrHours(extra) + ' hours booked to ' + name + '. Open Areas') + '">' + extraBadge + '</button>'
+      : '<span data-flr-extra>' + extraBadge + '</span>') : '');
   return uiHeroHtml({ tone: tone, eyebrow: '<span class="inv-panel-title">' + escHtml(name) + '</span>' + (ef && ef.eff != null ? '<span class="inv-panel-count">' + escHtml(ef.word) + '</span>' : ''),
     title: escHtml(head.title), fig: head.fig ? escHtml(head.fig) : '', sub: head.sub ? escHtml(head.sub) : '', viz: head.viz || '',
     body: '<div class="inv-hero-sheet">' + h + '</div>', open: true, fold: 'flr-line-' + ln.id, foot: foot, attrs: ' data-line="' + ln.id + '"' + (ef ? ' data-flr-eff="' + escHtml(ef.eff != null ? String(Math.round(ef.eff * 100)) : '') + '"' : '') });
+}
+/* What a plating line earned on the day at its clients' rates on record (prodDayWorth; owner, 10 Oct 2026: "As we are calculating
+   production, why don't we calculate the earnings?"), coloured by whether its rupee a kilo clears what a kilo costs (the live cost,
+   prodCostRef), and set against its usual day ("corrections and comparisons are missing"). A day still running says so and is not
+   set against a whole one. A role that does not see money reads the kilos against the usual day instead (I4). One fact row. */
+function flrEarnedRowHtml(day, isToday, line) {
+  var x = prodLineDaySum(day, line), u = prodLineUsual(line, day);
+  if (!x.runs) return '';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  if (!money) {
+    if (u.kg == null || !(x.kg > 0)) return '';
+    if (isToday) return uiFactRowHtml({ label: 'A usual day', value: prodKgFig(u.kg, true), sub: 'so far ' + prodKgFig(x.kg, x.est, x.unweighed > 0) + ' · median of ' + u.kgDays + ' days', attrs: ' data-flr-usual' });
+    return uiFactRowHtml({ label: 'Against a usual day', value: figDeltaPct(x.kg, u.kg), tone: x.weighed >= 0.9 ? figDeltaTone(x.kg, u.kg, 'up') : null,
+      sub: 'a usual day ' + prodKgFig(u.kg, true) + ' · median of ' + u.kgDays + ' days' + (x.weighed < 0.9 ? ' · reads low: pieces not weighed' : ''), attrs: ' data-flr-usual' });
+  }
+  var ref = prodCostRef(day), real = x.kgPriced > 0 ? x.amountKg / x.kgPriced : null;
+  // Two facts (§3b): the rupee a kilo against the cost, then the usual day; where a tenth or more of the work has no rate, that
+  // instead, since the figure reads low against a whole day (the day card lists what is not priced).
+  var notPriced = x.unpriced ? Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced' : x.unpricedKg ? formatNum(x.unpricedKg, 0) + ' kg not priced' : '';
+  var vs = x.pricedShare < 0.9 ? notPriced : u.worth == null ? '' : isToday ? 'so far; a usual day ' + finRs(u.worth) : figDeltaText(x.worth, u.worth, 'a usual day');
+  var sub = [real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : '', vs].filter(Boolean).join(' · ');
+  return uiFactRowHtml({ label: 'Earned', value: x.priced ? (x.worthEst ? '≈ ' : '') + finRs(x.worth) : '', tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
+    sub: sub || 'nothing priced: no rate on record', attrs: ' data-flr-earned' });
 }
 /* A plating line's head: its efficiency as the figure, what it plated of what it could, and the inputs; or why it is not judged. */
 function flrEffHead(ef, last, isToday) {
@@ -318,11 +430,11 @@ function flrEffRowHtml(ef, line) {
 function flrUnweighedHtml(day) {
   var pic = prodDayPicture(day);
   if (!pic.names.length) return '';
+  // Open, since each row is a question for the owner: the first ten, the rest one tap away (how it works is the guide's).
   return '<div class="inv-panel inv-panel-flush" id="flrUnweighed"><div class="inv-panel-head"><span class="inv-panel-title">Not weighed</span>' +
     '<span class="inv-panel-count">' + escHtml(Math.round(pic.unweighed).toLocaleString('en-IN') + ' pcs') + '</span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every day</button></div>' +
-    prodUnweighedRowsHtml(pic.names) +
-    '<div class="inv-panel-body inv-note">Plated in pieces with no weight anywhere in the book: no kg a piece on record, and no challan of it that counts its pieces. Which part? reads the floor’s name as one of the client’s parts from now on; Set its weight puts a kg a piece on the client’s card.</div></div>';
+    (flrSees('pageProduction') ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdUnweighedAll">Every day</button>' : '') + '</div>' +
+    uiMoreHtml('flr-unweighed', prodUnweighedRows(pic.names), { n: 10, noun: 'parts' }) + '</div>';
 }
 
 /* ---------- Where each part opens ---------- */
@@ -356,14 +468,7 @@ function flrAction(action, btn) {
     case 'invFlrPaste': flrOpenLine(btn.dataset.line); prodSetView('paste'); return true;
     case 'invFlrStaff': flrOpenStaff('day'); return true;
     case 'invFlrAreas': flrOpenStaff('areas'); return true;
-    case 'invFlrPlated': {
-      // Pieces nothing weighs are the figure's follow-up: the tile brings their list into sight; else it opens the lines.
-      var un = document.getElementById('flrUnweighed');
-      if (un) { uiRevealEl(un); return true; }
-      var pl = prodDayPlated(flrDayIso());
-      flrOpenLine(PROD_LINES.find(function(l) { return pl.lines[l]; }) || 'vat-a1');
-      return true;
-    }
+    case 'invFlrStock': _stockView = 'list'; switchTab('pageStock'); return true;
     case 'invFlrPower': powerSetTab('cuts'); switchTab('pagePower'); return true;
   }
   return false;

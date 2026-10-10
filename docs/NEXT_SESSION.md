@@ -7,6 +7,144 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Being built 9–10 Oct 2026: the tab map, step by step (PR #146, read this first)
+
+The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green."*
+`docs/TAB_MAP.md` is built in one PR, a step a commit; its §0 says where it stands.
+- **TM1**, the shell: the rows, History and Knowledge as tools in the top bar, Sales, Parts, the redirect table, the toolbar's
+  Filter and More, one look's pieces (the verdict card, the row end), and the instruments (P184, P195, P197).
+- **TM2**, Today: the To-do into Needs you, Pulse takes Stats → Overview, Stats' three tabs led by verdicts, the Planner's Moves,
+  Reports fitted (P185). **The owner looked at it** (10 Oct 2026: *"Go ahead"*).
+- **TM3**, Money: five tabs (the bills to Payments, the credit notes to Office → Invoices → Credit notes), **cheques received
+  counted as paid until their deposit**, and Money's screens in one look (P186, P187).
+- **TM4**, Floor: one Overview (four heroes per role, the line cards worst first); People is Attendance (Day · Week · Month) ·
+  Pay · Areas · Roster; Production is Lines · In plant · Entries · Equipment; Stock is one screen; Power is Cuts · Causes ·
+  Load & bills · Case; every Floor screen led by its verdict card, the old Overview addresses redirected (P188).
+- **Asked by the owner on 10 Oct 2026, next, before TM5** (the order put to the owner, theirs to change):
+  1. **A past day corrected where it is seen** (*"corrections and comparisons are missing"*): **built (P198)**. Floor → Day's
+     line card opens Production → Lines on its line and day; each run and pickling load there opens to what it holds, its Correct
+     and its Void; a correction goes back to that day; Enter by hand from a day stepped to starts on it and its line; Entries opens
+     on a day (Lines' More → *Every entry of this day*, or Entries' own Day filter).
+  2. **Pay history** (asked the same day, before the salary run of about 14 Oct): *"no way to see and print the pay slip of each
+     employee and/or what they have been paid"*; August's two salaries went to each other's accounts and the gate hand's ruled
+     figure was paid short, to be adjusted in September's pay. **Built (P205)**: the bank's salary legs count as paid, a slip month
+     is set against them rather than read as settled, monthly balances carry from a month the owner sets (each month named on Pay
+     and the slip), each hand's history, and any month's slips. September's figures were also handed to the owner as a local file
+     (never committed), with 17 Sep a paid holiday (owner, 10 Oct 2026: *"make sure the holiday of 17th Sept stands as payable for
+     each employee, as it is a paid holiday"*; in the app, `2026-09-17` under Settings → Labour → Paid holidays). **Owner's, once
+     merged**: import the slips file (`sep-payroll-paid`, April–August, August as the ruled revision), set *Count from a month* to
+     August, the gate hand's monthly wage, and tie the bank name of one hand's account (another person's name) to them once.
+  3. **The day's earnings and the line over time** (`docs/PLANT_PICTURE.md` PP2): *"As we are calculating production, why don't we
+     calculate the earnings?"* **Built (P206)**: each line card says what it earned, coloured against what a kilo costs, with its
+     usual day; Lines carries an Earned tile and the change lines, the week against the four before and the week's earnings; the
+     day card the earnings against the live cost and what no rate prices. The efficiency's week grid is PP2's rest.
+     **Also built the same day, from the week of 4 Oct's payout (P207)**: the weekly payout carries the snacks by the owner's rule
+     (₹20 a person regular OT, ₹60 past midnight); Pay names a hand on an OT block their own times do not reach (*Hours to check*,
+     To-do `payCrewGap`); the roll reader takes a numbered line with no bracket (`14 NAME`). The week's reconciliation, given to
+     the owner: by the WhatsApp rolls ₹34,612.50 (711 h and ₹840 snacks) against ₹34,000 paid; the supervisor's sheet multiplied
+     694 hours where its rows add to 701, left a Sunday's 8 hours out of a total, kept a corrected cell's old total, priced the nights'
+     snacks at ₹40, and differs from his own rolls on two hands and three days' EXTRA. **Proposed, the order the owner's**: the week's
+     sheet as paid (entered or photographed, cell by cell against the day and its own sums, the paid figure the week's payout as
+     paid, as the payroll slips are for a month).
+  4. **Suppliers**: what we owe each (the owner keeps it on paper: an opening, each bill with GST, the payments), and each
+     supplier's lead time in the reorder list (the local ones the same day; one cheaper, three to four working days away).
+     **Built (P208)**: Money → Payments → Suppliers, each supplier's balance from a figure off their statement (the bills after its
+     day with GST, less the payments after it), the payments recorded here (a cheque handed over counted once, when the statement
+     clears it by its number), the lead times, and the reorder list choosing the cheaper supplier when it can deliver before the line
+     runs out, the fast one when it cannot (CLAUDE.md *Suppliers*). **The owner's, once merged**: set each supplier's balance from
+     their statement (the September page sent: its balance after its bill of 9 Sep), the lead times (three the same day, one 3–4
+     working days), tap *Same supplier* on the payee offered by its initials, and look at the three bill numbers each on two days.
+     **Then asked (owner, 10 Oct 2026): *"When ordering stocks let's have an option to select and compare between suppliers, pros and
+     cons"*. Built (P209)**: Compare suppliers, under each line on the reorder list and on a line's page: every supplier of the line as
+     a card (price and what it rests on, lead time against the days left, this order's amount, what is owed, for and against in words);
+     Order from them keeps the choice on the line, the app's own said beside it; a price quoted weighs a supplier that never sold it
+     (CLAUDE.md *Suppliers*). **The owner's**: add the Kolkata supplier's quotes where it has not sold a line yet.
+  5. **The entry faces** (`docs/ENTRY_FACES.md`, written after TM4): each hand enters their own on their own phone. **F1 built
+     (P199)**: duties on a user (Settings → Access → Users & access → Enters), their screen Mine, landing on it at sign-in, its steps
+     opening where each duty is entered, what they entered, their sheets and whether it reached GitHub; Today says who entered an
+     input. **F2 built (P200)**: the pickling hand's forms on Mine (a load, material in), the group's message and its key, Correct,
+     the checks against what each entry links to (To-do faceCheck, Production → Entries → To check, Looks right), and a second
+     matching pass for a named load. **F3 built (P201)**: the supervisor's two rolls written on Mine and saved as the roll (the day
+     as the same roll pasted gives it, the roll kept naming who wrote it, *Send to the group*), Stock left to its own form, the
+     barrel's batches (the register it never had, counted over the relayed list) and a batch heavier than its barrel takes asked.
+     **F4 built (P202)**: the register clerk's VAT page on Mine (a round a row on VAT A1, a batch a row on VAT A2, the client and part
+     where a run begins, kept on the phone until saved, read by the photo's own reader and saved as its runs, saved again put right),
+     the day's power log on it, a page a photo also holds warned both ways, a round its line never ran and a day total the rounds do
+     not meet asked; the clerk's attendance sheet (People → Day as the sheet) set against the supervisor's roll a hand at a time, the
+     owner ruling each (*Use the roll's*, *Looks right*). **F5 built (P203)**: each face's paper, *Print my sheets* (the blank sheet
+     of each duty) and *Print the day as entered* (each duty's record of the day, whoever entered it, voided and corrected records
+     never), and the three new sheets (the pickling sheet, the barrel batch sheet, the VAT register pages), which Production → More →
+     Print sheets prints for any day. Printing writes nothing. **F6 built**: the guides (Mine, one a face, the owner's set-up), on
+     Mine's book and leading each role's path. **T1–T3 built (P204)**, the flow thread: a turnaround target (1 working day, the
+     client's or a part's own) and payment terms (45 days, 7 on the rebate client, the client's own), a challan wanted by a day,
+     the tasks for material past its target, a job not plated by its day and an invoice past its terms, and the flow on Floor's
+     Overview (a fifth hero, *Turnaround*) and on a client's page, with each open challan and invoice expected. **The owner's, once
+     merged**: give each person an ID and their duties; type each barrel's kg a round on Production → Equipment, which the batch check
+     reads first; rule the questions the sheet and the roll raise (on the 10 Oct book, 8 on 5 days); set the turnaround a client agreed
+     where it is not a working day (Clients → the client → Turnaround and terms): the one-day target puts 7 lines past it today.
+- **TM5**, Office: Pipeline, Challans, Invoices, Clients, Parts, Performance, Prospects and Quotations each led by its verdict card
+  with one toolbar row; a challan's wait judged once (`imWaitTone`: the To-do's challan task now amber at 5 days, red at 10); a
+  client's worst flag on its row; Performance's long cards folded; Quotations' card holds Pulse's reprice moves; Create's errors
+  only after a try (P193).
+- Then: TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
+
+**Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
+spellings, lead time, GST, the balance on a day, totals as printed) and `supplierPays` (payments recorded here, voided with a reason),
+travel with the book, in the change log and the merge, and **in the `sep-stock` export** (merged by id on import, never written over).
+**Data flow (10 Oct 2026, P199, entry faces F1):** a user may carry `faces` (the duties they enter, a list of words); it travels with
+the book's users (backups, GitHub, the compile), and nothing else changes: what a face enters is the records the forms already write.
+
+**Data flow (10 Oct 2026, P200, entry faces F2):** a load or a count entered on a face is a production entry as a paste's is, with
+`src: 'face'` (a new source word), `by` the person and `msgHash` (the key of the message it gave the group); a count against a challan
+carries `imId`, `imItemId` and `challanNo`; an entry the owner kept as entered carries `checkOk: {codes, at, by}`. All of it in the
+`sep-production` export, merged by id as before; the compile reads a face's entry as it reads a paste's. The matcher's second pass
+changes which line a load is inferred to (shown, never stored, never exported).
+
+**Data flow (10 Oct 2026, P201, entry faces F3):** a roll written on a face is a pasted roll: the day's marks (`src: 'relay'`) and EXTRA
+rows are what its paste writes, and the roll is kept in `relayPastes` with a new field, `face` (the name of who wrote it); written
+again on the face, the old roll is kept with `replacedBy` (the new roll's id) and `replacedAt`, and a reader of the kept rolls should
+skip it, as the app does. A barrel
+batch is a production entry, `kind: 'plated'`, `line: 'barrel'`, `basis: 'register'` (new on the barrel), `src: 'face'`, with
+`unitId` (the plant register's barrel) or `barrel` (its number typed), `to` (when it came out) and `msgHash`; a batch the owner kept
+carries `checkOk` with the code `heavy`. In the `sep-production` export, merged by id; the compile should count a day's batches over the
+supervisor's relayed barrel list, as the app does (*also reported*).
+
+**Data flow (10 Oct 2026, P204, the flow thread T1–T3):** new in the book and nothing read from soma-internal:
+- `S.flowCfg` `{turnDays, termsDays}`;
+- on a client, `payTermsDays`, `turnaroundDays` and `turnaroundParts: [{part, days}]`, each absent where the plant's stands;
+- on a challan (`incomingMaterial[]`) and on a challan line, `priority` (a date it is wanted by);
+- the once-only flag `_clientTerms1`, which set 7 days on the client whose name reads Mehta.
+
+All travel with the book: backups, GitHub, the compile. **For the compile**, the To-do's `owed90` keeps its id and now means past the
+client's terms, not 90 days; a reader that rebuilt it from the book should read `payTermsDays`, else 45.
+
+**Data flow (10 Oct 2026, P202, entry faces F4):** a VAT register page entered on a face is kept whole in a new production store,
+`production.pages` (`{id, date, line, style: 'rounds'|'batches', rows: [{time, to, client, part, fig}], total?, counted, fp, by, uid,
+at, replaces?, replacedBy?, replacedAt?}`), in the `sep-production` export and merged by id (a page the file marks replaced says so
+here too). Its runs are production entries as a register photo's are (`kind: 'plated'`, `basis: 'register'`, `lineSrc: 'written'`,
+the rounds) with `src: 'face'`, `pageId` and `msgHash`; a run put right by the page saved again is voided with the reason *The page was
+entered again on Mine*. **The compile should take the runs of a day and line from one register source**: the app warns when a photo
+and a face page hold the same page, but where both were saved both count. A power cut entered on the page is a `downtime` entry with
+`basis: 'register'`, `src: 'face'` and a new `logId` (`face|<day>`: one log a day, so two close cuts in it are two). On attendance, a
+mark typed on the day now carries `by` (the user who typed it, with the guard on), and a mark the owner kept against the supervisor's
+roll carries `rollOk: {sig, at, by}`; `checkOk.codes` on a production entry may hold `rack` and `total`. All travel with the book.
+
+**Data flow (10 Oct 2026, P209, compare suppliers):** a stock line may carry `orderFrom` (the supplier chosen for it) and a supplier's
+record `quotes` (prices quoted, a line each); both in the `sep-stock` export as part of the items and the suppliers.
+**The statement reads differently**: the bank's guess compares a payee with "&" as AND and with every spelling a supplier was given, so
+a payment once read as Other (not yet sorted) can now read as a supplier's; the `sep-bank` export's resolved category for such a row
+moves with it, and so does the live cost's month of supplies, which speaks only once nothing in it is unsorted.
+
+**Data flow (10 Oct 2026, P207):** `labour.snackOt` and `labour.snackNight` (₹ a person, regular and night overtime) travel with the
+book; the weekly payout (`payWeek`) now includes the snacks, so the bank's cash split counts that much more of a week's cash as wages
+and the payout's forecast and median carry them. Nothing exported changes.
+
+**Data flow changed (TM3):** `bank.cheques`; the `sep-bank` export carries it, and a `sep-bank` file is now taken in (Add → File),
+its cheques merged by id. The table below has the detail. **The pay history adds one key**: `labour.payCarryFrom` ('YYYY-MM', where
+monthly balances start), travelling with the book; nothing exported changes, and the bank's salary legs are read, never stored. **TM4 changes none**: no key, no export, nothing in the book moved; the
+device keys `sep_inv_prod_tab` and `sep_inv_power_tab` read a remembered `overview` as the first view. **TM5 changes none**: no key,
+no export, nothing in the book moved (the To-do's challan task only changes its tone).
+
 ## Built 9 Oct 2026, the second: a register run's start, and a file at the wrong Import (read this first)
 
 The owner sent the day's two register pages to be made into an import file; Samarth's batch on VAT A2 is written with its END
@@ -422,6 +560,15 @@ in the PR**, so the compile session knows to re-check.
 | **Backup shape changed, 9 Oct 2026 (production and stock by line)** | Stock entries gain `lines: ['vat-a1' \| 'vat-a2' \| 'barrel', …]`, the baths a use or a charge went into, read from the message or picked by hand (*Into*). **A use whose message names baths is saved as one entry a bath**, each on its own day with its bath's words as its note, where it was one entry with every bath in its note; the quantity per item is unchanged, and a message read again with the new reader (Stock → To check) voids the old entry and adds the new ones. `S.production.seriesRules: [{id, clientId, family, kinds, racks, lines, prefix, except?, name, note, at}]` says which parts a round can be (Mehta's two set once, `_prodMehtaRounds2`); a run read again by a gauge rule keeps `gaugeRuled: {rack, at}`; a client may carry `defaultKgPc` (a kg a piece, `_clientKgPcDefault1`); a weight set from a run goes on the client's `pieceWeights` with `source: 'production'`. All travel with the book; the `sep-stock` and `sep-production` exports carry them, and soma-internal's compile reads both. |
 | **Today as cards, 8 Oct 2026** | Nothing in the book: a card's fold is per device (`sep_inv_folds`, keys `tdy-*`), like every fold. |
 | **Backup shape changed, 9 Oct 2026, the second (a register run's start)** | A plated register entry whose run opens on an END (no START written for it, or split from its START's run by its gauge) starts at the END before it on its page, where it had started at its own END. One saved before the fix, from a photo or a file the reader built, is corrected at start-up and carries `startWas` (the start it had, `HH:MM`; no clock, so two devices putting one run right write the same). **The `sep-production` export carries both**; the corrected copy is the newer one, so the compile should take it over the copy it holds, and any hours or pace worked out from the old start move with it. |
+| **Backup shape changed, 10 Oct 2026 (suppliers, P208)** | New top-level `suppliers: [{id, name, names[], leadMin?, leadMax? (working days), gstPct?, opening?: {amount, date, note, at, by}, inOpening?: [statement row ids], totals?: {'<bill no>|<date>': amount}, note?, at, by, setAt?, setBy?}]` and `supplierPays: [{id, supplierId, date, amount, how: cash/cheque/transfer, chq, note, at, by, voidedAt?, voidReason?, voidBy?}]`; both in the `sep-stock` export. **For the compile**: a supplier's bills are its stock entries (`bill`, `received`) grouped by company, number and date; what is owed is the balance set, plus the bills after its day with GST rounded to the rupee, less the payments after it, a cheque recorded here and the statement's row of its number being one payment. |
+| **Backup shape changed, 10 Oct 2026 (compare suppliers, P209)** | A stock line (`stock.items[]`) may carry `orderFrom: {supplierId, name, at, by}`: the supplier the owner chose to order it from (Stock → Compare suppliers), which the reorder list, the line and its task follow over the app's own pick; a supplier's record may carry `quotes: [{id, itemId, price (before GST, a unit), date, note, at, by}]`, a price quoted, weighed beside the bills for 90 days. Both travel in the `sep-stock` export (items whole, suppliers whole). **For the compile**: a quote is not a purchase and never a bill; `orderFrom` is a choice, not a record of what was bought. |
+| **Backup shape changed, 10 Oct 2026 (the flow thread, P204)** | New config `flowCfg: {turnDays: 1, termsDays: 45}` (filled key by key on an old backup); a client may carry `payTermsDays`, `turnaroundDays` and `turnaroundParts: [{part, days}]`; a challan and a challan line may carry `priority` (`YYYY-MM-DD`); `_clientTerms1` set once. In the backups and GitHub; no export file changes. `todoCheck` gains `flowLate`, `flowPriority`. |
+| **Backup shape changed, 10 Oct 2026 (entry faces F3, P201)** | A pasted roll's record (`relayPastes[]`) may carry `face` (the name of who wrote it on their own screen), and `replacedBy` and `replacedAt` (written again on the face: kept to refuse it when pasted, never read again); its day's marks and EXTRA rows are those a paste writes. A production entry may be a barrel batch: `kind: 'plated'`, `line: 'barrel'`, `basis: 'register'`, `src: 'face'`, with `unitId` or `barrel`, `to` and `msgHash`, and `checkOk.codes` may hold `heavy`. In the backups and the `sep-production` export; merged by id. |
+| **Backup shape changed, 10 Oct 2026 (entry faces F2, P200)** | A production entry (`production.entries[]`) may carry `src: 'face'` (entered on a person's own screen), `msgHash` (the key of the message it gave the WhatsApp group: that message pasted is refused), `imId` and `imItemId` (the challan and line a count was made against), `challanNo` (as written), and `checkOk: {codes: [...], at, by}` (the checks the owner kept it through: `noplate`, `over`, `count`, `inNoChallan`, `noload`). In the `sep-production` export; merged by id. |
+| **Backup shape changed, 10 Oct 2026 (entry faces, P199)** | A user (`users[]`) may carry `faces: [duty, …]` (`roll-in`, `pickling`, `incoming`, `stock`, `attsheet`, `barrel`, `vat`, `roll-out`): what that person enters on their own screen, Mine. It travels with the users (backups, GitHub, the compile); nothing outside the app reads it, and the records a face enters are those the forms already write. |
+| **Backup shape changed, 10 Oct 2026 (snacks, P207)** | New `labour.snackOt` (20) and `labour.snackNight` (60): snacks a person on regular and on night overtime, paid with the weekly payout (owner, 10 Oct 2026). **For the compile**: a week's payout (`payWeek`) is now the weekly tiers, the EXTRA pool and the snacks (`paySnacks`: a person once a day at the higher, from the blocks' crews and the outs; night is past midnight; none for the 6 AM block or the gate), so the cash a week paid as wages reads that much higher. Nothing exported changes. |
+| **Backup shape changed, 10 Oct 2026 (the pay history, P205)** | New `labour.payCarryFrom` ('YYYY-MM' or ''): the month monthly balances count from. **For the compile**: what a monthly hand was paid is now the statement's salary legs read as wages to them (`bankClassify`, plus a payee or row set by hand) and the payments typed on Pay, a typed one the statement also holds counted once; a month on the payroll as paid is set against them (the slip is what was earned), and from `payCarryFrom` on each month's difference carries. A reading of `payrollPaid` alone reads every such month settled. Nothing exported changes. |
+| **Backup shape changed, 10 Oct 2026 (cheques received, the tab map's TM3)** | New `bank.cheques: [{id, clientId, amount, number, chequeDate, drawnOn, receivedOn, note, at, by, deposit?, voidedAt?, voidReason?, voidBy?}]`: a cheque received and not yet in the bank, **counted as paid from `receivedOn`**, until a statement credit carrying its number (from three days before it came to 60 after, whatever its amount) is found; from then the deposit counts and the cheque does not, and the deposit is placed on the cheque's client unless it was placed by hand. `deposit` is the owner's own link (a row id) or `null` (*not this deposit*); absent, the link is worked out on every read. A voided cheque counts for nothing. **The `sep-bank` export carries `cheques`, and a `sep-bank` file is now taken in (Add → File, or Money → Bank's Import, which hands it there): its cheques merge by id, never written over; its rows are not read from it.** ⚠ For the compile: receivables computed from `bank.rows` alone read a client's owed higher than the app does while a cheque is in hand. The Finance tab `bills` is gone (Money → Payments and Office → Invoices → Credit notes; an address naming it opens Payments); nothing in the book moved. |
 | **Produces** captured production → `soma-internal` (the owner) | **Built 28 Sep 2026.** Production → Entries → Export writes `sep-production-YYYY-MM-DD.json`: `{format: 'sep-production', version: 1, exportedAt, build, entries, pastes, photos, imports, learn, powerCauses}` (`powerCauses` from 8 Oct 2026). Always whole; ids are stable, so the compile de-duplicates on them and keeps the newest copy of an entry (a void is a later copy). The inferred line is never exported. |
 | **Consumes** the production history ← `soma-internal` | Production → Entries → Import takes the same `sep-production` v1 shape. Merges by id and never overwrites; a client is kept by id only where the book holds that id under the same name, else found by name, and a name the book does not hold is counted and kept as written, never invented. Entries without `src` are stamped `import` and raise no To-do task. |
 | **Produces** attendance from the supervisor's rolls → `soma-internal` | **Built 25 Sep 2026.** Staff → Paste message reads the in/out-time rolls into `S.attendance` in the seed's own shape (marks by worker id, `coverage` / `block` EXTRA rows), so the compile reads pasted days exactly as it reads seeded ones. Each roll is kept whole in `relayPastes`. The parser was calibrated against `analysis/sep-attendance-seed-2026-09-{07,12}.json`; if the decode conventions change there, say so here. |

@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, switchTab, todayIso } from './fixtures';
+import { loadAppWithState, openSales, switchTab, todayIso } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P80 (desktop): a screen laid out as a list and its pane fills exactly the room under its own head and toolbar, so
@@ -25,17 +25,19 @@ const STOPS: Stop[] = [
   },
   {
     name: 'Clients › Items',
-    go: async p => { await switchTab(p, 'pageClients'); await p.locator('#pageClients .inv-viewtab[data-view="items"]').click(); },
+    go: async p => { await switchTab(p, 'pageClients'); await p.locator('#wsTabs [data-tab="pageClients"][data-v="clients"]').click(); await p.locator('#pageClients .inv-viewtab[data-view="items"]').click(); },
     row: '#clientsMaster [data-action="invSelectItemRow"]',
   },
   {
-    name: 'Clients › Quotations',
-    go: async p => { await switchTab(p, 'pageClients'); await p.locator('#pageClients .inv-viewtab[data-view="quotes"]').click(); },
+    // Office → Sales → Quotations since the tab map (9 Oct 2026).
+    name: 'Sales › Quotations',
+    go: async p => { await openSales(p, 'quotes'); },
     row: '#qtMaster [data-action="invQtOpen"]',
   },
   {
-    name: 'Stock › Lines',
-    go: async p => { await switchTab(p, 'pageStock'); await p.locator('#pageStock .inv-viewtab[data-view="list"]').click(); },
+    // One screen since the tab map (TM4d).
+    name: 'Stock',
+    go: p => switchTab(p, 'pageStock'),
     row: '#stockMasterDetail [data-action="invStockOpen"]',
   },
   // Office → Pipeline (P137): the pipeline beside the open stage's list.

@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import path from 'path';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { openFoldAt, bankImportDoor, emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState } from './fixtures';
 
 // P59: Finance. Bank and Bills & notes moved out of Stock into a page of their own, which opens on an
 // overview read across them (owner, 26 Sep 2026: "The entire finance sector of our app needs a
@@ -42,7 +42,7 @@ function state(): SepState {
 }
 
 async function importXls(page: Page, file: string) {
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   const before = await page.evaluate(() => ((window as any).bankData().imports || []).length);
   await chooser.setFiles(file);
   await page.waitForFunction(n => (window as any).bankData().imports.length > n, before);
@@ -54,9 +54,9 @@ test('Finance is Money on the bar, and Stock keeps only the chemicals', async ({
   await page.locator('.inv-navbar-item[data-ws="money"]').click();
   await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
   await expect(page.locator('#topbarTitle')).toHaveText('Money');
-  // One view, so no tab row: the page's own six tabs are the only row.
+  // One view, so no tab row: the page's own five tabs are the only row (Bills & notes split, the tab map TM3a).
   await expect(page.locator('#wsTabs')).toBeHidden();
-  await expect(page.locator('#financeContent [data-action="invFinTab"]')).toHaveText(['Overview', 'Receivables', 'Payments', 'Bank', 'Bills & notes', 'GST']);
+  await expect(page.locator('#financeContent .inv-viewtab[data-action="invFinTab"]')).toHaveText(['Overview', 'Receivables', 'Payments', 'Bank', 'GST']);
   await switchTab(page, 'pageStock');
   await expect(page.locator('#pageStock [data-action="invStockTab"]')).toHaveCount(0);
 });
@@ -64,8 +64,8 @@ test('Finance is Money on the bar, and Stock keeps only the chemicals', async ({
 test('with no statement the overview says so, and GST due still reads from the invoices', async ({ page }) => {
   await loadAppWithState(page, state());
   await switchTab(page, 'pageFinance');
-  await expect(page.locator('[data-fin-tile="balance"]')).toContainText('no statement imported');
-  await expect(page.locator('#finGst')).toBeVisible();
+  await expect(page.locator('[data-fin-tile="balance"]')).toContainText('No bank statement yet');
+  await expect(page.locator('[data-fin-tile="gst"]')).toBeVisible();
   const g = await page.evaluate(() => (window as any).finGstByMonth(['2026-06', '2026-07'], []));
   expect(g.map((r: any) => r.due)).toEqual([360, 3060 - 18]);   // three July invoices; July's note takes its own tax off
 });
@@ -80,15 +80,17 @@ test('the overview reads the statement: balance, cash by month, what went where,
   // The fixture statement has fixed dates; "All" keeps its months in range whatever today is.
   await page.locator('[data-action="invFinRange"][data-range="ALL"]').click();
 
-  // The balance tile names the day it is from, and an overdraft reads as one.
+  // The cash card names the day the balance is from, and an overdraft reads as one (whole rupees at a glance).
   const bal = page.locator('[data-fin-tile="balance"]');
-  await expect(bal).toContainText('-₹84,624.50');
+  await expect(bal).toContainText('-₹84,625');
   await expect(bal).toContainText('on 14 Aug 2026');
-  await expect(bal).toHaveClass(/inv-tile-danger/);
+  await expect(bal).toHaveClass(/inv-hero-danger/);
   // Two cheque deposits name nobody: the owed figure reads high until they are placed, and says so.
   await expect(page.locator('[data-fin-tile="owed"]')).toContainText('2 receipts not placed');
-  await expect(page.locator('[data-fin-tile="owed"]')).toHaveClass(/inv-tile-warning/);
+  await expect(page.locator('[data-fin-tile="owed"]')).toHaveClass(/inv-hero-warning/);
 
+  // The charts are folds under the heroes, shut on the phone (the tab map, TM3c).
+  for (const k of ['fin-cash', 'fin-went']) await openFoldAt(page, k);
   // July: 50,000 + 17,700 + 3,000 received, and a returned 100 in and out.
   await expect(page.locator('[data-cash="2026-07"] td').nth(1)).toHaveText('₹70,800');   // the overview reads in whole rupees
 
@@ -108,16 +110,18 @@ test('the overview reads the statement: balance, cash by month, what went where,
   const owed = await page.evaluate(() => { const w = window as any; const r = w.bankReceivables(w.bankClassify());
     return { total: r.reduce((s: number, x: any) => s + Math.max(0, x.owed), 0), bands: w.finAgeing(r).reduce((s: number, b: any) => s + b.amount, 0) }; });
   expect(Math.round(owed.bands * 100)).toBe(Math.round(owed.total * 100));
+  // The owed card opens to the largest debtors.
+  await page.locator('#finOwed > summary').click();
   await page.locator('#finOwed [data-action="invFinClient"][data-id="1"]').click();
   await expect(page.locator('[data-action="invFinTab"][data-tab="receipts"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('[data-recv="1"] [data-action="invBankClient"]')).toHaveAttribute('aria-expanded', 'true');
 });
 
-test('the To-do\'s missing electricity bill opens Finance on Bills & notes', async ({ page }) => {
+test('the To-do\'s missing electricity bill opens Money on Payments, the form on its month', async ({ page }) => {
   await loadAppWithState(page, state());
   await page.evaluate(() => (window as any).todoGo({ kind: 'bills', month: '2026-08' }));
   await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
-  await expect(page.locator('[data-action="invFinTab"][data-tab="bills"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('[data-action="invFinTab"][data-tab="payments"]')).toHaveAttribute('aria-selected', 'true');
   await expect(page.locator('#pageFinance #costBillMonth')).toHaveValue('2026-08');
 });
 
@@ -158,6 +162,8 @@ test('placing one cheque tags its series; the next is offered to the same client
   await finTab(page, 'bank');
   await importXls(page, JUL);
   await finTab(page, 'overview');
+  // The Overview's Owed to us hero names the receipts with no client in its body (the tab map, TM3c), shut on the phone.
+  await openFoldAt(page, 'fin-hero-owed');
   await page.locator('[data-action="invFinLoose"]').click();
   await expect(page.locator('[data-action="invFinTab"][data-tab="receipts"]')).toContainText('2');
 
@@ -197,7 +203,7 @@ test('a month\'s GST paid another way gets a note, counts as paid, and reads as 
   await expect(row).toContainText('Outside bank');
   await expect(page.locator(`[data-gst-note="${last}"]`)).toContainText('Paid from the ACI account');
   await finTab(page, 'overview');
-  await expect(page.locator('[data-fin-tile="gst"]')).toContainText('paid outside the bank');
+  await expect(page.locator('[data-fin-tile="gst"]')).toContainText(/paid outside the bank/i);
   const note = await page.evaluate(m => (window as any).bankData().gstNotes[m], last);
   expect(note).toMatchObject({ note: 'Paid from the ACI account', paidOther: 1800, via: 'ACI' });
 
@@ -222,6 +228,8 @@ test('the dashboard reads one range, and a tap on a month, a slice or a client g
   await expect(page.locator('[data-action="invFinRange"][data-range="ALL"]')).toHaveAttribute('aria-pressed', 'true');
   expect(await page.evaluate(() => { try { return localStorage.getItem('sep_inv_fin_range'); } catch { return null; } })).toBe('ALL');
 
+  // The charts are folds, shut on the phone: opened, they stay open across the redraws a tap makes.
+  for (const k of ['fin-cash', 'fin-went', 'fin-from', 'fin-invrec', 'fin-gst']) await openFoldAt(page, k);
   // Cash: balance, in and out on one axis; tapping July's point moves "where money went" to July.
   await expect(page.locator('#finCash polyline.inv-chart-path')).toHaveCount(3);
   await page.locator('#finCash .inv-chart-pt[data-key="2026-07"]').first().click();
@@ -235,7 +243,9 @@ test('the dashboard reads one range, and a tap on a month, a slice or a client g
   await expect(page.locator('#finWent [data-went-row]')).toContainText('₹61,234.50');
   await page.locator('[data-action="invFinStatementCat"]').click();
   await expect(page.locator('[data-action="invFinTab"][data-tab="bank"]')).toHaveAttribute('aria-selected', 'true');
-  await expect(page.locator('#bankCatFilter')).toHaveValue('power');
+  // The category is the statement's filter, said under its toolbar on the phone.
+  expect(await page.evaluate(() => (window as any)._bankFilter.cat)).toBe('power');
+  await expect(page.locator('.inv-tokens .inv-token')).toContainText('Electricity');
 
   // Where money came from: unplaced receipts are a named slice, and it opens them.
   await finTab(page, 'overview');
@@ -245,6 +255,6 @@ test('the dashboard reads one range, and a tap on a month, a slice or a client g
 
   // GST due against paid, grouped, and invoiced against received as two lines.
   await finTab(page, 'overview');
-  await expect(page.locator('#finGst rect.inv-chart-seg').first()).toBeVisible();
+  await expect(page.locator('#finGstChart rect.inv-chart-seg').first()).toBeVisible();
   await expect(page.locator('#finInvRec polyline.inv-chart-path')).toHaveCount(2);
 });

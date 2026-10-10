@@ -93,7 +93,7 @@ test.describe('P136: Add, the one door', () => {
     expect(await sheet.locator('[data-add-sec]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.addSec))).toEqual(['paste', 'clipboard', 'photo', 'file', 'hand']);
     await expect(sheet.locator('label[for="addPasteText"]')).toHaveText('Rolls, stock, pickling loads, production, power cuts');
     expect(await sheet.locator('[data-action="invAddHand"]').evaluateAll(els => els.map(e => (e as HTMLElement).innerText.trim())))
-      .toEqual(['Challan', 'Invoice', 'Quotation', 'Stock entry', 'Production', 'Power cut', 'Attendance', 'Payment', 'Bill', 'Task']);
+      .toEqual(['Challan', 'Invoice', 'Quotation', 'Stock entry', 'Production', 'Power cut', 'Attendance', 'Payment', 'Cheque', 'Bill', 'Task']);
     await expect(sheet.locator('.inv-btn-primary')).toHaveCount(1);
     await expect(sheet.locator('.inv-btn-primary')).toHaveText('Read it');
     await expect(sheet).toContainText('Whatever comes in is read, shown to you beside what was read, and saved only when you say so.');
@@ -204,7 +204,7 @@ test.describe('P136: Add, the one door', () => {
     await page.waitForFunction(() => ((window as any).bankData().imports || []).length > 0);
     await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
     await expect(page.locator('[data-action="invFinTab"][data-tab="bank"]')).toHaveAttribute('aria-selected', 'true');
-    await expect(page.locator('#bankHead')).toContainText('312 rows');
+    await expect(page.locator('#bankVerdict')).toContainText('312 rows');
 
     // A backup, even one saved as .xls, is the whole book: Settings → Import's own question, and Cancel replaces nothing.
     const backup = { ...emptyState(), clients: [{ id: 7, name: 'ANOTHER BOOK CO', billingMode: 'kg', gstType: 'intra', gstin: '', address: '' }] };
@@ -272,7 +272,8 @@ test.describe('P136: Add, the one door', () => {
       ['attendance', async () => { await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/); await expect(page.locator('#attDate')).toHaveValue(todayIso()); }],
       ['payment', async () => { await expect(page.locator('#payForm')).toBeVisible(); await expect(page.locator('#payWorker')).toBeFocused(); }],
       ['bill', async () => { await expect(page.locator('#pageFinance #costBillAmount')).toBeVisible(); await expect(page.locator('#pageFinance #costBillMonth')).toHaveValue(lastMonth); }],
-      ['task', async () => { await expect(page.locator('#pageTodo')).toHaveClass(/inv-page-active/); await expect(page.locator('#todoNew')).toBeFocused(); }],
+      // Your own task is typed on Needs you, where the tasks are (the tab map, TM2a).
+      ['task', async () => { await expect(page.locator('#homeNeeds')).toBeVisible(); await expect(page.locator('#todoNew')).toBeFocused(); }],
     ];
     for (const [go, landed] of lands) {
       await openAdd(page);

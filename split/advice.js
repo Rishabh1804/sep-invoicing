@@ -190,7 +190,8 @@ function advRepriceMove(ctx, x) {
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
     task: said,
-    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or the Items Master) to quote ' +
+    // One line (the tab map, TM2b: Pulse's words are short); where a weight is entered is the guide's (Reading Stats).
+    hint: draft.unweighed.length ? 'A weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' quotes ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
 
@@ -208,7 +209,8 @@ function advStockMoves(ctx) {
     var it = x.it, st = x.st, r = rows[it.id], unit = it.unit || '', out = st.group === 'out';
     var basis = [st.level != null ? stockFmtQty(Math.max(0, st.level)) + ' ' + unit + ' on the shelf' : '',
       st.rate && st.rate.rate ? 'uses ' + stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : 'no daily use on record',
-      r && r.price != null ? 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit : 'no price on record'].filter(Boolean).join(' · ');
+      r && r.price != null ? (r.lastFrom && r.supplier !== r.lastFrom ? 'order from ' + r.supplier + ' at ' + formatCurrency(r.price) + '/' + unit + ', ' + suppLeadText(r.pick && r.pick.lead)
+        : 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit) : 'no price on record'].filter(Boolean).join(' · ');
     return { key: 'stock:' + it.id, tone: 'red', soon: out ? 0 : Math.max(0, st.daysLeft || 0), cat: 0, what: it.name + (out ? ' out' : ' running out'),
       say: 'Order ' + it.name + (out ? ': it is out' : ': about ' + stockDaysText(st.daysLeft, !!(st.rate && st.rate.tentative)) + ' left'),
       worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + unit + ' at the last price, before GST' } : null,
@@ -372,8 +374,8 @@ function advMoneyMoves(ctx) {
   var plant = ctx.cards.plant;
   if (plant && plant.capPct != null && plant.capPct < 0.8) out.push(ctx.plantMoves()[0] || null);
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
-    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or the Items Master) lets the app set what was billed against the cost.'
-      : 'Nothing to move on: no account with a tenth of the plant is below the full cost, nothing has waited ' + todoCfg().challanDays + ' days to be billed, and every cost line is within its model.' };
+    none: !(ctx.a.tonnage.kg > 0) ? 'No weighed tonnage in the period yet. A weight per piece lets the app set what was billed against the cost.'
+      : 'Nothing to move on: no large account below the full cost, nothing waiting ' + todoCfg().challanDays + ' days to bill, every cost within its model.' };
 }
 
 /* ---------- 3. Who is driving it? ---------- */
@@ -442,7 +444,7 @@ function advClientsMoves(ctx, card) {
   }
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
     none: !m ? 'Weighed billing in the period ranks the clients by what a kilo leaves; nothing to move on until then.'
-      : 'Nothing to move on: no account with a tenth of the plant is below the full cost, and no client billed less than ' + (PERIOD_PRIOR_LABELS[ctx.a.period] || 'the period before') + '.' };
+      : 'Nothing to move on: no large account below the full cost, no client billing less than ' + (PERIOD_PRIOR_LABELS[ctx.a.period] || 'the period before') + '.' };
 }
 
 /* ---------- 4. Is the plant full? ---------- */
@@ -517,11 +519,11 @@ function advPlantMoves(ctx) {
 }
 
 /* ---------- 5. Is cash coming in? ---------- */
-/* A debt over 90 days: a call where the client's master has a number, and its receivables either way. */
+/* A debt past the client's terms: a call where the client's master has a number, and its receivables either way. */
 function advOwedMove(t) {
-  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c);
-  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' over 90 days';
-  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed over 90 days' },
+  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c), past = t.terms ? 'past its ' + t.terms + '-day terms' : 'past its terms';
+  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' ' + past;
+  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed ' + past },
     basis: todoPlural(t.n, 'invoice') + ', the oldest ' + formatDate(t.oldest) + ' · owed in all ' + advRs(t.owed),
     go: { kind: 'finance', tab: 'receipts', client: t.clientId }, goLabel: 'Receivables', task: say };
   if (ct) { mv.href = ct.href; mv.hrefLabel = ct.label; }
@@ -560,13 +562,13 @@ function advRunwayMove(t) {
 function advCashMoves(ctx) {
   if (!finHasBank()) return { moves: [], none: '' };
   var out = [];
-  // The To-do's own tests: owed over 90 days (the three largest), receipts with no client, a client paying slower than
+  // The To-do's own tests: owed past the client's terms (the three largest), receipts with no client, a client paying slower than
   // usual, the forecast below zero within 45 days.
   ctx.rule('owed90').slice().sort(function(a, b) { return b.amount - a.amount; }).slice(0, 3).forEach(function(t) { out.push(advOwedMove(t)); });
   ctx.rule('bankLoose').forEach(function(t) { out.push(advLooseMove(t)); });
   ctx.rule('payingSlower').forEach(function(t) { out.push(advSlowerMove(t)); });
   ctx.rule('runway').forEach(function(t) { out.push(advRunwayMove(t)); });
-  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes over 90 days, every receipt a week old is placed, and the forecast stays above zero.' };
+  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes past their terms, every receipt a week old is placed, and the forecast stays above zero.' };
 }
 
 /* ---------- 6. What changed? The insights, each with its own moves ---------- */
@@ -578,9 +580,9 @@ function advChangedMoves(ctx, card) {
 }
 
 /* ---------- The questions ---------- */
-/* The six questions in order, each {key, q, html, answer: {tone, say}, moves, none, hints, go, goLabel}: `html` the card's
-   body (statsStoryCards, intel.js, for the five the Overview had), `moves` what can be done, worked out from the book.
-   `range` is a period ('mtd'…) or statsPulseArgs' object. */
+/* The six questions in order, each {key, q, html, answer: {tone, say}, vital, moves, none, hints}: `html` the card's body
+   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Today →
+   Pulse draws them (today.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
 function advQuestions(range) {
   var a = range && typeof range === 'object' ? range : statsPulseArgs(range || _statsPeriod);
   var ctx = advCtx(a);
@@ -598,12 +600,6 @@ function advQuestions(range) {
   });
   return out.filter(Boolean);
 }
-/* The six cards for a period, read exactly as Stats → Overview reads them (statsPulseArgs): Today → Pulse draws them here. */
-function advPulseHtml(period) {
-  var a = statsPulseArgs(period || _statsPeriod);
-  return statsStoriesHtml(a.period, a.filtered, a.prior, a.tonnage, a.periodCost);
-}
-
 /* ---------- Moves on every app task ---------- */
 /* Built from the task's own data (attached at its rule: clientId, itemId, month…), never from its title. A rule with no
    entry keeps its one button. */
@@ -681,7 +677,7 @@ var ADV_TASK_MOVES = {
   },
   power: function(t) {
     return [{ key: 'bill:power:' + t.month, tone: t.tone, say: 'Add the electricity bill for ' + billsMonthLabel(t.month), worth: null, basis: 'until then the live cost reads electricity at the model',
-      go: { kind: 'bills', month: t.month }, goLabel: 'Bills & notes', task: 'Add the electricity bill for ' + billsMonthLabel(t.month) }];
+      go: { kind: 'bills', month: t.month }, goLabel: 'Add the bill', task: 'Add the electricity bill for ' + billsMonthLabel(t.month) }];
   },
   bankStale: function(t) {
     return [{ key: 'statement', tone: t.tone, say: 'Import the bank statement: ' + advLower(t.sub), worth: null, basis: t.why, go: { kind: 'finance', tab: 'bank' }, goLabel: 'Bank', task: 'Import the bank statement' }];
@@ -797,17 +793,6 @@ function advMovesDeckHtml(moves, listKey, n, word) {
   var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
   return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
-/* A question's foot: What you can do, its moves, and what would make one appear where there is none. An insight's moves
-   are drawn under its row (`inline`), so What changed? draws a foot only to say there is none. */
-function advFootHtml(q) {
-  if (!q || (q.inline && q.moves.length)) return '';
-  var h = '<div class="inv-row-group" data-adv-head><span>What you can do</span>' + (q.moves.length ? '<span class="inv-num">' + q.moves.length + '</span>' : '') + '</div>';
-  if (!q.moves.length) return h + '<div class="inv-row inv-row-auto" data-adv-none><span class="inv-row-main inv-note inv-row-wrap">' + escHtml(q.none || 'Nothing to do here yet.') + '</span></div>';
-  h += advMovesHtml(q.moves, 'q-' + q.key);
-  (q.hints || []).forEach(function(x) { h += '<div class="inv-row inv-row-auto" data-adv-hint><span class="inv-row-main inv-note inv-row-wrap">' + escHtml(x) + '</span></div>'; });
-  return h;
-}
-
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */

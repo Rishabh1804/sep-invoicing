@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, readStoredState, noSeedIM, SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, readStoredState, noSeedIM, SepState, openPulse, toolbarMore, setFilter, filterControl, closeFilter } from './fixtures';
 
 /*
  * P108: invoices, credit notes, printed documents and GST exports (the QA sweep, 29 Sep 2026).
@@ -116,7 +116,7 @@ test('I1: the number audit keeps each financial year\'s series apart', async ({ 
 
   // Accounted for under its own series.
   await switchTab(page, 'pageRegister');
-  await page.locator('#regNumberAudit').click();
+  await toolbarMore(page, 'Number audit');
   await expect(page.locator('.inv-scrim-dialog')).toContainText('SEP/2025-26/');
   await page.locator('[data-action="invAccountForNumber"][data-num="2"]').click();
   await page.locator('#invGapReason').fill('spoiled, filed at zero');
@@ -135,9 +135,13 @@ test('I2: a blank line, a line with no part and a line with no quantity are refu
   await page.locator('[data-action="invAddLineItem"]').click();
   const save = page.locator('#invSaveBtn');
   const errs = page.locator('#invErrorsArea');
-  // A blank line: saved, it was a ₹0 invoice of nothing.
-  await expect(save).toBeDisabled();
+  // No error before a try (the tab map, TM5h): a form nobody has touched says nothing, and Save is there to tap.
+  await expect(errs).toBeEmpty();
+  await expect(save).toBeEnabled();
+  // A blank line, saved: it was a ₹0 invoice of nothing. Refused, naming the line, and Save held while the error shows.
+  await save.click();
   await expect(errs).toContainText('Line 1');
+  await expect(save).toBeDisabled();
 
   await page.locator('input[data-field="qty"][data-idx="0"]').fill('10');
   await expect(errs).toContainText('Line 1: name the part');
@@ -241,7 +245,7 @@ test('I4: a cancelled invoice deleted keeps its number spent, in the audit and i
   expect(st.voidedNumbers[0]).toMatchObject({ invoiceNumber: '00002', reserved: true, wasCancelled: true });
   expect(await g(page, 'getVoidedForExport().map(function(v) { return v.invoiceNumber; }).join()')).toBe('00002');
   await switchTab(page, 'pageRegister');
-  await page.locator('#regNumberAudit').click();
+  await toolbarMore(page, 'Number audit');
   await expect(page.locator('.inv-scrim-dialog [data-num-kind="voided"]')).toContainText('cancelled before it was deleted');
 });
 
@@ -392,9 +396,9 @@ test('I11: a State filter leaves voids out, and a void is found by the challan i
   await loadAllDates(page, s);
   await switchTab(page, 'pageRegister');
   expect(await g(page, 'getVoidedForExport().length')).toBe(1);
-  await page.locator('#regStateFilter').selectOption('created');
+  await setFilter(page, '#regStateFilter', 'created');
   expect(await g(page, 'getVoidedForExport().length')).toBe(0);
-  await page.locator('#regStateFilter').selectOption('');
+  await setFilter(page, '#regStateFilter', '');
   await page.locator('#regSearch').fill('777');
   await expect.poll(() => g(page, 'getVoidedForExport().length')).toBe(1);
   await page.locator('#regSearch').fill('778');
@@ -509,14 +513,19 @@ test('IB1: Clear range clears the range', async ({ page }) => {
   const d = (n: number) => { const x = new Date(); x.setMonth(x.getMonth() - n, 1); return x.toISOString().slice(0, 10); };
   await loadAppWithState(page, book([inv(1, { date: d(2) }), inv(2)]));
   await switchTab(page, 'pageRegister');
-  await page.locator('#regDateFrom').fill(d(2));
-  await page.locator('#regDateTo').fill(d(2));
+  // The range is behind Filter on the phone (the tab map, TM5c), its Clear range with it.
+  await setFilter(page, '#regDateFrom', d(2));
+  await setFilter(page, '#regDateTo', d(2));
   await expect(page.locator('#regList')).not.toContainText('SEP/TEST-00002');
-  await page.locator('[data-action="invRegClearRange"]').click();
-  await expect(page.locator('#regDateFrom')).toHaveValue('');
-  await expect(page.locator('#regDateTo')).toHaveValue('');
-  await expect(page.locator('[data-action="invRegClearRange"]')).toHaveCount(0);
+  await expect(page.locator('#pageRegister .inv-token[data-clear="range"]')).toHaveCount(1);
+  await (await filterControl(page, '[data-action="invRegClearRange"]')).click();
+  await closeFilter(page);
   expect(await g(page, 'regFilter.dateFrom + regFilter.dateTo')).toBe('');
+  await expect(await filterControl(page, '#regDateFrom')).toHaveValue('');
+  await expect(await filterControl(page, '#regDateTo')).toHaveValue('');
+  await expect(await filterControl(page, '[data-action="invRegClearRange"]')).toHaveCount(0);
+  await closeFilter(page);
+  await expect(page.locator('#pageRegister .inv-token[data-clear="range"]')).toHaveCount(0);
 });
 
 /* ===== IB2: an edit or a reissue goes back to the Register, on the invoice ===== */

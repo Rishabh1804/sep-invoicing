@@ -171,6 +171,10 @@ function stockPatternHtml(item) {
   } else {
     h += '<div class="inv-row inv-row-auto"><span class="inv-note">No price recorded. Add the bill for a delivery (on its entry below) or a past bill here.</span></div>';
   }
+  // Who it is ordered from, the owner's pick or the app's, and the door to set its suppliers side by side (suppliers.js).
+  var pk = suppReorderPick(item, suppDaysLeft(item));
+  h += '<div class="inv-row inv-row-2 inv-row-flow" data-stock-order-from><span class="inv-row-main"><span class="inv-row-title">Order from</span><span class="inv-row-meta inv-row-wrap">' + escHtml(suppPickLine(pk)) + '</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppCompare" data-item="' + escHtml(item.id) + '">Compare suppliers</button></span></div>';
   if (p.lastBought) h += row('Bought', p.cadence != null ? 'every ' + formatNum(p.cadence, 0) + ' days (median) · ' + (p.avgQty != null ? 'about ' + escHtml(stockFmtQty(p.avgQty)) + ' ' + escHtml(unit) + ' a time' : '') : 'once on record',
     'last ' + escHtml(stockShortDate(p.lastBought)) + (p.nextDue ? ', next ~' + escHtml(stockShortDate(p.nextDue)) : ''));
   if (p.rate && p.rate.rate) h += row('Use', escHtml(stockFmtQty(p.used30)) + ' ' + escHtml(unit) + ' in the last 30 days', escHtml(stockFmtRate(p.rate.rate)) + ' ' + escHtml(unit) + '/day');
@@ -503,7 +507,8 @@ function liveCost(from, to, kg) {
     });
   });
   var boughtLine = function(t, what) {
-    return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : '') + ' · purchases are not use, so not in the figure', amount: t.amount, ref: true }] : [];
+    // A purchase is stock on the shelf, not use, so it is not in the figure: the guide says so (kbguides.js, Reading Stats).
+    return t.bills ? [{ label: 'Bought in the period, for reference', sub: t.bills + ' bill line' + (t.bills === 1 ? '' : 's') + (what ? ' · ' + what : ''), amount: t.amount, ref: true }] : [];
   };
   // How much of the period the stock record covers: from the first USE or CHARGE (its window's first day). Use is read
   // from nothing else, so a count or a delivery before it says nothing about what was used: one past purchase entered by
@@ -532,7 +537,7 @@ function liveCost(from, to, kg) {
       : coveredDays ? 'no chemical used in this period' : 'no chemical use recorded') +
       (chemMeasured ? (chemMissing > 0.001 && coveredDays ? ' · ' + (days - coveredDays) + ' days at the model' : '') : coveredDays ? ' · filled at the model' : ''),
     detail: chemDetail.concat(boughtLine(bought.chem)).concat(bk && bk.supplies.months.length ? [{ label: 'Paid to suppliers, for reference', ref: true, amount: bk.supplies.amount,
-      sub: 'chemicals and zinc together, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement · a payment is not use, so not in the figure' }] : []) });
+      sub: 'chemicals and zinc, from the bank · ' + Math.round(bk.supplies.known * 100) + '% of the period on the statement' }] : []) });
 
   var landed = zincLandedRate();
   // Modelled zinc kilos are priced at what was last PAID by the end of the
@@ -557,10 +562,11 @@ function liveCost(from, to, kg) {
   var zMissing = zinc.qty > 0 && !zNoPrice ? stockMissing : 1, zWhat = zinc.qty > 0 ? stockWhat : coveredDays ? 'no zinc charged in this period' : 'zinc use';
   if (zByBills) {
     var zbAmt = zWin.perKg * kg;
+    // One line each (the tab map, TM2b); why zinc's bills are its use is the guide's (kbguides.js, Reading Stats).
     zDetail.push({ label: 'Bought over 90 days, per kg plated', amount: zbAmt,
       sub: stockFmtQty(zWin.qty) + ' kg on ' + zWin.bills + ' bill line' + (zWin.bills === 1 ? '' : 's') + ', ' + formatCurrency(zWin.amount) + ', ' + stockShortDate(zWin.from) + ' – ' + stockShortDate(zWin.to) +
-        ' over ' + formatNum(zWin.kg / 1000, 1) + ' t plated = ' + formatCurrency(zWin.perKg) + '/kg · zinc goes into the bath as it arrives, so its bills are its use' +
-        (zinc.qty > 0 ? ' (' + stockFmtQty(zinc.qty) + ' kg charged since the record began ' + stockShortDate(firstStock) + ')' : '') });
+        ' over ' + formatNum(zWin.kg / 1000, 1) + ' t = ' + formatCurrency(zWin.perKg) + '/kg' });
+    if (zinc.qty > 0) zDetail.push({ label: 'Charged since the record began', sub: stockFmtQty(zinc.qty) + ' kg from ' + stockShortDate(firstStock) + ', in the bills above', amount: null, ref: true });
     zAmount = zbAmt; zMeasured = zbAmt; zMissing = 0;
   } else if (zinc.qty > 0 && !zNoPrice) {
     var zAmt = zinc.priced ? zinc.amount : zinc.qty * landed;
@@ -619,14 +625,15 @@ function liveCost(from, to, kg) {
     if (kind === 'other' && bk && bk.unsorted.amount >= 1) {
       var np = Object.keys(bk.unsorted.payees).length;
       detail.push({ label: 'Paid to payees not yet sorted, not counted', ref: true, amount: bk.unsorted.amount,
-        sub: np + ' payee' + (np === 1 ? '' : 's') + ' on the bank statement read as neither supplier nor cost · set each once in Finance → Bank, and the month counts' });
+        sub: np + ' payee' + (np === 1 ? '' : 's') + ' not sorted on the statement · Money → Payments' });
     }
     push({ key: kind, label: COST_BILL_KINDS[kind], amount: amt + (unbilled > 0.001 ? cfg[kind] * kg * unbilled : 0),
       note: (function() {
         var nb = detail.filter(function(x) { return !x.fill && !x.bank && !x.ref; }).length, np = detail.filter(function(x) { return x.bank; }).length;
         var parts = [nb ? nb + ' bill' + (nb === 1 ? '' : 's') : '', np ? np + ' month' + (np === 1 ? '' : 's') + ' paid, from the bank' : '',
           unbilledMonths.length && (nb || np) ? unbilledMonths.length + ' month' + (unbilledMonths.length === 1 ? '' : 's') + ' at the model' : ''].filter(Boolean);
-        return parts.length ? parts.join(' · ') : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period';
+        // Two facts at most (§3b-11): a month at the model is said by its own row in the fold.
+        return parts.length ? parts.slice(0, 2).join(' · ') : formatCurrency(cfg[kind]) + '/kg from Settings; no bill entered for this period';
       })(), detail: detail });
   });
 
@@ -654,6 +661,9 @@ function liveCostPaidCheck(from, to) {
   var finish = function(key, label, t, why, known) {
     var r = { key: key, label: label, months: t.months, skipped: t.skipped, recorded: null, paid: null, delta: null, pct: null, flag: false, why: why };
     var uns = unsortedIn(key);
+    // The months left out, each with why, for the row's line (the note keeps the whole sentence).
+    r.leftOut = [t.skipped.length ? 'not ' + t.skipped.map(billsMonthLabel).join(', ') + ' (' + known + ')' : '',
+      uns.length ? 'not ' + uns.join(', ') + ' (' + BANK_UNSORTED_WHY + ')' : ''].filter(Boolean);
     if (key === 'supplies' && t.paid < 1 && t.recorded < 1) {
       r.note = uns.length ? 'nothing to compare: ' + BANK_UNSORTED_WHY + ' for ' + uns.join(', ') : 'no priced use and no supplier payment in the months the statement covers';
       out.push(r); return;
@@ -700,14 +710,15 @@ function liveCostPaidCheck(from, to) {
 function _costPaidHtml(from, to) {
   var chk = liveCostPaidCheck(from, to);
   if (!chk.length) return '';
+  // Fact rows (§3c): the gap at the end, recorded and paid under the label, a gap over 10% a badge in its tone (the tab map, TM2b).
   return '<div id="liveCostPaid"><div class="inv-row-group"><span>Recorded against paid</span></div>' + chk.map(function(r) {
-    // The gap on the right; what it is the gap between leads the note, so a phone keeps one figure per column.
-    var fig = r.recorded == null ? '&mdash;' : (r.delta >= 0 ? '+' : '&minus;') + formatCurrency(Math.abs(r.delta)) +
-      (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
-    var note = (r.recorded == null ? '' : 'recorded ' + formatCurrency(r.recorded) + ' · paid ' + formatCurrency(r.paid) + ' · ') + r.note;
-    return '<div class="inv-row inv-row-2 inv-row-top" data-paid="' + r.key + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) + '</span>' +
-      (r.flag ? '<span class="inv-row-meta"><span class="inv-dot inv-dot-danger">over 10% apart</span></span>' : '') +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(note) + '</span></span><span class="inv-row-end"><span class="inv-num">' + fig + '</span></span></div>';
+    var fig = r.recorded == null ? '' : (r.delta >= 0 ? '+' : '−') + formatCurrency(Math.abs(r.delta)) +
+      (r.pct != null ? ' (' + (r.pct >= 0 ? '+' : '−') + formatNum(Math.abs(r.pct) * 100, 0) + '%)' : '');
+    // The months compared lead (numerator and denominator, the same months), then what is left out and why; why the two can
+    // differ and still be right is the screen's guide.
+    return uiFactRowHtml({ label: r.label, value: fig, src: r.flag ? ['danger', 'over 10% apart'] : null, attrs: ' data-paid="' + escHtml(r.key) + '"',
+      sub: r.recorded == null ? r.note : r.months.map(billsMonthLabel).join(', ') + ': recorded ' + formatCurrency(r.recorded) + ', paid ' + formatCurrency(r.paid) +
+        (r.leftOut || []).map(function(x) { return '; ' + x; }).join('') });
   }).join('') + '</div>';
 }
 
@@ -802,9 +813,9 @@ function renderLiveCostCard(period, tonnage) {
     formatNum(kg / 1000, 1) + ' t plated · ' + Math.round(c.measuredShare * 100) + '% of it measured</span></span><span class="inv-row-end">' + money(c) + '</span></div>';
   var partial = c.rows.filter(function(r) { return r.source === 'partial'; }).map(function(r) { return r.label.toLowerCase(); });
   if (partial.length) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">This period reads LOW: ' + escHtml(partial.join(' and ')) + (partial.length === 1 ? ' is' : ' are') + ' only part-recorded. Open a line to see what is missing.</div></div>';
-  // The ₹/kg divides by the weighed tonnage alone, and says so (statsCostWeighedNote, stats.js).
-  var weighed = statsCostWeighedNote(tonnage);
-  if (weighed) h += '<div class="inv-panel-body"><div class="inv-callout" data-callout="weighed">' + weighed + '</div></div>';
+  // The ₹/kg divides by the weighed tonnage alone, and says so in a line (statsCostWeighedShort, stats.js); why is the guide's.
+  var weighed = statsCostWeighedShort(tonnage);
+  if (weighed) h += '<div class="inv-panel-body"><div class="inv-note" data-callout="weighed">' + weighed + '</div></div>';
   // Each component folds open to its parts: labour by tier, chemicals line by line, each bill's share.
   c.rows.forEach(function(r) {
     h += '<details class="inv-row-fold" data-cost="' + r.key + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.label) +
@@ -820,30 +831,21 @@ function renderLiveCostCard(period, tonnage) {
     h += '</details>';
   });
   h += _costPaidHtml(from, to);
+  // The typed figure beside the measured one, as a fact; what "model" means is the guide's (kbguides.js, Reading Stats).
   var typed = S.defaultCostPerKg || 0;
-  if (typed && c.perKg != null) h += '<div class="inv-panel-body"><div class="inv-callout">The figure typed in Settings is ' + formatCurrency(typed) + '/kg; this period measures ' + formatCurrency(c.perKg) + '/kg. ' +
-    'Anything marked model is a Settings fallback until the record exists: add bills to Stock lines, and power and other bills below.</div></div>';
+  if (typed && c.perKg != null) h += uiFactRowHtml({ label: 'Typed in Settings', sub: 'this period measures ' + formatCurrency(c.perKg) + '/kg', value: formatCurrency(typed) + '/kg', attrs: ' data-cost-typed' });
   h += _costBillHtml();
   return h + '</div>';
 }
 
-/* The bills on the card: a group of rows, Add a bill in its heading, the form in place below them. */
+/* The bills are entered on Money → Payments, where they are kept with their notes (the tab map, TM3a: the list here repeated it);
+   the card's electricity and other rows fold open to each bill's share of the period, which is the cost's own working. */
 function _costBillHtml() {
-  var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : -1; });
-  var open = _costBillOpen && _costBillOpen.where === 'stats';
-  var h = '<div data-cost-bills><div class="inv-row-group"><span>Electricity and other bills</span>' +
-    (open ? '' : '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillOpen" data-where="stats">Add a bill</button>') + '</div>';
-  bills.slice(0, 12).forEach(function(b) {
-    var meta = [b.units ? b.units + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
-    h += '<div class="inv-row' + (meta ? ' inv-row-2' : '') + (b.voided ? ' inv-row-muted' : '') + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind]) + ' · ' + b.month) + '</span>' +
-      (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
-      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' + (b.voided ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') + '</span></div>';
-  });
-  if (!open) return h + '<div class="inv-panel-body"><div class="inv-note">Bills are also kept under Finance &rarr; Bills &amp; notes.</div></div></div>';
-  return h + '<div class="inv-panel-body">' + costBillFormHtml() + '</div></div>';
+  return '<div class="inv-row" data-cost-bills><span class="inv-row-main"><span class="inv-row-meta">Bills are entered in Money &rarr; Payments</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span></div>';
 }
 
-/* One form, drawn wherever it was opened: Stats → Live cost, or Finance → Bills & notes. */
+/* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). */
 function costBillFormHtml() {
   var o = _costBillOpen || {}, m = o.month || localDateStr().slice(0, 7);
   return '<div class="inv-fields">' +
@@ -860,14 +862,12 @@ function costBillFormHtml() {
     '<div class="inv-toolbar"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillCancel">' + (o.saved ? 'Close' : 'Cancel') + '</button>' +
     '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invCostBillSave">Save bill</button></div>';
 }
-function costBillRedraw(where) { if (where === 'finance') renderFinance(); else renderStats(); }
-/* The page a form or a button sits on. Both pages stay in the DOM when hidden, so a form left open
-   on Stats still holds the same ids as one opened on Stock, and a bare getElementById reads the
-   hidden one (Stats comes first). Every lookup is scoped to the page the form was opened on. */
-function costBillRoot(where) { return document.getElementById(where === 'finance' ? 'pageFinance' : 'pageStats') || document; }
+function costBillRedraw() { renderFinance(); }
+/* The page the form sits on: every lookup is scoped to it, since a hidden page stays in the DOM. */
+function costBillRoot() { return document.getElementById('pageFinance') || document; }
 
 async function costBillSave() {
-  var root = costBillRoot((_costBillOpen || {}).where);
+  var root = costBillRoot();
   var v = function(id) { return ((root.querySelector('#' + id) || {}).value || '').trim(); };
   var kind = v('costBillKind') === 'other' ? 'other' : 'power', month = v('costBillMonth'), amount = gstRound(parseFloat(v('costBillAmount')) || 0);
   if (!/^\d{4}-\d{2}$/.test(month)) { showToast('Pick the month the bill covers', 'error'); return; }
@@ -896,12 +896,12 @@ async function costBillSave() {
     var nk = next;
     if (!costBills().some(function(b) { return b.kind === kind && !b.voided && b.month === nk; })) break;
   }
-  _costBillOpen = { where: was.where, month: next, kind: kind, saved: (was.saved || 0) + 1 };
+  _costBillOpen = { where: 'finance', month: next, kind: kind, saved: (was.saved || 0) + 1 };
   saveState();
-  costBillRedraw(was.where);
+  costBillRedraw();
   showToast(COST_BILL_KINDS[kind] + ' bill saved for ' + month);
 }
-async function costBillVoid(id, where) {
+async function costBillVoid(id) {
   var b = costBills().find(function(x) { return x.id === id; });
   if (!b || b.voided) return;
   if (!grdOk('voids') && !(await guardAsk('voids', 'void a bill'))) return;   // P1 (guard.js)
@@ -913,22 +913,21 @@ async function costBillVoid(id, where) {
   b.voided = Date.now();
   b.voidReason = reason.trim();
   saveState();
-  costBillRedraw(where);
+  costBillRedraw();
 }
 function costAction(action, btn) {
   switch (action) {
     case 'invCostBillOpen': {
-      var where = btn.dataset.where === 'finance' ? 'finance' : 'stats';
-      _costBillOpen = { where: where, month: btn.dataset.month || '' };
-      costBillRedraw(where);
-      var a = costBillRoot(where).querySelector('#costBillAmount'); if (a) a.focus();
+      _costBillOpen = { where: 'finance', month: btn.dataset.month || '' };
+      costBillRedraw();
+      var a = costBillRoot().querySelector('#costBillAmount'); if (a) a.focus();
       return true;
     }
-    case 'invCostBillCancel': { var w = (_costBillOpen || {}).where; _costBillOpen = false; costBillRedraw(w); return true; }
+    case 'invCostBillCancel': _costBillOpen = false; costBillRedraw(); return true;
     case 'invCostBillSave': costBillSave(); return true;
-    // Redraw the page the Void was tapped on, read from the button, not guessed from a hidden page's DOM:
-    // Finance → Bills & notes, or Stats → Live cost.
-    case 'invCostBillVoid': costBillVoid(btn.dataset.id, btn.closest('#pageFinance') ? 'finance' : 'stats'); return true;
+    case 'invCostBillVoid': costBillVoid(btn.dataset.id); return true;
+    // Live cost's link: the form on Payments, on the latest closed month with no electricity bill (add.js).
+    case 'invCostBillGo': addBill(); return true;
   }
   return false;
 }
@@ -959,23 +958,29 @@ function stockReorderList() {
   stockData().items.filter(function(i) { return i.active !== false; }).forEach(function(it) {
     var st = stockStatus(it), rate = st.rate && st.rate.rate ? st.rate.rate : null, level = st.level == null ? 0 : Math.max(0, st.level);
     var typed = _stockReorder && _stockReorder.qty[it.id];
+    // Who it is ordered from and by when (suppliers.js): the owner's pick or the app's, at the supplier's own lead time where set,
+    // else the list's.
+    var pick = suppReorderPick(it, suppDaysLeft(it, st));
     if (!rate) {
-      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true });
+      if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true, pick: pick });
       else skipped.norate.push(it.name);
       return;
     }
-    var need = rate * (cfg.leadDays + cfg.coverDays) - level;
+    var lead = pick && pick.lead ? pick.lead.max : cfg.leadDays;
+    var need = rate * (lead + cfg.coverDays) - level;
     var pack = stockPackSize(it);
     var suggest = need > 0 ? (pack ? Math.ceil(need / pack) * pack : Math.ceil(need)) : 0;
     if (suggest <= 0 && !typed) { skipped.enough++; return; }
-    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative) });
+    rows.push({ item: it, need: need, suggest: suggest, pack: pack, level: level, rate: rate, daysLeft: st.daysLeft, tentative: !!(st.rate && st.rate.tentative), pick: pick, lead: lead });
   });
   rows.forEach(function(r) {
     var typed = _stockReorder && _stockReorder.qty[r.item.id];
     r.qty = typed != null && typed !== '' ? Math.max(0, parseFloat(typed) || 0) : (r.suggest || 0);
     var lp = stockPriceAt(r.item.id, '9999-12-31');
-    r.price = lp ? lp.price : null;
-    r.supplier = lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    // At the price of the supplier it is ordered from: the last it came from, or the cheaper one that can deliver in time.
+    r.price = r.pick ? r.pick.price : lp ? lp.price : null;
+    r.supplier = r.pick && r.pick.sp ? r.pick.name : lp && lp.supplier ? lp.supplier : 'No supplier on record';
+    r.lastFrom = r.pick && r.pick.last ? r.pick.last.name : r.supplier;
     r.amount = r.price != null ? gstRound(r.qty * r.price) : null;
   });
   var groups = {};
@@ -1003,11 +1008,11 @@ function renderStockReorder() {
   // Not a form: lead and cover save as they change, and a typed quantity is a working figure for the message copied
   // from it (the list starts afresh each time it opens). Leaving asks nothing.
   h += '<div class="inv-panel" data-nodirty><div class="inv-fields">' +
-    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time (days)</label>' +
+    '<div class="inv-field"><label class="inv-field-label" for="stockLeadDays">Lead time where a supplier’s is not set (days)</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockLeadDays" class="inv-input inv-input-num" value="' + cfg.leadDays + '"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="stockCoverDays">Days to cover after it lands</label>' +
     '<input type="number" min="1" step="1" inputmode="numeric" id="stockCoverDays" class="inv-input inv-input-num" value="' + cfg.coverDays + '"></div></div>' +
-    '<div class="inv-note">Suggested = daily use × (' + cfg.leadDays + ' + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. Type a quantity to change it; 0 leaves the line out.</div></div>';
+    '<div class="inv-note">Suggested = daily use × (lead time + ' + cfg.coverDays + ' days) less what is on the shelf, rounded up to the pack it is bought in. The lead time is the supplier’s where it is set on them (Money → Payments → Suppliers), else these ' + cfg.leadDays + ' days. Type a quantity to change it; 0 leaves the line out.</div></div>';
   if (!L.groups.length) {
     h += '<div class="inv-panel"><div class="inv-empty">Nothing to order: every line with a daily use covers ' + (cfg.leadDays + cfg.coverDays) + ' days.</div></div>';
   } else {
@@ -1040,6 +1045,14 @@ function stockReorderWhy(r, full) {
   return (full ? stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') + ' · ' : '') +
     'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
 }
+/* Who the line is ordered from, by when and why, with the door to compare its suppliers (suppliers.js): a row under the line's on the
+   phone, lines in its cell on the desktop. */
+function stockReorderFromHtml(r, cell) {
+  var text = suppPickLine(r.pick), btn = '<button class="inv-btn inv-btn-' + (cell ? 'link' : 'secondary') + ' inv-btn-sm" data-action="invSuppCompare" data-item="' + escHtml(r.item.id) + '">Compare suppliers</button>';
+  if (cell) return '<div data-reorder-from="' + escHtml(r.item.id) + '"><div class="inv-row-meta inv-row-wrap">' + escHtml(text) + '</div>' + btn + '</div>';
+  return '<div class="inv-row-children"><div class="inv-row inv-row-2 inv-row-flow" data-reorder-from="' + escHtml(r.item.id) + '"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(text) + '</span></span>' +
+    '<span class="inv-row-end">' + btn + '</span></div></div>';
+}
 function stockReorderInput(r) {
   return '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">';
 }
@@ -1052,7 +1065,7 @@ function stockReorderRowsHtml(L) {
       h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.item.name) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(stockReorderWhy(r, true)) + '</span></span>' +
         '<span class="inv-row-end">' + stockReorderInput(r) + '<span class="inv-unit">' + escHtml(r.item.unit || '') + '</span>' +
-        '<span class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</span></span></div>';
+        '<span class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</span></span></div>' + stockReorderFromHtml(r, false);
     });
   });
   return h;
@@ -1064,7 +1077,7 @@ function stockReorderTableHtml(L) {
     h += '<tr class="inv-table-group"><td colspan="5">' + escHtml(g.supplier) + '</td><td class="inv-num">' + escHtml(stockReorderSub(g)) + '</td></tr>';
     g.rows.forEach(function(r) {
       var unit = r.item.unit || '';
-      h += '<tr><td class="inv-col-grow" title="' + escHtml(stockReorderWhy(r, false)) + '"><div>' + escHtml(r.item.name) + '</div><div class="inv-row-meta">' + escHtml(stockReorderWhy(r, false)) + '</div></td>' +
+      h += '<tr><td class="inv-col-grow" title="' + escHtml(stockReorderWhy(r, false)) + '"><div>' + escHtml(r.item.name) + '</div><div class="inv-row-meta">' + escHtml(stockReorderWhy(r, false)) + '</div>' + stockReorderFromHtml(r, true) + '</td>' +
         '<td class="inv-num">' + stockQtyUnit(r.level, unit) + '</td>' +
         '<td class="inv-num">' + (r.rate ? escHtml(stockFmtRate(r.rate)) + '<span class="inv-unit">' + escHtml(unit) + '</span>' : '&mdash;') + '</td>' +
         '<td class="inv-nowrap">' + (r.daysLeft != null ? escHtml(stockDaysText(r.daysLeft, r.tentative)) : r.noRate ? '<span class="inv-dot inv-dot-danger">Out</span>' : '&mdash;') + '</td>' +

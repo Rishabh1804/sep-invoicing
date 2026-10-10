@@ -133,12 +133,12 @@ test('a unit nobody was marked on is read as fully short, and said so in place',
   await expect(card).toBeVisible();
   await expect(card).toContainText('Read as fully short');
   await expect(card).toContainText('20.0 h');
-  await expect(card).toContainText('across 2 unit-days');
-  await expect(card).toContainText('fully short and fully covered');
+  // The card's working says how many unit-days (TM4b: what the reading means is the guide's).
+  await expect(card).toContainText('2 unit-days nobody was marked on');
   // d3 books exactly the 8 x 1 that reading predicts; d2's 12 does not, and the
   // quantity — not the missing marks — is what the card holds against it.
-  await expect(card).toContainText('Booked, but not the predicted amount');
-  await expect(card).toContainText('12.0 h against 8.0 h');
+  await expect(card.locator('[data-flag="warning"]')).toHaveCount(1);
+  await expect(card.locator('[data-flag="warning"]')).toContainText('12.0 h against 8.0 h');
 });
 
 test('a range where every booking answers a real shortfall says the check passed', async ({ page }) => {
@@ -149,7 +149,7 @@ test('a range where every booking answers a real shortfall says the check passed
   }, { barrel: 2 }));
   await openAreas(page);
   const card = page.locator('[data-card="extra"]');
-  await expect(card).toContainText('passes');
+  await expect(card.locator('[data-area-passed]')).toContainText('Every booking answers a shortfall');
   await expect(card.locator('[data-flag]')).toHaveCount(0);
 });
 
@@ -180,11 +180,10 @@ test('extra per head-day is a plausibility test and says so', async ({ page }) =
   }));
   await openAreas(page);
   // 32 extra hours over 4 worker-days = 8.0 each, on top of what they logged.
-  await expect(row(page, 'Barrel')).toContainText('8.0');
-  await expect(row(page, 'Barrel')).toContainText('extra /head-day');
-  // Attributable by the rule, and still kept out of the wage arithmetic.
-  await expect(page.locator('#attContent')).toContainText('absorption is real and pro-rata');
-  await expect(page.locator('#attContent')).toContainText('out of the wage arithmetic');
+  // A diagnostic, so the row's title, not one of its two facts (TM4b).
+  await expect(row(page, 'Barrel').locator('[title*="a head-day"]')).toHaveAttribute('title', /8\.0 extra h a head-day/);
+  // Attributable by the rule, and paid out of the pooled EXTRA, never a hand's own wage (the guide says why).
+  await expect(page.locator('#areaAbsorb')).toContainText('disbursed by the supervisor on the floor');
 });
 
 test('flex marks are counted against no area, and the shortfall is named', async ({ page }) => {
@@ -193,7 +192,7 @@ test('flex marks are counted against no area, and the shortfall is named', async
     [d1]: { marks: { [FLOATER.id]: { st: 'P', hours: 8, ot: 0, area: 'flex' } }, extra: [], note: '' },
   }));
   await openAreas(page);
-  await expect(page.locator('#attContent')).toContainText('sit on Flex and are counted against no area');
+  await expect(page.locator('[data-area-flex]')).toContainText('Flex: counted against no area');
 });
 
 test('the span chips widen the range without moving the anchor', async ({ page }) => {
@@ -202,9 +201,10 @@ test('the span chips widen the range without moving the anchor', async ({ page }
     [d1]: { marks: { [HAND.id]: { st: 'P', hours: 8, ot: 0, area: 'barrel' } }, extra: [], note: '' },
   }));
   await openAreas(page);
-  await expect(page.locator('#attContent')).toContainText('Week ');
+  // The card names the span (the phone's row has no room for it, TM4b).
+  await expect(page.locator('#areaVerdict')).toContainText('Areas · week ');
   await page.locator('[data-action="invAreaSpan"][data-span="4"]').click();
-  await expect(page.locator('#attContent')).toContainText('4 weeks');
+  await expect(page.locator('#areaVerdict')).toContainText('Areas · 4 weeks');
   // Still anchored on the same Monday, so the seeded day is still in range.
   await expect(row(page, 'Barrel')).toBeVisible();
 });

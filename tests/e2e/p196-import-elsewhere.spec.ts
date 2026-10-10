@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
 // P196: a file brought to one screen's Import that is another screen's is named and taken there, never refused with no way
 // on (owner, 9 Oct 2026: the day's production file, imported on Production → Equipment, read "Not a plant file" and
@@ -33,7 +33,8 @@ test.describe('P196: a file brought to another screen\'s Import', () => {
     await switchTab(page, 'pageProduction');
     await page.locator('[data-action="invProdTab"][data-tab="equipment"]').click();
     const pick = async () => {
-      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invPltImport"]').click()]);
+      // Equipment's Import is its toolbar's More (TM4c).
+      const [chooser] = await Promise.all([page.waitForEvent('filechooser'), toolbarMore(page, 'Import')]);
       await chooser.setFiles({ name: 'sep-production-register.json', mimeType: 'application/json', buffer: Buffer.from(JSON.stringify(PROD())) });
     };
     await pick();

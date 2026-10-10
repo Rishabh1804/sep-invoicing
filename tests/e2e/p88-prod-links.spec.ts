@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openWidget, withHomeWidgets } from './fixtures';
 
 // P88: Production linked into the rest of the app. Two To-do rules (plated and not invoiced; pickled with no open
 // challan) that read only what was captured here, never the imported history or rework; the Overview's tiles; the
@@ -63,21 +63,25 @@ test.describe('P88: Production in the rest of the app', () => {
   test('a raised task opens Production on its question', async ({ page }) => {
     seq = 0;
     await load(page, [E('plated', wdBack(4), 'CLAMP 165X83', 400)]);
-    await switchTab(page, 'pageProduction');
     // Two questions: the run is not invoiced, and a piece client's part with no rate card and one challan has no weight
-    // anywhere (P190's follow-up list).
-    await expect(page.locator('#prodRaised .inv-panel-count')).toHaveText('2');
-    await expect(page.locator('#prodRaised [data-action="invProdTask"][data-key="prodUnweighed:11"]')).toContainText('400 pieces plated with no weight');
-    await page.locator('#prodRaised [data-action="invProdTask"][data-key="prodPlatedUnbilled:11"]').click();
+    // anywhere (P190's follow-up list). They are Needs you's (TM2a); on Production each leads the screen it is about (TM4c).
+    expect(await g(page, `todoApp(['prodPlatedUnbilled', 'prodUnweighed']).map(function(t) { return t.key; }).sort()`)).toEqual(['prodPlatedUnbilled:11', 'prodUnweighed:11']);
+    await switchTab(page, 'pageProduction');
+    await page.locator('#pageProduction .inv-viewtab[data-tab="entries"]').click();
+    await expect(page.locator('#prodEntriesVerdict [data-prod-tile="unweighed"] .inv-tile-value')).toHaveText('1');
+    await page.locator('#pageProduction .inv-viewtab[data-tab="plant"]').click();
+    await page.locator('#prodPlatedLate [data-action="invProdTask"][data-key="prodPlatedUnbilled:11"]').click();
     await expect(page.locator('[data-action="invProdTab"][data-tab="plant"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#prodPlantClient')).toHaveValue('11');
     // It reaches the To-do list like every other rule.
-    await switchTab(page, 'pageTodo');
-    await expect(page.locator('#pageTodo')).toContainText('400 NOS plated, not invoiced');
+    // The tasks are Needs you's (the tab map, TM2a).
+    await switchTab(page, 'pageHome');
+    await expect(page.locator('#homeNeeds')).toContainText('400 NOS plated, not invoiced');
   });
 
   test('the Overview, the Stats row on complete days, and labour per kg by line', async ({ page }) => {
     seq = 0;
+    await withHomeWidgets(page, ['production']);   // Pulse's production card, which every preset hides (TM2c)
     const days: string[] = [];
     for (let n = 1; days.length < 6; n++) days.push(wdBack(n));
     const att: any = {};
@@ -94,9 +98,12 @@ test.describe('P88: Production in the rest of the app', () => {
     expect(r.none).toBe('');                         // no production in the range: nothing said, never a zero
     expect(r.a1).toMatchObject({ days: 6, kg: 600, cost: 2400, perKg: 4 });
     expect(r.a2).toMatchObject({ days: 0, perKg: null });
+    // The last day plated is Pulse's production card (one unit: 100 kg written, nothing estimated); Floor's is the day on its stepper.
+    await openWidget(page, 'production');
+    await expect(page.locator('[data-home-w="production"] [data-prod-day] .inv-hero-fig')).toHaveText('100 kg');
+    // Record coverage is Entries' since the tab map (TM4c), folded under its card.
     await switchTab(page, 'pageProduction');
-    // The last day plated is the day card (one unit: 100 kg written, nothing estimated).
-    await expect(page.locator('[data-prod-day] .inv-hero-fig')).toHaveText('100 kg');
+    await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
     await expect(page.locator('#prodCoverage')).toContainText('VAT A1');
     await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
     await expect(page.locator('#prodLabour .inv-num')).toHaveText('₹4.00/kg');

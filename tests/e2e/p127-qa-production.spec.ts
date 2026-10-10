@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, prodFlag } from './fixtures';
 
 // P127: the QA audit of Production and Power (G4-1 … G4-16), one test each. Made-up clients, parts and workers in the
 // shop's shapes (P83–P90, P115, P122); Gemini is mocked as in P85.
@@ -150,7 +150,7 @@ PICKLING TIME 10:20`);
     // The entry corrected is no longer asked about; its correction is, once.
     expect(await g(page, `todoAppAll(['prodGaugeUnknown']).map(function(t){ return t.facts[0][1]; })`)).toEqual(['1']);
     expect(await g(page, `prodGaugeFlagged(prodIndex().byId.R1)`)).toBe(false);
-    await page.locator('[data-action="invProdFilter"][data-flag="gauge"]').click();
+    await prodFlag(page, 'gauge');
     await expect(page.locator('#prodEntries [data-prod-entry]')).toHaveCount(1);
     await expect(page.locator('#prodEntries [data-prod-entry="R1"]')).toHaveCount(0);
   });
@@ -269,7 +269,7 @@ Pickling time 2:30 pm`);
       basis: 'register', src: 'import', time: '09:00', gaugeUnknown: 94, at: 1 }]));
     expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(1);
     await openEntries(page);
-    await page.locator('[data-action="invProdFilter"][data-flag="gauge"]').click();
+    await prodFlag(page, 'gauge');
     await expect(page.locator('#prodEntries [data-prod-entry="GU-OLD"]')).toBeVisible();
   });
 

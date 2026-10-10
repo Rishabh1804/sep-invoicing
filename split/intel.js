@@ -18,14 +18,17 @@
    money on every kilo whatever the labour question; one between variable and
    full cost contributes only if labour is fixed. */
 
-var STATS_TABS = [['overview', 'Overview'], ['clients', 'Clients'], ['cost', 'Cost'], ['billing', 'Billing'], ['trends', 'Trends']];
+/* Three tabs since the tab map (TM2b, 9 Oct 2026): Overview's questions, why it moved, the period in one line and the month's
+   pace are Today → Pulse's; Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
+   (overview, billing) opens By client (docs/TAB_MAP.md §5). */
+var STATS_TABS = [['clients', 'By client'], ['cost', 'Cost'], ['trends', 'Trends']];
 var STATS_TAB_KEY = 'sep_inv_stats_tab';
 var STATS_CAPACITY_KG_DAY = 4000; // ~2 t per 8-hour shift, two shifts (CLAUDE.md § Key Business Data)
 
 function statsTab() {
   var t = null;
   try { t = localStorage.getItem(STATS_TAB_KEY); } catch (e) { /* per-device convenience only */ }
-  return STATS_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview';
+  return STATS_TABS.some(function(x) { return x[0] === t; }) ? t : 'clients';
 }
 function statsSetTab(t) {
   try { localStorage.setItem(STATS_TAB_KEY, t); } catch (e) { /* per-device convenience only */ }
@@ -70,7 +73,10 @@ function statsCostSplit(c) {
 function statsMoney(n) { return (n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 function statsSigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
-/* ---------- Overview: the period in one card ---------- */
+/* ---------- Today → Pulse: the period in one line (the tab map, TM2b; it was Stats → Overview's card) ----------
+   A hero (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the factors
+   are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its tile;
+   the floor's plated row under them. Shut on the phone, open on the desktop (§1a-3). */
 function statsOverviewHtml(period, filtered, tonnage) {
   var r = statsRangeIso(period), kg = tonnage.kg;
   var c = liveCost(r.from, r.to, kg);
@@ -78,39 +84,33 @@ function statsOverviewHtml(period, filtered, tonnage) {
   var contrib = real != null && c.perKg != null ? real - c.perKg : null;
   var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to);
   var capPct = cap > 0 ? kg / cap : null;
-  var measured = statsPctOf(c.measuredShare);
   var perKg = '<span class="inv-tile-of">/kg</span>';
-  var h = statsPanel('overview', escHtml(PERIOD_LABELS[period] || '') + ' in one line', 'against the live cost, ' + measured + '% of it measured',
-    { wide: true, id: 'statsOverview' });
-  if (!(kg > 0)) return h + statsCallout('No weighed tonnage in this period, so no ₹/kg to compare.') + '</div>';
-  h += statsTiles(
-    statsTile('realisation', 'Realisation', statsMoney(real) + perKg, statsTileSub(statsMoney(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t'),
-      c.perKg != null ? figToneAgainst(real, c.perKg, 5) : '') +
-    statsTile('cost', 'Live cost', statsMoney(c.perKg) + perKg, statsTileSub('typed ' + statsMoney(S.defaultCostPerKg || 0))) +
-    statsTile('contrib', 'Contribution', statsSigned(contrib) + perKg, statsTileSub(statsSigned(gstRound(contrib * kg)) + ' on the period'),
-      contrib >= 0 ? 'ok' : 'danger', 'statsContrib') +
+  var tone = contrib == null ? 'neutral' : figToneAgainst(real, c.perKg, 5) || 'neutral';
+  var title = !(kg > 0) ? 'Nothing weighed in the period' : contrib == null ? 'No cost to judge the price by'
+    : contrib >= 0 ? 'Every kilo left ' + formatCurrency(contrib) + ' after the live cost' : 'Every kilo lost ' + formatCurrency(-contrib) + ' against the live cost';
+  var model = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).length;
+  var factors = [
+    { label: 'Realisation', fig: real != null ? statsMoney(real) + perKg : '', tone: c.perKg != null ? figToneAgainst(real, c.perKg, 5) : null,
+      sub: kg > 0 ? formatCurrency(tonnage.revKnown) + ' on ' + formatNum(kg / 1000, 1) + ' t' : '',
+      badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="realisation"' },
+    { label: 'Live cost', fig: c.perKg != null ? statsMoney(c.perKg) + perKg : '', sub: 'typed ' + formatCurrency(S.defaultCostPerKg || 0) + '/kg',
+      badge: model ? [c.measuredShare >= 0.9 ? 'info' : 'warning', statsPctOf(c.measuredShare) + '% measured'] : null, attrs: ' data-tile="cost"' },
     // The plant's cost is mostly fixed, so an idle shift is the problem: under 80% used is room to fill, under 60% a hole.
-    statsTile('capacity', 'Capacity', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;',
-      statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)' +
-        (capPct != null && capPct < 0.8 ? ' · ' + formatNum((cap - kg) / 1000, 1) + ' t spare' : '')),
-      capPct != null ? figToneCapacity(capPct * 100) : ''), true);
+    { label: 'Capacity', fig: capPct != null ? Math.round(capPct * 100) + '%' : '', tone: capPct != null ? figToneCapacity(capPct * 100) : null,
+      sub: formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t' + (capPct != null && capPct < 0.8 ? ', ' + formatNum((cap - kg) / 1000, 1) + ' t spare' : ''), attrs: ' data-tile="capacity"' }];
   if (finHasBank()) {
     var bRows = bankRows(), bLast = bRows[bRows.length - 1], bRecv = finCtx().recv(), bBook = bankBookDaysToPay(bankPayHistory(bRecv));
-    h += '<div class="inv-row inv-row-2 inv-row-flow" id="statsCash"><span class="inv-row-main"><span class="inv-row-title">Cash</span>' +
-      '<span class="inv-row-meta inv-row-wrap">bank on ' + escHtml(formatDate(bLast.date)) + ' · owed to us' +
-      (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '') + '</span></span><span class="inv-row-end"><span class="inv-num">' + statsMoney(bLast.balance) + ' · ' +
-      statsMoney(gstRound(bRecv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0))) + '</span>' +
-      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview">Finance</button></span></div>';
+    var owed = gstRound(bRecv.reduce(function(s, x) { return s + Math.max(0, x.owed); }, 0));
+    factors.push({ label: 'Cash', fig: figWrapHtml(statsMoney(bLast.balance)), tone: bLast.balance < 0 ? 'danger' : null,
+      sub: 'owed ' + formatCurrency(owed) + (bBook ? ', clients pay in ' + Math.round(bBook.median) + ' days' : ''), attrs: ' id="statsCash" data-tile="cash"' });
   }
-  h += prodStatsRowHtml(r.from, r.to);
-  var parts = c.rows.filter(function(x) { return x.source !== 'measured' && x.source !== 'bank'; }).map(function(x) { return x.label.toLowerCase() + ' (' + COST_SRC_LABEL[x.source] + ')'; });
-  if (parts.length) {
-    h += statsCallout('<strong>Read with care:</strong> ' + escHtml(parts.join(', ')) + ' ' + (parts.length === 1 ? 'is' : 'are') +
-      ' not fully measured, so the contribution is only as good as ' + (parts.length === 1 ? 'that figure' : 'those figures') + '. Cost tab &rarr; Live cost shows each one.', '', 'model');
-  }
-  var weighed = statsCostWeighedNote(tonnage);
-  if (weighed) h += statsCallout(weighed + ' The contribution beside it reads low for the same reason.', '', 'weighed');
-  return h + '</div>';
+  var body = '<div class="inv-hero-sheet"><div class="inv-tiles' + (factors.length === 4 ? ' inv-tiles-4' : ' inv-tiles-3') + '">' + factors.map(uiFactorTileHtml).join('') + '</div></div>';
+  var plated = prodStatsRowHtml(r.from, r.to);
+  if (plated) body += '<div class="inv-hero-sheet">' + plated + '</div>';
+  return uiHeroHtml({ tone: tone, eyebrow: '<span>In one line</span>', title: escHtml(title),
+    fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
+    sub: contrib != null ? escHtml((contrib >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(contrib * kg))) + ' on the period') : '',
+    body: body, fold: 'pulse-overview', open: !!_isDesktop, attrs: ' id="statsOverview" data-card="overview" data-verdict' });
 }
 
 /* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */
@@ -144,8 +144,8 @@ function statsMonthsHtml() {
       statsSignedCell(r.contrib, r.contrib != null ? (r.contrib >= 0 ? '+' : '&minus;') + formatNum(Math.abs(r.contrib), 2) : '&mdash;') +
       '<td class="inv-num">' + (r.labour != null && r.labCov >= 0.9 ? formatNum(r.labour, 2) : '&mdash;') + '</td><td class="inv-num">' + statsPctOf(r.measured) + '%</td></tr>';
   });
-  h += '</tbody></table></div>' + statsBody(statsNote('₹ per kg. Labour shows only where the days are recorded, or the bank statement covers what paid them (90% or more); a month with less is withheld rather than read low. ' +
-    'Measured is the share of that month&rsquo;s cost from the app&rsquo;s own records.')) + '</div>';
+  // One line (the tab map, TM2b); why a month's labour is withheld is the guide's (kbguides.js, Reading Stats).
+  h += '</tbody></table></div>' + statsBody(statsNote('₹ per kg. Labour only where 90% of the month is recorded; measured is the cost from records.')) + '</div>';
   return h;
 }
 
@@ -174,13 +174,15 @@ function statsMarginHtml(period, filtered, tonnage) {
   var m = statsClientMargins(period, filtered, tonnage);
   var h = statsPanel('margin', escHtml(PERIOD_LABELS[period] || '') + ' contribution by client', 'worst first, at the live cost', { wide: true, id: 'statsMargin' });
   if (!m) return h + statsCallout('No weighed tonnage in this period, so no margin to work out.') + '</div>';
-  var weighed = statsCostWeighedNote(tonnage);
-  h += statsBody(statsNote((m.varKg != null
-    ? 'Variable cost ' + statsMoney(m.varKg) + '/kg · fixed (monthly crew' + (m.split.from === 'bank' ? ', read off the salaries the bank paid' : '') + ') ' + statsMoney(m.fixedKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg, ' +
-      statsPctOf(m.c.measuredShare) + '% measured.'
-    : 'Full cost ' + statsMoney(m.fullKg) + '/kg, ' + statsPctOf(m.c.measuredShare) + '% measured. <strong>Fixed and variable are not known:</strong> no attendance is recorded in this period and ' +
-      'no bank statement covers its wages, so labour cannot be split, and what a kilo leaves after its variable cost is not worked out.') +
-    (weighed ? ' ' + weighed : '')));
+  // The two costs the columns are read against, in a line (§3c); how they are split, and that cost is spread per kilo, is the
+  // guide's (kbguides.js, Reading Stats).
+  var weighed = statsCostWeighedShort(tonnage);
+  // Where the fixed part was read from is a badge (§3b-11: a third fact is a badge, never a clause).
+  var splitFrom = m.varKg == null ? '' : m.split.from === 'bank' ? 'fixed part read off the salaries the bank paid' : m.split.from === 'attendance' ? 'fixed part from the attendance' : '';
+  h += statsBody(statsNote(m.varKg != null ? 'Variable cost ' + statsMoney(m.varKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg' +
+      (splitFrom ? ' <span class="inv-badge inv-badge-info" data-margin-split>' + splitFrom + '</span>' : '')
+    : 'Full cost ' + statsMoney(m.fullKg) + '/kg: labour is not split, so no variable cost (no attendance or bank wages in the period)') +
+    (weighed ? statsNote(weighed) : ''));
   // Owed and days to pay beside the margin: a client below cost that also pays in 120 days is two problems.
   var money = {};
   if (finHasBank()) {
@@ -199,14 +201,11 @@ function statsMarginHtml(period, filtered, tonnage) {
       statsSignedCell(x.vsVar, x.vsVar != null ? sign(x.vsVar) : '&mdash;') + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
   }), { n: 10, noun: 'clients', tr: 6 });
   h += '</tbody></table></div>';
-  var notes = '';
-  if (m.apart.length) notes += statsNote('Listed apart, not ranked (under 90% of their revenue weighed): ' +
-    m.apart.map(function(x) { return escHtml(x.name) + ' (' + Math.round(x.coverage * 100) + '%)'; }).join(', ') + '.');
-  notes += statsNote('Cost is spread per kg: a thin clamp and a heavy bracket cost the same per kg here, which is the one assumption this table cannot check. ' +
-    '&ldquo;vs var.&rdquo; is what a kilo leaves after its variable cost; &ldquo;vs full&rdquo; also carries the monthly crew.');
-  h += statsBody(notes);
+  // A client under 90% weighed is not ranked: counted here, listed by name under Realisation by client.
+  if (m.apart.length) h += uiFactRowHtml({ label: 'Listed apart, not ranked', sub: 'under 90% of revenue weighed: ' + m.apart.slice(0, 2).map(function(x) { return x.name; }).join(', ') +
+    (m.apart.length > 2 ? ' and ' + (m.apart.length - 2) + ' more' : ''), value: m.apart.length, attrs: ' data-margin-apart' });
 
-  // The worst-placed large account, settled both ways.
+  // The worst-placed large account, settled both ways (§3c): the two answers and the break-even as tiles, the working folded.
   var worst = m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0];
   if (worst && worst.vsFull < 0) {
     var perKg = '<span class="inv-tile-of">/kg</span>', split = worst.vsVar != null;
@@ -215,23 +214,26 @@ function statsMarginHtml(period, filtered, tonnage) {
         statsTile('fixed', 'If labour is fixed', split ? statsSigned(worst.vsVar) + perKg : '&mdash;',
           statsTileSub(!split ? 'labour&rsquo;s split not known' : worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost'),
           !split ? '' : worst.vsVar >= 0 ? 'ok' : 'danger') +
-        statsTile('scales', 'If labour scales', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger')) +
-      statsRow('Price that breaks even', 'on variable · on full cost', statsNum((split ? statsMoney(m.varKg) : '&mdash;') + ' · ' + statsMoney(m.fullKg))) +
-      statsRow('Share of the plant', 'tonnage · revenue', statsNum(Math.round(worst.kg / m.kg * 100) + '% · ' + (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%')) +
-      statsCallout(!split
-        ? 'Whether it covers its variable cost cannot be told until labour is split into fixed and variable: record the attendance, or import the bank statement.'
-        : (worst.vsVar < 0 ? 'It does not cover its variable cost either way' : 'It contributes only if labour is fixed') +
-          ', <strong>if</strong> its parts cost the same per kg as the rest of the book. That is the question to take to the floor before repricing.') + '</div>';
+        statsTile('scales', 'If labour scales', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger') +
+        statsTile('even', 'Breaks even at', statsMoney(m.fullKg) + perKg, statsTileSub(split ? 'full cost; ' + escHtml(formatCurrency(m.varKg)) + ' variable' : 'the full cost'))) +
+      uiWorkingHtml('stats-worst', [
+        { label: 'Its price', sub: 'realised on the period', value: formatCurrency(worst.net) + '/kg' },
+        { label: 'Break-even on variable cost', value: split ? formatCurrency(m.varKg) + '/kg' : '' },
+        { label: 'Break-even on full cost', value: formatCurrency(m.fullKg) + '/kg' },
+        { label: 'Share of the plant’s tonnage', value: Math.round(worst.kg / m.kg * 100) + '%' },
+        { label: 'Share of the revenue', value: (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%' }]) +
+      statsBody(statsNote(!split ? 'Record the attendance or import the bank statement to split labour.'
+        : (worst.vsVar < 0 ? 'Below its variable cost either way' : 'It contributes only if labour is fixed') + ', if its parts cost the same per kg as the rest.')) + '</div>';
   }
   return h + '</div>';
 }
 
-/* ---------- Overview: the questions, each answered as a story ----------
+/* ---------- The questions, each answered as a story ----------
    Owner, 30 Sep 2026: "Stats view needs an overhaul, it puts insights front and center and doesn't present itself in a
-   really engaging way"; they chose the Overview to be led by the questions the owner asks, each answered as a story card:
-   the figure, one sentence that says what it means and why, a small chart, and the way to the tab with the detail. The
-   cards read the same figures as the panels under them (statsOverviewHtml, statsMonthsHtml, the insights), never a second
-   arithmetic. */
+   really engaging way"; they chose the questions the owner asks, each answered as a story card: the figure, one sentence
+   that says what it means and why, a small chart, and the way to the tab with the detail. Stats → Overview's until the tab
+   map (TM2b), Today → Pulse's since. The cards read the same figures as the panels beside them (statsOverviewHtml, the
+   six months, the insights), never a second arithmetic. */
 function statsMonthRows(n) {
   var today = localDateStr(), rows = [], active = statsInvoices().filter(function(i) { return i.date; });
   for (var k = (n || 6) - 1; k >= 0; k--) {
@@ -245,17 +247,13 @@ function statsMonthRows(n) {
   }
   return rows;
 }
-function statsStory(key, question, body, go, goLabel) {
-  return '<div class="inv-panel inv-panel-flush" data-card="story" data-story="' + key + '"><div class="inv-panel-head"><span class="inv-panel-title">' + question + '</span>' +
-    (go ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="' + go.action + '"' + (go.attrs || '') + '>' + goLabel + '</button>' : '') + '</div>' + body + '</div>';
-}
 /* `text` is HTML (uiDot): the caller escapes a client's name. */
 function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap" data-story-say>' + uiDot(tone, text) + '</div>'); }
 
-/* The five cards the Overview had (owner, 30 Sep 2026), each as {key, q, html, answer, go, goLabel}: the html is the card's
-   body as it was drawn (the figure, the sentence, the small chart), and `answer` the sentence that answers it ({tone, say},
-   `say` html with every name escaped). advQuestions (advice.js) puts the new first question before them and the moves
-   under each; statsStoriesHtml draws them. `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
+/* The five cards Stats → Overview had (owner, 30 Sep 2026), each as {key, q, html, answer, vital}: the html is the card's
+   body (the figure, the sentence, the small chart), `answer` the sentence that answers it ({tone, say}, `say` html with every
+   name escaped), `vital` its face as a hero. advQuestions (advice.js) puts the new first question before them and the moves
+   under each; Today → Pulse draws them (today.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
    margins and the To-do's tasks are worked out once. The clients card also hands on what it found (`worst`, `mover`) for
    the moves, and the plant card its capacity. */
 function statsStoryCards(a, ctx) {
@@ -263,13 +261,12 @@ function statsStoryCards(a, ctx) {
   var r = statsRangeIso(period), plabel = PERIOD_LABELS[period] || '';
   var months = statsMonthRows(6);
   var perKg = '<span class="inv-tile-of">/kg</span>';
-  var tab = function(t) { return { action: 'invStatsGo', attrs: ' data-tab="' + t + '"' }; };
   var cards = {};
   // The card's sentence; the first one said is its answer.
   var say = function(card, tone, text) { if (!card.answer) card.answer = { tone: tone, say: text }; return statsStorySay(tone, text); };
 
   // 1. Are we making money?
-  var c1 = { key: 'money', q: 'Are we making money?', go: tab('cost'), goLabel: 'The cost' };
+  var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
@@ -294,7 +291,7 @@ function statsStoryCards(a, ctx) {
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
-  var c2 = { key: 'clients', q: 'Who is driving it?', go: tab('clients'), goLabel: 'The clients' };
+  var c2 = { key: 'clients', q: 'Who is driving it?' };
   var m = null;
   if (ctx) m = ctx.margins();
   else { try { m = statsClientMargins(period, filtered, tonnage); } catch (e) { m = null; } }
@@ -331,10 +328,13 @@ function statsStoryCards(a, ctx) {
   cards.clients = c2;
 
   // 3. Is the plant full?
-  var c3 = { key: 'plant', q: 'Is the plant full?', go: tab('trends'), goLabel: 'The trend' };
+  var c3 = { key: 'plant', q: 'Is the plant full?' };
   var cap = STATS_CAPACITY_KG_DAY * statsWorkingDays(r.from, r.to), capPct = cap > 0 && kg > 0 ? kg / cap : null;
+  // The spare a month over the last 90 days (prsSpare), Prospects' own figure, beside the period's (the tab map, TM5g).
+  var sp90 = typeof prsSpare === 'function' ? prsSpare() : null;
   body = statsTiles(statsTile('cap', 'Used', capPct != null ? Math.round(capPct * 100) + '%' : '&mdash;', statsTileSub(formatNum(kg / 1000, 1) + ' t of ~' + formatNum(cap / 1000, 0) + ' t (2 shifts)'),
-    capPct != null ? figToneCapacity(capPct * 100) : ''));
+    capPct != null ? figToneCapacity(capPct * 100) : '') +
+    (sp90 ? statsTile('spare90', 'Spare a month', escHtml(formatNum(sp90.spareMonth / 1000, 1) + ' t'), statsTileSub('the last 90 days, as Prospects reads it'), '') : ''));
   var mk = months.filter(function(x) { return x.kg > 0; });
   if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month' }));
   var avg = real != null ? real : null;
@@ -368,6 +368,8 @@ function statsStoryCards(a, ctx) {
   try { ws = whySentence(filtered, prior, period); } catch (e) { ws = null; }
   if (ws) body += say(c4, ws.tone, escHtml(ws.text));
   ins.slice(0, 3).forEach(function(t) { body += todoAppRowHtml(t) + (typeof advInsightMovesHtml === 'function' ? advInsightMovesHtml(t) : ''); });
+  // The rest are tasks on Needs you, where every insight is listed (the list that closed Stats → Overview went with it).
+  if (ins.length > 3) body += '<div class="inv-row" data-story-more><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">All ' + ins.length + ' insights on Needs you</button></div>';
   if (!body) body = say(c4, 'ok', 'Nothing stands out: no insight is raised on the book right now.');
   if (!c4.answer) c4.answer = { tone: uiTone(ins[0].tone), say: escHtml(ins[0].title) };
   c4.html = body;
@@ -379,13 +381,12 @@ function statsStoryCards(a, ctx) {
     : ins.length ? { fig: String(ins.length), title: ins.length === 1 ? 'insight raised' : 'insights raised', sub: escHtml(ins[0].title), viz: '', tone: uiTone(ins[0].tone) }
     : { fig: '&mdash;', title: 'Nothing stands out', sub: '', viz: '', tone: 'ok' };
   c4.ins = ins;
-  if (ins.length > 3) { c4.go = { action: 'invStatsInsightsAll' }; c4.goLabel = 'All ' + ins.length + ' insights'; }
   cards.changed = c4;
 
   // 5. Is cash coming in? Only with a statement.
   if (finHasBank()) {
     try {
-      var c5 = { key: 'cash', q: 'Is cash coming in?', go: { action: 'invFinGo', attrs: ' data-tab="overview"' }, goLabel: 'Finance' };
+      var c5 = { key: 'cash', q: 'Is cash coming in?' };
       var bRows = bankRows(), bLast = bRows[bRows.length - 1], recv = finCtx().recv(), owed = gstRound(recv.reduce(function(s, x) { return s + Math.max(0, x.owed); }, 0));
       var bBook = bankBookDaysToPay(bankPayHistory(recv));
       body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
@@ -411,11 +412,3 @@ function statsStoryCards(a, ctx) {
   return cards;
 }
 
-/* The questions the Overview opens on, each answered and ending in what can be done about it (Direction B, step 1, P133):
-   the cards and their moves are advQuestions' (advice.js). The signature is the one renderStats has always called; the
-   Pulse (Today, Direction B step 3) draws the same cards through advPulseHtml. */
-function statsStoriesHtml(period, filtered, prior, tonnage, periodCost) {
-  return advQuestions({ period: period, filtered: filtered, prior: prior, tonnage: tonnage, periodCost: periodCost }).map(function(x) {
-    return statsStory(x.key, x.q, x.html + advFootHtml(x), x.go || null, x.goLabel || '');
-  }).join('');
-}

@@ -171,6 +171,10 @@ function stockPatternHtml(item) {
   } else {
     h += '<div class="inv-row inv-row-auto"><span class="inv-note">No price recorded. Add the bill for a delivery (on its entry below) or a past bill here.</span></div>';
   }
+  // Who it is ordered from, the owner's pick or the app's, and the door to set its suppliers side by side (suppliers.js).
+  var pk = suppReorderPick(item, suppDaysLeft(item));
+  h += '<div class="inv-row inv-row-2 inv-row-flow" data-stock-order-from><span class="inv-row-main"><span class="inv-row-title">Order from</span><span class="inv-row-meta inv-row-wrap">' + escHtml(suppPickLine(pk)) + '</span></span>' +
+    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppCompare" data-item="' + escHtml(item.id) + '">Compare suppliers</button></span></div>';
   if (p.lastBought) h += row('Bought', p.cadence != null ? 'every ' + formatNum(p.cadence, 0) + ' days (median) · ' + (p.avgQty != null ? 'about ' + escHtml(stockFmtQty(p.avgQty)) + ' ' + escHtml(unit) + ' a time' : '') : 'once on record',
     'last ' + escHtml(stockShortDate(p.lastBought)) + (p.nextDue ? ', next ~' + escHtml(stockShortDate(p.nextDue)) : ''));
   if (p.rate && p.rate.rate) h += row('Use', escHtml(stockFmtQty(p.used30)) + ' ' + escHtml(unit) + ' in the last 30 days', escHtml(stockFmtRate(p.rate.rate)) + ' ' + escHtml(unit) + '/day');
@@ -954,8 +958,9 @@ function stockReorderList() {
   stockData().items.filter(function(i) { return i.active !== false; }).forEach(function(it) {
     var st = stockStatus(it), rate = st.rate && st.rate.rate ? st.rate.rate : null, level = st.level == null ? 0 : Math.max(0, st.level);
     var typed = _stockReorder && _stockReorder.qty[it.id];
-    // Who it is ordered from and by when (suppliers.js): the supplier's own lead time where set, else the list's.
-    var pick = suppReorderPick(it, st.group === 'out' || (st.level != null && st.level <= 0) ? 0 : rate ? st.daysLeft : null);
+    // Who it is ordered from and by when (suppliers.js): the owner's pick or the app's, at the supplier's own lead time where set,
+    // else the list's.
+    var pick = suppReorderPick(it, suppDaysLeft(it, st));
     if (!rate) {
       if (st.level != null && st.level <= 0 || typed) rows.push({ item: it, need: null, suggest: null, pack: stockPackSize(it), level: level, rate: null, noRate: true, pick: pick });
       else skipped.norate.push(it.name);
@@ -1035,10 +1040,18 @@ function renderStockReorder() {
 }
 function stockReorderNote(L) { return 'At the last prices, before GST' + (L.unpriced ? ' · ' + L.unpriced + ' without a price' : ''); }
 function stockReorderWhy(r, full) {
-  var unit = r.item.unit || '', pick = r.pick ? suppPickText(r.pick) + (r.pick.why ? '. ' + r.pick.why : '') : '';
-  if (r.noRate) return 'out, and no daily use on record: enter a quantity' + (pick ? ' · ' + pick : '');
+  var unit = r.item.unit || '';
+  if (r.noRate) return 'out, and no daily use on record: enter a quantity';
   return (full ? stockFmtQty(r.level) + ' ' + unit + ' on hand · ' + stockFmtRate(r.rate) + ' ' + unit + '/day' + (r.daysLeft != null ? ' · ' + stockDaysText(r.daysLeft, false) + ' left' : '') + ' · ' : '') +
-    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '') + (pick ? ' · ' + pick : '');
+    'needs ' + stockFmtQty(Math.max(0, r.need)) + (r.pack ? ' · packs of ' + stockFmtQty(r.pack) : '') + (r.tentative ? ' · rate from under 3 days of record: check' : '');
+}
+/* Who the line is ordered from, by when and why, with the door to compare its suppliers (suppliers.js): a row under the line's on the
+   phone, lines in its cell on the desktop. */
+function stockReorderFromHtml(r, cell) {
+  var text = suppPickLine(r.pick), btn = '<button class="inv-btn inv-btn-' + (cell ? 'link' : 'secondary') + ' inv-btn-sm" data-action="invSuppCompare" data-item="' + escHtml(r.item.id) + '">Compare suppliers</button>';
+  if (cell) return '<div data-reorder-from="' + escHtml(r.item.id) + '"><div class="inv-row-meta inv-row-wrap">' + escHtml(text) + '</div>' + btn + '</div>';
+  return '<div class="inv-row-children"><div class="inv-row inv-row-2 inv-row-flow" data-reorder-from="' + escHtml(r.item.id) + '"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(text) + '</span></span>' +
+    '<span class="inv-row-end">' + btn + '</span></div></div>';
 }
 function stockReorderInput(r) {
   return '<input type="number" inputmode="decimal" step="any" min="0" class="inv-input inv-input-sm inv-input-num" data-stock-reorder="' + escHtml(r.item.id) + '" value="' + escHtml(stockFmtQty(r.qty)) + '" aria-label="' + escHtml(r.item.name) + ' quantity to order">';
@@ -1052,7 +1065,7 @@ function stockReorderRowsHtml(L) {
       h += '<div class="inv-row inv-row-2 inv-row-flow"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.item.name) + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(stockReorderWhy(r, true)) + '</span></span>' +
         '<span class="inv-row-end">' + stockReorderInput(r) + '<span class="inv-unit">' + escHtml(r.item.unit || '') + '</span>' +
-        '<span class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</span></span></div>';
+        '<span class="inv-num">' + (r.amount != null ? escHtml(formatCurrency(r.amount)) : '<span class="inv-dot inv-dot-neutral">No price</span>') + '</span></span></div>' + stockReorderFromHtml(r, false);
     });
   });
   return h;
@@ -1064,7 +1077,7 @@ function stockReorderTableHtml(L) {
     h += '<tr class="inv-table-group"><td colspan="5">' + escHtml(g.supplier) + '</td><td class="inv-num">' + escHtml(stockReorderSub(g)) + '</td></tr>';
     g.rows.forEach(function(r) {
       var unit = r.item.unit || '';
-      h += '<tr><td class="inv-col-grow" title="' + escHtml(stockReorderWhy(r, false)) + '"><div>' + escHtml(r.item.name) + '</div><div class="inv-row-meta">' + escHtml(stockReorderWhy(r, false)) + '</div></td>' +
+      h += '<tr><td class="inv-col-grow" title="' + escHtml(stockReorderWhy(r, false)) + '"><div>' + escHtml(r.item.name) + '</div><div class="inv-row-meta">' + escHtml(stockReorderWhy(r, false)) + '</div>' + stockReorderFromHtml(r, true) + '</td>' +
         '<td class="inv-num">' + stockQtyUnit(r.level, unit) + '</td>' +
         '<td class="inv-num">' + (r.rate ? escHtml(stockFmtRate(r.rate)) + '<span class="inv-unit">' + escHtml(unit) + '</span>' : '&mdash;') + '</td>' +
         '<td class="inv-nowrap">' + (r.daysLeft != null ? escHtml(stockDaysText(r.daysLeft, r.tentative)) : r.noRate ? '<span class="inv-dot inv-dot-danger">Out</span>' : '&mdash;') + '</td>' +

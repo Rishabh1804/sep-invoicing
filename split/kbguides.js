@@ -139,7 +139,8 @@ var KB_APP_GUIDES = [
     '- **Paste message** from the supervisor. Every line is shown with what was read. A line that contradicts itself is red: pick the working or the figure written.\n' +
     '- **Enter by hand** for a count, a delivery (with its bill: company, invoice number, price), a use or a charge into the bath.\n' +
     '- A wrong entry is **corrected**, never edited: it is voided and the right figure entered in its place.\n' +
-    '- Under **More**: the **Reorder list** (what to order, from which supplier and by when: each supplier’s lead time, set on Money → Payments → Suppliers), **Print sheets**, Export and Import.\n\n' +
+    '- Under **More**: the **Reorder list** (what to order, from which supplier and by when: each supplier’s lead time, set on Money → Payments → Suppliers), **Print sheets**, Export and Import.\n' +
+    '- **Compare suppliers**, under each line on the reorder list and on a line’s page: every supplier of the line side by side, with what speaks for and against each. **Order from them** keeps your choice on the line.\n\n' +
     '# Days left\n- A line’s level over its daily use: the use over the last three weeks of record, Sundays out. Under three days of record the figure carries a ?.\n' +
     '- Red at a few days or fewer, amber at a week (Settings → Checks & alerts → Stock alerts). A line charged into a bath is never red at an empty shelf: the delivery going into the bath is the normal state.\n\n' +
     '# Spend and prices\n- At the foot of the list on a phone, in the pane beside it on a computer.\n' +
@@ -238,7 +239,12 @@ var KB_APP_GUIDES = [
     '# Lead times and the reorder list\n- Each line is ordered from the supplier it last came from, unless another sold it cheaper in the last six months and can deliver before the line runs out: that one, with the day to order by.\n' +
     '- When the one it came from cannot deliver in time, the fastest that can, and what the hurry costs a unit.\n' +
     '- A supplier with no lead time set is never chosen over the last one: it is named, so its lead time can be set. Zinc follows the market, so its last supplier stands.\n' +
-    '- The To-do names a balance whose oldest unpaid part is over 30 days old, only to know.', { roles: ['owner'] }),
+    '- The To-do names a balance whose oldest unpaid part is over 30 days old, only to know.\n\n' +
+    '# Compare suppliers\n- Under each line on the reorder list, and **Order from** on a line’s page: every supplier of the line as a card. Each says its price a unit (its last bill, or a price quoted since), its lead time against the days the line has left, what this order comes to, what is owed to it, and what speaks for it (green) and against it (amber, red where it cannot come in time).\n' +
+    '- A price over six months old, or a quote over three, is said and not weighed: ask the price again.\n' +
+    '- **Order from them** keeps your choice on the line: the list, the line and its task follow it, and say beside it what the app would choose and why. **Let the app pick** puts the choice back.\n' +
+    '- **Add a price quoted**: a price a supplier gave you, on the phone or by message, for a supplier that never sold the line or a better price from one that did. It is weighed for 90 days, until a bill from them replaces it.\n' +
+    '- A card with no lead time has **Set its lead time**: the supplier opens over the comparison, and the cards follow what you set.', { roles: ['owner'] }),
   _kbg('search', 'Using the app: search and keys', 'Finding anything, and the shortcuts', ['pageHome'],
     '- Search (the magnifier, or Ctrl K) finds invoices, challans, clients, parts, workers, stock lines, quotations, credit notes, articles here, and screens.\n' +
     '- Numbers match whole: 834 finds invoice 00834, never 8341.\n- **A** opens Add. **Backspace** goes back. Ctrl+click opens a screen in a new window.'),

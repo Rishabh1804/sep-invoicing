@@ -129,7 +129,9 @@ test('Stock is one screen: a line opens from its group, a supplier lists its bil
   await page.locator('#stockContent details[data-fold="stock-spend"] > summary').click();
   await page.locator('#dashSupplier .inv-chart-legend-row[data-key="Alpha"]').click();
   const list = page.locator('[data-dash-supplier="Alpha"]');
-  await expect(list.locator('.inv-row')).toHaveCount(2);
+  // The supplier first (suppliers.js, P208: its lead time and its door), then its bills.
+  await expect(list.locator('[data-supp-spend]')).toContainText('Alpha');
+  await expect(list.locator('.inv-row:not([data-supp-spend])')).toHaveCount(2);
   await expect(list).toContainText('A2');
 
   await expect(page.locator('#dashUsed')).toContainText('All lines');

@@ -523,6 +523,9 @@ export const DIALOGS: Array<[string, string]> = [
   ['supplier-pay', `suppOpen(suppRows()[0].sp.id, 'pay')`],
   ['supplier-balance', `suppOpen(suppRows()[0].sp.id, 'balance')`],
   ['supplier-set', `suppOpen(suppRows()[0].sp.id, 'set')`],
+  // Compare suppliers (P209): a line's suppliers side by side, and the form for a price one quoted.
+  ['supplier-compare', `suppCompareOpen('N', '')`],
+  ['supplier-quote', `suppCompareOpen('N', 'quote')`],
   ['merge-held', `S.mergeHeld = [{ id: 'MH-sweep', at: Date.now(), coll: 'clients', rid: '1', field: 'phone', label: 'a client', why: 'both', kept: { side: 'm', v: '1111' }, other: { side: 't', v: '2222' }, status: 'open', from: 'Office PC' }]; mrgHeldOpenDialog()`],
   ['prospect-form', `prsFormOpen(null)`],
   // A power cut completed (P177): the time back, why it went, where it hit, what brought it back; and a reason on the list.

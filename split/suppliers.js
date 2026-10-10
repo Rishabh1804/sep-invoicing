@@ -325,6 +325,7 @@ function suppRedraw(id) {
   if (navPageOf() === 'pageFinance' && typeof renderFinance === 'function') keepScroll(renderFinance);
   else if (navPageOf() === 'pageStock' && typeof renderStock === 'function') keepScroll(renderStock);
   if (sp && document.querySelector('[data-supp-dialog]')) suppOpen(sp.id, _suppForm);
+  if (_suppCmpItem && document.querySelector('[data-supp-compare]')) suppCompareOpen(_suppCmpItem, _suppCmpForm, true);
 }
 function suppDialogClose() {
   var el = document.querySelector('[data-supp-dialog]'), sc = el && el.closest('.inv-scrim-dialog');
@@ -343,7 +344,8 @@ function suppField(id, label, control, wide) {
 }
 function suppDialogHtml(sp) {
   var L = suppLedger(sp), lead = suppLead(sp), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
-  var h = '<div class="inv-dialog" data-supp-dialog="' + escHtml(sp.id) + '">' + dialogHeadHtml(escHtml(sp.name));
+  // It closes on itself alone: it is opened over Compare suppliers too (a card's Set its lead time).
+  var h = '<div class="inv-dialog" data-supp-dialog="' + escHtml(sp.id) + '">' + dialogHeadHtml(escHtml(sp.name), 'invCloseConfirm');
   if (_suppForm === 'pay') return h + suppPayFormHtml(sp) + '</div>';
   if (_suppForm === 'balance') return h + suppBalanceFormHtml(sp, L) + '</div>';
   if (_suppForm === 'set') return h + suppSetFormHtml(sp, lead) + '</div>';
@@ -363,7 +365,7 @@ function suppDialogHtml(sp) {
   if (sp.rec && sp.rec.note) facts.push({ label: 'Note', words: '', sub: sp.rec.note });
   h += '<div class="inv-panel inv-panel-flush" data-supp-facts>' + facts.map(suppFactHtml).join('') + '</div>';
   if (money) h += suppLedgerHtml(sp, L);
-  var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button>' +
+  var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Close</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="set">Change</button>' +
     (money ? '<button class="inv-btn inv-btn-secondary" data-action="invSuppForm" data-form="balance">' + (L.op ? 'Set the balance again' : 'Set the balance') + '</button>' +
       '<button class="inv-btn inv-btn-primary" data-action="invSuppForm" data-form="pay">Record a payment</button>' : '');
@@ -606,7 +608,18 @@ function suppOnInput(t) {
 }
 function suppAction(action, btn) {
   switch (action) {
-    case 'invSuppOpen': suppOpen(btn.dataset.id, ''); return true;
+    case 'invSuppOpen': suppOpen(btn.dataset.id, btn.dataset.form || ''); return true;
+    // Compare suppliers (the reorder list, a line's page): its dialog, a pick, a price quoted.
+    case 'invSuppCompare': suppCompareOpen(btn.dataset.item, ''); return true;
+    case 'invSuppPick': suppPickSet(btn.dataset.item, btn.dataset.id || ''); return true;
+    case 'invSuppQuoteForm': {
+      var qs = btn.closest('.inv-scrim-dialog');
+      if (qs) delete qs.dataset.typed;
+      suppCompareOpen(_suppCmpItem, btn.dataset.form === '' ? '' : 'quote');
+      return true;
+    }
+    case 'invSuppSaveQuote': suppSaveQuote(); return true;
+    case 'invSuppQuoteRemove': suppRemoveQuote(btn.dataset.id, btn.dataset.quote); return true;
     case 'invSuppForm': {
       // Cancel from a typed form is a discard somebody chose: nothing asks.
       var sc = btn.closest('.inv-scrim-dialog');
@@ -626,27 +639,72 @@ function suppAction(action, btn) {
 }
 
 /* ---------- The reorder list ---------- */
-/* Which supplier a line is ordered from, and by when (cost.js stockReorderList; the line's task in todo.js). Every supplier who sold
-   the line within SUPP_PRICE_DAYS is weighed at its last price: of those whose lead time lets the goods come before the line runs
-   out, the cheapest; when the one it last came from cannot make it, the fastest that can, and what the hurry costs. A supplier
-   whose lead time is not set is never chosen over the last one: it is named. With no daily use on record nothing runs out, so
-   the cheapest with a lead time set is chosen. Zinc follows the market (zinc.js sets each bill against it), so an older bill is
-   not a price to weigh: its last supplier stands.
-   Returns { sp, name, price, lead, orderBy, late, daysLeft, why, last: {sp, name, price} }. */
-function suppReorderPick(item, daysLeft) {
-  var buys = stockPurchases(item.id);
-  if (!buys.length) return null;
-  var idx = suppIndex(), today = localDateStr(), from = isoAddDays(today, -SUPP_PRICE_DAYS), by = {};
-  buys.forEach(function(b) {
-    var sp = idx.find(b.e.supplier || ''), k = sp ? sp.id : '';
-    by[k] = { sp: sp, name: sp ? sp.name : 'No supplier on record', price: b.e.price, date: b.date, lead: sp ? suppLead(sp) : null };
+/* Every supplier a stock line can be ordered from: each that sold it (its priced bills on the line) and each that quoted a price for
+   it (a supplier's record, `quotes`). The price weighed is the latest of the two: a bill, or a price quoted since it. A bill older
+   than SUPP_PRICE_DAYS, or a quote older than SUPP_QUOTE_DAYS, is said and not weighed (`fresh`).
+   A candidate: { sp, name, price, date, basis ('bill' | 'quote'), fresh, bills (on this line), qty, lastBill, prevBill, quote, lead }. */
+var SUPP_QUOTE_DAYS = 90;
+function suppCandidates(item) {
+  var idx = suppIndex(), today = localDateStr(), by = {}, order = [];
+  var get = function(sp, name) {
+    var k = sp ? sp.id : '';
+    if (!by[k]) {
+      by[k] = { sp: sp, name: sp ? sp.name : 'No supplier on record', price: null, date: null, basis: null, fresh: false, bills: 0, qty: 0,
+        lastBill: null, prevBill: null, quote: null, lead: sp ? suppLead(sp) : null };
+      order.push(k);
+    }
+    return by[k];
+  };
+  stockPurchases(item.id).forEach(function(b) {
+    var c = get(idx.find(b.e.supplier || ''), b.e.supplier);
+    c.bills++; c.qty += b.e.qty || 0; c.prevBill = c.lastBill; c.lastBill = b;
   });
-  var lastB = buys[buys.length - 1], lastSp = idx.find(lastB.e.supplier || ''), last = by[lastSp ? lastSp.id : ''];
-  var others = item.key === 'ZINC' ? [] : Object.keys(by).map(function(k) { return by[k]; }).filter(function(x) { return x.sp && x !== last && x.date >= from; });
+  idx.list.forEach(function(sp) {
+    var qs = sp.rec && Array.isArray(sp.rec.quotes) ? sp.rec.quotes.filter(function(q) { return q && q.itemId === item.id && q.price > 0 && /^\d{4}-\d{2}-\d{2}$/.test(q.date || ''); }) : [];
+    if (qs.length) get(sp).quote = qs.slice().sort(suppByDate)[qs.length - 1];
+  });
+  return order.map(function(k) {
+    var c = by[k], lb = c.lastBill, q = c.quote;
+    if (q && (!lb || q.date >= lb.date)) { c.price = q.price; c.date = q.date; c.basis = 'quote'; c.fresh = isoDaysBetween(q.date, today) <= SUPP_QUOTE_DAYS; }
+    else if (lb) { c.price = lb.e.price; c.date = lb.date; c.basis = 'bill'; c.fresh = isoDaysBetween(lb.date, today) <= SUPP_PRICE_DAYS; }
+    return c;
+  });
+}
+/* The supplier the owner chose for a line (Compare suppliers: `item.orderFrom`), among its candidates: by its id, else by its name
+   (a supplier's id moves when its record is first made). Null when none is chosen; { lost: name } when the one chosen is no longer
+   a candidate. */
+function suppItemPick(item, cands) {
+  var o = item && item.orderFrom;
+  if (!o || !(o.supplierId || o.name)) return null;
+  var idx = suppIndex(), sp = (o.supplierId && idx.byId[o.supplierId]) || (o.name && idx.find(o.name)) || null;
+  var c = sp ? cands.filter(function(x) { return x.sp && x.sp.id === sp.id; })[0] : null;
+  return c ? { c: c } : { lost: o.name || '' };
+}
+/* Which supplier a line is ordered from, and by when (cost.js stockReorderList; the line's task in todo.js; Compare suppliers).
+   The app's own pick: of the suppliers priced lately, those whose lead time lets the goods come before the line runs out, the
+   cheapest; when the one it last came from cannot make it, the fastest that can, and what the hurry costs. A supplier whose lead
+   time is not set is never chosen over the last one: it is named. With no daily use on record nothing runs out, so the cheapest
+   with a lead time set is chosen. Zinc follows the market (zinc.js sets each bill against it), so an older price is not one to
+   weigh: its last supplier stands. Where the owner chose a supplier for the line (Compare suppliers), that one is ordered from,
+   and the app's own pick is said beside it where it differs.
+   Returns { sp, name, price, basis, date, lead, orderBy, late, daysLeft, why, last: {sp, name, price}, mine, app: {name, price,
+   lead, why} (where the owner's choice differs), lost (a choice no longer on record) }. */
+function suppReorderPick(item, daysLeft) {
+  var cands = suppCandidates(item), buys = stockPurchases(item.id);
+  if (!cands.length) return null;
+  var idx = suppIndex(), today = localDateStr();
+  var key = function(c) { return c.sp ? c.sp.id : ''; };
+  var lastB = buys.length ? buys[buys.length - 1] : null, lastSp = lastB ? idx.find(lastB.e.supplier || '') : null;
+  var last = lastB ? cands.filter(function(c) { return key(c) === (lastSp ? lastSp.id : ''); })[0] : null;
+  var others = item.key === 'ZINC' ? [] : cands.filter(function(c) { return c.sp && c !== last && c.fresh && c.price != null; });
   var fits = function(x) { return x.lead && (daysLeft == null || x.lead.max <= daysLeft); };
   var dear = function(a, b) { return a.price - b.price || a.lead.max - b.lead.max; };
   var pick = last, why = '';
-  if (last.lead && daysLeft != null && last.lead.max > daysLeft) {
+  if (!last) {
+    // Never bought: only prices quoted. The cheapest that comes in time, else the cheapest.
+    pick = others.filter(fits).sort(dear)[0] || others.slice().sort(function(a, b) { return a.price - b.price; })[0] || cands[0];
+    why = pick && pick.basis === 'quote' ? 'never bought: a price quoted on ' + stockShortDate(pick.date) : '';
+  } else if (last.lead && daysLeft != null && last.lead.max > daysLeft) {
     // The one it last came from cannot make it: the fastest that can, else it stays, late.
     var can = others.filter(fits).sort(function(a, b) { return a.lead.max - b.lead.max || a.price - b.price; })[0];
     if (can) {
@@ -664,14 +722,29 @@ function suppReorderPick(item, daysLeft) {
       else if (named) why = named.name + ' sold it ' + formatCurrency(gstRound(last.price - named.price, 2)) + ' a unit less on ' + stockShortDate(named.date) + '; set its lead time to weigh it';
     }
   }
-  var lead = pick.lead, orderBy = null, late = false;
-  if (lead && daysLeft != null) {
-    var spare = Math.floor(daysLeft - lead.max);
-    late = spare < 0;
-    orderBy = late ? today : suppAddWorkingDays(today, spare);
+  var when = function(c) {
+    var o = { orderBy: null, late: false };
+    if (c && c.lead && daysLeft != null) {
+      var spare = Math.floor(daysLeft - c.lead.max);
+      o.late = spare < 0;
+      o.orderBy = o.late ? today : suppAddWorkingDays(today, spare);
+    }
+    return o;
+  };
+  var app = pick, mineP = suppItemPick(item, cands), chosen = mineP && mineP.c ? mineP.c : app;
+  var t = when(chosen);
+  var out = { sp: chosen.sp, name: chosen.name, price: chosen.price, basis: chosen.basis, date: chosen.date, lead: chosen.lead, orderBy: t.orderBy, late: t.late,
+    daysLeft: daysLeft, why: chosen === app ? why : '', last: last ? { sp: last.sp, name: last.name, price: last.price } : { sp: null, name: '', price: null },
+    mine: !!(mineP && mineP.c), app: null, lost: mineP && mineP.lost != null ? mineP.lost : null };
+  if (out.mine && chosen !== app) {
+    out.app = { name: app.name, price: app.price, lead: app.lead, why: why };
+    var aw = when(app), r = '';
+    if (t.late && !aw.late && app.lead) r = 'it comes before the line runs out';
+    else if (app.price != null && chosen.price != null && app.price < chosen.price - 0.005) r = formatCurrency(gstRound(chosen.price - app.price, 2)) + ' a unit less';
+    else if (app.lead && !chosen.lead) r = 'its lead time is set';
+    out.why = 'your pick; the app would order from ' + app.name + (r ? ': ' + r : '');
   }
-  return { sp: pick.sp, name: pick.name, price: pick.price, lead: lead, orderBy: orderBy, late: late, daysLeft: daysLeft, why: why,
-    last: { sp: last.sp, name: last.name, price: last.price } };
+  return out;
 }
 /* The pick in words, for the list's row and the line's task: who, how long, by when. */
 function suppPickText(pk) {
@@ -679,5 +752,246 @@ function suppPickText(pk) {
   var when = '';
   if (pk.orderBy) when = pk.late ? (pk.daysLeft != null && pk.daysLeft <= 0 ? ', order now: it is out' : ', order now: it runs out before it can come')
     : pk.orderBy === localDateStr() ? ', order today' : ', order by ' + stockShortDate(pk.orderBy);
-  return pk.name + ': ' + suppLeadText(pk.lead) + when;
+  return pk.name + (pk.mine ? ' (your pick)' : '') + ': ' + suppLeadText(pk.lead) + when;
+}
+
+/* ---------- Compare suppliers ----------
+   Owner, 10 Oct 2026: "When ordering stocks let's have an option to select and compare between suppliers, pros and cons. Right now,
+   we don't have that option while ordering or planning for stock." From the reorder list and a line's page: every supplier of the
+   line side by side, each with its price and what it rests on, its lead time against the days the line has left, what this order
+   would come to, what is owed to it, and what speaks for and against it, in words. The owner orders from one with a tap
+   (`item.orderFrom`, kept on the line and said on the list, the line and its task, the app's own pick beside it where it differs),
+   or lets the app pick again. A price a supplier quoted is added here too, so one that never sold the line can be weighed. */
+var _suppCmpItem = null;         // the stock line whose suppliers are compared
+var _suppCmpForm = '';           // '' | 'quote': the form open in its dialog
+/* A line's days left as the reorder list reads them: none where it has no daily use, nought where it is out. */
+function suppDaysLeft(item, st) {
+  st = st || stockStatus(item);
+  var rate = st.rate && st.rate.rate ? st.rate.rate : null;
+  return st.group === 'out' || (st.level != null && st.level <= 0) ? 0 : rate ? st.daysLeft : null;
+}
+/* The pick in a sentence for the list and the line: who and by when, then why where the app says it (its why starts low). */
+function suppPickLine(pk) {
+  if (!pk || !pk.sp) return 'No supplier on record';
+  return suppPickText(pk) + (pk.why ? '. ' + pk.why.charAt(0).toUpperCase() + pk.why.slice(1) : '') + (pk.lost ? '. ' + pk.lost + ', chosen before, no longer sells it on record' : '');
+}
+/* The line's days left and what is being ordered of it: the reorder list's row where it is on the list (a quantity typed there
+   included), else its status. */
+function suppCmpContext(item) {
+  var st = stockStatus(item), daysLeft = suppDaysLeft(item, st), qty = null;
+  try {
+    stockReorderList().groups.forEach(function(g) { g.rows.forEach(function(r) { if (r.item.id === item.id) qty = r.qty; }); });
+  } catch (e) { qty = null; }
+  return { st: st, daysLeft: daysLeft, qty: qty };
+}
+function suppCompare(item) {
+  var ctx = suppCmpContext(item), daysLeft = ctx.daysLeft, qty = ctx.qty;
+  var cands = suppCandidates(item), pick = suppReorderPick(item, daysLeft), unit = item.unit || 'unit', zinc = item.key === 'ZINC';
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), today = localDateStr();
+  var priced = zinc ? [] : cands.filter(function(c) { return c.sp && c.price != null && c.fresh; }).sort(function(a, b) { return a.price - b.price; });
+  var most = Math.max.apply(null, cands.map(function(c) { return c.bills; }).concat(0));
+  var lastName = pick && pick.last ? pick.last.name : '';
+  var perUnit = function(v) { return formatCurrency(v) + '/' + unit; };
+  cands.forEach(function(c) {
+    var pros = [], cons = [], info = [];
+    // The price.
+    if (zinc) info.push('Zinc follows the market: ask today’s price');
+    else if (c.price != null && !c.fresh) cons.push({ tone: 'warning', text: (c.basis === 'quote' ? 'Quoted ' + stockShortDate(c.date) + ', over three months ago' : 'Last bought ' + stockShortDate(c.date) + ', over six months ago') + ': ask the price' });
+    else if (c.price != null && priced.length > 1 && c.sp) {
+      var low = priced[0], next = priced[1];
+      if (c === low || Math.abs(c.price - low.price) < 0.005) {
+        var gap = gstRound(next.price - c.price, 2), rival = c === low ? next : low;
+        pros.push({ text: gap > 0.005 ? 'Cheapest: ' + perUnit(gap) + ' under ' + next.name : 'The same price as ' + rival.name });
+      } else {
+        var more = gstRound(c.price - low.price, 2);
+        cons.push({ tone: 'warning', text: perUnit(more) + ' more than ' + low.name + (qty > 0 ? ' (' + finRs(gstRound(more * qty)) + ' on this order)' : '') });
+      }
+    }
+    if (!zinc && c.prevBill && c.lastBill && c.basis === 'bill' && c.prevBill.e.price > 0) {
+      var ch = (c.lastBill.e.price - c.prevBill.e.price) / c.prevBill.e.price;
+      if (ch >= 0.05) cons.push({ tone: 'warning', text: 'Up ' + Math.round(ch * 100) + '% on their bill before' });
+      else if (ch <= -0.05) pros.push({ text: 'Down ' + Math.round(-ch * 100) + '% on their bill before' });
+    }
+    // The time.
+    c.orderBy = null; c.late = false;
+    if (!c.sp) info.push('Bought with no supplier written on the bill');
+    else if (!c.lead) cons.push({ tone: 'warning', text: 'Lead time not set: when it comes is not known' });
+    else {
+      if (daysLeft != null) {
+        var spare = Math.floor(daysLeft - c.lead.max);
+        c.late = spare < 0;
+        c.orderBy = c.late ? today : suppAddWorkingDays(today, spare);
+      }
+      if (c.late) cons.push({ tone: 'danger', text: 'Takes ' + suppLeadText(c.lead) + ': ' + (daysLeft <= 0 ? 'the line is out' : 'the line runs out in ' + stockDaysText(daysLeft, false)) });
+      else if (!c.lead.max) pros.push({ text: 'Delivers the same day' + (c.orderBy && c.orderBy !== today ? ': order by ' + stockShortDate(c.orderBy) : '') });
+      else if (c.orderBy) pros.push({ text: 'Comes before the line runs out: ' + (c.orderBy === today ? 'order today' : 'order by ' + stockShortDate(c.orderBy)) });
+      else info.push('Delivers in ' + suppLeadText(c.lead));
+    }
+    // The record.
+    if (c.bills === 0) cons.push({ tone: 'warning', text: 'Quoted only: never bought from them' });
+    else if (c.bills >= 2 && c.bills === most && cands.filter(function(x) { return x.bills === most; }).length === 1) pros.push({ text: 'Bought from most: ' + todoPlural(c.bills, 'bill') + ' for this line' });
+    else if (c.bills === 1) info.push('One bill for this line on record');
+    if (c.name === lastName && c.lastBill) info.push('Last bought from them, ' + stockShortDate(c.lastBill.date));
+    // What is owed to them, to a role that sees money.
+    if (money && c.sp) {
+      var L = suppLedger(c.sp);
+      if (L.balance != null) {
+        if (L.balance > 0.5) {
+          var age = L.oldest ? suppAgeDays(L.oldest.date) : 0;
+          if (age > SUPP_OWED_DAYS) cons.push({ tone: 'warning', text: finRs(L.balance) + ' owed to them, unpaid ' + todoPlural(age, 'day') });
+          else info.push(finRs(L.balance) + ' owed to them');
+        } else pros.push({ text: L.balance < -0.5 ? 'Paid ahead with them' : 'Nothing owed to them' });
+      }
+    }
+    c.pros = pros; c.cons = cons; c.info = info;
+    c.tone = cons.some(function(x) { return x.tone === 'danger'; }) ? 'danger' : cons.length ? 'warning' : pros.length ? 'ok' : '';
+    c.amount = qty > 0 && c.price != null ? gstRound(qty * c.price) : null;
+    c.chosen = !!(pick && pick.sp && c.sp && pick.sp.id === c.sp.id);
+    c.mine = c.chosen && pick.mine;
+    c.app = pick ? (pick.app ? c.name === pick.app.name : c.chosen) : false;
+    c.last = !!lastName && c.name === lastName;
+  });
+  // The one ordered from first, then the app's, then by price (those not weighed after), with no price last.
+  var rank = function(c) { return c.chosen ? 0 : c.app ? 1 : c.price != null && c.fresh ? 2 : c.price != null ? 3 : 4; };
+  cands.sort(function(a, b) { return rank(a) - rank(b) || (a.price == null ? 0 : a.price) - (b.price == null ? 0 : b.price) || a.name.localeCompare(b.name); });
+  return { item: item, ctx: ctx, cands: cands, pick: pick, qty: qty, daysLeft: daysLeft, money: money };
+}
+/* `quiet`: drawn again under another dialog (a supplier opened from a card), which keeps the focus. */
+function suppCompareOpen(itemId, form, quiet) {
+  var item = stockItem(itemId);
+  if (!item) { showToast('That stock line is no longer in the book', 'error'); return; }
+  _suppCmpItem = item.id;
+  _suppCmpForm = form || '';
+  var html = suppCompareHtml(item), open = document.querySelector('[data-supp-compare]');
+  if (open) {
+    var sc = open.closest('.inv-scrim-dialog');
+    if (sc) {
+      delete sc.dataset.typed;
+      sc.innerHTML = html;
+      var all = document.querySelectorAll('.inv-scrim-dialog');
+      if (!quiet && all[all.length - 1] === sc) focusFirstInteractive(sc.querySelector('.inv-dialog'));
+      return;
+    }
+  }
+  if (!quiet) dialogOpen(html, { dismiss: true });
+}
+function suppCompareHtml(item) {
+  var K = suppCompare(item), unit = item.unit || '';
+  var h = '<div class="inv-dialog" data-supp-compare="' + escHtml(item.id) + '">' + dialogHeadHtml('Order ' + escHtml(item.name) + ' from', 'invCloseConfirm');
+  if (_suppCmpForm === 'quote') return h + suppQuoteFormHtml(item, K) + '</div>';
+  var st = K.ctx.st, parts = [];
+  if (st.level != null) parts.push(stockFmtQty(Math.max(0, st.level)) + ' ' + unit + ' on hand');
+  if (K.daysLeft != null) parts.push(K.daysLeft <= 0 ? 'out' : stockDaysText(K.daysLeft, false) + ' left');
+  // A line charged into a bath (zinc) has its use and no day it runs out: its delivery goes into the bath as it comes.
+  else parts.push(st.group === 'bath' ? 'it goes into the bath as it comes, so no day it runs out' : 'no daily use on record, so no day it runs out');
+  if (K.qty > 0) parts.push('ordering ' + stockFmtQty(K.qty) + ' ' + unit);
+  h += '<p class="inv-note" data-supp-cmp-ctx>' + escHtml(parts.join(' · ')) + '</p>';
+  if (K.pick && K.pick.lost) h += '<div class="inv-callout inv-callout-warning">' + escHtml('You chose ' + K.pick.lost + ' for this line, and it no longer sells it on record: the app picks again until you choose.') + '</div>';
+  if (!K.cands.length) h += '<div class="inv-panel"><div class="inv-empty">No supplier has sold this line on record. Add a price a supplier quoted to weigh one, or add the bill when it is bought.</div></div>';
+  else h += '<div class="inv-deck inv-coded" data-supp-cands>' + K.cands.map(function(c) { return suppCandCardHtml(item, K, c); }).join('') + '</div>';
+  h += '<p class="inv-note">Prices before GST, at each one’s last bill or a price quoted since. A lead time is in working days, Sundays out, set on the supplier. What is owed is shown where their balance is set.</p>';
+  var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseConfirm">Close</button>' +
+    (K.pick && K.pick.mine ? '<button class="inv-btn inv-btn-secondary" data-action="invSuppPick" data-item="' + escHtml(item.id) + '" data-id="">Let the app pick</button>' : '') +
+    '<button class="inv-btn inv-btn-secondary" data-action="invSuppQuoteForm">Add a price quoted</button>';
+  return h + '<div class="inv-dialog-foot">' + foot + '</div></div>';
+}
+/* One supplier as a card (§6.22): who it is to this line, its price, its lead time; what speaks for it and against it, each a dot
+   and its words; the order's amount; its move. */
+function suppCandCardHtml(item, K, c) {
+  var unit = item.unit || 'unit', roles = [];
+  if (c.mine) roles.push('Your pick');
+  if (c.app) roles.push(c.mine ? 'the app’s too' : 'The app’s pick');
+  if (c.last) roles.push(roles.length ? 'last bought' : 'Last bought from');
+  var word = roles.length ? roles.join(' · ') : c.bills ? 'Bought before' : 'Quoted';
+  var sub = [c.price == null ? 'no price on record' : (c.basis === 'quote' ? 'quoted ' : 'bill of ') + stockShortDate(c.date), c.sp ? suppLeadText(c.lead) : ''].filter(Boolean).join(' · ');
+  var line = function(tone, text, kind) { return '<span class="inv-row-meta inv-row-wrap" data-supp-pc="' + kind + '">' + uiDot(tone, escHtml(text)) + '</span>'; };
+  var body = c.pros.map(function(x) { return line('ok', x.text, 'pro'); }).join('') + c.cons.map(function(x) { return line(x.tone, x.text, 'con'); }).join('') +
+    c.info.map(function(x) { return line('neutral', x, 'info'); }).join('');
+  if (c.amount != null) body += '<span class="inv-row-meta inv-row-wrap" data-supp-cand-amount="' + c.amount + '">' + escHtml('This order: ' + formatCurrency(c.amount) + ' for ' + stockFmtQty(K.qty) + ' ' + (item.unit || '')) + '</span>';
+  var foot = '';
+  if (c.sp) {
+    foot = c.chosen ? '<span class="inv-dot inv-dot-ok">' + (c.mine ? 'Ordering from them' : 'The app orders from them') + '</span>' +
+        (c.mine ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppPick" data-item="' + escHtml(item.id) + '" data-id="' + escHtml(c.sp.id) + '">Keep this one</button>')
+      : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppPick" data-item="' + escHtml(item.id) + '" data-id="' + escHtml(c.sp.id) + '">Order from them</button>';
+    if (!c.lead) foot += '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSuppOpen" data-id="' + escHtml(c.sp.id) + '" data-form="set">Set its lead time</button>';
+  }
+  return '<article class="inv-deck-item" data-supp-cand="' + escHtml(c.sp ? c.sp.id : '') + '" data-tone="' + (c.tone || 'neutral') + '"' + (c.chosen ? ' data-supp-chosen' : '') + '>' +
+    '<div class="inv-deck-head"><span class="inv-deck-word">' + escHtml(word) + '</span>' + (c.price != null ? '<span class="inv-deck-fig">' + escHtml(formatCurrency(c.price) + '/' + unit) + '</span>' : '') + '</div>' +
+    '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(c.name) + '</span>' + (sub ? '<span class="inv-deck-sub">' + escHtml(sub) + '</span>' : '') + body + '</div>' +
+    (foot ? '<div class="inv-deck-foot">' + foot + '</div>' : '') + '</article>';
+}
+/* A price a supplier quoted for the line: weighed beside the bills for SUPP_QUOTE_DAYS, kept on the supplier's record. */
+function suppQuoteFormHtml(item, K) {
+  var today = localDateStr(), list = suppIndex().list.slice().sort(function(a, b) { return a.name.localeCompare(b.name); });
+  var opts = '<option value="">Pick the supplier</option>' + list.map(function(sp) { return '<option value="' + escHtml(sp.id) + '">' + escHtml(sp.name) + '</option>'; }).join('') +
+    '<option value="+">Another supplier…</option>';
+  var quoted = [];
+  K.cands.forEach(function(c) { if (c.quote) quoted.push(c); });
+  var h = '<div class="inv-fields" data-supp-quote-form>' +
+    suppField('suppQuoteSp', 'Supplier', '<select class="inv-select" id="suppQuoteSp">' + opts + '</select>', true) +
+    suppField('suppQuoteName', 'Another supplier’s name', '<input class="inv-input" id="suppQuoteName" autocomplete="off">', true) +
+    suppField('suppQuotePrice', 'Price a ' + escHtml(item.unit || 'unit') + ', before GST', '<input class="inv-input inv-input-num" id="suppQuotePrice" type="number" step="0.01" min="0" inputmode="decimal">') +
+    suppField('suppQuoteDate', 'Quoted on', '<input class="inv-input" id="suppQuoteDate" type="date" max="' + today + '" value="' + today + '">') +
+    suppField('suppQuoteNote', 'Note', '<input class="inv-input" id="suppQuoteNote" autocomplete="off" placeholder="On the phone, by WhatsApp, the minimum order">', true) +
+    '</div><div class="inv-note">A price quoted is weighed beside the bills for ' + SUPP_QUOTE_DAYS + ' days, until a bill from them replaces it.</div>';
+  if (quoted.length) {
+    h += '<div class="inv-panel inv-panel-flush" data-supp-quotes><div class="inv-panel-head"><span class="inv-panel-title">Prices quoted for this line</span></div>' + quoted.map(function(c) {
+      var q = c.quote;
+      return '<div class="inv-row inv-row-2" data-supp-quote="' + escHtml(q.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(stockShortDate(q.date) + (q.note ? ' · ' + q.note : '')) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-num">' + escHtml(formatCurrency(q.price)) + '</span>' +
+        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSuppQuoteRemove" data-id="' + escHtml(c.sp.id) + '" data-quote="' + escHtml(q.id) + '">Remove</button></span></div>';
+    }).join('') + '</div>';
+  }
+  return h + '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invSuppQuoteForm" data-form="">Cancel</button>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invSuppSaveQuote">Save price</button></div>';
+}
+function suppSaveQuote() {
+  var item = stockItem(_suppCmpItem);
+  if (!item) return;
+  var v = function(id) { return suppFormVal('[data-supp-quote-form]', id); };
+  var spId = v('suppQuoteSp'), nm = v('suppQuoteName').replace(/\s+/g, ' '), price = parseFloat(v('suppQuotePrice')), date = v('suppQuoteDate');
+  if (!spId) { showToast('Pick the supplier', 'error'); return; }
+  if (spId === '+' && suppKey(nm).length < 3) { showToast('Type the supplier’s name', 'error'); return; }
+  if (!(price > 0)) { showToast('Type the price a ' + (item.unit || 'unit'), 'error'); return; }
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDateStr()) { showToast('Pick the day it was quoted', 'error'); return; }
+  if (!grdGate('floor', 'add a price a supplier quoted', suppSaveQuote)) return;
+  var sp = spId === '+' ? suppOfName(nm) : suppById(spId), rec;
+  if (sp) rec = suppRecord(sp);
+  else { rec = { id: suppUid('SUP-'), name: nm, names: [], at: Date.now(), by: suppBy() }; suppData().push(rec); }
+  if (!Array.isArray(rec.quotes)) rec.quotes = [];
+  rec.quotes.push({ id: suppUid('SQ-'), itemId: item.id, price: gstRound(price, 4), date: date, note: v('suppQuoteNote'), at: Date.now(), by: suppBy() });
+  saveState();
+  _suppMemo = null;
+  var sc = document.querySelector('[data-supp-compare]');
+  if (sc && sc.closest('.inv-scrim-dialog')) delete sc.closest('.inv-scrim-dialog').dataset.typed;
+  suppCmpRedraw('');
+  showToast('Price saved: ' + formatCurrency(price) + '/' + (item.unit || 'unit') + ' from ' + rec.name);
+}
+async function suppRemoveQuote(spId, qid) {
+  var sp = suppById(spId), rec = sp && sp.rec, q = rec && Array.isArray(rec.quotes) ? rec.quotes.filter(function(x) { return x && x.id === qid; })[0] : null;
+  if (!q) return;
+  if (!(await uiConfirm({ title: 'Remove this price?', body: formatCurrency(q.price) + ' quoted by ' + rec.name + ' on ' + formatDate(q.date) + ' stops being weighed. The bills are kept.', okLabel: 'Remove', danger: true }))) return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'remove a price a supplier quoted'))) return;
+  rec.quotes = rec.quotes.filter(function(x) { return x && x.id !== qid; });
+  saveState();
+  _suppMemo = null;
+  suppCmpRedraw('quote');
+}
+/* Order the line from a supplier, or (no id) let the app pick again. Kept on the line: the list, the line's page and its task say it. */
+function suppPickSet(itemId, spId) {
+  var item = stockItem(itemId);
+  if (!item) return;
+  if (!grdGate('floor', 'choose a supplier for a stock line', function() { suppPickSet(itemId, spId); })) return;
+  var sp = spId ? suppById(spId) : null;
+  if (sp) item.orderFrom = { supplierId: sp.id, name: sp.name, at: Date.now(), by: suppBy() };
+  else delete item.orderFrom;
+  saveState();
+  suppCmpRedraw('');
+  showToast(sp ? item.name + ': ordering from ' + sp.name : item.name + ': the app picks the supplier');
+}
+/* After a change in the comparison: the screen under it (the reorder list, the line), then the dialog itself where it stands. */
+function suppCmpRedraw(form) {
+  if (navPageOf() === 'pageStock' && typeof renderStock === 'function') keepScroll(renderStock);
+  if (_suppCmpItem && document.querySelector('[data-supp-compare]')) suppCompareOpen(_suppCmpItem, form);
 }

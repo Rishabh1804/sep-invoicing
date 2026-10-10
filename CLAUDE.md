@@ -217,7 +217,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,719 tests, both layouts
+pnpm exec playwright test          # 1,721 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -3184,6 +3184,23 @@ cheaper price but the material comes from Kolkata"*). P208. Nothing about a supp
   working days*, with the day to order by); when the one it came from cannot make it, the fastest that can, and what the hurry costs
   a unit. A supplier with no lead time set is named, never chosen; zinc follows the market, so its last supplier stands. The quantity
   covers that supplier's lead time (the list's own where none is set). The line's To-do task says who to order from and by when.
+  The owner's pick (below) wins over it.
+- **Compare suppliers** (owner, 10 Oct 2026: *"When ordering stocks let's have an option to select and compare between suppliers,
+  pros and cons. Right now, we don't have that option while ordering or planning for stock"*; P209). From the reorder list (under
+  each line) and a line's page (*Order from*), every supplier of the line as a card (`suppCompare`, a deck in a dialog): its price a
+  unit and what it rests on (its last bill on the line, or a price quoted since), its lead time against the days the line has left
+  (the day to order by, or *the line runs out in 2 days*), what this order comes to, what is owed to it (to a role that sees money),
+  and what speaks for and against it in words, each a dot: cheapest by so much, so much more on this order, comes in time or
+  cannot, the same day, bought from most, one bill, up or down on their bill before, a price over six months old (a quote over
+  three) said and never weighed, no lead time set, owed past a month. A card is coded by the worst of what is against it.
+  - **Order from them** keeps the choice on the line (`item.orderFrom`: the supplier's id and name, so a record made later still
+    finds it): the list, the line and its task follow it, the app's own pick said beside it where it differs (*Your pick; the app
+    would order from <it>: ₹19.00 a unit less*); **Let the app pick** clears it. A choice whose supplier no longer sells the line
+    is said, and the app picks until another is made.
+  - **Add a price quoted** (`rec.quotes`, on the supplier's record; a supplier typed new is made one): weighed beside the bills for
+    90 days, so a supplier that never sold the line is compared; removed with a word.
+  - A card with no lead time opens its supplier on *Set its lead time*, over the comparison, which follows the change; the
+    supplier's dialog closes on itself alone. The choice and the quotes are Floor entries (`grdGate('floor')`).
 - **To-do `supplierOwed`** (info): a balance whose oldest unpaid part is over 30 days old. `supplierNoBill` reads through the
   suppliers, so a payment spelt the bank's way finds the bills spelt the shop's.
 - **Measured on the owner's book** (10 Oct 2026, a scratch harness never committed): five suppliers; the "&"/AND fold makes two
@@ -3499,8 +3516,8 @@ PP3 of `docs/PLANT_PICTURE.md` (owner, 9 Oct 2026: *"Exactly"*, to the app readi
 More → Stock → **Reorder list** (owner, 25 Sep 2026). For each line with a daily use:
 **use × (lead time + days to cover) − on hand**, rounded up to the **pack it is bought in** (the smallest
 purchase, when every purchase is a whole number of it), priced at the **last price paid** and grouped by
-the **supplier it is ordered from**: the one it last came from, or a cheaper one that can deliver in time, by its own lead time
-(*Suppliers*, above). Cover (30) and the lead time where a supplier's is not set (10) are set on the list and kept on the
+the **supplier it is ordered from**: the one it last came from, or a cheaper one that can deliver in time, by its own lead time,
+or the one the owner picked on **Compare suppliers**, under each line (*Suppliers*, above). Cover (30) and the lead time where a supplier's is not set (10) are set on the list and kept on the
 device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days of record is flagged
 *check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
 message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.

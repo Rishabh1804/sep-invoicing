@@ -136,7 +136,7 @@ test.describe('P208: suppliers, what is owed and how long each takes', () => {
     expect(t).toHaveLength(1);
     expect(t[0]).toMatchObject({ tone: 'info', title: 'Pay Kappa & Brothers: ₹26,150.00 owed' });
     // Payments' card and fold say what is owed.
-    await page.locator('[data-supp-dialog] [data-action="invCloseOverlay"]').last().click();
+    await page.locator('[data-supp-dialog] [data-action="invCloseConfirm"]').last().click();
     await expect(page.locator('#bankPayVerdict [data-pay-supp-owed]')).toHaveAttribute('data-pay-supp-owed', '26150');
     await expect(page.locator('#bankSuppliers [data-supp-owed-all]')).toHaveAttribute('data-supp-owed-all', '26150');
 
@@ -170,7 +170,7 @@ test.describe('P208: suppliers, what is owed and how long each takes', () => {
     const task = (await ev(page, `todoAppAll(['stock']).filter(function(t) { return t.itemId === 'Q'; })[0]`)) as any;
     expect(task.facts.find((f: any) => f[0] === 'Order from')[1]).toMatch(/^Kappa & Brothers: same day, order by /);
     // On the list itself, under the supplier it is ordered from.
-    await page.locator('[data-supp-dialog] [data-action="invCloseOverlay"]').last().click();
+    await page.locator('[data-supp-dialog] [data-action="invCloseConfirm"]').last().click();
     await switchTab(page, 'pageStock');
     await toolbarMore(page, 'Reorder list');
     await expect(page.locator('#stockReorder .inv-row-group').filter({ hasText: 'Mu Traders' })).toBeVisible();

@@ -73,11 +73,10 @@ test.describe('P183: a group of a workspace\'s views is named where the phone ca
 
   test(`a page's own tab row that runs past the screen fades on the side with more`, async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    // People's seven views are wider than a phone.
-    await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="floor"]').click();
-    await page.locator('#wsTabs [data-tab="pageStaff"]').click();
-    await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
-    const row = page.locator('#pageStaff .inv-viewtabs').first();
+    // Money's five views are wider than a phone (People's went to four with the tab map, TM4b, and fit).
+    await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="money"]').click();
+    await expect(page.locator('#pageFinance')).toHaveClass(/inv-page-active/);
+    const row = page.locator('#pageFinance .inv-viewtabs').first();
     await expect(row).toHaveAttribute('data-more', 'end');
     expect(await row.evaluate(r => getComputedStyle(r).maskImage)).toContain('gradient');
     await row.evaluate(r => { r.scrollLeft = r.scrollWidth; });

@@ -162,9 +162,23 @@ export async function settle(page: Page): Promise<void> {
 }
 
 /* Every screen of the map (docs/TAB_MAP.md §2): each section's row, every view of a screen's own row, then the top bar's tools
-   (History, Knowledge and Knowledge's own row). `at(name)` runs on each, named "Section › Row view › Own view". */
+   (History, Knowledge and Knowledge's own row). `at(name)` runs on each, named "Section › Row view › Own view". A view's switch
+   is a place too (TM4b: Attendance's Day · Week · Month), each option but the one it opens on named after it. */
 export async function walkMap(page: Page, at: (name: string) => Promise<void>): Promise<void> {
   const own = () => page.locator('.inv-page-active .inv-viewtabs:not(#wsTabs) .inv-viewtab:visible');
+  const switchWalk = async (base: string) => {
+    const sw = () => page.locator('.inv-page-active [data-att-period] .inv-seg-btn:visible');
+    const k = await sw().count();
+    const first = await sw().evaluateAll(els => els.findIndex(e => e.getAttribute('aria-pressed') === 'true'));
+    for (let i = 0; i < k; i++) {
+      if (i === first) continue;
+      const b = sw().nth(i);
+      const label = (await b.innerText()).trim();
+      await b.click();
+      await settle(page);
+      await at(base + ' › ' + label);
+    }
+  };
   const ownWalk = async (base: string) => {
     const m = await own().count();
     if (!m) { await settle(page); await at(base); return; }
@@ -175,6 +189,7 @@ export async function walkMap(page: Page, at: (name: string) => Promise<void>): 
       await t.click();
       await settle(page);
       await at(base + ' › ' + label);
+      await switchWalk(base + ' › ' + label);
     }
   };
   for (const ws of ['today', 'office', 'floor', 'money']) {
@@ -224,16 +239,20 @@ export async function measureLoad(page: Page): Promise<Load> {
     }
     // The screen's own toolbar rows: its toolbars' controls and its tokens, by the lines they stand on.
     const skip = '.inv-panel, .inv-hero, .inv-callout, .inv-row, .inv-pane, .inv-deck-item, .inv-actionbar, .inv-tiles, .inv-dialog, .inv-table';
-    const tops = new Set<number>();
+    // A row is the controls standing side by side: their heights overlap. A smaller control centred in its row (More beside a
+    // primary, 2px lower) is the same row; binning tops by 8px had counted it as a second where the two straddled a boundary.
+    const spans: [number, number][] = [];
     act.querySelectorAll('.inv-toolbar, .inv-tokens').forEach(tb => {
       if (tb.closest(skip) || (tb as HTMLElement).offsetParent === null) return;
       Array.from(tb.children).forEach(ch => {
         const r = (ch as HTMLElement).getBoundingClientRect();
-        if (r.height > 0 && r.width > 0) tops.add(Math.round((r.top + window.scrollY) / 8));
+        if (r.height > 0 && r.width > 0) spans.push([r.top + window.scrollY, r.bottom + window.scrollY]);
       });
     });
+    let toolbarRows = 0, rowBottom = -Infinity;
+    spans.sort((a, b) => a[0] - b[0]).forEach(([t, b]) => { if (t >= rowBottom - 1) { toolbarRows++; rowBottom = b; } else rowBottom = Math.max(rowBottom, b); });
     const v = act.querySelector('[data-verdict]') as HTMLElement | null;
-    return { screens, blocks, chains, toolbarRows: tops.size, verdictTop: v ? Math.round(v.getBoundingClientRect().top + window.scrollY) : null };
+    return { screens, blocks, chains, toolbarRows, verdictTop: v ? Math.round(v.getBoundingClientRect().top + window.scrollY) : null };
   }, PAPER);
 }
 
@@ -294,7 +313,8 @@ export async function census(page: Page): Promise<Census> {
 
 /* The box looks the census of 9 Oct 2026 found on every screen and view, both layouts (fill, edges, corners, lift, padding; the
    tone's colour aside): the closed list. A look not on it fails P197 until design §6 names it; a step that retires one takes it
-   off. Measured over the long book on eleven days of the calendar, the same 38 every day. */
+   off. Measured over the long book on eleven days of the calendar, the same 38 every day; 39 since TM4c put the message as sent
+   (`inv-quote`) in an entry's fold on a walked screen. */
 export const LOOKS: string[] = [
   'fill edge:B1 r0 flat p0/0',
   'fill edge:B1 r0 flat p0/12',
@@ -311,6 +331,7 @@ export const LOOKS: string[] = [
   'fill edge:all1 r6 lift p10/12',
   'fill edge:all1 r8 flat p0/0',
   'fill edge:all1 r8 flat p16/12',
+  'fill edge:none r4 flat p6/8',     // inv-quote, the text as sent (design §6): in an entry's fold on Production → Entries since TM4c
   'fill edge:none r8 flat p10/12',
   'grad edge:T1 r0 flat p0/0',
   'grad edge:T1B1 r0 flat p0/0',
@@ -344,6 +365,13 @@ export const ONE_LOOK: string[] = [
   'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
   // TM3: Money's five.
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
+  // TM4: Floor's Overview, People (Attendance's Day, Week and Month, Pay, Areas, Roster), Production's four, Stock, Power's four.
+  'Floor › Overview',
+  'Floor › People › Attendance', 'Floor › People › Attendance › Week', 'Floor › People › Attendance › Month',
+  'Floor › People › Pay', 'Floor › People › Areas', 'Floor › People › Roster',
+  'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
+  'Floor › Stock',
+  'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills', 'Floor › Power › Case',
 ];
 
 /* What keeps the screen on show from its kind's anatomy (§3e), as a list of problems: none is one look. Read off what is drawn:
@@ -371,7 +399,13 @@ export async function oneLookProblems(page: Page): Promise<string[]> {
     walk(act, 0);
     const name = (el: Element | undefined) => !el ? 'nothing' : (Array.from(el.classList).find(c => c.startsWith('inv-')) || el.tagName.toLowerCase()) + (el.hasAttribute('data-verdict') ? '[verdict]' : '');
     const verdicts = Array.from(act.querySelectorAll('[data-verdict]')).filter(shown);
-    const rows = (tb: Element) => new Set(Array.from(tb.children).filter(shown).map(c => Math.round((c as HTMLElement).getBoundingClientRect().top / 8))).size;
+    // Rows as P195 counts them: controls whose heights overlap stand on one row.
+    const rows = (tb: Element) => {
+      let n = 0, bottom = -Infinity;
+      Array.from(tb.children).filter(shown).map(c => (c as HTMLElement).getBoundingClientRect()).filter(r => r.height > 0 && r.width > 0)
+        .sort((a, b) => a.top - b.top).forEach(r => { if (r.top >= bottom - 1) { n++; bottom = r.bottom; } else bottom = Math.max(bottom, r.bottom); });
+      return n;
+    };
     const phone = !document.body.classList.contains('inv-desktop');
     if (kind === 'work') {
       if (!blocks[0] || !blocks[0].matches('.inv-hero[data-verdict]')) out.push('leads with ' + name(blocks[0]) + ', not the verdict card');

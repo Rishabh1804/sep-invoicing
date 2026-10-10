@@ -1,10 +1,11 @@
-/* ===== STAFF AND STOCK OVERVIEWS =====
- * docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 7 (7a, 7b): the owner's "same for Staff, Stock" — each screen opens on an
- * Overview built from the Phase 2 charts and reading the functions the rest of the app already uses. A week or month
- * nobody typed is a gap in a line, never a zero; every panel says what it rests on.
+/* ===== PEOPLE'S AND STOCK'S CHARTS =====
+ * docs/FINANCE_INTELLIGENCE_SPEC.md, Phase 7 (7a, 7b): the owner's "same for Staff, Stock", the Phase 2 charts reading the
+ * functions the rest of the app already uses. The tab map (TM4b, TM4d) took the two Overviews away: attendance by week heads
+ * Attendance's Week, labour ₹/kg and the payroll against the bank head Pay, and Stock's spend, use and prices are Spend and prices
+ * (a fold at the list's foot on the phone, the pane on the desktop). A week or month nobody typed is a gap in a line, never a
+ * zero; every chart says what it rests on.
  */
 
-var DASH_STAFF_RULES = ['insLabour', 'insAttGap', 'wageVsSlip', 'cashSwing', 'costGap'];
 
 /* A flush panel: the head ruled off, the body padded once (a padded panel around a padded body indented it twice). */
 function _dashPanel(id, title, body, head, rows) {
@@ -82,51 +83,38 @@ function dashPayrollVsBank(labs) {
   });
 }
 
-function staffOverviewHtml() {
-  // "Open the day" opens the day the panel shows: today, or the last day typed when today is empty.
-  var day = attDaySummary();
-  var h = attDayPanelHtml(day, '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invDashOpenDay" data-date="' + escHtml(day.iso) + '">Open the day</button>', 'dashStaffToday');
-
+/* Staff's Overview went with the tab map (TM4b): today's attendance is Floor's People card, attendance by week leads Week, labour
+   ₹/kg by month and the payroll against the bank lead Pay; OT and EXTRA by area is Areas' own Hours by area, the raised tasks
+   Needs you's. */
+/* Attendance by pay week, twelve weeks: the head of People → Attendance → Week. A week nobody typed is a gap, not a zero. */
+function attWeeksPanelHtml() {
   var weeks = dashAttendanceByWeek(12);
-  h += _dashPanel('dashAttWeeks', 'Attendance by week', chartLines(weeks.map(function(w) { return _dashWeekLabel(w.sat); }),
+  return _dashPanel('dashAttWeeks', 'Attendance by week', chartLines(weeks.map(function(w) { return _dashWeekLabel(w.sat); }),
     [{ label: 'Present', values: weeks.map(function(w) { return w.pct == null ? null : Math.round(w.pct * 10) / 10; }) }],
     { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded' }) +
-    '<div class="inv-note">Worker-days present (a half day is half) over the active roster’s marks typed that week; an unmarked hand is not counted absent. A week nobody typed is a gap, not a zero.</div>');
-
-  // Labour ₹/kg and the payroll are wages (the guard's "wages" setting): a role that may not see them has neither panel.
-  var wages = attSeesWages();
-  var labs = wages ? _dashLabMonths(insMonthsBack(6)) : null, lm = wages ? dashLabourByMonth(labs) : [], model = labourCfg().modelPerKg || 3.55;
-  if (wages) h += _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
-    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }) },
-    { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), tone: 2 },
-    { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
-  ], { unit: 'rate', ariaLabel: 'Labour per kg by month', emptyText: 'Needs two months with tonnage' }) +
-    '<div class="inv-note">Recorded is attendance priced by the wage model, shown where 90% of the month’s working days are recorded; paid is the salaries and cash the bank statement set against the month; model is Settings → Labour.</div>');
-
-  var ws = attWeekStartOf(localDateStr()), from = isoAddDays(ws, -21), ah = areaHoursForRange(from, localDateStr());
-  h += _dashPanel('dashAreaHours', 'OT and EXTRA by area, four weeks', chartStack(ah.rows.map(function(r) { return r.label; }), [
-    { label: 'OT', values: ah.rows.map(function(r) { return Math.round(r.ot * 10) / 10; }) },
-    { label: 'EXTRA', values: ah.rows.map(function(r) { return Math.round(r.extra * 10) / 10; }) }
-  ], { unit: 'h', ariaLabel: 'OT and EXTRA hours by area', emptyText: 'No OT or EXTRA booked in the last four weeks' }) +
-    '<div class="inv-note">From ' + escHtml(formatDate(from)) + ': overtime hours on each mark where the worker stood that day, and the EXTRA booked to the area.</div>');
-
-  var pb = wages ? dashPayrollVsBank(labs) : null;
-  if (wages) h += _dashPanel('dashPayBank', 'Payroll against the bank', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
-    { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
-    { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) }
-  ], { mode: 'group', ariaLabel: 'Payroll against the bank', emptyText: 'No monthly payroll in six months' }) +
-    '<div class="inv-note">Payroll is the slip as paid where one is imported, else the wage model’s monthly tier (' +
-    escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ') || 'none') +
-    '). Paid is the transfers to named hands the bank set against the month; a month the statement does not reach shows none.</div>');
-
-  var raised = todoApp(DASH_STAFF_RULES).filter(function(t) { return t.rule !== 'costGap' || t.key === 'costGap:labour'; });
-  h += '<div class="inv-panel inv-panel-flush" id="dashStaffRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
-    (raised.length ? raised.map(_dashTaskRow).join('') : '<div class="inv-empty">Nothing raised about labour or pay.</div>') + '</div>';
-  return '<div class="inv-panels">' + h + '</div>';
+    '<div class="inv-note">A week nobody typed is a gap, not a zero.</div>');
 }
-function _dashTaskRow(t) {
-  return '<div class="inv-row inv-row-2"><button class="inv-row-main" data-action="invDashTask" data-key="' + escHtml(t.key) + '"><span class="inv-row-title">' +
-    '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + escHtml(t.title) + '</span></span><span class="inv-row-meta">' + escHtml(t.sub || '') + '</span></button></div>';
+/* Labour ₹/kg by month and the payroll against the bank: the head of People → Pay. Wages (the guard's "wages" setting): a role
+   that may not see them has neither. What the bank paid is money besides (finSeen): a role with wages and no money sees the
+   records without the statement's series (it saw them on Staff's Overview, by finHasBank alone). */
+/* Pay's two charts, at its head and shut on both layouts (TM4b): open on the desktop they put what is due a screen down. */
+function payLabourPanelsHtml() {
+  if (!attSeesWages()) return '';
+  var bank = finSeen(), labs = _dashLabMonths(insMonthsBack(6)), lm = dashLabourByMonth(labs), model = labourCfg().modelPerKg || 3.55;
+  var h = uiFoldCard('pay-labour-kg', _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
+    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }) },
+    bank ? { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), tone: 2 } : null,
+    { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
+  ].filter(Boolean), { unit: 'rate', ariaLabel: 'Labour per kg by month', emptyText: 'Needs two months with tonnage' }) +
+    '<div class="inv-note">Recorded where 90% of a month is typed; the model is Settings → Labour.</div>'), false);
+  var pb = dashPayrollVsBank(labs);
+  h += uiFoldCard('pay-payroll', _dashPanel('dashPayBank', bank ? 'Payroll against the bank' : 'Monthly payroll', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
+    { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
+    bank ? { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) } : null
+  ].filter(Boolean), { mode: 'group', ariaLabel: bank ? 'Payroll against the bank' : 'Monthly payroll', emptyText: 'No monthly payroll in six months' }) +
+    '<div class="inv-note">The slip as paid where one is imported, else the wage model' +
+    (pb.some(function(x) { return x.src === 'model'; }) ? ' (' + escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ')) + ')' : '') + '.</div>'), false);
+  return h;
 }
 
 /* ---------- 7b. Stock ---------- */
@@ -135,17 +123,6 @@ var _dashPriceItem = null;    // the line on the price chart
 var _dashZincRange = '6M';     // the zinc chart's range
 var _dashZincSupplier = null;  // the zinc supplier whose bills are listed
 
-function dashStockDays() {
-  var rows = [], none = [];
-  stockData().items.filter(function(i) { return i.active !== false && i.basis !== 'charge'; }).forEach(function(it) {
-    var st = stockStatus(it);
-    if (st.group === 'out') rows.push({ it: it, days: 0, tone: 'red', out: true });
-    else if (st.daysLeft != null) rows.push({ it: it, days: st.daysLeft, tone: st.tone, tentative: !!(st.rate && st.rate.tentative) });
-    else none.push(it.name);
-  });
-  rows.sort(function(a, b) { return a.days - b.days; });
-  return { rows: rows, none: none };
-}
 function dashSupplierSpend(months) {
   var from = insMonthsBack(months)[0] + '-01', by = {};
   stockData().items.forEach(function(it) {
@@ -182,61 +159,45 @@ function dashUsedByWeek(n) {
   return { weeks: weeks, total: total, top: lines.slice(0, 4), unpriced: Object.keys(unpriced) };
 }
 
-function stockOverviewHtml() {
-  var h = stockCheckCalloutHtml();
-  var dd = dashStockDays();
-  h += _dashPanel('dashStockDays', 'Days left', chartRankedBars(dd.rows.map(function(r) {
-    return { label: r.it.name, value: r.out ? 0 : Math.round(r.days * 10) / 10, display: r.out ? 'Out' : stockDaysText(r.days, r.tentative),
-      tone: r.tone === 'red' ? 'danger' : r.tone === 'amber' ? 'warning' : 'good', action: 'invDashStockLine', clientId: r.it.id };
-  }), { unit: 'count', emptyText: 'No line has a daily use yet' }) +
-    (dd.none.length ? '<div class="inv-note">No daily use yet: ' + escHtml(dd.none.join(', ')) + '.</div>' : '') +
-    '<div class="inv-note">Red at ' + stockCfg().redDays + ' days or fewer, amber at ' + stockCfg().amberDays + ' (Settings → Checks & alerts → Stock alerts). A bath line is not listed: its shelf runs empty by design.</div>');
-
+/* A section of Spend and prices: its head a row-group (it sits in one fold on the phone, in the pane on the desktop, so a panel
+   in a panel would draw a box in a box), its chart, then its rows. */
+function _dashSection(id, title, body, head, rows) {
+  return '<div id="' + id + '" data-dash-section><div class="inv-row-group"><span>' + title + '</span>' + (head || '') + '</div>' +
+    '<div class="inv-panel-body">' + body + '</div>' + (rows || '') + '</div>';
+}
+/* Stock → Spend and prices (the tab map, TM4d; it was the Overview's): spend by supplier (tap a slice for its bills and what the
+   bank paid), what was used by week in rupees, and one line's price trend (zinc against the market). Days left are the list's own
+   groups; the reorder's cash is the list's card. */
+function stockSpendHtml() {
   var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
   var body = chartPieTap(sp.list.map(function(x) { return { key: x.name, label: x.name, value: x.amount }; }),
     { action: 'invDashSupplier', selected: _dashSupplier, ariaLabel: 'Spend by supplier', emptyText: 'No priced bill in six months', readHint: 'Tap a supplier to list its bills' });
   var rows = '';
   if (sel) {
     var bp = sel.named ? finSupplierPaid(sel.name) : null;
-    // Newest first across every line the supplier sold, not line by line.
+    // Newest first across every line the supplier sold, not line by line; two facts a line (§3b-11), the bill's number in its title
+    // (it is what the paper says, so a bill can be found again).
     var bills = sel.bills.slice().sort(function(a, b) { return a.b.date < b.b.date ? 1 : a.b.date > b.b.date ? -1 : 0; });
     rows = '<div data-dash-supplier="' + escHtml(sel.name) + '">' + bills.map(function(x) {
-      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
-        ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + (x.b.e.billNo ? ' · ' + escHtml(x.b.e.billNo) : '') + '</span></span>' +
+      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.it.name + (x.b.e.billNo ? ', bill ' + x.b.e.billNo : '')) + '</span><span class="inv-row-meta">' + escHtml(formatDate(x.b.date)) +
+        ' · ' + escHtml(stockFmtQty(x.b.e.qty)) + ' ' + escHtml(x.it.unit || '') + ' × ' + escHtml(formatCurrency(x.b.e.price)) + '</span></span>' +
         '<span class="inv-row-end inv-num">' + formatCurrency(gstRound((x.b.e.price || 0) * (x.b.e.qty || 0))) + '</span></div>';
     }).join('') + (bp ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">The bank paid them ' + escHtml(formatCurrency(bp.paid)) + ' in ' + bp.n + ' payment' + (bp.n === 1 ? '' : 's') + '</span></div>' : '') + '</div>';
   }
-  h += _dashPanel('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>', '', rows);
-
+  var h = _dashSection('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>', '', rows);
   var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(isoAddDays(w, 6)); });
-  h += _dashPanel('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
+  h += _dashSection('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
     return { label: l.name, values: l.v, tone: i + 2 };
   })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded' }) +
-    '<div class="inv-note">Each use at the price paid for that line on the day.' + (u.unpriced.length ? ' Not counted, no price: ' + escHtml(u.unpriced.join(', ')) + '.' : '') + '</div>');
-
-  h += dashPricePanelHtml();
-
-  // The forecast is the bank's, money: a role without the finance permission sees the order's cost alone, and no tile
-  // asking for a statement (finlinks.js finSeen; the QA audit, QA4-4).
-  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
-  var L = stockReorderList(), fc = finSeen() ? finForecast(45) : null;
-  var need = gstRound(L.total * 1.18);
-  h += '<div class="inv-panel inv-panel-flush" id="dashReorder"><div class="inv-panel-head"><span class="inv-panel-title">Reorder cash</span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invStockReorder">Open the reorder list</button></div><div class="inv-tiles inv-tiles-flush">' +
-    '<div class="inv-tile"><div class="inv-tile-label">Order, with GST</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(need))) + '</div><div class="inv-tile-sub">' +
-      (L.unpriced ? L.unpriced + ' line' + (L.unpriced === 1 ? '' : 's') + ' without a price' : 'at the last prices') + '</div></div>' +
-    (!money ? '' : fc ? '<div class="inv-tile"><div class="inv-tile-label">Forecast lowest</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(fc.min.bal))) + '</div><div class="inv-tile-sub">on ' + escHtml(stockShortDate(fc.min.date)) + '</div></div>' +
-      '<div class="inv-tile' + (fc.min.bal - need < 0 ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">After the order</div><div class="inv-tile-value inv-tile-value-sm">' + figWrapHtml(escHtml(formatCurrency(gstRound(fc.min.bal - need)))) + '</div><div class="inv-tile-sub">at the lowest point</div></div>'
-      : '<div class="inv-tile"><div class="inv-tile-label">Forecast</div><div class="inv-tile-value inv-tile-value-sm">&mdash;</div><div class="inv-tile-sub">import a bank statement</div></div>') +
-    '</div></div>';
-  return '<div class="inv-panels">' + h + '</div>';
+    (u.unpriced.length ? '<div class="inv-note">' + escHtml('Not counted, no price: ' + u.unpriced.join(', ') + '.') + '</div>' : ''));
+  return h + dashPricePanelHtml();
 }
 /* The price trend panel, drawn whole so a change of line redraws it alone. Zinc gets the market beside its bills. */
 function dashPricePanelHtml() {
   var priced = stockData().items.filter(function(i) { return i.active !== false && stockPurchases(i.id).length; });
   if (!priced.some(function(i) { return i.id === _dashPriceItem; })) _dashPriceItem = priced.length ? priced[0].id : null;
   var it = stockItem(_dashPriceItem), zinc = !!(it && it.key === 'ZINC'), z = zinc ? dashZincHtml() : null;
-  return _dashPanel('dashPrice', zinc ? 'Price trend: market against bills' : 'Price trend',
+  return _dashSection('dashPrice', zinc ? 'Price trend: market against bills' : 'Price trend',
     priced.length ? '<div id="dashPriceChart">' + (zinc ? z.body : dashPriceChart()) + '</div>' : '<div class="inv-empty">No bill with a price yet.</div>',
     priced.length ? '<select class="inv-select inv-select-sm" id="dashPriceLine" aria-label="Line">' +
       priced.map(function(i) { return '<option value="' + escHtml(i.id) + '"' + (i.id === _dashPriceItem ? ' selected' : '') + '>' + escHtml(i.name) + '</option>'; }).join('') + '</select>' : '',
@@ -322,15 +283,17 @@ function dashZincHtml() {
     var tone = s.over == null ? null : lo != null && lo !== hi && s.over === lo ? ['ok', 'Lowest'] : hi != null && lo !== hi && s.over === hi ? ['warning', 'Highest'] : s.over > 0 ? ['info', 'Over market'] : ['ok', 'At or under'];
     var open = _dashZincSupplier === s.name;
     var h = '<div class="inv-row inv-row-2" data-zinc-supplier="' + escHtml(s.name) + '"><button type="button" class="inv-row-main" data-action="invDashZincSupplier" data-key="' + escHtml(s.name) + '" aria-pressed="' + open + '">' +
-      '<span class="inv-row-title">' + escHtml(s.name) + '</span><span class="inv-row-meta">' + s.n + ' bill' + (s.n === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.kg)) + ' ' + escHtml(unit) +
-      (s.avg != null ? ' · avg ' + escHtml(formatCurrency(s.avg)) : '') + (s.low + s.mid + s.high ? ' · timing low ' + s.low + ' · mid ' + s.mid + ' · high ' + s.high : '') + '</span></button>' +
+      // Two facts (TM4f): the average paid and the timing are each bill's, under the supplier when opened; the row's end is how far
+      // over the market it bought.
+      '<span class="inv-row-title">' + escHtml(s.name) + '</span><span class="inv-row-meta"' + (s.avg != null ? ' title="' + escHtml('average ' + formatCurrency(s.avg)) + '"' : '') + '>' +
+      s.n + ' bill' + (s.n === 1 ? '' : 's') + ' · ' + escHtml(stockFmtQty(s.kg)) + ' ' + escHtml(unit) + '</span></button>' +
       '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + (s.over != null ? escHtml(_dashZincOver(s.over)) : '&mdash;') + '</span>' +
       (tone ? '<span class="inv-dot inv-dot-' + tone[0] + '">' + tone[1] + '</span>' : '<span class="inv-dot inv-dot-info">No market</span>') + '</span></span></div>';
     if (open) h += T.bills.filter(function(b) { return (b.supplier || 'Supplier not named') === s.name; }).slice().reverse().map(function(b) {
       return '<div class="inv-row inv-row-2" data-zinc-bill><span class="inv-row-main"><span class="inv-row-title">' + escHtml(formatDate(b.date)) + (b.billNo ? ' · ' + escHtml(b.billNo) : '') + '</span>' +
         '<span class="inv-row-meta">' + escHtml(stockFmtQty(b.qty)) + ' ' + escHtml(unit) + ' × ' + escHtml(formatCurrency(b.price)) +
-        (b.market != null ? ' · market ' + escHtml(formatCurrency(b.market)) : ' · no LME for this day') +
-        (b.timing ? ' · ' + { low: 'near its 30-day low', mid: 'mid-range for 30 days', high: 'near its 30-day high' }[b.timing.band] : '') + '</span></span>' +
+        (b.market != null ? ' · market ' + escHtml(formatCurrency(b.market)) + (b.timing ? ', ' + { low: 'near its 30-day low', mid: 'mid-range', high: 'near its 30-day high' }[b.timing.band] : '')
+          : ' · no LME for this day') + '</span></span>' +
         '<span class="inv-row-end inv-num">' + (b.over != null ? escHtml(_dashZincOver(b.over)) : '&mdash;') + '</span></div>';
     }).join('');
     return h;
@@ -341,24 +304,9 @@ function _dashZincRedraw() {
   var el = document.getElementById('dashPrice');
   if (el) el.outerHTML = dashPricePanelHtml();
 }
-function stockViewTabsHtml() {
-  // A line open in the desktop pane belongs to Lines.
-  var cur = _stockView === 'overview' ? 'overview' : 'list';
-  var t = function(k, l) { return '<button class="inv-viewtab" role="tab" aria-selected="' + (cur === k) + '" data-action="invDashStockView" data-view="' + k + '">' + l + '</button>'; };
-  return '<div class="inv-viewtabs" role="tablist">' + t('overview', 'Overview') + t('list', 'Lines') + '</div>';
-}
-
 /* ---------- Doing ---------- */
 function dashAction(action, btn) {
   switch (action) {
-    case 'invDashTask': {
-      var t = todoAppAll(DASH_STAFF_RULES).find(function(x) { return x.key === btn.dataset.key; });
-      if (t) todoGo(t.go);
-      return true;
-    }
-    case 'invDashOpenDay': if (btn.dataset.date) _attDate = btn.dataset.date; _attView = 'day'; renderAttendance(); return true;
-    case 'invDashStockView': stockSetView(btn.dataset.view); return true;
-    case 'invDashStockLine': _stockItemId = btn.dataset.clientId; stockSetView('item'); return true;
     case 'invDashSupplier': _dashSupplier = _dashSupplier === btn.dataset.key ? null : btn.dataset.key; renderStock(); return true;
     case 'invDashZincRange': _dashZincRange = btn.dataset.range; _dashZincRedraw(); return true;
     case 'invDashZincSupplier': _dashZincSupplier = _dashZincSupplier === btn.dataset.key ? null : btn.dataset.key; _dashZincRedraw(); return true;

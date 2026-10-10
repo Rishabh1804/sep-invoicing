@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, openAttendance } from './fixtures';
 
 /**
  * The extra, reconciled against the staffing norms.
@@ -90,7 +90,7 @@ test('reproduces the recorded shortfall decode: three areas short one hand each'
   await expect(card).toContainText('24.0 h');
   await expect(card).toContainText('exactly as predicted');
   await expect(card).toContainText('₹1,140.00');
-  await expect(card).toContainText('passes');
+  await expect(card.locator('[data-area-passed]')).toContainText('Every booking answers a shortfall');
 });
 
 test('the same day attributes the coverage pro-rata to the crews who carried it', async ({ page }) => {
@@ -132,8 +132,9 @@ test('more booked than the shortfall explains is called out as a surplus', async
   await openAreas(page);
   const card = extraCard(page);
   await expect(card).toContainText('12.0 h more than the shortfall explains');
-  await expect(card).toContainText('More was booked than the shortfall explains');
-  await expect(card).toContainText('Booked, but not the predicted amount');
+  // One booking to explain, under To explain (TM4b), its words the card's working above.
+  await expect(card.locator('[data-flag="warning"]')).toHaveCount(1);
+  await expect(card.locator('[data-flag="warning"]')).toContainText('Differs');
 });
 
 test('booking against an area at full complement is flagged on its own', async ({ page }) => {
@@ -144,8 +145,8 @@ test('booking against an area at full complement is flagged on its own', async (
   }, { barrel: 3 }));
   await openAreas(page);
   const card = extraCard(page);
-  await expect(card).toContainText('Booked at or above complement');
-  await expect(card).toContainText('the rule predicts nothing here');
+  // At complement, the rule predicts nothing: a booking there is one to explain (TM4b), the danger kind.
+  await expect(card.locator('[data-flag="danger"]')).toContainText('At complement');
   await expect(card.locator('[data-flag]').first()).toContainText('8.0 h on 3/3');
 });
 
@@ -161,7 +162,7 @@ test('less booked than allowed is not called an error — it may be a light day'
   await expect(card).toContainText('upper bound');
   await expect(card).toContainText('Short, nothing booked');
   // The wording must not accuse: the rule only binds an area at full tilt.
-  await expect(card).not.toContainText('More was booked');
+  await expect(card).not.toContainText('more than the shortfall explains');
 });
 
 test('with no complement anywhere the extra is counted but explicitly not checked', async ({ page }) => {
@@ -172,8 +173,8 @@ test('with no complement anywhere the extra is counted but explicitly not checke
   }, {}));
   await openAreas(page);
   const card = extraCard(page);
-  await expect(card).toContainText('cannot be checked');
-  await expect(card).toContainText('only counted');
+  await expect(card).toContainText('Not checked');
+  await expect(page.locator('#areaVerdict')).toContainText('only counted');
   await expect(card).not.toContainText('exactly as predicted');
 });
 
@@ -191,9 +192,9 @@ test('a line nobody stood on is idle, not short of its whole complement', async 
   const card = extraCard(page);
   await expect(card).toContainText('0.0 h');
   await expect(card).not.toContainText('88');
-  // The exclusion is reported rather than silent.
-  await expect(card).toContainText('idle and not counted');
-  await expect(card).toContainText('3 unit-days');
+  // The exclusion is reported rather than silent: in the card's sentence when nothing is booked (TM4b), as its own row when
+  // there is working to show.
+  await expect(card).toContainText('3 unit-days idle and not counted');
 });
 
 test('the roster import carries the complements, so the check arrives switched on', async ({ page }) => {
@@ -203,7 +204,7 @@ test('the roster import carries the complements, so the check arrives switched o
     [d1]: { marks: marksFor(staff), extra: [{ area: 'barrel', hours: 8 }], note: '' },
   }, {}));
   await openAreas(page);
-  await expect(extraCard(page)).toContainText('cannot be checked');
+  await expect(extraCard(page)).toContainText('Not checked');
 
   const res = await page.evaluate(() => (window as unknown as {
     applyRosterImport: (d: unknown) => { targets: number };
@@ -215,7 +216,7 @@ test('the roster import carries the complements, so the check arrives switched o
   // is dropped rather than creating a phantom area.
   expect(res.targets).toBe(2);
 
-  await page.locator('[data-action="invAttView"][data-view="day"]').click();
+  await openAttendance(page, 'day');
   await page.locator('[data-action="invAttView"][data-view="areas"]').click();
   await expect(extraCard(page)).toContainText('exactly as predicted');
   await expect(page.locator('[data-area-row]', { hasText: 'Pickling A1+A2' })).toContainText('3');
@@ -236,13 +237,13 @@ test('a unit with no heads but hours booked to it is fully short, not idle', asy
   // Pickling A1+A2 short its whole norm of three, covered by 8 x 3; the barrel
   // block at its complement of five contributes nothing either way.
   await expect(card).toContainText('exactly as predicted');
-  await expect(card).not.toContainText('More was booked');
+  await expect(card).not.toContainText('more than the shortfall explains');
   // The day nobody was marked on is REPORTED — the marks were never typed, and
   // that is worth knowing — but it is not one of the three disagreements, so it
   // does not hold the check open. Before this it did, and the canonical case
   // could therefore never pass its own cross-check.
   await expect(card).toContainText('Read as fully short');
-  await expect(card).toContainText('fully short and fully covered');
+  await expect(card).toContainText('nobody was marked on');
   await expect(card).not.toContainText('flags on the');
 });
 
@@ -259,7 +260,7 @@ test('barrel and barrel pickling reconcile as one unit of five', async ({ page }
   await openAreas(page);
   const card = extraCard(page);
   await expect(card).toContainText('exactly as predicted');
-  await expect(card).not.toContainText('More was booked');
+  await expect(card).not.toContainText('more than the shortfall explains');
 });
 
 test('a block never moves the general-shift gap, whatever else it does', async ({ page }) => {
@@ -277,8 +278,8 @@ test('a block never moves the general-shift gap, whatever else it does', async (
   await openAreas(page);
   const card = extraCard(page);
   await expect(card).toContainText('Not checkable');
-  await expect(card).not.toContainText('Booked at or above complement');
-  await expect(card).not.toContainText('More was booked');
+  await expect(card.locator('[data-flag="danger"]')).toHaveCount(0);
+  await expect(card).not.toContainText('more than the shortfall explains');
 });
 
 test('the recorded counter-cases surface as a quantity mismatch, not as silence', async ({ page }) => {
@@ -292,7 +293,7 @@ test('the recorded counter-cases surface as a quantity mismatch, not as silence'
   }, { 'vat-a1': 4 }));
   await openAreas(page);
   const card = extraCard(page);
-  await expect(card).toContainText('Booked, but not the predicted amount');
+  await expect(card.locator('[data-flag="warning"]').first()).toContainText('Differs');
   await expect(card.locator('[data-flag="warning"]').first()).toContainText('8.0 h against 16.0 h');
 });
 
@@ -310,7 +311,7 @@ test('a share past a shift is flagged as pay to check, not settled', async ({ pa
   await page.locator('[data-fold="areaAbsorb"] > summary').click();   // folded on Areas (P119)
   const card = page.locator('[data-card="absorb"]');
   await expect(card.locator('[data-implausible]').first()).toBeVisible();
-  await expect(card).toContainText('does not repeal arithmetic');
+  await expect(page.locator('[data-area-implausible]')).toContainText('Check the marked rows against the record');
 });
 
 test('hours typed on the side the heads are not is not an unmanned booking', async ({ page }) => {
@@ -327,7 +328,7 @@ test('hours typed on the side the heads are not is not an unmanned booking', asy
   await openAreas(page);
   const card = extraCard(page);
   await expect(card).not.toContainText('Read as fully short');
-  await expect(card).toContainText('Booked at or above complement');
+  await expect(card.locator('[data-flag="danger"]')).toContainText('At complement');
 });
 
 test('a block is absorbed by its own crew, never by the area’s day crew', async ({ page }) => {

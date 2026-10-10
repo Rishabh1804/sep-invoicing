@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, openAttendance } from './fixtures';
 
 /*
  * OT blocks.
@@ -76,6 +76,21 @@ function extraCard(page: Page) {
 function blocks(page: Page) {
   return page.locator('#areaBlocks');
 }
+/* Since the tab map (TM4b) a block's own check is two things: its fold under OT blocks (#areaBlocks above: the hours booked, and
+   "matches its shortfall" or what was predicted), and, where the booking is not the predicted amount, a row under To explain
+   (Explained once a reason is recorded), marked as a block's (data-flag-of), never the general shift's. */
+function blockFlag(page: Page, tone: 'warning' | 'ack') {
+  return page.locator(`[data-card="extra"] [data-flag="${tone}"][data-flag-of="block"]`);
+}
+/* Every block reconciles: each fold matches its shortfall, and none is left to explain. */
+async function blocksReconcile(page: Page) {
+  await expect(blocks(page)).not.toContainText('predicted ');
+  await expect(blockFlag(page, 'warning')).toHaveCount(0);
+}
+/* What the check could not judge is the card's working, folded (TM4b): its own row. */
+function working(page: Page) {
+  return page.locator('[data-card="extra"] [data-area-working]');
+}
 
 /* ===== THE RECORDED TAGS ===== */
 
@@ -94,10 +109,10 @@ test('reproduces the 6 AM tag on the credited length, not the clock', async ({ p
   }]));
   await openAreas(page);
   await expect(blocks(page)).toContainText('3.0 h');
-  await expect(blocks(page)).toContainText('exactly');
+  await expect(blocks(page)).toContainText('matches its shortfall');
   // The assertion that would have caught this spec passing for the wrong
   // reason. Without it, `exactly` is satisfied by the 0-vs-0 coverage panel.
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 test('reproduces the tag the codex called internally inconsistent', async ({ page }) => {
@@ -116,8 +131,8 @@ test('reproduces the tag the codex called internally inconsistent', async ({ pag
   ]));
   await openAreas(page);
   await expect(blocks(page)).toContainText('42.0 h');   // both rows, both exact
-  await expect(blocks(page)).toContainText('exactly');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('matches its shortfall');
+  await blocksReconcile(page);
 });
 
 test('one tag spanning both VAT lines takes all three pickling hands', async ({ page }) => {
@@ -132,8 +147,8 @@ test('one tag spanning both VAT lines takes all three pickling hands', async ({ 
   }]));
   await openAreas(page);
   await expect(blocks(page)).toContainText('28.0 h');
-  await expect(blocks(page)).toContainText('exactly');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('matches its shortfall');
+  await blocksReconcile(page);
 });
 
 test('when pickling carries its own row nothing folds into the VAT rows', async ({ page }) => {
@@ -153,8 +168,8 @@ test('when pickling carries its own row nothing folds into the VAT rows', async 
   ]));
   await openAreas(page);
   await expect(blocks(page)).toContainText('35.0 h');
-  await expect(blocks(page)).toContainText('exactly');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('matches its shortfall');
+  await blocksReconcile(page);
 });
 
 test('two VAT rows in one block still take three pickling hands, never four', async ({ page }) => {
@@ -174,7 +189,7 @@ test('two VAT rows in one block still take three pickling hands, never four', as
   // total as W32 (143) writes on ONE row. Per-row folding would give 12,
   // short 5, and predict 35.
   await expect(blocks(page)).toContainText('28.0 h');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 test('the prediction does not depend on how the relay split the sheet', async ({ page }) => {
@@ -191,8 +206,8 @@ test('the prediction does not depend on how the relay split the sheet', async ({
   }]));
   await openAreas(page);
   await expect(blocks(page)).toContainText('28.0 h');
-  await expect(blocks(page)).toContainText('exactly');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('matches its shortfall');
+  await blocksReconcile(page);
 });
 
 /* ===== THE MULTIPLIER IS THE WHOLE DIFFERENCE ===== */
@@ -217,7 +232,7 @@ test('the same shortfall books eight on a shift and the block’s own hours on a
   await expect(extraCard(page)).toContainText('8.0');
   // The block side, reported apart rather than summed into it.
   await expect(blocks(page)).toContainText('3.0 h');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 test('a block past midnight is measured forwards, not backwards', async ({ page }) => {
@@ -231,8 +246,8 @@ test('a block past midnight is measured forwards, not backwards', async ({ page 
   await openAreas(page);
   // 2026-W32.md:121 — four hands, norm 6, short 2, 2 x 7 = 14.
   await expect(blocks(page)).toContainText('14.0 h');
-  await expect(blocks(page)).toContainText('exactly');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await expect(blocks(page)).toContainText('matches its shortfall');
+  await blocksReconcile(page);
 });
 
 test('a co-tagged `VAT A1 & pickling` row folds, as the sheet writes it', async ({ page }) => {
@@ -248,7 +263,7 @@ test('a co-tagged `VAT A1 & pickling` row folds, as the sheet writes it', async 
   }]));
   await openAreas(page);
   await expect(blocks(page)).toContainText('21.0 h');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 test('a standalone pickling row still turns the fold off for the whole block', async ({ page }) => {
@@ -265,7 +280,7 @@ test('a standalone pickling row still turns the fold off for the whole block', a
   await openAreas(page);
   // A1 on a bare 4: short 1, 1 x 7 = 7. Pickling short 3: 21. Total 28.
   await expect(blocks(page)).toContainText('28.0 h');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 test('an untagged sibling row still tells the fold pickling was manned', async ({ page }) => {
@@ -284,7 +299,7 @@ test('an untagged sibling row still tells the fold pickling was manned', async (
   await openAreas(page);
   // A2 on a bare 4, three stood, short 1, x 3 credited = 3. Exactly the tag.
   await expect(blocks(page)).toContainText('3.0 h');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 test('an unset pickling complement folds nothing rather than phantom hands', async ({ page }) => {
@@ -304,7 +319,7 @@ test('an unset pickling complement folds nothing rather than phantom hands', asy
   await openAreas(page);
   // Norm 4, not 6: short 1, 1 x 7 = 7.
   await expect(blocks(page)).toContainText('7.0 h');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await blocksReconcile(page);
 });
 
 /* ===== WHAT IT REFUSES TO GUESS ===== */
@@ -319,8 +334,8 @@ test('a block missing its times is reported, never reconciled at a guess', async
     crew: hands.map((w) => w.id),
   }]));
   await openAreas(page);
-  await expect(blocks(page)).toContainText('Not checkable');
-  await expect(blocks(page)).toContainText('21.0 h');
+  await expect(working(page)).toContainText('Not checkable');
+  await expect(working(page)).toContainText('21.0 h');
   // Counted in the bill regardless — it is unverifiable, not unpaid. That
   // line lives on the card, not in the block section.
   await expect(extraCard(page)).toContainText('Extra at the contract tier');
@@ -336,7 +351,7 @@ test('a block missing its crew is reported rather than read off the marks', asyn
     from: '17:00', to: '00:00',
   }], Object.fromEntries(hands.map((w) => [w.id, { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }]))));
   await openAreas(page);
-  await expect(blocks(page)).toContainText('Not checkable');
+  await expect(working(page)).toContainText('Not checkable');
 });
 
 test('a block whose booking the shortfall does not explain is flagged with its date', async ({ page }) => {
@@ -346,8 +361,8 @@ test('a block whose booking the shortfall does not explain is flagged with its d
     from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
   }]));
   await openAreas(page);
-  await expect(blocks(page)).toContainText('not the predicted amount');
-  await expect(blocks(page)).toContainText('30.0 h against 14.0 h');
+  await expect(blockFlag(page, 'warning')).toHaveCount(1);
+  await expect(blockFlag(page, 'warning')).toContainText('30.0 h against 14.0 h');
 });
 
 /* ===== THE EXCEPTION LEDGER =====
@@ -374,15 +389,16 @@ function mismatchedState() {
 test('an examined disagreement becomes a record with its reason on it', async ({ page }) => {
   await loadAppWithState(page, mismatchedState());
   await openAreas(page);
-  await expect(blocks(page)).toContainText('not the predicted amount');
+  await expect(blockFlag(page, 'warning')).toHaveCount(1);
 
   await explain(page, 'no fold value reconciles both rows of this block');
   await expect(page.locator('.inv-toast')).toContainText('Exception recorded');
 
   // It moves from accusation to precedent, and carries the reason in place.
-  await expect(blocks(page)).toContainText('Explained exceptions');
-  await expect(blocks(page)).toContainText('no fold value reconciles both rows');
-  await expect(blocks(page)).not.toContainText('not the predicted amount');
+  await expect(blockFlag(page, 'ack')).toHaveCount(1);
+  await expect(blockFlag(page, 'ack')).toContainText('no fold value reconciles both rows');
+  // The accusation is gone; the block's own fold still states what was predicted against what was booked.
+  await expect(blockFlag(page, 'warning')).toHaveCount(0);
 
   const ex = await page.evaluate(async () =>
     JSON.parse((await (window as any).readPersistedStateRaw())!).extraExceptions);
@@ -415,7 +431,7 @@ test('an explanation that no longer matches the figures does not silence them', 
   await loadAppWithState(page, mismatchedState());
   await openAreas(page);
   await explain(page, 'brought-in casual labour, different ledger line');
-  await expect(blocks(page)).toContainText('Explained exceptions');
+  await expect(blockFlag(page, 'ack')).toHaveCount(1);
 
   // The tag is retyped: 30 becomes 40. Same block, same day, different number.
   // Edited on the live state and re-rendered rather than through a reload —
@@ -432,9 +448,9 @@ test('an explanation that no longer matches the figures does not silence them', 
     w.renderAttendance();
   });
 
-  await expect(blocks(page)).toContainText('Explanation no longer matches');
-  await expect(blocks(page)).toContainText('not the predicted amount');
-  await expect(blocks(page)).not.toContainText('Explained exceptions');
+  await expect(blockFlag(page, 'warning')).toContainText('its explanation no longer matches');
+  await expect(blockFlag(page, 'warning')).toHaveCount(1);
+  await expect(blockFlag(page, 'ack')).toHaveCount(0);
 });
 
 test('a recorded exception can be reopened', async ({ page }) => {
@@ -443,7 +459,7 @@ test('a recorded exception can be reopened', async ({ page }) => {
   await explain(page, 'checked against the sheet — the tag is right');
   await page.locator('[data-action="invAreaUnexplain"]').first().click();
 
-  await expect(blocks(page)).toContainText('not the predicted amount');
+  await expect(blockFlag(page, 'warning')).toHaveCount(1);
   const ex = await page.evaluate(async () =>
     JSON.parse((await (window as any).readPersistedStateRaw())!).extraExceptions);
   // Reopened, the record is kept with its stamp, never deleted (P124): it no longer explains the block.
@@ -465,8 +481,9 @@ test('the card does not claim a pass while a block sits mismatched above it', as
     from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
   }]));
   await openAreas(page);
-  await expect(blocks(page)).toContainText('not the predicted amount');
-  await expect(extraCard(page)).not.toContainText('the whole cross-check');
+  await expect(blockFlag(page, 'warning')).toHaveCount(1);
+  // No pass is claimed while a block is left to explain.
+  await expect(extraCard(page).locator('[data-area-passed]')).toHaveCount(0);
 });
 
 test('the entry row shows the clock span and the credited length', async ({ page }) => {
@@ -478,7 +495,7 @@ test('the entry row shows the clock span and the credited length', async ({ page
     from: '06:00', to: '08:30', crew: hands.map((w) => w.id),
   }]));
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').click();
+  await openAttendance(page, 'day');
   const len = page.locator('[data-block-len]').first();
   await expect(len).toContainText('2.5');
   await expect(len).toContainText('3');
@@ -492,8 +509,10 @@ test('the entry row shows the block’s own check as it is typed', async ({ page
     from: '06:00', to: '08:30', crew: hands.map((w) => w.id),
   }]));
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').click();
+  await openAttendance(page, 'day');
 
+  // An EXTRA row is one line until opened (TM4b); the check is in its fold.
+  await page.locator('details[data-extra-row] > summary').first().click();
   const block = page.locator('[data-block]').first();
   await expect(block).toBeVisible();
   await expect(block.locator('[data-block-len]')).toContainText('2.5');
@@ -515,7 +534,7 @@ test('the entry preview agrees with the card about the pickling fold', async ({ 
       from: '17:00', to: '00:00', crew: [] },
   ]));
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').click();
+  await openAttendance(page, 'day');
   // 3 of 4, not 3 of 6 — pickling is carrying its own norm on the next row.
   await expect(page.locator('[data-block-check]').first()).toContainText('3 of 4');
 });
@@ -529,7 +548,8 @@ test('toggling an area off leaves the row booked somewhere real', async ({ page 
     from: '17:00', to: '00:00', crew: hands.map((w) => w.id),
   }]));
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').click();
+  await openAttendance(page, 'day');
+  await page.locator('details[data-extra-row] > summary').first().click();   // one line until opened (TM4b)
   await page.locator('[data-block-areas] .inv-chip[aria-pressed="true"]').first().click();
 
   const x = await page.evaluate(async (iso) => {

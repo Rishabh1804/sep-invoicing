@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, prodEntryAct } from './fixtures';
 
 // P190 (owner, 9 Oct 2026). The day's plating read "7,630 NOS + 150 kg · 0.68 t known, 14% of the pieces weighed": "not uniform
 // enough to draw a full picture of what happened. We have data to analyse and represent it in a better way." Then: "where it
@@ -66,6 +66,18 @@ function book(withPlant = false): SepState {
   return s as SepState;
 }
 
+/* The day's card is Floor → Overview's Production hero since the tab map (TM4a), for the day on Floor's stepper; it is shut to
+   its line on both layouts until opened. */
+async function dayCard(page: Page, day = D) {
+  await switchTab(page, 'pageFloor');
+  await page.locator('#flrDate').fill(day);
+  await page.locator('#flrDate').dispatchEvent('change');
+  const card = page.locator('#flrHeroes [data-card="flr-prod"]');
+  await expect(card).toHaveAttribute('data-prod-day', day);
+  if (!(await card.evaluate(el => (el as HTMLDetailsElement).open))) await card.locator(':scope > summary').click();
+  return card;
+}
+
 test.describe('P190: a day’s plating, whole', () => {
   test('every run is weighed by the surest route the book holds, and says which', async ({ page }) => {
     await loadAppWithState(page, book());
@@ -83,9 +95,7 @@ test.describe('P190: a day’s plating, whole', () => {
 
   test('the day is one card in one unit: the least it can be, the estimates said, the lines on the clock, the clients, the worth', async ({ page }) => {
     await loadAppWithState(page, book());
-    await switchTab(page, 'pageProduction');
-    const card = page.locator('[data-prod-day]');
-    await expect(card).toHaveAttribute('data-prod-day', D);
+    const card = await dayCard(page);
     // 75 written + 50 on record + 540 from the challans + 230 by kind; WIDGET's 200 pieces left out, so at least.
     await expect(card.locator('.inv-hero-fig')).toHaveText('≥ 895 kg');
     // How sure, in short facts (§6.27): the share estimated and the pieces nothing weighs.
@@ -104,7 +114,9 @@ test.describe('P190: a day’s plating, whole', () => {
     await expect(card.locator('[data-prod-weigh="challans"] .inv-row-end')).toHaveText('≈ 540 kg');
     await expect(card.locator('[data-prod-weigh="kind"] .inv-row-end')).toHaveText('≈ 230 kg');
     await expect(card.locator('[data-prod-weigh="kind"]')).toContainText('the day 885 kg');
-    await expect(card.locator('[data-prod-weigh="none"]')).toContainText('WIDGET');
+    // On Floor the pieces nothing weighs are their own list under the line cards, not the card's as well.
+    await expect(card.locator('[data-prod-weigh="none"]')).toHaveCount(0);
+    await expect(page.locator('#flrUnweighed [data-prod-weigh="none"]')).toContainText('WIDGET');
     // The clients, by weight.
     await expect(card.locator('[data-prod-day-client]').first()).toContainText('ORION CLAMPS');
     // What the work is worth at the rates on record (₹12 and ₹10 a kg, ORION's ₹5 a kg over the clamps' weight), and the labour.
@@ -113,7 +125,7 @@ test.describe('P190: a day’s plating, whole', () => {
     await expect(card.locator('[data-prod-day-labour] .inv-row-end')).toHaveText('₹800.00');
     await expect(card.locator('[data-prod-day-labour] .inv-row-meta')).toHaveText('13% of the work’s worth');
     // A role that does not see money or wages sees neither.
-    await g(page, `window.grdSeesMoney = function() { return false; }; window.grdSeesWages = function() { return false; }; renderProduction();`);
+    await g(page, `window.grdSeesMoney = function() { return false; }; window.grdSeesWages = function() { return false; }; renderFloor();`);
     await expect(card.locator('[data-prod-day-worth]')).toHaveCount(0);
     await expect(card.locator('[data-prod-day-labour]')).toHaveCount(0);
   });
@@ -123,7 +135,7 @@ test.describe('P190: a day’s plating, whole', () => {
     await switchTab(page, 'pageFloor');
     await page.locator('#flrDate').fill(D);
     await page.locator('#flrDate').dispatchEvent('change');
-    await expect(page.locator('#flrTiles [data-flr-tile="plated"] .inv-tile-value')).toHaveText('≥ 895 kg');
+    await expect(page.locator('#flrHeroes [data-card="flr-prod"] .inv-hero-fig')).toHaveText('≥ 895 kg');
     await expect(page.locator('#flrLines [data-line="vat-a1"] [data-flr-plated]')).toHaveText('≥ 265 kg');
     await expect(page.locator('#flrLines [data-line="vat-a1"] [data-flr-kg]')).toHaveText('1,300 NOS, 200 not weighed');
     await page.locator('#flrLines [data-line="vat-a2"] [data-action="invFlrLine"]').first().click();
@@ -147,16 +159,16 @@ test.describe('P190: a day’s plating, whole', () => {
     const tasks = await g(page, `todoApp().filter(function(t) { return t.rule === 'prodUnweighed'; }).map(function(t) { return [t.title, t.tone, t.go.flag]; })`);
     expect(tasks).toEqual([['ATLAS PRESS: 200 pieces plated with no weight', 'amber', 'unweighed']]);
     await un.locator('[data-action="invProdUnweighedAll"]').click();
-    await expect(page.locator('[data-action="invProdFilter"][data-flag="unweighed"]')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator('#prodEntriesVerdict [data-action="invProdFilter"][data-flag="unweighed"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('#prodEntries [data-prod-entry]')).toHaveCount(1);
     await expect(page.locator('#prodEntries [data-prod-entry="W"]')).toBeVisible();
     // Which part? reads the floor's name as the client's part: WIDGET is GADGET 7.
-    await page.locator('#prodEntries [data-prod-entry="W"] [data-action="invProdAlias"]').click();
+    await prodEntryAct(page, 'W', 'invProdAlias');
     await page.locator('#prodAliasPick').selectOption('GADGET 7');
     await page.locator('[data-action="invProdAliasSave"]').click();
     // GADGET 7 has no weight yet either: Set its weight puts one on the client's card, from the day it was plated.
     await expect(page.locator('#prodEntries [data-prod-entry="W"]')).toBeVisible();
-    await page.locator('#prodEntries [data-prod-entry="W"] [data-action="invProdWeighSet"]').click();
+    await prodEntryAct(page, 'W', 'invProdWeighSet');
     await expect(page.locator('#prodWeighPart')).toHaveValue('GADGET 7');
     await page.locator('#prodWeighKg').fill('0.25');
     await page.locator('[data-action="invProdWeighSave"]').click();

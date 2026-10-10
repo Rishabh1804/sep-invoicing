@@ -131,22 +131,23 @@ function srchScreens() {
     ['cn-list', 'Credit notes', 'Office › Invoices', 'credit note cn rebate', { kind: 'cnList' }],
     ['audit', 'Number audit', 'Office › Invoices', 'void voided gaps serial numbers missing', { kind: 'audit' }],
     ['floor', 'Overview', 'Floor', 'floor day lines heads crew overview', at('pageFloor')],
-    ['people', 'People', 'Floor · was Staff', 'staff attendance overview', at('pageStaff', 'overview')],
+    // People's Overview went (the tab map, TM4b): People opens on Attendance, its day; Week and Month are the switch's.
+    ['people', 'People', 'Floor · was Staff', 'staff attendance day', at('pageStaff', 'day')],
     ['att-day', 'Attendance', 'Floor › People', 'day marks present absent', at('pageStaff', 'day')],
-    ['att-week', 'Week', 'Floor › People', 'attendance week grid', at('pageStaff', 'week')],
-    ['att-register', 'Attendance book', 'Floor › People', 'monthly attendance register page ot totals check', at('pageStaff', 'register')],
+    ['att-week', 'Attendance, week', 'Floor › People › Attendance', 'attendance week grid by week', at('pageStaff', 'week')],
+    ['att-register', 'Attendance, month', 'Floor › People › Attendance', 'monthly attendance register book page ot totals check', at('pageStaff', 'register')],
     ['pay', 'Pay', 'Floor › People', 'payroll wages salary payout due advance', at('pageStaff', 'pay')],
     ['areas', 'Areas', 'Floor › People', 'staffing complement needed today extra hours', at('pageStaff', 'areas')],
     ['roster', 'Roster', 'Floor › People', 'workers staff list hands', at('pageStaff', 'roster')],
-    ['production', 'Production', 'Floor', 'plated pickled register output', at('pageProduction', 'overview')],
+    ['production', 'Production', 'Floor', 'plated pickled register output lines', at('pageProduction', 'lines')],
+    ['equipment', 'Equipment', 'Floor › Production', 'plant register tanks barrels units machines down repair', at('pageProduction', 'equipment')],
     ['prod-plant', 'In plant', 'Floor › Production', 'material in plant waiting pickled plated', at('pageProduction', 'plant')],
     ['prod-lines', 'Lines', 'Floor › Production', 'vat a1 a2 barrel line output', at('pageProduction', 'lines')],
     ['prod-entries', 'Production entries', 'Floor › Production', 'entries record', at('pageProduction', 'entries')],
-    ['stock', 'Stock', 'Floor', 'chemicals overview days left', at('pageStock', 'overview')],
+    ['stock', 'Stock', 'Floor', 'chemicals days left lines spend prices', at('pageStock', 'list')],
     ['stock-lines', 'Stock lines', 'Floor › Stock', 'chemicals levels', at('pageStock', 'list')],
     ['reorder', 'Reorder list', 'Floor › Stock', 'order purchase buy', at('pageStock', 'reorder')],
-    ['power', 'Power', 'Floor', 'power cuts electricity outage', at('pagePower', 'overview')],
-    ['power-cuts', 'Power cuts', 'Floor › Power', 'cuts outages damage', at('pagePower', 'cuts')],
+    ['power', 'Power cuts', 'Floor › Power', 'power cuts electricity outage outages damage', at('pagePower', 'cuts')],
     ['power-causes', 'Power causes', 'Floor › Power', 'why power cut reason fix cause breaker feeder trip restore', at('pagePower', 'causes')],
     ['power-load', 'Load & bills', 'Floor › Power', 'load kva sanctioned connection electricity bills', at('pagePower', 'load')],
     ['power-case', 'Power case', 'Floor › Power', 'case for backup generator inverter tsuisl payback', at('pagePower', 'case')],
@@ -1053,10 +1054,11 @@ function srchLocOf(el) {
   if (act === 'invPipeStage') return pipeStageKey(d.pipeStage) ? { tab: 'pagePipeline', v: d.pipeStage, id: '' } : null;
   if (act === 'invPipeChallan') return srchRecordLoc('challan', String(d.id));
   if (act === 'invFinGo') return { tab: 'pageFinance', v: d.tab || 'overview', id: d.tab === 'receipts' && d.client ? String(d.client) : '' };
-  // Floor → Day: a line's card is Production → Lines, the tiles and the staffing and EXTRA words their own screens. The line
-  // and the day are not in those screens' addresses: the new window opens on their own line and day.
-  if (act === 'invFlrLine' || act === 'invFlrPlated') return { tab: 'pageProduction', v: 'lines', id: '' };
+  // Floor → Overview: a line's card and the Production hero are Production → Lines, the heroes' links and the staffing and EXTRA
+  // words their own screens. The line and the day are not in those screens' addresses: the new window opens on its own.
+  if (act === 'invFlrLine' || act === 'invProdDayLines') return { tab: 'pageProduction', v: 'lines', id: '' };
   if (act === 'invFlrStaff') return { tab: 'pageStaff', v: 'day', id: '' };
+  if (act === 'invFlrStock') return { tab: 'pageStock', v: 'list', id: '' };
   if (act === 'invFlrAreas') return { tab: 'pageStaff', v: 'areas', id: '' };
   if (act === 'invFlrPower') return { tab: 'pagePower', v: 'cuts', id: '' };
   return null;

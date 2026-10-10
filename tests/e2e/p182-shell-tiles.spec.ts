@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, openPulse, switchTab } from './fixtures';
+import { loadAppWithState, openPulse, switchTab, openVerdict } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P182 (owner, 8 Oct 2026): "The bottom bar still doesn't look right. Let's give our tiles elevation as well. Move insights into
@@ -91,8 +91,9 @@ test.describe('P182: the five doors and the raised tiles (phone)', () => {
     expect(t.sheetFill).toBe('none|rgba(0, 0, 0, 0)');
     expect(t.sheetBorder).toBe('none');
     // Stock's tiles filter the lines: pressed, the tile loses its lift and keeps only the accent's line along its foot.
+    // Stock is one screen; its filter tiles are its card's factors (TM4d), shut on the phone until opened.
     await switchTab(page, 'pageStock');
-    await page.locator('#pageStock .inv-viewtab[data-view="list"]').click();
+    await openVerdict(page);
     const filter = page.locator('#stockTiles button.inv-tile').first();
     await filter.click();
     await expect(page.locator('#stockTiles button.inv-tile[aria-pressed="true"]')).toHaveCount(1);

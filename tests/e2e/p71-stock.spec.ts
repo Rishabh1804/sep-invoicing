@@ -1,9 +1,9 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse, toolbarMore } from './fixtures';
 
-// P71 (phone): Stock on the v2.0 components (design principles §7, §9 step 3). View tabs, Paste
-// message the one primary, tiles that filter, lines as rows grouped by status with a dot and a word;
+// P71 (phone): Stock on the v2.0 components (design principles §7, §9 step 3), one screen since the tab map (TM4d): Paste
+// message the one primary, its card's tiles that filter, lines as rows grouped by status with a dot and a word;
 // a line's page as tiles, rows and panels; the paste check as rows with the text as sent; Enter by
 // hand's mode an inv-seg; the More sheet an inv-sheet of rows. No v1.0 inv-stk- or inv-more- class
 // is drawn on any of them. The quick actions still open their jobs.
@@ -44,14 +44,14 @@ const noV1 = async (page: Page, primaries = 1) => {
 };
 
 test.describe('P71: Stock', () => {
-  test('Lines: tiles filter, rows grouped by status carry a dot and a word; no v1.0 class', async ({ page }) => {
+  test('the lines: the card\'s tiles filter, rows grouped by status carry a dot and a word; no v1.0 class', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await expect(page.locator('#stockContent .inv-viewtabs[role="tablist"] .inv-viewtab[aria-selected="true"]')).toHaveText('Overview');
+    await expect(page.locator('#stockContent .inv-viewtabs')).toHaveCount(0);
     await noV1(page);
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
-    await noV1(page);
-    await expect(page.locator('#stockContent .inv-pagehead-meta')).toContainText('4 lines');
+    await expect(page.locator('#stockVerdict .inv-hero-eyebrow')).toContainText('4 lines');
+    // The status tiles are the card's factors (TM4d): shut on the phone, opened to filter.
+    await page.locator('#stockVerdict > summary').click();
     const rows = page.locator('#stockLines .inv-row[data-action="invStockOpen"]');
     await expect(rows).toHaveCount(4);
     await expect(rows.filter({ hasText: 'Nitric acid' }).locator('.inv-dot-danger')).toHaveText('Out');
@@ -75,7 +75,6 @@ test.describe('P71: Stock', () => {
   test('a line: tiles, Price and pattern rows, the line\'s settings, entries with a fold of the text as sent', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Q558' }).click();
     await expect(page.locator('#stockContent .inv-pagehead-title')).toHaveText('Q558');
     await expect(page.locator('#stockLevel')).toContainText('30');
@@ -132,7 +131,7 @@ test.describe('P71: Stock', () => {
   test('the reorder list: rows by supplier, the total in the action bar', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invStockReorder"]').click();
+    await toolbarMore(page, 'Reorder list');
     await expect(page.locator('#stockReorder .inv-row-group').first()).toBeVisible();
     await expect(page.locator('#stockReorder [data-stock-reorder="Q"]')).toHaveClass(/inv-input-num/);
     await expect(page.locator('#stockContent .inv-actionbar #stockReorderTotal')).toBeVisible();

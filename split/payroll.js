@@ -212,12 +212,18 @@ function payMoney(n) { return escHtml(formatCurrency(n)); }
 function paySigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
 function _attPayView() {
-  var ws = _attWeekStart, sat = isoAddDays(ws, 6);
-  var html = _attStepper('invAttWeekStep', _attWeekLabel('Week ' + attPayWeekNumber(ws), 'Paid Sat ' + formatDate(sat)),
-    'invAttThisWeek', 'This week', 'Previous week', 'Next week');
-  // What is paid this week and what is due lead; the history and the slips as paid are one tap away (owner, 30 Sep 2026:
-  // the Staff views scrolled too far).
-  html += _payForecastCard(ws);
+  var ws = _attWeekStart, phone = !_isDesktop, thisWeek = ws === attWeekStartOf(localDateStr());
+  // One look (the tab map, TM4b): the payout as the verdict (it was the Weekly payout card's head), one toolbar row (the week, Pay
+  // slips, More), labour ₹/kg and the payroll against the bank (they led Staff's Overview), then what is due by worker, each
+  // opening to its arithmetic; the history, the slips as paid and the bank's legs folded.
+  var html = _payVerdictHtml(ws) + '<div class="inv-toolbar" data-att-toolbar="pay">' +
+    _attStepInRow('invAttWeekStep', '<span class="inv-stepper-title">Week ' + attPayWeekNumber(ws) + '</span>', 'Previous week', 'Next week') +
+    (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttThisWeek"' + (thisWeek ? ' disabled' : '') + '>This week</button>') +
+    // The slips are printed from the due rows (payslip.js).
+    '<button class="inv-btn inv-btn-secondary" data-action="invPsOpen">Pay slips</button>' +
+    uiToolbarMoreHtml([phone && !thisWeek ? { label: 'Go to this week', action: 'invAttThisWeek' } : null, { label: 'Import the payroll as paid', action: 'invPayrollImport' }], { icon: phone }) +
+    '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
+  html += payLabourPanelsHtml();
   html += _payDueCard(ws);
   html += uiFoldCard('payHistory', _payHistoryCard(ws), false);
   html += uiFoldCard('payrollPaid', _payrollPaidCard(), false);
@@ -225,6 +231,27 @@ function _attPayView() {
   // wages but not money has the slips without the statement's legs (the guard, the QA chain of 2 Oct 2026).
   if (finHasBank() && (typeof grdSeesMoney !== 'function' || grdSeesMoney())) html += finWagesHtml(finCtx().cls, 'pay');
   return html;
+}
+/* Pay's verdict (§3e): the week's payout, heading for it while the week is open, and its change against the usual week (the median
+   of the twelve before), toned by the swing: well above the usual is a caution, below says nothing on its own. */
+function _payVerdictHtml(ws) {
+  var f = payForecast(ws), wk = f.week, sat = isoAddDays(ws, 6), amount = f.open ? f.predicted : wk.total;
+  var pct = f.swingPct != null ? (f.swing >= 0 ? '+' : '−') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%' : '';
+  var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : f.median != null ? 'ok' : 'neutral';
+  return uiVerdictHtml({ screen: 'Pay · week ' + attPayWeekNumber(ws) + ', paid Sat ' + stockShortDate(sat), tone: tone,
+    // The amount is said once, in the sentence (the spec's "Payout ₹5,130 · +13% on its usual"); its paise are the factors'.
+    verdict: (f.open ? 'Payout heading for ' : 'Payout ') + finRs(amount) + (pct ? ', ' + pct + ' on its usual' : ''),
+    facts: [wk.recordedDays + ' of ' + wk.workingDays + ' days recorded' + (wk.sundays ? ', and the Sunday' : ''),
+      f.open ? (f.basis === 'pace' ? todoPlural(f.missing, 'day') + ' at this week’s pace' : f.basis === 'median' ? 'the median stands in' : '') : ''],
+    factors: [
+      { label: f.open ? 'So far' : 'The week', fig: payMoney(wk.total), sub: wk.workingDays < 6 ? 'a paid holiday out' : 'as recorded', attrs: ' data-tile="sofar"' },
+      f.open ? { label: 'Predicted', fig: payMoney(f.predicted), sub: f.basis === 'pace' ? payMoney(f.pace) + ' a day' : f.basis === 'median' ? 'the median' : 'every day in', attrs: ' data-tile="predicted"' }
+        : { label: 'Paid', fig: payMoney(wk.paid), sub: 'to the weekly hands', attrs: ' data-tile="paid"' },
+      { label: 'Usual week', fig: f.median == null ? '' : payMoney(f.median), sub: f.medianWeeks ? 'median of ' + f.medianWeeks + ' weeks' : 'no week before', attrs: ' data-tile="median"' },
+      { label: 'Against its usual', fig: f.swing == null ? '' : '<span id="paySwing">' + paySigned(f.swing) + '</span>', tone: f.swing == null ? null : tone, sub: pct ? pct + ' on the median' : 'no week to compare', attrs: ' data-tile="swing"' }],
+    body: '<div class="inv-hero-sheet">' + uiFactRowHtml({ label: 'Hourly and daily tiers', value: formatCurrency(wk.workers), sub: 'their pay, OT and rest credit' }) +
+      uiFactRowHtml({ label: 'EXTRA pool', value: formatCurrency(wk.extra), sub: formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor' }) + '</div>',
+    attrs: ' id="payForecast"' });
 }
 
 /* A worker's or a week's figure on a pay card (§6.10): who or what, what it rests on, the money at the end. */
@@ -236,62 +263,17 @@ function _payRow(title, sub, end, attrs, cls) {
     '<span class="inv-row-end">' + end + '</span></' + tag + '>';
 }
 
-function _payForecastCard(ws) {
-  var f = payForecast(ws), wk = f.week;
-  // A week well above the usual is a caution, not an error; one well below says nothing on its own.
-  var tone = f.swingPct != null && f.swingPct > 0.15 ? 'warning' : '';
-  var h = _labPanelHead('payout', 'Weekly payout', payMoney(f.open ? f.predicted : wk.total), '', 'payForecast');
-  h += '<div class="inv-tiles inv-tiles-flush">' +
-    _labTile('sofar', f.open ? 'So far' : 'The week', payMoney(wk.total),
-      wk.recordedDays + ' of ' + wk.workingDays + ' working days recorded' + (wk.sundays ? ' + Sunday' : '') + (wk.workingDays < 6 ? ', a paid holiday out' : '')) +
-    _labTile('predicted', f.open ? 'Predicted' : 'Against the median', f.open ? payMoney(f.predicted) : (f.swing == null ? '&mdash;' : paySigned(f.swing)),
-      f.open
-        ? (f.basis === 'pace' ? f.missing + ' day' + (f.missing === 1 ? '' : 's') + ' at this week&rsquo;s pace, ' + payMoney(f.pace) + '/day'
-          : f.basis === 'median' ? 'nothing recorded yet: the median stands in' : 'every working day recorded')
-        : (f.swingPct == null ? 'no earlier weeks to compare' : (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '% of the median'),
-      tone) + '</div>';
-  h += _payRow('Median week', f.medianWeeks ? 'of the ' + f.medianWeeks + ' recorded week' + (f.medianWeeks === 1 ? '' : 's') + ' in the ' + PAY_HISTORY_WEEKS + ' before' : 'no recorded weeks before this one',
-    '<span class="inv-num">' + (f.median == null ? '&mdash;' : payMoney(f.median)) + '</span>');
-  if (f.open && f.swing != null) {
-    h += _payRow('Swing from the median', 'predicted less median',
-      '<span class="inv-num" id="paySwing">' + paySigned(f.swing) + ' (' + (f.swing >= 0 ? '+' : '&minus;') + formatNum(Math.abs(f.swingPct) * 100, 0) + '%)</span>');
-  }
-  h += _payRow('Hourly and daily tiers', 'their pay, OT and rest credit', '<span class="inv-num">' + payMoney(wk.workers) + '</span>') +
-    _payRow('EXTRA pool', formatNum(wk.lab.extraHours, 1) + ' h, disbursed by the supervisor', '<span class="inv-num">' + payMoney(wk.extra) + '</span>') +
-    _labNote('The weekly tiers and the EXTRA pool, as recorded. The monthly tier is paid by the month and is in the due list below, not here. A day nobody typed is not a day nobody worked: the prediction fills unrecorded days at the week&rsquo;s pace, and the figure so far reads low until they are in.');
-  return h + '</div>';
-}
-
 function _payDueCard(ws) {
   var d = payDue(ws);
   var monthName = attParseIso(d.mFrom).toLocaleString('en-IN', { month: 'long', year: 'numeric' });
-  // The slips are printed from the same rows (payslip.js).
-  var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue').replace(/<\/div>$/,
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPsOpen">Pay slips</button></div>');
+  // How earned, paid and a balance carried are worked out is the guide's (Using the app: pay); a hand opens to its own arithmetic.
+  var h = _labPanelHead('due', 'Due by worker', null, '', 'payDue');
   var group = function(title, rows) {
     if (!rows.length) return '';
     // What is due and what was advanced are two figures: netting one hand's advance against another's due read low.
     var tot = rows.reduce(function(s, r) { return s + (r.due > 0 ? r.due : 0); }, 0);
     var adv = rows.reduce(function(s, r) { return s + (r.due < 0 ? -r.due : 0); }, 0);
-    var g = '<div class="inv-row-group">' + title + '</div>';
-    rows.forEach(function(r) {
-      var e = r.earned, bits = [];
-      if (e.days) bits.push(formatNum(e.days, 1) + ' day' + (e.days === 1 ? '' : 's'));
-      if (r.w.comp === 'hourly' && e.hours) bits.push(formatNum(e.hours, 1) + ' h');
-      if (e.otHours) bits.push('OT ' + formatNum(e.otHours, 1) + ' h');
-      if (e.rest) bits.push('rest ' + payMoney(e.rest));
-      if (e.hourless) bits.push(e.hourless + ' day' + (e.hourless === 1 ? '' : 's') + ' present with no hours, priced at nothing');
-      if (r.w.active === false) bits.push('left');
-      // A negative due is an advance not yet worked off: said in a word beside the figure.
-      g += _payRow(escHtml(r.w.name),
-        (bits.length ? bits.join(' · ') + ' · ' : 'nothing recorded · ') + 'earned ' + payMoney(e.total) +
-          (r.asPaid ? ' · as paid, from the slip' + (r.asPaidAs ? ' (its row &ldquo;' + escHtml(r.asPaidAs) + '&rdquo;, only read as this hand)' : '')
-            : r.paid ? ' &minus; paid ' + payMoney(r.paid) : '') +
-          (r.carried ? (r.carried > 0 ? ' + ' + payMoney(r.carried) + ' owed from before' : ' &minus; ' + payMoney(-r.carried) + ' advanced before') : ''),
-        r.due < 0 ? '<span class="inv-row-stack"><span class="inv-num">' + payMoney(r.due) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>'
-          : '<span class="inv-num">' + payMoney(r.due) + '</span>',
-        ' data-action="invPayPick" data-id="' + escHtml(r.w.id) + '" data-due="' + r.due + '"');
-    });
+    var g = '<div class="inv-row-group">' + title + '</div>' + rows.map(_payDueRowHtml).join('');
     g += _payRow('Total due', '', '<span class="inv-num" data-pay-total="due">' + payMoney(gstRound(tot)) + '</span>', '', 'inv-row-strong');
     if (adv > 0) g += _payRow('Advanced, not yet worked off', 'not taken off the total due',
       '<span class="inv-row-stack"><span class="inv-num" data-pay-total="advanced">' + payMoney(gstRound(adv)) + '</span><span class="inv-dot inv-dot-warning">Advance</span></span>');
@@ -300,10 +282,37 @@ function _payDueCard(ws) {
   h += group('Weekly &middot; paid Sat ' + formatDate(d.sat), d.rows.filter(function(r) { return r.weekly; }));
   h += group('Monthly &middot; ' + escHtml(monthName), d.rows.filter(function(r) { return !r.weekly; }));
   h += _payCarriedHtml(d);
-  h += _labNote('Earned is worked out from the days recorded, on the labour card&rsquo;s own rates. A negative due is an advance not yet worked off. What was owed or advanced in an earlier period carries into this one until it is paid, worked off or cleared with a reason. Tap a worker to pay what is due.');
   h += _payFormHtml(d);
   h += _payListHtml(d);
   return h + '</div>';
+}
+/* One hand's due (§3c): what is owed as the row's figure, earned and paid its two facts; opened, the wage arithmetic a fact a row (the
+   days at their rate, the rest days, the overtime hours at theirs, paid, brought forward) and the one move, Pay. The rates are read
+   back off the labour card's own figures (a day's pay over the days), never worked out a second way. */
+function _payDueRowHtml(r) {
+  var e = r.earned, w = r.w, id = String(w.id), money = function(n) { return formatCurrency(n); };
+  var facts = [];
+  if (r.asPaid) facts.push({ label: 'As paid, from the slip', value: money(r.paid), sub: r.asPaidAs ? 'its row “' + r.asPaidAs + '”, only read as this hand' : 'a closed month on record' });
+  else {
+    if (w.comp === 'hourly' && e.hours) facts.push({ label: formatNum(e.hours, 1) + ' h × ' + money(e.base / e.hours), value: money(e.base) });
+    else if (e.days) facts.push({ label: formatNum(e.days, 1) + ' day' + (e.days === 1 ? '' : 's') + ' × ' + money(e.base / e.days), value: money(e.base) });
+    if (e.rest) facts.push({ label: 'Rest days' + (e.restDays ? ', ' + formatNum(e.restDays, 1) : ''), value: money(e.rest) });
+    if (e.otHours) facts.push({ label: formatNum(e.otHours, 1) + ' h overtime × ' + money(e.ot / e.otHours), value: money(e.ot) });
+    if (e.hourless) facts.push({ label: todoPlural(e.hourless, 'day') + ' present with no hours', value: money(0), sub: 'priced at nothing' });
+    facts.push({ label: 'Earned', value: money(e.total) });
+    if (r.paid) facts.push({ label: 'Paid', value: '− ' + money(r.paid) });
+  }
+  if (r.carried) facts.push({ label: r.carried > 0 ? 'Owed from before' : 'Advanced before', value: (r.carried > 0 ? '+ ' : '− ') + money(Math.abs(r.carried)) });
+  facts.push({ label: r.due < 0 ? 'Advance to work off' : 'Due', value: money(r.due) });
+  var meta = r.asPaid ? 'as paid, from the slip' : 'earned ' + money(e.total) + (r.paid ? ' · paid ' + money(r.paid) : '');
+  var key = 'pay-due-' + id;
+  return '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-pay-row="' + escHtml(id) + '"' + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
+    '<summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(w.name) +
+    (w.active === false ? ' <span class="inv-badge inv-badge-neutral">Left</span>' : '') + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+    '<span class="inv-row-end' + (r.due < 0 ? ' inv-row-end-stack' : '') + '"><span class="inv-num">' + payMoney(r.due) + '</span>' + (r.due < 0 ? '<span class="inv-dot inv-dot-warning">Advance</span>' : '') + '</span></summary>' +
+    '<div class="inv-row-children">' + facts.map(uiFactRowHtml).join('') +
+    '<div class="inv-row"><span class="inv-row-main"></span><span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPayPick" data-id="' + escHtml(id) + '" data-due="' + r.due + '">' +
+    (r.due > 0 ? 'Pay ' + payMoney(r.due) : 'Record a payment') + '</button></span></div></div></details>';
 }
 
 /* The balances brought forward, each clearable with a reason ("stated otherwise"). */
@@ -337,14 +346,17 @@ function _payFormHtml(d) {
   var today = localDateStr();
   var defDate = _payLast && _payLast.date >= d.weekStart && _payLast.date <= d.sat ? _payLast.date : today >= d.weekStart && today <= d.sat ? today : d.sat;
   var f = function(id, label, control) { return '<div class="inv-field"><label class="inv-field-label" for="' + id + '">' + label + '</label>' + control + '</div>'; };
-  return '<div class="inv-row-group">Record a payment</div><div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
+  // One look (TM4b): the form is one line until it is wanted (a hand's Pay opens it filled); open on the desktop, where it fits.
+  return '<details class="inv-row-fold" data-fold="pay-form" id="payFormFold"' + (uiFoldOpen('pay-form', !!_isDesktop) ? ' open' : '') + '>' +
+    '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Record a payment</span></span></summary>' +
+    '<div class="inv-panel-body" id="payForm"><div class="inv-fields">' +
     f('payWorker', 'Worker', '<select class="inv-select" id="payWorker"><option value="">Select&hellip;</option>' +
       d.rows.map(function(r) { return '<option value="' + escHtml(r.w.id) + '">' + escHtml(r.w.name) + '</option>'; }).join('') + '</select>') +
     f('payKind', 'Kind', '<select class="inv-select" id="payKind"><option value="payment">Payment</option><option value="advance"' + (_payLast && _payLast.kind === 'advance' ? ' selected' : '') + '>Advance</option></select>') +
     f('payAmount', 'Amount', '<input class="inv-input inv-input-num" id="payAmount" type="number" step="0.01" min="0" inputmode="decimal">') +
     f('payDate', 'Date', '<input class="inv-input inv-id" id="payDate" type="date" value="' + defDate + '">') +
     '</div>' + f('payNote', 'Note', '<input class="inv-input" id="payNote" placeholder="optional">') +
-    '<button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div>';
+    '<button class="inv-btn inv-btn-primary" data-action="invPaySave">Save payment</button></div></details>';
 }
 
 function _payListHtml(d) {
@@ -358,10 +370,12 @@ function _payListHtml(d) {
   var h = '<div class="inv-row-group">Payments in these periods</div>';
   list.forEach(function(p) {
     var w = staffById(p.staffId), forM = payIsWeekly(w) ? '' : payMonthPaidFor(p);
+    // Two facts a line (§3b-11): the day and the kind; a note, or why it was voided, on a line of its own.
+    var said = p.voidedAt ? 'void: ' + (p.voidReason || '') : p.note || '';
     h += _payRow(escHtml(w ? w.name : 'Removed worker'),
-      escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'Advance' : 'Payment') +
-        (forM && forM !== payMonthStart(p.date) ? ' · for ' + escHtml(_monthLabel(forM.slice(0, 7))) : '') +
-        (p.note ? ' · ' + escHtml(p.note) : '') + (p.voidedAt ? ' · void: ' + escHtml(p.voidReason || '') : ''),
+      escHtml(formatDate(p.date)) + ' · ' + (p.kind === 'advance' ? 'advance' : 'payment') +
+        (forM && forM !== payMonthStart(p.date) ? ' for ' + escHtml(_monthLabel(forM.slice(0, 7))) : '') +
+        (said ? '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(said) : ''),
       '<span class="inv-num">' + payMoney(Number(p.amount) || 0) + '</span>' +
         (p.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayVoid" data-id="' + escHtml(p.id) + '">Void</button>'),
       ' data-payment="' + escHtml(p.id) + '"', p.voidedAt ? 'inv-row-muted' : '');
@@ -382,11 +396,11 @@ function _payHistoryCard(ws) {
     { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve' }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
+    // The row's figure and its change against the median at the end; the days and what was paid its two facts.
     h += _payRow('Week ' + attPayWeekNumber(w.start) + ' &middot; Sat ' + escHtml(formatDate(w.sat)),
       (w.recordedDays ? w.recordedDays + ' day' + (w.recordedDays === 1 ? '' : 's') + ' recorded' : 'nothing recorded') +
-        (w.paid ? ' · paid ' + payMoney(w.paid) : '') +
-        (swing != null ? ' · ' + paySigned(swing) + ' against the median' : ''),
-      '<span class="inv-num">' + payMoney(w.total) + '</span>', ' data-week="' + w.start + '"');
+        (w.paid ? ' · paid ' + payMoney(w.paid) : ''),
+      '<span class="inv-row-stack"><span class="inv-num">' + payMoney(w.total) + '</span>' + (swing != null ? '<span class="inv-row-meta inv-num" title="' + escHtml('against the median, ' + payMoney(median)) + '">' + paySigned(swing) + '</span>' : '') + '</span>', ' data-week="' + w.start + '"');
   });
   return h + '</div>';
 }
@@ -539,13 +553,10 @@ function _monthLabel(month) {
 }
 function _payrollPaidCard() {
   var recs = payrollPaidRecords().slice().sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (b.at || 0) - (a.at || 0); });
+  // Its Import is the toolbar's More (§1a-10: files behind More); what a month on record replaces is the guide's.
   var h = '<div class="inv-panel inv-panel-flush" id="payrollPaid"><div class="inv-panel-head"><span class="inv-panel-title">Monthly payroll as paid</span>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollImport">Import</button>' +
-    '<input type="file" accept=".json,application/json" id="payrollFileInput" class="inv-hidden"></div>';
-  if (!recs.length) {
-    return h + _labNote('No closed month is on record, so every month of the monthly tier is worked out from ' +
-      'the attendance marks. Import the payroll file built from the slips and a closed month is read as it was paid.') + '</div>';
-  }
+    '<span class="inv-panel-count">' + recs.filter(function(r) { return !r.voidedAt; }).length + '</span></div>';
+  if (!recs.length) return h + '<div class="inv-empty">No closed month on record: the monthly tier is worked out from the marks.</div></div>';
   recs.forEach(function(r) {
     var gross = r.rows.reduce(function(s, x) { return s + (Number(x.dayPay) || 0) + (Number(x.ot) || 0); }, 0);
     var otH = r.rows.reduce(function(s, x) { return s + (Number(x.otHours) || 0); }, 0);
@@ -555,25 +566,23 @@ function _payrollPaidCard() {
       var m = payrollMatch(x);
       return x.name + (m ? ' (read as ' + m.w.name + '? keep the spelling on the worker to use it)' : '');
     });
+    // Two facts a line: its hands and how it stands; then, each on a line of its own, where it came from (the slip it was paid
+    // against: a title alone is never read on a phone), who the roster does not hold, its note, why it was voided.
+    var lines = [r.source ? 'from ' + r.source : '', unmatched.length ? 'not on the roster: ' + unmatched.join(', ') : '', r.note || '', r.voidedAt ? 'void: ' + (r.voidReason || '') : ''].filter(Boolean);
     h += _payRow(escHtml(_monthLabel(r.month)),
-      r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') +
-        (otH ? ' · OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
-        (r.source ? ' · ' + escHtml(r.source) : '') +
-        (unmatched.length ? ' · not on the roster: ' + escHtml(unmatched.join(', ')) : '') +
-        (r.note ? ' · ' + escHtml(r.note) : '') +
-        (r.voidedAt ? ' · void: ' + escHtml(r.voidReason || '') : ''),
+      r.rows.length + ' hand' + (r.rows.length === 1 ? '' : 's') + (otH ? ', OT ' + formatNum(otH, 1) + ' h' : '') + (r.status === 'computed' ? ' · computed, not confirmed paid' : ' · as paid') +
+        lines.map(function(l) { return '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(l); }).join(''),
       '<span class="inv-num">' + payMoney(gstRound(gross)) + '</span>' +
         (r.voidedAt ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPayrollVoid" data-id="' + escHtml(r.id) + '">Void</button>'),
       '', r.voidedAt ? 'inv-row-muted' : '');
   });
-  h += _labNote('A closed month on record replaces the attendance model for the monthly tier &mdash; ' +
-    'here, on the labour card and in the live cost &mdash; for the hands it names; a monthly hand it does not name is still modelled. ' +
-    'The month in progress is always modelled.');
   return h + '</div>';
 }
 
 /* ===== Actions ===== */
 function payPick(id, due) {
+  var fold = document.getElementById('payFormFold');
+  if (fold && !fold.open) fold.open = true;
   var sel = document.getElementById('payWorker'), amt = document.getElementById('payAmount');
   if (sel) sel.value = String(id);
   if (amt) amt.value = due > 0 ? String(due) : '';
@@ -699,12 +708,16 @@ function areaHoursCard(from, to) {
   var r = areaHoursForRange(from, to);
   if (!r.rows.length) return '';
   var h = _labPanelHead('hours', 'Hours by area', formatNum(r.total, 1) + ' h', '', 'areaHours');
-  r.rows.forEach(function(a) {
-    var bits = [formatNum(a.workerDays, 1) + ' worker-day' + (a.workerDays === 1 ? '' : 's'), formatNum(a.hours, 1) + ' h worked'];
-    if (a.ot) bits.push('OT ' + formatNum(a.ot, 1) + ' h of it');
-    if (a.extra) bits.push('EXTRA ' + formatNum(a.extra, 1) + ' h');
-    h += _payRow(escHtml(a.label), bits.join(' · '), '<span class="inv-num">' + formatNum(a.total, 1) + ' h</span>');
-  });
+  // A table, an area a row (TM4f): its worker-days, the hours on its marks with the OT among them, the EXTRA booked to it and the
+  // two together had been four facts in one line under each area's name.
+  var cell = function(v) { return '<td class="inv-num">' + (v ? formatNum(v, 1) : '&mdash;') + '</td>'; };
+  h += '<div class="inv-scroll-x"><table class="inv-table" data-area-hours><thead><tr><th class="inv-col-grow">Area</th>' +
+    '<th class="inv-num" title="worker-days, a half day counted half">Days</th><th class="inv-num" title="hours on the marks">Hours</th>' +
+    '<th class="inv-num" title="overtime, among the hours">OT</th><th class="inv-num" title="booked to the area">EXTRA</th><th class="inv-num">Total</th></tr></thead><tbody>' +
+    r.rows.map(function(a) {
+      return '<tr data-area-hours-row="' + escHtml(a.id) + '"><td>' + escHtml(a.label) + '</td>' + cell(a.workerDays) + cell(a.hours) + cell(a.ot) + cell(a.extra) +
+        '<td class="inv-num">' + formatNum(a.total, 1) + '</td></tr>';
+    }).join('') + '</tbody></table></div>';
   h += _labNote('Every tier together: the hours on each day&rsquo;s mark, where the worker stood that day, plus the EXTRA booked to the area.' +
     (r.assumed ? ' <strong>' + r.assumed + ' mark' + (r.assumed === 1 ? '' : 's') + '</strong> carried no hours and ' + (r.assumed === 1 ? 'is' : 'are') + ' counted as 8 (a half day as 4), with any OT on top.' : ''));
   return h + '</div>';
@@ -741,13 +754,22 @@ function attDaySummary(day) {
   out.short = !!out.complement && out.floorHeads < out.complement;
   return out;
 }
+/* How the day's attendance stands, one tone wherever it is drawn (the tab map, TM4a): on site against the day's roster at the
+   rest-day gate's 90% and 80% (a day with hands unmarked is not judged on it), and warning when the floor is short of its
+   number. Null when nothing judges it (nothing marked, or hands unmarked and the floor at its number). */
+function attOnSiteTone(d) {
+  if (!d || !d.marked) return null;
+  var n = d.roster.length, tone = figTonePct(n && !d.unmarked ? (d.p + d.half) / n * 100 : null, 90, 80);
+  if (d.short && tone !== 'danger') tone = 'warning';
+  return tone;
+}
 /* The day's attendance as a panel. headBtn: the head's link; null, no head (a hero card above it says what the head would). */
 function attDayPanelHtml(d, headBtn, id) {
   var h = '<div class="inv-panel inv-panel-flush"' + (id ? ' id="' + id + '"' : '') + '>' + (headBtn === null ? '' : '<div class="inv-panel-head"><span class="inv-panel-title">Attendance ' +
     '<span class="inv-note">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span></span>' + (headBtn || '') + '</div>');
   if (!d.marked) return h + '<div class="inv-empty">Nothing recorded yet.</div></div>';
-  // On site against the roster, judged at the rest-day gate's 90% and 80% (a day nobody typed judges nothing).
-  var onPct = d.roster.length && !d.unmarked ? (d.p + d.half) / d.roster.length * 100 : null, onTone = figTonePct(onPct, 90, 80);
+  // On site against the roster, judged at the rest-day gate's 90% and 80% and the floor's number (attOnSiteTone).
+  var onTone = attOnSiteTone(d);
   h += '<div class="inv-tiles inv-tiles-flush">' +
     '<div class="inv-tile' + (onTone ? ' inv-tile-' + onTone : '') + '" data-att-onsite><div class="inv-tile-label">On site</div>' +
     '<div class="inv-tile-value"' + (id === 'homeAtt' ? ' id="homeAttOnSite"' : '') + '>' + (d.p + d.half) + '<span class="inv-tile-of">/' + d.roster.length + '</span></div>' +
@@ -778,8 +800,7 @@ function renderAttHomeCard() {
   if (!el) return;
   if (!staffActive().length) { el.innerHTML = ''; return; }
   var d = attDaySummary(), n = d.roster.length, on = d.p + d.half;
-  var pct = n && d.marked && !d.unmarked ? on / n * 100 : null, tone = figTonePct(pct, 90, 80);
-  if (d.short && tone !== 'danger') tone = 'warning';
+  var tone = attOnSiteTone(d);
   var meter = d.marked ? chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
     { title: d.p + ' present · ' + d.half + ' half day · ' + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') }) : '';
   var floor = d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' + (d.short ? ', ' + (d.complement - d.floorHeads) + ' short' : '') : '';

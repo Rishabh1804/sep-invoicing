@@ -91,7 +91,7 @@ function plnToolbarHtml(sc) {
     .concat(PLN_GOALS.map(function(x) { return { label: 'Goal: ' + x.label + (x.id === g.id ? ' (set)' : ''), action: 'invPlnGoal', attrs: ' data-id="' + x.id + '"' }; }));
   return '<div class="inv-toolbar" data-pl-toolbar>' +
     '<button class="inv-btn inv-btn-primary" data-action="invPlnRoll">' + (_plnResult ? 'Roll again' : _isDesktop ? 'Roll the trials' : 'Roll') + '</button>' +
-    '<span class="inv-pl-step" data-pl-month><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invPlnMonth" data-step="-1" aria-label="Month before"' + (_plnMonth ? '' : ' disabled') + '>&lsaquo;</button>' +
+    '<span class="inv-tb-step" data-pl-month><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invPlnMonth" data-step="-1" aria-label="Month before"' + (_plnMonth ? '' : ' disabled') + '>&lsaquo;</button>' +
       '<span class="inv-num">' + escHtml(plnMonthLabel(_plnMonth)) + '</span><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invPlnMonth" data-step="1" aria-label="Month after"' + (_plnMonth < PLN_N - 1 ? '' : ' disabled') + '>&rsaquo;</button></span>' +
     plan + uiToolbarMoreHtml(more.filter(Boolean), { icon: !_isDesktop }) + '</div>';
 }
@@ -124,7 +124,7 @@ function plnVerdictHtml() {
         sub: cqi != null ? (cqiOk ? 'within the goal' : 'later than the goal') : 'Moves → Tech tree', attrs: ' data-pl-hud="cqi"' },
       { label: 'Goal reached', fig: (R ? Math.round(R.score * 100) + '%' : '—') + ' ' + plnStarsSvg(stars), tone: R ? (R.score >= 0.6 ? 'ok' : 'warning') : null,
         sub: R ? 'of ' + PLN_TRIALS + ' trials' : 'roll the trials', attrs: ' data-pl-hud="score"' }],
-    body: '<div class="inv-hero-sheet"><div class="inv-note" data-pl-goal>' + escHtml('Goal (' + g.label + '): ' + g.say + '.') + '</div></div>', attrs: ' id="plnVerdict"' });
+    body: '<div class="inv-hero-sheet"><div class="inv-row" data-pl-goal><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml('Goal (' + g.label + '): ' + g.say + '.') + '</span></span></div></div>', attrs: ' id="plnVerdict"' });
 }
 function plnStarsSvg(n) {
   var star = function(x, onn) { return '<path transform="translate(' + x + ' 0)" d="M7 0.8 8.9 4.7 13.2 5.3 10.1 8.3 10.8 12.6 7 10.6 3.2 12.6 3.9 8.3 0.8 5.3 5.1 4.7Z" class="' + (onn ? 'inv-pl-star-on' : 'inv-pl-star') + '"/>'; };

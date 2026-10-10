@@ -224,7 +224,7 @@ function tdyOpenInput(k) {
   var day = localDateStr();
   if (k === 'roll-in' || k === 'roll-out') { _attView = 'day'; _attDate = day; switchTab('pageStaff'); }
   else if (k === 'pickling') flrOpenLine('pickling');
-  else if (k === 'stock') { _stockView = 'overview'; switchTab('pageStock'); }
+  else if (k === 'stock') { _stockView = 'list'; switchTab('pageStock'); }
   else if (k === 'production') { if (tdySees('pageFloor')) { flrSetDay(null); switchTab('pageFloor'); } else flrOpenLine('vat-a1'); }
 }
 

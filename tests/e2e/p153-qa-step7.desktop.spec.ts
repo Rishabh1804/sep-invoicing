@@ -167,7 +167,8 @@ test('above about 1,600px only Pulse, Stats and Finance go three across; every o
   await page.setViewportSize({ width: 1700, height: 1000 });
   await openPulse(page);
   expect(await columns(page, '[data-tdy-questions]')).toBe(3);
-  // The To-do's two lists were the example until the To-do joined Needs you (the tab map, TM2a); Power's panels are one now.
-  await switchTab(page, 'pagePower');
-  expect(await columns(page, '#pagePower .inv-panels:not(.inv-panels-3)')).toBe(2);
+  // The To-do's two lists were the example until the To-do joined Needs you (the tab map, TM2a), then Power's Overview until it went
+  // (TM4e): Floor's line cards are one now.
+  await switchTab(page, 'pageFloor');
+  expect(await columns(page, '#flrLines.inv-panels')).toBe(2);
 });

@@ -81,14 +81,17 @@ test.describe('P166 the plant register', () => {
     expect(gone).toEqual({ kept: 1, retired: true, why: 'scrapped', live: 0 });
   });
 
-  test('Overview leads with the plant; Floor → Day shows the line’s units on the day', async ({ page }) => {
+  test('Equipment shows the plant by line; Floor’s Overview shows the line’s units on the day', async ({ page }) => {
     await loadAppWithState(page, book([tank('A', 'Tank 1', 'vat-a1', 25), tank('B', 'Tank 2', 'vat-a1', 25, 'down', day(-5))],
       [{ id: 'L1', unitId: 'A', date: day(-30), from: null, to: 'run', at: 1 }, { id: 'L2', unitId: 'B', date: day(-30), from: null, to: 'run', at: 1 }, { id: 'L3', unitId: 'B', date: day(-5), from: 'run', to: 'down', at: 2 }]));
     await switchTab(page, 'pageProduction');
-    await page.locator('#productionContent .inv-viewtab[data-tab="overview"]').click();
-    await expect(page.locator('#pltGlance [data-plt-glance="vat-a1"]')).toContainText('1 of 2 tanks working · 50% available');
+    // The plant at a glance led Production's Overview; it is Equipment's now (the tab map, TM4c), its verdict naming the line.
+    await page.locator('#productionContent .inv-viewtab[data-tab="equipment"]').click();
+    await expect(page.locator('#pltVerdict .inv-hero-title')).toHaveText('1 of 2 tanks down on VAT A1');
+    await expect(page.locator('#pltVerdict [data-plt-factor="vat-a1"]')).toContainText('50% available');
     await switchTab(page, 'pageFloor');
-    await expect(page.locator('[data-line="vat-a1"] [data-flr-units]')).toContainText('Tank 2 down');
+    // The units not working, a status at a time (TM4f: a name a fact had read as a chain).
+    await expect(page.locator('[data-line="vat-a1"] [data-flr-units]')).toContainText('Down: Tank 2');
   });
 
   test('a unit down three days is a task, red at seven', async ({ page }) => {

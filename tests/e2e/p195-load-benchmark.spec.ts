@@ -10,8 +10,10 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 //
 // A budget is a ceiling, never a target: each step that assembles a screen lowers its budget to the new measure in the same
 // commit, and no budget is raised to get green. The budgets below are TM1's, then each step's for the screens it assembled
-// (TM2: Today's; TM3: Money's): every screen measured on eleven days of the calendar (a Sunday, a month's first and last days, the financial
-// year's first, the year's), the worst of them kept, the length rounded up to the next half screen. The face is pinned
+// (TM2: Today's; TM3: Money's; TM4: Floor's): every screen measured on eleven days of the calendar (a Sunday, a month's first
+// and last days, the financial year's first, the year's), the worst of them kept, the length rounded up to the next half
+// screen. A toolbar's rows are its controls standing side by side, their heights overlapping (TM4: tops binned by 8px had
+// counted a smaller button centred in its row as a second row). The face is pinned
 // (Liberation, as on every runner) and the clock to 11:30 on today, so a screen measures the same on any machine at any hour.
 // What is measured is what is drawn: a view or widget the page hides is not on the screen's face (TM2: Pulse had been charged
 // with Needs you's tasks and the widgets TM2c hides).
@@ -37,29 +39,29 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Office › Invoices': { screens: 4, blocks: 0, chains: 0, toolbarRows: 8 },
   'Office › Clients › Clients': { screens: 2, blocks: 0, chains: 0, toolbarRows: 2 },
   'Office › Clients › Parts': { screens: 1.5, blocks: 0, chains: 3, toolbarRows: 4 },
-  'Office › Clients › Performance': { screens: 3, blocks: 5, chains: 8, toolbarRows: 1 },
+  // Measured 9 chains on five of the eleven days on TM3's build as well (a November run would have failed): the budget was
+  // understated, corrected to the measure in TM4 and said in the PR (I10). TM5 assembles Performance.
+  'Office › Clients › Performance': { screens: 3, blocks: 5, chains: 9, toolbarRows: 1 },
   'Office › Sales › Prospects': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 2 },
   'Office › Sales › Quotations': { screens: 1.5, blocks: 0, chains: 3, toolbarRows: 2 },
-  'Floor › Overview': { screens: 2.5, blocks: 1, chains: 0, toolbarRows: 2 },
-  'Floor › People › Overview': { screens: 3.5, blocks: 3, chains: 0, toolbarRows: 1 },
-  'Floor › People › Day': { screens: 3, blocks: 3, chains: 0, toolbarRows: 7 },
-  'Floor › People › Week': { screens: 3.5, blocks: 4, chains: 0, toolbarRows: 1 },
-  'Floor › People › Register': { screens: 1.5, blocks: 1, chains: 0, toolbarRows: 3 },
-  'Floor › People › Pay': { screens: 4, blocks: 4, chains: 4, toolbarRows: 1 },
-  'Floor › People › Areas': { screens: 3, blocks: 6, chains: 10, toolbarRows: 1 },
-  'Floor › People › Roster': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Floor › Production › Overview': { screens: 5, blocks: 1, chains: 7, toolbarRows: 2 },
-  'Floor › Production › Equipment': { screens: 2, blocks: 0, chains: 0, toolbarRows: 3 },
-  'Floor › Production › In plant': { screens: 8, blocks: 3, chains: 64, toolbarRows: 3 },
-  'Floor › Production › Lines': { screens: 3, blocks: 3, chains: 0, toolbarRows: 4 },
-  'Floor › Production › Entries': { screens: 17.5, blocks: 0, chains: 109, toolbarRows: 5 },
-  'Floor › Stock › Overview': { screens: 3, blocks: 1, chains: 0, toolbarRows: 2 },
-  'Floor › Stock › Lines': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 3 },
-  'Floor › Power › Overview': { screens: 3, blocks: 1, chains: 2, toolbarRows: 1 },
-  'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 13, toolbarRows: 1 },
-  'Floor › Power › Causes': { screens: 3, blocks: 2, chains: 2, toolbarRows: 1 },
-  'Floor › Power › Load & bills': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › Power › Case': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  // TM4. Floor's screens, each led by its verdict card, then one toolbar row. Production → Entries was 17.2 phone screens and
+  // 109 chains; In plant 7.5 and 64; the case a document fitted to the screen. Causes has no toolbar of its own (§1a-12).
+  'Floor › Overview': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › People › Attendance': { screens: 2.5, blocks: 1, chains: 0, toolbarRows: 1 },
+  'Floor › People › Attendance › Week': { screens: 2, blocks: 3, chains: 0, toolbarRows: 1 },
+  'Floor › People › Attendance › Month': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › People › Pay': { screens: 2.5, blocks: 1, chains: 0, toolbarRows: 1 },
+  'Floor › People › Areas': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › People › Roster': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Production › Lines': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Production › In plant': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Production › Entries': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Production › Equipment': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Stock': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 2, toolbarRows: 1 },
+  'Floor › Power › Causes': { screens: 2, blocks: 0, chains: 2, toolbarRows: 0 },
+  'Floor › Power › Load & bills': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Power › Case': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   // TM3. Receivables, Payments and Bank have the one toolbar row a work screen has (§3e: Cheque received; Add a bill; search,
   // Filter and More), raised from 0 and said to the owner (I10). Each gave the room back: Receivables and Payments show the
   // first few of what needs the owner, the Overview's charts fold, Payments' sections fold.
@@ -70,7 +72,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Money › GST': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 0 },
   'History': { screens: 4.5, blocks: 0, chains: 4, toolbarRows: 5 },
   'Knowledge › Start': { screens: 2, blocks: 0, chains: 2, toolbarRows: 1 },
-  'Knowledge › Library': { screens: 3, blocks: 0, chains: 2, toolbarRows: 5 },
+  // Raised 3 → 3.5 in TM4, said in the PR (I10): the guides took the Floor screens' method paragraphs (two new guides, five
+  // rewritten), and the Library lists them (2.86 → 3.05). TM6 assembles Knowledge.
+  'Knowledge › Library': { screens: 3.5, blocks: 0, chains: 2, toolbarRows: 5 },
   'Knowledge › Troubleshoot': { screens: 1.5, blocks: 0, chains: 2, toolbarRows: 2 },
   'Knowledge › Records': { screens: 1.5, blocks: 0, chains: 2, toolbarRows: 4 },
   'Knowledge › Training': { screens: 3, blocks: 0, chains: 14, toolbarRows: 1 },
@@ -83,6 +87,11 @@ const VERDICT: string[] = [
   'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
   // TM3: Money's five (the Overview's first hero carries its verdict).
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
+  // TM4: Floor's (the Overview's People card carries its verdict; the case is a document, with none).
+  'Floor › Overview', 'Floor › People › Attendance', 'Floor › People › Attendance › Week', 'Floor › People › Attendance › Month',
+  'Floor › People › Pay', 'Floor › People › Areas', 'Floor › People › Roster',
+  'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
+  'Floor › Stock', 'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills',
 ];
 
 test('every screen of the map is within its load budget on the long book', async ({ page }) => {

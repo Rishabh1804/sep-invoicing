@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openAttendance } from './fixtures';
 
 // P98 (owner, 29 Sep 2026): the heads a shift needs, the out-time roll read right, and the reader learning from
 // corrections. Names are made up; the roll is shaped like the one the owner sent.
@@ -82,7 +82,7 @@ test.describe('P98: the heads a shift needs', () => {
     // Usual: barrel unit 5 against 3 heads, VAT A1 4 against 2.
     expect(await unit(page, 'barrel-block')).toEqual({ norm: 5, short: 2 });
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    await openAttendance(page, 'day');
     await page.locator('[data-fold="attNeed"] > summary').click();   // folded under the board (P119)
     const row = page.locator('[data-need-area="vat-a1"]');
     await expect(row).toContainText('Short 2');

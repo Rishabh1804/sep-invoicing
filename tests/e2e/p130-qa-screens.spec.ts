@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openAttendance } from './fixtures';
 
 // P130: the QA chain's screen sweep of 30 Sep 2026 (every page and view measured and shot on the real book, phone and
 // desktop). Power → Cuts ran 21.6 phone screens, a paragraph of arithmetic under every cut; Staff → Day's P / H / A read
@@ -28,7 +28,7 @@ function book(extra: any = {}): SepState {
 test('Staff → Day: each of P / H / A is a whole touch target, never cut to "P.."', async ({ page }) => {
   await loadAppWithState(page, book({ attendance: { [todayIso()]: { marks: { 1: { st: 'P', area: 'vat-a1', hours: 8, ot: 0 }, 2: { st: 'H', area: 'vat-a1', hours: 4, ot: 0 } }, extra: [], note: '' } } }));
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
   const btns = page.locator('[data-att-row="1"] .inv-seg-btn');
   await expect(btns).toHaveText(['P', 'H', 'A']);
   const box = await btns.evaluateAll(els => els.map(e => ({ w: e.getBoundingClientRect().width, cut: e.scrollWidth > e.clientWidth })));
@@ -62,11 +62,12 @@ test('Power → Cuts: a cut is one line that opens to its damage, the newest mon
   const all = await cur.locator('details[data-power-cut]').count();
   expect(n).toBe(Math.min(10, all));
   if (all > 10) await expect(cur.locator('[data-action="invShowMore"]')).toContainText(`Show ${all - 10} more cuts`);
-  // A row's title is the day and the clock with no year (the month says it), never cut; its meta a line, not a paragraph.
+  // A row's title is the day with no year (the month says it), never cut; its meta the clock and how long, two facts (TM4e).
   const row = cur.locator('details[data-power-cut]').first();
   const title = row.locator('summary .inv-row-title');
-  await expect(title).toHaveText(/^\d{1,2} [A-Z][a-z]{2} · \d{1,2}:\d{2}( [AP]M)? – \d{1,2}:\d{2} [AP]M$/);
+  await expect(title).toHaveText(/^\d{1,2} [A-Z][a-z]{2}$/);
   expect(await title.evaluate(e => e.scrollWidth <= e.clientWidth + 1)).toBe(true);
+  await expect(row.locator('summary .inv-row-meta')).toHaveText(/^\d{1,2}:\d{2}( [AP]M)? – \d{1,2}:\d{2} [AP]M · \S+/);
   await expect(row.locator('summary .inv-row-meta')).not.toContainText('contribution');
   // Opened, it lists what the damage is made of, and those parts add up to the figure on the row (the fixed charge is paid anyway).
   const row3 = row;
@@ -74,10 +75,12 @@ test('Power → Cuts: a cut is one line that opens to its damage, the newest mon
   await expect(row3.locator('.inv-row-children')).toBeVisible();
   const sum = await row3.evaluate(el => {
     const num = (t: string) => Number(t.replace(/[^\d.-]/g, ''));
-    // The parts are the rows with a figure: why the cut came (P177, `data-pcs-why`) leads them and is not a part of its damage.
-    const parts = Array.from(el.querySelectorAll('.inv-row-children .inv-row')).filter(r => !/Fixed charge/.test(r.textContent || '') && !r.matches('[data-pcs-why]'));
+    // The parts of its damage (data-power-part): why the cut came (P177) and the facts of the cut (its hours in working time) lead
+    // them and are not parts of it; the fixed charge is paid anyway.
+    const all = Array.from(el.querySelectorAll('.inv-row-children [data-power-part]'));
+    const parts = all.filter(r => !/Fixed charge/.test(r.textContent || ''));
     return { total: num(el.querySelector('summary .inv-num')!.textContent || ''), parts: parts.reduce((s, r) => s + num(r.querySelector('.inv-num')!.textContent || ''), 0),
-      labels: Array.from(el.querySelectorAll('.inv-row-children .inv-row-title')).map(t => t.textContent) };
+      labels: all.map(r => r.querySelector('.inv-row-title')!.textContent) };
   });
   expect(sum.labels).toEqual(expect.arrayContaining(['Restart', 'Output not made', 'Wages that bought nothing', 'Fixed charge']));
   expect(Math.abs(sum.parts - sum.total)).toBeLessThanOrEqual(0.02);
@@ -95,16 +98,19 @@ test('Production → Overview: a day with pieces nothing weighs says at least, n
   const E = (id: string, o: any) => ({ id, at: 1, time: '10:00', unit: 'NOS', basis: 'register', src: 'photo', kind: 'plated', line: 'vat-a1', lineSrc: 'written', slot: 'general', clientId: 11, date: d, ...o });
   await loadAppWithState(page, book({ clients, production: { entries: [E('P1', { part: 'LINER 88', qty: 3500 }), E('P2', { part: 'PAD 150', qty: 100 })],
     pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } }, partWeights: { 'PAD 150': 0.3 } }));
-  await switchTab(page, 'pageProduction');
-  const t = page.locator('[data-prod-day]');
+  // The day's card is Floor → Overview's Production card (TM4a); the pieces nothing weighs are the list under its line cards.
+  await switchTab(page, 'pageFloor');
+  await page.locator('#flrDate').fill(d);
+  await page.locator('#flrDate').dispatchEvent('change');
+  const t = page.locator('#flrHeroes [data-card="flr-prod"]'), un = page.locator('#flrUnweighed');
   await expect(t.locator('.inv-hero-fig')).toHaveText('≥ 30 kg');
   await expect(t.locator('.inv-hero-title')).toHaveText('3,500 pieces not weighed: the day reads short');
   await expect(t.locator('.inv-hero-sub')).toHaveText('3,600 pieces recorded');
-  await expect(t.locator('[data-prod-weigh="none"]')).toContainText('LINER 88');
-  await expect(t.locator('[data-prod-weigh="none"] [data-action="invProdAlias"]')).toHaveAttribute('data-id', 'P1');
+  await expect(un.locator('[data-prod-weigh="none"]')).toContainText('LINER 88');
+  await expect(un.locator('[data-prod-weigh="none"] [data-action="invProdAlias"]')).toHaveAttribute('data-id', 'P1');
   // Weighed in full, the tonnes are the figure, with nothing estimated.
-  await g(page, `S.partWeights = { 'PAD 150': 0.3, 'LINER 88': 0.2 }; prodTouch(); renderProduction();`);
+  await g(page, `S.partWeights = { 'PAD 150': 0.3, 'LINER 88': 0.2 }; prodTouch(); renderFloor();`);
   await expect(t.locator('.inv-hero-fig')).toHaveText('730 kg');
   await expect(t.locator('.inv-hero-sub')).toHaveText('every run weighed');
-  await expect(t.locator('[data-prod-weigh="none"]')).toHaveCount(0);
+  await expect(page.locator('#flrUnweighed [data-prod-weigh="none"]')).toHaveCount(0);
 });

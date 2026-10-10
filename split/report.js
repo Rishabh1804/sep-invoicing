@@ -230,7 +230,7 @@ function rptHtml(kind, from, to) {
     : rptTile('plated', 'Plated (floor)', '&mdash;', 'no complete day recorded (attendance and every staffed line)'));
   tiles.push(att.pct != null
     ? rptTile('attendance', 'Attendance', figHtml(Math.round(att.pct) + '%', figTonePct(att.pct, 90, 80)),
-      'of the marks typed, Mon–Sat, a half day half, as Staff → Overview reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
+      'of the marks typed, Mon–Sat, a half day half, as People → Attendance reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
       dl(att.pct, patt.pct, 'up'))
     : rptTile('attendance', 'Attendance', '&mdash;', att.days ? 'no mark of the active roster on the days recorded' : 'no working day recorded'));
   tiles.push(lab.total > 0
@@ -331,7 +331,7 @@ function rptBreakdownHtml(p, end, ctx) {
       f.plated ? rptInt(f.plated.kg) : '', f.att.pct != null ? Math.round(f.att.pct) + '%' : '', f.cutsKnown ? String(f.cuts) : ''];
   });
   var title = p.kind === 'weekly' ? 'By day' : p.kind === 'monthly' ? 'By pay week' : 'By month';
-  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is attendance as Staff → Overview reads it, the active roster’s marks typed Monday to Saturday, a half day half. A dash is a stretch nobody recorded, not a zero.',
+  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is attendance as People → Attendance reads it, the active roster’s marks typed Monday to Saturday, a half day half. A dash is a stretch nobody recorded, not a zero.',
     rptTable([[p.kind === 'weekly' ? 'Day' : p.kind === 'monthly' ? 'Week' : 'Month'], ['Invoiced', 1], ['kg', 1], ['₹/kg', 1], ['Received', 1], ['Plated kg', 1], ['Present', 1], ['Cuts', 1]], rows2,
       ['Total', tot.inv ? escHtml(finRs(tot.inv)) : '', tot.kg > 0 ? rptInt(tot.kg) : '', tot.kg > 0 ? formatNum(tot.revKnown / tot.kg, 2) : '',
         tot.rec || tot.nos ? (tot.rec ? rptInt(tot.rec) : '') + (tot.nos ? (tot.rec ? ' · ' : '') + rptInt(tot.nos) + ' NOS' : '') : '',

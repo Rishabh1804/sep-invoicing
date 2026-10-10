@@ -1,9 +1,9 @@
 import { test, expect, type Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, openVerdict } from './fixtures';
 import { CLIENTS, challan, dayOff, inv, openSearch, search, searchBook, titles } from './p139-search.fixture';
 import { PINS, guardBook, withUsers, unlock, windowGone } from './p140-guard.fixture';
 import { pipeState } from './p137-pipeline.fixture';
-import { floorBook, openFloor, tile } from './p138-floor-day.fixture';
+import { floorBook, openFloor, hero } from './p138-floor-day.fixture';
 
 // P151: the QA chain of 2 Oct 2026 on search, Add, Office → Pipeline and Floor → Day (QA3-1 … QA3-12, QA4-1). Search showed
 // a role the screens and actions its pages hide, and a To-do jump drew its dialog over Home after the page was refused; a
@@ -308,17 +308,18 @@ Durga auto 0101--400 nos` : '');
     expect(src.match(/['"][^'"\n]*More →[^'"\n]*['"]/g) || []).toEqual([]);
   });
 
-  test('QA3-9: Floor → Day counts the day\'s roster as Staff → Day does: a hand marked that day who has since left', async ({ page }) => {
+  test('QA3-9: Floor\'s Overview counts the day\'s roster as People → Day does: a hand marked that day who has since left', async ({ page }) => {
     const s: any = floorBook();
     s.staff[0].active = false;   // Alfa left after today's marks
     await loadAppWithState(page, s);
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="day"]').click();
+    await openAttendance(page, 'day');
+    await openVerdict(page);   // the day's card is shut on the phone until opened (TM4b)
     const staffOn = await page.locator('#attOnSite').innerText();
-    const staffOf = await page.locator('#attDayTiles .inv-tile-of').first().innerText();
+    const staffOf = await page.locator('#attDayVerdict .inv-tile-of').first().innerText();
     expect(staffOn + staffOf).toBe('16/17');
     await openFloor(page);
-    await expect(tile(page, 'onsite').locator('.inv-tile-value')).toHaveText('16/17');
+    await expect(hero(page, 'people').locator('.inv-hero-fig')).toHaveText('16/17');
   });
 
   test('QA3-11: search\'s Add a bill opens the latest month with no electricity bill, as Add → Bill does', async ({ page }) => {

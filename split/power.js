@@ -24,8 +24,9 @@
 
 /* The areas whose line stops when the power goes: their hands are the lower end of the idle wages. */
 var POWER_PLATING_AREAS = ['vat-a1', 'vat-a2', 'barrel'];
-var POWER_TABS = [['overview', 'Overview'], ['cuts', 'Cuts'], ['causes', 'Causes'], ['load', 'Load & bills'], ['case', 'Case']];
-var _powerTab = (function() { try { var t = localStorage.getItem('sep_inv_power_tab'); return POWER_TABS.some(function(x) { return x[0] === t; }) ? t : 'overview'; } catch (e) { return 'overview'; } })();
+// The tab map, TM4e: the Overview went (the month, its cost and a year at this rate are Cuts' card and Floor's Power card).
+var POWER_TABS = [['cuts', 'Cuts'], ['causes', 'Causes'], ['load', 'Load & bills'], ['case', 'Case']];
+var _powerTab = (function() { try { var t = localStorage.getItem('sep_inv_power_tab'); return POWER_TABS.some(function(x) { return x[0] === t; }) ? t : 'cuts'; } catch (e) { return 'cuts'; } })();
 var _powerTabMoved = false;
 
 /* The options' figures, the case's own until a quote replaces them. Money in ₹, capture as a share. */
@@ -73,7 +74,7 @@ function powerCfg() {
   return out;
 }
 function powerSetTab(t) {
-  if (!POWER_TABS.some(function(x) { return x[0] === t; })) t = 'overview';
+  if (!POWER_TABS.some(function(x) { return x[0] === t; })) t = 'cuts';
   if (t !== _powerTab) _powerTabMoved = true;
   _powerTab = t;
   try { localStorage.setItem('sep_inv_power_tab', t); } catch (e) { /* a per-device convenience only */ }
@@ -512,136 +513,163 @@ function powerLoad() {
 }
 
 /* ---------- The page ---------- */
+/* Power (the tab map, TM4e): Cuts · Causes · Load & bills · Case, each led by its verdict card and its own toolbar (§1a-12): Cuts
+   enters a cut (Import history behind More), Causes has none, Load & bills edits the load, Case prints. */
 function renderPower() {
   var el = document.getElementById('powerContent');
   if (!el) return;
   powerData();
+  if (!POWER_TABS.some(function(t) { return t[0] === _powerTab; })) _powerTab = 'cuts';
   var a = powerAnalysis();
   var h = '<div class="inv-viewtabs" role="tablist" aria-label="Power">' + POWER_TABS.map(function(t) {
     return '<button class="inv-viewtab" role="tab" aria-selected="' + (_powerTab === t[0]) + '" data-action="invPowerTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
   }).join('') + '</div>';
-  h += '<div class="inv-toolbar">' + (_powerTab === 'case'
-    ? '<button class="inv-btn inv-btn-primary" data-action="invPowerPrint">Print the case</button><button class="inv-btn inv-btn-secondary" data-action="invPowerCfg">Options&rsquo; figures</button>'
-    : '<button class="inv-btn inv-btn-primary" data-action="invPowerAddCut">Enter a cut</button>') +
-    (_powerTab === 'load' ? '<button class="inv-btn inv-btn-secondary" data-action="invPowerLoadEdit">Edit load</button>' : '') +
-    (_powerTab === 'cuts' ? '<button class="inv-btn inv-btn-ghost" data-action="invPowerImport">Import history</button>' : '') + '</div>';
-  if (_powerTab === 'cuts') h += powerCutsHtml(a);
-  else if (_powerTab === 'causes') h += pcsCausesHtml(a);
+  if (_powerTab === 'causes') h += pcsCausesHtml(a);
   else if (_powerTab === 'load') h += powerLoadHtml(a);
-  else if (_powerTab === 'case') h += '<div class="inv-scroll-x" data-power-case-wrap>' + powerCaseHtml(a) + '</div>';
-  else h += powerOverviewHtml(a);
+  else if (_powerTab === 'case') h += powerCaseViewHtml(a);
+  else h += powerCutsHtml(a);
   el.innerHTML = h;
   viewTabReveal(el.querySelector('.inv-viewtabs'));
+  // The case on the page is the paper, fitted to the screen (TM2f's paperFit, as the report is).
+  if (_powerTab === 'case') paperFit(document.getElementById('powerCaseSheet'));
   if (_powerTabMoved) { _powerTabMoved = false; viewTop(); }
   // A case open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-power-case]')) { body.innerHTML = powerCaseHtml(a); printFit(); }
 }
 
-function _powerTile(label, value, sub, tone, key) {
-  return '<div class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-power-tile="' + key + '"><div class="inv-tile-label">' + label + '</div><div class="inv-tile-value">' + value + '</div><div class="inv-tile-sub">' + sub + '</div></div>';
+/* The month on record so far: its cuts, dark minutes, the ones with no time back, their cost and its recorded days. */
+function powerMonthNow(a) {
+  var today = localDateStr(), m = today.slice(0, 7);
+  return a.months.find(function(x) { return x.month === m; }) || { month: m, cuts: 0, min: 0, open: 0, cost: 0, recorded: powerRecordedDays(m + '-01', today).recorded };
+}
+/* The load approved and not yet billed, as a row of what needs the owner, in red (it was a callout on Load & bills). */
+function powerLoadRowHtml(L) {
+  if (!L.pending) return '';
+  return '<div class="inv-row inv-row-2" data-power-load-row><button class="inv-row-main" data-action="invPowerTab" data-tab="load"><span class="inv-row-title">' +
+    escHtml(formatNum(L.approved, 0) + ' kVA approved, billed at ' + formatNum(L.sanctioned, 0)) + '</span><span class="inv-row-meta">' +
+    escHtml('since ' + formatDate(L.approvedOn) + ' · chase JBVNL') + '</span></button>' +
+    uiRowEndHtml(escHtml(formatCurrency(L.penaltySince)), { tone: 'danger', word: 'Penalty' }) + '</div>';
 }
 
-function powerOverviewHtml(a) {
-  var today = localDateStr(), m = today.slice(0, 7), mm = a.months.find(function(x) { return x.month === m; }) || { cuts: 0, min: 0, open: 0, cost: 0, recorded: powerRecordedDays(m + '-01', today).recorded };
-  var L = a.load;
-  var h = '<div class="inv-tiles">' +
-    _powerTile('Cuts this month', String(mm.cuts), escHtml(powerHours(mm.min) + ' dark' + (mm.open ? ' · ' + mm.open + ' with no time back' : '') + ' · ' + (mm.recorded || 0) + ' days recorded'), mm.cuts ? 'warning' : '', 'month') +
-    _powerTile('What they cost', figWrapHtml(formatCurrency(mm.cost)), 'this month: overtime to catch up, output not made up, restarts', mm.cost > 0 ? 'warning' : '', 'cost') +
-    _powerTile('A year at this rate', a.year ? figWrapHtml(formatCurrency(a.year.base)) : '&mdash;', a.year ? escHtml('on the last 90 days, ' + a.year.recorded + ' of ' + a.year.of + ' days recorded') : 'no cut on record yet', a.year && a.year.base > 0 ? 'danger' : '', 'year') +
-    _powerTile('Load', L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '&mdash;',
-      L.pending ? escHtml(formatNum(L.approved, 0) + ' kVA approved, not yet billed · ' + formatCurrency(L.penaltySince) + ' penalty since') : L.sanctioned ? 'as billed' : 'not recorded yet', L.pending ? 'danger' : '', 'load') +
-    '</div>';
-  // What is left to complete (a time back, a reason), and why the cuts come (powercause.js).
-  var z = pcsAnalysis(a);
-  h += pcsCompleteHtml(z);
-  h += '<div class="inv-panels"><div class="inv-panel" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div>' +
-    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record' }) +
-    '<div class="inv-note">Cuts recorded each month. A month with gaps in the record reads low: the Cuts tab gives each month&rsquo;s recorded days.</div></div>';
-  h += '<div class="inv-panel" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div>' +
-    chartBars(a.hours.map(function(n, i) { return { label: (i % 12 || 12) + (i < 12 ? 'a' : 'p'), value: n }; }).slice(5, 23), { unit: 'count', ariaLabel: 'Cuts by the hour they began', emptyText: 'No cut on record' }) +
-    '<div class="inv-note">By the hour each cut began, 5 AM to 10 PM. ' + escHtml(a.bands.map(function(b) { return b.label + ' ' + b.cuts; }).join(' · ')) + '.</div></div>';
-  h += pcsOverviewHtml(z);
-  // The To-do's power tasks; a cut to complete is the panel above.
-  var raised = todoApp(['powerLoad', 'powerCause']);
-  h += '<div class="inv-panel inv-panel-flush" id="powerRaised"><div class="inv-panel-head"><span class="inv-panel-title">Raised</span><span class="inv-panel-count">' + raised.length + '</span></div>' +
-    (raised.length ? raised.map(function(t) {
-      return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + escHtml(t.title) + '</span></span><span class="inv-row-meta">' + escHtml(t.sub || '') + '</span></span></div>';
-    }).join('') : '<div class="inv-empty">Nothing raised about power.</div>') + '</div></div>';
-  return h;
-}
-
+/* Cuts (TM4e): the month's verdict (its cuts and their cost, a year at this rate; the Overview's four tiles its factors), Enter a
+   cut, what needs the owner (the load approved and not billed, in red; the cuts to complete), then the cuts by month, each a line
+   of two facts that opens to what its damage is made of; the two charts folded after them. */
 function powerCutsHtml(a) {
-  if (!a.cuts.length) return '<div class="inv-empty">No power cut on record. Cuts come in from the register photos and the WhatsApp messages Production reads, or Enter a cut; the history from soma-internal&rsquo;s log comes in through Import history.</div>';
-  // A cut is one line (the day and the clock, how long, the damage and its status) that opens to what the damage is
-  // made of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass: this list
-  // ran 21.6 phone screens on the real book, a paragraph of arithmetic under every cut).
-  var h = pcsCompleteHtml(pcsAnalysis(a)) + '<div class="inv-panels">';
+  var mm = powerMonthNow(a), L = a.load, y = a.year, phone = !_isDesktop;
+  var h = uiVerdictHtml({ screen: 'Cuts · ' + billsMonthLabel(mm.month || localDateStr().slice(0, 7)),
+    verdict: mm.cuts ? todoPlural(mm.cuts, 'cut') + ' this month, ' + finRs(mm.cost) : 'No cut this month', money: true,
+    plain: mm.cuts ? todoPlural(mm.cuts, 'cut') + ' this month' : 'No cut this month',
+    tone: L.pending ? 'danger' : mm.cuts ? 'warning' : 'ok',
+    facts: [y ? { text: formatInrShort(y.base) + ' a year at this rate', money: true } : '', mm.cuts ? powerHours(mm.min) + ' dark' + (mm.open ? ', ' + mm.open + ' with no time back' : '') : '',
+      (mm.recorded || 0) + ' days recorded'],
+    factors: [
+      { label: 'Cuts this month', fig: String(mm.cuts), tone: mm.cuts ? 'warning' : null, sub: powerHours(mm.min) + ' dark', attrs: ' data-power-tile="month"' },
+      { label: 'What they cost', fig: figWrapHtml(escHtml(formatCurrency(mm.cost))), tone: mm.cost > 0 ? 'warning' : null, sub: 'this month', money: true, attrs: ' data-power-tile="cost"' },
+      { label: 'A year at this rate', fig: y ? figWrapHtml(escHtml(formatCurrency(y.base))) : '', tone: y && y.base > 0 ? 'danger' : null,
+        sub: y ? 'the last 90 days, ' + y.recorded + ' of ' + y.of + ' recorded' : 'no cut on record yet', money: true, attrs: ' data-power-tile="year"' },
+      { label: 'Load', fig: L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '', tone: L.pending ? 'danger' : null,
+        sub: L.pending ? formatNum(L.approved, 0) + ' kVA approved, not billed' : L.sanctioned ? 'as billed' : 'not recorded yet', attrs: ' data-power-tile="load"' }],
+    attrs: ' id="powerVerdict"' });
+  h += '<div class="inv-toolbar" data-power-toolbar="cuts"><button class="inv-btn inv-btn-primary" data-action="invPowerAddCut">Enter a cut</button>' +
+    uiToolbarMoreHtml([{ label: 'Import history', action: 'invPowerImport' }], { icon: phone }) + '</div>';
+  h += pcsCompleteHtml(pcsAnalysis(a), powerLoadRowHtml(L));
+  if (!a.cuts.length) return h + '<div class="inv-panel"><div class="inv-empty">No power cut on record yet: they come in with the register photos and the messages Production reads, or Enter a cut.</div></div>';
+  // A cut is one line (the day and why, the clock and how long, the damage and where it fell) that opens to what the damage is made
+  // of; the newest month is open and every older one folds to its head (UX overhaul 2's length pass).
   a.months.slice().reverse().forEach(function(m, mi) {
     var list = a.cuts.filter(function(c) { return c.date.slice(0, 7) === m.month; }).reverse();
-    var rows = list.map(function(c) {
-      var k = c.cost, left = 1 - (k.recovered || 0), parts = [];
-      var part = function(label, meta, amount) { parts.push('<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + label + '</span>' +
-        '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end"><span class="inv-num">' + formatCurrency(amount) + '</span></span></div>'); };
-      if (k.restart) part('Restart', 'restart ' + formatCurrency(k.restart) + ', paid whether or not the work is made up', k.restart);
-      if (k.recOt) part('Catch-up overtime', 'catch-up overtime ' + formatCurrency(k.recOt) + (k.recovered ? ', ' + Math.round(k.recovered * 100) + '% made up' : ''), k.recOt);
-      if (k.lost) part('Output not made', 'output ' + formatCurrency(k.lost) + ', its contribution ' + formatCurrency(k.contrib) + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.contrib));
-      if (k.idleAll) part('Wages that bought nothing', 'idle wages ' + formatCurrency(k.idle) + ' (' + k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ')' +
-        (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone present' : '') + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.idle));
-      if (k.fixed) part('Fixed charge', 'fixed charge ' + formatCurrency(k.fixed) + ', paid anyway, so not added', k.fixed);
-      // The meridiem once where both ends share it (10:10 – 10:45 AM): the row's title is the one line a phone gives it.
-      var at = powerClock(c.from), back = c.to != null ? powerClock(c.to) : null;
-      var when = back == null ? at + ' – not back' : c.atLeast || c.overnight ? at + ' – ' + (c.atLeast ? 'after ' : '') + back + (c.overnight ? ' next day' : '')
-        : at.slice(-2) === back.slice(-2) ? at.slice(0, -3) + ' – ' + back : at + ' – ' + back;
-      var tone = c.open ? 'warning' : k.inside ? 'danger' : 'neutral';
-      var meta = [powerDur(c.min) + (c.atLeast ? ' at least' : '') + (c.inferred ? ', close inferred' : ''), c.phase === 'single' ? 'single-phase' : '',
-        k.inside ? (c.min != null && k.inside >= c.min ? 'all in working hours' : powerDur(k.inside) + ' in working hours') + (k.ot ? ', ' + powerDur(k.ot) + ' of it overtime' : '') : 'outside working hours',
-        k.hands ? k.hands + ' plater' + (k.hands === 1 ? '' : 's') + ' idle' : '', c.reports > 1 ? c.reports + ' reports' : ''].filter(Boolean).join(' · ');
-      return '<details class="inv-row-fold" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
-        escHtml(stockShortDate(c.date) + ' · ' + when) + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span>' +
-        // Why it went, on a line of its own (powercause.js): the meta's two lines are the cut's own figures.
-        (c.reason && pcsName(c.reason) ? '<span class="inv-row-meta inv-row-wrap" data-power-cut-why>' + escHtml('Why: ' + pcsName(c.reason)) + '</span>' : '') + '</span>' +
-        '<span class="inv-row-end inv-row-end-stack"><span class="inv-num">' + formatCurrency(k.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' +
-        (c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours') + '</span></span></summary>' +
-        '<div class="inv-row-children">' + pcsCutWhyHtml(c) + parts.join('') + '</div></details>';
-    });
+    var rows = list.map(function(c) { return powerCutRowHtml(c, a.typical); });
     var head = '<span class="inv-panel-title">' + escHtml(billsMonthLabel(m.month)) + ' <span class="inv-panel-count">' + m.cuts + '</span></span>' +
       '<span class="inv-num">' + formatCurrency(m.cost) + '</span>';
     h += uiFoldHtml('power-' + m.month, head,
-      '<div class="inv-panel-body inv-note">' + escHtml(powerHours(m.min) + ' dark' + (m.open ? ', ' + m.open + ' with no time back' : '') + ' · ' + formatCurrency(m.cost) + ' · ' +
-        m.recorded + ' of ' + m.of + ' working days recorded' + (m.perDay != null ? ' · ' + formatNum(m.perDay, 2) + ' cuts a recorded day' : '')) + '</div>' +
+      '<div class="inv-row" data-power-month-facts><span class="inv-row-main"><span class="inv-row-meta">' + escHtml(powerHours(m.min) + ' dark · ' + m.recorded + ' of ' + m.of + ' working days recorded') + '</span></span></div>' +
       uiMoreHtml('power-' + m.month, rows, { n: 10, noun: 'cuts' }), mi === 0, ' data-power-month="' + m.month + '"');
   });
-  return h + '</div>';
+  // The two charts, folded after the cuts (they led the Overview).
+  h += uiFoldCard('power-months', '<div class="inv-panel inv-panel-flush" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div><div class="inv-panel-body">' +
+    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record' }) + '</div></div>', false);
+  h += uiFoldCard('power-hours', '<div class="inv-panel inv-panel-flush" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div><div class="inv-panel-body">' +
+    chartBars(a.hours.map(function(n, i) { return { label: (i % 12 || 12) + (i < 12 ? 'a' : 'p'), value: n }; }).slice(5, 23), { unit: 'count', ariaLabel: 'Cuts by the hour they began, 5 AM to 10 PM', emptyText: 'No cut on record' }) +
+    '<div class="inv-note">' + escHtml(a.bands.map(function(b) { return b.label + ' ' + b.cuts; }).join(' · ')) + '</div></div></div>', false);
+  return h;
+}
+/* A cut (§3b-11): the day (and why it went) as its title, the clock and how long as two facts (a cut with no time back: the time it
+   went and the length it is costed at, `typical`), the damage at its end with where it fell; opened, its reason and fix, and what
+   the damage is made of, a fact a row. */
+function powerCutRowHtml(c, typical) {
+  var k = c.cost, left = 1 - (k.recovered || 0), parts = [];
+  var part = function(label, meta, amount) { parts.push(uiFactRowHtml({ label: label, sub: meta, value: formatCurrency(amount), attrs: ' data-power-part' })); };
+  if (k.restart) part('Restart', 'paid whether or not the work is made up', k.restart);
+  if (k.recOt) part('Catch-up overtime', k.recovered ? Math.round(k.recovered * 100) + '% made up' : '', k.recOt);
+  if (k.lost) part('Output not made', 'its contribution' + (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : '') + ' (output ' + formatCurrency(k.lost) + ')', gstRound(left * k.contrib));
+  if (k.idleAll) part('Wages that bought nothing', k.hands + ' plater' + (k.hands === 1 ? '' : 's') + (k.idleAll > k.idle ? ', ' + formatCurrency(k.idleAll) + ' with everyone' : '') +
+    (k.recovered ? ', the ' + Math.round(left * 100) + '% not made up' : ''), gstRound(left * k.idle));
+  if (k.fixed) part('Fixed charge', 'paid anyway, so not added', k.fixed);
+  var facts = [c.phase === 'single' ? uiFactRowHtml({ label: 'Single-phase', value: '', sub: 'counted as dark' }) : '',
+    c.reports > 1 ? uiFactRowHtml({ label: 'Reports', value: String(c.reports), sub: 'counted once' }) : '',
+    k.inside ? uiFactRowHtml({ label: 'In working hours', value: powerDur(k.inside), sub: k.ot ? powerDur(k.ot) + ' of it overtime' : '' }) : ''].join('');
+  // The meridiem once where both ends share it (10:10 – 10:45 AM).
+  var at = powerClock(c.from), back = c.to != null ? powerClock(c.to) : null;
+  var when = back == null ? at : c.atLeast || c.overnight ? at + ' – ' + (c.atLeast ? 'after ' : '') + back + (c.overnight ? ' next day' : '')
+    : at.slice(-2) === back.slice(-2) ? at.slice(0, -3) + ' – ' + back : at + ' – ' + back;
+  var tone = c.open ? 'warning' : k.inside ? 'danger' : 'neutral', why = c.reason && pcsName(c.reason) ? pcsName(c.reason) : '';
+  var meta = [when, c.open ? 'costed at ' + powerDur(typical || 0) : powerDur(c.min) + (c.atLeast ? ' at least' : '') + (c.inferred ? ', close inferred' : '')].join(' · ');
+  return '<details class="inv-row-fold" data-power-cut="' + escHtml(c.date + '|' + c.from) + '"><summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
+    escHtml(stockShortDate(c.date)) + (why ? ' · <span data-power-cut-why>' + escHtml(why) + '</span>' : '') + '</span><span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
+    uiRowEndHtml(escHtml(formatCurrency(k.total)), { tone: tone, word: c.open ? 'No time back' : k.inside ? 'Working hours' : 'Off hours' }) + '</summary>' +
+    '<div class="inv-row-children">' + pcsCutWhyHtml(c) + facts + parts.join('') + '</div></details>';
 }
 
+/* Load & bills (TM4e): the load's verdict (approved against billed, the penalty since approval; its factors the load billed and
+   approved, the peak and the penalty, each said once: the connection's rows are the card's), Edit load, then each bill a line that
+   opens to its details, and the penalty by bill. */
 function powerLoadHtml(a) {
-  var L = a.load;
-  var h = '<div class="inv-panels"><div class="inv-panel inv-panel-flush" id="powerLoad"><div class="inv-panel-head"><span class="inv-panel-title">The connection</span></div>';
-  var row = function(label, value, end) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + label + '</span></span><span class="inv-row-end">' + value + (end || '') + '</span></div>'; };
-  h += row('Load as billed', '<span class="inv-num">' + (L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '&mdash;') + '</span>', L.billedOn ? '<span class="inv-row-meta">' + escHtml(billsMonthLabel(L.billedOn) + ' bill') + '</span>' : '');
-  h += row('Load approved', '<span class="inv-num">' + (L.approved ? escHtml(formatNum(L.approved, 0) + ' kVA') : '&mdash;') + '</span>', L.approvedOn ? '<span class="inv-row-meta">' + escHtml('since ' + formatDate(L.approvedOn)) + '</span>' : '');
-  h += row('Peak drawn', '<span class="inv-num">' + (L.peak ? escHtml(formatNum(L.peak, 2) + ' kVA') : '&mdash;') + '</span>', L.peakMonth ? '<span class="inv-row-meta">' + escHtml(billsMonthLabel(L.peakMonth) + ' bill') + '</span>' : '');
-  if (L.pending) h += '<div class="inv-panel-body"><div class="inv-callout inv-callout-danger">' + escHtml(formatNum(L.approved, 0) + ' kVA was recorded as approved on ' + formatDate(L.approvedOn) + ' and the bill still charges for ' + formatNum(L.sanctioned, 0) +
-    ' kVA. Over-limit penalty on the bills since: ' + formatCurrency(L.penaltySince) + '. Chase JBVNL' + (L.ref ? ' (ref ' + L.ref + ')' : '') + '.') + '</div></div>';
-  if (L.note) h += '<div class="inv-panel-body inv-note">' + escHtml(L.note) + '</div>';
-  h += '</div>';
+  var L = a.load, any = L.sanctioned || L.approved || L.bills.length;
+  var verdict = L.pending ? 'Approved ' + formatNum(L.approved, 0) + ' kVA, billed at ' + formatNum(L.sanctioned, 0)
+    : L.sanctioned ? 'Billed at ' + formatNum(L.sanctioned, 0) + ' kVA' + (L.approved && L.approved === L.sanctioned ? ', as approved' : '') : 'No load recorded yet';
+  var kva = function(n, dp) { return escHtml(formatNum(n, dp)) + '<span class="inv-tile-of"> kVA</span>'; };
+  var h = uiVerdictHtml({ screen: 'Load & bills', verdict: verdict, tone: L.pending ? 'danger' : L.sanctioned ? 'ok' : 'neutral',
+    facts: [L.pending ? { text: formatCurrency(L.penaltySince) + ' penalty since approval', tone: L.penaltySince > 0 ? 'danger' : null, money: true } : '',
+      L.pending ? 'chase JBVNL' + (L.ref ? ', ref ' + L.ref : '') : '', L.bills.length ? todoPlural(L.bills.length, 'bill') + ' on record' : 'no bill entered yet'],
+    factors: any ? [
+      { label: 'Billed at', fig: L.sanctioned ? kva(L.sanctioned, 0) : '', tone: L.pending ? 'danger' : null, sub: L.billedOn ? billsMonthLabel(L.billedOn) + ' bill' : 'the load typed', attrs: ' data-power-tile="billed"' },
+      { label: 'Approved', fig: L.approved ? kva(L.approved, 0) : '', sub: L.approvedOn ? 'since ' + formatDate(L.approvedOn) + (L.ref ? ', ref ' + L.ref : '') : 'not recorded', attrs: ' data-power-tile="approved"' },
+      { label: 'Peak drawn', fig: L.peak ? kva(L.peak, 2) : '', sub: L.peakMonth ? billsMonthLabel(L.peakMonth) + ' bill' : 'no bill gives it', attrs: ' data-power-tile="peak"' },
+      { label: 'Penalty since', fig: L.since ? figWrapHtml(escHtml(formatCurrency(L.penaltySince))) : '', tone: L.penaltySince > 0 ? 'danger' : null, sub: L.since ? 'the bills since approval' : 'no approval recorded', money: true, attrs: ' data-power-tile="penalty"' }] : [],
+    body: L.note ? '<div class="inv-hero-sheet"><div class="inv-row" data-power-load-note><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(L.note) + '</span></span></div></div>' : '',
+    attrs: ' id="powerLoad"' });
+  h += '<div class="inv-toolbar" data-power-toolbar="load"><button class="inv-btn inv-btn-primary" data-action="invPowerLoadEdit">Edit load</button></div>';
+  h += '<div class="inv-panels">';
   h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button></div>';
-  if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money &rarr; Payments; their details (units, peak, charges) are set here.</div>';
+  if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money → Payments; their details are set here.</div>';
   L.bills.slice().reverse().forEach(function(b) {
-    var bits = [b.kwh ? formatNum(b.kwh, 0) + ' kWh' : (b.units ? formatNum(b.units, 0) + ' units' : ''), b.kvah ? formatNum(b.kvah, 0) + ' kVAh' : '',
-      b.kwh && b.kvah ? 'PF ' + formatNum(b.kwh / b.kvah, 3) : '', b.md ? 'peak ' + formatNum(b.md, 2) + ' kVA' : '', b.kvaBilled ? 'billed at ' + formatNum(b.kvaBilled, 0) + ' kVA' : '',
-      b.fixed ? 'fixed ' + formatCurrency(b.fixed) : '', b.energy ? 'energy ' + formatCurrency(b.energy) : '', b.fca ? 'fuel ' + formatCurrency(b.fca) : '', b.duty ? 'duty ' + formatCurrency(b.duty) : '',
-      b.penalty ? 'penalty ' + formatCurrency(b.penalty) : '', b.arrears ? 'arrears ' + formatCurrency(b.arrears) : ''].filter(Boolean);
-    h += '<div class="inv-row inv-row-2" data-power-bill="' + escHtml(b.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(billsMonthLabel(b.month)) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.length ? bits.join(' · ') : 'amount only: set its details') + '</span></span>' +
-      '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPowerBillEdit" data-id="' + escHtml(b.id) + '">Details</button></span></div>';
+    var facts = [b.kwh ? ['Units', formatNum(b.kwh, 0) + ' kWh'] : b.units ? ['Units', formatNum(b.units, 0)] : null, b.kvah ? ['kVAh', formatNum(b.kvah, 0)] : null,
+      b.kwh && b.kvah ? ['Power factor', formatNum(b.kwh / b.kvah, 3)] : null, b.md ? ['Peak drawn', formatNum(b.md, 2) + ' kVA'] : null, b.kvaBilled ? ['Billed at', formatNum(b.kvaBilled, 0) + ' kVA'] : null,
+      b.fixed ? ['Fixed charge', formatCurrency(b.fixed)] : null, b.energy ? ['Energy', formatCurrency(b.energy)] : null, b.fca ? ['Fuel adjustment', formatCurrency(b.fca)] : null,
+      b.duty ? ['Duty', formatCurrency(b.duty)] : null, b.penalty ? ['Penalty', formatCurrency(b.penalty)] : null, b.arrears ? ['Arrears', formatCurrency(b.arrears)] : null].filter(Boolean);
+    var two = [b.kwh ? formatNum(b.kwh, 0) + ' kWh' : b.units ? formatNum(b.units, 0) + ' units' : '', b.md ? 'peak ' + formatNum(b.md, 2) + ' kVA' : ''].filter(Boolean).join(' · ');
+    var key = 'power-bill-' + b.id;
+    h += '<details class="inv-row-fold" data-fold="' + escHtml(key) + '" data-power-bill="' + escHtml(b.id) + '"' + (uiFoldOpen(key, false) ? ' open' : '') + '>' +
+      '<summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(billsMonthLabel(b.month)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml(facts.length ? two || todoPlural(facts.length, 'detail') : 'amount only: set its details') + '</span></span>' +
+      uiRowEndHtml(escHtml(formatCurrency(b.amount))) + '</summary>' +
+      // Opened: its details a fact a row, and Details, the one action that sets them (§1a-11: the row's end is its figure).
+      '<div class="inv-row-children">' + facts.map(function(f) { return uiFactRowHtml({ label: f[0], value: f[1] }); }).join('') +
+      '<div class="inv-row-actions"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPowerBillEdit" data-id="' + escHtml(b.id) + '">' + (facts.length ? 'Details' : 'Set its details') + '</button></div></div></details>';
   });
   h += '</div>';
   var pts = L.bills.filter(function(b) { return b.penalty != null || b.md != null; });
-  if (pts.length >= 2) h += '<div class="inv-panel" id="powerPenalty"><div class="inv-panel-head"><span class="inv-panel-title">Over-limit penalty by bill</span></div>' +
-    chartBars(pts.map(function(b) { return { label: billsMonthLabel(b.month), value: Number(b.penalty) || 0 }; }), { ariaLabel: 'Over-limit penalty by bill' }) + '</div>';
+  if (pts.length >= 2) h += uiFoldCard('power-penalty', '<div class="inv-panel inv-panel-flush" id="powerPenalty"><div class="inv-panel-head"><span class="inv-panel-title">Over-limit penalty by bill</span></div><div class="inv-panel-body">' +
+    chartBars(pts.map(function(b) { return { label: billsMonthLabel(b.month), value: Number(b.penalty) || 0 }; }), { ariaLabel: 'Over-limit penalty by bill' }) + '</div></div>', false);
   return h + '</div>';
+}
+/* Case (TM4e): the document, Print the case the one primary and Options' figures beside it, the paper fitted to the screen. */
+window.addEventListener('resize', function() { var s = document.getElementById('powerCaseSheet'); if (s && s.offsetParent) paperFit(s); });
+function powerCaseViewHtml(a) {
+  return '<div class="inv-toolbar" data-power-toolbar="case"><button class="inv-btn inv-btn-primary" data-action="invPowerPrint">Print the case</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invPowerCfg">Options&rsquo; figures</button></div>' +
+    '<div class="inv-rpt-sheet" id="powerCaseSheet" data-power-case-wrap>' + powerCaseHtml(a) + '</div>';
 }
 
 /* ---------- The case, as a document ---------- */

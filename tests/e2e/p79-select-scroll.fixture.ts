@@ -19,6 +19,10 @@ export const NAVIGATES: Array<[RegExp, string]> = [
   // Settings → Appearance repaints the whole app (theme, palette, density); nothing to hold in place, and the spacing
   // itself changes under a density switch, so a row moving there is the point of it.
   [/invAppearance/, 'density and theme change every size on the screen'],
+  // Day, Week and Month are Attendance's own views, and a line is Lines' own view, each led by its card (the tab map, TM4b, TM4c):
+  // a view opens at its top, as a view tab does.
+  [/invAttPeriod/, 'Attendance’s views'],
+  [/invProdLine"/, 'a line on Lines'],
 ];
 
 const SPACER = 'p79Spacer';

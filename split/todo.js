@@ -870,7 +870,7 @@ function todoGo(go) {
     }
     case 'production':
       // A jump shows what it names: an entry left open in the desktop's pane would take the list's place below ~1100px (QA1-6).
-      prodSetTab(go.tab || 'overview'); _prodView = 'main'; _prodEntryOpen = null;
+      prodSetTab(go.tab || 'lines'); _prodView = 'main'; _prodEntryOpen = null;
       if (go.client != null) { if (go.tab === 'plant') _prodPlantClient = String(go.client); else _prodFilter = { kind: '', flag: go.flag || '', client: String(go.client) }; }
       else if (go.flag) _prodFilter = { kind: '', flag: go.flag, client: '' };
       switchTab('pageProduction');
@@ -906,7 +906,7 @@ function todoGo(go) {
       if (pw) { pw.open = true; pw.scrollIntoView({ block: 'start' }); }
       break;
     }
-    case 'power': powerSetTab(go.tab || 'overview'); switchTab('pagePower'); break;
+    case 'power': powerSetTab(go.tab || 'cuts'); switchTab('pagePower'); break;
     case 'payDue': _attView = 'pay'; _attDate = localDateStr(); switchTab('pageStaff'); break;
     case 'staffPaste': _attView = 'paste'; switchTab('pageStaff'); break;
     case 'stockList': _stockView = 'list'; switchTab('pageStock'); break;

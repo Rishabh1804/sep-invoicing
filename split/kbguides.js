@@ -64,22 +64,104 @@ var KB_APP_GUIDES = [
     '- **A note already issued on paper**: Office → Invoices → **Credit notes** → **Record issued**, with its own number and the GST as printed.\n\n' +
     'A credit note is cancelled, never deleted.', { version: 2 }),
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
-    '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Paste message).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
+    '1. Copy the roll from WhatsApp, then Add → Paste (or Floor → People → Attendance → Day → **Paste message**).\n2. The app reads every line: who, where and when. A name it is unsure of reads **read as** with a picker; a name it cannot place is red until you place it.\n' +
     '3. Check every line, then **Save**. A spelling you place is remembered.\n4. Paste the out-time roll the same way: it updates the day.\n\n' +
-    'A mark typed by hand is never overwritten by a roll.'),
-  _kbg('day', 'Using the app: the day by hand', 'Floor → People → Day: marks, times and overtime', ['pageStaff', 'pageFloor'],
+    'A mark typed by hand is never overwritten by a roll.',
+    // Version 2: Paste message is Attendance's, on Day (the tab map, TM4b).
+    { version: 2 }),
+  // Attendance (the tab map, TM4b): Day, Week and Month under one tab, and the method each screen used to print above its figures.
+  _kbg('day', 'Using the app: attendance', 'Floor → People → Attendance: the day, the week and the month', ['pageStaff', 'pageFloor'],
+    'Floor → People → **Attendance** has three views on a switch under its toolbar: **Day**, **Week** and **Month**. Each starts with a card that says how it stands; tap it on a phone for its figures.\n\n' +
+    '# Day\n- The card says who is on site against the day’s roster and the areas short of the day’s number: on site, half day, absent and not marked are its figures.\n' +
     '- **Board** shows each area as a card. P, H or A is one tap. Tap a name for the hand’s day: area, in, out, and the area of each overtime shift.\n' +
     '- **Sheet** is Deepak’s sheet: one row a hand, with the in and out typed as on paper. Hours and OT work themselves out.\n' +
-    '- EXTRA hours are entered below the board, against the area and the crew.\n- **Needed today** sets how many heads each area needs, when it differs from usual.\n' +
-    '- **Print sheets** prints the blank forms and the day as entered, to file.'),
+    '- **Paste message** takes the rolls; **Print sheets** (under More on a phone) prints the blank forms and the day as entered, to file.\n\n' +
+    '# Extra hours\n- Hours booked to an area rather than to a named hand: the **EXTRA n HOURS** lines on the daily sheet. They are counted in the bill once, under the EXTRA line.\n' +
+    '- Each row is one line: the area, the slot, the hours and its crew. Tap it for its times, crew and number needed. A row missing its times or its crew stays open, in amber.\n' +
+    '- A general shift’s extra covers a missing hand a full eight hours. An **OT block** covers it the block’s own length, so it needs its in and out times and its crew: the day’s marks supply neither, since a hand on one area all day may stand in another’s evening block.\n\n' +
+    '# Needed today\n- Who stood in each area on the general shift against what the shift needed. The box starts at the area’s usual number (People → Areas).\n' +
+    '- Type the day’s own number, **0** when the line needed nobody, or clear it for the usual. The shortfall and the extra are judged against it.\n' +
+    '- An OT or night block takes its own number on its row under Extra hours.\n\n' +
+    '# Week\n- The card says the week’s attendance against the rest-day gate (90% and 80%), the days nobody recorded, and the payout so far.\n' +
+    '- Tap a cell of the grid to cycle it: present, half day, absent, then back to not marked.\n' +
+    '- A cell not marked is a day nobody typed, which is not the same as a day nobody worked: the labour figures keep the two apart.\n' +
+    '- The figure in a cell is the hours that decide the pay: the whole day for the hourly pool, the overtime for everyone else.\n\n' +
+    '# Month\n- The supervisor’s register, a page a month, set against the day as the app holds it. The card counts the cells that differ, those only on the register and those that agree.\n' +
+    '- A cell is drawn as written. Red: the mark differs from the day. Amber: only the overtime differs, by an hour or more. Plain: it agrees, or it is only on the register. A dashed edge is a cell the reading was unsure of.\n' +
+    '- Tap a cell to see both and settle it, one way or the other: **Day takes the register’s** or **Register takes the day’s**. **Fill** puts every cell only on the register onto its day, asked first.\n' +
+    '- **Read page photo** reads a photo of the page, every cell shown before it counts; **Import** takes a register file; **Start this month** gives a column to each monthly hand to fill by hand.',
+    // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b).
+    { version: 2 }),
+  // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
+  _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
+    'Floor → People → **Areas** reads the attendance by place: is each area staffed right, and does the extra hold up. The card at the top says whether the extra checks out, or how many bookings are left to explain.\n\n' +
+    '# The rule\n- A hand missing from an area running at full tilt is covered by the crew who are there, and **8 hours are booked** to that area for it. So the extra expected is **8 × (the area’s number − the heads)** for each area, each day, set against what was booked.\n' +
+    '- An OT block books the same way, at the block’s own length instead of 8 (a 5 PM to midnight block short two hands books 14). The named hands’ own overtime is separate and is not in it.\n' +
+    '- Barrel and barrel pickling are one unit of five for the arithmetic. A VAT line in a block brings its pickling hands with it: one line needs 2 of the 3, both lines all 3, never 4.\n' +
+    '- The number is the area’s complement (VAT A1 and A2 4, Barrel 3, Barrel pickling 2, Pickling A1 and A2 3 is the floor’s full house), or the day’s own where Needed today sets one. With none set, the extra can only be counted, not checked.\n\n' +
+    '# Reading the check\n- **More booked than the shortfall explains** is what the rule forbids: hours on top of named columns, a tag on a full area, or a figure written larger than the gap.\n' +
+    '- **Less booked** is not wrong: an area short **and** running light needs no cover, and nothing here measures an area’s output, so the expected figure is the most it can be, not a target.\n' +
+    '- A unit nobody was marked on that still carries hours reads as fully short and fully covered (a pickling row with no heads booking 24 hours against a number of 3 is 8 × 3 exactly). It passes the check; what it says is that the day’s marks were never typed.\n' +
+    '- A unit nobody stood on and nothing was booked to did not run, and is left out.\n\n' +
+    '# The rows to explain\n- They are flags on the paperwork: hours booked to the wrong area, an area nobody typed, and hours never worked all look the same from here. The row gives the area and the day; the sheet settles the rest.\n' +
+    '- **Explain** records why one is right, against its figures. If the figures later move (a crew corrected, a tag retyped), the note no longer fits and the row comes back.\n' +
+    '- A block needs three things to be checked: its in and out times, its named crew and the areas it covers. Without one it is **not checkable**: its hours are still paid, they are just not evidence about staffing.\n\n' +
+    '# Staffing by area\n- Heads are counted from the day’s marks, so a hand moved to another area counts where they stood. Averages are over the days recorded, not the calendar.\n' +
+    '- With no number set, the area’s own median stands beside it as the only reference.\n' +
+    '- Hands on **Flex** count against no area; set their area on the Day to place them.\n\n' +
+    '# The extra, paid pro-rata\n- The area’s present crew receive its extra between them (owner, 28 Aug 2026). It stays one pooled figure under EXTRA on the slip, paid out by the supervisor; the shares are the split he pays it by, and nothing here enters a hand’s own wage.\n' +
+    '- A share over a shift a day (24 hours of cover against two hands is twelve each) is marked: check it against the record before reading it as pay.'),
+  // Floor's Overview (the tab map, TM4a): how its cards are read, which used to be a note under them (§1a-5).
+  _kbg('floor', 'Using the app: the floor', 'The day across the plant: people, production, stock and power', ['pageFloor'],
+    'Floor opens on its **Overview**: the day across the plant, a card each, then a card per line. The arrows step through the days; **Today** comes back.\n\n' +
+    '# The four cards\n- **People**: who is on site against the day’s roster, and the lines short of the day’s number. Green at 90% on site; amber at 80%, or when the floor is short of its number; red under 80%.\n' +
+    '- **Production**: what the day plated (≈ where part of it is estimated, ≥ where pieces nothing weighs are left out), and the line that did worst.\n' +
+    '- **Stock**: the lines out and low now, whatever the day shown, and what the reorder list costs with GST.\n' +
+    '- **Power**: the day’s cuts and how long it was dark, the month to that day, a year at this rate, and the load to chase while an approved load is not on the bill.\n' +
+    '- Tap a card for what it rests on; its link opens its screen. A role sees the cards of the screens it opens.\n\n' +
+    '# The lines\n- A card per line, the worst first: red, then amber, green and blue.\n' +
+    '- **Staffing**: the general shift’s heads against the day’s number (People → Attendance → Needed today). Barrel is barrel and barrel pickling, one unit.\n' +
+    '- **Plated**: the figure that counts for each shift, as Production → Lines shows it. A day nobody recorded is a gap, not a zero.\n' +
+    '- A line’s efficiency and how it splits: **Reading the plant’s figures**.\n\n' +
+    '# Not weighed\n- Pieces plated with no weight anywhere in the book: no kg a piece on record, and no challan of them that counts their pieces.\n' +
+    '- **Which part?** reads the floor’s name as one of the client’s parts from then on; **Set its weight** puts a kg a piece on the client’s card.'),
+  // Stock as one screen (the tab map, TM4d), and the method its Overview printed under its charts.
   _kbg('stock', 'Using the app: stock', 'The stock message, entry by hand, and reordering', ['pageStock'],
-    '- **Paste the stock message** from the supervisor. Every line is shown with what was read. A line that contradicts itself is red: pick the working or the figure written.\n' +
+    'Floor → **Stock** is one screen. The card at the top says what is out or low and what the reorder list costs with GST; its tiles (Out, the days-or-less group, OK, No rate) each show only their lines, and a second tap shows them all.\n\n' +
+    '- **Paste message** from the supervisor. Every line is shown with what was read. A line that contradicts itself is red: pick the working or the figure written.\n' +
     '- **Enter by hand** for a count, a delivery (with its bill: company, invoice number, price), a use or a charge into the bath.\n' +
-    '- A wrong entry is **corrected**, never edited: it is voided and the right figure entered in its place.\n- **Reorder list** works out what to order for each supplier.'),
+    '- A wrong entry is **corrected**, never edited: it is voided and the right figure entered in its place.\n' +
+    '- Under **More**: the **Reorder list** (what to order from each supplier), **Print sheets**, Export and Import.\n\n' +
+    '# Days left\n- A line’s level over its daily use: the use over the last three weeks of record, Sundays out. Under three days of record the figure carries a ?.\n' +
+    '- Red at a few days or fewer, amber at a week (Settings → Checks & alerts → Stock alerts). A line charged into a bath is never red at an empty shelf: the delivery going into the bath is the normal state.\n\n' +
+    '# Spend and prices\n- At the foot of the list on a phone, in the pane beside it on a computer.\n' +
+    '- **Spend by supplier**: six months of bills, before GST. Tap a supplier for its bills and what the bank paid it.\n' +
+    '- **Used, by week**: each use at the price paid for that line on the day; a line with no price is named and not counted.\n' +
+    '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.',
+    // Version 2: one screen, its card and Spend and prices (the tab map, TM4d).
+    { version: 2 }),
+  // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
-    '- **Paste** the pickling loads and the production list from WhatsApp.\n- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
-    '- **Enter by hand** when there is nothing to paste. The form stays open for the next entry.\n' +
-    '- Production → In plant shows the material in the plant two ways: by the book and by the floor.\n- A figure is corrected by a new entry, never edited.'),
+    'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +
+    '# Taking it in\n- **Paste** the pickling loads and the production list from WhatsApp; every line is shown with what was read before anything is saved.\n' +
+    '- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
+    '- **Enter by hand** (under More) when there is nothing to paste. The form stays open for the next entry.\n- A figure is corrected by a new entry, never edited; a wrong one is voided with a reason.\n\n' +
+    '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, the rounds and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
+    '- **One record counts for each line and shift**: the register, else the supervisor’s relay, else an entry by hand. The others are shown as *also reported, not added*: they count the same work another way.\n' +
+    '- **The week, plated**: the kilograms each line plated each day, ≈ where any run is estimated, pieces nothing weighs added as pieces; each figure in its day’s efficiency’s colour. A dash is a day with no record for the line.\n' +
+    '- **Plated by line, 4 weeks**: kilograms a day; a gap is a day with no record, or a tenth of its pieces not weighed, never a zero.\n' +
+    '- **Labour per kg, 30 days**: the variable labour of the line’s areas (the pool, the daily tier, overtime and the EXTRA), the VAT side’s pickling hands shared by each day’s kilos, over the same days as the kilos (days with nine tenths of the pieces weighed). The monthly crew is the standing crew and is not by line. Withheld under five days; set against the modelled labour (Settings → Labour).\n\n' +
+    '# In plant\n- **Book**: everything open on the challans, not invoiced, the same figure as Today’s unbilled.\n' +
+    '- The floor splits each open line into *waiting to pickle*, *pickled, not plated* and *plated, not invoiced*, setting a part’s plating and pickling against its challans oldest first. A line billed whole is closed on its last invoice’s day.\n' +
+    '- **Waiting to pickle** is withheld until every line is recorded on 90% of the working days: plating on a day not recorded would read as still waiting. Plated, not invoiced reads low, never high.\n' +
+    '- A challan received by the kilo is counted in pieces where the part’s kg a piece is known (the client’s card, then part weights, then Parts). A line with none is listed to look at: set the weight on the client’s card.\n' +
+    '- Rework counts as work, never as billing, so it is left out here.\n\n' +
+    '# Entries\n- The latest thirty, newest first; the rest one tap away. A row says where and when (the line and the shift) and how much (the quantity, with its kilos), and ends in **Correct** (a cut: **Complete** or its reason). Tap it for everything else, and Void.\n' +
+    '- Its badges: where it came from (*register*, *relay*, *hand*, *message*, *import*), how its pieces were weighed (*written*, *record*, *challans*, *kind*, *default*, *not weighed*), and what it did not match (*no challan*, *no client*, *gauge unknown*).\n' +
+    '- **Filter** (on a phone) lists one kind, or the entries a flag names, every date.\n\n' +
+    '# Equipment\n- Every tank, barrel and machine, a card each in its status’s colour: running, standby, under repair, down, with its kg a round and how long it has stood. A line’s capacity is worked out from its units; every change of status is kept with its day.',
+    // Version 2: four views, a card on each, the method moved here (the tab map, TM4c).
+    { version: 2 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -95,12 +177,34 @@ var KB_APP_GUIDES = [
     '- Days the line has no record are filled at the pace of the days it has; under half recorded, nothing is set.\n' +
     '- A use naming two baths is shared by what each plated, or evenly where one is not recorded. A use naming no bath is the plant’s.\n\n' +
     '# The signs\n- **≈** an estimate. **≤** the most it can be: pieces nothing weighs leave the kilograms short.\n- **—** withheld, with the reason beside it.'),
-  _kbg('power', 'Using the app: power cuts', 'Recording a cut and what it cost', ['pagePower', 'pageProduction'],
-    '- A cut is entered like any floor record: Floor → Power → **Enter a cut** (the time it went and the time it came back).\n' +
-    '- A cut reported twice (the register and a message) is counted once.\n- Power → Case is the business case for backup power, drawn from the record every time it is opened or printed.'),
+  // Power's four views (the tab map, TM4e), and the method its screens printed under their figures.
+  _kbg('power', 'Using the app: power cuts', 'Recording a cut, what it cost, why they come, the load and the case', ['pagePower', 'pageProduction'],
+    'Floor → Power has four views: **Cuts**, **Causes**, **Load & bills** and **Case**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day’s cuts are on Floor → Overview’s Power card.\n\n' +
+    '# Cuts\n- **Enter a cut** (the time it went and the time it came back); the register’s power log and the messages Production reads bring cuts in too. A cut reported twice is counted once. **Import history** (under More) takes the log kept before the app.\n' +
+    '- The card is the month: its cuts, what they cost and a year at this rate (the last 90 days). When a higher load is approved and the bill still charges the old one, that is the first thing to look at, in red.\n' +
+    '- **To complete**: a cut with no time back, or a recent one with no reason. **Complete** asks the time back, why it went, where it hit and what brought it back.\n' +
+    '- A cut is one line: the day and why, the clock and how long, and what it cost. Tap it for what the cost is made of.\n' +
+    '- **What a cut costs** is its damage: a restart (an estimate), the overtime that made the work up on that day and the next, and for the share never made up, the output’s contribution and the platers’ wages that bought nothing. The fixed charge is paid anyway and is not added.\n' +
+    '- **Cuts by month** and **When they come** are folded under the cuts. A month with gaps in the record reads low.\n\n' +
+    '# Causes\n- The card names the cause that cost most. A tile is coloured only once three cuts stand behind it; with fewer it gives the count.\n' +
+    '- **What causes them**, by what they cost: red, in the plant three times or more in 30 days; amber, in the plant; blue, from the grid; grey, not placed.\n' +
+    '- **Where they hit**: a tile a place. A line is red where three or more cuts started in the plant in 30 days, amber for one or two; the whole plant is the supply’s.\n' +
+    '- **What brings it back**, fastest first: the middle of the minutes from the cut to the power in, over the cuts each fix brought back.\n- The lists of reasons and fixes are the book’s: renamed, placed and merged by the owner.\n\n' +
+    '# Load & bills\n- The card is the load as billed against the load approved, with the penalty on the bills since approval. **Edit load** records the approval.\n' +
+    '- A bill is one line: its month, its units and peak, and its amount. Tap it for its details; **Details** sets them. Bills are added in Money → Payments.\n\n' +
+    '# Case\n- The business case for backup power, drawn from the record every time it is opened or printed. **Print the case**; **Options’ figures** sets the options’ estimates until a quote replaces them.',
+    // Version 2: four views, a card on each, the method moved here (the tab map, TM4e).
+    { version: 2 }),
   _kbg('pay', 'Using the app: pay', 'What each hand is owed, payments and the weekly payout', ['pageStaff'],
-    '- Floor → People → **Pay**, for the pay week (Sunday to Saturday).\n- Each hand shows what was earned, what was paid and what is due. Tap a hand to record a payment or an advance.\n' +
-    '- A wrong payment is voided with a reason, never deleted.\n- The weekly payout is predicted while the week is open.', { roles: ['owner'] }),
+    '- Floor → People → **Pay**, for the pay week (Sunday to Saturday). The card at the top is the week’s payout against its usual (the median of the twelve weeks before, leaving out weeks nobody recorded).\n' +
+    '- While the week is open the payout is predicted at its own pace: the days recorded as they are, the rest at the week’s average for a working day. The Sunday is left out of that average, since it is overtime.\n' +
+    '- **Due by worker**: each hand’s line is what is due. Tap it for the arithmetic (days × the rate, rest days, overtime hours × the rate, what was paid and what was brought forward) and **Pay** to record a payment or an advance.\n' +
+    '- The weekly hands are paid by the week; the monthly hands by the calendar month the week’s Sunday is in. The EXTRA pool is in no one’s due: it is one line on the slip, paid out by the supervisor.\n' +
+    '- A balance carries to the next period until it is paid, worked off or cleared with a reason (**Brought forward**).\n' +
+    '- A wrong payment is voided with a reason, never deleted.\n' +
+    '- **Monthly payroll as paid** (under More: Import): a closed month’s slips, as paid. For a month before this one they replace the model for the hands they name.',
+    // Version 2: the payout's change against its usual, the due rows' arithmetic folded, the payroll's import under More (TM4b).
+    { roles: ['owner'], version: 2 }),
   _kbg('bank', 'Using the app: the bank statement', 'Importing it, placing each receipt, and cheques in hand', ['pageFinance'],
     '- Money → Bank, in the toolbar’s More: **Import a statement**: the bank’s own .xls, or the same saved as .xlsx. Rows already in are skipped, so a statement that overlaps the last adds only what is new.\n' +
     '- **Receivables start** on the later of the statement’s first day and the book’s first invoice: a receipt before then paid an invoice the app does not hold.\n' +

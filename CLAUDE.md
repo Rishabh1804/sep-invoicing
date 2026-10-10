@@ -49,8 +49,8 @@ screens and views, 34 lead with no summary at all; the rest lead five different 
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
 row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
 (owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
-built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3 is built (*The tab map* below); then TM4 to TM7 and
-the QA chain.
+built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3 and TM4 are built (*The tab map* below); then TM5 to
+TM7 and the QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -150,15 +150,15 @@ split/
 ├── finlinks.js        ← Finance linked into Home, Stats, Clients, Register, Pay, Stock (~200 lines)
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
-├── dash.js            ← Staff and Stock Overviews: attendance, labour ₹/kg, OT by area, payroll vs bank; days left, supplier spend, use, prices (~230 lines)
+├── dash.js            ← The charts People and Stock explain with: attendance by week, labour ₹/kg, payroll vs bank (Pay); supplier spend, use, prices (Stock's Spend and prices) (~230 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; a line's efficiency; in plant; rules; export (~1,420 lines)
 ├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~450 lines)
 ├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
 ├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
 ├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
-├── prodview.js        ← Production page: the day's card, Overview, In plant, Lines, Entries; paste, photo and hand sub-views; Set its weight (~1,320 lines)
-├── floor.js           ← Floor → Day: a card per line coded by its efficiency, heads against the number, running, plated, crew, EXTRA; the pieces not weighed (~300 lines)
+├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
+├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency; the pieces not weighed (~450 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -456,7 +456,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 720 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 716 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2070,7 +2070,8 @@ workers and every personal detail are the book's; the owner's private files (`se
   round** (owner): available = the kg a round of the units running or on standby over all of them (by count, and said, where no kg is
   typed); used is what the register measures a line plating a round (`prodTankLoad`, the register's own rounds; the planner's
   `plnBase().lines` for a line with none), *not measured* without either. Production →
-  **Equipment**, a strip per line leading Production's Overview, Floor → Day's line cards (*1 of 4 down*). The planner's machines are
+  **Equipment**, a deck card a unit, two across on the phone (the tab map, TM4c; a strip per line until then), the status changes folded
+  under them, Floor → Overview's line cards (*1 of 4 down*). The planner's machines are
   units now (`plnLive('machines')` reads them; moved once, ids kept). To-do `plantDown` (3 days amber, 7 red). Edits are the owner's.
   **The plant as found** (owner's register of 9 Oct 2026): a unit written in on the day the register was set up (`pltSetUpDay`, the
   first day of a unit's first line) stood before it, whatever its *since*, which is the day it was recorded; only a unit written in
@@ -2084,7 +2085,9 @@ workers and every personal detail are the book's; the owner's private files (`se
   signals, each with its reason (pay owed, advances, OT climbing, a newer hand of the tier paid more, absences rising, no rise in a year),
   and the owner's monthly **check-in** (1–5, `S.peopleCheckins`) weighs half; not firm without a check-in in 60 days, and never red
   unless firm. **Personal details and motivation are the owner's alone**; the change log never compares a profile, a check-in's score or
-  note. The roster row carries three bars (reliability, consistency, workload) and the top skills (P168). To-do `pplCheckin`, `pplWatch`.
+  note. The roster row carries the area and the pay as its meta (the tier is its group), three bars (reliability, consistency,
+  workload) and the top skills (P168); a badge only for a state (*Motivation 42*, *Inactive*). Its verdict's *To watch* and *Check-ins due* show those hands alone
+  (TM4f: a check-in due on every row had marked 21 of 23). To-do `pplCheckin`, `pplWatch`.
   `sep-people` v1 through Staff → Roster → Import or Add → File: matched by name like a roll, each match checked before a field is written.
   **Skills and relationships each have a Change on their own panel** (owner: *"once I set the skill there is no way to change the skill
   level"*: the only door was *Details, skills and ties* at the foot of the record); a dialog opened on one part writes only that part.
@@ -2243,8 +2246,9 @@ quarterly and a yearly follow the monthly's shape. P132.
 
 ### Power
 More → **Power** (sidebar Floor → Power; `power.js`; owner, 30 Sep 2026: *"Make a power cut tab, we have built a business
-case for power cut and how to resolve it, find it, read it and update it"*). Five views: **Overview · Cuts · Causes · Load &
-bills · Case**. The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
+case for power cut and how to resolve it, find it, read it and update it"*). Four views since the tab map (TM4e): **Cuts ·
+Causes · Load & bills · Case**, each led by its verdict card (the Overview went: its month, cost and year are Cuts' card and Floor's
+Power hero). The case was written once, on 30 May over 56 days (soma-internal `archives/2026-W21-W22-session/13-…`); this page
 keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is the dated refresh.
 
 - **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
@@ -2592,7 +2596,50 @@ lowered for Money's screens, and P197's `ONE_LOOK` takes them.
   (3.05 → 1.55); Bank 3.38 → 3.20 (3.56 → 3.31, chains 8 → 0); GST 1.11 → 1.10; Bills & notes gone.
 - Fixtures: `openFoldAt(page, key)` opens a fold by its key, `bankImportDoor(page)` the statement's import wherever it is drawn.
 
-### Direction B: workspaces, Today, Add, Pipeline, Floor → Day, search
+### The tab map: Floor (TM4)
+`docs/TAB_MAP.md` TM4 (10 Oct 2026): Floor is **Overview · People · Production · Stock · Power**, and the Overviews of People,
+Production, Stock and Power are gone; every Floor screen leads with its verdict card, then one toolbar row. P188; P195's budgets
+lowered for every Floor screen, P197's `ONE_LOOK` takes them, and the walk visits Attendance's Week and Month.
+- **Floor → Overview** (`floor.js`; it was Floor → Day): the day stepper, then four heroes, People (carrying the verdict:
+  who is on site against the roster, `attOnSiteTone`, the lines short by name), Production (the day's card, led by the worst
+  line), Stock (now: out and low, the reorder's cash with GST) and Power (the day's cuts, the month, a year at
+  this rate, the load to chase), each shown to a role that opens its screen (the floor role sees People without its link,
+  Production and Stock, no Power); then the line cards, **the worst first**; then *Not weighed*.
+- **People is Attendance · Pay · Areas · Roster**; Attendance is a switch Day · Week · Month (`data-att-period`), its tab
+  returning to the last of the three; the addresses are unchanged (`v=day`, `week`, `register/<month>`). Day's EXTRA rows are one
+  line each until opened (`details[data-extra-row]`); Week leads with attendance by week (folded); Pay with its payout against
+  the usual week, labour ₹/kg and the payroll against the bank folded; Pay's payment form folds on the phone (`#payFormFold`);
+  Areas leads with the extra checked, its hours by area a table (`[data-area-hours]`); Roster's *To watch* is the To-do's `pplWatch`, and its card's *To watch* and *Check-ins due*
+  show those hands alone (`invAttRosterFilter`; a check-in due is no badge on the row); the tier is the group, the area and the
+  pay (the base rate with an overtime hour's) the row's two facts (`workerRateShort`), the hands who left under *Left*. A period in a toolbar row is `inv-tb-step`.
+- **Production is Lines · In plant · Entries · Equipment** (`PROD_TABS`, default Lines). Paste message is the primary on Lines and
+  Entries only; Equipment's is Add a unit; In plant has none. Entries shows thirty with only qualifying badges on the phone, its
+  flags as the card's filter tiles; In plant folds each client; Equipment's units are deck cards, two across on the phone
+  (`data-deck-sm`), the status changes folded (`plt-log`).
+- **Stock is one screen** (`_stockView` `list`; no view tabs): the verdict (out, low, the reorder's cash; the status tiles its
+  filtering factors), one toolbar row, *To check* a row, the lines grouped by status, **Spend and prices** (`stockSpendHtml`)
+  folded at the foot on the phone and in the pane on the desktop (`invStockSpend`).
+- **Power is Cuts · Causes · Load & bills · Case** (default Cuts), each its own toolbar: Cuts' *To look at* leads with the load
+  approved and not billed (red), then the cuts to complete; a cut is two facts; the charts fold after the cuts. Causes' tiles are
+  coloured only from three cuts (`uiVerdictFit` keeps a long cause in the card). Load & bills says each figure once. The case is
+  paper fitted to the screen (`paperFit`, `#powerCaseSheet`).
+- **The redirect rows** (§5): `pageStaff·overview`, `pageProduction·overview`, `pagePower·overview` → Floor's Overview;
+  `pageProduction·overview/<paste|hand|photo>` → that form on Lines; `pageStock·overview` → `list`. A remembered `overview` in
+  `sep_inv_prod_tab` or `sep_inv_power_tab` opens the first view; a saved task with `tab: 'overview'` too.
+- **Who sees a rupee is unchanged**: the reorder's cash, a cut's cost and In plant's book are every role's that opens their screen,
+  on Floor's heroes as on the screens; only the bank's forecast waits on the money setting (the guard's audit, QA4-4).
+- **The guides took the method** (`kbguides.js`): the floor (new), attendance (v2), the areas and the extra (new), pay (v2),
+  production (v2), stock (v2), power cuts (v2).
+- Measured, phone screens (P195's long book, worst of eleven days; then the owner's book, in a scratch harness never in the repo):
+  Floor's Overview 2.22 → 2.43 (owner's 2.51 → 2.72: the four heroes above the line cards); Attendance · Day 2.73 → 2.07
+  (4.08 → 3.42); Week 3.17 → 1.68 (4.36 → 2.56); Month 1.00 → 1.00 (4.57 → 3.15, chains 9 → 0); Pay 3.49 → 2.12 (4.49 → 3.14);
+  Areas 2.86 → 1.79 (4.68 → 3.18, chains 19 → 0); Roster 2.27 → 2.27 (4.72 → 4.56); Lines 2.51 → 1.59 (3.39 → 2.32); In plant
+  7.50 → 2.29 (6.69 → 1.74, chains 31 → 0); Entries 17.20 → 3.85 (28.52 → 3.81, chains 184 → 0); Equipment 1.72 → 1.50
+  (3.74 → 2.72); Stock 1.26 → 1.07 (2.61 → 2.42); Cuts 2.21 → 2.20 (chains 61 → 1); Causes 2.82 → 1.56; Load & bills 1.00 →
+  1.00 (1.93 → 1.14); Case 3.79 → 2.13 (4.38 → 2.41); the four page Overviews gone. Every toolbar is one row.
+- Fixtures: `prodEntryAct(page, id, action)` finds an entry's action in its row, its fold or the pane.
+
+### Direction B: workspaces, Today, Add, Pipeline, Floor → Overview, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
 - **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More; the desktop's
   rail is the same doors (the mark, Add, the four workspaces, Settings). A workspace is a layer over the pages that exist: every
@@ -2696,8 +2743,10 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
 - **Office → Pipeline** (`pipeline.js`, P137): awaiting invoice → created → printed → dispatched → delivered → owed to us,
   each a count, an amount and a tone by age, read off the function its own screen uses; a stage opens its list and its
   action goes through the screen that owns it. *Owed to us* is money: a role that does not see money has no such stage.
-- **Floor → Day** (`floor.js`, P138): a card per line with the heads against the day's number, the EXTRA, what it is
-  running, what it has plated and who plated it; tiles for on site, plated and power. A day is `?tab=pageFloor&d=…`. It and
+- **Floor → Overview** (`floor.js`, P138; Floor → Day until the tab map, TM4a, P188): four heroes for the day (people, production,
+  stock, power; each to a role that opens its screen, People carrying the verdict), then a card per line, the worst first, with
+  the heads against the day's number, the EXTRA, what it is running, what it has plated and who plated it. A day is
+  `?tab=pageFloor&d=…`. It and
   Home count the day's roster as Staff → Day does (`attDayRoster`: the active hands and anyone marked that day who has left).
 - **Search, keys and new windows** (`search.js`, P139): one index of records, screens and actions, built when first
   needed and kept until the book changes; numbers match whole, amounts to the paisa, dates by day. `Ctrl K` / the bar's
@@ -3293,9 +3342,13 @@ than a zero.
 - **Stock:** what the bank paid each supplier. The reorder list sets its cost against the forecast's lowest point.
 - **Money → Payments:** each section links to its home screen.
 
-### Staff and Stock open on an Overview
-Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens open
-on an Overview built from the Phase 2 charts.
+### People's and Stock's charts
+Staff and Stock dashboards (`dash.js`; spec 7a, 7b; owner: *"We'll do the same for Staff, Stock"*). Both screens opened
+on an Overview built from the Phase 2 charts. **The tab map (TM4b, TM4d) took the Overviews away** and put each chart on the view
+it explains: today's attendance is Floor → Overview's People hero; attendance by week is Attendance → Week's (folded); labour ₹/kg
+by month and the payroll against the bank are Pay's (folded; the bank's series only for a role that sees money); OT and EXTRA by
+area are Areas'; days left are Stock's groups, and spend by supplier, use and prices are Stock's **Spend and prices** (the fold
+at the list's foot on the phone, the pane on the desktop). What each showed, as first built:
 
 - **Staff → Overview:**
   - today's attendance (the Home card's panel, one function);

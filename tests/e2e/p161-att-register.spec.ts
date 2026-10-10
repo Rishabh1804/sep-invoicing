@@ -75,7 +75,9 @@ test.describe('P161 the monthly register', () => {
     await g(page, `_aregMonth = '${M}'; _attView = 'register'; saveState()`);
     await switchTab(page, 'pageStaff');
     const grid = page.locator('#aregGrid');
-    await expect(grid.locator('[data-d="1"][data-c="0"]')).toHaveClass(/inv-cell-ok/);
+    // A cell that agrees asks nothing and is drawn plain, so the cells to act on stand out (TM4b); its label still says so.
+    await expect(grid.locator('[data-d="1"][data-c="0"]')).toHaveClass('inv-cell');
+    await expect(grid.locator('[data-d="1"][data-c="0"]')).toHaveAttribute('aria-label', /Agrees with the day/);
     await expect(grid.locator('[data-d="2"][data-c="0"]')).toHaveClass(/inv-cell-danger/);
     await expect(grid.locator('[data-d="1"][data-c="1"]')).toHaveClass(/inv-cell-warning/);
     await expect(grid.locator('[data-d="4"][data-c="0"]')).toHaveAttribute('data-unsure', '');

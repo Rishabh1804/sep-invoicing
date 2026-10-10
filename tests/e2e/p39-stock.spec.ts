@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, openStatsTab } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, openStatsTab, toolbarMore } from './fixtures';
 
 // P39: the Stock tab. The supervisor's WhatsApp stock message is pasted in,
 // read line by line, checked against its own arithmetic and the app's level,
@@ -54,7 +54,6 @@ function state(): SepState {
 
 async function openStock(page: Page) {
   await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
 }
 
 async function paste(page: Page, text: string) {
@@ -97,7 +96,8 @@ test.describe('P39: stock', () => {
   test('a pasted message is checked, then saved with who sent it and where it came from', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStock(page);
-    await expect(page.locator('#stockContent .inv-empty')).toBeVisible();
+    // Nothing recorded: the card says so (TM4d).
+    await expect(page.locator('#stockVerdict')).toContainText('No stock recorded yet');
     await paste(page, MSG1());
 
     // Nitric contradicts itself: 20 + 50 − 24 is 46, the message says 70.
@@ -268,7 +268,7 @@ test.describe('P39: stock', () => {
     await paste(page, MSG1());
     await page.locator('[data-action="invStockSavePaste"]').click();
     const dl = page.waitForEvent('download');
-    await page.locator('[data-action="invStockExport"]').click();
+    await toolbarMore(page, 'Export');   // Stock's More (TM4d)
     const file = await (await dl).path();
     const json = JSON.parse(readFileSync(file, 'utf8'));
     expect(json.format).toBe('sep-stock');

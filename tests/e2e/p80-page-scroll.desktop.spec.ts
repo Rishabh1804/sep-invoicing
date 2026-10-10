@@ -35,8 +35,9 @@ const STOPS: Stop[] = [
     row: '#qtMaster [data-action="invQtOpen"]',
   },
   {
-    name: 'Stock › Lines',
-    go: async p => { await switchTab(p, 'pageStock'); await p.locator('#pageStock .inv-viewtab[data-view="list"]').click(); },
+    // One screen since the tab map (TM4d).
+    name: 'Stock',
+    go: p => switchTab(p, 'pageStock'),
     row: '#stockMasterDetail [data-action="invStockOpen"]',
   },
   // Office → Pipeline (P137): the pipeline beside the open stage's list.

@@ -182,6 +182,8 @@ function onDocClick(e) {
     case 'invRegSelectAll': toggleRegSelectAll(); break;
     // Staff & attendance
     case 'invAttView': attSetView(btn.dataset.view); markSideActive('pageStaff'); break;
+    // Day, Week and Month are Attendance's own views (TM4b): a view opens at its top, as a view tab does, its card first.
+    case 'invAttPeriod': attSetView(btn.dataset.view); viewTop(); break;
     case 'invAreaSpan': setAreaSpan(btn.dataset.span); break;
     case 'invAttStep': attStepDay(parseInt(btn.dataset.step, 10)); break;
     case 'invAttToday': attGoToday(); break;
@@ -211,6 +213,7 @@ function onDocClick(e) {
     case 'invAttEditWorker': openWorkerEdit(parseInt(btn.dataset.id, 10)); break;
     case 'invAttRosterOpen': _attRosterOpen = String(_attRosterOpen) === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderAttendance); break;
     case 'invAttRosterClose': _attRosterOpen = null; keepScroll(renderAttendance); break;
+    case 'invAttRosterFilter': _attRosterFilter = _attRosterFilter === btn.dataset.v ? '' : btn.dataset.v; keepScroll(renderAttendance); break;
     case 'invAttSaveWorker': saveWorker(parseInt(btn.dataset.id, 10), btn.dataset.mode); break;
     case 'invAttDeleteWorker': deleteWorker(parseInt(btn.dataset.id, 10)); break;
     case 'invAttMergeWorker': mergeWorkerInto(parseInt(btn.dataset.id, 10)); break;

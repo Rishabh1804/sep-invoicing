@@ -504,7 +504,8 @@ function addPayment() {
   _attWeekStart = attWeekStartOf(_attDate);
   _attView = 'pay';
   switchTab('pageStaff');
-  var form = document.getElementById('payForm'), who = document.getElementById('payWorker');
+  var fold = document.getElementById('payFormFold'), form = document.getElementById('payForm'), who = document.getElementById('payWorker');
+  if (fold && !fold.open) fold.open = true;   // folded on the phone until it is wanted (TM4b)
   if (form) uiRevealEl(form);
   if (who) { try { who.focus({ preventScroll: true }); } catch (e) { /* focus is a convenience */ } }
 }

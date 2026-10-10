@@ -53,4 +53,5 @@ export async function openFloor(page: Page) {
   await switchTab(page, 'pageFloor');
 }
 export const card = (page: Page, line: string) => page.locator(`#flrLines > [data-line="${line}"]`);
-export const tile = (page: Page, key: string) => page.locator(`#flrTiles [data-flr-tile="${key}"]`);
+// Floor's Overview's heroes (the tab map, TM4a): people, prod, stock, power; the tiles that led Floor → Day are theirs now.
+export const hero = (page: Page, key: string) => page.locator(`#flrHeroes > [data-card="flr-${key}"]`);

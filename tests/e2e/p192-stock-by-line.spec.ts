@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openFoldAt } from './fixtures';
 
 // P192 (owner, 9 Oct 2026: "Exactly", to the app reading the bath a stock message names; then "Go into 144"). PP3 of
 // docs/PLANT_PICTURE.md, stock by line:
@@ -232,7 +232,8 @@ test.describe('P192: stock by line', () => {
       ['106 Salt', '₹0.30/kg · 2 additions', '2 kg/t'],
       ['All of it', '', '₹2.10/kg'],
       ['No bath named', 'the plant’s, not in these', '2 uses']]);
-    // A row opens the stock line's page.
+    // A row opens the stock line's page (the panel is folded on the phone: opened first, TM4c).
+    await openFoldAt(page, 'prod-line-stock');
     await p.locator('[data-prod-line-stock="S"]').click();
     await expect(page.locator('#stockByLine summary[data-stock-line="vat-a1"]')).toContainText('2 additions');
     // VAT A2: every stock line still on its first addition, so the line has no figure yet.

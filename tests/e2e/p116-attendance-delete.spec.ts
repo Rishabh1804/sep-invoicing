@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, toolbarMore, toolbarMoreLabels } from './fixtures';
 
 // P116: a day's attendance is deleted only with a reason, and the deletion is logged (owner, 30 Sep 2026: "there is no way
 // to delete a day's data after providing a reason that can be logged"). A day saved under no date ("null") is moved to the
@@ -22,21 +22,21 @@ test('a day is deleted only with a reason, kept whole in the log, and History sa
   const d = todayIso();
   await loadAppWithState(page, book({ attendance: { [d]: day() } }));
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
   // Cancel keeps the day.
-  await page.locator('[data-action="invAttDayDelete"]').click();
+  await toolbarMore(page, 'Delete this day');   // Day's More (TM4b)
   expect(await answerAsk(page, 'cancel')).toContain('1 EXTRA row');
   expect(await g(page, `!!S.attendance['${d}']`)).toBe(true);
   // With a reason, the day goes.
-  await page.locator('[data-action="invAttDayDelete"]').click();
+  await toolbarMore(page, 'Delete this day');   // Day's More (TM4b)
   await answerAsk(page, 'ok', 'Entered on the wrong date; re-entered on the right one');
   const st = await readStoredState(page) as any;
   expect(st.attendance[d]).toBeUndefined();
   expect(st.attendanceDeletes).toHaveLength(1);
   expect(st.attendanceDeletes[0]).toMatchObject({ key: d, iso: d, marks: 2, extra: 1, how: 'by hand', reason: 'Entered on the wrong date; re-entered on the right one' });
   expect(st.attendanceDeletes[0].day.marks['1']).toMatchObject({ st: 'P', area: 'vat-a1' });
-  // No day, no delete button.
-  await expect(page.locator('[data-action="invAttDayDelete"]')).toHaveCount(0);
+  // No day, nothing to delete: More no longer offers it.
+  expect(await toolbarMoreLabels(page)).not.toContain('Delete this day');
   await switchTab(page, 'pageHistory');
   await expect(page.locator('#pageHistory')).toContainText('Attendance day deleted');
   await expect(page.locator('#pageHistory')).toContainText('re-entered on the right one');

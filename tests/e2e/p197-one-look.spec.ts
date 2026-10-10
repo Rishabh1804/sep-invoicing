@@ -13,8 +13,8 @@ import { longBook, oneLookProblems, walkOneLook } from './load-fixture';
 test('every screen declares its kind and wears only the system’s looks; the screens assembled keep their anatomy (phone)', async ({ page }) => {
   test.setTimeout(300_000);
   const { errs, bad, report } = await walkOneLook(page);
-  // The map's screens, Bills & notes gone (TM3a).
-  expect(Object.keys(report).length, 'the whole map walked').toBeGreaterThanOrEqual(50);
+  // The map's screens, Bills & notes gone (TM3a), and the Overviews of People, Production, Stock and Power (TM4).
+  expect(Object.keys(report).length, 'the whole map walked').toBeGreaterThanOrEqual(46);
   expect(errs, 'no page error on any screen').toEqual([]);
   expect(bad).toEqual([]);
 });

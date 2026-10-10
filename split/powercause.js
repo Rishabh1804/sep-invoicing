@@ -554,10 +554,11 @@ function pcsAnalysis(a) {
 /* The cuts to complete: a row each with its Complete. `list` is cuts (powerCuts' shape). */
 function pcsCompleteRowsHtml(list) {
   return list.map(function(c) {
-    var needs = pcsNeeds(c), r = c.reason ? pcsGet(c.reason) : null;
-    var meta = [needs.time ? 'no time back' : powerDur(c.min), r ? r.name : 'no reason', c.imported ? 'from the imported log' : ''].filter(Boolean).join(' · ');
-    return '<div class="inv-row inv-row-2 inv-row-flow" data-pcs-cut="' + escHtml(c.ids[0]) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(pcsCutWhen(c)) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap">' + uiDot(needs.time ? 'warning' : 'info', escHtml(meta)) + '</span></span><span class="inv-row-end inv-row-actions">' +
+    var needs = pcsNeeds(c), r = c.reason ? pcsGet(c.reason) : null, at = powerClock(c.from);
+    var when = stockShortDate(c.date) + ' · ' + (c.to == null ? at : at + ' – ' + powerClock(c.to) + (c.overnight ? ' next day' : ''));
+    var meta = [needs.time ? 'no time back' : powerDur(c.min), r ? r.name : c.imported ? 'no reason, imported' : 'no reason'].join(' · ');
+    return '<div class="inv-row inv-row-2" data-pcs-cut="' + escHtml(c.ids[0]) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(when) + '</span>' +
+      '<span class="inv-row-meta">' + uiDot(needs.time ? 'warning' : 'info', escHtml(meta)) + '</span></span><span class="inv-row-end">' +
       '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(c.ids[0]) + '">Complete</button></span></div>';
   });
 }
@@ -570,60 +571,61 @@ function pcsCutWhyHtml(c) {
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span><span class="inv-row-end">' +
     '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(c.ids[0]) + '">' + label + '</button></span></div>';
 }
-/* Power → Overview and Cuts: what is left to complete, led by the cuts with no time back. Nothing when nothing is. */
-function pcsCompleteHtml(z) {
+/* Power → Cuts: what needs the owner (the tab map, TM4e). `lead`, a row that comes first (the load approved and not yet billed, in
+   red), then the cuts left to complete, led by those with no time back. Nothing when nothing is. */
+function pcsCompleteHtml(z, lead) {
   var seen = {}, list = [];
   z.openAll.concat(z.complete).forEach(function(c) { var k = c.ids[0]; if (!seen[k]) { seen[k] = true; list.push(c); } });
-  if (!list.length) return '';
-  return '<div class="inv-panel inv-panel-flush" id="pcsComplete"><div class="inv-panel-head"><span class="inv-panel-title">To complete <span class="inv-panel-count">' + list.length + '</span></span></div>' +
-    uiMoreHtml('pcs-complete', pcsCompleteRowsHtml(list), { n: 5, noun: 'cuts' }) + '</div>';
+  if (!list.length && !lead) return '';
+  var rows = list.length ? uiMoreHtml('pcs-complete', pcsCompleteRowsHtml(list), { n: 5, noun: 'cuts' }) : '';
+  return '<div class="inv-panel inv-panel-flush" id="pcsComplete"><div class="inv-panel-head"><span class="inv-panel-title">' + (lead ? 'To look at' : 'To complete') +
+    ' <span class="inv-panel-count">' + (list.length + (lead ? 1 : 0)) + '</span></span></div>' +
+    (lead ? lead + (list.length ? '<div class="inv-row-group" data-pcs-group><span>To complete</span><span class="inv-panel-count">' + list.length + '</span></div>' : '') : '') + rows + '</div>';
 }
-/* A cause's ranked bar: what it cost, its count and dark time, where it starts, when it comes and what brought it back. */
+/* A cause's ranked bar: what it cost, and two facts (its cuts, where it starts). Where they hit and what brought the power back are
+   the panels beside it (the tab map, TM4e: a line is two facts). */
 function pcsReasonRow(e) {
-  var band = Object.keys(e.bands).sort(function(p, q) { return e.bands[q] - e.bands[p]; })[0];
-  var fx = Object.keys(e.fixes).sort(function(p, q) { return e.fixes[q] - e.fixes[p]; })[0];
-  var where = Object.keys(e.where).sort(function(p, q) { return e.where[q] - e.where[p]; })[0];
-  var sub = [todoPlural(e.n, 'cut') + (e.n30 ? ' (' + e.n30 + ' in 30 days)' : ''), powerHours(e.min) + ' dark', pcsScopeWord(e.c.scope),
-    where ? 'hit ' + pcsWhereWord(where.indexOf('u:') === 0 ? null : where, where.indexOf('u:') === 0 ? where.slice(2) : null) : '',
-    band ? 'mostly ' + band.charAt(0).toLowerCase() + band.slice(1) : '', fx ? 'brought back by ' + pcsName(fx) : ''].filter(Boolean).join(' · ');
+  var sub = [todoPlural(e.n, 'cut') + (e.n30 ? ', ' + e.n30 + ' in 30 days' : ''), pcsScopeWord(e.c.scope)].join(' · ');
   return { label: e.c.name, value: e.dmg > 0 ? e.dmg : e.n, display: e.dmg > 0 ? formatCurrency(e.dmg) : todoPlural(e.n, 'cut'), sub: sub, tone: e.tone === 'neutral' ? 'neutral' : e.tone === 'ok' ? 'good' : e.tone };
 }
-/* Power → Overview: the causes at a glance. */
-function pcsOverviewHtml(z) {
-  if (!z.t.reasoned) return '';
-  return '<div class="inv-panel" id="pcsWhy"><div class="inv-panel-head"><span class="inv-panel-title">Why they come</span>' +
-    '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTab" data-tab="causes">Causes</button></div>' +
-    chartRankedBars(z.reasons.slice(0, 5).map(pcsReasonRow), { unit: 'money' }) +
-    '<div class="inv-note inv-mt-8">' + escHtml(z.t.reasoned + ' of ' + todoPlural(z.t.cuts, 'cut') + (z.t.reasoned === 1 ? ' has' : ' have') + ' a reason; each bar is what its cuts cost.') + '</div></div>';
-}
-/* Power → Causes. */
+/* Power → Causes (TM4e): the costliest cause as the verdict, four factors toned only from three cuts (§1a-7: with fewer a tile
+   reads plain, with its count), the cuts to complete a link to Cuts (they are completed there), then what causes them, where they
+   hit, what brings the power back and the lists. No toolbar: nothing is added here. */
 function pcsCausesHtml(a) {
   var z = pcsAnalysis(a), t = z.t;
-  var share = function(n) { return t.reasoned ? Math.round(n / t.reasoned * 100) + '%' : '—'; };
-  var top = z.reasons[0];
-  var h = '<div class="inv-tiles inv-tiles-4" data-pcs-tiles>' +
-    _powerTile('With a reason', t.reasoned + '<span class="inv-tile-of">/' + t.cuts + '</span>', t.cuts ? escHtml(Math.round(t.reasoned / t.cuts * 100) + '% of the cuts on record') : 'no cut on record', '', 'reasoned') +
-    _powerTile('To complete', String(z.complete.length + z.openAll.filter(function(c) { return z.complete.indexOf(c) < 0; }).length),
-      escHtml(t.open ? t.open + ' with no time back' : 'every cut has its time back'), t.open ? 'warning' : '', 'complete') +
-    _powerTile('From the grid', share(t.grid), escHtml(t.reasoned ? t.plant + ' in the plant · ' + t.unplaced + ' not placed' : 'no reason recorded yet'), t.grid ? 'info' : '', 'grid') +
-    _powerTile('Costliest cause', top ? figWrapHtml(formatCurrency(top.dmg)) : '&mdash;', top ? escHtml(top.c.name + ' · ' + todoPlural(top.n, 'cut')) : 'none recorded yet', top ? (top.tone === 'neutral' ? '' : top.tone) : '', 'top') + '</div>';
-  h += pcsCompleteHtml(z);
+  var top = z.reasons[0], firm = function(n) { return n >= 3; };
+  var share = function(n) { return t.reasoned ? Math.round(n / t.reasoned * 100) + '%' : ''; };
+  var todo = z.complete.length + z.openAll.filter(function(c) { return z.complete.indexOf(c) < 0; }).length;
+  var on = function(n) { return 'on ' + todoPlural(n, 'cut'); };
+  var h = uiVerdictHtml({ screen: 'Causes',
+    verdict: top ? uiVerdictFit(top.c.name, ' costs most') : t.cuts ? 'No cut has a reason yet' : 'No cut on record yet',
+    tone: top && firm(top.n) ? (top.tone === 'ok' ? 'ok' : top.tone) : 'neutral',
+    facts: [top && top.dmg > 0 ? { text: formatCurrency(top.dmg) + ' over ' + todoPlural(top.n, 'cut'), money: true } : top ? todoPlural(top.n, 'cut') : '',
+      t.cuts ? t.reasoned + ' of ' + todoPlural(t.cuts, 'cut') + ' with a reason' : ''],
+    factors: [
+      { label: 'With a reason', fig: t.reasoned + '<span class="inv-tile-of">/' + t.cuts + '</span>', sub: t.cuts ? Math.round(t.reasoned / t.cuts * 100) + '% of the cuts on record' : 'no cut on record', attrs: ' data-power-tile="reasoned"' },
+      { label: 'From the grid', fig: share(t.grid), tone: firm(t.grid) ? 'info' : null, sub: t.reasoned ? on(t.grid) + ' · ' + t.unplaced + ' not placed' : 'no reason recorded yet', attrs: ' data-power-tile="grid"' },
+      { label: 'In the plant', fig: share(t.plant), tone: firm(t.plant) ? 'warning' : null, sub: t.reasoned ? on(t.plant) : 'no reason recorded yet', attrs: ' data-power-tile="plant"' },
+      { label: 'Costliest cause', fig: top ? figWrapHtml(escHtml(formatCurrency(top.dmg))) : '', tone: top && firm(top.n) && top.tone !== 'neutral' ? top.tone : null,
+        sub: top ? top.c.name + ' · ' + on(top.n) : 'none recorded yet', money: true, attrs: ' data-power-tile="top"' }],
+    tilesAttrs: ' data-pcs-tiles',
+    links: [todo ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTab" data-tab="cuts" data-pcs-todo>' + escHtml(todoPlural(todo, 'cut') + ' to complete, on Cuts') + '</button>' : ''],
+    attrs: ' id="pcsVerdict"' });
   if (!t.reasoned) {
-    return h + '<div class="inv-empty" data-pcs-none>No cut has a reason yet. Complete a cut (the time the power came back, why it went, what brought it back) ' +
-      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.</div>';
+    return h + '<div class="inv-panel"><div class="inv-empty" data-pcs-none>No cut has a reason yet. Complete a cut on Cuts (the time the power came back, why it went, what brought it back) ' +
+      'and its reason joins the list here: what causes the cuts, where they hit the plant, and what brings the power back.</div></div>';
   }
   h += '<div class="inv-panels">';
   h += '<div class="inv-panel" id="pcsReasons"><div class="inv-panel-head"><span class="inv-panel-title">What causes them <span class="inv-note">by what they cost</span></span></div>' +
     chartRankedBars(z.reasons.map(pcsReasonRow), { unit: 'money' }) +
-    '<div class="inv-note inv-mt-8">' + escHtml('Coded by where it starts: red, in the plant and three times or more in 30 days; amber, in the plant; blue, from the grid; grey, not placed. ' +
-      (t.none ? todoPlural(t.none, 'cut') + ' with no reason (' + formatCurrency(gstRound(t.dmgNone)) + ') ' + (t.none === 1 ? 'is' : 'are') + ' not drawn.' : '')) + '</div></div>';
+    (t.none ? '<div class="inv-note inv-mt-8">' + escHtml(todoPlural(t.none, 'cut') + ' with no reason (' + formatCurrency(gstRound(t.dmgNone)) + ') ' + (t.none === 1 ? 'is' : 'are') + ' not drawn.') + '</div>' : '') + '</div>';
   h += pcsPlantMapHtml(z);
   h += '<div class="inv-panel" id="pcsFixes"><div class="inv-panel-head"><span class="inv-panel-title">What brings it back <span class="inv-note">fastest first</span></span></div>' +
     (z.fixes.length ? chartRankedBars(z.fixes.map(function(x) {
       var rs = Object.keys(x.reasons).sort(function(p, q) { return x.reasons[q] - x.reasons[p]; }).slice(0, 2).map(function(id) { return pcsName(id) + ' (' + x.reasons[id] + ')'; });
       return { label: x.c.name, value: x.median != null ? x.median : 0, display: x.median != null ? 'back in ' + powerDur(Math.round(x.median)) : 'no time back yet',
         sub: [todoPlural(x.n, 'cut'), rs.length ? 'for ' + rs.join(', ') : ''].filter(Boolean).join(' · '), tone: 'neutral' };
-    }), { unit: 'count' }) + '<div class="inv-note inv-mt-8">The middle of the minutes from the cut to the power in, over the cuts each fix brought back.</div>'
+    }), { unit: 'count' })
       : '<div class="inv-empty">No fix recorded yet: what brought the power back is asked with the reason.</div>') + '</div>';
   h += pcsListHtml('reason') + pcsListHtml('fix');
   return h + '</div>';
@@ -648,8 +650,7 @@ function pcsPlantMapHtml(z) {
   return '<div class="inv-panel inv-panel-flush" id="pcsPlaces"><div class="inv-panel-head"><span class="inv-panel-title">Where they hit</span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPltOpen">The plant</button></div>' +
     '<div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div>' +
-    '<div class="inv-panel-body inv-note">' + escHtml('Cuts tied to each place. A line is red where three or more cuts started in the plant in 30 days, amber for one or two; ' +
-      'the whole plant is blue, the supply’s. ' + (untied > 0 ? todoPlural(untied, 'cut') + ' with a reason ' + (untied === 1 ? 'does' : 'do') + ' not say where it hit.' : '')) + '</div></div>';
+    (untied > 0 ? '<div class="inv-panel-body inv-note">' + escHtml(todoPlural(untied, 'cut') + ' with a reason ' + (untied === 1 ? 'does' : 'do') + ' not say where it hit.') + '</div>' : '') + '</div>';
 }
 /* The list itself: each entry, its uses and spellings; renamed, placed or merged by the owner. */
 function pcsListHtml(kind) {

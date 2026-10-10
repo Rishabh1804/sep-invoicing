@@ -115,7 +115,6 @@ test.describe('P141: the change log', () => {
 
     // A stock entry voided (never deleted).
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Nitric acid' }).click();
     await page.locator('#stockEntries [data-entry="u1"] [data-action="invStockVoid"]').click();
     await page.locator('[data-action="invStockVoid"][aria-pressed="true"]').click();
@@ -137,6 +136,7 @@ test.describe('P141: the change log', () => {
     // A payment recorded on Staff → Pay.
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
+    await page.locator('#payFormFold > summary').click();   // the form is one line on the phone until it is wanted (TM4b)
     await page.locator('#payWorker').selectOption('1');
     await page.locator('#payAmount').fill('500');
     await page.locator('[data-action="invPaySave"]').click();

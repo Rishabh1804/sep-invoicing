@@ -1025,7 +1025,7 @@ function relayOpen(text) {
 /* A sub-view of Staff (§6.2): the way back to the view it was opened from, and its own title. */
 function relayBackBar(action, label, title) {
   return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + action + '"' +
-    (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'overview') + '"' : '') + '>' +
+    (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'day') + '"' : '') + '>' +
     STAFF_BACK_ICON + escHtml(label) + '</button><h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
 }
 
@@ -1099,7 +1099,7 @@ function relayRead() {
   if (!rolls.length && stock.length) { relayOpenStock(text); return; }
   if (!rolls.length) { showToast('No in-time or out-time roll found in that text', 'error'); return; }
   // Only a roll needs the roster: a stock message goes to Stock above whether or not anyone is on it yet.
-  if (!(S.staff || []).length) { showToast('Add the roster first: Staff → Roster', 'error'); return; }
+  if (!(S.staff || []).length) { showToast('Add the roster first: People → Roster', 'error'); return; }
   // The stock beside the rolls, its own messages and what was written under a roll, is kept for Read in Stock: it was
   // dropped, with a word pointing at the retired More sheet (QA3-10).
   var stockParts = relayStockParts(msgs);

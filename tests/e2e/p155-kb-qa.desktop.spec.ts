@@ -60,6 +60,9 @@ test.describe('P155 desktop: Knowledge', () => {
   test('the search and the chips stay above the list as it scrolls; the open row is the current one, in Knowledge only', async ({ page }) => {
     await loadAppWithState(page, book(many().concat([art('Q1', 'requirement', 'ACME needs a certificate', { links: [{ type: 'client', id: '7', label: 'ACME FORGINGS' }] })])));
     await g(page, `kbSetTab('library'); switchTab('pageKnow')`);
+    // The list shows its first thirty; the app's own guides are among them, so the rest are one tap away (uiMoreHtml).
+    const more = page.locator('#kbLibrary [data-action="invShowMore"]');
+    if (await more.count()) await more.first().click();
     await page.locator('[data-kb-row="Q1"] [data-action="invKbOpen"]').click();
     await expect(page.locator('#kbLibrary [data-kb-row="Q1"]')).toHaveAttribute('aria-current', 'true');
     await page.locator('#kbHost > .inv-pane-list').evaluate(el => { el.scrollTop = el.scrollHeight; });

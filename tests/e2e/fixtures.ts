@@ -285,6 +285,58 @@ export async function toolbarMore(page: Page, label?: string): Promise<void> {
   await dlg.waitFor();
   if (label != null) await dlg.locator('[data-tb-pick]', { hasText: label }).first().click();
 }
+/** The labels under the toolbar's More (§1a-10), read by opening it and shut again: what the screen on show offers there. */
+export async function toolbarMoreLabels(page: Page): Promise<string[]> {
+  const btn = page.locator('.inv-page-active [data-action="invTbMore"]:visible').first();
+  if (!(await btn.count())) return [];
+  await btn.click();
+  const dlg = page.locator('[data-tb-more-dialog]');
+  await dlg.waitFor();
+  const labels = await dlg.locator('[data-tb-pick] .inv-row-title').allInnerTexts();
+  await page.keyboard.press('Escape');
+  await expect(dlg).toHaveCount(0);
+  return labels;
+}
+/** Production → Entries (the tab map, TM4c): a flag the list is filtered by is a tile of the screen's card, which is shut on the
+ *  phone until opened. */
+export async function prodFlag(page: Page, flag: string): Promise<void> {
+  const v = page.locator('#prodEntriesVerdict');
+  if (await v.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await v.locator(':scope > summary').click();
+  await v.locator(`[data-action="invProdFilter"][data-flag="${flag}"]`).click();
+}
+/** An entry's action on Production → Entries: at the row's end, else in its fold on the phone (opened first), else in the pane
+ *  beside the list on the desktop, as the hand does. A panel above the list (Line unknown, Not weighed) can name the same entry with
+ *  the same mark, so the list's own row is the one acted on. */
+export async function prodEntryAct(page: Page, id: string, action: string): Promise<void> {
+  const shown = page.locator(`#pageProduction [data-prod-entry="${id}"] [data-action="${action}"]`).first();
+  if (await shown.isVisible().catch(() => false)) { await shown.click(); return; }
+  const fold = page.locator(`#pageProduction details[data-prod-entry="${id}"]`).first();
+  if (await fold.count()) {
+    if (!(await fold.evaluate(el => (el as HTMLDetailsElement).open))) await fold.locator(':scope > summary').click({ position: { x: 12, y: 12 } });
+    await fold.locator(`[data-action="${action}"]`).first().click();
+    return;
+  }
+  await page.locator(`#pageProduction [data-action="invProdEntryOpen"][data-id="${id}"]`).first().click();
+  await page.locator(`#prodEntryPane [data-action="${action}"]`).first().click();
+}
+/* People → Attendance's Day, Week or Month (the tab map, TM4b): a switch under Attendance's toolbar, the tab returning to the last
+   of the three. From anywhere on People, the Attendance tab first where the switch is not on screen. */
+export async function openAttendance(page: Page, view: 'day' | 'week' | 'register' = 'day'): Promise<void> {
+  const sw = page.locator(`#pageStaff [data-att-period] [data-view="${view}"]`);
+  if (!(await sw.isVisible())) await page.locator('#pageStaff .inv-viewtab[data-action="invAttView"][data-view="attendance"]').click();
+  // An empty roster draws Attendance's way in and no switch: there is nothing yet to read by day, week or month.
+  if (!(await page.locator('#pageStaff [data-att-period]').count())) return;
+  await sw.click();
+}
+/** People → Attendance → Day as the board or as Deepak's sheet (the tab map, TM4b): the toolbar's switch on the desktop, More's
+ *  row on the phone, which offers only the way the day is not shown (nothing to do when it already is). */
+export async function attDayAs(page: Page, as: 'board' | 'sheet'): Promise<void> {
+  const seg = page.locator(`#pageStaff [data-att-toolbar="day"] [data-action="invAttDayAs"][data-v="${as}"]`);
+  if (await seg.count()) { await seg.click(); return; }
+  if ((await page.evaluate(() => (window as any).attDayAsSheet())) === (as === 'sheet')) return;
+  await toolbarMore(page, as === 'sheet' ? 'Show as Deepak' : 'Show as the board');
+  await page.locator(as === 'sheet' ? '#attSheetEntry' : '#pageStaff .inv-board').first().waitFor();
+}
 /** A fold (`details[data-fold="key"]`, uiFoldCard / uiFoldHtml) opened where it is shut: shut on the phone and open on the desktop
  *  by default, and a tap on an open one's head would shut it. */
 export async function openFoldAt(page: Page, key: string): Promise<void> {

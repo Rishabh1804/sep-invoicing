@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs, type SepState, toolbarMore } from './fixtures';
 
 // P48: insights (as To-do rules), predictions, the invoice prefill, and the
 // stock reorder list. Made-up clients and figures (the repo is public).
@@ -105,7 +105,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
   test('the reorder list: use over lead + cover, less the shelf, in packs, by supplier, copied as a message', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invStockReorder"]').click();
+    await toolbarMore(page, 'Reorder list');   // Stock's More (TM4d)
     await page.locator('#stockLeadDays').fill('10');
     await page.locator('#stockLeadDays').dispatchEvent('change');
     await page.locator('#stockCoverDays').fill('20');

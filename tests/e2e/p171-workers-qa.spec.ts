@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 
 // P171: the QA chain over the workers and the plant (W1–W5, 7 Oct 2026). Each test fails on the build before its fix.
@@ -138,7 +138,7 @@ test.describe('P171 W4: the card scan into the day', () => {
     expect(r.moved).toBe(1);
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-    await page.locator('#pageStaff [data-action="invIdcPrint"]').first().click();
+    await toolbarMore(page, 'ID cards');   // the Roster toolbar's More (TM4b)
     await page.locator('[data-action="invIdcPreview"]').click();
     await page.emulateMedia({ media: 'print' });
     const fit: any = await g(page, `(function () { var sh = document.querySelector('.inv-idc-sheet'), cs = sh.querySelectorAll('.inv-idc');

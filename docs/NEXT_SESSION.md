@@ -17,10 +17,24 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
   Reports fitted (P185). **The owner looked at it** (10 Oct 2026: *"Go ahead"*).
 - **TM3**, Money: five tabs (the bills to Payments, the credit notes to Office → Invoices → Credit notes), **cheques received
   counted as paid until their deposit**, and Money's screens in one look (P186, P187).
-- Next: TM4 Floor, TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
+- **TM4**, Floor: one Overview (four heroes per role, the line cards worst first); People is Attendance (Day · Week · Month) ·
+  Pay · Areas · Roster; Production is Lines · In plant · Entries · Equipment; Stock is one screen; Power is Cuts · Causes ·
+  Load & bills · Case; every Floor screen led by its verdict card, the old Overview addresses redirected (P188).
+- **Asked by the owner on 10 Oct 2026, next, before TM5** (the order put to the owner, theirs to change):
+  1. **A past day corrected where it is seen**: a day is checked on Floor → Day, but a run, a load or a cut there has no Correct
+     or Void, and Production → Entries cannot be opened on a day (*"corrections and comparisons are missing"*).
+  2. **The day's earnings and the line over time** (`docs/PLANT_PICTURE.md` PP2): *"As we are calculating production, why don't we
+     calculate the earnings?"* The worth at the rates on record is worked out (`prodDayWorth`) but shown only inside the day
+     card; each line card is to say what it earned, the day earned against its labour and the live cost, a day against the
+     line's usual and a week against the four before.
+  3. **Suppliers**: what we owe each (the owner keeps it on paper: an opening, each bill with GST, the payments), and each
+     supplier's lead time in the reorder list (the local ones the same day; one cheaper, three to four working days away).
+  4. **The entry faces** (`docs/ENTRY_FACES.md`, written after TM4): each hand enters their own on their own phone.
+- Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow changed (TM3):** `bank.cheques`; the `sep-bank` export carries it, and a `sep-bank` file is now taken in (Add → File),
-its cheques merged by id. The table below has the detail.
+its cheques merged by id. The table below has the detail. **TM4 changes none**: no key, no export, nothing in the book moved; the
+device keys `sep_inv_prod_tab` and `sep_inv_power_tab` read a remembered `overview` as the first view.
 
 ## Built 9 Oct 2026, the second: a register run's start, and a file at the wrong Import (read this first)
 

@@ -147,15 +147,16 @@ test.describe('P134: workspaces on the phone', () => {
 
   test('the address is the page\'s own, and a reload opens it in its workspace', async ({ page }) => {
     await loadAppWithState(page, state());
-    await switchTab(page, 'pageStock');
-    await page.locator('#pageStock .inv-viewtab[data-view="list"]').click();
-    await expect.poll(() => where(page)).toEqual(['pageStock', 'list']);
+    // Stock is one screen since the tab map (TM4d); Power keeps its own views.
+    await switchTab(page, 'pagePower');
+    await page.locator('#pagePower .inv-viewtab[data-tab="causes"]').click();
+    await expect.poll(() => where(page)).toEqual(['pagePower', 'causes']);
     await page.reload();
     await waitForBoot(page);
-    expect(where(page)).toEqual(['pageStock', 'list']);
-    await expect(page.locator('#pageStock')).toHaveClass(/inv-page-active/);
+    expect(where(page)).toEqual(['pagePower', 'causes']);
+    await expect(page.locator('#pagePower')).toHaveClass(/inv-page-active/);
     await expect(bar(page, 'floor')).toHaveClass(/inv-navbar-item-on/);
-    await expect(page.locator('#wsTabs [aria-selected="true"]')).toHaveText('Stock');
+    await expect(page.locator('#wsTabs [aria-selected="true"]')).toHaveText('Power');
     await expect(page.locator('#topbarTitle')).toHaveText('Floor');
     // An address typed or bookmarked does the same.
     await page.goto('/?tab=pageRegister');

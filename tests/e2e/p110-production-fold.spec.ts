@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'fs';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
 // P110: the QA sweep's findings on Production and Stock, one test each. Messages are made up in the shop's shapes
 // (P83–P90, P39); no Gemini request is made (the photo route is mocked as in P85).
@@ -283,8 +283,9 @@ test.describe('P110: Production', () => {
     expect(t[0][0]).toBe('NOVA CLAMPS PVT. LTD.: 1 load pickled with no open challan');
     expect(t[0][1]).not.toContain('map the part');
     expect(t[0][1]).toContain('Correct');
+    // The task's own button (Needs you's; the Overview's Raised panel went with the Overview, the tab map, TM4c).
     await switchTab(page, 'pageProduction');
-    await page.locator('#prodRaised [data-action="invProdTask"]').click();
+    await g(page, `todoGo(todoApp(['prodPickledNoChallan'])[0].go)`);
     await expect(page.locator('#prodEntries [data-prod-entry]')).toHaveCount(1);
     await expect(page.locator('#prodEntries [data-prod-entry="K1"]')).toBeVisible();
   });
@@ -304,19 +305,19 @@ test.describe('P110: Production', () => {
     expect(s.production.learn.clients).toEqual({ KUMAR: 12 });
   });
 
-  test('PB4, PB5: Day before steps from the day shown; the Overview\'s All N opens the loads it counts', async ({ page }) => {
+  test('PB4, PB5: Day before steps from the day shown; Line unknown\'s All N opens the loads it counts', async ({ page }) => {
     seq = 0;
     const loads = Array.from({ length: 7 }, (_, i) => E({ date: iso(-1), time: `0${i + 1}:00`, part: 'CLAMP 90X81', qty: 10, kind: 'pickled', line: null, basis: 'pickling', src: 'paste' }));
     await load(page, prod([E({ date: iso(-10), part: 'CLAMP 165X83', qty: 100 }), ...loads]));
     await switchTab(page, 'pageProduction');
     await page.locator('[data-action="invProdTab"][data-tab="lines"]').click();
     await page.locator('[data-action="invProdDay"][data-step="-1"]').click();
-    const want = new Date(iso(-11) + 'T00:00:00').toLocaleDateString('en-IN', { weekday: 'long' });
-    await expect(page.locator('#pageProduction .inv-stepper-sub')).toHaveText(want);
-    // The Entries flag already on "Line unknown" from an earlier visit; the Overview's All N still opens it.
+    // The day is named on the line's card (the phone's toolbar has no room for it, the tab map, TM4c).
+    await expect(page.locator('#prodLinesVerdict .inv-hero-eyebrow')).toContainText(await g(page, `stockShortDate('${iso(-11)}')`) as string);
+    // The Entries flag already on "Line unknown" (its card's tile); Line unknown's All N keeps it on, never turns it off.
     await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
-    await page.locator('#productionContent [data-action="invProdFilter"][data-flag="unknown"]').click();
-    await page.locator('[data-action="invProdTab"][data-tab="overview"]').click();
+    await page.locator('#prodEntriesVerdict > summary').click();
+    await page.locator('#prodEntriesVerdict [data-action="invProdFilter"][data-flag="unknown"]').click();
     await page.locator('#prodUnknown [data-action="invProdFilter"][data-flag="unknown"]').click();
     await expect(page.locator('[data-action="invProdFilter"][data-flag="unknown"][aria-pressed="true"]')).toHaveCount(1);
     await expect(page.locator('#prodEntries .inv-panel-count')).toHaveText('7');
@@ -367,9 +368,8 @@ test.describe('P110: Stock', () => {
       { id: 'Z1', itemId: 'S2', kind: 'used', qty: 3, date: 'yesterday' }, { id: 'Z2', itemId: 'S2', kind: 'used', qty: 4, date: iso(-1), at: 3 },
       { id: 'B2', itemId: 'S2', kind: 'used', qty: 10, date: iso(-2), at: 1, source: 'manual', voided: { at: 5 } }] }));
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     const chooser = page.waitForEvent('filechooser');
-    await page.locator('[data-action="invStockImport"]').click();
+    await toolbarMore(page, 'Import');   // Stock's More (TM4d)
     await (await chooser).setFiles(file);
     await expect(page.locator('.inv-toast')).toContainText('1 entries · 1 already held (1 differ in the file, kept as held)');
     const ids = await g(page, `stockData().entries.map(function(e){ return e.id + (e.voided ? ':void' : ''); })`);
@@ -418,9 +418,8 @@ test.describe('P110: Stock', () => {
     await load(page);
     await page.evaluate(() => { const w = window as any; w.__revoked = 0; const o = URL.revokeObjectURL.bind(URL); URL.revokeObjectURL = (u: string) => { w.__revoked++; o(u); }; });
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     const dl = page.waitForEvent('download');
-    await page.locator('[data-action="invStockExport"]').click();
+    await toolbarMore(page, 'Export');   // Stock's More (TM4d)
     const json = JSON.parse(readFileSync(await (await dl).path(), 'utf8'));
     expect(json.format).toBe('sep-stock');
     await expect.poll(() => page.evaluate(() => (window as any).__revoked)).toBeGreaterThan(0);

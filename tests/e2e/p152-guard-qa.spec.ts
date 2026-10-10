@@ -198,6 +198,7 @@ test.describe('P152: the guard, after its QA', () => {
     await switchUser(page, 'U-own', PINS.owner);
     await switchTab(page, 'pageStaff');
     await g(page, "_attView = 'pay'; renderAttendance()");
+    await page.locator('#payFormFold > summary').click();   // folded on the phone until it is wanted (TM4b)
     await page.locator('#payAmount').fill('500');
     expect(await ev(page, '_pageTyped')).toBe(true);
     await switchUser(page, 'U-sup', PINS.super);
@@ -376,14 +377,18 @@ test.describe('P152: the guard, after its QA', () => {
     const s: any = withBank(guardBook());
     s.production = { entries: [{ id: 'E1', at: 1, time: '10:00', unit: 'NOS', basis: 'register', src: 'photo', kind: 'plated', line: 'vat-a1', lineSrc: 'written',
       slot: 'general', clientId: 1, part: 'BRKT-1', qty: 100, date: workdayIso() }], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
+    // A line in use, with a price: an order to place.
+    s.stock.entries.push({ id: 'r1', itemId: 'N', kind: 'received', qty: 50, price: 40, supplier: 'GAMMA CHEMICALS', billNo: 'G/1', date: daysAgo(20), at: 1 },
+      { id: 'u1', itemId: 'N', kind: 'used', qty: 30, days: 6, from: daysAgo(7), date: daysAgo(1), at: 2 });
     await loadAppWithState(page, s);
     await withUsers(page);
     await unlock(page, 'U-sup', PINS.super);
-    // Stock → Overview: the order's cost, never the forecast's low (the bank's).
+    // Stock's card: the order's cost, never the forecast's low (the bank's). Floor's stock card says the same (TM4).
     await switchTab(page, 'pageStock');
-    await g(page, "stockSetView('overview')");
-    await expect(page.locator('#dashReorder')).toContainText('Order, with GST');
-    await expect(page.locator('#dashReorder')).not.toContainText('Forecast');
+    await expect(page.locator('#stockVerdict')).toContainText('with GST');
+    await expect(page.locator('#stockVerdict')).not.toContainText('after the order');
+    await switchTab(page, 'pageFloor');
+    await expect(page.locator('#flrHeroes [data-flr-reorder]')).toHaveCount(1);
     // What the bank paid a supplier is the bank's: nothing, on Stock's overview and on a line's page alike.
     expect(await ev(page, "finSupplierPaid('GAMMA CHEMICALS')")).toBeNull();
     // Production → Lines: no labour per kg without the wages.
@@ -409,8 +414,8 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(page.locator('[data-client-money]')).toHaveCount(1);
     await g(page, 'closeOverlay()');
     await switchTab(page, 'pageStock');
-    await g(page, "stockSetView('overview')");
-    await expect(page.locator('#dashReorder')).toContainText('Forecast');
+    // Stock's card: the forecast's low after the order (TM4d).
+    await expect(page.locator('#stockVerdict')).toContainText('after the order');
     expect(await ev(page, "finSupplierPaid('GAMMA CHEMICALS').paid")).toBe(5000);
     await switchTab(page, 'pageProduction');
     await g(page, "prodSetTab('lines'); renderProduction()");

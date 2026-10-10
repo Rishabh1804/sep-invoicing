@@ -103,7 +103,18 @@ var NAV_REDIRECTS = [
   // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
   { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } },
   // TM3a: Bills & notes split: its bills are Payments', its credit notes the Invoices' dialog.
-  { tab: 'pageFinance', v: 'bills', to: function() { return { tab: 'pageFinance', v: 'payments' }; } }
+  { tab: 'pageFinance', v: 'bills', to: function() { return { tab: 'pageFinance', v: 'payments' }; } },
+  // TM4b: People's Overview went: who is on site is Floor → Overview's People card, its charts Attendance's and Pay's.
+  { tab: 'pageStaff', v: 'overview', to: function() { return { tab: 'pageFloor', v: '' }; } },
+  // TM4c: Production's Overview went: the day is Floor → Overview's Production card. A form opened over it stays open, on Lines.
+  { tab: 'pageProduction', v: 'overview', to: function(loc) {
+    var sub = String(loc.v || '').split('/')[1];
+    return /^(paste|hand|photo)$/.test(sub || '') ? { tab: 'pageProduction', v: 'lines/' + sub } : { tab: 'pageFloor', v: '' };
+  } },
+  // TM4d: Stock is one screen: its Overview is the list (its charts Spend and prices).
+  { tab: 'pageStock', v: 'overview', to: function() { return { tab: 'pageStock', v: 'list' }; } },
+  // TM4e: Power's Overview went: the month, its cost and a year at this rate are Cuts' card, and Floor → Overview's Power card.
+  { tab: 'pagePower', v: 'overview', to: function() { return { tab: 'pageFloor', v: '' }; } }
 ];
 function navRedirect(loc) {
   if (!loc || !loc.tab) return loc;
@@ -155,12 +166,14 @@ function navLabel(loc) {
     case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff':
-      sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0]));
+      // Attendance's three views are a switch under one tab (the tab map, TM4b): "Attendance · Month, Sep 2026".
+      if (attIsPeriod(parts[0])) { sub.push('Attendance'); sub.push(_navFind(ATT_PERIODS, parts[0]) + (parts[0] === 'register' && /^\d{4}-\d{2}$/.test(parts[1] || '') ? ', ' + imMonthLabel(parts[1]) : '')); }
+      else sub.push(parts[0] === 'paste' ? 'Paste message' : _navFind(ATT_VIEWS, parts[0]));
       var sw = loc.id && parts[0] === 'roster' && staffById(loc.id);
       if (sw) rec = sw.name;
       break;
     case 'pageStock':
-      sub.push({ overview: 'Overview', list: 'Lines', item: 'Lines', paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
+      sub.push({ paste: 'Paste message', manual: 'Enter by hand', reorder: 'Reorder list', check: 'To check' }[parts[0]] || '');
       var it = loc.id && stockItem(loc.id);
       if (it) rec = it.name;
       break;
@@ -227,12 +240,12 @@ function navApply(loc) {
         break;
       case 'pagePower': powerSetTab(parts[0]); break;
       case 'pageStaff':
-        _attView = parts[0] === 'paste' || ATT_VIEWS.some(function(x) { return x[0] === parts[0]; }) ? parts[0] : 'overview';
+        _attView = attViewOk(parts[0]) ? parts[0] : 'day';
         if (parts[0] === 'register' && /^\d{4}-\d{2}$/.test(parts[1] || '')) _aregMonth = parts[1];
         if (_isDesktop) _attRosterOpen = parts[0] === 'roster' && id && staffById(id) ? id : null;
         break;
       case 'pageStock':
-        var sv = /^(overview|list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'overview';
+        var sv = /^(list|item|paste|manual|reorder|check)$/.test(parts[0]) ? parts[0] : 'list';
         if (sv === 'item' && !(id && stockItem(id))) sv = 'list';
         if (sv === 'item') _stockItemId = id;
         // Enter by hand and the reorder list are drawn from their own state: opened by an address it is made here, the
@@ -341,7 +354,7 @@ function navLeaveOk() {
    layer over the screen and leave nothing. */
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
 // So do the top bar's History and the brand's mark (Pulse): both leave the screen.
-var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invDashStockView: 1, invQtBack: 1, invKbHelp: 1,
+var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
   invGoHistory: 1, invGoPulse: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.

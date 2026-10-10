@@ -203,7 +203,8 @@ test.describe('P140: the guard (phone)', () => {
     await expect(page.locator('#attToolbar [data-view="pay"]')).toHaveCount(0);
     await g(page, "_attView = 'pay'; renderAttendance()");
     await expect(page.locator('.inv-toast')).toHaveText('Your ID doesn’t open Pay');
-    expect(await page.evaluate(() => (window as any)._attView)).toBe('overview');
+    // People opens on Attendance's Day (its Overview went to Floor's, the tab map, TM4b).
+    expect(await page.evaluate(() => (window as any)._attView)).toBe('day');
     // Settings are not opened: keys and the token are in them.
     await g(page, 'openSettings()');
     expect(await answerAsk(page, 'ok')).toContain('Your ID can’t open Settings. Ask the owner.');

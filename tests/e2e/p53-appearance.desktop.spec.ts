@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, type SepState, openAttendance } from './fixtures';
 
 // P53 desktop: the rail (§4.2; DIRECTION_B, and since 8 Oct 2026 the workspaces alone, their views the tab row under the top
 // bar) and density following the layout (§3.5).
@@ -24,7 +24,7 @@ test.describe('P53 desktop: rail and density', () => {
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
     await expect(page.locator('#wsTabs [data-tab="pageStaff"]')).toHaveAttribute('aria-selected', 'true');
     // Any view of the page keeps its tab pressed and its workspace's door on.
-    await page.locator('[data-action="invAttView"][data-view="week"]').click();
+    await openAttendance(page, 'week');
     await expect(page.locator('#wsTabs [data-tab="pageStaff"]')).toHaveAttribute('aria-selected', 'true');
     await expect(page.locator('#invSidebar [data-ws="floor"]')).toHaveAttribute('aria-current', 'true');
   });

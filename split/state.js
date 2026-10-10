@@ -919,8 +919,9 @@ function uiHeroHtml(o) {
 
 /* The verdict card (§6.28): one hero saying how the screen stands. `o`: screen (the eyebrow: the screen and its period or
    count), verdict (a sentence of 60 characters at most, said in `tone`, the worst of what the card holds), fig (its key figure,
-   HTML), facts (up to three short texts under it), viz (a meter or sparkline, HTML), factors (up to four tiles, uiFactorTileHtml's
-   shape), body (more of the card, HTML), links (up to two buttons or links for its foot, HTML), key (the device remembers the
+   HTML), facts (up to three short texts under it, each a string or {text, tone}), viz (a meter or sparkline, HTML), factors (up to
+   four tiles, uiFactorTileHtml's shape; tilesAttrs on their strip), body (more of the card, HTML), links (up to two buttons or
+   links for its foot, HTML), key (the device remembers the
    card open or shut under it). A verdict naming rupees carries money: true and its count in `plain`, which a role that does not
    see money reads instead (I4); a fact or a factor with money: true is left out for that role. Shut on the phone, where its line
    still answers the six-second test; open on the desktop; either until the owner moves it. Over its limits it says so to a test
@@ -930,19 +931,31 @@ function uiVerdictHtml(o) {
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   var verdict = String((o.money && !money ? o.plain : o.verdict) || '');
   var keep = function(f) { return f && (typeof f === 'string' || !f.money || money); };
-  var facts = (o.facts || []).filter(keep).map(function(f) { return typeof f === 'string' ? f : f.text; }).filter(Boolean);
+  // A fact is text, or {text, tone, money}: a toned fact is coloured in its tone (§3c), beside the words that give the reason.
+  var facts = (o.facts || []).filter(keep).map(function(f) { return typeof f === 'string' ? { text: f } : f; }).filter(function(f) { return f && f.text; });
   var factors = (o.factors || []).filter(keep), links = (o.links || []).filter(Boolean);
   var long = verdict.length > UI_VERDICT_MAX || facts.length > 3 || factors.length > 4 || links.length > 2;
   if (long && typeof navigator !== 'undefined' && navigator.webdriver) console.error('uiVerdictHtml over its limits: ' + verdict);
   var n = Math.min(factors.length, 4);
-  var tiles = n ? '<div class="inv-hero-sheet"><div class="inv-tiles' + (n === 4 ? ' inv-tiles-4' : n === 3 ? ' inv-tiles-3' : '') + '">' +
+  var tiles = n ? '<div class="inv-hero-sheet"><div class="inv-tiles' + (n === 4 ? ' inv-tiles-4' : n === 3 ? ' inv-tiles-3' : '') + '"' + (o.tilesAttrs || '') + '>' +
     factors.slice(0, 4).map(uiFactorTileHtml).join('') + '</div></div>' : '';
   var body = tiles + (o.body || '');
   return uiHeroHtml({ tone: /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? o.tone : 'neutral', eyebrow: escHtml(o.screen || ''),
     title: escHtml(verdict), fig: o.fig || '', viz: o.viz || '',
-    sub: facts.length ? facts.slice(0, 3).map(function(f) { return '<span class="inv-hero-fact">' + escHtml(f) + '</span>'; }).join('') : '',
+    sub: facts.length ? facts.slice(0, 3).map(function(f) {
+      return '<span class="inv-hero-fact' + (/^(ok|warning|danger)$/.test(f.tone || '') ? ' inv-fig-' + f.tone : '') + '">' + escHtml(f.text) + '</span>';
+    }).join('') : '',
     body: body || null, fold: 'v-' + (o.key || uiVerdictKey()), open: !!_isDesktop, foot: links.slice(0, 2).join(''),
     attrs: ' data-verdict data-card="verdict"' + (long ? ' data-verdict-long' : '') + (o.attrs || '') });
+}
+/* A verdict naming something typed (a cause, a client): the name cut at a word so that it and its tail fit the card's 60
+   characters, an ellipsis where it was cut. */
+function uiVerdictFit(name, tail) {
+  name = String(name || ''); tail = String(tail || '');
+  var room = UI_VERDICT_MAX - tail.length;
+  if (name.length <= room) return name + tail;
+  var cut = name.slice(0, Math.max(1, room - 1)), sp = cut.lastIndexOf(' ');
+  return (sp > room / 2 ? cut.slice(0, sp) : cut).replace(/[\s,.;:·-]+$/, '') + '\u2026' + tail;
 }
 /* The card's default key: the page and its view, so each view's card is remembered open or shut on its own. */
 function uiVerdictKey() {

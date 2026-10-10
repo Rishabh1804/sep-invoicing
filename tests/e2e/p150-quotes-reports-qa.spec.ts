@@ -366,7 +366,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     const doc = page.locator('#rptSheet [data-rpt-doc]');
     await expect(doc).toHaveAttribute('data-from', ws);
     await expect(doc.locator('[data-rpt-tile="attendance"] .inv-rpt-tile-v')).toHaveText('79%');
-    await expect(doc.locator('[data-rpt-tile="attendance"]')).toContainText('as Staff → Overview reads it');
+    await expect(doc.locator('[data-rpt-tile="attendance"]')).toContainText('as People → Attendance reads it');
     // By day: the Sunday is not attendance; Monday 3.5 of 4, Tuesday 2 of 3; the foot is the week's own figure.
     const rows = doc.locator('[data-rpt-table="breakdown"] tbody tr');
     await expect(rows.nth(0).locator('td').nth(6)).toHaveText('—');

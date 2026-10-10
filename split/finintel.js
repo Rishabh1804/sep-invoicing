@@ -307,7 +307,7 @@ TODO_RULE_FNS.payCarry = function() {
     title: todoPlural(rows.length, 'worker') + ' carry a balance from an earlier period',
     sub: rows.slice(0, 3).map(function(r) { return r.w.name + ' ' + (r.carried > 0 ? 'owed ' : 'advanced ') + formatCurrency(Math.abs(r.carried)); }).join(' · '),
     why: 'Pay · brought forward', facts: [['Owed from before', formatCurrency(sum(owed))], ['Advanced before', formatCurrency(sum(adv))]],
-    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on Staff → Pay.',
+    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on People → Pay.',
     go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
 };
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }

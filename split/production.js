@@ -805,14 +805,12 @@ function prodMatchAll(idx) {
         ids.forEach(function(id) { used[id] = true; });
         return;
       }
-      var next = loads[li + 1], nextWd = isoAddDays(load.date, new Date(load.date + 'T00:00:00').getDay() === 6 ? 2 : 1);
+      var next = loads[li + 1];
       var got = [], sum = 0;
       pool.forEach(function(p) {
         if (used[p.id]) return;
         if (load.qty != null && load.unit === p.unit && sum >= load.qty) return;
-        var sameDay = p.date === load.date && (!p.time || !load.time || relayParseHhmm(p.time) >= relayParseHhmm(load.time) - 30);
-        var nextDay = p.date === nextWd && (!p.time || relayParseHhmm(p.time) < 720);
-        if (!sameDay && !nextDay) return;
+        if (!prodMatchWindow(load, p)) return;
         if (load.qty == null && next && cmp(p, next) >= 0 && (next.date === p.date)) return;
         got.push(p); used[p.id] = true;
         if (p.unit === load.unit && p.qty != null) sum += p.qty;
@@ -820,7 +818,54 @@ function prodMatchAll(idx) {
       out[load.id] = prodMatchResult(got, load, false);
     });
   });
+  // A load its part linked to nothing (docs/ENTRY_FACES.md, F2): the register writes a part as the floor names it, often its
+  // kind alone ("CLAMP", the gauge read off its round as one of a few) or a code ("KUDAL(0106)"), and a load entered on a face
+  // names the book's part ("CLAMP 165X83 (NT)", "5206 4920 0106"). Such a load takes, in the same window, a run of its client
+  // sharing a 4-digit code with it, else a run of its kind at a gauge that fits (a run's gauges read off its round included,
+  // which the family's key above cannot hold); a named load only a run naming its kind alone, never a run naming another part.
+  // Never a run linked above, so no link a part or a family made moves. Measured on the owner's book (the material-flow study,
+  // 10 Oct 2026): the part alone linked 26 of 165 loads, the client, the code and the kind 140.
+  var byClient = {};
+  idx.counted.forEach(function(p) { if (p.clientId != null) (byClient[String(p.clientId)] = byClient[String(p.clientId)] || []).push(p); });
+  Object.keys(byClient).forEach(function(c) { byClient[c].sort(cmp); });
+  var codes = function(e) { return (String((e.part || '') + ' ' + (e.partNumber || '')).match(/\d+/g) || []).filter(function(x) { return x.length === 4; }); };
+  // The floor writes a client's pads and liners as LINER (the series rules, prodSeriesFor): one kind for the match.
+  var kinds = function(e) { return prodWeighKinds((e.part || '') + ' ' + (e.partNumber || '')).map(function(k) { return PROD_MATCH_SYN[k] || k; }); };
+  var fits = function(load, p) {
+    if (!load.gauge) return true;
+    if (p.gauge) return p.gauge === load.gauge;
+    return !(p.gaugeOptions && p.gaugeOptions.length) || p.gaugeOptions.indexOf(load.gauge) >= 0;
+  };
+  idx.live.filter(function(e) {
+    var m = out[e.id];
+    return e.kind === 'pickled' && e.clientId != null && !idx.replaced[e.id] && m && !m.set && !m.ids.length;
+  }).sort(cmp).forEach(function(load) {
+    var lc = codes(load), lk = kinds(load), generic = prodIsGeneric(load.partNumber || load.part);
+    var cand = (byClient[String(load.clientId)] || []).filter(function(p) { return !used[p.id] && prodMatchWindow(load, p) && fits(load, p); });
+    var by = 'code', pool = lc.length ? cand.filter(function(p) { return codes(p).some(function(c) { return lc.indexOf(c) >= 0; }); }) : [];
+    if (!pool.length && lk.length) {
+      by = 'kind';
+      pool = cand.filter(function(p) { return (generic || prodIsGeneric(p.partNumber || p.part)) && kinds(p).some(function(k) { return lk.indexOf(k) >= 0; }); });
+    }
+    if (!pool.length) return;
+    var got = [], sum = 0;
+    // To the load's quantity, as above; a load with no quantity takes the first run alone, since nothing says where it ends.
+    pool.forEach(function(p) {
+      if (used[p.id] || (got.length && (load.qty == null || (load.unit === p.unit && sum >= load.qty)))) return;
+      got.push(p); used[p.id] = true;
+      if (p.unit === load.unit && p.qty != null) sum += p.qty;
+    });
+    out[load.id] = prodMatchResult(got, load, false);
+    out[load.id].by = by;
+  });
   return out;
+}
+var PROD_MATCH_SYN = { PAD: 'LINER', PADS: 'LINER', LINEAR: 'LINER', LINERS: 'LINER' };
+/* The matcher's window: the same day from half an hour before the load, or the next working day before noon. */
+function prodMatchWindow(load, p) {
+  var nextWd = isoAddDays(load.date, new Date(load.date + 'T00:00:00').getDay() === 6 ? 2 : 1);
+  var sameDay = p.date === load.date && (!p.time || !load.time || relayParseHhmm(p.time) >= relayParseHhmm(load.time) - 30);
+  return sameDay || (p.date === nextWd && (!p.time || relayParseHhmm(p.time) < 720));
 }
 function prodMatchResult(list, load, set) {
   var lines = {}, qty = 0, unitOk = true;
@@ -1491,7 +1536,7 @@ function prodInPlant(opts) {
     });
   });
   Object.keys(byKey).forEach(function(k) { byKey[k].sort(function(a, b) { return a.date < b.date ? -1 : a.date > b.date ? 1 : 0; }); });
-  var noChallan = {}, famUsed = 0, arrived = {};
+  var noChallan = {}, famUsed = 0, arrived = {}, over = {};
   var alloc = function(e, field) {
     var k = prodEntryKey(e);
     if (!k || e.qty == null || !e.unit || e.unit === 'BAG') return;
@@ -1509,7 +1554,7 @@ function prodInPlant(opts) {
       pool = lines.filter(function(r) { return fks.indexOf(r.fam) >= 0; });
       if (pool.length) famUsed++;
     }
-    var left = e.qty, u = e.unit;
+    var left = e.qty, u = e.unit, held = 0, before = 0;
     (pool || []).forEach(function(r) {
       if (left <= 0) return;
       // A line held in the other unit takes the entry through the part's kg per piece: kilograms plated of a part
@@ -1519,6 +1564,8 @@ function prodInPlant(opts) {
       if (lu !== u) { if (!r.kpp) return; f = u === 'KG' ? 1 / r.kpp.kg : r.kpp.kg; }
       if (r.date && r.date > isoAddDays(e.date, 1)) return;
       if (r.closedOn !== undefined && (!r.closedOn || r.closedOn < e.date)) return;
+      // What the challans it could go against hold, and how much of that was taken before it, in the entry's own unit.
+      held += r.R[lu] / f; before += r[field][lu] / f;
       var room = r.R[lu] - r[field][lu];
       if (room <= 0) return;
       var take = Math.min(room, left * f);
@@ -1526,6 +1573,9 @@ function prodInPlant(opts) {
       // Which entry filled the line, in order: what is still open on it is its latest plating (the rule ages that).
       r.A[field].push({ e: e, q: take });
     });
+    // A load's share no challan line had room for (a face's load is checked against it, faces.js): past what its challans hold
+    // where some challan of it was open to it (`held`), else all of it, which is the load with no challan (prodLoadNoChallan).
+    if (field === 'P' && left > 0.0005) over[e.id] = { left: left, unit: u, held: held, before: before };
     // Left over, on the floor with no challan: one row per part, its pickling and its plating kept apart. The same
     // material pickled and then plated is one lot, so the row holds the larger stage, never the two added.
     if (left > 0.0005) {
@@ -1559,7 +1609,7 @@ function prodInPlant(opts) {
   var cov = prodCoverage(since, today), covShare = Math.min.apply(null, PROD_LINES.map(function(l) { return cov[l].share; }));
   var book = rows.reduce(function(s, x) { return s + x.amount; }, 0);
   var unweighed = rows.filter(function(x) { return x.unit === 'KG'; });
-  return { rows: rows, unweighed: unweighed.length, unweighedKg: unweighed.reduce(function(s, x) { return s + x.open; }, 0), noChallan: Object.keys(noChallan).map(function(k) { return noChallan[k]; }), arrived: arrived, famUsed: famUsed,
+  return { rows: rows, unweighed: unweighed.length, unweighedKg: unweighed.reduce(function(s, x) { return s + x.open; }, 0), noChallan: Object.keys(noChallan).map(function(k) { return noChallan[k]; }), arrived: arrived, famUsed: famUsed, over: over,
     book: gstRound(book), coverage: cov, coverShare: covShare, floorOk: covShare >= PROD_COVER_OK, since: since, lines: lines };
 }
 

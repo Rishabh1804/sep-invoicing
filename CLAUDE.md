@@ -168,7 +168,7 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
-├── faces.js           ← Entry faces: Mine, a person's own screen: the day's duties as steps, what they entered, their sheets, sent or not (~300 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms and the group's message, the checks against what they link to, what was entered, the sheets (~770 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -221,7 +221,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,723 tests, both layouts
+pnpm exec playwright test          # 1,727 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2877,8 +2877,8 @@ on the build before. What it leaves as rules:
 
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
-all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2–F6 and T1–T3
-to come. No name is in the build: the people are the book's.
+all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
+forms and the checks (P200); F3–F6 and T1–T3 to come. No name is in the build: the people are the book's.
 - **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
   access → *Enters*); the users list says what each enters.
@@ -2893,6 +2893,29 @@ to come. No name is in the build: the people are the book's.
 - **The owner sees a person's screen as theirs** (*See their screen* on the users list: `_faceUid`, ended by the next sign-in).
 - **Today hears a face**: an input a person with that duty entered says so (*Entered by …*, `faceInputBy`, read off the change log).
 - **Search finds Mine** only where it opens (`srchSees`).
+- **The pickling hand enters on Mine itself** (F2, P200): *A load into the tank* (the client, those with material open first; its parts
+  as the challans name them, those open first with what is open on them, or a name typed as written; pieces or kilograms; the time it
+  went in, now by default; re-pickling or rework) and *Material in* (a challan in the book counted line by line against its own figure,
+  or what came with no challan in the book yet). A save is the record a paste makes (`pickled`, `basis: 'pickling'`; `arrived`,
+  `basis: 'floor-in'` with `imId`, `imItemId`, `challanNo`), with `src: 'face'` and `by` the person; the form stays for the next and
+  lists what was saved from it. **Correct** opens the form on the entry; saved, it takes the entry's place (`replaces`).
+- **The group still gets its message**: each saved entry has *Send to the group* (WhatsApp with the message in the shop's shape: the
+  day, the client, each part and its figure, the time) and *Copy*. The entries carry the message's key (`msgHash`), so that message
+  pasted later is refused as entered on a face (`prodPasteSeen`), and a load or count retyped (the same day, client, part and figure,
+  within twenty minutes) is left out of a paste (`prodFaceTwin`).
+- **Trusted, checked, never held** (`faceChecks`): a load with no plating found by noon the next working day, where every line it can
+  have gone to was recorded (its usual line, else its client's lines in sixty days, else all three: the barrel keeps no register); a
+  load past what its challans hold (In plant's own setting of loads against challan lines, `over`); a count the challan
+  does not bear out (short is red); a count with no challan a working day on; a VAT run no load became on a day the face was in use.
+  The entry carries the question (on Mine; Production → Entries → *To check*), To-do `faceCheck` asks the owner (one task a check and a
+  day), and *Looks right* keeps it as entered (`checkOk: {codes, at, by}`, the `voids` permission). A load with no challan at all is
+  Production's own rule (`prodPickledNoChallan`), never asked twice.
+- **A load meets the register's run of its kind or code** (`prodMatchAll`, a second pass): a load its own part or family linked to
+  nothing takes, in the same window, a run of its client sharing a 4-digit code, else a run of its kind (pads and liners one kind) at a
+  gauge that fits, a run's gauges read off its round included (the family's key cannot hold them); a named load only a run naming its
+  kind alone, never another part's; never a run linked already. On the owner's book, the 68 loads since 1 Sep: the first pass linked
+  12, the second 11 more, and the line read from plating went from 7 loads to 18 (of the 45 left, 17 are a client with no plating on
+  record within five days).
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

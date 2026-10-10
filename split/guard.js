@@ -612,7 +612,7 @@ function grdAfterUser() {
   _grdLastUser = u.id;
   if (other) {
     // The owner looking at another's screen ends with whoever signs in next (faces.js).
-    if (typeof _faceUid !== 'undefined') { _faceUid = null; _faceDay = null; }
+    if (typeof _faceUid !== 'undefined') { _faceUid = null; _faceDay = null; _faceForm = null; }
     if (document.querySelector('.inv-scrim-dialog') && typeof closeOverlay === 'function') closeOverlay();
     var pv = document.getElementById('invPrintView');
     if (pv && pv.classList.contains('inv-print-view-active') && typeof closePrintPreview === 'function') closePrintPreview();

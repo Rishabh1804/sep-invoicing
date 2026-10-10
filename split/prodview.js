@@ -89,7 +89,7 @@ function renderProduction() {
 function prodQtyText(q, u) { if (q == null) return 'no quantity'; return (u === 'KG' ? formatNum(q, q % 1 ? 2 : 0) + ' kg' : Math.round(q).toLocaleString('en-IN') + (u ? ' ' + u : '')); }
 function prodLineName(l) { return l ? PROD_LINE_LABEL[l] || l : 'Line unknown'; }
 function prodEntryTitle(e) { return (e.clientId != null ? prodClientName(e.clientId) || e.client : e.client || 'No client') + (e.part ? ' · ' + e.part : ''); }
-function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', hand: 'by hand', 'import': 'history' }[e.src] || e.src || ''; }
+function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', hand: 'by hand', 'import': 'history', face: 'face' }[e.src] || e.src || ''; }
 
 /* ---------- A day's plating, as one card ----------
    Owner, 9 Oct 2026: the tile read "7,630 NOS + 150 kg … 0.68 t known, 14% of the pieces weighed", which "is not uniform
@@ -627,7 +627,8 @@ function prodLineStockHtml(line) {
 }
 /* Where an entry came from, as a badge (§1a-11): the register, the supervisor's relay, by hand, the history imported, a message. */
 function prodSrcBadge(e) {
-  return e.src === 'import' ? 'import' : e.basis === 'register' || e.src === 'photo' ? 'register' : e.basis === 'relay' ? 'relay' : e.src === 'hand' || e.basis === 'hand' ? 'hand' : 'message';
+  // Entered on a person's own screen (faces.js): said as the owner says it, a face.
+  return e.src === 'import' ? 'import' : e.src === 'face' ? 'face' : e.basis === 'register' || e.src === 'photo' ? 'register' : e.basis === 'relay' ? 'relay' : e.src === 'hand' || e.basis === 'hand' ? 'hand' : 'message';
 }
 /* A run (§3b-11): two facts (its time, its rounds), where it came from as a badge, what it plated and weighs at its end. */
 function prodRunRowHtml(e, muted) {
@@ -645,7 +646,8 @@ function prodRunRowHtml(e, muted) {
 
 /* ---------- Entries ---------- */
 var PROD_ENTRY_KINDS = [['', 'All'], ['pickled', 'Pickled'], ['plated', 'Plated'], ['arrived', 'Arrived'], ['downtime', 'Power cuts']];
-var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed']];
+var PROD_ENTRY_FLAGS = [['unknown', 'Line unknown'], ['noclient', 'No client'], ['nochallan', 'No challan'], ['gauge', 'Gauge unknown'], ['unweighed', 'Not weighed'],
+  ['check', 'To check']];
 /* Whether an entry carries a flag: the To-do counts every date, so a flag lists every date too (P127). */
 function prodEntryFlagged(e, flag, idx) {
   if (flag === 'unknown') return e.kind === 'pickled' && !e.voidedAt && prodLoadLine(e).how === 'unknown';
@@ -653,6 +655,8 @@ function prodEntryFlagged(e, flag, idx) {
   if (flag === 'nochallan') return e.clientId != null && prodLoadNoChallan(e, idx);
   if (flag === 'gauge') return prodGaugeFlagged(e);
   if (flag === 'unweighed') return prodIsUnweighed(e, idx);
+  // A face's entry the data it links to does not bear out, or a run no load of a face's day became (faces.js).
+  if (flag === 'check') return faceCheckOf(e).length > 0;
   return false;
 }
 /* Entries (the tab map, TM4c): its verdict (the record's 60 days, and what needs a look: pieces not weighed, loads with the line
@@ -667,7 +671,7 @@ function prodEntriesHtml() {
   PROD_ENTRY_KINDS.forEach(function(c) { kindN[c[0]] = recent.filter(function(e) { return !c[0] || e.kind === c[0]; }).length; });
   PROD_ENTRY_FLAGS.forEach(function(c) { flagN[c[0]] = all.filter(function(e) { return prodEntryFlagged(e, c[0], idx); }).length; });
   var openCuts = recent.filter(function(e) { return e.kind === 'downtime' && !e.voidedAt && e.downtime && e.downtime.open; }).length;
-  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge;
+  var unknown = prodUnknownLoads(), look = flagN.unweighed + flagN.unknown + openCuts + flagN.gauge + flagN.check;
   // The four flags that need a look are the card's factors, and filter the list as Stock's status tiles do; the kinds (and No client)
   // are the toolbar's chips, behind Filter on the phone with the flags beside them.
   var flagTile = function(flag, label, sub) {
@@ -675,7 +679,8 @@ function prodEntriesHtml() {
   };
   var h = uiVerdictHtml({ screen: 'Entries · 60 days', verdict: todoPlural(recent.length, 'entry', 'entries') + ' in 60 days' + (look ? ', ' + look + ' to look at' : ''),
     tone: !recent.length ? 'neutral' : look ? 'warning' : 'ok',
-    facts: [flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '', flagN.unknown ? flagN.unknown + ' with the line unknown' : ''],
+    facts: [flagN.check ? flagN.check + ' to check' : '', flagN.unweighed ? flagN.unweighed + ' not weighed' : '', openCuts ? todoPlural(openCuts, 'cut') + ' with no time back' : '',
+      flagN.unknown ? flagN.unknown + ' with the line unknown' : ''].filter(Boolean).slice(0, 3),
     factors: [flagTile('unweighed', 'Not weighed', 'runs in pieces, every date'), flagTile('unknown', 'Line unknown', 'pickled loads'),
       flagTile('nochallan', 'No challan', 'loads, 30 days'), flagTile('gauge', 'Gauge unknown', 'a round no rule names')],
     attrs: ' id="prodEntriesVerdict"' });
@@ -683,7 +688,7 @@ function prodEntriesHtml() {
     return '<button class="inv-chip" data-action="invProdFilter" ' + attr + '="' + val + '" aria-pressed="' + on + '">' + label + ' <span class="inv-panel-count">' + n + '</span></button>';
   };
   var chips = PROD_ENTRY_KINDS.map(function(c) { return chip('data-kind', c[0], c[1], kindN[c[0]], f.kind === c[0] && !f.flag); }).join('') +
-    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient'; }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
+    PROD_ENTRY_FLAGS.filter(function(c) { return !_isDesktop || c[0] === 'noclient' || (c[0] === 'check' && (flagN.check || f.flag === 'check')); }).map(function(c) { return chip('data-flag', c[0], c[1], flagN[c[0]], f.flag === c[0]); }).join('');
   var on = f.flag ? (PROD_ENTRY_FLAGS.find(function(c) { return c[0] === f.flag; }) || [])[1] : f.kind ? (PROD_ENTRY_KINDS.find(function(c) { return c[0] === f.kind; }) || [])[1] : '';
   // A day: every entry of it, whatever its kind (owner, 10 Oct 2026: a past day's records, to check and correct).
   var dayField = '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">A day</span><input type="date" id="prodEntriesDay" class="inv-input" max="' + today + '" value="' + escHtml(f.day || '') + '" aria-label="A day"></label>';
@@ -778,6 +783,7 @@ function prodEntryMoreHtml(e, idx) {
   var by = idx.replaced[e.id] && prodData().entries.find(function(x) { return x.replaces === e.id && !x.voidedAt; });
   if (by) h += '<div class="inv-callout inv-callout-info">Corrected by the entry of ' + escHtml(formatDate(by.date)) + ': ' + escHtml(prodQtyText(by.qty, by.unit)) + '.</div>';
   if (e.replaces) h += '<div class="inv-note">This entry corrects an earlier one.</div>';
+  h += faceCheckCalloutsHtml(e);
   var rounds = e.rounds || [];
   if (rounds.length) {
     h += '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Rounds <span class="inv-panel-count">' + rounds.length + '</span></span></div>' +
@@ -823,6 +829,7 @@ function prodEntryRowHtml(e, idx) {
   if (e.clientId == null && !cut) badges.push(['warning', 'no client']);
   else if (e.kind === 'pickled' && prodLoadNoChallan(e, idx)) badges.push(['warning', 'no challan']);
   if (prodGaugeFlagged(e)) badges.push(['warning', 'gauge unknown']);
+  if (faceCheckOf(e).length) badges.push(['warning', 'to check']);
   if (e.rework) badges.push(['info', 'rework']);
   if (idx.replaced[e.id]) badges.push(['neutral', 'corrected']);
   else if (e.kind === 'plated' && !idx.countedSet[e.id] && !e.voidedAt) badges.push(['neutral', 'also reported']);
@@ -966,17 +973,38 @@ function prodOpenPaste(text) {
 function prodPasteSeen(m) {
   var p = prodData();
   // Every copy saved, not the first: a message saved, voided and saved again is held by its second copy (P127).
-  return p.pastes.filter(function(x) {
+  var seen = p.pastes.filter(function(x) {
     if (x.hash === m.hash) return true;
     if (x.day || x.hash !== relayHash(x.text || '')) return false;
     var e = p.entries.find(function(y) { return y.pasteId === x.id; });
     return prodMsgKey(e ? e.date : x.sentOn, x.text) === m.hash;
   }).find(function(paste) { return p.entries.some(function(e) { return e.pasteId === paste.id && !e.voidedAt; }); }) || null;
+  if (seen) return seen;
+  // The message a face wrote for the group (faces.js) carries its key on the entries it made: already entered, never read twice.
+  var fe = p.entries.find(function(e) { return e.src === 'face' && e.msgHash && e.msgHash === m.hash && !e.voidedAt; });
+  return fe ? { id: null, face: fe } : null;
+}
+/* A pasted load or arrival a face already holds (faces.js): the same day, client and part, the same figure, within twenty
+   minutes. The message a face writes is refused whole by its key (prodPasteSeen); this catches it retyped or edited. */
+function prodFaceTwin(it, clientId) {
+  if (!it || (it.kind !== 'pickled' && it.kind !== 'arrived') || clientId == null || clientId === 'asWritten') return null;
+  var idx = prodIndex(), t = relayParseHhmm(it.time), k = prodKey(clientId, it.part, it.gauge);
+  return idx.live.find(function(e) {
+    if (e.src !== 'face' || e.kind !== it.kind || e.date !== it.date || idx.replaced[e.id] || String(e.clientId) !== String(clientId)) return false;
+    // The part as the floor writes it: "165x83(40x6)" under the client is the face's "CLAMP 165X83 (NT)", so one name inside the
+    // other is the same part here, where the day, the client, the figure and the time already agree.
+    var pk = prodPartKey(it.part || ''), ek = prodPartKey(e.partNumber || e.part || '');
+    var same = pk && ek && (pk === ek || (pk.length >= 4 && ek.indexOf(pk) >= 0) || (ek.length >= 4 && pk.indexOf(ek) >= 0));
+    if (!same && prodEntryKey(e) !== k) return false;
+    if ((e.qty == null) !== (it.qty == null) || (e.qty != null && (Math.abs(e.qty - it.qty) > 0.0005 || e.unit !== it.unit))) return false;
+    var et = relayParseHhmm(e.time);
+    return t == null || et == null || Math.abs(et - t) <= 20;
+  }) || null;
 }
 /* The open cut stored from a message saved before, that a power back in this paste closes (P127). */
 function prodStoredOpenCut(m, it) {
   var seen = prodPasteSeen(m);
-  return seen ? prodData().entries.find(function(e) {
+  return seen && seen.id ? prodData().entries.find(function(e) {
     return e.pasteId === seen.id && e.kind === 'downtime' && !e.voidedAt && e.date === it.date && e.time === it.time && e.to == null;
   }) || null : null;
 }
@@ -986,7 +1014,9 @@ function prodReviewResolve() {
     // Saved before, or the same message earlier in this paste (the supervisor reposts a roll): read once.
     m.twice = !!(m.read.items.length && inPaste[m.hash]);
     if (m.read.items.length) inPaste[m.hash] = true;
-    m.dup = !!prodPasteSeen(m) || m.twice;
+    var seenAs = prodPasteSeen(m);
+    m.dup = !!seenAs || m.twice;
+    m.faceBy = seenAs && seenAs.face ? seenAs.face.by || 'someone' : '';
     if (m.dup) out.dup++;
     m.read.items.forEach(function(it, ii) {
       var key = mi + ':' + ii, row = { m: m, mi: mi, ii: ii, key: key, it: it, issues: it.issues.slice(), tone: 'clear' };
@@ -1005,8 +1035,11 @@ function prodReviewResolve() {
         if (lc !== undefined) { row.issues = row.issues.filter(function(x) { return x.code !== 'linehint' && x.code !== 'noline'; }); row.line = lc || null; }
         else row.line = null;
       } else row.line = it.line || null;
+      // Entered on a face already (faces.js): left out, as a message saved before is.
+      row.twin = !m.dup ? prodFaceTwin(it, row.clientId) : null;
+      if (row.twin) { row.issues = []; out.twin = (out.twin || 0) + 1; }
       row.issues.forEach(function(x) { if (x.tone === 'red') row.tone = 'red'; else if (x.tone === 'amber' && row.tone !== 'red') row.tone = 'amber'; });
-      if (!m.dup) { if (row.tone === 'red') out.red++; else if (row.tone === 'amber') out.amber++; out.save++; }
+      if (!m.dup && !row.twin) { if (row.tone === 'red') out.red++; else if (row.tone === 'amber') out.amber++; out.save++; }
       out.rows.push(row);
     });
   });
@@ -1027,12 +1060,13 @@ function prodReviewHtml() {
   h += '<div class="inv-tiles"><div class="inv-tile' + (res.red ? ' inv-tile-danger' : '') + '"><div class="inv-tile-label">Needs you</div><div class="inv-tile-value">' + res.red + '</div></div>' +
     '<div class="inv-tile' + (res.amber ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">Check</div><div class="inv-tile-value">' + res.amber + '</div></div>' +
     '<div class="inv-tile"><div class="inv-tile-label">To save</div><div class="inv-tile-value">' + res.save + '</div></div></div>';
+  if (res.twin) h += '<div class="inv-callout inv-callout-info" id="prodTwinNote">' + todoPlural(res.twin, 'line') + ' in this paste ' + (res.twin === 1 ? 'was' : 'were') + ' entered on a face already, and ' + (res.twin === 1 ? 'is' : 'are') + ' left out.</div>';
   if (res.dup) h += '<div class="inv-callout inv-callout-danger" id="prodDupNote">' + todoPlural(res.dup, 'message') + ' in this paste ' + (res.dup === 1 ? 'was' : 'were') + ' saved before, or sent twice, and ' + (res.dup === 1 ? 'is' : 'are') + ' left out, so nothing counts twice.</div>';
   rv.msgs.forEach(function(m, mi) {
     var kindWord = { pickling: 'Pickling', production: 'Barrel production', runs: 'Production by slot', roll: 'Roll: production notes', power: 'Power cut', stock: 'Stock (read in Stock)', other: 'Not production' }[m.kind];
     h += '<div class="inv-panel inv-panel-flush' + (m.dup ? ' inv-row-muted' : '') + '" data-prod-msg="' + mi + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(kindWord + (m.sentBy ? ' · ' + m.sentBy : '')) + '</span>' +
       '<span class="inv-panel-count">' + escHtml((m.sentOn ? stockShortDate(m.sentOn) : 'no date') + (m.sentAt != null ? ' ' + relayHhmm(m.sentAt) : '')) + '</span></div>';
-    if (m.dup) h += '<div class="inv-panel-body inv-note">' + (m.twice ? 'The same message is earlier in this paste: read once, left out here.' : 'Saved before: left out.') + '</div>';
+    if (m.dup) h += '<div class="inv-panel-body inv-note">' + (m.twice ? 'The same message is earlier in this paste: read once, left out here.' : m.faceBy ? 'Entered on a face by ' + escHtml(m.faceBy) + ': left out.' : 'Saved before: left out.') + '</div>';
     if (m.kind === 'roll' && !m.read.items.length) h += '<div class="inv-panel-body inv-note">An attendance roll with no production notes: read it in People → Paste message.</div>';
     if (m.kind === 'stock') h += '<div class="inv-panel-body inv-note">A chemical stock message: read it in Stock → Paste message.</div>';
     if (m.kind === 'other') h += '<div class="inv-panel-body"><div class="inv-quote">' + escHtml(m.text.slice(0, 400)) + '</div><div class="inv-note inv-mt-4">Not read: not a pickling, production or power message.</div></div>';
@@ -1048,7 +1082,7 @@ function prodReviewHtml() {
   return h;
 }
 function prodReviewRowHtml(r, idx) {
-  var it = r.it, badge = r.m.dup ? ['neutral', 'Saved before'] : r.tone === 'red' ? ['danger', 'Needs you'] : r.tone === 'amber' ? ['warning', 'Check'] : ['ok', 'Clear'];
+  var it = r.it, badge = r.m.dup ? ['neutral', 'Saved before'] : r.twin ? ['neutral', 'On a face'] : r.tone === 'red' ? ['danger', 'Needs you'] : r.tone === 'amber' ? ['warning', 'Check'] : ['ok', 'Clear'];
   var kindWord = { pickled: 'Pickled', plated: 'Plated', arrived: 'Arrived', downtime: 'Power cut' }[it.kind];
   var reading = it.kind === 'downtime' ? 'Power cut ' + (it.time || '?') + ' to ' + (it.to || 'not back') :
     kindWord + (it.time ? ' ' + it.time : '') + ' · ' + (r.clientId != null ? prodClientName(r.clientId) : it.client ? it.client + ' (as written)' : 'no client') +
@@ -1057,6 +1091,7 @@ function prodReviewRowHtml(r, idx) {
   var h = '<div class="inv-row inv-row-auto inv-row-top" data-prod-row="' + r.key + '" data-tone="' + r.tone + '"><div class="inv-row-main"><div class="inv-quote">' + escHtml(it.raw) + '</div>' +
     '<div class="inv-verdict-text inv-mt-4">' + escHtml(reading) + '</div>';
   r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
+  if (r.twin) h += '<div class="inv-note inv-mt-4" data-prod-twin>' + escHtml('Entered on a face' + (r.twin.by ? ' by ' + r.twin.by : '') + (r.twin.time ? ' at ' + relayClockLabel(relayParseHhmm(r.twin.time)) : '') + ': left out.') + '</div>';
   // A client read by name (exact or learnt) can be changed too: "Change client" opens the same picker.
   var pickOpen = it.clientId == null || it.issues.some(function(x) { return x.code === 'readas'; }) || r.clientPick !== undefined || _prodReview.choices['open' + r.key];
   if (!r.m.dup && it.kind !== 'downtime' && !pickOpen) h += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRevClient" data-key="' + r.key + '">Change client</button></div>';
@@ -1086,7 +1121,7 @@ function prodSaveReview() {
   var p = prodData(), at = Date.now(), byEl = document.getElementById('prodBy'), by = byEl ? byEl.value.trim() : stockBy(), n = 0, pasteIds = {};
   var learnt = 0;
   res.rows.forEach(function(r) {
-    if (r.m.dup) return;
+    if (r.m.dup || r.twin) return;
     var it = r.it;
     if (!pasteIds[r.mi]) {
       pasteIds[r.mi] = prodUid('PP');

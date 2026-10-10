@@ -632,7 +632,7 @@ function chgHealthText() {
 /* ---------- History (stats.js) ---------- */
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
 var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
-  orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted' };
+  orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';

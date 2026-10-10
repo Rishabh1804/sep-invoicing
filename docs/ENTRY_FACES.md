@@ -1,8 +1,9 @@
 # Entry faces: each hand enters their own
 
 **Status: F1 built (10 Oct 2026, P199): duties on a user, Mine, landing on it, its steps, what was entered, its paper and backup,
-Today hearing a face (CLAUDE.md *Entry faces*).** F2–F6, then the flow thread T1–T3, follow, one commit each, on the tab map's branch
-(PR #146) ahead of TM5–TM7.
+Today hearing a face. F2 built (10 Oct 2026, P200): the pickling hand's two forms on Mine, the group's message and its key, Correct,
+the checks of §4 that touch a load or a count, and the matcher's second pass (CLAUDE.md *Entry faces*).** F3–F6, then the flow thread
+T1–T3, follow, one commit each, on the tab map's branch (PR #146) ahead of TM5–TM7.
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,
@@ -119,7 +120,13 @@ Each check runs on the record the face wrote and the records it links to, and on
 task per check and day, its rows naming the entries, *Looks right* to accept or *Correct* to put right; the acceptance kept on the
 entry, as `checkOk` is on stock):
 - **A load with no plating** on its line by the next working day noon (the matcher's own window), and **plating with no load**.
-- **A load against its challan**: no challan open for the client and part, or more pieces than the challan has open.
+  *Built (F2):* asked only where every line the load can have gone to was recorded in its window (its usual line, else its
+  client's lines, else all three; a line with no record is the register missing, and Today says so); a run with no load only on
+  the VAT lines (the barrel has its own pickling) and on a day the face was in use. The matcher links a load to the register's run
+  of its kind or code where its own part or family links nothing (the 26 of 165 above).
+- **A load against its challan**: no challan open for the client and part, or more pieces than the challan has open. *Built (F2):*
+  more than the challans hold is In plant's own setting of loads against challan lines; no challan at all stays Production's rule
+  (`prodPickledNoChallan`). Material counted in is set against its challan line (short is red) or, with none, asked a working day on.
 - **The two attendance views of one day**: present on one and absent on the other, or in another area; an ID-card scan or an
   office check-in that disagrees with either.
 - **The roll's EXTRA against the shortfall** (the Areas check, as now).
@@ -167,7 +174,8 @@ Each spec uses made-up names in the shop's shapes, and each fails on the build b
 - Records a face writes are the records a paste writes, with `src: 'face'` and `by`: the `sep-production` and `sep-stock` exports
   carry them unchanged in shape, and the compile reads them as it reads a paste's. A barrel batch is a `plated` entry on the barrel
   line with `basis: 'register'`, where the barrel had only the supervisor's relayed list (`basis: 'relay'`).
-- New on the book: `users[].faces` (the duties a user enters), `S.faceChecks` (an accepted disagreement, with who and when),
+- New on the book: `users[].faces` (the duties a user enters), an accepted disagreement kept on the entry it answers (`checkOk:
+  {codes, at, by}`, as stock's is; built so in F2 rather than as a store of its own),
   `client.payTermsDays`, `client.turnaroundDays` and per part, a challan's `priority`. They travel with the book; NEXT_SESSION's
   table gets their shape when each is built.
 

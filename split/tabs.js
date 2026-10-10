@@ -15,7 +15,7 @@ const PAGE_TITLES = {
    a page's own view can differ from the page (`page/view`), and a sub-view that is a form says so while it shows. */
 var SCREEN_KINDS = {
   pageHome: 'overview', pagePipeline: 'overview', pageIM: 'work', pageRegister: 'work', pageClients: 'work',
-  pageCreate: 'form', pageFloor: 'overview', pageFace: 'overview',
+  pageCreate: 'form', pageFloor: 'overview', pageFace: 'overview', 'pageFace/pickling': 'form', 'pageFace/incoming': 'form',
   pageStaff: 'work',
   pageProduction: 'work',
   pageStock: 'work', 'pageStock/item': 'form',
@@ -70,6 +70,8 @@ function switchTab(tabId) {
   }
   // Step 2b: a knowledge article's form is left with its page, and with a tap on the page itself (knowledge.js kbLeave).
   if (currentPage && currentPage.id === 'pageKnow' && typeof kbLeave === 'function') kbLeave();
+  // A face's form is left with its page (faces.js): Mine opens on the face again, not on a form someone left half filled.
+  if (currentPage && currentPage.id === 'pageFace' && tabId !== 'pageFace' && typeof _faceForm !== 'undefined') _faceForm = null;
 
   // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
   _viewTopAt++;

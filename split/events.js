@@ -756,6 +756,7 @@ document.addEventListener('input', function(e) {
   if (relayOnInput(e.target)) return;
   if (suppOnInput(e.target)) return;
   if (prodOnInput(e.target)) return;
+  if (faceOnInput(e.target)) return;
   if (qtOnInput(e.target) || qtSearchInput(e.target) || prsOnInput(e.target) || pcsOnInput(e.target)) return;
   if (e.target.id === 'clientSearch') {
     renderClientList(e.target.value);

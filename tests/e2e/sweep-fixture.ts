@@ -398,6 +398,27 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   await walkQuoteForm(page, tag, stops);
   await walkZinc(page, tag, stops);
   await walkStockCheck(page, tag, stops);
+  await walkFaceForms(page, tag, stops);
+}
+
+/* Mine's own forms (faces.js, F2), which no tab reaches: a load into the tank with a client and its first part picked, and material
+   counted in against the client's latest challan (else as not in the book yet). Opened as the owner looking at the sweep book's face. */
+export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
+  await faceSeen(page, 'pageFace');
+  await switchTab(page, 'pageFace');
+  const views: Array<[string, string]> = [
+    ['load', `faceFormOpen('pickling'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
+      var p = faceClientParts(_faceForm.clientId)[0]; if (p) _faceForm.part = p.key; })(); renderFace()`],
+    ['in', `faceFormOpen('incoming'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
+      var m = faceInChallans(_faceForm)[0]; _faceForm.challan = m ? m.id : '__none'; })(); renderFace()`],
+  ];
+  for (const [name, js] of views) {
+    await page.evaluate(src => (0, eval)(src), js);
+    await expect(page.locator('#faceContent .inv-pagehead')).toBeVisible();
+    stops.push(await sweep(page, 'pageFace › ' + name));
+    await shot(page, `${tag}-pageFace-${name}`);
+    await page.evaluate(() => (0, eval)(`_faceForm = null; renderFace()`));
+  }
 }
 
 /* Stock's price trend on Zinc (Spend and prices since the tab map, TM4d: the fold at the list's foot on the phone, the pane beside it

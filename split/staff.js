@@ -580,6 +580,7 @@ function _attDayView() {
   // One look (the tab map, TM4b): the day's verdict card, one toolbar row, the switch, then the board. The tiles that led the
   // view are the card's factors; the hours are its facts.
   var html = _attDayVerdictHtml(iso, rec, roster, { present: present, half: half, absent: absent, unmarked: unmarked, otHours: otHours, poolHours: poolHours, extraHours: extraHours });
+  if (typeof faceAttDayHtml === 'function') html += faceAttDayHtml(iso);
   var isToday = iso === localDateStr(), phone = !_isDesktop;
   // Paste message stays the one primary. The rest is More's on the phone; the desktop's row keeps Today, the board or the sheet
   // and All present (§1a-10: at most one secondary, the view's settings inline).
@@ -700,7 +701,9 @@ function _attBoardRow(w, m) {
   return '<div class="inv-row" data-att-row="' + w.id + '">' +
     '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') +
-    (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span></button>' +
+    (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span>' +
+    // The clerk's sheet against the supervisor's roll (faces.js, F4): said on the hand, ruled in its day.
+    (typeof faceAttDotHtml === 'function' ? faceAttDotHtml(_attDate, w.id) : '') + '</button>' +
     '<span class="inv-row-end"><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id +
@@ -721,7 +724,7 @@ function attSheetEntryHtml(iso, rec, roster) {
     var m = rec ? rec.marks[w.id] : null, st = m ? m.st : '', hourly = compIsHourly(w), live = st && st !== 'A';
     var states = hourly ? ['P', 'A'] : ATT_STATES;
     h += '<tr data-att-sheet-row="' + w.id + '"><td><button class="inv-btn-link" data-action="invAttEdit" data-id="' + w.id + '">' + escHtml(w.name) + '</button>' +
-      '<div class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') + '</div></td>' +
+      '<div class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') + '</div>' + (typeof faceAttDotHtml === 'function' ? faceAttDotHtml(iso, w.id) : '') + '</td>' +
       '<td><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' + states.map(function(x) {
         return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '" title="' + ATT_STATE_LABELS[x] + '">' + x + '</button>';
       }).join('') + '</span></td>' +
@@ -746,7 +749,7 @@ function attEditHtml() {
   var states = hourly ? ['P', 'A'] : ATT_STATES;
   return '<div class="inv-dialog" role="dialog" aria-modal="true" aria-labelledby="attEditT" data-att-edit="' + w.id + '">' +
     dialogHeadHtml('<span id="attEditT">' + escHtml(w.name) + ' · ' + escHtml(attDayName(_attDate) + ' ' + formatDate(_attDate)) + '</span>', 'invAttEditClose') +
-    '<div class="inv-dialog-body" data-nodirty><div class="inv-fields">' +
+    '<div class="inv-dialog-body" data-nodirty>' + (typeof faceAttRulingHtml === 'function' ? faceAttRulingHtml(_attDate, w.id) : '') + '<div class="inv-fields">' +
     '<div class="inv-field"><span class="inv-field-label">Attendance</span><span class="inv-seg" role="group" aria-label="Attendance">' +
     states.map(function(x) {
       return '<button class="inv-seg-btn inv-seg-btn-' + ATT_STATE_TONE[x] + '" data-action="invAttSet" data-id="' + w.id + '" data-st="' + x + '" aria-pressed="' + (st === x) + '">' + ATT_STATE_LABELS[x] + '</button>';
@@ -1618,7 +1621,13 @@ function relayLearnFromRow(x) {
 
 /* A mark or an EXTRA row the roll wrote and somebody then changed by hand is the owner's from then on, like one entered
    by hand: the next roll keeps it rather than writing over the correction (relayPlan reads `src`). */
-function _attHandEdit(o) { if (o && o.src === 'relay') delete o.src; }
+function _attHandEdit(o) {
+  if (!o) return;
+  if (o.src === 'relay') delete o.src;
+  // Who typed it, with the guard on: the register clerk's sheet is set against the supervisor's roll by it (faces.js, F4).
+  var u = typeof grdOn === 'function' && grdOn() && typeof grdUser === 'function' ? grdUser() : null;
+  if (u) o.by = u.id;
+}
 
 function setAttExtraArea(idx, areaId) {
   if (!attFloorOk()) return false;

@@ -190,6 +190,9 @@ function onDocClick(e) {
     case 'invAttWeekStep': attStepWeek(parseInt(btn.dataset.step, 10)); break;
     case 'invAttThisWeek': attThisWeek(); break;
     case 'invAttSet': setAttState(parseInt(btn.dataset.id, 10), btn.dataset.st); break;
+    // The clerk's sheet against the supervisor's roll: the owner's rulings, a hand at a time (faces.js, F4).
+    case 'invAttRollUse': faceAttUseRoll(_attDate, btn.dataset.id); break;
+    case 'invAttRollOk': faceAttOk(_attDate, btn.dataset.id); break;
     case 'invAttCycle': cycleAttState(parseInt(btn.dataset.id, 10), btn.dataset.date); break;
     case 'invAttDayAs': attDayAsSet(btn.dataset.v); renderAttendance(); break;
     case 'invAttAllPresent': attAllPresent(); break;

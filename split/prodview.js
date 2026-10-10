@@ -1242,8 +1242,12 @@ function prodPhotoHtml() {
     (power || rd.page === 'other' ? '' : '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
       '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div>') + '</div>' +
     '<div class="inv-note inv-mt-8">Read by Gemini' + (ph.meta.draft ? ' (kept from the last read of this photo)' : '') + '. Check every row against the photo: nothing is saved until you do.</div></div>';
+  // The page entered on Mine by the register clerk (faces.js, F4) for this day and line, whose runs are in the book.
+  var onMine = !power && line ? p.pages.find(function(x) { return !x.replacedBy && x.date === date && x.line === line && p.entries.some(function(e) { return e.pageId && e.date === x.date && e.line === x.line && !e.voidedAt; }); }) : null;
   if (ph.dupSha) h += '<div class="inv-callout inv-callout-danger" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
   else if (dupFp) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
+  else if (onMine) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup" data-prod-photo-mine>' + escHtml('The ' + PROD_LINE_LABEL[line] + ' page for this day was entered on Mine' + (onMine.by ? ' by ' + onMine.by : '') +
+    (onMine.fp === rd.fp ? ', with the same rounds' : '') + '. Saving the photo as well counts the day twice.') + '</div>';
   rd.issues.forEach(function(x) { if (x.code === 'line' && line) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + '">' + escHtml(x.text) + '</div>'; });
   if (power) {
     // The register's power log: each cut with its return, as written.

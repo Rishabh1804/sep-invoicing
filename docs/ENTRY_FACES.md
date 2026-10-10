@@ -4,7 +4,9 @@
 Today hearing a face. F2 built (10 Oct 2026, P200): the pickling hand's two forms on Mine, the group's message and its key, Correct,
 the checks of §4 that touch a load or a count, and the matcher's second pass (CLAUDE.md *Entry faces*). F3 built (10 Oct 2026,
 P201): the supervisor's two rolls written on Mine and saved as the roll, the barrel's batches, and the check of a batch against its
-barrel.** F4–F6, then the flow thread T1–T3, follow, one commit each, on the tab map's branch (PR #146) ahead of TM5–TM7.
+barrel. F4 built (10 Oct 2026, P202): the register clerk's VAT page on Mine, read by the register photo's own reader, its power log
+and its checks, and the clerk's attendance sheet set against the supervisor's roll.** F5–F6, then the flow thread T1–T3, follow, one
+commit each, on the tab map's branch (PR #146) ahead of TM5–TM7.
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,
@@ -116,10 +118,20 @@ at a sitting).
 - **The attendance sheet**: Staff → Day → Sheet on the phone, a hand a row (P/H/A, area, in, out, the OT slots), the clerk's own
   view, different from the supervisor's roll (the owner's word). Where both are entered for a day, the two are set against each
   other (§4).
+  *Built (F4):* the duty opens People → Attendance → Day as the sheet, as before; every mark typed on the day now carries who typed
+  it (`by`), so the clerk's marks are known from anyone else's. The rulings are §4's.
 - **The VAT register**: a page per line and day, a row a round (time, client, part, the figure as written: `98×8+1` and
   `3+4×156` are kept and added up in code, never by hand), START and END, a struck row marked, the power log (cut at, power in).
   Written as the photo read's rows are (`prodFromRegisterRead`), so the gauge and part rules, the series, the crews and the
   efficiency read it unchanged. The photo stays a door for a page written on paper.
+  *Built (F4):* VAT A1's page a round a row (the time, the figure), VAT A2's a batch a row (began, ended, the figure at the end: the
+  register's START and END; a start left blank began where the batch before ended), a switch for a page kept the other way; the
+  client and part only where a run begins, carried down as the paper's ditto. Two clients in one round are a row each at the same
+  time; a struck row is a round removed (the photo stays the door for a struck paper row). The page is kept on the phone until saved,
+  since a save at every round would void a run at every next one; saved again, a run as it was stays and a changed one is voided and
+  read anew. The power log is the day's, a cut saved at once from either line's page (`logId`). Measured on the owner's 23 register
+  pages: retyped from their own saved rounds, 19 read exactly as saved; three hold a run with no client written (the face asks for
+  it) and one splits a figure for two codes by challans that have changed since.
 
 ## 3. What every face shares
 
@@ -147,6 +159,12 @@ entry, as `checkOk` is on stock):
   (`prodPickledNoChallan`). Material counted in is set against its challan line (short is red) or, with none, asked a working day on.
 - **The two attendance views of one day**: present on one and absent on the other, or in another area; an ID-card scan or an
   office check-in that disagrees with either.
+  *Built (F4), the sheet against the roll:* each hand the clerk marked against the day's saved rolls read alone (with nothing typed
+  on the day beside them): present on one and absent on the other, a half day on one, another line (where both name one; the barrel
+  and its own pickling one place, which the roll writes either way), or present with the rolls naming them nowhere. The sheet's mark
+  stands; the owner rules each, in the hand's day: *Use the roll's* or *Looks right* (kept against the roll's reading it was given).
+  On the owner's book, the 55 marks typed by hand on the 25 days since 1 Sep with rolls: 8 questions on 5 days, 7 another line and
+  1 not on the roll, none present against absent. *Not built:* a card scan or a check-in against either.
 - **The roll's EXTRA against the shortfall** (the Areas check, as now).
 - **A barrel batch against the zinc and chemicals charged into the barrel** that day (stock by line), and its kilos against the
   barrel's usual load. *Built (F3), the second half:* a batch over a quarter heavier than its barrel takes (the kg a round typed on
@@ -154,7 +172,9 @@ entry, as `checkOk` is on stock):
   (PP3) already sets a day's zinc and chemicals on the barrel against everything the barrel plated that day, its batches included;
   one batch against a day's charge is no comparison.
 - **A VAT round against the line's usual round** (its rack sizes and the gauge rules), and the register's day total against its
-  rounds.
+  rounds. *Built (F4):* said on the page as it is typed (the photo check's own words), and once saved asked of the owner: `rack`, a
+  round of a size its part never ran at on its line before the page's day (three rounds or more on record), and `total`, a page whose
+  day total written the rounds do not meet.
 - **Stock** as now (`stockEntryChecks`: twice, overlap, below zero, large, a count off the level).
 
 ## 5. The flow thread (T1–T3)
@@ -183,7 +203,7 @@ The owner's answers on the material-flow study:
 | F1 | The face shell: duties on a user, the face's screen and door, the guard, Today hearing a face, print and WhatsApp doors | P199 |
 | F2 | The pickling face (a load, material in, rework) and its checks | P200 |
 | F3 | The supervisor's face (the two rolls, stock, the barrel per batch) and its checks | P201 |
-| F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other | P202 |
+| F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other (built) | P202 |
 | F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) | P203 |
 | F6 | The guides (*Using the app: my face*, one per face, by role), docs, the full suite | — |
 | T1–T3 | The flow thread, as §5 | P204 |
@@ -200,6 +220,9 @@ Each spec uses made-up names in the shop's shapes, and each fails on the build b
   `src: 'relay'`, and the roll is kept in `relayPastes` with `face` (the name of who wrote it). The attendance seed and the compile
   read it as a pasted roll. A roll written again on the face keeps the old one with `replacedBy` (the new roll's id) and
   `replacedAt`: a reader of the kept rolls skips it, as *Read the rolls again* does.
+- A VAT page entered on a face is kept whole in `production.pages` (its rows as typed, its style, the total written, who), its runs
+  production entries as a register photo's (`basis: 'register'`) with `src: 'face'` and `pageId`; a cut entered on it carries `logId`.
+  A mark typed on the day carries `by`; one the owner kept against the roll, `rollOk` (F4).
 - New on the book: `users[].faces` (the duties a user enters), an accepted disagreement kept on the entry it answers (`checkOk:
   {codes, at, by}`, as stock's is; built so in F2 rather than as a store of its own),
   `client.payTermsDays`, `client.turnaroundDays` and per part, a challan's `priority`. They travel with the book; NEXT_SESSION's

@@ -1801,6 +1801,21 @@ body.inv-desktop .inv-line-num { font-family: var(--ff-mono); }
 body.inv-desktop .inv-line-num::before { content: none; }
 body.inv-desktop .inv-line-notes { grid-column: 2 / -1; }
 body.inv-desktop .inv-line .inv-field-label { position: absolute; width: var(--hair); height: var(--hair); overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* §6.29 A register page entered on Mine (faces.js, F4): a round a row (its time, its figure, remove), or on a batch page a batch
+   a row (when it began and ended, remove, then its figure); the client and the part only where a run begins, as the paper's
+   ditto carries them down; a row's reading or question under it. One grid on both layouts: the page is a person's own phone. */
+.inv-rnd-row {
+  display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) var(--ctl-h); gap: var(--sp-6) var(--sp-8); align-items: end;
+  padding: var(--sp-6) var(--pad-x); border-bottom: var(--hair) solid var(--border);
+}
+.inv-rnd-batch { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) var(--ctl-h); }
+.inv-rnd-row .inv-field { margin-bottom: 0; min-width: 0; }
+.inv-rnd-row :is(.inv-input, .inv-select) { min-width: 0; padding: 0 var(--sp-8); }
+.inv-rnd-head { min-height: var(--row-h); align-items: center; padding-top: 0; padding-bottom: 0; background: var(--bg); font-size: var(--fs-12); font-weight: 500; color: var(--text-3); }
+.inv-rnd-run { background: var(--surface-2); }
+.inv-rnd-wide { grid-column: 1 / -1; }
+.inv-rnd-tail { grid-column: 2 / -1; }
+.inv-rnd-lead { grid-column: 1 / 3; }
 /* A line's verdict (rate, weight): the dot and its word, then the working in mono. The field it
    judges carries the verdict too, so a Check reads on the Rate box itself. */
 .inv-verdict { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--sp-4) var(--sp-8); }

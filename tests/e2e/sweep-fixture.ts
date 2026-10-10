@@ -401,9 +401,10 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
   await walkFaceForms(page, tag, stops);
 }
 
-/* Mine's own forms (faces.js, F2, F3), which no tab reaches: a load into the tank with a client and its first part picked, material
-   counted in against the client's latest challan (else as not in the book yet), the two rolls each with a block of their own, and a
-   barrel batch with its barrel, client and part picked. Opened as the owner looking at the sweep book's face. */
+/* Mine's own forms (faces.js, F2–F4), which no tab reaches: a load into the tank with a client and its first part picked, material
+   counted in against the client's latest challan (else as not in the book yet), the two rolls each with a block of their own, a
+   barrel batch with its barrel, client and part picked, and the VAT register page in rounds and in batches. Opened as the owner
+   looking at the sweep book's face. */
 export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
   await faceSeen(page, 'pageFace');
   await switchTab(page, 'pageFace');
@@ -417,6 +418,13 @@ export async function walkFaceForms(page: Page, tag: string, stops: Stop[]) {
     ['barrel', `faceFormOpen('barrel'); (function(){ var u = pltUnits('barrel')[0]; _faceForm.barrel = u ? u.id : '2';
       var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return; _faceForm.clientId = String(cl.id);
       var p = faceClientParts(_faceForm.clientId)[0]; if (p) _faceForm.part = p.key; })(); renderFace()`],
+    // The register clerk's page (F4): VAT A1's rounds, a run's client and part, a sum the reader adds up and a day total it does not
+    // meet; VAT A2's batches, one with its start left to the batch before.
+    ['vat', `faceFormOpen('vat'); _faceForm = faceVatMake(faceDayIso(), 'vat-a1'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return;
+      var id = String(cl.id); _faceForm.rows = [{ time: '09:45', to: '', client: id, part: 'CLAMP', fig: '120' }, { time: '10:20', to: '', client: id, part: 'CLAMP', fig: '3+4x156' },
+      { time: '', to: '', client: id, part: 'CLAMP', fig: '' }]; _faceForm.total = '1300'; })(); renderFace()`],
+    ['vat-batches', `faceFormOpen('vat'); _faceForm = faceVatMake(faceDayIso(), 'vat-a2'); (function(){ var c = faceClientsSorted(), cl = c.open[0] || c.rest[0]; if (!cl) return;
+      var id = String(cl.id); _faceForm.rows = [{ time: '10:30', to: '11:45', client: id, part: 'TINA(3303)', fig: '3x156' }, { time: '', to: '13:05', client: id, part: 'TINA(3303)', fig: '98x8+1' }]; })(); renderFace()`],
   ];
   for (const [name, js] of views) {
     await page.evaluate(src => (0, eval)(src), js);

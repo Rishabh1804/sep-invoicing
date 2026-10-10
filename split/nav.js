@@ -68,7 +68,7 @@ function navLoc() {
     case 'pageReports': v = rptNavV(); break;
     case 'pagePlanner': v = plnViewKey(); break;
     case 'pageFloor': d = flrNavD(); break;
-    case 'pageFace': d = faceNavD(); if (_faceForm) { v = _faceForm.duty; if (_faceForm.replaces) id = _faceForm.replaces; } break;
+    case 'pageFace': d = faceNavD(); if (_faceForm) { v = _faceForm.duty === 'vat' ? 'vat/' + _faceForm.line : _faceForm.duty; if (_faceForm.replaces) id = _faceForm.replaces; } break;
     case 'pageHistory': if (_isDesktop && _historyOpen) id = _historyOpen; break;
     case 'pageKnow': v = kbNavV(); id = kbNavId(); break;
   }
@@ -181,7 +181,7 @@ function navLabel(loc) {
     case 'pageReports': sub.push(rptNavLabel(loc.v)); break;
     case 'pagePlanner': sub.push(_navFind(PLN_VIEWS, parts[0])); if (parts[0] === 'moves') sub.push(_navFind(PLN_MOVES, parts[1])); break;
     case 'pageFloor': sub.push(flrNavLabel(loc.d)); break;
-    case 'pageFace': sub.push(flrNavLabel(loc.d)); if (parts[0] && FACE_FORM_TITLE[parts[0]]) sub.push(loc.id ? 'Correct' : FACE_FORM_TITLE[parts[0]]); break;
+    case 'pageFace': sub.push(flrNavLabel(loc.d)); if (parts[0] && FACE_FORM_TITLE[parts[0]]) sub.push(loc.id ? 'Correct' : FACE_FORM_TITLE[parts[0]] + (parts[0] === 'vat' && PROD_LINE_LABEL[parts[1]] ? ' · ' + PROD_LINE_LABEL[parts[1]] : '')); break;
     // An event opened in History's pane is named by its time and first words, as History drew it (QA chain, 2 Oct 2026).
     case 'pageHistory': if (loc.id && loc.id === _historyOpen && _historyOpenLabel) rec = _historyOpenLabel; break;
     case 'pageKnow': { var kl = kbNavLabel(loc.v, loc.id); sub = sub.concat(kl.sub); rec = kl.rec; break; }
@@ -260,7 +260,7 @@ function navApply(loc) {
       case 'pageReports': rptNavApply(loc && loc.v); break;
       case 'pagePlanner': plnSetView(loc && loc.v); break;
       case 'pageFloor': flrSetDay(loc && loc.d); break;
-      case 'pageFace': faceSetDay(loc && loc.d); faceFormFromNav(parts[0], id); break;
+      case 'pageFace': faceSetDay(loc && loc.d); faceFormFromNav(loc && loc.v, id); break;
       case 'pageHistory': if (_isDesktop) _historyOpen = id || null; break;
       case 'pageKnow': kbNavApply(loc && loc.v, id); break;
     }

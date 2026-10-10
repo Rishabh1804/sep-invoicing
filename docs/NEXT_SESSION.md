@@ -67,8 +67,13 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
      matching pass for a named load. **F3 built (P201)**: the supervisor's two rolls written on Mine and saved as the roll (the day
      as the same roll pasted gives it, the roll kept naming who wrote it, *Send to the group*), Stock left to its own form, the
      barrel's batches (the register it never had, counted over the relayed list) and a batch heavier than its barrel takes asked.
-     **Next**: F4 the clerk's, F5 the sheets, F6 the guides; then T1–T3. **The owner's, once merged**: give each person an ID and
-     their duties; type each barrel's kg a round on Production → Equipment, which the batch check reads first.
+     **F4 built (P202)**: the register clerk's VAT page on Mine (a round a row on VAT A1, a batch a row on VAT A2, the client and part
+     where a run begins, kept on the phone until saved, read by the photo's own reader and saved as its runs, saved again put right),
+     the day's power log on it, a page a photo also holds warned both ways, a round its line never ran and a day total the rounds do
+     not meet asked; the clerk's attendance sheet (People → Day as the sheet) set against the supervisor's roll a hand at a time, the
+     owner ruling each (*Use the roll's*, *Looks right*). **Next**: F5 the sheets, F6 the guides; then T1–T3. **The owner's, once
+     merged**: give each person an ID and their duties; type each barrel's kg a round on Production → Equipment, which the batch check
+     reads first; rule the questions the sheet and the roll raise (on the 10 Oct book, 8 on 5 days).
 - Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
@@ -91,6 +96,17 @@ batch is a production entry, `kind: 'plated'`, `line: 'barrel'`, `basis: 'regist
 `unitId` (the plant register's barrel) or `barrel` (its number typed), `to` (when it came out) and `msgHash`; a batch the owner kept
 carries `checkOk` with the code `heavy`. In the `sep-production` export, merged by id; the compile should count a day's batches over the
 supervisor's relayed barrel list, as the app does (*also reported*).
+
+**Data flow (10 Oct 2026, P202, entry faces F4):** a VAT register page entered on a face is kept whole in a new production store,
+`production.pages` (`{id, date, line, style: 'rounds'|'batches', rows: [{time, to, client, part, fig}], total?, counted, fp, by, uid,
+at, replaces?, replacedBy?, replacedAt?}`), in the `sep-production` export and merged by id (a page the file marks replaced says so
+here too). Its runs are production entries as a register photo's are (`kind: 'plated'`, `basis: 'register'`, `lineSrc: 'written'`,
+the rounds) with `src: 'face'`, `pageId` and `msgHash`; a run put right by the page saved again is voided with the reason *The page was
+entered again on Mine*. **The compile should take the runs of a day and line from one register source**: the app warns when a photo
+and a face page hold the same page, but where both were saved both count. A power cut entered on the page is a `downtime` entry with
+`basis: 'register'`, `src: 'face'` and a new `logId` (`face|<day>`: one log a day, so two close cuts in it are two). On attendance, a
+mark typed on the day now carries `by` (the user who typed it, with the guard on), and a mark the owner kept against the supervisor's
+roll carries `rollOk: {sig, at, by}`; `checkOk.codes` on a production entry may hold `rack` and `total`. All travel with the book.
 
 **Data flow (10 Oct 2026, P209, compare suppliers):** a stock line may carry `orderFrom` (the supplier chosen for it) and a supplier's
 record `quotes` (prices quoted, a line each); both in the `sep-stock` export as part of the items and the suppliers.

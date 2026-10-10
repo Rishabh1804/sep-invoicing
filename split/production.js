@@ -18,7 +18,8 @@ var PROD_COVER_OK = 0.9;
 function prodData() {
   if (!S.production || typeof S.production !== 'object' || Array.isArray(S.production)) S.production = {};
   var p = S.production;
-  ['entries', 'pastes', 'photos', 'imports'].forEach(function(k) { if (!Array.isArray(p[k])) p[k] = []; });
+  // `pages`: a register page entered on Mine (faces.js, F4), its rows as typed; a page saved again keeps the one before, marked replaced.
+  ['entries', 'pastes', 'photos', 'imports', 'pages'].forEach(function(k) { if (!Array.isArray(p[k])) p[k] = []; });
   if (!p.learn || typeof p.learn !== 'object') p.learn = {};
   if (!p.learn.clients || typeof p.learn.clients !== 'object') p.learn.clients = {};
   if (!p.learn.parts || typeof p.learn.parts !== 'object') p.learn.parts = {};
@@ -895,7 +896,8 @@ function prodDowntimeDay(date) {
   // file carries one; else the file and what reported it (the register, the pickling hand) stand in, since one file
   // holds every report of a cut and keying on the file alone counted one cut twice.
   var list = prodIndex().live.filter(function(e) { return e.kind === 'downtime' && e.date === date && relayParseHhmm(e.time) != null; })
-    .map(function(e) { return { from: relayParseHhmm(e.time), to: relayParseHhmm(e.to), ids: [e.id], srcs: [e.photoId || e.pasteId || (e.importId ? e.importId + '|' + (e.basis || '') : e.id)] }; })
+    // A cut entered on Mine is one of the day's log (`logId`): two close cuts entered there are two, as two in one photo are.
+    .map(function(e) { return { from: relayParseHhmm(e.time), to: relayParseHhmm(e.to), ids: [e.id], srcs: [e.photoId || e.pasteId || e.logId || (e.importId ? e.importId + '|' + (e.basis || '') : e.id)] }; })
     .sort(function(a, b) { return a.from - b.from; });
   var out = [];
   list.forEach(function(x) {
@@ -1802,7 +1804,7 @@ function prodExport() {
   var p = prodData();
   var meta = document.querySelector('meta[name="app-build"]');
   var obj = { format: 'sep-production', version: 1, exportedAt: new Date().toISOString(), build: meta ? meta.getAttribute('content') : '',
-    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, learn: p.learn,
+    entries: p.entries, pastes: p.pastes, photos: p.photos, imports: p.imports, pages: p.pages, learn: p.learn,
     // The reasons and fixes a cut names by id (powercause.js): without them a cut's reason is an id nobody can read.
     powerCauses: typeof pcsList === 'function' ? pcsList() : [] };
   downloadJson('sep-production-' + localDateStr() + '.json', obj, 1);
@@ -1843,6 +1845,14 @@ function prodMergeImport(obj, fileName) {
   (src.pastes || []).forEach(function(x) { if (x && x.id && !ph[x.id] && !ph['h' + x.hash]) { p.pastes.push(x); ph[x.id] = true; } });
   var fh = {}; p.photos.forEach(function(x) { fh[x.id] = true; fh['s' + x.sha] = true; });
   (src.photos || []).forEach(function(x) { if (x && x.id && !fh[x.id] && !fh['s' + x.sha]) { p.photos.push(x); fh[x.id] = true; } });
+  // A register page entered on Mine, by id: its runs are entries above, and a page the file marks replaced keeps saying so.
+  var gh = {}; p.pages.forEach(function(x) { gh[x.id] = x; });
+  (src.pages || []).forEach(function(x) {
+    if (!x || typeof x !== 'object' || !x.id || !/^\d{4}-\d{2}-\d{2}$/.test(x.date || '')) return;
+    var mine = gh[x.id];
+    if (!mine) { p.pages.push(x); gh[x.id] = x; }
+    else if (x.replacedBy && !mine.replacedBy) { mine.replacedBy = x.replacedBy; mine.replacedAt = x.replacedAt || null; }
+  });
   // A lesson names a client by the id of the book that wrote the file. It is kept only for an id the file's own entries show
   // under that client's name in this book (the entries' check), or a spelling that itself reads as the client: an id the two
   // books give to different clients would point the lesson at the wrong one (P127).

@@ -797,6 +797,9 @@ function grdBoot() {
   grdSessWrite(s);
   _grdLastUser = u.id;
   grdUserBtnDraw();
+  // The phone's bar was drawn at load, before the book said who is signed in: a face's own door (Mine) is drawn now, or a
+  // reload within the sign-in window left it off (F4).
+  if (typeof wsRedraw === 'function') wsRedraw();
   grdApplyDoors();
 }
 /* A book loaded from another window, an import or a pull: users or roles may have changed. A deactivated user is locked

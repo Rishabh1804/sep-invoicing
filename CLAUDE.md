@@ -27,8 +27,8 @@ ranked list (built), I4 the change explained (built), I5 learning from responses
 6 Oct 2026), which I2 builds on.
 
 **The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
-employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand) and F3 (the
-supervisor) are built; F4–F6 and the flow thread follow.
+employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand), F3 (the
+supervisor) and F4 (the register clerk) are built; F5, F6 and the flow thread follow.
 
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
@@ -164,7 +164,7 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
-├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the group's message, the checks against what they link to, what was entered, the sheets (~1,250 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered, the sheets (~1,870 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -217,7 +217,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,730 tests, both layouts
+pnpm exec playwright test          # 1,734 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -462,7 +462,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 716 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 723 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -2874,17 +2874,18 @@ on the build before. What it leaves as rules:
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
 all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
-forms and the checks (P200); F3, the supervisor's (P201); F4–F6 and T1–T3 to come. No name is in the build: the people are the book's.
+forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, F6 and T1–T3 to come. No name is in the
+build: the people are the book's.
 - **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
   access → *Enters*); the users list says what each enters.
 - **Mine** is their screen (`pageFace`, an overview): the day (‹ › and Today, the address's `d`), the duties as steps read as
-  Today's inputs read them (in, late, not yet, not expected), each opening where the duty is entered on that day (Production's hand
-  form on its line, Challans' form, Stock's by hand, People's day as the board or the sheet) until its own form is on the face
-  (F2–F4); *What you entered* that day from the change log (`faceEntered`); the sheets to print, and whether their entries have
+  Today's inputs read them (in, late, not yet, not expected), each opening where the duty is entered on that day (its own form on
+  the face, F2–F4; Stock's by hand; People's day as the sheet for the attendance sheet); *What you entered* that day from the change log (`faceEntered`); the sheets to print, and whether their entries have
   reached GitHub (`faceSyncState`).
 - **Its door is drawn only for an ID with a face** (`faceMineDoor`), first on the bar and after Add on the rail; `grdSees('pageFace')`
-  is the face's (`faceSees`), guard on or off. **Signing in lands on it** from the start's Today or when another person signs in; a
+  is the face's (`faceSees`), guard on or off. A reload within the sign-in window draws it too (`grdBoot` draws the shell again: the
+  phone's bar had been drawn before the book said who was in, and Mine's door was left off until the next sign-in; F4). **Signing in lands on it** from the start's Today or when another person signs in; a
   launch onto another screen is kept (`grdAfterUser`).
 - **The owner sees a person's screen as theirs** (*See their screen* on the users list: `_faceUid`, ended by the next sign-in).
 - **Today hears a face**: an input a person with that duty entered says so (*Entered by …*, `faceInputBy`, read off the change log).
@@ -2953,6 +2954,51 @@ forms and the checks (P200); F3, the supervisor's (P201); F4–F6 and T1–T3 to
   `unitId` or `barrel`, `to` and `msgHash`: counted over the supervisor's relayed list for that day, which reads *also reported*. Its
   message is the day, *BARREL 2: 9:30 AM - 10:30 AM*, the client, the part and figure. A batch over a quarter heavier than its barrel
   takes (the kg a round typed on the unit, else the median of five or more of that barrel's own batches) is asked (`heavy`, amber).
+- **The register clerk's VAT page on Mine** (F4, P202): a page per line and day as the register keeps it (`faceVatHtml`): VAT A1 a
+  round a row (its time, the figure as written), VAT A2 a batch a row (when it began and ended, the figure at its end: the register's
+  START and END; a start left blank began where the batch before ended), *Rounds · Batches* for a page kept the other way (a round's
+  time is a batch's end). The client and the part as the floor names it (the floor's names and the client's challan parts offered)
+  appear only where a run begins, the rounds under it carrying them as the paper's ditto; *Another client or part* on the last round
+  begins a run, and a run's part changed moves the rounds under it that were the same. Two clients in one round are a row each at
+  the same time. **Read by the register photo's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`): the figure
+  added up as the register means it (*3+4×156* is seven racks of 156, *98×8+1*), the START rule, the gauge, part and series rules,
+  the shift's edges, a round its line has not run, the day total written against the rounds; each row says what was read under it,
+  a run what it was read as. The rows redraw around the field being typed (`faceVatRedraw`, People → Day's way), so a tap on the next
+  field lands. The face opens on the line with nothing recorded that day, else the one being typed (`?tab=pageFace&v=vat/vat-a2`).
+- **Kept on the phone until the page is saved** (`sep_inv_face_page`: a page per person, day and line; dropped a fortnight unsaved;
+  *Start again* / *Put back as saved*), since a page is a day's rounds and a save at every round would void a run at every next one;
+  Mine's step says a page is typed and not saved. **Saved**, its runs are a register photo's (`plated`, `basis: 'register'`,
+  `lineSrc: 'written'`, the rounds) with `src: 'face'`, `pageId` and `msgHash` (the page's message, *Send to the group*), and the
+  page is kept (`production.pages`: date, line, style, the rows as typed, the total written, who, the reader's fingerprint). **Saved
+  again, it puts right what changed**: a run whose rows read as before stays (its id, whatever the owner set on it), a changed one is
+  voided (*The page was entered again on Mine*) and its reading added, and the page before is kept, `replacedBy`. A page with a run
+  the owner corrected or voided in Production is the owner's: saving it again is refused, saying so. A figure the reader cannot add
+  up is refused at Save, never saved as nothing.
+- **A page a photo also holds is warned both ways**: on the face before it is entered and at its save (*Count the day twice?*), and
+  on the photo's check (*The VAT A1 page for this day was entered on Mine by …*, *with the same rounds* where the fingerprints
+  match). Register runs of one line and day from two sources both count, so the warning is the guard.
+- **The power log is the day's**: a cut saved at once from the page (cut at, power back if it is), one log a day whichever line's page
+  (`logId`: two close cuts in it are two, a cut the pickling message also sent is one), the day's cuts from every record listed with
+  *Power back* or *Why* (the cut's completion, `pcsOpen`).
+- **Its checks** (`faceChecks`): `rack`, a round of a size its part never ran at on its line before the page's day (three rounds or
+  more on record; half the usual rack on VAT A2 is the line's own way), and `total`, a page whose day total written the rounds do not
+  meet (a run put right counted as put right).
+- **Measured on the owner's book** (the 23 register pages since 23 Sep, a scratch harness never committed): each page retyped on the
+  face from its own saved rounds reads exactly as saved on 19 (every client and part's pieces, the rounds, the hours). Three hold a
+  run with no client written, which the face asks for; one splits a figure for two codes by what is open on their challans, which has
+  changed since.
+- **The clerk's attendance sheet against the supervisor's roll** (F4, P202): the sheet is People → Attendance → Day as the sheet (the
+  duty opens it), and every mark typed on the day now carries who typed it (`by`, with the guard on, `_attHandEdit`). Each hand the
+  clerk marked is set against the day's saved rolls read alone (`relayRollsReading`: relayPlan `bare`, nothing on the day beside
+  them): present on one and absent on the other, a half day on one, another line (where both name one; the barrel and its own
+  pickling one place, which the roll writes either way), or present with the rolls naming them nowhere (`faceAttDiffs`). The
+  sheet's mark stands (a roll never writes over a mark typed by hand). Said on the hand's row and over the day, on the clerk's Mine
+  (*N differ from the roll*) and to the owner (To-do `faceAttRoll`, one task a day); the owner rules a hand at a time, in its day:
+  **Use the roll's** (the roll's mark on the day, the roll's again) or **Looks right** (`rollOk`, against the roll's reading it was
+  given: a roll saved later that reads otherwise asks again). Which is the day's truth stays the owner's (ENTRY_FACES §8).
+- **Measured on the owner's book**: the 55 marks typed by hand on the 25 days since 1 Sep with rolls, as the clerk's sheet: 8
+  questions on 5 days, 7 another line and 1 not on the roll, none present against absent (15 before the barrel and its pickling were
+  one place and a sheet naming no line was let pass).
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

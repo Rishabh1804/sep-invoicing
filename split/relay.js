@@ -862,6 +862,8 @@ function relayPastes() {
    reading may carry into the new one (an out, an in or an area the bug wrote). A row the owner corrected by hand has lost
    its `src` (_attHandEdit) and is theirs: kept, and the rolls' rows for its slot are not added, as on any paste. */
 function relayBaseDay(rv, iso) {
+  // Read bare, the rolls alone: nothing on the day beside them (the register clerk's sheet is set against this, faces.js F4).
+  if (rv.bare) return { marks: {}, extra: [], note: '' };
   var rec = S.attendance && S.attendance[iso];
   if (!rv.reread || !rec) return rec;
   var marks = {};
@@ -1344,6 +1346,23 @@ function relayRollsFor(iso) {
     roster = roster || relayRoster({}, iso);
     return !!parseRelayRoll(p.text, roster, p.sentOn || null).days[iso];
   }).map(function(p, i) { return { p: p, i: i }; }).sort(function(a, b) { return (a.p.at || 0) - (b.p.at || 0) || a.i - b.i; }).map(function(x) { return x.p; });
+}
+/* What the day's saved rolls say alone, a hand at a time: each mark as the rolls give it, with nothing entered on the day beside it
+   (the register clerk's sheet is set against this, faces.js F4). Null where no roll is saved for the day. Worked out once a save. */
+var _relayReadingMemo = { key: null, by: {} };
+function relayRollsReading(iso) {
+  var key = (typeof _bookWrites !== 'undefined' ? _bookWrites : 0) + '|' + relayPastes().length;
+  if (_relayReadingMemo.key !== key || _relayReadingMemo.s !== S) _relayReadingMemo = { key: key, s: S, by: {} };
+  if (iso in _relayReadingMemo.by) return _relayReadingMemo.by[iso];
+  var rolls = relayRollsFor(iso), out = null;
+  if (rolls.length) {
+    var rv = { reread: iso, bare: true, choices: {}, msgs: rolls.map(function(p) { return { sentBy: p.sentBy || '', sentOn: p.sentOn || null, sentAt: p.sentAt != null ? p.sentAt : null, text: p.text, exact: !!p.face }; }) };
+    var day = relayPlan(rv).days.find(function(d) { return d.iso === iso; });
+    out = {};
+    if (day) day.rows.forEach(function(r) { if (r.w) out[String(r.w.id)] = r.next; });
+  }
+  _relayReadingMemo.by[iso] = out;
+  return out;
 }
 /* Whether Day shows the action: a cheap test, drawn on every render (a roll saved before its days were kept is found by
    its own date). */

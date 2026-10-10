@@ -21,7 +21,7 @@ var FACE_DUTIES = [
   { id: 'stock', title: 'Stock', input: 'stock', page: 'pageStock', sheet: 'stock' },
   { id: 'attsheet', title: 'Attendance sheet', page: 'pageStaff', sheet: 'att' },
   { id: 'barrel', title: 'Barrel batches', lines: ['barrel'], page: 'pageFace' },
-  { id: 'vat', title: 'VAT register', lines: ['vat-a1', 'vat-a2'], page: 'pageProduction' },
+  { id: 'vat', title: 'VAT register', lines: ['vat-a1', 'vat-a2'], page: 'pageFace' },
   { id: 'roll-out', title: 'Out-time roll', input: 'roll-out', page: 'pageFace', sheet: 'att' }
 ];
 /* Today's inputs a duty fills, for "entered by" on Needs you (tdyInput). */
@@ -58,13 +58,16 @@ function faceStep(d, day) {
   if (d.lines) {
     var have = [], runs = 0;
     d.lines.forEach(function(l) { var n = prodDayLine(day, l).entries.length; if (n) { have.push(PROD_LINE_LABEL[l]); runs += n; } });
-    if (have.length === d.lines.length) return { state: 'in', text: todoPlural(runs, 'record') };
-    if (have.length) return { state: 'part', text: have.join(', ') + ' in' };
-    return { state: 'wait', text: 'Not yet' };
+    // A register page typed on this phone and not saved: nothing is in the book yet, and the step says where it is.
+    var typed = d.id === 'vat' ? FACE_VAT_LINES.filter(function(l) { return faceVatDrafts()[faceVatDraftKey(day, l)]; }).map(function(l) { return PROD_LINE_LABEL[l]; }) : [];
+    var tail = typed.length ? ' · ' + typed.join(', ') + ' typed, not saved' : '';
+    if (have.length === d.lines.length) return { state: 'in', text: todoPlural(runs, 'record') + tail };
+    if (have.length) return { state: 'part', text: have.join(', ') + ' in' + tail };
+    return { state: 'wait', text: typed.length ? typed.join(', ') + ' typed on this phone, not saved' : 'Not yet' };
   }
   if (d.id === 'attsheet') {
-    var att = attDaySummary(day);
-    return att.marked ? { state: 'in', text: (att.p + att.half) + ' on site, ' + att.absent.length + ' absent' } : { state: 'wait', text: 'Not yet' };
+    var att = attDaySummary(day), differ = faceAttDiffs(day).length;
+    return att.marked ? { state: 'in', text: (att.p + att.half) + ' on site, ' + att.absent.length + ' absent' + (differ ? ' · ' + differ + ' differ from the roll' : '') } : { state: 'wait', text: 'Not yet' };
   }
   if (d.id === 'incoming') {
     var ch = (S.incomingMaterial || []).filter(function(m) { return m && m.challanDate === day; }).length;
@@ -220,17 +223,8 @@ function faceOpen(id) {
   var d = faceDuty(id), day = faceDayIso();
   if (!d) return;
   if (typeof grdSees === 'function' && !grdSees(d.page)) { showToast(grdPageName(d.page) + ' is not open to this ID', 'warning'); return; }
-  // The pickling hand's forms (F2) and the supervisor's (F3) are on the face itself.
+  // The pickling hand's forms (F2), the supervisor's (F3) and the register clerk's page (F4) are on the face itself.
   if (FACE_FORM_TITLE[id]) { faceFormOpen(id); return; }
-  if (id === 'vat') {
-    // Production's hand form on the day and its line (prodHandBlank reads Lines' line and day): a run for the register, until
-    // its own form is on the face (F4).
-    prodSetTab('lines');
-    _prodView = 'main'; _prodDay = day; _prodLine = 'vat-a1';
-    switchTab('pageProduction');
-    prodOpenHand();
-    return;
-  }
   if (id === 'stock') {
     switchTab('pageStock');
     _stockManual = stockManualNew();
@@ -264,6 +258,7 @@ async function faceSeeAs(id) {
 
 /* ---------- Actions ---------- */
 function faceAction(action, btn) {
+  if (/^invFaceVat/.test(action)) return faceVatAction(action, btn);
   switch (action) {
     case 'invFaceOpen': faceOpen(btn.dataset.duty); return true;
     // A day stepped to is a place of its own (the address carries it); the page and the focus stay where they were.
@@ -291,10 +286,11 @@ function faceAction(action, btn) {
   return false;
 }
 /* The form an entry is corrected on: a count of what came in on Material in, a load on Pickling loads. */
-function faceDutyOfEntry(id) { var e = prodIndex().byId[id]; return !e ? 'pickling' : e.kind === 'arrived' ? 'incoming' : e.kind === 'plated' ? 'barrel' : 'pickling'; }
+function faceDutyOfEntry(id) { var e = prodIndex().byId[id]; return !e ? 'pickling' : e.kind === 'arrived' ? 'incoming' : e.kind === 'plated' ? (e.pageId ? 'vat' : 'barrel') : 'pickling'; }
 function faceOnChange(t) {
   if (!t) return false;
   if (t.id === 'faceDate') { faceSetDay(t.value); renderFace(); return true; }
+  if (_faceForm && _faceForm.duty === 'vat' && t.dataset) return faceVatChange(t, true);
   var f = _faceForm;
   if (f && t.dataset && t.dataset.facePlace !== undefined) {
     var hand = t.dataset.facePlace;
@@ -321,6 +317,7 @@ function faceOnChange(t) {
 function faceOnInput(t) {
   var f = _faceForm;
   if (!f || !t || !t.dataset || t.type === 'checkbox') return false;
+  if (f.duty === 'vat') return t.tagName === 'SELECT' ? false : faceVatChange(t, false);
   if (t.dataset.faceBlk !== undefined && t.tagName !== 'SELECT') { var b = f.blocks[+t.dataset.faceBlk]; if (b) b[t.dataset.k] = t.value; return true; }
   if (t.dataset.faceExtra !== undefined) { f.extra[t.dataset.faceExtra] = t.value; return true; }
   if (t.dataset.faceCnt !== undefined) { f.counts[t.dataset.faceCnt] = t.value; return true; }
@@ -365,6 +362,8 @@ function faceUserName() { var u = typeof grdUser === 'function' ? grdUser() : nu
 function faceFormMake(duty, fromId) {
   var day = faceDayIso();
   if (duty === 'roll-in' || duty === 'roll-out') return faceRollMake(duty, day);
+  // A run of a page is put right on its page: the page of its day and line (the face's day moves to it, so the address says it).
+  if (duty === 'vat') { var run = fromId ? prodIndex().byId[fromId] : null; if (run && run.date) faceSetDay(run.date); return faceVatMake(faceDayIso(), run && run.line); }
   var f = { duty: duty, date: day, clientId: '', part: '', partText: '', qty: '', unit: 'NOS', time: day === localDateStr() ? faceNowHhmm() : '', rework: false, replaces: null, saved: [] };
   if (duty === 'incoming') { f.challan = ''; f.counts = {}; f.challanNo = ''; f.link = null; }
   if (duty === 'barrel') { f.barrel = ''; f.timeOut = ''; }
@@ -390,8 +389,15 @@ function faceFormDone() { _faceForm = null; _pageTyped = false; renderFace(); vi
 /* An address naming a form (nav.js): the form on the face's day; a correction where it names this duty's entry made on a face.
    The page is drawn by the address's own step. */
 function faceFormFromNav(v, id) {
-  var duty = String(v || '').split('/')[0];
+  var parts = String(v || '').split('/'), duty = parts[0];
   if (!FACE_FORM_TITLE[duty] || !faceDuties(faceUser()).some(function(d) { return d.id === duty; })) { _faceForm = null; return; }
+  // A register page is its day and line (vat/vat-a2); the page on screen stays as typed when the address is its own.
+  if (duty === 'vat') {
+    var line = FACE_VAT_LINES.indexOf(parts[1]) >= 0 ? parts[1] : null;
+    if (_faceForm && _faceForm.duty === 'vat' && _faceForm.date === faceDayIso() && (!line || _faceForm.line === line)) return;
+    _faceForm = faceVatMake(faceDayIso(), line);
+    return;
+  }
   if (_faceForm && _faceForm.duty === duty && (_faceForm.replaces || '') === (id || '')) return;
   var src = id ? prodIndex().byId[id] : null;
   _faceForm = faceFormMake(duty, src && src.src === 'face' && src.kind === ({ incoming: 'arrived', barrel: 'plated' }[duty] || 'pickled') ? src.id : null);
@@ -437,7 +443,7 @@ function faceOpenText(x) {
 
 /* ---------- The forms ---------- */
 function renderFaceForm(el) {
-  var f = _faceForm, draw = { incoming: faceInHtml, 'roll-in': faceRollInHtml, 'roll-out': faceRollOutHtml, barrel: faceBarrelHtml }[f.duty] || faceLoadHtml;
+  var f = _faceForm, draw = { incoming: faceInHtml, 'roll-in': faceRollInHtml, 'roll-out': faceRollOutHtml, barrel: faceBarrelHtml, vat: faceVatHtml }[f.duty] || faceLoadHtml;
   el.innerHTML = draw(f);
 }
 function faceBackBar(title) {
@@ -579,6 +585,7 @@ function faceMsgOf(list) {
 }
 /* The message an entry went out in: every entry of its save shares it (one challan counted is one message). */
 function faceMsgFor(e) {
+  if (e.pageId) { var pg = prodData().pages.find(function(x) { return x.id === e.pageId; }); if (pg) return faceVatText(pg.date, pg.line, pg.rows, pg.counted, pg.style); }
   var list = e.msgHash ? prodIndex().live.filter(function(x) { return x.src === 'face' && x.msgHash === e.msgHash; }) : [];
   return faceMsgOf(list.length ? list : [e]);
 }
@@ -599,6 +606,7 @@ async function faceSave() {
   if (!f) return;
   if (f.duty === 'roll-in' || f.duty === 'roll-out') return faceRollSave();
   if (f.duty === 'barrel') return faceBarrelSave();
+  if (f.duty === 'vat') return faceVatSave();
   if (!grdOk('floor') && !(await guardAsk('floor', f.duty === 'incoming' ? 'save what came in' : 'save a pickling load'))) return;
   if (_faceForm !== f) return;
   var err = function(msg, id) { showToast(msg, 'error'); var el = id && document.getElementById(id); if (el) try { el.focus(); } catch (x) { /* a convenience */ } };
@@ -691,10 +699,12 @@ var FACE_CHECK_TITLE = {
   count: function(n) { return todoPlural(n, 'line') + ' counted in against the challan'; },
   inNoChallan: function(n) { return todoPlural(n, 'arrival') + ' with no challan in the book'; },
   noload: function(n) { return todoPlural(n, 'run') + ' plated with no pickling load'; },
-  heavy: function(n) { return todoPlural(n, 'barrel batch', 'barrel batches') + ' heavier than the barrel takes'; }
+  heavy: function(n) { return todoPlural(n, 'barrel batch', 'barrel batches') + ' heavier than the barrel takes'; },
+  rack: function(n) { return todoPlural(n, 'run') + ' at a round its line has not run before'; },
+  total: function(n) { return todoPlural(n, 'register page') + ' whose rounds do not add to its total'; }
 };
 var FACE_CHECK_WHY = { noplate: 'a load and the plating it became', over: 'a load and its challans', count: 'a count and its challan', inNoChallan: 'a count and its challan', noload: 'a run and the load it came from',
-  heavy: 'a batch and its barrel' };
+  heavy: 'a batch and its barrel', rack: 'a round and the rounds its line has run', total: 'a page and the total written on it' };
 var _faceChecksMemo = null;
 function faceChecks() {
   var key = [_prodVer, typeof _bookWrites !== 'undefined' ? _bookWrites : 0, localDateStr(), Math.floor(Date.now() / 600000)].join('|');
@@ -753,6 +763,42 @@ function faceChecks() {
     var u = faceBarrelUsual(e), w = prodWeigh(e);
     if (!u || !w || !(w.kg > u.kg * 1.25)) return;
     add(e, 'heavy', 'amber', prodKgFig(w.kg, prodWeighEst(w)) + ', past the ' + formatNum(u.kg, 0) + ' kg its barrel takes' + (u.src === 'set' ? '' : ' by its own batches'));
+  });
+  // A register page entered on Mine (F4): a round of a size its part never ran at on its line before the page's day (three or more
+  // rounds on record before it; half the usual rack on VAT A2 is the line's own way), and a page whose rounds do not add to the
+  // day total written on it. Each against the record before the page, so a later page does not quietly answer it.
+  var pageRuns = live.filter(function(e) { return e.kind === 'plated' && e.src === 'face' && e.pageId && (e.line === 'vat-a1' || e.line === 'vat-a2'); });
+  if (pageRuns.length) {
+    var byKey = {};
+    idx.counted.forEach(function(x) { if (x.line) { var k = x.line + '|' + (prodEntryKey(x) || ''); (byKey[k] = byKey[k] || []).push(x); } });
+    var sizes = function(x, o) {
+      (x.rounds || []).forEach(function(r) { if (r.struck || r.start) return; if (r.rack) o[r.rack] = (o[r.rack] || 0) + (r.n || 1); else if (!r.batch && r.qty > 0) o[r.qty] = (o[r.qty] || 0) + 1; });
+      if (x.rackSize && x.racks) o[x.rackSize] = (o[x.rackSize] || 0) + x.racks;
+      return o;
+    };
+    pageRuns.forEach(function(e) {
+      if (ruled(e, 'rack') || e.clientId == null) return;
+      var seen = {}, total = 0, top = null;
+      (byKey[e.line + '|' + (prodEntryKey(e) || '')] || []).forEach(function(x) { if (x.date < e.date) sizes(x, seen); });
+      Object.keys(seen).forEach(function(z) { total += seen[z]; if (top == null || seen[z] > seen[top]) top = z; });
+      if (total < 3) return;
+      var odd = Object.keys(sizes(e, {})).filter(function(z) { return !seen[z] && !(e.line === 'vat-a2' && top && Math.abs(z * 2 - top) < 0.5); });
+      if (odd.length) add(e, 'rack', 'amber', 'a round of ' + odd.join(', ') + ', never run for it on ' + PROD_LINE_LABEL[e.line] + ' before (usually ' + top + ')');
+    });
+  }
+  prodData().pages.forEach(function(pg) {
+    if (!pg || pg.replacedBy || pg.total == null || pg.date < since || pg.date > today) return;
+    var sum = 0, first = null, n = 0;
+    idx.live.forEach(function(e) {
+      if (e.kind !== 'plated' || e.src !== 'face' || !e.pageId || e.date !== pg.date || e.line !== pg.line) return;
+      // A run put right in Production counts as it was put right.
+      var x = e, hops = 0;
+      while (idx.replaced[x.id] && hops++ < 20) x = idx.byId[idx.replaced[x.id]] || x;
+      sum += x.qty || 0; n++;
+      if (!idx.replaced[e.id] && (!first || String(e.time || '') < String(first.time || ''))) first = e;
+    });
+    if (!first || !n || Math.abs(sum - pg.total) <= 0.5 || ruled(first, 'total')) return;
+    add(first, 'total', 'amber', 'the page’s day total is ' + Math.round(pg.total).toLocaleString('en-IN') + '; its rounds add to ' + Math.round(sum).toLocaleString('en-IN'));
   });
   // A run of a day the face was in use that no load became.
   var first = {};
@@ -1270,3 +1316,558 @@ function faceBarrelUsual(batch) {
     .map(function(e) { var w = prodWeigh(e); return w && w.kg; }).filter(function(v) { return v > 0; });
   return kg.length >= 5 ? { kg: numMedian(kg), src: 'batches' } : null;
 }
+
+/* ---------- F4: the register clerk's VAT register page (docs/ENTRY_FACES.md §2, F-clerk) ----------
+   A page per line and day as the register keeps it: a round a row (its time, START or END, the figure as written: "98×8+1" and
+   "3+4×156" are added up in code), the client and the part as the floor names them only where a run begins (the paper's ditto
+   carries them down). The page is read by the photo's own reader (prodFromRegisterRead, prodRackCheck), so the START rule, the
+   gauge, part and series rules, the shift's edges and the day's total read it unchanged, and its runs are the photo's: plated,
+   `basis: 'register'`, `src: 'face'`, `pageId`. Two clients in one round are a row each at the same time.
+   It is kept on this phone as it is typed (FACE_PAGE_KEY) and written to the book when saved: a page is a day's rounds, and a
+   save at every round would leave a run voided at every next round. Saved again, it puts right what changed: a run whose rows
+   are as they were stays as it is (with whatever the owner set on it), one that changed is voided and its new reading added, and
+   the page before is kept, marked replaced. A page whose runs the owner corrected or voided in Production is the owner's. The
+   power log is the day's, not a line's: a cut is saved at once, on its own, one log a day (`logId`), and both pages list them. */
+FACE_FORM_TITLE.vat = 'A VAT register page';
+var FACE_PAGE_KEY = 'sep_inv_face_page';       // the pages typed on this phone and not yet saved: uid|date|line → {rows, total, at}
+var FACE_PAGE_KEEP_DAYS = 14;                   // a page typed and never saved is dropped after a fortnight
+var FACE_VAT_LINES = ['vat-a1', 'vat-a2'];
+/* How a line keeps its register: VAT A1 a round a row (its time and figure); VAT A2 a batch a row, written START and END on paper
+   (when it began, when it ended, the figure written at its end). A batch whose start is left blank began where the one before it
+   ended, as the reader takes an END with no START. */
+var FACE_VAT_STYLES = [['rounds', 'Rounds'], ['batches', 'Batches']];
+function faceVatStyleOf(line) { return line === 'vat-a2' ? 'batches' : 'rounds'; }
+var FACE_VAT_REDO = 'The page was entered again on Mine';
+
+function faceVatRowBlank(prev) { return { time: '', to: '', client: prev ? prev.client : '', part: prev ? prev.part : '', fig: '' }; }
+function faceVatRowEmpty(r) { return !r.time && !r.to && !String(r.fig || '').trim(); }
+/* A row as it is kept: on the phone, in the book. */
+function faceVatRowClean(r) { return { time: r.time || '', to: r.to || '', client: r.client === '' || r.client == null ? '' : String(r.client), part: String(r.part || ''), fig: String(r.fig || '') }; }
+function faceVatSameRun(a, b) { return !!a && !!b && String(a.client) === String(b.client) && String(a.part || '').trim().toUpperCase() === String(b.part || '').trim().toUpperCase(); }
+/* The live page entered on Mine for a day and line (whoever entered it): the one not replaced. */
+function faceVatPage(day, line) {
+  return prodData().pages.filter(function(pg) { return pg && pg.date === day && pg.line === line && !pg.replacedBy; }).pop() || null;
+}
+/* The runs of a day's page on a line: every live run a version of it wrote (a run as it was stays under the version that wrote it). */
+function faceVatRuns(day, line) {
+  return prodIndex().live.filter(function(e) { return e.kind === 'plated' && e.src === 'face' && e.pageId && e.date === day && e.line === line; });
+}
+function faceVatDraftKey(day, line) { var u = faceUser(); return (u && u.id || '') + '|' + day + '|' + line; }
+function faceVatDrafts() {
+  try { var o = JSON.parse(localStorage.getItem(FACE_PAGE_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; }
+}
+function faceVatDraftPut(key, val) {
+  try {
+    var o = faceVatDrafts(), old = isoAddDays(localDateStr(), -FACE_PAGE_KEEP_DAYS);
+    Object.keys(o).forEach(function(k) { if (!o[k] || String(k.split('|')[1] || '') < old) delete o[k]; });
+    if (val) o[key] = val; else delete o[key];
+    localStorage.setItem(FACE_PAGE_KEY, JSON.stringify(o));
+  } catch (e) { /* a convenience: the page on screen is still the form's */ }
+}
+/* The page typed so far, kept on the phone at every change. */
+function faceVatKeep(f) {
+  if (!f || f.duty !== 'vat') return;
+  var rows = f.rows.filter(function(r) { return !faceVatRowEmpty(r); });
+  var pg = faceVatPage(f.date, f.line);
+  // Nothing typed past what the book holds is nothing to keep.
+  if (!rows.length && String(f.total || '') === '' && !pg) { faceVatDraftPut(faceVatDraftKey(f.date, f.line), null); f.draftAt = 0; return; }
+  if (pg && JSON.stringify(faceVatRowsOut(f.rows)) === JSON.stringify(pg.rows || []) && f.style === (pg.style || faceVatStyleOf(pg.line)) && String(f.total || '') === (pg.total != null ? String(pg.total) : '')) {
+    faceVatDraftPut(faceVatDraftKey(f.date, f.line), null); f.draftAt = 0; return;
+  }
+  f.draftAt = Date.now();
+  faceVatDraftPut(faceVatDraftKey(f.date, f.line), { rows: f.rows.map(faceVatRowClean), style: f.style, total: f.total, at: f.draftAt });
+}
+/* The rows as the book keeps them: the typed ones, each whole. */
+function faceVatRowsOut(rows) {
+  return rows.filter(function(r) { return !faceVatRowEmpty(r); }).map(function(r) {
+    var c = faceVatRowClean(r); c.part = c.part.trim(); c.fig = c.fig.trim(); return c;
+  });
+}
+/* The line to open on: the one a page was being typed on, else the first with nothing recorded that day, else VAT A1. */
+function faceVatLineFor(day) {
+  var d = faceVatDrafts(), u = faceUser(), uid = u && u.id || '';
+  var typed = FACE_VAT_LINES.filter(function(l) { return d[uid + '|' + day + '|' + l]; });
+  if (typed.length) return typed[0];
+  return FACE_VAT_LINES.find(function(l) { return !prodDayLine(day, l).entries.length; }) || 'vat-a1';
+}
+function faceVatMake(day, line) {
+  var f = { duty: 'vat', date: day, line: FACE_VAT_LINES.indexOf(line) >= 0 ? line : faceVatLineFor(day), rows: [], total: '', saved: [], cut: { at: '', back: '' }, draftAt: 0, replaces: null };
+  var draft = faceVatDrafts()[faceVatDraftKey(f.date, f.line)], pg = faceVatPage(f.date, f.line);
+  f.style = faceVatStyleOf(f.line);
+  if (draft && Array.isArray(draft.rows)) {
+    f.rows = draft.rows.map(faceVatRowClean);
+    f.total = draft.total != null ? String(draft.total) : ''; f.draftAt = draft.at || 0;
+    if (draft.style === 'rounds' || draft.style === 'batches') f.style = draft.style;
+  } else if (pg) {
+    f.rows = (pg.rows || []).map(faceVatRowClean);
+    f.total = pg.total != null ? String(pg.total) : '';
+    if (pg.style === 'rounds' || pg.style === 'batches') f.style = pg.style;
+  }
+  if (!f.rows.length) f.rows.push(faceVatRowBlank(null));
+  return f;
+}
+/* A time typed for the reader: the shop's own "9:45 AM"; past midnight written "00:30", which the reader keeps as the night
+   (its noon rule reads "12:30 AM" as the day's noon, and a bare 1 to 6 as the afternoon). */
+function faceVatClock(t) {
+  var m = relayParseHhmm(t);
+  if (m == null) return null;
+  return m < 60 ? '00:' + String(m).padStart(2, '0') : faceClock(m);
+}
+/* The page read as the photo's reader reads a page: its runs, each row's reading and what it asks. `map` turns the reader's row
+   back into the form's. */
+function faceVatRead(f) {
+  var map = [], rows = [];
+  f.rows.forEach(function(r, k) {
+    if (faceVatRowEmpty(r)) return;
+    var who = { customer: r.client !== '' && r.client != null ? String(prodClientName(r.client) || '') || null : null, part: String(r.part || '').trim() || null };
+    // A batch is the register's two rows: START when it began (where written), END when it ended, carrying the figure.
+    if (f.style === 'batches') {
+      if (r.time) { map.push(k); rows.push(Object.assign({ time: faceVatClock(r.time), mark: 'START', qtyText: null }, who)); }
+      map.push(k); rows.push(Object.assign({ time: r.to ? faceVatClock(r.to) : null, mark: 'END', qtyText: String(r.fig || '').trim() || null }, who));
+      return;
+    }
+    map.push(k);
+    rows.push(Object.assign({ time: r.time ? faceVatClock(r.time) : null, mark: null, qtyText: String(r.fig || '').trim() || null }, who));
+  });
+  var d = f.date.split('-');
+  var json = { page: 'production', date: d[2] + '/' + d[1] + '/' + String(d[0]).slice(2), weekday: null, line: PROD_LINE_LABEL[f.line],
+    dayTotal: String(f.total || '').trim() !== '' && isFinite(+f.total) ? +f.total : null, rows: rows };
+  var rd = prodRackCheck(prodFromRegisterRead(json, prodCtx(), f.date, { date: f.date, line: f.line }), f.line);
+  rd.map = map;
+  rd.byRow = {};
+  rd.rows.forEach(function(x) { var k = map[x.i]; if (k != null) (rd.byRow[k] = rd.byRow[k] || []).push(x); });
+  rd.runOf = {};
+  rd.runs.forEach(function(e, ri) { var k = e.rows && e.rows.length ? map[e.rows[0].i] : null; if (k != null) (rd.runOf[k] = rd.runOf[k] || []).push(ri); });
+  return rd;
+}
+/* The page for the group: the day, the line, a round a line as the clerk would write it, and the total. */
+function faceVatText(date, line, rows, counted, style) {
+  var d = String(date).split('-');
+  var out = [d[2] + '/' + d[1] + '/' + String(d[0]).slice(2), (PROD_LINE_LABEL[line] || line).toUpperCase() + ' REGISTER'];
+  (rows || []).forEach(function(r) {
+    if (faceVatRowEmpty(r)) return;
+    var t = relayParseHhmm(r.time), t2 = relayParseHhmm(r.to);
+    var when = (style || faceVatStyleOf(line)) === 'batches' ? (t != null ? faceClock(t) + ' TO ' : 'TO ') + (t2 != null ? faceClock(t2) : '') : t != null ? faceClock(t) : '';
+    out.push([when, String(prodClientName(r.client) || '').toUpperCase(), String(r.part || '').trim().toUpperCase(), String(r.fig || '').trim()].filter(Boolean).join(' - '));
+  });
+  if (counted != null) out.push('TOTAL ' + Math.round(counted).toLocaleString('en-IN') + ' NOS');
+  return out.join('\n');
+}
+/* The floor's names this client's runs were written as, the latest first, and the client's challan parts: the part field's list. */
+function faceVatPartNames(cid, line) {
+  if (cid === '' || cid == null) return [];
+  var since = isoAddDays(localDateStr(), -60), seen = {}, out = [];
+  var add = function(s) { s = String(s || '').trim(); var k = s.toUpperCase(); if (s && !seen[k]) { seen[k] = true; out.push(s); } };
+  prodIndex().live.filter(function(e) { return e.kind === 'plated' && String(e.clientId) === String(cid) && e.date >= since; })
+    .sort(function(a, b) { return (b.line === line) - (a.line === line) || (a.date < b.date ? 1 : a.date > b.date ? -1 : 0); })
+    .forEach(function(e) { add(String(e.part || '').replace(/\s*\((\d{2}X\d)\)$/i, '')); });
+  faceClientParts(cid).forEach(function(x) { add(x.partNumber || x.part); });
+  return out.slice(0, 40);
+}
+
+function faceVatHtml(f) {
+  var rd = faceVatRead(f), pg = faceVatPage(f.date, f.line), runs = faceVatRuns(f.date, f.line), idx = prodIndex();
+  var h = faceBackBar(FACE_FORM_TITLE.vat);
+  h += '<div class="inv-panel"><div class="inv-seg" role="group" aria-label="Line">' + FACE_VAT_LINES.map(function(l) {
+    return '<button class="inv-seg-btn" data-action="invFaceVatLine" data-line="' + l + '" aria-pressed="' + (f.line === l) + '">' + escHtml(PROD_LINE_LABEL[l]) + '</button>'; }).join('') + '</div>' +
+    '<div class="inv-seg inv-mt-8" role="group" aria-label="How the page is kept">' + FACE_VAT_STYLES.map(function(x) {
+      return '<button class="inv-seg-btn" data-action="invFaceVatStyle" data-style="' + x[0] + '" aria-pressed="' + (f.style === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
+  var sd = pg && pg.at ? new Date(pg.at) : null;
+  var note = pg ? 'Saved' + (sd ? ' at ' + relayClockLabel(sd.getHours() * 60 + sd.getMinutes()) + (isoOf(sd) !== localDateStr() ? ' on ' + formatDate(isoOf(sd)) : '') : '') + (pg.by ? ' by ' + pg.by : '') + '. Saving again puts right what changed.'
+    : (f.style === 'batches' ? 'Each batch as the register writes it: when it began, when it ended and the figure at its end.' : 'Each round as the register writes it: its time and its figure.') + ' Kept on this phone as you type; saved to the book when you save the page.';
+  h += '<div class="inv-note inv-mt-8" data-face-vat-state="' + (f.draftAt ? 'draft' : pg ? 'saved' : 'new') + '">' + escHtml(note + (f.draftAt && pg ? ' Changes since are kept on this phone, not saved yet.' : '')) + '</div></div>';
+  // Another record of this page: a photo of it, or a page saved from a file. Saved twice, the day is counted twice.
+  var other = idx.live.filter(function(e) { return e.kind === 'plated' && e.date === f.date && e.line === f.line && e.basis === 'register' && !e.pageId && !idx.replaced[e.id]; });
+  if (other.length) h += '<div class="inv-callout inv-callout-warning" data-face-vat-dup>' + escHtml((other.some(function(e) { return e.photoId; }) ? 'A photo of the ' : 'The ') + PROD_LINE_LABEL[f.line] +
+    ' register for this day is already in the book (' + todoPlural(other.length, 'run') + '). Saving the page here as well counts the day twice: enter only what the photo does not hold.') + '</div>';
+  // The rounds: a run's client and part where it begins, then its rounds a line each.
+  var batches = f.style === 'batches', noun = batches ? 'Batch' : 'Round', typedN = f.rows.filter(function(r) { return !faceVatRowEmpty(r); }).length;
+  h += '<div class="inv-panel inv-panel-flush" data-face-form="vat" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">' + noun + 'es'.slice(batches ? 0 : 1) + ' <span class="inv-panel-count">' + typedN + '</span></span>' +
+    (f.draftAt ? '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceVatDrop">' + (pg ? 'Put back as saved' : 'Start again') + '</button>' : '') + '</div>' +
+    '<div class="inv-rnd-row inv-rnd-head' + (batches ? ' inv-rnd-batch' : '') + '" aria-hidden="true">' + (batches ? '<span>Began</span><span>Ended</span>' : '<span>Time</span><span>Figure</span>') + '<span></span></div>';
+  var clients = faceClientsSorted(), lists = {};
+  f.rows.forEach(function(r, k) {
+    var head = k === 0 || f.openHead === k || !faceVatSameRun(r, f.rows[k - 1]), n = k + 1;
+    if (head) {
+      var cid = r.client === '' || r.client == null ? '' : String(r.client), opt = function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (cid === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; };
+      var lk = 'faceVatParts' + Object.keys(lists).length;
+      if (cid && !lists[cid]) lists[cid] = lk; else if (cid) lk = lists[cid];
+      h += '<div class="inv-rnd-row inv-rnd-run" data-face-vat-run="' + k + '">' +
+        '<div class="inv-field"><label class="inv-field-label" for="faceVatClient' + k + '">Client</label><select id="faceVatClient' + k + '" class="inv-select" data-face-vat="' + k + '" data-k="client"><option value="">Pick the client</option>' +
+          (clients.open.length ? '<optgroup label="Material open">' + clients.open.map(opt).join('') + '</optgroup>' : '') +
+          (clients.rest.length ? '<optgroup label="' + (clients.open.length ? 'Other clients' : 'Clients') + '">' + clients.rest.map(opt).join('') + '</optgroup>' : '') + '</select></div>' +
+        '<div class="inv-field inv-rnd-tail"><label class="inv-field-label" for="faceVatPart' + k + '">Part, as written</label><input id="faceVatPart' + k + '" class="inv-input" data-face-vat="' + k + '" data-k="part" value="' + escHtml(r.part || '') + '" autocomplete="off" placeholder="e.g. CLAMP"' + (cid ? ' list="' + lk + '"' : '') + '></div>';
+      (rd.runOf[k] || []).forEach(function(ri) {
+        var e = rd.runs[ri];
+        h += '<div class="inv-rnd-wide inv-row-meta inv-row-wrap" data-face-vat-reads="' + k + '">' + escHtml('Read as ' + [prodClientName(e.clientId) || e.client || 'no client', e.part, e.partNumber && e.partNumber !== e.part ? e.partNumber : '',
+          e.gaugeOptions ? 'gauge ' + e.gaugeOptions.join(' or ') : '', prodQtyText(e.qty, 'NOS') + (e.rounds && e.rounds.length ? ' in ' + todoPlural(e.rounds.length, e.rounds.some(function(x) { return x.batch; }) ? 'batch' : 'round', e.rounds.some(function(x) { return x.batch; }) ? 'batches' : 'rounds') : '')].filter(Boolean).join(' · ')) + '</div>';
+        e.issues.forEach(function(x) { h += faceVatIssueHtml(x); });
+      });
+      h += '</div>';
+    }
+    var fig = '<input class="inv-input inv-input-num' + (batches ? ' inv-rnd-lead' : '') + '" data-face-vat="' + k + '" data-k="fig" value="' + escHtml(r.fig || '') + '" inputmode="text" autocapitalize="off" autocomplete="off" placeholder="' +
+      (batches ? 'Figure at its end, e.g. 3×156' : 'e.g. 120') + '" aria-label="' + noun + ' ' + n + ': the figure, as written">';
+    var del = '<button class="inv-btn inv-btn-ghost inv-btn-icon" data-action="invFaceVatDel" data-i="' + k + '" aria-label="Remove ' + noun.toLowerCase() + ' ' + n + '" title="Remove ' + noun.toLowerCase() + ' ' + n + '">' + LINE_X_ICON + '</button>';
+    h += '<div class="inv-rnd-row' + (batches ? ' inv-rnd-batch' : '') + '" data-face-vat-row="' + k + '">' +
+      '<input type="time" class="inv-input" data-face-vat="' + k + '" data-k="time" value="' + escHtml(r.time || '') + '" aria-label="' + noun + ' ' + n + (batches ? ': when it began (blank: where the one before ended)' : ': time') + '">' +
+      (batches ? '<input type="time" class="inv-input" data-face-vat="' + k + '" data-k="to" value="' + escHtml(r.to || '') + '" aria-label="Batch ' + n + ': when it ended">' + del + fig : fig + del);
+    (rd.byRow[k] || []).forEach(function(x) {
+      var bits = [];
+      if (x.qty != null && x.written != null && String(x.qty) !== String(x.written).trim()) bits.push('= ' + Math.round(x.qty).toLocaleString('en-IN') + (x.rackSize && x.rounds ? ' (' + x.rounds + ' × ' + x.rackSize + ')' : ''));
+      if (bits.length) h += '<div class="inv-rnd-wide inv-row-meta" data-face-vat-reading="' + k + '">' + escHtml(bits.join(' ')) + '</div>';
+      // What the reading line already says ("3+4×156" as seven racks) is not said again.
+      x.issues.forEach(function(q) { if (q.code !== 'grouped') h += faceVatIssueHtml(q); });
+    });
+    // The last round can begin another run: its client and part open where it stands (a round in the middle is removed and
+    // added again, as on paper a new line is written).
+    if (k === f.rows.length - 1 && !head) h += '<div class="inv-rnd-wide"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFaceVatSplit" data-i="' + k + '">Another client or part</button></div>';
+    h += '</div>';
+  });
+  Object.keys(lists).forEach(function(cid) { h += '<datalist id="' + lists[cid] + '">' + faceVatPartNames(cid, f.line).map(function(s) { return '<option value="' + escHtml(s) + '">'; }).join('') + '</datalist>'; });
+  h += '<div class="inv-panel-body"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invFaceVatAdd">Add a ' + noun.toLowerCase() + '</button></div>';
+  h += '<div class="inv-panel-body"><div class="inv-fields">' + faceField('faceVatTotal', 'Day total on the paper page (if it has one)',
+    '<input type="number" inputmode="numeric" min="0" step="any" id="faceVatTotal" class="inv-input inv-input-num" data-face-vat-total value="' + escHtml(f.total || '') + '">',
+    '<div class="inv-field-hint">Set against the ' + noun.toLowerCase() + 'es'.slice(batches ? 0 : 1) + ': one missed shows here.</div>') + '</div>' +
+    rd.issues.filter(function(x) { return x.code === 'total'; }).map(function(x) { return '<div class="inv-callout inv-callout-warning" data-face-vat-total-q>' + escHtml(x.text) + '</div>'; }).join('') + '</div></div>';
+  h += faceVatCutsHtml(f);
+  if (runs.length) h += faceVatSavedHtml(f, runs);
+  var counted = Math.round(rd.counted || 0);
+  return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml(PROD_LINE_LABEL[f.line] + ' · ' + stockShortDate(f.date)) + '</div><div class="inv-actionbar-value" data-face-vat-counted>' +
+    escHtml(counted.toLocaleString('en-IN') + ' NOS') + '</div></div><button class="inv-btn inv-btn-primary" data-action="invFaceSave">Save the page</button></div>';
+}
+/* What the reader asks of a round or a run: a question as a callout in its tone; what it only says (the START rule, a gauge read
+   from the round) as a line under it. */
+function faceVatIssueHtml(x) {
+  if (x.tone === 'info') return '<div class="inv-rnd-wide inv-row-meta inv-row-wrap" data-face-vat-q="' + escHtml(x.code) + '">' + escHtml(x.text) + '</div>';
+  return '<div class="inv-rnd-wide inv-callout inv-callout-' + uiTone(x.tone) + '" data-face-vat-q="' + escHtml(x.code) + '">' + escHtml(x.text) + '</div>';
+}
+/* The page as the book holds it: its runs, the message for the group, Done. */
+function faceVatSavedHtml(f, runs) {
+  var total = runs.reduce(function(s, e) { return s + (e.qty || 0); }, 0), pg = faceVatPage(f.date, f.line);
+  var text = pg ? faceVatText(pg.date, pg.line, pg.rows, total, pg.style) : '';
+  return '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="faceSaved"><div class="inv-panel-head"><span class="inv-panel-title">In the book <span class="inv-panel-count">' + runs.length + '</span></span>' +
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceFormDone">Done</button></div>' +
+    runs.slice().sort(function(a, b) { return String(a.time || '').localeCompare(String(b.time || '')); }).map(function(e) {
+      var cs = faceCheckOf(e);
+      return '<div class="inv-row inv-row-2 inv-row-flow" data-face-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
+        '<span class="inv-row-meta inv-row-wrap">' + escHtml([e.time ? e.time + (e.to && e.to !== e.time ? '–' + e.to : '') : '', prodQtyText(e.qty, e.unit), e.rounds && e.rounds.length ? todoPlural(e.rounds.length, 'round') : ''].filter(Boolean).join(' · ')) + '</span>' +
+        (cs.length ? '<span class="inv-row-meta inv-row-wrap" data-face-check>' + uiDot(cs[0].tone, escHtml('To check: ' + cs[0].text)) + '</span>' : '') + '</span></div>';
+    }).join('') +
+    (text ? '<div class="inv-panel-body inv-toolbar inv-toolbar-tight"><a class="inv-btn inv-btn-secondary inv-btn-sm" data-face-send="page" href="' + escHtml(faceWaHref(text)) + '" target="_blank" rel="noopener">Send to the group</a>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceVatCopy">Copy</button></div>' : '') + '</div>';
+}
+/* The day's power cuts, from every record of them, and one to add. */
+function faceVatCutsHtml(f) {
+  var cuts = prodDowntimeDay(f.date), idx = prodIndex();
+  var h = '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="faceCuts"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts on the day <span class="inv-panel-count">' + cuts.length + '</span></span></div>';
+  cuts.forEach(function(c) {
+    var t = relayParseHhmm(c.time), b = c.to != null ? relayParseHhmm(c.to) : null, e = idx.byId[c.ids[0]] || {};
+    var who = c.ids.map(function(id) { var x = idx.byId[id]; return x ? (x.src === 'face' ? 'on Mine' : x.basis === 'register' ? 'the register' : x.basis === 'pickling' || x.basis === 'relay' ? 'a message' : 'by hand') : ''; })
+      .filter(function(v, i, a) { return v && a.indexOf(v) === i; }).join(', ');
+    h += '<div class="inv-row inv-row-2" data-face-cut="' + escHtml(c.ids[0]) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(relayClockLabel(t) + (b != null ? ' – ' + relayClockLabel(b) : ', no time back yet')) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml([b != null ? powerDur(c.min) : '', who].filter(Boolean).join(' · ')) + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-' + (b == null ? 'secondary' : 'ghost') + ' inv-btn-sm" data-action="invFaceVatCutOpen" data-id="' + escHtml(c.ids[0]) + '">' + (b == null ? 'Power back' : 'Why') + '</button></span></div>';
+  });
+  h += '<div class="inv-panel-body"><div class="inv-fields">' +
+    faceField('faceCutAt', 'Power cut at', '<input type="time" id="faceCutAt" class="inv-input" data-face-cut-f="at" value="' + escHtml(f.cut.at || '') + '">') +
+    faceField('faceCutBack', 'Power back at (if it is)', '<input type="time" id="faceCutBack" class="inv-input" data-face-cut-f="back" value="' + escHtml(f.cut.back || '') + '">') +
+    '</div><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceVatCut">Save the cut</button>' +
+    '<div class="inv-field-hint">One log for the day, whichever line you are on: a cut the pickling messages also sent is counted once.</div></div></div>';
+  return h;
+}
+
+/* ---------- Saving a page ---------- */
+async function faceVatSave() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'vat') return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'save a register page'))) return;
+  if (_faceForm !== f) return;
+  var err = function(msg, sel) { showToast(msg, 'error'); var el = sel && document.querySelector(sel); if (el && !touchScreen()) try { el.focus(); } catch (x) { /* a convenience */ } };
+  var typed = f.rows.map(function(r, k) { return { r: r, k: k }; }).filter(function(x) { return !faceVatRowEmpty(x.r); });
+  var batches = f.style === 'batches';
+  if (!typed.length) return err(batches ? 'Enter a batch: when it ended and its figure' : 'Enter a round: its time and its figure');
+  for (var i = 0; i < typed.length; i++) {
+    var r = typed[i].r, k = typed[i].k, n = (batches ? 'Batch ' : 'Round ') + (k + 1), at = '[data-face-vat="' + k + '"][data-k="';
+    if (batches) {
+      if (relayParseHhmm(r.to) == null) return err(n + ': enter when it ended', at + 'to"]');
+      if (r.time && relayParseHhmm(r.time) >= relayParseHhmm(r.to)) return err(n + ': it ends before it begins', at + 'time"]');
+    } else if (relayParseHhmm(r.time) == null) return err(n + ': enter its time', at + 'time"]');
+    if (r.client === '' || r.client == null) return err(n + ': pick the client', '#faceVatClient' + faceVatHeadOf(f, k));
+    if (!String(r.part || '').trim()) return err(n + ': write the part as the register names it', '#faceVatPart' + faceVatHeadOf(f, k));
+    if (!String(r.fig || '').trim()) return err(n + ': enter its figure', at + 'fig"]');
+  }
+  var rd = faceVatRead(f);
+  // A figure the reader cannot add up is never saved as nothing: it is written again.
+  var bad = rd.rows.find(function(x) { return x.issues.some(function(q) { return q.code === 'figure'; }); });
+  if (bad) return err((batches ? 'Batch ' : 'Round ') + (rd.map[bad.i] + 1) + ': "' + bad.written + '" could not be added up. Write it as the register does (120, 98×8+1, 3+4×156)', '[data-face-vat="' + rd.map[bad.i] + '"][data-k="fig"]');
+  var idx = prodIndex(), old = faceVatPage(f.date, f.line), at = Date.now(), by = faceUserName(), u = faceUser();
+  var oldRuns = faceVatRuns(f.date, f.line);
+  // A run of this page the owner corrected or voided in Production: the page is theirs now, and saving it again here would
+  // bring back what they put right.
+  var touched = prodData().entries.filter(function(e) { return e.kind === 'plated' && e.src === 'face' && e.pageId && e.date === f.date && e.line === f.line && ((e.voidedAt && e.voidReason !== FACE_VAT_REDO) || idx.replaced[e.id]); });
+  if (touched.length) {
+    await uiAlert({ title: 'Corrected in Production', body: 'This page has ' + todoPlural(touched.length, 'run') + ' put right in Production (Entries). Saving it again here would bring back what was corrected: put anything else right there too, or ask the owner.' });
+    return;
+  }
+  var other = idx.live.filter(function(e) { return e.kind === 'plated' && e.date === f.date && e.line === f.line && e.basis === 'register' && !e.pageId && !idx.replaced[e.id]; });
+  if (other.length && !old) {
+    var go = await uiConfirm({ title: 'Count the day twice?', body: 'The ' + PROD_LINE_LABEL[f.line] + ' register for ' + formatDate(f.date) + ' is already in the book (' + todoPlural(other.length, 'run') +
+      (other.some(function(e) { return e.photoId; }) ? ', from a photo' : '') + '). Saving this page as well counts both.', okLabel: 'Save anyway' });
+    if (!go || _faceForm !== f) return;
+  }
+  var p = prodData(), rowsOut = faceVatRowsOut(f.rows);
+  var pg = { id: prodUid('PG'), date: f.date, line: f.line, style: f.style, rows: rowsOut, by: by, uid: u && u.id || '', at: at, fp: rd.fp, counted: rd.counted };
+  if (String(f.total || '').trim() !== '' && isFinite(+f.total)) pg.total = +f.total;
+  if (old) pg.replaces = old.id;
+  var text = faceVatText(f.date, f.line, rowsOut, rd.counted, f.style), hash = prodMsgKey(f.date, text);
+  // A run is its rows: one whose rows read as they did stays as it is; any other is voided and its reading added.
+  var sig = function(e) { return [String(e.clientId), e.slot || '', String(e.raw || '')].join('\n'); };
+  var keep = {}, kept = 0, added = 0, voided = 0;
+  oldRuns.forEach(function(e) { (keep[sig(e)] = keep[sig(e)] || []).push(e); });
+  var fresh = [];
+  rd.runs.forEach(function(e) {
+    var rec = Object.assign({}, e, { id: prodUid('PE'), date: f.date, line: f.line, lineSrc: 'written', src: 'face', pageId: pg.id, msgHash: hash, by: by, at: at });
+    delete rec.rows; delete rec.issues; delete rec.clientName;
+    var same = keep[sig(rec)];
+    if (same && same.length) { same.shift(); kept++; return; }
+    fresh.push(rec);
+  });
+  Object.keys(keep).forEach(function(k) { keep[k].forEach(function(e) { e.voidedAt = at; e.voidReason = FACE_VAT_REDO; e.voidBy = by; voided++; }); });
+  if (old) { old.replacedBy = pg.id; old.replacedAt = at; }
+  p.pages.push(pg);
+  fresh.forEach(function(rec) { prodLearnAliases([rec]); p.entries.push(prodSparse(rec)); added++; });
+  prodTouch();
+  saveState();
+  faceVatDraftPut(faceVatDraftKey(f.date, f.line), null);
+  _faceForm = faceVatMake(f.date, f.line);
+  _pageTyped = false;
+  renderFace();
+  showToast(old ? 'Page saved again: ' + [added ? todoPlural(added, 'run') + ' new' : '', voided ? todoPlural(voided, 'run') + ' put right' : '', kept ? kept + ' as ' + (kept === 1 ? 'it was' : 'they were') : ''].filter(Boolean).join(', ')
+    : 'Page saved: ' + todoPlural(added, 'run') + ', ' + Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS · send it to the group', 'success');
+}
+/* The row whose client and part a round shares: the first row of its run. */
+function faceVatHeadOf(f, k) { while (k > 0 && f.openHead !== k && faceVatSameRun(f.rows[k], f.rows[k - 1])) k--; return k; }
+/* A cut, saved at once: the register's power log on Mine, one log a day. */
+async function faceVatCutSave() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'vat') return;
+  if (!grdOk('floor') && !(await guardAsk('floor', 'save a power cut'))) return;
+  if (_faceForm !== f) return;
+  var a = relayParseHhmm(f.cut.at), b = f.cut.back ? relayParseHhmm(f.cut.back) : null;
+  if (a == null) { showToast('Enter when the power went', 'error'); return; }
+  if (f.cut.back && b == null) { showToast('Enter when it came back, or leave it', 'error'); return; }
+  var log = 'face|' + f.date;
+  if (prodIndex().live.some(function(e) { return e.kind === 'downtime' && e.logId === log && relayParseHhmm(e.time) === a; })) { showToast('That cut is already saved', 'warning'); return; }
+  if (b != null && b < a) {
+    var ok = await uiConfirm({ title: 'Did the power stay off overnight?', body: 'The power came back at ' + relayClockLabel(b) + ', earlier on the clock than the cut at ' + relayClockLabel(a) +
+      '. Saved as it is, the cut ran overnight: ' + powerDur(b + 1440 - a) + '. Check the times if it did not.', okLabel: 'Yes, overnight' });
+    if (!ok || _faceForm !== f) return;
+  }
+  prodData().entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: f.date, time: prodHhmm(a), to: b != null ? prodHhmm(b) : null, downtime: { cause: 'power', open: b == null },
+    basis: 'register', src: 'face', logId: log, by: faceUserName(), at: Date.now() }));
+  prodTouch();
+  saveState();
+  f.cut = { at: '', back: '' };
+  _pageTyped = false;
+  keepScroll(renderFace);
+  showToast(b == null ? 'Cut saved · Power back on it when it comes' : 'Cut saved', 'success');
+}
+function faceVatCopy() {
+  var f = _faceForm, pg = f && faceVatPage(f.date, f.line);
+  if (!pg) return;
+  var runs = faceVatRuns(f.date, f.line), text = faceVatText(pg.date, pg.line, pg.rows, runs.reduce(function(s, e) { return s + (e.qty || 0); }, 0), pg.style);
+  var done = function() { showToast('Page copied: paste it in the group'); };
+  if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(text).then(done, function() { uiAlert({ title: 'Copy the page', body: text }); });
+  else uiAlert({ title: 'Copy the page', body: text });
+}
+async function faceVatDrop() {
+  var f = _faceForm;
+  if (!f || f.duty !== 'vat') return;
+  var pg = faceVatPage(f.date, f.line);
+  var ok = await uiConfirm({ title: pg ? 'Put the page back as saved?' : 'Start the page again?', body: pg ? 'What was typed on this phone since it was saved goes.' : 'Every round typed on this phone for this page goes.', okLabel: pg ? 'Put back' : 'Start again', danger: true });
+  if (!ok || _faceForm !== f) return;
+  faceVatDraftPut(faceVatDraftKey(f.date, f.line), null);
+  _faceForm = faceVatMake(f.date, f.line);
+  keepScroll(renderFace);
+}
+/* A change on the page: kept on the phone at once. A run's client or part moves the rounds under it that were the same (the
+   ditto carries down). */
+function faceVatChange(t, redraw) {
+  var f = _faceForm;
+  if (!f || f.duty !== 'vat') return false;
+  if (t.dataset.faceVatTotal !== undefined) { f.total = t.value; faceVatKeep(f); if (redraw) faceVatRedraw(); return true; }
+  if (t.dataset.faceCutF !== undefined) { f.cut[t.dataset.faceCutF] = t.value; return true; }
+  if (t.dataset.faceVat === undefined) return false;
+  var k = +t.dataset.faceVat, key = t.dataset.k, r = f.rows[k];
+  if (!r || ['time', 'to', 'client', 'part', 'fig'].indexOf(key) < 0) return true;
+  if (key === 'client' || key === 'part') {
+    // What the run was before this edit began (the part is typed a letter at a time): the rounds under it that were the same follow.
+    if (!r._was) r._was = { client: r.client, part: r.part };
+    r[key] = t.value;
+    if (redraw) {
+      var was = r._was;
+      delete r._was;
+      for (var j = k + 1; j < f.rows.length && faceVatSameRun(f.rows[j], was); j++) f.rows[j][key] = t.value;
+      if (f.openHead === k) f.openHead = null;
+    }
+  } else r[key] = t.value;
+  faceVatKeep(f);
+  if (redraw) { if (key === 'client') keepScroll(renderFace); else faceVatRedraw(); }
+  return true;
+}
+/* The page drawn again around the field being typed in (People → Day's way, attSwapAround): a change fires on the blur a tap on
+   the next field causes, so the redraw waits for that tap to land, then keeps whichever field the focus is in. With none, the page
+   is drawn whole. */
+function faceVatRedraw(landed) {
+  if (_attAfterTap(function() { faceVatRedraw(true); })) return;
+  if (!landed) { setTimeout(function() { faceVatRedraw(true); }, 0); return; }
+  if (!_faceForm || _faceForm.duty !== 'vat') return;
+  keepScroll(function() {
+    var root = document.getElementById('faceContent'), keep = document.activeElement;
+    if (!keep || !/^(INPUT|TEXTAREA)$/.test(keep.tagName)) keep = null;
+    if (keep && root && root.contains(keep) && attSwapAround(root, faceVatHtml(_faceForm), keep)) return;
+    renderFace();
+  });
+}
+function faceVatAction(action, btn) {
+  var f = _faceForm;
+  if (!f || f.duty !== 'vat') return false;
+  var k = +btn.dataset.i;
+  switch (action) {
+    case 'invFaceVatLine':
+      if (FACE_VAT_LINES.indexOf(btn.dataset.line) < 0 || btn.dataset.line === f.line) return true;
+      _faceForm = faceVatMake(f.date, btn.dataset.line); renderFace(); viewTop(); return true;
+    case 'invFaceVatAdd':
+      f.rows.push(faceVatRowBlank(f.rows[f.rows.length - 1])); faceVatKeep(f); keepScroll(renderFace);
+      var tm = document.querySelector('[data-face-vat="' + (f.rows.length - 1) + '"][data-k="time"]');
+      if (tm && !touchScreen()) try { tm.focus(); } catch (x) { /* a convenience */ }
+      return true;
+    case 'invFaceVatDel':
+      if (!f.rows[k]) return true;
+      f.rows.splice(k, 1);
+      if (!f.rows.length) f.rows.push(faceVatRowBlank(null));
+      f.openHead = null; faceVatKeep(f); keepScroll(renderFace); return true;
+    case 'invFaceVatSplit': f.openHead = k; keepScroll(renderFace); return true;
+    // Rounds and batches are one page written two ways: a round's time is a batch's end, and back.
+    case 'invFaceVatStyle':
+      var to = btn.dataset.style;
+      if ((to !== 'rounds' && to !== 'batches') || to === f.style) return true;
+      f.rows.forEach(function(r) { if (to === 'batches') { r.to = r.time; r.time = ''; } else { r.time = r.to || r.time; r.to = ''; } });
+      f.style = to; faceVatKeep(f); keepScroll(renderFace); return true;
+    case 'invFaceVatDrop': faceVatDrop(); return true;
+    case 'invFaceVatCopy': faceVatCopy(); return true;
+    case 'invFaceVatCut': faceVatCutSave(); return true;
+    case 'invFaceVatCutOpen': pcsOpen(btn.dataset.id); return true;
+  }
+  return false;
+}
+
+/* ---------- F4: the clerk's attendance sheet against the supervisor's roll (docs/ENTRY_FACES.md §4) ----------
+   The clerk's sheet is People → Attendance → Day as the sheet (the duty opens it), every mark typed there carrying who typed it
+   (`by`, staff.js _attHandEdit). Where a day has both, each hand the clerk marked is set against the day's saved rolls read alone
+   (relayRollsReading): present on one and absent on the other, a half day on one, another line, or present with the rolls naming
+   them nowhere. The sheet's mark stands (a roll never writes over a mark typed by hand), and the owner rules each: Use the roll's
+   puts the roll's mark on the day (the roll's again), Looks right keeps the sheet's (`rollOk`, against the roll's reading it was
+   given: a roll saved later that reads otherwise asks again). Which of the two is the day's truth is the owner's, a hand at a time
+   (§8): nothing is decided for them. */
+var FACE_ATT_DAYS = 30;
+function faceClerkIds() {
+  return typeof grdUsers === 'function' ? grdUsers().filter(function(u) { return u && faceDuties(u).some(function(d) { return d.id === 'attsheet'; }); }).map(function(u) { return u.id; }) : [];
+}
+var _faceAttMemo = { key: null, by: {} };
+function faceAttDiffs(iso) {
+  if (!S || typeof grdOn !== 'function' || !grdOn()) return [];
+  var key = (typeof _bookWrites !== 'undefined' ? _bookWrites : 0) + '|' + relayPastes().length;
+  if (_faceAttMemo.key !== key || _faceAttMemo.s !== S) _faceAttMemo = { key: key, s: S, by: {} };
+  if (_faceAttMemo.by[iso]) return _faceAttMemo.by[iso];
+  var out = _faceAttMemo.by[iso] = [];
+  var rec = S.attendance && S.attendance[iso], clerks = faceClerkIds();
+  if (!rec || !rec.marks || !clerks.length) return out;
+  var mine = Object.keys(rec.marks).filter(function(id) { var m = rec.marks[id]; return m && m.src !== 'relay' && m.by && clerks.indexOf(m.by) >= 0; });
+  if (!mine.length) return out;
+  var roll = relayRollsReading(iso);
+  if (!roll) return out;
+  var on = function(st) { return st === 'P' || st === 'H'; };
+  mine.forEach(function(id) {
+    var m = rec.marks[id], r = roll[String(id)] || null, w = staffById(id), kind = null;
+    if (!w) return;
+    if (!r) { if (on(m.st)) kind = 'missing'; }
+    else if (on(m.st) && r.st === 'A') kind = 'absent';
+    else if (m.st === 'A' && on(r.st)) kind = 'present';
+    else if (m.st !== r.st) kind = 'half';
+    // Another line only where both name one (Flex is none), the barrel and its own pickling one place: one unit of five, which the
+    // roll writes either way (on the owner's book, four of fourteen such differences were that alone, three a sheet naming no line).
+    else if (on(m.st) && faceAttUnit(m.area) && faceAttUnit(r.area) && faceAttUnit(m.area) !== faceAttUnit(r.area)) kind = 'area';
+    if (!kind) return;
+    var sig = kind + '|' + (r ? r.st + '|' + (r.area || '') : '-');
+    if (m.rollOk && m.rollOk.sig === sig) return;
+    out.push({ id: String(id), w: w, kind: kind, sig: sig, sheet: m, roll: r, text: faceAttText(kind, m, r) });
+  });
+  return out;
+}
+function faceAttUnit(a) { return !a || a === 'flex' ? '' : a === 'pickling-barrel' ? 'barrel' : a; }
+function faceAttText(kind, m, r) {
+  var st = function(x) { return (ATT_STATE_LABELS[x.st] || x.st).toLowerCase(); };
+  var where = function(x) { return x && x.area && x.area !== 'flex' ? ' (' + areaLabel(x.area) + ')' : ''; };
+  if (kind === 'missing') return 'present on the sheet' + where(m) + '; the roll does not name them';
+  if (kind === 'area') return areaLabel(m.area) + ' on the sheet, ' + areaLabel(r.area) + ' on the roll';
+  return st(m) + ' on the sheet' + where(m) + ', ' + st(r) + ' on the roll' + where(r);
+}
+/* What People → Day says of a hand whose two views disagree: the dot on its row, and in its day the rulings. */
+function faceAttDiffOf(iso, id) { return faceAttDiffs(iso).find(function(d) { return d.id === String(id); }) || null; }
+function faceAttDotHtml(iso, id) {
+  var d = faceAttDiffOf(iso, id);
+  return d ? '<span class="inv-row-meta inv-row-wrap" data-att-roll-q="' + escHtml(d.kind) + '">' + uiDot('warning', escHtml('The roll differs: ' + d.text)) + '</span>' : '';
+}
+function faceAttRulingHtml(iso, id) {
+  var d = faceAttDiffOf(iso, id);
+  if (!d) return '';
+  var can = typeof grdCan !== 'function' || !grdOn() || grdCan('voids');
+  return '<div class="inv-callout inv-callout-warning" data-att-roll-ruling="' + escHtml(d.kind) + '">' + escHtml('The clerk’s sheet and the supervisor’s roll disagree: ' + d.text + '. The sheet’s mark stands until you rule.') +
+    (can ? '<div class="inv-toolbar inv-toolbar-tight inv-mt-8">' + (d.roll ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAttRollUse" data-id="' + escHtml(d.id) + '">Use the roll’s</button>' : '') +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAttRollOk" data-id="' + escHtml(d.id) + '">Looks right</button></div>' : '') + '</div>';
+}
+function faceAttDayHtml(iso) {
+  var ds = faceAttDiffs(iso);
+  return ds.length ? '<div class="inv-callout inv-callout-warning" data-att-roll-diffs="' + ds.length + '">' + escHtml(todoPlural(ds.length, 'hand') + ' on the clerk’s sheet ' + (ds.length === 1 ? 'differs' : 'differ') +
+    ' from the supervisor’s roll: ' + ds.slice(0, 3).map(function(d) { return d.w.name; }).join(', ') + (ds.length > 3 ? ' and ' + (ds.length - 3) + ' more' : '') + '. Open a name to rule.') + '</div>' : '';
+}
+/* The owner's rulings, a hand at a time. */
+function faceAttUseRoll(iso, id) {
+  if (!grdGate('voids', 'put the roll’s mark on the day', function() { faceAttUseRoll(iso, id); })) return;
+  var d = faceAttDiffOf(iso, id);
+  if (!d || !d.roll) return;
+  var rec = attDay(iso, true), m = JSON.parse(JSON.stringify(d.roll));
+  m.src = 'relay';
+  rec.marks[id] = m;
+  saveState();
+  if (typeof attEditRefresh === 'function') attEditRefresh();
+  keepScroll(tabRedrawActive);
+  showToast('The roll’s mark is on the day');
+}
+function faceAttOk(iso, id) {
+  if (!grdGate('voids', 'keep the sheet’s mark', function() { faceAttOk(iso, id); })) return;
+  var d = faceAttDiffOf(iso, id), rec = S.attendance && S.attendance[iso];
+  if (!d || !rec || !rec.marks[id]) return;
+  rec.marks[id].rollOk = { sig: d.sig, at: Date.now(), by: faceUserName() };
+  saveState();
+  if (typeof attEditRefresh === 'function') attEditRefresh();
+  keepScroll(tabRedrawActive);
+  showToast('The sheet’s mark is kept');
+}
+TODO_RULES.push(['faceAttRoll', 'Faces: the clerk’s attendance sheet against the supervisor’s roll']);
+TODO_CHECK_DEFAULTS.faceAttRoll = true;
+TODO_RULE_NEED.faceAttRoll = 'owner';
+TODO_RULE_FNS.faceAttRoll = function() {
+  var since = isoAddDays(localDateStr(), -FACE_ATT_DAYS), out = [];
+  Object.keys(S.attendance || {}).filter(function(d) { return /^\d{4}-\d{2}-\d{2}$/.test(d) && d >= since; }).sort().forEach(function(d) {
+    var ds = faceAttDiffs(d);
+    if (!ds.length) return;
+    out.push({ key: 'faceAttRoll:' + d, rule: 'faceAttRoll', tone: 'amber', title: todoPlural(ds.length, 'hand') + ' where the clerk’s sheet and the roll disagree · ' + formatDate(d),
+      sub: ds.slice(0, 2).map(function(x) { return x.w.name; }).join(', ') + (ds.length > 2 ? ' +' + (ds.length - 2) : ''), why: 'The clerk’s sheet set against the supervisor’s roll',
+      facts: ds.slice(0, 6).map(function(x) { return [x.w.name, x.text]; }),
+      clears: 'Use the roll’s, or Looks right, on each hand (People → Attendance → Day, open the name).',
+      go: { kind: 'staffDay', date: d }, goLabel: 'Open the day', sig: ds.map(function(x) { return x.id + ':' + x.sig; }).sort().join(',') });
+  });
+  return out;
+};

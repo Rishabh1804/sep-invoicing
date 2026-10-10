@@ -98,6 +98,7 @@ var CHG_TRACK = [
     label: function(r) { return chgJoin(r.kind, r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
   { path: 'production.pastes', kind: 'raw', noun: 'production message', label: function(r) { return chgJoin(r.kind, r.day ? chgDay(r.day) : ''); } },
   { path: 'production.photos', kind: 'raw', noun: 'register photo', label: function(r) { return r.name; } },
+  { path: 'production.pages', kind: 'raw', noun: 'register page', label: function(r) { return chgJoin(typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.date ? chgDay(r.date) : ''); } },
   { path: 'production.learn', kind: 'skip' },
   { path: 'kb.articles', kind: 'arr', noun: 'article', omit: ['versions'],
     label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },

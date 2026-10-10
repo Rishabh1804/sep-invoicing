@@ -268,6 +268,8 @@ body:not(.inv-booted) { pointer-events: none; }
   --as-fs: 9pt; --as-fs-sm: 7.5pt; --as-fs-h: 14pt; --as-fs-slot: 10.5pt;
   --as-line: 6.5mm; --as-line-tall: 8.5mm; --as-gap: 3mm; --as-pad: 10mm 12mm; --as-rule: 0.5pt; --as-num-w: 6mm;
   --as-col-name: 36mm; --as-col-area: 16mm; --as-col-time: 16mm; --as-col-fig: 10mm;
+  --as-col-client: 30mm; --as-col-part: 44mm; --as-col-qty: 16mm; --as-col-unit: 12mm; --as-col-yes: 12mm; --as-col-challan: 18mm;
+  --as-col-barrel: 14mm; --as-col-fig2: 30mm; --as-col-reason: 50mm;
   --as-sheet-w: 210mm; --as-sheet-h: 297mm; --as-sign-gap: 10mm; --as-ink: #1a3a8f;
   background: #fff; color: #000; font-family: var(--ff-base); font-size: var(--as-fs); line-height: 1.2;
   width: var(--as-sheet-w); min-height: var(--as-sheet-h); padding: var(--as-pad); margin: 0 auto var(--sp-16);
@@ -294,7 +296,7 @@ body:not(.inv-booted) { pointer-events: none; }
 .inv-as-grid + .inv-as-table { margin-top: var(--as-gap); }
 /* Rows written in by hand across several fields (the stock message) get more room. */
 .inv-as-tall td { height: var(--as-line-tall); }
-.inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; }
+.inv-as-table .inv-as-tick { width: var(--as-num-w); text-align: center; font-weight: 700; padding: 0; }
 /* Deepak's entry sheet is written by hand: every column has a fixed width, so In and Out get room for a time
    (they had 7 and 10 mm once the four shift areas were added) and an area column takes a word. 182 mm of 186. */
 .inv-as-table[data-as-entry] { table-layout: fixed; }
@@ -304,6 +306,16 @@ body:not(.inv-booted) { pointer-events: none; }
 [data-as-col="area"] { width: var(--as-col-area); }
 [data-as-col="time"] { width: var(--as-col-time); }
 [data-as-col="fig"] { width: var(--as-col-fig); }
+/* The floor's sheets (facesheet.js, F5): a load, a batch or a round a row, the note taking what is left of 186 mm. */
+[data-as-col="client"] { width: var(--as-col-client); }
+[data-as-col="part"] { width: var(--as-col-part); }
+[data-as-col="qty"] { width: var(--as-col-qty); }
+[data-as-col="unit"] { width: var(--as-col-unit); }
+[data-as-col="yes"] { width: var(--as-col-yes); }
+[data-as-col="challan"] { width: var(--as-col-challan); }
+[data-as-col="barrel"] { width: var(--as-col-barrel); }
+[data-as-col="fig2"] { width: var(--as-col-fig2); }
+[data-as-col="reason"] { width: var(--as-col-reason); }
 .inv-as-sign { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--as-gap); margin-top: var(--as-sign-gap); font-size: var(--as-fs-sm); }
 .inv-as-sign > div { border-top: var(--as-rule) solid #000; padding-top: 1mm; }
 .inv-as-note { font-size: var(--as-fs-sm); color: #444; margin-top: 2mm; }

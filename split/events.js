@@ -243,6 +243,9 @@ function onDocClick(e) {
     case 'invAttSheetPreview': attSheetPreview(); break;
     case 'invStockSheetOpen': stockSheetOpen(); break;
     case 'invStockSheetPreview': stockSheetPreview(); break;
+    // The floor's own sheets (F5): Production → More → Print sheets, blank or as entered.
+    case 'invFshOpen': fshProdOpen(); break;
+    case 'invFshPreview': fshProdPreview(btn.dataset.kind); break;
     case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;

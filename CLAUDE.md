@@ -28,7 +28,7 @@ ranked list (built), I4 the change explained (built), I5 learning from responses
 
 **The entry faces are begun — read `docs/ENTRY_FACES.md`** and *Entry faces* below (owner, 10 Oct 2026: *"develop app faces for each
 employee to enter data"*, each on their own phone). F1 (the shell: duties on a user, Mine), F2 (the pickling hand), F3 (the
-supervisor) and F4 (the register clerk) are built; F5, F6 and the flow thread follow.
+supervisor), F4 (the register clerk) and F5 (the sheets on paper) are built; F6 and the flow thread follow.
 
 **The planner is built — read `docs/PLANNER.md`** and *The planner* below (owner, 6 Oct 2026: simulate machinery, certification, staff, clients and a
 loan, played as a game whose every figure adds up; *"start implementation sequentially and run the QA chain once the entire
@@ -91,7 +91,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 86 modules, ~59,400 lines total.
+Split-file PWA. 87 modules, ~62,700 lines total.
 
 ```
 split/
@@ -164,7 +164,8 @@ split/
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
 ├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
-├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered, the sheets (~1,870 lines)
+├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
+├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
 ├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
@@ -187,7 +188,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -217,14 +218,14 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,734 tests, both layouts
+pnpm exec playwright test          # 1,738 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
-`playwright.config.ts` reads; unset everywhere else. The suite takes about 13 minutes on
-a CI runner's two workers (the job allows 30, since the apt step behind Chromium's install has
-taken 5 on its own) and about as long in a constrained sandbox — don't read a slow run as a hang.
+`playwright.config.ts` reads; unset everywhere else. The suite takes about 27 minutes on
+a CI runner's two workers (26.6 on 10 Oct 2026, 1,734 tests; the job allows 45, since the apt step behind Chromium's
+install has taken 5 on its own) — don't read a slow run as a hang.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
@@ -2874,14 +2875,14 @@ on the build before. What it leaves as rules:
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will
 all be using the phone app"*; *"Each their own phone, no one shares any screens"*). F1, the shell (`faces.js`, P199); F2, the pickling hand's
-forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, F6 and T1–T3 to come. No name is in the
+forms and the checks (P200); F3, the supervisor's (P201); F4, the register clerk's (P202); F5, the sheets on paper (P203); F6 and T1–T3 to come. No name is in the
 build: the people are the book's.
 - **A face is a person's, never a role's** (`users[].faces`, the duties they enter: in-time roll, pickling loads, material in, stock,
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
   access → *Enters*); the users list says what each enters.
 - **Mine** is their screen (`pageFace`, an overview): the day (‹ › and Today, the address's `d`), the duties as steps read as
   Today's inputs read them (in, late, not yet, not expected), each opening where the duty is entered on that day (its own form on
-  the face, F2–F4; Stock's by hand; People's day as the sheet for the attendance sheet); *What you entered* that day from the change log (`faceEntered`); the sheets to print, and whether their entries have
+  the face, F2–F4; Stock's by hand; People's day as the sheet for the attendance sheet); *What you entered* that day from the change log (`faceEntered`); their paper (*Print my sheets*, *Print the day as entered*, F5), and whether their entries have
   reached GitHub (`faceSyncState`).
 - **Its door is drawn only for an ID with a face** (`faceMineDoor`), first on the bar and after Add on the rail; `grdSees('pageFace')`
   is the face's (`faceSees`), guard on or off. A reload within the sign-in window draws it too (`grdBoot` draws the shell again: the
@@ -2999,6 +3000,25 @@ build: the people are the book's.
 - **Measured on the owner's book**: the 55 marks typed by hand on the 25 days since 1 Sep with rolls, as the clerk's sheet: 8
   questions on 5 days, 7 another line and 1 not on the roll, none present against absent (15 before the barrel and its pickling were
   one place and a sheet naming no line was let pass).
+- **The sheets on paper** (F5, `facesheet.js`, P203; owner: *"Every one will have an option to print out their sheets as well, if they
+  want to fill in manually and file it in my table"*). Mine's *My sheets* prints the blank sheet of each duty the person enters, in the
+  day's order (**Print my sheets**), and **Print the day as entered**, to file (offered only when the day holds something for one of
+  them): the roll front and back and the attendance sheet (attsheet.js), the stock message and the stock as entered (stocksheet.js;
+  as entered with its bills and prices only for a role that sees money, else the stock message filled: a face never prints a money
+  figure its role does not see), and three new ones on the same page styles (`FSH_SHEETS`), each one A4 sheet (measured at the sheet's width under print media, and a
+  PDF of as many pages as sheets):
+  - **the pickling sheet**: a load a row (into the tank at, client, part and gauge, quantity, NOS / KG, re-pickled), and Material in
+    under it where the face counts what comes in (the challan, the part, what was counted);
+  - **the barrel batch sheet**: barrel, client, part, quantity, in, out, rework;
+  - **the VAT register pages**: VAT A1 a round a row (the figure as written), VAT A2 a batch a row (began, ended); the day total
+    written and what the app counts; the day's power log with why each cut came.
+
+  Filled, a sheet is the app's record of the day, whoever entered it, each row saying through which door (Mine and who, WhatsApp
+  and who sent it, a register photo, by hand); a voided or corrected record never reaches paper. A VAT page entered on Mine prints as
+  typed (the paper's ditto under a run's client and part); a day read from a photo or a message prints its rounds as the page wrote
+  them (the register's *1:05* is the afternoon, never turned into 1:05 AM). Production → More → **Print sheets** prints the floor's
+  three for any day, blank or as entered (a sheet with nothing entered is left out, and the toast says which). The roll filled on
+  Mine says *As entered in the app*, not a worked example (`attSheetShyamHtml`'s `note`). Printing writes nothing to the book.
 
 ### The guard
 `docs/GUARD.md` (owner, 1 Oct 2026), steps G1 to G3. P140–P142.

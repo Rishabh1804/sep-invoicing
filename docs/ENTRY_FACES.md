@@ -5,8 +5,10 @@ Today hearing a face. F2 built (10 Oct 2026, P200): the pickling hand's two form
 the checks of §4 that touch a load or a count, and the matcher's second pass (CLAUDE.md *Entry faces*). F3 built (10 Oct 2026,
 P201): the supervisor's two rolls written on Mine and saved as the roll, the barrel's batches, and the check of a batch against its
 barrel. F4 built (10 Oct 2026, P202): the register clerk's VAT page on Mine, read by the register photo's own reader, its power log
-and its checks, and the clerk's attendance sheet set against the supervisor's roll.** F5–F6, then the flow thread T1–T3, follow, one
-commit each, on the tab map's branch (PR #146) ahead of TM5–TM7.
+and its checks, and the clerk's attendance sheet set against the supervisor's roll. F5 built (10 Oct 2026, P203): each face's paper,
+blank and the day as entered, and the three new sheets (the pickling sheet, the barrel batch sheet, the VAT register pages), which
+Production prints for any day too.** F6, then the flow thread T1–T3, follow, one commit each, on the tab map's branch (PR #146) ahead
+of TM5–TM7.
 
 **Why.** Every figure the floor sends reaches the app second-hand today: the floor writes it on WhatsApp or paper, the owner
 pastes or photographs it, and the app reads it back. The material-flow study of 10 Oct (pickling → plating → dispatch → payment,
@@ -65,6 +67,10 @@ Names are never written into this repo: a face belongs to a role the owner gives
 5. **Paper stays a choice** (*"if they want to fill in manually and file it in my table"*): every face has **Print my sheet**, the
    blank sheet for its duty (the ones that exist, and the three new: the pickling sheet, the barrel batch sheet, the VAT register
    page), and **Print what I entered** for the day, to file.
+   *Built (F5):* Mine's *My sheets*, **Print my sheets** (the blank sheet of each duty, in the day's order) and **Print the day as
+   entered**: each duty's record of the day as the app holds it, whoever entered it, each row saying through which door (a copy filed
+   must be whole, and the record the face wrote is the day's record), a voided or corrected record never. Production → More → Print
+   sheets prints the floor's three for any day, blank or as entered.
 6. **The barrel is entered per batch** (*"Should be per batch"*): a batch is its barrel, client, part, quantity (pieces or kg),
    when it went in and came out.
 7. **English only.** Every face, form and sheet in English; the shop's own words for its parts and areas, as the book holds them.
@@ -204,7 +210,7 @@ The owner's answers on the material-flow study:
 | F2 | The pickling face (a load, material in, rework) and its checks | P200 |
 | F3 | The supervisor's face (the two rolls, stock, the barrel per batch) and its checks | P201 |
 | F4 | The clerk's face (the attendance sheet, the VAT register) and the two views of a day set against each other (built) | P202 |
-| F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) | P203 |
+| F5 | The sheets on paper (the pickling sheet, the barrel batch sheet, the VAT register page; every face's filled copy) (built) | P203 |
 | F6 | The guides (*Using the app: my face*, one per face, by role), docs, the full suite | — |
 | T1–T3 | The flow thread, as §5 | P204 |
 
@@ -223,6 +229,7 @@ Each spec uses made-up names in the shop's shapes, and each fails on the build b
 - A VAT page entered on a face is kept whole in `production.pages` (its rows as typed, its style, the total written, who), its runs
   production entries as a register photo's (`basis: 'register'`) with `src: 'face'` and `pageId`; a cut entered on it carries `logId`.
   A mark typed on the day carries `by`; one the owner kept against the roll, `rollOk` (F4).
+- A sheet printed writes nothing (F5): each is drawn from the book, blank or as entered, and leaves no record.
 - New on the book: `users[].faces` (the duties a user enters), an accepted disagreement kept on the entry it answers (`checkOk:
   {codes, at, by}`, as stock's is; built so in F2 rather than as a store of its own),
   `client.payTermsDays`, `client.turnaroundDays` and per part, a challan's `priority`. They travel with the book; NEXT_SESSION's

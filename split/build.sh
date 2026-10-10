@@ -89,6 +89,7 @@ JS_SOURCES=(
     "$DIR/floor.js" \
     "$DIR/today.js" \
     "$DIR/faces.js" \
+    "$DIR/facesheet.js" \
     "$DIR/power.js" \
     "$DIR/powercause.js" \
     "$DIR/report.js" \

@@ -12,17 +12,18 @@
    the people are the book's. */
 
 /* The duties a face can carry, in the day's order. `input` is Today's (TDY_INPUTS), whose state and usual time the step reads;
-   `lines` are Production's lines the duty records; `page` is where it is entered until its own form is built; `sheet` the paper. */
+   `lines` are Production's lines the duty records; `page` is where it is entered until its own form is built. Each duty's paper is
+   facesheet.js's (FSH_SHEETS). */
 var FACE_DUTIES = [
-  { id: 'roll-in', title: 'In-time roll', input: 'roll-in', page: 'pageFace', sheet: 'att' },
+  { id: 'roll-in', title: 'In-time roll', input: 'roll-in', page: 'pageFace' },
   // Entered on the face itself (F2): the face's own page is the door.
   { id: 'pickling', title: 'Pickling loads', input: 'pickling', page: 'pageFace' },
   { id: 'incoming', title: 'Material in', page: 'pageFace' },
-  { id: 'stock', title: 'Stock', input: 'stock', page: 'pageStock', sheet: 'stock' },
-  { id: 'attsheet', title: 'Attendance sheet', page: 'pageStaff', sheet: 'att' },
+  { id: 'stock', title: 'Stock', input: 'stock', page: 'pageStock' },
+  { id: 'attsheet', title: 'Attendance sheet', page: 'pageStaff' },
   { id: 'barrel', title: 'Barrel batches', lines: ['barrel'], page: 'pageFace' },
   { id: 'vat', title: 'VAT register', lines: ['vat-a1', 'vat-a2'], page: 'pageFace' },
-  { id: 'roll-out', title: 'Out-time roll', input: 'roll-out', page: 'pageFace', sheet: 'att' }
+  { id: 'roll-out', title: 'Out-time roll', input: 'roll-out', page: 'pageFace' }
 ];
 /* Today's inputs a duty fills, for "entered by" on Needs you (tdyInput). */
 var FACE_INPUT_DUTIES = { 'roll-in': ['roll-in', 'attsheet'], 'roll-out': ['roll-out', 'attsheet'], pickling: ['pickling'], stock: ['stock'], production: ['barrel', 'vat'] };
@@ -162,7 +163,7 @@ function faceHtml() {
     fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: true,
     body: '<div class="inv-hero-sheet"><div class="inv-panel-body inv-steps" data-face-steps>' + stepsHtml + '</div>' + wa + '</div>',
     attrs: ' data-card="face" data-verdict id="faceVerdict"' });
-  return faceStepperHtml(day, isToday) + hero + faceEnteredHtml(u, day) + faceToolsHtml(u);
+  return faceStepperHtml(day, isToday) + hero + faceEnteredHtml(u, day) + faceToolsHtml(u, day);
 }
 /* ‹ the day › and back to today (Floor's stepper), never past today. */
 function faceStepperHtml(day, isToday) {
@@ -193,16 +194,10 @@ function faceEnteredHtml(u, day) {
   if (!rows.length) return h + '<div class="inv-empty">Nothing yet on this day.</div></div>';
   return h + uiMoreHtml('face-entered', rows, { n: FACE_ENTERED_MAX, noun: 'entries' }) + '</div>';
 }
-/* The paper for the duties that have it (the blank sheet, and the day's filled copy), and whether this person's entries have
-   reached GitHub: on the floor a phone is often offline, and what it saved goes when it is back (auto-push, merged). */
-function faceToolsHtml(u) {
-  var sheets = {};
-  faceDuties(u).forEach(function(d) { if (d.sheet) sheets[d.sheet] = true; });
-  var rows = '';
-  if (sheets.att) rows += '<div class="inv-row inv-row-2" data-face-sheet="att"><span class="inv-row-main"><span class="inv-row-title">Attendance sheets</span><span class="inv-row-meta">Blank to fill by hand, or what was entered</span></span>' +
-    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceSheet" data-sheet="att">Print</button></span></div>';
-  if (sheets.stock) rows += '<div class="inv-row inv-row-2" data-face-sheet="stock"><span class="inv-row-main"><span class="inv-row-title">Stock sheets</span><span class="inv-row-meta">Blank to fill by hand, or what was entered</span></span>' +
-    '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFaceSheet" data-sheet="stock">Print</button></span></div>';
+/* The paper for the person's duties (facesheet.js, F5: the blank sheets, and the day as entered, to file), and whether their
+   entries have reached GitHub: on the floor a phone is often offline, and what it saved goes when it is back (auto-push, merged). */
+function faceToolsHtml(u, day) {
+  var rows = fshFaceRowHtml(u, day);
   var sync = faceSyncState(u);
   rows += '<div class="inv-row inv-row-2" data-face-sync="' + sync.tone + '"><span class="inv-row-main"><span class="inv-row-title">Sent to GitHub</span><span class="inv-row-meta">' + escHtml(sync.text) + '</span></span>' +
     '<span class="inv-row-end">' + uiDot(sync.tone, escHtml(sync.word)) + '</span></div>';
@@ -237,11 +232,6 @@ function faceOpen(id) {
   if (id === 'attsheet') attDayAsSet('sheet');
   switchTab('pageStaff');
 }
-function faceSheet(k) {
-  var day = faceDayIso();
-  if (k === 'att') { _attDate = day; attSheetOpen(); return; }
-  if (k === 'stock') { _stockSheetDate = day; stockSheetOpen(); }
-}
 /* The owner looking at another person's screen, from Settings → Users & access: Settings closed first (it asks about anything
    unsaved), then the face, as theirs. */
 async function faceSeeAs(id) {
@@ -264,7 +254,7 @@ function faceAction(action, btn) {
     // A day stepped to is a place of its own (the address carries it); the page and the focus stay where they were.
     case 'invFaceStep': keepScroll(function() { faceSetDay(isoAddDays(faceDayIso(), +btn.dataset.step || 0)); renderFace(); }); return true;
     case 'invFaceToday': keepScroll(function() { _faceDay = null; renderFace(); }); return true;
-    case 'invFaceSheet': faceSheet(btn.dataset.sheet); return true;
+    case 'invFacePrint': fshFacePrint(btn.dataset.kind); return true;
     case 'invFaceSee': faceSeeAs(btn.dataset.id); return true;
     case 'invFaceFormDone': faceFormDone(); return true;
     case 'invFaceSave': faceSave(); return true;

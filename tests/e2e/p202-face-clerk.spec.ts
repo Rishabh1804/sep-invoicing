@@ -41,7 +41,7 @@ async function withClerk(page: Page) {
     const mk = async (id: string, name: string, role: string, pin: string, faces?: string[]) =>
       Object.assign({ id, name, role, secret: await w.grdMakeSecret(pin), active: true, createdAt: Date.now(), createdBy: null }, faces ? { faces } : {});
     const S = (0, eval)('S');
-    S.users = [await mk('U-own', 'Asha Rao', 'owner', pins.owner), await mk('U-clk', 'Gita Das', 'supervisor', pins.super, ['attsheet', 'vat'])];
+    S.users = [await mk('U-own', 'Asha Rao', 'owner', pins.owner), await mk('U-clk', 'Gita Bose', 'supervisor', pins.super, ['attsheet', 'vat'])];
     await w.saveState();
   }, PINS);
   await page.reload();
@@ -119,7 +119,7 @@ test.describe('P202: the register clerk’s face', () => {
       ['NOVA CLAMPS', 'CLAMP 165X83(40X6)', 960, '09:45-10:20', 2, 'face', 'register', 'written'],
       ['ORBIT ENGG', 'TINA(3303)', 785, '11:00-11:00', 1, 'face', 'register', 'written']]);
     const pg = await ev(page, `S.production.pages[0]`);
-    expect(pg).toMatchObject({ date: today, line: 'vat-a1', style: 'rounds', total: 1750, counted: 1745, by: 'Gita Das', uid: 'U-clk' });
+    expect(pg).toMatchObject({ date: today, line: 'vat-a1', style: 'rounds', total: 1750, counted: 1745, by: 'Gita Bose', uid: 'U-clk' });
     expect(pg.rows).toEqual([
       { time: '09:45', to: '', client: '11', part: 'CLAMP 165X83(40X6)', fig: '120' },
       { time: '10:20', to: '', client: '11', part: 'CLAMP 165X83(40X6)', fig: '3+4x120' },
@@ -201,7 +201,7 @@ test.describe('P202: the register clerk’s face', () => {
     await page.locator('[data-action="invFaceVatLine"][data-line="vat-a1"]').click();
     await expect(page.locator('[data-face-cut]')).toHaveCount(2);
     expect(await ev(page, `prodData().entries.filter(function(e){ return e.kind === 'downtime' && e.src === 'face'; }).map(function(e){ return [e.logId, e.basis, e.by]; })`))
-      .toEqual([[`face|${today}`, 'register', 'Gita Das'], [`face|${today}`, 'register', 'Gita Das']]);
+      .toEqual([[`face|${today}`, 'register', 'Gita Bose'], [`face|${today}`, 'register', 'Gita Bose']]);
     // The open cut is completed where it is shown.
     await page.locator('[data-face-cut] [data-action="invFaceVatCutOpen"]', { hasText: 'Power back' }).click();
     await expect(page.locator('[data-pcs-dialog]')).toBeVisible();
@@ -237,7 +237,7 @@ test.describe('P202: the register clerk’s face', () => {
     const ph = await ev(page, `_prodPhoto = { json: { page: 'production', date: '${dmy()}', line: 'VAT-A1', rows: [{ time: '11:00 AM', customer: 'NOVA CLAMPS', part: 'CLAMP 165X83(40X6)', qtyText: '130' }] },
       choices: {}, photoDate: '${today}', url: '', meta: {}, sha: 'y', dupSha: null }; var h = prodPhotoHtml(); _prodPhoto = null; h`);
     expect(ph).toContain('data-prod-photo-mine');
-    expect(ph).toContain('The VAT A1 page for this day was entered on Mine by Gita Das, with the same rounds. Saving the photo as well counts the day twice.');
+    expect(ph).toContain('The VAT A1 page for this day was entered on Mine by Gita Bose, with the same rounds. Saving the photo as well counts the day twice.');
 
     // The owner puts the run right in Production: the page is the owner's now, and saving it again here is refused.
     const run = await ev(page, `prodIndex().live.find(function(e){ return e.pageId; }).id`);
@@ -253,7 +253,7 @@ test.describe('P202: the register clerk’s face', () => {
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
     await expect(page.locator('[data-tdy-input="production"] .inv-step-meta')).toContainText('VAT A1 in');
-    expect(await ev(page, `faceInputBy('production', '${today}')`)).toEqual(['Gita Das']);
+    expect(await ev(page, `faceInputBy('production', '${today}')`)).toEqual(['Gita Bose']);
   });
 
   test('the clerk’s sheet against the supervisor’s roll: each hand that differs is said on the day and ruled by the owner', async ({ page }) => {

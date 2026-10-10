@@ -154,7 +154,8 @@ var KB_APP_GUIDES = [
     'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +
     '# Taking it in\n- **Paste** the pickling loads and the production list from WhatsApp; every line is shown with what was read before anything is saved.\n' +
     '- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
-    '- **Enter by hand** (under More) when there is nothing to paste. The form stays open for the next entry.\n- A figure is corrected by a new entry, never edited; a wrong one is voided with a reason.\n\n' +
+    '- **Enter by hand** (under More) when there is nothing to paste. The form stays open for the next entry.\n- A figure is corrected by a new entry, never edited; a wrong one is voided with a reason.\n' +
+    '- **Print sheets** (under More): the pickling sheet, the barrel batches and the two VAT register pages for a day, blank to fill by hand or as entered, to file.\n\n' +
     '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, what it earned (the rounds, to a role that does not see money) and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
     '- **Plated** and **Earned** each say how the day stands against the line’s usual day; the card’s facts give the week to the day against the four weeks before, a recorded day’s average on each side. How earnings are worked out: **Using the app: the floor**.\n' +
     '- **One record counts for each line and shift**: the register, else the supervisor’s relay, else an entry by hand. The others are shown as *also reported, not added*: they count the same work another way.\n' +

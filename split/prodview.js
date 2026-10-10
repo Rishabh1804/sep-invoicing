@@ -40,7 +40,7 @@ function prodToolbarHtml(lead, more, filter) {
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invProdPhoto">' + (phone ? 'Read photo' : 'Read register photo') + '</button>' +
-    (filter || '') + uiToolbarMoreHtml([{ label: 'Enter by hand', action: 'invProdHand' }].concat(more || []), { icon: phone }) +
+    (filter || '') + uiToolbarMoreHtml([{ label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
     '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple>' +
     (_prodTab === 'entries' ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
   // Photos picked with a challan handed to the challan scanner wait here, and are read on from here (P127).

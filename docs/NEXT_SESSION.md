@@ -71,7 +71,10 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
      where a run begins, kept on the phone until saved, read by the photo's own reader and saved as its runs, saved again put right),
      the day's power log on it, a page a photo also holds warned both ways, a round its line never ran and a day total the rounds do
      not meet asked; the clerk's attendance sheet (People → Day as the sheet) set against the supervisor's roll a hand at a time, the
-     owner ruling each (*Use the roll's*, *Looks right*). **Next**: F5 the sheets, F6 the guides; then T1–T3. **The owner's, once
+     owner ruling each (*Use the roll's*, *Looks right*). **F5 built (P203)**: each face's paper, *Print my sheets* (the blank sheet
+     of each duty) and *Print the day as entered* (each duty's record of the day, whoever entered it, voided and corrected records
+     never), and the three new sheets (the pickling sheet, the barrel batch sheet, the VAT register pages), which Production → More →
+     Print sheets prints for any day. Printing writes nothing. **Next**: F6 the guides; then T1–T3. **The owner's, once
      merged**: give each person an ID and their duties; type each barrel's kg a round on Production → Equipment, which the batch check
      reads first; rule the questions the sheet and the roll raise (on the 10 Oct book, 8 on 5 days).
 - Then: TM5 Office, TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.

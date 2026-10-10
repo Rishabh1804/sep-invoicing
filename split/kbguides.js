@@ -331,7 +331,7 @@ var KB_APP_GUIDES = [
     '# What reaches you\n- Their entries are records at once, marked as entered by them. **Needs you** says who entered each of the day’s inputs.\n' +
     '- Where an entry and what it links to disagree, one task a check and a day asks you to look: **Looks right** keeps it as entered, **Correct** puts it right. The attendance sheet against the roll: **Use the roll’s** or **Looks right**, a hand at a time.\n' +
     '- The WhatsApp group keeps getting its messages: each save offers **Send to the group** in the shop’s own shape.\n\n' +
-    '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. Production → More → **Print sheets** prints the pickling sheet, the barrel batches and the VAT pages for any day.',
+    '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. **Print sheets** on Production, under More in its toolbar, prints the pickling sheet, the barrel batches and the VAT pages for any day.',
     { roles: ['owner'] })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */

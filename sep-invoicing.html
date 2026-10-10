@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="650a5cbc">
+<meta name="app-build" content="f6956e1d">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -57456,7 +57456,7 @@ var KB_APP_GUIDES = [
     '# What reaches you\n- Their entries are records at once, marked as entered by them. **Needs you** says who entered each of the day’s inputs.\n' +
     '- Where an entry and what it links to disagree, one task a check and a day asks you to look: **Looks right** keeps it as entered, **Correct** puts it right. The attendance sheet against the roll: **Use the roll’s** or **Looks right**, a hand at a time.\n' +
     '- The WhatsApp group keeps getting its messages: each save offers **Send to the group** in the shop’s own shape.\n\n' +
-    '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. Production → More → **Print sheets** prints the pickling sheet, the barrel batches and the VAT pages for any day.',
+    '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. **Print sheets** on Production, under More in its toolbar, prints the pickling sheet, the barrel batches and the VAT pages for any day.',
     { roles: ['owner'] })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
@@ -58056,14 +58056,17 @@ function kbTrainingHtml() {
   if (!paths.length) h += '<div class="inv-empty">No training path yet.</div>';
   paths.forEach(function(p) {
     var arts = kbPathArticles(p), who = kbPathWho(p, roster);
+    // A path shows its first five lessons, the rest one tap away (the length pass's rule): the paths grew with the entry
+    // faces' guides (F6), and Training ran past its budget (P195).
+    var rows = arts.map(function(a, i) {
+      var done = 0, due = 0;
+      who.forEach(function(w) { var st = kbTrainState(w.id, a).state; if (st === 'yes') done++; else if (st === 'due') due++; });
+      return '<div class="inv-row"><button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + (i + 1) + '. ' + escHtml(a.title) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(kbKindName(a.kind) + ' · v' + kbVer(a) + (who.length ? ' · trained ' + done + ' of ' + who.length : '')) + '</span></button>' +
+        '<span class="inv-row-end">' + (due ? '<span class="inv-dot inv-dot-warning">' + due + ' due again</span>' : '') + '</span></div>';
+    });
     h += '<div class="inv-panel inv-panel-flush" data-kb-path="' + escHtml(p.id) + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(p.title) + ' <span class="inv-panel-count">' + arts.length + '</span></span></div>' +
-      (arts.length ? arts.map(function(a, i) {
-        var done = 0, due = 0;
-        who.forEach(function(w) { var st = kbTrainState(w.id, a).state; if (st === 'yes') done++; else if (st === 'due') due++; });
-        return '<div class="inv-row"><button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"><span class="inv-row-title">' + (i + 1) + '. ' + escHtml(a.title) + '</span>' +
-          '<span class="inv-row-meta">' + escHtml(kbKindName(a.kind) + ' · v' + kbVer(a) + (who.length ? ' · trained ' + done + ' of ' + who.length : '')) + '</span></button>' +
-          '<span class="inv-row-end">' + (due ? '<span class="inv-dot inv-dot-warning">' + due + ' due again</span>' : '') + '</span></div>';
-      }).join('') : '<div class="inv-empty">None of this path&rsquo;s lessons is published yet.</div>') + '</div>';
+      (rows.length ? uiMoreHtml('kb-path-' + p.id, rows, { n: rows.length === 6 ? 6 : 5, noun: 'lessons' }) : '<div class="inv-empty">None of this path&rsquo;s lessons is published yet.</div>') + '</div>';
   });
   if (!sees) return h + '<div class="inv-note">Who was trained is kept against the roster, which People and Floor show.</div>';
   // The roster against every lesson given.

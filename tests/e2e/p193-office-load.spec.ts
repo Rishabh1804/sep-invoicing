@@ -39,7 +39,14 @@ function waitBook(): SepState {
 
 test.describe('P193: Office in one look (phone)', () => {
   test('TM5a: Pipeline leads with its verdict on the stage that needs the owner; each stage is a coded box in its own tone', async ({ page }) => {
-    await loadAppWithState(page, pipeState());
+    // The fixture's delivered INV-L1 is dated the 10th of last month, so its GSTR-1 falls due on the 11th of this one: after the
+    // 11th that stage is red as well and, coming first in the pipeline, is the fact (CI on the 13th). Dated today, its return is
+    // due next month, and the test holds on any day of the month.
+    const st: any = pipeState();
+    const l1 = st.invoices.find((i: any) => i.id === 'INV-L1');
+    l1.date = l1.challanDate = todayIso();
+    l1.createdAt = new Date(todayIso() + 'T10:00:00').getTime();
+    await loadAppWithState(page, st);
     await switchTab(page, 'pagePipeline');
     const first = page.locator('#pipelineContent > :first-child');
     await expect(first).toHaveAttribute('data-verdict', '');

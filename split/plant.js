@@ -204,7 +204,9 @@ function pltLogHtml() {
   if (!log.length) return '';
   var rows = log.map(function(l) {
     var u = pltUnitById(l.unitId), to = l.to === 'retired' ? ['retired', 'Retired', 'neutral'] : pltStatus(l.to);
-    var meta = [formatDate(l.date), l.from ? 'was ' + (l.from === 'retired' ? 'retired' : pltStatus(l.from)[1].toLowerCase()) : 'added', l.reason || '', l.by || ''].filter(Boolean).join(' · ');
+    // Two facts (the tab map §3b): the day and what it was, then why and who.
+    var meta = [formatDate(l.date) + ', ' + (l.from ? 'was ' + (l.from === 'retired' ? 'retired' : pltStatus(l.from)[1].toLowerCase()) : 'added'),
+      [l.reason || '', l.by ? 'by ' + l.by : ''].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<div class="inv-row inv-row-2" data-plt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml((u ? u.name + ' · ' + pltStationName(u.station) : 'A unit')) + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
   });

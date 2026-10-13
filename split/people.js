@@ -461,12 +461,13 @@ function pplGlanceHtml(w, memo) {
     stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
     stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
     stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
-  var meta = [pplTenureWords(st.tenure), skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', '), st.firm ? '' : st.marked + ' days marked'].filter(Boolean).join(' · ');
-  if (pplOwner()) {
-    var mo = pplMotivation(w, st, memo);
-    meta += ' · ';
-    h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>';
-  } else h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + '</span>';
+  // Two facts (the tab map §3b): how long here (and the days marked while that is too few to judge by), then the top skills; the
+  // owner's motivation index follows them as a status, a dot and a word, never a third fact after a "·".
+  var meta = [pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked'),
+    skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', ')].filter(Boolean).join(' · ');
+  var mo = pplOwner() ? pplMotivation(w, st, memo) : null;
+  h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) +
+    (mo ? (meta ? ' ' : '') + '<span data-ppl-glance-mo>' + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>' : '') + '</span>';
   return h;
 }
 

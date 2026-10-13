@@ -197,10 +197,11 @@ test.describe('P190: a day’s plating, whole', () => {
     const c1 = page.locator('#flrLines > [data-line="vat-a1"]'), c2 = page.locator('#flrLines > [data-line="vat-a2"]');
     await expect(c1).toHaveClass(/inv-hero-danger/);
     await expect(c1.locator('.inv-hero-fig')).toHaveText('5%');
-    await expect(c1.locator('.inv-hero-title')).toHaveText('≥ 265 kg of the 5.10 t its working tanks could plate');
-    // An analysis (§6.27): the head says what there was to plate with and what reads it low; a caption names what moved it most;
+    await expect(c1.locator('.inv-hero-title')).toHaveText('≥ 265 kg of the 5.10 t that 3 of 4 tanks could plate');
+    // An analysis (§6.27): the head says what there was to plate with, the sub how long it ran and what reads it low (two facts,
+    // the tab map §3b); a caption names what moved it most;
     // how it was worked out is folded under the tiles, shut until opened, one fact a row, where each input comes from a badge.
-    await expect(c1.locator('.inv-hero-sub')).toHaveText('3 of 4 tanks working · 8.5 h run · 200 pcs not weighed');
+    await expect(c1.locator('.inv-hero-sub')).toHaveText('8.5 h run, 200 pcs not weighed');
     await expect(c1.locator('[data-flr-effverdict]')).toHaveText('Lighter parts than the line’s round');
     const w1 = c1.locator('[data-flr-effworking]');
     await expect(w1).not.toHaveAttribute('open', '');

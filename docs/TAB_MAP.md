@@ -51,7 +51,7 @@ Nothing here changes what the book records except TM3b.
 | TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | **Built** (10 Oct 2026; what it decided is under TM4, *As built*) |
 | TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | **Built** (10 Oct 2026; what it decided is under TM5, *As built*) |
 | TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | **Built** (10 Oct 2026; what it decided is under TM6, *As built*) |
-| TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | Not built |
+| TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | **Built** (13 Oct 2026; the measures after are in `docs/COGNITIVE_LOAD_SURVEY.md`, *After the tab map*; then the QA chain, on the owner's word) |
 
 ## 1. The rulings
 

@@ -59,6 +59,7 @@ And the v2.0 rules, which carry the same weight:
 | DR-6 | **No shadows on content, but a tile's lift.** Surfaces are separated by a 1px `--border` hairline or by the surface tier. Shadows exist on floating layers (menus, dialogs, toasts, the phone's bar) and, since 8 Oct 2026, on a tile and a card in a deck, lifted by `--shadow-tile` (owner: *"Let's give our tiles elevation as well"*): the boxes a reader reads a figure off or taps. A panel, a hero, a row, a sheet and a control stay flat. |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |
 | DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). |
+| DR-9 | **Every screen is one of four kinds, assembled one way for its kind** (the tab map, `docs/TAB_MAP.md` §3e; owner, 9 Oct 2026: *"UI still feels inconsistent to me"*). An **overview** leads with its heroes; a **work screen** with its verdict card (§6.28), then one toolbar row, what needs the owner, the list, the rest folded, and a row ends in its figure and status or one action; a **document** is paper fitted to the screen; a **form** is its fields and its action bar. A screen declares its kind (`data-screen`, `SCREEN_KINDS` in tabs.js) and P197 holds it to the kind's anatomy; its boxes wear only the closed list of looks (§6.28). |
 
 ---
 
@@ -341,11 +342,24 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 
 ## 4. Information architecture
 
-**Direction B (owner, 1 Oct 2026; `docs/DIRECTION_B.md`) replaces the bottom bar and the sidebar below.** Workspaces are a layer
-over the pages: **Today** (Needs you · Pulse), **Office** (Pipeline · Challans · Invoices · Clients, then its Insights: Stats ·
-Reports · Planner · History · Knowledge), **Add** (one sheet, not a page), **Floor** (Day · People · Production · Stock · Power)
-and **Money** (Finance). Insights was a workspace of its own until 8 Oct 2026 (owner: *"Move insights into office tab, that way
-we have 5 icons again, which can be arranged in a better way"*), and is a group in Office's row, named there (§6.4).
+**The tab map (owner, 8–9 Oct 2026; `docs/TAB_MAP.md`) is the map.** Four sections by subject, and a door: **Today** (Needs you ·
+Pulse, then its Insights, named in the row: Stats · Reports · Planner), **Office** (Pipeline · Challans · Invoices · Clients ·
+Sales; Create is a page it holds without a tab), **Add** (one sheet, not a page), **Floor** (Overview · People · Production ·
+Stock · Power) and **Money** (its own tabs: Overview · Receivables · Payments · Bank · GST). **History and Knowledge are tools in
+the top bar** (a clock and a book), in no section, as Search and Settings are. An ID with a face (the entry faces) also has
+**Mine**, its own screen, its door drawn first. Its rules (the tab map §3a):
+1. **Four sections, by subject.** Today is the whole business, Office the paperwork, Floor the plant, Money the cash. Add is a door.
+2. **One overview per section, first in its row:** Pulse, Pipeline, Floor's Overview, Money's Overview.
+3. **Three levels at most:** the bar, the section's row, the screen's row. A form, a record or a review opens behind a back
+   arrow (a sub-view) or in a dialog, never in another row.
+4. **No row wider than five**, so every row fits a phone.
+5. **One word, one meaning.** No tab name stands for two different places.
+6. **A switch is not a tab.** Day / week / month, revenue / tonnage, the period: a segmented control on the screen.
+7. **Tools sit on every screen**, in the top bar, never in a row.
+
+Direction B (owner, 1 Oct 2026; `docs/DIRECTION_B.md`) built the workspaces as a layer over the pages, and replaced the bottom bar
+and the sidebar below. Insights was a workspace of its own until 8 Oct 2026, then a group in Office's row, and the tab map put it in
+Today; History and Knowledge left every row for the top bar (TM1). An old address is redirected to its new place (`navRedirect`).
 
 **Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
 that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
@@ -364,8 +378,9 @@ top bar, sub-tabs, the action bar and the content, and is amended where marked.
   tap or swipe that leaves it (the bars, a view tab, a sub-view's back button). Create's form stays as typed and asks nothing.
 - **Top bar** (`--bar-h`, `--surface`, bottom hairline): page title (`--t-title`), then at most **two**
   actions on the right — the view's primary action and one secondary (or an icon button) — then the
-  Settings icon button, on every screen (built 26 Sep 2026; a Settings reachable from Home only cost a
-  detour from every other tab). On the desktop Settings is the rail's last door instead.
+  tools, on every screen: **Search**, **History** (a clock), **Knowledge** (a book: the guides for the screen on show) and
+  **Settings** (built 26 Sep 2026; History and Knowledge joined it in the tab map's TM1, when they left every row; History is
+  hidden from a role that does not open it, and Knowledge is every role's). On the desktop Settings is the rail's last door instead.
 - **Sub-tabs** sit directly under the top bar, inside the same surface (§6.4, underline tabs), and scroll
   horizontally when they do not fit — never cut off, never wrap.
 - **Bottom bar** (`--nav-h`, §6.1): **Today · Office · Add · Floor · Money** (Direction B; Insights was its sixth from 6 to 8 Oct
@@ -400,6 +415,35 @@ top bar, sub-tabs, the action bar and the content, and is amended where marked.
   the right 22rem. The old 64px icon rail is retired.
 
 ---
+
+### 4.3 The cognitive-load benchmark (the tab map §3b)
+
+A screen passes when (`docs/COGNITIVE_LOAD_SURVEY.md`'s rules, read together, each with what measures it):
+1. **The 6-second test**: one glance at the first screen says the state. A verdict leads, in its tone, with `data-verdict`;
+   P195 checks it sits in the first phone screen wherever the tab map's §3d asks for one.
+2. **What needs the owner leads**: a raised task, a red figure or a question comes before anything fine; finished records go in
+   their own view tab or a fold.
+3. **A long list shows its recent part** (`uiMoreHtml`: thirty rows, ten where each row is a question); the head's count and every
+   total still cover the whole.
+4. **A card taller than a screen folds** to its summary line (`uiFoldHtml`, `uiFoldCard`, `uiFoldRowHtml`), remembered per device.
+5. **One fact, one screen**: its other screens keep at most a link.
+6. **About three phone screens or fewer** (P195's `screens`), the day's work list (Needs you) aside.
+7. **Today's card language**: a hero with a one-line verdict in its tone, opening to boxes coded by their own status (§6.21–6.26).
+8. **The design rules** DR-1 to DR-9.
+9. **No large blank areas, nothing cut, nothing past the screen's edge** (P76).
+10. **HR-9, no white** (P76, P180).
+11. **Words are short**: no text on a face over 120 characters (P195's `blocks`), no meta line chaining three facts or more with
+    "·" (P195's `chains`). A row says two things; a third is a badge, the row's end figure, or a fact row in its fold. How a figure
+    is worked out is the screen's guide (`kbguides.js`), not a note on its face.
+12. **Controls are short**: on the phone a screen's toolbar is at most two rows, its controls and its tokens (P195's `toolbarRows`).
+13. **One look**: the screen is assembled one way for its kind (DR-9; P197).
+
+**The instruments**: P195 measures every screen of the map on the phone over the long book (made up, in the repository) on eleven
+days of the calendar, the worst day kept, against a budget per screen that a step may only lower (the tab map's I10: no step leaves
+a screen longer or wordier, and a screen that grows says so); P197 censuses every screen's kind, anatomy and box looks on both
+layouts. **The owner's book is measured the same way in a scratch harness that never enters the repository**, at each step, before
+and after. **The exceptions**: Needs you's length (the day's work list); a note shown as it was typed (a reason, a remark, a
+register page's own note); a guide's own text; paper (a report, the power case, the print view).
 
 ## 5. Foundations for components
 
@@ -1078,7 +1122,7 @@ phone and desktop.
    confirmed as the only raw values; CLAUDE.md's class count is measured (427, every one `inv-`). P76 sweeps every
    screen, view tab and dialog on the phone and the desktop, light and dark, and fails on any retired or unstyled class.
 
-5. **Coded fills, screen by screen** — *Today built 8 Oct 2026* (owner: *"first let's work on needs you and pulse tabs, then we
+5. **Coded fills, screen by screen** — *done 13 Oct 2026: Today on 8 Oct, every other screen in the tab map's TM2–TM6* (owner: *"first let's work on needs you and pulse tabs, then we
    can see what the baseline is and how to implement it in other tabs too"*). HR-9 already holds on every screen through the
    tokens (§3.1); what moves screen by screen is the card language: a block that is read for its verdict becomes a hero coded by
    its status, what it holds coded boxes, its controls tinted; a list's rows stay rows on a tinted panel, with only its head and
@@ -1098,6 +1142,8 @@ document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe whil
 - [ ] Every interactive element: real `<button>`/`<a>`/`<input>`, `:focus-visible` ring, `aria-label` if icon-only.
 - [ ] Figures mono, right-aligned; sentence case; status = dot/badge + word.
 - [ ] Printed documents unchanged (print specs green).
+- [ ] The benchmark (§4.3): P195 within every budget (none raised without saying so in the PR), P197 green on both layouts; the
+      owner's book measured before and after in the scratch harness.
 
 ---
 

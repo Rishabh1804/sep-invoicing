@@ -159,12 +159,13 @@ function prodDayLinesHtml(pic, compact) {
     sp.forEach(function(x) { if (a == null || x.from < a) a = x.from; if (b == null || x.to > b) b = x.to; });
     var clients = {};
     r.entries.forEach(function(e) { var n = e.clientId != null ? prodClientName(e.clientId) : e.client || ''; if (n) clients[n] = true; });
-    var meta = [a != null ? relayClockLabel(a) + (b != null && b > a ? ' – ' + relayClockLabel(b) : '') : 'no times written', todoPlural(r.entries.length, 'run'),
-      rounds ? todoPlural(rounds, 'round') : ''].filter(Boolean).join(' · ');
-    // What the line had to plate with: its units on the day and its heads against the day's number; then whose work it was.
+    // Two facts a line (the tab map §3b): when it ran, then its runs and rounds.
+    var meta = [a != null ? relayClockLabel(a) + (b != null && b > a ? ' – ' + relayClockLabel(b) : '') : 'no times written',
+      todoPlural(r.entries.length, 'run') + (rounds ? ', ' + todoPlural(rounds, 'round') : '')].join(' · ');
+    // What the line had to plate with (its units on the day, its heads against the day's number), then whose work it was.
     var cap = pic.equip[l], cw = pic.crew[l];
-    var meta2 = [cap ? cap.nAvail + ' of ' + cap.n + ' ' + (cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrels' : 'tanks') + ' working' : '',
-      cw && cw.need != null ? cw.heads + ' of ' + cw.need + ' heads' : cw && cw.heads != null ? cw.heads + ' heads' : '',
+    var meta2 = [[cap ? cap.nAvail + ' of ' + cap.n + ' ' + (cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrels' : 'tanks') + ' working' : '',
+      cw && cw.need != null ? cw.heads + ' of ' + cw.need + ' heads' : cw && cw.heads != null ? cw.heads + ' heads' : ''].filter(Boolean).join(', '),
       Object.keys(clients).slice(0, 2).join(', ') + (Object.keys(clients).length > 2 ? ' +' + (Object.keys(clients).length - 2) : '')].filter(Boolean).join(' · ');
     var pcs = [r.pieces ? Math.round(r.pieces).toLocaleString('en-IN') + ' pcs' : '', r.kgWritten ? formatNum(r.kgWritten, 0) + ' kg written' : ''].filter(Boolean).join(' + ');
     // Its efficiency (Floor's card has the parts): what it plated of what its working units could, in the time it ran.

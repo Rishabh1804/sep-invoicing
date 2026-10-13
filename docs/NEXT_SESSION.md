@@ -93,7 +93,14 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
   Invoiced's card with its month in the row; Reports' Print in its action bar; the last long notes made a line or moved to their
   guide (P194). **No budget rose**; three screens grew by the card they gained (Invoiced, Troubleshoot, Training), said in the PR.
   **Data flow:** no store or field changed; the change log's `label` now joins its parts with commas, not " · " (History reads both).
-- Then: TM7 the docs and measures; then the QA chain, CI green and the merge.
+- **TM7**, the docs and the measures: design §4 is the map and its rules, §4.3 the benchmark with its instruments and exceptions,
+  DR-9 the four kinds of screen; CLAUDE.md names every moved screen by its new place; the survey's proposals are marked built with
+  their measure after. **Every screen measured on the owner's book** (8 Oct, the survey's own, at its viewports; and 10 Oct), both
+  layouts, with no error and no anatomy problem: the chains and long notes it found that the long book never draws are cut to two
+  facts (Floor's line cards, Production's day rows, Equipment's log, the Roster's glance, the Planner's rows on the desktop and its
+  Ledger, Stock's zinc notes, Stats' unranked clients); what is left is the owner's own text (a register page's notes, two imported
+  bills' notes, the load's note), kept whole. **Data flow:** none.
+- Then: the QA chain, CI green and the merge.
 
 **Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
 spellings, lead time, GST, the balance on a day, totals as printed) and `supplierPays` (payments recorded here, voided with a reason),

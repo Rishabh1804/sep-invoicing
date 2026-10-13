@@ -601,8 +601,9 @@ function renderStats() {
         if (partial.length > 0) {
           html += '<div class="inv-row-group"><span>Not ranked: weights on under ' + Math.round(REALISATION_MIN_COVERAGE * 100) + '% of revenue</span></div>';
           partial.forEach(function(r) {
+            // Two facts (the tab map §3b): how much of it is weighed, then what was weighed and billed.
             html += statsRow(escHtml(r.name), 'weights on ' + Math.round(r.coverage * 100) + '% of revenue · ' +
-              (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t · ' : '') + formatCurrency(r.total),
+              (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t, ' : '') + formatCurrency(r.total),
               uiDot('neutral', 'n/a'),
               ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row data-partial');
           });

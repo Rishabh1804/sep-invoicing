@@ -159,10 +159,10 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('#flrDate').fill(D);
     await page.locator('#flrDate').dispatchEvent('change');
     const card = page.locator('#flrLines > [data-line="vat-a2"]');
-    await expect(card.locator('.inv-hero-sub')).toHaveText('2 of 2 tanks working · 8.5 h run');
+    await expect(card.locator('.inv-hero-sub')).toHaveText('8.5 h run');
     const f = await workingFacts(card);
     expect(f.filter((x: string[]) => /^Rounds|^A full round (measured|typed)/.test(x[0]))).toEqual([['Rounds the hours allowed', '', '17'], ['Rounds run', 'counted on the register', '6'],
-      ['A full round measured', '25 kg a tank × 2 · 36 rounds · typed 90', '50 kg']]);
+      ['A full round measured', '25 kg a tank × 2, from 36 rounds · typed 90', '50 kg']]);
     // The plant strip says what the line plates a round, and that it is the line's round now.
     await switchTab(page, 'pageProduction');
     await page.locator('#productionContent .inv-viewtab[data-tab="equipment"]').click();
@@ -226,7 +226,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // 100 kg, twice the line's usual 50 (200%). 35% × 93% × 200% is the 66% the line plated of what it could.
     expect(await eff(page)).toEqual([20, 'measured', 30, 7, 'measured', 50, 9, 25.5, 66, 35, 93, 200, 100, true]);
     const card = await openDay(page);
-    await expect(card.locator('.inv-hero-sub')).toHaveText('2 of 2 tanks working · 8.5 h run');
+    await expect(card.locator('.inv-hero-sub')).toHaveText('8.5 h run');
     await expect(card.locator('[data-flr-effverdict]')).toHaveText('The time lost most');
     // The factors at a glance, a tile each: what it lost, in its tone; the parts only said.
     const tiles = await card.locator('[data-flr-effsplit] .inv-tile').evaluateAll(els => els.map(t => [(t as HTMLElement).dataset.flrFactor,
@@ -238,7 +238,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
       ['A round every measured', 'on the register, 7 shifts · set 30', '20 min'],
       ['Rounds the hours allowed', '', '25.5'],
       ['Rounds run', 'counted on the register', '9'],
-      ['A full round measured', '25 kg a tank × 2 · 63 rounds · typed 90', '50 kg'],
+      ['A full round measured', '25 kg a tank × 2, from 63 rounds · typed 90', '50 kg'],
       ['Racks full', 'against each part’s fullest round', '93%'],
       ['GEAR 9', 'NOVA GEARS · 9 rounds of 100', '93%'],
       ['A full round of the day’s parts', '200% of the line’s round', '100 kg']]);

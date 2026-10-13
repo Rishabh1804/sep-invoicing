@@ -176,9 +176,11 @@ var KB_APP_GUIDES = [
     '# Spend and prices\n- At the foot of the list on a phone, in the pane beside it on a computer.\n' +
     '- **Spend by supplier**: six months of bills, before GST. Tap a supplier for its bills and what the bank paid it.\n' +
     '- **Used, by week**: each use at the price paid for that line on the day; a line with no price is named and not counted.\n' +
-    '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.',
+    '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.\n' +
+    '- **The zinc market** is LME × (1 + the uplift) + the premium (Settings → Costing → Zinc rate), on every day a Refresh kept. A bill is its price before GST, set against the market on its day (the last LME up to four days before), and what a supplier paid over it is weighted by the kilos. **Timing** places each bill within the market of the 30 days before it: near the low, in the middle or near the high.',
     // Version 2: one screen, its card and Spend and prices (the tab map, TM4d). Version 3: the reorder list's supplier and its lead time.
-    { version: 3 }),
+    // Version 4: the zinc market's working, which the price trend printed under its chart (the tab map, TM7).
+    { version: 4 }),
   // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +

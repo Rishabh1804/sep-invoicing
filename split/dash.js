@@ -274,9 +274,9 @@ function dashZincHtml() {
 
   var timed = T.bills.filter(function(b) { return b.timing; }), band = { low: 0, mid: 0, high: 0 };
   timed.forEach(function(b) { band[b.timing.band]++; });
-  var notes = '<div class="inv-note">Market = LME × (1 + ' + escHtml(formatNum(T.uplift, 1)) + '%) + ' + escHtml(formatCurrency(T.premium)) + ' premium, at the uplift and premium set now (Settings → Costing → Zinc rate), on every day a Refresh kept. ' +
-    'A bill is its price before GST, set against the market on its day (the last LME up to four days before). Over is weighted by the kilos.</div>';
-  if (timed.length) notes += '<div class="inv-note" data-zinc-timing>Timing, against the market in the 30 days before each bill: ' + band.low + ' bought near the low, ' + band.mid + ' in the middle, ' + band.high + ' near the high.</div>';
+  // One line each (the tab map §3b); how the market and a bill's over are worked out is the Stock guide's.
+  var notes = '<div class="inv-note">Market: LME × (1 + ' + escHtml(formatNum(T.uplift, 1)) + '%) + ' + escHtml(formatCurrency(T.premium)) + ', at the uplift and premium set now.</div>';
+  if (timed.length) notes += '<div class="inv-note" data-zinc-timing>Timing: ' + band.low + ' bought near the low, ' + band.mid + ' in the middle, ' + band.high + ' near the high, against each bill’s 30 days before.</div>';
   if (T.now && last && T.now.landed < last.e.price) notes += '<div class="inv-note">The market now is ' + escHtml(formatCurrency(gstRound(last.e.price - T.now.landed))) + ' a ' + escHtml(unit) + ' under the last bill.</div>';
   if (T.noMarket) notes += '<div class="inv-note" data-zinc-nomarket>' + T.noMarket + ' bill' + (T.noMarket === 1 ? ' has' : 's have') + ' no LME on record for its day' +
     (getMetalsKey() ? '.</div><div class="inv-toolbar inv-toolbar-flush"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDashZincLookup">Look up LME</button></div>'

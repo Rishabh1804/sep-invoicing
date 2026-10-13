@@ -131,14 +131,16 @@ function plnStarsSvg(n) {
   return '<svg class="inv-pl-stars" viewBox="0 0 46 14" role="img" aria-label="' + n + ' of 3 stars">' + star(0, n >= 1) + star(16, n >= 2) + star(32, n >= 3) + '</svg>';
 }
 
-/* A record or a move as a row (§1a-11, §3b-11; the tab map, TM2d). On the desktop as it was: every fact in its meta, its actions at
-   its end. On the phone two facts in its meta and one thing at its end, a status, a figure or one action; the rest of its facts,
-   anything typed on it (`extra`, HTML) and its actions are under it, folded, remembered on the device under `key`. `o`: attrs,
-   title (text), facts (texts), end (HTML), actions (HTML buttons), extra (HTML: the caller escapes), key. */
+/* A record or a move as a row (§1a-11, §3b-11; the tab map, TM2d). Two facts in its meta on both layouts (the tab map §3b, TM7: on
+   the desktop every fact had stood in one line, five on a machine). On the desktop a row of two facts or fewer is plain, whatever
+   it holds, its actions at its end; on the phone only with nothing typed on it and one thing at its end, a status, a figure or one
+   action. Otherwise the rest of its facts, anything typed on it (`extra`, HTML) and its actions are under it, folded, remembered on
+   the device under `key`. `o`: attrs, title (text), facts (texts), end (HTML), actions (HTML buttons), extra (HTML: the caller
+   escapes), key. */
 function plnRowHtml(o) {
   var facts = (o.facts || []).filter(Boolean), acts = (o.actions || []).filter(Boolean);
-  // A plain row where it fits: two facts, nothing typed, and at its end one thing (a status, a figure, or one action).
-  if (_isDesktop || (facts.length <= 2 && !o.extra && (!acts.length || (acts.length === 1 && !o.end)))) {
+  // A plain row where it fits.
+  if (facts.length <= 2 && (_isDesktop || (!o.extra && (!acts.length || (acts.length === 1 && !o.end))))) {
     return '<div class="inv-row inv-row-2"' + (o.attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
       (facts.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(facts.join(' · ')) + '</span>' : '') + (o.extra || '') + '</span>' +
       '<span class="inv-row-end">' + (o.end || '') + acts.join('') + '</span></div>';
@@ -149,10 +151,11 @@ function plnRowHtml(o) {
   return '<details class="inv-row-fold" data-fold="' + escHtml(o.key) + '"' + (o.attrs || '') + (uiFoldOpen(o.key, false) ? ' open' : '') + '>' +
     '<summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
     (head.length ? '<span class="inv-row-meta">' + escHtml(head.join(' · ')) + '</span>' : '') + '</span>' +
-    (o.end ? '<span class="inv-row-end">' + o.end + '</span>' : '') + '</summary><div class="inv-row-children">' +
+    // The desktop keeps its actions at the head's end, where it has the room (a button in a summary acts, it does not fold).
+    (o.end || (_isDesktop && acts.length) ? '<span class="inv-row-end">' + (o.end || '') + (_isDesktop ? acts.join('') : '') + '</span>' : '') + '</summary><div class="inv-row-children">' +
     rest.map(function(f) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(f) + '</span></span></div>'; }).join('') +
     (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') +
-    (acts.length ? '<div class="inv-row-actions" data-row-more>' + acts.join('') + '</div>' : '') + '</div></details>';
+    (acts.length && !_isDesktop ? '<div class="inv-row-actions" data-row-more>' + acts.join('') + '</div>' : '') + '</div></details>';
 }
 /* A move's place in the plan as a row's end on the phone: its month, or what stands in its way; the controls are in its fold. */
 function plnMoveEnd(key, inPlan) {
@@ -614,8 +617,10 @@ function plnLedgerHtml() {
     '<span class="inv-panel-count">' + (_plnMode === 'expected' ? 'each move × its chance' : 'every move landing') + '</span></div>' +
     plnBuildRow('As it runs', 'today’s average month, from the book', at.base, 'base') +
     at.rows.map(function(r) { return plnBuildRow(r.mv.label, (Math.abs(r.kg) >= 1 ? (r.kg > 0 ? '+' : '−') + plnKg(Math.abs(r.kg)) + ' plated · ' : '') + (r.ready != null ? 'takes effect ' + plnMonthLabel(Math.min(PLN_N - 1, r.ready)) : 'never takes effect'), r.margin, r.mv.lane); }).join('') +
-    (at.idle.length ? '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">' + at.idle.length + ' more in the plan, nothing in this month’s margin</span><span class="inv-row-meta inv-row-wrap">' +
-      escHtml(at.idle.map(function(r) { return r.mv.label; }).join(', ')) + '</span></span><span class="inv-row-end"><span class="inv-num">₹0</span></span></div>' : '') +
+    // The moves with nothing in this month: the first two named, the rest counted (every name in the title, the tab map §3b).
+    (at.idle.length ? '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">' + at.idle.length + ' more in the plan, nothing in this month’s margin</span><span class="inv-row-meta" title="' +
+      escHtml(at.idle.map(function(r) { return r.mv.label; }).join(', ')) + '">' +
+      escHtml(at.idle.slice(0, 2).map(function(r) { return r.mv.label; }).join(', ') + (at.idle.length > 2 ? ' +' + (at.idle.length - 2) + ' more' : '')) + '</span></span><span class="inv-row-end"><span class="inv-num">₹0</span></span></div>' : '') +
     plnBuildRow('The plan', 'the rows above, added up', at.plan, 'plan') + '</div>';
   h += '<div class="inv-panel inv-panel-flush" id="plnCosts"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(plnMonthLabel(m)) + ': the cost lines</span><span class="inv-panel-count">' + escHtml(plnKg(mo.plated)) + '</span></div>' +
     plnCostRows(mo, b).map(function(r) {
@@ -756,7 +761,8 @@ function plnTreeHtml(st, sc, P) {
     var cost = plnUpgradeCost(lv), costBtn = '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>';
     // On the phone the row ends in its month, Plan it, or what stands in its way; its other controls fold under it (§1a-11).
     return plnRowHtml({ key: 'pl-level-' + lv.id, attrs: ' data-pl-level="' + escHtml(lv.id) + '"', title: 'Lv ' + i + ' · ' + lv.t,
-      facts: [cost ? formatCurrency(cost) : 'no cost', lv.say || '', P.ready[lv.id] != null ? 'in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''],
+      // Two facts: what it costs and when it takes effect, then what it does.
+      facts: [(cost ? formatCurrency(cost) : 'no cost') + (P.ready[lv.id] != null ? ', in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''), lv.say || ''],
       end: _isDesktop ? '' : inPlan ? plnMoveEnd(lv.id, true) : end, actions: [_isDesktop || inPlan ? end : '', costBtn] });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-pl-tree="' + st.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(st.name) + ' <span class="inv-panel-count">Lv ' + lvNow + ' in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></span></div>' + rows + '</div>';

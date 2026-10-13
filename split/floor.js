@@ -335,14 +335,17 @@ function flrEffHead(ef, last, isToday) {
   var kg = prodKgFig(ef.kg, ef.est, ef.unweighed > 0) || '—';
   if (ef.eff == null) return { title: 'Plated ' + kg, sub: 'Not judged: ' + ef.why + (units ? ' · ' + units : '') };
   var hours = ef.minutes / 60, hTxt = formatNum(hours, 1).replace(/\.0$/, '') + ' h';
+  // The units it had to plate with are said inside the figure, so the sub keeps to two facts (the tab map §3b).
+  var could = ef.n ? ' that ' + ef.nAvail + ' of ' + ef.n + ' ' + unit + 's could plate' : ' its working ' + unit + 's could plate';
   var plated = ef.over ? 'Plated ' + kg + ', over the ' + prodKgFig(ef.possible) + (ef.kgSrc === 'measured' ? ' its usual round and pace would plate: ' : ' its units can plate: ') + ef.why
-    : kg + ' of the ' + prodKgFig(ef.possible) + ' its working ' + unit + 's could plate';
+    : kg + ' of the ' + prodKgFig(ef.possible) + could;
   // What needs following up leads (half the line down, the general shift unrecorded); the plating follows in the sub.
   var lead = [ef.halfDown ? down : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var title = lead ? lead.charAt(0).toUpperCase() + lead.slice(1) : plated;
-  // What it had to plate with and what reads it low; the round, the pace and the rest are the working under the card (§6.27).
-  var sub = [lead ? plated : '', units, hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''),
-    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : ''].filter(Boolean).join(' · ');
+  // How long it ran and what reads it low; the round, the pace and the rest are the working under the card (§6.27).
+  var ran = hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : '') +
+    (ef.unweighed ? ', ' + Math.round(ef.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '');
+  var sub = [lead ? plated : (ef.over && units ? units : ''), ran].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: Math.min(ef.kg, ef.possible * 1.2), tone: ef.tone === 'neutral' ? 'neutral' : ef.tone }], { max: ef.possible, mark: ef.possible * PROD_EFF_OK,
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
@@ -375,7 +378,7 @@ function flrEffRowHtml(ef, line) {
       : { label: 'Rounds run', value: nr, sub: pct(noRounds) + ' of the kilos without rounds: time not told apart' });
   } else facts.push({ label: 'Rounds', value: '', sub: 'none counted: time and load not told apart' });
   facts.push({ label: 'A full round', value: formatNum(ef.kgAvail, 0) + ' kg', src: ef.kgSrc === 'measured' ? SRC.measured : SRC.typed,
-    sub: ef.kgSrc === 'measured' ? (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + unitW + ' × ' + ef.nAvail + ' · ' : '') + T.rounds + ' rounds' + (ef.kgTyped ? ' · typed ' + formatNum(ef.kgTyped, 0) : '')
+    sub: ef.kgSrc === 'measured' ? (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + unitW + ' × ' + ef.nAvail + ', from ' : 'from ') + T.rounds + ' rounds' + (ef.kgTyped ? ' · typed ' + formatNum(ef.kgTyped, 0) : '')
       : T.perRound != null ? 'register ' + formatNum(T.perRound, 0) + ' kg, not firm: ' + lacks(T.why) : '' });
   if (ef.pace != null && ef.racks != null) {
     facts.push({ label: 'Racks full', value: pct(ef.racks), sub: 'against each part’s fullest round' });

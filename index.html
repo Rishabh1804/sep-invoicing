@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="9cb07acf">
+<meta name="app-build" content="5bb542f6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -40659,8 +40659,9 @@ function renderStats() {
         if (partial.length > 0) {
           html += '<div class="inv-row-group"><span>Not ranked: weights on under ' + Math.round(REALISATION_MIN_COVERAGE * 100) + '% of revenue</span></div>';
           partial.forEach(function(r) {
+            // Two facts (the tab map §3b): how much of it is weighed, then what was weighed and billed.
             html += statsRow(escHtml(r.name), 'weights on ' + Math.round(r.coverage * 100) + '% of revenue · ' +
-              (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t · ' : '') + formatCurrency(r.total),
+              (r.kg > 0 ? formatNum(r.kg / 1000, 2) + ' t, ' : '') + formatCurrency(r.total),
               uiDot('neutral', 'n/a'),
               ' data-action="invStatsClientDrill" data-client-id="' + r.clientId + '" data-client-row data-partial');
           });
@@ -44941,9 +44942,9 @@ function dashZincHtml() {
 
   var timed = T.bills.filter(function(b) { return b.timing; }), band = { low: 0, mid: 0, high: 0 };
   timed.forEach(function(b) { band[b.timing.band]++; });
-  var notes = '<div class="inv-note">Market = LME × (1 + ' + escHtml(formatNum(T.uplift, 1)) + '%) + ' + escHtml(formatCurrency(T.premium)) + ' premium, at the uplift and premium set now (Settings → Costing → Zinc rate), on every day a Refresh kept. ' +
-    'A bill is its price before GST, set against the market on its day (the last LME up to four days before). Over is weighted by the kilos.</div>';
-  if (timed.length) notes += '<div class="inv-note" data-zinc-timing>Timing, against the market in the 30 days before each bill: ' + band.low + ' bought near the low, ' + band.mid + ' in the middle, ' + band.high + ' near the high.</div>';
+  // One line each (the tab map §3b); how the market and a bill's over are worked out is the Stock guide's.
+  var notes = '<div class="inv-note">Market: LME × (1 + ' + escHtml(formatNum(T.uplift, 1)) + '%) + ' + escHtml(formatCurrency(T.premium)) + ', at the uplift and premium set now.</div>';
+  if (timed.length) notes += '<div class="inv-note" data-zinc-timing>Timing: ' + band.low + ' bought near the low, ' + band.mid + ' in the middle, ' + band.high + ' near the high, against each bill’s 30 days before.</div>';
   if (T.now && last && T.now.landed < last.e.price) notes += '<div class="inv-note">The market now is ' + escHtml(formatCurrency(gstRound(last.e.price - T.now.landed))) + ' a ' + escHtml(unit) + ' under the last bill.</div>';
   if (T.noMarket) notes += '<div class="inv-note" data-zinc-nomarket>' + T.noMarket + ' bill' + (T.noMarket === 1 ? ' has' : 's have') + ' no LME on record for its day' +
     (getMetalsKey() ? '.</div><div class="inv-toolbar inv-toolbar-flush"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDashZincLookup">Look up LME</button></div>'
@@ -47081,7 +47082,9 @@ function pltLogHtml() {
   if (!log.length) return '';
   var rows = log.map(function(l) {
     var u = pltUnitById(l.unitId), to = l.to === 'retired' ? ['retired', 'Retired', 'neutral'] : pltStatus(l.to);
-    var meta = [formatDate(l.date), l.from ? 'was ' + (l.from === 'retired' ? 'retired' : pltStatus(l.from)[1].toLowerCase()) : 'added', l.reason || '', l.by || ''].filter(Boolean).join(' · ');
+    // Two facts (the tab map §3b): the day and what it was, then why and who.
+    var meta = [formatDate(l.date) + ', ' + (l.from ? 'was ' + (l.from === 'retired' ? 'retired' : pltStatus(l.from)[1].toLowerCase()) : 'added'),
+      [l.reason || '', l.by ? 'by ' + l.by : ''].filter(Boolean).join(', ')].filter(Boolean).join(' · ');
     return '<div class="inv-row inv-row-2" data-plt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml((u ? u.name + ' · ' + pltStationName(u.station) : 'A unit')) + '</span>' +
       '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span></span><span class="inv-row-end">' + uiDot(to[2], to[1]) + '</span></div>';
   });
@@ -47834,12 +47837,13 @@ function pplGlanceHtml(w, memo) {
     stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
     stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
     stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
-  var meta = [pplTenureWords(st.tenure), skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', '), st.firm ? '' : st.marked + ' days marked'].filter(Boolean).join(' · ');
-  if (pplOwner()) {
-    var mo = pplMotivation(w, st, memo);
-    meta += ' · ';
-    h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>';
-  } else h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + '</span>';
+  // Two facts (the tab map §3b): how long here (and the days marked while that is too few to judge by), then the top skills; the
+  // owner's motivation index follows them as a status, a dot and a word, never a third fact after a "·".
+  var meta = [pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked'),
+    skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', ')].filter(Boolean).join(' · ');
+  var mo = pplOwner() ? pplMotivation(w, st, memo) : null;
+  h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) +
+    (mo ? (meta ? ' ' : '') + '<span data-ppl-glance-mo>' + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>' : '') + '</span>';
   return h;
 }
 
@@ -48904,12 +48908,13 @@ function prodDayLinesHtml(pic, compact) {
     sp.forEach(function(x) { if (a == null || x.from < a) a = x.from; if (b == null || x.to > b) b = x.to; });
     var clients = {};
     r.entries.forEach(function(e) { var n = e.clientId != null ? prodClientName(e.clientId) : e.client || ''; if (n) clients[n] = true; });
-    var meta = [a != null ? relayClockLabel(a) + (b != null && b > a ? ' – ' + relayClockLabel(b) : '') : 'no times written', todoPlural(r.entries.length, 'run'),
-      rounds ? todoPlural(rounds, 'round') : ''].filter(Boolean).join(' · ');
-    // What the line had to plate with: its units on the day and its heads against the day's number; then whose work it was.
+    // Two facts a line (the tab map §3b): when it ran, then its runs and rounds.
+    var meta = [a != null ? relayClockLabel(a) + (b != null && b > a ? ' – ' + relayClockLabel(b) : '') : 'no times written',
+      todoPlural(r.entries.length, 'run') + (rounds ? ', ' + todoPlural(rounds, 'round') : '')].join(' · ');
+    // What the line had to plate with (its units on the day, its heads against the day's number), then whose work it was.
     var cap = pic.equip[l], cw = pic.crew[l];
-    var meta2 = [cap ? cap.nAvail + ' of ' + cap.n + ' ' + (cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrels' : 'tanks') + ' working' : '',
-      cw && cw.need != null ? cw.heads + ' of ' + cw.need + ' heads' : cw && cw.heads != null ? cw.heads + ' heads' : '',
+    var meta2 = [[cap ? cap.nAvail + ' of ' + cap.n + ' ' + (cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrels' : 'tanks') + ' working' : '',
+      cw && cw.need != null ? cw.heads + ' of ' + cw.need + ' heads' : cw && cw.heads != null ? cw.heads + ' heads' : ''].filter(Boolean).join(', '),
       Object.keys(clients).slice(0, 2).join(', ') + (Object.keys(clients).length > 2 ? ' +' + (Object.keys(clients).length - 2) : '')].filter(Boolean).join(' · ');
     var pcs = [r.pieces ? Math.round(r.pieces).toLocaleString('en-IN') + ' pcs' : '', r.kgWritten ? formatNum(r.kgWritten, 0) + ' kg written' : ''].filter(Boolean).join(' + ');
     // Its efficiency (Floor's card has the parts): what it plated of what its working units could, in the time it ran.
@@ -50729,14 +50734,17 @@ function flrEffHead(ef, last, isToday) {
   var kg = prodKgFig(ef.kg, ef.est, ef.unweighed > 0) || '—';
   if (ef.eff == null) return { title: 'Plated ' + kg, sub: 'Not judged: ' + ef.why + (units ? ' · ' + units : '') };
   var hours = ef.minutes / 60, hTxt = formatNum(hours, 1).replace(/\.0$/, '') + ' h';
+  // The units it had to plate with are said inside the figure, so the sub keeps to two facts (the tab map §3b).
+  var could = ef.n ? ' that ' + ef.nAvail + ' of ' + ef.n + ' ' + unit + 's could plate' : ' its working ' + unit + 's could plate';
   var plated = ef.over ? 'Plated ' + kg + ', over the ' + prodKgFig(ef.possible) + (ef.kgSrc === 'measured' ? ' its usual round and pace would plate: ' : ' its units can plate: ') + ef.why
-    : kg + ' of the ' + prodKgFig(ef.possible) + ' its working ' + unit + 's could plate';
+    : kg + ' of the ' + prodKgFig(ef.possible) + could;
   // What needs following up leads (half the line down, the general shift unrecorded); the plating follows in the sub.
   var lead = [ef.halfDown ? down : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var title = lead ? lead.charAt(0).toUpperCase() + lead.slice(1) : plated;
-  // What it had to plate with and what reads it low; the round, the pace and the rest are the working under the card (§6.27).
-  var sub = [lead ? plated : '', units, hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : ''),
-    ef.unweighed ? Math.round(ef.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : ''].filter(Boolean).join(' · ');
+  // How long it ran and what reads it low; the round, the pace and the rest are the working under the card (§6.27).
+  var ran = hTxt + ' run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : '') +
+    (ef.unweighed ? ', ' + Math.round(ef.unweighed).toLocaleString('en-IN') + ' pcs not weighed' : '');
+  var sub = [lead ? plated : (ef.over && units ? units : ''), ran].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: Math.min(ef.kg, ef.possible * 1.2), tone: ef.tone === 'neutral' ? 'neutral' : ef.tone }], { max: ef.possible, mark: ef.possible * PROD_EFF_OK,
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
@@ -50769,7 +50777,7 @@ function flrEffRowHtml(ef, line) {
       : { label: 'Rounds run', value: nr, sub: pct(noRounds) + ' of the kilos without rounds: time not told apart' });
   } else facts.push({ label: 'Rounds', value: '', sub: 'none counted: time and load not told apart' });
   facts.push({ label: 'A full round', value: formatNum(ef.kgAvail, 0) + ' kg', src: ef.kgSrc === 'measured' ? SRC.measured : SRC.typed,
-    sub: ef.kgSrc === 'measured' ? (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + unitW + ' × ' + ef.nAvail + ' · ' : '') + T.rounds + ' rounds' + (ef.kgTyped ? ' · typed ' + formatNum(ef.kgTyped, 0) : '')
+    sub: ef.kgSrc === 'measured' ? (T.perTank != null && ef.nAvail ? formatNum(T.perTank, 0) + ' kg a ' + unitW + ' × ' + ef.nAvail + ', from ' : 'from ') + T.rounds + ' rounds' + (ef.kgTyped ? ' · typed ' + formatNum(ef.kgTyped, 0) : '')
       : T.perRound != null ? 'register ' + formatNum(T.perRound, 0) + ' kg, not firm: ' + lacks(T.why) : '' });
   if (ef.pace != null && ef.racks != null) {
     facts.push({ label: 'Racks full', value: pct(ef.racks), sub: 'against each part’s fullest round' });
@@ -57186,14 +57194,16 @@ function plnStarsSvg(n) {
   return '<svg class="inv-pl-stars" viewBox="0 0 46 14" role="img" aria-label="' + n + ' of 3 stars">' + star(0, n >= 1) + star(16, n >= 2) + star(32, n >= 3) + '</svg>';
 }
 
-/* A record or a move as a row (§1a-11, §3b-11; the tab map, TM2d). On the desktop as it was: every fact in its meta, its actions at
-   its end. On the phone two facts in its meta and one thing at its end, a status, a figure or one action; the rest of its facts,
-   anything typed on it (`extra`, HTML) and its actions are under it, folded, remembered on the device under `key`. `o`: attrs,
-   title (text), facts (texts), end (HTML), actions (HTML buttons), extra (HTML: the caller escapes), key. */
+/* A record or a move as a row (§1a-11, §3b-11; the tab map, TM2d). Two facts in its meta on both layouts (the tab map §3b, TM7: on
+   the desktop every fact had stood in one line, five on a machine). On the desktop a row of two facts or fewer is plain, whatever
+   it holds, its actions at its end; on the phone only with nothing typed on it and one thing at its end, a status, a figure or one
+   action. Otherwise the rest of its facts, anything typed on it (`extra`, HTML) and its actions are under it, folded, remembered on
+   the device under `key`. `o`: attrs, title (text), facts (texts), end (HTML), actions (HTML buttons), extra (HTML: the caller
+   escapes), key. */
 function plnRowHtml(o) {
   var facts = (o.facts || []).filter(Boolean), acts = (o.actions || []).filter(Boolean);
-  // A plain row where it fits: two facts, nothing typed, and at its end one thing (a status, a figure, or one action).
-  if (_isDesktop || (facts.length <= 2 && !o.extra && (!acts.length || (acts.length === 1 && !o.end)))) {
+  // A plain row where it fits.
+  if (facts.length <= 2 && (_isDesktop || (!o.extra && (!acts.length || (acts.length === 1 && !o.end))))) {
     return '<div class="inv-row inv-row-2"' + (o.attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
       (facts.length ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(facts.join(' · ')) + '</span>' : '') + (o.extra || '') + '</span>' +
       '<span class="inv-row-end">' + (o.end || '') + acts.join('') + '</span></div>';
@@ -57204,10 +57214,11 @@ function plnRowHtml(o) {
   return '<details class="inv-row-fold" data-fold="' + escHtml(o.key) + '"' + (o.attrs || '') + (uiFoldOpen(o.key, false) ? ' open' : '') + '>' +
     '<summary class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.title) + '</span>' +
     (head.length ? '<span class="inv-row-meta">' + escHtml(head.join(' · ')) + '</span>' : '') + '</span>' +
-    (o.end ? '<span class="inv-row-end">' + o.end + '</span>' : '') + '</summary><div class="inv-row-children">' +
+    // The desktop keeps its actions at the head's end, where it has the room (a button in a summary acts, it does not fold).
+    (o.end || (_isDesktop && acts.length) ? '<span class="inv-row-end">' + (o.end || '') + (_isDesktop ? acts.join('') : '') + '</span>' : '') + '</summary><div class="inv-row-children">' +
     rest.map(function(f) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(f) + '</span></span></div>'; }).join('') +
     (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') +
-    (acts.length ? '<div class="inv-row-actions" data-row-more>' + acts.join('') + '</div>' : '') + '</div></details>';
+    (acts.length && !_isDesktop ? '<div class="inv-row-actions" data-row-more>' + acts.join('') + '</div>' : '') + '</div></details>';
 }
 /* A move's place in the plan as a row's end on the phone: its month, or what stands in its way; the controls are in its fold. */
 function plnMoveEnd(key, inPlan) {
@@ -57669,8 +57680,10 @@ function plnLedgerHtml() {
     '<span class="inv-panel-count">' + (_plnMode === 'expected' ? 'each move × its chance' : 'every move landing') + '</span></div>' +
     plnBuildRow('As it runs', 'today’s average month, from the book', at.base, 'base') +
     at.rows.map(function(r) { return plnBuildRow(r.mv.label, (Math.abs(r.kg) >= 1 ? (r.kg > 0 ? '+' : '−') + plnKg(Math.abs(r.kg)) + ' plated · ' : '') + (r.ready != null ? 'takes effect ' + plnMonthLabel(Math.min(PLN_N - 1, r.ready)) : 'never takes effect'), r.margin, r.mv.lane); }).join('') +
-    (at.idle.length ? '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">' + at.idle.length + ' more in the plan, nothing in this month’s margin</span><span class="inv-row-meta inv-row-wrap">' +
-      escHtml(at.idle.map(function(r) { return r.mv.label; }).join(', ')) + '</span></span><span class="inv-row-end"><span class="inv-num">₹0</span></span></div>' : '') +
+    // The moves with nothing in this month: the first two named, the rest counted (every name in the title, the tab map §3b).
+    (at.idle.length ? '<div class="inv-row inv-row-2 inv-row-muted"><span class="inv-row-main"><span class="inv-row-title">' + at.idle.length + ' more in the plan, nothing in this month’s margin</span><span class="inv-row-meta" title="' +
+      escHtml(at.idle.map(function(r) { return r.mv.label; }).join(', ')) + '">' +
+      escHtml(at.idle.slice(0, 2).map(function(r) { return r.mv.label; }).join(', ') + (at.idle.length > 2 ? ' +' + (at.idle.length - 2) + ' more' : '')) + '</span></span><span class="inv-row-end"><span class="inv-num">₹0</span></span></div>' : '') +
     plnBuildRow('The plan', 'the rows above, added up', at.plan, 'plan') + '</div>';
   h += '<div class="inv-panel inv-panel-flush" id="plnCosts"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(plnMonthLabel(m)) + ': the cost lines</span><span class="inv-panel-count">' + escHtml(plnKg(mo.plated)) + '</span></div>' +
     plnCostRows(mo, b).map(function(r) {
@@ -57811,7 +57824,8 @@ function plnTreeHtml(st, sc, P) {
     var cost = plnUpgradeCost(lv), costBtn = '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPlnCost" data-id="' + escHtml(lv.id) + '">Cost</button>';
     // On the phone the row ends in its month, Plan it, or what stands in its way; its other controls fold under it (§1a-11).
     return plnRowHtml({ key: 'pl-level-' + lv.id, attrs: ' data-pl-level="' + escHtml(lv.id) + '"', title: 'Lv ' + i + ' · ' + lv.t,
-      facts: [cost ? formatCurrency(cost) : 'no cost', lv.say || '', P.ready[lv.id] != null ? 'in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''],
+      // Two facts: what it costs and when it takes effect, then what it does.
+      facts: [(cost ? formatCurrency(cost) : 'no cost') + (P.ready[lv.id] != null ? ', in effect ' + plnMonthLabel(Math.min(PLN_N - 1, P.ready[lv.id])) : ''), lv.say || ''],
       end: _isDesktop ? '' : inPlan ? plnMoveEnd(lv.id, true) : end, actions: [_isDesktop || inPlan ? end : '', costBtn] });
   }).join('');
   return '<div class="inv-panel inv-panel-flush" data-pl-tree="' + st.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(st.name) + ' <span class="inv-panel-count">Lv ' + lvNow + ' in ' + escHtml(plnMonthLabel(_plnMonth)) + '</span></span></div>' + rows + '</div>';
@@ -58315,9 +58329,11 @@ var KB_APP_GUIDES = [
     '# Spend and prices\n- At the foot of the list on a phone, in the pane beside it on a computer.\n' +
     '- **Spend by supplier**: six months of bills, before GST. Tap a supplier for its bills and what the bank paid it.\n' +
     '- **Used, by week**: each use at the price paid for that line on the day; a line with no price is named and not counted.\n' +
-    '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.',
+    '- **Price trend**: one line’s bills; zinc against the market, landed at the uplift and premium set now.\n' +
+    '- **The zinc market** is LME × (1 + the uplift) + the premium (Settings → Costing → Zinc rate), on every day a Refresh kept. A bill is its price before GST, set against the market on its day (the last LME up to four days before), and what a supplier paid over it is weighted by the kilos. **Timing** places each bill within the market of the 30 days before it: near the low, in the middle or near the high.',
     // Version 2: one screen, its card and Spend and prices (the tab map, TM4d). Version 3: the reorder list's supplier and its lead time.
-    { version: 3 }),
+    // Version 4: the zinc market's working, which the price trend printed under its chart (the tab map, TM7).
+    { version: 4 }),
   // Production's four views (the tab map, TM4c), and the method its screens printed under their figures.
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +

@@ -185,7 +185,9 @@ function advRepriceMove(ctx, x) {
   // The full cost is the period's: the words say which, since an insight's move asks the same client for a month's own
   // (ADV_TASK_MOVES.insBelowVar) and both can be on one page (QA5-5). One decision, one key.
   var said = 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost ' + ctx.words;
-  return { key: 'reprice:' + x.id, tone: x.vsVar != null && x.vsVar < 0 ? 'red' : 'amber', what: name + ' below the full cost',
+  // Below the cost in the tone it takes wherever a client's realisation is judged (figToneAgainst at 5%, the tab map TM6a): within
+  // 5% of it amber, further under red.
+  return { key: 'reprice:' + x.id, tone: figToneAgainst(x.net, m.fullKg, 5) === 'danger' ? 'red' : 'amber', what: name + ' below the full cost',
     say: said,
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',

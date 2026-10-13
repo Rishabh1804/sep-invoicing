@@ -1613,6 +1613,21 @@ function figToneAgainst(v, ref, warnPct, lowerBetter) {
 }
 /* Days since an invoice was raised, as a debt: past 90 danger, past 60 warning. */
 function figToneAge(days) { return days == null ? null : days > 90 ? 'danger' : days > 60 ? 'warning' : null; }
+/* What is owed, by the age of its oldest open invoice, one tone wherever it is drawn (the tab map, TM6a): figToneAge, but never
+   red while a receipt is still unplaced (`loose`), since that money may be in already (the owed90 rule's reason): warning. */
+function figToneOwed(days, loose) { var t = figToneAge(days); return t === 'danger' && loose ? 'warning' : t; }
+/* An area's heads against the day's number, one tone wherever it is drawn (the tab map, TM6a: Floor's line cards, the attendance
+   panel's By area, Day's board and its Needed today, Areas): short a warning, at the number ok, over it info. Half a head either
+   way is the number (Areas reads an average over the days). Null with no number set. areaNeedWord says it in a word. */
+function areaNeedTone(heads, need) {
+  if (need == null || heads == null || !isFinite(heads)) return null;
+  var v = heads - need;
+  return v <= -0.5 ? 'warning' : v >= 0.5 ? 'info' : 'ok';
+}
+function areaNeedWord(heads, need) {
+  var t = areaNeedTone(heads, need), n = function(x) { return Number.isInteger(x) ? String(x) : formatNum(x, 1); };
+  return t === 'warning' ? 'Short ' + n(need - heads) : t === 'info' ? n(heads - need) + ' over' : t === 'ok' ? 'Met' : '';
+}
 /* How long a client takes to pay: a month is fine, two a warning, more danger. */
 function figTonePaysIn(days) { return days == null ? null : days <= 30 ? 'ok' : days <= 60 ? 'warning' : 'danger'; }
 /* A share that has a gate (attendance at the rest-day gate's 90 / 80): ok at or over okAt, warning over warnAt. */

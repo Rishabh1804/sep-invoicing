@@ -86,7 +86,14 @@ The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chai
   with one toolbar row; a challan's wait judged once (`imWaitTone`: the To-do's challan task now amber at 5 days, red at 10); a
   client's worst flag on its row; Performance's long cards folded; Quotations' card holds Pulse's reprice moves; Create's errors
   only after a try (P193).
-- Then: TM6 across the app, TM7 the docs and measures; then the QA chain, CI green and the merge.
+- **TM6**, across the app: one tone per fact (on site, heads against the day's number, owed by its age, below the cost, each one
+  judge wherever it is drawn); the period not yet ended marked in every chart (dashed or lighter, *to date*); History led by its
+  card with one toolbar row, a floor day its count that opens the day, a change's row at most 110 characters; Knowledge's views
+  each led by a card with one toolbar row (the kinds behind Filter on the phone), Start's cards only where something waits;
+  Invoiced's card with its month in the row; Reports' Print in its action bar; the last long notes made a line or moved to their
+  guide (P194). **No budget rose**; three screens grew by the card they gained (Invoiced, Troubleshoot, Training), said in the PR.
+  **Data flow:** no store or field changed; the change log's `label` now joins its parts with commas, not " · " (History reads both).
+- Then: TM7 the docs and measures; then the QA chain, CI green and the merge.
 
 **Data flow (10 Oct 2026, P208, suppliers):** two new top-level stores, `suppliers` (what the owner set on each: name, other
 spellings, lead time, GST, the balance on a day, totals as printed) and `supplierPays` (payments recorded here, voided with a reason),
@@ -143,7 +150,8 @@ and the payout's forecast and median carry them. Nothing exported changes.
 its cheques merged by id. The table below has the detail. **The pay history adds one key**: `labour.payCarryFrom` ('YYYY-MM', where
 monthly balances start), travelling with the book; nothing exported changes, and the bank's salary legs are read, never stored. **TM4 changes none**: no key, no export, nothing in the book moved; the
 device keys `sep_inv_prod_tab` and `sep_inv_power_tab` read a remembered `overview` as the first view. **TM5 changes none**: no key,
-no export, nothing in the book moved (the To-do's challan task only changes its tone).
+no export, nothing in the book moved (the To-do's challan task only changes its tone). **TM6 changes none**: no key, no export,
+nothing in the book moved; a production entry logged from now names its line as the floor does (*VAT A1*) in the change log's label.
 
 ## Built 9 Oct 2026, the second: a register run's start, and a file at the wrong Import (read this first)
 

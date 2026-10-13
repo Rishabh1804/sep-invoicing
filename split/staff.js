@@ -626,7 +626,7 @@ function _attDayView() {
     var need = a.floor && a.id !== 'flex' ? areaNeedOn(iso, a.id) : null;
     if (!list.length && !need) return;
     var on = list.filter(function(w) { var m = rec ? rec.marks[w.id] : null; return m && (m.st === 'P' || m.st === 'H'); }).length;
-    var dot = need == null ? '' : on < need ? uiDot('warning', 'Short ' + (need - on)) : on > need ? uiDot('info', (on - need) + ' over') : uiDot('ok', 'Met');
+    var dot = need == null ? '' : uiDot(areaNeedTone(on, need), areaNeedWord(on, need));
     html += '<div class="inv-panel inv-panel-flush" data-att-area-card="' + a.id + '"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(a.label) +
       ' <span class="inv-panel-count">' + on + (need != null ? '/' + need : '') + '</span></span>' + dot + '</div>' +
       (list.length ? list.map(function(w) { return _attBoardRow(w, rec ? rec.marks[w.id] : null); }).join('') : '<div class="inv-empty">Nobody here today.</div>') + '</div>';
@@ -693,15 +693,19 @@ function _attDayCostCard(iso) {
 function _attBoardRow(w, m) {
   var st = m ? m.st : '', hourly = compIsHourly(w);
   var states = hourly ? ['P', 'A'] : ATT_STATES;
-  var hrs = m && st !== 'A' ? (hourly ? (m.hours ? m.hours + ' h' : 'no hours') : (m.ot ? 'OT ' + m.ot + ' h' : '')) : '';
-  if (m && st !== 'A' && attTimesText(m)) hrs = attTimesText(m) + (hrs ? ' · ' + hrs : '');
-  var recD = attDay(_attDate, false);
-  var slots = m && st !== 'A' ? ATT_SLOTS.map(function(z) { var a = attHandSlotArea(recD, w.id, z[0]); return a ? z[1] + ' ' + areaLabel(a) : ''; }).filter(Boolean) : [];
-  if (slots.length) hrs = (hrs ? hrs + ' · ' : '') + slots.join(' · ');
+  // Two facts (the tab map, TM6): the tier, then the day as worked in one clause (a half day or an absence said in its word, the
+  // times, the hours or OT, the OT shifts' areas). Present, the usual, is the pressed P beside it and not said again.
+  var worked = m && (st === 'H' || st === 'A') ? [ATT_STATE_LABELS[st]] : [];
+  if (m && st !== 'A') {
+    if (attTimesText(m)) worked.push(attTimesText(m));
+    if (hourly) worked.push(m.hours ? m.hours + ' h' : 'no hours'); else if (m.ot) worked.push('OT ' + m.ot + ' h');
+    var recD = attDay(_attDate, false);
+    ATT_SLOTS.forEach(function(z) { var a = attHandSlotArea(recD, w.id, z[0]); if (a) worked.push(z[1] + ' ' + areaLabel(a)); });
+  }
+  var meta = [compClass(w.comp).label + (w.active === false ? ', left' : ''), m ? worked.join(', ') : 'unmarked'].filter(Boolean).join(' · ');
   return '<div class="inv-row" data-att-row="' + w.id + '">' +
     '<button class="inv-row-main" data-action="invAttEdit" data-id="' + w.id + '"><span class="inv-row-title">' + escHtml(w.name) + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(compClass(w.comp).label) + (w.active === false ? ' · left' : '') +
-    (m ? ' · ' + escHtml(ATT_STATE_LABELS[st] || '') + (hrs ? ' · ' + hrs : '') : ' · unmarked') + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(meta) + '</span>' +
     // The clerk's sheet against the supervisor's roll (faces.js, F4): said on the hand, ruled in its day.
     (typeof faceAttDotHtml === 'function' ? faceAttDotHtml(_attDate, w.id) : '') + '</button>' +
     '<span class="inv-row-end"><span class="inv-seg" role="group" aria-label="Attendance for ' + escHtml(w.name) + '">' +
@@ -915,7 +919,7 @@ function _attNeedCard(iso, rec) {
   var html = '<details class="inv-panel inv-panel-flush inv-panel-fold" id="attNeed" data-fold="attNeed"' + (uiFoldOpen('attNeed', false) ? ' open' : '') + '><summary class="inv-panel-head"><span class="inv-panel-title">Needed today</span><span class="inv-note">the numbers on each card</span></summary>';
   STAFF_AREAS.filter(function(a) { return a.floor && a.id !== 'flex'; }).forEach(function(a) {
     var need = areaNeedOn(iso, a.id), usual = areaTarget(a.id), h = heads[a.id] || 0, set = areaNeedSet(iso, a.id);
-    var dot = need == null ? uiDot('neutral', 'No number') : h < need ? uiDot('warning', 'Short ' + (need - h)) : h > need ? uiDot('info', (h - need) + ' over') : uiDot('ok', 'Met');
+    var dot = need == null ? uiDot('neutral', 'No number') : uiDot(areaNeedTone(h, need), areaNeedWord(h, need));
     html += '<div class="inv-row inv-row-2" data-need-area="' + a.id + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(a.label) + '</span>' +
       '<span class="inv-row-meta">' + h + ' on the floor' + (set && usual != null ? ' · usually ' + usual : '') + '</span></span>' +
       '<span class="inv-row-end"><input type="number" class="inv-input inv-input-sm inv-input-num" data-att-need data-area="' + a.id + '" step="1" min="0"' +
@@ -982,7 +986,8 @@ function _attExtraRowHtml(iso, x, i, rows) {
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></span>' +
     '<span class="inv-row-end' + (missing ? ' inv-row-end-stack' : '') + '"><span class="inv-num" data-extra-hours-sum>' + escHtml(formatNum(x.hours || 0, 1).replace(/\.0$/, '') + ' h') + '</span>' +
     (missing ? uiDot('warning', missing) : '') + '</span></summary>' +
-    '<div class="inv-row-children inv-panel-body">' + form + '</div></details>';
+    // The row's lines and a panel's body, each its own box (design §6.28's closed list: one look a component).
+    '<div class="inv-row-children"><div class="inv-panel-body">' + form + '</div></div></details>';
 }
 
 /* ===== WEEK VIEW ===== */

@@ -588,10 +588,12 @@ function powerCutsHtml(a) {
   });
   // The two charts, folded after the cuts (they led the Overview).
   h += uiFoldCard('power-months', '<div class="inv-panel inv-panel-flush" id="powerMonths"><div class="inv-panel-head"><span class="inv-panel-title">Cuts by month</span></div><div class="inv-panel-body">' +
-    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record' }) + '</div></div>', false);
+    chartBars(a.months.map(function(x) { return { label: billsMonthLabel(x.month), value: x.cuts }; }), { unit: 'count', ariaLabel: 'Cuts by month', emptyText: 'No cut on record',
+      // The month running is drawn as to date (TM6b).
+      toDate: chartToDateAt(a.months.map(function(x) { return x.month; }), localDateStr().slice(0, 7)) }) + '</div></div>', false);
   h += uiFoldCard('power-hours', '<div class="inv-panel inv-panel-flush" id="powerHours"><div class="inv-panel-head"><span class="inv-panel-title">When they come</span></div><div class="inv-panel-body">' +
     chartBars(a.hours.map(function(n, i) { return { label: (i % 12 || 12) + (i < 12 ? 'a' : 'p'), value: n }; }).slice(5, 23), { unit: 'count', ariaLabel: 'Cuts by the hour they began, 5 AM to 10 PM', emptyText: 'No cut on record' }) +
-    '<div class="inv-note">' + escHtml(a.bands.map(function(b) { return b.label + ' ' + b.cuts; }).join(' · ')) + '</div></div></div>', false);
+    '<div class="inv-note">' + escHtml(a.bands.map(function(b) { return b.label + ' ' + b.cuts; }).join(', ')) + '</div></div></div>', false);
   return h;
 }
 /* A cut (§3b-11): the day (and why it went) as its title, the clock and how long as two facts (a cut with no time back: the time it

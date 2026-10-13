@@ -82,9 +82,10 @@ export async function probeStop(page: Page, where: string, scope: string, jumps:
       const top = () => { const s = now(); return s ? s.scrollTop : window.scrollY; };
       // How far it can still scroll: a change that takes rows away can leave less below than was scrolled past.
       const room = () => { const s = now(); return s ? s.scrollHeight - s.clientHeight : document.documentElement.scrollHeight - window.innerHeight; };
-      // Near the top of what is showing, so the tabs and toolbar above it are out of sight.
+      // Near the top of what is showing, so the tabs and toolbar above it are out of sight. A dialog stands still over the page:
+      // scrolling the page under it would move nothing it holds, only the page the check behind it reads.
       if (sc) sc.scrollTop += el.getBoundingClientRect().top - sc.getBoundingClientRect().top - 40;
-      else window.scrollTo(0, window.scrollY + el.getBoundingClientRect().top - 140);
+      else if (!el.closest('.inv-scrim-dialog')) window.scrollTo(0, window.scrollY + el.getBoundingClientRect().top - 140);
       await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
       const scrollBefore = top(), before = el.getBoundingClientRect().top;
       const dialogs = document.querySelectorAll('.inv-scrim-dialog').length;
@@ -123,7 +124,42 @@ export async function probeStop(page: Page, where: string, scope: string, jumps:
   }
 }
 
-const probePage = (page: Page, where: string, jumps: Jump[], seen: Set<string>) => probeStop(page, where, '.inv-page-active', jumps, seen, { chips: true });
+const probePage = async (page: Page, where: string, jumps: Jump[], seen: Set<string>) => {
+  await probeStop(page, where, '.inv-page-active', jumps, seen, { chips: true });
+  await probeFilter(page, where, jumps, seen);
+};
+
+/* The phone keeps a toolbar's filters behind one Filter button (the tab map, TM1): open it, change each control in its dialog,
+   then Done, which draws the row again. The page under it must be where it was. */
+async function probeFilter(page: Page, where: string, jumps: Jump[], seen: Set<string>) {
+  await addSpacer(page);
+  const n = await page.locator('.inv-page-active [data-action="invTbFilter"]:visible').count();
+  for (let i = 0; i < n; i++) {
+    const btn = page.locator('.inv-page-active [data-action="invTbFilter"]:visible').nth(i);
+    if (!(await btn.count())) break;
+    const key = await btn.evaluate(b => (b.closest('[data-tb-filter]') as HTMLElement | null)?.dataset.tbFilter || '');
+    // As far down the page as a hand can still tap it: just under the bars that stay at the top. A tap, not a script's click, so
+    // it takes the focus a tap gives.
+    await btn.evaluate(b => {
+      const bars = Math.max(0, ...Array.from(document.querySelectorAll('.inv-topbar, body > .inv-ws-tabs')).map(e => e.getBoundingClientRect().bottom));
+      window.scrollBy(0, b.getBoundingClientRect().top - bars - 8);
+    });
+    await btn.click();
+    await page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished.catch(() => null))));
+    if (!(await page.locator('.inv-scrim-dialog [data-tb-filter-dialog]').count())) continue;
+    const before = await page.evaluate(() => window.scrollY);
+    await probeStop(page, `${where} › Filter${key ? ' ' + key : ''}`, 'dialog', jumps, seen, { chips: true });
+    const r = await page.evaluate(async () => {
+      const d = Array.from(document.querySelectorAll('.inv-scrim-dialog')).pop();
+      const done = d && d.querySelector('[data-action="invTbFilterDone"]') as HTMLElement | null;
+      if (done) done.click(); else (window as any).closeOverlay();
+      await new Promise(res => requestAnimationFrame(() => requestAnimationFrame(res)));
+      return { after: window.scrollY, room: document.documentElement.scrollHeight - window.innerHeight };
+    });
+    const keep = Math.min(before, Math.max(0, r.room));
+    if (Math.abs(r.after - keep) > 60) jumps.push({ where: `${where} › Filter Done`, control: key || 'invTbFilter', before, after: r.after, scrollBefore: before, scrollAfter: r.after });
+  }
+}
 
 /* Every page, every view tab on it, and the sub-views whose selects only show once something is opened. */
 export async function walkSelects(page: Page, jumps: Jump[]) {

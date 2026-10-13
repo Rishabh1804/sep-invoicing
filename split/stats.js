@@ -680,6 +680,8 @@ function renderStats() {
       if (d.key < tLo || d.key > tHi) return;
       if (!trendSpan) trendSpan = { i0: i, i1: i }; else trendSpan.i1 = i;
     });
+    // The day, week or month not yet ended is drawn as to date (TM6b): a month so far is not a collapse.
+    var trendNow = chartToDateAt(trendData.map(function(d) { return d.key; }), trendKey(localDateStr()));
     var spanAll = trendSpan && trendSpan.i0 === 0 && trendSpan.i1 === trendData.length - 1;
     if (spanAll) trendSpan = null;
     var periodName = escHtml(PERIOD_LABELS[_statsPeriod] || _statsPeriod);
@@ -697,8 +699,8 @@ function renderStats() {
         statsSeg('invStatsTrendGran', 'gran', { day: 'Day', week: 'Week', month: 'Month' }, _statsTrendGran, 'Step') +
         statsSeg('invStatsTrendType', 'type', { line: 'Line', bar: 'Bar' }, _statsTrendType, 'Chart') + '</div>' +
         (_statsTrendType === 'bar'
-          ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan })
-          : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan })) +
+          ? chartBars(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan, toDate: trendNow })
+          : chartLine(trendData, { unit: trendUnit, ariaLabel: trendTitles[_statsTrendSeries], span: trendSpan, toDate: trendNow })) +
         statsNote(trendWhat) +
         // Incoming material is the leading indicator: it is what has arrived and
         // not yet been billed, so a fall here shows up in revenue weeks later.
@@ -1222,14 +1224,15 @@ function pushFloorEvents(events) {
       var where = Object.keys(areas)
         .sort(function(a, b) { return areas[b] - areas[a]; })
         .map(function(a) { return labelFor(a) + ' ' + areas[a]; })
-        .join(' \u00b7 ');
+        .join(', ');
+      var counts = present + ' present' + (half ? ', ' + half + ' half' : '') + (absent ? ', ' + absent + ' absent' : '') +
+        (ot ? ', ' + formatNum(ot, 1) + ' h OT' : '');
+      // The row is the day's count; where everybody stood is the day's own board, a tap away (the tab map, TM6e: seven areas
+      // ran the row past two lines), and in the pane, the row's title, the search and the CSV.
       events.push({
-        ts: ts, type: 'floor', kind: 'shift', sourceId: null, jump: null, clock: 'floor',
-        text: 'Attendance recorded \u2014 ' + present + ' present' +
-          (half ? ', ' + half + ' half' : '') +
-          (absent ? ', ' + absent + ' absent' : '') +
-          (ot ? ', ' + formatNum(ot, 1) + ' h OT' : '') +
-          (where ? ' \u2014 ' + where : '')
+        ts: ts, type: 'floor', kind: 'shift', sourceId: null, jump: 'day', day: iso, clock: 'floor',
+        text: 'Attendance recorded: ' + counts,
+        full: 'Attendance recorded: ' + counts + (where ? '. By area: ' + where : '')
       });
     }
 
@@ -1245,7 +1248,7 @@ function pushFloorEvents(events) {
         var span = (x.from && x.to) ? x.from + '\u2013' + x.to : '';
         var crew = (x.crew || []).length;
         events.push({
-          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: null, clock: 'floor',
+          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: 'day', day: iso, clock: 'floor',
           text: 'OT block \u2014 ' + formatNum(hrs, 1) + ' h booked to ' + covered +
             (span ? ' (' + span + ')' : '') +
             // Say which of the three inputs is missing, in the row, rather than
@@ -1256,7 +1259,7 @@ function pushFloorEvents(events) {
         });
       } else {
         events.push({
-          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: null, clock: 'floor',
+          ts: ts, type: 'floor', kind: 'extra', sourceId: null, jump: 'day', day: iso, clock: 'floor',
           text: 'Extra hours \u2014 ' + formatNum(hrs, 1) + ' h booked to ' +
             labelFor(x.area) + ' (general shift)'
         });
@@ -1317,7 +1320,8 @@ function filteredHistoryEvents() {
   }
   if (_historySearch) {
     var needle = _historySearch.toLowerCase();
-    events = events.filter(function(ev) { return (ev.text || '').toLowerCase().indexOf(needle) !== -1; });
+    // The row's words and its whole (a change's every field, a floor day's areas).
+    events = events.filter(function(ev) { return ((ev.text || '') + '\n' + (ev.full || '')).toLowerCase().indexOf(needle) !== -1; });
   }
   if (_historyDateFrom) {
     var fp = _historyDateFrom.split('-');
@@ -1361,7 +1365,11 @@ function renderHistory() {
   var toolbar = document.getElementById('historyToolbar');
   var area = document.getElementById('historyList');
   if (!area) return;
+  var events = filteredHistoryEvents();
 
+  // The tab map, TM6c and TM6f: the verdict card, then one toolbar row: the search, Filter (client, who, the kind, the range; inline
+  // on the desktop with the range a dialog of its own, as Invoices'), and More holding the CSV. The filters applied are tokens under
+  // it on the phone. Seven chips and two dates had filled half the phone's first screen.
   if (toolbar) {
     var clientIds = new Set();
     S.invoices.forEach(function(i) { clientIds.add(i.clientId); });
@@ -1371,35 +1379,40 @@ function renderHistory() {
       var c = S.clients.find(function(x) { return x.id === cid; });
       if (c) clientOpts += '<option value="' + cid + '"' + (_historyClientFilter == cid ? ' selected' : '') + '>' + escHtml(c.name) + '</option>';
     });
-    // The kind of event is a choice among six (§6.6): chips pressed with aria-pressed,
-    // wrapping on the phone rather than stretched to the height of the filters beside them.
-    var typeChips = HISTORY_TYPES.map(function(t) {
-      return '<button class="inv-chip" data-action="invHistoryType" data-type="' + t.key + '" aria-pressed="' + (_historyType === t.key) + '">' + t.label + '</button>';
-    }).join('');
-
     // Who made it (changelog.js): shown once anybody has an ID or the log names one.
     var whoOpts = typeof chgWhoOptions === 'function' ? chgWhoOptions() : [];
     if (_historyWho && !whoOpts.some(function(o) { return o[0] === _historyWho; })) _historyWho = '';
-    var whoSel = whoOpts.length ? '<select class="inv-select inv-toolbar-item" id="historyWho" aria-label="Filter by who made it">' +
-      '<option value="">Everyone</option>' + whoOpts.map(function(o) {
-        return '<option value="' + escHtml(o[0]) + '"' + (_historyWho === o[0] ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
-      }).join('') + '</select>' : '';
-    toolbar.innerHTML = '<div class="inv-toolbar">' +
+    var phone = !_isDesktop, rangeActive = !!(_historyDateFrom || _historyDateTo);
+    var filters = '<select class="inv-select inv-toolbar-item" id="historyClientFilter" aria-label="Filter by client">' +
+      '<option value="">All clients</option>' + clientOpts + '</select>' +
+      (whoOpts.length ? '<select class="inv-select inv-toolbar-item" id="historyWho" aria-label="Filter by who made it">' +
+        '<option value="">Everyone</option>' + whoOpts.map(function(o) {
+          return '<option value="' + escHtml(o[0]) + '"' + (_historyWho === o[0] ? ' selected' : '') + '>' + escHtml(o[1]) + '</option>';
+        }).join('') + '</select>' : '') +
+      // The kind of event, one of seven: a choice in a list (it was seven chips, three rows on the phone).
+      '<select class="inv-select inv-toolbar-item" id="historyType" aria-label="Kind of event">' + HISTORY_TYPES.map(function(t) {
+        return '<option value="' + t.key + '"' + (_historyType === t.key ? ' selected' : '') + '>' + (t.key === 'all' ? 'Every kind' : t.label) + '</option>';
+      }).join('') + '</select>' +
+      (phone ? historyRangeFieldsHtml()
+        : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryRange" aria-haspopup="dialog" data-history-range>' +
+          (rangeActive ? 'Range: ' + escHtml(historyRangeWord()) : 'Range') + '</button>');
+    var count = (_historyClientFilter ? 1 : 0) + (_historyWho ? 1 : 0) + (_historyType !== 'all' ? 1 : 0) + (rangeActive ? 1 : 0);
+    var client = _historyClientFilter ? S.clients.find(function(c) { return String(c.id) === String(_historyClientFilter); }) : null;
+    var who = _historyWho ? whoOpts.find(function(o) { return o[0] === _historyWho; }) : null;
+    var kind = HISTORY_TYPES.find(function(t) { return t.key === _historyType; });
+    toolbar.innerHTML = '<div id="historyVerdict">' + historyVerdictHtml(events, count > 0 || !!_historySearch) + '</div>' +
+      '<div class="inv-toolbar" data-history-toolbar>' +
       '<label class="inv-search">' + ICON_SEARCH +
       '<input type="search" id="historySearch" value="' + escHtml(_historySearch) + '" placeholder="Search invoice or challan number" autocomplete="off" aria-label="Search the log"></label>' +
-      '<select class="inv-select inv-toolbar-item" id="historyClientFilter" aria-label="Filter by client">' +
-      '<option value="">All clients</option>' + clientOpts + '</select>' + whoSel +
-      '</div>' +
-      '<div class="inv-toolbar">' +
-      '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
-      '<input type="date" class="inv-input" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '" aria-label="From date"></label>' +
-      '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
-      '<input type="date" class="inv-input" id="historyDateTo" value="' + escHtml(_historyDateTo) + '" aria-label="To date"></label>' +
-      '</div>' +
-      '<div class="inv-toolbar" role="group" aria-label="Kind of event">' + typeChips + '</div>';
+      uiFilterHtml({ key: 'history', count: count, controls: filters }) +
+      uiToolbarMoreHtml([{ label: 'Export CSV', action: 'invHistoryExport' }], { icon: phone }) + '</div>' +
+      uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invHistoryFilterClear', attrs: ' data-clear="client"' },
+        { key: 'Who', value: who ? who[1] : '', action: 'invHistoryFilterClear', attrs: ' data-clear="who"' },
+        { key: 'Kind', value: _historyType !== 'all' && kind ? kind.label : '', action: 'invHistoryFilterClear', attrs: ' data-clear="kind"' },
+        { key: 'Range', value: rangeActive ? historyRangeWord() : '', action: 'invHistoryFilterClear', attrs: ' data-clear="range"' }]);
   }
 
-  var events = filteredHistoryEvents();
+
   // Under Changes, how many older entries the log let go of (changelog.js).
   var dropped = _historyType === 'change' && typeof chgDroppedText === 'function' ? chgDroppedText() : '';
 
@@ -1416,8 +1429,7 @@ function renderHistory() {
   // No total of the amounts: the log holds invoices with their GST, challans before it (the same work the invoices
   // bill, counted twice), deleted invoices and floor days, and no one sum of those is a figure. Stats carries the money.
   var html = '<div class="inv-panel inv-panel-flush" data-card="history">' +
-    '<div class="inv-panel-head"><span class="inv-panel-title">Activity log <span class="inv-panel-count">' + events.length + '</span></span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHistoryExport">Export CSV</button></div>' +
+    '<div class="inv-panel-head"><span class="inv-panel-title">Activity log <span class="inv-panel-count">' + events.length + '</span></span></div>' +
     (dropped ? '<div class="inv-panel-body inv-note" data-chg-dropped>' + escHtml(dropped) + '</div>' : '');
 
   historyEvKeys(events);
@@ -1438,7 +1450,7 @@ function renderHistory() {
   // a tappable row would promise a destination that does not exist, so it is a
   // plain row (a div, a tr with no action), never a button.
   function jumpOf(ev) {
-    return ev.jump === 'challan' ? 'invHistoryJumpChallan' : ev.jump === 'invoice' ? 'invHistoryJumpInvoice' : '';
+    return ev.jump === 'challan' ? 'invHistoryJumpChallan' : ev.jump === 'invoice' ? 'invHistoryJumpInvoice' : historyDayJump(ev) ? 'invHistoryJumpDay' : '';
   }
   function amountHtml(ev) { return ev.amount ? '<span class="inv-num">' + formatCurrency(ev.amount) + '</span>' : ''; }
   // A change names its first fields on the row; every field is in its title (and in the CSV).
@@ -1471,7 +1483,7 @@ function renderHistory() {
           '<span class="inv-row-meta inv-id">' + escHtml(historyWhen(ev, 'all')) + '</span></span>' +
           '<span class="inv-row-end"><span class="inv-row-stack">' + amountHtml(ev) + historyKindHtml(ev) + '</span></span>';
         html += action
-          ? '<button class="inv-row inv-row-2 inv-row-top" data-ev="' + ev.kind + '" data-action="' + action + '" data-id="' + escHtml(ev.sourceId) + '">' + inner + '</button>'
+          ? '<button class="inv-row inv-row-2 inv-row-top" data-ev="' + ev.kind + '" data-action="' + action + '" data-id="' + escHtml(ev.jump === 'day' ? ev.day : ev.sourceId) + '">' + inner + '</button>'
           : '<div class="inv-row inv-row-2 inv-row-top" data-ev="' + ev.kind + '">' + inner + '</div>';
       });
     });
@@ -1494,6 +1506,50 @@ function renderHistory() {
   paneScrollKeep(function() { area.innerHTML = html; });
 }
 
+/* History's verdict (the tab map, TM6f): what the log shows today, and what was removed or cancelled in the week, in danger: a
+   deletion is what an audit goes looking for. Over the events the filter shows. */
+var HISTORY_REMOVALS = { void: 1, attDelete: 1, cancel: 1, quoteVoid: 1 };
+function historyVerdictHtml(events, filtered) {
+  var today = localDateStr(), weekAgo = isoAddDays(today, -6);
+  var dayOf = function(ev) { return ev.ts ? isoOf(new Date(ev.ts)) : ''; };
+  var todayN = events.filter(function(ev) { return dayOf(ev) === today; }).length;
+  var week = events.filter(function(ev) { var d = dayOf(ev); return d >= weekAgo && d <= today; });
+  var removed = week.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; }).length;
+  if (!events.length) return uiVerdictHtml({ screen: 'History' + (filtered ? ' · filtered' : ''), tone: 'neutral', verdict: filtered ? 'Nothing matches these filters' : 'Nothing recorded yet', key: 'pageHistory' });
+  return uiVerdictHtml({ screen: 'History' + (filtered ? ' · filtered' : ''), tone: removed ? 'danger' : todayN ? 'ok' : 'neutral',
+    verdict: todoPlural(todayN, 'event') + ' today' + (removed ? ' · ' + removed + ' removed or cancelled this week' : ''),
+    facts: [todoPlural(week.length, 'event') + ' this week', removed ? { text: todoPlural(removed, 'removal') + ' to read', tone: 'danger' } : 'nothing removed this week'],
+    key: 'pageHistory', attrs: ' data-history-removed="' + removed + '"' });
+}
+/* The range in use, in words: "1 Oct – 9 Oct". */
+function historyRangeWord() {
+  return (_historyDateFrom ? stockShortDate(_historyDateFrom) : 'the start') + ' – ' + (_historyDateTo ? stockShortDate(_historyDateTo) : 'today');
+}
+/* The range's two dates: in the phone's Filter; on the desktop in a dialog of its own, so the row stays one (Invoices' way). */
+function historyRangeFieldsHtml() {
+  return '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">From</span>' +
+    '<input type="date" class="inv-input" id="historyDateFrom" value="' + escHtml(_historyDateFrom) + '" aria-label="From date"></label>' +
+    '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">To</span>' +
+    '<input type="date" class="inv-input" id="historyDateTo" value="' + escHtml(_historyDateTo) + '" aria-label="To date"></label>';
+}
+function historyRangeOpen() {
+  var scrim = dialogOpen('<div class="inv-dialog" data-history-range-dialog>' + dialogHeadHtml('Range', 'invTbFilterDone') +
+    '<div class="inv-dialog-body inv-toolbar" data-nodirty>' + historyRangeFieldsHtml() + '</div>' +
+    '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invTbFilterDone">Done</button></div></div>', { dismiss: true });
+  if (scrim) scrim._onClose = UI_FILTER_DONE.history;
+}
+/* The Filter dialog or the range shut: the row and the list drawn again with the filters as they now stand. */
+UI_FILTER_DONE.history = function() { renderHistory(); };
+/* A filter's token tapped: that filter cleared. */
+function historyFilterClear(which) {
+  if (which === 'client') _historyClientFilter = '';
+  else if (which === 'who') _historyWho = '';
+  else if (which === 'kind') _historyType = 'all';
+  else if (which === 'range') { _historyDateFrom = ''; _historyDateTo = ''; }
+  _historyShowCount = UI_MORE_ROWS;
+  renderHistory();
+}
+
 /* An event's key, its address in the desktop's pane: what it is, when, and the record it names — never its text where the
    text can move (a change names the user who made it, and a rename moved the key; a change's record id was dropped when the
    record went). Two events alike in all of that (two identical EXTRA rows on one day) are told apart by their order
@@ -1510,6 +1566,8 @@ function historyEvKeys(events) {
   });
 }
 function historyEvKey(ev) { return ev._key || relayHash(historyEvBase(ev)); }
+/* A floor day's row opens that day in People → Attendance, for a role that opens it (the tab map, TM6e). */
+function historyDayJump(ev) { return ev.jump === 'day' && !!ev.day && (typeof grdSees !== 'function' || grdSees('pageStaff')); }
 /* One event in the desktop's pane: the event whole (a change's every field), who and on which device, and the invoice or
    challan it names, drawn as the Invoices and Challans panes draw it, with the way there. */
 function historyPaneHtml(ev) {
@@ -1532,6 +1590,9 @@ function historyPaneHtml(ev) {
     var im = (S.incomingMaterial || []).find(function(c) { return c.id === ev.sourceId; });
     if (im) h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(imChallanLabel(im)) + '</span>' +
       '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpChallan" data-id="' + escHtml(im.id) + '">Open in Challans</button></div>' + challanDetailHtml(im) + '</div>';
+  } else if (historyDayJump(ev)) {
+    h += '<div class="inv-panel"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(formatDate(ev.day)) + '</span>' +
+      '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHistoryJumpDay" data-id="' + escHtml(ev.day) + '">Open the day</button></div></div>';
   } else if (ev.kind === 'void') h += '<div class="inv-note">' + (ev.source === 'reconciled'
     ? 'A number accounted for in the number audit: no invoice was ever recorded under it here.'
     : 'The invoice this number was is deleted; Invoices → Number audit holds its record.') + '</div>';

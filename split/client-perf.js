@@ -401,7 +401,9 @@ function renderClientPerformance(container) {
   });
   html += chartBars(series, {
     unit: _cpSeries === 'tonnage' ? 'kg' : _cpSeries === 'rate' ? 'rate' : 'money',
-    ariaLabel: 'Month on month'
+    ariaLabel: 'Month on month',
+    // The month running is drawn as to date (TM6b).
+    toDate: chartToDateAt(monthly.map(function(r) { return r.month; }), localDateStr().slice(0, 7))
   });
 
   if (last) {

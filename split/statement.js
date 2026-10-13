@@ -177,7 +177,7 @@ function soaOpen(clientId) {
   var html = '<div class="inv-dialog" data-soa-dialog="' + escHtml(String(c.id)) + '" role="dialog" aria-modal="true" aria-labelledby="soaTitle">' +
     dialogHeadHtml('<span id="soaTitle">' + escHtml(c.name) + '</span>') +
     '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Statement of account</span>' +
-      '<span class="inv-num" data-soa-owed>' + figHtml(formatCurrency(s.closing), s.closing > 0.005 && s.open.length ? figToneAge(s.open[0].days) : null) + '</span></div>' +
+      '<span class="inv-num" data-soa-owed>' + figHtml(formatCurrency(s.closing), s.closing > 0.005 && s.open.length ? finOwedTone(s.open[0].days) : null) + '</span></div>' +
     '<div class="inv-panel-body"><div class="inv-field"><label class="inv-field-label" for="soaFrom">From</label>' +
       '<input class="inv-input inv-id" type="date" id="soaFrom" value="' + s.from + '" min="' + s.start + '" max="' + s.to + '"></div>' +
       '<div class="inv-note" data-soa-sum>' + s.rows.length + ' entr' + (s.rows.length === 1 ? 'y' : 'ies') + ' to ' + escHtml(formatDate(s.to)) +

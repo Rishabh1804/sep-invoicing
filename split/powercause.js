@@ -254,7 +254,8 @@ function pcsCutOf(entryId) {
 /* Where a cut hit, in words. */
 function pcsWhereWord(where, unitId) {
   var u = unitId && typeof pltUnitById === 'function' ? pltUnitById(unitId) : null;
-  if (u) return u.name + ' · ' + pltStationName(u.station);
+  // A unit and its line are one fact (the tab map, TM6e): "Rectifier 1 (VAT A1)", never a middle dot inside a row's two.
+  if (u) return u.name + ' (' + pltStationName(u.station) + ')';
   if (!where) return '';
   return where === 'all' ? 'the whole plant' : pltStationName(where);
 }
@@ -565,10 +566,11 @@ function pcsCompleteRowsHtml(list) {
 /* Under a cut on Power → Cuts: why it went, where it hit and what brought it back, with the one button that completes it. */
 function pcsCutWhyHtml(c) {
   var r = c.reason ? pcsGet(c.reason) : null, f = c.fix ? pcsGet(c.fix) : null, where = pcsWhereWord(c.where, c.unitId);
-  var bits = [r ? r.name + ' (' + pcsScopeWord(r.scope) + ')' : 'no reason given', where ? 'hit ' + where : '', f ? 'brought back by ' + f.name : '', c.cnote || ''].filter(Boolean);
+  // Two facts (the tab map, TM6): why, with where it hit, and what brought it back; the owner's note is a line of its own.
+  var bits = [(r ? r.name + ' (' + pcsScopeWord(r.scope) + ')' : 'no reason given') + (where ? ', hit ' + where : ''), f ? 'brought back by ' + f.name : ''].filter(Boolean);
   var label = c.open ? 'Complete' : r || f ? 'Edit' : 'Add reason';
   return '<div class="inv-row inv-row-2 inv-row-flow" data-pcs-why="' + escHtml(c.ids[0]) + '"><span class="inv-row-main"><span class="inv-row-title">' + (c.open ? 'No time back yet' : 'Why it went') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span></span><span class="inv-row-end">' +
+    '<span class="inv-row-meta inv-row-wrap">' + escHtml(bits.join(' · ')) + '</span>' + (c.cnote ? '<span class="inv-row-meta inv-row-wrap" data-pcs-note>' + escHtml(c.cnote) + '</span>' : '') + '</span><span class="inv-row-end">' +
     '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPcsOpen" data-id="' + escHtml(c.ids[0]) + '">' + label + '</button></span></div>';
 }
 /* Power → Cuts: what needs the owner (the tab map, TM4e). `lead`, a row that comes first (the load approved and not yet billed, in
@@ -642,9 +644,11 @@ function pcsPlantMapHtml(z) {
     var p = by[k] || { n: 0, n30: 0, plant30: 0, dmg: 0, min: 0, units: {} };
     var tone = k === 'all' ? (p.n30 ? 'info' : 'ok') : p.plant30 >= PCS_RECUR ? 'danger' : p.plant30 ? 'warning' : 'ok';
     var units = Object.keys(p.units).map(function(id) { var u = typeof pltUnitById === 'function' ? pltUnitById(id) : null; return (u ? u.name : 'a unit') + ' ' + p.units[id] + '×'; });
-    var sub = p.n ? [p.n30 + ' in 30 days', powerHours(p.min) + ' dark', p.dmg ? formatCurrency(p.dmg) : ''].concat(units).filter(Boolean).join(' · ') : 'no cut tied to it';
+    // Two facts on the tile (the tab map, TM6): the last 30 days and what it cost; the hours dark and the units in its title.
+    var full = p.n ? [p.n30 + ' in 30 days', powerHours(p.min) + ' dark', p.dmg ? formatCurrency(p.dmg) : ''].concat(units).filter(Boolean).join(' · ') : '';
+    var sub = p.n ? [p.n30 + ' in 30 days', p.dmg ? formatCurrency(p.dmg) : powerHours(p.min) + ' dark'].join(' · ') : 'no cut tied to it';
     return '<div class="inv-tile' + (p.n ? ' inv-tile-' + tone : '') + '" data-pcs-place="' + k + '"><div class="inv-tile-label">' + escHtml(k === 'all' ? 'The whole plant' : pltStationName(k)) + '</div>' +
-      '<div class="inv-tile-value">' + p.n + '</div><div class="inv-tile-sub">' + escHtml(sub) + '</div></div>';
+      '<div class="inv-tile-value">' + p.n + '</div><div class="inv-tile-sub"' + (full ? ' title="' + escHtml(full) + '"' : '') + '>' + escHtml(sub) + '</div></div>';
   });
   var untied = z.t.reasoned - z.places.reduce(function(s, p) { return s + p.n; }, 0);
   return '<div class="inv-panel inv-panel-flush" id="pcsPlaces"><div class="inv-panel-head"><span class="inv-panel-title">Where they hit</span>' +
@@ -658,9 +662,10 @@ function pcsListHtml(kind) {
   if (!list.length) return '';
   var rows = list.map(function(c) { return { c: c, u: uses[c.id] || { n: 0, last: '' } }; }).sort(function(p, q) { return q.u.n - p.u.n || p.c.name.localeCompare(q.c.name); }).map(function(x) {
     var c = x.c, sp = (c.aliases || []).length;
-    var meta = [todoPlural(x.u.n, 'cut'), x.u.last ? 'last ' + stockShortDate(x.u.last) : '', kind === 'reason' ? pcsScopeWord(c.scope) : '', sp ? todoPlural(sp, 'spelling') + ' kept' : ''].filter(Boolean).join(' · ');
+    // Two facts (the tab map, TM6): how often and when last. Where it starts is the dot at the row's end; the spellings kept, the title.
+    var meta = [todoPlural(x.u.n, 'cut'), x.u.last ? 'last ' + stockShortDate(x.u.last) : ''].filter(Boolean).join(' · ');
     return '<div class="inv-row inv-row-2" data-pcs-entry="' + escHtml(c.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.name) + '</span>' +
-      '<span class="inv-row-meta inv-row-wrap"' + (sp ? ' title="' + escHtml('Typed as: ' + c.aliases.join(' · ')) + '"' : '') + '>' + escHtml(meta) + '</span></span>' +
+      '<span class="inv-row-meta inv-row-wrap"' + (sp ? ' title="' + escHtml(todoPlural(sp, 'spelling') + ' kept: ' + c.aliases.join(', ')) + '"' : '') + '>' + escHtml(meta) + '</span></span>' +
       '<span class="inv-row-end">' + (kind === 'reason' ? uiDot(pcsTone(c.scope, 0), escHtml(c.scope === 'grid' ? 'Grid' : c.scope === 'plant' ? 'Plant' : 'Not placed')) : '') +
       (pcsCanEdit() ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invPcsEdit" data-id="' + escHtml(c.id) + '">Edit</button>' : '') + '</span></div>';
   });
@@ -684,7 +689,7 @@ function pcsEditOpen(id) {
   if (others.length) h += '<div class="inv-field"><label class="inv-field-label" for="pcsEditMerge">Merge into</label><select id="pcsEditMerge" class="inv-select"><option value="">Keep it on its own</option>' +
     others.map(function(x) { return '<option value="' + escHtml(x.id) + '">' + escHtml(x.name) + '</option>'; }).join('') + '</select>' +
     '<span class="inv-note">Every cut that named it reads the one it joins, and its spellings go with it.</span></div>';
-  h += '</div>' + ((c.aliases || []).length ? '<div class="inv-note">Typed as: ' + escHtml(c.aliases.join(' · ')) + '</div>' : '') +
+  h += '</div>' + ((c.aliases || []).length ? '<div class="inv-note">Typed as: ' + escHtml(c.aliases.join(', ')) + '</div>' : '') +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button><button class="inv-btn inv-btn-primary" data-action="invPcsEditSave" data-id="' + escHtml(c.id) + '">Save</button></div></div>';
   dialogOpen(h, { dismiss: true });
 }
@@ -736,7 +741,8 @@ function pcsUnitHtml(u) {
   var s = pcsTiedTo(function(c) { return c.unitId === u.id; });
   if (!s.n) return '';
   return '<div class="inv-row inv-row-2" data-pcs-unit><span class="inv-row-main"><span class="inv-row-title">' + escHtml(todoPlural(s.n, 'power cut') + ' tied to it in 90 days') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + escHtml([powerHours(s.min) + ' dark', 'last ' + formatDate(s.last), s.reasons.length ? s.reasons.slice(0, 2).join(', ') : ''].filter(Boolean).join(' · ')) + '</span></span>' +
+    // Two facts (the tab map, TM6): why, and when last; the hours dark in the title.
+    '<span class="inv-row-meta inv-row-wrap" title="' + escHtml(powerHours(s.min) + ' dark') + '">' + escHtml([s.reasons.length ? s.reasons.slice(0, 2).join(', ') : 'no reason given', 'last ' + formatDate(s.last)].join(' · ')) + '</span></span>' +
     '<span class="inv-row-end">' + uiDot(s.n >= PCS_RECUR ? 'danger' : 'warning', s.n >= PCS_RECUR ? 'Keeps cutting' : 'Cut') + '</span></div>';
 }
 function pcsStationNote(station) {
@@ -777,7 +783,9 @@ TODO_RULE_FNS.powerCause = function() {
     return { key: 'powerCause:' + e.c.id, rule: 'powerCause', tone: !grid && e.n30 >= PCS_RECUR_RED ? 'red' : 'amber', amount: e.dmg30, reasonId: e.c.id,
       unitId: where && where.indexOf('u:') === 0 ? where.slice(2) : null, scope: e.c.scope || '',
       title: '“' + e.c.name + '” cut the power ' + e.n30 + ' times in 30 days',
-      sub: [e.dmg30 ? formatCurrency(e.dmg30) + ' in damage' : '', pcsScopeWord(e.c.scope), whereWord ? 'hit ' + whereWord : '', fx ? 'brought back by ' + pcsName(fx) : ''].filter(Boolean).join(' · '),
+      // Two facts (the tab map, TM6e): what it cost, else where it starts; then where it hit, else what brought it back. The rest
+      // are the task's figures.
+      sub: [e.dmg30 ? formatCurrency(e.dmg30) + ' in damage' : pcsScopeWord(e.c.scope), whereWord ? 'hit ' + whereWord : fx ? 'brought back by ' + pcsName(fx) : ''].filter(Boolean).join(' · '),
       why: 'Power · the causes',
       facts: [['Cuts in 30 days', String(e.n30)], ['Damage in 30 days', formatCurrency(e.dmg30)], ['Where it starts', pcsScopeWord(e.c.scope)]]
         .concat(whereWord ? [['Where it hit', whereWord]] : []).concat(fx ? [['What brought it back', pcsName(fx)]] : []),

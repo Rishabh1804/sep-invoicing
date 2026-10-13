@@ -9,8 +9,10 @@
 var _finCtxMemo = null;
 function finCtx() {
   if (!_finCtxMemo) {
-    var rows = bankRows(), ctx = { rows: rows, cls: rows.length ? bankClassify(rows) : [], _recv: null };
+    var rows = bankRows(), ctx = { rows: rows, cls: rows.length ? bankClassify(rows) : [], _recv: null, _loose: null };
     ctx.recv = function() { return ctx._recv || (ctx._recv = bankReceivables(ctx.cls)); };
+    // Receipts with no client since receivables start: while any is, what is owed may be paid already (finOwedTone).
+    ctx.loose = function() { return ctx._loose != null ? ctx._loose : (ctx._loose = rows.length ? bankLooseReceipts(ctx.cls, bankRecvFrom(rows)).length : 0); };
     _finCtxMemo = ctx;
     Promise.resolve().then(function() { _finCtxMemo = null; });
   }
@@ -86,7 +88,13 @@ function finForecast(days) {
   var ctx = finCtx(), rows = ctx.rows;
   if (!rows.length) return null;
   var today = localDateStr(), last = rows[rows.length - 1], end = isoAddDays(today, days);
-  var ev = {}, rests = [];
+  // What it rests on, twice: `rests` the sentences (the To-do and the specs read them), `facts` the same as rows a fact each, a few
+  // words and the figure, which the Overview draws folded (the tab map, TM6e: the sentences ran to a paragraph under the chart).
+  var ev = {}, rests = [], facts = [];
+  var rest = function(full, label, value, sub, first) {
+    if (first) { rests.unshift(full); facts.unshift({ label: label, value: value || '', sub: sub || '', attrs: ' title="' + escHtml(full) + '"' }); return; }
+    rests.push(full); facts.push({ label: label, value: value || '', sub: sub || '', attrs: ' title="' + escHtml(full) + '"' });
+  };
   var add = function(date, k, lo, mid, hi) {
     if (date <= today || date > end) return;
     var e = ev[date] || (ev[date] = { in: [0, 0, 0], out: [0, 0, 0] });
@@ -135,11 +143,13 @@ function finForecast(days) {
     noInflow = { open: unread, amount: gstRound(unreadAmt),
       why: 'no receipt is placed against an invoice yet, so it cannot tell when clients pay, and ' + left.join(' and ') + (unread > 1 || left.length > 1 ? ' are' : ' is') + ' not counted in' };
   }
-  if (noInflow) rests.push('Outflows only: ' + noInflow.why + '.');
-  else if (bookMed == null) rests.push('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.');
-  else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
-    (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
-  if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
+  if (noInflow) rest('Outflows only: ' + noInflow.why + '.', 'Outflows only: no receipt placed on an invoice', '', 'money in is not counted');
+  else if (bookMed == null) rest('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.', 'Nothing expected in: no receipt placed on an invoice', '', 'outflows only');
+  else rest(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
+    (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.',
+    todoPlural(nOpen, 'open invoice') + ' at each client’s days to pay', finRs(amtOpen), late ? late + ' a little past it, spread over four weeks' : 'the book’s ' + Math.round(bookMed) + ' days for a client with few receipts');
+  if (stale) rest(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.',
+    todoPlural(stale, 'invoice') + ' long past their day, not expected', finRs(staleAmt), 'chase them, do not plan on them');
   // In: a cheque in hand (TM3b) reaches the bank the next working day, or on its own date where it is dated later. It already
   // settled the invoices it pays (bankReceivables), so they are not expected twice.
   var held = bankChequesHeld(ctx.cls), heldDay = bankChequeNextWorkday(today);
@@ -147,9 +157,11 @@ function finForecast(days) {
     var amt = Number(o.ch.amount) || 0, on = o.ch.chequeDate && o.ch.chequeDate > heldDay ? o.ch.chequeDate : heldDay;
     add(on, 'in', amt, amt, amt);
   });
-  if (held.n) rests.push(todoPlural(held.n, 'cheque') + ' in hand, ' + formatCurrency(held.amount) + ', expected in the bank on ' + formatDate(heldDay) + ' (a post-dated one on its date).');
+  if (held.n) rest(todoPlural(held.n, 'cheque') + ' in hand, ' + formatCurrency(held.amount) + ', expected in the bank on ' + formatDate(heldDay) + ' (a post-dated one on its date).',
+    todoPlural(held.n, 'cheque') + ' in hand, in on ' + stockShortDate(heldDay), finRs(held.amount), 'a post-dated one on its date');
   var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows));
-  if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
+  if (loose.length && bookMed != null) rest(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.',
+    todoPlural(loose.length, 'receipt') + ' not placed on a client', '', 'money in reads high');
 
   if (bookMed != null) {
     var weeks = [];
@@ -159,7 +171,8 @@ function finForecast(days) {
       if (attParseIso(d).getDay() === 0) continue;
       add(isoAddDays(d, Math.round(bookMed)), 'in', perDay[0], perDay[1], perDay[2]);
     }
-    if (billed > 0) rests.push('New billing at the last eight weeks’ pace, ' + formatCurrency(gstRound(billed / 8)) + ' a week, paid ' + Math.round(bookMed) + ' days after it is invoiced.');
+    if (billed > 0) rest('New billing at the last eight weeks’ pace, ' + formatCurrency(gstRound(billed / 8)) + ' a week, paid ' + Math.round(bookMed) + ' days after it is invoiced.',
+      'New billing, at the last eight weeks’ pace', finRs(billed / 8) + ' a week', 'paid ' + Math.round(bookMed) + ' days after it is invoiced');
   }
 
   // Out: from the closed months the statement covers.
@@ -179,20 +192,22 @@ function finForecast(days) {
     else if (v.cat === 'power') { paidIn.power[m] = true; power.push(r.dr); powerDays.push(+r.date.slice(8, 10)); }
     else if (v.cat !== 'gst' && m in other) other[m] += r.dr;
   });
-  if (!closed.length) rests.push('The statement covers no whole month yet, so salaries, suppliers and other payments are not forecast.');
+  if (!closed.length) rest('The statement covers no whole month yet, so salaries, suppliers and other payments are not forecast.', 'No whole month on the statement yet', '', 'salaries and other payments not forecast');
   if (closed.length) {
     var wv = closed.map(function(m) { return wages[m]; }), sd = Math.round(finPct(days1, 0.5) || 14);
     if (finPct(wv, 0.5) > 0) {
       months.forEach(function(mm) { if (!paidIn.wages[mm]) add(onDay(mm, sd), 'out', finPct(wv, 0.25), finPct(wv, 0.5), finPct(wv, 0.75)); });
-      rests.push('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) +
-        (paidIn.wages[thisMonth] ? '; this month’s are on the statement already' : '') + '.');
+      rest('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) +
+        (paidIn.wages[thisMonth] ? '; this month’s are on the statement already' : '') + '.',
+        'Salaries to named hands, around the ' + finOrd(sd), finRs(finPct(wv, 0.5)) + ' a month', paidIn.wages[thisMonth] ? 'this month’s on the statement already' : '');
     }
     var ov = closed.map(function(m) { return other[m]; });
     months.forEach(function(mm) {
       var n = +finMonthEnd(mm).slice(8, 10);
       for (var k = 1; k <= n; k++) add(mm + '-' + String(k).padStart(2, '0'), 'out', finPct(ov, 0.25) / n, finPct(ov, 0.5) / n, finPct(ov, 0.75) / n);
     });
-    rests.push('Suppliers and every other payment, ' + formatCurrency(gstRound(finPct(ov, 0.5))) + ' a month spread by day (the median of ' + closed.map(billsMonthLabel).join(', ') + ').');
+    rest('Suppliers and every other payment, ' + formatCurrency(gstRound(finPct(ov, 0.5))) + ' a month spread by day (the median of ' + closed.map(billsMonthLabel).join(', ') + ').',
+      'Suppliers and every other payment, by day', finRs(finPct(ov, 0.5)) + ' a month', 'the median of ' + todoPlural(closed.length, 'month'));
   }
   var cw = [], c0 = bankCover();
   for (var q = 1; q <= 8; q++) {
@@ -201,13 +216,15 @@ function finForecast(days) {
   }
   if (cw.length && finPct(cw, 0.5) > 0) {
     for (var sat = isoAddDays(attWeekStartOf(today), 6); sat <= end; sat = isoAddDays(sat, 7)) add(sat, 'out', finPct(cw, 0.25), finPct(cw, 0.5), finPct(cw, 0.75));
-    rests.push('Cash drawn for the weekly payout, ' + formatCurrency(gstRound(finPct(cw, 0.5))) + ' each Saturday (the median of ' + cw.length + ' weeks).');
+    rest('Cash drawn for the weekly payout, ' + formatCurrency(gstRound(finPct(cw, 0.5))) + ' each Saturday (the median of ' + cw.length + ' weeks).',
+      'Cash for the weekly payout, each Saturday', finRs(finPct(cw, 0.5)), 'the median of ' + cw.length + ' weeks');
   }
   if (power.length) {
     var pv = power.slice(-6), pd = Math.round(finPct(powerDays.slice(-6), 0.5));
     months.forEach(function(mm) { if (!paidIn.power[mm]) add(onDay(mm, pd), 'out', finPct(pv, 0.25), finPct(pv, 0.5), finPct(pv, 0.75)); });
-    rests.push('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) +
-      (paidIn.power[thisMonth] ? '; this month’s is on the statement already' : '') + '.');
+    rest('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) +
+      (paidIn.power[thisMonth] ? '; this month’s is on the statement already' : '') + '.',
+      'Electricity, around the ' + finOrd(pd), finRs(finPct(pv, 0.5)), paidIn.power[thisMonth] ? 'this month’s on the statement already' : '');
   }
   // GST by the 20th: the month's own due where it is closed, else the last closed month's, at the share of
   // due the bank has paid (input credit takes the rest).
@@ -221,7 +238,7 @@ function finForecast(days) {
       var due = r && pm < today.slice(0, 7) ? r.due : lastDue;
       if (due > 0) add(mm + '-20', 'out', due * finPct(ratios, 0.25), due * ratio, due * finPct(ratios, 0.75));
     });
-    rests.push('GST by the 20th at ' + Math.round(ratio * 100) + '% of the output tax due, the share the bank has paid.');
+    rest('GST by the 20th at ' + Math.round(ratio * 100) + '% of the output tax due, the share the bank has paid.', 'GST by the 20th', Math.round(ratio * 100) + '% of the tax due', 'the share the bank has paid');
   }
 
   var bal = [last.balance, last.balance, last.balance], out = [], cross = null, min = { bal: last.balance, date: today }, was = last.balance;
@@ -236,8 +253,9 @@ function finForecast(days) {
     was = bal[1];
   }
   var stale = isoDaysBetween(last.date, today);
-  if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
-  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, noInflow: noInflow };
+  if (stale > 3) rest('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.',
+    'Starts from the balance on ' + stockShortDate(last.date), finRs(last.balance), stale + ' days of payments since not on it', true);
+  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, facts: facts, noInflow: noInflow };
 }
 
 function finForecastHtml() {
@@ -263,8 +281,8 @@ function finForecastHtml() {
   else if (fc.noInflow) h += '<div class="inv-callout inv-callout-warning">' + escHtml(why.trim()) + '</div>';
   h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
-  h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
-  return h + '</div></div>';
+  // What it rests on, a fact a row, folded (the tab map, TM6e); each row's whole sentence in its title.
+  return h + '</div>' + uiWorkingHtml('fin-forecast-rests', fc.facts, 'What it rests on', ' data-fc-rests') + '</div>';
 }
 
 /* ---------- The rules ---------- */

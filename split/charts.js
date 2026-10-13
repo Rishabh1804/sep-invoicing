@@ -69,6 +69,22 @@ function _chartXLabel(x, y, label, W) {
   return '<text x="' + at + '" y="' + y + '" text-anchor="' + anchor + '" class="inv-chart-axis">' + escHtml(label) + '</text>';
 }
 
+/* ===== THE PERIOD TO DATE (the tab map, TM6b; design §6.17) =====
+   The survey found the month so far plotted as a collapse: a period not yet ended drawn like a whole one. `opts.toDate` names its
+   point or bar (its index): a line runs into it dashed, a bar or point is drawn lighter, its label reads "to date" and its title says
+   so. chartToDateAt finds the current period among a chart's keys. */
+function _chartToDate(opts, n) { var i = opts ? opts.toDate : null; return i != null && i >= 0 && i < n ? i : null; }
+function chartToDateLabel(label) { return String(label) + ' to date'; }
+function chartToDateAt(keys, cur) { var i = (keys || []).indexOf(cur); return i >= 0 ? i : null; }
+/* Whether label i is drawn: on its stride, the last and the period to date always, and never one inside the room the to-date
+   label takes (it is longer). xs: each label's x. */
+function _chartLabelShown(i, n, stride, td, xs, labels) {
+  if (i !== td && !(i % stride === 0 || i === n - 1)) return false;
+  if (td == null || i === td) return true;
+  var room = (String(labels[td]).length + 8) * 2.8 + String(labels[i]).length * 2.8 + 4;
+  return Math.abs(xs[i] - xs[td]) >= room;
+}
+
 function _chartEmpty(msg) {
   return '<div class="inv-empty">' + escHtml(msg) + '</div>';
 }
@@ -124,15 +140,23 @@ function chartLine(data, opts) {
     svg += '<rect x="' + sx0 + '" y="' + pad.t + '" width="' + (sx1 - sx0) + '" height="' + f.chartH + '" class="inv-chart-band" data-span/>';
   }
   svg += '<path d="' + area + '" class="inv-chart-area"/>';
-  svg += '<polyline points="' + line + '" class="inv-chart-line"/>';
+  // A period not yet ended (opts.toDate): the line runs into it, and out of it, dashed.
+  var td = _chartToDate(opts, data.length), pts = function(list) { return list.map(function(p) { return p.x + ',' + p.y; }).join(' '); };
+  if (td == null) svg += '<polyline points="' + line + '" class="inv-chart-line"/>';
+  else {
+    if (td > 1) svg += '<polyline points="' + pts(points.slice(0, td)) + '" class="inv-chart-line"/>';
+    svg += '<polyline points="' + pts(points.slice(Math.max(0, td - 1), td + 2)) + '" class="inv-chart-line inv-chart-todate" data-todate/>';
+    if (td < points.length - 2) svg += '<polyline points="' + pts(points.slice(td + 1)) + '" class="inv-chart-line"/>';
+  }
 
   var stride = _chartLabelStride(data.length, opts.maxLabels);
+  var labels = data.map(function(d, i) { return i === td ? chartToDateLabel(d.label) : d.label; }), xs = points.map(function(p) { return p.x; });
   points.forEach(function(p, i) {
     // Every point carries its value; the marker is what the pointer aims at.
-    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-chart-dot">' +
-      '<title>' + escHtml(p.d.label + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
-    if (i % stride === 0 || i === points.length - 1) {
-      svg += _chartXLabel(p.x, pad.t + f.chartH + 14, p.d.label, W);
+    svg += '<circle cx="' + p.x + '" cy="' + p.y + '" r="3" class="inv-chart-dot' + (i === td ? ' inv-chart-todate' : '') + '">' +
+      '<title>' + escHtml(labels[i] + ': ' + chartFull(p.d.value, unit)) + '</title></circle>';
+    if (_chartLabelShown(i, points.length, stride, td, xs, labels)) {
+      svg += _chartXLabel(p.x, pad.t + f.chartH + 14, labels[i], W);
     }
   });
   svg += '</svg>';
@@ -155,17 +179,19 @@ function chartBars(data, opts) {
   if (opts.span) svg += '<rect x="' + (pad.l + opts.span.i0 * slot) + '" y="' + pad.t + '" width="' + ((opts.span.i1 - opts.span.i0 + 1) * slot) +
     '" height="' + f.chartH + '" class="inv-chart-band" data-span/>';
 
-  var stride = _chartLabelStride(data.length, opts.maxLabels);
+  var stride = _chartLabelStride(data.length, opts.maxLabels), td = _chartToDate(opts, data.length);
+  var labels = data.map(function(d, i) { return i === td ? chartToDateLabel(d.label) : d.label; });
+  var xs = data.map(function(d, i) { return pad.l + i * slot + slot / 2; });
   data.forEach(function(d, i) {
     var h = f.maxVal > 0 ? (d.value / f.maxVal) * f.chartH : 0;
     var x = pad.l + i * slot + (slot - barW) / 2;
     var y = pad.t + f.chartH - h;
-    // A datum with no figure (null) is a gap, not a zero: no bar, its label kept.
+    // A datum with no figure (null) is a gap, not a zero: no bar, its label kept. A period not yet ended is drawn lighter.
     if (d.value != null && isFinite(d.value)) svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
-      '" rx="1.5" class="inv-chart-bar">' +
-      '<title>' + escHtml(d.label + ': ' + chartFull(d.value, unit)) + '</title></rect>';
-    if (i % stride === 0 || i === data.length - 1) {
-      svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, d.label, W);
+      '" rx="1.5" class="inv-chart-bar' + (i === td ? ' inv-chart-todate' : '') + '"' + (i === td ? ' data-todate' : '') + '>' +
+      '<title>' + escHtml(labels[i] + ': ' + chartFull(d.value, unit)) + '</title></rect>';
+    if (_chartLabelShown(i, data.length, stride, td, xs, labels)) {
+      svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, labels[i], W);
     }
   });
   svg += '</svg>';
@@ -366,19 +392,27 @@ function chartLines(labels, series, opts) {
     opts.band.forEach(function(b, i) { if (b) { up.push(x(i) + ',' + y(b.hi)); down.unshift(x(i) + ',' + y(b.lo)); } });
     if (up.length > 1) svg += '<polygon points="' + up.concat(down).join(' ') + '" class="inv-chart-band"/>';
   }
+  // A period not yet ended (opts.toDate): each series runs into it dashed, its points lighter, its label "to date".
+  var td = _chartToDate(opts, labels.length), shown = labels.map(function(l, i) { return i === td ? chartToDateLabel(l) : l; });
   series.forEach(function(s, si) {
     var tone = s.tone != null ? s.tone : si, pts = [], runs = [[]];
     s.values.forEach(function(v, i) {
       if (v != null && isFinite(v)) { var p = [x(i), y(v), v, i]; pts.push(p); runs[runs.length - 1].push(p); }
       else if (!xs && runs[runs.length - 1].length) runs.push([]);
     });
-    // One polyline per unbroken run; a point alone between two gaps is its marker only.
+    var poly = function(list, extra) {
+      return list.length > 1 ? '<polyline points="' + list.map(function(p) { return p[0] + ',' + p[1]; }).join(' ') + '" class="inv-chart-path inv-chart-s' + tone + (extra || '') + '"' + (s.dashed ? ' stroke-dasharray="4 3"' : '') + '/>' : '';
+    };
+    // One polyline per unbroken run; a point alone between two gaps is its marker only. The stretch into and out of the period
+    // to date is its own, dashed.
     runs.forEach(function(run) {
-      if (run.length > 1) svg += '<polyline points="' + run.map(function(p) { return p[0] + ',' + p[1]; }).join(' ') + '" class="inv-chart-path inv-chart-s' + tone + '"' + (s.dashed ? ' stroke-dasharray="4 3"' : '') + '/>';
+      var k = td == null ? -1 : run.findIndex(function(p) { return p[3] === td; });
+      if (k < 0) { svg += poly(run); return; }
+      svg += poly(run.slice(0, k)) + poly(run.slice(Math.max(0, k - 1), k + 2), ' inv-chart-todate') + poly(run.slice(k + 1));
     });
     pts.forEach(function(p) {
-      var read = s.label + ', ' + labels[p[3]] + ': ' + chartFull(p[2], unit);
-      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" class="inv-chart-pt inv-chart-c' + tone + '" data-action="' + escHtml(opts.pointAction || 'invChartRead') + '" data-read="' + escHtml(read) + '"' +
+      var read = s.label + ', ' + shown[p[3]] + ': ' + chartFull(p[2], unit);
+      svg += '<circle cx="' + p[0] + '" cy="' + p[1] + '" r="3.5" class="inv-chart-pt inv-chart-c' + tone + (p[3] === td ? ' inv-chart-todate' : '') + '" data-action="' + escHtml(opts.pointAction || 'invChartRead') + '" data-read="' + escHtml(read) + '"' +
         ' data-key="' + escHtml(opts.keys ? opts.keys[p[3]] : labels[p[3]]) + '"' +
         '><title>' + escHtml(read) + '</title></circle>';
     });
@@ -387,14 +421,14 @@ function chartLines(labels, series, opts) {
     // By room: a label only where the one before is at least a label's width away, and the last always.
     var room = cw / (opts.maxLabels || 6);
     var lastX = x(labels.length - 1), prev = -Infinity;
-    labels.forEach(function(l, i) {
+    shown.forEach(function(l, i) {
       var at = x(i), isLast = i === labels.length - 1;
       if (isLast || (at - prev >= room && lastX - at >= room)) { svg += _chartXLabel(at, pad.t + ch + 14, l, W); prev = at; }
     });
   } else {
-    var stride = _chartLabelStride(labels.length, opts.maxLabels);
-    labels.forEach(function(l, i) {
-      if (i % stride === 0 || i === labels.length - 1) svg += _chartXLabel(x(i), pad.t + ch + 14, l, W);
+    var stride = _chartLabelStride(labels.length, opts.maxLabels), lx = labels.map(function(l, i) { return x(i); });
+    shown.forEach(function(l, i) {
+      if (_chartLabelShown(i, labels.length, stride, td, lx, shown)) svg += _chartXLabel(x(i), pad.t + ch + 14, l, W);
     });
   }
   svg += '</svg>';
@@ -417,7 +451,9 @@ function chartStack(labels, series, opts) {
   var f = _chartFrame(labels.map(function(l, i) { return { label: l, value: totals[i] }; }), unit, W, H, pad);
   var slot = f.chartW / labels.length, barW = Math.max(slot * 0.62, 1);
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Bars') + '">' + f.svg;
-  var stride = _chartLabelStride(labels.length, opts.maxLabels);
+  var stride = _chartLabelStride(labels.length, opts.maxLabels), td = _chartToDate(opts, labels.length);
+  // A period not yet ended (opts.toDate): its bars lighter, its label "to date".
+  var shown = labels.map(function(l, i) { return i === td ? chartToDateLabel(l) : l; }), lx = labels.map(function(l, i) { return pad.l + i * slot + slot / 2; });
   labels.forEach(function(l, i) {
     var x0 = pad.l + i * slot + (slot - barW) / 2, base = pad.t + f.chartH, w = group ? barW / series.length : barW;
     var key = opts.keys ? opts.keys[i] : l;
@@ -425,13 +461,13 @@ function chartStack(labels, series, opts) {
       var v = s.values[i] || 0;
       if (!(v > 0)) return;
       var h = (v / f.maxVal) * f.chartH, bx = group ? x0 + si * w : x0, by = base - h;
-      var read = l + ', ' + s.label + ': ' + chartFull(v, unit);
-      svg += '<rect x="' + bx + '" y="' + by + '" width="' + Math.max(w - (group ? 1 : 0), 1) + '" height="' + h + '" class="inv-chart-seg inv-chart-c' + (s.tone != null ? s.tone : si) + '"' +
+      var read = shown[i] + ', ' + s.label + ': ' + chartFull(v, unit);
+      svg += '<rect x="' + bx + '" y="' + by + '" width="' + Math.max(w - (group ? 1 : 0), 1) + '" height="' + h + '" class="inv-chart-seg inv-chart-c' + (s.tone != null ? s.tone : si) + (i === td ? ' inv-chart-todate' : '') + '"' +
         ' data-action="' + escHtml(opts.action || 'invChartRead') + '" data-read="' + escHtml(read) + '" data-key="' + escHtml(key) + '" data-series="' + si + '"' +
         (opts.selected != null && String(opts.selected) === String(key) ? ' aria-current="true"' : '') + '><title>' + escHtml(read) + '</title></rect>';
       if (!group) base -= h;
     });
-    if (i % stride === 0 || i === labels.length - 1) svg += _chartXLabel(x0 + barW / 2, pad.t + f.chartH + 14, l, W);
+    if (_chartLabelShown(i, labels.length, stride, td, lx, shown)) svg += _chartXLabel(x0 + barW / 2, pad.t + f.chartH + 14, shown[i], W);
   });
   svg += '</svg>';
   if (!opts.readHint) opts.readHint = 'Tap a bar to read it';
@@ -529,12 +565,17 @@ function chartSpark(values, opts) {
   };
   var last = -1;
   vals.forEach(function(v, i) { if (v != null) last = i; });
-  var labels = opts.labels || [];
-  var title = opts.title || vals.map(function(v, i) { return (labels[i] ? labels[i] + ': ' : '') + (v == null ? '—' : chartFull(v, opts.unit || 'money')); }).filter(Boolean).join(' · ');
+  // A period not yet ended (opts.toDate): the line runs into it dashed, and the title says "to date".
+  var td = _chartToDate(opts, vals.length);
+  var labels = (opts.labels || []).map(function(l, i) { return i === td && l ? chartToDateLabel(l) : l; });
+  var title = opts.title ? opts.title + (td != null && labels[td] ? ' (' + labels[td] + ')' : '') : vals.map(function(v, i) { return (labels[i] ? labels[i] + ': ' : '') + (v == null ? '—' : chartFull(v, opts.unit || 'money')); }).filter(Boolean).join(' · ');
+  var into = td != null && td > 0 && vals[td] != null && vals[td - 1] != null;
+  var main = into ? vals.map(function(v, i) { return i === td ? null : v; }) : vals;
   return '<svg class="inv-spark' + (opts.tone ? ' inv-spark-' + escHtml(opts.tone) : '') + '" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" role="img" aria-label="' + escHtml(title) + '">' +
     '<title>' + escHtml(title) + '</title>' +
     (ref ? '<path class="inv-spark-ref" d="' + path(ref) + '"/>' : '') +
-    '<path class="inv-spark-line" d="' + path(vals) + '"/>' +
+    '<path class="inv-spark-line" d="' + path(main) + '"/>' +
+    (into ? '<path class="inv-spark-line inv-chart-todate" data-todate d="' + path(vals.map(function(v, i) { return Math.abs(i - td) <= 1 ? v : null; })) + '"/>' : '') +
     (last >= 0 && opts.dot !== false ? '<path class="inv-spark-dot" d="M' + x(last).toFixed(2) + ' ' + y(vals[last]).toFixed(2) + 'l0 0"/>' : '') + '</svg>';
 }
 /* A meter: shares of one whole as a bar, each part in its tone (a status tone, or neutral), with a mark where the figure is

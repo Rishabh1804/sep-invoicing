@@ -265,7 +265,7 @@ function qtVerdictHtml(moves) {
   moves = moves || [];
   return uiVerdictHtml({ screen: 'Quotations', tone: expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral', verdict: verdict,
     facts: [expired ? { text: expired + ' expired, unanswered', tone: 'warning' } : '', toPost ? { text: todoPlural(toPost, 'accepted one', 'accepted ones') + ' with a rate to post', tone: 'warning' } : '',
-      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: 'warning', money: true } : '',
+      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: moves.some(function(mv) { return mv.tone === 'red'; }) ? 'danger' : 'warning', money: true } : '',
       all.filter(function(q) { return q.status === 'accepted'; }).length + ' accepted'].filter(Boolean).slice(0, 3),
     body: _isDesktop ? null : qtRepriceMovesHtml(moves), key: 'pageClients-quotes', attrs: ' id="qtVerdict"' });
 }

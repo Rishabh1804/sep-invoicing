@@ -95,7 +95,7 @@ var CHG_TRACK = [
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
   { path: 'stock.pastes', kind: 'raw', noun: 'stock message', label: function(r) { return chgJoin(r.sentBy, r.to ? chgDay(r.to) : ''); } },
   { path: 'production.entries', kind: 'arr', noun: 'production entry', plural: 'production entries',
-    label: function(r) { return chgJoin(r.kind, r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
+    label: function(r) { return chgJoin(r.kind, typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
   { path: 'production.pastes', kind: 'raw', noun: 'production message', label: function(r) { return chgJoin(r.kind, r.day ? chgDay(r.day) : ''); } },
   { path: 'production.photos', kind: 'raw', noun: 'register photo', label: function(r) { return r.name; } },
   { path: 'production.pages', kind: 'raw', noun: 'register page', label: function(r) { return chgJoin(typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.date ? chgDay(r.date) : ''); } },
@@ -171,8 +171,9 @@ var _chgHealth = { saves: 0, logged: 0, errors: 0, lastError: '', lastErrorAt: 0
 
 /* ---------- small helpers ---------- */
 function chgNow() { try { return performance.now(); } catch (e) { return Date.now(); } }
+// A record's name, its parts joined by commas: it is one fact on History's row (the tab map, TM6), never a chain of them.
 function chgJoin() {
-  return Array.prototype.filter.call(arguments, function(x) { return x != null && String(x).trim() !== ''; }).map(String).join(' · ');
+  return Array.prototype.filter.call(arguments, function(x) { return x != null && String(x).trim() !== ''; }).map(String).join(', ');
 }
 function chgCut(s, n) { s = s == null ? '' : String(s); n = n || CHG_VAL_MAX; return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 function chgDay(iso) { return /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? formatDate(iso) : String(iso == null ? '' : iso); }
@@ -633,7 +634,8 @@ function chgHealthText() {
 /* ---------- History (stats.js) ---------- */
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
 var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
-  orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered' };
+  orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
+  voidReason: 'reason', cancelReason: 'reason', voidBy: 'by' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';
@@ -668,16 +670,38 @@ function chgFieldText(e, x, ctx) {
   var name = chgFieldName(e, x.f, ctx);
   return x.secret ? name + ' changed' : name + ' ' + chgShow(x.from, x.f) + ' → ' + chgShow(x.to, x.f);
 }
-/* "Asha changed invoice SEP/26-27/00941 · ALPHA FORGINGS · rate 13 → 13.2". `all`: every field (the CSV). */
+/* "Asha changed invoice SEP/26-27/00941, ALPHA FORGINGS: rate 13 → 13.2; qty 3 → 4". `all`: every field (the CSV). The record is
+   one fact and what moved the other (the tab map, TM6); a label logged before 10 Oct 2026 joined its parts with "·" and is read
+   the same way. A void or a cancel says why, in the words typed. The row is never past CHG_ROW_MAX: a record's name too long for
+   it loses its last parts, said with "…", and the whole is the row's title, the pane's and the CSV's (TM6e). */
+var CHG_ROW_MAX = 110;
 function chgText(e, all, ctx) {
   var act = chgAct(e), noun = e.n || e.coll === 'book' ? '' : chgNounOf(e.coll, 1);
   var cfg = !e.n && e.coll !== 'book' && e.rid == null || e.coll === 'settings';
-  var head = chgUserName(e.by) + ' ' + act + ' ' + (cfg || !noun ? '' : noun + ' ') + (e.label || '');
+  var head = chgUserName(e.by) + ' ' + act + ' ' + (cfg || !noun ? '' : noun + ' ');
+  var label = String(e.label || '').split(' · ').join(', ');
   // A void or a cancel says so in its verb: the stamp that made it one is not said again.
   var fs = (e.fields || []).filter(function(x) { return !((act === 'voided' && /^voided(At)?$/.test(x.f)) || (act === 'cancelled' && x.f === 'cancelledAt')); });
-  var shown = all ? fs : fs.slice(0, 2);
+  var why = null;
+  if (!all && (act === 'voided' || act === 'cancelled')) {
+    why = fs.find(function(x) { return /^(void|cancel)Reason$|^reason$/.test(x.f) && x.from == null && x.to != null && x.to !== '' && !x.secret; }) || null;
+    // Who voided it is the head's, or the pane's: the row says why.
+    if (why) fs = fs.filter(function(x) { return x !== why && x.f !== 'voidBy'; });
+  }
+  var shown = all ? fs : fs.slice(0, why ? 1 : 2);
   var rest = fs.length - shown.length + (e.more || 0);
-  return head + shown.map(function(x) { return ' · ' + chgFieldText(e, x, ctx); }).join('') + (rest > 0 ? ' · +' + rest + ' more' : '');
+  var said = (why ? ['\u201c' + String(why.to) + '\u201d'] : []).concat(shown.map(function(x) { return chgFieldText(e, x, ctx); }), rest > 0 ? ['+' + rest + ' more'] : []);
+  var tail = said.length ? ': ' + said.join('; ') : '';
+  if (all || (head + label + tail).length <= CHG_ROW_MAX) return head + label + tail;
+  // Too long for a row: the name's last parts go first, then the name itself is cut, then what moved.
+  var room = CHG_ROW_MAX - head.length - tail.length, parts = label.split(', '), cut = '';
+  if (label) {
+    while (parts.length > 1 && parts.join(', ').length + 3 > room) parts.pop();
+    cut = parts.join(', ');
+    cut = cut !== label && cut.length + 3 <= room ? cut + ', \u2026' : cut.slice(0, Math.max(12, room - 1)).replace(/[\s,]+$/, '') + '\u2026';
+  }
+  var out = head + cut + tail;
+  return out.length <= CHG_ROW_MAX ? out : out.slice(0, CHG_ROW_MAX - 1).replace(/[\s,;:]+$/, '') + '\u2026';
 }
 /* The log's rows for History, and on the events already listed, who made them: an event and an entry on the same
    record within two seconds are one act, said once on the event's row ("by Asha"); the entry is still listed under

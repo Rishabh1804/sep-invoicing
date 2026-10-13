@@ -187,7 +187,7 @@ function statsMarginHtml(period, filtered, tonnage) {
   var money = {};
   if (finHasBank()) {
     var mh = bankPayHistory(finCtx().recv());
-    finCtx().recv().forEach(function(r) { var d = bankDaysToPay(r.client.id, mh); money[String(r.client.id)] = { owed: r.owed, days: d && d.median != null ? Math.round(d.median) : null }; });
+    finCtx().recv().forEach(function(r) { var d = bankDaysToPay(r.client.id, mh); money[String(r.client.id)] = { owed: r.owed, oldest: r.oldestDays, days: d && d.median != null ? Math.round(d.median) : null }; });
   }
   h += '<div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Client</th><th class="inv-num">₹/kg</th><th class="inv-num">t</th><th class="inv-num">vs var.</th>' +
     '<th class="inv-num">vs full</th><th class="inv-num">₹ on period</th></tr></thead><tbody>';
@@ -196,8 +196,10 @@ function statsMarginHtml(period, filtered, tonnage) {
     var sign = function(v) { return (v >= 0 ? '+' : '&minus;') + formatNum(Math.abs(v), 2); };
     return '<tr data-action="invStatsClientDrill" data-client-id="' + escHtml(x.id) + '"><td><div class="inv-row-title">' + escHtml(x.name) + '</div>' +
       (x.cn ? '<div class="inv-row-meta">net of ' + statsMoney(x.cn) + ' credit notes</div>' : '') +
-      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + statsMoney(Math.max(0, money[String(x.id)].owed)) + (money[String(x.id)].days != null ? ' · pays in ' + figHtml(money[String(x.id)].days + ' d', figTonePaysIn(money[String(x.id)].days)) : '') + '</div>' : '') + '</td>' +
-      '<td class="inv-num">' + formatNum(x.net, 2) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
+      (money[String(x.id)] ? '<div class="inv-row-meta" data-client-owed>owes ' + figHtml(statsMoney(Math.max(0, money[String(x.id)].owed)), money[String(x.id)].owed > 0.005 ? finOwedTone(money[String(x.id)].oldest) : null) +
+        (money[String(x.id)].days != null ? ' · pays in ' + figHtml(money[String(x.id)].days + ' d', figTonePaysIn(money[String(x.id)].days)) : '') + '</div>' : '') + '</td>' +
+      // A client's realisation against the live cost, in the tone it takes on every screen (figToneAgainst at 5%, TM6a).
+      '<td class="inv-num" data-margin-net>' + figHtml(formatNum(x.net, 2), figToneAgainst(x.net, m.fullKg, 5)) + '</td><td class="inv-num">' + formatNum(x.kg / 1000, 1) + '</td>' +
       statsSignedCell(x.vsVar, x.vsVar != null ? sign(x.vsVar) : '&mdash;') + statsSignedCell(x.vsFull, sign(x.vsFull)) + statsSignedCell(x.money, statsSigned(x.money)) + '</tr>';
   }), { n: 10, noun: 'clients', tr: 6 });
   h += '</tbody></table></div>';
@@ -260,6 +262,8 @@ function statsStoryCards(a, ctx) {
   var period = a.period, filtered = a.filtered, prior = a.prior, tonnage = a.tonnage, periodCost = a.periodCost;
   var r = statsRangeIso(period), plabel = PERIOD_LABELS[period] || '';
   var months = statsMonthRows(6);
+  // The month not yet ended is drawn as to date on every chart here (TM6b).
+  var curM = localDateStr().slice(0, 7), atNow = function(list) { return chartToDateAt(list.map(function(x) { return x.month; }), curM); };
   var perKg = '<span class="inv-tile-of">/kg</span>';
   var cards = {};
   // The card's sentence; the first one said is its answer.
@@ -276,7 +280,7 @@ function statsStoryCards(a, ctx) {
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
     { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }) },
-    { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month' }));
+    { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
   body += contrib == null ? say(c1, 'neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
     : say(c1, 'danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
@@ -286,7 +290,7 @@ function statsStoryCards(a, ctx) {
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
     viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
-      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: contrib != null && contrib < 0 ? 'danger' : contrib != null ? 'ok' : '' }) : '',
+      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: contrib != null && contrib < 0 ? 'danger' : contrib != null ? 'ok' : '', toDate: atNow(mm) }) : '',
     tone: contrib == null ? 'neutral' : contrib >= 0 ? 'ok' : 'danger' };
   cards.money = c1;
 
@@ -336,7 +340,7 @@ function statsStoryCards(a, ctx) {
     capPct != null ? figToneCapacity(capPct * 100) : '') +
     (sp90 ? statsTile('spare90', 'Spare a month', escHtml(formatNum(sp90.spareMonth / 1000, 1) + ' t'), statsTileSub('the last 90 days, as Prospects reads it'), '') : ''));
   var mk = months.filter(function(x) { return x.kg > 0; });
-  if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month' }));
+  if (mk.length >= 2) body += statsBody(chartBars(mk.map(function(x) { return { label: x.label, value: gstRound(x.kg / 1000) }; }), { unit: 'count', ariaLabel: 'Tonnes plated by month', toDate: atNow(mk) }));
   var avg = real != null ? real : null;
   body += capPct == null ? say(c3, 'neutral', 'No weighed tonnage in the period.')
     : capPct >= 0.8 ? say(c3, 'ok', 'Busy: ' + Math.round(capPct * 100) + '% of two shifts. Growth now needs more hours or better-paying work, not more of the same.')
@@ -388,21 +392,22 @@ function statsStoryCards(a, ctx) {
     try {
       var c5 = { key: 'cash', q: 'Is cash coming in?' };
       var bRows = bankRows(), bLast = bRows[bRows.length - 1], recv = finCtx().recv(), owed = gstRound(recv.reduce(function(s, x) { return s + Math.max(0, x.owed); }, 0));
-      var bBook = bankBookDaysToPay(bankPayHistory(recv));
+      var bBook = bankBookDaysToPay(bankPayHistory(recv)), owedTone = finOwedTone(finOwedOldest(recv));
+      // Owed in its age's tone (finOwedTone), how fast clients pay in its own beside it (figTonePaysIn): two facts, two tones.
       body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
-        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''), bBook ? figTonePaysIn(Math.round(bBook.median)) : ''));
-      // Judged as Pulse's Money card judges it (finlinks.js renderFinHomeCard), so the two never disagree on one figure (the
-      // survey of 8 Oct 2026: owed read green here and red there): overdrawn is danger; what is owed past 90 days danger, unless a
-      // receipt is still unplaced (that money may be in), past 60 warning; and how fast clients pay (figTonePaysIn).
+        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? figHtml('clients pay in ' + Math.round(bBook.median) + ' days', figTonePaysIn(Math.round(bBook.median))) : ''), owedTone || ''));
+      // Judged as Pulse's Money card judges it, so the two never disagree on one figure (the survey of 8 Oct 2026: owed read green
+      // here and red there): overdrawn is danger; what is owed by its oldest invoice's age (finOwedTone, the one judge wherever owed
+      // is drawn: never red while a receipt is unplaced); and how fast clients pay (figTonePaysIn).
       var ages = finAgeing(recv), old90 = ages[3] ? ages[3].amount : 0, old60 = ages[2] ? ages[2].amount : 0;
-      var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
-      var cashRank = { danger: 3, warning: 2, ok: 1 }, cashTone = [bLast.balance < 0 ? 'danger' : 'ok', old90 > 0.5 ? (loose ? 'warning' : 'danger') : old60 > 0.5 ? 'warning' : 'ok',
+      var cashRank = { danger: 3, warning: 2, ok: 1 }, cashTone = [bLast.balance < 0 ? 'danger' : 'ok', owedTone || 'ok',
         bBook ? figTonePaysIn(Math.round(bBook.median)) : null].filter(Boolean).sort(function(x, y) { return cashRank[y] - cashRank[x]; })[0] || 'ok';
       body += say(c5, cashTone, 'Owed ' + formatCurrency(owed) + (old90 > 0.5 ? ', ' + formatCurrency(old90) + ' of it over 90 days' : old60 > 0.5 ? ', ' + formatCurrency(old60) + ' of it over 60 days' : '') +
         (bBook ? '; arriving in about ' + Math.round(bBook.median) + ' days at the usual pace' : '') + '.');
       c5.html = body;
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
-        sub: escHtml((old90 > 0.5 ? formatCurrency(old90) + ' over 90 days · ' : '') + 'in the bank ' + formatCurrency(bLast.balance) + (bBook ? ' · clients pay in ' + Math.round(bBook.median) + ' days' : '')),
+        // Two facts (the tab map, TM6e): what is old, and how fast clients pay; the balance is the card's tile.
+        sub: escHtml([old90 > 0.5 ? formatCurrency(old90) + ' over 90 days' : 'in the bank ' + formatCurrency(bLast.balance), bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''].filter(Boolean).join(' · ')),
         viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'danger' }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
         tone: cashTone };

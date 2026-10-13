@@ -253,8 +253,12 @@ test('the dashboard reads one range, and a tap on a month, a slice or a client g
   await page.locator('#finFrom .inv-chart-legend-row[data-key="__loose"]').click();
   await expect(page.locator('[data-action="invFinTab"][data-tab="receipts"]')).toHaveAttribute('aria-selected', 'true');
 
-  // GST due against paid, grouped, and invoiced against received as two lines.
+  // GST due against paid, grouped, and invoiced against received as two lines. The statement stops part-way through its last
+  // month, so that month is drawn to date on both, its stretch dashed (the tab map, TM6b).
   await finTab(page, 'overview');
   await expect(page.locator('#finGstChart rect.inv-chart-seg').first()).toBeVisible();
-  await expect(page.locator('#finInvRec polyline.inv-chart-path')).toHaveCount(2);
+  await expect(page.locator('#finInvRec polyline.inv-chart-s0').first()).toBeVisible();
+  await expect(page.locator('#finInvRec polyline.inv-chart-s2').first()).toBeVisible();
+  await expect(page.locator('#finInvRec polyline.inv-chart-path.inv-chart-todate')).toHaveCount(2);
+  await expect(page.locator('#finInvRec text.inv-chart-axis').last()).toContainText('to date');
 });

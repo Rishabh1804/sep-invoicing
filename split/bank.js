@@ -1020,8 +1020,9 @@ function _bankRecvVerdictHtml(recv, cls, rows) {
   var bands = finAgeing(recv), over60 = gstRound(bands[2].amount + bands[3].amount), over90 = bands[3].amount;
   var loose = bankLooseReceipts(cls, from).length, book = bankBookDaysToPay(bankPayHistory(recv));
   var owing = recv.filter(function(r) { return r.owed > 0.005; }), late = owing.filter(function(r) { return r.oldestDays > 60; }).length;
-  // Never red while a receipt is unplaced: that money may be in already (owed90's rule).
-  var tone = _bankWorst([over90 > 0 ? (loose ? 'warning' : 'danger') : over60 > 0 ? 'warning' : 'ok', loose ? 'warning' : '', chqTone]);
+  // What is owed by its oldest invoice's age, never red while a receipt is unplaced (figToneOwed, the one judge wherever owed is
+  // drawn); a receipt unplaced is a warning of its own, and so is a cheque held.
+  var tone = _bankWorst([figToneOwed(finOwedOldest(recv), loose > 0) || 'ok', loose ? 'warning' : '', chqTone]);
   return uiVerdictHtml({ screen: 'Receivables · since ' + stockShortDate(from), tone: tone, money: true,
     verdict: _bankSay([owed < 0.5 ? 'Nothing owed to us' : finRs(owed) + ' owed', over60 > 0 ? finRs(over60) + ' over 60 days' : '', loose ? loose + ' not placed' : '']),
     plain: _bankSay([owing.length ? todoPlural(owing.length, 'client') + ' owe' : 'Nothing owed to us', late ? late + ' over 60 days' : '', loose ? loose + ' not placed' : '']),
@@ -1051,7 +1052,7 @@ function _bankReceiptsHtml(cls, recv) {
   return '<div class="inv-pane-host' + (openR ? ' inv-pane-open' : '') + '" id="recvHost" data-open="' + (openR ? escHtml(String(openR.client.id)) : '') + '"><div class="inv-pane-list" id="recvList">' + h + '</div>' +
     '<div class="inv-pane" id="recvPane">' + (openR ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(openR.client.name) + '</span>', 'invBankPaneClose') +
       '<div class="inv-panel inv-panel-flush" data-recv-pane="' + escHtml(String(openR.client.id)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Owed</span>' +
-      '<span class="inv-num">' + figHtml(formatCurrency(openR.owed), openR.owed > 0.005 ? figToneAge(openR.oldestDays) : null) + '</span></div>' +
+      '<span class="inv-num">' + figHtml(formatCurrency(openR.owed), openR.owed > 0.005 ? finOwedTone(openR.oldestDays) : null) + '</span></div>' +
       _bankRecvDetailHtml(openR, fromTxt, cls) + '</div>' : '') + '</div></div>';
 }
 /* Each client: what it owes, coloured by the age of its oldest open invoice; how fast it pays and how old that invoice is in its
@@ -1078,7 +1079,7 @@ function _bankOwedHtml(cls, recv, from, fromTxt) {
       (_isDesktop ? '"' : ' inv-row-expander" aria-expanded="' + open + '"') + ' data-action="invBankClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + (meta.join(' · ') || escHtml(formatCurrency(r.invoiced)) + ' invoiced') + '</span></button>' +
       // Owed is coloured by how old its oldest open invoice is, and the word under it says so.
-      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? figToneAge(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
+      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + figHtml(formatCurrency(r.owed), r.owed > 0.005 ? finOwedTone(r.oldestDays) : null) + '</span><span class="inv-row-meta">' +
       (r.owed < -0.005 ? 'paid ahead' : r.owed > 0.005 && r.oldestDays > 90 ? 'owed, over 90 d' : r.owed > 0.005 && r.oldestDays > 60 ? 'owed, over 60 d' : 'owed') + '</span></span></span></div>';
     if (open && !_isDesktop) h += '<div class="inv-row-children">' + _bankRecvDetailHtml(r, fromTxt, cls) + '</div>';
   });

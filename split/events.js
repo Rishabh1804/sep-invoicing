@@ -348,6 +348,7 @@ function onDocClick(e) {
       if (_isDesktop) _renderRegDetail(inv.id);
       break;
     }
+    case 'invHistoryJumpDay': todoGo({ kind: 'staffDay', date: btn.dataset.id }); break;
     case 'invHistoryJumpChallan': {
       var im = (S.incomingMaterial || []).find(function(c) { return c.id === btn.dataset.id; });
       if (!im) { showToast('Challan not found', 'warning'); break; }
@@ -358,8 +359,9 @@ function onDocClick(e) {
     case 'invHistoryLoadMore': _historyShowCount += UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryOpen': _historyOpen = _historyOpen === btn.dataset.key ? null : btn.dataset.key; keepScroll(renderHistory); break;
     case 'invHistoryClose': _historyOpen = null; keepScroll(renderHistory); break;
-    case 'invHistoryType': _historyType = btn.dataset.type; _historyShowCount = UI_MORE_ROWS; renderHistory(); break;
     case 'invHistoryExport': exportHistoryCSV(); break;
+    case 'invHistoryRange': historyRangeOpen(); break;
+    case 'invHistoryFilterClear': historyFilterClear(btn.dataset.clear); break;
     // Phase 4: Challan Scanner
     case 'invScanChallan': scanChallan(); break;
     case 'invToggleApiKey': {
@@ -723,6 +725,12 @@ function onDocChange(e) {
   // Who made it (the change log, changelog.js)
   if (e.target.id === 'historyWho') {
     _historyWho = e.target.value;
+    _historyShowCount = UI_MORE_ROWS;
+    renderHistory();
+  }
+  // The kind of event (the tab map, TM6c: a choice in a list, behind Filter on the phone)
+  if (e.target.id === 'historyType') {
+    _historyType = e.target.value || 'all';
     _historyShowCount = UI_MORE_ROWS;
     renderHistory();
   }

@@ -152,7 +152,7 @@ function rptSec(n, title, cov, body) {
     (cov ? '<p class="inv-rpt-cov">' + cov + '</p>' : '') + body + '</section>';
 }
 function rptNone(text) { return '<p class="inv-rpt-none">' + text + '</p>'; }
-function rptP(text) { return '<p class="inv-rpt-p">' + text + '</p>'; }
+function rptP(text, key) { return '<p class="inv-rpt-p"' + (key ? ' data-rpt-p="' + key + '"' : '') + '>' + text + '</p>'; }
 /* head: [[label, numeric?]]; cells are html. */
 function rptTable(head, rows, foot, key) {
   var td = function(v, i, tag) { return '<' + tag + (head[i] && head[i][1] ? ' class="inv-rpt-num"' : '') + '>' + (v == null || v === '' ? '&mdash;' : v) + '</' + tag + '>'; };
@@ -388,10 +388,17 @@ function rptStaffHtml(p, end, lab, labV, w) {
     var need = 0, nd = 0;
     recDays.forEach(function(d) { var n = areaNeedOn(d, a.id); if (n != null) { need += n; nd++; } });
     var avg = a.headDays / as.recordedDays, needAvg = nd ? need / nd : null;
-    return [escHtml(a.label), formatNum(avg, 1), needAvg != null ? figHtml(formatNum(needAvg, 1), avg + 0.05 < needAvg ? 'warning' : null) : '',
+    // The heads in the tone heads against the number take wherever an area's staffing is drawn (areaNeedTone, TM6a).
+    return [escHtml(a.label), figHtml(formatNum(avg, 1), areaNeedTone(avg, needAvg)), needAvg != null ? formatNum(needAvg, 1) : '',
       a.otHours ? formatNum(a.otHours, 1) : '', a.extraHours ? formatNum(a.extraHours, 1) : ''];
   });
   var body = rptTable([['Area'], ['Heads a day', 1], ['Needed', 1], ['OT h', 1], ['EXTRA h', 1]], rows, null, 'areas');
+  // A day's report says who was on site against the day's roster, judged as Floor and People judge it (attOnSiteTone, TM6a).
+  if (p.kind === 'daily') {
+    var dd = attDaySummary(p.from);
+    if (dd.marked) body = rptP('On site ' + figHtml(escHtml((dd.p + dd.half) + ' of ' + dd.roster.length), attOnSiteTone(dd)) +
+      escHtml((dd.half ? ', ' + dd.half + ' half day' + (dd.half === 1 ? '' : 's') : '') + ', ' + dd.absent.length + ' absent' + (dd.unmarked ? ', ' + dd.unmarked + ' not marked' : '') + '.'), 'onsite') + body;
+  }
   if (p.kind === 'weekly') {
     var fc = payForecast(p.from), wk = fc.week;
     body += '<h4 class="inv-rpt-h4">The payout</h4>' + rptTable([['Pay week ' + escHtml(rptPeriodShort(p))], ['₹', 1]], [
@@ -586,11 +593,13 @@ function renderReports() {
     '<div class="inv-toolbar inv-stepper"><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRptStep" data-step="-1" aria-label="Previous period">' + STAFF_BACK_ICON + '</button>' +
     '<div class="inv-stepper-label">' + pick + (sub ? '<span class="inv-stepper-sub">' + escHtml(sub) + (isNow ? ', to date' : '') + '</span>' : isNow ? '<span class="inv-stepper-sub">to date</span>' : '') + '</div>' +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRptStep" data-step="1" aria-label="Next period"' + (nextStarts ? '' : ' disabled') + '>' + STAFF_NEXT_ICON + '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRptNow"' + (isNow ? ' disabled' : '') + '>Now</button></div>' +
-    '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invRptPrint">Print</button>' +
-    '<span class="inv-note">A4, drawn from the records each time it is shown or printed.</span></div>';
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRptNow"' + (isNow ? ' disabled' : '') + '>Now</button></div>';
   var doc = rptHtml(p.kind, p.from);
-  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>';
+  // Print is the screen's one primary, in the action bar under the sheet, as Create's is (the tab map, TM6: two toolbar rows on
+  // the phone, where it had taken a third and its note a fourth).
+  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>' +
+    '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">A4, drawn from the records each time it is shown or printed</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invRptPrint">Print</button></div>';
   // The sheet as it prints, fitted to the screen (TM2f): a phone shows the whole A4 width, zoomed out, never its tables cut.
   paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.

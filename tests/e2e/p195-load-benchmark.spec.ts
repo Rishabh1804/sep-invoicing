@@ -10,7 +10,8 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 //
 // A budget is a ceiling, never a target: each step that assembles a screen lowers its budget to the new measure in the same
 // commit, and no budget is raised to get green. The budgets below are TM1's, then each step's for the screens it assembled
-// (TM2: Today's; TM3: Money's; TM4: Floor's; TM5: Office's): every screen measured on eleven days of the calendar (a Sunday, a month's first
+// (TM2: Today's; TM3: Money's; TM4: Floor's; TM5: Office's; TM6: every screen's blocks and chains to none, History's and
+// Knowledge's whole): every screen measured on eleven days of the calendar (a Sunday, a month's first
 // and last days, the financial year's first, the year's), the worst of them kept, the length rounded up to the next half
 // screen. A toolbar's rows are its controls standing side by side, their heights overlapping (TM4: tops binned by 8px had
 // counted a smaller button centred in its row as a second row). The face is pinned
@@ -25,21 +26,22 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // widgets shut on the phone).
   // Raised 3 → 3.5 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): material past its turnaround target is a red
   // task in Now, the long book's twelve clients folded into one card (3.09).
-  'Today › Needs you': { screens: 3.5, blocks: 1, chains: 2, toolbarRows: 1 },
-  'Today › Pulse': { screens: 4, blocks: 0, chains: 1, toolbarRows: 1 },
+  'Today › Needs you': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Today › Pulse': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 5 },
+  'Today › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 2 },
   'Today › Planner › Play': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Planner › A day': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Today › Planner › Moves': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  // TM5. Office's screens, each led by its verdict card (Challans → Invoiced by its month's stepper), then one toolbar row; Invoices
-  // was eight rows of controls on the phone, Parts four. Performance's long cards fold, and its five blocks and nine chains went.
+  // TM5. Office's screens, each led by its verdict card, then one toolbar row; Invoices was eight rows of controls on the phone, Parts
+  // four. Performance's long cards fold, and its five blocks and nine chains went. TM6f gave Challans → Invoiced its card, the month
+  // inside its one row.
   'Office › Pipeline': { screens: 5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Challans › Awaiting invoice': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 2 },
+  'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Invoices': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 2 },
   'Office › Clients › Clients': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Clients › Parts': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -51,10 +53,10 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // Raised 2.5 → 3 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): the fifth card, Turnaround, on a row of its
   // own (2.62).
   'Floor › Overview': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › People › Attendance': { screens: 2.5, blocks: 1, chains: 0, toolbarRows: 1 },
-  'Floor › People › Attendance › Week': { screens: 2, blocks: 3, chains: 0, toolbarRows: 1 },
+  'Floor › People › Attendance': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › People › Attendance › Week': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › People › Attendance › Month': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › People › Pay': { screens: 2.5, blocks: 1, chains: 0, toolbarRows: 1 },
+  'Floor › People › Pay': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › People › Areas': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › People › Roster': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › Lines': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -62,27 +64,31 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Floor › Production › Entries': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › Equipment': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Stock': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 2, toolbarRows: 1 },
-  'Floor › Power › Causes': { screens: 2, blocks: 0, chains: 2, toolbarRows: 0 },
+  'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Floor › Power › Causes': { screens: 2, blocks: 0, chains: 0, toolbarRows: 0 },
   'Floor › Power › Load & bills': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Case': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   // TM3. Receivables, Payments and Bank have the one toolbar row a work screen has (§3e: Cheque received; Add a bill; search,
   // Filter and More), raised from 0 and said to the owner (I10). Each gave the room back: Receivables and Payments show the
   // first few of what needs the owner, the Overview's charts fold, Payments' sections fold.
-  'Money › Overview': { screens: 1.5, blocks: 1, chains: 0, toolbarRows: 1 },
+  'Money › Overview': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Money › Receivables': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Money › Payments': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Money › Bank': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Money › GST': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 0 },
-  'History': { screens: 4.5, blocks: 0, chains: 4, toolbarRows: 5 },
-  'Knowledge › Start': { screens: 2, blocks: 0, chains: 2, toolbarRows: 1 },
+  // TM6. Across the app: no note over 120 characters and no chain of three facts on any screen, and no phone toolbar over two rows
+  // (Reports' two: the kind and the period). History and Knowledge, assembled to one look, gave the room back: History's five rows
+  // of controls are one, the Library's five one; Invoiced, Troubleshoot and Training grew by the card they gained (said in the PR).
+  'History': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Knowledge › Start': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   // Raised 3 → 3.5 in TM4, said in the PR (I10): the guides took the Floor screens' method paragraphs (two new guides, five
   // rewritten), and the Library lists them (2.86 → 3.05). Raised 3.5 → 4 in TM5, said in the PR: a new guide took Performance's
-  // and Sales' method (Using the app: clients and sales), one more row (3.48 → 3.56). TM6 assembles Knowledge.
-  'Knowledge › Library': { screens: 4, blocks: 0, chains: 2, toolbarRows: 5 },
-  'Knowledge › Troubleshoot': { screens: 1.5, blocks: 0, chains: 2, toolbarRows: 2 },
-  'Knowledge › Records': { screens: 1.5, blocks: 0, chains: 2, toolbarRows: 4 },
-  'Knowledge › Training': { screens: 3, blocks: 0, chains: 14, toolbarRows: 1 },
+  // and Sales' method (Using the app: clients and sales), one more row (3.48 → 3.56). Back to 3.5 in TM6: one toolbar row where
+  // there were five (3.56 → 3.40).
+  'Knowledge › Library': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Knowledge › Troubleshoot': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Knowledge › Records': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Knowledge › Training': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
 };
 
 /* The screens §3d marks *verdict*: a [data-verdict] in the first phone screen. Each joins in the step that builds its verdict. */
@@ -97,9 +103,12 @@ const VERDICT: string[] = [
   'Floor › People › Pay', 'Floor › People › Areas', 'Floor › People › Roster',
   'Floor › Production › Lines', 'Floor › Production › In plant', 'Floor › Production › Entries', 'Floor › Production › Equipment',
   'Floor › Stock', 'Floor › Power › Cuts', 'Floor › Power › Causes', 'Floor › Power › Load & bills',
-  // TM5: Office's (Challans → Invoiced is led by its month's stepper, with no card).
+  // TM5: Office's.
   'Office › Pipeline', 'Office › Challans › Awaiting invoice', 'Office › Invoices', 'Office › Clients › Clients',
   'Office › Clients › Parts', 'Office › Clients › Performance', 'Office › Sales › Prospects', 'Office › Sales › Quotations',
+  // TM6f: the screens no step had touched (Knowledge's Start carries its verdict on its first card).
+  'Office › Challans › Invoiced', 'History', 'Knowledge › Start', 'Knowledge › Library', 'Knowledge › Troubleshoot', 'Knowledge › Records',
+  'Knowledge › Training',
 ];
 
 test('every screen of the map is within its load budget on the long book', async ({ page }) => {

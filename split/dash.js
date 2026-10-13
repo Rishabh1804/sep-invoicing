@@ -91,7 +91,9 @@ function attWeeksPanelHtml() {
   var weeks = dashAttendanceByWeek(12);
   return _dashPanel('dashAttWeeks', 'Attendance by week', chartLines(weeks.map(function(w) { return _dashWeekLabel(w.sat); }),
     [{ label: 'Present', values: weeks.map(function(w) { return w.pct == null ? null : Math.round(w.pct * 10) / 10; }) }],
-    { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded' }) +
+    // The pay week running is drawn as to date (TM6b): a Wednesday's week is not a poor week.
+    { unit: 'pct', ariaLabel: 'Attendance by week', emptyText: 'Needs two pay weeks with attendance recorded',
+      toDate: weeks.length && weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) +
     '<div class="inv-note">A week nobody typed is a gap, not a zero.</div>');
 }
 /* Labour ₹/kg by month and the payroll against the bank: the head of People → Pay. Wages (the guard's "wages" setting): a role
@@ -190,7 +192,9 @@ function stockSpendHtml() {
   var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(isoAddDays(w, 6)); });
   h += _dashSection('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
     return { label: l.name, values: l.v, tone: i + 2 };
-  })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded' }) +
+  })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded',
+    // The week running is drawn as to date (TM6b).
+    toDate: u.weeks.length && isoAddDays(u.weeks[u.weeks.length - 1], 6) >= localDateStr() ? u.weeks.length - 1 : null }) +
     (u.unpriced.length ? '<div class="inv-note">' + escHtml('Not counted, no price: ' + u.unpriced.join(', ') + '.') + '</div>' : ''));
   return h + dashPricePanelHtml();
 }

@@ -1032,17 +1032,19 @@ function _areaAbsorptionCard(stats) {
   return html + '</div>';
 }
 
-/* An area's staffing (§6.10): its status as a dot and a word — over is a caution, under is short, at
-   complement is fine — its heads and extra as figures, what was paid for work done here, and its complement. */
+/* An area's staffing (§6.10): its status as a dot and a word, in the tone heads against the number take wherever an area's
+   staffing is drawn (areaNeedTone, the tab map TM6a: short a warning, at the complement ok, over it info; half a head either way
+   is rounding on a small crew, not a staffing call) — its heads and extra as figures, what was paid for work done here, and its
+   complement. */
 function _areaRow(a) {
   var target = a.target;
   var staffing = 'none', tone = 'neutral', word = 'No complement';
   if (target != null) {
     var v = a.avgHeads - target;
-    // Half a head either way is rounding on a small crew, not a staffing call.
-    if (v >= 0.5) { staffing = 'over'; tone = 'warning'; word = '+' + formatNum(v, 1) + ' over'; }
-    else if (v <= -0.5) { staffing = 'under'; tone = 'danger'; word = formatNum(v, 1) + ' under'; }
-    else { staffing = 'ok'; tone = 'ok'; word = 'At complement'; }
+    tone = areaNeedTone(a.avgHeads, target);
+    if (tone === 'info') { staffing = 'over'; word = '+' + formatNum(v, 1) + ' over'; }
+    else if (tone === 'warning') { staffing = 'under'; word = formatNum(v, 1) + ' under'; }
+    else { staffing = 'ok'; word = 'At complement'; }
   }
 
   // NOTE on the basis. This figure is what was PAID FOR WORK DONE IN THIS AREA:

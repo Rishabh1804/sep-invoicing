@@ -25,7 +25,9 @@ test('material still to bill is the default tab, grouped by day; billed material
   await expect(page.locator('#imList [data-im="IM-103"]')).toBeVisible();
   // One status on this tab: no status filter; the month pager instead, with nothing before or after.
   await expect(page.locator('#imStatusFilter')).toHaveCount(0);
-  await expect(page.locator('[data-im-month]')).toContainText('1 challan · ₹1,300.00');
+  // The month's count and amount are Invoiced's verdict (the tab map, TM6f); the pager says how the month is read.
+  await expect(page.locator('[data-im-invoiced] .inv-hero-title')).toHaveText(/^1 challan invoiced in [A-Z][a-z]{2} \d{4} · ₹1,300$/);
+  await expect(page.locator('[data-im-invoiced]')).toContainText('by challan date');
   await expect(page.locator('[data-action="invIMMonth"][data-step="-1"]')).toBeDisabled();
 });
 
@@ -40,6 +42,7 @@ test('Invoiced steps back a month at a time', async ({ page }) => {
   await expect(page.locator('#imList [data-im]')).toHaveText([/103/]);
   await page.locator('[data-action="invIMMonth"][data-step="-1"]').click();
   await expect(page.locator('[data-im-month]')).toHaveAttribute('data-im-month', '2026-01');
+  await expect(page.locator('[data-im-invoiced] .inv-hero-title')).toContainText('in Jan 2026');
   await expect(page.locator('#imList [data-im]')).toHaveText([/104/]);
   await expect(page.locator('[data-action="invIMMonth"][data-step="-1"]')).toBeDisabled();
   await expect(page.locator('[data-action="invIMMonth"][data-step="1"]')).toBeEnabled();

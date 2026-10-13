@@ -5,7 +5,7 @@
    Each stage is a count, an amount and a dot and a word for how long its oldest has waited, each read off the function its
    own screen uses: IM's open share (imLineOpen, imChallanOpenTotal) and the To-do's unbilled rule for its days; the
    Register's states (getInvState), its taxable and each invoice's own tone (invStateTone, read against Settings → Checks
-   & alerts → Invoice states); and what Receivables say is owed (bankReceivables, finAgeing, figToneAge). Never a second
+   & alerts → Invoice states); and what Receivables say is owed (bankReceivables, finAgeing, figToneOwed). Never a second
    copy of the arithmetic.
    A stage opens its list (beneath on the phone, beside on the desktop), drawn with the rows its own screen draws, and its
    action goes through the screen that owns it: an invoice from a client's challans by IM's route (its selection, then
@@ -71,8 +71,7 @@ function pipeStages() {
     var bands = finAgeing(recv), old90 = bands[3] ? bands[3].amount : 0, old60 = bands[2] ? bands[2].amount : 0;
     var oldest = owing.reduce(function(m, r) { return r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
     var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows)).length;
-    var tone = figToneAge(oldest) || 'neutral';
-    if (loose && tone === 'danger') tone = 'warning';
+    var tone = figToneOwed(oldest, loose > 0) || 'neutral';
     var word = old90 > 0.005 ? finRs(old90) + ' over 90 days' : old60 > 0.005 ? finRs(old60) + ' over 60 days' : pipeOldestWord(oldest) || 'owed';
     if (loose) word += ' · ' + todoPlural(loose, 'receipt') + ' not placed';
     add('owed', { n: owing.length, items: owing, recv: recv, loose: loose, of: 'owed', tone: tone, word: word,
@@ -285,7 +284,7 @@ function pipeOwedHtml(s) {
       '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + r.open.length + ' open' +
       (r.oldestDays != null ? ' · oldest ' + r.oldestDays + ' d' : '') +
       (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) : '') + '</span></span>' +
-      '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneAge(r.oldestDays)) + '</span></button>';
+      '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), finOwedTone(r.oldestDays)) + '</span></button>';
   });
   return '<div class="inv-panel inv-panel-flush" data-pipe-list="owed">' +
     pipeListHead(s, '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts">Open Receivables</button>') +

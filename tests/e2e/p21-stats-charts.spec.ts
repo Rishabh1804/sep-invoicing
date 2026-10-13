@@ -123,7 +123,9 @@ test('P21: line and bar draw the same series, and neither distorts its aspect', 
   await loadAppWithState(page, s);
   await openStats(page);
 
-  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toBeVisible();
+  // The months closed are one line; the month to date is its own dashed segment after it (the tab map, TM6b).
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line:not(.inv-chart-todate)')).toBeVisible();
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-todate')).toHaveCount(1);
   await page.locator('[data-action="invStatsTrendType"][data-type="bar"]').click();
   await expect(page.locator('.inv-chart-svg rect.inv-chart-bar').first()).toBeVisible();
   await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toHaveCount(0);

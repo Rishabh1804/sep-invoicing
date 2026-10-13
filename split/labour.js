@@ -464,13 +464,10 @@ function _labAreaRows(lab, compact) {
     '<summary class="inv-row"><span class="inv-row-main"><span class="inv-row-title">Variable labour by area</span></span><span class="inv-row-end inv-num">' + formatCurrency(total) + '</span></summary>' +
     '<div class="inv-panel-body">' + chartRankedBars(rows, { unit: 'money' }) +
     '<div class="inv-note inv-mt-8">The monthly crew’s day pay and rest days are not by area; its overtime is.</div></div></details>';
+  // One line (the tab map, TM6e): why the monthly crew is left out is the guide's (Using the app: People).
   return '<div class="inv-row-group">Variable labour by area</div>' +
     '<div class="inv-panel-body">' + chartRankedBars(rows, { unit: 'money' }) +
-    '<div class="inv-note inv-mt-8">Hourly pool, daily tier, overtime and extra hours, placed by the area each ' +
-    'was worked in. <strong>The monthly tier&rsquo;s day pay and rest days are not in here</strong> &mdash; that ' +
-    'crew is the standing one and its cost does not follow the area it happened to stand in, so splitting it ' +
-    'would print an allocation nobody measured. Their overtime <em>is</em> in here, because an overtime hour ' +
-    'was worked somewhere specific and was paid for being worked.</div></div>';
+    '<div class="inv-note inv-mt-8">The monthly crew’s day pay and rest days are not by area; its overtime is.</div></div>';
 }
 
 /* The breakdown card. Used by the Attendance tab for a day or a week (cash
@@ -557,20 +554,17 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass, opts) {
   // Coverage, always, in the same place whether it is complete or not. A card
   // that only mentions its gaps when it has them teaches the reader to stop
   // looking for the line. Compact: the badge on the figure says it, and one line says it reads low.
+  // One line each (the tab map, TM6e): why an incomplete range reads low, and how the rest-day gate and the daily rest credit read a
+  // range shorter than their own, are the guide's (Using the app: People).
   if (compact) {
     if (lab.coverage < 0.999) html += _labNote('Reads low: ' + todoPlural(lab.workingDays - lab.daysRecorded, 'working day') + ' not recorded (' + covPct + '% recorded).');
-  } else html += _labNote('Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays +
-    ' working days</strong> in this range (' + covPct + '%)' +
-    (lab.sundaysRecorded > 0 ? ', plus ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') + '. ' +
-    (lab.coverage < 0.999
-      ? 'Every tier is paid for days and hours actually recorded, so an incomplete range reads <strong>low</strong>, ' +
-        'never neutral &mdash; and the monthly tier reads low <em>twice</em>, because a day nobody typed also ' +
-        'depresses the attendance its rest-day gate is judged on.'
-      : 'Every working day in the range is on file.') +
-    (lab.restDaysInRange > 0 && lab.rangeDays < 28
-      ? ' The rest-day gate is a monthly rule; over a range shorter than a month it judges each rest day on this range&rsquo;s attendance alone.'
-      : '') +
-    (lab.dailyRest > 0 && lab.rangeDays > 7 ? ' Daily rest credit is gated on days inside this range, so a range cutting a week in half under-credits that week.' : ''));
+  } else {
+    html += _labNote('Recorded <strong>' + lab.daysRecorded + ' of ' + lab.workingDays + ' working days</strong> (' + covPct + '%)' +
+      (lab.sundaysRecorded > 0 ? ', and ' + lab.sundaysRecorded + ' Sunday' + (lab.sundaysRecorded === 1 ? '' : 's') : '') +
+      (lab.coverage < 0.999 ? ': reads <strong>low</strong>.' : ': every working day on file.'));
+    if (lab.restDaysInRange > 0 && lab.rangeDays < 28) html += _labNote('Rest days are judged on this range alone, not the month.');
+    if (lab.dailyRest > 0 && lab.rangeDays > 7) html += _labNote('Daily rest credit counts only the days inside this range.');
+  }
 
   if (lab.ratelessWorkers.length > 0) {
     html += _labCallout('Days or hours are recorded for <strong>' +
@@ -587,13 +581,10 @@ function renderLabourCard(fromIso, toIso, title, tonnage, extraClass, opts) {
   // has already been given.
   html += _labAreaRows(lab, compact);
 
+  // What the extra is, and who receives it, is the guide's (Using the app: People); here its share, in a line.
   if (lab.extra > 0 && !compact) {
     var share = lab.total > 0 ? (lab.extra / lab.total) * 100 : 0;
-    html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is extra hours ' +
-      'booked to an area rather than to a person. That is what &ldquo;the extra&rdquo; on the daily sheet is: ' +
-      'real paid contract hours with no name against them. In the bill they are one pooled line, counted once and never ' +
-      'in anyone&rsquo;s wage; the short area&rsquo;s present crew receive it pro-rata, disbursed by the supervisor ' +
-      '(owner, 28 Aug 2026), and Staff &rarr; Areas shows the split.');
+    html += _labNote('<strong>' + formatNum(share, 1) + '% of this bill</strong> is EXTRA booked to an area, not a person; Areas shows the split.');
   }
 
   return html + '</div>';

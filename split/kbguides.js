@@ -112,9 +112,14 @@ var KB_APP_GUIDES = [
     '# Month\n- The supervisor’s register, a page a month, set against the day as the app holds it. The card counts the cells that differ, those only on the register and those that agree.\n' +
     '- A cell is drawn as written. Red: the mark differs from the day. Amber: only the overtime differs, by an hour or more. Plain: it agrees, or it is only on the register. A dashed edge is a cell the reading was unsure of.\n' +
     '- Tap a cell to see both and settle it, one way or the other: **Day takes the register’s** or **Register takes the day’s**. **Fill** puts every cell only on the register onto its day, asked first.\n' +
-    '- **Read page photo** reads a photo of the page, every cell shown before it counts; **Import** takes a register file; **Start this month** gives a column to each monthly hand to fill by hand.',
-    // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b).
-    { version: 2 }),
+    '- **Read page photo** reads a photo of the page, every cell shown before it counts; **Import** takes a register file; **Start this month** gives a column to each monthly hand to fill by hand.\n\n' +
+    '# Labour on Day and Week\n- Every tier is paid for the days and hours recorded, so a range with days nobody typed reads **low**, never neutral. The monthly tier reads low twice: a day nobody typed also lowers the attendance its rest-day gate is judged on.\n' +
+    '- The rest-day gate is a monthly rule: over a range shorter than a month it judges each rest day on that range alone. The daily tier’s rest credit counts the days inside the range, so a range cutting a week in half under-credits that week.\n' +
+    '- **Variable labour by area** places the hourly pool, the daily tier, overtime and the extra by the area each was worked in. The monthly crew’s day pay and rest days are not in it: that crew is the standing one, and its cost does not follow where it stood. Its overtime is, since an overtime hour was worked somewhere.\n' +
+    '- **The extra** is hours booked to an area rather than to a person: real paid hours with no name against them. In the bill they are one pooled line, counted once and never in anyone’s wage; the short area’s present crew receive it pro-rata, paid out by the supervisor, and People → Areas shows the split.',
+    // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
+    // card's three paragraphs, each a line on the card now (TM6e).
+    { version: 3 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** reads the attendance by place: is each area staffed right, and does the extra hold up. The card at the top says whether the extra checks out, or how many bookings are left to explain.\n\n' +
@@ -243,10 +248,12 @@ var KB_APP_GUIDES = [
     '- A balance carries to the next period until it is paid, worked off or cleared with a reason (**Brought forward**, each month it is made of named). A monthly hand’s balance counts from the month you set (**Count from a month**): from it on, a month paid short is owed and a month paid over is taken back. A salary is owed from the 21st of the month after.\n' +
     '- **History** on a hand’s line: their last twelve months (or weeks), what each earned, every payment, what it left and the balance after it, and **Print the slip** for any of them. **Pay slips** prints a month picked for every monthly hand.\n' +
     '- A wrong payment is voided with a reason, never deleted.\n' +
-    '- **Monthly payroll as paid** (under More: Import): a closed month’s slips. For a month before this one they are what the hands they name earned; with no payment for the month on record, the slip is taken as paid.',
-    // Version 4: snacks in the payout and the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly
-    // balances from a month set, a hand's history and any month's slip (the same day).
-    { roles: ['owner'], version: 4 }),
+    '- **Monthly payroll as paid** (under More: Import): a closed month’s slips. For a month before this one they are what the hands they name earned; with no payment for the month on record, the slip is taken as paid.\n' +
+    '- **Wages paid, from the bank**: a cash draw (SELF, TO SELF, TO CASH) is wages and the owner’s drawings. Each pay week’s cash counts as wages up to the payout recorded for that week; what is drawn past it is drawings, never a cost. A week with no attendance recorded cannot be split. A transfer to a hand on the roster is set against the payroll as paid for the month before.',
+    // Version 5: how the bank's cash draws are read, said on Pay's panel until the tab map (TM6e). Version 4: snacks in the payout and
+    // the hours to check (owner, 10 Oct 2026); version 3: paid from the bank's salaries, monthly balances from a month set, a hand's
+    // history and any month's slip (the same day).
+    { roles: ['owner'], version: 5 }),
   _kbg('bank', 'Using the app: the bank statement', 'Importing it, placing each receipt, and cheques in hand', ['pageFinance'],
     '- Money → Bank, in the toolbar’s More: **Import a statement**: the bank’s own .xls, or the same saved as .xlsx. Rows already in are skipped, so a statement that overlaps the last adds only what is new.\n' +
     '- **Receivables start** on the later of the statement’s first day and the book’s first invoice: a receipt before then paid an invoice the app does not hold.\n' +
@@ -279,7 +286,9 @@ var KB_APP_GUIDES = [
     '- The book in the top bar opens the guides for the screen you are on.\n- **Write** an article: a how-to, a process, a part, a client requirement, a ruling, a fault, an incident or a decision.\n' +
     '- What anyone but the owner writes waits for the owner’s approval. A change to a published article waits beside it.\n' +
     '- **Troubleshoot**: find a fault by what you see; log an incident when something goes wrong, and the app shows that day as recorded.\n' +
-    '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.'),
+    '- **Training**: record who was taught which lesson. When a lesson changes, the training is due again.\n- A photo stays on the device it was taken on.\n' +
+    '- **Start** shows what waits: articles to approve, drafts, decisions due for review and training due again. Each view opens on a card saying how it stands.\n' +
+    '- On a phone the kind and the drafts are behind **Filter**. Export and Import (the owner’s) are under **More** in the Library.', { version: 2 }),
   _kbg('planner', 'Using the app: the planner', 'Simulating machines, certification, staff, clients and a loan', ['pagePlanner'],
     'Today → **Planner** plays out a plan over the next 24 months. It starts from the book’s last three full months and **never changes the book**.\n\n' +
     'The card at the top says how the plan stands against its goal on every view; **Roll** and the month are under it, and **More** holds the rest (a new card, the report, the plan’s copy and name, the goal).\n\n' +

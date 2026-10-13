@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab, openVerdict } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, openStatsTab, openVerdict, setFilter } from './fixtures';
 
 /* The period's headline is Stats → Trends' verdict card since the tab map (TM2b; it was the Overview's first card), shut on the
    phone until opened. */
@@ -282,7 +282,7 @@ test.describe('History — audit events', () => {
     await loadAppWithState(page, auditState());
     await switchTab(page, 'pageHistory');
 
-    await page.locator('[data-action="invHistoryType"][data-type="audit"]').click();
+    await setFilter(page, '#historyType', 'audit');
     const log = page.locator('#historyList');
     await expect(log).toContainText('deleted');
     await expect(log).toContainText('Duplicate warning accepted');
@@ -302,7 +302,7 @@ test.describe('History — audit events', () => {
   test('a void is not tappable — the invoice it names is gone', async ({ page }) => {
     await loadAppWithState(page, auditState());
     await switchTab(page, 'pageHistory');
-    await page.locator('[data-action="invHistoryType"][data-type="audit"]').click();
+    await setFilter(page, '#historyType', 'audit');
 
     const voidRow = page.locator('#historyList [data-ev]', { hasText: '00666 deleted' });
     // A plain row, never a button: nothing to open.

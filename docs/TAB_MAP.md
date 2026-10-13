@@ -50,7 +50,7 @@ Nothing here changes what the book records except TM3b.
 | TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | **Built** (10 Oct 2026; what it decided is under TM3, *As built*) |
 | TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | **Built** (10 Oct 2026; what it decided is under TM4, *As built*) |
 | TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | **Built** (10 Oct 2026; what it decided is under TM5, *As built*) |
-| TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | Not built |
+| TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | **Built** (10 Oct 2026; what it decided is under TM6, *As built*) |
 | TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | Not built |
 
 ## 1. The rulings
@@ -1403,6 +1403,75 @@ its tokens under it on the phone; Training's verdict and row tones; every screen
 layouts; no `inv-pagehead-meta` in `split/`. **Spec P194** (`p194-load-across(.desktop).spec.ts`); P195's budgets at their floor;
 P197 complete.
 
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **The judges.** `areaNeedTone(heads, need)` and `areaNeedWord` (state.js: short a warning, met ok, over info, half a head
+  either way the number) are read by Floor's line cards, the attendance panel's *By area*, Day's board and *Needed today*, and
+  Areas, **whose rows read short in danger and over in warning until now**. `figToneOwed(days, loose)` and `finOwedTone(days)`
+  (owed by the age of its oldest open invoice, never red while a receipt is unplaced, the owed90 rule's reason) are read by
+  Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline's *Owed to us*, a client's Money panel and the
+  statement. `attOnSiteTone` (TM4a) is read by Needs you's floor card and the day's report too. **The reprice move takes the
+  client's tone on Stats** (`figToneAgainst(net, full cost, 5)`: red where Stats draws it in danger, amber within 5%); it had been
+  red at any loss on the variable cost.
+- **The period to date** (`opts.toDate` on `chartLine`, `chartLines`, `chartBars`, `chartStack` and `chartSpark`; `chartToDateAt(keys, current)` finds it,
+  `finMonthToDate` gives Money's: the statement's last month unless the statement covers it to its end, the invoices' running
+  month). A label too near the period's own is not drawn (`_chartLabelShown`), since *to date* is longer.
+- **History**: the verdict card (`historyVerdictHtml`), then one row on both layouts (the search; Filter, inline on the desktop with
+  the range a dialog of its own, as Invoices'; More: Export CSV). **A floor day's row is its count** (*Attendance recorded: 17
+  present, 6 absent, 9.0 h OT*): where everybody stood is the row's whole (its title, the desktop's pane, the search, the CSV) and
+  the day's own board a tap away (`historyDayJump`, `invHistoryJumpDay`: People → Attendance on that day, for a role that opens
+  it); seven areas had run it past two lines on the owner's book. **A change's row is at most 110 characters** (`CHG_ROW_MAX`): a
+  void or cancel says why in the words typed (*Someone voided production entry …: "Incorrect part number"*), and a record's name
+  too long for the row loses its last parts, said with "…", whole in the title, the pane and the CSV. A production entry is named
+  by its line as the floor names it (*VAT A1*). The search reads a row's whole as well as its words.
+- **Knowledge**: every list view leads with its card and one row (the search; Filter: the kind, and for a writer drafts and
+  waiting, a dialog with its tokens on the phone, inline on the desktop; **Write** the primary; More: Export and Import). **Start**
+  draws only the cards that hold something (one, *Nothing waits on you*, when none does); a card says its count in its line and a
+  fact only where it is news (the oldest's day, the first review due), and on the phone the first card opens on its rows and the
+  rest wait shut (all open on the desktop): a figure over each line, a filler fact and every card open had put Start a quarter of
+  a screen past the lists it replaced on the long book. A row's summary is cut at a word near 90 characters, whole in its title.
+  A path's head says how many hands it is for. *Using the app: knowledge* says what Start, Filter and More hold (version 2).
+- **Challans → Invoiced**: its card (`imInvoicedVerdictHtml`: *N challans invoiced in Oct 2026 · ₹X*, in the tone of the oldest of
+  the month's challans still waiting, *N of the month still awaiting invoice* its fact, *by challan date*), then one row: the
+  month's ‹ › inside it (`imMonthPagerHtml`, `inv-tb-step`), Filter, and More holding Add challan, Scan a challan and Duplicate
+  check on this view. **Reports' Print is its action bar's**, under the sheet, as Create's Save is: two toolbar rows on the phone
+  (the kind, the period).
+- **The long words**, each a line or two facts, the method to its screen's guide: the day board's row (the tier, then the day in
+  one clause: *Monthly · OT 2 h*, *Hourly · Absent*; present is the pressed P and is not said); the labour card's three paragraphs
+  and Pay's on the bank's cash draws (*Using the app: People*, version 3; *pay*, version 5); Money's forecast's *What it rests on*,
+  a fold of fact rows each with its sentence in its title; Pulse's cash question; the insights' month below every month before and
+  the account below its variable cost (the rest in their figures); the zinc card's age and source; Power's rows (a cut's why, the
+  place tiles, the causes, fixes and units; a unit and its line one fact, *Rectifier 1 (VAT A1)*; the cause task's line); the
+  change log's text; a folded To-do group's line.
+- **The page-head line is gone** (`inv-pagehead-meta` and its rule): no screen drew it after TM5. HR-3's count is 721.
+- **The closed list** (design §6.28): the census over the owner's own book, both layouts, found five looks the long book never drew:
+  the Planner board's rule between lanes (two, added to `LOOKS`), and three where a box wore two components at once (a register
+  day's row filled as well as its cells; the EXTRA fold's lines padded as a panel's body), now each its own component. Two of TM1's
+  looks nothing draws on either book any more came off. 41 looks, each named with what wears it.
+- **The measures**, phone screens, the worst of eleven days on the long book (TM5's build → TM6), and the owner's book (same book,
+  before → TM6):
+
+  | Screen | Long book | Owner's book |
+  |---|---|---|
+  | History | 3.94 → **3.61** (chains 4 → 0, toolbar rows 5 → 1) | 4.29 → **4.04** (blocks 2 → 0, chains 21 → 0, toolbar rows 4 → 1) |
+  | Knowledge → Start | 1.61 → **1.64** | 1.62 → **1.39**; the desktop's 1.34 → **1.15** |
+  | Knowledge → Library | 3.56 → **3.40** (toolbar rows 5 → 1) | 5.50 → **5.34** (blocks 1 → 0, toolbar rows 5 → 1) |
+  | Knowledge → Troubleshoot | 1.00 → **1.00** (chains 1 → 0, toolbar rows 2 → 1) | 1.53 → **1.62** (toolbar rows 2 → 1) |
+  | Knowledge → Records | 1.03 → **1.00** (toolbar rows 4 → 1) | 3.99 → **3.91** (blocks 15 → 0, toolbar rows 4 → 1) |
+  | Knowledge → Training | 2.55 → **2.69** (chains 11 → 0) | 3.20 → **3.33** (chains 15 → 0) |
+  | Challans → Invoiced | 2.27 → **2.39** (toolbar rows 2 → 1) | 3.14 → **3.26** (toolbar rows 2 → 1) |
+  | Today → Reports | 2.89 → **2.86** (toolbar rows 4 → 2) | 3.11 → **3.08** (toolbar rows 4 → 2) |
+  | Today → Needs you, Pulse | chains 2 → 0, 1 → 0 | blocks 1 → 0 and chains 3 → 0, each |
+  | People → Attendance, Week, Pay | blocks 1, 3, 1 → 0 | blocks 2, 3, 1 → 0; Attendance's chains 17 → 0 |
+  | Power → Cuts, Causes | chains 2 → 0 each; Causes 1.56 → **1.54** | chains 2, 3 → 0; Causes 1.74 → **1.72** |
+  | Money → Overview | blocks 1 → 0 | blocks 1 → 0; the desktop's 5.50 → **5.27** |
+
+  **No note over 120 characters and no chain of three facts is left on any screen of either book, and no phone toolbar is over two
+  rows.** Every budget went to its new measure and **none rose**. **Three screens grew by the card they gained** (said, I10):
+  Challans → Invoiced, 0.12 on both books, its card where a second toolbar row was; Knowledge → Training, 0.14 on the long book and
+  0.13 on the owner's (0.14 on the desktop); Troubleshoot, 0.09 on the owner's book. Knowledge → Start is 0.03 longer on the long
+  book, where every card holds one row, and 0.23 shorter on the owner's. The owner's book is measured in a scratch harness that
+  never enters the repository.
+
 ### TM7 — Docs, verification, the PR
 
 1. **Docs:**
@@ -1530,7 +1599,11 @@ Prospects' spare: `p176-prospects`.
 **TM6, across the app.** History's filters on the phone: `p14-stats-history`, `p141-changelog`, `p29-floor-history`,
 `p74-history`. Training: `p154-knowledge`. A chart's title or label read by a spec gains *to date*: `p73-stats`, `p102-figures`,
 `p59-finance`, `p65-overviews`, `p88-prod-links`, `p115-power`. Tones made one: `p102-figures`, `p119-staff-board`,
-`p138-floor-day`, `p178` (a tone a spec pinned on one screen now comes from the shared function).
+`p138-floor-day`, `p178` (a tone a spec pinned on one screen now comes from the shared function). **As built, the specs rewritten
+were** `p14-stats-history`, `p141-changelog` (both layouts: a change's row, a record's name joined by commas), `p29-floor-history` (a
+floor day's areas in its whole, the day opened from its row), `p74-history`, `p154-knowledge`, `p155-kb-qa` (Filter and the
+tokens; a path's head), `p157-confidence` (the insight's loss as a range in two facts), `p55-im` (Invoiced's count and amount in its card), `p59-finance`
+(invoiced against received drawn to date) and `p72-staff` (the day board's row); the others named above passed as they stood.
 
 **One look, by step.** TM2: `p73-stats`, `p105-stats-fold`, `p128-qa-intel`, `p162-planner`, `p163-planner-qa` (the goal callout
 and the heads-up tiles now in the verdict card). TM4: `p71-stock` and `p125-qa-stock` (the status tiles in Stock's verdict card),

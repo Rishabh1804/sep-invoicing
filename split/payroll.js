@@ -646,7 +646,8 @@ function _payHistoryCard(ws) {
   // A week nobody typed is a gap, not a ₹0 week: chartStack draws no bar (and no ₹0 reading) for it.
   h += '<div class="inv-panel-body">' + chartStack(weeks.map(function(w) { return 'W' + attPayWeekNumber(w.start); }),
     [{ label: 'Payout', values: weeks.map(function(w) { return w.recordedDays || w.sundays ? w.total : null; }) }],
-    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve' }) + '</div>';
+    // A pay week still running is drawn as to date (TM6b).
+    { ariaLabel: 'Weekly payout', emptyText: 'No week recorded in the twelve', toDate: weeks[weeks.length - 1].sat >= localDateStr() ? weeks.length - 1 : null }) + '</div>';
   weeks.slice().reverse().forEach(function(w) {
     var swing = median != null && w.recordedDays > 0 ? gstRound(w.total - median) : null;
     // The row's figure and its change against the median at the end; the days and what was paid its two facts.
@@ -1120,7 +1121,7 @@ function attDayPanelHtml(d, headBtn, id) {
     h += '<div class="inv-row inv-row-auto" data-att-alloc><span class="inv-row-main"><span class="inv-row-meta">By area</span><span class="inv-row-wrap">' +
       alloc.map(function(a) {
         var n = d.byArea[a.id] || 0, need = a.floor && a.id !== 'flex' ? areaNeedOn(d.iso, a.id) : null;
-        var tone = need != null ? (n < need ? 'warning' : 'ok') : null;
+        var tone = areaNeedTone(n, need);
         return '<span data-alloc="' + escHtml(a.id) + '">' + escHtml(a.label) + ' ' + figHtml('<span class="inv-num">' + n + (need != null ? '/' + need : '') + '</span>', tone) + '</span>';
       }).join(' · ') + '</span></span></div>';
   }

@@ -877,6 +877,9 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-chart-s3 { stroke: var(--chart-4); } .inv-chart-s4 { stroke: var(--chart-5); } .inv-chart-s5 { stroke: var(--chart-6); }
 .inv-chart-s6 { stroke: var(--chart-7); } .inv-chart-s7 { stroke: var(--chart-8); }
 .inv-chart-pt, .inv-chart-seg, .inv-chart-wedge { cursor: pointer; stroke: var(--surface); stroke-width: var(--hair); }
+/* A period not yet ended (TM6b, §6.17): its line runs in dashed, its bar or point lighter; its label says "to date". */
+:is(.inv-chart-line, .inv-chart-path, .inv-spark-line).inv-chart-todate { stroke-dasharray: var(--sp-4) var(--sp-4); }
+:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-dot, .inv-chart-pt).inv-chart-todate { opacity: 0.5; }
 .inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: var(--rule); }
 .inv-chart-centre { font-size: var(--chart-fs-centre); font-weight: 600; fill: var(--text-1); font-family: var(--ff-mono); pointer-events: none; }
 .inv-chart-ranges { margin-bottom: var(--sp-8); }
@@ -1386,9 +1389,8 @@ body.inv-desktop .inv-toolbar > .inv-seg.inv-toolbar-item { flex: 0 0 auto; }
 .inv-stepper-sub { font-size: var(--fs-12); color: var(--text-3); }
 body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-sm-w) * 2); }
 .inv-btn .inv-badge { margin-left: var(--sp-2); }
-/* §6.2 Page head: a summary line worth more than the top bar. */
+/* §6.2 Page head: a sub-view's way back and its title (the summary line it once carried is each screen's verdict card, §6.28). */
 .inv-pagehead { display: flex; align-items: baseline; justify-content: space-between; gap: var(--sp-8); margin-bottom: var(--sp-8); }
-.inv-pagehead-meta { font-size: var(--fs-12); color: var(--text-3); }
 /* A sub-view (a form, a check, one record on the phone) leads with the way back and its own title. */
 .inv-pagehead-back { flex-shrink: 0; padding-left: var(--sp-8); }
 .inv-pagehead-title {
@@ -1549,6 +1551,7 @@ button.inv-row-expander::after { content: ''; position: absolute; right: 0; top:
   border-right: var(--rule) solid var(--text-3); border-bottom: var(--rule) solid var(--text-3); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
 button.inv-row-expander[aria-expanded="true"]::after { transform: translateY(-25%) rotate(225deg); }
 .inv-row-children { background: var(--bg); border-bottom: var(--hair) solid var(--border); }
+.inv-row-children > .inv-panel-body:last-child { border-bottom: none; }
 .inv-row-children > .inv-row { padding-left: calc(var(--pad-x) + var(--sp-16)); }
 .inv-row-sub .inv-row-title { color: var(--text-2); }
 /* A row that folds open to its parts (a live cost component): a <details> whose summary is the row. */

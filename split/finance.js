@@ -221,9 +221,17 @@ function finCashHeroHtml(rows, months) {
   var sm = months.slice(-6);
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Cash</span>', title: escHtml(title),
     fig: finHeroFig(last.balance, last.balance < 0 ? 'danger' : null), sub: escHtml(sub),
-    viz: chartSpark(sm.map(function(m) { return m.close; }), { labels: sm.map(function(m) { return insMonthLabel(m.month); }), title: 'Closing balance by month' }),
+    viz: chartSpark(sm.map(function(m) { return m.close; }), { labels: sm.map(function(m) { return insMonthLabel(m.month); }), title: 'Closing balance by month',
+      toDate: finMonthToDate(sm.map(function(m) { return m.month; })) }),
     body: '<div class="inv-hero-sheet">' + facts.map(uiFactRowHtml).join('') + '</div>', fold: 'fin-hero-cash', open: false, attrs: tile,
     foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="bank">Open the statement</button>' });
+}
+/* The month a chart ends on part-way (TM6b): of the statement, its last month unless the statement covers it to its end; of the
+   invoices, the month running. Its index among keys (YYYY-MM), for opts.toDate, else null. */
+function finMonthToDate(keys, of) {
+  if (of === 'invoices') return chartToDateAt(keys, localDateStr().slice(0, 7));
+  var rows = bankRows(), last = rows.length ? rows[rows.length - 1].date : '';
+  return last && last < finMonthEnd(last.slice(0, 7)) ? chartToDateAt(keys, last.slice(0, 7)) : null;
 }
 function finOwedHeroHtml(rows, cls, recv) {
   var tile = ' data-card="fin-owed" data-fin-tile="owed" id="finOwed"';
@@ -232,22 +240,23 @@ function finOwedHeroHtml(rows, cls, recv) {
   var owed = gstRound(recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0)), from = bankRecvFrom(rows);
   var bands = finAgeing(recv), old90 = bands[3].amount, old60 = bands[2].amount, loose = bankLooseReceipts(cls, from).length;
   var book = bankBookDaysToPay(bankPayHistory(recv));
-  // Never red while a receipt is unplaced: that money may be in already, and the line under it says so (owed90's rule).
-  var tone = loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : 'ok';
+  // Owed by its oldest invoice's age, never red while a receipt is unplaced (figToneOwed, the one judge wherever owed is drawn);
+  // a receipt unplaced is a warning of its own, said under it.
+  var tone = figToneOwed(finOwedOldest(recv), loose > 0) || 'ok';
   var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
-  var sub = loose ? todoPlural(loose, 'receipt') + ' not placed: reads high' : book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : 'since ' + stockShortDate(from);
+  var sub = loose ? figHtml(escHtml(todoPlural(loose, 'receipt') + ' not placed: reads high'), 'warning') : escHtml(book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : 'since ' + stockShortDate(from));
   var payHist = bankPayHistory(recv), top = recv.filter(function(r) { return r.owed > 0.005; }).slice(0, 5);
   var body = top.map(function(r) {
     var dtp = bankDaysToPay(r.client.id, payHist);
     return '<div class="inv-row inv-row-2" data-debtor="' + escHtml(String(r.client.id)) + '"><button class="inv-row-main" data-action="invFinClient" data-id="' + escHtml(String(r.client.id)) + '">' +
       '<span class="inv-row-title">' + escHtml(r.client.name) + '</span><span class="inv-row-meta">' + (r.oldestDays != null ? 'oldest ' + r.oldestDays + ' d' : r.open.length + ' open') +
       (dtp && dtp.median != null ? ' · pays in ' + figHtml(Math.round(dtp.median) + ' d', figTonePaysIn(dtp.median)) : '') + '</span></button>' +
-      '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneAge(r.oldestDays)) + '</span></div>';
+      '<span class="inv-row-end inv-num">' + figHtml(formatCurrency(r.owed), figToneOwed(r.oldestDays, loose > 0)) + '</span></div>';
   }).join('');
   if (!top.length) body = '<div class="inv-empty">Nothing owed since ' + escHtml(formatDate(from)) + '.</div>';
   if (loose) body += '<div class="inv-row" data-fin-loose><span class="inv-row-main inv-row-meta">' + todoPlural(loose, 'receipt') + ' with no client: what is owed reads high</span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></span></div>';
-  return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Owed to us</span>', title: escHtml(title), fig: finHeroFig(owed), sub: escHtml(sub),
+  return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Owed to us</span>', title: escHtml(title), fig: finHeroFig(owed), sub: sub,
     viz: owed >= 0.5 ? chartMeter(bands.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
       { title: 'Owed by age: ' + bands.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '',
     body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'fin-hero-owed', open: false, attrs: tile, foot: go });
@@ -276,7 +285,8 @@ function finOutHeroHtml(cls, months) {
   var sm = months.slice(-6);
   return uiHeroHtml({ tone: 'neutral', vital: true, eyebrow: '<span>Paid out · ' + escHtml(billsMonthLabel(m.month)) + '</span>',
     title: escHtml(cats.length ? 'Most to ' + cats[0].toLowerCase() : 'Nothing paid out'), fig: finHeroFig(m.dr), sub: escHtml(finRs(m.cr) + ' came in'),
-    viz: chartSpark(sm.map(function(x) { return x.dr; }), { labels: sm.map(function(x) { return insMonthLabel(x.month); }), title: 'Paid out by month', zero: true }),
+    viz: chartSpark(sm.map(function(x) { return x.dr; }), { labels: sm.map(function(x) { return insMonthLabel(x.month); }), title: 'Paid out by month', zero: true,
+      toDate: finMonthToDate(sm.map(function(x) { return x.month; })) }),
     body: '<div class="inv-hero-sheet">' + cats.slice(0, 5).map(function(k) { return uiFactRowHtml({ label: k, value: finRs(byCat[k]), attrs: ' data-went-top="' + escHtml(k) + '"' }); }).join('') + '</div>',
     fold: 'fin-hero-out', open: false, attrs: tile, foot: go });
 }
@@ -287,7 +297,7 @@ function finGstChartHtml(months, cls) {
     '<div class="inv-panel-body">' + chartStack(months.map(function(m) { return insMonthLabel(m) + (months.length > 12 ? " '" + m.slice(2, 4) : ''); }), [
       { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }) },
       { label: 'Paid', values: g.map(function(r) { return r.paid; }), tone: 2 }
-    ], { mode: 'group', ariaLabel: 'GST due and paid', keys: months }) + '</div>' +
+    ], { mode: 'group', ariaLabel: 'GST due and paid', keys: months, toDate: finMonthToDate(months, 'invoices') }) + '</div>' +
     '<div class="inv-row"><span class="inv-row-main inv-row-meta">Each month’s status and its note</span><span class="inv-row-end">' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="gst">Open GST</button></span></div></div>';
 }
@@ -320,7 +330,7 @@ function finOverviewHtml() {
       { label: 'Balance', values: cashMonths.map(function(m) { return byMonth[m].close; }) },
       { label: 'In', values: cashMonths.map(function(m) { return byMonth[m].cr; }), tone: 2 },
       { label: 'Out', values: cashMonths.map(function(m) { return byMonth[m].dr; }), tone: 3 }
-    ], { ariaLabel: 'Cash by month', pointAction: 'invFinMonth', keys: cashMonths, emptyText: 'The statement covers under two months of this range' }) + '</div>' +
+    ], { ariaLabel: 'Cash by month', pointAction: 'invFinMonth', keys: cashMonths, emptyText: 'The statement covers under two months of this range', toDate: finMonthToDate(cashMonths) }) + '</div>' +
     '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">In</th><th class="inv-num">Out</th><th class="inv-num">Closed at</th></tr></thead><tbody>';
   cashMonths.slice().reverse().forEach(function(k) {
     var m = byMonth[k];
@@ -362,7 +372,7 @@ function finOverviewHtml() {
     '<div class="inv-panel-body inv-toolbar"><select class="inv-select inv-select-sm inv-toolbar-item" id="finMonthPick" aria-label="Month">' + months.slice().reverse().map(function(m) {
       return '<option value="' + m.month + '"' + (m.month === ym ? ' selected' : '') + '>' + escHtml(billsMonthLabel(m.month)) + '</option>'; }).join('') + '</select></div>' +
     '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), stackSeries,
-      { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows' }) + '</div>' +
+      { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows', toDate: finMonthToDate(cashMonths) }) + '</div>' +
     // A category keeps its colour in both: one folded into the stack's others takes the others' colour here too.
     '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : catTail.indexOf(k) >= 0 ? 'x' : null }; }),
       { action: 'invFinCat', selected: sel, ariaLabel: 'Outflow in ' + billsMonthLabel(ym), emptyText: 'Nothing paid out in ' + billsMonthLabel(ym), readHint: 'Tap a slice to list its payments' }) + '</div>';
@@ -403,7 +413,8 @@ function finOverviewHtml() {
     '<div class="inv-panel-body">' + chartLines(inRange.map(lab), [
       { label: 'Invoiced', values: inRange.map(function(m) { return invBy[m] || 0; }) },
       { label: 'Received', values: inRange.map(function(m) { return byMonth[m] ? (recBy[m] || 0) : null; }), tone: 2 }
-    ], { ariaLabel: 'Invoiced against received', emptyText: 'Needs two months in the range' }) + '</div>' +
+    ], { ariaLabel: 'Invoiced against received', emptyText: 'Needs two months in the range',
+      toDate: finMonthToDate(inRange, 'invoices') != null ? finMonthToDate(inRange, 'invoices') : finMonthToDate(inRange) }) + '</div>' +
     '<div class="inv-panel-body inv-note">Invoiced incl. GST, by invoice date; received is every receipt on the statement.</div></div>');
 
   return h + fold('fin-gst', finGstChartHtml(inRange, cls)) + '</div>';

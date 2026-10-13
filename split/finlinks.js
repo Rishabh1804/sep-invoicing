@@ -34,7 +34,9 @@ function finClientMoneyHtml(clientId) {
   var row = function(k, v, sub, title) {
     return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
-  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + todoPlural(m.r.oldestDays, 'day') : ''));
+  // Owed in its age's tone, as Receivables draws it (finOwedTone).
+  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', figHtml(escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.owed > 0.005 ? finOwedTone(m.r.oldestDays) : null),
+    m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + todoPlural(m.r.oldestDays, 'day') : ''));
   // By age: the two oldest bands that hold anything; every band in the line's title.
   var aged = m.bands.filter(function(b) { return b.amount > 0.005; });
   if (aged.length) h += row('By age', '', aged.slice(-2).reverse().map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '),
@@ -113,6 +115,14 @@ function finSupplierPaid(name) {
 /* What is owed, by age, as a bar's tones: within a month fresh, a second month plain, then warning and danger (figToneAge's
    60 and 90 days). Pulse's Money card and the cash question draw the one bar (intel.js). */
 var FIN_AGE_TONE = ['ok', 'neutral', 'warning', 'danger'];
+/* What is owed, judged by the age of its oldest open invoice (figToneOwed), one tone on every screen that draws it (the tab map,
+   TM6a: Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline, a client's Money panel, the statement):
+   never red while a receipt is unplaced. */
+function finOwedTone(days) { return figToneOwed(days, finHasBank() && finCtx().loose() > 0); }
+/* The oldest open invoice's days over the clients who owe. */
+function finOwedOldest(recv) {
+  return (recv || []).reduce(function(m, r) { return r.owed > 0.005 && r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
+}
 /* Pulse's Money as a hero: what is owed past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance
    (balance, owed, pays in, runway), each coded in its own tone. Coded by the worst of them. */
 function renderFinHomeCard() {
@@ -131,8 +141,9 @@ function renderFinHomeCard() {
   var book = bankBookDaysToPay(bankPayHistory(recv));
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = isoDaysBetween(last.date, localDateStr());
-  // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
-  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
+  // What is owed is judged by its oldest invoice's age, past 90 days danger and past 60 warning, never red while a receipt is
+  // unplaced (finOwedTone: the one judge wherever owed is drawn).
+  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0, owedTone = finOwedTone(finOwedOldest(recv));
   var tones = [];
   var tile = function(tab, anchor, label, value, sub, tone) {
     if (tone) tones.push(tone);
@@ -145,8 +156,7 @@ function renderFinHomeCard() {
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
-      // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
-      loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
+      owedTone || '') +
     (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
@@ -197,7 +207,9 @@ function finWagesHtml(cls, where) {
     return '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Wages paid, from the bank</span>' +
       '<span class="inv-row-meta">' + sum + '</span></span><span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button></span></div></div>';
   }
-  var h = '<div class="inv-panel-body inv-note">A cash draw (SELF, TO SELF, TO CASH) is wages and the owner\'s drawings: each pay week\'s cash counts as wages up to the payout recorded for that week, and what is drawn past it is drawings, never a cost. A week with no attendance recorded cannot be split. Transfers to a hand on the roster are set against the payroll as paid for the month before.</div>';
+  // One line (the tab map, TM6e): how a cash draw is read, wages to the week's payout and drawings past it, is the guide's (Using the
+  // app: pay).
+  var h = '<div class="inv-panel-body inv-note">Cash drawn is wages up to each week’s payout, drawings past it.</div>';
   if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
   // The latest three months; the rest one tap away.
   h += uiMoreHtml('pay-wages-months', months.map(function(m) {

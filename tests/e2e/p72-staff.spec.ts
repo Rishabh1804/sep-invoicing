@@ -95,7 +95,8 @@ test.describe('P72: Staff', () => {
     const arun = page.locator('[data-att-row="1"]');
     const p = arun.locator('[data-action="invAttSet"][data-st="P"]');
     await expect(p).toHaveAttribute('aria-pressed', 'true');
-    await expect(arun.locator('.inv-row-meta')).toContainText('Present');
+    // Present is the pressed P; the row's words are the tier and the day as worked, two facts (the tab map, TM6e).
+    await expect(arun.locator('.inv-row-meta')).toHaveText('Monthly · OT 2 h');
     // The chosen state reads in the tone's own colours, which differ from the row it sits on — in dark too.
     const look = await p.evaluate((el) => {
       const cs = getComputedStyle(el), row = getComputedStyle(el.closest('.inv-panel')!);

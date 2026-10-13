@@ -310,7 +310,9 @@ function prodChartHtml() {
     PROD_LINES.forEach(function(l, i) { var r = prodDayLine(d, l); series[i].values.push(r.entries.length && r.weighedShare >= 0.9 ? Math.round(r.kg) : null); });
   }
   return '<div class="inv-panel inv-panel-flush" id="prodChart"><div class="inv-panel-head"><span class="inv-panel-title">Plated by line, 4 weeks</span></div>' +
-    '<div class="inv-panel-body">' + chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with nine tenths of its pieces weighed' }) + '</div></div>';
+    '<div class="inv-panel-body">' + chartLines(labels, series, { unit: 'kg', ariaLabel: 'Plated by line', emptyText: 'No plated day in four weeks with nine tenths of its pieces weighed',
+      // Today, still being plated, is drawn as to date (TM6b).
+      toDate: new Date(today + 'T00:00:00').getDay() === 0 ? null : labels.length - 1 }) + '</div></div>';
 }
 /* The record's coverage, four weeks: Entries' head. A line with gaps reads low wherever its record is read. */
 function prodCoverageHtml() {

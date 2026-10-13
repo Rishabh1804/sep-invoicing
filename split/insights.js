@@ -232,9 +232,11 @@ TODO_RULE_FNS.insRealLow = function() {
   return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: early ? 'info' : 'amber', month: cur,
     conf: early ? { level: 'early', say: todoPlural(wd, 'working day') + ' into the month' } : null,
     title: insMonthLabel(cur) + ' is realising ₹' + formatNum(now.real, 2) + '/kg, the lowest in ' + (reals.length + 1) + ' months',
-    sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2) + (moved && Math.abs(moved.d) >= 0.05 ? ' · ' + moved.name + ' is ' + Math.round(moved.a * 100) + '% of revenue against ' + Math.round(moved.b * 100) + '%' : ''),
+    // One fact on the row (the tab map, TM6: two at most, and an early month adds its own); whose share moved is in the figures.
+    sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2),
     why: 'Money · this month', go: insGo('trends'), goLabel: 'Open Trends',
-    facts: [['This month', '₹' + formatNum(now.real, 2) + '/kg'], ['Lowest before', '₹' + formatNum(Math.min.apply(null, reals), 2)], ['Median before', '₹' + formatNum(med, 2)]],
+    facts: [['This month', '₹' + formatNum(now.real, 2) + '/kg'], ['Lowest before', '₹' + formatNum(Math.min.apply(null, reals), 2)], ['Median before', '₹' + formatNum(med, 2)]]
+      .concat(moved && Math.abs(moved.d) >= 0.05 ? [['Share moved most', moved.name + ': ' + Math.round(moved.a * 100) + '% of revenue, was ' + Math.round(moved.b * 100) + '%']] : []),
     // Snoozed against the month alone: every invoice moves the realisation, and "until the figures change" came back with each.
     clears: 'Clears itself when the month climbs back above the lowest of the months before.', sig: cur }];
 };
@@ -293,12 +295,14 @@ TODO_RULE_FNS.insBelowVar = function() {
     var firm = x.net < lowVar, least = gstRound((lowVar - x.net) * x.kg), most = gstRound(-x.vsVar * x.kg);
     return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, lowVarKg: lowVar, fullKg: m.fullKg, kg: x.kg,
       title: x.name + ' is below its variable cost',
-      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · ' +
-        (firm && least < most ? 'loses at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most)
-          : 'loses ' + formatCurrency(most)) + ' even with labour fixed',
+      // Two facts on the row at most (the tab map, TM6): the month against the cost, then the loss as a range where it is firm;
+      // where it is not, the second is how sure (todoConfApply), and the loss is in the figures.
+      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable' +
+        (!firm ? '' : ' · loses ' + (least < most ? formatCurrency(least) + ' to ' + formatCurrency(most) : formatCurrency(most)) + ' with labour fixed'),
       conf: firm ? null : { level: 'partial', say: 'below this month\'s cost only, ' + measured + '% of it measured' },
       why: 'Money · margin', go: insGo('clients'), goLabel: 'Open contribution by client',
-      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
+      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%'],
+        ['Loss with labour fixed', firm && least < most ? 'at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most) : formatCurrency(most)]],
       clears: 'Clears itself when a month realises above the variable cost.', sig: last };
   });
 };

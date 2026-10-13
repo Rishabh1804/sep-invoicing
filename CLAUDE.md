@@ -54,8 +54,8 @@ screens and views, 34 lead with no summary at all; the rest lead five different 
 work, document, form) one anatomy each, one verdict card (`uiVerdictHtml`), one toolbar row on both layouts and one action at a
 row's end, held by P197; TM6f takes the screens no step touched, and the build stops after TM2 for the owner to look. **Being built**
 (owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green"*): TM1 is
-built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3, TM4 and TM5 are built (*The tab map* below); then TM6,
-TM7 and the QA chain.
+built, then TM2; the owner looked (10 Oct 2026: *"Go ahead"*), and TM3 to TM6 are built (*The tab map* below); then TM7 and the
+QA chain.
 
 **The cognitive-load survey is done — read `docs/COGNITIVE_LOAD_SURVEY.md`** (owner, 8 Oct 2026: *"survey all the screens to make
 sure the app is up to the mark for our cognitive load benchmark"*). Every screen on both layouts scored against the rules it names
@@ -220,7 +220,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,762 tests, both layouts
+pnpm exec playwright test          # 1,781 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -465,7 +465,7 @@ filter on; a literal date in a fixture is a time bomb, not a constant.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -1498,6 +1498,10 @@ disagreement happened.
 
 **A client filter excludes the floor.** A client filter is a question about one account; the shop's
 Tuesday is not about an account, and listing it under one asserts a connection that does not exist.
+
+**A floor day's row is its count and opens the day** (the tab map, TM6e): *Attendance recorded: 17 present, 6 absent, 9.0 h OT*.
+Where everybody stood, by area, is the row's whole (its title, the desktop's pane, the search and the CSV), and the row opens that
+day on People → Attendance, whose board answers the question; on the owner's book seven areas had run the row past two lines.
 
 Booked extra is **one row per entry, not a day total** — a reader who wants to know what was booked
 needs the where. A block row states which of its three inputs is missing (`no crew recorded`,
@@ -2721,6 +2725,42 @@ facts and the long cards fold. P193; P195's budgets lowered for every Office scr
   Library's budget raised 3.5 → 4 (3.48 → 3.56: the new guide).
 - Fixtures: `filterControl(page, sel)` and `setFilter(page, sel, value)` reach a screen's filter on either layout (in the phone's
   Filter dialog, inline on the desktop) and set it.
+
+### The tab map: across the app (TM6)
+`docs/TAB_MAP.md` TM6 (10 Oct 2026): one judge per fact wherever it is drawn, the period not yet ended marked in every chart, History
+and Knowledge in one look, and the last long notes made a line or moved to their guide. P194 (both layouts); P195's budgets at their
+floor (no note over 120 characters and no chain of three facts on any screen, no phone toolbar over two rows); P197's `LOOKS` closed.
+- **One tone per fact**: `areaNeedTone(heads, need)` / `areaNeedWord` (state.js: short a warning, met ok, over info) on Floor's line
+  cards, the attendance panel, Day's board and *Needed today*, and Areas (which read short in danger and over in warning until
+  now); `figToneOwed(days, loose)` / `finOwedTone(days)` (finlinks.js: owed by its oldest invoice's age, never red while a receipt is
+  unplaced) on Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline's *Owed to us*, a client's Money panel
+  and the statement; `attOnSiteTone` on Needs you's floor card and the day's report too; the reprice move takes the client's tone
+  on Stats (`figToneAgainst(net, full cost, 5)`).
+- **The period to date** (charts.js, design §6.17): `opts.toDate` on `chartLine`, `chartLines`, `chartBars`, `chartStack` and
+  `chartSpark` draws the period not yet ended dashed or lighter (`inv-chart-todate`), labelled *to date*; `chartToDateAt(keys,
+  current)` finds it, `finMonthToDate` gives Money's. Every chart with a current period passes it.
+- **History** (stats.js, changelog.js): its verdict (`historyVerdictHtml`), one toolbar row (the search; Filter: client, who, the
+  kind, the range; More: Export CSV). A floor day's row is its count, where everybody stood its whole (the row's title, the pane,
+  the search, the CSV), and it opens the day on People → Attendance (`historyDayJump`, `invHistoryJumpDay`). A change's row is at
+  most 110 characters (`CHG_ROW_MAX`): a void says why in the words typed, a record's name too long loses its last parts to "…".
+  The search reads a row's whole too.
+- **Knowledge** (knowledge.js): each list view a verdict card and one row (the search; Filter, the kind and the status, on the phone
+  a dialog with tokens; **Write**; More: Export, Import). Start draws a card only for what waits (`kbStartHeroHtml`; *Nothing waits
+  on you* otherwise), its count in its line; on the phone the first card opens, the rest wait shut. Training leads with how its
+  lessons stand and each row says its own standing (due again warning, never taught info, up to date ok).
+- **Invoiced** (`imInvoicedVerdictHtml`, `imMonthPagerHtml`): its card, then one row with the month inside it (`inv-tb-step`) and More
+  holding Add challan, Scan a challan and Duplicate check. **Reports**' Print is its action bar's, under the sheet.
+- **The long words** went to a line or two facts, the method to its guide (*Using the app: People* v3, *pay* v5, *knowledge* v2): the
+  day board's row, the labour card, Pay's cash draws, Money's forecast (*What it rests on*, a fold of fact rows), Pulse's cash
+  question, the insights' lines, the zinc card, Power's rows (a unit and its line one fact: *Rectifier 1 (VAT A1)*), the change
+  log, a folded To-do group. The page-head line (`inv-pagehead-meta`) is gone.
+- **The closed list of box looks** (design §6.28, `LOOKS` in `tests/e2e/load-fixture.ts`): 41, each named with what wears it, checked
+  on the owner's own book on both layouts too (a scratch harness, never in the repo), which found the Planner board's lane rule
+  (listed) and two boxes wearing two components at once (a register day's row, the EXTRA fold's lines: now each its own).
+- Measured (phone screens; the long book's worst of eleven days, then the owner's book): History 3.94 → 3.61 (owner's 4.29 → 4.04,
+  chains 21 → 0); Knowledge → Library 3.56 → 3.40 (5.50 → 5.34), Records 1.03 → 1.00 (3.99 → 3.91, blocks 15 → 0), Start 1.61 →
+  1.64 (1.62 → 1.39); Reports 2.89 → 2.86 (toolbar rows 4 → 2). **Grew by their new card, said**: Invoiced 2.27 → 2.39 (3.14 →
+  3.26), Training 2.55 → 2.69 (3.20 → 3.33), Troubleshoot (owner's 1.53 → 1.62). No budget rose.
 
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Overview, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.

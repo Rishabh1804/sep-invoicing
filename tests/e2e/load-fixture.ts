@@ -314,7 +314,12 @@ export async function census(page: Page): Promise<Census> {
 /* The box looks the census of 9 Oct 2026 found on every screen and view, both layouts (fill, edges, corners, lift, padding; the
    tone's colour aside): the closed list. A look not on it fails P197 until design §6 names it; a step that retires one takes it
    off. Measured over the long book on eleven days of the calendar, the same 38 every day; 39 since TM4c put the message as sent
-   (`inv-quote`) in an entry's fold on a walked screen; 40 since TM5g opened the desktop's pane (`inv-pane`) on one. */
+   (`inv-quote`) in an entry's fold on a walked screen; 40 since TM5g opened the desktop's pane (`inv-pane`) on one; 41 since TM6e put
+   the action bar (`inv-actionbar`, until then only on forms, which the walk does not open) under Reports' sheet. TM6f closed the
+   list: design §6.28 names each look and what wears it. The same census over the owner's own book (a scratch harness, never in the
+   repository) found five more: the Planner board's rule between lanes (two, added: the long book plans nothing), and three where a
+   box wore two components at once (a register day's row filled as well as its cells, the EXTRA fold's lines padded as a panel's
+   body), now drawn as their own components; and two of TM1's looks nothing draws on either book any more were taken off. */
 export const LOOKS: string[] = [
   'fill edge:B1 r0 flat p0/0',
   'fill edge:B1 r0 flat p0/12',
@@ -322,16 +327,15 @@ export const LOOKS: string[] = [
   'fill edge:B1 r0 flat p4/12',
   'fill edge:B1 r0 flat p4/8',
   'fill edge:B1 r0 flat p6/12',
-  'fill edge:B1 r0 lift p6/12',
   'fill edge:T1 r0 flat p8/2',
   'fill edge:all1 r10 flat p0/0',
   'fill edge:all1 r10 flat p16/12',
   'fill edge:all1 r6 flat p0/0',
   'fill edge:all1 r6 flat p0/10',
-  'fill edge:all1 r6 lift p10/12',
   'fill edge:all1 r8 flat p0/0',
   'fill edge:all1 r8 flat p16/12',
   'fill edge:L1 r0 flat p16/16',     // inv-pane, the desktop's detail pane (design §6.14): Quotations' To reprice while nothing is open, since TM5g
+  'fill edge:T1 r0 flat p8/12',      // inv-actionbar, a form's sticky bar (design §6.15): under Reports' sheet since TM6e, its Print
   'fill edge:none r4 flat p6/8',     // inv-quote, the text as sent (design §6): in an entry's fold on Production → Entries since TM4c
   'fill edge:none r8 flat p10/12',
   'grad edge:T1 r0 flat p0/0',
@@ -352,6 +356,8 @@ export const LOOKS: string[] = [
   'nofill edge:B1 r0 flat p8/12',
   'nofill edge:B1 r0 flat p8/28',
   'nofill edge:T1 r0 flat p8/2',
+  'nofill edge:T1 r0 flat p2/2',     // a dense grid's lane rule (the Planner's board, a lane under another): seen on the owner's book, TM6f
+  'nofill edge:T1 r0 flat p2/12',    // the same rule on the lane's name
   'nofill edge:all1 r6 flat p0/0',
   'nofill edge:all1 r6 flat p0/10',
   'nofill edge:all1 r6 lift p10/12',
@@ -377,6 +383,10 @@ export const ONE_LOOK: string[] = [
   'Office › Pipeline', 'Office › Challans › Awaiting invoice', 'Office › Invoices',
   'Office › Clients › Clients', 'Office › Clients › Parts', 'Office › Clients › Performance',
   'Office › Sales › Prospects', 'Office › Sales › Quotations',
+  // TM6f: the screens no step had touched. Reports (a document), Challans' Invoiced, History and Knowledge's five views. The list is
+  // now every screen of the map.
+  'Today › Reports', 'Office › Challans › Invoiced', 'History',
+  'Knowledge › Start', 'Knowledge › Library', 'Knowledge › Troubleshoot', 'Knowledge › Records', 'Knowledge › Training',
 ];
 
 /* What keeps the screen on show from its kind's anatomy (§3e), as a list of problems: none is one look. Read off what is drawn:

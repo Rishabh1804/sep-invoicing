@@ -246,7 +246,7 @@ test('extra hours are counted in the bill and reported as unattributed', async (
   await expect(page.locator('[data-card="labour"]')).toBeVisible();
   await expect(page.locator('[data-card="labour"]')).toContainText('475.00');   // 10 h x Rs47.50
   await expect(page.locator('[data-card="labour"]')).toContainText('Extra (unattributed)');
-  await expect(page.locator('[data-card="labour"]')).toContainText('booked to an area rather than to a person');
+  await expect(page.locator('[data-card="labour"]')).toContainText('booked to an area, not a person');
 });
 
 test('hours for a worker with no rate are counted and named as unpriced', async ({ page }) => {
@@ -294,7 +294,7 @@ test('variable labour is broken down by the area it was worked in', async ({ pag
   await expect(ranked.locator('.inv-chart-ranked-label')).toHaveText(['Barrel', 'VAT A1', 'Pickling A1+A2']);
   // The monthly tier's day pay is excluded and the card has to say so, or the
   // shares read as a full allocation of the labour bill.
-  await expect(page.locator('[data-card="labour"]')).toContainText('day pay and rest days are not in here');
+  await expect(page.locator('[data-card="labour"]')).toContainText('day pay and rest days are not by area');
 });
 
 test('a day range states its coverage and draws no ₹/kg', async ({ page }) => {

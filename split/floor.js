@@ -211,9 +211,9 @@ function flrStaffing(day, ln, byArea, marked) {
   });
   if (!marked) return { tone: 'neutral', word: 'No attendance' };
   if (need == null) return { tone: 'neutral', word: 'No number · ' + heads + ' on', heads: heads };
-  if (heads < need) return { tone: 'warning', word: 'Short ' + (need - heads) + ' · ' + heads + '/' + need, heads: heads, need: need };
-  if (heads > need) return { tone: 'info', word: (heads - need) + ' over · ' + heads + '/' + need, heads: heads, need: need };
-  return { tone: 'ok', word: 'Met ' + heads + '/' + need, heads: heads, need: need };
+  // Heads against the day's number, one tone wherever an area's staffing is drawn (areaNeedTone).
+  var t = areaNeedTone(heads, need);
+  return { tone: t, word: areaNeedWord(heads, need) + (t === 'ok' ? ' ' : ' · ') + heads + '/' + need, heads: heads, need: need };
 }
 
 /* How a line's card is judged: a plating line by its efficiency (owner, 9 Oct 2026: "that is how the colour code of the gradient

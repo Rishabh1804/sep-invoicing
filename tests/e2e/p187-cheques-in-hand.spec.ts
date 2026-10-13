@@ -103,7 +103,7 @@ test('a cheque recorded on Receivables counts as paid the day it came: owed fall
   expect(s.bank.cheques).toHaveLength(1);
   expect(s.bank.cheques[0]).toMatchObject({ clientId: 1, amount: 23600, number: '525428', receivedOn: todayIso() });
   // The change log keeps it, by the client and the number.
-  expect((s.changeLog || []).filter((e: any) => e.coll === 'bank.cheques').map((e: any) => [e.op, e.label])).toEqual([['add', 'ALPHA FORGINGS · cheque 525428 · ₹23,600.00']]);
+  expect((s.changeLog || []).filter((e: any) => e.coll === 'bank.cheques').map((e: any) => [e.op, e.label])).toEqual([['add', 'ALPHA FORGINGS, cheque 525428, ₹23,600.00']]);
 });
 
 test('its deposit, found by its number, takes over without counting twice and lands on the client; a different amount is said', async ({ page }) => {

@@ -209,7 +209,9 @@ function aregGridHtml(mo, cmp) {
     }).join('') + '</tr></thead><tbody>';
   mo.days.forEach(function(day, di) {
     var off = day.kind !== 'work';
-    h += '<tr' + (off ? ' data-sun' : '') + '><th scope="row"' + (day.date === today ? ' aria-current="date"' : '') + '>' +
+    // A Sunday or a holiday is said by its cells, as the week grid says its Sunday (one look a cell, design §6.28); the row
+    // carries no fill of its own.
+    h += '<tr><th scope="row"' + (day.date === today ? ' aria-current="date"' : '') + '>' +
       escHtml(day.date ? attDayName(day.date) + ' ' + attParseIso(day.date).getDate() : (day.written || '?')) +
       (off ? '<span class="inv-table-grid-date">' + (day.kind === 'holiday' ? 'holiday' : 'Sunday') + '</span>' : '') + '</th>';
     (day.cells || []).forEach(function(cell, ci) {

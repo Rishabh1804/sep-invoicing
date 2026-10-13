@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso } from './fixtures';
+import { closeFilter, emptyState, filterControl, loadAppWithState, noSeedIM, recentTs, setFilter, switchTab, todayIso } from './fixtures';
 
 /*
  * The floor in the activity log, and the door the history arrives through.
@@ -298,8 +298,10 @@ test.describe('P29: the floor in the activity log', () => {
     await expect(shift).toHaveCount(1);
     await expect(shift).toContainText('1 present, 1 half, 1 absent');
     await expect(shift).toContainText('2.0 h OT');
-    // Absent hands are not "where everybody was".
-    await expect(shift).toContainText('VAT A2 1');
+    // Where everybody stood is the row's whole (its title, the pane, the CSV), and the day's own board a tap away (the tab
+    // map, TM6e): seven areas ran the row past two lines. Absent hands are not "where everybody was".
+    await expect(shift).not.toContainText('VAT A2 1');
+    await expect(shift.locator('.inv-row-title')).toHaveAttribute('title', /By area: VAT A2 1, VAT A1 1$/);
     // The clock label is the whole point: two clocks in one list, told apart.
     await expect(shift).toContainText('floor day');
     await expect(shift).toContainText('4 May 2026');
@@ -307,6 +309,13 @@ test.describe('P29: the floor in the activity log', () => {
     // sort key, and rendering it would put a plausible-looking '12:00' on
     // exactly the rows the two-clock labelling exists to keep honest.
     await expect(shift).not.toContainText('12:00');
+    // The search still finds the day by where its hands stood.
+    await page.locator('#historySearch').fill('VAT A2');
+    await expect(page.locator('#historyList [data-ev="shift"]')).toHaveCount(1);
+    // The row opens its day on People → Attendance.
+    await page.locator('#historyList [data-ev="shift"]').click();
+    await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
+    expect(await page.evaluate(() => (window as any)._attDate)).toBe('2026-05-04');
   });
 
   test('each booked extra is its own row, naming where it went', async ({ page }) => {
@@ -350,7 +359,8 @@ test.describe('P29: the floor in the activity log', () => {
         },
       });
       await switchTab(page, 'pageHistory');
-      await page.locator('[data-action="invHistoryType"][data-type="floor"]').click();
+      // The kind of event is a choice behind Filter (the tab map, TM6c).
+      await setFilter(page, '#historyType', 'floor');
       const rows = page.locator('#historyList [data-ev]');
       // The attendance day and its one booked extra — and NOT the invoice.
       await expect(rows).toHaveCount(2);
@@ -359,8 +369,9 @@ test.describe('P29: the floor in the activity log', () => {
       // A client filter is a question about one account. The floor has no
       // account, so listing the shop's Tuesday under a client asserts a
       // connection that does not exist.
-      await page.locator('[data-action="invHistoryType"][data-type="all"]').click();
-      await page.selectOption('#historyClientFilter', { index: 1 });
+      await setFilter(page, '#historyType', 'all');
+      await (await filterControl(page, '#historyClientFilter')).selectOption({ index: 1 });
+      await closeFilter(page);
       await expect(page.locator('#historyList [data-ev]').filter({ hasText: 'Attendance recorded' }))
         .toHaveCount(0);
       // The account's own row is still there — the filter narrowed, it did not empty.

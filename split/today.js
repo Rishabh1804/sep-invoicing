@@ -138,7 +138,8 @@ function tdyInput(def, day) {
     PROD_LINES.forEach(function(l) { (prodDayLine(day, l).entries.length ? have : miss).push(PROD_LINE_LABEL[l]); });
     o.lines = { have: have, miss: miss };
     if (!miss.length) { o.state = 'in'; o.text = 'All three lines in'; }
-    else if (have.length) { o.state = 'part'; o.text = have.join(', ') + ' in · ' + miss.join(', ') + ' not yet'; }
+    // One fact (the tab map, TM6e): which are in and which not, before when the rest are looked for.
+    else if (have.length) { o.state = 'part'; o.text = have.join(', ') + ' in; ' + miss.join(', ') + ' not yet'; }
     // Only the barrel list missing: it comes as a message, not a photo.
     if (miss.length === 1 && miss[0] === PROD_LINE_LABEL.barrel) o.move = 'paste';
   }
@@ -254,8 +255,12 @@ function tdyFloorHtml(day) {
     '<div class="inv-tile-sub">' + (cuts.length ? uiDot(open ? 'warning' : 'neutral', escHtml(open ? open + ' with no time back' : powerDur(mins) + ' dark')) : uiDot('ok', 'None reported')) + '</div>' +
     '<div class="inv-tile-sub">' + escHtml(cuts.length ? cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ''); }).join(', ') : 'today') + '</div></button>');
   var staffed = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).filter(function(ln) { var st = flrStaffing(day, ln, byArea, att.marked); return st.heads > 0; }).length;
-  return uiHeroHtml({ tone: worst || (open ? 'warning' : ''), eyebrow: '<span>Floor now</span>', title: att.marked ? escHtml(todoPlural(staffed, 'line') + ' staffed') : 'No attendance yet today',
-    sub: escHtml(att.marked ? (att.p + att.half) + ' on site · ' + att.absent.length + ' absent' : 'The in-time roll says who stands where'), fold: 'tdy-floor', open: true,
+  // Who is on site against the day's roster, in the tone Floor and People give it (attOnSiteTone, TM6a); the card takes the worst
+  // of what it holds.
+  var onTone = att.marked ? attOnSiteTone(att) : null;
+  var tone = [worst, open ? 'warning' : '', onTone].filter(Boolean).sort(function(a, b) { return (UI_TONE_RANK[b] || 0) - (UI_TONE_RANK[a] || 0); })[0] || '';
+  return uiHeroHtml({ tone: tone, eyebrow: '<span>Floor now</span>', title: att.marked ? escHtml(todoPlural(staffed, 'line') + ' staffed') : 'No attendance yet today',
+    sub: att.marked ? '<span data-tdy-onsite>' + figHtml(escHtml((att.p + att.half) + ' of ' + att.roster.length + ' on site'), onTone) + '</span>' + escHtml(' · ' + att.absent.length + ' absent') : 'The in-time roll says who stands where', fold: 'tdy-floor', open: true,
     body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div></div>', attrs: ' data-card="floor" data-verdict' });
 }
 
@@ -336,7 +341,9 @@ function tdyTasksHtml(rows) {
   var worth = function(list) { return gstRound(list.reduce(function(s, r) { return s + (r.app && r.app.worth > 0 ? r.app.worth : 0); }, 0)); };
   var card = function(r) { return r.app ? tdyAppCardHtml(r.app) : tdyMineCardHtml(r.mine); };
   var deck = function(g, list) { return uiMoreDeckHtml('tdy-' + g, list.map(card), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' }); };
-  var titles = function(list) { return list.slice(0, 3).map(function(r) { return r.app ? r.app.title : r.mine.text; }).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : ''); };
+  // What a folded group holds, in a line (the tab map, TM6e): its first two tasks, each cut to forty letters, a list (commas).
+  var clip = function(t) { t = String(t || ''); return t.length > 40 ? t.slice(0, 39).replace(/[\s,.;:·-]+$/, '') + '…' : t; };
+  var titles = function(list) { return list.slice(0, 2).map(function(r) { return clip(r.app ? r.app.title : r.mine.text); }).join(', ') + (list.length > 2 ? ' and ' + (list.length - 2) + ' more' : ''); };
   var counts = function(list, g) { return '<span>' + TDY_GROUPS.filter(function(x) { return x[0] === g; })[0][1] + '</span><span class="inv-panel-count" data-tdy-count>' + list.length + '</span>'; };
   // A group's figure is the rupees its tasks name, said as such: unlabelled, it read as a total owed (the survey of 8 Oct 2026).
   var stake = function(w) { return money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) + '<span class="inv-tile-of"> at stake</span>' : ''; };

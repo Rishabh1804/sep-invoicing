@@ -1557,6 +1557,8 @@ function attAllPresent() {
   staffActive().forEach(function(w) {
     if (!rec.marks[w.id]) {
       rec.marks[w.id] = { st: 'P', ot: 0, hours: 0, area: w.area || 'flex' };
+      // Typed by hand like any mark: who typed it, so the clerk's sheet is set against the roll (faces.js, F4).
+      _attHandEdit(rec.marks[w.id]);
       n++;
     }
   });

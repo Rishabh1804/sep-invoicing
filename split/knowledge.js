@@ -159,7 +159,8 @@ function kbLinkName(l) {
     if (l.type === 'area') { var ar = l.id && typeof STAFF_AREAS !== 'undefined' && STAFF_AREAS.find(function(x) { return x.id === l.id; }); if (ar) return ar.label; }
     if (l.type === 'line') { var ln = KB_LINES.find(function(x) { return x[0] === l.id; }); if (ln) return ln[1]; }
     if (l.type === 'stock') { var it = stockItem(l.id); if (it) return it.name; }
-    if (l.type === 'screen') return wsPageName(l.id) || lbl;
+    // A screen that moved (nav.js NAV_REDIRECTS: the To-do is Needs you's) by where it went: it read "SEP Invoicing".
+    if (l.type === 'screen') { var to = navRedirect({ tab: l.id, v: '', id: '', d: '' }); return wsPageName(to.tab, to.v) || lbl; }
     if (l.type === 'worker') { var w = staffById(l.id); if (w) return w.name; }
     // An article this role does not read is not named (its title is its content).
     if (l.type === 'article') { var a = kbFind(l.id); if (a) return kbCanRead(a) ? a.title : 'An article you do not read'; }
@@ -512,7 +513,8 @@ function kbStartHeroHtml(o) {
 }
 function kbStartHtml() {
   var all = kbReadable(), own = all.filter(function(a) { return a.src !== 'build'; }), cards = [];
-  var rows = function(list, key) { return list.length ? uiMoreHtml('kb-start-' + key, list.map(kbRowHtml), { n: 5, noun: 'articles' }) : ''; };
+  // kbRowHtml's second argument is `brief`: handed to map, the index made every row after the first lose what it is about.
+  var rows = function(list, key) { return list.length ? uiMoreHtml('kb-start-' + key, list.map(function(a) { return kbRowHtml(a); }), { n: 5, noun: 'articles' }) : ''; };
   var since = function(list) { var t = list.map(function(a) { return a.at || 0; }).filter(Boolean); return t.length ? formatDate(isoOf(new Date(Math.min.apply(null, t)))) : ''; };
   if (kbIsOwner()) {
     var wait = own.filter(function(a) { return a.status === 'pending' || (a.status === 'published' && a.pending); });
@@ -523,14 +525,18 @@ function kbStartHtml() {
       title: todoPlural(drafts.length, 'draft') + ' not yet published', rows: rows(drafts, 'drafts'),
       foot: drafts.length > 5 ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbShowDrafts">See all</button>' : '' });
   } else {
-    var mine = own.filter(function(a) { return kbMine(a) && (a.status === 'draft' || a.status === 'pending' || a.pending); });
+    // Their drafts and what of theirs waits (kbWaitsOnMe): a change someone else proposed to an article they wrote is not theirs.
+    var mine = own.filter(function(a) { return (kbMine(a) && a.status === 'draft') || kbWaitsOnMe(a); });
     cards.push({ id: 'kbMine', key: 'mine', eyebrow: 'What you wrote', n: mine.length, tone: 'info',
       title: todoPlural(mine.length, 'article') + ' not yet published', rows: rows(mine, 'mine') });
   }
-  var due = all.filter(kbReviewDue);
-  var firstDue = due.map(function(a) { return a.reviewOn || ''; }).filter(Boolean).sort()[0];
-  cards.push({ id: 'kbReviewDue', key: 'review', eyebrow: 'Decisions to review', n: due.length, tone: 'warning',
-    title: todoPlural(due.length, 'decision') + ' due for review', sub: firstDue ? 'the first due ' + formatDate(firstDue) : '', rows: rows(due, 'review') });
+  // A review is the owner's (kbReview, owner-only): nobody else is shown one to do.
+  if (kbIsOwner()) {
+    var due = all.filter(kbReviewDue);
+    var firstDue = due.map(function(a) { return a.reviewOn || ''; }).filter(Boolean).sort()[0];
+    cards.push({ id: 'kbReviewDue', key: 'review', eyebrow: 'Decisions to review', n: due.length, tone: 'warning',
+      title: todoPlural(due.length, 'decision') + ' due for review', sub: firstDue ? 'the first due ' + formatDate(firstDue) : '', rows: rows(due, 'review') });
+  }
   if (kbSeesRoster()) {
     var again = kbDueAgain().filter(function(x) { return kbCanRead(x.a); });
     cards.push({ id: 'kbTrainDue', key: 'train', eyebrow: 'Training due again', n: again.length, tone: 'warning',
@@ -539,7 +545,7 @@ function kbStartHtml() {
   }
   cards = cards.filter(function(c) { return c.n > 0; });
   if (!cards.length) cards.push({ id: 'kbAllClear', key: 'clear', eyebrow: 'Knowledge', n: 0, tone: 'ok', title: 'Nothing waits on you',
-    sub: kbIsOwner() ? 'no approval, draft, review or training due' : 'nothing of yours waiting, no review or training due' });
+    sub: kbIsOwner() ? 'no approval, draft, review or training due' : 'nothing of yours waiting, no training due' });
   cards[0].verdict = true;
   cards = cards.map(kbStartHeroHtml);
   var h = '<div class="inv-heroes' + (cards.length >= 4 ? ' inv-heroes-4' : '') + '" id="kbStartHeroes">' + cards.join('') + '</div>';
@@ -551,7 +557,7 @@ function kbStartHtml() {
   }).join('') + '</div>';
   var recent = own.filter(function(a) { return kbLive(a); }).sort(function(x, y) { return (y.approvedAt || y.at || 0) - (x.approvedAt || x.at || 0); }).slice(0, 8);
   h += '<div class="inv-panel inv-panel-flush" id="kbRecent"><div class="inv-panel-head"><span class="inv-panel-title">Latest</span></div>' +
-    (recent.length ? recent.map(kbRowHtml).join('') : '<div class="inv-empty">Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.</div>') + '</div>';
+    (recent.length ? recent.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.</div>') + '</div>';
   return { body: h };
 }
 
@@ -560,7 +566,8 @@ function kbFiltered(list) {
   var f = _kbFilter, q = String(f.q || '').trim().toLowerCase(), words = q ? q.split(/\s+/) : [];
   return list.filter(function(a) {
     if (f.kind && a.kind !== f.kind) return false;
-    if (f.status === 'draft' && !(a.status === 'draft' || a.status === 'pending' || a.pending)) return false;
+    // A change waiting on a published article is listed to whoever sees it (kbSeesProposal: its proposer and the owner), as Start counts it.
+    if (f.status === 'draft' && !(a.status === 'draft' || a.status === 'pending' || (a.pending && kbSeesProposal(a)))) return false;
     if (!f.status && (a.status === 'retired' || a.status === 'superseded') && !q) return false;
     if (f.link && !(a.links || []).some(function(l) { return l.type === f.link.type && (String(l.id) === String(f.link.id) || (!!f.link.label && String(l.label || '').toUpperCase() === String(f.link.label).toUpperCase())); })) return false;
     if (!words.length) return true;
@@ -599,7 +606,13 @@ function kbSearchHtml(ph) {
 /* What waits on somebody, for the views' verdicts: the owner's approvals, else this person's own writing; drafts likewise. */
 function kbWaitingList() {
   var own = kbReadable().filter(function(a) { return a.src !== 'build'; });
-  return own.filter(function(a) { return (a.status === 'pending' || (a.status === 'published' && a.pending)) && (kbIsOwner() || kbMine(a)); });
+  return own.filter(kbWaitsOnMe);
+}
+/* What waits on this person: for the owner every approval; for anyone else their own new article waiting, or their own change
+   proposed to a published one (the change is its proposer's, kbSeesProposal: another's change to an article they wrote is not). */
+function kbWaitsOnMe(a) {
+  if (a.status === 'pending') return kbIsOwner() || kbMine(a);
+  return a.status === 'published' && !!a.pending && kbSeesProposal(a);
 }
 function kbFilterOn() { return !!(_kbFilter.q || _kbFilter.kind || _kbFilter.status || _kbFilter.link); }
 /* Each list view: its verdict card, what its toolbar searches and filters (`search`, the placeholder; `kinds`), and its body.
@@ -648,7 +661,8 @@ function kbTroubleHtml() {
 function kbRecordsHtml() {
   var kinds = ['ruling', 'requirement', 'incident', 'decision'];
   var list = kbFiltered(kbReadable().filter(function(a) { return kinds.indexOf(a.kind) >= 0; })).sort(function(x, y) { return String(kbDayOf(y)).localeCompare(String(kbDayOf(x))); });
-  var due = kbReadable().filter(kbReviewDue).length, n = function(k) { return list.filter(function(a) { return a.kind === k; }).length; };
+  // A review is the owner's (kbReview, owner-only), as on Start: nobody else is told one is due.
+  var due = kbIsOwner() ? kbReadable().filter(kbReviewDue).length : 0, n = function(k) { return list.filter(function(a) { return a.kind === k; }).length; };
   // Its verdict (TM6f): the records the list holds, and the decisions whose review day has come.
   var verdict = uiVerdictHtml({ screen: 'Records' + (kbFilterOn() ? ' · filtered' : ''), tone: due ? 'warning' : 'ok',
     verdict: todoPlural(list.length, 'record') + (due ? ' · ' + todoPlural(due, 'decision') + ' due for review' : ''),
@@ -690,8 +704,9 @@ function kbTrainVerdictHtml(paths, roster, sees) {
   if (!sees || !roster.length) return uiVerdictHtml({ screen: 'Training', tone: 'neutral', verdict: order.length ? todoPlural(order.length, 'lesson') + ' on ' + todoPlural(paths.length, 'path') : 'No lesson on a path yet',
     facts: [sees ? 'nobody on the roster yet' : 'who was trained is People’s'], key: 'pageKnow-training', foldFacts: true });
   var said = [n.due ? n.due + ' due again' : '', n.never ? n.never + ' never taught' : '', n.ok ? n.ok + ' up to date' : ''].filter(Boolean);
-  return uiVerdictHtml({ screen: 'Training', tone: n.due ? 'warning' : n.never ? 'info' : order.length ? 'ok' : 'neutral',
-    verdict: said.length ? said.join(' · ') : order.length ? todoPlural(n.part, 'lesson') + ' taught to some' : 'No lesson on a path yet',
+  // Ok only when no lesson is part-taught ("taught to some" had read green); a path no hand on the roster is for has nobody to judge.
+  return uiVerdictHtml({ screen: 'Training', tone: n.due ? 'warning' : n.never ? 'info' : n.part || !said.length ? 'neutral' : 'ok',
+    verdict: said.length ? said.join(' · ') : n.part ? todoPlural(n.part, 'lesson') + ' taught to some' : order.length ? 'No hand on the roster is on these paths' : 'No lesson on a path yet',
     facts: n.part ? facts.concat([n.part + ' taught to some']) : facts, key: 'pageKnow-training', foldFacts: true,
     attrs: ' data-kb-train-due="' + n.due + '" data-kb-train-never="' + n.never + '"' });
 }
@@ -773,7 +788,7 @@ function kbArticleHtml(a) {
     var incs = kbReadable().filter(function(i) { return i.kind === 'incident' && i.faultId === a.id && i.status !== 'retired'; });
     h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
       (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
-      (incs.length ? incs.map(kbRowHtml).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
+      (incs.length ? incs.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
   }
   if (a.kind === 'incident') {
     h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
@@ -1602,7 +1617,9 @@ function kbLinkGo(id, i) {
   var a = kbFind(id), l = a && kbCanRead(a) && Array.isArray(a.links) ? a.links[+i] : null;
   if (!l) return;
   if (dialogsTypedAsk(function() { kbLinkGo(id, i); })) return;
-  var page = l.type === 'screen' ? l.id : KB_LINK_GO_PAGE[l.type];
+  // A screen saved before it moved opens where it went (nav.js NAV_REDIRECTS): pageTodo is no page now, and the link did nothing.
+  var screen = l.type === 'screen' ? navRedirect({ tab: l.id, v: '', id: '', d: '' }) : null;
+  var page = screen ? screen.tab : KB_LINK_GO_PAGE[l.type];
   if (page && isPageId(page) && !kbSeesPage(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
   switch (l.type) {
     case 'client': if ((S.clients || []).some(function(c) { return String(c.id) === String(l.id); })) srchGo({ kind: 'client', id: l.id }); else kbOpenFor('client', l.id, l.label); return;
@@ -1613,7 +1630,7 @@ function kbLinkGo(id, i) {
     }
     case 'stock': if (stockItem(l.id)) todoGo({ kind: 'stock', id: l.id }); else kbOpenFor('stock', l.id, l.label); return;
     case 'worker': if (staffById(l.id)) srchGo({ kind: 'worker', id: l.id }); return;
-    case 'screen': if (isPageId(l.id)) switchTab(l.id); return;
+    case 'screen': if (!isPageId(screen.tab)) return; if (screen.tab === l.id) switchTab(l.id); else navOpen(screen); return;
     case 'article': kbOpenArticle(l.id); return;
     case 'area': todoGo({ kind: 'areas' }); return;
     case 'line': prodSetTab('lines'); switchTab('pageProduction'); return;

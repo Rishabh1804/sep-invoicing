@@ -2801,11 +2801,19 @@ floor (no note over 120 characters and no chain of three facts on any screen, no
   kind, the range; More: Export CSV). A floor day's row is its count, where everybody stood its whole (the row's title, the pane,
   the search, the CSV), and it opens the day on People → Attendance (`historyDayJump`, `invHistoryJumpDay`). A change's row is at
   most 110 characters (`CHG_ROW_MAX`): a void says why in the words typed, a record's name too long loses its last parts to "…".
-  The search reads a row's whole too.
+  The search reads a row's whole too. Its verdict's removals (`historyRemovals`): the audit events of a removal, less a day read again
+  from its rolls (`how: 'reread'`) and a number accounted for (`source: 'reconciled'`), and the change log's rows removed, voided or
+  cancelled (a credit note cancelled, an entry voided, a client removed); a row saved with such an event (within `CHG_MATCH_MS`) is the
+  same act, counted once. The list draws such an act once too: an invoice deleted is its tombstone's row (`foldRemoval`: the invoice
+  removed in the same save, named by its number, since the tombstone keeps no id), and a quotation's events name their record (`cc`,
+  `cr`), so the change log's entries of the same saves are listed under Changes alone.
 - **Knowledge** (knowledge.js): each list view a verdict card and one row (the search; Filter, the kind and the status, on the phone
-  a dialog with tokens; **Write**; More: Export, Import). Start draws a card only for what waits (`kbStartHeroHtml`; *Nothing waits
+  a dialog with tokens; **Write**; More: Export, Import). Start draws a card only for what waits (decisions due for review on the owner's alone, on
+  Records' verdict too; what waits on anyone else is their own, `kbWaitsOnMe`: a change proposed is its proposer's, in *Drafts and
+  waiting* as well; `kbStartHeroHtml`; *Nothing waits
   on you* otherwise), its count in its line; on the phone the first card opens, the rest wait shut. Training leads with how its
-  lessons stand and each row says its own standing (due again warning, never taught info, up to date ok).
+  lessons stand and each row says its own standing (due again warning, never taught info, up to date ok); ok only when no lesson
+  is part-taught, and paths no hand on the roster is for say so.
 - **Invoiced** (`imInvoicedVerdictHtml`, `imMonthPagerHtml`): its card, then one row with the month inside it (`inv-tb-step`) and More
   holding Add challan and Duplicate check (Scan a challan came out on 13 Oct 2026). **Reports**' Print is its action bar's, under the sheet.
 - **The long words** went to a line or two facts, the method to its guide (*Using the app: People* v3, *pay* v5, *knowledge* v2): the
@@ -3022,15 +3030,19 @@ build: the people are the book's.
   attendance sheet, barrel batches, VAT register, out-time roll), set by the owner on the user's form (Settings → Access → Users &
   access → *Enters*); the users list says what each enters.
 - **Mine** is their screen (`pageFace`, an overview): the day (‹ › and Today, the address's `d`), the duties as steps read as
-  Today's inputs read them (in, late, not yet, not expected), each opening where the duty is entered on that day (its own form on
+  Today's inputs read them (in, late, not yet, not expected; the attendance sheet in once this person typed a mark on the day (`by`),
+  Material in once anything is counted in, never on a challan typed in the office; an ID whose role makes no Floor entries is told so on
+  each step, `faceFloorOk`), each opening where the duty is entered on that day (its own form on
   the face, F2–F4; Stock's by hand; People's day as the sheet for the attendance sheet); *What you entered* that day from the change log (`faceEntered`); their paper (*Print my sheets*, *Print the day as entered*, F5), and whether their entries have
   reached GitHub (`faceSyncState`).
 - **Its door is drawn only for an ID with a face** (`faceMineDoor`), first on the bar and after Add on the rail; `grdSees('pageFace')`
   is the face's (`faceSees`), guard on or off. A reload within the sign-in window draws it too (`grdBoot` draws the shell again: the
   phone's bar had been drawn before the book said who was in, and Mine's door was left off until the next sign-in; F4). **Signing in lands on it** from the start's Today or when another person signs in; a
   launch onto another screen is kept (`grdAfterUser`).
-- **The owner sees a person's screen as theirs** (*See their screen* on the users list: `_faceUid`, ended by the next sign-in).
-- **Today hears a face**: an input a person with that duty entered says so (*Entered by …*, `faceInputBy`, read off the change log).
+- **The owner sees a person's screen as theirs** (*See their screen* on the users list: `_faceUid`, ended by the next sign-in, the
+  owner's own included: `grdSignIn`).
+- **Today hears a face**: an input a person with that duty entered says so (*Entered by …*, `faceInputBy`, read off the change log; a roll
+  by whoever wrote it on a face, `faceRollBy`, never by a mark typed on the day after it).
 - **Search finds Mine** only where it opens (`srchSees`).
 - **The pickling hand enters on Mine itself** (F2, P200): *A load into the tank* (the client, those with material open first; its parts
   as the challans name them, those open first with what is open on them, or a name typed as written; pieces or kilograms; the time it
@@ -3102,7 +3114,9 @@ build: the people are the book's.
   time is a batch's end). The client and the part as the floor names it (the floor's names and the client's challan parts offered)
   appear only where a run begins, the rounds under it carrying them as the paper's ditto; *Another client or part* on the last round
   begins a run, and a run's part changed moves the rounds under it that were the same. Two clients in one round are a row each at
-  the same time. **Read by the register's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`): the figure
+  the same time. **Read by the register's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`; the client picked goes with its id,
+  `clientId` on the row, so a run is that client whatever its name reads as, its gauge and part rules included: *M & M AUTO* and *3M
+  ENGINEERING* had read as no client and saved with none): the figure
   added up as the register means it (*3+4×156* is seven racks of 156, *98×8+1*), the START rule, the gauge, part and series rules,
   the shift's edges, a round its line has not run, the day total written against the rounds; each row says what was read under it,
   a run what it was read as. The rows redraw around the field being typed (`faceVatRedraw`, People → Day's way), so a tap on the next
@@ -3121,7 +3135,9 @@ build: the people are the book's.
   one line and day from two sources both count, so the warning is the guard.
 - **The power log is the day's**: a cut saved at once from the page (cut at, power back if it is), one log a day whichever line's page
   (`logId`: two close cuts in it are two, a cut the pickling message also sent is one), the day's cuts from every record listed with
-  *Power back* or *Why* (the cut's completion, `pcsOpen`).
+  *Power back* or *Why* (the cut's completion, `pcsOpen`). On Mine's *What you entered* a cut is said as a cut (`faceCutRowHtml`: its
+  times, *Power back* or *Why*), never a load's message or Correct: Correct had opened the load's form on it, and a load saved there
+  took the cut's place.
 - **Its checks** (`faceChecks`): `rack`, a round of a size its part never ran at on its line before the page's day (three rounds or
   more on record; half the usual rack on VAT A2 is the line's own way), and `total`, a page whose day total written the rounds do not
   meet (a run put right counted as put right).
@@ -3130,14 +3146,14 @@ build: the people are the book's.
   run with no client written, which the face asks for; one splits a figure for two codes by what is open on their challans, which has
   changed since.
 - **The clerk's attendance sheet against the supervisor's roll** (F4, P202): the sheet is People → Attendance → Day as the sheet (the
-  duty opens it), and every mark typed on the day now carries who typed it (`by`, with the guard on, `_attHandEdit`). Each hand the
+  duty opens it), and every mark typed on the day now carries who typed it (`by`, with the guard on, `_attHandEdit`, *All present*'s included). Each hand the
   clerk marked is set against the day's saved rolls read alone (`relayRollsReading`: relayPlan `bare`, nothing on the day beside
   them): present on one and absent on the other, a half day on one, another line (where both name one; the barrel and its own
   pickling one place, which the roll writes either way), or present with the rolls naming them nowhere (`faceAttDiffs`). The
   sheet's mark stands (a roll never writes over a mark typed by hand). Said on the hand's row and over the day, on the clerk's Mine
   (*N differ from the roll*) and to the owner (To-do `faceAttRoll`, one task a day); the owner rules a hand at a time, in its day:
-  **Use the roll's** (the roll's mark on the day, the roll's again) or **Looks right** (`rollOk`, against the roll's reading it was
-  given: a roll saved later that reads otherwise asks again). Which is the day's truth stays the owner's (ENTRY_FACES §8).
+  **Use the roll's** (the roll's mark on the day, the roll's again) or **Looks right** (`rollOk`, against both readings it was
+  given, the roll's and the sheet's: a roll saved later that reads otherwise, or the clerk changing the mark, asks again). Which is the day's truth stays the owner's (ENTRY_FACES §8).
 - **Measured on the owner's book**: the 55 marks typed by hand on the 25 days since 1 Sep with rolls, as the clerk's sheet: 8
   questions on 5 days, 7 another line and 1 not on the roll, none present against absent (15 before the barrel and its pickling were
   one place and a sheet naming no line was let pass).
@@ -3156,7 +3172,8 @@ build: the people are the book's.
 
   Filled, a sheet is the app's record of the day, whoever entered it, each row saying through which door (Mine and who, WhatsApp
   and who sent it, a register photo, by hand); a voided or corrected record never reaches paper. A VAT page entered on Mine prints as
-  typed (the paper's ditto under a run's client and part); a day read from a photo or a message prints its rounds as the page wrote
+  typed (the paper's ditto under a run's client and part), unless the owner voided or corrected one of its runs in Production
+  (`faceVatTouched`): then from the runs the book holds, with the day total written; a day read from a photo or a message prints its rounds as the page wrote
   them (the register's *1:05* is the afternoon, never turned into 1:05 AM). Production → More → **Print sheets** prints the floor's
   three for any day, blank or as entered (a sheet with nothing entered is left out, and the toast says which). The roll filled on
   Mine says *As entered in the app*, not a worked example (`attSheetShyamHtml`'s `note`). Printing writes nothing to the book.
@@ -3166,7 +3183,8 @@ build: the people are the book's.
   (`app-faces-owner`, `roles: ['owner']`: Enters, Devices, See their screen, what reaches the owner). All link to Mine, so its book
   lists them. Each role's path (`KB_APP_PATHS`) leads with Mine and the face a hand of that role is most often given (floor: the
   pickling hand's; supervisor: the supervisor's and the clerk's; office: the clerk's). *Using the app: production* is version 4
-  (Print sheets). Training shows a path's first five lessons, the rest one tap away (P195's budget for Training held).
+  (Print sheets); *Using the app: the register clerk's screen* version 2 (how a round and a batch are written, and a page a photo
+  holds, moved there off the page); *Setting up each person's screen* version 2 (a face's entries need the role's Floor entries). Training shows a path's first five lessons, the rest one tap away (P195's budget for Training held).
 - **The flow thread** (T1–T3, `flow.js`, P204; owner, 10 Oct 2026: *"Target default one day, can be edited as per material or overall as
   well. Say, they ask for a particular material to be done on a priority basis - we can plan that out"*; *"Mehta 7 days - as we give 2%
   discount, every other client 45 days"*).

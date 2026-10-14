@@ -778,6 +778,8 @@ function srchStays(go) {
    is no step: the same address, or the same page where it has no views (Home until Needs you and Pulse are its views). */
 function srchGoPlace(loc) {
   var cur = navLoc();
+  // A place kept in Recent before its screen moved (nav.js NAV_REDIRECTS) opens where it went: pageTodo is no page now.
+  loc = navRedirect(loc);
   if (!loc || !isPageId(loc.tab) || navKey(loc) === navKey(cur) || (loc.tab === cur.tab && !cur.v && !loc.id)) return;
   var st = history.state;
   if (st && st.sep && st.layer) history.replaceState(Object.assign({}, st, { layer: false, skip: true }), '', window.location.href);

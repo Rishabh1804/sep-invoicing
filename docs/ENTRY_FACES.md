@@ -63,8 +63,9 @@ Names are never written into this repo: a face belongs to a role the owner gives
    links to (§4); where it does not agree, the owner is asked to look (a To-do task, red or amber by what is at stake) and the
    entry carries the question until the owner rules. Nothing waits for approval.
 4. **The WhatsApp group keeps getting its message during the changeover.** A face's save ends with **Send to the group**: WhatsApp
-   opens with the message written in the shop's own shape (`waLinksHtml`'s doors), so the group and anyone reading it see what
-   they see today. A message the app already holds from a face is known when it is pasted again (its fingerprint), and is
+   opens with the message written in the shop's own shape (`faceWaHref`, a `wa.me` link carrying the message: the installed app on a
+   phone, WhatsApp Web on a computer; unlike `waLinksHtml`'s doors it is not hidden offline), so the group and anyone reading it see
+   what they see today. A message the app already holds from a face is known when it is pasted again (its fingerprint), and is
    refused as already entered, never read twice.
 5. **Paper stays a choice** (*"if they want to fill in manually and file it in my table"*): every face has **Print my sheet**, the
    blank sheet for its duty (the ones that exist, and the three new: the pickling sheet, the barrel batch sheet, the VAT register
@@ -145,12 +146,16 @@ at a sitting).
 
 - **The face shell** (`faces.js`, new): `FACE_DUTIES` (pickling, incoming, roll-in, roll-out, stock, barrel, attsheet, vat),
   `faceOf(user)`, the face's screen and its address (`?tab=pageFace&d=<day>`), its door on the bar for a user with one.
-- **Today hears a face**: an input entered on a face is in at the minute it was saved (`tdyUsual`, `tdyInput` read `src: 'face'`),
-  and Needs you's inputs say *entered by* where a face entered them.
+- **Today hears a face**: an input entered on a face is in once its record is in the book, as any door's is (`tdyInput` reads the
+  records: a roll written on a face at the minute it was saved, loads at their own times). The minute an input usually comes
+  (`tdyUsual`) is learnt from what was sent (a roll's WhatsApp minute, the loads' times): a roll written on a face carries no sent
+  minute and does not teach it. Needs you's inputs say *entered by* where a face entered them: a roll by whoever wrote it on a face
+  (`faceRollBy`), never by whoever typed a mark on the day after.
 - **Who entered what**: every record a face writes carries `by` (the user) and the change log's tag; History lists them under the
   person.
-- **The guard**: a face's forms are *Floor entries* (`grdOk('floor')`), asked the PIN once the re-ask window has passed; a face
-  never opens a money or wages figure its role does not see.
+- **The guard**: a face's forms are *Floor entries* (`grdOk('floor')`): a permission, never re-asked, as every floor entry is. An ID
+  whose role may not make them (Office, by default) is told so on each step of Mine (`faceFloorOk`), never handed a form that
+  refuses at its Save. A face never opens a money or wages figure its role does not see.
 
 ## 4. Cross-checks: the owner looks only where the data disagrees
 
@@ -170,7 +175,7 @@ entry, as `checkOk` is on stock):
   *Built (F4), the sheet against the roll:* each hand the clerk marked against the day's saved rolls read alone (with nothing typed
   on the day beside them): present on one and absent on the other, a half day on one, another line (where both name one; the barrel
   and its own pickling one place, which the roll writes either way), or present with the rolls naming them nowhere. The sheet's mark
-  stands; the owner rules each, in the hand's day: *Use the roll's* or *Looks right* (kept against the roll's reading it was given).
+  stands; the owner rules each, in the hand's day: *Use the roll's* or *Looks right* (kept against both readings it was given, the roll's and the sheet's).
   On the owner's book, the 55 marks typed by hand on the 25 days since 1 Sep with rolls: 8 questions on 5 days, 7 another line and
   1 not on the roll, none present against absent. *Not built:* a card scan or a check-in against either.
 - **The roll's EXTRA against the shortfall** (the Areas check, as now).

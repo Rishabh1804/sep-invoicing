@@ -356,26 +356,30 @@ var KB_APP_GUIDES = [
     '- A batch more than a quarter heavier than its barrel takes is asked of the owner: its kg a round on Production → Equipment, or the barrel’s usual load.'),
   _kbg('face-clerk', 'Using the app: the register clerk’s screen', 'The VAT register page and the attendance sheet', ['pageFace', 'pageStaff', 'pageProduction'],
     'The register clerk’s screen has the **VAT register** page and the **attendance sheet**.\n\n' +
-    '# The VAT register page\n1. Pick the line: **VAT A1** or **VAT A2**. A1 is kept a round a row; A2 a batch a row (when it began, when it ended). **Rounds · Batches** changes it for a page kept the other way.\n' +
+    '# The VAT register page\n1. Pick the line: **VAT A1** or **VAT A2**. A1 is kept a round a row; A2 a batch a row (when it began, when it ended, and the figure at its end). **Rounds · Batches** changes it for a page kept the other way.\n' +
     '2. Where a run begins, pick the **Client** and write the **Part, as written** on the page. The rows under it carry them, as the paper’s ditto does: **Another client or part** starts the next run.\n' +
     '3. Each round: its **Time** and its **Figure**, exactly as written (120, 3+4×156, 98×8+1). The app adds it up and says under the row what it read.\n' +
     '4. Two clients in one round are a row each, at the same time. A round struck on paper is a row taken off.\n5. **Day total on the paper page**, if it has one: a total the rounds do not meet is said.\n' +
     '6. **Save the page**, then **Send to the group**.\n' +
-    '- The page is kept on this phone as you type it, until it is saved: closing the app loses nothing. Saved again, only what changed is put right.\n\n' +
+    '- The page is kept on this phone as you type it, until it is saved: closing the app loses nothing. Saved again, only what changed is put right.\n' +
+    '- A page a photo of the register already holds says so: saved here as well, the day is counted twice, so enter only what the photo does not hold.\n\n' +
     '# Power cuts\n- **Power cut at** and **Power back at**, then **Save the cut**: it is saved at once, on the day’s one power log, which both lines’ pages show.\n- A cut with no time back has **Power back** to close it later.\n\n' +
     '# The attendance sheet\n- **Attendance sheet** opens People → Attendance → Day as the sheet: a hand a row, P / H / A, the area, in and out.\n' +
-    '- Each mark you type carries your name. Where it disagrees with the supervisor’s roll (present on one and absent on the other, a half day, another line), the owner is asked; your mark stands until the owner rules.'),
+    '- Each mark you type carries your name. Where it disagrees with the supervisor’s roll (present on one and absent on the other, a half day, another line), the owner is asked; your mark stands until the owner rules.',
+    // Version 2: how a round and a batch are written, and the page a photo holds, moved here off the page (P195's 120 characters).
+    { version: 2 }),
   _kbg('faces-owner', 'Setting up each person’s screen', 'Who enters what, seeing their screen, and what reaches you', ['pageFace', 'pageHome'],
     'Each person who enters data has their own screen, **Mine**, on their own phone.\n\n' +
     '# Setting it up\n1. Give each person an ID: Settings → Access → **Users & access**.\n' +
-    '2. On their user, **Enters**: tick what they enter (the in-time roll, pickling loads, material in, stock, the attendance sheet, barrel batches, the VAT register, the out-time roll). A face is a person’s, never a role’s.\n' +
+    '2. On their user, **Enters**: tick what they enter (the in-time roll, pickling loads, material in, stock, the attendance sheet, barrel batches, the VAT register, the out-time roll). A face is a person’s, never a role’s. What a face enters is a **Floor entry**: their role must allow those (Supervisor and Floor do; Office does not unless you switch it on), or Mine says so on each step.\n' +
     '3. Register their phone (Settings → Access → **Devices**, with you present), so what they enter reaches the book through GitHub.\n' +
     '4. **See their screen** on the users list shows Mine as they see it; the next sign-in ends it.\n\n' +
     '# What reaches you\n- Their entries are records at once, marked as entered by them. **Needs you** says who entered each of the day’s inputs.\n' +
     '- Where an entry and what it links to disagree, one task a check and a day asks you to look: **Looks right** keeps it as entered, **Correct** puts it right. The attendance sheet against the roll: **Use the roll’s** or **Looks right**, a hand at a time.\n' +
     '- The WhatsApp group keeps getting its messages: each save offers **Send to the group** in the shop’s own shape.\n\n' +
     '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. **Print sheets** on Production, under More in its toolbar, prints the pickling sheet, the barrel batches and the VAT pages for any day.',
-    { roles: ['owner'] })
+    // Version 2: a face's entries need the role's Floor entries (the Office role has none by default).
+    { roles: ['owner'], version: 2 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of

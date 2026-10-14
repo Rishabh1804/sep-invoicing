@@ -700,7 +700,8 @@ function todoOpenFold(key) {
   var h = '<div class="inv-panel inv-panel-flush" data-todo-fold="' + escHtml(t.foldRule) + '"><div class="inv-panel-head"><span class="inv-row-main">' +
     '<span class="inv-panel-title">' + escHtml(t.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span></span>' +
     '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + (TODO_TONE_WORD[t.tone] || 'To know') + '</span></div>' +
-    t.members.map(todoAppRowHtml).join('') + '</div>' +
+    // Each member in full: map's index would be todoAppRowHtml's `brief`, and every member after the first lost its line.
+    t.members.map(function(m) { return todoAppRowHtml(m); }).join('') + '</div>' +
     '<div class="inv-callout inv-callout-info" data-todo-clears>' + escHtml(t.clears) + '</div>' +
     (s && todoIsSnoozed(t) ? '<p class="inv-note inv-mt-8">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</p>' : '') +
     '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze all ' + t.members.length + '</span><div class="inv-toolbar">' +

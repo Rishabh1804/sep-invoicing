@@ -127,10 +127,12 @@ function fshBarrelHtml(iso, filled) {
 
 /* ---------- The VAT register page ---------- */
 /* What a line's page holds for the day: the page entered on Mine as it was typed, else the runs the app counts (a photo, a
-   message, by hand), a round a row as written. {style, rows: [{time, to, client, part, fig, note}], total, from, n}. */
+   message, by hand), a round a row as written. A page whose run the owner voided or corrected in Production prints from the
+   runs: the page as typed would put on paper what the book no longer holds. {style, rows: [{time, to, client, part, fig, note}],
+   total, from, n}. */
 function fshVatRead(iso, line) {
   var pg = faceVatPage(iso, line);
-  if (pg) {
+  if (pg && !faceVatTouched(iso, line).length) {
     var style = pg.style || faceVatStyleOf(line), prev = null;
     return { style: style, total: pg.total != null ? pg.total : null, n: (pg.rows || []).length,
       from: 'Entered on Mine' + (pg.by ? ' by ' + pg.by : '') + (pg.at ? ' at ' + faceClock(new Date(pg.at).getHours() * 60 + new Date(pg.at).getMinutes()) : '') + '.',
@@ -153,7 +155,7 @@ function fshVatRead(iso, line) {
         fig: fig, note: (k ? '' : fshSource(e)) + (x.struck ? (k ? '' : ' · ') + 'struck, not counted' : '') });
     });
   });
-  return { style: batches ? 'batches' : faceVatStyleOf(line), rows: rows, total: null, n: rows.length, from: runs.length ? 'As entered: ' + fshFromLine(runs) + '.' : '' };
+  return { style: batches ? 'batches' : faceVatStyleOf(line), rows: rows, total: pg && pg.total != null ? pg.total : null, n: rows.length, from: runs.length ? 'As entered: ' + fshFromLine(runs) + '.' : '' };
 }
 /* The day's power log, as Power reads it: a cut reported twice is one. */
 function fshCutsRows(iso, filled) {

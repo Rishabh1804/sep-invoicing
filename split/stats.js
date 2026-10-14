@@ -1144,6 +1144,8 @@ function buildHistoryEvents() {
     events.push({
       ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null, source: v.source || '',
       cc: 'voidedNumbers', cr: typeof chgRidOf === 'function' ? chgRidOf('voidedNumbers', v) : null,
+      // The invoice removed in the same save is this act too (the tombstone keeps its number, not its id): one row, not two.
+      foldRemoval: v.source !== 'reconciled' && label ? { coll: 'invoices', label: label } : null,
       text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
         ' — ' + (v.reason || 'no reason recorded') +
         (v.reserved ? ' [number stays spent]' : ' [number returned to series]'),
@@ -1279,7 +1281,7 @@ function pushFloorEvents(events) {
   (S.attendanceDeletes || []).forEach(function(x) {
     var what = ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')';
     events.push({
-      ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded', cc: 'attendanceDeletes', cr: x.id,
+      ts: x.at, type: 'audit', kind: 'attDelete', how: x.how || '', sourceId: null, jump: null, clock: 'recorded', cc: 'attendanceDeletes', cr: x.id,
       // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
       text: x.how === 'reread'
         ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
@@ -1513,12 +1515,24 @@ function renderHistory() {
 /* History's verdict (the tab map, TM6f): what the log shows today, and what was removed or cancelled in the week, in danger: a
    deletion is what an audit goes looking for. Over the events the filter shows. */
 var HISTORY_REMOVALS = { void: 1, attDelete: 1, cancel: 1, quoteVoid: 1 };
+/* The removals among events: an audit event of a removal (a day read again from its rolls, or a number accounted for, removes
+   nothing), and a change the log records as removed, voided or cancelled (a credit note cancelled, an entry voided, a client
+   removed: these have no event of their own), unless it is the same act as such an event, saved with it (an invoice deleted
+   is its tombstone and the invoice removed; a day deleted takes its rolls). */
+function historyRemovals(list) {
+  var acts = list.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; });
+  var audit = acts.filter(function(ev) { return !(ev.kind === 'attDelete' && ev.how === 'reread') && !(ev.kind === 'void' && ev.source === 'reconciled'); });
+  var chg = list.filter(function(ev) {
+    return ev.kind === 'chg' && /^(removed|voided|cancelled)$/.test(ev.act || '') && !acts.some(function(a) { return Math.abs((a.ts || 0) - (ev.ts || 0)) <= CHG_MATCH_MS; });
+  });
+  return audit.length + chg.length;
+}
 function historyVerdictHtml(events, filtered) {
   var today = localDateStr(), weekAgo = isoAddDays(today, -6);
   var dayOf = function(ev) { return ev.ts ? isoOf(new Date(ev.ts)) : ''; };
   var todayN = events.filter(function(ev) { return dayOf(ev) === today; }).length;
   var week = events.filter(function(ev) { var d = dayOf(ev); return d >= weekAgo && d <= today; });
-  var removed = week.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; }).length;
+  var removed = historyRemovals(week);
   if (!events.length) return uiVerdictHtml({ screen: 'History' + (filtered ? ' · filtered' : ''), tone: 'neutral', verdict: filtered ? 'Nothing matches these filters' : 'Nothing recorded yet', key: 'pageHistory' });
   return uiVerdictHtml({ screen: 'History' + (filtered ? ' · filtered' : ''), tone: removed ? 'danger' : todayN ? 'ok' : 'neutral',
     verdict: todoPlural(todayN, 'event') + ' today' + (removed ? ' · ' + removed + ' removed or cancelled this week' : ''),

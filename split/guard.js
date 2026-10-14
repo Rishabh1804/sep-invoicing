@@ -564,6 +564,9 @@ function grdSignIn(u) {
   try { localStorage.setItem(GRD_LAST_KEY, u.id); } catch (e) { /* remembered on this window only */ }
   grdFailClear(u.id);
   _grdPick = u.id;
+  // The owner looking at another's screen ends with the next sign-in (faces.js), the owner's own coming back included:
+  // grdAfterUser ended it only for somebody else, and the person's screen outlived the lock.
+  if (typeof _faceUid !== 'undefined' && _faceUid) { _faceUid = null; _faceDay = null; _faceForm = null; }
   if (_grdLocked) grdHideLock();
   grdAfterUser();
 }

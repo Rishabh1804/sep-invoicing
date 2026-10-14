@@ -218,7 +218,7 @@ test.describe('P202: the register clerk’s face', () => {
     await expect(page.locator('[data-action="invFaceVatLine"][data-line="vat-a2"]')).toHaveAttribute('aria-pressed', 'true');
     await expect(page.locator('[data-face-vat-dup]')).toHaveCount(0);
     await page.locator('[data-action="invFaceVatLine"][data-line="vat-a1"]').click();
-    await expect(page.locator('[data-face-vat-dup]')).toContainText('A photo of the VAT A1 register for this day is already in the book (1 run)');
+    await expect(page.locator('[data-face-vat-dup]')).toContainText('A photo of the VAT A1 page for this day is in the book (1 run): saved here too, the day counts twice.');
     await page.locator('#faceVatClient0').selectOption('11');
     await page.locator('#faceVatPart0').fill('CLAMP 165X83(40X6)');
     await page.locator('#faceVatPart0').blur();
@@ -300,7 +300,8 @@ test.describe('P202: the register clerk’s face', () => {
     await page.locator('[data-att-edit] [data-att-done]').click();
     await ev(page, `attEditOpen(3)`);
     await page.locator('[data-att-roll-ruling] [data-action="invAttRollOk"]').click();
-    expect(await ev(page, `S.attendance['${today}'].marks[3].rollOk`)).toMatchObject({ sig: 'area|P|barrel', by: 'Asha Rao' });
+    // Kept against both readings it was given: the roll's (present, Barrel) and the sheet's (present, VAT A2), P216.
+    expect(await ev(page, `S.attendance['${today}'].marks[3].rollOk`)).toMatchObject({ sig: 'area|P|barrel|P|vat-a2', by: 'Asha Rao' });
     await page.locator('[data-att-edit] [data-att-done]').click();
     // A hand the roll does not name has nothing to put back: only Looks right.
     await ev(page, `attEditOpen(5)`);

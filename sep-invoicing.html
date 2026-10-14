@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="527c6844">
+<meta name="app-build" content="84279308">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -6165,11 +6165,22 @@ function chgHistoryEvents(events, clientFilter) {
   (S.invoices || []).forEach(function(r) { byId.invoices[r.id] = r; });
   (S.incomingMaterial || []).forEach(function(r) { byId.incomingMaterial[r.id] = r; });
   var ctx = { rec: function(e) { return byId[e.coll] ? byId[e.coll][e.rid] : null; } };
+  // An event that removed a record of another store in its save names it by its label (`foldRemoval`: a deleted invoice's
+  // tombstone keeps its number, not its id), so the removal is the event's row too, never a second row beside it.
+  var rem = events.filter(function(ev) { return ev.foldRemoval && ev.foldRemoval.label; });
+  var claim = function(ev, e) { if (!Object.prototype.hasOwnProperty.call(ev, 'by')) { ev.by = e.by; ev.byDev = e.dev; } };
   log.forEach(function(e) {
     var folded = false;
     if (e.rid != null) (idx[e.coll + '\u0001' + e.rid] || []).forEach(function(ev) {
       if (Math.abs((ev.ts || 0) - e.at) > CHG_MATCH_MS) return;
-      if (!Object.prototype.hasOwnProperty.call(ev, 'by')) { ev.by = e.by; ev.byDev = e.dev; }
+      claim(ev, e);
+      folded = true;
+    });
+    if (!folded && e.op === 'remove') rem.forEach(function(ev) {
+      var lb = String(e.label || ''), want = ev.foldRemoval.label;
+      if (folded || ev.foldRemoval.coll !== e.coll || Math.abs((ev.ts || 0) - e.at) > CHG_MATCH_MS) return;
+      if (lb !== want && lb.indexOf(want + ', ') !== 0) return;
+      claim(ev, e);
       folded = true;
     });
     if (clientFilter && String(e.cid) !== String(clientFilter)) return;
@@ -6852,6 +6863,9 @@ function grdSignIn(u) {
   try { localStorage.setItem(GRD_LAST_KEY, u.id); } catch (e) { /* remembered on this window only */ }
   grdFailClear(u.id);
   _grdPick = u.id;
+  // The owner looking at another's screen ends with the next sign-in (faces.js), the owner's own coming back included:
+  // grdAfterUser ended it only for somebody else, and the person's screen outlived the lock.
+  if (typeof _faceUid !== 'undefined' && _faceUid) { _faceUid = null; _faceDay = null; _faceForm = null; }
   if (_grdLocked) grdHideLock();
   grdAfterUser();
 }
@@ -20219,14 +20233,16 @@ function qtHistoryEvents(events, clientFilter) {
   getQuotations().forEach(function(q) {
     if (clientFilter && q.clientId != clientFilter) return;
     var nm = qtNumberText(q) + ' (' + qtRecipient(q) + ')';
-    if (q.revOf && q.createdAt) events.push({ ts: q.createdAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, text: 'Quotation ' + nm + ' drafted as a revision — ' + (q.revReason || 'no reason recorded') });
-    if (q.issuedAt) events.push({ ts: q.issuedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, text: 'Quotation ' + nm + ' issued · ' + qtRateSummary(q) });
-    if (q.acceptedAt) events.push({ ts: q.acceptedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, text: 'Quotation ' + nm + ' accepted' });
-    if (q.declinedAt) events.push({ ts: q.declinedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, text: 'Quotation ' + nm + ' declined' });
-    if (q.voidedAt) events.push({ ts: q.voidedAt, type: 'audit', kind: 'quoteVoid', sourceId: null, jump: null, text: 'Quotation ' + nm + ' voided — ' + (q.voidReason || 'no reason recorded') + ' [number stays spent]' });
+    // The record each event is about, so the change log's entry saved with it is the event's row, not a second one.
+    var qcr = typeof chgRidOf === 'function' ? chgRidOf('quotations', q) : q.id;
+    if (q.revOf && q.createdAt) events.push({ ts: q.createdAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' drafted as a revision — ' + (q.revReason || 'no reason recorded') });
+    if (q.issuedAt) events.push({ ts: q.issuedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' issued · ' + qtRateSummary(q) });
+    if (q.acceptedAt) events.push({ ts: q.acceptedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' accepted' });
+    if (q.declinedAt) events.push({ ts: q.declinedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' declined' });
+    if (q.voidedAt) events.push({ ts: q.voidedAt, type: 'audit', kind: 'quoteVoid', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' voided — ' + (q.voidReason || 'no reason recorded') + ' [number stays spent]' });
     if (q.supersededAt) {
       var by = qtFind(q.supersededBy);
-      events.push({ ts: q.supersededAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, text: 'Quotation ' + nm + ' superseded' + (by ? ' by ' + qtNumberText(by) : '') });
+      events.push({ ts: q.supersededAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' superseded' + (by ? ' by ' + qtNumberText(by) : '') });
     }
   });
 }
@@ -22442,6 +22458,8 @@ function attAllPresent() {
   staffActive().forEach(function(w) {
     if (!rec.marks[w.id]) {
       rec.marks[w.id] = { st: 'P', ot: 0, hours: 0, area: w.area || 'flex' };
+      // Typed by hand like any mark: who typed it, so the clerk's sheet is set against the roll (faces.js, F4).
+      _attHandEdit(rec.marks[w.id]);
       n++;
     }
   });
@@ -34725,7 +34743,8 @@ function todoOpenFold(key) {
   var h = '<div class="inv-panel inv-panel-flush" data-todo-fold="' + escHtml(t.foldRule) + '"><div class="inv-panel-head"><span class="inv-row-main">' +
     '<span class="inv-panel-title">' + escHtml(t.title) + '</span><span class="inv-row-meta inv-row-wrap">' + escHtml(t.why) + '</span></span>' +
     '<span class="inv-dot inv-dot-' + uiTone(t.tone) + '">' + (TODO_TONE_WORD[t.tone] || 'To know') + '</span></div>' +
-    t.members.map(todoAppRowHtml).join('') + '</div>' +
+    // Each member in full: map's index would be todoAppRowHtml's `brief`, and every member after the first lost its line.
+    t.members.map(function(m) { return todoAppRowHtml(m); }).join('') + '</div>' +
     '<div class="inv-callout inv-callout-info" data-todo-clears>' + escHtml(t.clears) + '</div>' +
     (s && todoIsSnoozed(t) ? '<p class="inv-note inv-mt-8">Snoozed ' + (s.until ? 'until ' + escHtml(stockShortDate(s.until)) : 'until the figures change') + '.</p>' : '') +
     '<div class="inv-field inv-mt-16"><span class="inv-field-label">Snooze all ' + t.members.length + '</span><div class="inv-toolbar">' +
@@ -39746,6 +39765,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     return null;
   };
+  // A row of the register clerk's page on Mine names the client picked (faces.js sends its id beside the name): that client,
+  // whatever its name reads as ("M & M AUTO" read as no client by name). A photo's rows are read by name.
+  var itemOf = function(row) { return row.cid != null ? { clientId: row.cid, clientName: row.cust, clientHow: 'picked' } : prodReadItem(row.cust, ctx.clients); };
   var lastCust = '', lastPart = '', lastDim = '';
   json.rows.forEach(function(r0, i) {
     var r = r0 || {};
@@ -39771,7 +39793,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (/\+/.test(part) || (part && prodIsDitto(part))) part = tokenFill(part, lastPart);
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
-      mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
+      cid: r.clientId != null && r.clientId !== '' && String(r.customer || '').trim() ? r.clientId : null, mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
       qty: null, written: written, struck: !!r.struck, over: r.over || '', bracket: !!r.bracket, legible: r.legible !== false, issues: [] };
     if (written != null) {
       var q = prodRegisterQty(written);
@@ -39813,7 +39835,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // Two clients in one round (owner, 30 Sep 2026: "sometimes two clients are done simultaneously"): each client's share
     // is a round of its own at the same time, in its own run. The figure splits on its + into as many shares as there are
     // clients or parts; a figure that does not is asked about and the row kept whole.
-    var cT = prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
+    var cT = row.cid != null ? [cust] : prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
     if (nShare > 1 && (cT.length === 1 || pT.length === 1 || cT.length === pT.length)) {
       var fT = written != null ? prodSplitTop(written) : null;
       if (fT && fT.length !== nShare) {
@@ -39870,7 +39892,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     out.rows.forEach(function(row) {
       if (row.start || lineGauge(String(row.part + ' ' + row.dim).replace(/[×✕]/g, 'X'))) return;
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
-      var it = prodReadItem(row.cust, ctx.clients);
+      var it = itemOf(row);
       var gs = it.clientId != null ? ctx.gaugeRule(it.clientId, row.part, rack) : null;
       // A round of a size no rule names, on a part a rule covers (the 108s, the 98s), is kept apart as gauge unknown: it
       // must not join a run whose gauge a rule read and take that gauge.
@@ -39885,7 +39907,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   if (ctx.partRule) {
     out.rows.forEach(function(row) {
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
-      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var it = rack ? itemOf(row) : null;
       var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
       // A round whose gauge no rule of its own client reads, of a size another client's part is on this line: asked.
       if (!pr && row.gaugeSet === 'none' && ctx.partRuleOther) {
@@ -39908,7 +39930,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   var sideOf = function(row) { return row.min == null || (row.qty == null && row.written == null) ? '' : row.min < RELAY_GENERAL ? 'am' : row.min >= RELAY_GENERAL_OUT ? 'pm' : 'gen'; };
   var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
-    var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
+    var pd = row.part + ' ' + row.dim, ck = (row.cid != null ? '#' + row.cid : relayKey(row.cust)) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
     var gs = row.gaugeSet || '', rp = row.rulePn || '', sd = sideOf(row);
     var run = row.shared != null || inShared ? open[ck] || null : cur;
     if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp) || (sd && run.sd && sd !== run.sd)) { run = { ck: ck, g: g, gs: gs, rp: rp, sd: sd, rows: [] }; out.runs.push(run); }
@@ -39919,7 +39941,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     cur = run;
   });
   out.runs = out.runs.map(function(run) {
-    var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;
+    var first = run.rows[0], it = itemOf(first), dimText = first.dim || run.g;
     var partText = (first.part + (dimText && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + dimText + ')' : '')).trim();
     var counted = run.rows.filter(function(x) { return x.counted && x.qty != null; });
     var qty = counted.reduce(function(s, x) { return s + x.qty; }, 0);
@@ -41167,6 +41189,8 @@ function buildHistoryEvents() {
     events.push({
       ts: v.voidedAt, type: 'audit', kind: 'void', sourceId: null, jump: null, source: v.source || '',
       cc: 'voidedNumbers', cr: typeof chgRidOf === 'function' ? chgRidOf('voidedNumbers', v) : null,
+      // The invoice removed in the same save is this act too (the tombstone keeps its number, not its id): one row, not two.
+      foldRemoval: v.source !== 'reconciled' && label ? { coll: 'invoices', label: label } : null,
       text: what + (v.clientName ? ' (' + v.clientName + ')' : '') +
         ' — ' + (v.reason || 'no reason recorded') +
         (v.reserved ? ' [number stays spent]' : ' [number returned to series]'),
@@ -41302,7 +41326,7 @@ function pushFloorEvents(events) {
   (S.attendanceDeletes || []).forEach(function(x) {
     var what = ' (' + x.marks + ' mark' + (x.marks === 1 ? '' : 's') + ', ' + x.extra + ' EXTRA row' + (x.extra === 1 ? '' : 's') + ')';
     events.push({
-      ts: x.at, type: 'audit', kind: 'attDelete', sourceId: null, jump: null, clock: 'recorded', cc: 'attendanceDeletes', cr: x.id,
+      ts: x.at, type: 'audit', kind: 'attDelete', how: x.how || '', sourceId: null, jump: null, clock: 'recorded', cc: 'attendanceDeletes', cr: x.id,
       // A day read again from its rolls (relay.js) is logged the same way, and is not a day deleted.
       text: x.how === 'reread'
         ? 'Attendance day read again from its rolls \u2014 ' + formatDate(x.iso) + ' as it was' + what + ' kept in the log'
@@ -41536,12 +41560,24 @@ function renderHistory() {
 /* History's verdict (the tab map, TM6f): what the log shows today, and what was removed or cancelled in the week, in danger: a
    deletion is what an audit goes looking for. Over the events the filter shows. */
 var HISTORY_REMOVALS = { void: 1, attDelete: 1, cancel: 1, quoteVoid: 1 };
+/* The removals among events: an audit event of a removal (a day read again from its rolls, or a number accounted for, removes
+   nothing), and a change the log records as removed, voided or cancelled (a credit note cancelled, an entry voided, a client
+   removed: these have no event of their own), unless it is the same act as such an event, saved with it (an invoice deleted
+   is its tombstone and the invoice removed; a day deleted takes its rolls). */
+function historyRemovals(list) {
+  var acts = list.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; });
+  var audit = acts.filter(function(ev) { return !(ev.kind === 'attDelete' && ev.how === 'reread') && !(ev.kind === 'void' && ev.source === 'reconciled'); });
+  var chg = list.filter(function(ev) {
+    return ev.kind === 'chg' && /^(removed|voided|cancelled)$/.test(ev.act || '') && !acts.some(function(a) { return Math.abs((a.ts || 0) - (ev.ts || 0)) <= CHG_MATCH_MS; });
+  });
+  return audit.length + chg.length;
+}
 function historyVerdictHtml(events, filtered) {
   var today = localDateStr(), weekAgo = isoAddDays(today, -6);
   var dayOf = function(ev) { return ev.ts ? isoOf(new Date(ev.ts)) : ''; };
   var todayN = events.filter(function(ev) { return dayOf(ev) === today; }).length;
   var week = events.filter(function(ev) { var d = dayOf(ev); return d >= weekAgo && d <= today; });
-  var removed = week.filter(function(ev) { return HISTORY_REMOVALS[ev.kind]; }).length;
+  var removed = historyRemovals(week);
   if (!events.length) return uiVerdictHtml({ screen: 'History' + (filtered ? ' · filtered' : ''), tone: 'neutral', verdict: filtered ? 'Nothing matches these filters' : 'Nothing recorded yet', key: 'pageHistory' });
   return uiVerdictHtml({ screen: 'History' + (filtered ? ' · filtered' : ''), tone: removed ? 'danger' : todayN ? 'ok' : 'neutral',
     verdict: todoPlural(todayN, 'event') + ' today' + (removed ? ' · ' + removed + ' removed or cancelled this week' : ''),
@@ -51290,8 +51326,9 @@ function faceDayIso() { var t = localDateStr(); return _faceDay && _faceDay < t 
 function faceSetDay(d) { _faceDay = /^\d{4}-\d{2}-\d{2}$/.test(d || '') && d < localDateStr() ? d : null; }
 function faceNavD() { var d = faceDayIso(); return d === localDateStr() ? '' : d; }
 
-/* One duty on one day: its state (in · part · wait · late · off) and its line. Today's inputs are read as Today reads them. */
-function faceStep(d, day) {
+/* One duty on one day: its state (in · part · wait · late · off) and its line. Today's inputs are read as Today reads them.
+   `u`: whose step it is (the face shown, by default). */
+function faceStep(d, day, u) {
   if (d.input) {
     var def = TDY_INPUTS.filter(function(x) { return x.k === d.input; })[0];
     if (def) { var r = tdyInput(def, day); return { state: r.state, text: tdyStepMeta(r) }; }
@@ -51307,13 +51344,18 @@ function faceStep(d, day) {
     return { state: 'wait', text: typed.length ? typed.join(', ') + ' typed on this phone, not saved' : 'Not yet' };
   }
   if (d.id === 'attsheet') {
+    // The sheet is in once this person has typed a mark on the day (`by`, staff.js _attHandEdit): a roll pasted, or marks
+    // somebody else typed, are not their sheet.
+    var who = u !== undefined ? u : faceUser(), rec = S.attendance && S.attendance[day];
+    var typed = !!who && !!rec && Object.keys(rec.marks || {}).some(function(id) { var m = rec.marks[id]; return !!m && m.by === who.id; });
     var att = attDaySummary(day), differ = faceAttDiffs(day).length;
-    return att.marked ? { state: 'in', text: (att.p + att.half) + ' on site, ' + att.absent.length + ' absent' + (differ ? ' · ' + differ + ' differ from the roll' : '') } : { state: 'wait', text: 'Not yet' };
+    return typed ? { state: 'in', text: (att.p + att.half) + ' on site, ' + att.absent.length + ' absent' + (differ ? ' · ' + differ + ' differ from the roll' : '') } : { state: 'wait', text: 'Not yet' };
   }
   if (d.id === 'incoming') {
-    var ch = (S.incomingMaterial || []).filter(function(m) { return m && m.challanDate === day; }).length;
-    var arr = prodData().entries.filter(function(e) { return e && e.kind === 'arrived' && e.date === day && !e.voidedAt; }).length;
-    if (ch || arr) return { state: 'in', text: [ch ? todoPlural(ch, 'challan') : '', arr ? todoPlural(arr, 'arrival') : ''].filter(Boolean).join(', ') };
+    // Material counted in (on the face, or its message pasted, as the pickling step reads loads): a challan typed in the office
+    // is the challan, not the count on arrival.
+    var ix = prodIndex(), arr = ix.live.filter(function(e) { return e.kind === 'arrived' && e.date === day && !ix.replaced[e.id]; }).length;
+    if (arr) return { state: 'in', text: todoPlural(arr, 'arrival') };
     return { state: 'wait', text: 'Not yet' };
   }
   return { state: 'wait', text: 'Not yet' };
@@ -51328,16 +51370,17 @@ function faceEntered(u, day) {
   }).sort(function(a, b) { return b.at - a.at; });
 }
 /* Who of the people with a face entered one of Today's inputs on a day (Needs you's step says so): the change log's entries on the
-   records that make the input, by a person whose face carries a duty that fills it. Nothing with the guard off. */
+   records that make the input, by a person whose face carries a duty that fills it; a roll, whoever wrote it (faceRollBy).
+   Nothing with the guard off. */
 function faceInputBy(k, day) {
   var duties = FACE_INPUT_DUTIES[k];
   if (!duties || !S || !Array.isArray(S.changeLog) || typeof grdOn !== 'function' || !grdOn()) return [];
   var who = {};
   grdUsers().forEach(function(u) { if (u && faceDuties(u).some(function(d) { return duties.indexOf(d.id) >= 0; })) who[u.id] = u; });
   if (!Object.keys(who).length) return [];
+  if (k === 'roll-in' || k === 'roll-out') return faceRollBy(k, day, who);
   var coll = null, ids = {};
-  if (k === 'roll-in' || k === 'roll-out') coll = 'attendance';
-  else if (k === 'stock') {
+  if (k === 'stock') {
     coll = 'stock.entries';
     stockData().entries.forEach(function(e) { if (e && e.date === day) ids[String(e.id)] = 1; });
   } else {
@@ -51345,7 +51388,6 @@ function faceInputBy(k, day) {
     prodData().entries.forEach(function(e) { if (e && e.date === day && (k === 'pickling' ? e.kind === 'pickled' : e.kind === 'plated')) ids[String(e.id)] = 1; });
   }
   var hit = function(e) {
-    if (coll === 'attendance') return e.rid === day;
     if (e.rid != null && ids[String(e.rid)]) return true;
     return Array.isArray(e.rids) && e.rids.some(function(r) { return ids[String(r)]; });
   };
@@ -51355,6 +51397,17 @@ function faceInputBy(k, day) {
     var n = who[e.by].name;
     if (names.indexOf(n) < 0) names.push(n);
   });
+  return names;
+}
+/* A roll is whoever wrote it on a face (the roll kept names them, `face`), never whoever touched the day after: a mark the clerk
+   typed had credited the clerk with the supervisor's roll. With no roll, the in-time side typed by hand is whoever typed the
+   marks (`by`). `who`: the people whose face fills the input, by id. */
+function faceRollBy(k, day, who) {
+  var names = [], put = function(n) { if (n && names.indexOf(n) < 0) names.push(n); };
+  var ours = Object.keys(who).map(function(id) { return who[id].name; });
+  var rolls = tdyRolls(k === 'roll-in' ? 'in' : 'out', day).filter(function(p) { return !p.replacedBy; }), rec = S.attendance && S.attendance[day];
+  if (rolls.length) rolls.forEach(function(p) { if (ours.indexOf(p.face) >= 0) put(p.face); });
+  else if (k === 'roll-in' && rec) Object.keys(rec.marks || {}).forEach(function(id) { var m = rec.marks[id]; if (m && m.by && who[m.by]) put(who[m.by].name); });
   return names;
 }
 
@@ -51373,17 +51426,19 @@ function faceHtml() {
     return '<div class="inv-panel"><div class="inv-empty">No duties are set for this ID. The owner sets what each person enters: Settings → Access → Users & access → Edit → Enters.</div></div>';
   }
   var me = grdUser(), seenAs = !me || me.id !== u.id;
-  var steps = duties.map(function(d) { return { d: d, s: faceStep(d, day) }; });
+  var steps = duties.map(function(d) { return { d: d, s: faceStep(d, day, u) }; });
   var n = steps.filter(function(x) { return x.s.state === 'in'; }).length;
   var done = steps.filter(function(x) { return x.s.state === 'in' || x.s.state === 'off'; }).length;
   var late = steps.filter(function(x) { return x.s.state === 'late'; });
   var next = late[0] || steps.filter(function(x) { return x.s.state !== 'in' && x.s.state !== 'off'; })[0];
+  var floor = faceFloorOk();
   var stepsHtml = steps.map(function(x, i) {
-    var st = x.s.state, can = typeof grdSees !== 'function' || grdSees(x.d.page);
+    var st = x.s.state, opens = typeof grdSees !== 'function' || grdSees(x.d.page), can = opens && floor;
     var node = st === 'in' ? TDY_CHECK_SVG : st === 'late' ? '!' : String(i + 1);
     var word = (TDY_STATE_DOT[st] || TDY_STATE_DOT.wait)[1];
-    // A duty on a page this ID does not open (the owner's role switches) is said so, never a door that refuses.
-    var meta = can ? x.s.text : x.s.text + ' · ' + grdPageName(x.d.page) + ' is not open to this ID';
+    // A duty on a page this ID does not open (the owner's role switches), or by an ID whose role makes no floor entries, is
+    // said so, never a door that refuses.
+    var meta = can ? x.s.text : x.s.text + ' · ' + (opens ? 'Floor entries are' : grdPageName(x.d.page) + ' is') + ' not open to this ID';
     return '<div class="inv-step" data-face-duty="' + x.d.id + '" data-state="' + st + '">' +
       '<span class="inv-step-node" aria-hidden="true">' + node + '</span>' +
       (can ? '<button class="inv-step-main" data-action="invFaceOpen" data-duty="' + x.d.id + '" aria-label="' + escHtml(x.d.title + ': ' + word + ', ' + x.s.text) + '">' : '<span class="inv-step-main">') +
@@ -51423,7 +51478,7 @@ function faceEnteredHtml(u, day) {
     if (e.coll === 'production.entries' && e.op === 'add') {
       var mine = (e.rids && e.rids.length ? e.rids : e.rid != null ? [e.rid] : []).map(function(id) { return idx.byId[id]; })
         .filter(function(x) { return x && x.src === 'face' && !shown[x.id]; });
-      if (mine.length) { mine.forEach(function(x) { shown[x.id] = true; rows.push(faceEntryRowHtml(x)); }); return; }
+      if (mine.length) { mine.forEach(function(x) { shown[x.id] = true; rows.push(x.kind === 'downtime' ? faceCutRowHtml(x) : faceEntryRowHtml(x)); }); return; }
     }
     var noun = chgNounOf(e.coll, e.n || 1), act = chgAct(e);
     var d = new Date(e.at), clock = relayClockLabel(d.getHours() * 60 + d.getMinutes());
@@ -51453,11 +51508,15 @@ function faceSyncState(u) {
 }
 
 /* ---------- Where each duty is entered ---------- */
+/* Every duty is a floor entry (guard.js: the role's Floor entries switch; the Office role has none by default): an ID that
+   may not make one is told so on each step, never handed a form that refuses at its Save. */
+function faceFloorOk() { return typeof grdCan !== 'function' || grdCan('floor'); }
 /* The form that enters it, on the day shown, until each duty's own form is on the face (F2–F4). */
 function faceOpen(id) {
   var d = faceDuty(id), day = faceDayIso();
   if (!d) return;
   if (typeof grdSees === 'function' && !grdSees(d.page)) { showToast(grdPageName(d.page) + ' is not open to this ID', 'warning'); return; }
+  if (!faceFloorOk()) { showToast('Floor entries are not open to this ID', 'warning'); return; }
   // The pickling hand's forms (F2), the supervisor's (F3) and the register clerk's page (F4) are on the face itself.
   if (FACE_FORM_TITLE[id]) { faceFormOpen(id); return; }
   if (id === 'stock') {
@@ -51515,8 +51574,9 @@ function faceAction(action, btn) {
   }
   return false;
 }
-/* The form an entry is corrected on: a count of what came in on Material in, a load on Pickling loads. */
-function faceDutyOfEntry(id) { var e = prodIndex().byId[id]; return !e ? 'pickling' : e.kind === 'arrived' ? 'incoming' : e.kind === 'plated' ? (e.pageId ? 'vat' : 'barrel') : 'pickling'; }
+/* The form an entry is corrected on: a count of what came in on Material in, a load on Pickling loads. A power cut has none: it
+   is completed where it is shown (pcsOpen), and a load saved in its place would have taken it off the record. */
+function faceDutyOfEntry(id) { var e = prodIndex().byId[id]; return !e ? 'pickling' : e.kind === 'downtime' ? null : e.kind === 'arrived' ? 'incoming' : e.kind === 'plated' ? (e.pageId ? 'vat' : 'barrel') : 'pickling'; }
 function faceOnChange(t) {
   if (!t) return false;
   if (t.id === 'faceDate') { faceSetDay(t.value); renderFace(); return true; }
@@ -51788,6 +51848,16 @@ function faceEntryRowHtml(e) {
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invFaceCorrect" data-id="' + escHtml(e.id) + '">Correct</button></span>';
   return '<div class="inv-row inv-row-2 inv-row-flow" data-face-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(what) + '</span>' + (note ? '<span class="inv-row-meta inv-row-wrap" data-face-check>' + note + '</span>' : '') + '</span>' + acts + '</div>';
+}
+/* A power cut saved on the VAT page: said as the cut (when it went, when it came back, as the day's log has it), with Power back or
+   Why where it is shown. A load's message and Correct are not its own: Correct had opened the load's form on it, and a load saved
+   there took the cut's place. */
+function faceCutRowHtml(e) {
+  var idx = prodIndex(), c = e.voidedAt || idx.replaced[e.id] ? null : prodDowntimeDay(e.date).find(function(x) { return x.ids.indexOf(e.id) >= 0; });
+  var t = relayParseHhmm(c ? c.time : e.time), b = relayParseHhmm(c ? c.to : e.to);
+  var end = !c ? uiDot('neutral', e.voidedAt ? 'Void' : 'Corrected') : '<button class="inv-btn inv-btn-' + (b == null ? 'secondary' : 'ghost') + ' inv-btn-sm" data-action="invFaceVatCutOpen" data-id="' + escHtml(e.id) + '">' + (b == null ? 'Power back' : 'Why') + '</button>';
+  return '<div class="inv-row inv-row-2" data-face-cut-entry="' + escHtml(e.id) + '"><span class="inv-row-main"><span class="inv-row-title">Power cut</span>' +
+    '<span class="inv-row-meta">' + escHtml(relayClockLabel(t) + (b != null ? ' – ' + relayClockLabel(b) : ', no time back yet')) + '</span></span><span class="inv-row-end">' + end + '</span></div>';
 }
 
 /* ---------- The message for the group ---------- */
@@ -52582,6 +52652,12 @@ function faceVatPage(day, line) {
 function faceVatRuns(day, line) {
   return prodIndex().live.filter(function(e) { return e.kind === 'plated' && e.src === 'face' && e.pageId && e.date === day && e.line === line; });
 }
+/* The runs of a day's page the owner put right in Production (voided there, or corrected): the page as typed no longer says what
+   the book holds, and it is the owner's from then on. */
+function faceVatTouched(day, line) {
+  var idx = prodIndex();
+  return prodData().entries.filter(function(e) { return e.kind === 'plated' && e.src === 'face' && e.pageId && e.date === day && e.line === line && ((e.voidedAt && e.voidReason !== FACE_VAT_REDO) || idx.replaced[e.id]); });
+}
 function faceVatDraftKey(day, line) { var u = faceUser(); return (u && u.id || '') + '|' + day + '|' + line; }
 function faceVatDrafts() {
   try { var o = JSON.parse(localStorage.getItem(FACE_PAGE_KEY) || '{}'); return o && typeof o === 'object' && !Array.isArray(o) ? o : {}; } catch (e) { return {}; }
@@ -52649,7 +52725,10 @@ function faceVatRead(f) {
   var map = [], rows = [];
   f.rows.forEach(function(r, k) {
     if (faceVatRowEmpty(r)) return;
-    var who = { customer: r.client !== '' && r.client != null ? String(prodClientName(r.client) || '') || null : null, part: String(r.part || '').trim() || null };
+    // The client picked goes with its name (`clientId`): the reader takes it as that client, whatever the name reads as ("M & M
+    // AUTO", "3M ENGINEERING" were no client by name, and saved with none).
+    var picked = r.client !== '' && r.client != null ? prodHeldId(r.client) : null;
+    var who = { customer: picked != null ? String(prodClientName(picked) || '') || null : null, clientId: picked, part: String(r.part || '').trim() || null };
     // A batch is the register's two rows: START when it began (where written), END when it ended, carrying the figure.
     if (f.style === 'batches') {
       if (r.time) { map.push(k); rows.push(Object.assign({ time: faceVatClock(r.time), mark: 'START', qtyText: null }, who)); }
@@ -52703,13 +52782,15 @@ function faceVatHtml(f) {
     '<div class="inv-seg inv-mt-8" role="group" aria-label="How the page is kept">' + FACE_VAT_STYLES.map(function(x) {
       return '<button class="inv-seg-btn" data-action="invFaceVatStyle" data-style="' + x[0] + '" aria-pressed="' + (f.style === x[0]) + '">' + x[1] + '</button>'; }).join('') + '</div>';
   var sd = pg && pg.at ? new Date(pg.at) : null;
-  var note = pg ? 'Saved' + (sd ? ' at ' + relayClockLabel(sd.getHours() * 60 + sd.getMinutes()) + (isoOf(sd) !== localDateStr() ? ' on ' + formatDate(isoOf(sd)) : '') : '') + (pg.by ? ' by ' + pg.by : '') + '. Saving again puts right what changed.'
-    : (f.style === 'batches' ? 'Each batch as the register writes it: when it began, when it ended and the figure at its end.' : 'Each round as the register writes it: its time and its figure.') + ' Kept on this phone as you type; saved to the book when you save the page.';
-  h += '<div class="inv-note inv-mt-8" data-face-vat-state="' + (f.draftAt ? 'draft' : pg ? 'saved' : 'new') + '">' + escHtml(note + (f.draftAt && pg ? ' Changes since are kept on this phone, not saved yet.' : '')) + '</div></div>';
+  // One line each (P195: no note past 120 characters on a face); how a round or a batch is written is the clerk's guide's.
+  var note = pg ? 'Saved' + (sd ? ' at ' + relayClockLabel(sd.getHours() * 60 + sd.getMinutes()) + (isoOf(sd) !== localDateStr() ? ' on ' + formatDate(isoOf(sd)) : '') : '') + (pg.by ? ' by ' + pg.by : '') +
+      (f.draftAt ? '. Changes since are on this phone, not saved yet.' : '. Saving again puts right what changed.')
+    : 'Kept on this phone as you type; saved to the book when you save the page.';
+  h += '<div class="inv-note inv-mt-8" data-face-vat-state="' + (f.draftAt ? 'draft' : pg ? 'saved' : 'new') + '">' + escHtml(note) + '</div></div>';
   // Another record of this page: a photo of it, or a page saved from a file. Saved twice, the day is counted twice.
   var other = idx.live.filter(function(e) { return e.kind === 'plated' && e.date === f.date && e.line === f.line && e.basis === 'register' && !e.pageId && !idx.replaced[e.id]; });
   if (other.length) h += '<div class="inv-callout inv-callout-warning" data-face-vat-dup>' + escHtml((other.some(function(e) { return e.photoId; }) ? 'A photo of the ' : 'The ') + PROD_LINE_LABEL[f.line] +
-    ' register for this day is already in the book (' + todoPlural(other.length, 'run') + '). Saving the page here as well counts the day twice: enter only what the photo does not hold.') + '</div>';
+    ' page for this day is in the book (' + todoPlural(other.length, 'run') + '): saved here too, the day counts twice.') + '</div>';
   // The rounds: a run's client and part where it begins, then its rounds a line each.
   var batches = f.style === 'batches', noun = batches ? 'Batch' : 'Round', typedN = f.rows.filter(function(r) { return !faceVatRowEmpty(r); }).length;
   h += '<div class="inv-panel inv-panel-flush" data-face-form="vat" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">' + noun + 'es'.slice(batches ? 0 : 1) + ' <span class="inv-panel-count">' + typedN + '</span></span>' +
@@ -52834,7 +52915,7 @@ async function faceVatSave() {
   var oldRuns = faceVatRuns(f.date, f.line);
   // A run of this page the owner corrected or voided in Production: the page is theirs now, and saving it again here would
   // bring back what they put right.
-  var touched = prodData().entries.filter(function(e) { return e.kind === 'plated' && e.src === 'face' && e.pageId && e.date === f.date && e.line === f.line && ((e.voidedAt && e.voidReason !== FACE_VAT_REDO) || idx.replaced[e.id]); });
+  var touched = faceVatTouched(f.date, f.line);
   if (touched.length) {
     await uiAlert({ title: 'Corrected in Production', body: 'This page has ' + todoPlural(touched.length, 'run') + ' put right in Production (Entries). Saving it again here would bring back what was corrected: put anything else right there too, or ask the owner.' });
     return;
@@ -52960,6 +53041,8 @@ function faceVatRedraw(landed) {
   });
 }
 function faceVatAction(action, btn) {
+  // A cut is completed from Mine's What you entered too, with no page open.
+  if (action === 'invFaceVatCutOpen') { pcsOpen(btn.dataset.id); return true; }
   var f = _faceForm;
   if (!f || f.duty !== 'vat') return false;
   var k = +btn.dataset.i;
@@ -52987,7 +53070,6 @@ function faceVatAction(action, btn) {
     case 'invFaceVatDrop': faceVatDrop(); return true;
     case 'invFaceVatCopy': faceVatCopy(); return true;
     case 'invFaceVatCut': faceVatCutSave(); return true;
-    case 'invFaceVatCutOpen': pcsOpen(btn.dataset.id); return true;
   }
   return false;
 }
@@ -53029,7 +53111,9 @@ function faceAttDiffs(iso) {
     // roll writes either way (on the owner's book, four of fourteen such differences were that alone, three a sheet naming no line).
     else if (on(m.st) && faceAttUnit(m.area) && faceAttUnit(r.area) && faceAttUnit(m.area) !== faceAttUnit(r.area)) kind = 'area';
     if (!kind) return;
-    var sig = kind + '|' + (r ? r.st + '|' + (r.area || '') : '-');
+    // Looks right is kept against both readings it was given: the clerk changing the mark later asks again, as a roll that reads
+    // otherwise does.
+    var sig = kind + '|' + (r ? r.st + '|' + (r.area || '') : '-') + '|' + m.st + '|' + (m.area || '');
     if (m.rollOk && m.rollOk.sig === sig) return;
     out.push({ id: String(id), w: w, kind: kind, sig: sig, sheet: m, roll: r, text: faceAttText(kind, m, r) });
   });
@@ -53230,10 +53314,12 @@ function fshBarrelHtml(iso, filled) {
 
 /* ---------- The VAT register page ---------- */
 /* What a line's page holds for the day: the page entered on Mine as it was typed, else the runs the app counts (a photo, a
-   message, by hand), a round a row as written. {style, rows: [{time, to, client, part, fig, note}], total, from, n}. */
+   message, by hand), a round a row as written. A page whose run the owner voided or corrected in Production prints from the
+   runs: the page as typed would put on paper what the book no longer holds. {style, rows: [{time, to, client, part, fig, note}],
+   total, from, n}. */
 function fshVatRead(iso, line) {
   var pg = faceVatPage(iso, line);
-  if (pg) {
+  if (pg && !faceVatTouched(iso, line).length) {
     var style = pg.style || faceVatStyleOf(line), prev = null;
     return { style: style, total: pg.total != null ? pg.total : null, n: (pg.rows || []).length,
       from: 'Entered on Mine' + (pg.by ? ' by ' + pg.by : '') + (pg.at ? ' at ' + faceClock(new Date(pg.at).getHours() * 60 + new Date(pg.at).getMinutes()) : '') + '.',
@@ -53256,7 +53342,7 @@ function fshVatRead(iso, line) {
         fig: fig, note: (k ? '' : fshSource(e)) + (x.struck ? (k ? '' : ' · ') + 'struck, not counted' : '') });
     });
   });
-  return { style: batches ? 'batches' : faceVatStyleOf(line), rows: rows, total: null, n: rows.length, from: runs.length ? 'As entered: ' + fshFromLine(runs) + '.' : '' };
+  return { style: batches ? 'batches' : faceVatStyleOf(line), rows: rows, total: pg && pg.total != null ? pg.total : null, n: rows.length, from: runs.length ? 'As entered: ' + fshFromLine(runs) + '.' : '' };
 }
 /* The day's power log, as Power reads it: a cut reported twice is one. */
 function fshCutsRows(iso, filled) {
@@ -58358,26 +58444,30 @@ var KB_APP_GUIDES = [
     '- A batch more than a quarter heavier than its barrel takes is asked of the owner: its kg a round on Production → Equipment, or the barrel’s usual load.'),
   _kbg('face-clerk', 'Using the app: the register clerk’s screen', 'The VAT register page and the attendance sheet', ['pageFace', 'pageStaff', 'pageProduction'],
     'The register clerk’s screen has the **VAT register** page and the **attendance sheet**.\n\n' +
-    '# The VAT register page\n1. Pick the line: **VAT A1** or **VAT A2**. A1 is kept a round a row; A2 a batch a row (when it began, when it ended). **Rounds · Batches** changes it for a page kept the other way.\n' +
+    '# The VAT register page\n1. Pick the line: **VAT A1** or **VAT A2**. A1 is kept a round a row; A2 a batch a row (when it began, when it ended, and the figure at its end). **Rounds · Batches** changes it for a page kept the other way.\n' +
     '2. Where a run begins, pick the **Client** and write the **Part, as written** on the page. The rows under it carry them, as the paper’s ditto does: **Another client or part** starts the next run.\n' +
     '3. Each round: its **Time** and its **Figure**, exactly as written (120, 3+4×156, 98×8+1). The app adds it up and says under the row what it read.\n' +
     '4. Two clients in one round are a row each, at the same time. A round struck on paper is a row taken off.\n5. **Day total on the paper page**, if it has one: a total the rounds do not meet is said.\n' +
     '6. **Save the page**, then **Send to the group**.\n' +
-    '- The page is kept on this phone as you type it, until it is saved: closing the app loses nothing. Saved again, only what changed is put right.\n\n' +
+    '- The page is kept on this phone as you type it, until it is saved: closing the app loses nothing. Saved again, only what changed is put right.\n' +
+    '- A page a photo of the register already holds says so: saved here as well, the day is counted twice, so enter only what the photo does not hold.\n\n' +
     '# Power cuts\n- **Power cut at** and **Power back at**, then **Save the cut**: it is saved at once, on the day’s one power log, which both lines’ pages show.\n- A cut with no time back has **Power back** to close it later.\n\n' +
     '# The attendance sheet\n- **Attendance sheet** opens People → Attendance → Day as the sheet: a hand a row, P / H / A, the area, in and out.\n' +
-    '- Each mark you type carries your name. Where it disagrees with the supervisor’s roll (present on one and absent on the other, a half day, another line), the owner is asked; your mark stands until the owner rules.'),
+    '- Each mark you type carries your name. Where it disagrees with the supervisor’s roll (present on one and absent on the other, a half day, another line), the owner is asked; your mark stands until the owner rules.',
+    // Version 2: how a round and a batch are written, and the page a photo holds, moved here off the page (P195's 120 characters).
+    { version: 2 }),
   _kbg('faces-owner', 'Setting up each person’s screen', 'Who enters what, seeing their screen, and what reaches you', ['pageFace', 'pageHome'],
     'Each person who enters data has their own screen, **Mine**, on their own phone.\n\n' +
     '# Setting it up\n1. Give each person an ID: Settings → Access → **Users & access**.\n' +
-    '2. On their user, **Enters**: tick what they enter (the in-time roll, pickling loads, material in, stock, the attendance sheet, barrel batches, the VAT register, the out-time roll). A face is a person’s, never a role’s.\n' +
+    '2. On their user, **Enters**: tick what they enter (the in-time roll, pickling loads, material in, stock, the attendance sheet, barrel batches, the VAT register, the out-time roll). A face is a person’s, never a role’s. What a face enters is a **Floor entry**: their role must allow those (Supervisor and Floor do; Office does not unless you switch it on), or Mine says so on each step.\n' +
     '3. Register their phone (Settings → Access → **Devices**, with you present), so what they enter reaches the book through GitHub.\n' +
     '4. **See their screen** on the users list shows Mine as they see it; the next sign-in ends it.\n\n' +
     '# What reaches you\n- Their entries are records at once, marked as entered by them. **Needs you** says who entered each of the day’s inputs.\n' +
     '- Where an entry and what it links to disagree, one task a check and a day asks you to look: **Looks right** keeps it as entered, **Correct** puts it right. The attendance sheet against the roll: **Use the roll’s** or **Looks right**, a hand at a time.\n' +
     '- The WhatsApp group keeps getting its messages: each save offers **Send to the group** in the shop’s own shape.\n\n' +
     '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. **Print sheets** on Production, under More in its toolbar, prints the pickling sheet, the barrel batches and the VAT pages for any day.',
-    { roles: ['owner'] })
+    // Version 2: a face's entries need the role's Floor entries (the Office role has none by default).
+    { roles: ['owner'], version: 2 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of
@@ -58548,7 +58638,8 @@ function kbLinkName(l) {
     if (l.type === 'area') { var ar = l.id && typeof STAFF_AREAS !== 'undefined' && STAFF_AREAS.find(function(x) { return x.id === l.id; }); if (ar) return ar.label; }
     if (l.type === 'line') { var ln = KB_LINES.find(function(x) { return x[0] === l.id; }); if (ln) return ln[1]; }
     if (l.type === 'stock') { var it = stockItem(l.id); if (it) return it.name; }
-    if (l.type === 'screen') return wsPageName(l.id) || lbl;
+    // A screen that moved (nav.js NAV_REDIRECTS: the To-do is Needs you's) by where it went: it read "SEP Invoicing".
+    if (l.type === 'screen') { var to = navRedirect({ tab: l.id, v: '', id: '', d: '' }); return wsPageName(to.tab, to.v) || lbl; }
     if (l.type === 'worker') { var w = staffById(l.id); if (w) return w.name; }
     // An article this role does not read is not named (its title is its content).
     if (l.type === 'article') { var a = kbFind(l.id); if (a) return kbCanRead(a) ? a.title : 'An article you do not read'; }
@@ -58901,7 +58992,8 @@ function kbStartHeroHtml(o) {
 }
 function kbStartHtml() {
   var all = kbReadable(), own = all.filter(function(a) { return a.src !== 'build'; }), cards = [];
-  var rows = function(list, key) { return list.length ? uiMoreHtml('kb-start-' + key, list.map(kbRowHtml), { n: 5, noun: 'articles' }) : ''; };
+  // kbRowHtml's second argument is `brief`: handed to map, the index made every row after the first lose what it is about.
+  var rows = function(list, key) { return list.length ? uiMoreHtml('kb-start-' + key, list.map(function(a) { return kbRowHtml(a); }), { n: 5, noun: 'articles' }) : ''; };
   var since = function(list) { var t = list.map(function(a) { return a.at || 0; }).filter(Boolean); return t.length ? formatDate(isoOf(new Date(Math.min.apply(null, t)))) : ''; };
   if (kbIsOwner()) {
     var wait = own.filter(function(a) { return a.status === 'pending' || (a.status === 'published' && a.pending); });
@@ -58912,14 +59004,18 @@ function kbStartHtml() {
       title: todoPlural(drafts.length, 'draft') + ' not yet published', rows: rows(drafts, 'drafts'),
       foot: drafts.length > 5 ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbShowDrafts">See all</button>' : '' });
   } else {
-    var mine = own.filter(function(a) { return kbMine(a) && (a.status === 'draft' || a.status === 'pending' || a.pending); });
+    // Their drafts and what of theirs waits (kbWaitsOnMe): a change someone else proposed to an article they wrote is not theirs.
+    var mine = own.filter(function(a) { return (kbMine(a) && a.status === 'draft') || kbWaitsOnMe(a); });
     cards.push({ id: 'kbMine', key: 'mine', eyebrow: 'What you wrote', n: mine.length, tone: 'info',
       title: todoPlural(mine.length, 'article') + ' not yet published', rows: rows(mine, 'mine') });
   }
-  var due = all.filter(kbReviewDue);
-  var firstDue = due.map(function(a) { return a.reviewOn || ''; }).filter(Boolean).sort()[0];
-  cards.push({ id: 'kbReviewDue', key: 'review', eyebrow: 'Decisions to review', n: due.length, tone: 'warning',
-    title: todoPlural(due.length, 'decision') + ' due for review', sub: firstDue ? 'the first due ' + formatDate(firstDue) : '', rows: rows(due, 'review') });
+  // A review is the owner's (kbReview, owner-only): nobody else is shown one to do.
+  if (kbIsOwner()) {
+    var due = all.filter(kbReviewDue);
+    var firstDue = due.map(function(a) { return a.reviewOn || ''; }).filter(Boolean).sort()[0];
+    cards.push({ id: 'kbReviewDue', key: 'review', eyebrow: 'Decisions to review', n: due.length, tone: 'warning',
+      title: todoPlural(due.length, 'decision') + ' due for review', sub: firstDue ? 'the first due ' + formatDate(firstDue) : '', rows: rows(due, 'review') });
+  }
   if (kbSeesRoster()) {
     var again = kbDueAgain().filter(function(x) { return kbCanRead(x.a); });
     cards.push({ id: 'kbTrainDue', key: 'train', eyebrow: 'Training due again', n: again.length, tone: 'warning',
@@ -58928,7 +59024,7 @@ function kbStartHtml() {
   }
   cards = cards.filter(function(c) { return c.n > 0; });
   if (!cards.length) cards.push({ id: 'kbAllClear', key: 'clear', eyebrow: 'Knowledge', n: 0, tone: 'ok', title: 'Nothing waits on you',
-    sub: kbIsOwner() ? 'no approval, draft, review or training due' : 'nothing of yours waiting, no review or training due' });
+    sub: kbIsOwner() ? 'no approval, draft, review or training due' : 'nothing of yours waiting, no training due' });
   cards[0].verdict = true;
   cards = cards.map(kbStartHeroHtml);
   var h = '<div class="inv-heroes' + (cards.length >= 4 ? ' inv-heroes-4' : '') + '" id="kbStartHeroes">' + cards.join('') + '</div>';
@@ -58940,7 +59036,7 @@ function kbStartHtml() {
   }).join('') + '</div>';
   var recent = own.filter(function(a) { return kbLive(a); }).sort(function(x, y) { return (y.approvedAt || y.at || 0) - (x.approvedAt || x.at || 0); }).slice(0, 8);
   h += '<div class="inv-panel inv-panel-flush" id="kbRecent"><div class="inv-panel-head"><span class="inv-panel-title">Latest</span></div>' +
-    (recent.length ? recent.map(kbRowHtml).join('') : '<div class="inv-empty">Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.</div>') + '</div>';
+    (recent.length ? recent.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">Nothing written yet. Write the first article, or import the drafts from soma-internal: Import is under the Library&rsquo;s More. The app&rsquo;s own guides are in the Library.</div>') + '</div>';
   return { body: h };
 }
 
@@ -58949,7 +59045,8 @@ function kbFiltered(list) {
   var f = _kbFilter, q = String(f.q || '').trim().toLowerCase(), words = q ? q.split(/\s+/) : [];
   return list.filter(function(a) {
     if (f.kind && a.kind !== f.kind) return false;
-    if (f.status === 'draft' && !(a.status === 'draft' || a.status === 'pending' || a.pending)) return false;
+    // A change waiting on a published article is listed to whoever sees it (kbSeesProposal: its proposer and the owner), as Start counts it.
+    if (f.status === 'draft' && !(a.status === 'draft' || a.status === 'pending' || (a.pending && kbSeesProposal(a)))) return false;
     if (!f.status && (a.status === 'retired' || a.status === 'superseded') && !q) return false;
     if (f.link && !(a.links || []).some(function(l) { return l.type === f.link.type && (String(l.id) === String(f.link.id) || (!!f.link.label && String(l.label || '').toUpperCase() === String(f.link.label).toUpperCase())); })) return false;
     if (!words.length) return true;
@@ -58988,7 +59085,13 @@ function kbSearchHtml(ph) {
 /* What waits on somebody, for the views' verdicts: the owner's approvals, else this person's own writing; drafts likewise. */
 function kbWaitingList() {
   var own = kbReadable().filter(function(a) { return a.src !== 'build'; });
-  return own.filter(function(a) { return (a.status === 'pending' || (a.status === 'published' && a.pending)) && (kbIsOwner() || kbMine(a)); });
+  return own.filter(kbWaitsOnMe);
+}
+/* What waits on this person: for the owner every approval; for anyone else their own new article waiting, or their own change
+   proposed to a published one (the change is its proposer's, kbSeesProposal: another's change to an article they wrote is not). */
+function kbWaitsOnMe(a) {
+  if (a.status === 'pending') return kbIsOwner() || kbMine(a);
+  return a.status === 'published' && !!a.pending && kbSeesProposal(a);
 }
 function kbFilterOn() { return !!(_kbFilter.q || _kbFilter.kind || _kbFilter.status || _kbFilter.link); }
 /* Each list view: its verdict card, what its toolbar searches and filters (`search`, the placeholder; `kinds`), and its body.
@@ -59037,7 +59140,8 @@ function kbTroubleHtml() {
 function kbRecordsHtml() {
   var kinds = ['ruling', 'requirement', 'incident', 'decision'];
   var list = kbFiltered(kbReadable().filter(function(a) { return kinds.indexOf(a.kind) >= 0; })).sort(function(x, y) { return String(kbDayOf(y)).localeCompare(String(kbDayOf(x))); });
-  var due = kbReadable().filter(kbReviewDue).length, n = function(k) { return list.filter(function(a) { return a.kind === k; }).length; };
+  // A review is the owner's (kbReview, owner-only), as on Start: nobody else is told one is due.
+  var due = kbIsOwner() ? kbReadable().filter(kbReviewDue).length : 0, n = function(k) { return list.filter(function(a) { return a.kind === k; }).length; };
   // Its verdict (TM6f): the records the list holds, and the decisions whose review day has come.
   var verdict = uiVerdictHtml({ screen: 'Records' + (kbFilterOn() ? ' · filtered' : ''), tone: due ? 'warning' : 'ok',
     verdict: todoPlural(list.length, 'record') + (due ? ' · ' + todoPlural(due, 'decision') + ' due for review' : ''),
@@ -59079,8 +59183,9 @@ function kbTrainVerdictHtml(paths, roster, sees) {
   if (!sees || !roster.length) return uiVerdictHtml({ screen: 'Training', tone: 'neutral', verdict: order.length ? todoPlural(order.length, 'lesson') + ' on ' + todoPlural(paths.length, 'path') : 'No lesson on a path yet',
     facts: [sees ? 'nobody on the roster yet' : 'who was trained is People’s'], key: 'pageKnow-training', foldFacts: true });
   var said = [n.due ? n.due + ' due again' : '', n.never ? n.never + ' never taught' : '', n.ok ? n.ok + ' up to date' : ''].filter(Boolean);
-  return uiVerdictHtml({ screen: 'Training', tone: n.due ? 'warning' : n.never ? 'info' : order.length ? 'ok' : 'neutral',
-    verdict: said.length ? said.join(' · ') : order.length ? todoPlural(n.part, 'lesson') + ' taught to some' : 'No lesson on a path yet',
+  // Ok only when no lesson is part-taught ("taught to some" had read green); a path no hand on the roster is for has nobody to judge.
+  return uiVerdictHtml({ screen: 'Training', tone: n.due ? 'warning' : n.never ? 'info' : n.part || !said.length ? 'neutral' : 'ok',
+    verdict: said.length ? said.join(' · ') : n.part ? todoPlural(n.part, 'lesson') + ' taught to some' : order.length ? 'No hand on the roster is on these paths' : 'No lesson on a path yet',
     facts: n.part ? facts.concat([n.part + ' taught to some']) : facts, key: 'pageKnow-training', foldFacts: true,
     attrs: ' data-kb-train-due="' + n.due + '" data-kb-train-never="' + n.never + '"' });
 }
@@ -59162,7 +59267,7 @@ function kbArticleHtml(a) {
     var incs = kbReadable().filter(function(i) { return i.kind === 'incident' && i.faultId === a.id && i.status !== 'retired'; });
     h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
       (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
-      (incs.length ? incs.map(kbRowHtml).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
+      (incs.length ? incs.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
   }
   if (a.kind === 'incident') {
     h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
@@ -59991,7 +60096,9 @@ function kbLinkGo(id, i) {
   var a = kbFind(id), l = a && kbCanRead(a) && Array.isArray(a.links) ? a.links[+i] : null;
   if (!l) return;
   if (dialogsTypedAsk(function() { kbLinkGo(id, i); })) return;
-  var page = l.type === 'screen' ? l.id : KB_LINK_GO_PAGE[l.type];
+  // A screen saved before it moved opens where it went (nav.js NAV_REDIRECTS): pageTodo is no page now, and the link did nothing.
+  var screen = l.type === 'screen' ? navRedirect({ tab: l.id, v: '', id: '', d: '' }) : null;
+  var page = screen ? screen.tab : KB_LINK_GO_PAGE[l.type];
   if (page && isPageId(page) && !kbSeesPage(page)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[page] || 'that screen'), 'warning'); return; }
   switch (l.type) {
     case 'client': if ((S.clients || []).some(function(c) { return String(c.id) === String(l.id); })) srchGo({ kind: 'client', id: l.id }); else kbOpenFor('client', l.id, l.label); return;
@@ -60002,7 +60109,7 @@ function kbLinkGo(id, i) {
     }
     case 'stock': if (stockItem(l.id)) todoGo({ kind: 'stock', id: l.id }); else kbOpenFor('stock', l.id, l.label); return;
     case 'worker': if (staffById(l.id)) srchGo({ kind: 'worker', id: l.id }); return;
-    case 'screen': if (isPageId(l.id)) switchTab(l.id); return;
+    case 'screen': if (!isPageId(screen.tab)) return; if (screen.tab === l.id) switchTab(l.id); else navOpen(screen); return;
     case 'article': kbOpenArticle(l.id); return;
     case 'area': todoGo({ kind: 'areas' }); return;
     case 'line': prodSetTab('lines'); switchTab('pageProduction'); return;
@@ -65013,6 +65120,8 @@ function srchStays(go) {
    is no step: the same address, or the same page where it has no views (Home until Needs you and Pulse are its views). */
 function srchGoPlace(loc) {
   var cur = navLoc();
+  // A place kept in Recent before its screen moved (nav.js NAV_REDIRECTS) opens where it went: pageTodo is no page now.
+  loc = navRedirect(loc);
   if (!loc || !isPageId(loc.tab) || navKey(loc) === navKey(cur) || (loc.tab === cur.tab && !cur.v && !loc.id)) return;
   var st = history.state;
   if (st && st.sep && st.layer) history.replaceState(Object.assign({}, st, { layer: false, skip: true }), '', window.location.href);

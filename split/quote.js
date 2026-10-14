@@ -946,14 +946,16 @@ function qtHistoryEvents(events, clientFilter) {
   getQuotations().forEach(function(q) {
     if (clientFilter && q.clientId != clientFilter) return;
     var nm = qtNumberText(q) + ' (' + qtRecipient(q) + ')';
-    if (q.revOf && q.createdAt) events.push({ ts: q.createdAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, text: 'Quotation ' + nm + ' drafted as a revision — ' + (q.revReason || 'no reason recorded') });
-    if (q.issuedAt) events.push({ ts: q.issuedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, text: 'Quotation ' + nm + ' issued · ' + qtRateSummary(q) });
-    if (q.acceptedAt) events.push({ ts: q.acceptedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, text: 'Quotation ' + nm + ' accepted' });
-    if (q.declinedAt) events.push({ ts: q.declinedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, text: 'Quotation ' + nm + ' declined' });
-    if (q.voidedAt) events.push({ ts: q.voidedAt, type: 'audit', kind: 'quoteVoid', sourceId: null, jump: null, text: 'Quotation ' + nm + ' voided — ' + (q.voidReason || 'no reason recorded') + ' [number stays spent]' });
+    // The record each event is about, so the change log's entry saved with it is the event's row, not a second one.
+    var qcr = typeof chgRidOf === 'function' ? chgRidOf('quotations', q) : q.id;
+    if (q.revOf && q.createdAt) events.push({ ts: q.createdAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' drafted as a revision — ' + (q.revReason || 'no reason recorded') });
+    if (q.issuedAt) events.push({ ts: q.issuedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' issued · ' + qtRateSummary(q) });
+    if (q.acceptedAt) events.push({ ts: q.acceptedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' accepted' });
+    if (q.declinedAt) events.push({ ts: q.declinedAt, type: 'state', kind: 'quote', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' declined' });
+    if (q.voidedAt) events.push({ ts: q.voidedAt, type: 'audit', kind: 'quoteVoid', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' voided — ' + (q.voidReason || 'no reason recorded') + ' [number stays spent]' });
     if (q.supersededAt) {
       var by = qtFind(q.supersededBy);
-      events.push({ ts: q.supersededAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, text: 'Quotation ' + nm + ' superseded' + (by ? ' by ' + qtNumberText(by) : '') });
+      events.push({ ts: q.supersededAt, type: 'audit', kind: 'quoteRev', sourceId: null, jump: null, cc: 'quotations', cr: qcr, text: 'Quotation ' + nm + ' superseded' + (by ? ' by ' + qtNumberText(by) : '') });
     }
   });
 }

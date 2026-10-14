@@ -701,11 +701,22 @@ function chgHistoryEvents(events, clientFilter) {
   (S.invoices || []).forEach(function(r) { byId.invoices[r.id] = r; });
   (S.incomingMaterial || []).forEach(function(r) { byId.incomingMaterial[r.id] = r; });
   var ctx = { rec: function(e) { return byId[e.coll] ? byId[e.coll][e.rid] : null; } };
+  // An event that removed a record of another store in its save names it by its label (`foldRemoval`: a deleted invoice's
+  // tombstone keeps its number, not its id), so the removal is the event's row too, never a second row beside it.
+  var rem = events.filter(function(ev) { return ev.foldRemoval && ev.foldRemoval.label; });
+  var claim = function(ev, e) { if (!Object.prototype.hasOwnProperty.call(ev, 'by')) { ev.by = e.by; ev.byDev = e.dev; } };
   log.forEach(function(e) {
     var folded = false;
     if (e.rid != null) (idx[e.coll + '\u0001' + e.rid] || []).forEach(function(ev) {
       if (Math.abs((ev.ts || 0) - e.at) > CHG_MATCH_MS) return;
-      if (!Object.prototype.hasOwnProperty.call(ev, 'by')) { ev.by = e.by; ev.byDev = e.dev; }
+      claim(ev, e);
+      folded = true;
+    });
+    if (!folded && e.op === 'remove') rem.forEach(function(ev) {
+      var lb = String(e.label || ''), want = ev.foldRemoval.label;
+      if (folded || ev.foldRemoval.coll !== e.coll || Math.abs((ev.ts || 0) - e.at) > CHG_MATCH_MS) return;
+      if (lb !== want && lb.indexOf(want + ', ') !== 0) return;
+      claim(ev, e);
       folded = true;
     });
     if (clientFilter && String(e.cid) !== String(clientFilter)) return;

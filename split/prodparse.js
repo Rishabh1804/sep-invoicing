@@ -849,6 +849,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     return null;
   };
+  // A row of the register clerk's page on Mine names the client picked (faces.js sends its id beside the name): that client,
+  // whatever its name reads as ("M & M AUTO" read as no client by name). A photo's rows are read by name.
+  var itemOf = function(row) { return row.cid != null ? { clientId: row.cid, clientName: row.cust, clientHow: 'picked' } : prodReadItem(row.cust, ctx.clients); };
   var lastCust = '', lastPart = '', lastDim = '';
   json.rows.forEach(function(r0, i) {
     var r = r0 || {};
@@ -874,7 +877,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (/\+/.test(part) || (part && prodIsDitto(part))) part = tokenFill(part, lastPart);
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
-      mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
+      cid: r.clientId != null && r.clientId !== '' && String(r.customer || '').trim() ? r.clientId : null, mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
       qty: null, written: written, struck: !!r.struck, over: r.over || '', bracket: !!r.bracket, legible: r.legible !== false, issues: [] };
     if (written != null) {
       var q = prodRegisterQty(written);
@@ -916,7 +919,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // Two clients in one round (owner, 30 Sep 2026: "sometimes two clients are done simultaneously"): each client's share
     // is a round of its own at the same time, in its own run. The figure splits on its + into as many shares as there are
     // clients or parts; a figure that does not is asked about and the row kept whole.
-    var cT = prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
+    var cT = row.cid != null ? [cust] : prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
     if (nShare > 1 && (cT.length === 1 || pT.length === 1 || cT.length === pT.length)) {
       var fT = written != null ? prodSplitTop(written) : null;
       if (fT && fT.length !== nShare) {
@@ -973,7 +976,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     out.rows.forEach(function(row) {
       if (row.start || lineGauge(String(row.part + ' ' + row.dim).replace(/[×✕]/g, 'X'))) return;
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
-      var it = prodReadItem(row.cust, ctx.clients);
+      var it = itemOf(row);
       var gs = it.clientId != null ? ctx.gaugeRule(it.clientId, row.part, rack) : null;
       // A round of a size no rule names, on a part a rule covers (the 108s, the 98s), is kept apart as gauge unknown: it
       // must not join a run whose gauge a rule read and take that gauge.
@@ -988,7 +991,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   if (ctx.partRule) {
     out.rows.forEach(function(row) {
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
-      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var it = rack ? itemOf(row) : null;
       var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
       // A round whose gauge no rule of its own client reads, of a size another client's part is on this line: asked.
       if (!pr && row.gaugeSet === 'none' && ctx.partRuleOther) {
@@ -1011,7 +1014,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   var sideOf = function(row) { return row.min == null || (row.qty == null && row.written == null) ? '' : row.min < RELAY_GENERAL ? 'am' : row.min >= RELAY_GENERAL_OUT ? 'pm' : 'gen'; };
   var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
-    var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
+    var pd = row.part + ' ' + row.dim, ck = (row.cid != null ? '#' + row.cid : relayKey(row.cust)) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
     var gs = row.gaugeSet || '', rp = row.rulePn || '', sd = sideOf(row);
     var run = row.shared != null || inShared ? open[ck] || null : cur;
     if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp) || (sd && run.sd && sd !== run.sd)) { run = { ck: ck, g: g, gs: gs, rp: rp, sd: sd, rows: [] }; out.runs.push(run); }
@@ -1022,7 +1025,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     cur = run;
   });
   out.runs = out.runs.map(function(run) {
-    var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;
+    var first = run.rows[0], it = itemOf(first), dimText = first.dim || run.g;
     var partText = (first.part + (dimText && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + dimText + ')' : '')).trim();
     var counted = run.rows.filter(function(x) { return x.counted && x.qty != null; });
     var qty = counted.reduce(function(s, x) { return s + x.qty; }, 0);

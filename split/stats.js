@@ -234,23 +234,17 @@ function statsCostWeighedNote(tonnage, said) {
 /* The same in one line, for a card that keeps a note to a line (§3c): the weighed share and how high it reads. */
 function statsCostWeighedShort(tonnage) {
   if (!tonnage || !(tonnage.kg > 0) || !(tonnage.coverage < 0.999)) return '';
-  if (!(tonnage.coverage > 0)) return 'Nothing priced was weighed: the cost per kg cannot be set against what was billed.';
+  if (!(tonnage.coverage > 0)) return 'Nothing priced was weighed: the live cost per kg cannot be set against what was billed.';
   var up = (1 / tonnage.coverage - 1) * 100;
-  return 'Per kg of the weighed lines, ' + statsPctOf(tonnage.coverage) + '% of revenue: reads high' + (up >= 0.5 ? ' by about ' + Math.round(up) + '%' : ' slightly') + '.';
+  // It names its figure: under Trends' line that realisation reads high, a line saying only "reads high" read as realisation's.
+  return 'The live cost per kg divides by the weighed lines alone, ' + statsPctOf(tonnage.coverage) + '% of revenue: it reads high' +
+    (up >= 0.5 ? ' by about ' + Math.round(up) + '%' : ' slightly') + '.';
 }
 
 /* ===== THE DASHBOARD'S PIECES (design system §6) =====
    Every Stats card is a flush panel (§6.8) named by data-card, its qualifier an inv-note in the title;
    figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
    cost.js draw their cards with the same pieces. */
-
-/* A change against the prior period in words (§5.4): "+12.3% on same days last month", coloured by whether it moved
-   the good way (figDeltaHtml, state.js). A percentage against no prior activity is noise dressed as a signal, so it
-   says so instead. */
-function statsDeltaText(cur, prev, label, better) {
-  if (prev == null || !isFinite(prev) || prev === 0) return 'no prior period';
-  return figDeltaHtml(cur, prev, label, better);
-}
 
 /* A segmented control for a setting of the card it sits in (§6.5). `inv-seg-fit` keeps it the width
    of its buttons, so a card's head or toolbar can hold it beside its title. */
@@ -798,13 +792,17 @@ function statsVerdictHtml(tab, pa) {
     var belowVar = m.varKg != null ? large.filter(function(x) { return x.vsVar < 0; }) : [];
     var belowFull = large.filter(function(x) { return x.vsFull < 0; });
     var worst = belowFull[0] || m.ranked[0];
-    var tone = belowVar.length ? 'danger' : belowFull.length ? 'warning' : 'ok';
+    // The figure is the worst large account under the full cost, judged as its row in the table is, and the card is the worst of
+    // what it holds. With none under, it is the worst-priced client, which the card does not judge (it counts the large
+    // accounts), so it is plain: a small account under the cost had read red on a green card.
+    var figTone = belowFull.length ? figToneAgainst(worst.net, m.fullKg, 5) : null;
+    var tone = belowVar.length || figTone === 'danger' ? 'danger' : belowFull.length ? 'warning' : 'ok';
     var verdict = belowVar.length ? todoPlural(belowVar.length, 'large account') + ' below their variable cost'
       : belowFull.length ? todoPlural(belowFull.length, 'large account') + ' below the full cost' : 'No large account below the live cost';
     if (belowVar.length === 1) verdict = '1 large account below its variable cost';
     else if (belowFull.length === 1 && !belowVar.length) verdict = '1 large account below the full cost';
     return uiVerdictHtml({ screen: 'By client · ' + plabel, verdict: verdict, tone: tone,
-      fig: figHtml(escHtml(formatCurrency(worst.net)) + perKg, figToneAgainst(worst.net, m.fullKg, 5)),
+      fig: figHtml(escHtml(formatCurrency(worst.net)) + perKg, figTone),
       facts: ['worst ' + worst.name, 'live cost ' + formatCurrency(m.fullKg) + '/kg'],
       factors: [
         { label: 'Below variable', fig: m.varKg != null ? String(belowVar.length) : '', tone: belowVar.length ? 'danger' : m.varKg != null ? 'ok' : null, sub: m.varKg != null ? formatCurrency(m.varKg) + '/kg' : 'labour not split' },
@@ -818,12 +816,16 @@ function statsVerdictHtml(tab, pa) {
     var share = Math.round(c.measuredShare * 100), shareTone = figTonePct(share, 90, 50);
     if (c.perKg == null) return uiVerdictHtml({ screen: 'Cost · ' + plabel, verdict: 'Nothing weighed in the period to cost', tone: 'neutral', attrs: ' id="statsVerdict"' });
     var contrib = real != null ? real - c.perKg : null;
+    // One judge for the price against the cost (realisation, what a kilo left, the cost it clears): Pulse's In one line and
+    // Trends' tiles read the same. The cost's figure was judged with realisation as the base, which read a 5% gap as danger here
+    // and warning there; what a kilo left was red at a paisa short.
+    var realTone = real != null ? figToneAgainst(real, c.perKg, 5) : null;
     return uiVerdictHtml({ screen: 'Cost · ' + plabel, verdict: 'Live cost ' + formatCurrency(c.perKg) + '/kg · ' + share + '% measured', tone: shareTone,
-      fig: figHtml(escHtml(formatCurrency(c.perKg)) + perKg, real != null ? figToneAgainst(c.perKg, real, 5, true) : null),
+      fig: figHtml(escHtml(formatCurrency(c.perKg)) + perKg, realTone),
       facts: [real != null ? 'realised ' + formatCurrency(real) + '/kg' : 'nothing realised', formatNum(kg / 1000, 1) + ' t'],
       factors: [
-        { label: 'Realisation', fig: real != null ? escHtml(formatCurrency(real)) + perKg : '', tone: real != null ? figToneAgainst(real, c.perKg, 5) : null },
-        { label: 'Contribution', fig: contrib != null ? statsSigned(contrib) + perKg : '', tone: contrib == null ? null : contrib >= 0 ? 'ok' : 'danger' },
+        { label: 'Realisation', fig: real != null ? escHtml(formatCurrency(real)) + perKg : '', tone: realTone },
+        { label: 'Contribution', fig: contrib != null ? statsSigned(contrib) + perKg : '', tone: realTone },
         { label: 'Measured', fig: share + '%', tone: shareTone, sub: 'of the cost, from records' },
         { label: 'Full cost', fig: escHtml(formatCurrency(gstRound(c.total))), sub: 'on ' + formatNum(kg / 1000, 1) + ' t' }],
       attrs: ' id="statsVerdict"' });
@@ -860,9 +862,10 @@ function statsVerdictHtml(tab, pa) {
       badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="tonnage"' },
     { label: 'Realisation', fig: realisation != null ? escHtml(formatCurrency(realisation)) + perKg : '', tone: costKg > 0 ? figToneAgainst(realisation, costKg, 5) : null,
       sub: costKg > 0 ? pa.periodCost.label + formatCurrency(costKg) + '/kg' : 'set a cost in Settings', attrs: ' data-tile="realisation"' },
-    { label: 'Gross margin', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : margin < 0 ? 'danger' : 'ok',
+    // The margin is the price against the cost again, judged as Realisation is: under it within 5% is a warning, not red.
+    { label: 'Gross margin', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : figToneAgainst(realisation, costKg, 5),
       sub: contribution != null ? (contribution >= 0 ? '+' : '−') + formatCurrency(Math.abs(contribution)) + '/kg contribution' : 'needs tonnage and cost',
-      badge: contribution != null && contribution < 0 ? ['danger', 'below cost'] : null, attrs: ' data-tile="margin"' }];
+      badge: contribution != null && contribution < 0 ? [figToneAgainst(realisation, costKg, 5), 'below cost'] : null, attrs: ' data-tile="margin"' }];
   var worstTone = factors.map(function(f) { return f.tone; }).reduce(function(w, t) { return (UI_TONE_RANK[t] || 0) > (UI_TONE_RANK[w] || 0) ? t : w; }, 'ok');
   return uiVerdictHtml({ screen: 'Trends · ' + plabel, tone: filtered.length ? worstTone : 'neutral',
     verdict: !filtered.length ? 'No invoices ' + word : formatInrShort(totalRev) + ' ' + word + (comparable ? ' · ' + (dRev === 'level' ? 'level' : dRev) + ' on the same days' : ''),

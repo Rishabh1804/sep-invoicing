@@ -155,7 +155,7 @@ function plnRowHtml(o) {
     (o.end || (_isDesktop && acts.length) ? '<span class="inv-row-end">' + (o.end || '') + (_isDesktop ? acts.join('') : '') + '</span>' : '') + '</summary><div class="inv-row-children">' +
     rest.map(function(f) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(f) + '</span></span></div>'; }).join('') +
     (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') +
-    (acts.length && !_isDesktop ? '<div class="inv-row-actions" data-row-more>' + acts.join('') + '</div>' : '') + '</div></details>';
+    uiRowMoreHtml(acts) + '</div></details>';
 }
 /* A move's place in the plan as a row's end on the phone: its month, or what stands in its way; the controls are in its fold. */
 function plnMoveEnd(key, inPlan) {
@@ -177,7 +177,6 @@ function _plnSelect(id, label, opts, value) {
 function _plnVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 function _plnNum(id) { var v = _plnVal(id); return v === '' || !isFinite(+v) ? null : +v; }
 function plnRegFind(k, id) { return plnList(k).find(function(r) { return r && r.id === id; }) || null; }
-function plnStationOpts() { return PLN_STATIONS.map(function(s) { return [s.id, s.name]; }); }
 function plnClientOpts() { return (S.clients || []).map(function(c) { return [c.id, c.name]; }).sort(function(a, b) { return String(a[1]).localeCompare(String(b[1])); }); }
 
 /* Machines and infrastructure: the plant register's units (plant.js), each with its status, condition, what it needs, and a risk
@@ -374,8 +373,7 @@ function plannerAction(action, btn) {
     case 'invPlnMoves': plnSetView('moves/' + d.k); renderPlanner(); return true;
     case 'invPlnMonth': _plnMonth = Math.max(0, Math.min(PLN_N - 1, _plnMonth + (+d.step || 0))); renderPlanner(); return true;
     case 'invPlnGoal': plnEdit(function(sc) { sc.goal = d.id; }); return true;
-    case 'invPlnScenario': plnData().active = d.id; _plnResult = null; _plnReplay = null; saveState(); renderPlanner(); return true;
-    case 'invPlnCopy': case 'invPlnFirst': plnScenarioCopy(); return true;
+    case 'invPlnCopy': plnScenarioCopy(); return true;
     case 'invPlnRename': plnScenarioRename(); return true;
     case 'invPlnClear': plnScenarioClear(); return true;
     case 'invPlnStart': plnEdit(plnSuggestStart); return true;

@@ -274,7 +274,7 @@ Durga auto 0101--400 nos` : '');
     const out = page.locator('#addClipOut [data-add-clip="ok"]');
     await expect(out.locator('[data-add-clip-item="in"]')).toBeVisible();
     await expect(out.locator('[data-add-clip-item="stock"]')).toContainText('2 lines');
-    await expect(out.locator('.inv-toolbar .inv-note')).toHaveText('Read in Staff and checked there before anything is saved; the stock message is read in Stock from there.');
+    await expect(out.locator('.inv-toolbar .inv-note')).toHaveText('Read in People and checked there before anything is saved; the stock message is read in Stock from there.');
     await out.locator('[data-action="invAddClipRead"]').click();
     // The roll's check: the stock is offered, and only the stock goes to Stock, with who sent it.
     await expect(page.locator('#relayReviewTiles')).toBeVisible();

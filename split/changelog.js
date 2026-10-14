@@ -143,6 +143,7 @@ var CHG_TRACK = [
   { path: 'todoCheck', kind: 'cfg', sec: 'To-do', dflt: function() { return typeof TODO_CHECK_DEFAULTS !== 'undefined' ? TODO_CHECK_DEFAULTS : getDefaultState().todoCheck; } },
   { path: 'costModel', kind: 'cfg', sec: 'Live cost fallbacks', dflt: function() { return typeof COST_MODEL_DEFAULTS !== 'undefined' ? COST_MODEL_DEFAULTS : getDefaultState().costModel; } },
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
+  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
     dflt: function() { return { ratePerKg: null, premiumPerKg: 15, upliftPct: typeof ZINC_DEFAULT_UPLIFT !== 'undefined' ? ZINC_DEFAULT_UPLIFT : null, basis: 'manual', updatedAt: null, source: '' }; } },
   { path: 'perfCfg', kind: 'cfg', sec: 'Clients → Performance → By the hour' },
@@ -588,23 +589,7 @@ function chgCap() {
   S.changeLog = keep;
 }
 
-/* ---------- for the gate, the devices, the merge ---------- */
-/* The log, newest last; `filter` a function or {coll, rid, op, by (null: no ID), dev, since, until}. */
-function chgEntries(filter) {
-  var log = S && Array.isArray(S.changeLog) ? S.changeLog : [];
-  if (!filter) return log.slice();
-  if (typeof filter === 'function') return log.filter(filter);
-  return log.filter(function(e) {
-    if (filter.coll && e.coll !== filter.coll) return false;
-    if (filter.rid != null && String(e.rid) !== String(filter.rid)) return false;
-    if (filter.op && e.op !== filter.op) return false;
-    if (Object.prototype.hasOwnProperty.call(filter, 'by') && (e.by == null ? null : String(e.by)) !== (filter.by == null ? null : String(filter.by))) return false;
-    if (filter.dev && e.dev !== filter.dev) return false;
-    if (filter.since && e.at < filter.since) return false;
-    if (filter.until && e.at > filter.until) return false;
-    return true;
-  });
-}
+/* ---------- who and where, for History and the diagnostics ---------- */
 /* What a device is called: its name on the devices list, this device's own name, else a short id. */
 function chgDeviceLabel(id) {
   if (!id) return '';
@@ -635,7 +620,9 @@ function chgHealthText() {
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
 var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
   orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
-  voidReason: 'reason', cancelReason: 'reason', voidBy: 'by' };
+  voidReason: 'reason', cancelReason: 'reason', voidBy: 'by',
+  // The flow thread's targets and terms (flow.js): the plant's in Settings, a client's own on the client.
+  turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';
@@ -647,7 +634,6 @@ function chgAct(e) {
 }
 var CHG_ACT_WORDS = { added: ['Added', 'ok'], changed: ['Changed', 'neutral'], removed: ['Removed', 'danger'], voided: ['Voided', 'danger'],
   cancelled: ['Cancelled', 'danger'], replaced: ['Replaced', 'warning'] };
-function chgKindWord(e) { return CHG_ACT_WORDS[chgAct(e)] || CHG_ACT_WORDS.changed; }
 function chgShow(v, f) {
   if (v == null || v === '') return '—';
   if (typeof v === 'number' && /At$/.test(f) && v > 1e11) return formatTimestamp(v);

@@ -540,7 +540,14 @@ function homeEditChange(fn) {
 }
 function homeAction(action, btn) {
   switch (action) {
-    case 'invHomeEdit': _homeEdit = true; homeApplyLayout(); viewTop(); return true;
+    case 'invHomeEdit':
+      _homeEdit = true;
+      homeApplyLayout();
+      // The panel is drawn under Pulse's questions and cards: brought into sight there, its head and Done under the bars (sent
+      // to the top of the page, it was screens below, out of sight).
+      var ed = document.getElementById('homeEdit');
+      if (ed) ed.scrollIntoView({ block: 'start' });
+      return true;
     case 'invHomeEditDone': _homeEdit = false; homeApplyLayout(); return true;
     case 'invHomePreset': homeLayoutSave(homePresetLayout(btn.dataset.preset)); homeApplyLayout(); return true;
     case 'invHomeWide': homeEditChange(function(l) { l.wide[btn.dataset.w] = btn.dataset.v === '1'; }); return true;

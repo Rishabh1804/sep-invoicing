@@ -1027,14 +1027,15 @@ function uiToolbarMoreHtml(items, opts) {
     (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
 }
 /* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count
-   of filters applied) that opens them in a dialog with Done, the applied ones shown under the row as tokens (uiTokensHtml).
+   of filters applied, a plain count: DR-1) that opens them in a dialog with Done, the applied ones shown under the row as tokens
+   (uiTokensHtml).
    `o`: controls (HTML: the screen's own selects, dates and chips, with their own ids and change handlers), count, key (the
    screen; UI_FILTER_DONE[key] redraws its row after Done, else the page is redrawn in place). */
 var UI_FILTER_DONE = {};
 function uiFilterHtml(o) {
   if (_isDesktop) return o.controls || '';
   return '<span data-tb-filter="' + escHtml(o.key || '') + '"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbFilter" aria-haspopup="dialog">' +
-    UI_ICON_FILTER + 'Filter' + (o.count ? ' <span class="inv-badge inv-badge-info">' + o.count + '</span>' : '') + '</button><template>' + (o.controls || '') + '</template></span>';
+    UI_ICON_FILTER + 'Filter' + (o.count ? ' <span class="inv-badge inv-badge-neutral">' + o.count + '</span>' : '') + '</button><template>' + (o.controls || '') + '</template></span>';
 }
 /* The filters applied, under the toolbar on the phone: "Client SSS Mehta ×", each a button that clears its own (a sort other than
    the default is one too). `tokens`: {key, value (text), action, attrs}. The desktop shows its filters inline instead. */

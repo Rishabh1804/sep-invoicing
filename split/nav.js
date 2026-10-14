@@ -440,6 +440,10 @@ function navBarDraw() {
   for (var i = _navIdx - 1; i >= 0 && steps.length < NAV_TRAIL_SHOWN; i--) {
     var t = _navTrail[i];
     if (!t) continue;
+    // A step an older build saved at a place that has since moved (the redirect table) opens where its screen went: it is
+    // named, and checked against the role, there (it read "Stats · Overview" and opened Pulse).
+    var moved = navRedirect(t.loc);
+    if (navKey(moved) !== navKey(t.loc)) t = Object.assign({ loc: moved }, navLabel(moved));
     // The trail is this window's, and the person at it may have changed (the lock): a step on a screen this role does not
     // open is not shown, and a knowledge article is named as this role reads it (the last person's titles stayed).
     if (typeof grdSees === 'function' && !grdSees(t.loc.tab)) continue;

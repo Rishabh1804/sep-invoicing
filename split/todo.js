@@ -554,12 +554,10 @@ function todoRanked(all) {
   });
 }
 
-/* ---------- Screens ----------
-   View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
-   Mine and From your data (two across on the desktop, Mine on the left), then what is snoozed.
-   Yours lead: what you typed is what is easiest to forget under the raised ones. Rows are §6.10's:
-   an app task is a whole-row button led by its ! / i mark; a task of your own is led by its
-   tick box and ends with its due date as a dot and a word. */
+/* ---------- Rows ----------
+   The To-do's own page joined Needs you (the tab map, TM2a; today.js draws its cards). These are §6.10's rows, where a task is
+   still a row: a client's flagged tasks, a fold's members, Pulse's What changed? and Needs you's Done. An app task is a whole-row
+   button led by its ! / i mark; a task of your own is led by its tick box and ends with its due date as a dot and a word. */
 /* An app task's mark: its tone, and a symbol with it (DR-1) — ! to act on, i to know. */
 function todoGlyph(tone) {
   var ui = uiTone(tone || 'info');
@@ -773,7 +771,14 @@ function todoSaveEdit(id, done) {
   var td = todoData();
   var t = id ? td.tasks.find(function(x) { return x.id === id; }) : null;
   if (t && !todoMineSees(t)) return;
-  if (!t) { t = { id: todoUid(), createdAt: Date.now(), doneAt: null }; td.tasks.push(t); }
+  if (!t) {
+    t = { id: todoUid(), createdAt: Date.now(), doneAt: null };
+    td.tasks.push(t);
+    // A new task is opened from Needs you's field (Details), with what was typed there: it is a task now, and left in the field
+    // it was redrawn there and added again by the next Add.
+    var field = document.getElementById('todoNew');
+    if (field) field.value = '';
+  }
   t.text = text;
   t.due = (document.getElementById('todoDue') || {}).value || '';
   t.note = ((document.getElementById('todoNote') || {}).value || '').trim();

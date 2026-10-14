@@ -6,7 +6,7 @@
    The sheet saves nothing itself. Every route ends in the review or the form that already exists, so what comes in is
    shown beside what was read and saved only when the owner says so (the stock paste's contract, unchanged):
    - Paste: the text goes to the one paste box exactly as Home → Paste message sends it (relayOpen, then its read), which
-     routes rolls to Staff, pickling, production and power messages to Production, and stock to Stock.
+     routes rolls to People, pickling, production and power messages to Production, and stock to Stock.
    - The clipboard: read only when the owner taps (the browser needs the tap and may refuse; a refusal is said), and named
      with the paste box's own readers (relayKind, parseRelayRoll, parseStockMessage, parseProdPaste): its date and a count.
    - No photo: the challan scan and the register photo were read by Gemini and came out (owner, 13 Oct 2026: *"it simply
@@ -213,7 +213,7 @@ function addQuoteLines(text) {
 }
 
 /* What a text is, named with the paste box's own readers and routed the way its read routes it (relayRead): rolls go to
-   Staff; otherwise pickling, production and power messages go to Production, then a stock message to Stock. Pure but for
+   People; otherwise pickling, production and power messages go to Production, then a stock message to Stock. Pure but for
    the book's roster, clients and stock lines, which the readers take. */
 var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', runs: 'Production by slot', power: 'Power cuts' };
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
@@ -245,7 +245,7 @@ function addDescribe(text) {
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
   if (cks.length) d.items.push({ kind: 'checkin', title: 'Office QR check-ins', meta: addWhen(cks.map(function(c) { return c.iso; })) + ' · ' + todoPlural(cks.length, 'check-in') });
-  d.where = rolls || cks.length ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  d.where = rolls || cks.length ? 'People' : prod ? 'Production' : stock ? 'Stock' : '';
   // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
   // and the stock beside a roll was never read (QA3-10).
   if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);
@@ -409,7 +409,7 @@ var ADD_FILE_KINDS = {
   power: { title: 'A power history file', noun: 'a power history file (its cuts and bills)', page: 'pagePower', view: 'Cuts' },
   payroll: { title: 'A payroll file', noun: 'the payroll as paid (sep-payroll-paid)', page: 'pageStaff', view: 'Pay' },
   roster: { title: 'A roster', noun: 'a roster', page: 'pageStaff', view: 'Roster' },
-  register: { title: 'An attendance register', noun: 'an attendance register (sep-att-register)', page: 'pageStaff', view: 'Register' },
+  register: { title: 'An attendance register', noun: 'an attendance register (sep-att-register)', page: 'pageStaff', view: 'Attendance → Month' },
   people: { title: 'Workers’ details', noun: 'a file of workers’ details (sep-people)', page: 'pageStaff', view: 'Roster' },
   plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
   kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },

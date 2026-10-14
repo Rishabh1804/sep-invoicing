@@ -277,25 +277,28 @@ function statsStoryCards(a, ctx) {
   var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
+  // What a kilo left is the price against the cost, judged as the price is (In one line, Stats' tiles): a loss within 5% of the
+  // cost is a warning, as the realisation beside it says.
+  var moneyTone = contrib == null ? null : figToneAgainst(real, cost, 5);
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
       real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
     statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
-      contrib == null ? '' : contrib >= 0 ? 'ok' : 'danger'));
+      moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
     { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }) },
     { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
   body += contrib == null ? say(c1, 'neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
-    : say(c1, 'danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
+    : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
   // The card as a tile on Today → Pulse (§6.21): the figure that answers it, its words, the six months as a line.
   c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
     viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
-      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: contrib != null && contrib < 0 ? 'danger' : contrib != null ? 'ok' : '', toDate: atNow(mm) }) : '',
-    tone: contrib == null ? 'neutral' : contrib >= 0 ? 'ok' : 'danger' };
+      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: moneyTone || '', toDate: atNow(mm) }) : '',
+    tone: moneyTone || 'neutral' };
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
@@ -314,10 +317,10 @@ function statsStoryCards(a, ctx) {
     var top = m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }).slice(0, 4);
     body += statsBody(chartRankedBars(top.map(function(x) {
       return { label: x.name, value: x.kg, display: formatNum(x.kg / 1000, 1) + ' t', sub: formatCurrency(x.net) + '/kg · ' + Math.round(x.kg / m.kg * 100) + '% of the plant',
-        tone: x.vsFull < 0 ? 'danger' : 'good', action: 'invStatsClientDrill', clientId: x.id };
+        tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : 'good', action: 'invStatsClientDrill', clientId: x.id };
     }), { unit: 'kg' }));
   }
-  if (worst && worst.vsFull < 0) body += say(c2, 'danger', escHtml(worst.name) + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
+  if (worst && worst.vsFull < 0) body += say(c2, figToneAgainst(worst.net, m.fullKg, 5), escHtml(worst.name) + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
   var mover = moves.length && prior.length && Math.abs(moves[0].d) > 0 ? moves[0] : null;
   if (mover) body += say(c2, mover.d >= 0 ? 'ok' : 'warning', escHtml(nameOf(mover.id)) + ' billed ' + formatCurrency(Math.abs(mover.d)) + (mover.d >= 0 ? ' more' : ' less') + ' than in ' + (PERIOD_PRIOR_LABELS[period] || 'the period before') + ', the biggest change of any client.');
   if (!body) body = say(c2, 'neutral', 'No weighed billing in the period to rank the clients by.');
@@ -328,9 +331,9 @@ function statsStoryCards(a, ctx) {
   var vc = lead || big[0];
   c2.vital = vc ? { fig: Math.round(vc.kg / m.kg * 100) + '%', title: escHtml(vc.name),
       sub: escHtml(lead ? 'of the plant at ' + formatCurrency(lead.net) + '/kg, ' + formatCurrency(-lead.vsFull) + ' under the full cost' : 'of the plant, the largest by tonnage'),
-      viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? 'danger' : i % 2 ? 'neutral-2' : 'neutral' }; }),
+      viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : i % 2 ? 'neutral-2' : 'neutral' }; }),
         { max: m.kg, title: big.slice(0, 4).map(function(x) { return x.name + ' ' + Math.round(x.kg / m.kg * 100) + '%'; }).join(' · ') }),
-      tone: lead ? 'danger' : 'ok' }
+      tone: lead ? figToneAgainst(lead.net, m.fullKg, 5) : 'ok' }
     : { fig: '&mdash;', title: 'No weighed billing', sub: '', viz: '', tone: 'neutral' };
   c2.mover = mover;
   cards.clients = c2;

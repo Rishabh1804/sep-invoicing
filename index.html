@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="587dc0a0">
+<meta name="app-build" content="454a361a">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -1145,6 +1145,7 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   --rpt-ok: #1d6b3a;
   --rpt-warning: #8a5a00;
   --rpt-danger: #b02a1f;
+  --rpt-info: #1d4f8a;
   --rpt-fs: 9pt;
   --rpt-fs-sm: 8pt;
   --rpt-fs-xs: 7pt;
@@ -1217,6 +1218,7 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 .inv-rpt-doc .inv-fig-ok { color: var(--rpt-ok); }
 .inv-rpt-doc .inv-fig-warning { color: var(--rpt-warning); }
 .inv-rpt-doc .inv-fig-danger { color: var(--rpt-danger); }
+.inv-rpt-doc .inv-fig-info { color: var(--rpt-info); }
 @media print {
   .inv-print-body .inv-rpt-doc { border: none; margin: 0; width: auto; max-width: none; padding: 0 var(--rpt-gutter-side); }
   .inv-rpt-frame > thead { display: table-header-group; }
@@ -1285,8 +1287,9 @@ body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var
 /* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
-/* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). */
-body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:last-child:nth-child(5n+1) { grid-column: 1 / -1; }
+/* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). Counted
+   over the doors shown: a role's hidden ones ([data-grd-off]) had left Office's Task a row of its own beside an empty one. */
+body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:nth-last-child(1 of :not([data-grd-off])):nth-child(5n+1 of :not([data-grd-off])) { grid-column: 1 / -1; }
 .inv-panel > .inv-btn-grid:last-child { margin-bottom: 0; }
 
 /* §6.4 View tabs — underline. The one control for switching views. */
@@ -1334,8 +1337,6 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 .inv-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: calc(-1 * var(--sp-4)) 0 var(--sp-12); }
 button.inv-token { border: none; cursor: pointer; font-family: inherit; }
 button.inv-token:hover { background: var(--surface-3); }
-.inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
-.inv-token-add { background: none; border: var(--hair) dashed var(--border); color: var(--text-2); cursor: pointer; }
 
 /* §6.7 Toolbar and search */
 .inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
@@ -1598,10 +1599,12 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 /* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
 .inv-num-pos { color: var(--ok); }
-/* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). */
+/* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). Info is over a mark, not short of
+   it: heads over the day's number, a line plating past its usual (areaNeedTone, prodLineEfficiency). */
 .inv-fig-ok { color: var(--ok); }
 .inv-fig-warning { color: var(--warning); }
 .inv-fig-danger { color: var(--danger); }
+.inv-fig-info { color: var(--info); }
 .inv-num-neg { color: var(--danger); }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
@@ -1879,6 +1882,9 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
 }
 .inv-dialog-title { min-width: 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
+/* The content between a dialog's head and its foot: a name typed without a space (a part, a client) breaks rather than pushing
+   the sheet past the phone's edge, and nothing else about its size changes. */
+.inv-dialog-body { overflow-wrap: break-word; }
 .inv-dialog-close { border-color: transparent; background: none; color: var(--text-3); font-size: var(--fs-19); }
 .inv-dialog-close:hover { color: var(--text-1); }
 /* The actions, primary last, held at the foot of a dialog that scrolls. */
@@ -3818,14 +3824,15 @@ function uiToolbarMoreHtml(items, opts) {
     (n ? ' <span class="inv-badge inv-badge-' + worst + '">' + n + '</span>' : '') + '</button><template>' + rows + '</template></span>';
 }
 /* The toolbar's filters (§6.6, §6.7): on the desktop the screen's own controls, inline; on the phone one Filter button (the count
-   of filters applied) that opens them in a dialog with Done, the applied ones shown under the row as tokens (uiTokensHtml).
+   of filters applied, a plain count: DR-1) that opens them in a dialog with Done, the applied ones shown under the row as tokens
+   (uiTokensHtml).
    `o`: controls (HTML: the screen's own selects, dates and chips, with their own ids and change handlers), count, key (the
    screen; UI_FILTER_DONE[key] redraws its row after Done, else the page is redrawn in place). */
 var UI_FILTER_DONE = {};
 function uiFilterHtml(o) {
   if (_isDesktop) return o.controls || '';
   return '<span data-tb-filter="' + escHtml(o.key || '') + '"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTbFilter" aria-haspopup="dialog">' +
-    UI_ICON_FILTER + 'Filter' + (o.count ? ' <span class="inv-badge inv-badge-info">' + o.count + '</span>' : '') + '</button><template>' + (o.controls || '') + '</template></span>';
+    UI_ICON_FILTER + 'Filter' + (o.count ? ' <span class="inv-badge inv-badge-neutral">' + o.count + '</span>' : '') + '</button><template>' + (o.controls || '') + '</template></span>';
 }
 /* The filters applied, under the toolbar on the phone: "Client SSS Mehta ×", each a button that clears its own (a sort other than
    the default is one too). `tokens`: {key, value (text), action, attrs}. The desktop shows its filters inline instead. */
@@ -5600,6 +5607,7 @@ var CHG_TRACK = [
   { path: 'todoCheck', kind: 'cfg', sec: 'To-do', dflt: function() { return typeof TODO_CHECK_DEFAULTS !== 'undefined' ? TODO_CHECK_DEFAULTS : getDefaultState().todoCheck; } },
   { path: 'costModel', kind: 'cfg', sec: 'Live cost fallbacks', dflt: function() { return typeof COST_MODEL_DEFAULTS !== 'undefined' ? COST_MODEL_DEFAULTS : getDefaultState().costModel; } },
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
+  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
     dflt: function() { return { ratePerKg: null, premiumPerKg: 15, upliftPct: typeof ZINC_DEFAULT_UPLIFT !== 'undefined' ? ZINC_DEFAULT_UPLIFT : null, basis: 'manual', updatedAt: null, source: '' }; } },
   { path: 'perfCfg', kind: 'cfg', sec: 'Clients → Performance → By the hour' },
@@ -6045,23 +6053,7 @@ function chgCap() {
   S.changeLog = keep;
 }
 
-/* ---------- for the gate, the devices, the merge ---------- */
-/* The log, newest last; `filter` a function or {coll, rid, op, by (null: no ID), dev, since, until}. */
-function chgEntries(filter) {
-  var log = S && Array.isArray(S.changeLog) ? S.changeLog : [];
-  if (!filter) return log.slice();
-  if (typeof filter === 'function') return log.filter(filter);
-  return log.filter(function(e) {
-    if (filter.coll && e.coll !== filter.coll) return false;
-    if (filter.rid != null && String(e.rid) !== String(filter.rid)) return false;
-    if (filter.op && e.op !== filter.op) return false;
-    if (Object.prototype.hasOwnProperty.call(filter, 'by') && (e.by == null ? null : String(e.by)) !== (filter.by == null ? null : String(filter.by))) return false;
-    if (filter.dev && e.dev !== filter.dev) return false;
-    if (filter.since && e.at < filter.since) return false;
-    if (filter.until && e.at > filter.until) return false;
-    return true;
-  });
-}
+/* ---------- who and where, for History and the diagnostics ---------- */
 /* What a device is called: its name on the devices list, this device's own name, else a short id. */
 function chgDeviceLabel(id) {
   if (!id) return '';
@@ -6092,7 +6084,9 @@ function chgHealthText() {
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
 var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
   orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
-  voidReason: 'reason', cancelReason: 'reason', voidBy: 'by' };
+  voidReason: 'reason', cancelReason: 'reason', voidBy: 'by',
+  // The flow thread's targets and terms (flow.js): the plant's in Settings, a client's own on the client.
+  turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';
@@ -6104,7 +6098,6 @@ function chgAct(e) {
 }
 var CHG_ACT_WORDS = { added: ['Added', 'ok'], changed: ['Changed', 'neutral'], removed: ['Removed', 'danger'], voided: ['Voided', 'danger'],
   cancelled: ['Cancelled', 'danger'], replaced: ['Replaced', 'warning'] };
-function chgKindWord(e) { return CHG_ACT_WORDS[chgAct(e)] || CHG_ACT_WORDS.changed; }
 function chgShow(v, f) {
   if (v == null || v === '') return '—';
   if (typeof v === 'number' && /At$/.test(f) && v > 1e11) return formatTimestamp(v);
@@ -8487,7 +8480,14 @@ function homeEditChange(fn) {
 }
 function homeAction(action, btn) {
   switch (action) {
-    case 'invHomeEdit': _homeEdit = true; homeApplyLayout(); viewTop(); return true;
+    case 'invHomeEdit':
+      _homeEdit = true;
+      homeApplyLayout();
+      // The panel is drawn under Pulse's questions and cards: brought into sight there, its head and Done under the bars (sent
+      // to the top of the page, it was screens below, out of sight).
+      var ed = document.getElementById('homeEdit');
+      if (ed) ed.scrollIntoView({ block: 'start' });
+      return true;
     case 'invHomeEditDone': _homeEdit = false; homeApplyLayout(); return true;
     case 'invHomePreset': homeLayoutSave(homePresetLayout(btn.dataset.preset)); homeApplyLayout(); return true;
     case 'invHomeWide': homeEditChange(function(l) { l.wide[btn.dataset.w] = btn.dataset.v === '1'; }); return true;
@@ -34500,12 +34500,10 @@ function todoRanked(all) {
   });
 }
 
-/* ---------- Screens ----------
-   View tabs Open / Done (design principles §7). Open: the add field, then two flush panels,
-   Mine and From your data (two across on the desktop, Mine on the left), then what is snoozed.
-   Yours lead: what you typed is what is easiest to forget under the raised ones. Rows are §6.10's:
-   an app task is a whole-row button led by its ! / i mark; a task of your own is led by its
-   tick box and ends with its due date as a dot and a word. */
+/* ---------- Rows ----------
+   The To-do's own page joined Needs you (the tab map, TM2a; today.js draws its cards). These are §6.10's rows, where a task is
+   still a row: a client's flagged tasks, a fold's members, Pulse's What changed? and Needs you's Done. An app task is a whole-row
+   button led by its ! / i mark; a task of your own is led by its tick box and ends with its due date as a dot and a word. */
 /* An app task's mark: its tone, and a symbol with it (DR-1) — ! to act on, i to know. */
 function todoGlyph(tone) {
   var ui = uiTone(tone || 'info');
@@ -34719,7 +34717,14 @@ function todoSaveEdit(id, done) {
   var td = todoData();
   var t = id ? td.tasks.find(function(x) { return x.id === id; }) : null;
   if (t && !todoMineSees(t)) return;
-  if (!t) { t = { id: todoUid(), createdAt: Date.now(), doneAt: null }; td.tasks.push(t); }
+  if (!t) {
+    t = { id: todoUid(), createdAt: Date.now(), doneAt: null };
+    td.tasks.push(t);
+    // A new task is opened from Needs you's field (Details), with what was typed there: it is a task now, and left in the field
+    // it was redrawn there and added again by the next Add.
+    var field = document.getElementById('todoNew');
+    if (field) field.value = '';
+  }
   t.text = text;
   t.due = (document.getElementById('todoDue') || {}).value || '';
   t.note = ((document.getElementById('todoNote') || {}).value || '').trim();
@@ -35228,16 +35233,6 @@ function mrgBasePut(stateStr, sha) {
       } catch (e) { resolve(false); }
     });
   }).catch(function() { return false; });
-}
-function mrgBaseClear() {
-  if (typeof idbOpen !== 'function') return Promise.resolve();
-  return idbOpen().then(function(db) {
-    if (!db) return;
-    return new Promise(function(resolve) {
-      try { var tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).delete(MRG_BASE_KEY); tx.oncomplete = tx.onerror = tx.onabort = function() { resolve(); }; }
-      catch (e) { resolve(); }
-    });
-  }).catch(function() {});
 }
 
 /* ---------- Walking three books ---------- */
@@ -37351,7 +37346,7 @@ function relayOnInput(t) {
    The sheet saves nothing itself. Every route ends in the review or the form that already exists, so what comes in is
    shown beside what was read and saved only when the owner says so (the stock paste's contract, unchanged):
    - Paste: the text goes to the one paste box exactly as Home → Paste message sends it (relayOpen, then its read), which
-     routes rolls to Staff, pickling, production and power messages to Production, and stock to Stock.
+     routes rolls to People, pickling, production and power messages to Production, and stock to Stock.
    - The clipboard: read only when the owner taps (the browser needs the tap and may refuse; a refusal is said), and named
      with the paste box's own readers (relayKind, parseRelayRoll, parseStockMessage, parseProdPaste): its date and a count.
    - No photo: the challan scan and the register photo were read by Gemini and came out (owner, 13 Oct 2026: *"it simply
@@ -37558,7 +37553,7 @@ function addQuoteLines(text) {
 }
 
 /* What a text is, named with the paste box's own readers and routed the way its read routes it (relayRead): rolls go to
-   Staff; otherwise pickling, production and power messages go to Production, then a stock message to Stock. Pure but for
+   People; otherwise pickling, production and power messages go to Production, then a stock message to Stock. Pure but for
    the book's roster, clients and stock lines, which the readers take. */
 var ADD_PROD_TITLE = { pickling: 'Pickling loads', production: 'Barrel production', runs: 'Production by slot', power: 'Power cuts' };
 var ADD_PROD_ITEM = [['pickled', 'load'], ['arrived', 'incoming load'], ['plated', 'run'], ['downtime', 'power cut']];
@@ -37590,7 +37585,7 @@ function addDescribe(text) {
   });
   Object.keys(ADD_PROD_TITLE).forEach(function(k) { if (groups[k]) d.items.push(addDescProd(groups[k])); });
   if (cks.length) d.items.push({ kind: 'checkin', title: 'Office QR check-ins', meta: addWhen(cks.map(function(c) { return c.iso; })) + ' · ' + todoPlural(cks.length, 'check-in') });
-  d.where = rolls || cks.length ? 'Staff' : prod ? 'Production' : stock ? 'Stock' : '';
+  d.where = rolls || cks.length ? 'People' : prod ? 'Production' : stock ? 'Stock' : '';
   // A roll's check offers what else came with it (Read in Production, Read in Stock): said here too. It said Staff alone,
   // and the stock beside a roll was never read (QA3-10).
   if (rolls) d.also = [prod || rollProd ? 'Production' : '', stock ? 'Stock' : ''].filter(Boolean);
@@ -37754,7 +37749,7 @@ var ADD_FILE_KINDS = {
   power: { title: 'A power history file', noun: 'a power history file (its cuts and bills)', page: 'pagePower', view: 'Cuts' },
   payroll: { title: 'A payroll file', noun: 'the payroll as paid (sep-payroll-paid)', page: 'pageStaff', view: 'Pay' },
   roster: { title: 'A roster', noun: 'a roster', page: 'pageStaff', view: 'Roster' },
-  register: { title: 'An attendance register', noun: 'an attendance register (sep-att-register)', page: 'pageStaff', view: 'Register' },
+  register: { title: 'An attendance register', noun: 'an attendance register (sep-att-register)', page: 'pageStaff', view: 'Attendance → Month' },
   people: { title: 'Workers’ details', noun: 'a file of workers’ details (sep-people)', page: 'pageStaff', view: 'Roster' },
   plant: { title: 'A plant register file', noun: 'a plant register file (sep-plant)', page: 'pageProduction', view: 'Equipment' },
   kb: { title: 'A knowledge file', noun: 'a knowledge file (sep-kb)', page: 'pageKnow', view: 'Library' },
@@ -40183,23 +40178,17 @@ function statsCostWeighedNote(tonnage, said) {
 /* The same in one line, for a card that keeps a note to a line (§3c): the weighed share and how high it reads. */
 function statsCostWeighedShort(tonnage) {
   if (!tonnage || !(tonnage.kg > 0) || !(tonnage.coverage < 0.999)) return '';
-  if (!(tonnage.coverage > 0)) return 'Nothing priced was weighed: the cost per kg cannot be set against what was billed.';
+  if (!(tonnage.coverage > 0)) return 'Nothing priced was weighed: the live cost per kg cannot be set against what was billed.';
   var up = (1 / tonnage.coverage - 1) * 100;
-  return 'Per kg of the weighed lines, ' + statsPctOf(tonnage.coverage) + '% of revenue: reads high' + (up >= 0.5 ? ' by about ' + Math.round(up) + '%' : ' slightly') + '.';
+  // It names its figure: under Trends' line that realisation reads high, a line saying only "reads high" read as realisation's.
+  return 'The live cost per kg divides by the weighed lines alone, ' + statsPctOf(tonnage.coverage) + '% of revenue: it reads high' +
+    (up >= 0.5 ? ' by about ' + Math.round(up) + '%' : ' slightly') + '.';
 }
 
 /* ===== THE DASHBOARD'S PIECES (design system §6) =====
    Every Stats card is a flush panel (§6.8) named by data-card, its qualifier an inv-note in the title;
    figures are tiles (§6.9) and rows (§6.10); caveats are callouts (§6.18). intel.js, insights.js and
    cost.js draw their cards with the same pieces. */
-
-/* A change against the prior period in words (§5.4): "+12.3% on same days last month", coloured by whether it moved
-   the good way (figDeltaHtml, state.js). A percentage against no prior activity is noise dressed as a signal, so it
-   says so instead. */
-function statsDeltaText(cur, prev, label, better) {
-  if (prev == null || !isFinite(prev) || prev === 0) return 'no prior period';
-  return figDeltaHtml(cur, prev, label, better);
-}
 
 /* A segmented control for a setting of the card it sits in (§6.5). `inv-seg-fit` keeps it the width
    of its buttons, so a card's head or toolbar can hold it beside its title. */
@@ -40747,13 +40736,17 @@ function statsVerdictHtml(tab, pa) {
     var belowVar = m.varKg != null ? large.filter(function(x) { return x.vsVar < 0; }) : [];
     var belowFull = large.filter(function(x) { return x.vsFull < 0; });
     var worst = belowFull[0] || m.ranked[0];
-    var tone = belowVar.length ? 'danger' : belowFull.length ? 'warning' : 'ok';
+    // The figure is the worst large account under the full cost, judged as its row in the table is, and the card is the worst of
+    // what it holds. With none under, it is the worst-priced client, which the card does not judge (it counts the large
+    // accounts), so it is plain: a small account under the cost had read red on a green card.
+    var figTone = belowFull.length ? figToneAgainst(worst.net, m.fullKg, 5) : null;
+    var tone = belowVar.length || figTone === 'danger' ? 'danger' : belowFull.length ? 'warning' : 'ok';
     var verdict = belowVar.length ? todoPlural(belowVar.length, 'large account') + ' below their variable cost'
       : belowFull.length ? todoPlural(belowFull.length, 'large account') + ' below the full cost' : 'No large account below the live cost';
     if (belowVar.length === 1) verdict = '1 large account below its variable cost';
     else if (belowFull.length === 1 && !belowVar.length) verdict = '1 large account below the full cost';
     return uiVerdictHtml({ screen: 'By client · ' + plabel, verdict: verdict, tone: tone,
-      fig: figHtml(escHtml(formatCurrency(worst.net)) + perKg, figToneAgainst(worst.net, m.fullKg, 5)),
+      fig: figHtml(escHtml(formatCurrency(worst.net)) + perKg, figTone),
       facts: ['worst ' + worst.name, 'live cost ' + formatCurrency(m.fullKg) + '/kg'],
       factors: [
         { label: 'Below variable', fig: m.varKg != null ? String(belowVar.length) : '', tone: belowVar.length ? 'danger' : m.varKg != null ? 'ok' : null, sub: m.varKg != null ? formatCurrency(m.varKg) + '/kg' : 'labour not split' },
@@ -40767,12 +40760,16 @@ function statsVerdictHtml(tab, pa) {
     var share = Math.round(c.measuredShare * 100), shareTone = figTonePct(share, 90, 50);
     if (c.perKg == null) return uiVerdictHtml({ screen: 'Cost · ' + plabel, verdict: 'Nothing weighed in the period to cost', tone: 'neutral', attrs: ' id="statsVerdict"' });
     var contrib = real != null ? real - c.perKg : null;
+    // One judge for the price against the cost (realisation, what a kilo left, the cost it clears): Pulse's In one line and
+    // Trends' tiles read the same. The cost's figure was judged with realisation as the base, which read a 5% gap as danger here
+    // and warning there; what a kilo left was red at a paisa short.
+    var realTone = real != null ? figToneAgainst(real, c.perKg, 5) : null;
     return uiVerdictHtml({ screen: 'Cost · ' + plabel, verdict: 'Live cost ' + formatCurrency(c.perKg) + '/kg · ' + share + '% measured', tone: shareTone,
-      fig: figHtml(escHtml(formatCurrency(c.perKg)) + perKg, real != null ? figToneAgainst(c.perKg, real, 5, true) : null),
+      fig: figHtml(escHtml(formatCurrency(c.perKg)) + perKg, realTone),
       facts: [real != null ? 'realised ' + formatCurrency(real) + '/kg' : 'nothing realised', formatNum(kg / 1000, 1) + ' t'],
       factors: [
-        { label: 'Realisation', fig: real != null ? escHtml(formatCurrency(real)) + perKg : '', tone: real != null ? figToneAgainst(real, c.perKg, 5) : null },
-        { label: 'Contribution', fig: contrib != null ? statsSigned(contrib) + perKg : '', tone: contrib == null ? null : contrib >= 0 ? 'ok' : 'danger' },
+        { label: 'Realisation', fig: real != null ? escHtml(formatCurrency(real)) + perKg : '', tone: realTone },
+        { label: 'Contribution', fig: contrib != null ? statsSigned(contrib) + perKg : '', tone: realTone },
         { label: 'Measured', fig: share + '%', tone: shareTone, sub: 'of the cost, from records' },
         { label: 'Full cost', fig: escHtml(formatCurrency(gstRound(c.total))), sub: 'on ' + formatNum(kg / 1000, 1) + ' t' }],
       attrs: ' id="statsVerdict"' });
@@ -40809,9 +40806,10 @@ function statsVerdictHtml(tab, pa) {
       badge: tonnage.lines > 0 && tonnage.coverage < 0.999 ? ['warning', statsPctOf(tonnage.coverage) + '% weighed'] : null, attrs: ' data-tile="tonnage"' },
     { label: 'Realisation', fig: realisation != null ? escHtml(formatCurrency(realisation)) + perKg : '', tone: costKg > 0 ? figToneAgainst(realisation, costKg, 5) : null,
       sub: costKg > 0 ? pa.periodCost.label + formatCurrency(costKg) + '/kg' : 'set a cost in Settings', attrs: ' data-tile="realisation"' },
-    { label: 'Gross margin', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : margin < 0 ? 'danger' : 'ok',
+    // The margin is the price against the cost again, judged as Realisation is: under it within 5% is a warning, not red.
+    { label: 'Gross margin', fig: margin != null ? statsMoney(margin) : '', tone: margin == null ? null : figToneAgainst(realisation, costKg, 5),
       sub: contribution != null ? (contribution >= 0 ? '+' : '−') + formatCurrency(Math.abs(contribution)) + '/kg contribution' : 'needs tonnage and cost',
-      badge: contribution != null && contribution < 0 ? ['danger', 'below cost'] : null, attrs: ' data-tile="margin"' }];
+      badge: contribution != null && contribution < 0 ? [figToneAgainst(realisation, costKg, 5), 'below cost'] : null, attrs: ' data-tile="margin"' }];
   var worstTone = factors.map(function(f) { return f.tone; }).reduce(function(w, t) { return (UI_TONE_RANK[t] || 0) > (UI_TONE_RANK[w] || 0) ? t : w; }, 'ok');
   return uiVerdictHtml({ screen: 'Trends · ' + plabel, tone: filtered.length ? worstTone : 'neutral',
     verdict: !filtered.length ? 'No invoices ' + word : formatInrShort(totalRev) + ' ' + word + (comparable ? ' · ' + (dRev === 'level' ? 'level' : dRev) + ' on the same days' : ''),
@@ -41858,25 +41856,28 @@ function statsStoryCards(a, ctx) {
   var c1 = { key: 'money', q: 'Are we making money?' };
   var kg = tonnage.kg, real = kg > 0 ? tonnage.revKnown / kg : null, cost = periodCost.perKg > 0 ? periodCost.perKg : null;
   var contrib = real != null && cost != null ? real - cost : null;
+  // What a kilo left is the price against the cost, judged as the price is (In one line, Stats' tiles): a loss within 5% of the
+  // cost is a warning, as the realisation beside it says.
+  var moneyTone = contrib == null ? null : figToneAgainst(real, cost, 5);
   var body = statsTiles(statsTile('real', 'Realisation', real != null ? formatCurrency(real) + perKg : '&mdash;', statsTileSub(cost != null ? periodCost.label + formatCurrency(cost) + '/kg' : 'no cost to set it against'),
       real != null && cost != null ? figToneAgainst(real, cost, 5) : '') +
     statsTile('contrib', 'Left per kilo', contrib != null ? statsSigned(contrib) + perKg : '&mdash;', statsTileSub(contrib != null ? statsSigned(gstRound(contrib * kg)) + ' on ' + escHtml(plabel.toLowerCase() || 'the period') : ''),
-      contrib == null ? '' : contrib >= 0 ? 'ok' : 'danger'));
+      moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
     { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }) },
     { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
   body += contrib == null ? say(c1, 'neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
-    : say(c1, 'danger', 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
+    : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
   // The card as a tile on Today → Pulse (§6.21): the figure that answers it, its words, the six months as a line.
   c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',
     viz: mm.length >= 2 ? chartSpark(mm.map(function(x) { return gstRound(x.real); }), { ref: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }),
-      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: contrib != null && contrib < 0 ? 'danger' : contrib != null ? 'ok' : '', toDate: atNow(mm) }) : '',
-    tone: contrib == null ? 'neutral' : contrib >= 0 ? 'ok' : 'danger' };
+      labels: mm.map(function(x) { return x.label; }), unit: 'rate', tone: moneyTone || '', toDate: atNow(mm) }) : '',
+    tone: moneyTone || 'neutral' };
   cards.money = c1;
 
   // 2. Who is driving it? The worst-priced large account, and the biggest mover against the period before.
@@ -41895,10 +41896,10 @@ function statsStoryCards(a, ctx) {
     var top = m.ranked.slice().sort(function(a, b) { return b.kg - a.kg; }).slice(0, 4);
     body += statsBody(chartRankedBars(top.map(function(x) {
       return { label: x.name, value: x.kg, display: formatNum(x.kg / 1000, 1) + ' t', sub: formatCurrency(x.net) + '/kg · ' + Math.round(x.kg / m.kg * 100) + '% of the plant',
-        tone: x.vsFull < 0 ? 'danger' : 'good', action: 'invStatsClientDrill', clientId: x.id };
+        tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : 'good', action: 'invStatsClientDrill', clientId: x.id };
     }), { unit: 'kg' }));
   }
-  if (worst && worst.vsFull < 0) body += say(c2, 'danger', escHtml(worst.name) + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
+  if (worst && worst.vsFull < 0) body += say(c2, figToneAgainst(worst.net, m.fullKg, 5), escHtml(worst.name) + ' fills ' + Math.round(worst.kg / m.kg * 100) + '% of the plant at ' + formatCurrency(worst.net) + '/kg, ' + formatCurrency(-worst.vsFull) + ' under the full cost: ' + formatCurrency(-worst.money) + ' on the period.');
   var mover = moves.length && prior.length && Math.abs(moves[0].d) > 0 ? moves[0] : null;
   if (mover) body += say(c2, mover.d >= 0 ? 'ok' : 'warning', escHtml(nameOf(mover.id)) + ' billed ' + formatCurrency(Math.abs(mover.d)) + (mover.d >= 0 ? ' more' : ' less') + ' than in ' + (PERIOD_PRIOR_LABELS[period] || 'the period before') + ', the biggest change of any client.');
   if (!body) body = say(c2, 'neutral', 'No weighed billing in the period to rank the clients by.');
@@ -41909,9 +41910,9 @@ function statsStoryCards(a, ctx) {
   var vc = lead || big[0];
   c2.vital = vc ? { fig: Math.round(vc.kg / m.kg * 100) + '%', title: escHtml(vc.name),
       sub: escHtml(lead ? 'of the plant at ' + formatCurrency(lead.net) + '/kg, ' + formatCurrency(-lead.vsFull) + ' under the full cost' : 'of the plant, the largest by tonnage'),
-      viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? 'danger' : i % 2 ? 'neutral-2' : 'neutral' }; }),
+      viz: chartMeter(big.slice(0, 4).map(function(x, i) { return { v: x.kg, tone: x.vsFull < 0 ? figToneAgainst(x.net, m.fullKg, 5) : i % 2 ? 'neutral-2' : 'neutral' }; }),
         { max: m.kg, title: big.slice(0, 4).map(function(x) { return x.name + ' ' + Math.round(x.kg / m.kg * 100) + '%'; }).join(' · ') }),
-      tone: lead ? 'danger' : 'ok' }
+      tone: lead ? figToneAgainst(lead.net, m.fullKg, 5) : 'ok' }
     : { fig: '&mdash;', title: 'No weighed billing', sub: '', viz: '', tone: 'neutral' };
   c2.mover = mover;
   cards.clients = c2;
@@ -42202,7 +42203,8 @@ function whySentence(filtered, prior, period) {
    exact shape of an app task (todo.js), so they land on the To-do list, the
    Home card and the Windows widget with nothing new to learn, clear themselves
    when the figures change, and snooze against those figures. Each is switchable
-   in Settings → To-do. Stats → Overview lists them all in one place.
+   in Settings → To-do. They are Needs you's tasks with the rest, and Pulse's
+   What changed? names the three most urgent.
 
    Every insight states its instrument. A client "gone quiet" is judged against
    its OWN rhythm (the median gap between its challans), never a fixed cut-off;
@@ -50678,7 +50680,6 @@ function tdyArrival(text, at, day, sent) {
   if (m) return m.sentAt;
   return at && isoOf(new Date(at)) === day ? tdyMinOfDay(at) : null;
 }
-function tdyCap(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
 function tdyMedian(list) { return list.length ? Math.round(numMedian(list)) : null; }
 
 /* The rolls (S.relayPastes) for a day, of one kind. */
@@ -50990,16 +50991,23 @@ function tdyTasksHtml(rows) {
    are, the tasks snoozed with Wake, the tasks ticked with the tick that reopens, and what the app learnt from your answers.
    The field and Add head the tasks (Add is the view's one primary; Enter in the field adds, events.js); the rest fold, shut. */
 function tdyAddHtml() {
-  // What is typed outlives a redraw (a tick on a task redraws Needs you while the field holds half a task).
-  var cur = document.getElementById('todoNew'), typed = cur ? cur.value : '';
-  return '<div class="inv-toolbar" data-tdy-add><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off"' +
+  // What is typed outlives a redraw (a tick on a task redraws Needs you while the field holds half a task), for the person who
+  // typed it: drawn for another ID after the lock, the field starts empty, since the last person's half-typed task is theirs.
+  var who = String((typeof grdUserId === 'function' && grdUserId()) || '');
+  var cur = document.getElementById('todoNew'), typed = cur && cur.getAttribute('data-uid') === who ? cur.value : '';
+  return '<div class="inv-toolbar" data-tdy-add><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new data-uid="' + escHtml(who) + '" placeholder="Add a task…" aria-label="New task" autocomplete="off"' +
     (typed ? ' value="' + escHtml(typed) + '"' : '') + '>' +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoAdd">Add</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invTodoNew">Details</button></div>';
 }
 function tdySnoozedHtml() {
   var td = todoData();
-  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); }).concat(todoFolds().filter(todoIsSnoozed));
+  // Nothing snoozed is nothing to list: every rule read the whole book twice more on each draw of Needs you to find that out.
+  // Otherwise one pass serves the tasks and the folds (todoFolds' own reading, from the same tasks).
+  if (!Object.keys(td.snoozes || {}).length) return '';
+  var seen = todoAppAll().filter(todoSees);
+  var snoozed = seen.filter(todoIsSnoozed).concat(todoFoldList(seen.filter(function(t) { return !todoIsSnoozed(t); }))
+    .filter(function(t) { return t.rule === 'fold' && todoIsSnoozed(t); }));
   if (!snoozed.length) return '';
   var rows = snoozed.map(function(t) {
     var sn = td.snoozes[t.key] || {};
@@ -51075,8 +51083,8 @@ function tdyRecentHead(list) {
    figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
    moves worth most across every question, then what was Stats → Overview's (the tab map, TM2b): why the period moved, the
    period in one line and the month's pace, each a hero shut on the phone. Its head is the period, one with Stats', and More:
-   Make a report, Open Stats, Edit Home. Without the finance permission there are no questions, since every one reads money, and
-   the head is Edit Home alone. */
+   Make a report and Open Stats where the role opens them, and Edit Home. Without the finance permission there are no questions,
+   since every one reads money, and the head is Edit Home alone. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
 function renderPulseQuestions() {
   var el = document.getElementById('homeQuestions');
@@ -51091,10 +51099,12 @@ function renderPulseQuestions() {
   if (a) [function() { return whyHtml(per, a.filtered, a.prior); }, function() { return statsOverviewHtml(per, a.filtered, a.tonnage); }, paceCardHtml].forEach(function(f) {
     try { cards += f() || ''; } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   });
-  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot).
+  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot). A door to
+  // a page the role does not open is not offered: More's rows wait in a template, where the guard's doors cannot reach them.
   el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head>' +
     statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') +
-    uiToolbarMoreHtml([{ label: 'Make a report', action: 'invRptFromStats' }, { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' },
+    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+      tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
       { label: 'Edit Home', action: 'invHomeEdit' }], { icon: !_isDesktop }) + '</div>' +
     (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
       : '<div class="inv-empty">The questions could not be worked out: Stats has the figures.</div>') +
@@ -55685,7 +55695,6 @@ function rptTile(key, label, value, sub, delta) {
     '<div class="inv-rpt-tile-v">' + value + '</div>' + (sub ? '<div class="inv-rpt-tile-s">' + sub + '</div>' : '') +
     (delta ? '<div class="inv-rpt-tile-s">' + delta + '</div>' : '') + '</div>';
 }
-function rptDash(why) { return { v: '&mdash;', s: why }; }
 
 /* ---------- The document ---------- */
 function rptHtml(kind, from, to) {
@@ -55945,10 +55954,11 @@ function rptCostHtml(p, end, w, lc, real) {
   var rows = lc.rows.map(function(r) {
     return [escHtml(r.label), escHtml(finRs(r.amount)), formatNum(r.amount / w.kg, 2), escHtml(COST_SRC_LABEL[r.source] || r.source || '')];
   });
-  var contrib = real - lc.perKg;
+  // What a kilo left is judged as the price is, on the headline's tile and on Stats (figToneAgainst): within 5% under is a warning.
+  var contrib = real - lc.perKg, ct = figToneAgainst(real, lc.perKg, 5);
   var body = rptTable([['Component'], ['₹', 1], ['₹/kg', 1], ['Source']], rows, ['Live cost', escHtml(finRs(lc.total)), formatNum(lc.perKg, 2), statsPctOf(lc.measuredShare) + '% measured'], 'cost');
-  body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', contrib >= 0 ? 'ok' : 'danger') +
-    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), contrib >= 0 ? 'ok' : 'danger') + ' on the period. ' +
+  body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', ct) +
+    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), ct) + ' on the period. ' +
     (statsCostWeighedNote(w) || ''));
   return rptSec('cost', 'Cost & margin', escHtml('The live cost over ' + rptKg(w.kg) + ' invoiced; a stretch not recorded is filled at the model and said in its source.'), body);
 }
@@ -56959,7 +56969,7 @@ function plnRowHtml(o) {
     (o.end || (_isDesktop && acts.length) ? '<span class="inv-row-end">' + (o.end || '') + (_isDesktop ? acts.join('') : '') + '</span>' : '') + '</summary><div class="inv-row-children">' +
     rest.map(function(f) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(f) + '</span></span></div>'; }).join('') +
     (o.extra ? '<div class="inv-row"><span class="inv-row-main">' + o.extra + '</span></div>' : '') +
-    (acts.length && !_isDesktop ? '<div class="inv-row-actions" data-row-more>' + acts.join('') + '</div>' : '') + '</div></details>';
+    uiRowMoreHtml(acts) + '</div></details>';
 }
 /* A move's place in the plan as a row's end on the phone: its month, or what stands in its way; the controls are in its fold. */
 function plnMoveEnd(key, inPlan) {
@@ -56981,7 +56991,6 @@ function _plnSelect(id, label, opts, value) {
 function _plnVal(id) { var el = document.getElementById(id); return el ? String(el.value || '').trim() : ''; }
 function _plnNum(id) { var v = _plnVal(id); return v === '' || !isFinite(+v) ? null : +v; }
 function plnRegFind(k, id) { return plnList(k).find(function(r) { return r && r.id === id; }) || null; }
-function plnStationOpts() { return PLN_STATIONS.map(function(s) { return [s.id, s.name]; }); }
 function plnClientOpts() { return (S.clients || []).map(function(c) { return [c.id, c.name]; }).sort(function(a, b) { return String(a[1]).localeCompare(String(b[1])); }); }
 
 /* Machines and infrastructure: the plant register's units (plant.js), each with its status, condition, what it needs, and a risk
@@ -57178,8 +57187,7 @@ function plannerAction(action, btn) {
     case 'invPlnMoves': plnSetView('moves/' + d.k); renderPlanner(); return true;
     case 'invPlnMonth': _plnMonth = Math.max(0, Math.min(PLN_N - 1, _plnMonth + (+d.step || 0))); renderPlanner(); return true;
     case 'invPlnGoal': plnEdit(function(sc) { sc.goal = d.id; }); return true;
-    case 'invPlnScenario': plnData().active = d.id; _plnResult = null; _plnReplay = null; saveState(); renderPlanner(); return true;
-    case 'invPlnCopy': case 'invPlnFirst': plnScenarioCopy(); return true;
+    case 'invPlnCopy': plnScenarioCopy(); return true;
     case 'invPlnRename': plnScenarioRename(); return true;
     case 'invPlnClear': plnScenarioClear(); return true;
     case 'invPlnStart': plnEdit(plnSuggestStart); return true;
@@ -57963,8 +57971,8 @@ var KB_APP_GUIDES = [
     '- Delivered waits on the GST return, due on the 11th of the next month.\n- Office → Pipeline shows every invoice by state, with the oldest first.'),
   _kbg('credit', 'Using the app: credit notes', 'A batch rebate, a correction, or a note issued on paper', ['pageRegister'],
     '- **A batch rebate**: tick the invoices of the batch in the Register, then raise the credit note from the selection.\n' +
-    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → More → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
-    '- **A note already issued on paper**: Office → Invoices → More → **Credit notes** → **Record issued**, with its own number and year, its date, the GST as printed, and the invoice it names, picked or typed as printed when it is not in the register. A rebate takes its discount and the period it covered. The form stays open for the next.\n\n' +
+    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → **Credit notes** (under More) → **New note**, against one invoice, with a reason.\n' +
+    '- **A note already issued on paper**: Office → Invoices → **Credit notes** (under More) → **Record issued**, with its own number and year, its date, the GST as printed, and the invoice it names, picked or typed as printed when it is not in the register. A rebate takes its discount and the period it covered. The form stays open for the next.\n\n' +
     'A credit note is cancelled, never deleted.',
     // Version 3: the door is under More, and a past note's own year and period (owner, 13 Oct 2026: past notes to be recorded).
     { version: 3 }),
@@ -64037,6 +64045,10 @@ function navBarDraw() {
   for (var i = _navIdx - 1; i >= 0 && steps.length < NAV_TRAIL_SHOWN; i--) {
     var t = _navTrail[i];
     if (!t) continue;
+    // A step an older build saved at a place that has since moved (the redirect table) opens where its screen went: it is
+    // named, and checked against the role, there (it read "Stats · Overview" and opened Pulse).
+    var moved = navRedirect(t.loc);
+    if (navKey(moved) !== navKey(t.loc)) t = Object.assign({ loc: moved }, navLabel(moved));
     // The trail is this window's, and the person at it may have changed (the lock): a step on a screen this role does not
     // open is not shown, and a knowledge article is named as this role reads it (the last person's titles stayed).
     if (typeof grdSees === 'function' && !grdSees(t.loc.tab)) continue;

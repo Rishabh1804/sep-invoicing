@@ -63,7 +63,7 @@ test.describe('P196: a file brought to another screen\'s Import', () => {
       ['stockImportText', 'text', 'production', 'It is imported on Production → Entries.'],
       ['payrollImportText', 'text', 'plant', 'It is imported on Production → Equipment.'],
       ['aregImportText', 'text', 'stock', 'It is imported on Stock.'],
-      ['importRosterText', 'text', 'register', 'It is imported on People → Register.'],
+      ['importRosterText', 'text', 'register', 'It is imported on People → Attendance → Month.'],
       ['importDataText', 'text', 'production', 'It is imported on Production → Entries.'],
       ['kbImportData', 'obj', 'payroll', 'It is imported on People → Pay.'],
       ['powerImportData', 'obj', 'production', 'It is imported on Production → Entries.'],

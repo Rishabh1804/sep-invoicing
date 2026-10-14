@@ -343,12 +343,12 @@ test('SB1: where a line has no weight, the live cost per kg says it divides by t
   await loadAppWithState(page, s);
   // Trends' verdict says it in a line; Pulse's In one line carries the weighed share as a badge on realisation (TM2b).
   await openStatsTab(page, 'trends');
-  await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('90% of revenue: reads high by about 11%');
+  await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('90% of revenue: it reads high by about 11%');
   await openPulse(page);
   await expect(page.locator('#statsOverview [data-tile="realisation"] .inv-badge')).toHaveText('90% weighed');
   await openStatsTab(page, 'clients');
   // A note of its own under the cost's (TM2b: the margin's notes are a line each).
-  await expect(page.locator('#statsMargin .inv-panel-body .inv-note', { hasText: 'reads high' })).toContainText('90% of revenue: reads high by about 11%');
+  await expect(page.locator('#statsMargin .inv-panel-body .inv-note', { hasText: 'reads high' })).toContainText('90% of revenue: it reads high by about 11%');
   await openStatsTab(page, 'cost');
   await expect(page.locator('#liveCost [data-callout="weighed"]')).toContainText('by about 11%');
 

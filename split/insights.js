@@ -7,7 +7,8 @@
    exact shape of an app task (todo.js), so they land on the To-do list, the
    Home card and the Windows widget with nothing new to learn, clear themselves
    when the figures change, and snooze against those figures. Each is switchable
-   in Settings → To-do. Stats → Overview lists them all in one place.
+   in Settings → To-do. They are Needs you's tasks with the rest, and Pulse's
+   What changed? names the three most urgent.
 
    Every insight states its instrument. A client "gone quiet" is judged against
    its OWN rhythm (the median gap between its challans), never a fixed cut-off;

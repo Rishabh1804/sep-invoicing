@@ -69,8 +69,8 @@ var KB_APP_GUIDES = [
     '- Delivered waits on the GST return, due on the 11th of the next month.\n- Office → Pipeline shows every invoice by state, with the oldest first.'),
   _kbg('credit', 'Using the app: credit notes', 'A batch rebate, a correction, or a note issued on paper', ['pageRegister'],
     '- **A batch rebate**: tick the invoices of the batch in the Register, then raise the credit note from the selection.\n' +
-    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → More → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
-    '- **A note already issued on paper**: Office → Invoices → More → **Credit notes** → **Record issued**, with its own number and year, its date, the GST as printed, and the invoice it names, picked or typed as printed when it is not in the register. A rebate takes its discount and the period it covered. The form stays open for the next.\n\n' +
+    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → **Credit notes** (under More) → **New note**, against one invoice, with a reason.\n' +
+    '- **A note already issued on paper**: Office → Invoices → **Credit notes** (under More) → **Record issued**, with its own number and year, its date, the GST as printed, and the invoice it names, picked or typed as printed when it is not in the register. A rebate takes its discount and the period it covered. The form stays open for the next.\n\n' +
     'A credit note is cancelled, never deleted.',
     // Version 3: the door is under More, and a past note's own year and period (owner, 13 Oct 2026: past notes to be recorded).
     { version: 3 }),

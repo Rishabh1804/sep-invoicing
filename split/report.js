@@ -166,7 +166,6 @@ function rptTile(key, label, value, sub, delta) {
     '<div class="inv-rpt-tile-v">' + value + '</div>' + (sub ? '<div class="inv-rpt-tile-s">' + sub + '</div>' : '') +
     (delta ? '<div class="inv-rpt-tile-s">' + delta + '</div>' : '') + '</div>';
 }
-function rptDash(why) { return { v: '&mdash;', s: why }; }
 
 /* ---------- The document ---------- */
 function rptHtml(kind, from, to) {
@@ -426,10 +425,11 @@ function rptCostHtml(p, end, w, lc, real) {
   var rows = lc.rows.map(function(r) {
     return [escHtml(r.label), escHtml(finRs(r.amount)), formatNum(r.amount / w.kg, 2), escHtml(COST_SRC_LABEL[r.source] || r.source || '')];
   });
-  var contrib = real - lc.perKg;
+  // What a kilo left is judged as the price is, on the headline's tile and on Stats (figToneAgainst): within 5% under is a warning.
+  var contrib = real - lc.perKg, ct = figToneAgainst(real, lc.perKg, 5);
   var body = rptTable([['Component'], ['₹', 1], ['₹/kg', 1], ['Source']], rows, ['Live cost', escHtml(finRs(lc.total)), formatNum(lc.perKg, 2), statsPctOf(lc.measuredShare) + '% measured'], 'cost');
-  body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', contrib >= 0 ? 'ok' : 'danger') +
-    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), contrib >= 0 ? 'ok' : 'danger') + ' on the period. ' +
+  body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', ct) +
+    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), ct) + ' on the period. ' +
     (statsCostWeighedNote(w) || ''));
   return rptSec('cost', 'Cost & margin', escHtml('The live cost over ' + rptKg(w.kg) + ' invoiced; a stretch not recorded is filled at the model and said in its source.'), body);
 }

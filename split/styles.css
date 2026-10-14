@@ -1123,6 +1123,7 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   --rpt-ok: #1d6b3a;
   --rpt-warning: #8a5a00;
   --rpt-danger: #b02a1f;
+  --rpt-info: #1d4f8a;
   --rpt-fs: 9pt;
   --rpt-fs-sm: 8pt;
   --rpt-fs-xs: 7pt;
@@ -1195,6 +1196,7 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 .inv-rpt-doc .inv-fig-ok { color: var(--rpt-ok); }
 .inv-rpt-doc .inv-fig-warning { color: var(--rpt-warning); }
 .inv-rpt-doc .inv-fig-danger { color: var(--rpt-danger); }
+.inv-rpt-doc .inv-fig-info { color: var(--rpt-info); }
 @media print {
   .inv-print-body .inv-rpt-doc { border: none; margin: 0; width: auto; max-width: none; padding: 0 var(--rpt-gutter-side); }
   .inv-rpt-frame > thead { display: table-header-group; }
@@ -1263,8 +1265,9 @@ body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var
 /* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
 body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
-/* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). */
-body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:last-child:nth-child(5n+1) { grid-column: 1 / -1; }
+/* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). Counted
+   over the doors shown: a role's hidden ones ([data-grd-off]) had left Office's Task a row of its own beside an empty one. */
+body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:nth-last-child(1 of :not([data-grd-off])):nth-child(5n+1 of :not([data-grd-off])) { grid-column: 1 / -1; }
 .inv-panel > .inv-btn-grid:last-child { margin-bottom: 0; }
 
 /* §6.4 View tabs — underline. The one control for switching views. */
@@ -1312,8 +1315,6 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 .inv-tokens { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: calc(-1 * var(--sp-4)) 0 var(--sp-12); }
 button.inv-token { border: none; cursor: pointer; font-family: inherit; }
 button.inv-token:hover { background: var(--surface-3); }
-.inv-token-on { background: var(--accent-soft); color: var(--accent-soft-text); }
-.inv-token-add { background: none; border: var(--hair) dashed var(--border); color: var(--text-2); cursor: pointer; }
 
 /* §6.7 Toolbar and search */
 .inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
@@ -1576,10 +1577,12 @@ body:not(.inv-desktop) .inv-row-flow > .inv-row-actions { flex-basis: 100%; just
 .inv-num { font-family: var(--ff-mono); text-align: right; white-space: nowrap; }
 /* A signed figure: its sign is the symbol, the tone follows it (§5.4). */
 .inv-num-pos { color: var(--ok); }
-/* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). */
+/* A judged figure in its status tone (figHtml, state.js): the words beside it say why (DR-8). Info is over a mark, not short of
+   it: heads over the day's number, a line plating past its usual (areaNeedTone, prodLineEfficiency). */
 .inv-fig-ok { color: var(--ok); }
 .inv-fig-warning { color: var(--warning); }
 .inv-fig-danger { color: var(--danger); }
+.inv-fig-info { color: var(--info); }
 .inv-num-neg { color: var(--danger); }
 .inv-table th.inv-num { font-family: var(--ff-base); text-align: right; }
 .inv-id { font-family: var(--ff-mono); white-space: nowrap; }
@@ -1857,6 +1860,9 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
   margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
 }
 .inv-dialog-title { min-width: 0; font-size: var(--fs-16); font-weight: 600; overflow-wrap: anywhere; }
+/* The content between a dialog's head and its foot: a name typed without a space (a part, a client) breaks rather than pushing
+   the sheet past the phone's edge, and nothing else about its size changes. */
+.inv-dialog-body { overflow-wrap: break-word; }
 .inv-dialog-close { border-color: transparent; background: none; color: var(--text-3); font-size: var(--fs-19); }
 .inv-dialog-close:hover { color: var(--text-1); }
 /* The actions, primary last, held at the foot of a dialog that scrolls. */

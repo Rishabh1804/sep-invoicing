@@ -159,7 +159,7 @@ test.describe('P136: Add, the one door', () => {
     await expect(item).toContainText('An in-time roll');
     // Seven on the roster (one read from a spelling) and one it does not hold; a 6 AM block and the 8:30 shift's EXTRA.
     await expect(item).toContainText(`${short(-1)} · 8 names, 1 EXTRA block, 1 EXTRA on the general shift`);
-    await expect(page.locator('#addClipOut')).toContainText('Read in Staff');
+    await expect(page.locator('#addClipOut')).toContainText('Read in People');
     await expect(page.locator('#addClipOut .inv-quote')).toContainText('in time');
     await page.locator('[data-action="invAddClipRead"]').click();
     await expect(page.locator('#relayReviewTiles')).toBeVisible();

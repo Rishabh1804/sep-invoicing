@@ -59,7 +59,6 @@ function tdyArrival(text, at, day, sent) {
   if (m) return m.sentAt;
   return at && isoOf(new Date(at)) === day ? tdyMinOfDay(at) : null;
 }
-function tdyCap(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
 function tdyMedian(list) { return list.length ? Math.round(numMedian(list)) : null; }
 
 /* The rolls (S.relayPastes) for a day, of one kind. */
@@ -371,16 +370,23 @@ function tdyTasksHtml(rows) {
    are, the tasks snoozed with Wake, the tasks ticked with the tick that reopens, and what the app learnt from your answers.
    The field and Add head the tasks (Add is the view's one primary; Enter in the field adds, events.js); the rest fold, shut. */
 function tdyAddHtml() {
-  // What is typed outlives a redraw (a tick on a task redraws Needs you while the field holds half a task).
-  var cur = document.getElementById('todoNew'), typed = cur ? cur.value : '';
-  return '<div class="inv-toolbar" data-tdy-add><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new placeholder="Add a task…" aria-label="New task" autocomplete="off"' +
+  // What is typed outlives a redraw (a tick on a task redraws Needs you while the field holds half a task), for the person who
+  // typed it: drawn for another ID after the lock, the field starts empty, since the last person's half-typed task is theirs.
+  var who = String((typeof grdUserId === 'function' && grdUserId()) || '');
+  var cur = document.getElementById('todoNew'), typed = cur && cur.getAttribute('data-uid') === who ? cur.value : '';
+  return '<div class="inv-toolbar" data-tdy-add><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new data-uid="' + escHtml(who) + '" placeholder="Add a task…" aria-label="New task" autocomplete="off"' +
     (typed ? ' value="' + escHtml(typed) + '"' : '') + '>' +
     '<button class="inv-btn inv-btn-primary" data-action="invTodoAdd">Add</button>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invTodoNew">Details</button></div>';
 }
 function tdySnoozedHtml() {
   var td = todoData();
-  var snoozed = todoAppAll().filter(function(t) { return todoIsSnoozed(t) && todoSees(t); }).concat(todoFolds().filter(todoIsSnoozed));
+  // Nothing snoozed is nothing to list: every rule read the whole book twice more on each draw of Needs you to find that out.
+  // Otherwise one pass serves the tasks and the folds (todoFolds' own reading, from the same tasks).
+  if (!Object.keys(td.snoozes || {}).length) return '';
+  var seen = todoAppAll().filter(todoSees);
+  var snoozed = seen.filter(todoIsSnoozed).concat(todoFoldList(seen.filter(function(t) { return !todoIsSnoozed(t); }))
+    .filter(function(t) { return t.rule === 'fold' && todoIsSnoozed(t); }));
   if (!snoozed.length) return '';
   var rows = snoozed.map(function(t) {
     var sn = td.snoozes[t.key] || {};
@@ -456,8 +462,8 @@ function tdyRecentHead(list) {
    figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
    moves worth most across every question, then what was Stats → Overview's (the tab map, TM2b): why the period moved, the
    period in one line and the month's pace, each a hero shut on the phone. Its head is the period, one with Stats', and More:
-   Make a report, Open Stats, Edit Home. Without the finance permission there are no questions, since every one reads money, and
-   the head is Edit Home alone. */
+   Make a report and Open Stats where the role opens them, and Edit Home. Without the finance permission there are no questions,
+   since every one reads money, and the head is Edit Home alone. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
 function renderPulseQuestions() {
   var el = document.getElementById('homeQuestions');
@@ -472,10 +478,12 @@ function renderPulseQuestions() {
   if (a) [function() { return whyHtml(per, a.filtered, a.prior); }, function() { return statsOverviewHtml(per, a.filtered, a.tonnage); }, paceCardHtml].forEach(function(f) {
     try { cards += f() || ''; } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
   });
-  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot).
+  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot). A door to
+  // a page the role does not open is not offered: More's rows wait in a template, where the guard's doors cannot reach them.
   el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head>' +
     statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') +
-    uiToolbarMoreHtml([{ label: 'Make a report', action: 'invRptFromStats' }, { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' },
+    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+      tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
       { label: 'Edit Home', action: 'invHomeEdit' }], { icon: !_isDesktop }) + '</div>' +
     (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
       : '<div class="inv-empty">The questions could not be worked out: Stats has the figures.</div>') +

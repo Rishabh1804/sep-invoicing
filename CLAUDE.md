@@ -3024,7 +3024,8 @@ ground, a troubleshooting area, a record keeper, a tool used to make decisions"*
   `docs/KNOWLEDGE_BASE.md`, *The writing standard*). A step is one instruction in the imperative, 20 words at most, a description 25;
   active voice; a condition before its step; one word one meaning; numbers in digits; a WARNING before a step that can lose data or
   money. Kept as they are: the app's labels in bold, the shop's terms, every fact. Every app guide was rewritten to it (its next
-  version), the guide *Writing an article* (`app-writing`) states it, and the article form's hint says it. A new guide is written so.
+  version), the guide *Writing an article* (`app-writing`) states it, and the article form's hint says it. A new guide is written so. The Library lists the shop's own articles by kind first and the app's guides
+  after them as one group (*The app's guides*), its first thirty rows shown: 32 guides had led it and hidden what the shop wrote.
 - **The setup guides** (owner, 14 Oct 2026: *"These (print, github, etc.) should be knowledge base documents"*): *Setting up: the
   office printer*, *GitHub sync*, *a new device* and *IDs, PINs and roles* (`app-printer`, `app-sync`, `app-devices`, `app-guard`),
   each opened from its Settings section (`guide` on the section, `_settingsGuideHtml`, `settingsGuide`: Settings shuts, asking about

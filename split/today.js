@@ -516,7 +516,7 @@ function tdyAction(action, btn) {
   switch (action) {
     case 'invTdyInput': tdyOpenInput(btn.dataset.k); return true;
     case 'invTdyPaste': if (typeof addOpen === 'function') addOpen(); else relayOpen(); return true;
-    case 'invTdyHand': flrOpenLine(btn.dataset.line || 'vat-a1'); prodOpenHand(null, null, { fromLines: true }); return true;
+    case 'invTdyHand': flrOpenLine(btn.dataset.line || 'vat-a1'); prodOpenHand(null, null, true); return true;
     case 'invTdyFloor': flrSetDay(null); switchTab('pageFloor'); return true;
     case 'invTdyPower': powerSetTab('cuts'); switchTab('pagePower'); return true;
   }

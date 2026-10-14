@@ -217,10 +217,12 @@ function pltLogHtml() {
    and the files behind More (the owner's), then each line's units as deck cards, the supporting equipment and the changes. */
 function pltEquipmentHtml() {
   var phone = !_isDesktop, lines = PLT_STATIONS.filter(function(s) { return s[2]; });
-  var caps = lines.map(function(s) { return { s: s, cap: pltCapacity(s[0]) }; });
+  // Every station judges the card, the supporting ones (lab, oven, power, effluent) too: with one of those down it read "Every
+  // unit working". The worst names it (its tone, then its units down; a line first among equals); the lines are its factors.
+  var all = PLT_STATIONS.map(function(s) { return { s: s, cap: pltCapacity(s[0]) }; }), caps = all.filter(function(x) { return x.s[2]; });
   var rank = { neutral: 0, ok: 1, warning: 2, danger: 3 }, worst = null;
-  caps.forEach(function(x) { if (x.cap.n && (!worst || rank[pltCapTone(x.cap)] > rank[pltCapTone(worst.cap)] || (pltCapTone(x.cap) === pltCapTone(worst.cap) && x.cap.down.length > worst.cap.down.length))) worst = x; });
-  var units = pltUnits(), down = caps.reduce(function(n, x) { return n + x.cap.down.length; }, 0);
+  all.forEach(function(x) { if (x.cap.n && (!worst || rank[pltCapTone(x.cap)] > rank[pltCapTone(worst.cap)] || (pltCapTone(x.cap) === pltCapTone(worst.cap) && x.cap.down.length > worst.cap.down.length))) worst = x; });
+  var units = pltUnits(), down = all.reduce(function(n, x) { return n + x.cap.down.length; }, 0);
   var noun = function(cap) { return cap.units.every(function(u) { return u.kind === 'barrel'; }) ? 'barrel' : cap.units.every(function(u) { return u.kind === 'tank'; }) ? 'tank' : 'unit'; };
   var verdict = !units.length ? 'No unit recorded yet' : !down ? 'Every unit working'
     : worst.cap.down.length + ' of ' + worst.cap.n + ' ' + noun(worst.cap) + (worst.cap.n === 1 ? '' : 's') + ' down on ' + worst.s[1];

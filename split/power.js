@@ -559,17 +559,18 @@ function powerLoadRowHtml(L) {
    of two facts that opens to what its damage is made of; the two charts folded after them. */
 function powerCutsHtml(a) {
   var mm = powerMonthNow(a), L = a.load, y = a.year, phone = !_isDesktop;
+  // What a cut costs is every role's that opens Power (the tab map, TM4 as built), as the month heads and the rows under the card
+  // show it: the card hid it from a role without money while the rows beside it said it.
   var h = uiVerdictHtml({ screen: 'Cuts · ' + billsMonthLabel(mm.month || localDateStr().slice(0, 7)),
-    verdict: mm.cuts ? todoPlural(mm.cuts, 'cut') + ' this month, ' + finRs(mm.cost) : 'No cut this month', money: true,
-    plain: mm.cuts ? todoPlural(mm.cuts, 'cut') + ' this month' : 'No cut this month',
+    verdict: mm.cuts ? todoPlural(mm.cuts, 'cut') + ' this month, ' + finRs(mm.cost) : 'No cut this month',
     tone: L.pending ? 'danger' : mm.cuts ? 'warning' : 'ok',
-    facts: [y ? { text: formatInrShort(y.base) + ' a year at this rate', money: true } : '', mm.cuts ? powerHours(mm.min) + ' dark' + (mm.open ? ', ' + mm.open + ' with no time back' : '') : '',
+    facts: [y ? formatInrShort(y.base) + ' a year at this rate' : '', mm.cuts ? powerHours(mm.min) + ' dark' + (mm.open ? ', ' + mm.open + ' with no time back' : '') : '',
       (mm.recorded || 0) + ' days recorded'],
     factors: [
       { label: 'Cuts this month', fig: String(mm.cuts), tone: mm.cuts ? 'warning' : null, sub: powerHours(mm.min) + ' dark', attrs: ' data-power-tile="month"' },
-      { label: 'What they cost', fig: figWrapHtml(escHtml(formatCurrency(mm.cost))), tone: mm.cost > 0 ? 'warning' : null, sub: 'this month', money: true, attrs: ' data-power-tile="cost"' },
+      { label: 'What they cost', fig: figWrapHtml(escHtml(formatCurrency(mm.cost))), tone: mm.cost > 0 ? 'warning' : null, sub: 'this month', attrs: ' data-power-tile="cost"' },
       { label: 'A year at this rate', fig: y ? figWrapHtml(escHtml(formatCurrency(y.base))) : '', tone: y && y.base > 0 ? 'danger' : null,
-        sub: y ? 'the last 90 days, ' + y.recorded + ' of ' + y.of + ' recorded' : 'no cut on record yet', money: true, attrs: ' data-power-tile="year"' },
+        sub: y ? 'the last 90 days, ' + y.recorded + ' of ' + y.of + ' recorded' : 'no cut on record yet', attrs: ' data-power-tile="year"' },
       { label: 'Load', fig: L.sanctioned ? escHtml(formatNum(L.sanctioned, 0) + ' kVA') : '', tone: L.pending ? 'danger' : null,
         sub: L.pending ? formatNum(L.approved, 0) + ' kVA approved, not billed' : L.sanctioned ? 'as billed' : 'not recorded yet', attrs: ' data-power-tile="load"' }],
     attrs: ' id="powerVerdict"' });
@@ -634,13 +635,14 @@ function powerLoadHtml(a) {
     : L.sanctioned ? 'Billed at ' + formatNum(L.sanctioned, 0) + ' kVA' + (L.approved && L.approved === L.sanctioned ? ', as approved' : '') : 'No load recorded yet';
   var kva = function(n, dp) { return escHtml(formatNum(n, dp)) + '<span class="inv-tile-of"> kVA</span>'; };
   var h = uiVerdictHtml({ screen: 'Load & bills', verdict: verdict, tone: L.pending ? 'danger' : L.sanctioned ? 'ok' : 'neutral',
-    facts: [L.pending ? { text: formatCurrency(L.penaltySince) + ' penalty since approval', tone: L.penaltySince > 0 ? 'danger' : null, money: true } : '',
+    // The penalty is every role's that opens Power, as the bills under the card and Cuts' row for the load show it.
+    facts: [L.pending ? { text: formatCurrency(L.penaltySince) + ' penalty since approval', tone: L.penaltySince > 0 ? 'danger' : null } : '',
       L.pending ? 'chase JBVNL' + (L.ref ? ', ref ' + L.ref : '') : '', L.bills.length ? todoPlural(L.bills.length, 'bill') + ' on record' : 'no bill entered yet'],
     factors: any ? [
       { label: 'Billed at', fig: L.sanctioned ? kva(L.sanctioned, 0) : '', tone: L.pending ? 'danger' : null, sub: L.billedOn ? billsMonthLabel(L.billedOn) + ' bill' : 'the load typed', attrs: ' data-power-tile="billed"' },
       { label: 'Approved', fig: L.approved ? kva(L.approved, 0) : '', sub: L.approvedOn ? 'since ' + formatDate(L.approvedOn) + (L.ref ? ', ref ' + L.ref : '') : 'not recorded', attrs: ' data-power-tile="approved"' },
       { label: 'Peak drawn', fig: L.peak ? kva(L.peak, 2) : '', sub: L.peakMonth ? billsMonthLabel(L.peakMonth) + ' bill' : 'no bill gives it', attrs: ' data-power-tile="peak"' },
-      { label: 'Penalty since', fig: L.since ? figWrapHtml(escHtml(formatCurrency(L.penaltySince))) : '', tone: L.penaltySince > 0 ? 'danger' : null, sub: L.since ? 'the bills since approval' : 'no approval recorded', money: true, attrs: ' data-power-tile="penalty"' }] : [],
+      { label: 'Penalty since', fig: L.since ? figWrapHtml(escHtml(formatCurrency(L.penaltySince))) : '', tone: L.penaltySince > 0 ? 'danger' : null, sub: L.since ? 'the bills since approval' : 'no approval recorded', attrs: ' data-power-tile="penalty"' }] : [],
     body: L.note ? '<div class="inv-hero-sheet"><div class="inv-row" data-power-load-note><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(L.note) + '</span></span></div></div>' : '',
     attrs: ' id="powerLoad"' });
   h += '<div class="inv-toolbar" data-power-toolbar="load"><button class="inv-btn inv-btn-primary" data-action="invPowerLoadEdit">Edit load</button></div>';

@@ -38,13 +38,15 @@ function prodToolbarHtml(lead, more, filter) {
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
     (filter || '') + uiToolbarMoreHtml([{ label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
-    (_prodTab === 'entries' ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
+    ((more || []).some(function(m) { return m.action === 'invProdImport'; }) ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
   return h;
 }
-/* Nothing recorded yet: the card says so, the toolbar takes the first message, and the plant at a glance (it led the Overview). */
+/* Nothing recorded yet: the card says so, the toolbar takes the first message (and the history the card names, behind More), and
+   the plant at a glance (it led the Overview). */
 function prodEmptyHtml() {
   return uiVerdictHtml({ screen: 'Production', verdict: 'No production recorded yet', tone: 'neutral', key: 'pageProduction-empty',
-    facts: ['paste a message, enter a page by hand, or import the history'], attrs: ' id="prodEmpty"' }) + prodToolbarHtml() + pltGlanceHtml();
+    facts: ['paste a message, enter a page by hand, or import the history'], attrs: ' id="prodEmpty"' }) +
+    prodToolbarHtml('', [{ label: 'Import', action: 'invProdImport' }]) + pltGlanceHtml();
 }
 
 function renderProduction() {
@@ -266,9 +268,11 @@ function prodDayMoreHtml(pic) {
   h += '<div class="inv-row-group"><span>The day</span></div>' + [
     money && wo.runs ? { label: 'Work plated, worth', sub: 'clients’ rates, before GST' + (wo.unpriced ? ' · ' + Math.round(wo.unpriced).toLocaleString('en-IN') + ' pcs unpriced' : ''),
       value: (wo.est ? '≈ ' : '') + formatCurrency(wo.amount), attrs: ' data-prod-day-worth' } : null,
-    cost != null ? { label: 'At the live cost', sub: formatCurrency(ref.perKg) + ' a kg × ' + prodKgFig(wo.kg, false) + (ref.live ? ', 90 days' : ', the full cost typed'), value: formatCurrency(cost), attrs: ' data-prod-day-cost' } : null,
-    cost != null ? { label: 'Left after it', sub: formatCurrency(real) + ' a kg earned' + (wo.kg > 0 && wo.amountKg < wo.amount - 0.005 ? ' · piece work nothing weighs left out' : ''),
-      value: (wo.est ? '≈ ' : '') + formatCurrency(gstRound(wo.amountKg - cost)), tone: figToneAgainst(real, ref.perKg, 5), attrs: ' data-prod-day-left' } : null,
+    // Read over the kilos of the runs priced: where a weight is estimated, so are the cost, the rupee a kilo and what was left,
+    // though a piece rate's earnings are exact.
+    cost != null ? { label: 'At the live cost', sub: formatCurrency(ref.perKg) + ' a kg × ' + prodKgFig(wo.kg, wo.kgEst) + (ref.live ? ', 90 days' : ', the full cost typed'), value: (wo.kgEst ? '≈ ' : '') + formatCurrency(cost), attrs: ' data-prod-day-cost' } : null,
+    cost != null ? { label: 'Left after it', sub: (wo.kgEst ? '≈ ' : '') + formatCurrency(real) + ' a kg earned' + (wo.kg > 0 && wo.amountKg < wo.amount - 0.005 ? ' · piece work nothing weighs left out' : ''),
+      value: (wo.est || wo.kgEst ? '≈ ' : '') + formatCurrency(gstRound(wo.amountKg - cost)), tone: figToneAgainst(real, ref.perKg, 5), attrs: ' data-prod-day-left' } : null,
     wages && pic.labour > 0 ? { label: 'Labour on the record', sub: money && wo.amount > 0 ? Math.round(pic.labour / wo.amount * 100) + '% of the work’s worth' : '', value: formatCurrency(pic.labour), attrs: ' data-prod-day-labour' } : null,
     { label: 'Power cuts', sub: pic.cuts.length ? pic.cuts.map(function(c) { return relayClockLabel(c.from) + (c.to != null ? ' – ' + relayClockLabel(c.to) : ''); }).join(', ') + (open ? ' · ' + open + ' with no time back' : '') : '',
       value: pic.cuts.length ? powerDur(mins) + ' dark' : 'none', attrs: ' data-prod-day-cuts' },
@@ -337,9 +341,16 @@ function prodLoadRowParts(e) {
   var qty = e.qty != null ? prodQtyText(e.qty, e.unit) : (m && m.qty != null ? '~' + prodQtyText(m.qty, e.unit) + ' from plating' : 'no quantity');
   var main = '<span class="inv-row-title">' + escHtml(prodEntryTitle(e)) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(stockShortDate(e.date) + (e.time ? ' ' + e.time : '') + ' · ' + qty) + '</span>';
-  var end = L.how === 'unknown' && L.hint ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + L.hint.line + '" title="' + escHtml('Usually ' + prodLineName(L.hint.line) + ' (' + L.hint.days + ' of ' + L.hint.total + ' days)') + '">Use ' + escHtml(prodLineName(L.hint.line)) + '</button>'
-    : '<span class="inv-dot inv-dot-' + (L.how === 'unknown' ? 'warning' : 'neutral') + '">' + escHtml(lineTxt) + '</span>';
-  return { main: main, end: '<span class="inv-row-end">' + end + '</span>' };
+  var act = L.how === 'unknown' && L.hint ? prodUseLineBtnHtml(e, L.hint) : '';
+  var end = act || '<span class="inv-dot inv-dot-' + (L.how === 'unknown' ? 'warning' : 'neutral') + '">' + escHtml(lineTxt) + '</span>';
+  // `act`, the action at the end, is what the row's fold leaves out (prodEntryActionsHtml's `omit`).
+  return { main: main, end: '<span class="inv-row-end">' + end + '</span>', act: act };
+}
+/* A load whose line is unknown, set to its part's usual line: one button wherever it is drawn, so a fold can leave out the one at
+   its row's end. */
+function prodUseLineBtnHtml(e, hint) {
+  return '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + hint.line + '" title="' +
+    escHtml('Usually ' + prodLineName(hint.line) + ' (' + hint.days + ' of ' + hint.total + ' days)') + '">Use ' + escHtml(prodLineName(hint.line)) + '</button>';
 }
 function prodLoadRowHtml(e) {
   var r = prodLoadRowParts(e);
@@ -462,14 +473,17 @@ function prodLinesLastDay(line) {
   return days[days.length - 1] || null;
 }
 function prodLinesDay() { return _prodDay || prodLinesLastDay(_prodLine) || localDateStr(); }
+/* A run or a load corrected or voided from Lines keeps the day on screen: with none stepped to, Lines shows the last recorded
+   day, and the void of its only run (or a date corrected) moved it to another without a word. */
+function prodPinDay() { if (_prodTab === 'lines' && _prodView === 'main' && !_prodDay) _prodDay = prodLinesDay(); }
 /* Lines (the tab map, TM4c): the line's verdict for the day (its efficiency, judged as Floor's line card judges it; the plated,
    pieces, rounds and cuts its factors, and how the efficiency splits under them), one toolbar row (the day, what comes in, More),
    the line's switch; plated by line over four weeks at the head, shut; the day's runs; the week, each day in its efficiency's tone;
-   what went into the bath; labour by line against the model. What each figure is made of is the guide's (Using the app: production). */
+   what went into the bath; labour by line, its variable part. What each figure is made of is the guide's (Using the app: production). */
 function prodLinesHtml() {
   var idx = prodIndex(), line = _prodLine, day = prodLinesDay(), phone = !_isDesktop, last = prodLinesLastDay(line);
   // The phone's row has no room for the day's name beside the doors: the card above names it.
-  var lead = _attStepInRow('invProdDay', phone ? '' : '<span class="inv-stepper-title">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>', 'Day before', 'Day after') +
+  var lead = _attStepInRow('invProdDay', phone ? '' : '<span class="inv-stepper-title">' + escHtml(attDayName(day) + ' ' + formatDate(day)) + '</span>', 'Day before', 'Day after', day >= localDateStr()) +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdDayLast"' + (!last || day === last ? ' disabled' : '') + '>Last recorded</button>');
   var h = prodLinesVerdictHtml(line, day) + prodToolbarHtml(lead, (phone && last && day !== last ? [{ label: 'Go to the last recorded day', action: 'invProdDayLast' }] : [])
       .concat([{ label: 'Every entry of this day', action: 'invProdDayEntries' }])) +
@@ -480,7 +494,7 @@ function prodLinesHtml() {
   if (line === 'pickling') {
     var loads = prodDayLoads(day);
     return h + '<div class="inv-panel inv-panel-flush" id="prodLoads"><div class="inv-panel-head"><span class="inv-panel-title">Pickled</span><span class="inv-panel-count">' + loads.length + '</span></div>' +
-      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end); }).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
+      (loads.length ? loads.map(function(e) { var r = prodLoadRowParts(e); return prodEntryFoldRowHtml(e, idx, r.main, r.end, false, r.act); }).join('') : '<div class="inv-empty">No pickling recorded this day.</div>') + '</div>';
   }
   var r = prodDayLine(day, line);
   var groups = { general: [], ot: [] };
@@ -514,12 +528,13 @@ function prodLinesHtml() {
   h += uiFoldCard('prod-line-stock', prodLineStockHtml(line), false);
   // Labour per kg is the wage bill per kilo: a role without the wages sees no line's (guard.js; the QA audit, QA4-3).
   if (typeof grdSeesWages === 'function' && !grdSeesWages()) return h;
-  var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line], model = labourCfg().modelPerKg || 3.55;
-  var lt = L.perKg != null ? figToneAgainst(L.perKg, model, 5, true) : null;
+  // The variable part only (the monthly crew is not by line), so it is not judged against the modelled labour, which is all of it:
+  // a line's variable rupees a kilo read green beside every tier's.
+  var lab = prodLabourByLine(isoAddDays(localDateStr(), -29), localDateStr()), L = lab.lines[line];
   h += '<div class="inv-panel inv-panel-flush" id="prodLabour"><div class="inv-panel-head"><span class="inv-panel-title">Labour per kg, 30 days</span></div>' +
     '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(PROD_LINE_LABEL[line]) + '</span><span class="inv-row-meta">' +
-    escHtml(L.perKg != null ? todoPlural(L.days, 'day') + ' recorded · against the model ₹' + formatNum(model, 2) : todoPlural(L.days, 'day') + ' recorded · withheld under five') + '</span></span>' +
-    '<span class="inv-row-end inv-num">' + (L.perKg != null ? figHtml(escHtml('₹' + formatNum(L.perKg, 2) + '/kg'), lt) : '&mdash;') + '</span></div></div>';
+    escHtml(todoPlural(L.days, 'day') + ' recorded · ' + (L.perKg != null ? 'the variable part only' : 'withheld under five')) + '</span></span>' +
+    '<span class="inv-row-end inv-num">' + (L.perKg != null ? escHtml('₹' + formatNum(L.perKg, 2) + '/kg') : '&mdash;') + '</span></div></div>';
   return h;
 }
 /* The week's earnings, the three lines together, a day a cell (prodDayWorth at the rates on record, "≈" where a weight is
@@ -528,13 +543,13 @@ function prodLinesHtml() {
 function prodWeekEarnedRowHtml(days) {
   if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) return '';
   var any = false, cells = days.map(function(d) {
-    var amt = 0, est = false, runs = 0, kg = 0, amtKg = 0, ran = false;
-    PROD_LINES.forEach(function(l) { var x = prodLineDaySum(d, l); if (x.runs) ran = true; amt += x.worth; est = est || x.worthEst; runs += x.priced; kg += x.kgPriced; amtKg += x.amountKg; });
+    var amt = 0, est = false, runs = 0, kg = 0, amtKg = 0, ran = false, kgEst = false;
+    PROD_LINES.forEach(function(l) { var x = prodLineDaySum(d, l); if (x.runs) ran = true; amt += x.worth; est = est || x.worthEst; runs += x.priced; kg += x.kgPriced; amtKg += x.amountKg; kgEst = kgEst || x.kgPricedEst; });
     if (!ran) return '<td class="inv-num">&mdash;</td>';
     if (!runs) return '<td class="inv-num" title="Nothing priced: no rate on record">&mdash;</td>';
     any = true;
     var ref = kg > 0 ? prodCostRef(d) : null, t = ref ? figToneAgainst(amtKg / kg, ref.perKg, 5) : null;
-    return '<td class="inv-num"' + (kg > 0 ? ' title="' + escHtml(formatCurrency(amtKg / kg) + ' a kg' + (ref ? ' against a cost of ' + formatCurrency(ref.perKg) : '')) + '"' : '') + '>' +
+    return '<td class="inv-num"' + (kg > 0 ? ' title="' + escHtml((kgEst ? '≈ ' : '') + formatCurrency(amtKg / kg) + ' a kg' + (ref ? ' against a cost of ' + formatCurrency(ref.perKg) : '')) + '"' : '') + '>' +
       figHtml(escHtml((est ? '≈ ' : '') + finRs(amt)), t) + '</td>';
   });
   return any ? '<tr data-prod-week-earned><td>Earned</td>' + cells.join('') + '</tr>' : '';
@@ -553,7 +568,10 @@ function prodLinesVerdictHtml(line, day) {
   var kg = r.kg > 0 ? prodKgFig(r.kg, r.est > 0.0005, r.unweighed > 0) : '';
   var lead = [ef.halfDown ? (ef.n - ef.nAvail) + ' of ' + ef.n + ' ' + unit + 's down' : '', ef.missing ? 'no record of the general shift' : ''].filter(Boolean).join(', ');
   var judged = ef.eff == null ? 'not judged' : ef.over ? ef.word.toLowerCase() : Math.round(ef.eff * 100) + '% efficient';
-  var verdict = !ef.ran ? (ef.missing ? 'Heads on the general shift, no record' : isToday ? 'Not running yet today' : 'Did not run')
+  // A past day with no run and no attendance is a gap in the record, as its Runs say; it did not run only where the day's marks
+  // put nobody on the line.
+  var att = (S.attendance || {})[day], marked = !!(att && att.marks && Object.keys(att.marks).length);
+  var verdict = !ef.ran ? (ef.missing ? 'Heads on the general shift, no record' : isToday ? 'Not running yet today' : marked ? 'Did not run' : 'No record this day')
     : lead ? lead.charAt(0).toUpperCase() + lead.slice(1) + ', ' + judged
     : ef.eff == null ? (kg ? 'Plated ' + kg + ', not judged' : 'Nothing weighed, not judged')
     : ef.over ? ef.word + ', ' + kg + ' plated' : judged.charAt(0).toUpperCase() + judged.slice(1) + ', ' + kg + ' plated';
@@ -565,15 +583,18 @@ function prodLinesVerdictHtml(line, day) {
   var kgDelta = !r.entries.length || u.kg == null ? '' : isToday ? 'a usual day ' + escHtml(prodKgFig(u.kg, true)) : r.weighedShare < 0.9 ? 'reads low: pieces not weighed'
     : figDeltaHtml(r.kg, u.kg, 'a usual day', 'up');
   var ref = money ? prodCostRef(day) : null, real = x.kgPriced > 0 ? x.amountKg / x.kgPriced : null;
+  // What no rate prices, in its own unit as Floor's line card says it: kilos written with no rate are not "0 pcs".
+  var notPriced = x.unpriced ? Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced' : x.unpricedKg ? formatNum(x.unpricedKg, 0) + ' kg not priced' : '';
   var earned = { label: 'Earned', money: true, fig: x.priced ? figWrapHtml(escHtml((x.worthEst ? '≈ ' : '') + finRs(x.worth))) : '', attrs: ' data-prod-line-tile="earned"',
     tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
-    sub: !r.entries.length ? 'nothing recorded' : !x.priced ? 'no rate on record' : real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : 'by the piece',
-    delta: !x.priced || u.worth == null ? '' : isToday ? 'a usual day ' + escHtml(finRs(u.worth)) : x.pricedShare < 0.9 ? escHtml(Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced')
+    sub: !r.entries.length ? 'nothing recorded' : !x.priced ? 'no rate on record' : real != null ? (x.kgPricedEst ? '≈ ' : '') + formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : 'by the piece',
+    delta: !x.priced || u.worth == null ? '' : isToday ? 'a usual day ' + escHtml(finRs(u.worth)) : x.pricedShare < 0.9 ? escHtml(notPriced)
       : figDeltaHtml(x.worth, u.worth, 'a usual day', 'up') };
   // The week to the day, a recorded day's average against the four weeks before's (a day with no record is a gap, never a zero).
   var wk = prodLineWeek(line, day), wkFact = null;
   if (wk && wk.cur.days && wk.kgDayBefore != null && wk.cur.kg > 0) {
-    var fair = wk.cur.weighed >= 0.9, wd = figDeltaText(wk.cur.kgDay, wk.kgDayBefore, 'the 4 before');
+    // Set against the weeks before that count (two to four: a week mostly unweighed is left out), and says how many.
+    var fair = wk.cur.weighed >= 0.9, wd = figDeltaText(wk.cur.kgDay, wk.kgDayBefore, 'the ' + wk.kgWeeks + ' before');
     wkFact = { text: 'this week ' + prodKgFig(wk.cur.kgDay, wk.cur.est, !fair) + ' a day' + (fair && wd ? ', ' + wd : ''), tone: fair ? figDeltaTone(wk.cur.kgDay, wk.kgDayBefore, 'up') : null };
   }
   return uiVerdictHtml({ screen: PROD_LINE_LABEL[line] + ' · ' + when, verdict: verdict, tone: ef.tone, viz: ef.eff != null ? head.viz || '' : '',
@@ -685,10 +706,14 @@ function prodEntriesHtml() {
   var on = f.flag ? (PROD_ENTRY_FLAGS.find(function(c) { return c[0] === f.flag; }) || [])[1] : f.kind ? (PROD_ENTRY_KINDS.find(function(c) { return c[0] === f.kind; }) || [])[1] : '';
   // A day: every entry of it, whatever its kind (owner, 10 Oct 2026: a past day's records, to check and correct).
   var dayField = '<label class="inv-field inv-toolbar-item"><span class="inv-field-label">A day</span><input type="date" id="prodEntriesDay" class="inv-input" max="' + today + '" value="' + escHtml(f.day || '') + '" aria-label="A day"></label>';
+  // The client a jump filtered by (the To-do's "Open the loads") is named, a pressed chip and a token, each clearing it: a day
+  // picked after it kept it unseen.
+  var clientName = f.client ? prodClientName(f.client) || 'Client ' + f.client : '';
+  var clientChip = clientName ? '<button class="inv-chip" data-action="invProdClientClear" aria-pressed="true" data-prod-client-filter>' + escHtml(clientName) + '</button>' : '';
   h += prodToolbarHtml('', [{ label: 'Export', action: 'invProdExport' }, { label: 'Import', action: 'invProdImport' }],
-    uiFilterHtml({ key: 'prodEntries', count: (on ? 1 : 0) + (f.day ? 1 : 0), controls: chips + dayField })) +
+    uiFilterHtml({ key: 'prodEntries', count: (on ? 1 : 0) + (f.day ? 1 : 0) + (clientName ? 1 : 0), controls: clientChip + chips + dayField })) +
     uiTokensHtml([{ key: 'Show', value: on, action: 'invProdFilter', attrs: f.flag ? ' data-flag="' + escHtml(f.flag) + '"' : ' data-kind=""' },
-      { key: 'Day', value: f.day ? stockShortDate(f.day) : '', action: 'invProdDayClear' }]);
+      { key: 'Client', value: clientName, action: 'invProdClientClear' }, { key: 'Day', value: f.day ? stockShortDate(f.day) : '', action: 'invProdDayClear' }]);
   // What needs a look heads the list: the loads with the line unknown, then the record's coverage, folded. On the desktop they head
   // the list's column, so the list and the pane still fill the room under the toolbar (P80).
   var head = prodUnknownHtml(unknown) + uiFoldCard('prod-coverage', prodCoverageHtml(), false);
@@ -801,8 +826,9 @@ function prodEntryOneAction(e, idx) {
   return idx.replaced[e.id] ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdCorrect" data-id="' + escHtml(e.id) + '">Correct</button>';
 }
 /* An entry (§3b-11): its title; two facts (where and when: the line and the slot, else the time; how much: the quantity with its
-   kilos, or a cut's reason); where it came from, how it was weighed and what it matched as badges; one action at its end. */
-function prodEntryRowHtml(e, idx) {
+   kilos, or a cut's reason); where it came from, how it was weighed and what it matched as badges; one action at its end. `fold`:
+   the row opens to its actions on the desktop too, where no pane stands beside it (the hand form's saved list). */
+function prodEntryRowHtml(e, idx, fold) {
   var cut = e.kind === 'downtime', dt = e.downtime || {}, line = e.kind === 'pickled' ? prodLoadLine(e) : null;
   var title = cut ? (dt.open ? 'Power cut, no time back' : 'Power cut') : prodEntryTitle(e);
   var span = e.time ? e.time + (e.to && e.to !== e.time ? '–' + e.to : '') : '';
@@ -831,7 +857,7 @@ function prodEntryRowHtml(e, idx) {
     (badges.length ? '<span class="inv-row-meta" data-prod-badges>' + badges.map(function(b) { return '<span class="inv-badge inv-badge-' + b[0] + '">' + escHtml(b[1]) + '</span>'; }).join(' ') + '</span>' : '');
   var one = prodEntryOneAction(e, idx), end = '<span class="inv-row-end">' + one + '</span>';
   // On the desktop the entry opens in the pane beside the list, so its main is a button; the pane holds every action.
-  if (_isDesktop) {
+  if (_isDesktop && !fold) {
     var cur = _prodEntryOpen === e.id;
     return '<div class="inv-row inv-row-2' + (e.voidedAt ? ' inv-row-muted' : '') + '" data-prod-entry="' + escHtml(e.id) + '"' + (cur ? ' aria-current="true"' : '') + '>' +
       '<button class="inv-row-main" data-action="invProdEntryOpen" data-id="' + escHtml(e.id) + '">' + main + '</button>' + end + '</div>';
@@ -845,8 +871,8 @@ function prodEntryActionsHtml(e, idx, omit) {
   if (e.voidedAt) return '';
   var line = e.kind === 'pickled' ? prodLoadLine(e) : null;
   var alias = e.kind !== 'downtime' && e.clientId != null ? prodAliasShown(e) : null;
-  var h = '';
-  if (line && line.how === 'unknown' && line.hint) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdUseLine" data-id="' + escHtml(e.id) + '" data-line="' + line.hint.line + '">Use ' + escHtml(prodLineName(line.hint.line)) + '</button>';
+  var h = '', use = line && line.how === 'unknown' && line.hint ? prodUseLineBtnHtml(e, line.hint) : '';
+  if (use && use !== omit) h += use;
   if (alias && !alias.pn && !alias.generic) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdAlias" data-id="' + escHtml(e.id) + '">Which part?</button>';
   if (prodGaugeFlagged(e)) h += '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdGauge" data-id="' + escHtml(e.id) + '">Pick gauge</button>';
   // A run in pieces nothing weighs: its weight set on the client's card (Which part? is offered above where the name is a code).
@@ -1168,21 +1194,22 @@ function prodSaveReview() {
 }
 
 /* ---------- By hand ---------- */
-function prodOpenHand(fromId, from) {
+function prodOpenHand(fromId, from, fromLines) {
   var src = fromId ? prodIndex().byId[fromId] : null;
   _prodHand = src ? { kind: src.kind, date: src.date, time: src.time || '', to: src.to || '', line: src.line || '', clientId: src.clientId != null ? String(src.clientId) : '', part: src.part || '',
     qty: src.qty != null ? String(src.qty) : '', unit: src.unit || 'NOS', rework: !!src.rework, slot: src.slot === 'ot' || src.slot === 'day' ? src.slot : 'general', replaces: src.id }
-    : prodHandBlank();
+    : prodHandBlank(fromLines);
   _prodHand.from = from || null;   // 'power': opened from Power's Enter a cut, and its way back is Power
   _prodHand.saved = [];            // the entries saved from this form, listed under it
   prodSetView('hand');
 }
 /* An empty hand form: Enter by hand, and the same form opened by its address (nav.js). */
-function prodHandBlank() {
+function prodHandBlank(fromLines) {
   var f = { kind: 'plated', date: localDateStr(), time: '', to: '', line: 'vat-a1', clientId: '', part: '', qty: '', unit: 'NOS', rework: false, slot: 'general', replaces: null, from: null, saved: [] };
   // Opened from Lines, it starts on the line on screen, and on its day where one was stepped to: a record missing from a past day
-  // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's.
-  if (_prodTab === 'lines' && _prodView === 'main') {
+  // is added where it is seen. With no day stepped to, Lines shows the last recorded day, and a new entry is today's. Said by the
+  // door that opens it: Power's Enter a cut and Add's by hand open on today, though Lines' day and line outlive a visit to Lines.
+  if (fromLines) {
     if (_prodDay) f.date = _prodDay;
     if (_prodLine === 'pickling') f.kind = 'pickled'; else if (PROD_LINES.indexOf(_prodLine) >= 0) f.line = _prodLine;
   }
@@ -1196,7 +1223,7 @@ function prodHandHtml() {
   if (f.replaces) h += '<div class="inv-callout inv-callout-info">This entry takes the place of the one corrected, which stays on the record, marked corrected.</div>';
   else h += '<div class="inv-seg inv-mb-8" role="group" aria-label="What is entered">' + [['plated', 'Plated'], ['pickled', 'Pickled'], ['arrived', 'Arrived'], ['downtime', 'Power cut']].map(function(o) {
     return '<button type="button" class="inv-seg-btn" data-action="invProdHandKind" data-kind="' + o[0] + '" aria-pressed="' + (f.kind === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
-  h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '">') +
+  h += '<div class="inv-panel"><div class="inv-fields">' + field('prodHandDate', 'Date', '<input type="date" id="prodHandDate" class="inv-input" data-prod-hand="date" value="' + escHtml(f.date) + '" max="' + localDateStr() + '">') +
     field('prodHandTime', f.kind === 'downtime' ? 'Power cut at' : 'Time', '<input type="time" id="prodHandTime" class="inv-input" data-prod-hand="time" value="' + escHtml(f.time) + '">');
   if (f.kind === 'downtime') h += field('prodHandTo', 'Power back at', '<input type="time" id="prodHandTo" class="inv-input" data-prod-hand="to" value="' + escHtml(f.to) + '">');
   // What is shown is what is saved: an entry corrected with no line keeps it unknown (the list showed VAT A1 and saved
@@ -1219,7 +1246,8 @@ function prodHandHtml() {
   var idx = prodIndex(), saved = (f.saved || []).map(function(id) { return idx.byId[id]; }).filter(Boolean);
   if (saved.length) h += '<div class="inv-panel inv-panel-flush inv-mt-8" data-card="prodHandSaved"><div class="inv-panel-head"><span class="inv-panel-title">Saved from this form</span><span class="inv-panel-count">' + saved.length + '</span>' +
     '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invProdHandDone">Done</button></div>' +
-    saved.slice().reverse().map(function(e) { return prodEntryRowHtml(e, idx); }).join('') + '</div>';
+    // Each row opens to its Void on the desktop too: the pane its tap opened is Entries', not the form's.
+    saved.slice().reverse().map(function(e) { return prodEntryRowHtml(e, idx, true); }).join('') + '</div>';
   h += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">' + escHtml({ plated: 'Plated', pickled: 'Pickled', arrived: 'Arrived', downtime: 'Power cut' }[f.kind]) + ' on</div>' +
     '<div class="inv-actionbar-value">' + escHtml(stockShortDate(f.date)) + '</div></div><button class="inv-btn inv-btn-primary" data-action="invProdSaveHand">Save</button></div>';
   return h;
@@ -1236,6 +1264,7 @@ async function prodSaveHand() {
   if (!f) return;
   if (!grdOk('floor') && !(await guardAsk('floor', 'save production'))) return;   // the guard (guard.js): a floor entry
   if (!f.date) { showToast('Pick a date', 'error'); return; }
+  if (f.date > localDateStr()) { showToast('That day has not come yet: pick a day up to today', 'error'); return; }
   var q = parseFloat(f.qty);
   if (f.kind !== 'downtime' && !f.clientId) { showToast('Pick the client', 'error'); return; }
   if (f.kind !== 'downtime' && !f.part.trim()) { showToast('Name the part', 'error'); return; }
@@ -1354,8 +1383,8 @@ function prodAction(action, btn) {
     case 'invProdSaveReview': prodSaveReview(); return true;
     case 'invProdRevClient': _prodReview.choices['open' + btn.dataset.key] = true; renderProduction(); return true;
     case 'invProdRevLine': _prodReview.choices['line' + btn.dataset.key] = btn.dataset.line; renderProduction(); return true;
-    case 'invProdHand': prodOpenHand(null); return true;
-    case 'invProdCorrect': prodOpenHand(btn.dataset.id); return true;
+    case 'invProdHand': prodOpenHand(null, null, _prodTab === 'lines' && _prodView === 'main'); return true;
+    case 'invProdCorrect': prodPinDay(); prodOpenHand(btn.dataset.id); return true;
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
     case 'invProdSaveHand': prodSaveHand(); return true;
     case 'invProdHandDone': prodHandDone(); return true;
@@ -1381,7 +1410,7 @@ function prodAction(action, btn) {
     case 'invProdGauge': prodGaugeOpen(btn.dataset.id); return true;
     case 'invProdGaugeSave': prodGaugeSave(btn.dataset.id); return true;
     case 'invProdAliasSave': prodAliasSave(btn.dataset.id); return true;
-    case 'invProdVoid': prodVoid(btn.dataset.id); return true;
+    case 'invProdVoid': prodPinDay(); prodVoid(btn.dataset.id); return true;
     case 'invProdEntryOpen': _prodEntryOpen = _prodEntryOpen === btn.dataset.id ? null : btn.dataset.id; keepScroll(renderProduction); return true;
     case 'invProdEntryClose': _prodEntryOpen = null; keepScroll(renderProduction); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
@@ -1390,20 +1419,28 @@ function prodAction(action, btn) {
     // A line is Lines' own view, led by its card (TM4c): it opens at its top, as a view tab does.
     case 'invProdLine': _prodLine = btn.dataset.line; renderProduction(); viewTop(); return true;
     case 'invProdDay': {
-      // From the day on screen: with none stepped to that is the last recorded day, not today.
-      var base = prodLinesDay();
-      _prodDay = isoAddDays(base, +btn.dataset.step);
+      // From the day on screen: with none stepped to that is the last recorded day, not today. Never past today (Floor's rule).
+      var base = prodLinesDay(), next = isoAddDays(base, +btn.dataset.step);
+      _prodDay = next > localDateStr() ? localDateStr() : next;
       renderProduction(); return true;
     }
     case 'invProdDayLast': _prodDay = null; renderProduction(); return true;
     case 'invProdDayClear': _prodFilter = { kind: '', flag: '', client: _prodFilter.client || '', day: '' }; renderProduction(); return true;
+    case 'invProdClientClear': {
+      _prodFilter = Object.assign({}, _prodFilter, { client: '' });
+      // In the phone's Filter dialog, as a chip there is: the dialog shuts, and its close draws the page.
+      var cdlg = btn.closest('[data-tb-filter-dialog]');
+      if (cdlg) { dialogCloseScrim(cdlg.closest('.inv-scrim-dialog')); return true; }
+      renderProduction(); return true;
+    }
     // Lines' More: every entry of the day on screen, on Entries (a day's runs are Lines', its loads, cuts and arrivals too there).
     case 'invProdDayEntries': _prodFilter = { kind: '', flag: '', client: '', day: prodLinesDay() }; _prodEntryOpen = null; prodSetTab('entries'); renderProduction(); return true;
     case 'invProdFilter': {
       // A pressed chip or tile on Entries lets its flag go; Line unknown's "All N" (data-set) always opens the loads it counts, on
       // Entries too, where it has stood since the tab map (TM4c) beside the tile that toggles the same flag.
       if (btn.dataset.flag !== undefined) _prodFilter = { kind: '', flag: _prodTab === 'entries' && btn.dataset.set === undefined && _prodFilter.flag === btn.dataset.flag ? '' : btn.dataset.flag, client: '' };
-      else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: '' };
+      // A kind narrows what is shown: the day and the client, each named by its own token, stay.
+      else _prodFilter = { kind: btn.dataset.kind || '', flag: '', client: _prodFilter.client || '', day: _prodFilter.day || '' };
       // Picked in the phone's Filter dialog: one choice, so the dialog shuts on it, and its close draws the page.
       var fdlg = btn.closest('[data-tb-filter-dialog]');
       if (fdlg) { dialogCloseScrim(fdlg.closest('.inv-scrim-dialog')); return true; }

@@ -645,7 +645,6 @@ function prodKgFig(kg, est, atLeast) {
   if (!(kg > 0)) return '';
   return (atLeast ? '≥ ' : est ? '≈ ' : '') + (kg >= 1000 ? formatNum(kg / 1000, 2) + ' t' : formatNum(kg, 0) + ' kg');
 }
-var PROD_WEIGH_WORD = { written: 'kilos written', record: 'a weight on record', challans: 'from the challans it was set against', 'default': 'at the client’s default kg a piece', kind: 'estimated by its kind' };
 /* A weight the app worked out, not the part's own: the challans' share, the client's default, the kind's usual ("≈"). */
 function prodWeighEst(w) { return !!w && (w.how === 'challans' || w.how === 'default' || w.how === 'kind'); }
 
@@ -1119,9 +1118,10 @@ function prodDayPicture(date) {
    production, why don't we calculate the earnings?"). {amount, est, runs priced, unpriced: pieces with no rate (a run with
    no client written among them), unpricedKg: kilos written with none, names: what is not priced, by client and floor name;
    kg and amountKg: the kilos of the priced runs that have a weight and what they earned, so a rupee a kilo is read over the
-   same runs as its kilos, never over a piece-priced run nothing weighs; pieces and kgWritten: the work it was read over}. */
+   same runs as its kilos, never over a piece-priced run nothing weighs; kgEst: some of those kilos estimated, so the rupee a
+   kilo is too, though a piece rate's amount is exact; pieces and kgWritten: the work it was read over}. */
 function prodDayWorth(date, line) {
-  var o = { amount: 0, est: false, unpriced: 0, unpricedKg: 0, runs: 0, kg: 0, amountKg: 0, pieces: 0, kgWritten: 0, names: [] };
+  var o = { amount: 0, est: false, unpriced: 0, unpricedKg: 0, runs: 0, kg: 0, amountKg: 0, kgEst: false, pieces: 0, kgWritten: 0, names: [] };
   var names = {};
   var miss = function(e, client) {
     if (e.unit === 'NOS') o.unpriced += e.qty; else if (e.unit === 'KG') o.unpricedKg += e.qty;
@@ -1148,7 +1148,7 @@ function prodDayWorth(date, line) {
     if (amt == null) { miss(e, client); return; }
     if (est) o.est = true;
     o.amount += amt; o.runs++;
-    if (w.kg != null && w.kg > 0) { o.kg += w.kg; o.amountKg += amt; }
+    if (w.kg != null && w.kg > 0) { o.kg += w.kg; o.amountKg += amt; if (prodWeighEst(w)) o.kgEst = true; }
   });
   o.amount = gstRound(o.amount); o.amountKg = gstRound(o.amountKg);
   o.names = Object.keys(names).map(function(k) { return names[k]; }).sort(function(a, b) { return b.pieces - a.pieces || b.kg - a.kg; });
@@ -1171,7 +1171,7 @@ function prodLineDaySum(date, line) {
   if (memo[k]) return memo[k];
   var r = prodDayLine(date, line), wo = prodDayWorth(date, line);
   return (memo[k] = { runs: r.entries.length, kg: r.kg, est: r.est > 0.0005, pieces: r.pieces, unweighed: r.unweighed, weighed: r.weighedShare,
-    worth: wo.amount, worthEst: wo.est, priced: wo.runs, unpriced: wo.unpriced, unpricedKg: wo.unpricedKg, pricedShare: wo.pricedShare, kgPriced: wo.kg, amountKg: wo.amountKg });
+    worth: wo.amount, worthEst: wo.est, priced: wo.runs, unpriced: wo.unpriced, unpricedKg: wo.unpricedKg, pricedShare: wo.pricedShare, kgPriced: wo.kg, kgPricedEst: wo.kgEst, amountKg: wo.amountKg });
 }
 /* A line's usual day before this one: the median of its recorded days in the 60 before it, five at least: its kilos over the days
    with nine tenths of their pieces weighed (the plant's usual day's rule, prodUsualDay), its earnings over the days with nine
@@ -1231,16 +1231,18 @@ function prodLineWeek(line, day) {
     worthDayBefore: wB.length >= 2 ? per(wB, 'worth', 'worthDays') : null, worthWeeks: wB.length });
 }
 /* What a kilo costs the plant as of a day, to set the day's earnings against: the live cost over the 90 days to it (Stats' own,
-   on the invoices' weighed kilos), else the full cost typed in Settings. {perKg, live, from, to}; null with neither. One kept. */
+   on the invoices' weighed kilos), else the full cost typed in Settings. {perKg, live, from, to}; null with neither. Kept a day at
+   a time until the book changes: Lines' week asks for seven days in a draw, and one kept day worked the live cost out every time. */
 var _prodCostRef = null;
 function prodCostRef(date) {
-  if (_prodCostRef && _prodCostRef.s === S && _prodCostRef.w === _bookWrites && _prodCostRef.date === date) return _prodCostRef.v;
+  if (!_prodCostRef || _prodCostRef.s !== S || _prodCostRef.w !== _bookWrites) _prodCostRef = { s: S, w: _bookWrites, m: {} };
+  if (Object.prototype.hasOwnProperty.call(_prodCostRef.m, date)) return _prodCostRef.m[date];
   var from = isoAddDays(date, -89), v = null;
   var inv = statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= date; });
   var w = inv.length ? weighLines(inv) : { kg: 0 };
   if (w.kg > 0) { try { var c = liveCost(from, date, w.kg); if (c && c.perKg > 0) v = { perKg: c.perKg, live: true, from: from, to: date }; } catch (e) { v = null; } }
   if (!v && S.defaultCostPerKg > 0) v = { perKg: Number(S.defaultCostPerKg), live: false, from: from, to: date };
-  _prodCostRef = { s: S, w: _bookWrites, date: date, v: v };
+  _prodCostRef.m[date] = v;
   return v;
 }
 var PROD_DAY_START = 360;   // the shop's day on the clock: 6 AM, when the morning block starts, to 6 AM the next
@@ -1436,7 +1438,8 @@ function prodLineEfficiency(date, line) {
   // Judged only with every input: a record, the units' kg a round, a pace and some time.
   var missing = staffed && !(prodGeneralLines()[date] || {})[line];
   if (!o.ran && !staffed) { o.word = 'Did not run'; return o; }
-  if (missing && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = 'heads on the general shift, nothing recorded'; return o; }
+  // `missing` is what Lines' verdict and Floor's head read to say so: without it, heads and no record read "Did not run".
+  if (missing && !o.ran) { o.tone = 'warning'; o.word = 'No record'; o.why = 'heads on the general shift, nothing recorded'; o.missing = true; return o; }
   if (!o.kgSrc && !o.n) o.why = 'no unit on the plant register';
   else if (!o.kgSrc) o.why = 'set the kg a round of every unit';
   else if (!o.every) o.why = 'no pace for the line';

@@ -377,9 +377,10 @@ function _attPeriodSwitchHtml() {
   }).join('') + '</div>';
 }
 /* A period's controls inside the toolbar row (§6.7): ‹ the period › as one item, beside the view's primary and More. */
-function _attStepInRow(action, label, prevLabel, nextLabel) {
+function _attStepInRow(action, label, prevLabel, nextLabel, nextOff) {
+  // `nextOff`: the period shown is the latest there is (a day never steps past today), so › is off.
   return '<span class="inv-tb-step"><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="-1" aria-label="' + prevLabel + '">' + STAFF_BACK_ICON + '</button>' +
-    label + '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="1" aria-label="' + nextLabel + '">' + STAFF_NEXT_ICON + '</button></span>';
+    label + '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="1" aria-label="' + nextLabel + '"' + (nextOff ? ' disabled' : '') + '>' + STAFF_NEXT_ICON + '</button></span>';
 }
 
 /* A period stepper (§6.7): previous · the period · next · back to now. `label` is the middle: the date field

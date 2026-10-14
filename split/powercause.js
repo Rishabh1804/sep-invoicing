@@ -602,14 +602,15 @@ function pcsCausesHtml(a) {
   var h = uiVerdictHtml({ screen: 'Causes',
     verdict: top ? uiVerdictFit(top.c.name, ' costs most') : t.cuts ? 'No cut has a reason yet' : 'No cut on record yet',
     tone: top && firm(top.n) ? (top.tone === 'ok' ? 'ok' : top.tone) : 'neutral',
-    facts: [top && top.dmg > 0 ? { text: formatCurrency(top.dmg) + ' over ' + todoPlural(top.n, 'cut'), money: true } : top ? todoPlural(top.n, 'cut') : '',
+    // What the causes cost is every role's that opens Power, as the bars under the card show it (the tab map, TM4 as built).
+    facts: [top && top.dmg > 0 ? formatCurrency(top.dmg) + ' over ' + todoPlural(top.n, 'cut') : top ? todoPlural(top.n, 'cut') : '',
       t.cuts ? t.reasoned + ' of ' + todoPlural(t.cuts, 'cut') + ' with a reason' : ''],
     factors: [
       { label: 'With a reason', fig: t.reasoned + '<span class="inv-tile-of">/' + t.cuts + '</span>', sub: t.cuts ? Math.round(t.reasoned / t.cuts * 100) + '% of the cuts on record' : 'no cut on record', attrs: ' data-power-tile="reasoned"' },
       { label: 'From the grid', fig: share(t.grid), tone: firm(t.grid) ? 'info' : null, sub: t.reasoned ? on(t.grid) + ' · ' + t.unplaced + ' not placed' : 'no reason recorded yet', attrs: ' data-power-tile="grid"' },
       { label: 'In the plant', fig: share(t.plant), tone: firm(t.plant) ? 'warning' : null, sub: t.reasoned ? on(t.plant) : 'no reason recorded yet', attrs: ' data-power-tile="plant"' },
       { label: 'Costliest cause', fig: top ? figWrapHtml(escHtml(formatCurrency(top.dmg))) : '', tone: top && firm(top.n) && top.tone !== 'neutral' ? top.tone : null,
-        sub: top ? top.c.name + ' · ' + on(top.n) : 'none recorded yet', money: true, attrs: ' data-power-tile="top"' }],
+        sub: top ? top.c.name + ' · ' + on(top.n) : 'none recorded yet', attrs: ' data-power-tile="top"' }],
     tilesAttrs: ' data-pcs-tiles',
     links: [todo ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerTab" data-tab="cuts" data-pcs-todo>' + escHtml(todoPlural(todo, 'cut') + ' to complete, on Cuts') + '</button>' : ''],
     attrs: ' id="pcsVerdict"' });

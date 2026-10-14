@@ -1849,7 +1849,9 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   keeps a roll's attendance exactly as it was (P90 compares the saved day with and without a block). The register
   clerk's **VAT register page** is typed as written on Mine (the faces, below) or entered by hand; **its photo, read by
   Gemini, came out on 13 Oct 2026** (owner: *"it simply never works, so it's better we take that off, it's waste"*), and
-  the runs photos read before then stay in the book. Every message is shown beside
+  the runs photos read before then stay in the book. A day not come is refused (the date's max is today), and Lines' › stops at
+  today; a past day with no attendance and no run reads *No record this day*, *Did not run* only where the marks put nobody on the
+  line. Every message is shown beside
   what was read before anything is saved (Stock's contract); the same message is refused, unless every entry it made was
   voided.
 - **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
@@ -1892,7 +1894,8 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   kilo line with no count took none of the floor's piece counts, which all read *on the floor, no challan open*.
 - **Linked in.** *In one line* (Today → Pulse; Stats → Overview's until the tab map) gets *Plated (floor)*, only on **complete days** (attendance recorded and every
   staffed line with a general-shift record), never a zero. Lines shows labour ₹/kg by line: variable labour of the
-  line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg. Two To-do
+  line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg, uncoloured: the modelled
+  labour is every tier's, the monthly crew included, so it is no benchmark for the variable part (QA chain, P214). Two To-do
   rules, both blind to imported history and rework: **plated, not invoiced** (amber at 3 working days, red at 6,
   Settings → Checks & alerts → To-do) and **pickled with no open challan** (amber after a day, red at 3; a client not in the book is its
   own task).
@@ -2133,20 +2136,21 @@ there and we have rate data, we can actually show the info there"*, and on Floor
   GST, as the day card always read them (a piece client's part at its piece rate, a run in kilos at the client's ₹ a kg, a run in
   pieces at that rate over its weight, ≈ where the weight is estimated; rework left out). It names the work no rate prices (`names`;
   a run with no client among them, which had been passed over unsaid), and keeps the kilos of the priced runs that have a weight
-  with what they earned (`kg`, `amountKg`), so a rupee a kilo is read over the same runs as its kilos.
+  with what they earned (`kg`, `amountKg`), so a rupee a kilo is read over the same runs as its kilos. A piece rate's earnings are
+  exact, but where a run's kilos are estimated the rupee a kilo, the cost and what was left carry ≈ (`kgEst`; QA chain, P214).
 - **Against what a kilo costs** (`prodCostRef`): the live cost over the 90 days to the day on the invoices' weighed kilos, Stats' own,
   else the full cost in Settings, said which.
 - **Against the line's usual day** (`prodLineUsual`): the median of its recorded days in the 60 before, five at least, its kilos over
   the days with nine tenths of their pieces weighed (the plant's usual day's rule) and its earnings over those with nine tenths of the
   work priced. A day still running says *so far*.
-- **The week to the day against the four before** (`prodLineWeek`): the same days of each pay week, **a recorded day's average on each
+- **The week to the day against the weeks before** (`prodLineWeek`; two to four count, and Lines' fact names how many: *on the 2 before*): the same days of each pay week, **a recorded day's average on each
   side** (a day with no record is a gap, never a zero: the record began partway through a week, and a week's total read the one after
   it 43% up on the owner's book), the day still running left out of both, two weeks before at least.
 - Read once a book (`prodLineDaySum`, kept until the book changes). **On screen**: Floor's line card a fact row, *Earned*, coloured by
   its rupee a kilo against the cost, the usual day under it, or, where a tenth or more of the work has no rate, how much has none (a
   role that does not see money reads the kilos against the usual day, `data-flr-usual`); Production → Lines' verdict an *Earned* tile
   in the Rounds' place for that role (the rounds are in the efficiency's split), Plated and Earned with their change lines against
-  the usual day (`uiFactorTileHtml`'s `delta`), the week against the four before a fact; *The week, plated* an *Earned* row; the day
+  the usual day (`uiFactorTileHtml`'s `delta`), the week against the weeks before a fact; *The week, plated* an *Earned* row; the day
   card (Floor's Production hero) *At the live cost*, *Left after it*, *This week, a day plated* and *a day earned*, and *Not priced*
   listing what no rate prices with the door to the client's rates. On the owner's book of 9 Oct: 8 Oct's VAT A1 ≈ ₹12,530 at ₹5.40 a
   kg (a piece client's clamps) against a cost of ₹7.20, red; VAT A2 ≈ ₹8,530 with 1,386 pieces not priced (the same pieces nothing
@@ -2343,7 +2347,8 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
 
 - **The cuts are Production's** downtime entries (the register's power log, the relayed messages, a cut entered by hand)
   and the history imported from soma-internal's power-cut log. The same cut reported twice is one (`prodDowntimeDay`); a
-  power-back earlier on the clock than the cut ran overnight. Enter a cut opens Production's hand form on a power cut.
+  power-back earlier on the clock than the cut ran overnight. Enter a cut opens Production's hand form on a power cut,
+  dated today: only Lines' own Enter by hand starts on Lines' day and line (Add's by hand too opens on today).
 - **A cut is completed where it is shown** (`powercause.js`, P177; owner, 8 Oct 2026: *"If we enter a power cut and save it
   without giving an out time, there is no option readily available to fill in in time and the reason + solution. For reasons and
   solutions, start remembering them and present them as a list … store them in uniform format, no matter how the input text is.

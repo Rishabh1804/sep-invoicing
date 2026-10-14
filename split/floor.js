@@ -322,7 +322,7 @@ function flrEarnedRowHtml(day, isToday, line) {
   // instead, since the figure reads low against a whole day (the day card lists what is not priced).
   var notPriced = x.unpriced ? Math.round(x.unpriced).toLocaleString('en-IN') + ' pcs not priced' : x.unpricedKg ? formatNum(x.unpricedKg, 0) + ' kg not priced' : '';
   var vs = x.pricedShare < 0.9 ? notPriced : u.worth == null ? '' : isToday ? 'so far; a usual day ' + finRs(u.worth) : figDeltaText(x.worth, u.worth, 'a usual day');
-  var sub = [real != null ? formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : '', vs].filter(Boolean).join(' · ');
+  var sub = [real != null ? (x.kgPricedEst ? '≈ ' : '') + formatCurrency(real) + ' a kg' + (ref ? ', cost ' + formatCurrency(ref.perKg) : '') : '', vs].filter(Boolean).join(' · ');
   return uiFactRowHtml({ label: 'Earned', value: x.priced ? (x.worthEst ? '≈ ' : '') + finRs(x.worth) : '', tone: real != null && ref ? figToneAgainst(real, ref.perKg, 5) : null,
     sub: sub || 'nothing priced: no rate on record', attrs: ' data-flr-earned' });
 }
@@ -467,7 +467,7 @@ function flrAction(action, btn) {
     case 'invFlrLine': flrOpenLine(btn.dataset.line); return true;
     // Production's own doors, opened on the line and day: the hand form for the register's page (its photo, read by Gemini,
     // came out on 13 Oct 2026), and the paste box for the barrel list and the pickling messages.
-    case 'invFlrHand': flrOpenLine(btn.dataset.line); prodOpenHand(null, null, { fromLines: true }); return true;
+    case 'invFlrHand': flrOpenLine(btn.dataset.line); prodOpenHand(null, null, true); return true;
     case 'invFlrPaste': flrOpenLine(btn.dataset.line); prodSetView('paste'); return true;
     case 'invFlrStaff': flrOpenStaff('day'); return true;
     case 'invFlrAreas': flrOpenStaff('areas'); return true;

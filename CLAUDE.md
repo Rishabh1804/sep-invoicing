@@ -3019,6 +3019,16 @@ ground, a troubleshooting area, a record keeper, a tool used to make decisions"*
   matched on its letters and digits, `kbNameKey`); a client's detail, Performance, a part and a stock line show what is linked to them
   (`kbLinkedHtml`); the top bar's book opens the guides for the screen on show (`kbHelp`), on the desktop too.
 - **Text**: paragraphs, `- ` lists, `1. ` numbered lists, `# ` heads and `**bold**`, every character through `escHtml` (`kbBodyHtml`).
+- **Written in Simplified Technical English, 80% of the way** (owner, 14 Oct 2026: *"For all knowledge base documents, let's use the
+  Aircraft Maintenance Manual standard … ASD-STE100 Simplified Technical English … follow it 80% of the way"*;
+  `docs/KNOWLEDGE_BASE.md`, *The writing standard*). A step is one instruction in the imperative, 20 words at most, a description 25;
+  active voice; a condition before its step; one word one meaning; numbers in digits; a WARNING before a step that can lose data or
+  money. Kept as they are: the app's labels in bold, the shop's terms, every fact. Every app guide was rewritten to it (its next
+  version), the guide *Writing an article* (`app-writing`) states it, and the article form's hint says it. A new guide is written so.
+- **The setup guides** (owner, 14 Oct 2026: *"These (print, github, etc.) should be knowledge base documents"*): *Setting up: the
+  office printer*, *GitHub sync*, *a new device* and *IDs, PINs and roles* (`app-printer`, `app-sync`, `app-devices`, `app-guard`),
+  each opened from its Settings section (`guide` on the section, `_settingsGuideHtml`, `settingsGuide`: Settings shuts, asking about
+  an unsaved section, then the guide opens). They name no printer, repository or person. P218.
 - **To-do**: `kbPending` (the owner's approvals), `kbReview` (a decision due), `kbTrainDue` (training due again).
 - **First content**: 142 drafts written from soma-internal (60 rulings, 24 client requirements, 14 parts, 31 process, 13 faults, 3 paths),
   handed to the owner as a private `sep-kb` file; every article a draft, with its `srcRef`, for the owner to read and publish. Audited

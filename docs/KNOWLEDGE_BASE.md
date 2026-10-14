@@ -27,11 +27,33 @@ base*). **Not yet:** links on an area card and a production run; paths edited in
 | Linked to records | **Yes**: an article attaches to a client, a part, an area, a stock line, a line or a screen, and shows there. |
 | Who reads what | **Each article says which roles read it** (the guard's roles; none set = everyone). |
 | Rulings | **Records**: who ruled, when, why, what they replace. Never edited, only superseded. |
-| Language | **English only.** |
+| Language | **English only**, in **ASD-STE100 Simplified Technical English, followed 80% of the way** (owner, 14 Oct 2026: *"For all knowledge base documents, let's use the Aircraft Maintenance Manual standard … ASD-STE100 Simplified Technical English … follow it 80% of the way"*). See *The writing standard* below. |
 | Who writes | **Anyone signed in may write or propose a change; it waits for the owner's approval.** |
 | Photos | **Kept on the device that took them**, never in the book. |
 | First content | **Drafted by Claude** from what is already written (CLAUDE.md, soma-internal's decisions and operations notes), as drafts for the owner to review. |
 | The chatbot | **After this.** |
+
+## The writing standard
+
+Every article, the app's own guides and what the shop writes, is in ASD-STE100 Simplified Technical English (the standard of
+aircraft maintenance manuals), **followed 80% of the way** (owner, 14 Oct 2026). The app's guide *Writing an article*
+(`app-writing`) states it for the people who write in the book, and the article form's hint says it in one line.
+
+**Followed (the 80%):**
+- A step is one instruction, in the imperative, 20 words at most. A description is 25 words at most.
+- Active voice; simple tenses; a condition before the step it applies to (*If the roll is late, …*).
+- One word, one meaning, used the same way every time; plain verbs (*make*, *show*, *use*, *calculate*, *compare*), no idioms.
+- A paragraph holds one topic, six sentences at most; a sequence is numbered steps, parallel facts a list.
+- A WARNING or a CAUTION comes before the step it is about, only for a loss of data or money.
+- Numbers in digits.
+
+**Not followed (the 20%):** the app's own labels as the screen shows them, in bold; the shop's and the trade's terms (challan,
+GSTR-1, realisation, live cost, EXTRA, round, rack, gauge, Mine); the markdown the app draws. No fact is dropped to make a
+sentence shorter.
+
+Every app guide was rewritten to it on 14 Oct 2026 (each to its next version, so a training given on the old one is due
+again). The 142 drafts handed to the owner in `sep-kb` were written before the standard and are the owner's to bring to it
+when each is published.
 
 ## The four uses, and what each needs
 

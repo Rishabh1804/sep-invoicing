@@ -968,7 +968,9 @@ function kbFormHtml() {
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invKbFigAdd">Add the figure</button><div class="inv-note">Each is read when the decision is saved and kept, so a review shows it then beside now.</div></div></div>';
   }
   h += _kbIn(e.kind === 'guide' ? 'The steps' : e.kind === 'ruling' ? 'The ruling, the reason, examples' : 'The text', 'body', e.body, 'textarea', { rows: 10, wide: true,
-    hint: 'A blank line starts a paragraph. A line starting "- " is a list, "# " a heading, **two stars** around words make them bold.' });
+    hint: 'Write in Simplified Technical English: one instruction a sentence, 20 words at most for a step and 25 for a description, active voice. ' +
+      'A blank line starts a paragraph. A line starting "- " is a list, "1. " a numbered step, "# " a heading, **two stars** around words make them bold. ' +
+      'The guide <em>Writing an article</em> has the rules.' });
   if (e.kind === 'guide') {
     h += '<div class="inv-panel inv-panel-flush" data-kb-form-quiz><div class="inv-panel-head"><span class="inv-panel-title">A short check (optional)</span><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbRowAdd" data-list="quiz">Add a question</button></div>' +
       f.quiz.map(function(q, i) {

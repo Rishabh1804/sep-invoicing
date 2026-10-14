@@ -257,7 +257,7 @@ function finOwedHeroHtml(rows, cls, recv) {
   if (loose) body += '<div class="inv-row" data-fin-loose><span class="inv-row-main inv-row-meta">' + todoPlural(loose, 'receipt') + ' with no client: what is owed reads high</span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></span></div>';
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Owed to us</span>', title: escHtml(title), fig: finHeroFig(owed), sub: sub,
-    viz: owed >= 0.5 ? chartMeter(bands.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+    viz: owed >= 0.5 ? chartMeter(bands.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
       { title: 'Owed by age: ' + bands.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '',
     body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'fin-hero-owed', open: false, attrs: tile, foot: go });
 }

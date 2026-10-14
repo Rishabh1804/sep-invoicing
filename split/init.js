@@ -755,6 +755,16 @@ if (!S._cnSeriesStart1) {
   }
 })();
 
+/* Two records for one supplier, made on two devices before they met, folded into one so its ledger is one (suppliers.js
+   suppFoldTwins). Structural (it re-points records the book holds), so it runs on a pull, an import and a merge as well. */
+(function() {
+  var n = typeof suppFoldTwins === 'function' ? suppFoldTwins() : 0;
+  if (n) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] ' + n + ' supplier record(s) folded into the one with the same name');
+  }
+})();
+
 
 }
 

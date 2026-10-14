@@ -133,13 +133,13 @@ split/
 ├── labour.js          ← Labour: three pay tiers, fixed/variable, by area, ₹/kg (449 lines)
 ├── areas.js           ← Areas: staffing vs norms + the extra reconciled (1135 lines)
 ├── payroll.js         ← Pay: due by worker, paid from the bank's salaries and typed payments, monthly balances, a hand's history, weekly payout (the snacks included) + forecast, the hours to check, monthly payroll as paid, hours by area (~1,150 lines)
-├── stock.js           ← Floor → Stock, one screen led by its verdict: the WhatsApp message parser, event replay, a line's page, the reorder list, chemicals ₹/kg (~1,850 lines)
+├── stock.js           ← Floor → Stock, one screen led by its verdict: the WhatsApp message parser, event replay, a line's page, the reorder list, chemicals ₹/kg (~1,870 lines)
 ├── cost.js            ← Prices, bills and patterns per stock line; Stats → Cost, the live cost with every source shown (~1,120 lines)
 ├── bills.js           ← Money → Payments' bills (electricity by month, other bills), the credit-note forms Invoices → Credit notes draws, stock line edit (~400 lines)
 ├── xls.js             ← Excel 97–2003 reader: OLE compound file + BIFF8 records, first sheet's values (~190 lines)
 ├── xlsx.js            ← .xlsx writer (typed cells, dates, number formats, frozen header, filter; a stored zip) and reader (a statement saved from Excel) (~250 lines)
-├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,760 lines)
-├── suppliers.js       ← Suppliers: every spelling one supplier, its bills with GST, payments (a cheque cleared once), the balance from a day, lead times for the reorder list (~680 lines)
+├── bank.js            ← Money → Receivables, Payments, Bank: statement import, categories, receipts vs invoices, cheques received, payments vs bills and Pay (~1,810 lines)
+├── suppliers.js       ← Suppliers: every spelling one supplier, its bills with GST, payments (a cheque cleared once), the balance from a day, lead times for the reorder list (~1,030 lines)
 ├── finance.js         ← Money: the page, its five tabs, the Overview's heroes and charts, GST (~490 lines)
 ├── statement.js       ← Statement of account and payment reminders, from Receivables' own figures; printed, sent on WhatsApp (~250 lines)
 ├── payslip.js         ← Pay slips from People → Pay's own rows, any month's: two to an A4 page (~210 lines)
@@ -2529,7 +2529,8 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
   month's days that fall in the period. Fallbacks (power ₹0.81/kg, other ₹0.42/kg, zinc 425 kg/month) are
   in Settings → Costing → Live cost fallbacks (`S.costModel`).
 - **Past purchases come from `soma-internal`** through Stock → Import: a `sep-stock` file of `bill` entries
-  (and `costBills`), merged by id. The file is built from the private records and never committed here.
+  (and `costBills`), merged by id. The file is built from the private records and never committed here. Its supplier finds one held
+  here by its name too, its payments re-pointed to it, and its prices quoted merge by id onto the line as this book holds it.
 
 **The phone bar is Direction B's** (below): Today · Office · Add · Floor · Money, with no More. Each workspace carries a red
 count of the red rows that jump into it (stock out, your own tasks overdue on Today). The test fixture's `switchTab` opens
@@ -3402,7 +3403,9 @@ address or a saved step naming `bills` opens Payments). The open tab is remember
     (*+ ₹X in cheques in hand*);
   - **Owed to us**: the sum over 90 or 60 days as its title, the age bar (0–30 · 31–60 · 61–90 · over 90 days, from
     the invoice date) and the five largest debtors, each opening Receivables with its client expanded; never red while
-    a receipt is unplaced, and receipts with no client are said, not counted;
+    a receipt is unplaced (the age bar's over-90 band, `finAgeTone`, and an invoice's own *Open, N days* included), ok with
+    nothing past 60 days (here, on Pulse's tile and the cash question's, and on Pipeline's stage), and receipts with no client are
+    said, not counted;
   - **GST** for last month, toned by its status;
   - **Paid out** last month, where most of it went (SELF draws as *Wages (cash)*), and what came in.
 - **The Overview is interactive** (spec Phase 3; owner: *"more like financial dashboard with interactive pie
@@ -3450,7 +3453,8 @@ batch rebate.
 - **Electricity** (the `power` kind is labelled *Electricity* everywhere now). Every closed month with invoices
   and no electricity bill is listed with an **Add** that opens the form on that month (`billsMissingPower()`), and the
   bank's payment for that month under it with *Add as bill*. Live cost's *Add a bill* opens the same form on Payments
-  (`costBillFormHtml`, `_costBillOpen = {where: 'finance', month}`, `invCostBillGo`).
+  (`costBillFormHtml`, `_costBillOpen = {where: 'finance', month}`, `invCostBillGo`), drawn only for a role that opens Money, on Power's
+  Load & bills too. A bill typed on Payments is a Finance edit (`bankGate`), as one made from a bank payment is.
   To-do rule **`power`**: from the 10th, last month without a bill; amber from the 20th, `sig` the month.
 - **A second electricity bill in a month is arrears and a penalty** (owner, 30 Sep 2026: it *"only happens when a bit or all of
   a couple months ago was not paid in time, so it might include a penalty"*). A bill records the **arrears** in it (and the month
@@ -3486,9 +3490,12 @@ way to record this in the app"*; of the lead times: none for three, *"3-4 workin
 cheaper price but the material comes from Kolkata"*). P208. Nothing about a supplier is in the build.
 - **A supplier is every spelling that names it** (`suppIndex`): the company on a stock bill, and a payee set to Supplier on the
   statement, compared folded (`suppKey`: "&" is AND, BROS is BROTHERS, PVT and LTD in full), so a bill's "<A> & Brothers" is the
-  statement's "<A> AND BROTHERS"; the bank's own guess reads the same keys (`bankSupplierKeys`). What the owner sets on one is its
+  statement's "<A> AND BROTHERS"; the bank's own guess reads the same keys (`bankSupplierKeys`), folding the payee as well
+  (`bankMatchSupplier` tries `suppKey(party)`). What the owner sets on one is its
   record (`S.suppliers`: name, other spellings, lead time, GST, the balance on a day, a note); a rename keeps the old name as a
-  spelling. **A payee whose initials are a supplier's short name** is offered on Payments → Not yet sorted (*May be <short name>: its
+  spelling; a spelling the book only names (a bill's company or a payee sorted as Supplier, nothing set on it) can be given to a
+  supplier in *Also written* or by a rename, which is how a sorted payee joins it; one a record holds is refused. Two records of one
+  supplier (two devices that met in the merge) fold into the first at load (`suppFoldTwins`). **A payee whose initials are a supplier's short name** is offered on Payments → Not yet sorted (*May be <short name>: its
   initials*, **Same supplier**), never taken unseen.
 - **A bill** is the stock entries of one invoice (company, number, date): its lines before GST with the supplier's GST (18% until
   set), rounded to the rupee as the paper is, unless its total is set as printed (`rec.totals`). A delivery and its own bill typed
@@ -3499,7 +3506,7 @@ cheaper price but the material comes from Kolkata"*). P208. Nothing about a supp
   book credits it.
 - **The balance counts from what was owed at the end of a day**, typed off their statement (`rec.opening`): the bills after it, less
   the payments after it (`suppLedger`). A statement payment in the 30 days after that day which their figure already counts is marked
-  **In their balance** (`rec.inOpening`). With none set nothing is said to be owed (unknown is not nothing), and the bills and
+  **In their balance** (`rec.inOpening`); set again on the same day the marks stay, a new day drops them. With none set nothing is said to be owed (unknown is not nothing), and the bills and
   payments are still listed. What is unpaid is read oldest first (`L.open`).
 - **On screen**: Payments' verdict has an *Owed to suppliers* tile; the Suppliers fold a row a supplier (what is owed and since when,
   its lead time), which opens its dialog: the figures, the bills and payments the latest first with the balance after each (those
@@ -3636,26 +3643,34 @@ in hand counted as paid). A cheque handed over is money the client has paid, and
 say so: what the client owed read high for days. P187.
 - **The record** (`S.bank.cheques`: client, amount, number, the cheque's date, the bank it is drawn on, the day it came, a note; who
   and when). One form (`bankChequeFormOpen`): the client, amount, number (digits) and the day it came are required, never a day after
-  today; the same client and number twice is refused. A Finance edit (`bankGate`). In the change log (*cheque received*) and the merge.
+  today; the same client and number twice is refused, and a record of it made on another device, or a file's copy under another id,
+  reads *Recorded twice* and counts nothing (`status: 'twin'`). A Finance edit (`bankGate`). In the change log (*cheque received*) and the merge.
 - **Counted as paid from the day it came**: `bankReceivables` takes each cheque in hand as a receipt on its day (`pending`), placed by a
   receipt's own rules (exact to the rupee, else oldest first, never an invoice raised after it). Owed, the ageing, days to pay, the
   statement of account (*Cheque 525428 received, not yet in the bank*), Pipeline, a client's Money panel, the invoice detail (*Cheque in
-  hand*), Pulse and the finance rules follow with nothing else changed. It is never offered as an opening.
+  hand*), Pulse and the finance rules follow with nothing else changed. It is never offered as an opening. A cheque received before
+  receivables start (`bankRecvFrom`) is not read, as no receipt from before it is.
 - **Its deposit is found by its number** (`bankChequeLinks`, worked out on every read): a credit whose instrument number is the
-  cheque's, from three days before it came to 60 after, **whatever its amount** (a different amount is said: *In the bank: ₹23,500.00*).
+  cheque's, from three days before it came to 60 after the day it can go in (its own date where it is post-dated,
+  `bankChequeDue`), else the latest credit naming it in the 30 days before it was typed in (`BANK_CHQ_LATE`), **whatever its amount** (a different amount is said: *In the bank: ₹23,500.00*).
   From then the deposit counts and the cheque does not, so nothing counts twice, and the deposit is placed on the cheque's client
   unless it was placed by hand. A credit of the same amount with no number, not placed on another client, within 15 days, is
-  **offered** (Link), never applied. The owner's choice (`deposit`: a row, or `null` for *not this deposit*) wins. A deposit returned
-  is the bounce logic's, and the cheque reads Returned.
-- **Void** with a reason, never deleted: what the client owes goes back up.
+  **offered** (Link), never applied. The owner's choice wins: `deposit` a row; *Not this deposit* keeps that row apart (`notDeposits`) and the
+  number goes on to the next credit naming it; *Match by number again* takes it back (an older build's `null` stops the number until
+  then). A deposit returned is the bounce logic's, and the cheque reads Returned. A statement of one row places its cheque's deposit
+  too (a bounce needs two rows, a deposit one).
+- **Void** with a reason, never deleted: what the client owes goes back up (a second record of the cheque: owed is unchanged, and it
+  says so).
 - **On screen**: Receivables' *Cheques received* (`#bankCheques`), its head *2 cheques in hand · ₹X · the oldest 5 days* in the held
-  task's tone; a cheque opens a dialog with its facts and *Not this deposit*, *Unlink* and *Void*. Money's Cash hero adds *+ ₹X in
+  task's tone; a cheque opens a dialog with its facts and *Not this deposit*, *Unlink*, *Match by number again* and *Void*; a post-dated cheque reads *Dated <day>*
+  until then. Money's Cash hero adds *+ ₹X in
   cheques in hand*, and Receivables' verdict counts them. A cheque deposit on the statement and in search is named by its number
   (*Deposit of cheque 525428*, `bankRowTitle`), so its line need not carry the number, and its row's edit says whose cheque it was.
-- **To-do `chequeHeld`**: a cheque in hand 3 days is amber, 7 red, saying whether the statement reaches past the day it came (*not in
+- **To-do `chequeHeld`**: a cheque in hand 3 days past the day it can go in (a post-dated cheque's own date) is amber, 7 red, saying whether the statement reaches past the day it came (*not in
   the bank by …*) or not (*import the statement to check*); three or more fold into one (*Deposit 3 cheques, ₹X*). It opens the cheque.
 - **The `sep-bank` export carries `cheques`, and a `sep-bank` file through Add → File (or Bank's Import, which hands it over) merges
-  them by id, never writing over; its statement rows are never read from it.** A data flow soma-internal reads.
+  them by id, never writing over, and keeps out one whose client and number a live cheque here holds; its statement rows are never
+  read from it.** A data flow soma-internal reads.
 
 ### What the bank paid, as cost
 Stats → Cost → **Live cost** reads the statement as a second instrument beside the app's own record
@@ -3723,16 +3738,17 @@ being a statement of account and payment reminders). P173.
 ### The statement as intelligence
 Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the To-do and a forecast.
 
-- **Thirteen To-do rules**, each switchable in Settings → Checks & alerts → To-do:
+- **Fourteen To-do rules**, each switchable in Settings → Checks & alerts → To-do:
   - `bankStale`: the statement is 14 days old;
   - `bankLoose`: receipts still have no client a week on;
   - `owed90`: invoices past the client's payment terms, per client (45 days, the client's own where set; it read a
     fixed 90 days until the flow thread, T2). Never red while any receipt is unplaced, because that money may
-    already be in; the task says so;
+    already be in; the task says so. With no statement it asks nothing, since every invoice would read open;
   - `payingSlower`: a client's last three receipts are 25% slower than its usual;
   - `gstNotInBank`: a month's GST has no payment and no note, and the statement reaches its due date;
   - `powerPaidNoBill`: one task naming the months;
   - `supplierNoBill`: no stock bill that month or the one before;
+  - `supplierOwed`: a supplier's balance whose oldest unpaid part is over 30 days old (info; *Suppliers*, above);
   - `wageVsSlip`: a named salary leg against the payroll as paid of the month it pays for (`payMonthPaidFor`);
   - `cashSwing`: last week's cash drawn is a quarter or more short of its payout (past it is drawings, 6 Oct 2026);
   - `costGap`: recorded against paid over three closed months;
@@ -3848,7 +3864,8 @@ the **supplier it is ordered from**: the one it last came from, or a cheaper one
 or the one the owner picked on **Compare suppliers**, under each line (*Suppliers*, above). Cover (30) and the lead time where a supplier's is not set (10) are set on the list and kept on the
 device's book (`S.stockCheck.leadDays/coverDays`). A rate from under three days of record is flagged
 *check*. Typed quantities win and 0 leaves a line out. Lines with no use yet are listed apart. **Copy as
-message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app.
+message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the app. The cash it needs, with GST, is each line at its
+supplier's own GST (`withGst`), on the list, Stock's verdict and Floor's Stock card.
 
 ### Home, arranged by the owner
 *These are Today → Pulse's widgets since Direction B (above).* Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where — dynamic home

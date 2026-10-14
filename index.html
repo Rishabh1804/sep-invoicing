@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="454a361a">
+<meta name="app-build" content="26719104">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -15952,7 +15952,8 @@ function pipeStages() {
     var bands = finAgeing(recv), old90 = bands[3] ? bands[3].amount : 0, old60 = bands[2] ? bands[2].amount : 0;
     var oldest = owing.reduce(function(m, r) { return r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
     var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows)).length;
-    var tone = figToneOwed(oldest, loose > 0) || 'neutral';
+    // Nothing past 60 days is ok, as Money's card and Receivables' verdict draw it: one tone for the fact wherever it is drawn.
+    var tone = figToneOwed(oldest, loose > 0) || 'ok';
     var word = old90 > 0.005 ? finRs(old90) + ' over 90 days' : old60 > 0.005 ? finRs(old60) + ' over 60 days' : pipeOldestWord(oldest) || 'owed';
     if (loose) word += ' · ' + todoPlural(loose, 'receipt') + ' not placed';
     add('owed', { n: owing.length, items: owing, recv: recv, loose: loose, of: 'owed', tone: tone, word: word,
@@ -27233,7 +27234,7 @@ function stockVerdictHtml(items, groups, lastCount) {
     facts: ['paste the supervisor’s stock message, or import a stock file'] });
   var amber = stockCfg().amberDays, out = groups.out.length, low = groups.low.length;
   var red = groups.low.some(function(x) { return x.st.tone === 'red'; });
-  var L = stockReorderList(), need = gstRound(L.total * 1.18), fc = finSeen() ? finForecast(45) : null;
+  var L = stockReorderList(), need = L.withGst, fc = finSeen() ? finForecast(45) : null;
   var words = out ? todoPlural(out, 'line') + ' out' : low ? todoPlural(low, 'line') + ' at ' + amber + ' days or less' : 'Every line stocked';
   var tile = function(g, n, label, tone) {
     return { label: label, fig: String(n), tone: n && tone ? tone : null, action: 'invStockFilter', attrs: ' data-v="' + g + '"', pressed: _stockFilter === g };
@@ -28106,11 +28107,28 @@ function stockMergeImport(src) {
     st.pastes.push(JSON.parse(JSON.stringify(p))); added.pastes++;
   });
   // Suppliers and the payments recorded to them: merged by id, never over one held here; a field a file sends is kept only in
-  // the shape the app writes it (suppliers.js).
-  added.suppliers = 0; added.supplierPays = 0;
+  // the shape the app writes it (suppliers.js). A record held here under the same name (made on another device) is that
+  // supplier: the file's payments to it are its, never a second record's. The prices quoted travel with their supplier, each
+  // on its line as this book holds it, merged by id.
+  added.suppliers = 0; added.supplierPays = 0; added.quotes = 0;
   var day = function(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); };
+  var spMap = {}, spKeys = {};
+  var spKeep = function(x) { [x.name].concat(Array.isArray(x.names) ? x.names : []).forEach(function(s) { var k = suppKey(s); if (k && !spKeys[k]) spKeys[k] = x; }); };
+  suppData().forEach(function(x) { if (x && x.id) spKeep(x); });
+  var spQuotes = function(rec, r) {
+    (Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) {
+      var itemId = q && (idMap[q.itemId] || (stockItem(q.itemId) ? q.itemId : null));
+      if (!itemId || typeof q.id !== 'string' || !num(q.price) || !(q.price > 0) || !day(q.date)) return;
+      rec.quotes = Array.isArray(rec.quotes) ? rec.quotes : [];
+      if (rec.quotes.some(function(x) { return x && x.id === q.id; })) return;
+      rec.quotes.push({ id: q.id, itemId: itemId, price: q.price, date: q.date, note: typeof q.note === 'string' ? q.note : '', at: num(q.at) ? q.at : Date.now(), by: q.by || null });
+      added.quotes++;
+    });
+  };
   (Array.isArray(src.suppliers) ? src.suppliers : []).forEach(function(r) {
-    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim() || suppData().some(function(x) { return x.id === r.id; })) return;
+    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim()) return;
+    var mine = suppData().find(function(x) { return x && x.id === r.id; }) || spKeys[suppKey(r.name)] || null;
+    if (mine) { spMap[r.id] = mine.id; spQuotes(mine, r); return; }
     var c = { id: r.id, name: r.name.trim(), names: (Array.isArray(r.names) ? r.names : []).filter(function(n) { return typeof n === 'string' && n.trim(); }).map(function(n) { return n.trim(); }),
       at: num(r.at) ? r.at : Date.now(), by: r.by || null };
     if (num(r.leadMax) && r.leadMax >= 0 && r.leadMax <= 60) { c.leadMax = r.leadMax; c.leadMin = num(r.leadMin) && r.leadMin >= 0 && r.leadMin <= r.leadMax ? r.leadMin : r.leadMax; }
@@ -28119,11 +28137,14 @@ function stockMergeImport(src) {
     if (Array.isArray(r.inOpening)) c.inOpening = r.inOpening.filter(function(x) { return typeof x === 'string'; });
     if (r.totals && typeof r.totals === 'object') { c.totals = {}; Object.keys(r.totals).forEach(function(k) { if (num(r.totals[k]) && r.totals[k] >= 0) c.totals[k] = r.totals[k]; }); }
     if (typeof r.note === 'string' && r.note.trim()) c.note = r.note.trim();
+    if (num(r.setAt)) { c.setAt = r.setAt; c.setBy = r.setBy || null; }
+    spQuotes(c, r);
     suppData().push(c); added.suppliers++;
+    spMap[r.id] = c.id; spKeep(c);
   });
   (Array.isArray(src.supplierPays) ? src.supplierPays : []).forEach(function(p) {
     if (!p || typeof p.id !== 'string' || typeof p.supplierId !== 'string' || !day(p.date) || !num(p.amount) || !(p.amount > 0) || suppPays().some(function(x) { return x.id === p.id; })) return;
-    var c = { id: p.id, supplierId: p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
+    var c = { id: p.id, supplierId: spMap[p.supplierId] || p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
       chq: typeof p.chq === 'string' && p.chq ? p.chq : null, note: typeof p.note === 'string' && p.note ? p.note : null, at: num(p.at) ? p.at : Date.now(), by: p.by || null };
     if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
     suppPays().push(c); added.supplierPays++;
@@ -28151,8 +28172,9 @@ function stockImportText(text, name) {
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
-    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '');
-    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
+    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '') +
+      (added.quotes ? ', ' + todoPlural(added.quotes, 'price') + ' quoted' : '');
+    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays || added.quotes ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
   } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 
@@ -29089,8 +29111,9 @@ function renderLiveCostCard(period, tonnage) {
 /* The bills are entered on Money → Payments, where they are kept with their notes (the tab map, TM3a: the list here repeated it);
    the card's electricity and other rows fold open to each bill's share of the period, which is the cost's own working. */
 function _costBillHtml() {
+  // The door is Money's: a role that does not open Money is told where they go, never handed a button that refuses it.
   return '<div class="inv-row" data-cost-bills><span class="inv-row-main"><span class="inv-row-meta">Bills are entered in Money &rarr; Payments</span></span>' +
-    '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span></div>';
+    (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span>' : '') + '</div>';
 }
 
 /* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). */
@@ -29125,6 +29148,9 @@ async function costBillSave() {
   if (arrears < 0 || penalty < 0 || gstRound(arrears + penalty) > amount) { showToast('Arrears and penalty are parts of the bill: together they cannot be more than its amount', 'error'); return; }
   if (arrearsOf && !/^\d{4}-\d{2}$/.test(arrearsOf)) arrearsOf = '';
   if (arrearsOf && arrearsOf >= month) { showToast('Arrears are for a month before the one the bill covers', 'error'); return; }
+  // A Finance edit (bankGate, P1), as a bill made from a bank payment is: the form stays as typed while the PIN is asked, and the
+  // same Save runs once it is given.
+  if (!bankGate('add a bill', function() { costBillSave(); })) return;
   // A second electricity bill for the month is asked about, never refused: it is usually arrears and a penalty.
   var twin = kind === 'power' && costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === month; });
   if (twin && !(arrears > 0)) {
@@ -29235,8 +29261,10 @@ function stockReorderList() {
   rows.forEach(function(r) { (groups[r.supplier] = groups[r.supplier] || []).push(r); });
   var order = Object.keys(groups).sort(function(a, b) { return (a === 'No supplier on record') - (b === 'No supplier on record') || a.localeCompare(b); });
   var total = rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0);
+  // The cash the order needs: each line with the GST of the supplier it is ordered from (suppliers.js suppGst, 18% until set).
+  var withGst = rows.reduce(function(s, r) { return s + (r.amount || 0) * (1 + suppGst(r.pick && r.pick.sp) / 100); }, 0);
   return { cfg: cfg, groups: order.map(function(k) { return { supplier: k, rows: groups[k].sort(function(a, b) { return (a.daysLeft == null ? -1 : a.daysLeft) - (b.daysLeft == null ? -1 : b.daysLeft); }) }; }),
-    total: gstRound(total), unpriced: rows.filter(function(r) { return r.price == null && r.qty > 0; }).length, skipped: skipped };
+    total: gstRound(total), withGst: gstRound(withGst), unpriced: rows.filter(function(r) { return r.price == null && r.qty > 0; }).length, skipped: skipped };
 }
 function stockReorderText(L) {
   var lines = ['Order · ' + stockShortDate(localDateStr())];
@@ -29275,8 +29303,8 @@ function renderStockReorder() {
     // The forecast is the bank's: shown to a role that may read money (finlinks.js finSeen).
     var fc = finSeen() ? finForecast(45) : null;
     if (fc && L.total > 0) {
-      var after = gstRound(fc.min.bal - L.total * 1.18);
-      h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
+      var after = gstRound(fc.min.bal - L.withGst);
+      h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(L.withGst)) + '. The cash forecast’s lowest point in 45 days is ' +
         escHtml(formatCurrency(fc.min.bal)) + ' (' + escHtml(stockShortDate(fc.min.date)) + '), ' + escHtml(formatCurrency(after)) + ' after this order. ' +
         '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview" data-anchor="finForecast">Open the forecast</button></div>';
     }
@@ -30411,11 +30439,12 @@ function bankSupplierIs(written, supplierKey) {
   return !!written && !!supplierKey && supplierKey.length >= 4 &&
     (written.indexOf(supplierKey) >= 0 || (written.length >= 4 && supplierKey.indexOf(written) === 0));
 }
-/* The supplier a payee names, of the stock bills' suppliers (keys: key → name); the longest name that fits wins. */
+/* The supplier a payee names, of the stock bills' suppliers (keys: key → name); the longest name that fits wins. The payee is read
+   as written and folded too ("&" is AND, BROS is BROTHERS: suppKey), as the bills' names are, so the fold works both ways. */
 function bankMatchSupplier(party, keys) {
-  var pk = bankKey(party);
+  var pk = bankKey(party), sk = suppKey(party);
   if (pk.length < 4) return '';
-  var hit = Object.keys(keys).filter(function(k) { return bankSupplierIs(pk, k); }).sort(function(a, b) { return b.length - a.length; })[0];
+  var hit = Object.keys(keys).filter(function(k) { return bankSupplierIs(pk, k) || bankSupplierIs(sk, k); }).sort(function(a, b) { return b.length - a.length; })[0];
   return hit ? keys[hit] : '';
 }
 
@@ -30627,42 +30656,56 @@ function bankClearBounce(revId) {
    number, from three days before it was received to sixty after, is its deposit, whatever its amount (a slip in the amount
    typed must not leave the cheque counting beside its deposit; the difference is said). From then the deposit counts and
    the cheque does not, so nothing is counted twice, and the deposit is placed on the cheque's client unless the row was set
-   by hand. The owner's own word wins: `deposit` a row's id, or null for "not this one". A credit of the same amount with no
-   number, in the fifteen days after it came, is only offered. A deposit that comes back is a returned cheque (the bounce
-   logic, as ever) and the cheque reads Returned. A cheque is voided with a reason, never deleted. */
-var BANK_CHQ_BEFORE = 3, BANK_CHQ_AFTER = 60, BANK_CHQ_OFFER = 15;
+   by hand. The owner's own word wins: `deposit` a row's id; "not this one" keeps that row apart (`notDeposits`) and the number
+   goes on to the next credit naming it (an older build stored null, which stops the number until "Match by number again").
+   A cheque typed in days after it went in is found too: with nothing in the window, the latest credit naming it in the month
+   before. A post-dated cheque waits for its own date: its days in hand and its window count from the day it can go in. The
+   same client's same number recorded twice (two devices, a file) is one cheque: the second reads "Recorded twice" and counts
+   nothing. A credit of the same amount with no number, in the fifteen days after it came, is only offered. A deposit that
+   comes back is a returned cheque (the bounce logic, as ever) and the cheque reads Returned. A cheque is voided with a reason,
+   never deleted. */
+var BANK_CHQ_BEFORE = 3, BANK_CHQ_AFTER = 60, BANK_CHQ_OFFER = 15, BANK_CHQ_LATE = 30;
 function bankCheques() { return bankData().cheques; }
 function bankChequeKey(n) { return String(n == null ? '' : n).replace(/\D/g, '').replace(/^0+/, ''); }
+/* The day a cheque can go in: its own date where it is dated after the day it came, else the day it came. */
+function bankChequeDue(ch) { return ch.chequeDate && ch.chequeDate > ch.receivedOn ? ch.chequeDate : ch.receivedOn; }
 /* Each cheque and what became of it: { ch, dep (its deposit, a classified row), how ('set' | 'number'), offers (row ids), diff
-   (the deposit less the amount typed), status ('held' | 'deposited' | 'returned' | 'void'), days (since it came, to today) }.
-   A deposit is one cheque's. */
+   (the deposit less the amount typed), status ('held' | 'deposited' | 'returned' | 'void' | 'twin'), twin (the record it
+   repeats), days (in hand since the day it could go in, to today), ahead (dated after today) }. A deposit is one cheque's. */
 function bankChequeLinks(cls) {
   var list = (bankCheques() || []).slice().sort(function(a, b) {
     return (a.receivedOn || '') < (b.receivedOn || '') ? -1 : (a.receivedOn || '') > (b.receivedOn || '') ? 1 : (a.at || 0) - (b.at || 0);
   });
   if (!list.length) return [];
   cls = cls || bankClassify();
-  var byId = {}, today = localDateStr(), taken = {};
+  var byId = {}, today = localDateStr(), taken = {}, first = {};
   // Money in: a deposit later returned is still a cheque's deposit; a posting and its own reversal is not.
   var credits = cls.filter(function(v) { return v.row.cr > 0 && !v.selfPair && (v.cat !== 'reversal' || v.bounced); });
   credits.forEach(function(v) { byId[v.row.id] = v; });
-  var inWin = function(v, ch, after) { return v.row.date >= isoAddDays(ch.receivedOn, -BANK_CHQ_BEFORE) && v.row.date <= isoAddDays(ch.receivedOn, after); };
+  var inWin = function(v, ch, after) { return v.row.date >= isoAddDays(ch.receivedOn, -BANK_CHQ_BEFORE) && v.row.date <= isoAddDays(bankChequeDue(ch), after); };
   var out = list.map(function(ch) {
-    var o = { ch: ch, dep: null, how: null, offers: [], diff: 0, status: ch.voidedAt ? 'void' : 'held', days: ch.receivedOn ? Math.max(0, isoDaysBetween(ch.receivedOn, today)) : 0 };
+    var due = ch.receivedOn ? bankChequeDue(ch) : '';
+    var o = { ch: ch, dep: null, how: null, offers: [], diff: 0, status: ch.voidedAt ? 'void' : 'held', days: due ? Math.max(0, isoDaysBetween(due, today)) : 0, ahead: !!due && due > today };
+    var twin = String(ch.clientId) + '|' + bankChequeKey(ch.number);
+    if (!ch.voidedAt && bankChequeKey(ch.number)) { if (first[twin]) { o.status = 'twin'; o.twin = first[twin].ch; return o; } first[twin] = o; }
     if (!ch.voidedAt && ch.deposit && byId[ch.deposit] && !taken[ch.deposit]) { o.dep = byId[ch.deposit]; o.how = 'set'; taken[ch.deposit] = true; }
     return o;
   });
-  // Then by the cheque's own number: the earliest credit naming it in the window.
+  // Then by the cheque's own number: the earliest credit naming it in the window, past those the owner said are not it; else,
+  // for one typed in late, the latest naming it in the month before.
   out.forEach(function(o) {
-    var ch = o.ch, key = bankChequeKey(ch.number);
-    if (ch.voidedAt || o.dep || ch.deposit === null || !key || !ch.receivedOn) return;
-    var hit = credits.find(function(v) { return !taken[v.row.id] && bankChequeKey(bankInstrument(v.row)) === key && inWin(v, ch, BANK_CHQ_AFTER); });
+    var ch = o.ch, key = bankChequeKey(ch.number), not = Array.isArray(ch.notDeposits) ? ch.notDeposits : [];
+    if (o.status !== 'held' || o.dep || ch.deposit === null || !key || !ch.receivedOn) return;
+    var named = function(v) { return !taken[v.row.id] && not.indexOf(v.row.id) < 0 && bankChequeKey(bankInstrument(v.row)) === key; };
+    var hit = credits.find(function(v) { return named(v) && inWin(v, ch, BANK_CHQ_AFTER); }) || credits.filter(function(v) {
+      return named(v) && v.row.date < isoAddDays(ch.receivedOn, -BANK_CHQ_BEFORE) && v.row.date >= isoAddDays(ch.receivedOn, -BANK_CHQ_LATE);
+    }).pop();
     if (hit) { o.dep = hit; o.how = 'number'; taken[hit.row.id] = true; }
   });
   // Offers, never applied: the same amount, carrying no cheque number, not placed on another client.
   out.forEach(function(o) {
     var ch = o.ch, amt = Number(ch.amount) || 0;
-    if (ch.voidedAt || o.dep || !ch.receivedOn) return;
+    if (o.status !== 'held' || o.dep || !ch.receivedOn) return;
     o.offers = credits.filter(function(v) {
       return !taken[v.row.id] && v.cat === 'receipt' && (v.clientId == null || String(v.clientId) === String(ch.clientId)) && Math.abs(v.row.cr - amt) < 0.005 &&
         inWin(v, ch, BANK_CHQ_OFFER) && !/^\d{4,}$/.test(String(bankInstrument(v.row) || '').trim());
@@ -30676,9 +30719,10 @@ function bankChequeLinks(cls) {
   return out;
 }
 /* A deposit a cheque names is placed on the cheque's client, unless the row itself was set by hand (a client, or a category
-   other than a receipt). Run inside bankClassify, before the returned cheques are linked. */
+   other than a receipt). Run inside bankClassify, before the returned cheques are linked; a statement of one row is placed
+   too (a bounce needs two rows, a deposit one). */
 function bankPlaceCheques(list) {
-  if (list.length < 2 || !(bankData().cheques || []).length) return list;
+  if (!list.length || !(bankData().cheques || []).length) return list;
   bankChequeLinks(list).forEach(function(o) {
     if (!o.dep || o.ch.voidedAt) return;
     var set = o.dep.row.set;
@@ -30708,7 +30752,8 @@ function bankChequeClient(ch) { return (S.clients || []).find(function(x) { retu
 /* ---------- Cheques on screen ---------- */
 function _bankChequeRowHtml(o, byId) {
   var ch = o.ch, c = bankChequeClient(ch);
-  var st = o.status === 'held' ? { tone: bankChequeTone(o.days), word: 'In hand · ' + bankChequeAge(o.days) }
+  var st = o.status === 'held' ? (o.ahead ? { tone: 'info', word: 'Dated ' + stockShortDate(ch.chequeDate) } : { tone: bankChequeTone(o.days), word: 'In hand · ' + bankChequeAge(o.days) })
+    : o.status === 'twin' ? { tone: 'warning', word: 'Recorded twice' }
     : o.status === 'returned' ? { tone: 'danger', word: 'Returned' }
     : Math.abs(o.diff) >= 0.005 ? { tone: 'warning', word: 'In the bank: ' + formatCurrency(o.dep.row.cr) }
     : { tone: 'ok', word: 'In the bank ' + stockShortDate(o.dep.row.date) };
@@ -30728,24 +30773,27 @@ function _bankChequeRowHtml(o, byId) {
   }
   return h;
 }
-/* Receivables leads with them (what needs the owner, §3e) while any is in hand, or went in or came back in the last 30 days. */
+/* Receivables leads with them (what needs the owner, §3e) while any is in hand or recorded twice, or went in or came back in the
+   last 30 days. */
 function _bankChequesHtml(cls) {
   var today = localDateStr(), byId = {};
   cls.forEach(function(v) { byId[v.row.id] = v; });
   var shown = bankChequeLinks(cls).filter(function(o) {
-    return o.status === 'held' || ((o.status === 'deposited' || o.status === 'returned') && isoDaysBetween(o.dep.row.date, today) <= 30);
+    return o.status === 'held' || o.status === 'twin' || ((o.status === 'deposited' || o.status === 'returned') && isoDaysBetween(o.dep.row.date, today) <= 30);
   });
   if (!shown.length) return '';
   var held = shown.filter(function(o) { return o.status === 'held'; });
   var amt = gstRound(held.reduce(function(t, o) { return t + (Number(o.ch.amount) || 0); }, 0)), oldest = held.reduce(function(m, o) { return Math.max(m, o.days); }, 0);
   var say = held.length ? '<span class="inv-dot inv-dot-' + bankChequeTone(oldest) + '" data-cheques-held="' + held.length + '">' +
-    escHtml(todoPlural(held.length, 'cheque') + ' in hand · ' + finRs(amt) + (oldest ? ' · the oldest ' + todoPlural(oldest, 'day') : ' · received today')) + '</span>'
+    escHtml(todoPlural(held.length, 'cheque') + ' in hand · ' + finRs(amt) + (oldest ? ' · the oldest ' + todoPlural(oldest, 'day') :
+      held.every(function(o) { return o.ahead; }) ? ' · post-dated' : ' · received today')) + '</span>'
     : '<span class="inv-dot inv-dot-ok" data-cheques-held="0">None in hand</span>';
-  // In hand first, the oldest first; then those gone in, the latest first.
+  // In hand first, the oldest first; then any recorded twice; then those gone in, the latest first.
+  var rank = function(o) { return o.status === 'held' ? 0 : o.status === 'twin' ? 1 : 2; };
   shown.sort(function(a, b) {
-    var ah = a.status === 'held' ? 0 : 1, bh = b.status === 'held' ? 0 : 1;
+    var ah = rank(a), bh = rank(b);
     if (ah !== bh) return ah - bh;
-    return ah === 0 ? b.days - a.days : (b.dep.row.date < a.dep.row.date ? -1 : b.dep.row.date > a.dep.row.date ? 1 : 0);
+    return ah === 0 ? b.days - a.days : ah === 1 ? 0 : (b.dep.row.date < a.dep.row.date ? -1 : b.dep.row.date > a.dep.row.date ? 1 : 0);
   });
   return '<div class="inv-panel inv-panel-flush" id="bankCheques"><div class="inv-panel-head"><span class="inv-panel-title">Cheques received</span>' + say + '</div>' +
     shown.map(function(o) { return _bankChequeRowHtml(o, byId); }).join('') + '</div>';
@@ -30762,8 +30810,9 @@ function bankChequeOpen(id) {
   var o = bankChequeLinks().find(function(x) { return x.ch.id === id; });
   if (!o) return;
   var ch = o.ch, c = bankChequeClient(ch);
-  var state = o.status === 'held' ? { label: 'In hand', value: bankChequeAge(o.days), sub: 'counts as paid until it reaches the bank' }
+  var state = o.status === 'held' ? { label: 'In hand', value: o.ahead ? 'post-dated' : bankChequeAge(o.days), sub: 'counts as paid until it reaches the bank' }
     : o.status === 'void' ? { label: 'Void', value: formatDate(isoOf(new Date(ch.voidedAt))), sub: ch.voidReason || '' }
+    : o.status === 'twin' ? { label: 'Recorded twice', value: formatDate(o.twin.receivedOn), sub: 'the same client and number as the one received then, which counts: void this one' }
     : { label: o.status === 'returned' ? 'Deposited, then returned' : 'In the bank', value: formatDate(o.dep.row.date),
       sub: (o.how === 'set' ? 'linked by you' : 'found by its number') + (Math.abs(o.diff) >= 0.005 ? '; deposited ' + formatCurrency(o.dep.row.cr) + ', not ' + formatCurrency(ch.amount) : '') };
   var facts = [
@@ -30772,9 +30821,11 @@ function bankChequeOpen(id) {
     { label: 'Received', value: formatDate(ch.receivedOn) }, state
   ].filter(Boolean);
   var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button>' +
-    (!ch.voidedAt && o.how === 'number' ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeNotThis" data-id="' + escHtml(ch.id) + '">Not this deposit</button>' : '') +
+    (!ch.voidedAt && o.how === 'number' ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeNotThis" data-id="' + escHtml(ch.id) + '" data-row="' + escHtml(o.dep.row.id) + '">Not this deposit</button>' : '') +
     (!ch.voidedAt && o.how === 'set' ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeUnlink" data-id="' + escHtml(ch.id) + '">Unlink</button>' : '') +
-    (!ch.voidedAt && o.status === 'held' ? '<button class="inv-btn inv-btn-danger" data-action="invChequeVoid" data-id="' + escHtml(ch.id) + '">Void</button>' : '');
+    // A "not this deposit" taken back: the number finds its deposit again.
+    (o.status === 'held' && (ch.deposit === null || (ch.notDeposits || []).length) ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeRematch" data-id="' + escHtml(ch.id) + '">Match by number again</button>' : '') +
+    (o.status === 'held' || o.status === 'twin' ? '<button class="inv-btn inv-btn-danger" data-action="invChequeVoid" data-id="' + escHtml(ch.id) + '">Void</button>' : '');
   dialogOpen('<div class="inv-dialog" data-cheque-dialog="' + escHtml(ch.id) + '">' + dialogHeadHtml('Cheque ' + escHtml(ch.number)) +
     '<div class="inv-panel inv-panel-flush"><div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c ? c.name : 'A client no longer in the book') + '</span></span></div>' +
     facts.map(uiFactRowHtml).join('') + (ch.note ? '<div class="inv-panel-body inv-note">' + escHtml(ch.note) + '</div>' : '') + '</div>' +
@@ -30824,8 +30875,10 @@ async function bankChequeVoid(id) {
   var ch = bankCheques().find(function(x) { return x.id === id; });
   if (!ch || ch.voidedAt) return;
   if (!bankGate('void a cheque received', function() { bankChequeVoid(id); })) return;
-  var reason = await uiPrompt({ title: 'Void cheque ' + ch.number, body: 'It stays on the record and stops counting as paid.', label: 'Why is it void?',
-    okLabel: 'Void cheque', danger: true, required: true, requiredText: 'A void needs a reason.' });
+  // A second record of a cheque counts nothing: voiding it leaves what the client owes as it is, and says so.
+  var twin = (bankChequeLinks().find(function(o) { return o.ch.id === id; }) || {}).status === 'twin';
+  var reason = await uiPrompt({ title: 'Void cheque ' + ch.number, body: twin ? 'It stays on the record; the one recorded first still counts.' : 'It stays on the record and stops counting as paid.',
+    label: 'Why is it void?', okLabel: 'Void cheque', danger: true, required: true, requiredText: 'A void needs a reason.' });
   if (reason == null) return;
   if (!reason.trim()) { showToast('A void needs a reason', 'error'); return; }
   ch = bankCheques().find(function(x) { return x.id === id; });
@@ -30834,34 +30887,42 @@ async function bankChequeVoid(id) {
   saveState();
   bankChequeDialogClose('[data-cheque-dialog]');
   if (navPageOf() === 'pageFinance') renderFinance();
-  showToast('Cheque ' + ch.number + ' voided: what the client owes is back');
+  showToast('Cheque ' + ch.number + ' voided: ' + (twin ? 'the one recorded first still counts' : 'what the client owes is back'));
 }
 /* A sep-bank file (this app's own bank export): its cheques received merge by id, never written over; its statement rows are not
    read from it (a statement comes in from the bank's own file). Add → File and Money → Bank's Import hand it here. */
 function bankChequesImport(obj, name) {
-  var list = obj && Array.isArray(obj.cheques) ? obj.cheques : [], have = {}, added = 0, kept = 0;
-  bankCheques().forEach(function(ch) { have[ch.id] = true; });
+  var list = obj && Array.isArray(obj.cheques) ? obj.cheques : [], have = {}, live = {}, added = 0, kept = 0;
+  var twinKey = function(c) { return !c.voidedAt && bankChequeKey(c.number) ? String(c.clientId) + '|' + bankChequeKey(c.number) : ''; };
+  bankCheques().forEach(function(ch) { have[ch.id] = true; if (twinKey(ch)) live[twinKey(ch)] = true; });
   list.forEach(function(x) {
     if (!x || typeof x !== 'object' || !x.id || !(Number(x.amount) > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(String(x.receivedOn || ''))) return;
     if (have[x.id]) { kept++; return; }
+    // The same client's same cheque held under another id (recorded on two devices) is that cheque: the one here is kept.
+    if (twinKey(x) && live[twinKey(x)]) { kept++; return; }
     var ch = { id: String(x.id), clientId: x.clientId, amount: gstRound(Number(x.amount)), number: String(x.number || ''), chequeDate: x.chequeDate || null,
       drawnOn: x.drawnOn || null, receivedOn: x.receivedOn, note: x.note || null, at: Number(x.at) || Date.now(), by: x.by || null };
     if (x.deposit !== undefined) ch.deposit = x.deposit === null ? null : String(x.deposit);
+    if (Array.isArray(x.notDeposits)) ch.notDeposits = x.notDeposits.filter(function(r) { return typeof r === 'string' && r; });
     if (x.voidedAt) { ch.voidedAt = x.voidedAt; ch.voidReason = x.voidReason || ''; ch.voidBy = x.voidBy || null; }
     bankCheques().push(ch);
     have[ch.id] = true; added++;
+    if (twinKey(ch)) live[twinKey(ch)] = true;
   });
   if (added) saveState();
   if (navPageOf() === 'pageFinance') renderFinance();
   uiAlert({ title: added ? todoPlural(added, 'cheque') + ' received added' : 'No cheque added', body: (name || 'The file') + ' holds ' + todoPlural(list.length, 'cheque') + ' received' +
     ': ' + added + ' new' + (kept ? ', ' + kept + ' already held and kept as they are' : '') + '. Its statement rows are not read from it: a statement comes in from the bank’s own .xls or .xlsx, on Money → Bank.' });
 }
-/* The owner's word on a cheque's deposit: a row (Link), "not this one" (null), or back to its number (Unlink). */
-function bankChequeSetDeposit(id, dep) {
+/* The owner's word on a cheque's deposit: a row (Link), back to its number (Unlink), "not this one" (`notRow`: that row is kept
+   apart and the number goes on to the next credit naming it), or every such word taken back (`again`: Match by number again). */
+function bankChequeSetDeposit(id, dep, notRow, again) {
   var ch = bankCheques().find(function(x) { return x.id === id; });
   if (!ch || ch.voidedAt) return;
-  if (!bankGate('link a cheque to its deposit', function() { bankChequeSetDeposit(id, dep); })) return;
+  if (!bankGate('link a cheque to its deposit', function() { bankChequeSetDeposit(id, dep, notRow, again); })) return;
   if (dep === undefined) delete ch.deposit; else ch.deposit = dep;
+  if (notRow) ch.notDeposits = (Array.isArray(ch.notDeposits) ? ch.notDeposits : []).filter(function(r) { return r !== notRow; }).concat([notRow]);
+  if (again) delete ch.notDeposits;
   saveState();
   bankChequeDialogClose('[data-cheque-dialog]');
   if (navPageOf() === 'pageFinance') renderFinance();
@@ -30927,7 +30988,8 @@ function bankReceivables(cls) {
   var from = bankRecvFrom();
   var out = [];
   // A cheque received and not yet in the bank is a receipt dated the day it came (TM3b): the client paid that day. It is no
-  // statement row, so it is never placed by hand, offered to another client, or read as what was owed at the start.
+  // statement row, so it is never placed by hand, offered to another client, or read as what was owed at the start; and like
+  // any receipt, one that came before receivables start paid what was owed then, so it is not read.
   var held = bankChequeLinks(cls).filter(function(o) { return o.status === 'held'; }).map(function(o) {
     return { row: { id: 'chq:' + o.ch.id, date: o.ch.receivedOn, cr: gstRound(Number(o.ch.amount) || 0), dr: 0, narration: 'Cheque ' + o.ch.number + ' in hand', chq: o.ch.number },
       cat: 'receipt', clientId: o.ch.clientId, party: '', pending: true, cheque: o.ch.id };
@@ -30936,7 +30998,7 @@ function bankReceivables(cls) {
     var invs = (S.invoices || []).filter(function(i) { return i.status === 'active' && String(i.clientId) === String(c.id) && i.date >= from; })
       .sort(function(x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : String(x.invoiceNumber).localeCompare(String(y.invoiceNumber)); });
     var recs = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(c.id) && v.row.date >= from; })
-      .concat(held.filter(function(v) { return String(v.clientId) === String(c.id); }));
+      .concat(held.filter(function(v) { return String(v.clientId) === String(c.id) && v.row.date >= from; }));
     var op = bankOpeningFor(c.id, from), opening = op.amount;
     if (!invs.length && !recs.length && !opening && !op.stale) return;
     var open = [];
@@ -31966,8 +32028,9 @@ function bankAction(action, btn) {
     case 'invChequeOpen': bankChequeOpen(btn.dataset.id); return true;
     case 'invChequeVoid': bankChequeVoid(btn.dataset.id); return true;
     case 'invChequeLink': bankChequeSetDeposit(btn.dataset.id, btn.dataset.row); return true;
-    case 'invChequeNotThis': bankChequeSetDeposit(btn.dataset.id, null); return true;
+    case 'invChequeNotThis': bankChequeSetDeposit(btn.dataset.id, undefined, btn.dataset.row || ''); return true;
     case 'invChequeUnlink': bankChequeSetDeposit(btn.dataset.id, undefined); return true;
+    case 'invChequeRematch': bankChequeSetDeposit(btn.dataset.id, undefined, '', true); return true;
   }
   return false;
 }
@@ -32300,12 +32363,6 @@ function suppRedraw(id) {
   if (sp && document.querySelector('[data-supp-dialog]')) suppOpen(sp.id, _suppForm);
   if (_suppCmpItem && document.querySelector('[data-supp-compare]')) suppCompareOpen(_suppCmpItem, _suppCmpForm, true);
 }
-function suppDialogClose() {
-  var el = document.querySelector('[data-supp-dialog]'), sc = el && el.closest('.inv-scrim-dialog');
-  if (!sc) return;
-  delete sc.dataset.typed;
-  dialogCloseScrim(sc);
-}
 /* A fact of the dialog: a figure at the row's end in the figures' face (uiFactRowHtml), or words there in the text's. */
 function suppFactHtml(f) {
   if (!('words' in f)) return uiFactRowHtml(f);
@@ -32438,6 +32495,41 @@ function suppRecord(sp) {
   sp.rec = r;
   return r;
 }
+/* Two records for one supplier (two devices each set something on it before they met: the merge keeps both, by id). Every
+   spelling reads as the first's, so the second's payments, balance and quotes sat in a ledger of their own. The second is folded
+   into the first: its spellings, what the first has not set (a lead time, GST, a note, a balance with its marks), its totals and
+   quotes, and every payment and line choice that named it. Structural (migrateState): a book with none to fold is not written.
+   Returns how many were folded. */
+function suppFoldTwins() {
+  var list = suppData(), held = {}, into = {}, n = 0;
+  var keys = function(s) { return [suppKey(s), bankKey(s)].filter(Boolean); };
+  list.forEach(function(r) {
+    if (!r || !r.id || !String(r.name || '').trim()) return;
+    var f = keys(r.name).map(function(k) { return held[k]; }).filter(Boolean)[0] || null;
+    var names = [r.name].concat(Array.isArray(r.names) ? r.names : []);
+    if (!f) { names.forEach(function(s) { keys(s).forEach(function(k) { if (!held[k]) held[k] = r; }); }); return; }
+    f.names = Array.isArray(f.names) ? f.names : [];
+    names.forEach(function(s) { s = String(s || '').trim(); if (s && s !== f.name && f.names.indexOf(s) < 0) f.names.push(s); });
+    if (typeof f.leadMax !== 'number' && typeof r.leadMax === 'number') { f.leadMax = r.leadMax; if (typeof r.leadMin === 'number') f.leadMin = r.leadMin; }
+    ['gstPct', 'note'].forEach(function(k) { if (f[k] == null && r[k] != null) f[k] = r[k]; });
+    if (!f.opening && r.opening) { f.opening = r.opening; if (Array.isArray(r.inOpening)) f.inOpening = r.inOpening.slice(); }
+    if (r.totals && typeof r.totals === 'object') {
+      f.totals = f.totals && typeof f.totals === 'object' ? f.totals : {};
+      Object.keys(r.totals).forEach(function(k) { if (!(k in f.totals)) f.totals[k] = r.totals[k]; });
+    }
+    if (Array.isArray(r.quotes) && r.quotes.length) {
+      f.quotes = Array.isArray(f.quotes) ? f.quotes : [];
+      r.quotes.forEach(function(q) { if (q && !f.quotes.some(function(x) { return x && x.id === q.id; })) f.quotes.push(q); });
+    }
+    into[r.id] = f.id; n++;
+  });
+  if (!n) return 0;
+  suppPays().forEach(function(p) { if (p && into[p.supplierId]) p.supplierId = into[p.supplierId]; });
+  stockData().items.forEach(function(it) { if (it && it.orderFrom && into[it.orderFrom.supplierId]) it.orderFrom.supplierId = into[it.orderFrom.supplierId]; });
+  S.suppliers = list.filter(function(r) { return !(r && into[r.id]); });
+  _suppMemo = null;
+  return n;
+}
 function suppFormVal(sel, id) { var f = document.querySelector(sel), el = f && f.parentNode.querySelector('#' + id); return el ? String(el.value).trim() : ''; }
 function suppSavePay() {
   var sp = suppById(_suppOpenId);
@@ -32467,10 +32559,11 @@ function suppSaveBalance() {
   if (isNaN(amt)) { showToast('Enter what was owed', 'error'); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDateStr()) { showToast('Pick the day it was owed at the end of, not after today', 'error'); return; }
   if (!bankGate('set what is owed to a supplier', function() { suppSaveBalance(); })) return;
-  var r = suppRecord(sp);
+  var r = suppRecord(sp), was = r.opening ? r.opening.date : '';
   r.opening = { amount: gstRound(amt), date: date, note: v('suppBalNote') || null, at: Date.now(), by: suppBy() };
-  // A payment marked as in the figure belonged to the day it was set against.
-  delete r.inOpening;
+  // A payment marked as in the figure belonged to the day it was set against: it goes when the day moves, never with a figure
+  // corrected on the same day (it would be counted again).
+  if (was !== date) delete r.inOpening;
   _suppOpenId = r.id; _suppForm = '';
   saveState();
   suppRedraw(r.id);
@@ -32490,9 +32583,11 @@ function suppSaveSet() {
   var g = gst === '' ? SUPP_GST : parseFloat(gst);
   if (isNaN(g) || g < 0 || g > 28) { showToast('GST is 0 to 28%', 'error'); return; }
   var names = v('suppSetNames').split(/\n+/).map(function(s) { return s.trim().replace(/\s+/g, ' '); }).filter(Boolean);
-  // A spelling already another supplier's would make two suppliers one by accident: refused, said which.
+  // A spelling already another supplier's would make two suppliers one by accident: refused, said which. One the book only names
+  // (a bill's company, or a payee sorted as Supplier on the statement, that nothing was set on) moves here: that is how the bank's
+  // spelling of a supplier is joined to it, and it was refused as the payee's own.
   var idx = suppIndex(), clash = null;
-  [name].concat(names).some(function(s) { var o = idx.find(s); if (o && o !== sp) { clash = { s: s, o: o }; return true; } return false; });
+  [name].concat(names).some(function(s) { var o = idx.find(s); if (o && o !== sp && o.rec) { clash = { s: s, o: o }; return true; } return false; });
   if (clash) { showToast('“' + clash.s + '” is ' + clash.o.name + '’s already', 'error'); return; }
   if (!bankGate('change a supplier', function() { suppSaveSet(); })) return;
   var r = suppRecord(sp), old = r.name;
@@ -32737,9 +32832,11 @@ function suppPickText(pk) {
    or lets the app pick again. A price a supplier quoted is added here too, so one that never sold the line can be weighed. */
 var _suppCmpItem = null;         // the stock line whose suppliers are compared
 var _suppCmpForm = '';           // '' | 'quote': the form open in its dialog
-/* A line's days left as the reorder list reads them: none where it has no daily use, nought where it is out. */
+/* A line's days left as the reorder list reads them: none where it has no daily use, nought where it is out. A line charged into a
+   bath (zinc) has none either: its delivery goes into the bath as it comes, so an empty shelf is its normal state, never "out". */
 function suppDaysLeft(item, st) {
   st = st || stockStatus(item);
+  if (st.group === 'bath') return null;
   var rate = st.rate && st.rate.rate ? st.rate.rate : null;
   return st.group === 'out' || (st.level != null && st.level <= 0) ? 0 : rate ? st.daysLeft : null;
 }
@@ -33227,7 +33324,7 @@ function finOwedHeroHtml(rows, cls, recv) {
   if (loose) body += '<div class="inv-row" data-fin-loose><span class="inv-row-main inv-row-meta">' + todoPlural(loose, 'receipt') + ' with no client: what is owed reads high</span>' +
     '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinLoose">Place them</button></span></div>';
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Owed to us</span>', title: escHtml(title), fig: finHeroFig(owed), sub: sub,
-    viz: owed >= 0.5 ? chartMeter(bands.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+    viz: owed >= 0.5 ? chartMeter(bands.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
       { title: 'Owed by age: ' + bands.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '',
     body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'fin-hero-owed', open: false, attrs: tile, foot: go });
 }
@@ -41981,7 +42078,7 @@ function statsStoryCards(a, ctx) {
       var bBook = bankBookDaysToPay(bankPayHistory(recv)), owedTone = finOwedTone(finOwedOldest(recv));
       // Owed in its age's tone (finOwedTone), how fast clients pay in its own beside it (figTonePaysIn): two facts, two tones.
       body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
-        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? figHtml('clients pay in ' + Math.round(bBook.median) + ' days', figTonePaysIn(Math.round(bBook.median))) : ''), owedTone || ''));
+        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? figHtml('clients pay in ' + Math.round(bBook.median) + ' days', figTonePaysIn(Math.round(bBook.median))) : ''), owedTone || 'ok'));
       // Judged as Pulse's Money card judges it, so the two never disagree on one figure (the survey of 8 Oct 2026: owed read green
       // here and red there): overdrawn is danger; what is owed by its oldest invoice's age (finOwedTone, the one judge wherever owed
       // is drawn: never red while a receipt is unplaced); and how fast clients pay (figTonePaysIn).
@@ -41994,7 +42091,7 @@ function statsStoryCards(a, ctx) {
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
         // Two facts (the tab map, TM6e): what is old, and how fast clients pay; the balance is the card's tile.
         sub: escHtml([old90 > 0.5 ? formatCurrency(old90) + ' over 90 days' : 'in the bank ' + formatCurrency(bLast.balance), bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''].filter(Boolean).join(' · ')),
-        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'danger' }; }),
+        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
         tone: cashTone };
       cards.cash = c5;
@@ -42951,6 +43048,8 @@ TODO_RULE_FNS.bankLoose = function() {
    other client 45 days"): the receivables' ageing against each client's terms (flow.js flowTerms), where it read a fixed 90 days. The
    rule keeps its first name, so a switch or a snooze set on it before stands. */
 TODO_RULE_FNS.owed90 = function() {
+  // With no statement nothing says what was paid: every invoice would read open, so it asks nothing (Receivables says the same).
+  if (!finCtx().rows.length) return [];
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
@@ -43127,8 +43226,9 @@ TODO_RULE_FNS.bankBounce = function() {
    says whether the statement reaches past the day it came, so "not in the bank" is a fact, else to import the statement. */
 TODO_RULE_FNS.chequeHeld = function() {
   var ctx = finCtx(), end = ctx.rows.length ? ctx.rows[ctx.rows.length - 1].date : '';
+  // Its days count from the day it could go in (bankChequeDue: a post-dated cheque's own date), and so does "not in the bank by".
   return bankChequesHeld(ctx.cls).list.filter(function(o) { return o.days >= 3; }).map(function(o) {
-    var c = bankChequeClient(o.ch), past = end && end > o.ch.receivedOn, tone = o.days >= 7 ? 'red' : 'amber';
+    var c = bankChequeClient(o.ch), past = end && end > bankChequeDue(o.ch), tone = o.days >= 7 ? 'red' : 'amber';
     return { key: 'chequeHeld:' + o.ch.id, rule: 'chequeHeld', tone: tone, clientId: o.ch.clientId, amount: Number(o.ch.amount) || 0,
       // The client is in its line, not its title: Needs you's groups name their tasks by title in one line (a long name made
       // that line a block of text, P195).
@@ -43248,7 +43348,8 @@ function finInvoicePaymentHtml(inv) {
     h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (x.how === 'exact' ? 'ok' : 'info') + '">' + (x.how === 'exact' ? 'Paid, exact' : 'Paid, oldest first') + '</span></span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(x.date)) + (x.chq ? ' · chq ' + escHtml(x.chq) : '') + '</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
   });
-  if (p.open > 0.005) h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-' + (p.days > 90 ? 'danger' : p.days > 60 ? 'warning' : 'neutral') + '">Open, ' + p.days + ' days</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(p.open)) + '</span></div>';
+  // Its age judged as owed is everywhere (finOwedTone): never red while a receipt is unplaced.
+  if (p.open > 0.005) h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-' + (finOwedTone(p.days) || 'neutral') + '">Open, ' + p.days + ' days</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(p.open)) + '</span></div>';
   return h;
 }
 
@@ -43276,6 +43377,9 @@ function finSupplierPaid(name) {
 /* What is owed, by age, as a bar's tones: within a month fresh, a second month plain, then warning and danger (figToneAge's
    60 and 90 days). Pulse's Money card and the cash question draw the one bar (intel.js). */
 var FIN_AGE_TONE = ['ok', 'neutral', 'warning', 'danger'];
+/* A band's tone in that bar: over 90 days is danger, but a warning while a receipt is unplaced (finOwedTone's rule), so the bar
+   never reads red beside an owed figure that does not. */
+function finAgeTone(i) { var t = FIN_AGE_TONE[i] || 'danger'; return t === 'danger' && finHasBank() && finCtx().loose() > 0 ? 'warning' : t; }
 /* What is owed, judged by the age of its oldest open invoice (figToneOwed), one tone on every screen that draws it (the tab map,
    TM6a: Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline, a client's Money panel, the statement):
    never red while a receipt is unplaced. */
@@ -43303,7 +43407,7 @@ function renderFinHomeCard() {
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = isoDaysBetween(last.date, localDateStr());
   // What is owed is judged by its oldest invoice's age, past 90 days danger and past 60 warning, never red while a receipt is
-  // unplaced (finOwedTone: the one judge wherever owed is drawn).
+  // unplaced (finOwedTone: the one judge wherever owed is drawn); nothing past 60 days is ok, as on Money's card and Pipeline's.
   var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0, owedTone = finOwedTone(finOwedOldest(recv));
   var tones = [];
   var tile = function(tab, anchor, label, value, sub, tone) {
@@ -43317,7 +43421,7 @@ function renderFinHomeCard() {
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
-      owedTone || '') +
+      owedTone || 'ok') +
     (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
@@ -43328,7 +43432,7 @@ function renderFinHomeCard() {
     '</div>';
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
   var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
-  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
     { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
   el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
     title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
@@ -50295,7 +50399,7 @@ function flrStockHeroHtml() {
   var red = out.length + low.filter(function(x) { return x.s.tone === 'red'; }).length;
   var tone = red ? 'danger' : low.length ? 'warning' : 'ok';
   var title = out.length ? todoPlural(out.length, 'line') + ' out' + (low.length ? ', ' + low.length + ' low' : '') : low.length ? todoPlural(low.length, 'line') + ' at ' + cfg.amberDays + ' days or less' : 'Every line above ' + cfg.amberDays + ' days';
-  var L = stockReorderList(), need = gstRound(L.total * 1.18);
+  var L = stockReorderList(), need = L.withGst;
   var first = out.concat(low).slice(0, 3);
   var body = first.map(function(x) {
     return '<div class="inv-row" data-flr-stock-line="' + escHtml(x.item.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.item.name) + '</span></span>' +
@@ -54328,7 +54432,9 @@ function powerLoadHtml(a) {
     attrs: ' id="powerLoad"' });
   h += '<div class="inv-toolbar" data-power-toolbar="load"><button class="inv-btn inv-btn-primary" data-action="invPowerLoadEdit">Edit load</button></div>';
   h += '<div class="inv-panels">';
-  h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button></div>';
+  // Bills are added on Money → Payments: the door only for a role that opens Money (the empty line says where they go).
+  h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span>' +
+    (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button>' : '') + '</div>';
   if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money → Payments; their details are set here.</div>';
   L.bills.slice().reverse().forEach(function(b) {
     var facts = [b.kwh ? ['Units', formatNum(b.kwh, 0) + ' kWh'] : b.units ? ['Units', formatNum(b.units, 0)] : null, b.kvah ? ['kVAh', formatNum(b.kvah, 0)] : null,
@@ -65975,6 +66081,16 @@ if (!S._cnSeriesStart1) {
   if (typeof pltFromMachines === 'function' && pltFromMachines()) {
     saveJSON(STORAGE_KEY, S);
     console.log('[migrate] the planner’s machines moved into the plant register');
+  }
+})();
+
+/* Two records for one supplier, made on two devices before they met, folded into one so its ledger is one (suppliers.js
+   suppFoldTwins). Structural (it re-points records the book holds), so it runs on a pull, an import and a merge as well. */
+(function() {
+  var n = typeof suppFoldTwins === 'function' ? suppFoldTwins() : 0;
+  if (n) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] ' + n + ' supplier record(s) folded into the one with the same name');
   }
 })();
 

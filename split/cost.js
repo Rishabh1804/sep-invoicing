@@ -841,8 +841,9 @@ function renderLiveCostCard(period, tonnage) {
 /* The bills are entered on Money → Payments, where they are kept with their notes (the tab map, TM3a: the list here repeated it);
    the card's electricity and other rows fold open to each bill's share of the period, which is the cost's own working. */
 function _costBillHtml() {
+  // The door is Money's: a role that does not open Money is told where they go, never handed a button that refuses it.
   return '<div class="inv-row" data-cost-bills><span class="inv-row-main"><span class="inv-row-meta">Bills are entered in Money &rarr; Payments</span></span>' +
-    '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span></div>';
+    (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invCostBillGo">Add a bill</button></span>' : '') + '</div>';
 }
 
 /* The bill form, on Money → Payments (opened there, and from Add, the To-do, Power and Live cost through todoGo). */
@@ -877,6 +878,9 @@ async function costBillSave() {
   if (arrears < 0 || penalty < 0 || gstRound(arrears + penalty) > amount) { showToast('Arrears and penalty are parts of the bill: together they cannot be more than its amount', 'error'); return; }
   if (arrearsOf && !/^\d{4}-\d{2}$/.test(arrearsOf)) arrearsOf = '';
   if (arrearsOf && arrearsOf >= month) { showToast('Arrears are for a month before the one the bill covers', 'error'); return; }
+  // A Finance edit (bankGate, P1), as a bill made from a bank payment is: the form stays as typed while the PIN is asked, and the
+  // same Save runs once it is given.
+  if (!bankGate('add a bill', function() { costBillSave(); })) return;
   // A second electricity bill for the month is asked about, never refused: it is usually arrears and a penalty.
   var twin = kind === 'power' && costBills().find(function(b) { return b.kind === 'power' && !b.voided && b.month === month; });
   if (twin && !(arrears > 0)) {
@@ -987,8 +991,10 @@ function stockReorderList() {
   rows.forEach(function(r) { (groups[r.supplier] = groups[r.supplier] || []).push(r); });
   var order = Object.keys(groups).sort(function(a, b) { return (a === 'No supplier on record') - (b === 'No supplier on record') || a.localeCompare(b); });
   var total = rows.reduce(function(s, r) { return s + (r.amount || 0); }, 0);
+  // The cash the order needs: each line with the GST of the supplier it is ordered from (suppliers.js suppGst, 18% until set).
+  var withGst = rows.reduce(function(s, r) { return s + (r.amount || 0) * (1 + suppGst(r.pick && r.pick.sp) / 100); }, 0);
   return { cfg: cfg, groups: order.map(function(k) { return { supplier: k, rows: groups[k].sort(function(a, b) { return (a.daysLeft == null ? -1 : a.daysLeft) - (b.daysLeft == null ? -1 : b.daysLeft); }) }; }),
-    total: gstRound(total), unpriced: rows.filter(function(r) { return r.price == null && r.qty > 0; }).length, skipped: skipped };
+    total: gstRound(total), withGst: gstRound(withGst), unpriced: rows.filter(function(r) { return r.price == null && r.qty > 0; }).length, skipped: skipped };
 }
 function stockReorderText(L) {
   var lines = ['Order · ' + stockShortDate(localDateStr())];
@@ -1027,8 +1033,8 @@ function renderStockReorder() {
     // The forecast is the bank's: shown to a role that may read money (finlinks.js finSeen).
     var fc = finSeen() ? finForecast(45) : null;
     if (fc && L.total > 0) {
-      var after = gstRound(fc.min.bal - L.total * 1.18);
-      h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(gstRound(L.total * 1.18))) + '. The cash forecast’s lowest point in 45 days is ' +
+      var after = gstRound(fc.min.bal - L.withGst);
+      h += '<div class="inv-callout inv-callout-info inv-mb-8" id="stockReorderCash">With GST about ' + escHtml(formatCurrency(L.withGst)) + '. The cash forecast’s lowest point in 45 days is ' +
         escHtml(formatCurrency(fc.min.bal)) + ' (' + escHtml(stockShortDate(fc.min.date)) + '), ' + escHtml(formatCurrency(after)) + ' after this order. ' +
         '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="overview" data-anchor="finForecast">Open the forecast</button></div>';
     }

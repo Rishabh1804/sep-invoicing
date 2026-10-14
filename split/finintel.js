@@ -372,6 +372,8 @@ TODO_RULE_FNS.bankLoose = function() {
    other client 45 days"): the receivables' ageing against each client's terms (flow.js flowTerms), where it read a fixed 90 days. The
    rule keeps its first name, so a switch or a snooze set on it before stands. */
 TODO_RULE_FNS.owed90 = function() {
+  // With no statement nothing says what was paid: every invoice would read open, so it asks nothing (Receivables says the same).
+  if (!finCtx().rows.length) return [];
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
@@ -548,8 +550,9 @@ TODO_RULE_FNS.bankBounce = function() {
    says whether the statement reaches past the day it came, so "not in the bank" is a fact, else to import the statement. */
 TODO_RULE_FNS.chequeHeld = function() {
   var ctx = finCtx(), end = ctx.rows.length ? ctx.rows[ctx.rows.length - 1].date : '';
+  // Its days count from the day it could go in (bankChequeDue: a post-dated cheque's own date), and so does "not in the bank by".
   return bankChequesHeld(ctx.cls).list.filter(function(o) { return o.days >= 3; }).map(function(o) {
-    var c = bankChequeClient(o.ch), past = end && end > o.ch.receivedOn, tone = o.days >= 7 ? 'red' : 'amber';
+    var c = bankChequeClient(o.ch), past = end && end > bankChequeDue(o.ch), tone = o.days >= 7 ? 'red' : 'amber';
     return { key: 'chequeHeld:' + o.ch.id, rule: 'chequeHeld', tone: tone, clientId: o.ch.clientId, amount: Number(o.ch.amount) || 0,
       // The client is in its line, not its title: Needs you's groups name their tasks by title in one line (a long name made
       // that line a block of text, P195).

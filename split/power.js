@@ -647,7 +647,9 @@ function powerLoadHtml(a) {
     attrs: ' id="powerLoad"' });
   h += '<div class="inv-toolbar" data-power-toolbar="load"><button class="inv-btn inv-btn-primary" data-action="invPowerLoadEdit">Edit load</button></div>';
   h += '<div class="inv-panels">';
-  h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button></div>';
+  // Bills are added on Money → Payments: the door only for a role that opens Money (the empty line says where they go).
+  h += '<div class="inv-panel inv-panel-flush" id="powerBills"><div class="inv-panel-head"><span class="inv-panel-title">Electricity bills</span>' +
+    (typeof grdSees !== 'function' || grdSees('pageFinance') ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPowerBillsGo">Add a bill</button>' : '') + '</div>';
   if (!L.bills.length) h += '<div class="inv-empty">No electricity bill entered. Bills are added in Money → Payments; their details are set here.</div>';
   L.bills.slice().reverse().forEach(function(b) {
     var facts = [b.kwh ? ['Units', formatNum(b.kwh, 0) + ' kWh'] : b.units ? ['Units', formatNum(b.units, 0)] : null, b.kvah ? ['kVAh', formatNum(b.kvah, 0)] : null,

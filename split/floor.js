@@ -159,7 +159,7 @@ function flrStockHeroHtml() {
   var red = out.length + low.filter(function(x) { return x.s.tone === 'red'; }).length;
   var tone = red ? 'danger' : low.length ? 'warning' : 'ok';
   var title = out.length ? todoPlural(out.length, 'line') + ' out' + (low.length ? ', ' + low.length + ' low' : '') : low.length ? todoPlural(low.length, 'line') + ' at ' + cfg.amberDays + ' days or less' : 'Every line above ' + cfg.amberDays + ' days';
-  var L = stockReorderList(), need = gstRound(L.total * 1.18);
+  var L = stockReorderList(), need = L.withGst;
   var first = out.concat(low).slice(0, 3);
   var body = first.map(function(x) {
     return '<div class="inv-row" data-flr-stock-line="' + escHtml(x.item.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(x.item.name) + '</span></span>' +

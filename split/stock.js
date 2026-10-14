@@ -833,7 +833,7 @@ function stockVerdictHtml(items, groups, lastCount) {
     facts: ['paste the supervisor’s stock message, or import a stock file'] });
   var amber = stockCfg().amberDays, out = groups.out.length, low = groups.low.length;
   var red = groups.low.some(function(x) { return x.st.tone === 'red'; });
-  var L = stockReorderList(), need = gstRound(L.total * 1.18), fc = finSeen() ? finForecast(45) : null;
+  var L = stockReorderList(), need = L.withGst, fc = finSeen() ? finForecast(45) : null;
   var words = out ? todoPlural(out, 'line') + ' out' : low ? todoPlural(low, 'line') + ' at ' + amber + ' days or less' : 'Every line stocked';
   var tile = function(g, n, label, tone) {
     return { label: label, fig: String(n), tone: n && tone ? tone : null, action: 'invStockFilter', attrs: ' data-v="' + g + '"', pressed: _stockFilter === g };
@@ -1706,11 +1706,28 @@ function stockMergeImport(src) {
     st.pastes.push(JSON.parse(JSON.stringify(p))); added.pastes++;
   });
   // Suppliers and the payments recorded to them: merged by id, never over one held here; a field a file sends is kept only in
-  // the shape the app writes it (suppliers.js).
-  added.suppliers = 0; added.supplierPays = 0;
+  // the shape the app writes it (suppliers.js). A record held here under the same name (made on another device) is that
+  // supplier: the file's payments to it are its, never a second record's. The prices quoted travel with their supplier, each
+  // on its line as this book holds it, merged by id.
+  added.suppliers = 0; added.supplierPays = 0; added.quotes = 0;
   var day = function(v) { return typeof v === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(v); };
+  var spMap = {}, spKeys = {};
+  var spKeep = function(x) { [x.name].concat(Array.isArray(x.names) ? x.names : []).forEach(function(s) { var k = suppKey(s); if (k && !spKeys[k]) spKeys[k] = x; }); };
+  suppData().forEach(function(x) { if (x && x.id) spKeep(x); });
+  var spQuotes = function(rec, r) {
+    (Array.isArray(r.quotes) ? r.quotes : []).forEach(function(q) {
+      var itemId = q && (idMap[q.itemId] || (stockItem(q.itemId) ? q.itemId : null));
+      if (!itemId || typeof q.id !== 'string' || !num(q.price) || !(q.price > 0) || !day(q.date)) return;
+      rec.quotes = Array.isArray(rec.quotes) ? rec.quotes : [];
+      if (rec.quotes.some(function(x) { return x && x.id === q.id; })) return;
+      rec.quotes.push({ id: q.id, itemId: itemId, price: q.price, date: q.date, note: typeof q.note === 'string' ? q.note : '', at: num(q.at) ? q.at : Date.now(), by: q.by || null });
+      added.quotes++;
+    });
+  };
   (Array.isArray(src.suppliers) ? src.suppliers : []).forEach(function(r) {
-    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim() || suppData().some(function(x) { return x.id === r.id; })) return;
+    if (!r || typeof r.id !== 'string' || typeof r.name !== 'string' || !r.name.trim()) return;
+    var mine = suppData().find(function(x) { return x && x.id === r.id; }) || spKeys[suppKey(r.name)] || null;
+    if (mine) { spMap[r.id] = mine.id; spQuotes(mine, r); return; }
     var c = { id: r.id, name: r.name.trim(), names: (Array.isArray(r.names) ? r.names : []).filter(function(n) { return typeof n === 'string' && n.trim(); }).map(function(n) { return n.trim(); }),
       at: num(r.at) ? r.at : Date.now(), by: r.by || null };
     if (num(r.leadMax) && r.leadMax >= 0 && r.leadMax <= 60) { c.leadMax = r.leadMax; c.leadMin = num(r.leadMin) && r.leadMin >= 0 && r.leadMin <= r.leadMax ? r.leadMin : r.leadMax; }
@@ -1719,11 +1736,14 @@ function stockMergeImport(src) {
     if (Array.isArray(r.inOpening)) c.inOpening = r.inOpening.filter(function(x) { return typeof x === 'string'; });
     if (r.totals && typeof r.totals === 'object') { c.totals = {}; Object.keys(r.totals).forEach(function(k) { if (num(r.totals[k]) && r.totals[k] >= 0) c.totals[k] = r.totals[k]; }); }
     if (typeof r.note === 'string' && r.note.trim()) c.note = r.note.trim();
+    if (num(r.setAt)) { c.setAt = r.setAt; c.setBy = r.setBy || null; }
+    spQuotes(c, r);
     suppData().push(c); added.suppliers++;
+    spMap[r.id] = c.id; spKeep(c);
   });
   (Array.isArray(src.supplierPays) ? src.supplierPays : []).forEach(function(p) {
     if (!p || typeof p.id !== 'string' || typeof p.supplierId !== 'string' || !day(p.date) || !num(p.amount) || !(p.amount > 0) || suppPays().some(function(x) { return x.id === p.id; })) return;
-    var c = { id: p.id, supplierId: p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
+    var c = { id: p.id, supplierId: spMap[p.supplierId] || p.supplierId, date: p.date, amount: p.amount, how: p.how === 'cash' || p.how === 'transfer' ? p.how : 'cheque',
       chq: typeof p.chq === 'string' && p.chq ? p.chq : null, note: typeof p.note === 'string' && p.note ? p.note : null, at: num(p.at) ? p.at : Date.now(), by: p.by || null };
     if (p.voidedAt) { c.voidedAt = p.voidedAt; c.voidReason = typeof p.voidReason === 'string' ? p.voidReason : ''; c.voidBy = p.voidBy || null; }
     suppPays().push(c); added.supplierPays++;
@@ -1751,8 +1771,9 @@ function stockImportText(text, name) {
     saveState();
     renderStock();
     var held = (added.held ? ' · ' + added.held + ' already held' : '') + (added.differ ? ' (' + added.differ + ' differ in the file, kept as held)' : '');
-    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '');
-    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
+    var supp = (added.suppliers ? ', ' + todoPlural(added.suppliers, 'supplier') : '') + (added.supplierPays ? ', ' + todoPlural(added.supplierPays, 'payment') + ' to suppliers' : '') +
+      (added.quotes ? ', ' + todoPlural(added.quotes, 'price') + ' quoted' : '');
+    showToast((added.entries || added.items || added.bills || added.suppliers || added.supplierPays || added.quotes ? 'Imported ' + added.items + ' lines, ' + added.entries + ' entries' + (added.bills ? ', ' + added.bills + ' power/other bills' : '') + supp : 'Nothing new in that file') + held, added.differ ? 'warning' : undefined);
   } catch (err) { if (!addFileElsewhere(text, name, 'stock')) showToast('Not a stock file', 'error'); }
 }
 

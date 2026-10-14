@@ -87,7 +87,8 @@ function finInvoicePaymentHtml(inv) {
     h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (x.how === 'exact' ? 'ok' : 'info') + '">' + (x.how === 'exact' ? 'Paid, exact' : 'Paid, oldest first') + '</span></span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(x.date)) + (x.chq ? ' · chq ' + escHtml(x.chq) : '') + '</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
   });
-  if (p.open > 0.005) h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-' + (p.days > 90 ? 'danger' : p.days > 60 ? 'warning' : 'neutral') + '">Open, ' + p.days + ' days</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(p.open)) + '</span></div>';
+  // Its age judged as owed is everywhere (finOwedTone): never red while a receipt is unplaced.
+  if (p.open > 0.005) h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-' + (finOwedTone(p.days) || 'neutral') + '">Open, ' + p.days + ' days</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(p.open)) + '</span></div>';
   return h;
 }
 
@@ -115,6 +116,9 @@ function finSupplierPaid(name) {
 /* What is owed, by age, as a bar's tones: within a month fresh, a second month plain, then warning and danger (figToneAge's
    60 and 90 days). Pulse's Money card and the cash question draw the one bar (intel.js). */
 var FIN_AGE_TONE = ['ok', 'neutral', 'warning', 'danger'];
+/* A band's tone in that bar: over 90 days is danger, but a warning while a receipt is unplaced (finOwedTone's rule), so the bar
+   never reads red beside an owed figure that does not. */
+function finAgeTone(i) { var t = FIN_AGE_TONE[i] || 'danger'; return t === 'danger' && finHasBank() && finCtx().loose() > 0 ? 'warning' : t; }
 /* What is owed, judged by the age of its oldest open invoice (figToneOwed), one tone on every screen that draws it (the tab map,
    TM6a: Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline, a client's Money panel, the statement):
    never red while a receipt is unplaced. */
@@ -142,7 +146,7 @@ function renderFinHomeCard() {
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = isoDaysBetween(last.date, localDateStr());
   // What is owed is judged by its oldest invoice's age, past 90 days danger and past 60 warning, never red while a receipt is
-  // unplaced (finOwedTone: the one judge wherever owed is drawn).
+  // unplaced (finOwedTone: the one judge wherever owed is drawn); nothing past 60 days is ok, as on Money's card and Pipeline's.
   var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0, owedTone = finOwedTone(finOwedOldest(recv));
   var tones = [];
   var tile = function(tab, anchor, label, value, sub, tone) {
@@ -156,7 +160,7 @@ function renderFinHomeCard() {
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
-      owedTone || '') +
+      owedTone || 'ok') +
     (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
@@ -167,7 +171,7 @@ function renderFinHomeCard() {
     '</div>';
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
   var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
-  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
     { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
   el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
     title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),

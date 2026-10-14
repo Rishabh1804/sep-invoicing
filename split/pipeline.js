@@ -71,7 +71,8 @@ function pipeStages() {
     var bands = finAgeing(recv), old90 = bands[3] ? bands[3].amount : 0, old60 = bands[2] ? bands[2].amount : 0;
     var oldest = owing.reduce(function(m, r) { return r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
     var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows)).length;
-    var tone = figToneOwed(oldest, loose > 0) || 'neutral';
+    // Nothing past 60 days is ok, as Money's card and Receivables' verdict draw it: one tone for the fact wherever it is drawn.
+    var tone = figToneOwed(oldest, loose > 0) || 'ok';
     var word = old90 > 0.005 ? finRs(old90) + ' over 90 days' : old60 > 0.005 ? finRs(old60) + ' over 60 days' : pipeOldestWord(oldest) || 'owed';
     if (loose) word += ' · ' + todoPlural(loose, 'receipt') + ' not placed';
     add('owed', { n: owing.length, items: owing, recv: recv, loose: loose, of: 'owed', tone: tone, word: word,

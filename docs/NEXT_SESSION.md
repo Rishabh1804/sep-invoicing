@@ -33,6 +33,19 @@ More → Credit notes → Record issued; enter the excess-load charge read off e
 
 ---
 
+## The QA chain of 14 Oct 2026 (PR #146)
+
+Seven audits over the tab map (TM1–TM7), then one builder per area, each finding fixed with its test (P211–P216, each failing on the
+build before). **This repo's side of the data flows:**
+- **`sep-bank`**: a cheque in `cheques` can carry `notDeposits` (statement row ids the owner said are not its deposit; the number
+  goes on to the next credit naming it). An import keeps out a cheque whose client and number a live cheque here already holds.
+- **`sep-stock`**: a file's supplier is found here by its name as well as its id (its payments re-pointed to it), and its prices
+  quoted are merged by id onto the line as this book holds it, with `setAt` / `setBy` kept.
+- **Two supplier records of one name** (two devices met in the merge) are folded into the first at load (`suppFoldTwins`): its
+  spellings, what the first has not set, its payments and any line's `orderFrom` move over, and the second record goes.
+
+---
+
 ## Being built 9–10 Oct 2026: the tab map, step by step (PR #146, read this first)
 
 The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green."*

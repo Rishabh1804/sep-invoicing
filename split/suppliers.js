@@ -327,12 +327,6 @@ function suppRedraw(id) {
   if (sp && document.querySelector('[data-supp-dialog]')) suppOpen(sp.id, _suppForm);
   if (_suppCmpItem && document.querySelector('[data-supp-compare]')) suppCompareOpen(_suppCmpItem, _suppCmpForm, true);
 }
-function suppDialogClose() {
-  var el = document.querySelector('[data-supp-dialog]'), sc = el && el.closest('.inv-scrim-dialog');
-  if (!sc) return;
-  delete sc.dataset.typed;
-  dialogCloseScrim(sc);
-}
 /* A fact of the dialog: a figure at the row's end in the figures' face (uiFactRowHtml), or words there in the text's. */
 function suppFactHtml(f) {
   if (!('words' in f)) return uiFactRowHtml(f);
@@ -465,6 +459,41 @@ function suppRecord(sp) {
   sp.rec = r;
   return r;
 }
+/* Two records for one supplier (two devices each set something on it before they met: the merge keeps both, by id). Every
+   spelling reads as the first's, so the second's payments, balance and quotes sat in a ledger of their own. The second is folded
+   into the first: its spellings, what the first has not set (a lead time, GST, a note, a balance with its marks), its totals and
+   quotes, and every payment and line choice that named it. Structural (migrateState): a book with none to fold is not written.
+   Returns how many were folded. */
+function suppFoldTwins() {
+  var list = suppData(), held = {}, into = {}, n = 0;
+  var keys = function(s) { return [suppKey(s), bankKey(s)].filter(Boolean); };
+  list.forEach(function(r) {
+    if (!r || !r.id || !String(r.name || '').trim()) return;
+    var f = keys(r.name).map(function(k) { return held[k]; }).filter(Boolean)[0] || null;
+    var names = [r.name].concat(Array.isArray(r.names) ? r.names : []);
+    if (!f) { names.forEach(function(s) { keys(s).forEach(function(k) { if (!held[k]) held[k] = r; }); }); return; }
+    f.names = Array.isArray(f.names) ? f.names : [];
+    names.forEach(function(s) { s = String(s || '').trim(); if (s && s !== f.name && f.names.indexOf(s) < 0) f.names.push(s); });
+    if (typeof f.leadMax !== 'number' && typeof r.leadMax === 'number') { f.leadMax = r.leadMax; if (typeof r.leadMin === 'number') f.leadMin = r.leadMin; }
+    ['gstPct', 'note'].forEach(function(k) { if (f[k] == null && r[k] != null) f[k] = r[k]; });
+    if (!f.opening && r.opening) { f.opening = r.opening; if (Array.isArray(r.inOpening)) f.inOpening = r.inOpening.slice(); }
+    if (r.totals && typeof r.totals === 'object') {
+      f.totals = f.totals && typeof f.totals === 'object' ? f.totals : {};
+      Object.keys(r.totals).forEach(function(k) { if (!(k in f.totals)) f.totals[k] = r.totals[k]; });
+    }
+    if (Array.isArray(r.quotes) && r.quotes.length) {
+      f.quotes = Array.isArray(f.quotes) ? f.quotes : [];
+      r.quotes.forEach(function(q) { if (q && !f.quotes.some(function(x) { return x && x.id === q.id; })) f.quotes.push(q); });
+    }
+    into[r.id] = f.id; n++;
+  });
+  if (!n) return 0;
+  suppPays().forEach(function(p) { if (p && into[p.supplierId]) p.supplierId = into[p.supplierId]; });
+  stockData().items.forEach(function(it) { if (it && it.orderFrom && into[it.orderFrom.supplierId]) it.orderFrom.supplierId = into[it.orderFrom.supplierId]; });
+  S.suppliers = list.filter(function(r) { return !(r && into[r.id]); });
+  _suppMemo = null;
+  return n;
+}
 function suppFormVal(sel, id) { var f = document.querySelector(sel), el = f && f.parentNode.querySelector('#' + id); return el ? String(el.value).trim() : ''; }
 function suppSavePay() {
   var sp = suppById(_suppOpenId);
@@ -494,10 +523,11 @@ function suppSaveBalance() {
   if (isNaN(amt)) { showToast('Enter what was owed', 'error'); return; }
   if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date > localDateStr()) { showToast('Pick the day it was owed at the end of, not after today', 'error'); return; }
   if (!bankGate('set what is owed to a supplier', function() { suppSaveBalance(); })) return;
-  var r = suppRecord(sp);
+  var r = suppRecord(sp), was = r.opening ? r.opening.date : '';
   r.opening = { amount: gstRound(amt), date: date, note: v('suppBalNote') || null, at: Date.now(), by: suppBy() };
-  // A payment marked as in the figure belonged to the day it was set against.
-  delete r.inOpening;
+  // A payment marked as in the figure belonged to the day it was set against: it goes when the day moves, never with a figure
+  // corrected on the same day (it would be counted again).
+  if (was !== date) delete r.inOpening;
   _suppOpenId = r.id; _suppForm = '';
   saveState();
   suppRedraw(r.id);
@@ -517,9 +547,11 @@ function suppSaveSet() {
   var g = gst === '' ? SUPP_GST : parseFloat(gst);
   if (isNaN(g) || g < 0 || g > 28) { showToast('GST is 0 to 28%', 'error'); return; }
   var names = v('suppSetNames').split(/\n+/).map(function(s) { return s.trim().replace(/\s+/g, ' '); }).filter(Boolean);
-  // A spelling already another supplier's would make two suppliers one by accident: refused, said which.
+  // A spelling already another supplier's would make two suppliers one by accident: refused, said which. One the book only names
+  // (a bill's company, or a payee sorted as Supplier on the statement, that nothing was set on) moves here: that is how the bank's
+  // spelling of a supplier is joined to it, and it was refused as the payee's own.
   var idx = suppIndex(), clash = null;
-  [name].concat(names).some(function(s) { var o = idx.find(s); if (o && o !== sp) { clash = { s: s, o: o }; return true; } return false; });
+  [name].concat(names).some(function(s) { var o = idx.find(s); if (o && o !== sp && o.rec) { clash = { s: s, o: o }; return true; } return false; });
   if (clash) { showToast('“' + clash.s + '” is ' + clash.o.name + '’s already', 'error'); return; }
   if (!bankGate('change a supplier', function() { suppSaveSet(); })) return;
   var r = suppRecord(sp), old = r.name;
@@ -764,9 +796,11 @@ function suppPickText(pk) {
    or lets the app pick again. A price a supplier quoted is added here too, so one that never sold the line can be weighed. */
 var _suppCmpItem = null;         // the stock line whose suppliers are compared
 var _suppCmpForm = '';           // '' | 'quote': the form open in its dialog
-/* A line's days left as the reorder list reads them: none where it has no daily use, nought where it is out. */
+/* A line's days left as the reorder list reads them: none where it has no daily use, nought where it is out. A line charged into a
+   bath (zinc) has none either: its delivery goes into the bath as it comes, so an empty shelf is its normal state, never "out". */
 function suppDaysLeft(item, st) {
   st = st || stockStatus(item);
+  if (st.group === 'bath') return null;
   var rate = st.rate && st.rate.rate ? st.rate.rate : null;
   return st.group === 'out' || (st.level != null && st.level <= 0) ? 0 : rate ? st.daysLeft : null;
 }

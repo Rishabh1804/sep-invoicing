@@ -402,7 +402,7 @@ function statsStoryCards(a, ctx) {
       var bBook = bankBookDaysToPay(bankPayHistory(recv)), owedTone = finOwedTone(finOwedOldest(recv));
       // Owed in its age's tone (finOwedTone), how fast clients pay in its own beside it (figTonePaysIn): two facts, two tones.
       body = statsTiles(statsTile('bal', 'In the bank', statsMoney(bLast.balance), statsTileSub('on ' + escHtml(formatDate(bLast.date))), bLast.balance < 0 ? 'danger' : '') +
-        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? figHtml('clients pay in ' + Math.round(bBook.median) + ' days', figTonePaysIn(Math.round(bBook.median))) : ''), owedTone || ''));
+        statsTile('owed', 'Owed to us', statsMoney(owed), statsTileSub(bBook ? figHtml('clients pay in ' + Math.round(bBook.median) + ' days', figTonePaysIn(Math.round(bBook.median))) : ''), owedTone || 'ok'));
       // Judged as Pulse's Money card judges it, so the two never disagree on one figure (the survey of 8 Oct 2026: owed read green
       // here and red there): overdrawn is danger; what is owed by its oldest invoice's age (finOwedTone, the one judge wherever owed
       // is drawn: never red while a receipt is unplaced); and how fast clients pay (figTonePaysIn).
@@ -415,7 +415,7 @@ function statsStoryCards(a, ctx) {
       c5.vital = { fig: figWrapHtml(statsMoney(owed)), title: 'Owed to us',
         // Two facts (the tab map, TM6e): what is old, and how fast clients pay; the balance is the card's tile.
         sub: escHtml([old90 > 0.5 ? formatCurrency(old90) + ' over 90 days' : 'in the bank ' + formatCurrency(bLast.balance), bBook ? 'clients pay in ' + Math.round(bBook.median) + ' days' : ''].filter(Boolean).join(' · ')),
-        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'danger' }; }),
+        viz: chartMeter(ages.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
           { title: ages.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(' · ') }),
         tone: cashTone };
       cards.cash = c5;

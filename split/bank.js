@@ -218,11 +218,12 @@ function bankSupplierIs(written, supplierKey) {
   return !!written && !!supplierKey && supplierKey.length >= 4 &&
     (written.indexOf(supplierKey) >= 0 || (written.length >= 4 && supplierKey.indexOf(written) === 0));
 }
-/* The supplier a payee names, of the stock bills' suppliers (keys: key → name); the longest name that fits wins. */
+/* The supplier a payee names, of the stock bills' suppliers (keys: key → name); the longest name that fits wins. The payee is read
+   as written and folded too ("&" is AND, BROS is BROTHERS: suppKey), as the bills' names are, so the fold works both ways. */
 function bankMatchSupplier(party, keys) {
-  var pk = bankKey(party);
+  var pk = bankKey(party), sk = suppKey(party);
   if (pk.length < 4) return '';
-  var hit = Object.keys(keys).filter(function(k) { return bankSupplierIs(pk, k); }).sort(function(a, b) { return b.length - a.length; })[0];
+  var hit = Object.keys(keys).filter(function(k) { return bankSupplierIs(pk, k) || bankSupplierIs(sk, k); }).sort(function(a, b) { return b.length - a.length; })[0];
   return hit ? keys[hit] : '';
 }
 
@@ -434,42 +435,56 @@ function bankClearBounce(revId) {
    number, from three days before it was received to sixty after, is its deposit, whatever its amount (a slip in the amount
    typed must not leave the cheque counting beside its deposit; the difference is said). From then the deposit counts and
    the cheque does not, so nothing is counted twice, and the deposit is placed on the cheque's client unless the row was set
-   by hand. The owner's own word wins: `deposit` a row's id, or null for "not this one". A credit of the same amount with no
-   number, in the fifteen days after it came, is only offered. A deposit that comes back is a returned cheque (the bounce
-   logic, as ever) and the cheque reads Returned. A cheque is voided with a reason, never deleted. */
-var BANK_CHQ_BEFORE = 3, BANK_CHQ_AFTER = 60, BANK_CHQ_OFFER = 15;
+   by hand. The owner's own word wins: `deposit` a row's id; "not this one" keeps that row apart (`notDeposits`) and the number
+   goes on to the next credit naming it (an older build stored null, which stops the number until "Match by number again").
+   A cheque typed in days after it went in is found too: with nothing in the window, the latest credit naming it in the month
+   before. A post-dated cheque waits for its own date: its days in hand and its window count from the day it can go in. The
+   same client's same number recorded twice (two devices, a file) is one cheque: the second reads "Recorded twice" and counts
+   nothing. A credit of the same amount with no number, in the fifteen days after it came, is only offered. A deposit that
+   comes back is a returned cheque (the bounce logic, as ever) and the cheque reads Returned. A cheque is voided with a reason,
+   never deleted. */
+var BANK_CHQ_BEFORE = 3, BANK_CHQ_AFTER = 60, BANK_CHQ_OFFER = 15, BANK_CHQ_LATE = 30;
 function bankCheques() { return bankData().cheques; }
 function bankChequeKey(n) { return String(n == null ? '' : n).replace(/\D/g, '').replace(/^0+/, ''); }
+/* The day a cheque can go in: its own date where it is dated after the day it came, else the day it came. */
+function bankChequeDue(ch) { return ch.chequeDate && ch.chequeDate > ch.receivedOn ? ch.chequeDate : ch.receivedOn; }
 /* Each cheque and what became of it: { ch, dep (its deposit, a classified row), how ('set' | 'number'), offers (row ids), diff
-   (the deposit less the amount typed), status ('held' | 'deposited' | 'returned' | 'void'), days (since it came, to today) }.
-   A deposit is one cheque's. */
+   (the deposit less the amount typed), status ('held' | 'deposited' | 'returned' | 'void' | 'twin'), twin (the record it
+   repeats), days (in hand since the day it could go in, to today), ahead (dated after today) }. A deposit is one cheque's. */
 function bankChequeLinks(cls) {
   var list = (bankCheques() || []).slice().sort(function(a, b) {
     return (a.receivedOn || '') < (b.receivedOn || '') ? -1 : (a.receivedOn || '') > (b.receivedOn || '') ? 1 : (a.at || 0) - (b.at || 0);
   });
   if (!list.length) return [];
   cls = cls || bankClassify();
-  var byId = {}, today = localDateStr(), taken = {};
+  var byId = {}, today = localDateStr(), taken = {}, first = {};
   // Money in: a deposit later returned is still a cheque's deposit; a posting and its own reversal is not.
   var credits = cls.filter(function(v) { return v.row.cr > 0 && !v.selfPair && (v.cat !== 'reversal' || v.bounced); });
   credits.forEach(function(v) { byId[v.row.id] = v; });
-  var inWin = function(v, ch, after) { return v.row.date >= isoAddDays(ch.receivedOn, -BANK_CHQ_BEFORE) && v.row.date <= isoAddDays(ch.receivedOn, after); };
+  var inWin = function(v, ch, after) { return v.row.date >= isoAddDays(ch.receivedOn, -BANK_CHQ_BEFORE) && v.row.date <= isoAddDays(bankChequeDue(ch), after); };
   var out = list.map(function(ch) {
-    var o = { ch: ch, dep: null, how: null, offers: [], diff: 0, status: ch.voidedAt ? 'void' : 'held', days: ch.receivedOn ? Math.max(0, isoDaysBetween(ch.receivedOn, today)) : 0 };
+    var due = ch.receivedOn ? bankChequeDue(ch) : '';
+    var o = { ch: ch, dep: null, how: null, offers: [], diff: 0, status: ch.voidedAt ? 'void' : 'held', days: due ? Math.max(0, isoDaysBetween(due, today)) : 0, ahead: !!due && due > today };
+    var twin = String(ch.clientId) + '|' + bankChequeKey(ch.number);
+    if (!ch.voidedAt && bankChequeKey(ch.number)) { if (first[twin]) { o.status = 'twin'; o.twin = first[twin].ch; return o; } first[twin] = o; }
     if (!ch.voidedAt && ch.deposit && byId[ch.deposit] && !taken[ch.deposit]) { o.dep = byId[ch.deposit]; o.how = 'set'; taken[ch.deposit] = true; }
     return o;
   });
-  // Then by the cheque's own number: the earliest credit naming it in the window.
+  // Then by the cheque's own number: the earliest credit naming it in the window, past those the owner said are not it; else,
+  // for one typed in late, the latest naming it in the month before.
   out.forEach(function(o) {
-    var ch = o.ch, key = bankChequeKey(ch.number);
-    if (ch.voidedAt || o.dep || ch.deposit === null || !key || !ch.receivedOn) return;
-    var hit = credits.find(function(v) { return !taken[v.row.id] && bankChequeKey(bankInstrument(v.row)) === key && inWin(v, ch, BANK_CHQ_AFTER); });
+    var ch = o.ch, key = bankChequeKey(ch.number), not = Array.isArray(ch.notDeposits) ? ch.notDeposits : [];
+    if (o.status !== 'held' || o.dep || ch.deposit === null || !key || !ch.receivedOn) return;
+    var named = function(v) { return !taken[v.row.id] && not.indexOf(v.row.id) < 0 && bankChequeKey(bankInstrument(v.row)) === key; };
+    var hit = credits.find(function(v) { return named(v) && inWin(v, ch, BANK_CHQ_AFTER); }) || credits.filter(function(v) {
+      return named(v) && v.row.date < isoAddDays(ch.receivedOn, -BANK_CHQ_BEFORE) && v.row.date >= isoAddDays(ch.receivedOn, -BANK_CHQ_LATE);
+    }).pop();
     if (hit) { o.dep = hit; o.how = 'number'; taken[hit.row.id] = true; }
   });
   // Offers, never applied: the same amount, carrying no cheque number, not placed on another client.
   out.forEach(function(o) {
     var ch = o.ch, amt = Number(ch.amount) || 0;
-    if (ch.voidedAt || o.dep || !ch.receivedOn) return;
+    if (o.status !== 'held' || o.dep || !ch.receivedOn) return;
     o.offers = credits.filter(function(v) {
       return !taken[v.row.id] && v.cat === 'receipt' && (v.clientId == null || String(v.clientId) === String(ch.clientId)) && Math.abs(v.row.cr - amt) < 0.005 &&
         inWin(v, ch, BANK_CHQ_OFFER) && !/^\d{4,}$/.test(String(bankInstrument(v.row) || '').trim());
@@ -483,9 +498,10 @@ function bankChequeLinks(cls) {
   return out;
 }
 /* A deposit a cheque names is placed on the cheque's client, unless the row itself was set by hand (a client, or a category
-   other than a receipt). Run inside bankClassify, before the returned cheques are linked. */
+   other than a receipt). Run inside bankClassify, before the returned cheques are linked; a statement of one row is placed
+   too (a bounce needs two rows, a deposit one). */
 function bankPlaceCheques(list) {
-  if (list.length < 2 || !(bankData().cheques || []).length) return list;
+  if (!list.length || !(bankData().cheques || []).length) return list;
   bankChequeLinks(list).forEach(function(o) {
     if (!o.dep || o.ch.voidedAt) return;
     var set = o.dep.row.set;
@@ -515,7 +531,8 @@ function bankChequeClient(ch) { return (S.clients || []).find(function(x) { retu
 /* ---------- Cheques on screen ---------- */
 function _bankChequeRowHtml(o, byId) {
   var ch = o.ch, c = bankChequeClient(ch);
-  var st = o.status === 'held' ? { tone: bankChequeTone(o.days), word: 'In hand · ' + bankChequeAge(o.days) }
+  var st = o.status === 'held' ? (o.ahead ? { tone: 'info', word: 'Dated ' + stockShortDate(ch.chequeDate) } : { tone: bankChequeTone(o.days), word: 'In hand · ' + bankChequeAge(o.days) })
+    : o.status === 'twin' ? { tone: 'warning', word: 'Recorded twice' }
     : o.status === 'returned' ? { tone: 'danger', word: 'Returned' }
     : Math.abs(o.diff) >= 0.005 ? { tone: 'warning', word: 'In the bank: ' + formatCurrency(o.dep.row.cr) }
     : { tone: 'ok', word: 'In the bank ' + stockShortDate(o.dep.row.date) };
@@ -535,24 +552,27 @@ function _bankChequeRowHtml(o, byId) {
   }
   return h;
 }
-/* Receivables leads with them (what needs the owner, §3e) while any is in hand, or went in or came back in the last 30 days. */
+/* Receivables leads with them (what needs the owner, §3e) while any is in hand or recorded twice, or went in or came back in the
+   last 30 days. */
 function _bankChequesHtml(cls) {
   var today = localDateStr(), byId = {};
   cls.forEach(function(v) { byId[v.row.id] = v; });
   var shown = bankChequeLinks(cls).filter(function(o) {
-    return o.status === 'held' || ((o.status === 'deposited' || o.status === 'returned') && isoDaysBetween(o.dep.row.date, today) <= 30);
+    return o.status === 'held' || o.status === 'twin' || ((o.status === 'deposited' || o.status === 'returned') && isoDaysBetween(o.dep.row.date, today) <= 30);
   });
   if (!shown.length) return '';
   var held = shown.filter(function(o) { return o.status === 'held'; });
   var amt = gstRound(held.reduce(function(t, o) { return t + (Number(o.ch.amount) || 0); }, 0)), oldest = held.reduce(function(m, o) { return Math.max(m, o.days); }, 0);
   var say = held.length ? '<span class="inv-dot inv-dot-' + bankChequeTone(oldest) + '" data-cheques-held="' + held.length + '">' +
-    escHtml(todoPlural(held.length, 'cheque') + ' in hand · ' + finRs(amt) + (oldest ? ' · the oldest ' + todoPlural(oldest, 'day') : ' · received today')) + '</span>'
+    escHtml(todoPlural(held.length, 'cheque') + ' in hand · ' + finRs(amt) + (oldest ? ' · the oldest ' + todoPlural(oldest, 'day') :
+      held.every(function(o) { return o.ahead; }) ? ' · post-dated' : ' · received today')) + '</span>'
     : '<span class="inv-dot inv-dot-ok" data-cheques-held="0">None in hand</span>';
-  // In hand first, the oldest first; then those gone in, the latest first.
+  // In hand first, the oldest first; then any recorded twice; then those gone in, the latest first.
+  var rank = function(o) { return o.status === 'held' ? 0 : o.status === 'twin' ? 1 : 2; };
   shown.sort(function(a, b) {
-    var ah = a.status === 'held' ? 0 : 1, bh = b.status === 'held' ? 0 : 1;
+    var ah = rank(a), bh = rank(b);
     if (ah !== bh) return ah - bh;
-    return ah === 0 ? b.days - a.days : (b.dep.row.date < a.dep.row.date ? -1 : b.dep.row.date > a.dep.row.date ? 1 : 0);
+    return ah === 0 ? b.days - a.days : ah === 1 ? 0 : (b.dep.row.date < a.dep.row.date ? -1 : b.dep.row.date > a.dep.row.date ? 1 : 0);
   });
   return '<div class="inv-panel inv-panel-flush" id="bankCheques"><div class="inv-panel-head"><span class="inv-panel-title">Cheques received</span>' + say + '</div>' +
     shown.map(function(o) { return _bankChequeRowHtml(o, byId); }).join('') + '</div>';
@@ -569,8 +589,9 @@ function bankChequeOpen(id) {
   var o = bankChequeLinks().find(function(x) { return x.ch.id === id; });
   if (!o) return;
   var ch = o.ch, c = bankChequeClient(ch);
-  var state = o.status === 'held' ? { label: 'In hand', value: bankChequeAge(o.days), sub: 'counts as paid until it reaches the bank' }
+  var state = o.status === 'held' ? { label: 'In hand', value: o.ahead ? 'post-dated' : bankChequeAge(o.days), sub: 'counts as paid until it reaches the bank' }
     : o.status === 'void' ? { label: 'Void', value: formatDate(isoOf(new Date(ch.voidedAt))), sub: ch.voidReason || '' }
+    : o.status === 'twin' ? { label: 'Recorded twice', value: formatDate(o.twin.receivedOn), sub: 'the same client and number as the one received then, which counts: void this one' }
     : { label: o.status === 'returned' ? 'Deposited, then returned' : 'In the bank', value: formatDate(o.dep.row.date),
       sub: (o.how === 'set' ? 'linked by you' : 'found by its number') + (Math.abs(o.diff) >= 0.005 ? '; deposited ' + formatCurrency(o.dep.row.cr) + ', not ' + formatCurrency(ch.amount) : '') };
   var facts = [
@@ -579,9 +600,11 @@ function bankChequeOpen(id) {
     { label: 'Received', value: formatDate(ch.receivedOn) }, state
   ].filter(Boolean);
   var foot = '<button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button>' +
-    (!ch.voidedAt && o.how === 'number' ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeNotThis" data-id="' + escHtml(ch.id) + '">Not this deposit</button>' : '') +
+    (!ch.voidedAt && o.how === 'number' ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeNotThis" data-id="' + escHtml(ch.id) + '" data-row="' + escHtml(o.dep.row.id) + '">Not this deposit</button>' : '') +
     (!ch.voidedAt && o.how === 'set' ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeUnlink" data-id="' + escHtml(ch.id) + '">Unlink</button>' : '') +
-    (!ch.voidedAt && o.status === 'held' ? '<button class="inv-btn inv-btn-danger" data-action="invChequeVoid" data-id="' + escHtml(ch.id) + '">Void</button>' : '');
+    // A "not this deposit" taken back: the number finds its deposit again.
+    (o.status === 'held' && (ch.deposit === null || (ch.notDeposits || []).length) ? '<button class="inv-btn inv-btn-secondary" data-action="invChequeRematch" data-id="' + escHtml(ch.id) + '">Match by number again</button>' : '') +
+    (o.status === 'held' || o.status === 'twin' ? '<button class="inv-btn inv-btn-danger" data-action="invChequeVoid" data-id="' + escHtml(ch.id) + '">Void</button>' : '');
   dialogOpen('<div class="inv-dialog" data-cheque-dialog="' + escHtml(ch.id) + '">' + dialogHeadHtml('Cheque ' + escHtml(ch.number)) +
     '<div class="inv-panel inv-panel-flush"><div class="inv-row"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c ? c.name : 'A client no longer in the book') + '</span></span></div>' +
     facts.map(uiFactRowHtml).join('') + (ch.note ? '<div class="inv-panel-body inv-note">' + escHtml(ch.note) + '</div>' : '') + '</div>' +
@@ -631,8 +654,10 @@ async function bankChequeVoid(id) {
   var ch = bankCheques().find(function(x) { return x.id === id; });
   if (!ch || ch.voidedAt) return;
   if (!bankGate('void a cheque received', function() { bankChequeVoid(id); })) return;
-  var reason = await uiPrompt({ title: 'Void cheque ' + ch.number, body: 'It stays on the record and stops counting as paid.', label: 'Why is it void?',
-    okLabel: 'Void cheque', danger: true, required: true, requiredText: 'A void needs a reason.' });
+  // A second record of a cheque counts nothing: voiding it leaves what the client owes as it is, and says so.
+  var twin = (bankChequeLinks().find(function(o) { return o.ch.id === id; }) || {}).status === 'twin';
+  var reason = await uiPrompt({ title: 'Void cheque ' + ch.number, body: twin ? 'It stays on the record; the one recorded first still counts.' : 'It stays on the record and stops counting as paid.',
+    label: 'Why is it void?', okLabel: 'Void cheque', danger: true, required: true, requiredText: 'A void needs a reason.' });
   if (reason == null) return;
   if (!reason.trim()) { showToast('A void needs a reason', 'error'); return; }
   ch = bankCheques().find(function(x) { return x.id === id; });
@@ -641,34 +666,42 @@ async function bankChequeVoid(id) {
   saveState();
   bankChequeDialogClose('[data-cheque-dialog]');
   if (navPageOf() === 'pageFinance') renderFinance();
-  showToast('Cheque ' + ch.number + ' voided: what the client owes is back');
+  showToast('Cheque ' + ch.number + ' voided: ' + (twin ? 'the one recorded first still counts' : 'what the client owes is back'));
 }
 /* A sep-bank file (this app's own bank export): its cheques received merge by id, never written over; its statement rows are not
    read from it (a statement comes in from the bank's own file). Add → File and Money → Bank's Import hand it here. */
 function bankChequesImport(obj, name) {
-  var list = obj && Array.isArray(obj.cheques) ? obj.cheques : [], have = {}, added = 0, kept = 0;
-  bankCheques().forEach(function(ch) { have[ch.id] = true; });
+  var list = obj && Array.isArray(obj.cheques) ? obj.cheques : [], have = {}, live = {}, added = 0, kept = 0;
+  var twinKey = function(c) { return !c.voidedAt && bankChequeKey(c.number) ? String(c.clientId) + '|' + bankChequeKey(c.number) : ''; };
+  bankCheques().forEach(function(ch) { have[ch.id] = true; if (twinKey(ch)) live[twinKey(ch)] = true; });
   list.forEach(function(x) {
     if (!x || typeof x !== 'object' || !x.id || !(Number(x.amount) > 0) || !/^\d{4}-\d{2}-\d{2}$/.test(String(x.receivedOn || ''))) return;
     if (have[x.id]) { kept++; return; }
+    // The same client's same cheque held under another id (recorded on two devices) is that cheque: the one here is kept.
+    if (twinKey(x) && live[twinKey(x)]) { kept++; return; }
     var ch = { id: String(x.id), clientId: x.clientId, amount: gstRound(Number(x.amount)), number: String(x.number || ''), chequeDate: x.chequeDate || null,
       drawnOn: x.drawnOn || null, receivedOn: x.receivedOn, note: x.note || null, at: Number(x.at) || Date.now(), by: x.by || null };
     if (x.deposit !== undefined) ch.deposit = x.deposit === null ? null : String(x.deposit);
+    if (Array.isArray(x.notDeposits)) ch.notDeposits = x.notDeposits.filter(function(r) { return typeof r === 'string' && r; });
     if (x.voidedAt) { ch.voidedAt = x.voidedAt; ch.voidReason = x.voidReason || ''; ch.voidBy = x.voidBy || null; }
     bankCheques().push(ch);
     have[ch.id] = true; added++;
+    if (twinKey(ch)) live[twinKey(ch)] = true;
   });
   if (added) saveState();
   if (navPageOf() === 'pageFinance') renderFinance();
   uiAlert({ title: added ? todoPlural(added, 'cheque') + ' received added' : 'No cheque added', body: (name || 'The file') + ' holds ' + todoPlural(list.length, 'cheque') + ' received' +
     ': ' + added + ' new' + (kept ? ', ' + kept + ' already held and kept as they are' : '') + '. Its statement rows are not read from it: a statement comes in from the bank’s own .xls or .xlsx, on Money → Bank.' });
 }
-/* The owner's word on a cheque's deposit: a row (Link), "not this one" (null), or back to its number (Unlink). */
-function bankChequeSetDeposit(id, dep) {
+/* The owner's word on a cheque's deposit: a row (Link), back to its number (Unlink), "not this one" (`notRow`: that row is kept
+   apart and the number goes on to the next credit naming it), or every such word taken back (`again`: Match by number again). */
+function bankChequeSetDeposit(id, dep, notRow, again) {
   var ch = bankCheques().find(function(x) { return x.id === id; });
   if (!ch || ch.voidedAt) return;
-  if (!bankGate('link a cheque to its deposit', function() { bankChequeSetDeposit(id, dep); })) return;
+  if (!bankGate('link a cheque to its deposit', function() { bankChequeSetDeposit(id, dep, notRow, again); })) return;
   if (dep === undefined) delete ch.deposit; else ch.deposit = dep;
+  if (notRow) ch.notDeposits = (Array.isArray(ch.notDeposits) ? ch.notDeposits : []).filter(function(r) { return r !== notRow; }).concat([notRow]);
+  if (again) delete ch.notDeposits;
   saveState();
   bankChequeDialogClose('[data-cheque-dialog]');
   if (navPageOf() === 'pageFinance') renderFinance();
@@ -734,7 +767,8 @@ function bankReceivables(cls) {
   var from = bankRecvFrom();
   var out = [];
   // A cheque received and not yet in the bank is a receipt dated the day it came (TM3b): the client paid that day. It is no
-  // statement row, so it is never placed by hand, offered to another client, or read as what was owed at the start.
+  // statement row, so it is never placed by hand, offered to another client, or read as what was owed at the start; and like
+  // any receipt, one that came before receivables start paid what was owed then, so it is not read.
   var held = bankChequeLinks(cls).filter(function(o) { return o.status === 'held'; }).map(function(o) {
     return { row: { id: 'chq:' + o.ch.id, date: o.ch.receivedOn, cr: gstRound(Number(o.ch.amount) || 0), dr: 0, narration: 'Cheque ' + o.ch.number + ' in hand', chq: o.ch.number },
       cat: 'receipt', clientId: o.ch.clientId, party: '', pending: true, cheque: o.ch.id };
@@ -743,7 +777,7 @@ function bankReceivables(cls) {
     var invs = (S.invoices || []).filter(function(i) { return i.status === 'active' && String(i.clientId) === String(c.id) && i.date >= from; })
       .sort(function(x, y) { return x.date < y.date ? -1 : x.date > y.date ? 1 : String(x.invoiceNumber).localeCompare(String(y.invoiceNumber)); });
     var recs = cls.filter(function(v) { return v.cat === 'receipt' && v.clientId != null && String(v.clientId) === String(c.id) && v.row.date >= from; })
-      .concat(held.filter(function(v) { return String(v.clientId) === String(c.id); }));
+      .concat(held.filter(function(v) { return String(v.clientId) === String(c.id) && v.row.date >= from; }));
     var op = bankOpeningFor(c.id, from), opening = op.amount;
     if (!invs.length && !recs.length && !opening && !op.stale) return;
     var open = [];
@@ -1773,8 +1807,9 @@ function bankAction(action, btn) {
     case 'invChequeOpen': bankChequeOpen(btn.dataset.id); return true;
     case 'invChequeVoid': bankChequeVoid(btn.dataset.id); return true;
     case 'invChequeLink': bankChequeSetDeposit(btn.dataset.id, btn.dataset.row); return true;
-    case 'invChequeNotThis': bankChequeSetDeposit(btn.dataset.id, null); return true;
+    case 'invChequeNotThis': bankChequeSetDeposit(btn.dataset.id, undefined, btn.dataset.row || ''); return true;
     case 'invChequeUnlink': bankChequeSetDeposit(btn.dataset.id, undefined); return true;
+    case 'invChequeRematch': bankChequeSetDeposit(btn.dataset.id, undefined, '', true); return true;
   }
   return false;
 }

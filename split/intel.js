@@ -228,8 +228,9 @@ function statsMarginHtml(period, filtered, tonnage) {
         { label: 'Full cost', value: formatCurrency(m.fullKg) + '/kg' },
         { label: 'Share of the plant’s tonnage', value: Math.round(worst.kg / m.kg * 100) + '%' },
         { label: 'Share of the revenue', value: (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%' }]) +
-      statsBody(statsNote((leaves ? 'Labour is fixed, so it contributes; it pays its share of labour only at ' + formatCurrency(m.fullKg) + '/kg'
-        : 'Below its variable cost: it loses money on every kilo, labour fixed as it is') + ', if its parts cost the same per kg as the rest.')) + '</div>';
+      // One line under 120 characters (P195's block): the price it pays its share at is the tile beside it.
+      statsBody(statsNote((leaves ? 'Labour is fixed, so it contributes; it pays its share only at ' + formatCurrency(m.fullKg) + '/kg'
+        : 'Below its variable cost: it loses money on every kilo even with labour fixed') + ', if its parts cost what the rest do.')) + '</div>';
   }
   return h + '</div>';
 }

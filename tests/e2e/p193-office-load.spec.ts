@@ -160,8 +160,9 @@ test.describe('P193: Office in one look (phone)', () => {
     await switchTab(page, 'pageClients');
     await page.locator('[data-action="invSwitchSubView"][data-view="items"]').click();
     const v = page.locator('#itemsVerdict');
-    await expect(v).toHaveAttribute('data-items-noweight', '2');
-    await expect(v.locator('.inv-hero-title')).toHaveText('3 parts · 2 with no weight');
+    // The part billed by the piece with no weight; the one billed by the kilo is weighed by its kilos (P215).
+    await expect(v).toHaveAttribute('data-items-noweight', '1');
+    await expect(v.locator('.inv-hero-title')).toHaveText('3 parts · 1 with no weight');
     expect(await heroTone(page, '#itemsVerdict')).toBe('warning');
     await expect(v.locator('[data-action="invOpenWeightEntry"]')).toHaveText('Enter weights');
     const bar = '#pageClients [data-items-toolbar]';
@@ -174,7 +175,7 @@ test.describe('P193: Office in one look (phone)', () => {
     await expect(page.locator('[data-tb-filter-dialog]')).toHaveCount(0);
     const tok = page.locator('#pageClients .inv-tokens .inv-token');
     await expect(tok).toHaveText([/Show\s*No weight/]);
-    await expect(page.locator('#pageClients [data-action="invEditItem"]')).toHaveCount(2);
+    await expect(page.locator('#pageClients [data-action="invEditItem"]')).toHaveCount(1);
     // A part's line says two things at most: no chain of three.
     const metas = await page.locator('#pageClients .inv-row-meta').allInnerTexts();
     expect(metas.length).toBeGreaterThan(0);

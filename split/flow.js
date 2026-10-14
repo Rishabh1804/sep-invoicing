@@ -81,7 +81,9 @@ function flowPriorityOpen(imId) {
     '<div class="inv-field"><label class="inv-field-label" for="flowPrioAll">The whole challan</label>' +
     '<input type="date" class="inv-input inv-id" id="flowPrioAll" value="' + escHtml(m.priority || '') + '" min="' + escHtml(m.challanDate || '') + '">' +
     '<div class="inv-field-hint">The day the client wants this material back by. The To-do asks on the day if it is not plated by then, and the challan says so until it goes out.</div></div>' +
-    (open.length > 1 ? '<div class="inv-field-label">Or a line of its own, which wins over the whole challan’s day</div>' + open.map(row).join('') : '') +
+    // A line's own day is drawn while it has one, a lone open line's too: that day wins over the challan's, so hidden it could be
+    // neither changed nor taken off.
+    (open.length > 1 || open.some(function(it) { return it.priority; }) ? '<div class="inv-field-label">Or a line of its own, which wins over the whole challan’s day</div>' + open.map(row).join('') : '') +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invFlowPrioSave">Save</button></div></div>', { dismiss: true });
 }
@@ -93,6 +95,9 @@ function flowPrioritySave() {
   var all = (document.getElementById('flowPrioAll') || {}).value || '';
   if (all && !iso.test(all)) { showToast('Pick a day', 'error'); return; }
   if (all && m.challanDate && all < m.challanDate) { showToast('A day before the challan came in', 'error'); return; }
+  // A line's day is held to the same: checked before anything is written.
+  var early = Array.prototype.find.call(document.querySelectorAll('[data-flow-prio]'), function(el) { return el.value && m.challanDate && el.value < m.challanDate; });
+  if (early) { showToast('A line wanted a day before the challan came in', 'error'); return; }
   if (all) m.priority = all; else delete m.priority;
   document.querySelectorAll('[data-flow-prio]').forEach(function(el) {
     var it = (m.items || []).find(function(x) { return String(x.id) === el.dataset.flowPrio; });
@@ -106,8 +111,10 @@ function flowPrioritySave() {
 }
 /* The badge a challan carries while a day it is wanted by stands and its material is not out. */
 function flowPriorityBadgeHtml(m) {
-  var days = [m.priority].concat((m.items || []).filter(function(it) { return !it.invoiced; }).map(function(it) { return it.priority; })).filter(Boolean).sort();
-  if (!days.length || (m.items || []).every(function(it) { return it.invoiced; })) return '';
+  // Each open line's own day, else the challan's (flowPriorityOf, as the task reads it): the challan's day counts only for an
+  // open line with no day of its own.
+  var days = (m.items || []).filter(function(it) { return !it.invoiced; }).map(function(it) { return flowPriorityOf(m, it); }).filter(Boolean).sort();
+  if (!days.length) return '';
   var d = days[0], today = localDateStr(), tone = d < today ? 'danger' : d === today ? 'warning' : 'info';
   return '<span class="inv-badge inv-badge-' + tone + '" data-flow-wanted="' + escHtml(d) + '" title="' + escHtml('Wanted by ' + formatDate(d)) + '">Wanted ' + escHtml(stockShortDate(d)) + '</span>';
 }
@@ -153,7 +160,7 @@ function flowStats(clientId) {
     var have = list.filter(function(x) { return x[k] != null; });
     return { d: flowWMedian(have.map(function(x) { return { d: x[k], w: x.amount }; })), n: have.length };
   };
-  var out = { since: since, lines: mine.length, own: true };
+  var out = { lines: mine.length };
   out.toPickle = med(mine, 'toPickle'); out.toPlate = med(mine, 'toPlate'); out.toDespatch = med(mine, 'toDespatch');
   // A client with under five lines despatched reads at the plant's pace, and says so.
   if (clientId != null && out.toDespatch.n < FLOW_MIN) { var p = med(all, 'toDespatch'); out.usual = { d: p.d, n: p.n, plant: true }; }
@@ -161,7 +168,6 @@ function flowStats(clientId) {
   var done = mine.filter(function(x) { return x.toDespatch != null; }), wIn = 0, wAll = 0;
   done.forEach(function(x) { var w = x.amount > 0 ? x.amount : 0; wAll += w; if (x.toDespatch <= x.target.days) wIn += w; });
   out.within = wAll > 0 ? wIn / wAll : done.length ? done.filter(function(x) { return x.toDespatch <= x.target.days; }).length / done.length : null;
-  out.done = done.length;
   // Days to pay: the receipts set against invoices (Finance), from the invoice's date, a median by value.
   if (typeof finSeen === 'function' && finSeen()) {
     var hist = bankPayHistory(finCtx().recv());
@@ -209,8 +215,8 @@ function flowExpectChallan(m) {
     }
   }
   var byQueue = flowAddWd(today, ahead), date = byQueue > byUsual ? byQueue : byUsual;
-  return { date: date < today ? today : date, due: flowAddWd(from, target), over: over, late: over > 0, usual: usual, usualPlant: !!st.usual.plant, stage: stage, line: line,
-    ahead: ahead, pace: pace, target: target, priority: lines.map(function(x) { return x.priority; }).filter(Boolean).sort()[0] || null };
+  return { date: date < today ? today : date, over: over, late: over > 0, usual: usual, usualPlant: !!st.usual.plant, stage: stage, line: line,
+    ahead: ahead, priority: lines.map(function(x) { return x.priority; }).filter(Boolean).sort()[0] || null };
 }
 /* When an open invoice is expected to be paid: its date and the client's own days to pay (three receipts or more), else the book's;
    past its terms on its date and the client's terms. */
@@ -262,9 +268,11 @@ TODO_RULE_FNS.flowPriority = function() {
   });
   return Object.keys(by).map(function(id) {
     var c = by[id], past = c.day < today, name = prodClientName(c.m.clientId) || c.m.clientName || 'A client';
+    // Late by working days; wanted by a Saturday and read on the Sunday it is late by none yet, and the title names the day.
+    var late = past ? flowWd(c.day, today) : 0;
     return { key: 'flowPriority:' + id, rule: 'flowPriority', tone: past ? 'red' : 'amber', clientId: c.m.clientId, amount: gstRound(c.amount), n: c.n,
       title: name + ' challan ' + (c.m.challanNo || 'with no number') + (past ? ' was wanted by ' + formatDate(c.day) : ' is wanted today'),
-      sub: todoPlural(c.n, 'line') + ' with no plating recorded' + (past ? ' · ' + todoPlural(flowWd(c.day, today), 'working day') + ' late' : ''),
+      sub: todoPlural(c.n, 'line') + ' with no plating recorded' + (late ? ' · ' + todoPlural(late, 'working day') + ' late' : ''),
       why: 'Turnaround · wanted by a day', facts: [['Wanted by', formatDate(c.day)], ['Lines with no plating', String(c.n)], ['Challan of', formatDate(c.m.challanDate)]],
       clears: 'Clears itself once it is plated, or when the day is changed or taken off (Challans → the challan → Wanted by).',
       go: { kind: 'challan', id: c.m.id }, goLabel: 'Open the challan', sig: (past ? 'red' : 'amber') + '|' + c.day };
@@ -333,11 +341,12 @@ function flowClientHtml(clientId, foldKey) {
   if ((typeof grdSeesMoney !== 'function' || grdSeesMoney()) && typeof finSeen === 'function' && finSeen()) {
     var recv = finCtx().recv(), r = recv.find(function(x) { return String(x.client.id) === String(clientId); }), hist = bankPayHistory(recv), book = bankBookDaysToPay(hist);
     var invs = r ? r.open.filter(function(o) { return o.inv && o.due > 0.005; }) : [];
-    var today = localDateStr();
+    var today = localDateStr(), loose = finCtx().loose() > 0;
     var irows = invs.map(function(o) {
       var e = flowExpectInvoice(clientId, o, hist, book ? book.median : null);
-      // Past its terms is red; past the day its client's pace (or the book's) gave it, amber; else the day it is expected.
-      var tone = e.past ? 'danger' : e.date && e.date < today ? 'warning' : 'info';
+      // Past its terms is red, never while a receipt is unplaced (that money may be in already: owed90's and figToneOwed's rule);
+      // past the day its client's pace (or the book's) gave it, amber; else the day it is expected.
+      var tone = e.past ? (loose ? 'warning' : 'danger') : e.date && e.date < today ? 'warning' : 'info';
       var word = e.past ? 'Past terms' : !e.date ? 'Due ' + stockShortDate(e.due) : e.date < today ? 'Slow · expected ~' + stockShortDate(e.date) : 'Expected ~' + stockShortDate(e.date);
       return '<div class="inv-row inv-row-2" data-flow-invoice="' + escHtml(o.inv.id) + '" data-flow-pay="' + (e.past ? 'past' : e.date && e.date < today ? 'slow' : 'due') + '" title="' + escHtml('of ' + formatDate(o.date) + ', due ' + formatDate(e.due)) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label || o.inv.displayNumber || '') + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatCurrency(o.due) + ' · ' + (e.days != null ? (e.own ? 'pays' : 'the book pays') + ' in ' + e.days + ' days' : 'due ' + formatDate(e.due))) + '</span></span>' +
@@ -357,11 +366,13 @@ function flowHeroHtml() {
   var st = flowStats(null), v = flowVerdict(st, null), today = localDateStr(), since = isoAddDays(today, -FLOW_LATE_DAYS);
   var late = flowLines().filter(function(x) { return x.row && x.date >= since && x.date <= today && flowWd(x.date, today) > x.target.days; });
   var wanted = flowLines().filter(function(x) { return x.row && x.priority && x.stage !== 'plated' && x.priority <= today; });
-  var tone = wanted.some(function(x) { return x.priority < today; }) ? 'danger' : late.length ? (v.tone === 'danger' ? 'danger' : 'warning') : v.tone;
+  // Past the target by more than two working days is red, as the task (flowLate) and the client's page read it.
+  var lateTone = late.some(function(x) { return flowWd(x.date, today) - x.target.days > FLOW_RED_AFTER; }) ? 'danger' : late.length ? 'warning' : 'ok';
+  var tone = wanted.some(function(x) { return x.priority < today; }) || lateTone === 'danger' ? 'danger' : late.length ? (v.tone === 'danger' ? 'danger' : 'warning') : v.tone;
   var stages = {};
   late.forEach(function(x) { stages[x.stage] = (stages[x.stage] || 0) + 1; });
   var body = '<div class="inv-hero-sheet">' + flowStepsHtml(st, null) +
-    flowRow('Past the target now', String(late.length), escHtml(late.length ? FLOW_STAGES.filter(function(k) { return stages[k]; }).map(function(k) { return stages[k] + ' ' + FLOW_STAGE_WORD[k]; }).join(', ') : 'nothing open past its target'), late.length ? 'warning' : 'ok', ' data-flow-late') +
+    flowRow('Past the target now', String(late.length), escHtml(late.length ? FLOW_STAGES.filter(function(k) { return stages[k]; }).map(function(k) { return stages[k] + ' ' + FLOW_STAGE_WORD[k]; }).join(', ') : 'nothing open past its target'), lateTone, ' data-flow-late') +
     (wanted.length ? flowRow('Wanted by today, not plated', String(wanted.length), escHtml(todoPlural(wanted.length, 'line') + ' on challans wanted by a day'), wanted.some(function(x) { return x.priority < today; }) ? 'danger' : 'warning', ' data-flow-wanted-now') : '') + '</div>';
   var link = typeof flrLink === 'function' ? flrLink('pageProduction', 'invFlowPlant', 'Open In plant') : '';
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Turnaround</span><span class="inv-panel-count">90 days</span>',

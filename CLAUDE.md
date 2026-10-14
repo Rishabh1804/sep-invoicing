@@ -2744,27 +2744,34 @@ facts and the long cards fold. P193; P195's budgets lowered for every Office scr
   figure (its tile has the amount), the worst other late stage its one fact (`pipeLateSay`); the stages are coded tiles two across (`pipeStageTileHtml`), a stage with nothing to
   judge plain. `pipeStateStage` reads one invoice state over a list, for Pipeline and the Register's verdict alike.
 - **One judge for a challan's wait** (`imWaitTone`, `imWaitDays`, im.js): IM's dot, Pipeline's first stage and the To-do's challan
-  task, amber from the To-do's challan days (5) and red from twice them; the task was info at any age. Challans' verdict
-  (`imVerdictHtml`): how many wait, what they bill, the oldest's days its figure. One row: Filter, Scan, **Add challan**, More
-  (*Duplicate check*).
+  task, amber from the To-do's challan days (3, the owner's ruling of 13 Oct 2026) and red from twice them; the task was info at any
+  age. A challan dated after today says its date (`imDatedAhead`: its row and its dot's title, Pipeline's client and stage), never
+  *received today*. Challans' verdict (`imVerdictHtml`): how many wait, what they bill, the oldest's days its figure. One row:
+  Filter, **Add challan**, More (*Duplicate check*); Scan came out on 13 Oct 2026.
 - **Invoices** (`renderRegisterToolbar`, `regVerdictHtml`): one row on both layouts: the search, Filter (client, month, state, the
   range, the sort one picker), Select on the phone, More (Credit notes, Number audit, the register's CSV and PDF, GSTR-1 CSV, Bulk
   mark filed); on the desktop the filters inline, the range a dialog (`regRangeOpen`), select-all the table head's box, a row that
   never wraps. The verdict: the invoices late on a step over what the filter shows. A neutral badge stays on its More row.
 - **Clients** (`clientFlagsRead`, `clientFlagDotHtml`, `clientsVerdictHtml`, clients.js): a client's row ends in its worst flag, the
-  To-do's own tasks, as a dot and a short word (`CLIENT_FLAG_WORD`); the verdict names the rule flagged worst, the rest its facts.
-- **Parts** (`itemsVerdictHtml`): *N with no weight* in its tone with **Enter weights** in its foot; Filter (*No weight*, *Unused*,
-  the sort), **Add part**, More (Part weights with its count, Enter weights, Derive weights, Merge, Select unused); a part's row
+  To-do's own tasks, as a dot and a short word (`CLIENT_FLAG_WORD`); the verdict names the rule flagged worst, each client counted once a rule, the rest its facts; the flags are
+  read again and the card redrawn when a client is saved or added (`clientsFlagsRedraw`).
+- **Parts** (`itemsVerdictHtml`): *N with no weight* (parts billed by the piece, `itemNoWeight`: one billed by the kilo is weighed
+  by its kilos; the chip, the filter and the row's dot read the same) in its tone with **Enter weights** in its foot; Filter (*No
+  weight*, *Unused*, the sort), **Add part**, More (Part weights with its count, Enter weights, Derive weights
+  (`deriveWeightsFromRates`, the rate card; *Calc weights*' kilos over pieces, `calculateStdWeights`, is retired), Merge, Select
+  unused); a part's row
   its description and gauge, its end the rate over its kg a piece.
-- **Performance** (`cpVerdictHtml`, client-perf.js): the client's realisation against the live cost and its change, its flags coded
-  tiles that open their tasks (shut on the phone, open on the desktop); the cadence groups, Materials worked and By the hour folds,
-  shut on both layouts; By the hour's parts as fact rows. A client's flagged tasks and linked articles are brief rows
+- **Performance** (`cpVerdictHtml`, client-perf.js): the client's realisation against the live cost (the cost only for a role that
+  sees money: it is a margin; the tile alike) and its change, its flags coded tiles that open their tasks (each its amount for a role
+  that sees money, else its count, else a dash; shut on the phone, open on the desktop); the cadence groups (an empty one plain),
+  Materials worked and By the hour folds, shut on both layouts; By the hour's parts as fact rows, what an hour costs the plant and
+  earns it only for a role that sees money. A client's flagged tasks and linked articles are brief rows
   (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`), its Money panel two facts a line, the folded Turnaround card's head its title
   and verdict.
 - **Sales**: Prospects' four tiles are its verdict's factors (`prsVerdictHtml`), the spare one figure (`prsSpare`, said under Pulse's
   *Is the plant full?* too); **To reprice**, Pulse's reprice moves (`qtRepriceMoves`), is Quotations' card's body on the phone (one
   card, the rest a tap away) and the desktop's pane while no quotation is open (`qtRepricePaneHtml`), where open above the list it
-  had made the page scroll (P80).
+  had made the page scroll (P80). Quotations' card takes the worst tone of the reprice moves it holds.
 - **Create** (`validateInvoiceKeyed`, `createErrorsShown`, `createErrorsRefresh`): an error shows once its field is left or a save
   is tried, never on a form nobody has touched; Save is held only while one shows.
 - **The method went to a guide**: *Using the app: clients and sales* (`kbguides.js`, on the office path).
@@ -3169,21 +3176,24 @@ build: the people are the book's.
     part's winning. Payment terms from the invoice's date: the plant's 45 (`S.flowCfg.termsDays`) or the client's (`client.payTermsDays`).
     Both on the client's form (*Turnaround and terms*). The client whose name reads Mehta is set to 7 once, where it has none
     (`_clientTerms1`). **A challan wanted by a day** (`priority` on the challan, or on a line, which wins): *Wanted by* on the challan
-    form and among a challan's actions (a dialog, the whole challan or each open line); the challan is badged while anything on it is
-    open (*Wanted 12 Oct*: blue ahead, amber on the day, red after).
+    form and among a challan's actions (a dialog, the whole challan or each open line, a line's own day drawn while it has one, a lone
+    open line's too); a day before the challan came in is refused, on the form and for a line; the challan is badged while anything on
+    it is open, at the earliest day an open line is held to (its own, else the challan's: *Wanted 12 Oct*, blue ahead, amber on the
+    day, red after).
   - **The tasks** (T2). `flowLate`, per client: challan lines of the last 30 days past their target, red two working days past, in
     quantities, never rupees, saying where they stand by In plant's reading. *Waiting to pickle* is said only where the floor's record
     covers the month, as In plant withholds it; under that, *with no floor record*. `flowPriority`, per challan: wanted by today or
-    before with no plating recorded, amber on the day, red after. `owed90` reads each client's terms where it read 90 days; its id is
+    before with no plating recorded, amber on the day, red after, saying how many working days late once one has passed (wanted by a
+    Saturday and read on the Sunday, the day alone). `owed90` reads each client's terms where it read 90 days; its id is
     kept, so a switch or a snooze set on it stands, and its fold and its move say *past its terms*. Three or more fold (`TODO_FOLD`).
   - **The flow on screen** (T3). Floor's Overview's fifth hero, *Turnaround*, for a role that opens Production, shut to its line: the
     plant's median working days from the challan to despatch, weighted by value, against the target, and the share of the value back
     within it. Open, it shows the challan to its first pickling and plating (In plant's attribution) and to despatch; the invoice to
-    its payment against the terms (a role that sees money); the lines past the target now; the jobs wanted by today. Its door is In
+    its payment against the terms (a role that sees money); the lines past the target now (red, the card with them, where one is more than two working days past, as the task); the jobs wanted by today. Its door is In
     plant. A client's page (the pane, the phone's sheet, Performance) shows the same steps, then:
     - each open challan's expected day back: the client's usual turnaround (the plant's under five despatched), or later where the
       work ahead of it on its usual line, at the line's pace, says so; *Late* past its target, red two working days past;
-    - each open invoice: past its terms, slower than its client's pace (the book's under three receipts), or expected.
+    - each open invoice: past its terms (red; amber while a receipt is unplaced, as owed90), slower than its client's pace (the book's under three receipts), or expected.
 
     **A hero alone on the last row takes the row** (styles.css), so a grid of heroes never ends in a blank cell.
   - **Measured on the owner's book** (10 Oct, counts only):

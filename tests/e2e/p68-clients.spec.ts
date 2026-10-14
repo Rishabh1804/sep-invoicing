@@ -55,7 +55,8 @@ test.describe('P68: Clients, Items and Performance', () => {
     await expect(page.locator('[data-tb-filter-dialog]')).toHaveCount(0);
     await expect(await filterControl(page, '[data-action="invFilterNoWeight"]')).toHaveAttribute('aria-pressed', 'true');
     await closeFilter(page);
-    await expect(page.locator('#itemsList [data-item-row]')).toHaveCount(2);
+    // BBB PART, billed by the piece; CCC PART is billed by the kilo and weighed by its kilos (P215).
+    await expect(page.locator('#itemsList [data-item-row]')).toHaveCount(1);
   });
 
   test('a tick box selects its row, once, and the selection bar counts it', async ({ page }) => {

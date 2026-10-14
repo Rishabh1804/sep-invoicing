@@ -238,12 +238,17 @@ function captureRegFilters(changedId) {
   if (so && so.value) { var sp = so.value.split('-'); regFilter.regSortBy = sp[0] === 'number' ? 'number' : 'date'; regFilter.regSortDir = sp[1] === 'asc' ? 'asc' : 'desc'; }
 
   // Month and range are alternatives. Setting one clears the other rather than
-  // leaving both populated and one of them quietly ignored.
+  // leaving both populated and one of them quietly ignored. Its fields are cleared
+  // too: the phone's Filter dialog is drawn once and stays open, so the next change
+  // read the other back from them and the range won over the month just picked.
   if (changedId === 'regMonthFilter' && regFilter.month) {
     regFilter.dateFrom = ''; regFilter.dateTo = '';
+    if (df) df.value = '';
+    if (dt) dt.value = '';
   } else if ((changedId === 'regDateFrom' || changedId === 'regDateTo') &&
              (regFilter.dateFrom || regFilter.dateTo)) {
     regFilter.month = '';
+    if (mf) mf.value = '';
   }
 
   // A selection made under one filter must not survive into another. The rows

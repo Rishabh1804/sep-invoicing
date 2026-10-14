@@ -78,7 +78,7 @@ var KB_APP_GUIDES = [
     'Office → Clients has three views (Clients, Parts, Performance) and Office → Sales two (Prospects, Quotations). Each starts with a card that says how it stands.\n\n' +
     '# Clients\n- A dot and a word beside a client name the worst thing raised about it: **past terms** (owed past its payment terms), **gone quiet**, **below cost**, **to bill** (challans waiting), **note due** (a rebate note due) and the rest. Open the client for every task about it.\n' +
     '- The card at the top counts the clients with something raised, worst first.\n\n' +
-    '# Parts\n- **No weight** lists the parts with no weight a piece. They cannot be priced per kilo, so tonnage and realisation leave them out. **Derive weights** (under More) fills what a piece client’s rate card allows.\n' +
+    '# Parts\n- **No weight** lists the parts billed by the piece with no weight a piece. They cannot be priced per kilo, so tonnage and realisation leave them out. **Derive weights** (under More) fills what a piece client’s rate card allows.\n' +
     '- **Unused** lists the parts no invoice has billed. **Select unused** and **Merge** are under More.\n\n' +
     '# Performance\n- One client at a time: month on month as revenue, tonnage or rate per kilo, then its parts by **cadence**.\n' +
     '- A part is judged against its own rhythm, across invoices and challans. It is **stopped** once the gap since it last came is past both 1.75 times its usual gap and its usual gap plus three weeks. A fixed cut-off would call a quarterly part stopped in its second month.\n' +

@@ -329,6 +329,13 @@ function saveChallan() {
     if (gapEl) gapEl.focus();
     return;
   }
+  // The day it is wanted by is never before the day it came in, as the Wanted by dialog holds it (flow.js).
+  if (_challanForm.priority && _challanForm.challanDate && _challanForm.priority < _challanForm.challanDate) {
+    showToast('Wanted by a day before the challan came in', 'error');
+    var wbEl = document.getElementById('imWantedBy');
+    if (wbEl) wbEl.focus();
+    return;
+  }
 
   // A red-flagged line is saved only with a reason, the ₹0 line's contract.
   var fDate = _challanForm.challanDate || localDateStr();

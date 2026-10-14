@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="26719104">
+<meta name="app-build" content="527c6844">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -8606,9 +8606,11 @@ function clientsVerdictHtml() {
   Object.keys(_clientFlags).forEach(function(id) {
     if (!S.clients.some(function(c) { return String(c.id) === id; })) return;
     n++;
+    // A rule counts each client once: the turnaround's wanted-by task is one a challan, and three of them are one client.
+    var seen = {};
     _clientFlags[id].forEach(function(t) {
       var r = by[t.rule] || (by[t.rule] = { n: 0, tone: 'info' });
-      r.n++;
+      if (!seen[t.rule]) { seen[t.rule] = true; r.n++; }
       if ((TODO_TONE_RANK[t.tone] || 0) < (TODO_TONE_RANK[r.tone] || 0)) r.tone = t.tone;
     });
   });
@@ -8948,6 +8950,15 @@ async function saveClientEdit(clientId, mode) {
   showToast('Client saved');
 }
 
+/* After a client is saved or added on Clients: its flags read again (they are read when the view is drawn) and the card drawn
+   with them, so a client added is counted and a flag the save cleared (a turnaround or terms set) goes from the card and the
+   rows. */
+function clientsFlagsRedraw() {
+  var v = document.getElementById('clientsVerdict');
+  if (!v) return;
+  clientFlagsRead();
+  v.outerHTML = clientsVerdictHtml();
+}
 /* The desktop pane shows the client just changed, and its row in the list the new rate: the pane was redrawn only when it
    was already open on that client, and a card change made from the edit sheet closed the sheet instead. */
 function _clientPaneRefresh(clientId) {
@@ -8957,6 +8968,7 @@ function _clientPaneRefresh(clientId) {
     if (bookBusy()) _bookRedrawPending = true; else tabRedrawActive();
     return;
   }
+  clientsFlagsRedraw();
   const searchEl = document.getElementById('clientSearch');
   if (_isDesktop && document.getElementById('clientList')) _renderClientDetail(clientId, false);
   else renderClientList(searchEl ? searchEl.value : '');
@@ -9012,6 +9024,7 @@ function addClient() {
   // Clear the filter so the new client is never rendered out of view
   const searchEl = document.getElementById('clientSearch');
   if (searchEl) searchEl.value = '';
+  clientsFlagsRedraw();
   // Desktop: let the detail render refresh the master so the new row gets its
   // active highlight — _clientsActiveId is only set inside _renderClientDetail
   if (_isDesktop) _renderClientDetail(c.id, false);
@@ -9587,6 +9600,11 @@ function _buildClientsSubViewHtml() {
     '</div>';
 }
 
+/* A part with no weight a piece is a job waiting only where its lines need one to be weighed: one billed by the kilo is weighed by
+   its kilos, so it is not counted, listed or marked No weight (the card was never ok on a book whose last unweighed parts are billed
+   by the kilo). A part with no unit is billed by the kilo, as its edit sheet and detail read it. */
+function itemNoWeight(it) { return it.stdWeightKg == null && String(it.unit || 'KG').toUpperCase() !== 'KG'; }
+
 /* Parts' toolbar (the tab map, TM5e; it was three rows and a count): the search, Filter (No weight, Unused and the sort: inline on the
    desktop, a dialog on the phone, said under the row as tokens), Add part the primary, and More for the tools. The parts with no
    weight, the job waiting, are its verdict's (itemsVerdictHtml), with the move in its foot. */
@@ -9595,7 +9613,7 @@ function _buildItemsSubViewHtml() {
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
-  var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
+  var noWeightCount = S.items.filter(itemNoWeight).length;
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
   var opt = function(v, l) { return '<option value="' + v + '"' + (sort === v ? ' selected' : '') + '>' + l + '</option>'; };
@@ -9613,13 +9631,15 @@ function _buildItemsSubViewHtml() {
     // Part weights' count is its own row's (a count that waits on nothing is not carried to More's button).
     uiToolbarMoreHtml([{ label: 'Part weights', action: 'invOpenPartWeights', badge: Object.keys(S.partWeights || {}).length ? { n: Object.keys(S.partWeights || {}).length, tone: 'neutral' } : null },
       { label: 'Enter weights', action: 'invOpenWeightEntry' },
-      { label: 'Derive weights', action: 'invCalcWeights' }, { label: 'Merge', action: 'invOpenMergeTool' }, { label: 'Select unused', action: 'invSelectAllUnused' }],
+      // Derive weights fills what a piece client's rate card allows (deriveWeightsFromRates), as the guide and the tab map say.
+      { label: 'Derive weights', action: 'invDeriveWeights' }, { label: 'Merge', action: 'invOpenMergeTool' }, { label: 'Select unused', action: 'invSelectAllUnused' }],
       { icon: !_isDesktop }) + '</div>' +
     uiTokensHtml([{ key: 'Show', value: filter === 'no-weight' ? 'No weight' : filter === 'unused' ? 'Unused' : '', action: 'invItemsFilterClear', attrs: ' data-clear="filter"' },
       { key: 'Sort', value: sortWord, action: 'invItemsFilterClear', attrs: ' data-clear="sort"' }]);
 }
 /* Parts' verdict (the tab map, TM5e; the count was a page-head line and the parts with no weight a plain chip): how many parts, how
-   many have no weight a piece (they leave their lines out of tonnage), in its tone, with Enter weights in its foot. */
+   many billed by the piece have no weight a piece (they leave their lines out of tonnage, itemNoWeight), in its tone, with Enter
+   weights in its foot. */
 function itemsVerdictHtml(noWeight, unused) {
   var total = S.items.length;
   return uiVerdictHtml({ screen: 'Parts', tone: !total ? 'neutral' : noWeight ? 'warning' : 'ok',
@@ -9741,7 +9761,7 @@ function _getSortedFilteredItems() {
 
   // Filter
   if (filter === 'no-weight') {
-    list = list.filter(function(it) { return it.stdWeightKg == null; });
+    list = list.filter(itemNoWeight);
   } else if (filter === 'unused') {
     var cache = _buildUsageCache();
     list = list.filter(function(it) { return !cache[it.partNumber]; });
@@ -9783,7 +9803,8 @@ function _itemRowHtml(it) {
   // Two things (the tab map, TM5e; it was five, the unit, weight and references among them): what the part is, its description
   // and gauge. Its end: the rate, over its weight a piece, else what it waits on (no weight) or that nothing uses it.
   var meta = [it.desc || 'No description', it.gauge || it.unit || ''].filter(Boolean).join(' · ');
-  var state = it.stdWeightKg == null ? uiDot('warning', 'No weight') : usageCount > 0 ? '<span class="inv-row-meta">' + formatNum(it.stdWeightKg, 3) + ' kg</span>' : uiDot('neutral', 'Unused');
+  var state = itemNoWeight(it) ? uiDot('warning', 'No weight') : !usageCount ? uiDot('neutral', 'Unused')
+    : it.stdWeightKg != null ? '<span class="inv-row-meta">' + formatNum(it.stdWeightKg, 3) + ' kg</span>' : '';
   var hasRate = it.rate != null && it.rate > 0;
   return '<div class="inv-row inv-row-2' + (_itemsSelected[it.id] ? ' inv-row-selected' : '') + '" data-item-row="' + it.id + '">' +
     '<label class="inv-row-lead inv-row-tick">' + _itemCheckHtml(it) + '</label>' +
@@ -10602,62 +10623,6 @@ function deriveWeightsFromRates() {
   showToast('Derived ' + derived + ' weight' + (derived !== 1 ? 's' : '') +
     (notes.length ? ' (' + notes.join(', ') + ')' : ''),
     notes.length ? 'warning' : 'success');
-}
-
-function calculateStdWeights() {
-  if (!grdGate('rates', 'work out item weights', calculateStdWeights)) return;   // P1 (guard.js)
-  var calculated = 0;
-  var highVariance = 0;
-  var twoGauge = _partsInTwoGauges(), skipped = 0;
-
-  S.items.forEach(function(item) {
-    if (item.stdWeightKg != null) return;
-    // The lines name a part number, not a gauge: two gauges' pieces would be averaged into both rows.
-    if (twoGauge[item.partNumber]) { skipped++; return; }
-
-    var pairs = [];
-
-    (S.invoices || []).forEach(function(inv) {
-      inv.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
-          pairs.push({ kg: li.qty, nos: li.nosQty });
-        }
-      });
-    });
-
-    (S.incomingMaterial || []).forEach(function(im) {
-      im.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
-          pairs.push({ kg: li.qty, nos: li.nosQty });
-        }
-      });
-    });
-
-    if (pairs.length === 0) return;
-
-    var weights = pairs.map(function(p) { return p.kg / p.nos; });
-    var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
-
-    if (weights.length > 1) {
-      var variance = weights.reduce(function(s, w) { return s + Math.pow(w - avg, 2); }, 0) / weights.length;
-      var cv = (Math.sqrt(variance) / avg) * 100;
-      if (cv > 20) highVariance++;
-    }
-
-    item.stdWeightKg = gstRound(avg * 1000) / 1000;
-    calculated++;
-  });
-
-  if (calculated > 0) {
-    saveState();
-    _renderItemsList();
-  }
-
-  var msg = 'Calculated weights for ' + calculated + ' item' + (calculated !== 1 ? 's' : '') + ' from invoice/challan history';
-  if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
-  if (skipped > 0) msg += '. ' + skipped + ' skipped: same part in two gauges';
-  if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
-  showToast(msg, calculated > 0 ? 'success' : 'warning');
 }
 
 /* --- Usage Scoring (Phase 6b) --- */
@@ -14461,12 +14426,17 @@ function captureRegFilters(changedId) {
   if (so && so.value) { var sp = so.value.split('-'); regFilter.regSortBy = sp[0] === 'number' ? 'number' : 'date'; regFilter.regSortDir = sp[1] === 'asc' ? 'asc' : 'desc'; }
 
   // Month and range are alternatives. Setting one clears the other rather than
-  // leaving both populated and one of them quietly ignored.
+  // leaving both populated and one of them quietly ignored. Its fields are cleared
+  // too: the phone's Filter dialog is drawn once and stays open, so the next change
+  // read the other back from them and the range won over the month just picked.
   if (changedId === 'regMonthFilter' && regFilter.month) {
     regFilter.dateFrom = ''; regFilter.dateTo = '';
+    if (df) df.value = '';
+    if (dt) dt.value = '';
   } else if ((changedId === 'regDateFrom' || changedId === 'regDateTo') &&
              (regFilter.dateFrom || regFilter.dateTo)) {
     regFilter.month = '';
+    if (mf) mf.value = '';
   }
 
   // A selection made under one filter must not survive into another. The rows
@@ -15932,10 +15902,13 @@ function pipeStages() {
   var ages = ims.map(imWaitDays);
   var redN = ages.filter(function(a) { return a != null && a >= redD; }).length;
   var amberN = ages.filter(function(a) { return a != null && a >= amberD; }).length;
+  // The earliest dated (they are oldest first): dated after today, every one is, and the stage says its date (imDatedAhead).
+  var firstDated = ims.find(function(im) { return im.challanDate; });
   add('awaiting', { n: ims.length, items: ims, of: 'to bill', amberD: amberD, redD: redD, late: redN || amberN, lateDays: redN ? redD : amberN ? amberD : null,
     amount: gstRound(ims.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0)),
     tone: redN ? 'danger' : amberN ? 'warning' : 'neutral',
     word: redN ? redN + ' over ' + pipeDays(redD) : amberN ? amberN + ' over ' + pipeDays(amberD)
+      : imDatedAhead(firstDated) ? 'dated ' + stockDayLabel(firstDated.challanDate)
       : pipeOldestWord(ages.reduce(function(m, a) { return a != null && (m == null || a > m) ? a : m; }, null)) || 'no challan date' });
 
   // Created, printed, dispatched, delivered: each invoice's own tone (pipeStateStage).
@@ -16039,7 +16012,8 @@ function pipeVerdictHtml(stages) {
   // two facts wrapped the card to a second line on the phone, I10).
   var others = late.map(function(x) { return { text: pipeLateSay(x), tone: uiTone(x.tone), money: x.key === 'owed' }; });
   var facts = (others.length ? others : more.map(function(t) { return { text: t, tone: 'warning' }; })).slice(0, 1);
-  return uiVerdictHtml({ screen: 'Pipeline', tone: uiTone(s.tone), verdict: uiVerdictFit(PIPE_VERDICT[s.key](s), words[0] ? ' · ' + words[0] : ''),
+  // A date in the stage's words drops this year's number here as on its tile (pipeNoThisYear).
+  return uiVerdictHtml({ screen: 'Pipeline', tone: uiTone(s.tone), verdict: uiVerdictFit(PIPE_VERDICT[s.key](s), words[0] ? ' · ' + pipeNoThisYear(words[0]) : ''),
     facts: facts, money: s.key === 'owed', plain: todoPlural(s.n, 'client') + ' owe us', key: 'pipeline' });
 }
 
@@ -16104,7 +16078,8 @@ function pipeAwaitingHtml(s) {
     var client = '<div class="inv-row inv-row-2" data-pipe-client="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(name) + '</span>' +
       // Two facts on its line (§3b-11), its oldest a line of its own in its tone.
       '<span class="inv-row-meta inv-row-wrap">' + todoPlural(list.length, 'challan') + ' · ' + formatCurrency(amt) + ' to bill</span>' +
-      '<span class="inv-row-meta">' + uiDot(tone, age == null ? 'no challan date' : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
+      '<span class="inv-row-meta">' + uiDot(tone, age == null ? 'no challan date' : imDatedAhead(list[0]) ? escHtml('dated ' + stockDayLabel(list[0].challanDate))
+        : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
       '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPipeInvoice" data-client="' + escHtml(k) + '" ' +
       'aria-label="' + escHtml('Create invoice from ' + name + '’s ' + todoPlural(list.length, 'challan')) + '">Create invoice</button></span></div>';
     var kids = '<div class="inv-row-children">' + list.map(function(im) {
@@ -16880,6 +16855,9 @@ function imWaitTone(days) {
   return days == null ? 'neutral' : days >= d * 2 ? 'danger' : days >= d ? 'warning' : 'neutral';
 }
 function imWaitDays(im) { return im && im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, localDateStr())) : null; }
+/* A challan dated after today (a date typed wrong, most often) has waited no days, and is said by its date, never "received
+   today": its row, Pipeline's client and its stage (stockDayLabel names the year when it is not this one). */
+function imDatedAhead(im) { return !!(im && im.challanDate && im.challanDate > localDateStr()); }
 /* Awaiting invoice's verdict (the tab map, TM5b; it was the page-head line): how many challans wait and what they bill, in the
    tone of the oldest, its days the card's figure. Invoiced's (TM6f): the month shown, what was invoiced in it, and the month's
    challans still waiting, in the tone of the oldest of them. */
@@ -17090,7 +17068,7 @@ function imStatusDotHtml(im) {
   // A challan waiting is toned by how long it has waited (imWaitTone); one invoiced whole is done.
   var tone = st === 'invoiced' ? s.tone : imWaitTone(imWaitDays(im));
   if (tone === 'neutral' && st === 'partial') tone = 'info';
-  return '<span class="inv-dot inv-dot-' + tone + '"' + (st !== 'invoiced' && imWaitDays(im) != null ? ' title="' + escHtml(pipeDays(imWaitDays(im)) + ' waiting') + '"' : '') + '>' + escHtml(s.word) + '</span>';
+  return '<span class="inv-dot inv-dot-' + tone + '"' + (st !== 'invoiced' && imWaitDays(im) != null ? ' title="' + escHtml(imDatedAhead(im) ? 'dated ' + stockDayLabel(im.challanDate) : pipeDays(imWaitDays(im)) + ' waiting') + '"' : '') + '>' + escHtml(s.word) + '</span>';
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
@@ -17114,7 +17092,7 @@ function imAmountHtml(im, awaiting) {
 function imRowMainHtml(im) {
   // Two things in its meta (§3b-11): waiting, how long and how many items; billed, the vehicle and the items.
   var items = im.items.length + ' item' + (im.items.length !== 1 ? 's' : ''), age = imIsBilled(im) ? null : imWaitDays(im);
-  var first = age != null ? (age === 0 ? 'received today' : pipeDays(age) + ' waiting') : im.vehicleNo ? escHtml(im.vehicleNo) : '';
+  var first = age != null ? (imDatedAhead(im) ? escHtml('dated ' + stockDayLabel(im.challanDate)) : age === 0 ? 'received today' : pipeDays(age) + ' waiting') : im.vehicleNo ? escHtml(im.vehicleNo) : '';
   return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + ' ' + flowPriorityBadgeHtml(im) + '</span>' +
     '<span class="inv-row-meta">' + (first ? first + ' · ' : '') + items + '</span>';
 }
@@ -19558,9 +19536,13 @@ function qtVerdictHtml(moves) {
   // screen); the desktop's are in the pane beside the list until a quotation is opened (qtShowPane), since under its open card they
   // pushed the list below the screen's foot (P80).
   moves = moves || [];
-  return uiVerdictHtml({ screen: 'Quotations', tone: expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral', verdict: verdict,
+  // The card is in the worst tone of what it holds (the tab map, §3e), its reprice moves among them.
+  var mTone = moves.length ? (moves.some(function(mv) { return mv.tone === 'red'; }) ? 'danger' : 'warning') : null;
+  var tone = expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral';
+  if (mTone && UI_TONE_RANK[mTone] > (UI_TONE_RANK[tone] || 0)) tone = mTone;
+  return uiVerdictHtml({ screen: 'Quotations', tone: tone, verdict: verdict,
     facts: [expired ? { text: expired + ' expired, unanswered', tone: 'warning' } : '', toPost ? { text: todoPlural(toPost, 'accepted one', 'accepted ones') + ' with a rate to post', tone: 'warning' } : '',
-      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: moves.some(function(mv) { return mv.tone === 'red'; }) ? 'danger' : 'warning', money: true } : '',
+      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: mTone, money: true } : '',
       all.filter(function(q) { return q.status === 'accepted'; }).length + ' accepted'].filter(Boolean).slice(0, 3),
     body: _isDesktop ? null : qtRepriceMovesHtml(moves), key: 'pageClients-quotes', attrs: ' id="qtVerdict"' });
 }
@@ -41904,8 +41886,9 @@ function statsMarginHtml(period, filtered, tonnage) {
         { label: 'Full cost', value: formatCurrency(m.fullKg) + '/kg' },
         { label: 'Share of the plant’s tonnage', value: Math.round(worst.kg / m.kg * 100) + '%' },
         { label: 'Share of the revenue', value: (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%' }]) +
-      statsBody(statsNote((leaves ? 'Labour is fixed, so it contributes; it pays its share of labour only at ' + formatCurrency(m.fullKg) + '/kg'
-        : 'Below its variable cost: it loses money on every kilo, labour fixed as it is') + ', if its parts cost the same per kg as the rest.')) + '</div>';
+      // One line under 120 characters (P195's block): the price it pays its share at is the tile beside it.
+      statsBody(statsNote((leaves ? 'Labour is fixed, so it contributes; it pays its share only at ' + formatCurrency(m.fullKg) + '/kg'
+        : 'Below its variable cost: it loses money on every kilo even with labour fixed') + ', if its parts cost what the rest do.')) + '</div>';
   }
   return h + '</div>';
 }
@@ -53495,7 +53478,9 @@ function flowPriorityOpen(imId) {
     '<div class="inv-field"><label class="inv-field-label" for="flowPrioAll">The whole challan</label>' +
     '<input type="date" class="inv-input inv-id" id="flowPrioAll" value="' + escHtml(m.priority || '') + '" min="' + escHtml(m.challanDate || '') + '">' +
     '<div class="inv-field-hint">The day the client wants this material back by. The To-do asks on the day if it is not plated by then, and the challan says so until it goes out.</div></div>' +
-    (open.length > 1 ? '<div class="inv-field-label">Or a line of its own, which wins over the whole challan’s day</div>' + open.map(row).join('') : '') +
+    // A line's own day is drawn while it has one, a lone open line's too: that day wins over the challan's, so hidden it could be
+    // neither changed nor taken off.
+    (open.length > 1 || open.some(function(it) { return it.priority; }) ? '<div class="inv-field-label">Or a line of its own, which wins over the whole challan’s day</div>' + open.map(row).join('') : '') +
     '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Cancel</button>' +
     '<button class="inv-btn inv-btn-primary" data-action="invFlowPrioSave">Save</button></div></div>', { dismiss: true });
 }
@@ -53507,6 +53492,9 @@ function flowPrioritySave() {
   var all = (document.getElementById('flowPrioAll') || {}).value || '';
   if (all && !iso.test(all)) { showToast('Pick a day', 'error'); return; }
   if (all && m.challanDate && all < m.challanDate) { showToast('A day before the challan came in', 'error'); return; }
+  // A line's day is held to the same: checked before anything is written.
+  var early = Array.prototype.find.call(document.querySelectorAll('[data-flow-prio]'), function(el) { return el.value && m.challanDate && el.value < m.challanDate; });
+  if (early) { showToast('A line wanted a day before the challan came in', 'error'); return; }
   if (all) m.priority = all; else delete m.priority;
   document.querySelectorAll('[data-flow-prio]').forEach(function(el) {
     var it = (m.items || []).find(function(x) { return String(x.id) === el.dataset.flowPrio; });
@@ -53520,8 +53508,10 @@ function flowPrioritySave() {
 }
 /* The badge a challan carries while a day it is wanted by stands and its material is not out. */
 function flowPriorityBadgeHtml(m) {
-  var days = [m.priority].concat((m.items || []).filter(function(it) { return !it.invoiced; }).map(function(it) { return it.priority; })).filter(Boolean).sort();
-  if (!days.length || (m.items || []).every(function(it) { return it.invoiced; })) return '';
+  // Each open line's own day, else the challan's (flowPriorityOf, as the task reads it): the challan's day counts only for an
+  // open line with no day of its own.
+  var days = (m.items || []).filter(function(it) { return !it.invoiced; }).map(function(it) { return flowPriorityOf(m, it); }).filter(Boolean).sort();
+  if (!days.length) return '';
   var d = days[0], today = localDateStr(), tone = d < today ? 'danger' : d === today ? 'warning' : 'info';
   return '<span class="inv-badge inv-badge-' + tone + '" data-flow-wanted="' + escHtml(d) + '" title="' + escHtml('Wanted by ' + formatDate(d)) + '">Wanted ' + escHtml(stockShortDate(d)) + '</span>';
 }
@@ -53567,7 +53557,7 @@ function flowStats(clientId) {
     var have = list.filter(function(x) { return x[k] != null; });
     return { d: flowWMedian(have.map(function(x) { return { d: x[k], w: x.amount }; })), n: have.length };
   };
-  var out = { since: since, lines: mine.length, own: true };
+  var out = { lines: mine.length };
   out.toPickle = med(mine, 'toPickle'); out.toPlate = med(mine, 'toPlate'); out.toDespatch = med(mine, 'toDespatch');
   // A client with under five lines despatched reads at the plant's pace, and says so.
   if (clientId != null && out.toDespatch.n < FLOW_MIN) { var p = med(all, 'toDespatch'); out.usual = { d: p.d, n: p.n, plant: true }; }
@@ -53575,7 +53565,6 @@ function flowStats(clientId) {
   var done = mine.filter(function(x) { return x.toDespatch != null; }), wIn = 0, wAll = 0;
   done.forEach(function(x) { var w = x.amount > 0 ? x.amount : 0; wAll += w; if (x.toDespatch <= x.target.days) wIn += w; });
   out.within = wAll > 0 ? wIn / wAll : done.length ? done.filter(function(x) { return x.toDespatch <= x.target.days; }).length / done.length : null;
-  out.done = done.length;
   // Days to pay: the receipts set against invoices (Finance), from the invoice's date, a median by value.
   if (typeof finSeen === 'function' && finSeen()) {
     var hist = bankPayHistory(finCtx().recv());
@@ -53623,8 +53612,8 @@ function flowExpectChallan(m) {
     }
   }
   var byQueue = flowAddWd(today, ahead), date = byQueue > byUsual ? byQueue : byUsual;
-  return { date: date < today ? today : date, due: flowAddWd(from, target), over: over, late: over > 0, usual: usual, usualPlant: !!st.usual.plant, stage: stage, line: line,
-    ahead: ahead, pace: pace, target: target, priority: lines.map(function(x) { return x.priority; }).filter(Boolean).sort()[0] || null };
+  return { date: date < today ? today : date, over: over, late: over > 0, usual: usual, usualPlant: !!st.usual.plant, stage: stage, line: line,
+    ahead: ahead, priority: lines.map(function(x) { return x.priority; }).filter(Boolean).sort()[0] || null };
 }
 /* When an open invoice is expected to be paid: its date and the client's own days to pay (three receipts or more), else the book's;
    past its terms on its date and the client's terms. */
@@ -53676,9 +53665,11 @@ TODO_RULE_FNS.flowPriority = function() {
   });
   return Object.keys(by).map(function(id) {
     var c = by[id], past = c.day < today, name = prodClientName(c.m.clientId) || c.m.clientName || 'A client';
+    // Late by working days; wanted by a Saturday and read on the Sunday it is late by none yet, and the title names the day.
+    var late = past ? flowWd(c.day, today) : 0;
     return { key: 'flowPriority:' + id, rule: 'flowPriority', tone: past ? 'red' : 'amber', clientId: c.m.clientId, amount: gstRound(c.amount), n: c.n,
       title: name + ' challan ' + (c.m.challanNo || 'with no number') + (past ? ' was wanted by ' + formatDate(c.day) : ' is wanted today'),
-      sub: todoPlural(c.n, 'line') + ' with no plating recorded' + (past ? ' · ' + todoPlural(flowWd(c.day, today), 'working day') + ' late' : ''),
+      sub: todoPlural(c.n, 'line') + ' with no plating recorded' + (late ? ' · ' + todoPlural(late, 'working day') + ' late' : ''),
       why: 'Turnaround · wanted by a day', facts: [['Wanted by', formatDate(c.day)], ['Lines with no plating', String(c.n)], ['Challan of', formatDate(c.m.challanDate)]],
       clears: 'Clears itself once it is plated, or when the day is changed or taken off (Challans → the challan → Wanted by).',
       go: { kind: 'challan', id: c.m.id }, goLabel: 'Open the challan', sig: (past ? 'red' : 'amber') + '|' + c.day };
@@ -53747,11 +53738,12 @@ function flowClientHtml(clientId, foldKey) {
   if ((typeof grdSeesMoney !== 'function' || grdSeesMoney()) && typeof finSeen === 'function' && finSeen()) {
     var recv = finCtx().recv(), r = recv.find(function(x) { return String(x.client.id) === String(clientId); }), hist = bankPayHistory(recv), book = bankBookDaysToPay(hist);
     var invs = r ? r.open.filter(function(o) { return o.inv && o.due > 0.005; }) : [];
-    var today = localDateStr();
+    var today = localDateStr(), loose = finCtx().loose() > 0;
     var irows = invs.map(function(o) {
       var e = flowExpectInvoice(clientId, o, hist, book ? book.median : null);
-      // Past its terms is red; past the day its client's pace (or the book's) gave it, amber; else the day it is expected.
-      var tone = e.past ? 'danger' : e.date && e.date < today ? 'warning' : 'info';
+      // Past its terms is red, never while a receipt is unplaced (that money may be in already: owed90's and figToneOwed's rule);
+      // past the day its client's pace (or the book's) gave it, amber; else the day it is expected.
+      var tone = e.past ? (loose ? 'warning' : 'danger') : e.date && e.date < today ? 'warning' : 'info';
       var word = e.past ? 'Past terms' : !e.date ? 'Due ' + stockShortDate(e.due) : e.date < today ? 'Slow · expected ~' + stockShortDate(e.date) : 'Expected ~' + stockShortDate(e.date);
       return '<div class="inv-row inv-row-2" data-flow-invoice="' + escHtml(o.inv.id) + '" data-flow-pay="' + (e.past ? 'past' : e.date && e.date < today ? 'slow' : 'due') + '" title="' + escHtml('of ' + formatDate(o.date) + ', due ' + formatDate(e.due)) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(o.label || o.inv.displayNumber || '') + '</span>' +
         '<span class="inv-row-meta inv-row-wrap">' + escHtml(formatCurrency(o.due) + ' · ' + (e.days != null ? (e.own ? 'pays' : 'the book pays') + ' in ' + e.days + ' days' : 'due ' + formatDate(e.due))) + '</span></span>' +
@@ -53771,11 +53763,13 @@ function flowHeroHtml() {
   var st = flowStats(null), v = flowVerdict(st, null), today = localDateStr(), since = isoAddDays(today, -FLOW_LATE_DAYS);
   var late = flowLines().filter(function(x) { return x.row && x.date >= since && x.date <= today && flowWd(x.date, today) > x.target.days; });
   var wanted = flowLines().filter(function(x) { return x.row && x.priority && x.stage !== 'plated' && x.priority <= today; });
-  var tone = wanted.some(function(x) { return x.priority < today; }) ? 'danger' : late.length ? (v.tone === 'danger' ? 'danger' : 'warning') : v.tone;
+  // Past the target by more than two working days is red, as the task (flowLate) and the client's page read it.
+  var lateTone = late.some(function(x) { return flowWd(x.date, today) - x.target.days > FLOW_RED_AFTER; }) ? 'danger' : late.length ? 'warning' : 'ok';
+  var tone = wanted.some(function(x) { return x.priority < today; }) || lateTone === 'danger' ? 'danger' : late.length ? (v.tone === 'danger' ? 'danger' : 'warning') : v.tone;
   var stages = {};
   late.forEach(function(x) { stages[x.stage] = (stages[x.stage] || 0) + 1; });
   var body = '<div class="inv-hero-sheet">' + flowStepsHtml(st, null) +
-    flowRow('Past the target now', String(late.length), escHtml(late.length ? FLOW_STAGES.filter(function(k) { return stages[k]; }).map(function(k) { return stages[k] + ' ' + FLOW_STAGE_WORD[k]; }).join(', ') : 'nothing open past its target'), late.length ? 'warning' : 'ok', ' data-flow-late') +
+    flowRow('Past the target now', String(late.length), escHtml(late.length ? FLOW_STAGES.filter(function(k) { return stages[k]; }).map(function(k) { return stages[k] + ' ' + FLOW_STAGE_WORD[k]; }).join(', ') : 'nothing open past its target'), lateTone, ' data-flow-late') +
     (wanted.length ? flowRow('Wanted by today, not plated', String(wanted.length), escHtml(todoPlural(wanted.length, 'line') + ' on challans wanted by a day'), wanted.some(function(x) { return x.priority < today; }) ? 'danger' : 'warning', ' data-flow-wanted-now') : '') + '</div>';
   var link = typeof flrLink === 'function' ? flrLink('pageProduction', 'invFlowPlant', 'Open In plant') : '';
   return uiHeroHtml({ tone: tone, vital: true, eyebrow: '<span>Turnaround</span><span class="inv-panel-count">90 days</span>',
@@ -58086,7 +58080,7 @@ var KB_APP_GUIDES = [
     'Office → Clients has three views (Clients, Parts, Performance) and Office → Sales two (Prospects, Quotations). Each starts with a card that says how it stands.\n\n' +
     '# Clients\n- A dot and a word beside a client name the worst thing raised about it: **past terms** (owed past its payment terms), **gone quiet**, **below cost**, **to bill** (challans waiting), **note due** (a rebate note due) and the rest. Open the client for every task about it.\n' +
     '- The card at the top counts the clients with something raised, worst first.\n\n' +
-    '# Parts\n- **No weight** lists the parts with no weight a piece. They cannot be priced per kilo, so tonnage and realisation leave them out. **Derive weights** (under More) fills what a piece client’s rate card allows.\n' +
+    '# Parts\n- **No weight** lists the parts billed by the piece with no weight a piece. They cannot be priced per kilo, so tonnage and realisation leave them out. **Derive weights** (under More) fills what a piece client’s rate card allows.\n' +
     '- **Unused** lists the parts no invoice has billed. **Select unused** and **Merge** are under More.\n\n' +
     '# Performance\n- One client at a time: month on month as revenue, tonnage or rate per kilo, then its parts by **cadence**.\n' +
     '- A part is judged against its own rhythm, across invoices and challans. It is **stopped** once the gap since it last came is past both 1.75 times its usual gap and its usual gap plus three weeks. A fixed cut-off would call a quarterly part stopped in its second month.\n' +
@@ -60484,9 +60478,10 @@ function cpVerdictHtml(clientId, monthly, flags) {
   var today = localDateStr(), last = monthly[monthly.length - 1] || null, prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
   var partial = !!last && last.month === today.slice(0, 7), bench = !last ? null : partial ? cpPriorSameDays(clientId) : prev;
   var bl = partial ? 'the same days' : prev ? prev.label : '';
-  var verdict, tone = 'neutral', delta = '', dTone = null;
+  var verdict, tone = 'neutral', delta = '', dTone = null, money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   if (last && last.realisation != null) {
-    var cost = cpMonthCost(last.month);
+    // Against the cost is a margin, which a role that does not see money is not shown (guard.js: Office has no margins).
+    var cost = money ? cpMonthCost(last.month) : null;
     tone = (cost && figToneAgainst(last.realisation, cost.perKg, 5)) || 'neutral';
     verdict = formatCurrency(last.realisation) + '/kg' + (cost ? ' against ' + formatCurrency(cost.perKg) + ' cost' : '');
     if (bench && bench.realisation != null) { delta = figDeltaText(last.realisation, bench.realisation, bl); dTone = figDeltaTone(last.realisation, bench.realisation, 'up'); }
@@ -60503,8 +60498,10 @@ function cpVerdictHtml(clientId, monthly, flags) {
     delta ? { text: delta, tone: dTone || '' } : '',
     last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
   return uiVerdictHtml({ screen: 'Performance · ' + uiVerdictFit(c.name || '', ''), tone: tone, verdict: uiVerdictFit(verdict, ''), facts: facts,
+    // A flag's figure: its amount in rupees for a role that sees money (the turnaround's tasks name one to every role that sees
+    // them), else its own count, else a dash; never a 1 standing for a task that counts nothing.
     factors: flags.slice(0, 4).map(function(t) {
-      return { label: word(t), fig: t.amount ? escHtml(finRs(t.amount)) : escHtml(String(t.n || 1)), tone: uiTone(t.tone),
+      return { label: word(t), fig: money && t.amount ? escHtml(finRs(t.amount)) : t.n ? escHtml(String(t.n)) : '', tone: uiTone(t.tone),
         action: 'invTodoOpenApp', attrs: ' data-key="' + escHtml(t.key) + '" title="' + escHtml(t.title) + '"' };
     }), key: 'pageClients-performance', attrs: ' id="cpVerdict" data-cp-flags="' + flags.length + '"' });
 }
@@ -60598,8 +60595,9 @@ function renderClientPerformance(container) {
     var bench = partial ? cpPriorSameDays(clientId) : prev;
     var bl = partial ? 'same days last month' : (prev && prev.label);
     var p = function(v) { return bench ? { v: v, label: bl } : null; };
-    // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one.
-    var cost = last.realisation != null ? cpMonthCost(last.month) : null;
+    // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one; for a role that
+    // sees money only, as the card's verdict is (the cost against it is a margin).
+    var cost = last.realisation != null && (typeof grdSeesMoney !== 'function' || grdSeesMoney()) ? cpMonthCost(last.month) : null;
     var full = monthly.filter(function(r) { return r.month !== thisYm; });
     html += '<div class="inv-tiles inv-tiles-flush">' +
       tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
@@ -60622,7 +60620,8 @@ function renderClientPerformance(container) {
   // screens with 101 stopped parts and every part it ever sent (UX overhaul 2, step 6).
   var group = function(key, title, tone, list, emptyText, renamesFor, open) {
     var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
-    return uiFoldHtml('cp-' + key, '<span class="inv-panel-title">' + uiDot(tone, escHtml(title + ' · ' + list.length)) + '</span>',
+    // An empty group states nothing, so its dot is plain (colour is status): "Stopped · 0" in amber read as a question.
+    return uiFoldHtml('cp-' + key, '<span class="inv-panel-title">' + uiDot(list.length ? tone : 'neutral', escHtml(title + ' · ' + list.length)) + '</span>',
       list.length === 0 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
         : uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: 10, noun: 'parts' }), open, ' data-cp-group="' + key + '"');
   };
@@ -61073,13 +61072,16 @@ function cpHoursHtml(clientId) {
   if (!hp) return '';
   var client = hp.client, times = hp.times, piece = hp.piece, auto = hp.auto;
   if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
-  var ref = cpLineHourRef(), rg = cpPeriodRange();
+  // What an hour costs the plant is a margin, as the verdict's cost is: drawn only for a role that sees money. A role without it
+  // reads each round's own earnings, set against nothing.
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var ref = money ? cpLineHourRef() : null, rg = cpPeriodRange();
   // An hour of the plant on average, the last 90 days: its figures on rows, how they are worked out in their title.
   var basis = ref ? 'The last 90 days at ' + (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg: ' + cpNum(ref.kg) + ' kg over ' + ref.days +
     ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours' : '';
   var h = ref ? '<div data-cp-hour-ref title="' + escHtml(basis) + '">' + uiFactRowHtml({ label: 'An hour costs the plant', value: formatCurrency(ref.cost), sub: 'on average, the last 90 days' }) +
       uiFactRowHtml({ label: 'An hour earns it', value: formatCurrency(ref.revenue), sub: 'at ' + (ref.live ? 'the live cost' : 'the typed cost') }) + '</div>'
-    : '<div class="inv-panel-body inv-note" data-cp-hour-ref>No weighed billing in 90 days: an hour has no cost to set against yet.</div>';
+    : money ? '<div class="inv-panel-body inv-note" data-cp-hour-ref>No weighed billing in 90 days: an hour has no cost to set against yet.</div>' : '';
   h += '<div class="inv-panel-body inv-note"><label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
   times.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, false); });
   auto.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, true); });
@@ -61501,6 +61503,13 @@ function saveChallan() {
     showToast(gap.msg, 'error');
     var gapEl = document.querySelector('#imAddForm [data-k="' + gap.k + '"]');
     if (gapEl) gapEl.focus();
+    return;
+  }
+  // The day it is wanted by is never before the day it came in, as the Wanted by dialog holds it (flow.js).
+  if (_challanForm.priority && _challanForm.challanDate && _challanForm.priority < _challanForm.challanDate) {
+    showToast('Wanted by a day before the challan came in', 'error');
+    var wbEl = document.getElementById('imWantedBy');
+    if (wbEl) wbEl.focus();
     return;
   }
 
@@ -62534,7 +62543,6 @@ function onDocClick(e) {
     case 'invMergeGroup': mergeGroup(parseInt(btn.dataset.group)); break;
     case 'invMergeConfirm': confirmMerge(parseInt(btn.dataset.group), parseInt(btn.dataset.primary)); break;
     case 'invMergeCancelPreview': cancelMergePreview(parseInt(btn.dataset.group)); break;
-    case 'invCalcWeights': calculateStdWeights(); break;
     case 'invOpenWeightEntry': openWeightEntry(); break;
     case 'invOpenPartWeights': openPartWeights(); break;
     case 'invSaveWeights': saveWeights(); break;

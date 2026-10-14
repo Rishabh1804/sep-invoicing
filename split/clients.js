@@ -48,9 +48,11 @@ function clientsVerdictHtml() {
   Object.keys(_clientFlags).forEach(function(id) {
     if (!S.clients.some(function(c) { return String(c.id) === id; })) return;
     n++;
+    // A rule counts each client once: the turnaround's wanted-by task is one a challan, and three of them are one client.
+    var seen = {};
     _clientFlags[id].forEach(function(t) {
       var r = by[t.rule] || (by[t.rule] = { n: 0, tone: 'info' });
-      r.n++;
+      if (!seen[t.rule]) { seen[t.rule] = true; r.n++; }
       if ((TODO_TONE_RANK[t.tone] || 0) < (TODO_TONE_RANK[r.tone] || 0)) r.tone = t.tone;
     });
   });
@@ -390,6 +392,15 @@ async function saveClientEdit(clientId, mode) {
   showToast('Client saved');
 }
 
+/* After a client is saved or added on Clients: its flags read again (they are read when the view is drawn) and the card drawn
+   with them, so a client added is counted and a flag the save cleared (a turnaround or terms set) goes from the card and the
+   rows. */
+function clientsFlagsRedraw() {
+  var v = document.getElementById('clientsVerdict');
+  if (!v) return;
+  clientFlagsRead();
+  v.outerHTML = clientsVerdictHtml();
+}
 /* The desktop pane shows the client just changed, and its row in the list the new rate: the pane was redrawn only when it
    was already open on that client, and a card change made from the edit sheet closed the sheet instead. */
 function _clientPaneRefresh(clientId) {
@@ -399,6 +410,7 @@ function _clientPaneRefresh(clientId) {
     if (bookBusy()) _bookRedrawPending = true; else tabRedrawActive();
     return;
   }
+  clientsFlagsRedraw();
   const searchEl = document.getElementById('clientSearch');
   if (_isDesktop && document.getElementById('clientList')) _renderClientDetail(clientId, false);
   else renderClientList(searchEl ? searchEl.value : '');
@@ -454,6 +466,7 @@ function addClient() {
   // Clear the filter so the new client is never rendered out of view
   const searchEl = document.getElementById('clientSearch');
   if (searchEl) searchEl.value = '';
+  clientsFlagsRedraw();
   // Desktop: let the detail render refresh the master so the new row gets its
   // active highlight — _clientsActiveId is only set inside _renderClientDetail
   if (_isDesktop) _renderClientDetail(c.id, false);

@@ -127,7 +127,9 @@ List of candidate groups. Each group has radio buttons to select primary item, p
 ### 6.1 Logic
 Back-calculate standard weight per piece from existing invoice and challan data wherever both KG weight and NOS count exist for the same partNumber.
 
-`calculateStdWeights()`:
+`calculateStdWeights()` (**retired in the QA chain of 14 Oct 2026**: it averaged kilos over pieces on every client's KG lines
+by part number, where a client's own `pieceWeights` card is the weight; the door is More → *Derive weights*,
+`deriveWeightsFromRates`, the rate card):
 - For each item where `stdWeightKg` is null
 - Collect all (qty_kg, nos_count) pairs from invoices and challans where `unit=KG` and `nosQty > 0`
 - `stdWeightKg = average(qty_kg / nos_count)`, rounded to 3 decimal places via `gstRound(avg * 1000) / 1000`
@@ -135,10 +137,10 @@ Back-calculate standard weight per piece from existing invoice and challan data 
 - Never overwrites manual entries (only fills null values)
 
 ### 6.2 Entry Point
-"Calc Weights" button in Items toolbar. Shows summary toast with count + variance warnings.
+No door since the QA chain of Oct 2026: More's *Derive weights* runs `deriveWeightsFromRates`.
 
 ### 6.3 No Weight Filter
-"No weight (N)" chip-toggle in toolbar. Filters list to items where `stdWeightKg` is null. Count decreases automatically as weights are calculated or manually set.
+"No weight (N)" chip-toggle in toolbar. Filters list to items billed by the piece (unit not KG) where `stdWeightKg` is null. Count decreases automatically as weights are calculated or manually set.
 
 ---
 
@@ -174,7 +176,7 @@ itemsFilter: 'all' | 'no-weight'       // default: 'all'
 `inv-subview-toggle`, `inv-subview-btn`, `inv-subview-active`, `inv-items-toolbar`, `inv-items-toolbar-row`, `inv-items-count`, `inv-items-sort`, `inv-item-card`, `inv-item-card-top`, `inv-item-card-bottom`, `inv-item-pn`, `inv-item-desc`, `inv-item-unit`, `inv-item-rate`, `inv-item-weight-row`, `inv-weight-badge`, `inv-merge-group`, `inv-merge-group-header`, `inv-merge-radio-row`, `inv-merge-radio`, `inv-merge-item-info`, `inv-merge-item-desc`, `inv-merge-warn`, `inv-merge-preview`, `inv-merge-btn`
 
 ### New data-actions
-`invSwitchSubView`, `invEditItem`, `invAddItem`, `invSaveItem`, `invDeleteItem`, `invOpenMergeTool`, `invMergeGroup`, `invMergeConfirm`, `invMergeCancelPreview`, `invCalcWeights`, `invFilterNoWeight`, `invLoadMoreItems`, `invItemsSort`
+`invSwitchSubView`, `invEditItem`, `invAddItem`, `invSaveItem`, `invDeleteItem`, `invOpenMergeTool`, `invMergeGroup`, `invMergeConfirm`, `invMergeCancelPreview`, `invCalcWeights` (retired), `invFilterNoWeight`, `invLoadMoreItems`, `invItemsSort`
 
 ---
 

@@ -1277,11 +1277,12 @@ reachable and the audit's badge on More; Performance under four phone screens on
   with nothing to judge plain (`data-tone="neutral"`); `inv-pipe-node` and `inv-pipe-stage`, the rows' rail, are deleted. A client
   awaiting invoice is two facts (*3 challans · ₹X to bill*) with its oldest a line of its own in its tone.
 - **One judge for a challan's wait** (`imWaitTone`, `imWaitDays`): IM's dot, Pipeline's first stage and the To-do's challan task.
-  **The task is amber from the To-do's challan days and red from twice them** (5 and 10 by default); it was info at any age, so a
-  challan waiting ten days now leads Needs you's *Now*. A challan's meta is how long it has waited and its items; invoiced, its
+  **The task is amber from the To-do's challan days and red from twice them** (3 and 6 by default since the owner's ruling of 13 Oct 2026; 5 and 10 before); it was info at any age, so a
+  challan waiting ten days now leads Needs you's *Now*. A challan's meta is how long it has waited (dated after today, its date) and its items; invoiced, its
   vehicle and its items. Awaiting invoice's verdict carries the oldest's days as its figure (*12 d*), how many are over the days
   and how many are part invoiced as facts; its list lost its own head, which said the count a second time. The toolbar is one row:
-  Filter (client, and the status on Awaiting), Scan, **Add challan**, and More holding *Duplicate check* with its count.
+  Filter (client, and the status on Awaiting), **Add challan**, and More holding *Duplicate check* with its count (Scan came out on 13
+  Oct 2026).
 - **Invoices' row holds the register's files too**: the row of four buttons under the list (Sales register CSV and PDF, GSTR-1
   CSV, Bulk mark filed) went into More with Credit notes and Number audit. **The phone's sort is one picker** (*Newest first*,
   *Oldest first*, *Highest number first*, *Lowest number first*; it was two buttons, by date or number and the direction), a token
@@ -1293,18 +1294,21 @@ reachable and the audit's badge on More; Performance under four phone screens on
 - **A neutral badge stays on its row** (design §6.7): More carries a count only when it waits on something (the Number audit's
   unaccounted numbers, the duplicate check's), never how many credit notes or part weights there are.
 - **A client's dot is its worst flag** (`clientFlagsRead`: the To-do's tasks naming the client, not snoozed, that the role sees,
-  read once when the view is drawn) in the rule's short word (`CLIENT_FLAG_WORD`: *past terms*, *gone quiet*, *below cost*, *to
+  read when the view is drawn, and again when a client is saved or added) in the rule's short word (`CLIENT_FLAG_WORD`: *past terms*, *gone quiet*, *below cost*, *to
   bill*, *past turnaround*…), every flag in its title; an inactive client keeps *Inactive*. The verdict counts the clients and
-  names the rule flagged worst (*22 clients · 2 past terms*), one row on the phone (two rules had wrapped it on the owner's book);
+  names the rule flagged worst, each client counted once a rule (*22 clients · 2 past terms*), one row on the phone (two rules had wrapped it on the owner's book);
   how many are flagged and the next rules are its facts.
 - **Parts' tools are More's**: Part weights (its count a neutral badge on the row, redrawn when a weight is saved), Enter
-  weights, Derive weights (*Calc weights* until now: the Items Master's own word for `applyDerivedWeights`), Merge and Select
+  weights, Derive weights (the Items Master's own word for `applyDerivedWeights`, which it runs since the QA chain of 14 Oct 2026: the row
+  had carried *Calc weights*' `calculateStdWeights`, kilos over pieces on KG lines, retired with it), Merge and Select
   unused. *No weight* and *Unused* are one choice in the phone's Filter, so it shuts on the pick. A part's row is its description
-  and gauge, its end the rate over its kg a piece, else *No weight* (amber) or *Unused*.
+  and gauge, its end the rate over its kg a piece, else *No weight* (amber; a part billed by the piece only, the card's count and the filter
+  alike) or *Unused*.
 - **Performance's card is open on the desktop and shut on the phone**; its flags are coded tiles (up to four; a fifth keeps the
-  folded list under the picker) that open their tasks, and the card takes the worse of its realisation's tone and its worst flag's.
-  **Every fold under it is shut on both layouts**: the parts by Stopped, New, Steady and One-off (Stopped in warning, a question,
-  not a loss), Materials worked, and By the hour (open while its form is). Open on the desktop, they had run its page to 7.79
+  folded list under the picker) that open their tasks (each its amount for a role that sees money, else its count, else a dash; a role that does not see money
+  reads the realisation with no cost against it), and the card takes the worse of its realisation's tone and its worst flag's.
+  **Every fold under it is shut on both layouts**: the parts by Stopped, New, Steady and One-off (Stopped in warning while it holds a part, a
+  question, not a loss; an empty group plain), Materials worked, and By the hour (open while its form is). Open on the desktop, they had run its page to 7.79
   screens on the owner's book. By the hour's parts are fact rows, each hint a row with its tone (`say`, `sub`; the sentence in its title).
 - **A client's page lists its flags and linked articles brief** (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`): the title, the
   line and reason in the row's title and in the task's dialog. A flagged task's line had run to 150 characters there. **Its Money
@@ -1319,7 +1323,7 @@ reachable and the audit's badge on More; Performance under four phone screens on
   body** (as a Pulse question holds its moves, one card, the rest a tap away), **and the desktop's pane** while no quotation is
   open (as Stock's *Spend and prices* is): under the card, two had put Quotations over its budget on the long book (1.64) and one
   put the owner's book past a screen (1.00 → 1.10), and on the desktop the open card with its moves pushed the list below the
-  screen's foot (54px at 1280×800, P80). The card's line says how many clients are to reprice. A quotation's line is its days left
+  screen's foot (54px at 1280×800, P80). The card's line says how many clients are to reprice, and the card is in the worst tone of the moves it holds. A quotation's line is its days left
   (else its date) and its rate, its date and items in its title. **Pulse's *Is the plant full?* carries *Spare a month*** (the last
   90 days, as Prospects reads it, `prsSpare`) beside the period's own spare.
 - **Create's errors are keyed** (`validateInvoiceKeyed`: client, date, lines, a line's part and quantity, a line's reasons, and

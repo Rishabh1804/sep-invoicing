@@ -369,6 +369,9 @@ function imWaitTone(days) {
   return days == null ? 'neutral' : days >= d * 2 ? 'danger' : days >= d ? 'warning' : 'neutral';
 }
 function imWaitDays(im) { return im && im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, localDateStr())) : null; }
+/* A challan dated after today (a date typed wrong, most often) has waited no days, and is said by its date, never "received
+   today": its row, Pipeline's client and its stage (stockDayLabel names the year when it is not this one). */
+function imDatedAhead(im) { return !!(im && im.challanDate && im.challanDate > localDateStr()); }
 /* Awaiting invoice's verdict (the tab map, TM5b; it was the page-head line): how many challans wait and what they bill, in the
    tone of the oldest, its days the card's figure. Invoiced's (TM6f): the month shown, what was invoiced in it, and the month's
    challans still waiting, in the tone of the oldest of them. */
@@ -579,7 +582,7 @@ function imStatusDotHtml(im) {
   // A challan waiting is toned by how long it has waited (imWaitTone); one invoiced whole is done.
   var tone = st === 'invoiced' ? s.tone : imWaitTone(imWaitDays(im));
   if (tone === 'neutral' && st === 'partial') tone = 'info';
-  return '<span class="inv-dot inv-dot-' + tone + '"' + (st !== 'invoiced' && imWaitDays(im) != null ? ' title="' + escHtml(pipeDays(imWaitDays(im)) + ' waiting') + '"' : '') + '>' + escHtml(s.word) + '</span>';
+  return '<span class="inv-dot inv-dot-' + tone + '"' + (st !== 'invoiced' && imWaitDays(im) != null ? ' title="' + escHtml(imDatedAhead(im) ? 'dated ' + stockDayLabel(im.challanDate) : pipeDays(imWaitDays(im)) + ' waiting') + '"' : '') + '>' + escHtml(s.word) + '</span>';
 }
 
 function imChallanTotal(im) { return im.items.reduce(function(s, it) { return s + (Number(it.amount) || 0); }, 0); }
@@ -603,7 +606,7 @@ function imAmountHtml(im, awaiting) {
 function imRowMainHtml(im) {
   // Two things in its meta (§3b-11): waiting, how long and how many items; billed, the vehicle and the items.
   var items = im.items.length + ' item' + (im.items.length !== 1 ? 's' : ''), age = imIsBilled(im) ? null : imWaitDays(im);
-  var first = age != null ? (age === 0 ? 'received today' : pipeDays(age) + ' waiting') : im.vehicleNo ? escHtml(im.vehicleNo) : '';
+  var first = age != null ? (imDatedAhead(im) ? escHtml('dated ' + stockDayLabel(im.challanDate)) : age === 0 ? 'received today' : pipeDays(age) + ' waiting') : im.vehicleNo ? escHtml(im.vehicleNo) : '';
   return '<span class="inv-row-title"><span class="inv-id">' + escHtml(imChallanLabel(im)) + '</span> · ' + escHtml(im.clientName) + ' ' + flowPriorityBadgeHtml(im) + '</span>' +
     '<span class="inv-row-meta">' + (first ? first + ' · ' : '') + items + '</span>';
 }

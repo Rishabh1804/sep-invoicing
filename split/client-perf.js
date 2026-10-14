@@ -303,9 +303,10 @@ function cpVerdictHtml(clientId, monthly, flags) {
   var today = localDateStr(), last = monthly[monthly.length - 1] || null, prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
   var partial = !!last && last.month === today.slice(0, 7), bench = !last ? null : partial ? cpPriorSameDays(clientId) : prev;
   var bl = partial ? 'the same days' : prev ? prev.label : '';
-  var verdict, tone = 'neutral', delta = '', dTone = null;
+  var verdict, tone = 'neutral', delta = '', dTone = null, money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   if (last && last.realisation != null) {
-    var cost = cpMonthCost(last.month);
+    // Against the cost is a margin, which a role that does not see money is not shown (guard.js: Office has no margins).
+    var cost = money ? cpMonthCost(last.month) : null;
     tone = (cost && figToneAgainst(last.realisation, cost.perKg, 5)) || 'neutral';
     verdict = formatCurrency(last.realisation) + '/kg' + (cost ? ' against ' + formatCurrency(cost.perKg) + ' cost' : '');
     if (bench && bench.realisation != null) { delta = figDeltaText(last.realisation, bench.realisation, bl); dTone = figDeltaTone(last.realisation, bench.realisation, 'up'); }
@@ -322,8 +323,10 @@ function cpVerdictHtml(clientId, monthly, flags) {
     delta ? { text: delta, tone: dTone || '' } : '',
     last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
   return uiVerdictHtml({ screen: 'Performance · ' + uiVerdictFit(c.name || '', ''), tone: tone, verdict: uiVerdictFit(verdict, ''), facts: facts,
+    // A flag's figure: its amount in rupees for a role that sees money (the turnaround's tasks name one to every role that sees
+    // them), else its own count, else a dash; never a 1 standing for a task that counts nothing.
     factors: flags.slice(0, 4).map(function(t) {
-      return { label: word(t), fig: t.amount ? escHtml(finRs(t.amount)) : escHtml(String(t.n || 1)), tone: uiTone(t.tone),
+      return { label: word(t), fig: money && t.amount ? escHtml(finRs(t.amount)) : t.n ? escHtml(String(t.n)) : '', tone: uiTone(t.tone),
         action: 'invTodoOpenApp', attrs: ' data-key="' + escHtml(t.key) + '" title="' + escHtml(t.title) + '"' };
     }), key: 'pageClients-performance', attrs: ' id="cpVerdict" data-cp-flags="' + flags.length + '"' });
 }
@@ -417,8 +420,9 @@ function renderClientPerformance(container) {
     var bench = partial ? cpPriorSameDays(clientId) : prev;
     var bl = partial ? 'same days last month' : (prev && prev.label);
     var p = function(v) { return bench ? { v: v, label: bl } : null; };
-    // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one.
-    var cost = last.realisation != null ? cpMonthCost(last.month) : null;
+    // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one; for a role that
+    // sees money only, as the card's verdict is (the cost against it is a margin).
+    var cost = last.realisation != null && (typeof grdSeesMoney !== 'function' || grdSeesMoney()) ? cpMonthCost(last.month) : null;
     var full = monthly.filter(function(r) { return r.month !== thisYm; });
     html += '<div class="inv-tiles inv-tiles-flush">' +
       tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
@@ -441,7 +445,8 @@ function renderClientPerformance(container) {
   // screens with 101 stopped parts and every part it ever sent (UX overhaul 2, step 6).
   var group = function(key, title, tone, list, emptyText, renamesFor, open) {
     var rows = list.length ? _cpMaterialRowList(list, renamesFor) : [];
-    return uiFoldHtml('cp-' + key, '<span class="inv-panel-title">' + uiDot(tone, escHtml(title + ' · ' + list.length)) + '</span>',
+    // An empty group states nothing, so its dot is plain (colour is status): "Stopped · 0" in amber read as a question.
+    return uiFoldHtml('cp-' + key, '<span class="inv-panel-title">' + uiDot(list.length ? tone : 'neutral', escHtml(title + ' · ' + list.length)) + '</span>',
       list.length === 0 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">' + emptyText + '</span></div>'
         : uiMoreHtml('cp-' + key + '-' + clientId, rows, { n: 10, noun: 'parts' }), open, ' data-cp-group="' + key + '"');
   };
@@ -892,13 +897,16 @@ function cpHoursHtml(clientId) {
   if (!hp) return '';
   var client = hp.client, times = hp.times, piece = hp.piece, auto = hp.auto;
   if (!times.length && !piece && !auto.length && !_cpTimeForm) return '';
-  var ref = cpLineHourRef(), rg = cpPeriodRange();
+  // What an hour costs the plant is a margin, as the verdict's cost is: drawn only for a role that sees money. A role without it
+  // reads each round's own earnings, set against nothing.
+  var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
+  var ref = money ? cpLineHourRef() : null, rg = cpPeriodRange();
   // An hour of the plant on average, the last 90 days: its figures on rows, how they are worked out in their title.
   var basis = ref ? 'The last 90 days at ' + (ref.live ? 'the live cost' : 'the typed cost') + ' ' + formatCurrency(ref.perKg) + '/kg: ' + cpNum(ref.kg) + ' kg over ' + ref.days +
     ' working days × ' + PROD_LINES.length + ' lines × ' + CP_LINE_HOURS_DAY + ' hours' : '';
   var h = ref ? '<div data-cp-hour-ref title="' + escHtml(basis) + '">' + uiFactRowHtml({ label: 'An hour costs the plant', value: formatCurrency(ref.cost), sub: 'on average, the last 90 days' }) +
       uiFactRowHtml({ label: 'An hour earns it', value: formatCurrency(ref.revenue), sub: 'at ' + (ref.live ? 'the live cost' : 'the typed cost') }) + '</div>'
-    : '<div class="inv-panel-body inv-note" data-cp-hour-ref>No weighed billing in 90 days: an hour has no cost to set against yet.</div>';
+    : money ? '<div class="inv-panel-body inv-note" data-cp-hour-ref>No weighed billing in 90 days: an hour has no cost to set against yet.</div>' : '';
   h += '<div class="inv-panel-body inv-note"><label data-nodirty>Logistics and other steps, every round <input type="number" min="0" step="1" class="inv-input inv-input-sm inv-input-num" id="cpOverhead" value="' + cpOverheadMin() + '" aria-label="Minutes of logistics and other steps a round"> min</label></div>';
   times.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, false); });
   auto.forEach(function(t) { h += cpRoundRowHtml(client, t, ref, rg, true); });

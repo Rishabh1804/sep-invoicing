@@ -263,9 +263,13 @@ function qtVerdictHtml(moves) {
   // screen); the desktop's are in the pane beside the list until a quotation is opened (qtShowPane), since under its open card they
   // pushed the list below the screen's foot (P80).
   moves = moves || [];
-  return uiVerdictHtml({ screen: 'Quotations', tone: expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral', verdict: verdict,
+  // The card is in the worst tone of what it holds (the tab map, §3e), its reprice moves among them.
+  var mTone = moves.length ? (moves.some(function(mv) { return mv.tone === 'red'; }) ? 'danger' : 'warning') : null;
+  var tone = expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral';
+  if (mTone && UI_TONE_RANK[mTone] > (UI_TONE_RANK[tone] || 0)) tone = mTone;
+  return uiVerdictHtml({ screen: 'Quotations', tone: tone, verdict: verdict,
     facts: [expired ? { text: expired + ' expired, unanswered', tone: 'warning' } : '', toPost ? { text: todoPlural(toPost, 'accepted one', 'accepted ones') + ' with a rate to post', tone: 'warning' } : '',
-      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: moves.some(function(mv) { return mv.tone === 'red'; }) ? 'danger' : 'warning', money: true } : '',
+      moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: mTone, money: true } : '',
       all.filter(function(q) { return q.status === 'accepted'; }).length + ' accepted'].filter(Boolean).slice(0, 3),
     body: _isDesktop ? null : qtRepriceMovesHtml(moves), key: 'pageClients-quotes', attrs: ' id="qtVerdict"' });
 }

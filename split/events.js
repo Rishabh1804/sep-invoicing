@@ -387,7 +387,6 @@ function onDocClick(e) {
     case 'invMergeGroup': mergeGroup(parseInt(btn.dataset.group)); break;
     case 'invMergeConfirm': confirmMerge(parseInt(btn.dataset.group), parseInt(btn.dataset.primary)); break;
     case 'invMergeCancelPreview': cancelMergePreview(parseInt(btn.dataset.group)); break;
-    case 'invCalcWeights': calculateStdWeights(); break;
     case 'invOpenWeightEntry': openWeightEntry(); break;
     case 'invOpenPartWeights': openPartWeights(); break;
     case 'invSaveWeights': saveWeights(); break;

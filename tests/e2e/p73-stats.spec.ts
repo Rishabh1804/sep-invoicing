@@ -80,8 +80,12 @@ test.describe('P73: Stats', () => {
     await page.locator('[data-card="realisation"] > summary').click();
     await expect(rows.nth(0)).toContainText('BETA CLAMPS');
     await expect(rows.nth(0).locator('.inv-dot-danger')).toHaveText('Below cost');
-    // vs full and the ₹ on the period; vs var. is withheld while labour's split is not known (nothing recorded).
-    await expect(page.locator('#statsMargin tbody tr').nth(0).locator('td.inv-num-neg')).toHaveCount(2);
+    // vs var. is a figure whether or not labour is recorded: labour is fixed (owner, 13 Oct 2026), so the variable cost is the live
+    // cost less labour (it was withheld while labour's split was not known). vs full and the ₹ on the period are below.
+    const first = page.locator('#statsMargin tbody tr').nth(0).locator('td');
+    await expect(first.nth(3)).toHaveText(/^[+−]\d/);
+    await expect(first.nth(4)).toHaveClass(/inv-num-neg/);
+    await expect(first.nth(5)).toHaveClass(/inv-num-neg/);
     await expect(page.locator('[data-card="revenue"] .inv-seg [data-chart="bar"]')).toHaveAttribute('aria-pressed', 'true');
     await rows.nth(0).click();
     const card = page.locator('.inv-dialog[data-drill="72"]');

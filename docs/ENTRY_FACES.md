@@ -209,7 +209,8 @@ The owner's answers on the material-flow study:
   day; `termsDays` 45). A client's own, and a part's own on it, are on the client's form (`client.payTermsDays`,
   `client.turnaroundDays`, `client.turnaroundParts`). The client whose name reads Mehta takes 7 days once, where it has none
   (`_clientTerms1`). A challan or one of its lines is wanted by a day (`priority`): set on the challan form or with *Wanted by*
-  among its actions, and badged while anything on it is open.
+  among its actions (never before the day it came in, a line's day too; a line's own day drawn while it has one), and badged while
+  anything on it is open, at its open lines' days.
 - **T2.** `flowLate`: material past its target, per client, red two working days past, saying where it stands. Waiting to pickle
   only where the floor's record covers the month, as In plant withholds it, else *with no floor record*. `flowPriority`: a challan
   wanted by today with no plating recorded. `owed90`: past the client's terms.

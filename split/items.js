@@ -97,6 +97,11 @@ function _buildClientsSubViewHtml() {
     '</div>';
 }
 
+/* A part with no weight a piece is a job waiting only where its lines need one to be weighed: one billed by the kilo is weighed by
+   its kilos, so it is not counted, listed or marked No weight (the card was never ok on a book whose last unweighed parts are billed
+   by the kilo). A part with no unit is billed by the kilo, as its edit sheet and detail read it. */
+function itemNoWeight(it) { return it.stdWeightKg == null && String(it.unit || 'KG').toUpperCase() !== 'KG'; }
+
 /* Parts' toolbar (the tab map, TM5e; it was three rows and a count): the search, Filter (No weight, Unused and the sort: inline on the
    desktop, a dialog on the phone, said under the row as tokens), Add part the primary, and More for the tools. The parts with no
    weight, the job waiting, are its verdict's (itemsVerdictHtml), with the move in its foot. */
@@ -105,7 +110,7 @@ function _buildItemsSubViewHtml() {
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
-  var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
+  var noWeightCount = S.items.filter(itemNoWeight).length;
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
   var opt = function(v, l) { return '<option value="' + v + '"' + (sort === v ? ' selected' : '') + '>' + l + '</option>'; };
@@ -123,13 +128,15 @@ function _buildItemsSubViewHtml() {
     // Part weights' count is its own row's (a count that waits on nothing is not carried to More's button).
     uiToolbarMoreHtml([{ label: 'Part weights', action: 'invOpenPartWeights', badge: Object.keys(S.partWeights || {}).length ? { n: Object.keys(S.partWeights || {}).length, tone: 'neutral' } : null },
       { label: 'Enter weights', action: 'invOpenWeightEntry' },
-      { label: 'Derive weights', action: 'invCalcWeights' }, { label: 'Merge', action: 'invOpenMergeTool' }, { label: 'Select unused', action: 'invSelectAllUnused' }],
+      // Derive weights fills what a piece client's rate card allows (deriveWeightsFromRates), as the guide and the tab map say.
+      { label: 'Derive weights', action: 'invDeriveWeights' }, { label: 'Merge', action: 'invOpenMergeTool' }, { label: 'Select unused', action: 'invSelectAllUnused' }],
       { icon: !_isDesktop }) + '</div>' +
     uiTokensHtml([{ key: 'Show', value: filter === 'no-weight' ? 'No weight' : filter === 'unused' ? 'Unused' : '', action: 'invItemsFilterClear', attrs: ' data-clear="filter"' },
       { key: 'Sort', value: sortWord, action: 'invItemsFilterClear', attrs: ' data-clear="sort"' }]);
 }
 /* Parts' verdict (the tab map, TM5e; the count was a page-head line and the parts with no weight a plain chip): how many parts, how
-   many have no weight a piece (they leave their lines out of tonnage), in its tone, with Enter weights in its foot. */
+   many billed by the piece have no weight a piece (they leave their lines out of tonnage, itemNoWeight), in its tone, with Enter
+   weights in its foot. */
 function itemsVerdictHtml(noWeight, unused) {
   var total = S.items.length;
   return uiVerdictHtml({ screen: 'Parts', tone: !total ? 'neutral' : noWeight ? 'warning' : 'ok',
@@ -251,7 +258,7 @@ function _getSortedFilteredItems() {
 
   // Filter
   if (filter === 'no-weight') {
-    list = list.filter(function(it) { return it.stdWeightKg == null; });
+    list = list.filter(itemNoWeight);
   } else if (filter === 'unused') {
     var cache = _buildUsageCache();
     list = list.filter(function(it) { return !cache[it.partNumber]; });
@@ -293,7 +300,8 @@ function _itemRowHtml(it) {
   // Two things (the tab map, TM5e; it was five, the unit, weight and references among them): what the part is, its description
   // and gauge. Its end: the rate, over its weight a piece, else what it waits on (no weight) or that nothing uses it.
   var meta = [it.desc || 'No description', it.gauge || it.unit || ''].filter(Boolean).join(' · ');
-  var state = it.stdWeightKg == null ? uiDot('warning', 'No weight') : usageCount > 0 ? '<span class="inv-row-meta">' + formatNum(it.stdWeightKg, 3) + ' kg</span>' : uiDot('neutral', 'Unused');
+  var state = itemNoWeight(it) ? uiDot('warning', 'No weight') : !usageCount ? uiDot('neutral', 'Unused')
+    : it.stdWeightKg != null ? '<span class="inv-row-meta">' + formatNum(it.stdWeightKg, 3) + ' kg</span>' : '';
   var hasRate = it.rate != null && it.rate > 0;
   return '<div class="inv-row inv-row-2' + (_itemsSelected[it.id] ? ' inv-row-selected' : '') + '" data-item-row="' + it.id + '">' +
     '<label class="inv-row-lead inv-row-tick">' + _itemCheckHtml(it) + '</label>' +
@@ -1112,62 +1120,6 @@ function deriveWeightsFromRates() {
   showToast('Derived ' + derived + ' weight' + (derived !== 1 ? 's' : '') +
     (notes.length ? ' (' + notes.join(', ') + ')' : ''),
     notes.length ? 'warning' : 'success');
-}
-
-function calculateStdWeights() {
-  if (!grdGate('rates', 'work out item weights', calculateStdWeights)) return;   // P1 (guard.js)
-  var calculated = 0;
-  var highVariance = 0;
-  var twoGauge = _partsInTwoGauges(), skipped = 0;
-
-  S.items.forEach(function(item) {
-    if (item.stdWeightKg != null) return;
-    // The lines name a part number, not a gauge: two gauges' pieces would be averaged into both rows.
-    if (twoGauge[item.partNumber]) { skipped++; return; }
-
-    var pairs = [];
-
-    (S.invoices || []).forEach(function(inv) {
-      inv.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
-          pairs.push({ kg: li.qty, nos: li.nosQty });
-        }
-      });
-    });
-
-    (S.incomingMaterial || []).forEach(function(im) {
-      im.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
-          pairs.push({ kg: li.qty, nos: li.nosQty });
-        }
-      });
-    });
-
-    if (pairs.length === 0) return;
-
-    var weights = pairs.map(function(p) { return p.kg / p.nos; });
-    var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
-
-    if (weights.length > 1) {
-      var variance = weights.reduce(function(s, w) { return s + Math.pow(w - avg, 2); }, 0) / weights.length;
-      var cv = (Math.sqrt(variance) / avg) * 100;
-      if (cv > 20) highVariance++;
-    }
-
-    item.stdWeightKg = gstRound(avg * 1000) / 1000;
-    calculated++;
-  });
-
-  if (calculated > 0) {
-    saveState();
-    _renderItemsList();
-  }
-
-  var msg = 'Calculated weights for ' + calculated + ' item' + (calculated !== 1 ? 's' : '') + ' from invoice/challan history';
-  if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
-  if (skipped > 0) msg += '. ' + skipped + ' skipped: same part in two gauges';
-  if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
-  showToast(msg, calculated > 0 ? 'success' : 'warning');
 }
 
 /* --- Usage Scoring (Phase 6b) --- */

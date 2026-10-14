@@ -51,10 +51,13 @@ function pipeStages() {
   var ages = ims.map(imWaitDays);
   var redN = ages.filter(function(a) { return a != null && a >= redD; }).length;
   var amberN = ages.filter(function(a) { return a != null && a >= amberD; }).length;
+  // The earliest dated (they are oldest first): dated after today, every one is, and the stage says its date (imDatedAhead).
+  var firstDated = ims.find(function(im) { return im.challanDate; });
   add('awaiting', { n: ims.length, items: ims, of: 'to bill', amberD: amberD, redD: redD, late: redN || amberN, lateDays: redN ? redD : amberN ? amberD : null,
     amount: gstRound(ims.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0)),
     tone: redN ? 'danger' : amberN ? 'warning' : 'neutral',
     word: redN ? redN + ' over ' + pipeDays(redD) : amberN ? amberN + ' over ' + pipeDays(amberD)
+      : imDatedAhead(firstDated) ? 'dated ' + stockDayLabel(firstDated.challanDate)
       : pipeOldestWord(ages.reduce(function(m, a) { return a != null && (m == null || a > m) ? a : m; }, null)) || 'no challan date' });
 
   // Created, printed, dispatched, delivered: each invoice's own tone (pipeStateStage).
@@ -158,7 +161,8 @@ function pipeVerdictHtml(stages) {
   // two facts wrapped the card to a second line on the phone, I10).
   var others = late.map(function(x) { return { text: pipeLateSay(x), tone: uiTone(x.tone), money: x.key === 'owed' }; });
   var facts = (others.length ? others : more.map(function(t) { return { text: t, tone: 'warning' }; })).slice(0, 1);
-  return uiVerdictHtml({ screen: 'Pipeline', tone: uiTone(s.tone), verdict: uiVerdictFit(PIPE_VERDICT[s.key](s), words[0] ? ' · ' + words[0] : ''),
+  // A date in the stage's words drops this year's number here as on its tile (pipeNoThisYear).
+  return uiVerdictHtml({ screen: 'Pipeline', tone: uiTone(s.tone), verdict: uiVerdictFit(PIPE_VERDICT[s.key](s), words[0] ? ' · ' + pipeNoThisYear(words[0]) : ''),
     facts: facts, money: s.key === 'owed', plain: todoPlural(s.n, 'client') + ' owe us', key: 'pipeline' });
 }
 
@@ -223,7 +227,8 @@ function pipeAwaitingHtml(s) {
     var client = '<div class="inv-row inv-row-2" data-pipe-client="' + escHtml(k) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(name) + '</span>' +
       // Two facts on its line (§3b-11), its oldest a line of its own in its tone.
       '<span class="inv-row-meta inv-row-wrap">' + todoPlural(list.length, 'challan') + ' · ' + formatCurrency(amt) + ' to bill</span>' +
-      '<span class="inv-row-meta">' + uiDot(tone, age == null ? 'no challan date' : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
+      '<span class="inv-row-meta">' + uiDot(tone, age == null ? 'no challan date' : imDatedAhead(list[0]) ? escHtml('dated ' + stockDayLabel(list[0].challanDate))
+        : age === 0 ? 'received today' : 'oldest ' + pipeDays(age)) + '</span></span>' +
       '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPipeInvoice" data-client="' + escHtml(k) + '" ' +
       'aria-label="' + escHtml('Create invoice from ' + name + '’s ' + todoPlural(list.length, 'challan')) + '">Create invoice</button></span></div>';
     var kids = '<div class="inv-row-children">' + list.map(function(im) {

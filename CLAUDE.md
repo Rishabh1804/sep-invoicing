@@ -908,8 +908,8 @@ repository:
   then marked Printed on the sending device, as Print marks it. A waiting job is cancelled from the section (its file deleted). Over
   three minutes waiting says *is the station on?*. No heartbeat is written: two commits a job, nothing else.
 - **The printer's details are the book's** (`S.printer`: on, name, address on the Wi-Fi, cartridge; a config in the change log and the
-  merge), typed by the owner: nothing about the shop is in the build. A dialog or toast raised over the preview shows above it
-  (`--z-over-print`; they had sat under the print view).
+  merge), typed by the owner: nothing about the shop is in the build. A toast raised over the preview shows above it
+  (`--z-over-print`; it had sat under the print view); a dialog left open under a preview (a credit note's form) stays under it.
 - ⚠ **Not tried on the printer**: the specs fake GitHub and stub `window.print`. The owner's first job from a phone to the station is
   the check that counts, and whether a minimised station window still prints is not known.
 

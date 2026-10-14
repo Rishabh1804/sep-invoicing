@@ -78,7 +78,8 @@ function prtSenderName() {
 }
 async function prtSend() {
   var why = prtSendBlocked();
-  if (why) { uiAlert({ title: 'Can’t send to ' + prtName(), body: why }); return; }
+  // Said as a toast: a dialog would open under the preview it was asked from.
+  if (why) { showToast('Can’t send to ' + prtName() + '. ' + why, 'error'); return; }
   var body = document.getElementById('invPrintBody');
   var html = body ? body.innerHTML : '';
   if (!html.trim()) { showToast('Nothing in the preview to send', 'error'); return; }
@@ -95,7 +96,7 @@ async function prtSend() {
     await ghRequest(prtJobUrl(cfg, id), { method: 'PUT', body: { message: 'Print at the office: ' + title, content: ghEncode(JSON.stringify(job)), branch: cfg.branch } });
   } catch (e) {
     if (btn) btn.disabled = false;
-    uiAlert({ title: 'Not sent', body: 'The job did not reach GitHub, so nothing will print: ' + (e.message || e) + ' Print it here, or send it again.' });
+    showToast('Not sent, so nothing will print: ' + (e.message || e) + ' Print it here, or send it again.', 'error');
     return;
   }
   if (btn) btn.disabled = false;

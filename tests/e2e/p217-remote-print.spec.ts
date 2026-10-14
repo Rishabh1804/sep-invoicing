@@ -1,5 +1,5 @@
 import { test, expect, Page, Route } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, todayIso, answerAsk } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, readStoredState, todayIso } from './fixtures';
 
 /*
  * P217: the owner's answers of 14 Oct 2026, and remote print.
@@ -184,8 +184,10 @@ test.describe('P217: remote print and the turnaround’s holidays', () => {
     await loadAppWithState(page, book());
     await page.evaluate(() => (window as any).showPrintPreview('INV-1'));
     await page.locator('#invPrintRemote').click();
-    const text = await answerAsk(page, 'ok');
-    expect(text).toContain('GitHub sync');
+    const toast = page.locator('.inv-toast');
+    await expect(toast).toContainText('GitHub sync');
+    // Shown over the preview it was asked from.
+    expect(await toast.evaluate(t => document.elementFromPoint(t.getBoundingClientRect().x + 5, t.getBoundingClientRect().y + 5) === t || t.contains(document.elementFromPoint(t.getBoundingClientRect().x + 5, t.getBoundingClientRect().y + 5)))).toBe(true);
   });
 
   test('Turnaround: Sundays, the paid (national) holidays and the days the plant is shut set on the turnaround are not working days', async ({ page }) => {

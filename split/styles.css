@@ -328,8 +328,9 @@ body:not(.inv-booted) { pointer-events: none; }
   background: var(--bg); overflow-y: auto;
 }
 .inv-print-view-active { display: block; }
-/* A question or a toast raised from the preview (Send to office: not sent, sent) shows over it: both come after the view in <body>. */
-.inv-print-view-active ~ .inv-scrim-dialog, .inv-print-view-active ~ .inv-toast { z-index: var(--z-over-print); }
+/* A toast raised from the preview (Send to office: sent, or why not) shows over it. Only a toast: a form dialog left open under a
+   preview (a credit note's) stays under it. */
+.inv-print-view-active ~ .inv-toast { z-index: var(--z-over-print); }
 .inv-print-toolbar {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;

@@ -28,7 +28,7 @@ test.describe('P204: the flow thread', () => {
     await page.locator('#setFlowTurn').fill('0');
     await page.locator('#setFlowTerms').fill('30');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="flow"]').click();
-    await expect.poll(async () => (await readStoredState(page)).flowCfg).toEqual({ turnDays: 0, termsDays: 30 });
+    await expect.poll(async () => (await readStoredState(page)).flowCfg).toEqual({ turnDays: 0, termsDays: 30, holidays: [] });
     await expect(page.locator('details[data-sec="flow"] > summary')).toContainText('back the same day · paid in 30 days');
     await page.keyboard.press('Escape');
 

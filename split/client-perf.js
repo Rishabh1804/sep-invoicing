@@ -267,6 +267,11 @@ function cpPriorSameDays(clientId) {
   return out;
 }
 
+/* Whether Performance shows rupees: what a client was billed, its ₹/kg, what an hour earns. A role that does not see money (the
+   Office role, by default) reads the client in tonnes and pieces only (owner, 14 Oct 2026: "Yes, it should be hidden too", on the
+   Office role seeing revenue here). */
+function cpSeesMoney() { return typeof grdSeesMoney !== 'function' || grdSeesMoney(); }
+
 /* ===== VIEW ===== */
 /* A material row: the part, how often and when it was last handled, and what it earned. A stopped
    part says how long it has been gone; a possible rename says so. */
@@ -290,7 +295,7 @@ function _cpMaterialRowList(list, renames) {
       // A part that only ever arrived on a challan has no revenue yet. Printing
       // Rs 0.00 for it reads as worthless work rather than unbilled work.
       '<span class="inv-row-end">' +
-      (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
+      (m.invoiced > 0 ? '<span class="inv-num">' + (cpSeesMoney() ? formatCurrency(m.revenue) : m.kg > 0 ? cpNum(m.kg) + ' kg' : 'invoiced') + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
       '</span></div>';
   });
 }
@@ -303,8 +308,12 @@ function cpVerdictHtml(clientId, monthly, flags) {
   var today = localDateStr(), last = monthly[monthly.length - 1] || null, prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
   var partial = !!last && last.month === today.slice(0, 7), bench = !last ? null : partial ? cpPriorSameDays(clientId) : prev;
   var bl = partial ? 'the same days' : prev ? prev.label : '';
-  var verdict, tone = 'neutral', delta = '', dTone = null, money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
-  if (last && last.realisation != null) {
+  var verdict, tone = 'neutral', delta = '', dTone = null, money = cpSeesMoney();
+  if (last && !money) {
+    // No rupees for this role: the month in tonnes, against the month before.
+    verdict = formatNum(last.kg / 1000, 2) + ' t ' + (partial ? 'this month' : 'in ' + last.label);
+    if (bench && bench.kg != null) { delta = figDeltaText(last.kg, bench.kg, bl); dTone = figDeltaTone(last.kg, bench.kg, 'up'); }
+  } else if (last && last.realisation != null) {
     // Against the cost is a margin, which a role that does not see money is not shown (guard.js: Office has no margins).
     var cost = money ? cpMonthCost(last.month) : null;
     tone = (cost && figToneAgainst(last.realisation, cost.perKg, 5)) || 'neutral';
@@ -321,7 +330,7 @@ function cpVerdictHtml(clientId, monthly, flags) {
   var word = function(t) { return typeof CLIENT_FLAG_WORD !== 'undefined' && CLIENT_FLAG_WORD[t.rule] || 'flagged'; };
   var facts = [worst ? { text: word(worst) + (flags.length > 1 ? ' and ' + (flags.length - 1) + ' more' : ''), tone: /^(warning|danger)$/.test(fTone) ? fTone : '' } : 'nothing flagged',
     delta ? { text: delta, tone: dTone || '' } : '',
-    last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
+    money && last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
   return uiVerdictHtml({ screen: 'Performance · ' + uiVerdictFit(c.name || '', ''), tone: tone, verdict: uiVerdictFit(verdict, ''), facts: facts,
     // A flag's figure: its amount in rupees for a role that sees money (the turnaround's tasks name one to every role that sees
     // them), else its own count, else a dash; never a 1 standing for a task that counts nothing.
@@ -391,19 +400,21 @@ function renderClientPerformance(container) {
   var seg = function(k, l) {
     return '<button type="button" class="inv-seg-btn" data-action="invPerfSeries" data-series="' + k + '" aria-pressed="' + (_cpSeries === k) + '">' + l + '</button>';
   };
+  var money = cpSeesMoney();
+  var measure = money ? _cpSeries : 'tonnage';
   html += '<div class="inv-panel" data-cp-trend>' +
     '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-note">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
-    '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>';
+    (money ? '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>' : '');
 
   var series = monthly.map(function(r) {
     return {
       label: r.label,
       // A month with nothing weighed has no ₹/kg: a gap, never a ₹0.00 bar.
-      value: _cpSeries === 'tonnage' ? r.kg : _cpSeries === 'rate' ? r.realisation : r.revenue
+      value: measure === 'tonnage' ? r.kg : measure === 'rate' ? r.realisation : r.revenue
     };
   });
   html += chartBars(series, {
-    unit: _cpSeries === 'tonnage' ? 'kg' : _cpSeries === 'rate' ? 'rate' : 'money',
+    unit: measure === 'tonnage' ? 'kg' : measure === 'rate' ? 'rate' : 'money',
     ariaLabel: 'Month on month',
     // The month running is drawn as to date (TM6b).
     toDate: chartToDateAt(monthly.map(function(r) { return r.month; }), localDateStr().slice(0, 7))
@@ -422,9 +433,15 @@ function renderClientPerformance(container) {
     var p = function(v) { return bench ? { v: v, label: bl } : null; };
     // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one; for a role that
     // sees money only, as the card's verdict is (the cost against it is a margin).
-    var cost = last.realisation != null && (typeof grdSeesMoney !== 'function' || grdSeesMoney()) ? cpMonthCost(last.month) : null;
+    var cost = last.realisation != null && money ? cpMonthCost(last.month) : null;
     var full = monthly.filter(function(r) { return r.month !== thisYm; });
-    html += '<div class="inv-tiles inv-tiles-flush">' +
+    if (!money) html += '<div class="inv-tiles inv-tiles-flush">' +
+      tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>',
+        last.count + ' invoice' + (last.count !== 1 ? 's' : '') + ' · ' + cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
+      tile('Average month', full.length ? formatNum(full.reduce(function(t, r) { return t + r.kg; }, 0) / full.length / 1000, 2) + '<span class="inv-tile-of"> t</span>' : '&mdash;',
+        full.length ? 'over ' + full.length + ' full month' + (full.length !== 1 ? 's' : '') : 'no full month yet', '') +
+      '</div>';
+    else html += '<div class="inv-tiles inv-tiles-flush">' +
       tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(bench && bench.revenue))) +
       tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
@@ -621,7 +638,7 @@ function cpWorkedListHtml(clientId) {
   var h = '<div class="inv-row inv-row-strong" data-cp-worked-total><span class="inv-row-main"><span class="inv-row-title">' +
     (_cpQuery ? '&ldquo;' + escHtml(_cpQuery) + '&rdquo;' : 'Everything') + ' · ' + todoPlural(tot.parts, 'part') +
     (_cpScope === 'all' ? ' · ' + todoPlural(Object.keys(tot.clients).length, 'client') : '') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 && cpSeesMoney() ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + escHtml(cpQtyText(tot.nos, tot.kg)) + '</span></div>';
   if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
   var rows = list.map(function(r) {
@@ -639,7 +656,7 @@ function cpWorkedListHtml(clientId) {
       var q = cpNum(e.qty, e.unit === 'KG' && e.qty % 1 ? 2 : 0) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS') + (e.nos ? ' (' + cpNum(e.nos) + ' NOS)' : '');
       var act = e.kind === 'invoice' ? ' data-action="invViewInvoiceDetail" data-id="' + escHtml(e.id) + '"' : ' data-action="invHistoryJumpChallan" data-id="' + escHtml(e.id) + '"';
       return '<div class="inv-row inv-row-2"><button class="inv-row-main"' + act + '><span class="inv-row-title">' + escHtml(formatDate(e.date)) + ' · ' + escHtml(what) + '</span>' +
-        '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
+        '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount && cpSeesMoney() ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
         '<span class="inv-row-end inv-num">' + escHtml(q) + '</span></div>';
     }).join('');
     return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"' + (r.plated ? ' title="' + escHtml(todoPlural(r.plated, 'plating')) + '"' : '') + '><span class="inv-row-main">' +
@@ -649,7 +666,7 @@ function cpWorkedListHtml(clientId) {
       (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared title="' + escHtml(others.join(', ')) + '"><span class="inv-dot inv-dot-info">Code shared</span> ' +
         escHtml(others.length === 1 ? others[0] + ' also sends it' : others.length + ' other clients send it too') + ', counted apart</span>' : '') +
       '</span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(cpQtyText(r.nos, r.kg, r.kgUnknown)) + '</span>' +
-      (r.revenue > 0 ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
+      (r.revenue > 0 && cpSeesMoney() ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
       '<div class="inv-row-children">' + ev + '</div></details>';
   });
   return h + uiMoreHtml('cp-worked-' + (_cpScope === 'all' ? 'all' : clientId) + '-' + _cpPeriod, rows, { n: 30, noun: 'parts' });
@@ -843,7 +860,7 @@ function cpSrcWord(x) { return x.src === 'set' ? 'set' : x.src === 'measured' ? 
    step by step, what it earns, what the record has timed and what to look at, each a fact row (they were sentences of up to 160
    characters). How the figures are worked out is the guide's (Using the app: clients and sales). */
 function cpRoundRowHtml(client, t, ref, rg, auto) {
-  var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null;
+  var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null, money = cpSeesMoney();
   var fig = function(x, unit) { return x.v != null ? x.v + (unit || '') + ' (' + cpSrcWord(x) + ')' : '? (' + cpSrcWord(x) + ')'; };
   var mat = cpMaterials(client.id, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
   var pcs = mat.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = mat.reduce(function(a, x) { return a + x.revenue; }, 0);
@@ -854,18 +871,18 @@ function cpRoundRowHtml(client, t, ref, rg, auto) {
     '<span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span>' + (t.line ? ' · ' + escHtml(prodLineName(t.line)) : '') + (auto ? ' · <span class="inv-note">from the record</span>' : '') + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + (rd.total ? Math.round(rd.total) + ' min a round' : 'its minutes not known')) + '</span>' +
     (hints.length ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + hints[0].tone + '">' + todoPlural(hints.length, 'thing', 'things') + ' to look at</span></span>' : '') +
-    '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
+    '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null && money ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : rd.total && !money ? '<span class="inv-num">' + Math.round(rd.total) + ' min</span><span class="inv-row-meta">a round</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
     '<div class="inv-row-children">';
   var step = function(label, x, key) { return uiFactRowHtml({ label: label, value: x.v != null ? x.v + ' min' : '', sub: cpSrcWord(x), attrs: ' data-cp-step="' + key + '"' }); };
   h += step('Pickling', rd.pickle, 'pickle') + step('Plating', rd.plate, 'plate') +
     uiFactRowHtml({ label: 'Logistics and other steps', value: rd.over + ' min', sub: 'every round, set on the panel', attrs: ' data-cp-step="over"' }) +
     (rd.total ? uiFactRowHtml({ label: 'A round', value: Math.round(rd.total) + ' min', sub: fig(rd.pcs, ' pieces'), attrs: ' data-cp-step="round"' }) : '');
   h += uiFactRowHtml({ label: 'Rate', value: rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') : '', sub: rd.rate ? rd.rate.src : 'no rate on record', attrs: ' data-cp-rate' }) +
-    (rd.perRound != null ? uiFactRowHtml({ label: 'A round earns', value: formatCurrency(rd.perRound), attrs: ' data-cp-earns' }) : '');
+    (rd.perRound != null && money ? uiFactRowHtml({ label: 'A round earns', value: formatCurrency(rd.perRound), attrs: ' data-cp-earns' }) : '');
   h += uiFactRowHtml({ label: 'Plating rounds timed', value: String(rd.m.nPlate || 0), attrs: ' data-cp-measured',
     sub: [rd.m.nPickle ? todoPlural(rd.m.nPickle, 'pickling load') + ' timed' : 'no pickling load timed', rd.m.first ? formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : ''].filter(Boolean).join(' · ') });
   if (pcs > 0) h += uiFactRowHtml({ label: 'In ' + rg.label, value: 'about ' + formatNum(hrs, 1) + ' h', attrs: ' data-cp-billed',
-    sub: cpNum(pcs) + ' pcs billed for ' + formatCurrency(rev) + (ref ? ' · cost about ' + formatCurrency(hrs * ref.cost) : '') });
+    sub: cpNum(pcs) + ' pcs billed' + (money ? ' for ' + formatCurrency(rev) : '') + (ref ? ' · cost about ' + formatCurrency(hrs * ref.cost) : '') });
   // What to look at: a row each, its claim and its figures; the record's measure has Use at the end.
   hints.forEach(function(x) {
     h += '<div class="inv-row inv-row-2" data-cp-hint title="' + escHtml(x.text) + '"><span class="inv-row-main"><span class="inv-row-title">' + uiDot(x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info', escHtml(x.say)) + '</span>' +

@@ -12,7 +12,7 @@
    - T3, THE FLOW ON SCREEN: on a client's page and Floor's Overview, the median working days from the challan to pickling, to
      plating and to despatch, and the days from invoice to payment, against the target and the terms; each open challan's expected
      despatch day and each open invoice's expected payment day.
-   Days of work are working days (Sundays out, statsWorkingDays): a challan of Saturday back on Monday met a one-day target. Days to
+   Days of work are working days (Sundays, the paid holidays and the days the plant is shut out, flowIsWorkday): a challan of Saturday back on Monday met a one-day target. Days to
    pay are calendar days, as the terms are. Despatch is the day written on the invoice as despatched (the invoice's own date is the
    day its challans are collected, the owner's word), else the invoice's date. Pickling and plating are In plant's own reading of
    which load and which run went against which challan line, oldest first (production.js prodInPlant): estimates for one line, firm
@@ -25,7 +25,17 @@ var FLOW_RED_AFTER = 2;      // working days past the target before material pas
 
 function flowCfg() {
   var c = (S && S.flowCfg) || {};
-  return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45 };
+  return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45,
+    holidays: Array.isArray(c.holidays) ? c.holidays : [] };
+}
+/* A day the plant works, for the turnaround (owner, 14 Oct 2026: "the national holidays and state holidays should not count as
+   working days for turnaround"): never a Sunday, a paid holiday (Settings → Labour, the national ones), or a day the plant is shut
+   that is set on the turnaround (a state holiday: MM-DD every year, or a full date). */
+function flowIsWorkday(iso) {
+  if (new Date(iso + 'T00:00:00').getDay() === 0) return false;
+  var h = flowCfg().holidays;
+  if (h.indexOf(iso) >= 0 || h.indexOf(iso.slice(5)) >= 0) return false;
+  return typeof labourIsHoliday === 'function' ? !labourIsHoliday(iso) : true;
 }
 function flowClient(id) { return id == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(id); }) || null; }
 function flowSetNum(v) { return v !== '' && v != null && isFinite(+v) && +v >= 0; }
@@ -48,11 +58,16 @@ function flowBackWord(n) { return n === 0 ? 'back the same day' : 'back in ' + t
 /* "a 1-day target", "a same-day target": a target named in a head. */
 function flowTargetWord(n) { return (n === 0 ? 'same-day' : n + '-day') + ' target'; }
 /* Working days after `a` up to `b` (the day of `a` itself is day 0); never below 0. */
-function flowWd(a, b) { return a && b && b > a ? prodWorkingDaysBetween(a, b) : 0; }
+function flowWd(a, b) {
+  if (!(a && b && b > a)) return 0;
+  var n = 0, d = a;
+  for (var g = 0; g < 4000; g++) { d = isoAddDays(d, 1); if (d > b) break; if (flowIsWorkday(d)) n++; }
+  return n;
+}
 /* The working day `n` working days after `iso`. */
 function flowAddWd(iso, n) {
   var d = iso, g = 0;
-  while (n > 0 && g++ < 400) { d = isoAddDays(d, 1); if (new Date(d + 'T00:00:00').getDay() !== 0) n--; }
+  while (n > 0 && g++ < 400) { d = isoAddDays(d, 1); if (flowIsWorkday(d)) n--; }
   return d;
 }
 /* A median weighted by value (a line of ₹40,000 says more about the flow than one of ₹40); plain where nothing carries a value. */

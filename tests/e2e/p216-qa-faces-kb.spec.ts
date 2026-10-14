@@ -380,12 +380,12 @@ test.describe('P216: Knowledge', () => {
   const kbBook = () => {
     const s: any = guardBook();
     s.kb = { articles: [art('D1', 'decision', 'A second rectifier', { decidedOn: addDays(today, -40), reviewOn: addDays(today, -1) }),
-      art('W1', 'process', 'Racking', { by: 'Birsa Munda', byId: 'U-sup',
+      art('W1', 'process', 'Racking', { by: 'Kiran Joshi', byId: 'U-sup',
         pending: { by: 'Chitra Sen', byId: 'U-off', at: 5, v: 1, title: 'Racking', summary: 'About Racking', body: 'Text, changed.', fields: ['body'] } })],
     trained: [], paths: [] };
     return s as SepState;
   };
-  const KB_USERS: Who[] = [OWNER, { id: 'U-sup', name: 'Birsa Munda', role: 'supervisor', pin: PINS.super }, { id: 'U-off', name: 'Chitra Sen', role: 'office', pin: PINS.office }];
+  const KB_USERS: Who[] = [OWNER, { id: 'U-sup', name: 'Kiran Joshi', role: 'supervisor', pin: PINS.super }, { id: 'U-off', name: 'Chitra Sen', role: 'office', pin: PINS.office }];
   async function knowAs(page: Page, id: string, pin: string, tab: string) {
     if (await page.locator('#guardRoot').count() === 0) await lockNow(page);
     await unlock(page, id, pin);

@@ -53,6 +53,7 @@ Nothing here changes what the book records except TM3b.
 | TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | **Built** (10 Oct 2026; what it decided is under TM6, *As built*) |
 | TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | **Built** (13 Oct 2026; the measures after are in `docs/COGNITIVE_LOAD_SURVEY.md`, *After the tab map*; then the QA chain, on the owner's word) |
 | ✓ | **The owner's rulings of 13 Oct 2026** on what TM5–TM7 left open: the three cards that lengthened Challans → Invoiced, Knowledge → Training and Troubleshoot fold shut on the phone (`foldFacts`); the challan Scan and every Gemini photo read came out, so Challans, Add, Production, Floor, Today, the monthly register and Settings lost their photo doors; challans waiting are amber at 3 days, red at 6; labour is fixed, so By client settles the worst account one way (CLAUDE.md, *The owner's rulings of 13 Oct 2026*) | **Built** (13 Oct 2026, P210) |
+| ✓ | **The QA chain of 14 Oct 2026**: seven audits of TM1–TM7 and the asks of 10 Oct, one builder per area, each finding fixed with its test (P211–P216, 116 tests, each failing on the build before), the mechanical sweeps and the harness pressing every action (CLAUDE.md, *The QA chain of 14 Oct 2026*, has what it leaves as rules) | **Done** (14 Oct 2026) |
 
 ## 1. The rulings
 

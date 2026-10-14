@@ -88,7 +88,7 @@ function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', ha
    enough to draw a full picture of what happened". The day in one unit: the tonnes, every run weighed by the surest route
    the book holds (prodWeigh), what of it is estimated said, the range the estimates allow, against two shifts and the
    plant's usual day; each line's runs on the clock, the clients, the pieces nothing weighs with the move that weighs them,
-   the cuts and the loads. One card for Production's Overview, Floor and Pulse (`compact`: the lines and how it was weighed). */
+   the cuts and the loads. One card for Floor's Overview and Pulse (`compact`: the lines and how it was weighed); Production's own Overview went in the tab map's TM4. */
 function prodDayHeroHtml(date, opts) {
   opts = opts || {};
   var isToday = date === localDateStr(), attrs = ' data-prod-day="' + escHtml(date || '') + '"' + (opts.attrs || '');
@@ -576,7 +576,7 @@ function prodLinesVerdictHtml(line, day) {
     : ef.eff == null ? (kg ? 'Plated ' + kg + ', not judged' : 'Nothing weighed, not judged')
     : ef.over ? ef.word + ', ' + kg + ' plated' : judged.charAt(0).toUpperCase() + judged.slice(1) + ', ' + kg + ' plated';
   var hours = ef.minutes ? formatNum(ef.minutes / 60, 1).replace(/\.0$/, '') + ' h run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : '') : '';
-  var head = typeof flrEffHead === 'function' ? flrEffHead(ef, null, isToday) : {};
+  var head = typeof flrEffHead === 'function' ? flrEffHead(ef, null, isToday, day) : {};
   // Against its usual day and its week against the four before (owner, 10 Oct 2026: "corrections and comparisons are missing"),
   // and what it earned at the clients' rates on record ("why don't we calculate the earnings?"), to a role that sees money.
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), x = prodLineDaySum(day, line), u = prodLineUsual(line, day);

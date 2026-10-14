@@ -241,7 +241,7 @@ function pltEquipmentHtml() {
   h += '<div class="inv-panels">' + pltSupportHtml() + pltLogHtml() + '</div>';
   return h;
 }
-/* The plant at a glance: a row per line (Production → Overview's first panel). */
+/* The plant at a glance: a row per line (under the card of a Production with nothing recorded yet; its Overview went in TM4). */
 function pltGlanceHtml() {
   if (!pltUnits().length) return '';
   return '<div class="inv-panel inv-panel-flush" id="pltGlance"><div class="inv-panel-head"><span class="inv-panel-title">The plant now</span>' +

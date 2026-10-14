@@ -293,7 +293,7 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   h += '<div class="inv-row inv-row-auto" data-flr-crew><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(crew) + '</span></span></div>';
   // The head: what the line is judged on; the foot: its staffing and its EXTRA, each a door to People where the role opens it.
   var tone = j.tone;
-  var head = flrEffHead(ef, last, isToday);
+  var head = flrEffHead(ef, last, isToday, day);
   var extraBadge = '<span class="inv-badge inv-badge-warning">EXTRA ' + flrHours(extra) + ' h</span>';
   var foot = (staffOk ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrStaff" data-flr-staff aria-label="' + escHtml(name + ' staffing: ' + st.word + '. Open People, Attendance') + '">' + uiDot(st.tone, escHtml(st.word)) + '</button>'
       : '<span data-flr-staff>' + uiDot(st.tone, escHtml(st.word)) + '</span>') +
@@ -327,11 +327,15 @@ function flrEarnedRowHtml(day, isToday, line) {
     sub: sub || 'nothing priced: no rate on record', attrs: ' data-flr-earned' });
 }
 /* A plating line's head: its efficiency as the figure, what it plated of what it could, and the inputs; or why it is not judged. */
-function flrEffHead(ef, last, isToday) {
+/* A card's head. A past day with no run did not run only where the day's marks put somebody on the floor; with no marks it is a
+   gap in the record, as Lines' verdict and the card's own run row say (`day`, the day shown). */
+function flrEffHead(ef, last, isToday, day) {
   if (!ef) return { title: last ? 'Loads pickled' : isToday ? 'Nothing pickled yet today' : 'Nothing pickled this day' };
   var unit = ef.unitWord || 'unit', units = ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + unit + 's working' : '';
   var down = ef.halfDown ? (ef.n - ef.nAvail) + ' of ' + ef.n + ' ' + unit + 's down' : '';
-  if (!ef.ran) return { title: ef.missing ? 'Heads on the general shift and no record of it' : isToday ? 'Not running yet today' : 'Did not run', sub: [down, units].filter(Boolean).join(' · ') };
+  var att = day && S.attendance ? S.attendance[day] : null, marked = !!(att && att.marks && Object.keys(att.marks).length);
+  if (!ef.ran) return { title: ef.missing ? 'Heads on the general shift and no record of it' : isToday ? 'Not running yet today' : day && !marked ? 'No record this day' : 'Did not run',
+    sub: [down, units].filter(Boolean).join(' · ') };
   var kg = prodKgFig(ef.kg, ef.est, ef.unweighed > 0) || '—';
   if (ef.eff == null) return { title: 'Plated ' + kg, sub: 'Not judged: ' + ef.why + (units ? ' · ' + units : '') };
   var hours = ef.minutes / 60, hTxt = formatNum(hours, 1).replace(/\.0$/, '') + ' h';

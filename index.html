@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="84279308">
+<meta name="app-build" content="f36143f9">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -47135,7 +47135,7 @@ function pltEquipmentHtml() {
   h += '<div class="inv-panels">' + pltSupportHtml() + pltLogHtml() + '</div>';
   return h;
 }
-/* The plant at a glance: a row per line (Production → Overview's first panel). */
+/* The plant at a glance: a row per line (under the card of a Production with nothing recorded yet; its Overview went in TM4). */
 function pltGlanceHtml() {
   if (!pltUnits().length) return '';
   return '<div class="inv-panel inv-panel-flush" id="pltGlance"><div class="inv-panel-head"><span class="inv-panel-title">The plant now</span>' +
@@ -48855,7 +48855,7 @@ function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', ha
    enough to draw a full picture of what happened". The day in one unit: the tonnes, every run weighed by the surest route
    the book holds (prodWeigh), what of it is estimated said, the range the estimates allow, against two shifts and the
    plant's usual day; each line's runs on the clock, the clients, the pieces nothing weighs with the move that weighs them,
-   the cuts and the loads. One card for Production's Overview, Floor and Pulse (`compact`: the lines and how it was weighed). */
+   the cuts and the loads. One card for Floor's Overview and Pulse (`compact`: the lines and how it was weighed); Production's own Overview went in the tab map's TM4. */
 function prodDayHeroHtml(date, opts) {
   opts = opts || {};
   var isToday = date === localDateStr(), attrs = ' data-prod-day="' + escHtml(date || '') + '"' + (opts.attrs || '');
@@ -49343,7 +49343,7 @@ function prodLinesVerdictHtml(line, day) {
     : ef.eff == null ? (kg ? 'Plated ' + kg + ', not judged' : 'Nothing weighed, not judged')
     : ef.over ? ef.word + ', ' + kg + ' plated' : judged.charAt(0).toUpperCase() + judged.slice(1) + ', ' + kg + ' plated';
   var hours = ef.minutes ? formatNum(ef.minutes / 60, 1).replace(/\.0$/, '') + ' h run' + (ef.cutMin ? ', ' + powerDur(ef.cutMin) + ' cut' : '') : '';
-  var head = typeof flrEffHead === 'function' ? flrEffHead(ef, null, isToday) : {};
+  var head = typeof flrEffHead === 'function' ? flrEffHead(ef, null, isToday, day) : {};
   // Against its usual day and its week against the four before (owner, 10 Oct 2026: "corrections and comparisons are missing"),
   // and what it earned at the clients' rates on record ("why don't we calculate the earnings?"), to a role that sees money.
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney(), x = prodLineDaySum(day, line), u = prodLineUsual(line, day);
@@ -50552,7 +50552,7 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
   h += '<div class="inv-row inv-row-auto" data-flr-crew><span class="inv-row-main"><span class="inv-row-meta inv-row-wrap">' + escHtml(crew) + '</span></span></div>';
   // The head: what the line is judged on; the foot: its staffing and its EXTRA, each a door to People where the role opens it.
   var tone = j.tone;
-  var head = flrEffHead(ef, last, isToday);
+  var head = flrEffHead(ef, last, isToday, day);
   var extraBadge = '<span class="inv-badge inv-badge-warning">EXTRA ' + flrHours(extra) + ' h</span>';
   var foot = (staffOk ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrStaff" data-flr-staff aria-label="' + escHtml(name + ' staffing: ' + st.word + '. Open People, Attendance') + '">' + uiDot(st.tone, escHtml(st.word)) + '</button>'
       : '<span data-flr-staff>' + uiDot(st.tone, escHtml(st.word)) + '</span>') +
@@ -50586,11 +50586,15 @@ function flrEarnedRowHtml(day, isToday, line) {
     sub: sub || 'nothing priced: no rate on record', attrs: ' data-flr-earned' });
 }
 /* A plating line's head: its efficiency as the figure, what it plated of what it could, and the inputs; or why it is not judged. */
-function flrEffHead(ef, last, isToday) {
+/* A card's head. A past day with no run did not run only where the day's marks put somebody on the floor; with no marks it is a
+   gap in the record, as Lines' verdict and the card's own run row say (`day`, the day shown). */
+function flrEffHead(ef, last, isToday, day) {
   if (!ef) return { title: last ? 'Loads pickled' : isToday ? 'Nothing pickled yet today' : 'Nothing pickled this day' };
   var unit = ef.unitWord || 'unit', units = ef.n ? ef.nAvail + ' of ' + ef.n + ' ' + unit + 's working' : '';
   var down = ef.halfDown ? (ef.n - ef.nAvail) + ' of ' + ef.n + ' ' + unit + 's down' : '';
-  if (!ef.ran) return { title: ef.missing ? 'Heads on the general shift and no record of it' : isToday ? 'Not running yet today' : 'Did not run', sub: [down, units].filter(Boolean).join(' · ') };
+  var att = day && S.attendance ? S.attendance[day] : null, marked = !!(att && att.marks && Object.keys(att.marks).length);
+  if (!ef.ran) return { title: ef.missing ? 'Heads on the general shift and no record of it' : isToday ? 'Not running yet today' : day && !marked ? 'No record this day' : 'Did not run',
+    sub: [down, units].filter(Boolean).join(' · ') };
   var kg = prodKgFig(ef.kg, ef.est, ef.unweighed > 0) || '—';
   if (ef.eff == null) return { title: 'Plated ' + kg, sub: 'Not judged: ' + ef.why + (units ? ' · ' + units : '') };
   var hours = ef.minutes / 60, hTxt = formatNum(hours, 1).replace(/\.0$/, '') + ' h';

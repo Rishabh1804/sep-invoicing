@@ -181,6 +181,22 @@ test.describe('P214: Production, Power and the plant register, the QA chain', ()
     expect(await ev(page, 'prodLinesDay()')).toBe(DAY);
   });
 
+  // Seen by the builder, fixed by the lead: Floor's line card read "Did not run" on a past day nobody recorded, where Lines and the
+  // card's own run row say it is a gap in the record.
+  test('Floor’s line card: a past day with no record is a gap, as Lines says; a marked day with nobody on the line did not run', async ({ page }) => {
+    const s: any = book([run('R1', todayIso())]);
+    s.staff = [{ id: 7, name: 'Ravi Test', comp: 'hourly', area: 'vat-a1', hourRate: 50, dayRate: 0, active: true, onFloor: true }];
+    s.attendance = { [back(3)]: { marks: { 7: { st: 'P', hours: 8, area: 'office' } }, extra: [], note: '' } };
+    await loadAppWithState(page, s);
+    await switchTab(page, 'pageFloor');
+    const title = page.locator('#flrLines > [data-line="vat-a1"] .inv-hero-title').first();
+    for (const [d, want] of [[back(1), 'No record this day'], [back(3), 'Did not run']]) {
+      await page.locator('#flrDate').fill(d);
+      await page.locator('#flrDate').dispatchEvent('change');
+      await expect(title).toHaveText(want);
+    }
+  });
+
   test('A5-12: Lines never steps past today; a past day with no record says so; a day not come is not entered', async ({ page }) => {
     const s: any = book([run('R1', todayIso()), run('R2', back(5))]);
     s.staff = [{ id: 7, name: 'Ravi Test', comp: 'hourly', area: 'vat-a1', hourRate: 50, dayRate: 0, active: true, onFloor: true }];

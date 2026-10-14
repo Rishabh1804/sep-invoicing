@@ -96,7 +96,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 86 modules, ~66,300 lines total.
+Split-file PWA. 86 modules, ~66,500 lines total.
 
 ```
 split/
@@ -222,7 +222,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,772 tests, both layouts
+pnpm exec playwright test          # 1,884 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -393,6 +393,24 @@ before it. The detail is in each area's section; what it leaves as rules:
 - **A list-and-pane screen keeps its scroll on a redraw**, and an event's key in History survives a rename (UX overhaul 2, step 7).
 - A swipe is a step of the trail; Pulse opened from elsewhere is drawn; a window crossing 1024px keeps the leave guard; Cancel,
   Delete and Edit from History's pane act where they can be seen; an address naming no record opens no pane.
+
+**The QA chain of 14 Oct 2026** (owner: *"Be thorough, run QA chain before final merge, merge once CI is green"*). Seven audits of the
+tab map (TM1–TM7) and the asks of 10 Oct, then one builder per area, each finding fixed with its test and each test failing on the
+build before (P211 the shell, Today and Stats; P212 Money, the cheques and the suppliers; P213 People and Pay; P214 Production, Power
+and the plant register; P215 Office and the flow thread; P216 the entry faces, Knowledge and History; 116 tests); the mechanical
+sweeps (no duplicate name; the dead code each builder found went, `calculateStdWeights` with it) and the harness pressing every
+action. The detail is in each area's section; what it leaves as rules:
+- **One judge for the price against the live cost**: a loss within 5% of it is a warning wherever it is drawn (Pulse, Stats' cards,
+  the report), as realisation always was; a figure over its mark is info (`inv-fig-info`).
+- **Owed with nothing past 60 days is ok** wherever it is drawn, and owed is never red while a receipt has no client
+  (`finAgeTone`, `figToneOwed`).
+- **A door is drawn only for a role that opens where it goes** (Pulse's More, *Add a bill* on Power and Live cost, Add's grid laid
+  out over the doors shown); **a margin is money**: By the hour's hour cost, Performance's cost and its flags' rupees only for a role
+  that sees money.
+- **A cheque**: *Not this deposit* keeps that row apart and the number goes on; a post-dated cheque is in hand from its own date;
+  one recorded twice counts once. **A supplier** is every spelling, a sorted payee joins by it, two records fold at load.
+- **An act is drawn once**: History lists a deleted invoice as its tombstone's row and counts each removal once; a quotation's
+  events name their record. **What waits is its owner's**: a decision's review is the owner's, a proposed change its proposer's.
 
 **Entering several at a sitting stays on the form** (owner, 30 Sep 2026: *"when entering by hand, the page reloads to the base screen
 after every entry, instead of staying there for multiple entry … Check for these page jumping back to the base page on some action bug
@@ -4235,7 +4253,7 @@ to the rupee for 8 of 9 hands off the imported marks; the ninth, the gate hand, 
   credited nothing — a month nobody typed is not a month of holidays.
 - **A worked Sunday keeps its gated credit and is paid one day on top** (BM, 10 Sep: *"keep the worked sunday
   credit"*), and its hours are that day, **never OT as well** — which would pay them twice (the July slip took
-  Sarat's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way:
+  a hand's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way:
   its own reading until the owner kept it, 13 Oct 2026.
 - **A contracted monthly wage** (`worker.monthWage`, the worker's Edit on People → Roster): BM, 14 Sep, *"Uday is 9000/month. per day is
   calculated as per days in that month"* and *"His sundays are not gate sensitive"*, *"Sunday is inside the

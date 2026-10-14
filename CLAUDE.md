@@ -3295,7 +3295,10 @@ build: the people are the book's.
   Changes. The merge (below) reads it to say whose change stands.
 - **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
-  can only import. The token is kept encrypted under a key that cannot leave the device. A device the owner removes stops
+  can only import. The token is kept encrypted under a key that cannot leave the device. **A device whose guard was turned on apart from the one that pushed** (its own owner ID, not on GitHub's copy; owner, 14 Oct
+  2026: the phone said *add the ID on the owner's device*) registers in GitHub's copy with the PIN of that copy's owner
+  (`devRemoteUser`, `grdPinAsk` on the copy's owner), never by a name alone; it takes the copy, its IDs and PINs, and is registered to
+  the same person there (same name and role), else to that owner. A device the owner removes stops
   syncing and forgets its token at its next load. With the guard off, sync is unchanged.
 - **The merge** (`merge.js`, P175; G4, owner 7 Oct 2026: *"start with 3 and 4"*). Sync had been one book written whole: a push over a
   copy not seen replaced the other device's work, a pull replaced this one's. Now each is a three-way merge against **the copy both

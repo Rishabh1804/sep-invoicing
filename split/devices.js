@@ -406,6 +406,7 @@ function devWhenClear(fn) {
 }
 
 /* ===== REGISTERING ===== */
+var _devRemoteUserId = null;   // who uses this device in GitHub's copy, set while registering in it
 function devRegisterClick() {
   var n = document.getElementById('devNameIn'), u = document.getElementById('devUserIn');
   return devRegister({ name: n ? n.value : '', user: u ? u.value : '' });
@@ -428,13 +429,16 @@ async function devRegister(o) {
   // GitHub's copy, where the guard is on in it and this device has not seen it, is the book: the device is registered in
   // that copy, never pushes its own (older, or imported) book over it. One with the guard off there is not: this
   // device's book goes up, and the push asks before it replaces anything, as every push does.
+  _devRemoteUserId = null;
   var taken = await devTakeRemote(user.id);
   if (taken === 'stop') return false;
   var took = taken === 'took';
+  // In GitHub's copy, who uses this device is that copy's ID (the same person, or its owner).
+  if (took && _devRemoteUserId != null) user = devUsers().find(function(u) { return String(u.id) === String(_devRemoteUserId); }) || user;
 
   if (!Array.isArray(S.devices)) S.devices = [];
   var id = devId(), row = devRow(id);
-  var fields = { id: id, name: name, user: user.id, registeredAt: Date.now(), registeredBy: devUserId(), build: APP_BUILD,
+  var fields = { id: id, name: name, user: user.id, registeredAt: Date.now(), registeredBy: took && _devRemoteUserId != null ? user.id : devUserId(), build: APP_BUILD,
     ua: String((typeof navigator !== 'undefined' && navigator.userAgent) || '').slice(0, 200) };
   if (row) {
     Object.keys(fields).forEach(function(k) { row[k] = fields[k]; });
@@ -458,14 +462,23 @@ async function devRegister(o) {
 }
 
 /* Why GitHub's copy cannot be the book this device registers in ('' when it can). */
-function devRemoteUnfit(env, userId) {
+function devRemoteUnfit(env) {
   if (!env || env.app !== 'sep-invoicing' || !env.state || !env.state.company || !env.state.clients) return 'GitHub\'s file is not a SEP Invoicing backup';
   if (env.schema > GH_SCHEMA) return 'GitHub\'s copy was written by a newer version of the app';
-  var users = Array.isArray(env.state.users) ? env.state.users : [];
-  if (!users.some(function(u) { return u && u.active !== false && String(u.id) === String(userId); })) {
-    return 'who uses this device is not an ID on GitHub\'s copy: add the ID on the owner\'s device and push, then register this one';
-  }
   return '';
+}
+/* Who uses this device, as an ID on GitHub's copy: the same id; or, with `byName` (once that copy's owner has given its PIN),
+   the one ID there of the same name and role (an owner who turned the guard on on two devices made two IDs of one person,
+   owner, 14 Oct 2026). null when there is none. A name alone never lets a device in. */
+function devRemoteUser(state, userId, byName) {
+  var users = (Array.isArray(state.users) ? state.users : []).filter(function(u) { return u && u.active !== false; });
+  var same = users.find(function(u) { return String(u.id) === String(userId); });
+  if (same || !byName) return same || null;
+  var mine = devUsers().find(function(u) { return u && String(u.id) === String(userId); });
+  if (!mine) return null;
+  var key = function(u) { return String(u.name || '').trim().toLowerCase() + '|' + u.role; };
+  var like = users.filter(function(u) { return key(u) === key(mine); });
+  return like.length === 1 ? like[0] : null;
 }
 function devGuardedBook(state) {
   return !!(state && Array.isArray(state.users) && state.users.some(function(u) { return u && u.role === 'owner' && u.active !== false; }));
@@ -482,8 +495,22 @@ async function devTakeRemote(userId) {
   catch (err) { showToast('Not registered: ' + err.message, 'error'); return 'stop'; }
   var env = full && full.envelope;
   if (!env || !env.state || !devGuardedBook(env.state)) return 'own';
-  var unfit = devRemoteUnfit(env, userId);
+  var unfit = devRemoteUnfit(env);
   if (unfit) { showToast('Not registered: ' + unfit, 'error'); return 'stop'; }
+  // This device's IDs are not GitHub's (the guard turned on here as well as on the device that pushed): the book is GitHub's,
+  // so its owner says yes with the PIN set on that copy, and the device is registered to the ID there.
+  var remoteUser = devRemoteUser(env.state, userId);
+  if (!remoteUser) {
+    var owner = (env.state.users || []).find(function(u) { return u && u.role === 'owner' && u.active !== false && u.secret; });
+    if (!owner) { showToast('Not registered: GitHub\'s copy has no owner ID to say yes', 'error'); return 'stop'; }
+    if (!(await uiConfirm({ title: 'This device has its own IDs', body: 'GitHub\'s copy was guarded on another device, with IDs of its own: ' +
+        'the ID chosen here is not one of them. To register this device in that copy, enter the PIN of ' + (owner.name || 'the owner') +
+        ', its owner, as set on that device. This device then takes GitHub\'s copy, its IDs and PINs with it, and is registered to the same person there (else to ' +
+        (owner.name || 'the owner') + '); sign in afterwards with the PINs of that copy.', okLabel: 'Enter the PIN' }))) return 'stop';
+    if (!(await grdPinAsk(owner, 'PIN of GitHub\'s copy'))) return 'stop';
+    remoteUser = devRemoteUser(env.state, userId, true) || owner;
+  }
+  _devRemoteUserId = remoteUser.id;
   if (!(await uiConfirm({ title: 'Register this device in GitHub’s copy?', body: 'GitHub holds a copy this device has not seen: ' + ghDescribeEnvelope(env) +
       '.\n\nThat copy is the book. It replaces this device\'s book (' + ghCountsText() + '), as a pull does; this device goes on its list, and the copy goes back to GitHub. Continue?',
       okLabel: 'Take it and register' }))) return 'stop';

@@ -273,6 +273,7 @@ function prtSave() {
 }
 var PRT_SETTINGS_SEC = {
   title: 'Office printer',
+  guide: 'app-printer',
   summary: function() {
     var c = prtCfg();
     if (!c.on) return 'off';

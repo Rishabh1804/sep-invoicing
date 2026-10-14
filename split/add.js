@@ -1,7 +1,7 @@
 /* ===== ADD: ONE DOOR FOR EVERYTHING THAT COMES IN =====
    Direction B (owner, 1 Oct 2026): the phone bar's Add, and on the desktop the sidebar's Add and the key A, open one
    sheet for whatever comes in. Most of the day is entering things, and the doors were spread over Home's quick actions,
-   the one paste box, the challan scanner, the register photo and import buttons on five screens.
+   the one paste box and the import buttons on five screens.
 
    The sheet saves nothing itself. Every route ends in the review or the form that already exists, so what comes in is
    shown beside what was read and saved only when the owner says so (the stock paste's contract, unchanged):
@@ -9,8 +9,8 @@
      routes rolls to Staff, pickling, production and power messages to Production, and stock to Stock.
    - The clipboard: read only when the owner taps (the browser needs the tap and may refuse; a refusal is said), and named
      with the paste box's own readers (relayKind, parseRelayRoll, parseStockMessage, parseProdPaste): its date and a count.
-   - A photo: Production's register reader (prodPhotoFiles), which reads a register page or the power log, refuses
-     anything else, and offers a customer's challan to the challan scanner.
+   - No photo: the challan scan and the register photo were read by Gemini and came out (owner, 13 Oct 2026: *"it simply
+     never works"*). A photo picked as a file is named as one, and the page is entered by hand.
    - A file: routed by what is in it, never by its name (addFileKind): the bank's Excel 97–2003 statement, or JSON by its
      format (sep-stock, sep-production, sep-power, sep-payroll-paid, sep-att-register), a roster, or a backup, which replaces the whole book
      and so asks first exactly as Settings → Import does. Anything else is named, never guessed at.
@@ -25,7 +25,6 @@ function addSvg(paths) {
 }
 var ADD_ICON = {
   clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>',
-  photo: '<path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/>',
   file: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3-3 3 3"/>'
 };
 /* By hand, in the order of the day's work: [go, label, icon]. Each opens its form already on the job (addHand). */
@@ -103,14 +102,12 @@ function addOpen() {
     '<textarea id="addPasteText" class="inv-textarea inv-textarea-mono" rows="4" spellcheck="false" placeholder="Copy the message in WhatsApp and paste it here. Several at once is fine."></textarea>' +
     '<div class="inv-field-error inv-hidden" id="addPasteErr">Paste the message first.</div></div>' +
     '<button type="button" class="inv-btn inv-btn-primary inv-btn-block" data-action="invAddRead">Read it</button></div>' +
-    // 2–4. The clipboard (read only on a tap), a photo and a file. The pickers sit first and unseen, so the last row is
-    // the panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
+    // 2–3. The clipboard (read only on a tap) and a file. The picker sits first and unseen, so the last row is the
+    // panel's last child and draws no rule under it; picking a file is not typing (data-nodirty).
     '<div class="inv-panel inv-panel-flush">' +
-    '<input type="file" id="addPhotoInput" class="inv-hidden" accept="image/*" multiple data-nodirty tabindex="-1" aria-hidden="true">' +
     '<input type="file" id="addFileInput" class="inv-hidden" accept=".xls,.xlsx,.json,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/json" data-nodirty tabindex="-1" aria-hidden="true">' +
     row('clipboard', 'invAddClip', ADD_ICON.clipboard, 'Check the clipboard', 'What you copied, read only when you tap here') +
     '<div class="inv-panel-body inv-hidden" id="addClipOut" aria-live="polite"></div>' +
-    row('photo', 'invAddPhoto', ADD_ICON.photo, 'Photo', 'A challan or a register page: read by Gemini, checked by you') +
     row('file', 'invAddFile', ADD_ICON.file, 'File', 'A bank statement (.xls or .xlsx), a backup, or an export of stock, production, power, payroll or the roster') +
     '</div>' +
     // 5. By hand: every form, opened on the job.
@@ -121,7 +118,7 @@ function addOpen() {
     '<div class="inv-note">Whatever comes in is read, shown to you beside what was read, and saved only when you say so.</div></div>';
   var scrim = dialogOpen(h, { dismiss: true });
   // On a keyboard the box is where a message is pasted (Ctrl+V, then Ctrl+Enter); a touch screen keeps its keyboard down
-  // until the box is tapped, since the sheet is as often opened for a photo or a form.
+  // until the box is tapped, since the sheet is as often opened for a file or a form.
   if (!touchScreen()) { var ta = scrim && scrim.querySelector('#addPasteText'); if (ta) ta.focus(); }
 }
 
@@ -279,30 +276,7 @@ function addDescProd(g) {
   return { kind: g.kind, title: ADD_PROD_TITLE[g.kind], meta: addWhen(g.dates) + (g.n > 1 ? ' · ' + g.n + ' messages' : '') + (bits.length ? ' · ' + bits.join(', ') : '') };
 }
 
-/* ---------- 3. A photo ---------- */
-function addPhotoPick() {
-  // The key is checked before the picker opens: an awaited step before click() loses the picker on iOS (prodPhotoPick).
-  if (!getApiKey()) { addNoKey(); return; }
-  var inp = document.getElementById('addPhotoInput');
-  if (!inp) return;
-  inp.value = '';
-  inp.click();
-}
-function addNoKey() {
-  uiConfirm({ title: 'Gemini key needed', okLabel: 'Open Settings',
-    body: 'Reading a photo uses the Gemini key in Settings → Connections (free from aistudio.google.com). A challan or the day’s production can be entered by hand without one.' })
-    .then(function(ok) { if (ok) addGo(function() { openSettings('geminiKey'); }, { stay: true }); });
-}
-/* Production's photo flow, with the files picked: it reads a register page or the power log, and a customer's challan
-   it refuses and offers to the challan scanner (invProdToScanner). */
-function addPhotoFiles(files) {
-  var list = Array.prototype.slice.call(files || []);
-  if (!list.length) return;
-  if (!getApiKey()) { addNoKey(); return; }
-  addGo(function() { switchTab('pageProduction'); prodPhotoFiles(list); });
-}
-
-/* ---------- 4. A file ---------- */
+/* ---------- 3. A file ---------- */
 function addFilePick() {
   var inp = document.getElementById('addFileInput');
   if (!inp) return;
@@ -395,7 +369,10 @@ async function addFileGuardOk(key) {
 }
 async function addFileRoute(file, buf) {
   var name = file.name || '', k = addFileKind(buf);
-  if (k.kind === 'image') { addPhotoFiles([file]); return; }
+  if (k.kind === 'image') {
+    uiAlert({ title: 'A photo is not read', body: 'Photos are not read in the app. Enter the page by hand: Add → By hand.' });
+    return;
+  }
   if (k.kind === 'xls') {
     if (!(await addFileGuardOk('xls'))) return;
     addGo(function() { finSetTab('bank'); switchTab('pageFinance'); bankImportBuf(buf, name); });
@@ -472,7 +449,7 @@ function addFileWords(k) {
   }
   return {
     zip: 'a zip file with no Excel workbook in it; a bank statement is read from the .xls the bank exports, or the .xlsx it is saved as',
-    pdf: 'a PDF; a photo of the page can be read with Photo',
+    pdf: 'a PDF, which the app does not read; the page is entered by hand',
     html: 'a web page (HTML), not the bank’s Excel 97–2003 statement',
     badjson: 'JSON that could not be read (' + (k.error || 'not valid') + ')',
     text: 'a text file; a WhatsApp message is pasted in the box at the top',
@@ -536,7 +513,6 @@ function addAction(action, btn) {
       addGo(function() { addPaste(text); });
       return true;
     }
-    case 'invAddPhoto': addPhotoPick(); return true;
     case 'invAddFile': addFilePick(); return true;
     case 'invAddHand': addHand(btn.dataset.go); return true;
   }
@@ -544,8 +520,7 @@ function addAction(action, btn) {
 }
 document.addEventListener('change', function(e) {
   var t = e.target;
-  if (t && t.id === 'addPhotoInput') addPhotoFiles(t.files);
-  else if (t && t.id === 'addFileInput') addFileGot(t.files && t.files[0]);
+  if (t && t.id === 'addFileInput') addFileGot(t.files && t.files[0]);
 });
 /* The key A opens Add on the desktop, never from a field and never over a layer (Backspace's guard, nav.js); Ctrl+Enter
    in the sheet's box reads it. */

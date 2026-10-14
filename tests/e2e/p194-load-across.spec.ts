@@ -320,10 +320,10 @@ test.describe('P194: TM6c–TM6f', () => {
     await page.locator('[data-action="invIMTab"][data-tab="invoiced"]').click();
     await expect(page.locator('#imVerdict [data-im-invoiced] .inv-hero-title')).toHaveText(/^\d+ challans? invoiced in [A-Z][a-z]{2} \d{4} · ₹/);
     await expect(page.locator('#imVerdict [data-im-invoiced]')).toContainText('by challan date');
-    // One toolbar: the month ‹ › inside its row, Filter and More, which holds Add challan and Scan on this view.
+    // One toolbar: the month ‹ › inside its row, Filter and More, which holds Add challan on this view (the Scan came out).
     await expect(page.locator('#pageIM .inv-toolbar')).toHaveCount(1);
     await expect(page.locator('#pageIM [data-im-toolbar] [data-im-month]')).toBeVisible();
-    expect(await toolbarMoreLabels(page)).toEqual(['Add challan', 'Scan a challan', 'Duplicate check']);
+    expect(await toolbarMoreLabels(page)).toEqual(['Add challan', 'Duplicate check']);
   });
 
   test('a row says two facts: the day board, the insights, a power cut’s why', async ({ page }) => {

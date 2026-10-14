@@ -20,11 +20,12 @@ var KB_APP_GUIDES = [
     '- Below them, the widgets. **Edit Home** (under More) chooses which show and where.', { version: 3 }),
   _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how their figures are worked out', ['pageStats', 'pageHome'],
     'Stats has three tabs over one period (the same period as Pulse). Each starts with a card that says how it stands; tap it on a phone for its figures.\n\n' +
-    '# By client\n- Contribution by client, worst first: what a kilo leaves after its **variable** cost (everything but the monthly crew) and after the **full** cost.\n' +
+    '# By client\n- Contribution by client, worst first: what a kilo leaves after its **variable** cost (everything but labour) and after the **full** cost.\n' +
+    '- **Labour is fixed**: the owner ruled on 13 Oct 2026 that the contract crew does not grow or shrink with the work, and the monthly crew never did. So a kilo more or less moves the zinc, chemicals, power and the rest, not the wages.\n' +
     '- Cost is spread per kilo: a thin clamp and a heavy bracket cost the same per kilo here. That is the one assumption the table cannot check.\n' +
-    '- The worst large account is settled both ways: if labour is fixed and if it scales with the work.\n' +
+    '- The worst large account is settled on that: what a kilo of it contributes toward labour, what it lacks of the full cost, and the price at which it pays its share.\n' +
     '- **Realisation by client** ranks only clients with weights on 90% of their revenue. A client billed on parts with no weight cannot be priced per kilo: those are the accounts most likely to be underpriced. **Clients → Parts → Derive weights from rates** fills them in.\n' +
-    '- Whether a client below the full cost is worth exiting turns on how much of the cost is variable: the contribution table says it at both costs.\n' +
+    '- A client between the variable and the full cost still contributes: losing it would leave the wages to be paid from the rest. A client below the variable cost loses money on every kilo.\n' +
     '- **Concentration**: a client with no weights barely enters the measured tonnage, so its share of the plant is unknown, not small.\n' +
     '- A move to quote a client by the piece needs a **weight per piece** for each part: on the client’s card, in **Part weights**, or on **Parts**.\n' +
     '- **Next challan expected** is each client’s median gap between challans, counted from its last one. Late is past that gap; quiet is past both 1.75 times the gap and three weeks beyond it.\n\n' +
@@ -37,12 +38,16 @@ var KB_APP_GUIDES = [
     '# Trends\n- The period’s revenue, tonnage, realisation and margin, against the same days before; then six months, each at its own live cost; the trend; the top items.\n' +
     '- In the six months, labour shows only where 90% of the month is recorded, or the bank statement covers what paid it; a month with less is withheld rather than read low. **Measured** is the share of that month’s cost from the app’s own records.\n' +
     '- Realisation divides revenue by the tonnage of the same lines. Lines with no weight are left out of both, and they are the piece-billed, low-priced end, so a partial figure reads **high**.\n\n' +
-    '# Why it moved (on Pulse)\n- Realisation’s change is split into each client’s own rate and the mix (a client’s share of the kilos, at its rate against the average before). Contribution’s change is split into the price, each cost line and the kilos. The causes add up to the change exactly.'),
+    '# Why it moved (on Pulse)\n- Realisation’s change is split into each client’s own rate and the mix (a client’s share of the kilos, at its rate against the average before). Contribution’s change is split into the price, each cost line and the kilos. The causes add up to the change exactly.',
+    // Version 2: labour is fixed (owner, 13 Oct 2026), so the worst account is settled one way.
+    { version: 2 }),
   _kbg('add', 'Using the app: the Add button', 'One door for everything that comes in', ['pageHome', 'pageStaff', 'pageStock', 'pageProduction'],
     'Everything that comes into the app goes through **Add** (the filled button in the middle of the phone bar, at the top of the rail on a computer, or the key A).\n\n' +
     '- **Paste**: a WhatsApp message (an attendance roll, the stock message, pickling loads, a production list). The app reads it and shows every line beside what it read, before anything is saved.\n' +
-    '- **Photo**: a register page or a challan.\n- **File**: a backup, a bank statement, an import from soma-internal.\n- **By hand**: every form, when there is nothing to paste.\n\n' +
-    'Nothing is saved until you press Save on the check that follows.'),
+    '- **File**: a backup, a bank statement, an import from soma-internal.\n- **By hand**: every form, when there is nothing to paste.\n\n' +
+    'Nothing is saved until you press Save on the check that follows.',
+    // Version 2: the photo came out (owner, 13 Oct 2026: the challan scan and the register photo, read by Gemini, never worked).
+    { version: 2 }),
   _kbg('challan', 'Using the app: entering a challan', 'Material in, line by line, checked as you type', ['pageIM'],
     '1. Office → Challans → **Add challan**.\n2. Pick the client and type the challan number. If that number is already recorded for the client, the app says so under the field, with **Open it**.\n' +
     '3. Add each line: choose the part and the rate and weight fill from the client’s record. Change them if the paper says otherwise.\n' +
@@ -64,9 +69,11 @@ var KB_APP_GUIDES = [
     '- Delivered waits on the GST return, due on the 11th of the next month.\n- Office → Pipeline shows every invoice by state, with the oldest first.'),
   _kbg('credit', 'Using the app: credit notes', 'A batch rebate, a correction, or a note issued on paper', ['pageRegister'],
     '- **A batch rebate**: tick the invoices of the batch in the Register, then raise the credit note from the selection.\n' +
-    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
-    '- **A note already issued on paper**: Office → Invoices → **Credit notes** → **Record issued**, with its own number and the GST as printed.\n\n' +
-    'A credit note is cancelled, never deleted.', { version: 2 }),
+    '- **A correction** (rate, goods returned, short quantity): Office → Invoices → More → **Credit notes** → **New note**, against one invoice, with a reason.\n' +
+    '- **A note already issued on paper**: Office → Invoices → More → **Credit notes** → **Record issued**, with its own number and year, its date, the GST as printed, and the invoice it names, picked or typed as printed when it is not in the register. A rebate takes its discount and the period it covered. The form stays open for the next.\n\n' +
+    'A credit note is cancelled, never deleted.',
+    // Version 3: the door is under More, and a past note's own year and period (owner, 13 Oct 2026: past notes to be recorded).
+    { version: 3 }),
   _kbg('clients', 'Using the app: clients and sales', 'Clients, their parts, how each is doing, and the work being won', ['pageClients'],
     'Office → Clients has three views (Clients, Parts, Performance) and Office → Sales two (Prospects, Quotations). Each starts with a card that says how it stands.\n\n' +
     '# Clients\n- A dot and a word beside a client name the worst thing raised about it: **past terms** (owed past its payment terms), **gone quiet**, **below cost**, **to bill** (challans waiting), **note due** (a rebate note due) and the rest. Open the client for every task about it.\n' +
@@ -112,14 +119,14 @@ var KB_APP_GUIDES = [
     '# Month\n- The supervisor’s register, a page a month, set against the day as the app holds it. The card counts the cells that differ, those only on the register and those that agree.\n' +
     '- A cell is drawn as written. Red: the mark differs from the day. Amber: only the overtime differs, by an hour or more. Plain: it agrees, or it is only on the register. A dashed edge is a cell the reading was unsure of.\n' +
     '- Tap a cell to see both and settle it, one way or the other: **Day takes the register’s** or **Register takes the day’s**. **Fill** puts every cell only on the register onto its day, asked first.\n' +
-    '- **Read page photo** reads a photo of the page, every cell shown before it counts; **Import** takes a register file; **Start this month** gives a column to each monthly hand to fill by hand.\n\n' +
+    '- **Import** takes a register file; **Start this month** gives a column to each monthly hand to fill by hand.\n\n' +
     '# Labour on Day and Week\n- Every tier is paid for the days and hours recorded, so a range with days nobody typed reads **low**, never neutral. The monthly tier reads low twice: a day nobody typed also lowers the attendance its rest-day gate is judged on.\n' +
     '- The rest-day gate is a monthly rule: over a range shorter than a month it judges each rest day on that range alone. The daily tier’s rest credit counts the days inside the range, so a range cutting a week in half under-credits that week.\n' +
     '- **Variable labour by area** places the hourly pool, the daily tier, overtime and the extra by the area each was worked in. The monthly crew’s day pay and rest days are not in it: that crew is the standing one, and its cost does not follow where it stood. Its overtime is, since an overtime hour was worked somewhere.\n' +
     '- **The extra** is hours booked to an area rather than to a person: real paid hours with no name against them. In the bill they are one pooled line, counted once and never in anyone’s wage; the short area’s present crew receive it pro-rata, paid out by the supervisor, and People → Areas shows the split.',
     // Version 2: Attendance's three views on a switch, and each screen's method moved here (the tab map, TM4b). Version 3: the labour
-    // card's three paragraphs, each a line on the card now (TM6e).
-    { version: 3 }),
+    // card's three paragraphs, each a line on the card now (TM6e). Version 4: the page photo came out (owner, 13 Oct 2026).
+    { version: 4 }),
   // The method the Areas screen printed above its figures, in five paragraphs (the tab map, TM4b): the screen now says the verdict.
   _kbg('areas', 'People: the areas and the extra', 'Staffing by area, and how the extra hours are checked', ['pageStaff'],
     'Floor → People → **Areas** reads the attendance by place: is each area staffed right, and does the extra hold up. The card at the top says whether the extra checks out, or how many bookings are left to explain.\n\n' +
@@ -185,7 +192,7 @@ var KB_APP_GUIDES = [
   _kbg('production', 'Using the app: production', 'Pickling loads, the register, and what each line plated', ['pageProduction', 'pageFloor'],
     'Floor → Production has four views: **Lines**, **In plant**, **Entries** and **Equipment**. Each starts with a card that says how it stands; tap it on a phone for its figures. The day across the plant is Floor → Overview.\n\n' +
     '# Taking it in\n- **Paste** the pickling loads and the production list from WhatsApp; every line is shown with what was read before anything is saved.\n' +
-    '- **Read register photo**: a photo of the VAT register page is read and every row shown for checking. A struck row asks each time.\n' +
+    '- **The VAT register’s page** is typed as written by the register clerk on **Mine**, or entered here by hand; the app reads it the same way: the START rule, a struck row asked each time, the day’s total.\n' +
     '- **Enter by hand** (under More) when there is nothing to paste. The form stays open for the next entry.\n- A figure is corrected by a new entry, never edited; a wrong one is voided with a reason.\n' +
     '- **Print sheets** (under More): the pickling sheet, the barrel batches and the two VAT register pages for a day, blank to fill by hand or as entered, to file.\n\n' +
     '# Lines\n- The card is the line on the day shown: its efficiency (what it plated against what its working units could plate in the hours it ran) and what it plated, the pieces, what it earned (the rounds, to a role that does not see money) and the power cuts. **Reading the plant’s figures** has how the efficiency splits.\n' +
@@ -204,8 +211,8 @@ var KB_APP_GUIDES = [
     '- **Filter** (on a phone) lists one kind, or the entries a flag names, every date.\n\n' +
     '# Equipment\n- Every tank, barrel and machine, a card each in its status’s colour: running, standby, under repair, down, with its kg a round and how long it has stood. A line’s capacity is worked out from its units; every change of status is kept with its day.',
     // Version 4: Print sheets (the entry faces' F5, 10 Oct 2026). Version 3: what a line earned, and the day and the week against
-    // the line's usual (owner, 10 Oct 2026).
-    { version: 4 }),
+    // the line's usual (owner, 10 Oct 2026). Version 5: the register photo came out (owner, 13 Oct 2026).
+    { version: 5 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],

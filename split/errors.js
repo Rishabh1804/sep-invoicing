@@ -7,7 +7,7 @@
    dates, quoted text, e-mails, GSTINs, names written in capitals), where in the code it happened (function names and
    line numbers in the built page), the build stamp, the screen, the layout, the browser, and whether the device was
    online or the app installed. What never goes: a record, a figure, the address's query, a user, or the breadcrumbs a
-   Sentry SDK collects (their request URLs carry the Gemini and metals.dev keys). So there is no SDK: one POST to Sentry's
+   Sentry SDK collects (their request URLs carry the metals.dev key). So there is no SDK: one POST to Sentry's
    envelope endpoint, from the live site only (never a test or a local copy), at most ten a session, each kind once,
    held while offline (twenty at most) and sent when the device is back online. Off per device in Settings → Data &
    device → Backup, storage & build. Nothing is sent until ERR_DSN names the project. */

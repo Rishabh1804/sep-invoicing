@@ -34,21 +34,21 @@ test.describe('P160 learning from responses', () => {
   test('a check snoozed again and again, never acted on, is offered a higher threshold, applied with a tap and put back', async ({ page }) => {
     await loadAppWithState(page, book({ todo: { tasks: [], snoozes: {}, resp: resp('challan', 'snooze', 3) } }));
     const sug: any = await g(page, `learnSuggestions()`);
-    expect(sug.map((x: any) => [x.kind, x.rule, x.from, x.to])).toEqual([['raise', 'challan', 5, 10]]);
-    expect(sug[0].title).toBe('Raise a challan is waiting to be billed to 10 days');
+    expect(sug.map((x: any) => [x.kind, x.rule, x.from, x.to])).toEqual([['raise', 'challan', 3, 6]]);
+    expect(sug[0].title).toBe('Raise a challan is waiting to be billed to 6 days');
     // Learnt from your answers is on Needs you, at the foot of the tasks (the tab map, TM2a).
     await switchTab(page, 'pageHome');
     const row = page.locator('#homeNeeds [data-learn="raise:challan"]');
-    await expect(row).toContainText('3 snoozes in 90 days, none acted on. Now 5 days.');
+    await expect(row).toContainText('3 snoozes in 90 days, none acted on. Now 3 days.');
     await row.locator('[data-action="invLearnApply"]').click();
-    expect(await g(page, `todoCfg().challanDays`)).toBe(10);
+    expect(await g(page, `todoCfg().challanDays`)).toBe(6);
     await expect(page.locator('[data-learn="raise:challan"]')).toHaveCount(0);
     const applied = page.locator('[data-learn-applied="0"]');
-    await expect(applied).toContainText('Raised from 5 to 10');
+    await expect(applied).toContainText('Raised from 3 to 6');
     await applied.locator('[data-action="invLearnUndo"]').click();
-    expect(await g(page, `todoCfg().challanDays`)).toBe(5);
+    expect(await g(page, `todoCfg().challanDays`)).toBe(3);
     const st: any = await readStoredState(page);
-    expect(st.todo.learn.applied[0]).toMatchObject({ kind: 'raise', rule: 'challan', from: 5, to: 10 });
+    expect(st.todo.learn.applied[0]).toMatchObject({ kind: 'raise', rule: 'challan', from: 3, to: 6 });
     expect(st.todo.learn.applied[0].undoneAt).toBeGreaterThan(0);
   });
 

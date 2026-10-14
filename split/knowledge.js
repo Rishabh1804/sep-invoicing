@@ -641,7 +641,7 @@ function kbTroubleHtml() {
   var verdict = uiVerdictHtml({ screen: 'Troubleshoot' + (_kbFilter.q ? ' · searched' : ''), tone: recent.length ? 'warning' : 'ok',
     verdict: todoPlural(faults.length, 'fault') + ' written · ' + (recent.length ? todoPlural(recent.length, 'incident') + ' in 30 days' : 'no incident in 30 days'),
     facts: [inc.length ? 'the last on ' + formatDate(kbDayOf(inc[0])) : 'no incident logged yet', inc.length > recent.length ? todoPlural(inc.length, 'incident') + ' in all' : ''],
-    key: 'pageKnow-troubleshoot', attrs: ' data-kb-verdict="troubleshoot"' });
+    key: 'pageKnow-troubleshoot', foldFacts: true, attrs: ' data-kb-verdict="troubleshoot"' });
   return { verdict: verdict, search: 'What do you see? Dull, peeling, white rust…', kinds: null, body: h };
 }
 /* Records: rulings, incidents and decisions by the day they are about. */
@@ -688,11 +688,12 @@ function kbTrainVerdictHtml(paths, roster, sees) {
   if (sees) order.forEach(function(id) { var l = lessons[id], st = kbLessonStatus(l.a, Object.keys(l.who).map(function(k) { return l.who[k]; })); if (st) n[st.key]++; });
   var facts = [todoPlural(paths.length, 'path'), todoPlural(order.length, 'lesson')];
   if (!sees || !roster.length) return uiVerdictHtml({ screen: 'Training', tone: 'neutral', verdict: order.length ? todoPlural(order.length, 'lesson') + ' on ' + todoPlural(paths.length, 'path') : 'No lesson on a path yet',
-    facts: [sees ? 'nobody on the roster yet' : 'who was trained is People’s'], key: 'pageKnow-training' });
+    facts: [sees ? 'nobody on the roster yet' : 'who was trained is People’s'], key: 'pageKnow-training', foldFacts: true });
   var said = [n.due ? n.due + ' due again' : '', n.never ? n.never + ' never taught' : '', n.ok ? n.ok + ' up to date' : ''].filter(Boolean);
   return uiVerdictHtml({ screen: 'Training', tone: n.due ? 'warning' : n.never ? 'info' : order.length ? 'ok' : 'neutral',
     verdict: said.length ? said.join(' · ') : order.length ? todoPlural(n.part, 'lesson') + ' taught to some' : 'No lesson on a path yet',
-    facts: n.part ? facts.concat([n.part + ' taught to some']) : facts, key: 'pageKnow-training', attrs: ' data-kb-train-due="' + n.due + '" data-kb-train-never="' + n.never + '"' });
+    facts: n.part ? facts.concat([n.part + ' taught to some']) : facts, key: 'pageKnow-training', foldFacts: true,
+    attrs: ' data-kb-train-due="' + n.due + '" data-kb-train-never="' + n.never + '"' });
 }
 /* Training: each path, and the roster against it. The roster's names (and who was trained on what) only for a role that
    opens People or Floor: Knowledge is every role's page, the roster is not. */

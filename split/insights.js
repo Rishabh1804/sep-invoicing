@@ -278,7 +278,7 @@ TODO_RULE_FNS.insBelowVar = function() {
   var last = insMonthsBack(1)[0], from = last + '-01', to = payMonthEnd(from);
   var inv = insActive().filter(function(i) { return i.date >= from && i.date <= to; });
   var m = statsClientMargins(null, inv, weighLines(inv), { from: from, to: to });
-  // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
+  // The variable cost is everything but labour, which is fixed (owner, 13 Oct 2026): known wherever the cost is.
   if (!m || m.varKg == null) return [];
   // The variable cost of one month moves with what its record caught (a lump of zinc after a delivery, a fill at the model).
   // So the finding is firm only where it holds against the LOWEST variable cost of the six months to it, and the loss is

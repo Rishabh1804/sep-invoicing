@@ -362,13 +362,6 @@ function onDocClick(e) {
     case 'invHistoryExport': exportHistoryCSV(); break;
     case 'invHistoryRange': historyRangeOpen(); break;
     case 'invHistoryFilterClear': historyFilterClear(btn.dataset.clear); break;
-    // Phase 4: Challan Scanner
-    case 'invScanChallan': scanChallan(); break;
-    case 'invToggleApiKey': {
-      var akEl = document.getElementById('setApiKey');
-      if (akEl) akEl.type = akEl.type === 'password' ? 'text' : 'password';
-      break;
-    }
     case 'invToggleMetalsKey': {
       var mkEl = document.getElementById('setMetalsKey');
       if (mkEl) mkEl.type = mkEl.type === 'password' ? 'text' : 'password';

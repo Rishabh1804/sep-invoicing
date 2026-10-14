@@ -382,15 +382,14 @@ test.describe("P111: the To-do's own list", () => {
   });
 });
 
-test("the register photo's check has an address of its own, so Back returns to Production", async ({ page }) => {
+test("an address of the register photo's check (the photo reading came out) opens the view under it", async ({ page }) => {
   await loadAppWithState(page, emptyState());
   await switchTab(page, 'pageProduction');
-  const loc: any = await g(page, `(function() { var was = _prodView; _prodView = 'photo'; var l = navLoc(); _prodView = was; return l; })()`);
-  expect(loc.v).toMatch(/\/photo$/);
-  expect(await g(page, `navLabel(${JSON.stringify(loc)}).sub || navLabel(${JSON.stringify(loc)})`)).toBeTruthy();
-  // With no photo in hand (a reload), the address opens the page rather than an empty check.
-  await g(page, `navApply(${JSON.stringify(loc)})`);
+  // The check had an address of its own, so Back returned to Production; a trail or a link may still hold one.
+  await g(page, `navApply({ tab: 'pageProduction', v: 'lines/photo', id: '' })`);
   expect(await g(page, '_prodView')).toBe('main');
+  expect(await g(page, '_prodTab')).toBe('lines');
+  expect((await g(page, 'navLoc()') as any).v).toBe('lines');
 });
 
 test('a bill entered today does not silence "paste the stock message"', async ({ page }) => {

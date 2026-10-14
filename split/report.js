@@ -358,7 +358,7 @@ function rptClientsHtml(p, end, invs, w) {
           return [escHtml(x.name), formatNum(x.net, 2), sg(x.vsVar), sg(x.vsFull), x.money != null ? figHtml(escHtml(finRs(x.money)), x.money >= 0 ? 'ok' : 'danger') : ''];
         }), null, 'margin') +
         rptP(escHtml('At the live cost of ' + formatCurrency(m.fullKg) + '/kg (' + statsPctOf(m.c.measuredShare) + '% measured), spread per kg' +
-          (m.varKg != null ? '; variable ' + formatCurrency(m.varKg) + '/kg' : '; fixed and variable not known for the period') + '.'));
+          '; variable ' + formatCurrency(m.varKg) + '/kg, everything but labour, which is fixed.'));
     }
   }
   return rptSec('clients', 'Clients', escHtml(roll.length + ' client' + (roll.length === 1 ? '' : 's') + ' invoiced, ' + formatCurrency(total) + ' taxable, net of credit notes.'), body);

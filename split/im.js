@@ -338,15 +338,15 @@ function renderIMToolbar() {
     opt('', 'All statuses') + opt('pending', 'Pending') + opt('partial', 'Part invoiced') + '</select>');
   var client = _imFilter.clientId ? S.clients.find(function(c) { return String(c.id) === String(_imFilter.clientId); }) : null;
   // Invoiced (the tab map, TM6f) is a month read back: its row is the month ‹ › (inside the row, as People's period), Filter and
-  // More, which holds Add challan and Scan there; the month's stepper had been a second toolbar under the row.
+  // More, which holds Add challan there; the month's stepper had been a second toolbar under the row. The challan Scan is gone
+  // (owner, 13 Oct 2026: *"it simply never works"*).
   var dupe = { label: 'Duplicate check', action: 'invRunDupeScan', attrs: ' id="imDupeCheck"', badge: dupeCount ? { n: dupeCount, tone: 'warning' } : null };
   var inv = _imTab === 'invoiced';
   area.innerHTML = imViewTabsHtml() + '<div id="imVerdict">' + imVerdictHtml() + '</div>' + '<div class="inv-toolbar" data-im-toolbar>' +
     (inv ? imMonthPagerHtml() : '') +
     uiFilterHtml({ key: 'im', count: (_imFilter.clientId ? 1 : 0) + (!inv && _imFilter.status ? 1 : 0), controls: filters }) +
-    (inv ? uiToolbarMoreHtml([{ label: 'Add challan', action: 'invShowAddChallan' }, { label: 'Scan a challan', action: 'invScanChallan' }, dupe], { icon: !_isDesktop })
+    (inv ? uiToolbarMoreHtml([{ label: 'Add challan', action: 'invShowAddChallan' }, dupe], { icon: !_isDesktop })
       : '<button class="inv-btn inv-btn-primary" data-action="invShowAddChallan">Add challan</button>' +
-        '<button class="inv-btn inv-btn-secondary" data-action="invScanChallan">' + ICON_CAMERA + 'Scan</button>' +
         uiToolbarMoreHtml([dupe], { icon: !_isDesktop })) +
     '</div>' + uiTokensHtml([{ key: 'Client', value: client ? client.name : '', action: 'invIMFilterClear', attrs: ' data-clear="client"' },
       { key: 'Status', value: !inv && _imFilter.status ? (IM_STATUS_UI[_imFilter.status] || {}).word : '', action: 'invIMFilterClear', attrs: ' data-clear="status"' }]);
@@ -362,10 +362,10 @@ function imFilterClear(which) {
 }
 
 /* How long a challan has waited on its invoice, judged (the tab map, TM5b): amber from the To-do's challan days (Settings →
-   Checks & alerts → To-do, 5), red from twice that. The challan's dot, Pipeline's first stage and the To-do's challan task read it,
+   Checks & alerts → To-do, 3 since the owner's ruling of 13 Oct 2026), red from twice that. The challan's dot, Pipeline's first stage and the To-do's challan task read it,
    so the three agree at any age. */
 function imWaitTone(days) {
-  var d = (typeof todoCfg === 'function' && todoCfg().challanDays) || 5;
+  var d = (typeof todoCfg === 'function' && todoCfg().challanDays) || 3;
   return days == null ? 'neutral' : days >= d * 2 ? 'danger' : days >= d ? 'warning' : 'neutral';
 }
 function imWaitDays(im) { return im && im.challanDate ? Math.max(0, isoDaysBetween(im.challanDate, localDateStr())) : null; }
@@ -383,13 +383,13 @@ function imInvoicedVerdictHtml() {
   return uiVerdictHtml({ screen: 'Invoiced' + (fil ? ' · filtered' : ''), tone: waiting.length && wt !== 'neutral' ? wt : 'ok',
     verdict: todoPlural(list.length, 'challan') + ' invoiced in ' + imMonthLabel(cur) + ' · ' + finRs(sum),
     facts: [waiting.length ? { text: todoPlural(waiting.length, 'challan') + ' of the month still awaiting invoice', tone: wt === 'neutral' ? '' : wt } : 'none of the month\'s waiting', 'by challan date'],
-    key: 'pageIM-invoiced', attrs: ' data-im-invoiced="' + list.length + '"' });
+    key: 'pageIM-invoiced', foldFacts: true, attrs: ' data-im-invoiced="' + list.length + '"' });
 }
 function imVerdictHtml() {
   if (_imTab === 'invoiced') return imInvoicedVerdictHtml();
   var list = getFilteredIM(), open = gstRound(list.reduce(function(t, im) { return t + imChallanOpenTotal(im); }, 0));
   var ages = list.map(imWaitDays).filter(function(a) { return a != null; }), oldest = ages.length ? Math.max.apply(null, ages) : null;
-  var d = todoCfg().challanDays || 5, late = ages.filter(function(a) { return a >= d; }).length, part = list.filter(imPartInvoiced).length;
+  var d = todoCfg().challanDays || 3, late = ages.filter(function(a) { return a >= d; }).length, part = list.filter(imPartInvoiced).length;
   var filtered = !!(_imFilter.clientId || _imFilter.status);
   if (!list.length) return uiVerdictHtml({ screen: 'Awaiting invoice', tone: 'ok', verdict: filtered ? 'Nothing awaiting invoice for this filter' : 'Nothing awaiting invoice', key: 'pageIM-awaiting' });
   return uiVerdictHtml({ screen: 'Awaiting invoice' + (filtered ? ' · filtered' : ''), tone: imWaitTone(oldest),

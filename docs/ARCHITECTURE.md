@@ -45,12 +45,10 @@ split/
 ├── prodparse.js          ← Production messages read (pure): pickling loads, the barrel list, a roll's block, the register
 ├── stats.js              ← Stats (tonnage, realisation, margin) + History audit log
 ├── production.js         ← Production store, derived index (which figure counts, usual line, matches, racks), in plant, rules
-├── prodview.js           ← Production page: Overview, In plant, Lines, Entries; paste, photo and hand sub-views
+├── prodview.js           ← Production page: Overview, In plant, Lines, Entries; paste and hand sub-views
 ├── client-perf.js        ← Client performance: month on month + material cadence
 ├── im-form.js            ← IM challan form + focus survival across re-renders
 ├── im-dupe.js            ← IM duplicate guard: fingerprint, pre-save warning, scan
-├── vision.js             ← One Gemini photo read (the scanner's request unchanged; a schema for the register)
-├── scanner.js            ← Challan scanner (Gemini AI vision)
 ├── events.js             ← Event delegation + change/input/keydown handlers
 ├── swipe.js              ← Swipe navigation between tabs
 ├── seed.js               ← Seed IM data (50 challans, one-time)
@@ -65,7 +63,7 @@ The order in `build.sh` matters. Dependencies flow downward:
 3. `tabs.js` — depends on state utilities
 4. `clients.js` — depends on state + tabs
 5. `items.js` — depends on state + clients (renderClientList)
-6. `create.js` through `scanner.js` — depend on state + utilities
+6. `create.js` through `im-dupe.js` — depend on state + utilities
 7. `events.js` — depends on all function definitions above
 8. `swipe.js` — depends on switchTab
 9. `seed.js` + `init.js` — run at load time, depend on everything

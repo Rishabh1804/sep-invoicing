@@ -42,6 +42,8 @@ test('Power → Enter a cut takes several cuts in a row and comes back to Power'
     await page.locator('[data-action="invProdSaveHand"]').click();
     await expect(page.locator('#prodHandTime')).toHaveValue('');
   }
+  // The form clears as the save starts; the stored book is read once the third has landed.
+  await expect.poll(async () => ((await readStoredState(page)).production.entries || []).length).toBe(3);
   const cuts = (await readStoredState(page)).production.entries;
   expect(cuts.map((e: any) => [e.kind, e.time, e.to || null])).toEqual([['downtime', '10:05', '10:40'], ['downtime', '13:12', '13:30'], ['downtime', '15:00', null]]);
   await page.locator('.inv-pagehead [data-action="invProdHandDone"]').click();

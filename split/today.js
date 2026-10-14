@@ -2,7 +2,7 @@
    Owner, 1 Oct 2026 (docs/DIRECTION_B.md): Home becomes Today, two views of pageHome.
    - Needs you, the inbox:
      - the day's inputs, each saying whether it is in and, if not, when it usually arrives, with the one tap that brings it
-       (Add's paste box, the register photo);
+       (Add's paste box, the hand form for the register's page);
      - on the desktop, the floor now;
      - the last five invoices, each with its print button;
      - every open task, grouped Now / This week / Later, each with its one-tap move.
@@ -37,13 +37,13 @@ function tdyInputsSeen() { return TDY_INPUTS.filter(function(def) { return tdySe
 /* ---------- The day's inputs ----------
    The five things the floor sends in a day, in the order they arrive. `usual` is the shop's own time, used until four
    weeks of record say otherwise (minutes after midnight): the roll by 9:30, the first pickling load and the stock message
-   by 10, the production records by the evening (the register clerk's photos are mostly sent 4 to 6 PM), the out-time roll
+   by 10, the production records by the evening (the register clerk's pages were mostly sent 4 to 6 PM), the out-time roll
    once the crews go home. `from` is when one is first looked for: the out-time roll is not late at noon. */
 var TDY_INPUTS = [
   { k: 'roll-in', title: 'In-time roll', usual: 570, from: 0, move: 'paste' },
   { k: 'pickling', title: 'Pickling loads', usual: 600, from: 0, move: 'paste' },
   { k: 'stock', title: 'Stock message', usual: 600, from: 0, move: 'paste' },
-  { k: 'production', title: 'Production records', usual: 1080, from: 0, move: 'photo' },
+  { k: 'production', title: 'Production records', usual: 1080, from: 0, move: 'hand' },
   { k: 'roll-out', title: 'Out-time roll', usual: 1170, from: 1020, move: 'paste' }
 ];
 
@@ -90,7 +90,8 @@ function tdyUsual(k, day) {
     } else if (k === 'stock') {
       tdyStockMsgs(d).forEach(function(p) { var a = tdyArrival(p.text, null, d); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'production') {
-      // The day's records are in when the last line's is: the latest photo read that day (a photo has no header).
+      // The day's records are in when the last line's is: the latest page read that day (a photo of one, before the photo
+      // reading came out on 13 Oct 2026, has no header).
       ((S.production && S.production.photos) || []).forEach(function(p) { if (p && p.readDate === d && p.at && isoOf(new Date(p.at)) === d) { var a = tdyMinOfDay(p.at); if (m == null || a > m) m = a; } });
     }
     if (m != null) mins.push(m);
@@ -140,7 +141,7 @@ function tdyInput(def, day) {
     if (!miss.length) { o.state = 'in'; o.text = 'All three lines in'; }
     // One fact (the tab map, TM6e): which are in and which not, before when the rest are looked for.
     else if (have.length) { o.state = 'part'; o.text = have.join(', ') + ' in; ' + miss.join(', ') + ' not yet'; }
-    // Only the barrel list missing: it comes as a message, not a photo.
+    // Only the barrel list missing: it comes as a message, not a page.
     if (miss.length === 1 && miss[0] === PROD_LINE_LABEL.barrel) o.move = 'paste';
   }
   if (o.state === 'in') {
@@ -189,8 +190,8 @@ function tdyInputsHtml(day, o) {
   var steps = rows.map(function(r, i) {
     var btn = '';
     if (r.state !== 'in' && r.state !== 'off') {
-      btn = r.move === 'photo'
-        ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPhoto" data-line="' + escHtml(tdyFirstMissingLine(r)) + '">Photo</button>'
+      btn = r.move === 'hand'
+        ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyHand" data-line="' + escHtml(tdyFirstMissingLine(r)) + '">By hand</button>'
         : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPaste">Paste</button>';
     }
     var node = r.state === 'in' ? TDY_CHECK_SVG : r.state === 'late' ? '!' : String(i + 1);
@@ -216,7 +217,7 @@ function tdyInputsHtml(day, o) {
       (shop ? '<div class="inv-panel-body inv-note">A time with no four weeks of record behind it is the shop’s usual one.</div>' : '') + '</div>',
     attrs: ' data-card="inputs" data-verdict' });
 }
-/* The first VAT line with no record (the register photo is theirs); else VAT A1. */
+/* The first VAT line with no record (the register's page is theirs); else VAT A1. */
 function tdyFirstMissingLine(r) {
   var miss = (r.lines && r.lines.miss) || [];
   for (var i = 0; i < PROD_LINES.length; i++) {
@@ -515,7 +516,7 @@ function tdyAction(action, btn) {
   switch (action) {
     case 'invTdyInput': tdyOpenInput(btn.dataset.k); return true;
     case 'invTdyPaste': if (typeof addOpen === 'function') addOpen(); else relayOpen(); return true;
-    case 'invTdyPhoto': flrOpenLine(btn.dataset.line || 'vat-a1'); prodPhotoPick(); return true;
+    case 'invTdyHand': flrOpenLine(btn.dataset.line || 'vat-a1'); prodOpenHand(null, null, { fromLines: true }); return true;
     case 'invTdyFloor': flrSetDay(null); switchTab('pageFloor'); return true;
     case 'invTdyPower': powerSetTab('cuts'); switchTab('pagePower'); return true;
   }

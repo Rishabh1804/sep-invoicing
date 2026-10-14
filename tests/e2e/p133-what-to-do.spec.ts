@@ -78,8 +78,8 @@ test.describe('P133: what to do', () => {
     await expect(reprice).toContainText(`Ask ${ORION} for ${want.fullText}/kg, the full cost`);
     await expect(reprice.locator('[data-adv-worth]')).toHaveText('+' + want.worthText);
     await expect(reprice).toContainText('a month at the last three months’ tonnage');
-    // The labour question it turns on is one of the moves, settled on the contribution table.
-    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="labour:1"] [data-action="invAdvGo"]')).toHaveText('Contribution');
+    // No labour question among the moves: labour is fixed (owner, 13 Oct 2026), so the contribution table settles it one way.
+    await expect(page.locator('[data-tdy-q="clients"] [data-adv-move^="labour:"]')).toHaveCount(0);
 
     // 5. Is cash coming in? The debt over 90 days is a call: a real tel: link with the client's number.
     const call = page.locator('[data-tdy-q="cash"] [data-adv-move="owed:3"] a[href^="tel:"]');

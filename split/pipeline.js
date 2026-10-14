@@ -99,7 +99,7 @@ function pipeStateStage(st, list, now) {
     late: late, lateDays: lateDays };
 }
 
-/* A stage running late, in words with its own noun: "11 challans over 10 days", "9 created over 2 days", "2 delivered, GSTR-1 due
+/* A stage running late, in words with its own noun: "11 challans over 6 days", "9 created over 2 days", "2 delivered, GSTR-1 due
    11 Oct", "owed: ₹1,20,000 over 90 days". Pipeline's hero and the Register's verdict say it alike. */
 /* A date in the stage's words without this year's number: "GSTR-1 due 11 Sep 2026" reads "GSTR-1 due 11 Sep" in 2026. */
 function pipeNoThisYear(w) {

@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from 'fs';
 import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
 // P110: the QA sweep's findings on Production and Stock, one test each. Messages are made up in the shop's shapes
-// (P83–P90, P39); no Gemini request is made (the photo route is mocked as in P85).
+// (P83–P90, P39).
 
 const CLIENTS = [
   { id: 11, name: 'NOVA CLAMPS PVT. LTD.', billingMode: 'piece', gstType: 'intra', gstin: '', address: '' },
@@ -24,8 +24,6 @@ function wdBack(n: number) {
   }
   throw new Error('no day');
 }
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-const reply = (obj: unknown) => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] }, finishReason: 'STOP' }] });
 
 async function load(page: Page, extra: any = {}) {
   await loadAppWithState(page, { ...emptyState(), clients: CLIENTS, staff: STAFF, attendance: {}, incomingMaterial: noSeedIM(), ...extra } as SepState);
@@ -183,22 +181,6 @@ test.describe('P110: Production', () => {
       return { r: r, e: S.production.entries.map(function(e){ return [e.id, e.clientId]; }) }; })()`);
     expect(res.e).toEqual([['X1', 12], ['X2', 11]]);
     expect(res.r).toMatchObject({ added: 2, bad: 1 });
-  });
-
-  test('P12: the power log saves its cuts on the date set on the check', async ({ page }) => {
-    await load(page);
-    await page.evaluate(() => { try { localStorage.setItem('sep_inv_gemini_key', 'TEST-KEY'); localStorage.removeItem('sep_inv_prod_photo_draft'); } catch (e) {} });
-    await switchTab(page, 'pageProduction');
-    await page.route('https://generativelanguage.googleapis.com/**', route => route.fulfill({ contentType: 'application/json',
-      body: JSON.stringify(reply({ page: 'power', rows: [{ date: dmy(-1), event: 'Power cut', time: '10:00 AM' }, { date: dmy(-1), event: 'Power in', time: '10:20 AM' }] })) }));
-    await page.setInputFiles('#prodPhotoInput', { name: 'power.png', mimeType: 'image/png', buffer: PNG });
-    await expect(page.locator('#prodPhotoPower [data-prod-cut]')).toHaveCount(1);
-    await page.locator('#prodPhotoDate').fill(iso(0));
-    await page.locator('#prodPhotoDate').dispatchEvent('change');
-    await expect(page.locator('#prodPhotoPower [data-prod-cut="0"]')).toContainText(`${+iso(0).slice(8)} `);
-    await page.locator('[data-action="invProdSavePhoto"]').click();
-    const s = await readStoredState(page);
-    expect(s.production.entries.map((e: any) => [e.kind, e.date, e.time, e.to])).toEqual([['downtime', iso(0), '10:00', '10:20']]);
   });
 
   test('P13: one cut reported twice in one imported file is counted once; two cuts in one log stay two', async ({ page }) => {

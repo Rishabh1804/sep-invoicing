@@ -19,7 +19,7 @@ const GH_TOKEN_KEY = 'sep_inv_github_token';
 const GH_SCHEMA = 1;
 
 /* The token lives in its own localStorage entry, never on S — same rule the
-   Gemini and metals.dev keys follow, so an exported backup can never carry a
+   metals.dev key follows, so an exported backup can never carry a
    credential. The rest of the config is kept off S too: a file SHA and a
    device id describe *this* device's relationship to the remote, and restoring
    someone else's backup must not hand this device their sync position. */

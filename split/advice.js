@@ -415,16 +415,6 @@ function advHourMove(ctx, x, name) {
     basis: hints.length ? hints[0].text : 'a round is ' + Math.round(worst.rd.total) + ' min for ' + worst.rd.pcs.v + ' pieces',
     go: { kind: 'perf', clientId: c.id, panel: 'hour' }, goLabel: 'By the hour', task: 'Look at ' + worst.t.name + '’s rounds for ' + name };
 }
-/* The labour question the decision turns on, settled both ways (the contribution table's own block). */
-function advLabourMove(ctx, x, name) {
-  var m = ctx.margins(), split = x.vsVar != null;
-  return { key: 'labour:' + x.id, tone: split && x.vsVar < 0 ? 'red' : 'amber',
-    say: 'Settle the labour question for ' + name + (split ? ': with labour fixed it ' + (x.vsVar >= 0 ? 'leaves ' + advRs(x.vsVar) : 'loses ' + advRs(x.vsVar)) +
-      '/kg, with labour scaling it loses ' + advRs(x.vsFull) + '/kg' : ': record the attendance or import the bank statement to split labour'),
-    worth: null, basis: 'contribution by client at the live cost ' + ctx.words + ', ' + statsPctOf(m.c.measuredShare) + '% measured',
-    // The period it was worked out for goes with it: Stats opens there, where this client is the block named.
-    go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: ctx.a.period }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name };
-}
 function advClientsMoves(ctx, card) {
   var out = [], hints = [], m = ctx.margins(), x = card.worst;
   if (x && m) {
@@ -433,7 +423,7 @@ function advClientsMoves(ctx, card) {
     if (rp) { out.push(rp); if (rp.hint) hints.push(rp.hint); }
     out.push(advSafe(function() { return advRebateMove(ctx, x, name); }, null));
     out.push(advSafe(function() { return advHourMove(ctx, x, name); }, null));
-    out.push(advLabourMove(ctx, x, name));
+    // No labour move: labour is fixed (owner, 13 Oct 2026), so the contribution table settles the account one way.
   }
   var mv = card.mover;
   if (mv && mv.d < 0) {
@@ -639,8 +629,10 @@ var ADV_TASK_MOVES = {
       worth: t.kg > 0 ? { amount: (target - t.net) * t.kg, sign: 1, per: 'month', label: 'a month at ' + insMonthLabel(t.month) + '’s tonnage' } : null,
       basis: insMonthLabel(t.month) + ': ' + formatCurrency(t.net) + '/kg against ' + formatCurrency(t.varKg) + ' variable and ' + formatCurrency(t.fullKg) + ' full',
       go: { kind: 'quoteDraft', clientId: t.clientId, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation', task: said },
-      { key: 'labour:' + t.clientId, tone: 'amber', say: 'Settle the labour question for ' + name, worth: null, basis: billsMonthLabel(t.month) + '’s contribution by client, against the variable and the full cost',
-        go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'Settle the labour question for ' + name }];
+      // The month's contribution by client, where the account is set against the variable and the full cost (labour fixed).
+      { key: 'margin:' + t.clientId + ':' + t.month, tone: 'info', say: 'See ' + insMonthLabel(t.month) + '’s contribution by client', worth: null,
+        basis: billsMonthLabel(t.month) + '’s report: each client against the variable and the full cost, labour fixed',
+        go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'See ' + insMonthLabel(t.month) + '’s contribution by client' }];
   },
   insLabour: function(t) {
     return [{ key: 'labour-model:' + t.month, tone: 'amber', say: 'See where labour’s ' + formatCurrency(t.perKg) + '/kg went, against the ' + formatCurrency(t.model) + ' model',

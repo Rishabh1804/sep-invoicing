@@ -7,6 +7,32 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## The owner's rulings of 13 Oct 2026 (PR #146)
+
+Asked ten open items with choices, the owner answered (CLAUDE.md, *The owner's rulings of 13 Oct 2026*, has each, built, P210):
+challans waiting amber at 3 days and red at 6; the heads-against-number tones kept; **the challan Scan and every Gemini photo
+read taken out** (*"it simply never works"*), with a before-and-after page of the eight places it changed; the three cards that
+lengthened their screens folded shut on the phone; the barrel list against the roll's OT blocks kept unknown until the floor has
+its own apps; **contract labour fixed**, so Stats settles the worst account one way; past credit notes recorded through Record
+issued; a paid holiday worked kept as a worked Sunday; the restart's ₹600 kept until a quote, and the ~₹5,000 a month read off
+a bill. **The next build's order is to be discussed with the owner** (the choices put: PP2's rest, PP4, PP5, the weekly payout
+sheet as paid; recommended the payout sheet first).
+
+**This repo's side of the data flows:**
+- **No record shape changed.** One flag joins the book, `_challanDays3` (true once a stored 5 has moved to 3, so a figure the
+  owner set later is never moved), and `todoCheck.challanDays` defaults to 3.
+- **Nothing new is read from a photo.** `production.photos` and an `attRegister` month with `src: 'photo'` stay as they were and
+  export as before; no new photo record is made. The `sep-production` and `sep-att-register` files are unchanged.
+- **Each device forgets three localStorage entries** at its next start (never in the book): `sep_inv_gemini_key`,
+  `sep_inv_gemini_model`, `sep_inv_prod_photo_draft`.
+- **Stats' contribution changes meaning**: the variable cost is the live cost less all of labour (was: less the monthly crew).
+  The printed report's contribution table reads the same way. No export carries it.
+
+**Owner's, once merged:** record CN/004 and CN/005 (and CN/001, or an April–May rebate, as you rule) through Office → Invoices →
+More → Credit notes → Record issued; enter the excess-load charge read off each bill under Power → Load & bills.
+
+---
+
 ## Being built 9–10 Oct 2026: the tab map, step by step (PR #146, read this first)
 
 The owner, 9 Oct 2026: *"Merge and go with all 14. E2E. Be thorough, run QA chain before final merge, merge once CI is green."*
@@ -301,8 +327,8 @@ overhaul 2 is now built** (3, 4 and 5 came with Direction B's search, keys and n
 - **G4, the merge** (`docs/GUARD.md`): waits, by the owner's plan, until more than one person enters data on their own device.
 - **Home hover previews** (parked below): the owner called them a planned UI update; not started.
 - **The Android To-do widget** (needs a native wrapper) and moving `S.todo` to `sep-dashboard` when that app is ready.
-- **The owner's own checks** listed in each section below (a real day of production end to end, a register photo through
-  Gemini, the power quotes, the quotation series already issued by hand).
+- **The owner's own checks** listed in each section below (a real day of production end to end, the power quotes, the
+  quotation series already issued by hand; the register photo through Gemini went with the photo reading, 13 Oct 2026).
 - **The owner said they have more asks queued** (30 Sep 2026): ask what is next.
 
 ## Built 1 Oct 2026: quotations and reports (read this first)
@@ -321,7 +347,7 @@ All seven items and the per-hour follow-up, one commit each (CLAUDE.md has each 
    15 min, measured from the register and the pickling loads, trend and what to look at). 3. Staff → Day as an area board, Civil, the
    allocation by area. 6. Stats' Overview as question-led story cards. 7. Home widgets with presets and Edit Home, per device.
 
-**Left for the owner:** check the timing of Samarth's parts once a register photo with their rounds is read (the book to 11 Sep has no
+**Left for the owner:** check the timing of Samarth's parts once a register page with their rounds is entered (the book to 11 Sep has no
 production record, so nothing is measured yet); the 15-minute constant is theirs to change on the panel.
 
 ## Where session B stopped — 30 Sep 2026 (read this first)
@@ -419,7 +445,7 @@ measurement before fixing a number:
   fifth, `154X81`, was added in `soma-internal`'s `CLAUDE.md` on 7 Sep. Its two master rows are
   spelled differently, so match case-insensitively on a normalised stem.
 - ⚠ **This matcher will surface T-HC.** `soma-internal` has recorded that the challan scanner
-  bypasses `itemRates`. Lines raised through it could read red against a correct per-client rate.
+  bypasses `itemRates` (fixed 24 Sep 2026; the scanner itself came out on 13 Oct 2026). Lines raised through it could read red against a correct per-client rate.
   That is a real finding, not a matcher bug. Fix T-HC in this session, or label those lines.
 
 ### 2. Stock inventory tab
@@ -468,8 +494,8 @@ A to-do list for Soma, the workplace, shown as a widget on the desktop and on th
 - **PO number and despatch vehicle number, predicted.** Start from what the app already has:
   `split/create.js` already saves the vehicle number to the client for autocomplete. A
   per-client frequency model (last used, most used) may carry most of the value before anything
-  heavier. If an AI model is used, the Gemini key already lives in its own `localStorage` entry
-  (`scanner.js`), never on the state object. Keep it that way.
+  heavier. A credential kept off the state object lives in its own `localStorage` entry, never
+  on `S`. Keep it that way. (The Gemini key and `scanner.js` came out on 13 Oct 2026.)
 - **Dashboard updates.**
 - **Stats: an overview, plus more depth.**
 - **Default cost per kg, calculated dynamically.** `defaultCostPerKg` is on the state and read
@@ -496,17 +522,18 @@ GitHub sync / a backup import. The live app stays the system of record until the
 
 ### 6. Production (owner, 28 Sep 2026)
 
-✅ **BUILT 28 Sep 2026** — More → Production (`prodparse.js`, `production.js`, `prodview.js`, `vision.js`;
+✅ **BUILT 28 Sep 2026** — More → Production (`prodparse.js`, `production.js`, `prodview.js`; `vision.js` until 13 Oct 2026;
 `CLAUDE.md` § Production). The pickling hand's WhatsApp loads, the supervisor's barrel list and a roll's production
-block through the one paste box; the VAT register's photos read by Gemini; material in the plant by the book and by the
+block through the one paste box; the VAT register's pages typed on Mine or by hand (read from photos by Gemini until the owner
+had it taken out, 13 Oct 2026: *"it simply never works"*); material in the plant by the book and by the
 floor; two To-do rules; a Stats row and labour ₹/kg by line. **Owned by `soma-internal`, like stock** (owner): a view
 and an input, exported whole, merged by id.
 
 **Open, for the owner:**
-- **The first real day, end to end**: paste one day of the pickling hand's and the supervisor's messages, read one of
-  the register clerk's photos, then import the history file (below). That is the check that counts.
-- **A register photo read through the app** with a Gemini key: 20 real pages (16–26 Sep) are transcribed and every one
-  reads right after the transcription, but Gemini's own transcription has not been scored (no key in the build sandbox).
+- **The first real day, end to end**: paste one day of the pickling hand's and the supervisor's messages, enter the
+  register clerk's page on Mine, then import the history file (below). That is the check that counts.
+- ~~**A register photo read through the app** with a Gemini key~~: the owner found the photo reading never worked, and it
+  came out on 13 Oct 2026.
 - **Ask the pickling hand to restart the incoming-material messages** (stopped after 29 Jul): they are the floor's own
   count of receipts, shown beside the challans.
 - **The history W18–W35 arrives as a private import** (`sep-production` v1, below), built by the compile from
@@ -525,7 +552,7 @@ design document (an `inv-menu`-like surface, `prefers-reduced-motion` respected,
 
 ### Carried from the codex
 
-- **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. **Fixed here 24 Sep 2026** — the compile session should close it in `soma-internal/tasks.md`.
+- **T-HC** (`soma-internal`): the scanner bypasses `itemRates`. **Fixed here 24 Sep 2026**, and the scanner itself came out on 13 Oct 2026 — the compile session should close it in `soma-internal/tasks.md`.
 
 ---
 

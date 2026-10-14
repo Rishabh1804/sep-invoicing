@@ -85,12 +85,12 @@ const tapOutside = (page: Page) => page.locator('.inv-scrim-dialog').last().clic
 const lastToast = (page: Page) => page.locator('.inv-toast').last();
 
 test.describe('P136: Add, the one door', () => {
-  test('the sheet draws its five doors in order, one primary, and saves nothing itself; back closes it', async ({ page }) => {
+  test('the sheet draws its four doors in order, one primary, and saves nothing itself; back closes it', async ({ page }) => {
     await load(page);
     await openAdd(page);
     const sheet = page.locator('[data-add-sheet]');
     await expect(sheet.locator('.inv-dialog-title')).toHaveText('Add');
-    expect(await sheet.locator('[data-add-sec]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.addSec))).toEqual(['paste', 'clipboard', 'photo', 'file', 'hand']);
+    expect(await sheet.locator('[data-add-sec]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.addSec))).toEqual(['paste', 'clipboard', 'file', 'hand']);
     await expect(sheet.locator('label[for="addPasteText"]')).toHaveText('Rolls, stock, pickling loads, production, power cuts');
     expect(await sheet.locator('[data-action="invAddHand"]').evaluateAll(els => els.map(e => (e as HTMLElement).innerText.trim())))
       .toEqual(['Challan', 'Invoice', 'Quotation', 'Stock entry', 'Production', 'Power cut', 'Attendance', 'Payment', 'Cheque', 'Bill', 'Task']);
@@ -323,25 +323,15 @@ test.describe('P136: Add, the one door', () => {
     await expect(page.locator('[data-form="challan"]').first()).toBeVisible();
   });
 
-  test('a photo goes to the register reader, which offers a challan to the scanner; with no Gemini key it says so and opens the key', async ({ page }) => {
+  test('no photo: the sheet has no Photo row, and a photo picked as a file is named as one', async ({ page }) => {
+    // The challan scan and the register photo, read by Gemini, came out (owner, 13 Oct 2026: "it simply never works").
     await load(page);
-    await page.evaluate(() => { localStorage.removeItem('sep_inv_gemini_key'); localStorage.removeItem('sep_inv_prod_photo_draft'); });
     await openAdd(page);
-    await page.locator('[data-add-sec="photo"]').click();
-    expect(await answerAsk(page, 'ok')).toContain('Gemini key needed');
-    await expect(page.locator('[data-add-sheet]')).toHaveCount(0);
-    await expect(page.locator('#settingsScrim details[data-sec="geminiKey"]')).toHaveAttribute('open', '');
-    await page.locator('[data-action="invCloseSettings"]').first().click();
-    await expect(page.locator('#settingsScrim')).toHaveCount(0);
-
-    await page.evaluate(() => localStorage.setItem('sep_inv_gemini_key', 'TEST-KEY'));
-    const reply = { candidates: [{ content: { parts: [{ text: JSON.stringify({ page: 'challan', date: dmy(0), rows: [] }) }] }, finishReason: 'STOP' }] };
-    await page.route('https://generativelanguage.googleapis.com/**', route => route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(reply) }));
-    await openAdd(page);
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-add-sec="photo"]').click()]);
+    await expect(page.locator('[data-add-sec="photo"]')).toHaveCount(0);
+    await expect(page.locator('#addPhotoInput')).toHaveCount(0);
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-add-sec="file"]').click()]);
     await chooser.setFiles({ name: 'paper.png', mimeType: 'image/png', buffer: PNG });
-    await expect(page.locator('#pageProduction')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('[data-action="invProdToScanner"]')).toBeVisible();
-    await expect(page.locator('#productionContent')).toContainText('not a page of the register');
+    expect(await answerAsk(page, 'ok')).toContain('A photo is not read');
+    await expect(page.locator('#pageProduction')).not.toHaveClass(/inv-page-active/);
   });
 });

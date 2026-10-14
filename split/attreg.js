@@ -15,7 +15,8 @@
    The hours rule is the roll's (`relayHoursOf`: the clock span to the whole hour, OT the hours past 8; a plain P is the shift,
    8:30 AM to 5:00 PM). Measured on the book's March page, it reproduces every written OT total to the hour. A Sunday or holiday
    worked is hours of its own: the August page's totals add them in, March's had none to add. Names in the build: none; the
-   pages arrive by import (`sep-att-register`), a photo read by Gemini, or by hand. */
+   pages arrive by import (`sep-att-register`) or by hand. A photo of the page was read by Gemini until 13 Oct 2026, when the
+   photo reading came out (owner: *"it simply never works"*); a month read that way keeps its unsure cells dashed. */
 
 var _aregMonth = null;   // 'YYYY-MM' on show
 var _aregCellAt = null;  // { d: day index, c: column index } in the cell dialog
@@ -158,17 +159,14 @@ function aregViewHtml() {
   var primary = !mo ? '<button class="inv-btn inv-btn-primary" data-action="invAregStart">Start this month</button>'
     : cmp.n.reg ? '<button class="inv-btn inv-btn-primary" data-action="invAregFill">Fill ' + todoPlural(cmp.n.reg, 'cell') + '</button>'
     : !mo.verifiedAt ? '<button class="inv-btn inv-btn-primary" data-action="invAregVerify">Mark checked</button>' : '';
-  var more = [phone && month !== now ? { label: 'Go to this month', action: 'invAregNow' } : null, phone ? { label: 'Read page photo', action: 'invAregPhoto' } : null,
-    { label: 'Import a register file', action: 'invAregImport' }];
+  var more = [phone && month !== now ? { label: 'Go to this month', action: 'invAregNow' } : null, { label: 'Import a register file', action: 'invAregImport' }];
   var html = aregVerdictHtml(month, mo, cmp) + '<div class="inv-toolbar" data-att-toolbar="register">' +
     // The phone's row has no room for the month's name beside the primary: the card above names it (Areas does the same).
     _attStepInRow('invAregStep', phone ? '' : '<span class="inv-stepper-title">' + escHtml(aregMonthLabel(month)) + '</span>', 'Previous month', 'Next month') +
     (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAregNow"' + (month === now ? ' disabled' : '') + '>This month</button>') + primary +
-    (phone ? '' : '<button class="inv-btn inv-btn-secondary" data-action="invAregPhoto">Read page photo</button>') +
     uiToolbarMoreHtml(more, { icon: phone }) +
-    '<input type="file" id="aregFile" accept=".json,application/json" hidden>' +
-    '<input type="file" id="aregPhotoFile" accept="image/*" hidden></div>' + _attPeriodSwitchHtml();
-  // No page yet: the card says so and the toolbar holds the three doors; what each does is the guide's (Using the app: attendance).
+    '<input type="file" id="aregFile" accept=".json,application/json" hidden></div>' + _attPeriodSwitchHtml();
+  // No page yet: the card says so and the toolbar holds the two doors; what each does is the guide's (Using the app: attendance).
   if (!mo) return html;
   html += aregDiffHtml(mo, cmp) + aregGridHtml(mo, cmp) + uiFoldCard('aregTotals', aregTotalsHtml(mo, cmp), !!_isDesktop);
   if ((mo.notes || []).length) {
@@ -180,7 +178,7 @@ function aregViewHtml() {
 /* The month's verdict (§3e): how the register and the day agree, the four counts its factors (they were the summary's tiles). */
 function aregVerdictHtml(month, mo, cmp) {
   var screen = 'Attendance · ' + aregMonthLabel(month);
-  if (!mo) return uiVerdictHtml({ screen: screen, verdict: 'No register page this month', tone: 'neutral', facts: ['start it, read a photo or import'], attrs: ' id="aregSummary"' });
+  if (!mo) return uiVerdictHtml({ screen: screen, verdict: 'No register page this month', tone: 'neutral', facts: ['start it or import a file'], attrs: ' id="aregSummary"' });
   var n = cmp.n, cols = cmp.cols.filter(function(c) { return !c.w; }).length, differ = n.state + n.ot, check = cmp.unsure + cmp.unread + cols;
   var tone = n.state ? 'danger' : n.ot || n.day || check ? 'warning' : n.reg ? 'info' : 'ok';
   var verdict = [differ ? todoPlural(differ, 'cell') + ' differ' : '', n.reg ? n.reg + ' only on the register' : '', n.agree + ' agree'].filter(Boolean).join(', ');
@@ -516,49 +514,6 @@ function aregImportText(text, name) {
   showToast(bits.length ? bits.join(' · ') : 'Nothing in that file');
 }
 
-/* ===== A PHOTO OF THE PAGE, READ BY GEMINI =====
-   A transcription in the import's shape (the reading is this app's, in code). Nothing counts until it is on the screen, each
-   unsure cell dashed; only facts about the photo are kept, never the image. A month already on record is not read over. */
-var AREG_PROMPT = 'This is a photo of one page of a handwritten monthly attendance register from a factory. Transcribe it cell by cell, exactly as written; do not interpret, total or correct. ' +
-  'The page has a title (month and year), a header row of worker names left to right, a date column, and one cell per worker per day. A Sunday or holiday is a line with the letters S U N D A Y or H O L I D A Y spread across the columns, or the word written across. ' +
-  'Cells hold things like P, A, H, P-8pm, 6Am-5pm, 6Am-8pm, 6Am-12Am, P-6Am, 8:30Am-2pm, or a dash. Under the last row some columns carry a total like OT-89 or 103 Hrs. ' +
-  'Write times as 6am-5pm, p-8pm; keep P, A, H uppercase. Set unsure on any cell you cannot read with confidence, giving your best reading. One entry in days per written row, in page order; give each row its calendar date as YYYY-MM-DD and kind work, sunday or holiday.';
-var AREG_SCHEMA = { type: 'object', properties: {
-  month: { type: 'string', description: 'YYYY-MM' }, title: { type: 'string' },
-  columns: { type: 'array', items: { type: 'string' } },
-  days: { type: 'array', items: { type: 'object', properties: {
-    date: { type: 'string', nullable: true }, written: { type: 'string' }, kind: { type: 'string', enum: ['work', 'sunday', 'holiday'] },
-    cells: { type: 'array', items: { type: 'object', properties: { raw: { type: 'string' }, unsure: { type: 'boolean' } }, required: ['raw'] } },
-    note: { type: 'string', nullable: true } }, required: ['written', 'kind', 'cells'] } },
-  totals: { type: 'array', items: { type: 'object', properties: { col: { type: 'integer' }, raw: { type: 'string' } }, required: ['col', 'raw'] } },
-  notes: { type: 'array', items: { type: 'string' } } }, required: ['month', 'columns', 'days'] };
-function aregPhoto() {
-  if (!attFloorOk()) return;
-  var inp = document.getElementById('aregPhotoFile');
-  if (!inp) return;
-  inp.value = '';
-  inp.onchange = function(ev) { var f = ev.target.files[0]; if (f) aregPhotoRead(f); };
-  inp.click();
-}
-function aregPhotoRead(file) {
-  showToast('Reading the page…');
-  return geminiReadImage(file, AREG_PROMPT, { schema: AREG_SCHEMA, maxEdge: 2400, thinkingBudget: 0 }).then(function(res) {
-    if (!res.ok) { uiAlert({ title: 'The page was not read', body: res.error || 'Gemini did not answer.' }); return false; }
-    var j = res.json || {};
-    j.columns = (j.columns || []).map(function(n) { return { name: n }; });
-    var mo = aregCleanMonth(j, 'photo');
-    if (!mo) { uiAlert({ title: 'Not a register page', body: 'The photo did not read as a month&rsquo;s page with a column per worker.' }); return false; }
-    if (aregMonthOf(mo.month)) { uiAlert({ title: aregMonthLabel(mo.month) + ' is already on record', body: 'A page already on record is not read over. Correct its cells by tapping them.' }); return false; }
-    mo.photo = { size: file.size || 0, model: typeof geminiModel === 'function' ? geminiModel() : '', at: Date.now() };
-    aregData().months[mo.month] = mo;
-    _aregMonth = mo.month;
-    saveState();
-    renderAttendance();
-    showToast(aregMonthLabel(mo.month) + ' read: check the dashed cells');
-    return true;
-  });
-}
-
 /* ===== ACTIONS ===== */
 function aregStepMonth(n) {
   var d = attParseIso(aregMonthShown() + '-01');
@@ -575,7 +530,6 @@ function aregAction(action, btn) {
     case 'invAregFill': aregFill(); return true;
     case 'invAregVerify': aregVerify(); return true;
     case 'invAregImport': aregImport(); return true;
-    case 'invAregPhoto': aregPhoto(); return true;
     case 'invAregCol': dialogOpen(aregColHtml(parseInt(btn.dataset.c, 10)), { dismiss: true }); return true;
     case 'invAregCell': aregCellOpen(parseInt(btn.dataset.d, 10), parseInt(btn.dataset.c, 10)); return true;
     case 'invAregCellClose': _aregCellAt = null; closeOverlay(); return true;

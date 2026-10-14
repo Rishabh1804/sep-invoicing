@@ -129,7 +129,8 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     expect(r.note).not.toContain('Matches');
   });
 
-  test('QA5-1: the invoice form, the challan form and the scanner all price by the override\'s unit', async ({ page }) => {
+  // The scanner priced a challan the same way until it came out (owner, 13 Oct 2026): the photo reading never worked.
+  test('QA5-1: the invoice form and the challan form price by the override\'s unit', async ({ page }) => {
     await loadAppWithState(page, rateState());
     // The invoice form: the part chosen from the Items Master on a NOS line of the client billed by weight from pieces.
     await g(page, 'createForClient(1)');
@@ -165,14 +166,6 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     expect(await g(page, '[_challanForm.items[0].unit, _challanForm.items[0].rate]')).toEqual(['NOS', 3.83]);
     await page.locator('#imUnit0').selectOption('KG');
     expect(await g(page, '[_challanForm.items[0].unit, _challanForm.items[0].rate]')).toEqual(['KG', 11]);
-    // The scanner: a kilo line at the ladder, a piece line at the override, pieces of 0.2 kg at ₹16/kg.
-    const scanned = await g(page, `(_applyScanResult({ clientName: 'DELTA FORGE', challanDate: '${todayIso()}', items: [
-      { partNumber: 'TM5181', unit: 'Kg', qty: 150 }, { partNumber: 'TM5181', unit: 'Nos', qty: 100 }] }),
-      _challanForm.items.map(function(i){ return [i.unit, i.rate, i.amount]; }))`);
-    expect(scanned).toEqual([['KG', 11, 1650], ['NOS', 3.83, 383]]);
-    const n2w = await g(page, `(_applyScanResult({ clientName: 'GAMMA PRESS', challanDate: '${todayIso()}', items: [{ partNumber: 'P3302', unit: 'Nos', qty: 600 }] }),
-      _challanForm.items.map(function(i){ return [i.unit, i.rate, i.amount]; }))`);
-    expect(n2w).toEqual([['NOS', 16, 1920]]);
   });
 
   test('QA5-1: an accepted rate that cannot price the client\'s lines as they are billed is named "set by hand", never written', async ({ page }) => {
@@ -305,7 +298,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     const ins = await g(page, `advTaskMoves({ rule: 'insBelowVar', key: 'insBelowVar:1', clientId: 1, month: '${lastMonth}', net: 2, varKg: 5, fullKg: 9.22, kg: 1000 })
       .map(function(m){ return [m.key, m.say, m.task]; })`) as string[][];
     const monthName = MON[+lastMonth.slice(5, 7) - 1] + ' ' + lastMonth.slice(0, 4);
-    expect(ins.map(x => x[0])).toEqual(['reprice:1', 'labour:1']);
+    expect(ins.map(x => x[0])).toEqual(['reprice:1', 'margin:1:' + lastMonth]);
     expect(ins[0][1]).toBe(`Ask ${ORION} for ₹9.22/kg, the full cost in ${monthName}`);
     expect(ins[0][2]).toBe(ins[0][1]);
     // Its draft says which full cost it was drafted at, too.
@@ -462,10 +455,10 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
     await expect(page.locator('#rptSheet [data-rpt-doc]')).toHaveAttribute('data-from', lastMonth + '-01');
     await expect(page.locator('#rptSheet [data-rpt-doc]')).toHaveAttribute('data-kind', 'monthly');
-    // The question's labour move carries its period: Stats opens there, whatever the chip held.
+    // A jump to Stats that carries its period opens there, whatever the chip held (the labour move that carried one went with
+    // the owner's ruling of 13 Oct 2026; the jump stays).
     await openPulse(page, 'clients');
-    const go = await g(page, `_advRows[document.querySelector('[data-tdy-q="clients"] [data-adv-move="labour:1"] [data-action="invAdvGo"]').dataset.advRow].go`) as any;
-    expect(go).toMatchObject({ kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: 'all' });
+    const go = { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: 'all' };
     await page.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="mtd"]').click();
     await g(page, `todoGo(${JSON.stringify(go)})`);
     expect(await g(page, '_statsPeriod')).toBe('all');

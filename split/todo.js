@@ -19,7 +19,7 @@
    read when the app is shown, the payload is written when it is hidden. */
 
 var TODO_CHECK_DEFAULTS = { stock: true, stockCheck: true, paste: true, cn: true, cnMatch: true, power: true, challan: true, dispatch: true, audit: true,
-  backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 };
+  backup: true, zinc: false, pasteDays: 2, challanDays: 3, dispatchDays: 2, backupDays: 7 };
 var TODO_RULES = [
   ['stock', 'A stock line turns red or amber'],
   ['stockCheck', 'A stock entry does not fit the record, or a message reads differently now'],

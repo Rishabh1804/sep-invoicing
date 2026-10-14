@@ -4,7 +4,7 @@ import { emptyState, loadAppWithState, noSeedIM, todayIso, type SepState } from 
 
 // P83: reading the floor's production messages (prodparse.js). The shapes are
 // the pickling hand's, the supervisor's barrel list and roll block, and the
-// register as Gemini transcribes it — with made-up clients and parts, since the
+// register's page as written — with made-up clients and parts, since the
 // repo is public. The parser is pure: the client list is passed in.
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
@@ -214,7 +214,7 @@ Durga auto 0101--400 nos`);
     expect(it.codes).toContain('amber:linehint');
   });
 
-  test('the register as Gemini transcribes it', async ({ page }) => {
+  test('the register page as written', async ({ page }) => {
     await load(page);
     const d = when(-1);
     const json = {

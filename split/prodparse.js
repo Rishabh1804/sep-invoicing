@@ -5,7 +5,7 @@
  *     the loads carry no quantity ("SSS MEHTA / CLAMP(40×6)"); a line is never named.
  *   - the supervisor: a daily "berral production" list, and short "----production----" blocks inside his in/out
  *     rolls, which report the overtime slot above them.
- *   - the register clerk: photos of the VAT register (read by Gemini, production.js).
+ *   - the register clerk: the VAT register's pages, typed as written on Mine (faces.js).
  * Everything read here is shown beside the text it came from before anything is saved (Stock's contract). A line
  * that cannot be read is listed, never dropped. The client list and the roster are passed in, so the census can
  * replay the real exports through the same functions.
@@ -708,51 +708,23 @@ function prodPairPower(msgs) {
   });
 }
 
-/* ---------- The VAT register, read from a photo by Gemini ---------- */
-/* The prompt asks for a TRANSCRIPTION, never a reading: times as written, customers and parts as spelt, every row
-   the clerk wrote, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
-   No client list is sent (the model would "correct" the floor's spellings to legal names), and the workers' box is not
-   asked for. Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are
-   this app's, in code, where they can be tested.
+/* ---------- The VAT register, as the clerk wrote it ---------- */
+/* A page is read from its rows as written (the clerk types them on Mine, faces.js): times as written, customers and parts
+   as spelt, every row, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
+   Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are this app's, in
+   code, where they can be tested. The rows came first from photos read by Gemini, which came out on 13 Oct 2026 (owner:
+   *"it simply never works"*); the shape below is the one those reads took, kept so the runs saved from them still read.
 
-   Two page shapes, both seen on the real register (photos of 24–26 Sep 2026, owner):
+   A page is { page, date, weekday, line, dayTotal, rows }, a row { time, mark (START / END), customer, part, dim, qtyText,
+   struck, over, bracket, ditto, legible } or, on a power page, { date, event ("power cut" / "power in"), time }.
+
+   Two page shapes, both seen on the real register (pages of 24–26 Sep 2026, owner):
    - ROUNDS (VAT A1): one row per round, "9:45 AM - 72", a START row first. A START counts as a round of the next
      round's figure (the owner's rule, 26 Jun).
    - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("98×8+1"); an
      END with no START of its own starts where the one before ended. A START here is only the run's start: counting it
      as a round, as the first build did, doubled every A2 run.
-   The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. A
-   photo of anything else (the weekly hours sheet) is said so and nothing is read. */
-var PROD_REGISTER_PROMPT_VER = 'reg-v2';
-var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten registers of a zinc electroplating plant in India.\n\n' +
-  'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add up figures, do not add rows that are not written, do not invent anything.\n' +
-  '- page: "production" if it lists batches plated (customer, part, times, figures); "power" if it is a log of power cuts and power coming back; "challan" if it is a customer\'s printed delivery challan; "other" for anything else (a wages or hours sheet, a list of names).\n' +
-  '- date: the date written at the top, exactly as written (e.g. "24/09/26"), or null. weekday: the day name written at the top (e.g. "Thursday"), or null.\n' +
-  '- line: the line named at the top exactly as written (e.g. "VAT-A1", "VAT-A2", "BARREL"), or null.\n' +
-  '- dayTotal: a day total written on the page, else null.\n' +
-  '- rows: one per written row, top to bottom, skipping rows with nothing written but ditto marks. For each: time exactly as written without START or END (e.g. "9:45 AM", "3:00 PM"); ' +
-  'mark: "START" or "END" if the row says so, else null; customer and part as written (when a column holds only ditto marks, leave it null and set ditto true); dim (a size such as "35x6") if written; ' +
-  'qtyText: the figure written for the row, exactly as written with its signs (e.g. "72", "72+10", "98×8+1", "50+52+30", "3+4×156"), else null; when the only figure on the row is written in the part column (e.g. "(25 NOS) TINA"), put it in qtyText too; struck: true if the row or its figure is struck through; ' +
-  'over: what a correction was written over, as written; bracket: true if the row is inside a bracket carrying one total for several rows; legible: false if you cannot read the figure.\n' +
-  '- On a power page, each row: date as written on the row, event "power cut" or "power in" (also "power on"), and time as written.\n' +
-  'Ignore any box of workers\' names. Return only the JSON.';
-var PROD_REGISTER_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    page: { type: 'STRING', nullable: true },
-    date: { type: 'STRING', nullable: true },
-    weekday: { type: 'STRING', nullable: true },
-    line: { type: 'STRING', nullable: true },
-    dayTotal: { type: 'NUMBER', nullable: true },
-    rows: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
-      time: { type: 'STRING', nullable: true }, mark: { type: 'STRING', nullable: true }, customer: { type: 'STRING', nullable: true }, part: { type: 'STRING', nullable: true },
-      dim: { type: 'STRING', nullable: true }, qtyText: { type: 'STRING', nullable: true }, struck: { type: 'BOOLEAN', nullable: true }, over: { type: 'STRING', nullable: true },
-      bracket: { type: 'BOOLEAN', nullable: true }, ditto: { type: 'BOOLEAN', nullable: true }, legible: { type: 'BOOLEAN', nullable: true },
-      event: { type: 'STRING', nullable: true }, date: { type: 'STRING', nullable: true } } } }
-  },
-  required: ['rows']
-};
-
+   The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. */
 /* A register time: the shift runs 8:30 to 5, so a bare 1–6 is the afternoon and 7–12 as written. */
 function prodRegisterTime(s) {
   var m = /(\d{1,2})\s*(?:[:.;]\s*(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(String(s || ''));
@@ -821,7 +793,7 @@ var PROD_WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function prodFromRegisterRead(json, ctx, photoDate, choices) {
   choices = choices || {};
   var out = { date: null, line: null, dayTotal: null, runs: [], issues: [], rows: [], downtime: [], page: 'production', style: 'rounds' };
-  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', code: 'rows', text: 'Gemini did not return any rows for this photo.' }); return out; }
+  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', code: 'rows', text: 'No rows were read on this page.' }); return out; }
   var pg = String(json.page || '').toLowerCase();
   var events = json.rows.filter(function(r) { return r && r.event; }).length;
   out.page = /challan/.test(pg) ? 'challan' : /other/.test(pg) ? 'other' : /power/.test(pg) || (events && events === json.rows.filter(Boolean).length) ? 'power' : 'production';

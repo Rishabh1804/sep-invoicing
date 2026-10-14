@@ -18,8 +18,7 @@
    Nothing here is ever labelled MCX without saying it was estimated.
 
    The rate lives on S so it travels with export/import. The API key does not —
-   it goes to localStorage under its own key, the same as the Gemini key the
-   challan scanner uses, so a backup JSON never carries a credential. */
+   it goes to localStorage under its own key, so a backup JSON never carries a credential. */
 
 var ZINC_STALE_DAYS = 7;
 var ZINC_DEFAULT_UPLIFT = 10.5;

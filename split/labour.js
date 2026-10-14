@@ -19,11 +19,12 @@
      extra       area-booked hours nobody is named for, at the contract tier.
 
    Two figures are then kept apart everywhere they appear. **Fixed** is the
-   permanent payroll: it does not move when tonnage moves, which is exactly why
-   the SSS Mehta question turns on it — at fixed labour that account still
-   contributes ₹0.53/kg, at volume-scaling labour it loses ₹1.64/kg. **Variable**
-   is contract, OT and extra together. Reporting one labour number would answer
-   that question by accident, in whichever direction the blend happened to fall.
+   permanent payroll; **variable** is contract, OT and extra together, the part
+   paid by the day and the hour worked. The SSS Mehta question once turned on
+   whether the contract part also moved with tonnage (at fixed labour that
+   account still contributed ₹0.53/kg, at volume-scaling labour it lost
+   ₹1.64/kg); the owner ruled it fixed on 13 Oct 2026, so Stats' contribution
+   counts all of labour as fixed and this split says what the pay is made of.
 
    And what is not known is never averaged away. A day nobody typed is not a day
    nobody worked; permanent salary still accrues over it and contract wages do

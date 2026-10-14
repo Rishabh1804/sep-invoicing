@@ -60,7 +60,7 @@
   --shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28);
   --scrim: rgb(0 0 0 / 0.45);
 
-  --dur-1: 120ms; --dur-2: 200ms; --dur-spin: 800ms; --ease: cubic-bezier(.2, .7, .2, 1);
+  --dur-1: 120ms; --dur-2: 200ms; --ease: cubic-bezier(.2, .7, .2, 1);
   --perspective: 75rem;
 
   --touch: 2.75rem;
@@ -87,8 +87,8 @@
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
-  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem; --busy-w: 17.5rem;
-  --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem; --spinner: 2.25rem;
+  --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem;
+  --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem;
   --palette-h: 32rem;   /* the search palette's one height on the desktop (search.js) */
 
   /* Density (§3.5): comfortable here, compact below. */
@@ -96,7 +96,7 @@
   --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem;
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
-  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-busy: 250; --z-banner: 300; --z-toast: 500; --z-print: 510;
+  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510;
 
   /* Chart series: categorical only (§6.17). */
   --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
@@ -740,34 +740,6 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
 .inv-cn-eoe { text-align: right; }
 .inv-cn-sig-co { font-weight: 700; }
 .inv-cn-sig-line { margin-top: 10mm; font-weight: 700; }
-
-/* ===== SCAN CHALLAN ===== */
-/* While the challan is read: a card on the scrim, the one busy indicator in the app. */
-.inv-scan-processing {
-  position: fixed; inset: 0; z-index: var(--z-busy);
-  display: flex; align-items: center; justify-content: center;
-  background: var(--scrim);
-}
-.inv-scan-processing-card {
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
-  padding: var(--sp-24); text-align: center;
-  box-shadow: var(--shadow-dialog); max-width: var(--busy-w);
-}
-.inv-scan-processing-text {
-  font-size: var(--fs-14); font-weight: 600;
-  color: var(--text-1); margin-top: var(--sp-8);
-}
-.inv-scan-processing-sub {
-  font-size: var(--fs-12); color: var(--text-3); margin-top: var(--sp-4);
-}
-.inv-scan-spinner {
-  width: var(--spinner); height: var(--spinner); border: calc(var(--rule) * 1.5) solid var(--border);
-  border-top-color: var(--accent); border-radius: 50%; margin: 0 auto;
-}
-@media (prefers-reduced-motion: no-preference) {
-  .inv-scan-spinner { animation: inv-spin var(--dur-spin) linear infinite; }
-}
-@keyframes inv-spin { to { transform: rotate(360deg); } }
 
 /* Print CSS */
 @page { margin: 0; }
@@ -1978,9 +1950,6 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 }
 .inv-empty { display: flex; flex-direction: column; align-items: center; gap: var(--sp-12); }
 .inv-empty-icon { width: var(--sp-32); height: var(--sp-32); color: var(--text-3); }
-
-/* Production: the register photo under review, as wide as its panel and never wider. */
-.inv-prod-photo { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); }
 
 /* The day as a board (Staff → Day): a card per area, a line per hand. One column on the phone; on the desktop as many
    columns of --board-col as fit, so a day of twenty hands reads on one screen. */

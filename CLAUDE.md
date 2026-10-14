@@ -36,6 +36,10 @@ loan, played as a game whose every figure adds up; *"start implementation sequen
 implementation … is done"*). One PR, steps PL1–PL5, then the QA chain. Nothing about the shop is written into the code: the
 baseline is read from the book on the device.
 
+**The owner's rulings of 13 Oct 2026 are built** — see *The owner's rulings of 13 Oct 2026* below: challans waiting 3 and 6 days,
+the challan Scan and the Gemini photo reading taken out, three cards folded on the phone, contract labour fixed, past credit
+notes recorded through Record issued. The next build's order is still to be discussed with the owner.
+
 **The workers and the plant are built — read `docs/WORKERS_AND_PLANT.md`** and *Workers and the plant* below (owner, 7 Oct 2026: the
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
@@ -92,7 +96,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 88 modules, ~66,800 lines total.
+Split-file PWA. 86 modules, ~66,300 lines total.
 
 ```
 split/
@@ -143,9 +147,9 @@ split/
 ├── merge.js           ← The merge (G4): this device's book and GitHub's against the copy both last saw; what both changed held for the owner (~460 lines)
 ├── prospects.js       ← Office → Sales → Prospects: firms approached, stage, follow-up, tonnes against the spare; won makes the client (~300 lines)
 ├── relay.js           ← Attendance rolls: in/out-time WhatsApp parser, review, merge into the day; the one paste box (~800 lines)
-├── add.js             ← Add: one door for everything that comes in (paste, clipboard, photo, file, by hand) (~400 lines)
+├── add.js             ← Add: one door for everything that comes in (paste, clipboard, file, by hand) (~400 lines)
 ├── attsheet.js        ← Attendance sheets to print: Shyam's roll, Deepak's Day entry, the day as entered (~170 lines)
-├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, photo, by hand (~600 lines)
+├── attreg.js          ← The monthly register: the book kept by hand, read cell by cell, set against the day; import, by hand (~600 lines)
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
 ├── stats.js           ← Stats' panels (By client, Cost, Trends) + History, the audit trail in the top bar, led by its card (~1,630 lines)
@@ -163,7 +167,7 @@ split/
 ├── qr.js              ← The app's own QR encoder: byte mode, level M, versions 1–10, drawn as an SVG (~160 lines)
 ├── idcard.js          ← ID cards: a number per worker, the printed cards, the scanner that logs a card into the day (~250 lines)
 ├── checkin.js         ← The office QR: the sheet, the check-ins read from WhatsApp, the checks against a proxy (~290 lines)
-├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste, photo and hand sub-views; Set its weight (~1,320 lines)
+├── prodview.js        ← Production page: Lines, In plant, Entries (and Equipment's plant.js), each led by its verdict; the day's card; paste and hand sub-views; Set its weight (~1,320 lines)
 ├── floor.js           ← Floor → Overview: the day's heroes (people, production, stock, power) per role, a card per line worst first coded by its efficiency, with what it earned; the pieces not weighed (~480 lines)
 ├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
 ├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
@@ -179,8 +183,6 @@ split/
 ├── client-perf.js     ← Clients → Performance: the client's card, month on month, material cadence, Materials worked, By the hour, folded (~990 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
-├── vision.js          ← One Gemini photo read: the scanner's request unchanged, a schema for the register (~100 lines)
-├── scanner.js         ← Challan scanner (Gemini AI vision) (146 lines)
 ├── events.js          ← Event delegation + input handlers (774 lines)
 ├── workspace.js       ← Workspaces: the phone bar and the desktop's rail (one door each), each workspace's tab row (a view may cover several of a page's own: Clients, Sales), the red counts (~360 lines)
 ├── swipe.js           ← Swipe navigation: within the open workspace's views (38 lines)
@@ -190,7 +192,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → vision → scanner → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -220,7 +222,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,781 tests, both layouts
+pnpm exec playwright test          # 1,772 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -258,8 +260,7 @@ the app from anywhere. `nav.js`:
   holding typed work asks first (`dialogLeaveOk`), Settings asks its own way (`closeSettings`). Shut any other way, its
   step is marked `skip` and back passes over it.
 - **A form with unsaved work asks before anything leaves it** (*Leave without saving?*, **Stay** first): a field typed on a
-  screen that shows its Save in the action bar (the challan form, a paste check, Enter by hand, the register photo's
-  check). Back asks (Stay puts the browser back on the form's step), and so does a **tap that leaves** — the phone bar
+  screen that shows its Save in the action bar (the challan form, a paste check, Enter by hand). Back asks (Stay puts the browser back on the form's step), and so does a **tap that leaves** — the phone bar
   (the form's own screen included, whose redraw drops the form), the sidebar, a screen in the More sheet, a view tab, a
   sub-view's back button — and a swipe (owner, 29 Sep 2026: *"that's a real bug"*; only Back asked, and a tap dropped a
   half-typed challan). The tap is caught before `events.js` sees it (`NAV_LEAVE_ACTIONS`, a capture listener in nav.js)
@@ -459,13 +460,54 @@ fixtures blocks it.
 been found passing only because of when they were written or what they happened not to
 filter on; a literal date in a fixture is a time bomb, not a constant.
 
+### The owner's rulings of 13 Oct 2026
+Ten open items were put to the owner with choices, and answered: *"1. B / 2. A / 3. We gotta remove scan and gemini image reading
+options actually, it simply never works, so it's better we take that off, it's waste. And, give me a visual comparison of this
+change. / 4. B / 5. C. This issue should be resolved once we have separate apps for everyone on the floor / 6. Fixed / 7. I'll
+update those CN in time, make sure the app has space where I can do that / 8. A / 9. B, read off a bill - will update those figures
+where available / 10. We shall discuss this."* P210.
+1. **Challans waiting to be invoiced are amber at 3 days and red at 6** (were 5 and 10): the To-do's challan task, the challan's own
+   dot and Pipeline's first stage, all from `challanDays` (Settings → Checks & alerts → To-do). A book still on 5 moves to 3 once
+   (`_challanDays3`, which travels with the book); any other figure set stays.
+2. **Heads against the day's number keep their tones**: a short area amber, one with extra hands info.
+3. **The challan Scan and every photo read by Gemini came out.** `vision.js` and `scanner.js` are deleted. Challans offers Add
+   challan (Invoiced's More: Add challan, Duplicate check); Add has no Photo (a photo picked under File is named as one and not
+   read); Production, Floor → Overview's line cards and Today's production step offer **Enter by hand** on that line and day; the
+   monthly register's doors are Import and Start this month; Settings → Connections is the zinc rate key and GitHub sync. Each
+   device forgets the Gemini key, the model it answered on and the last read kept as a draft at its next start (`forgetGeminiKey`:
+   `sep_inv_gemini_key`, `sep_inv_gemini_model`, `sep_inv_prod_photo_draft`). What photos read before stays in the book and
+   counts as before; the register's reader in code (`prodFromRegisterRead`) reads a page typed on Mine and a file. The ID card
+   scanner reads a QR with the camera and no Gemini, and stays. The owner's comparison is an artifact: eight places, before and
+   after, phone and desktop, on the sweep book.
+4. **The three cards that lengthened their screens fold shut on the phone** (Challans → Invoiced, Knowledge → Training and
+   Troubleshoot): `uiVerdictHtml({foldFacts})` puts a card of facts alone under its line, shut on the phone and open on the
+   desktop.
+5. **The barrel list against the roll's OT blocks stays unknown**: on a day with the list the blocks are shown beside it, never
+   added. The faces (Mine) are the owner's route to settling it.
+6. **Contract labour is fixed.** Stats' contribution counts all of labour as fixed (`statsClientMargins`: the variable cost is the
+   live cost less the labour row, known with nothing recorded), so the worst large account is settled one way (*Contributes* or
+   *Below its variable cost*, *Against the full cost*, *Pays its share at*; the badge *labour fixed*), the *Settle the labour
+   question* moves are gone (Pulse's *Who is driving it?*, and the insight's, which now opens the month's contribution in its
+   report), and the insight below the variable cost, the report and the Pulse's *more work* and *new quotation* worths read the
+   same cost. Overtime is counted fixed with the rest, as in the ₹0.53/kg the ruling was asked on. The labour card keeps its
+   split of the monthly crew from the pool (what the pay is made of); the power case keeps the monthly crew's split
+   (`statsCostSplit`, `powerMargin`), since it adds the wages a cut leaves idle on top and would count them twice otherwise.
+7. **Past credit notes are the owner's to record** (CN/004 and CN/005 on paper, and CN/001 or an April–May rebate as the owner
+   rules): Office → Invoices → More → Credit notes → **Record issued** takes a note with its own number and year, its date, the
+   invoice it names (picked, or typed as printed), the GST as printed and, for a rebate, its discount and period (P56); a rebate
+   owed for a period not yet noted is raised from a Register selection. The guide (*Using the app: credit notes* v3) says where.
+8. **A paid holiday worked is paid as a worked Sunday**: the holiday's credit and one day on top, as built.
+9. **The power cut's restart stays the ₹600 estimate until a quote**, and the ~₹5,000 a month since the load went to 50 kVA was
+   read off a bill; the owner will enter the figures where available (Power → Load & bills, a bill's penalty and details).
+10. **The next build's order is to be discussed** with the owner.
+
 ## Hard Rules (HR-1 through HR-8)
 
 | HR | Rule |
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 721 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 715 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -683,8 +725,8 @@ Supersedes the earlier ₹5.46/kg cost and ~31% operating margin, both of which 
 
 - **Blended realisation:** ₹8.45/kg → roughly −₹0.09/kg, about break-even.
 - **SSS Mehta:** 39% of revenue but **61% of tonnage** at ₹5.40/kg. −₹1.53L/month at full cost.
-  Whether to exit or reprice turns on contract labour: fixed → it still contributes
-  ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. Confirm before acting.
+  Whether to exit or reprice turned on contract labour: fixed → it still contributes
+  ₹0.53/kg; volume-scaling → it loses ₹1.64/kg. **Ruled 13 Oct 2026: fixed** (owner). Stats settles it that way.
 - **Capacity:** ~2 t per 8-hour shift; running ~77% of a two-shift month, ~24 t/month spare.
   Filling that at ₹13/kg is worth more than the SSS Mehta question either way.
 
@@ -1782,7 +1824,7 @@ has to describe it. P143.
   numbers, dates, quoted text, e-mails, GSTINs, names written in capitals), the stack as function names and line numbers in
   the built page, the build stamp as the release, the screen, the layout, whether installed and online, the browser.
 - **What never goes**: a record, a figure, the address's query, a user, breadcrumbs. **There is no Sentry SDK**: its
-  breadcrumbs carry request URLs, and the Gemini and metals.dev keys travel in theirs. One POST of an envelope to Sentry's
+  breadcrumbs carry request URLs, and the metals.dev key travels in theirs. One POST of an envelope to Sentry's
   endpoint (`text/plain`, so no preflight; the service worker never touches a POST).
 - **From the live site only** (`ERR_HOSTS`), never from a test browser (`navigator.webdriver`) or a local copy. `ERR_DSN`
   names the project (the owner's, EU region, given 1 Oct 2026; a DSN is a public key, made to sit in the page). Each kind of
@@ -1797,15 +1839,17 @@ has to describe it. P143.
 Floor → **Production** (owner, 28 Sep 2026: *"This will give us a clearer picture of what's
 actually happening in the plant daily"*). What each line (VAT A1, VAT A2, barrel) plated each day, pickling as a stage
 before it, and **material in the plant two ways** — by the book and by the floor. `prodparse.js` reads the messages
-(pure), `production.js` holds the store and everything derived from it, `prodview.js` draws the page, `vision.js`
-reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an input; Entries → Export writes
+(pure), `production.js` holds the store and everything derived from it, `prodview.js` draws the page (`vision.js` read a
+register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock** (owner): a view and an input; Entries → Export writes
 `sep-production` v1 whole (with the power causes its cuts name, `powerCauses`), Import merges by id and never overwrites.
 
 - **Three voices, three doors.** The pickling hand's loads (*"SSS MEHTA / CLAMP133×83(35×6)-774 nos / PICKLING TIME
   9:00AM"*, incoming material under its own head) and the supervisor's barrel list and a roll's `----production----`
   block come through **Paste message** — Production's own, or the one box on Home and Staff, which sends them here and
   keeps a roll's attendance exactly as it was (P90 compares the saved day with and without a block). The register
-  clerk's **VAT register photos** are read by Gemini. **Enter by hand** is the fallback. Every message is shown beside
+  clerk's **VAT register page** is typed as written on Mine (the faces, below) or entered by hand; **its photo, read by
+  Gemini, came out on 13 Oct 2026** (owner: *"it simply never works, so it's better we take that off, it's waste"*), and
+  the runs photos read before then stay in the book. Every message is shown beside
   what was read before anything is saved (Stock's contract); the same message is refused, unless every entry it made was
   voided.
 - **The record is events** (`S.production.entries`: arrived / pickled / plated / downtime), stored sparse. A figure is
@@ -1819,19 +1863,19 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
 - **One figure per line and shift.** Per (day, line, general | overtime) the register counts, else the supervisor's
   relay, else an entry by hand; the others are shown **also reported**, never added — they count the same work a
   different way. On a day with the supervisor's whole-day barrel list, the roll's barrel OT blocks are *also reported*
-  beside it (the owner could not say which the list covers: recorded as unknown).
+  beside it (the owner could not say which the list covers: recorded as unknown, and kept so on 13 Oct 2026: *"This issue
+  should be resolved once we have separate apps for everyone on the floor"*).
 - **A pickling message never names the line.** A load's line is read from the plating it became (the same part, the
   same day from half an hour before, or the next working day before noon), shown and **never stored**; a load with no
   plating offers the part's **usual line** (5+ days at 80%+, learnt only from lines written or set, so the pattern
   cannot feed itself) as a chip the owner taps. A load naming only the kind and gauge (*"CLAMP(40×6)"*, over half the
   loads since August) is matched at the family level; **a named part only ever matches its own challans** (CLAMP 90X81
   was once set against CLAMP 165X83's).
-- **The register** (Gemini, a schema, the image shrunk to 2,000 px, no client list sent): a transcription, never a
-  reading — times, rack arithmetic, the START rule (a START takes the next round's figure, the owner's rule of 26 Jun),
-  the day's total, are this app's, in code. **A struck row is asked each time** (owner): red until counted or cancelled.
-  A rack size never seen for the part on that line is amber. **Only facts are kept** — hash, size, model and prompt
-  version, the date and line read, the row count — never the image; the read is kept on the device until saved, so
-  reopening the photo costs no second request.
+- **The register** is a transcription, never a reading — times, rack arithmetic, the START rule (a START takes the next
+  round's figure, the owner's rule of 26 Jun), the day's total, are this app's, in code (`prodFromRegisterRead`: a page
+  typed on Mine, a file, and the photos Gemini read until 13 Oct 2026). **A struck row is asked each time** (owner): red
+  until counted or cancelled. A rack size never seen for the part on that line is amber. A photo read before 13 Oct 2026
+  kept only facts (hash, size, model and prompt version, the date and line read, the row count), never the image.
 - **In plant.** **Book** = Σ the open share of every challan line (`imLineOpen`), the same figure as Home's unbilled.
   **Floor** splits each open line into *waiting to pickle*, *pickled, not plated* and *plated, not invoiced*, setting a
   part's plating and pickling against its challans oldest first — and **a line billed whole is closed on its last
@@ -1868,7 +1912,7 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   - **VAT A2 writes START and END, and the END carries the batch** ("98×8+1", "3×156", "50+52+30"). The first build
     counted START as a round of the next figure, the rule for A1's round-by-round pages, and **doubled every A2 run**
     (1,930 for a page that says 1,145). The rule now applies only to a page with no END row.
-  - **Figures are written as sums and products** and are added up in code (`prodRegisterQty`), never by Gemini.
+  - **Figures are written as sums and products** and are added up in code (`prodRegisterQty`).
     "3+4×156" is racks counted in two goes: read as 7 × 156 = 1,092 (**confirmed by the owner, 28 Sep 2026**), with the plain-arithmetic 627 said beside it as info, no longer a warning.
   - **The register keeps a power log** ("Power cut - 10:26 AM / Power in - 10:36 AM", a date on every row): read as
     power cuts. A cut the pickling hand also reported is counted once (`prodDowntimeDay`): cuts from different sources
@@ -1883,12 +1927,12 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     from the END before it on its page and keeps the start it had (`startWas`, with no clock in it, so two devices write the
     same and the merge holds nothing): on the owner's book, four runs on
     VAT A2 (23 Sep twice, 24 Sep, 8 Oct). P85.
-  - **A photo that is not a register page is refused**: the weekly hours sheet ("other"), and a customer's challan, which
-    is offered to the challan scanner with the same file.
-  **Instrument, and its limit:** the 20 pages were transcribed by hand into the shape the prompt asks Gemini for (scratch,
-  never committed) and every page's runs and cuts match what the page means, 20 of 20. That scores the code after the
-  read; **Gemini's own transcription is not scored**: there is no key in the build sandbox. The owner's first real read
-  is that check.
+  - **A photo that was not a register page was refused** (until the photo reading came out): the weekly hours sheet
+    ("other"), and a customer's challan, offered to the challan scanner with the same file.
+  **Instrument, and its limit:** the 20 pages were transcribed by hand into the shape the prompt asked Gemini for (scratch,
+  never committed) and every page's runs and cuts match what the page means, 20 of 20. That scored the code after the
+  read; **Gemini's own transcription was never scored** (no key in the build sandbox), and the owner's reads found it
+  never worked: it came out on 13 Oct 2026. The code after the read is the faces' and the files' now.
 - **The chat export of 16–28 Sep** (owner) showed the roll side too: **the supervisor writes a slot's work straight under
   its line**, with no `----production----` head ("---hold night-6:00am--- / crew / Dilip press material / VAT A 2 /
   3301-600 nos"), so a quantity line under any slot is that slot's production, a client on a line of its own is the client
@@ -1906,7 +1950,8 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
   Settings → Connections → Photo reading shows the model in use. **A key whose project is on prepaid billing with no
   credit** is named as that (make a key in a project with no billing, which is free, or add credit), never as a busy
   minute. Nothing here has been run against the live API from the build sandbox: the retries are pinned on mocked
-  refusals in the shape Google sent (P85).
+  refusals in the shape Google sent (P85). **Retired with the photo reading on 13 Oct 2026**: each device forgets the key,
+  the model and the last read kept as a draft at its next start (`forgetGeminiKey`).
 - **The register's own shorthand, from the owner's pages of 23–29 Sep 2026** (P122):
   - **A clamp's gauge from its round** (owner: *"Mehta's clamp gauge is 25x6 or 30x6 if 150 pieces are done on VAT A1 and 100 pieces on
     VAT A2 and 35x6 or 35x8 or 40x6 if 120 pieces and 72 pieces are done in VAT A1"*). The register writes Mehta's clamps as CLAMP; a
@@ -1965,8 +2010,6 @@ reads a photo. **Owned by `soma-internal`, like stock** (owner): a view and an i
     hands marked on its line, a run from 5 PM or before 8:30 the named crew of the OT block covering it, a pickling load the pickling
     hands; a day with no attendance says so. Entries show it under each run, and Clients → Performance → Materials worked lists each
     plating of a part with its line, time and crew beside its challans and invoices.
-- **The workers' names box on a register photo goes to Google with the page** (Settings → Connections → Photo reading
-  says so); only what is read is kept.
 
 ### Production typed as text, a slot a line
 Owner, 9 Oct 2026: *"When I paste '08/10/26 - / 5 pm - 8 pm - Mehta clamp 165x83(40x6) - 400 nos + Clamp 140/146x91(32x6) - 606 nos =
@@ -2330,7 +2373,7 @@ keeps it current, and `soma-internal/reports/power-cut-case-2026-09-30.md` is th
   take into assumption OT that we had to do following the power cut due to the backlog of material it creates"*). The work a
   cut stops is either made up in overtime or never made. Made up, the cut cost that overtime; never made, it cost the
   output's contribution and the wages that bought nothing. A restart (₹600 in a working window, the 30 May estimate) is paid
-  either way (**an estimate, not measured**, and said beside the total). So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
+  either way (**an estimate, not measured**, and said beside the total; kept until a quote, owner, 13 Oct 2026). So damage = restart + catch-up overtime + (1 − share made up) × (contribution + platers' idle wages).
   - **Catch-up overtime** (`powerRecovery`): a cut in working hours puts its own day and the next working day at risk. Each
     such day's overtime (`powerDayOt`: monthly and daily hands' OT at their overtime rate, an hourly hand's hours past eight,
     and the EXTRA on OT blocks; the general shift's EXTRA covers a missing hand, not carried-over work, and is left out) is
@@ -2506,7 +2549,8 @@ of things in the app that can answer itself but that linkage is missing."*). The
      its model; the spare capacity.
   3. **Who is driving it?** For the account filling the plant under the cost: reprice per kg and per piece (a quotation
      draft, below); what its rebate costs against how fast it pays; the parts earning under an hour of the plant's cost (By
-     the hour); the labour question settled both ways. For the biggest mover down: its stopped parts, and a call.
+     the hour); the labour question settled both ways (gone since the owner ruled labour fixed, 13 Oct 2026). For the biggest
+     mover down: its stopped parts, and a call.
   4. **Is the plant full?** Who could fill the spare tonnes; quotations out and unanswered; a new quotation at a rate that
      clears the cost; the lines with the most idle days.
   5. **Is cash coming in?** The largest debts over 90 days (a call, their receivables), receipts with no client, a client
@@ -2671,7 +2715,7 @@ lowered for every Floor screen, P197's `ONE_LOOK` takes them, and the walk visit
   coloured only from three cuts (`uiVerdictFit` keeps a long cause in the card). Load & bills says each figure once. The case is
   paper fitted to the screen (`paperFit`, `#powerCaseSheet`).
 - **The redirect rows** (§5): `pageStaff·overview`, `pageProduction·overview`, `pagePower·overview` → Floor's Overview;
-  `pageProduction·overview/<paste|hand|photo>` → that form on Lines; `pageStock·overview` → `list`. A remembered `overview` in
+  `pageProduction·overview/<paste|hand>` → that form on Lines (a `photo` address opens Lines since 13 Oct 2026); `pageStock·overview` → `list`. A remembered `overview` in
   `sep_inv_prod_tab` or `sep_inv_power_tab` opens the first view; a saved task with `tab: 'overview'` too.
 - **Who sees a rupee is unchanged**: the reorder's cash, a cut's cost and In plant's book are every role's that opens their screen,
   on Floor's heroes as on the screens; only the bank's forecast waits on the money setting (the guard's audit, QA4-4).
@@ -2749,7 +2793,7 @@ floor (no note over 120 characters and no chain of three facts on any screen, no
   on you* otherwise), its count in its line; on the phone the first card opens, the rest wait shut. Training leads with how its
   lessons stand and each row says its own standing (due again warning, never taught info, up to date ok).
 - **Invoiced** (`imInvoicedVerdictHtml`, `imMonthPagerHtml`): its card, then one row with the month inside it (`inv-tb-step`) and More
-  holding Add challan, Scan a challan and Duplicate check. **Reports**' Print is its action bar's, under the sheet.
+  holding Add challan and Duplicate check (Scan a challan came out on 13 Oct 2026). **Reports**' Print is its action bar's, under the sheet.
 - **The long words** went to a line or two facts, the method to its guide (*Using the app: People* v3, *pay* v5, *knowledge* v2): the
   day board's row, the labour card, Pay's cash draws, Money's forecast (*What it rests on*, a fold of fact rows), Pulse's cash
   question, the insights' lines, the zinc card, Power's rows (a unit and its line one fact: *Rectifier 1 (VAT A1)*), the change
@@ -2847,8 +2891,8 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   seen), with an `--sp-8` gap between tiles; a deck card is lifted the same way. A strip in a flush panel keeps `--pad-x` round its
   tiles; a hero sheet holding a strip alone draws no box (the tiles are the boxes); a pressed filter tile is let down (no lift,
   edged in the accent). The `panel-w` thresholds for two, three and four across moved to 32.5rem and 43rem for the gap.
-- **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a photo, a file routed
-  by what is in it, and every by-hand form). It saves nothing itself: each route ends in the review or form that exists.
+- **Add** (`add.js`, P136): one sheet for everything that comes in (paste, the clipboard on a tap, a file routed by what
+  is in it, and every by-hand form; a photo is not read since 13 Oct 2026, and a photo picked under File says so). It saves nothing itself: each route ends in the review or form that exists.
 - **A file brought to another screen's Import is taken where it belongs** (`addFileElsewhere`, add.js; owner, 9 Oct 2026: the day's
   production file, imported on Production → Equipment, read *Not a plant file* and stopped there). Every screen's Import (Equipment,
   Roster, Register, Pay, Stock, Production, Power, Settings, Knowledge, Bank) asks before it refuses: the file is named for what it
@@ -3044,23 +3088,23 @@ build: the people are the book's.
   time is a batch's end). The client and the part as the floor names it (the floor's names and the client's challan parts offered)
   appear only where a run begins, the rounds under it carrying them as the paper's ditto; *Another client or part* on the last round
   begins a run, and a run's part changed moves the rounds under it that were the same. Two clients in one round are a row each at
-  the same time. **Read by the register photo's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`): the figure
+  the same time. **Read by the register's own reader** (`faceVatRead` → `prodFromRegisterRead`, `prodRackCheck`): the figure
   added up as the register means it (*3+4×156* is seven racks of 156, *98×8+1*), the START rule, the gauge, part and series rules,
   the shift's edges, a round its line has not run, the day total written against the rounds; each row says what was read under it,
   a run what it was read as. The rows redraw around the field being typed (`faceVatRedraw`, People → Day's way), so a tap on the next
   field lands. The face opens on the line with nothing recorded that day, else the one being typed (`?tab=pageFace&v=vat/vat-a2`).
 - **Kept on the phone until the page is saved** (`sep_inv_face_page`: a page per person, day and line; dropped a fortnight unsaved;
   *Start again* / *Put back as saved*), since a page is a day's rounds and a save at every round would void a run at every next one;
-  Mine's step says a page is typed and not saved. **Saved**, its runs are a register photo's (`plated`, `basis: 'register'`,
+  Mine's step says a page is typed and not saved. **Saved**, its runs are a register page's (`plated`, `basis: 'register'`,
   `lineSrc: 'written'`, the rounds) with `src: 'face'`, `pageId` and `msgHash` (the page's message, *Send to the group*), and the
   page is kept (`production.pages`: date, line, style, the rows as typed, the total written, who, the reader's fingerprint). **Saved
   again, it puts right what changed**: a run whose rows read as before stays (its id, whatever the owner set on it), a changed one is
   voided (*The page was entered again on Mine*) and its reading added, and the page before is kept, `replacedBy`. A page with a run
   the owner corrected or voided in Production is the owner's: saving it again is refused, saying so. A figure the reader cannot add
   up is refused at Save, never saved as nothing.
-- **A page a photo also holds is warned both ways**: on the face before it is entered and at its save (*Count the day twice?*), and
-  on the photo's check (*The VAT A1 page for this day was entered on Mine by …*, *with the same rounds* where the fingerprints
-  match). Register runs of one line and day from two sources both count, so the warning is the guard.
+- **A page a photo also holds is warned**: on the face before it is entered and at its save (*Count the day twice?*), where a
+  photo read before 13 Oct 2026 holds that line and day (the photo's own check went with the photo reading). Register runs of
+  one line and day from two sources both count, so the warning is the guard.
 - **The power log is the day's**: a cut saved at once from the page (cut at, power back if it is), one log a day whichever line's page
   (`logId`: two close cuts in it are two, a cut the pickling message also sent is one), the day's cuts from every record listed with
   *Power back* or *Why* (the cut's completion, `pcsOpen`).
@@ -3229,9 +3273,11 @@ open tab is remembered on the device; `renderStats()` draws the open tab's cards
 - **The trend keeps its own reach** (the last 12 months, 26 weeks or 90 days) whatever the period chip, and shades the chosen
   period on it (`opts.span`), saying so under the chart (owner, 30 Sep 2026).
 - **Contribution by client** (Clients tab), worst first: net realisation (credit notes whose batch ends in
-  the period are taken off), against the variable cost (everything but the monthly crew) and the full cost,
-  and the ₹ on the period. The worst account with 10%+ of the tonnage is settled both ways: if labour is
-  fixed, if it scales, the break-even prices, and its share of the plant. **Cost is spread per kg**, which
+  the period are taken off), against the variable cost and the full cost, and the ₹ on the period. **Labour is
+  fixed** (owner, 13 Oct 2026), so the variable cost is everything but labour (it was everything but the monthly
+  crew), and the worst account with 10%+ of the tonnage is settled one way: what it contributes or loses against
+  the variable cost, what it lacks of the full cost, the price at which it pays its share, and its share of the plant
+  (it was settled both ways: if labour is fixed, if it scales). **Cost is spread per kg**, which
   the table says: a thin clamp and a heavy bracket cost the same per kg there. On the real book for the
   quarter to 25 Sep: live cost ₹7.31/kg (40% measured) against ₹7.96 realised; SSS Mehta at ₹5.34 net is
   −₹0.87/kg even with labour fixed.
@@ -3405,7 +3451,8 @@ batch rebate.
   they are for) and the **penalty or extra charge** in it, both parts of its amount. The arrears were that month's cost on its
   own bill, so a bill's cost is its amount less its arrears (`costBillCost`); the penalty stays in and is named on the bill and
   in Live cost. A second bill with no arrears entered asks first, never refuses. The owner mentioned paying about ₹5,000 a month
-  since the load went to 50 while the bill still reads 25: that charge can be entered as the penalty or extra charge.
+  since the load went to 50 while the bill still reads 25, **read off a bill** (owner, 13 Oct 2026, who will enter the
+  figures where available): that charge is entered as the penalty or extra charge.
 - **Credit notes, two doors**, in the head of Invoices → Credit notes, the form drawn in the dialog's body (a save or a cancel
   redraws it with the Register's badge and CN marks, `cnRegisterRefresh`). *Record an issued note* takes a note that already exists on paper, with its **own
   number** (refused if the series holds it) and **the GST as printed**: recomputing is not the same thing, and
@@ -3826,8 +3873,8 @@ is self-contained so it can move to `sep-dashboard` whole.
 - **Mine** — typed, with an optional due date, note and a link to a client / invoice / challan / stock
   line. **Ticked, never deleted**: Done keeps them and can reopen one.
 - **App** — raised from the book (`TODO_RULE_FNS`): a stock line red or amber, no stock figure for 2
-  working days, a credit-note batch past 7 days since the client's last note, challans unbilled after 5
-  days (one task per client), invoices not yet dispatched after 2 days (Created or Printed, last 30 days only), the number audit
+  working days, a credit-note batch past 7 days since the client's last note, challans unbilled after 3
+  days, red at 6 (one task per client; owner, 13 Oct 2026, was 5 and 10), invoices not yet dispatched after 2 days (Created or Printed, last 30 days only), the number audit
   finding a gap, no backup (export or GitHub push) for 7 days, and — off by default — a stale zinc rate.
   Each is switchable in Settings → Checks & alerts → To-do. **App tasks cannot be ticked: they clear themselves** when the
   thing is fixed, and every one shows the figures it was raised on and what clears it.
@@ -3946,9 +3993,9 @@ supervisor's book, a page a month, a column a monthly hand, a row a day. P161.
 - **A corrected cell keeps what it said** (`edits`), on a page read from paper; a page started by hand is just being written. Mark
   checked stamps `verifiedAt`; any later change clears it.
 - **A column's worker**: picked once, learnt for that heading (`S.attRegister.names`), else the roster's name as a roll reads it.
-- **Three doors**: Import (`sep-att-register` v1, also through Add → File; a month on record is kept, never replaced), **Read page photo**
-  (Gemini, the same shape, each unsure cell dashed; only facts about the photo are kept), and **Start this month** (a column per active
-  monthly hand, Sundays drawn), filled a cell at a time with *Next day*.
+- **Two doors**: Import (`sep-att-register` v1, also through Add → File; a month on record is kept, never replaced) and **Start this
+  month** (a column per active monthly hand, Sundays drawn), filled a cell at a time with *Next day*. **Read page photo** (Gemini) came
+  out on 13 Oct 2026 with the rest of the photo reading; a month it read stays.
 - **Names never in the build**: the seven pages of March–September 2026 were transcribed from the owner's photos into a private
   `sep-att-register` file, handed over to import and check. On that book, May–September agree on present / absent in all but 7 of about
   1,000 cells; most differences are OT the daily records hold as 0.
@@ -4131,8 +4178,8 @@ to the rupee for 8 of 9 hands off the imported marks; the ninth, the gate hand, 
   credited nothing — a month nobody typed is not a month of holidays.
 - **A worked Sunday keeps its gated credit and is paid one day on top** (BM, 10 Sep: *"keep the worked sunday
   credit"*), and its hours are that day, **never OT as well** — which would pay them twice (the July slip took
-  Sarat's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way;
-  that one is its own reading, not a ruling.
+  Sarat's Sunday hours out of OT for exactly that reason). The app reads a worked paid holiday the same way:
+  its own reading until the owner kept it, 13 Oct 2026.
 - **A contracted monthly wage** (`worker.monthWage`, the worker's Edit on People → Roster): BM, 14 Sep, *"Uday is 9000/month. per day is
   calculated as per days in that month"* and *"His sundays are not gate sensitive"*, *"Sunday is inside the
   9000"*. So the day rate is wage ÷ days in the month, the Sundays are credited in full, and a Sunday worked
@@ -4386,9 +4433,11 @@ that split; the cost accounting does not move.
 **Fixed and variable are kept apart everywhere.** Fixed is the monthly tier — its days and its
 gated rest days together. It moves with that crew's attendance but not with tonnage, which is
 the distinction the split exists to draw. Variable is the hourly pool, the daily tier, OT and
-extra. That split is not decoration: the SSS Mehta decision turns on it — at fixed labour
+extra. That split is not decoration: the SSS Mehta decision turned on it — at fixed labour
 that account still contributes ₹0.53/kg, at volume-scaling labour it loses ₹1.64/kg — and one
-blended labour number silently picks a side.
+blended labour number silently picks a side. **The owner ruled the contract labour fixed on 13 Oct
+2026**, so Stats' contribution counts all of labour as fixed; this split still says what the pay is
+made of (the standing crew, and the pool paid by the day and the hour).
 
 Every constant — multiplier, both gate thresholds, the daily tier's weekly rest credit, the
 extra-hour rate, and the modelled ₹/kg the measurement is reported against — lives in Settings.
@@ -4474,7 +4523,7 @@ Paid holidays count as rest days in the coverage, not as working days nobody typ
 Six groups (owner, 25 Sep 2026: *"Too many things all in one place, no markers, no subdivisions"*):
 **Business** (company, bank, invoice and credit note series), **Checks & alerts** (rate & weight check, invoice states, stock
 alerts, To-do), **Costing** (full cost, live-cost fallbacks with the chemicals model, zinc rate), **Labour**
-(overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, Gemini, GitHub sync)
+(overtime, rest days & attendance, the extra, modelled labour), **Connections** (metals.dev, GitHub sync; the Gemini key went with the photo reading, 13 Oct 2026)
 and **Data & device** (backup, storage, build). The groups are `SETTINGS_GROUPS`, the sections `SETTINGS_SECS`
 in `settings.js`, each with a `summary()`, `body()`, `why` and `save()`.
 
@@ -4635,7 +4684,7 @@ reasoning did not. The move to IndexedDB above is the consequence. The sister ap
 localStorage pool with each other; a separate origin per project (a custom domain, or an
 organisation account per project) is the no-code answer for them.
 
-Credentials live in their own localStorage entries (`sep_inv_gemini_key`, `sep_inv_metals_key`,
+Credentials live in their own localStorage entries (`sep_inv_metals_key`,
 `sep_inv_github_token`), never on the state object, so an exported backup can never carry one.
 Appearance is device-only the same way (`sep_inv_theme`, `sep_inv_palette`, `sep_inv_density`): a backup
 must not repaint the phone that imports it.

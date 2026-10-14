@@ -25,13 +25,14 @@ const oneRow = (page: Page, sel: string) => page.locator(sel).evaluate(el => {
 const pad = (n: number) => String(n).padStart(2, '0');
 const dayOff = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`; };
 
-/* Three clients, a challan each, at 4, 5 and 10 days: either side of the To-do's challan days (5, the default) and at twice them. */
+/* Three clients, a challan each, at 2, 3 and 6 days: either side of the To-do's challan days (3, the default since the owner's
+   ruling of 13 Oct 2026) and at twice them. */
 function waitBook(): SepState {
   const s: any = { ...emptyState(), incomingMaterial: noSeedIM() };
   const names = ['OMEGA PRESSINGS', 'SIGMA TOOLS', 'TAU FORGE'];
   s.clients = names.map((name, i) => ({ id: i + 1, name, billingMode: 'weight', gstType: 'intra', gstin: '20ABCDE1234F1Z5', state: 'JHARKHAND',
     stateCode: '20', add1: 'Plot 9', add2: '', add3: '', address: '', isActive: true, notes: '', rates: [{ ratePerKg: 12, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [] }));
-  s.incomingMaterial = [4, 5, 10].map((age, i) => ({ id: 'IM-' + age, challanNo: String(800 + age), challanDate: dayOff(-age), clientId: i + 1, clientName: names[i],
+  s.incomingMaterial = [2, 3, 6].map((age, i) => ({ id: 'IM-' + age, challanNo: String(800 + age), challanDate: dayOff(-age), clientId: i + 1, clientName: names[i],
     vehicleNo: '', receivedDate: dayOff(-age), notes: '', createdAt: 1,
     items: [{ id: 'IM-' + age + '-0', partNumber: 'PART ' + age, desc: 'PART ' + age, hsn: '998873', unit: 'KG', qty: 100, rate: 12, amount: 1200, nosQty: null, invoiced: false, invoiceId: null }] }));
   return s;
@@ -72,25 +73,25 @@ test.describe('P193: Office in one look (phone)', () => {
     expect(stages.find(s => s.key === 'awaiting').tone).toBe('warning');
   });
 
-  test('TM5b: Awaiting invoice says how many wait, what they bill and the oldest’s days; a row and its task agree in tone at 4, 5 and 10 days', async ({ page }) => {
+  test('TM5b: Awaiting invoice says how many wait, what they bill and the oldest’s days; a row and its task agree in tone at 2, 3 and 6 days', async ({ page }) => {
     await loadAppWithState(page, waitBook());
     await switchTab(page, 'pageIM');
     const v = page.locator('#pageIM [data-verdict]');
     await expect(v.locator('.inv-hero-title')).toHaveText('3 challans waiting · ₹3,600 to bill');
-    await expect(v.locator('.inv-hero-fig')).toHaveText('10d');
+    await expect(v.locator('.inv-hero-fig')).toHaveText('6d');
     expect(await heroTone(page, '#pageIM [data-verdict]')).toBe('danger');
-    await expect(v.locator('.inv-hero-fact')).toHaveText(['days the oldest has waited', '2 over 5 days']);
+    await expect(v.locator('.inv-hero-fact')).toHaveText(['days the oldest has waited', '2 over 3 days']);
     // Each challan's dot is its days' tone, the days in its meta and its title.
-    const want: Record<string, string> = { 'IM-4': 'neutral', 'IM-5': 'warning', 'IM-10': 'danger' };
+    const want: Record<string, string> = { 'IM-2': 'neutral', 'IM-3': 'warning', 'IM-6': 'danger' };
     for (const [id, tone] of Object.entries(want)) {
       const row = page.locator(`#imList [data-im="${id}"]`);
       await expect(row).toContainText(id.slice(3) + ' days waiting');
       expect(await dotTone(page, `#imList [data-im="${id}"] .inv-row-end .inv-dot`), id).toBe(tone);
       await expect(row.locator('.inv-row-end .inv-dot')).toHaveAttribute('title', id.slice(3) + ' days waiting');
     }
-    // The To-do's challan task is toned by the same days: none at 4, amber at 5, red at 10.
+    // The To-do's challan task is toned by the same days: none at 2, amber at 3, red at 6.
     const tasks: Record<string, string> = await g(page, 'TODO_RULE_FNS.challan().reduce(function(o, t) { o[t.imIds.join(",")] = t.tone; return o; }, {})');
-    expect(tasks).toEqual({ 'IM-5': 'amber', 'IM-10': 'red' });
+    expect(tasks).toEqual({ 'IM-3': 'amber', 'IM-6': 'red' });
     // Pipeline's awaiting stage is the oldest's tone too.
     await switchTab(page, 'pagePipeline');
     expect(toneOf(await page.locator('#pagePipeline [data-pipe-stage="awaiting"]').evaluate(el => el.className), 'tile')).toBe('danger');

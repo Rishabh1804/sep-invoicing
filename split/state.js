@@ -103,7 +103,7 @@ function getDefaultState() {
     costModel: { power: 0.81, other: 0.42, zincKgMonth: 425, zincPerKg: 2.21 },
     // Which rules may raise a task, and their day thresholds.
     todoCheck: { stock: true, paste: true, cn: true, challan: true, dispatch: true, audit: true,
-      backup: true, zinc: false, pasteDays: 2, challanDays: 5, dispatchDays: 2, backupDays: 7 },
+      backup: true, zinc: false, pasteDays: 2, challanDays: 3, dispatchDays: 2, backupDays: 7 },
     // The devices registered to push to and pull from GitHub while the guard is on (devices.js), removed with a reason.
     devices: [],
     // Full cost per kg, rebuilt from owner-supplied inputs against Apr–Jul 2026
@@ -723,7 +723,6 @@ let _navReturnTab = null;
 let _regToolbarRendered = false;
 let _regSearchTimer = null;
 const VIEW_PREFS_KEY = 'sep_inv_view_prefs';
-const API_KEY_KEY = 'sep_inv_gemini_key';
 const METALS_KEY_KEY = 'sep_inv_metals_key';
 
 /* Phase 5: Focus stack (DP v0.2 Section 8 + Section 16) */
@@ -947,12 +946,16 @@ function uiVerdictHtml(o) {
   var tiles = n ? '<div class="inv-hero-sheet"><div class="inv-tiles' + (n === 4 ? ' inv-tiles-4' : n === 3 ? ' inv-tiles-3' : '') + '"' + (o.tilesAttrs || '') + '>' +
     factors.slice(0, 4).map(uiFactorTileHtml).join('') + '</div></div>' : '';
   var body = tiles + (o.body || '');
+  var sub = facts.slice(0, 3).map(function(f) {
+    return '<span class="inv-hero-fact' + (/^(ok|warning|danger)$/.test(f.tone || '') ? ' inv-fig-' + f.tone : '') + '">' + escHtml(f.text) + '</span>';
+  }).join('');
+  // A card of facts alone (no tiles, no body) is a plain card, its facts always shown. `foldFacts` folds them under its line on
+  // the phone, so the card shut is the line alone (owner, 13 Oct 2026, of the cards Invoiced, Training and Troubleshoot gained).
+  var foldFacts = !!(o.foldFacts && !_isDesktop && !body && sub);
   return uiHeroHtml({ tone: /^(danger|warning|ok|info|neutral)$/.test(o.tone) ? o.tone : 'neutral', eyebrow: escHtml(o.screen || ''),
     title: escHtml(verdict), fig: o.fig || '', viz: o.viz || '',
-    sub: facts.length ? facts.slice(0, 3).map(function(f) {
-      return '<span class="inv-hero-fact' + (/^(ok|warning|danger)$/.test(f.tone || '') ? ' inv-fig-' + f.tone : '') + '">' + escHtml(f.text) + '</span>';
-    }).join('') : '',
-    body: body || null, fold: 'v-' + (o.key || uiVerdictKey()), open: !!_isDesktop, foot: links.slice(0, 2).join(''),
+    sub: foldFacts ? '' : sub,
+    body: foldFacts ? '<div class="inv-hero-sub">' + sub + '</div>' : body || null, fold: 'v-' + (o.key || uiVerdictKey()), open: !!_isDesktop, foot: links.slice(0, 2).join(''),
     attrs: ' data-verdict data-card="verdict"' + (long ? ' data-verdict-long' : '') + (o.attrs || '') });
 }
 /* A verdict naming something typed (a cause, a client): the name cut at a word so that it and its tail fit the card's 60
@@ -1509,11 +1512,14 @@ if (typeof window !== 'undefined' && window.addEventListener) {
   });
 }
 
-function getApiKey() { try { return localStorage.getItem(API_KEY_KEY) || ''; } catch(e) { return ''; } }
-function setApiKey(key) { try { localStorage.setItem(API_KEY_KEY, key); } catch(e) {} }
+/* The Gemini key, the model it last answered on and the last photo's read kept as a draft are forgotten (owner, 13 Oct 2026:
+   the challan scan and the photo reading came out, *"it simply never works"*): nothing is left on the device that nothing reads. */
+function forgetGeminiKey() {
+  try { ['sep_inv_gemini_key', 'sep_inv_gemini_model', 'sep_inv_prod_photo_draft'].forEach(function(k) { localStorage.removeItem(k); }); } catch(e) {}
+}
 
 /* Kept in localStorage rather than on S, so an exported backup never carries
-   a credential. Same handling as the Gemini key above. */
+   a credential. */
 function getMetalsKey() { try { return localStorage.getItem(METALS_KEY_KEY) || ''; } catch(e) { return ''; } }
 function setMetalsKey(key) { try { localStorage.setItem(METALS_KEY_KEY, key); } catch(e) {} }
 

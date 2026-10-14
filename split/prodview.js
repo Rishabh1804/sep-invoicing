@@ -1,24 +1,22 @@
 /* ===== PRODUCTION — the page (Floor → Production) =====
  * Lines · In plant · Entries · Equipment, over one record (production.js). The tab map, TM4c: the Overview went (the day's
  * card and the week are Floor's Production card; the plant at a glance is the empty page's), and each view leads with its
- * verdict card and one toolbar row. What comes in is taken on Lines and Entries: Paste message the one primary, the register's
- * photo the one secondary, Enter by hand (and Entries' files) behind More (§1a-12). The sub-views (paste, review, photo, hand)
- * lead with a way back and end in the action bar, and draw no toolbar (DR-3).
+ * verdict card and one toolbar row. What comes in is taken on Lines and Entries: Paste message the one primary, Enter by hand
+ * (and Entries' files) behind More (§1a-12); the register's photo, read by Gemini, came out on 13 Oct 2026 (owner: *"it simply
+ * never works"*). The sub-views (paste, review, hand) lead with a way back and end in the action bar, and draw no toolbar (DR-3).
  */
 var _prodEntryOpen = null;   // the entry open in the desktop's pane (Entries)
 var PROD_TABS = [['lines', 'Lines'], ['plant', 'In plant'], ['entries', 'Entries'], ['equipment', 'Equipment']];
 var _prodTab = (function() { try { var t = localStorage.getItem('sep_inv_prod_tab'); return PROD_TABS.some(function(x) { return x[0] === t; }) ? t : 'lines'; } catch (e) { return 'lines'; } })();
 var _prodTabMoved = false;
-var _prodView = 'main';          // main · paste · review · photo · hand
+var _prodView = 'main';          // main · paste · review · hand
 var _prodPasteDraft = '';
 var _prodReview = null;          // {msgs, choices}
-var _prodPhoto = null;           // {name, bytes, url, sha, res, read, choices, dupSha, dupFp, photoDate}
 var _prodHand = null;            // the hand form
 var _prodLine = 'vat-a1';        // Lines: which line
 var _prodDay = null;             // Lines: which day (null = the last recorded)
 var _prodFilter = { kind: '', flag: '', client: '' };
 var _prodPlantClient = '';
-var PROD_DRAFT_KEY = 'sep_inv_prod_photo_draft';
 
 /* A view Production can open; an old one (the Overview, a remembered tab of a build before the tab map) opens Lines. */
 function prodSetTab(t) {
@@ -34,26 +32,19 @@ function prodBackBar(title) {
     '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
 }
 /* Lines' and Entries' toolbar (§1a-12): `lead` what the view puts first (Lines' day), `filter` its filters (Entries'), `more` its
-   rows behind More after Enter by hand. On the phone the two doors are named short and More is its mark, so the row is one. */
+   rows behind More after Enter by hand. On the phone Paste is named short and More is its mark, so the row is one. */
 function prodToolbarHtml(lead, more, filter) {
   var phone = !_isDesktop;
   var h = '<div class="inv-toolbar" data-prod-toolbar="' + escHtml(_prodTab) + '">' + (lead || '') +
     '<button class="inv-btn inv-btn-primary" data-action="invProdPaste">' + (phone ? 'Paste' : 'Paste message') + '</button>' +
-    '<button class="inv-btn inv-btn-secondary" data-action="invProdPhoto">' + (phone ? 'Read photo' : 'Read register photo') + '</button>' +
     (filter || '') + uiToolbarMoreHtml([{ label: 'Enter by hand', action: 'invProdHand' }, { label: 'Print sheets', action: 'invFshOpen' }].concat(more || []), { icon: phone }) +
-    '<input type="file" accept="image/*" id="prodPhotoInput" class="inv-hidden" multiple>' +
     (_prodTab === 'entries' ? '<input type="file" accept=".json,application/json" id="prodFileInput" class="inv-hidden">' : '') + '</div>';
-  // Photos picked with a challan handed to the challan scanner wait here, and are read on from here (P127).
-  // What needs the owner is a row, never a callout (the tab map, §3e).
-  if (_prodPhotoQueue.length) h += '<div class="inv-panel inv-panel-flush" id="prodPhotoWaiting"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' +
-    escHtml(todoPlural(_prodPhotoQueue.length, 'register photo') + ' waiting to be read') + '</span><span class="inv-row-meta">picked with the challan sent to the scanner</span></span>' +
-    uiRowEndHtml('', null, '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invProdPhotoNext">Read the next</button>') + '</div></div>';
   return h;
 }
 /* Nothing recorded yet: the card says so, the toolbar takes the first message, and the plant at a glance (it led the Overview). */
 function prodEmptyHtml() {
   return uiVerdictHtml({ screen: 'Production', verdict: 'No production recorded yet', tone: 'neutral', key: 'pageProduction-empty',
-    facts: ['paste a message, read a register photo, or import the history'], attrs: ' id="prodEmpty"' }) + prodToolbarHtml() + pltGlanceHtml();
+    facts: ['paste a message, enter a page by hand, or import the history'], attrs: ' id="prodEmpty"' }) + prodToolbarHtml() + pltGlanceHtml();
 }
 
 function renderProduction() {
@@ -63,7 +54,6 @@ function renderProduction() {
   var h;
   if (_prodView === 'paste') h = prodPasteHtml();
   else if (_prodView === 'review' && _prodReview) h = prodReviewHtml();
-  else if (_prodView === 'photo' && _prodPhoto) h = prodPhotoHtml();
   else if (_prodView === 'hand' && _prodHand) h = prodHandHtml();
   else {
     _prodView = 'main';
@@ -1177,165 +1167,6 @@ function prodSaveReview() {
   showToast(todoPlural(n, 'entry', 'entries') + ' saved' + (closed ? ' · ' + todoPlural(closed, 'cut saved before', 'cuts saved before') + ' given its time back' : '') + (res.dup ? ' · ' + todoPlural(res.dup, 'message') + ' saved before, left out' : '') + (learnt ? ' · ' + todoPlural(learnt, 'spelling') + ' remembered' : ''), 'success');
 }
 
-/* ---------- Register photo ---------- */
-function prodPhotoPick() {
-  // The key is checked before the picker opens: an awaited step before click() loses the picker on iOS.
-  if (!getApiKey()) { uiAlert({ title: 'Gemini key needed', body: 'Reading a register photo uses the Gemini key in Settings → Connections (free from aistudio.google.com). Enter by hand needs no key.' }); return; }
-  var inp = document.getElementById('prodPhotoInput');
-  if (!inp) return;
-  inp.value = '';
-  inp.click();
-}
-function prodPhotoSha(buf) {
-  if (!(window.crypto && crypto.subtle)) return Promise.resolve('n' + buf.byteLength);
-  return crypto.subtle.digest('SHA-256', buf).then(function(d) { return Array.from(new Uint8Array(d)).map(function(b) { return b.toString(16).padStart(2, '0'); }).join(''); });
-}
-/* Photos are read one at a time: the free tier limits requests a minute, and one failing does not stop the rest. */
-var _prodPhotoQueue = [];
-function prodPhotoFiles(files) {
-  _prodPhotoQueue = Array.prototype.slice.call(files || []);
-  prodPhotoNext();
-}
-function prodPhotoNext() {
-  var file = _prodPhotoQueue.shift();
-  if (!file) return;
-  var proc = document.getElementById('prodProcessing');
-  if (proc) proc.innerHTML = '<div class="inv-scan-processing"><div class="inv-scan-processing-card"><div class="inv-scan-spinner"></div><div class="inv-scan-processing-text">Reading the register</div>' +
-    '<div class="inv-scan-processing-sub">Gemini is transcribing ' + escHtml(file.name || 'the photo') + '</div></div></div>';
-  var done = function() { if (proc) proc.innerHTML = ''; };
-  file.arrayBuffer().then(function(buf) { return prodPhotoSha(buf).then(function(sha) { return { buf: buf, sha: sha }; }); }).then(function(b) {
-    // Any copy of the photo with an entry still live, not the first saved: one voided and saved again is held by the second (P127).
-    var p = prodData(), seen = p.photos.filter(function(x) { return x.sha === b.sha; }).find(function(x) { return p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
-    var seenLive = !!seen;
-    // The day the photo was taken, on this device's clock (UTC would put an evening photo in India on the next day).
-    var lm = file.lastModified ? new Date(file.lastModified) : null;
-    var photoDate = lm ? lm.getFullYear() + '-' + String(lm.getMonth() + 1).padStart(2, '0') + '-' + String(lm.getDate()).padStart(2, '0') : null;
-    var draft = null;
-    try { draft = JSON.parse(localStorage.getItem(PROD_DRAFT_KEY) || 'null'); } catch (e) { draft = null; }
-    var start = function(json, meta) {
-      done();
-      _prodPhoto = { file: file, name: file.name || '', bytes: file.size, url: URL.createObjectURL(file), sha: b.sha, json: json, meta: meta || {}, choices: {}, photoDate: photoDate, dupSha: seenLive ? seen : null };
-      try { localStorage.setItem(PROD_DRAFT_KEY, JSON.stringify({ sha: b.sha, json: json, name: file.name, at: Date.now() })); } catch (e) { /* a convenience only */ }
-      prodSetView('photo');
-    };
-    if (draft && draft.sha === b.sha && draft.json) { start(draft.json, { draft: true }); return; }
-    geminiReadImage(file, PROD_REGISTER_PROMPT, { schema: PROD_REGISTER_SCHEMA, maxEdge: 2000, thinkingBudget: 0 }).then(function(res) {
-      if (res.ok) { start(res.json, res.meta); return; }
-      done();
-      if (/credit|billing|prepay/i.test(res.error || '')) res.code = 'billing';
-      var msg = { billing: 'The Gemini key\u2019s Google project is on prepaid billing and its credits have run out. Add credit to it, or make a new key in a project with no billing (free) and put it in Settings \u2192 Connections.', key: 'No Gemini key is set (Settings → Connections).', quota: 'Gemini says too many requests. Wait a minute and read the photo again.', timeout: res.error, truncated: 'The reply was cut off: the page may have too many rows. Try a photo of half the page.',
-        json: 'Gemini did not return the table asked for. Read it again, or enter the page by hand.', blocked: res.error, empty: 'Gemini returned nothing for this photo.' }[res.code] || ('Reading failed: ' + res.error);
-      uiNotice('Register photo: ' + msg, 'error');
-      prodPhotoNext();
-    });
-  }).catch(function(err) { done(); uiNotice('Register photo: ' + ((err && err.message) || 'could not read the file'), 'error'); prodPhotoNext(); });
-}
-function prodPhotoRead() { var ph = _prodPhoto; return prodRackCheck(prodFromRegisterRead(ph.json, prodCtx(), ph.photoDate, ph.choices)); }
-function prodPhotoHtml() {
-  var ph = _prodPhoto, rd = prodPhotoRead(), p = prodData();
-  var line = ph.choices.line !== undefined ? ph.choices.line : rd.line;
-  var date = ph.choices.date || rd.date;
-  var dupFp = p.photos.find(function(x) { return x.fp === rd.fp && p.entries.some(function(e) { return e.photoId === x.id && !e.voidedAt; }); });
-  var red = rd.issues.filter(function(x) { return x.tone === 'red'; }).length, power = rd.page === 'power';
-  rd.rows.forEach(function(r) { r.issues.forEach(function(x) { if (x.tone === 'red') red++; }); });
-  rd.runs.forEach(function(e, i) { if (e.clientId == null && ph.choices['client' + i] === undefined) red++; });
-  var h = prodBackBar('Check the register');
-  h += '<div class="inv-panel"><div class="inv-scroll-x"><img class="inv-prod-photo" src="' + escHtml(ph.url) + '" alt="The register photo"></div>' +
-    '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodPhotoDate">Date on the page</label><input type="date" id="prodPhotoDate" class="inv-input" value="' + escHtml(date) + '"></div>' +
-    (power || rd.page === 'other' ? '' : '<div class="inv-field"><label class="inv-field-label" for="prodPhotoLine">Line</label><select id="prodPhotoLine" class="inv-select">' +
-      '<option value=""' + (!line ? ' selected' : '') + '>Unknown</option>' + PROD_LINES.map(function(l) { return '<option value="' + l + '"' + (line === l ? ' selected' : '') + '>' + PROD_LINE_LABEL[l] + '</option>'; }).join('') + '</select></div>') + '</div>' +
-    '<div class="inv-note inv-mt-8">Read by Gemini' + (ph.meta.draft ? ' (kept from the last read of this photo)' : '') + '. Check every row against the photo: nothing is saved until you do.</div></div>';
-  // The page entered on Mine by the register clerk (faces.js, F4) for this day and line, whose runs are in the book.
-  var onMine = !power && line ? p.pages.find(function(x) { return !x.replacedBy && x.date === date && x.line === line && p.entries.some(function(e) { return e.pageId && e.date === x.date && e.line === x.line && !e.voidedAt; }); }) : null;
-  if (ph.dupSha) h += '<div class="inv-callout inv-callout-danger" id="prodPhotoDup">This photo was saved before. Saving it again would count the page twice.</div>';
-  else if (dupFp) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup">A photo with the same rows for this day and line was saved before (a retake or a forward?). Saving would count the page twice.</div>';
-  else if (onMine) h += '<div class="inv-callout inv-callout-warning" id="prodPhotoDup" data-prod-photo-mine>' + escHtml('The ' + PROD_LINE_LABEL[line] + ' page for this day was entered on Mine' + (onMine.by ? ' by ' + onMine.by : '') +
-    (onMine.fp === rd.fp ? ', with the same rounds' : '') + '. Saving the photo as well counts the day twice.') + '</div>';
-  rd.issues.forEach(function(x) { if (x.code === 'line' && line) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + '">' + escHtml(x.text) + '</div>'; });
-  if (power) {
-    // The register's power log: each cut with its return, as written.
-    h += '<div class="inv-panel inv-panel-flush" id="prodPhotoPower"><div class="inv-panel-head"><span class="inv-panel-title">Power cuts read</span><span class="inv-panel-count">' + rd.downtime.length + '</span></div>' +
-      rd.downtime.map(function(x, i) {
-        var mins = x.to ? relayParseHhmm(x.to) - relayParseHhmm(x.time) : null;
-        return '<div class="inv-row inv-row-2" data-prod-cut="' + i + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(stockShortDate(x.date) + ' · ' + x.time + (x.to ? ' – ' + x.to : ', no return written')) + '</span>' +
-          '<span class="inv-row-meta">' + escHtml(x.raw.replace(/\n/g, ' / ')) + '</span></span><span class="inv-row-end inv-num">' + (mins != null ? escHtml(mins + ' min') : '&mdash;') + '</span></div>';
-      }).join('') + '<div class="inv-panel-body inv-note">A cut the pickling messages also reported is counted once: the two are joined when they overlap or begin within ten minutes.</div></div>';
-    return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Power cuts</div><div class="inv-actionbar-value">' + rd.downtime.length + '</div></div>' +
-      '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.downtime.length ? ' disabled' : '') + '>Save</button></div>';
-  }
-  if (rd.page === 'challan') h += '<div class="inv-panel"><button class="inv-btn inv-btn-secondary inv-btn-block" data-action="invProdToScanner">Read it as a challan</button></div>';
-  if (rd.page === 'other' || rd.page === 'challan') return h + '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Nothing to save</div><div class="inv-actionbar-value">0</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto" disabled>Save</button></div>';
-  h += '<div class="inv-panel inv-panel-flush" id="prodPhotoRuns"><div class="inv-panel-head"><span class="inv-panel-title">Runs read</span><span class="inv-panel-count">' + rd.runs.length + '</span></div>';
-  rd.runs.forEach(function(e, i) {
-    var cc = ph.choices['client' + i], cid = cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId;
-    h += '<div class="inv-row inv-row-auto inv-row-top" data-prod-run="' + i + '"><div class="inv-row-main"><div class="inv-row-title">' + escHtml((cid != null ? prodClientName(cid) : e.client || 'No client') + (e.part ? ' · ' + e.part : '')) + '</div>';
-    e.rows.forEach(function(r) {
-      h += '<div class="inv-quote inv-mt-4">' + escHtml(r.raw || '(empty row)') + '</div>';
-      r.issues.forEach(function(x) { h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-4">' + escHtml(x.text) + '</div>'; });
-      if (r.struck) h += '<div class="inv-toolbar inv-mt-4" role="group" aria-label="Struck row">' + [['counted', 'Counted'], ['cancelled', 'Cancelled']].map(function(o) {
-        return '<button class="inv-chip" data-action="invProdStruck" data-i="' + r.i + '" data-v="' + o[0] + '" aria-pressed="' + (ph.choices['struck' + r.i] === o[0]) + '">' + o[1] + '</button>'; }).join('') + '</div>';
-    });
-    e.issues.forEach(function(x) { if (x.code === 'client' && cc !== undefined) return; h += '<div class="inv-callout inv-callout-' + uiTone(x.tone) + ' inv-mt-8">' + escHtml(x.text) + '</div>'; });
-    // Every run's client can be changed, as on the paste check (P127): a run read exactly, one the ditto rule moved, one whose
-    // round the rules give to another client. The last two open on the picker.
-    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
-    if (!(e.clientId == null || cc !== undefined || moved || ph.choices['open' + i] || e.issues.some(function(x) { return x.code === 'readas'; })))
-      h += '<div class="inv-mt-4"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdRunClient" data-i="' + i + '">Change client</button></div>';
-    else {
-      var sel = cc !== undefined ? String(cc) : (e.clientId != null ? String(e.clientId) : '');
-      h += '<div class="inv-fields inv-mt-8"><div class="inv-field"><label class="inv-field-label" for="prodRunClient' + i + '">Client</label><select id="prodRunClient' + i + '" class="inv-select" data-prod-run-client="' + i + '">' +
-        (sel === '' ? '<option value="" selected>Pick the client</option>' : '') + '<option value="asWritten"' + (sel === 'asWritten' ? ' selected' : '') + '>Not in the book: keep as written</option>' +
-        (S.clients || []).slice().sort(function(a, b) { return a.name.localeCompare(b.name); }).map(function(c) { return '<option value="' + escHtml(String(c.id)) + '"' + (sel === String(c.id) ? ' selected' : '') + '>' + escHtml(c.name) + '</option>'; }).join('') + '</select></div></div>';
-    }
-    h += '</div><div class="inv-row-end"><span class="inv-num">' + escHtml(prodQtyText(e.qty, 'NOS')) + '</span></div></div>';
-  });
-  h += '</div><div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Counted</div><div class="inv-actionbar-value">' + escHtml(Math.round(rd.counted || 0).toLocaleString('en-IN') + ' NOS') + '</div></div>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invProdSavePhoto"' + (red || ph.dupSha || !rd.runs.length ? ' disabled' : '') + '>Save</button></div>';
-  return h;
-}
-function prodSavePhoto() {
-  var ph = _prodPhoto;
-  if (!ph) return;
-  if (!grdGate('floor', 'save production', prodSavePhoto)) return;   // the guard (guard.js): a floor entry, never re-asked
-  var rd = prodPhotoRead(), p = prodData(), at = Date.now(), by = stockBy();
-  var line = ph.choices.line !== undefined ? ph.choices.line : rd.line, date = ph.choices.date || rd.date;
-  var id = prodUid('PF'), n = 0;
-  if (rd.page === 'other' || rd.page === 'challan') return;
-  p.photos.push({ id: id, at: at, by: by, sha: ph.sha, name: ph.name, bytes: ph.bytes, w: ph.meta.w || 0, h: ph.meta.h || 0, model: ph.meta.model || geminiModel(), promptVer: PROD_REGISTER_PROMPT_VER,
-    readDate: date, readLine: rd.page === 'power' ? null : line || null, page: rd.page, rows: rd.page === 'power' ? rd.downtime.length : rd.rows.length, fp: rd.fp });
-  rd.downtime.forEach(function(x) {
-    p.entries.push(prodSparse({ id: prodUid('PE'), kind: 'downtime', date: x.date, time: x.time, to: x.to, downtime: { cause: 'power', open: !!x.open },
-      basis: 'register', src: 'photo', raw: x.raw, photoId: id, by: by, at: at }));
-    n++;
-  });
-  rd.runs.forEach(function(e, i) {
-    // A run every row of which was struck and cancelled was never plated.
-    if (e.rows.length && e.rows.every(function(x) { return x.struck && !x.counted && ph.choices['struck' + x.i] === 'cancelled'; })) return;
-    var cc = ph.choices['client' + i];
-    var rec = Object.assign({}, e, { id: prodUid('PE'), date: date, line: line || null, lineSrc: line ? (line === rd.readLine ? 'written' : 'set') : null,
-      clientId: cc !== undefined ? (cc === 'asWritten' ? null : cc) : e.clientId, photoId: id, by: by, at: at });
-    delete rec.rows; delete rec.issues; delete rec.clientName;
-    // A pick is learnt for the name only where the name was not read as a client (unknown, or read as one): a name read
-    // exactly, a customer carried from a ditto, or a round the rules give another client says whose the run is, not how
-    // the name is spelt (the paste check's rule, P127).
-    var named = e.issues.some(function(x) { return x.code === 'client' || x.code === 'readas'; });
-    var moved = e.rows.some(function(r) { return r.issues.some(function(x) { return x.code === 'carried' || x.code === 'whose'; }); });
-    if (cc !== undefined && cc !== 'asWritten' && e.client && named && !moved) p.learn.clients[relayKey(e.client)] = cc;
-    prodLearnAliases([rec]);
-    p.entries.push(prodSparse(rec));
-    n++;
-  });
-  prodTouch();
-  saveState();
-  try { localStorage.removeItem(PROD_DRAFT_KEY); } catch (e) { /* a convenience only */ }
-  try { URL.revokeObjectURL(ph.url); } catch (e) { /* nothing held */ }
-  _prodPhoto = null;
-  prodSetView('main');
-  showToast(rd.page === 'power' ? todoPlural(n, 'power cut') + ' saved from the register' : todoPlural(n, 'run') + ' saved from the register', 'success');
-  prodPhotoNext();
-}
-
 /* ---------- By hand ---------- */
 function prodOpenHand(fromId, from) {
   var src = fromId ? prodIndex().byId[fromId] : null;
@@ -1517,23 +1348,12 @@ function prodAction(action, btn) {
   switch (action) {
     case 'invProdTab': prodSetTab(btn.dataset.tab); _prodView = 'main'; renderProduction(); return true;
     case 'invProdStockLine': _stockItemId = btn.dataset.id; _stockView = 'item'; switchTab('pageStock'); return true;
-    case 'invProdBack': {
-      var wasPhoto = !!_prodPhoto;
-      _prodReview = null; _prodHand = null; if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
-      prodSetView('main');
-      if (wasPhoto) prodPhotoNext();   // the next photo picked with it is read, not left waiting
-      return true;
-    }
+    case 'invProdBack': _prodReview = null; _prodHand = null; prodSetView('main'); return true;
     case 'invProdPaste': prodSetView('paste'); return true;
     case 'invProdRead': prodReadPaste(); return true;
     case 'invProdSaveReview': prodSaveReview(); return true;
     case 'invProdRevClient': _prodReview.choices['open' + btn.dataset.key] = true; renderProduction(); return true;
     case 'invProdRevLine': _prodReview.choices['line' + btn.dataset.key] = btn.dataset.line; renderProduction(); return true;
-    case 'invProdPhoto': prodPhotoPick(); return true;
-    case 'invProdRunClient': _prodPhoto.choices['open' + btn.dataset.i] = true; renderProduction(); return true;
-    case 'invProdPhotoNext': prodPhotoNext(); return true;
-    case 'invProdStruck': _prodPhoto.choices['struck' + btn.dataset.i] = btn.dataset.v; renderProduction(); return true;
-    case 'invProdSavePhoto': prodSavePhoto(); return true;
     case 'invProdHand': prodOpenHand(null); return true;
     case 'invProdCorrect': prodOpenHand(btn.dataset.id); return true;
     case 'invProdHandKind': _prodHand.kind = btn.dataset.kind; renderProduction(); return true;
@@ -1566,17 +1386,6 @@ function prodAction(action, btn) {
     case 'invProdEntryClose': _prodEntryOpen = null; keepScroll(renderProduction); return true;
     case 'invProdUseLine': prodUseLine(btn.dataset.id, btn.dataset.line); return true;
     case 'invProdExport': prodExport(); return true;
-    case 'invProdToScanner': {
-      // A customer's challan photographed into the register reader: the challan scanner reads the same file.
-      var f = _prodPhoto && _prodPhoto.file;
-      if (_prodPhoto) { try { URL.revokeObjectURL(_prodPhoto.url); } catch (e) { /* none */ } _prodPhoto = null; }
-      _prodView = 'main';
-      switchTab('pageIM'); showAddChallanForm();
-      if (f) _processScanImage(f, getApiKey());
-      // The rest of the photos picked with it are not dropped: they wait in Production (P127).
-      if (_prodPhotoQueue.length) showToast(todoPlural(_prodPhotoQueue.length, 'more register photo', 'more register photos') + ' wait in Production', 'warning');
-      return true;
-    }
     case 'invProdImport': prodImport(); return true;
     // A line is Lines' own view, led by its card (TM4c): it opens at its top, as a view tab does.
     case 'invProdLine': _prodLine = btn.dataset.line; renderProduction(); viewTop(); return true;
@@ -1619,7 +1428,6 @@ function prodOnChange(t) {
     if (fdlg) { dialogCloseScrim(fdlg.closest('.inv-scrim-dialog')); return true; }
     renderProduction(); return true;
   }
-  if (t.id === 'prodPhotoInput') { prodPhotoFiles(t.files); return true; }
   if (t.dataset && t.dataset.prodClient !== undefined) {
     var key = t.dataset.prodClient, v = t.value === 'asWritten' ? t.value : prodHeldId(t.value), rc = _prodReview.choices;
     var mi = +key.split(':')[0], ii = +key.split(':')[1], it = (_prodReview.msgs[mi] && _prodReview.msgs[mi].read.items[ii]) || {}, nk = it.client ? relayKey(it.client) : '';
@@ -1630,9 +1438,6 @@ function prodOnChange(t) {
     else if (byName) rc['name:' + nk] = v; else rc['client' + key] = v;
     renderProduction(); return true;
   }
-  if (t.dataset && t.dataset.prodRunClient !== undefined) { if (t.value === '') delete _prodPhoto.choices['client' + t.dataset.prodRunClient]; else _prodPhoto.choices['client' + t.dataset.prodRunClient] = t.value === 'asWritten' ? t.value : prodHeldId(t.value); renderProduction(); return true; }
-  if (t.id === 'prodPhotoLine') { _prodPhoto.choices.line = t.value; renderProduction(); return true; }
-  if (t.id === 'prodPhotoDate') { _prodPhoto.choices.date = t.value; renderProduction(); return true; }
   if (t.dataset && t.dataset.prodHand) {
     var k = t.dataset.prodHand;
     _prodHand[k] = t.type === 'checkbox' ? t.checked : t.value;

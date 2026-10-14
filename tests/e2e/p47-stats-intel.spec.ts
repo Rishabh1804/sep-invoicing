@@ -66,7 +66,7 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await expect(page.locator('#statsMonths tbody tr')).toHaveCount(6);
   });
 
-  test('contribution by client: worst first, net of credit notes, and the worst large account settled both ways', async ({ page }) => {
+  test('contribution by client: worst first, net of credit notes, and the worst large account settled with labour fixed', async ({ page }) => {
     await loadAppWithState(page, state());
     await openStatsTab(page, 'clients');
     const rows = page.locator('#statsMargin tbody tr');
@@ -79,14 +79,16 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
     await expect(rows.nth(1)).toContainText('+4.44');
     const worst = page.locator('#statsWorst');
     await expect(worst).toContainText('BETA CLAMPS');
-    // Nothing recorded, so labour cannot be split into fixed and variable: it says so rather than calling it all variable.
-    await expect(worst).toContainText('split not known');
+    // Labour is fixed (owner, 13 Oct 2026): the variable cost is the live cost less labour, here every line at its model, so
+    // BETA's ₹4.90 is under it as well as under the full cost.
+    await expect(worst.locator('[data-tile="contrib"]')).toContainText('Below its variable cost');
+    await expect(worst.locator('[data-tile="full"]')).toContainText('−₹3.66');
     // BETA's share of the plant's tonnage, and of the revenue net of its note (14,700 of 27,700), in the working.
     await expect(worst.locator('.inv-row').filter({ hasText: 'Share of the plant’s tonnage' })).toContainText('75%');
     await expect(worst.locator('.inv-row').filter({ hasText: 'Share of the revenue' })).toContainText('53%');
     const m = await g(page, `(function(){ var r = statsClientMargins('mtd', statsInvoices(), weighLines(statsInvoices())); return [r.fullKg, r.varKg, r.ranked[0].money]; })()`) as number[];
     expect(m[0]).toBeCloseTo(8.56, 2);
-    expect(m[1]).toBeNull();
+    expect(m[1]).toBeCloseTo(8.56 - 3.55, 2);
     expect(m[2]).toBeCloseTo(-10980, 0);
   });
 });

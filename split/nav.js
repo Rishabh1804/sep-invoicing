@@ -54,8 +54,7 @@ function navLoc() {
     case 'pageStats': v = statsTab(); break;
     case 'pageProduction':
       // The paste box and its check are one place: back from the check goes where the paste came from.
-      // The register photo's check is a place of its own: it shared the page's address, so Back left Production.
-      v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : _prodView === 'photo' ? '/photo' : '');
+      v = _prodTab + (/^(paste|review)$/.test(_prodView) ? '/paste' : _prodView === 'hand' ? '/hand' : '');
       if (_isDesktop && _prodTab === 'entries' && _prodView === 'main' && _prodEntryOpen) id = _prodEntryOpen;
       break;
     case 'pagePower': v = _powerTab; break;
@@ -110,7 +109,7 @@ var NAV_REDIRECTS = [
   // TM4c: Production's Overview went: the day is Floor → Overview's Production card. A form opened over it stays open, on Lines.
   { tab: 'pageProduction', v: 'overview', to: function(loc) {
     var sub = String(loc.v || '').split('/')[1];
-    return /^(paste|hand|photo)$/.test(sub || '') ? { tab: 'pageProduction', v: 'lines/' + sub } : { tab: 'pageFloor', v: '' };
+    return /^(paste|hand)$/.test(sub || '') ? { tab: 'pageProduction', v: 'lines/' + sub } : { tab: 'pageFloor', v: '' };
   } },
   // TM4d: Stock is one screen: its Overview is the list (its charts Spend and prices).
   { tab: 'pageStock', v: 'overview', to: function() { return { tab: 'pageStock', v: 'list' }; } },
@@ -160,7 +159,7 @@ function navLabel(loc) {
       break;
     case 'pageStats': sub.push(_navFind(STATS_TABS, parts[0])); break;
     case 'pageProduction':
-      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand', photo: 'Register photo' }[parts[1]] || '');
+      sub.push(_navFind(PROD_TABS, parts[0])); sub.push({ paste: 'Paste message', hand: 'Enter by hand' }[parts[1]] || '');
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
@@ -235,7 +234,8 @@ function navApply(loc) {
         break;
       case 'pageStats': try { localStorage.setItem(STATS_TAB_KEY, parts[0] || 'clients'); } catch (e) { /* per device only */ } break;
       case 'pageProduction':
-        prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' || parts[1] === 'photo' ? parts[1] : 'main';
+        // An address of the register photo's check (it came out on 13 Oct 2026) opens the view under it.
+        prodSetTab(parts[0]); _prodView = parts[1] === 'paste' || parts[1] === 'hand' ? parts[1] : 'main';
         // Enter by hand is drawn from its own state: opened by an address it is made here, as Stock's is (QA chain, 2 Oct 2026).
         if (_prodView === 'hand' && !_prodHand) _prodHand = prodHandBlank();
         if (_isDesktop) _prodEntryOpen = parts[0] === 'entries' && id && prodData().entries.some(function(e) { return e.id === id; }) ? id : null;
@@ -339,7 +339,7 @@ function navSoon() {
 }
 
 /* Leaving a form with unsaved work asks first. A form is a screen showing its Save in the sticky action bar: the challan
-   form, Stock's and Production's paste checks and hand entry, the register photo's check. Create is not asked for: its
+   form, Stock's and Production's paste checks and hand entry. Create is not asked for: its
    form stays as typed when the app leaves it, and is there on coming back. */
 function navFormDirty() {
   return !!_pageTyped && navPageOf() !== 'pageCreate' && !!document.querySelector('.inv-page-active .inv-actionbar');

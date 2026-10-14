@@ -17,7 +17,7 @@ var SETTINGS_GROUPS = [
   { key: 'checks', label: 'Checks & alerts', secs: ['rateCheck', 'invStates', 'flow', 'stockAlerts', 'todo'] },
   { key: 'costing', label: 'Costing', secs: ['fullCost', 'fallbacks', 'zinc'] },
   { key: 'labour', label: 'Labour', secs: ['overtime', 'rest', 'extra', 'labModel'] },
-  { key: 'connections', label: 'Connections', secs: ['metalsKey', 'geminiKey', 'sync'] },
+  { key: 'connections', label: 'Connections', secs: ['metalsKey', 'sync'] },
   // The guard (guard.js): users and roles; builder D's Devices joins this group.
   { key: 'access', label: 'Access', secs: ['users'] },
   { key: 'data', label: 'Data & device', secs: ['appearance', 'data'] }
@@ -418,13 +418,6 @@ var SETTINGS_SECS = {
     body: function() { return _sfg('API key', 'setMetalsKey', _sKey('setMetalsKey', getMetalsKey(), 'Paste key', 'invToggleMetalsKey', 'key')); },
     why: 'Free tier at metals.dev covers a daily refresh. The key stays on this device and is never included in an export. Leave it blank to enter the zinc rate by hand.',
     save: function() { setMetalsKey(_sVal('setMetalsKey').trim()); renderZincCard(); }
-  },
-  geminiKey: {
-    title: 'Photo reading (Gemini)',
-    summary: function() { return (getApiKey() ? 'key saved on this device' : 'no key') + ' · ' + geminiModel(); },
-    body: function() { return _sfg('Google Gemini API key', 'setApiKey', _sKey('setApiKey', getApiKey(), 'AIza...', 'invToggleApiKey')); },
-    why: 'Reads a challan photo (IM → Scan) and a page of the VAT register (Production → Read register photo). Free from aistudio.google.com (Google account only, no card) when the key is made in a project with no billing: a project on prepaid billing refuses every read once its credits run out. The key stays on this device. The model is ' + GEMINI_MODEL + ' unless Google has retired it, in which case the app moves to the one Google names and keeps it on this device. A register photo is sent to Google as it is, the workers\u2019 names box included; only what is read is kept here, never the image.',
-    save: function() { setApiKey(_sVal('setApiKey').trim()); }
   },
   sync: {
     title: 'GitHub sync',

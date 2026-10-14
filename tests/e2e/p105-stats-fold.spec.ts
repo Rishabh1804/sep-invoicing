@@ -69,12 +69,12 @@ test.describe('S2: fixed and variable labour', () => {
     expect(r.variable).toBeCloseTo(r.total - 13000, 2);
     expect(r.from).toBe('bank');
 
-    // On the page, the note says where the split came from (a badge since the tab map, TM2b) and prices the fixed part: the
-    // variable cost sits under the full cost.
+    // The split is the power case's (powerMargin). On the page, labour is fixed whole (owner, 13 Oct 2026), said as a badge,
+    // and the variable cost sits under the full cost by all of labour.
     await openStatsTab(page, 'clients');
     await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
     const note = page.locator('#statsMargin .inv-panel-body .inv-note').first();
-    await expect(note.locator('[data-margin-split]')).toHaveText('fixed part read off the salaries the bank paid');
+    await expect(note.locator('[data-margin-split]')).toHaveText('labour fixed');
     const [v, f] = ((await note.textContent()) || '').match(/₹[\d,.]+/g)!.map(x => parseFloat(x.slice(1).replace(/,/g, '')));
     expect(v).toBeLessThan(f);
   });
@@ -98,28 +98,36 @@ test.describe('S2: fixed and variable labour', () => {
     expect(r.fixed).toBeGreaterThan(r.recFixed + 1);
   });
 
-  test('with nothing recorded the split is not known and says so, and no insight calls a client below it', async ({ page }) => {
+  test('with nothing recorded, labour is still fixed: the variable cost is everything but labour, and the worst account is settled on it', async ({ page }) => {
     const s = base();
     s.clients = [...s.clients, client(71, 'ALPHA WORKS'), client(72, 'BETA CLAMPS')];
-    s.invoices = [inv('00001', 71, 'ALPHA WORKS', [kg('PA', 1000, 13)]), inv('00002', 72, 'BETA CLAMPS', [kg('PB', 3000, 5)]),
-      inv('00003', 72, 'BETA CLAMPS', [kg('PB', 3000, 5)], monthBack(1) + '-10')];
+    s.invoices = [inv('00001', 71, 'ALPHA WORKS', [kg('PA', 1000, 13)]), inv('00002', 72, 'BETA CLAMPS', [kg('PB', 3000, 4)]),
+      inv('00003', 72, 'BETA CLAMPS', [kg('PB', 3000, 4)], monthBack(1) + '-10')];
     s.invNextNum = 4;
     await loadAppWithState(page, s);
+    // The power case's split of the monthly crew is not known with nothing recorded; the contribution does not need it.
     const sp: any = await g(page, `(function(){ var r = statsRangeIso('mtd'); return statsCostSplit(liveCost(r.from, r.to, 4000)); })()`);
     expect(sp.known).toBe(false);
-    expect(sp.fixed).toBeNull();
-    // "Below its variable cost even with labour fixed" was said of a variable cost that held all of labour.
-    expect(await g(page, `JSON.stringify(TODO_RULE_FNS.insBelowVar())`)).toBe('[]');
+    const m: any = await g(page, `(function(){ var r = statsClientMargins('mtd', statsInvoices().filter(function(i){ return i.date >= statsRangeIso('mtd').from; }),
+      weighLines(statsInvoices().filter(function(i){ return i.date >= statsRangeIso('mtd').from; })));
+      var lab = r.c.rows.find(function(x){ return x.key === 'labour'; });
+      return { full: r.fullKg, v: r.varKg, lab: lab.amount / r.kg }; })()`);
+    expect(m.v).toBeCloseTo(m.full - m.lab, 6);
+    expect(m.lab).toBeCloseTo(3.55, 2);                                         // every working day at the model
+    // BETA at ₹4/kg last month is below the variable cost even with labour fixed: the insight says so.
+    const ins: any = await g(page, `TODO_RULE_FNS.insBelowVar()`);
+    expect(ins.map((t: any) => t.clientId)).toEqual([72]);
+    expect(ins[0].title).toBe('BETA CLAMPS is below its variable cost');
 
     await openStatsTab(page, 'clients');
     const card = page.locator('#statsMargin');
-    await expect(card).toContainText('labour is not split, so no variable cost');
+    await expect(card.locator('[data-margin-split]')).toHaveText('labour fixed');
     const beta = card.locator('tbody tr', { hasText: 'BETA CLAMPS' });
-    await expect(beta.locator('td').nth(3)).toHaveText('—');                   // vs var.: not worked out
-    await expect(beta.locator('td').nth(3)).not.toHaveClass(/inv-num-neg/);
-    await expect(beta.locator('td').nth(4)).toHaveClass(/inv-num-neg/);        // vs full stands: ₹5.00 under the live cost
-    await expect(page.locator('#statsWorst [data-tile="fixed"]')).toContainText('split not known');
-    await expect(page.locator('#statsWorst')).toContainText('Record the attendance or import the bank statement to split labour');
+    await expect(beta.locator('td').nth(3)).toHaveClass(/inv-num-neg/);        // vs var.: below it
+    await expect(beta.locator('td').nth(4)).toHaveClass(/inv-num-neg/);        // vs full
+    await expect(page.locator('#statsWorst [data-tile="contrib"]')).toContainText('Below its variable cost');
+    await expect(page.locator('#statsWorst')).toContainText('loses money on every kilo');
+    await expect(page.locator('#statsWorst')).not.toContainText('split labour');
   });
 });
 

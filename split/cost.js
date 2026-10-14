@@ -449,8 +449,8 @@ function liveCost(from, to, kg) {
     ['Daily tier', lab.daily + lab.dailyRest], ['Overtime', lab.ot], ['EXTRA pool', lab.extra]].filter(function(d) { return d[1]; })
     .map(function(d) { return { label: d[0], amount: d[1] }; });
   var labCov = lab.total > 0 ? lab.coverage : 0;
-  // The share of the row that is fixed (the monthly crew's days and rest days), for Stats' fixed and variable
-  // (statsCostSplit): read from the instrument the figure comes from, and held over the stretch filled at the model.
+  // The share of the row that is the monthly crew's (its days and rest days), for the power case's split (statsCostSplit):
+  // read from the instrument the figure comes from, and held over the stretch filled at the model.
   // Null where nothing recorded says.
   var labFixed = lab.total > 0 ? { share: lab.fixed / lab.total, from: 'attendance' } : null;
   // The order: attendance where 90% of the days are recorded; else what the bank paid, where the

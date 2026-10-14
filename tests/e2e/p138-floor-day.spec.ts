@@ -138,18 +138,16 @@ test('a day with no record says so: a dash with its reason, and the move that fi
   await expect(a1.locator('[data-flr-run] .inv-row-title')).toHaveText('No record this day');
   await expect(a1.locator('[data-flr-crew]')).toHaveText('On the line: Alfa, Bravo');
   await expect(card(page, 'vat-a2').locator('[data-flr-crew]')).toHaveText('Nobody marked on the line that day');
-  // The VAT lines' record is the register page; the barrel list and the pickling loads come by message.
-  await expect(a1.locator('[data-action="invFlrPhoto"]')).toHaveText('Read register photo');
+  // The VAT lines' record is the register page, entered by hand (its photo, read by Gemini, came out on 13 Oct 2026); the
+  // barrel list and the pickling loads come by message.
+  await expect(a1.locator('[data-action="invFlrHand"]')).toHaveText('Enter by hand');
   await expect(card(page, 'barrel').locator('[data-action="invFlrPaste"]')).toHaveText('Paste message');
   await expect(card(page, 'pickling').locator('[data-action="invFlrPaste"]')).toHaveText('Paste message');
-  // Read register photo is Production's own: the picker opens, on Production → Lines for the line and the day.
-  await page.evaluate(() => localStorage.setItem('sep_inv_gemini_key', 'test-key'));
-  const chooser = page.waitForEvent('filechooser');
-  await a1.locator('[data-action="invFlrPhoto"]').click();
-  await chooser;
+  // Enter by hand is Production's own form, opened on the line and the day the card is for.
+  await a1.locator('[data-action="invFlrHand"]').click();
   await expect(page.locator('#pageProduction.inv-page-active')).toBeVisible();
-  await expect(page.locator('#productionContent [data-action="invProdLine"][data-line="vat-a1"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#prodLinesVerdict .inv-hero-eyebrow')).toContainText(await g(page, `stockShortDate('${D2}')`) as string);
+  await expect(page.locator('#prodHandDate')).toHaveValue(D2);
+  await expect(page.locator('#prodHandLine')).toHaveValue('vat-a1');
   // Paste message opens Production's paste box.
   await openFloor(page);
   await expect(page.locator('#flrDate')).toHaveValue(D2);

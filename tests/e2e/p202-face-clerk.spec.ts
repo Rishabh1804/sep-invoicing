@@ -233,11 +233,6 @@ test.describe('P202: the register clerk’s face', () => {
     expect(await ev(page, `TODO_RULE_FNS.faceCheck().map(function(t){ return t.key + '|' + t.title; })`))
       .toEqual([`faceCheck:rack|${today}|1 run at a round its line has not run before · ${await ev(page, `formatDate('${today}')`)}`]);
     expect(await ev(page, `faceCheckOf(prodIndex().live.find(function(e){ return e.pageId; }))[0].text`)).toBe('a round of 130, never run for it on VAT A1 before (usually 120)');
-    // The photo's check of the same day and line says the page was entered on Mine.
-    const ph = await ev(page, `_prodPhoto = { json: { page: 'production', date: '${dmy()}', line: 'VAT-A1', rows: [{ time: '11:00 AM', customer: 'NOVA CLAMPS', part: 'CLAMP 165X83(40X6)', qtyText: '130' }] },
-      choices: {}, photoDate: '${today}', url: '', meta: {}, sha: 'y', dupSha: null }; var h = prodPhotoHtml(); _prodPhoto = null; h`);
-    expect(ph).toContain('data-prod-photo-mine');
-    expect(ph).toContain('The VAT A1 page for this day was entered on Mine by Gita Bose, with the same rounds. Saving the photo as well counts the day twice.');
 
     // The owner puts the run right in Production: the page is the owner's now, and saving it again here is refused.
     const run = await ev(page, `prodIndex().live.find(function(e){ return e.pageId; }).id`);

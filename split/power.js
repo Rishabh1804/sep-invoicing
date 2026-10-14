@@ -165,7 +165,9 @@ function powerRate(asOf) {
 /* The share of a rupee of output that is contribution: realisation less the variable cost per kg (everything but the
    monthly crew), over the same 90 days at the live cost. Output not made loses that share, never the whole rupee: the
    zinc, chemicals and power it would have used are not bought (Iuno, 30 Sep 2026: the case counted revenue). A book
-   with no weighed tonnage uses the fallback in the options' figures, and says so. */
+   with no weighed tonnage uses the fallback in the options' figures, and says so. Labour is fixed (owner, 13 Oct
+   2026), and Stats' contribution leaves all of it out; here the pool's wages stay in the cost because the damage adds
+   the wages a cut leaves idle on top (powerCutCost, _powerDamage), so they are counted once either way. */
 function powerMargin(asOf) {
   var to = asOf || localDateStr(), from = isoAddDays(to, -89), cfg = powerCfg();
   var inv = statsInvoices().filter(function(i) { return i.date >= from && i.date <= to; });

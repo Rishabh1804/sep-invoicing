@@ -15,14 +15,14 @@
  * and day; the staffing word opens People → Attendance; the EXTRA badge opens Areas. */
 
 var FLR_LINES = [
-  { id: 'vat-a1', areas: ['vat-a1'], src: 'photo' },
-  { id: 'vat-a2', areas: ['vat-a2'], src: 'photo' },
+  { id: 'vat-a1', areas: ['vat-a1'], src: 'page' },
+  { id: 'vat-a2', areas: ['vat-a2'], src: 'page' },
   { id: 'barrel', areas: ['barrel', 'pickling-barrel'], src: 'list' },
   { id: 'pickling', areas: ['pickling-vat'], src: 'loads' }
 ];
 // Where each line's record comes from, said on a card that has none: the register clerk's page for the VAT lines, the
 // supervisor's barrel list and the pickling hand's messages for the others (Production's three doors).
-var FLR_SRC_TEXT = { photo: 'the register page', list: 'the supervisor’s barrel list', loads: 'the pickling hand’s messages' };
+var FLR_SRC_TEXT = { page: 'the register page', list: 'the supervisor’s barrel list', loads: 'the pickling hand’s messages' };
 var _flrDay = null;   // the day on screen; null is today, and follows the clock
 
 function flrValidDay(d) {
@@ -262,7 +262,7 @@ function flrCardHtml(day, isToday, ln, byArea, marked, j) {
       '<span class="inv-row-end">' + end + '</span></div>';
   } else {
     // No record: where it comes from, and the one move that fills it (a line of its own under the row on the phone).
-    var btn = !prodOk ? '' : ln.src === 'photo' ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrPhoto" data-line="' + ln.id + '">Read register photo</button>'
+    var btn = !prodOk ? '' : ln.src === 'page' ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrHand" data-line="' + ln.id + '">Enter by hand</button>'
       : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invFlrPaste" data-line="' + ln.id + '">Paste message</button>';
     h += '<div class="inv-row inv-row-2 inv-row-flow" data-flr-run="">' +
       main('<span class="inv-row-title">' + (isToday ? 'No record yet today' : 'No record this day') + '</span>' +
@@ -465,9 +465,9 @@ function flrAction(action, btn) {
     case 'invFlrStep': keepScroll(function() { flrStep(+btn.dataset.step || 0); }); return true;
     case 'invFlrToday': keepScroll(function() { _flrDay = null; renderFloor(); }); return true;
     case 'invFlrLine': flrOpenLine(btn.dataset.line); return true;
-    // Production's own doors, opened on the line and day: the register photo's picker (the key is asked there), and the
-    // paste box for the barrel list and the pickling messages.
-    case 'invFlrPhoto': flrOpenLine(btn.dataset.line); prodPhotoPick(); return true;
+    // Production's own doors, opened on the line and day: the hand form for the register's page (its photo, read by Gemini,
+    // came out on 13 Oct 2026), and the paste box for the barrel list and the pickling messages.
+    case 'invFlrHand': flrOpenLine(btn.dataset.line); prodOpenHand(null, null, { fromLines: true }); return true;
     case 'invFlrPaste': flrOpenLine(btn.dataset.line); prodSetView('paste'); return true;
     case 'invFlrStaff': flrOpenStaff('day'); return true;
     case 'invFlrAreas': flrOpenStaff('areas'); return true;

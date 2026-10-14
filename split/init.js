@@ -576,6 +576,18 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== A CHALLAN WAITING: AMBER AT 3 DAYS, RED AT 6, SET ONCE =====
+   Owner, 13 Oct 2026, of the days a challan waits to be invoiced before it is amber (red at twice them), offered keep 5, 3 or 7:
+   "B", so 3 and 6. The To-do's task, Challans' rows and Pipeline's first stage read the one setting (Settings → Checks & alerts
+   → To-do). Moved only where it still holds the old 5, and once: the flag travels with the state, so a figure set later stays. */
+(function() {
+  if (S._challanDays3) return;
+  var c = S.todoCheck || (S.todoCheck = {});
+  if (c.challanDays == null || +c.challanDays === 5) c.challanDays = 3;
+  S._challanDays3 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
    Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
    and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule
@@ -857,6 +869,7 @@ function bootApp() {
   bootStep('the lock', function() { if (typeof grdBoot === 'function') grdBoot(); });
 
   // Initial layout detection (no debounce)
+  bootStep('the photo key', forgetGeminiKey);
   bootStep('the layout', updateLayoutMode);
   bootStep('the counts on the bar', updateStockBadge);
 

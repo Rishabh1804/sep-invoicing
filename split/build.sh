@@ -101,8 +101,6 @@ JS_SOURCES=(
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \
-    "$DIR/vision.js" \
-    "$DIR/scanner.js" \
     "$DIR/events.js" \
     "$DIR/workspace.js" \
     "$DIR/swipe.js" \

@@ -52,6 +52,7 @@ Nothing here changes what the book records except TM3b.
 | TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | **Built** (10 Oct 2026; what it decided is under TM5, *As built*) |
 | TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | **Built** (10 Oct 2026; what it decided is under TM6, *As built*) |
 | TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | **Built** (13 Oct 2026; the measures after are in `docs/COGNITIVE_LOAD_SURVEY.md`, *After the tab map*; then the QA chain, on the owner's word) |
+| ✓ | **The owner's rulings of 13 Oct 2026** on what TM5–TM7 left open: the three cards that lengthened Challans → Invoiced, Knowledge → Training and Troubleshoot fold shut on the phone (`foldFacts`); the challan Scan and every Gemini photo read came out, so Challans, Add, Production, Floor, Today, the monthly register and Settings lost their photo doors; challans waiting are amber at 3 days, red at 6; labour is fixed, so By client settles the worst account one way (CLAUDE.md, *The owner's rulings of 13 Oct 2026*) | **Built** (13 Oct 2026, P210) |
 
 ## 1. The rulings
 
@@ -232,7 +233,7 @@ and P197 checks the anatomy. The targets are for the owner's book; P195 holds th
 | Today → Needs you | O | 2.6 (1.5) C | TM2a | the day's work list as now (its inputs, Now, This week, Later, recent as heroes); gains Add, Done and Snoozed (folded); red tasks still lead on the phone |
 | Today → Pulse | O | 5.5 (3.0) N | TM2b, TM2c | the questions as heroes; Why it moved, In one line and the pace as heroes (§1a-3); ≤ 3.5 with three widgets hidden |
 | Stats (Overview) | — | 10.9 (5.5) N; 13 blocks, 5 chains | TM2b | goes: its questions are Pulse's, the rest moves |
-| Stats → By client | W | 4.8 N; 7 blocks | TM2b | *2 large accounts below their variable cost · worst ₹5.34/kg* · the table; the worst settled both ways as tiles; ≤ 3; 0 blocks |
+| Stats → By client | W | 4.8 N; 7 blocks | TM2b | *2 large accounts below their variable cost · worst ₹5.34/kg* · the table; the worst settled both ways as tiles (one way since 13 Oct 2026: labour is fixed); ≤ 3; 0 blocks |
 | Stats → Cost | W | 4.4 N; 7 blocks | TM2b | *Live cost ₹7.31/kg · 40% measured* · sources as badges; recorded against paid as fact rows; ≤ 3; 0 blocks |
 | Stats → Trends | W | 1.7 C | TM2b, TM6b | *₹3.8L this month · +12% on the same days* (the headline's four figures its factors) · six months, the trend, top items; the month to date marked |
 | Stats → Billing | — | 1.4 C | TM2b | goes (Output tax to GST, states and unbilled to Pipeline, the dispatch cycle to Pipeline) |
@@ -335,7 +336,7 @@ kind is assembled one way, top to bottom.
    6. **What is finished**: a view tab, a fold, or `uiMoreHtml`'s *Show more*.
 3. **Document** (Reports, Power → Case): the toolbar (its kind and period, Print), then the paper fitted (`paperFit`, TM2f). The
    paper's own *In short* is its verdict.
-4. **Form** (Create, a challan, the paste checks, by hand, the photo check, a quotation, an article, a record opened as a
+4. **Form** (Create, a challan, the paste checks, by hand, a quotation, an article, a record opened as a
    sub-view): the back head (`inv-pagehead-back`), the fields, the action bar last; errors only after a try (TM5h).
 
 **What the verdict card replaces**, each taken out of where it led a screen:
@@ -424,7 +425,7 @@ place, so they add no row.
 | TM3a | `pageFinance` · `bills` | `pageFinance` · `payments` |
 | TM4 | `pageStaff` · `overview` | `pageFloor` |
 | TM4 | `pageProduction` · `overview` | `pageFloor` |
-| TM4 | `pageProduction` · `overview/paste` / `overview/hand` / `overview/photo` | `pageProduction` · `lines/<the same sub-view>` (a form open stays open) |
+| TM4 | `pageProduction` · `overview/paste` / `overview/hand` / `overview/photo` | `pageProduction` · `lines/<the same sub-view>` (a form open stays open; `photo` opens Lines since 13 Oct 2026, the photo reading taken out) |
 | TM4 | `pagePower` · `overview` | `pageFloor` |
 | TM4 | `pageStock` · `overview` | `pageStock` · `list` |
 
@@ -543,7 +544,7 @@ benchmark's instrument. Files: `workspace.js`, `nav.js`, `tabs.js`, `body.html`,
       - A verdict naming rupees takes `money: true`, and falls back to its count for a role without money (I4).
       - It throws in a test build when `verdict` runs past 60 characters or `factors` past four, so a builder finds out at once.
     - **`data-screen`**: `tabRender` sets it on the page root from **`SCREEN_KINDS`** (one map, `{pageX: kind, 'pageX/v': kind}`,
-      in `tabs.js`), so a view tab can differ from its page. A sub-view (paste, hand, photo, a record) sets `form` while it shows.
+      in `tabs.js`), so a view tab can differ from its page. A sub-view (paste, hand, a record) sets `form` while it shows.
     - **The row end** (§1a-11): **`uiRowEndHtml(fig, status, action)`** draws a row's end with at most one button. A row with more
       actions passes the rest to **`uiRowMoreHtml(actions)`**, which draws them in the row's fold on the phone and leaves the
       pane to draw them on the desktop.
@@ -681,7 +682,9 @@ it used are deleted (the engine stays: `todoRanked`, `todoApp`, `todoGo`, the di
   - **Stats → By client** leads with a verdict (`data-verdict`): how many large accounts sit below their variable cost, the worst
     named with its ₹/kg against the live cost, in its tone.
     - The contribution table follows.
-    - The worst account settled both ways (labour fixed, labour scaling, the break-even) is tiles, with the working folded.
+    - The worst account settled both ways (labour fixed, labour scaling, the break-even) is tiles, with the working folded. Since the
+      owner ruled labour fixed (13 Oct 2026) it is settled one way: what it contributes, what it lacks of the full cost, and the
+      price at which it pays its share.
     - Realisation by client and concentration fold (`uiFoldCard`), shut on the phone.
   - **Stats → Cost** leads with the live cost's verdict: its ₹/kg against realisation, and how much of it is measured (*₹7.31/kg ·
     40% measured*, the share in its tone).
@@ -1051,7 +1054,7 @@ and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Gr
     (`inv-plt-unit`) goes, and with it its look from P197's `LOOKS`.
   - **The toolbar per view** (§1a-12):
     - Lines and Entries: Paste message the primary; Read register photo the one secondary; Enter by hand behind More (Entries'
-      Export and Import too).
+      Export and Import too). Read register photo came out on 13 Oct 2026 (owner: the photo reading *"simply never works"*).
     - In plant: no primary; its verdict card, then its exceptions.
   - **Entries' rows end in one action** (§1a-11): Correct stays; Void, and *Use VAT A1* on a load, go into the row's fold (phone)
     and the pane (desktop).
@@ -1154,7 +1157,7 @@ today.js, search.js (none).
 - **In plant folds a client to its head** (its open amount, its stages as a dot and a word): open, the long book's ran 13 phone
   screens. What needs a look (plated past its days, on the floor with no challan open) leads, unfolded.
 - **A line's day with a cut and no time back says so** (*no time back*), never *0 min*.
-- **Stock's check is a row** (*To check*, with **Check them**), and Production's photos waiting to be read are a row too: both
+- **Stock's check is a row** (*To check*, with **Check them**), and Production's photos waiting to be read were a row too (until the photo reading came out, 13 Oct 2026): both
   were callouts leading their lists (§3e). Stock's **Spend and prices** is the phone's fold at the foot and the desktop's pane
   (a toolbar button, pressed while open).
 - **Power → Cuts' *To look at* is one panel**: the load approved and not yet billed first, in red, then the cuts to complete under
@@ -1433,7 +1436,7 @@ P197 complete.
 - **Challans → Invoiced**: its card (`imInvoicedVerdictHtml`: *N challans invoiced in Oct 2026 · ₹X*, in the tone of the oldest of
   the month's challans still waiting, *N of the month still awaiting invoice* its fact, *by challan date*), then one row: the
   month's ‹ › inside it (`imMonthPagerHtml`, `inv-tb-step`), Filter, and More holding Add challan, Scan a challan and Duplicate
-  check on this view. **Reports' Print is its action bar's**, under the sheet, as Create's Save is: two toolbar rows on the phone
+  check on this view (Scan a challan came out on 13 Oct 2026, and the card folds shut on the phone, its fact under its line). **Reports' Print is its action bar's**, under the sheet, as Create's Save is: two toolbar rows on the phone
   (the kind, the period).
 - **The long words**, each a line or two facts, the method to its screen's guide: the day board's row (the tier, then the day in
   one clause: *Monthly · OT 2 h*, *Hourly · Absent*; present is the pressed P and is not said); the labour card's three paragraphs

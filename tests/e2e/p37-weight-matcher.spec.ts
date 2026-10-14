@@ -22,7 +22,7 @@ const L = (partNumber: string, pcs: number, kg: number, desc = '') =>
 function state(): SepState {
   const s = emptyState();
   s.incomingMaterial = noSeedIM();
-  s.clients = [{ id: 1, name: 'DORABJI AUTO', billingMode: 'weight', gstType: 'intra', gstin: '',
+  s.clients = [{ id: 1, name: 'DORABJI AUTO', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true,
     rates: [{ ratePerKg: 13, ratePerPiece: null, effectiveFrom: '2026-04-01' }], itemRates: [],
     pieceWeights: [{ partNumber: '2525 2015 8202', gauge: '', kgPerPiece: 0.212, effectiveFrom: '2026-04-01' }] }] as any;
   return s;
@@ -68,8 +68,14 @@ test.describe('P37: weight per piece — the kilograms checked', () => {
   test('the challan form checks the weight as pieces and kilograms are typed', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageIM');
-    await g(page, `_applyScanResult({ clientName: 'DORABJI AUTO', challanNo: '86', challanDate: '${todayIso()}',
-      items: [{ partNumber: '2525 2015 8202', desc: '2525 2015 8202', unit: 'KG', qty: 106, nosQty: 500, rate: 13, amount: 1378 }] })`);
+    // Filled by hand (the challan scan came out, owner, 13 Oct 2026): the kilograms, then the pieces counted.
+    await page.locator('[data-action="invShowAddChallan"]').first().click();
+    await page.locator('#imChallanClientSearch').fill('DORABJI');
+    await page.locator('[data-action="invSelectChallanClient"]').first().click();
+    await page.locator('[data-action="invEditChallanPart"][data-idx="0"]').fill('2525 2015 8202');
+    await g(page, 'dismissAllAutocomplete()');
+    await page.locator('#imQty0').fill('106');
+    await page.locator('#imNos0').fill('500');
     const note = page.locator('#imWeightMatch0 .inv-verdict .inv-dot');
     await expect(note).toHaveText('Weight matches');
     await page.locator('#imQty0').fill('10.4');

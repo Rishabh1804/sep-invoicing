@@ -13,10 +13,11 @@
    **Margin by client spreads cost per kilo.** Labour, zinc, chemicals, power and
    the rest are divided over every kilo plated, so a thin clamp and a heavy
    bracket cost the same per kg here. That is the one assumption the table
-   cannot check, and it says so. Fixed is the monthly crew (its days and rest
-   days); everything else is variable. A client below the variable cost loses
-   money on every kilo whatever the labour question; one between variable and
-   full cost contributes only if labour is fixed. */
+   cannot check, and it says so. Labour is fixed (owner, 13 Oct 2026: contract
+   labour does not grow with the work, and the monthly crew never did), so the
+   variable cost is everything but labour. A client below it loses money on every
+   kilo; one between it and the full cost contributes toward the labour without
+   paying its share of it. */
 
 /* Three tabs since the tab map (TM2b, 9 Oct 2026): Overview's questions, why it moved, the period in one line and the month's
    pace are Today → Pulse's; Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
@@ -56,8 +57,9 @@ function statsWorkingDayList(from, to) {
   return out;
 }
 function statsWorkingDays(from, to) { return statsWorkingDayList(from, to).length; }
-/* Fixed and variable, from the live cost: fixed is the monthly crew's days and
-   rest days; everything else moves with the work. The labour row says what
+/* The monthly crew's share of the live cost, for the power case (powerMargin), which counts the pool's idle wages
+   apart: fixed is the monthly crew's days and rest days, the rest of the cost the other part. Stats' contribution
+   no longer reads it: labour is fixed whole (owner, 13 Oct 2026; statsClientMargins). The labour row says what
    share of it is fixed (cost.js), from the attendance record or, where the row
    is what the bank paid, from the salaries to named hands against the cash for
    the weekly pool, and the share holds over the whole row: reading the fixed
@@ -153,8 +155,11 @@ function statsMonthsHtml() {
 function statsClientMargins(period, filtered, tonnage, range) {
   var r = range || statsRangeIso(period), c = liveCost(r.from, r.to, tonnage.kg);
   if (!(tonnage.kg > 0) || c.perKg == null) return null;
-  var split = statsCostSplit(c);
-  var varKg = split.known ? split.variable / tonnage.kg : null, fullKg = c.perKg;
+  // Labour is fixed (owner, 13 Oct 2026), so a kilo more or less moves everything but labour: that is the variable cost,
+  // known whatever the attendance or the bank holds. The power case keeps the monthly crew's split (statsCostSplit,
+  // powerMargin), since it counts the pool's idle wages apart.
+  var lab = c.rows.find(function(x) { return x.key === 'labour'; }), labAmt = lab ? lab.amount || 0 : 0;
+  var varKg = Math.max(0, c.total - labAmt) / tonnage.kg, fullKg = c.perKg;
   // The invoices arrive net of their credit notes (statsInvoices); what was taken off is said per client.
   var cns = {};
   filtered.forEach(function(i) { if (i._credit) cns[i.clientId] = (cns[i.clientId] || 0) + i._credit; });
@@ -165,7 +170,7 @@ function statsClientMargins(period, filtered, tonnage, range) {
       cn: cn, net: net, vsVar: net != null && varKg != null ? net - varKg : null, vsFull: net != null ? net - fullKg : null,
       money: net != null ? gstRound((net - fullKg) * x.kg) : null };
   });
-  return { c: c, split: split, varKg: varKg, fullKg: fullKg, fixedKg: split.known ? split.fixed / tonnage.kg : null, kg: tonnage.kg, rev: filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0),
+  return { c: c, varKg: varKg, fullKg: fullKg, labKg: labAmt / tonnage.kg, kg: tonnage.kg, rev: filtered.reduce(function(s, i) { return s + (i.taxableValue || 0); }, 0),
     ranked: rows.filter(function(x) { return x.comparable; }).sort(function(a, b) { return a.vsFull - b.vsFull; }),
     apart: rows.filter(function(x) { return !x.comparable; }) };
 }
@@ -174,14 +179,12 @@ function statsMarginHtml(period, filtered, tonnage) {
   var m = statsClientMargins(period, filtered, tonnage);
   var h = statsPanel('margin', escHtml(PERIOD_LABELS[period] || '') + ' contribution by client', 'worst first, at the live cost', { wide: true, id: 'statsMargin' });
   if (!m) return h + statsCallout('No weighed tonnage in this period, so no margin to work out.') + '</div>';
-  // The two costs the columns are read against, in a line (§3c); how they are split, and that cost is spread per kilo, is the
+  // The two costs the columns are read against, in a line (§3c); why labour is fixed, and that cost is spread per kilo, is the
   // guide's (kbguides.js, Reading Stats).
   var weighed = statsCostWeighedShort(tonnage);
-  // Where the fixed part was read from is a badge (§3b-11: a third fact is a badge, never a clause).
-  var splitFrom = m.varKg == null ? '' : m.split.from === 'bank' ? 'fixed part read off the salaries the bank paid' : m.split.from === 'attendance' ? 'fixed part from the attendance' : '';
-  h += statsBody(statsNote(m.varKg != null ? 'Variable cost ' + statsMoney(m.varKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg' +
-      (splitFrom ? ' <span class="inv-badge inv-badge-info" data-margin-split>' + splitFrom + '</span>' : '')
-    : 'Full cost ' + statsMoney(m.fullKg) + '/kg: labour is not split, so no variable cost (no attendance or bank wages in the period)') +
+  // That labour is left out of the variable cost is a badge (§3b-11: a third fact is a badge, never a clause).
+  h += statsBody(statsNote('Variable cost ' + statsMoney(m.varKg) + '/kg · full ' + statsMoney(m.fullKg) + '/kg' +
+      ' <span class="inv-badge inv-badge-info" data-margin-split>labour fixed</span>') +
     (weighed ? statsNote(weighed) : ''));
   // Owed and days to pay beside the margin: a client below cost that also pays in 120 days is two problems.
   var money = {};
@@ -207,25 +210,26 @@ function statsMarginHtml(period, filtered, tonnage) {
   if (m.apart.length) h += uiFactRowHtml({ label: 'Listed apart, not ranked', sub: 'under 90% of revenue weighed: ' + m.apart.slice(0, 2).map(function(x) { return x.name; }).join(', ') +
     (m.apart.length > 2 ? ' and ' + (m.apart.length - 2) + ' more' : ''), value: m.apart.length, attrs: ' data-margin-apart' });
 
-  // The worst-placed large account, settled both ways (§3c): the two answers and the break-even as tiles, the working folded.
+  // The worst-placed large account, settled on the live cost with labour fixed (owner, 13 Oct 2026; §3c): what a kilo of it
+  // leaves, what it lacks of the full cost and where it would pay its share, as tiles; the working folded.
   var worst = m.ranked.filter(function(x) { return x.kg >= m.kg * 0.1; })[0];
   if (worst && worst.vsFull < 0) {
-    var perKg = '<span class="inv-tile-of">/kg</span>', split = worst.vsVar != null;
+    var perKg = '<span class="inv-tile-of">/kg</span>', leaves = worst.vsVar >= 0, onVar = gstRound(worst.vsVar * worst.kg);
     h += '<div id="statsWorst"><div class="inv-row-group"><span><strong>' + escHtml(worst.name) + '</strong>, settled on the live cost</span></div>' +
       statsTiles(
-        statsTile('fixed', 'If labour is fixed', split ? statsSigned(worst.vsVar) + perKg : '&mdash;',
-          statsTileSub(!split ? 'labour&rsquo;s split not known' : worst.vsVar >= 0 ? 'contributes ' + statsMoney(gstRound(worst.vsVar * worst.kg)) : 'below its variable cost'),
-          !split ? '' : worst.vsVar >= 0 ? 'ok' : 'danger') +
-        statsTile('scales', 'If labour scales', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger') +
-        statsTile('even', 'Breaks even at', statsMoney(m.fullKg) + perKg, statsTileSub(split ? 'full cost; ' + escHtml(formatCurrency(m.varKg)) + ' variable' : 'the full cost'))) +
+        statsTile('contrib', leaves ? 'Contributes' : 'Below its variable cost', statsSigned(worst.vsVar) + perKg,
+          statsTileSub(leaves ? statsMoney(onVar) + ' toward labour on the period' : statsSigned(onVar) + ' on the period'), leaves ? 'ok' : 'danger') +
+        statsTile('full', 'Against the full cost', statsSigned(worst.vsFull) + perKg, statsTileSub(statsSigned(worst.money) + ' on the period'), 'danger') +
+        statsTile('even', 'Pays its share at', statsMoney(m.fullKg) + perKg, statsTileSub('the full cost; ' + escHtml(formatCurrency(m.varKg)) + ' variable'))) +
       uiWorkingHtml('stats-worst', [
         { label: 'Its price', sub: 'realised on the period', value: formatCurrency(worst.net) + '/kg' },
-        { label: 'Break-even on variable cost', value: split ? formatCurrency(m.varKg) + '/kg' : '' },
-        { label: 'Break-even on full cost', value: formatCurrency(m.fullKg) + '/kg' },
+        { label: 'Variable cost', sub: 'everything but labour', value: formatCurrency(m.varKg) + '/kg' },
+        { label: 'Labour', sub: 'fixed, spread per kilo', value: formatCurrency(m.labKg) + '/kg' },
+        { label: 'Full cost', value: formatCurrency(m.fullKg) + '/kg' },
         { label: 'Share of the plant’s tonnage', value: Math.round(worst.kg / m.kg * 100) + '%' },
         { label: 'Share of the revenue', value: (m.rev > 0 ? Math.round(worst.total / m.rev * 100) : 0) + '%' }]) +
-      statsBody(statsNote(!split ? 'Record the attendance or import the bank statement to split labour.'
-        : (worst.vsVar < 0 ? 'Below its variable cost either way' : 'It contributes only if labour is fixed') + ', if its parts cost the same per kg as the rest.')) + '</div>';
+      statsBody(statsNote((leaves ? 'Labour is fixed, so it contributes; it pays its share of labour only at ' + formatCurrency(m.fullKg) + '/kg'
+        : 'Below its variable cost: it loses money on every kilo, labour fixed as it is') + ', if its parts cost the same per kg as the rest.')) + '</div>';
   }
   return h + '</div>';
 }

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workdayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workdayIso, type SepState, openAttendance, attDayAs, toolbarMore } from './fixtures';
 import { PINS, withUsers, unlock } from './p140-guard.fixture';
 
 // P149: the QA chain's findings on Staff → Day (2 Oct 2026). Every name is made up.
@@ -21,8 +21,8 @@ function book(day = todayIso()): SepState {
 }
 async function openDay(page: Page, as: 'board' | 'sheet' = 'board') {
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
-  await page.locator(`[data-action="invAttDayAs"][data-v="${as}"]`).click();
+  await openAttendance(page, 'day');
+  await attDayAs(page, as);
 }
 const dayOf = async (page: Page, iso = todayIso()) => (await readStoredState(page)).attendance[iso];
 
@@ -102,6 +102,7 @@ test('QA6-1 EXTRA hours typed, then a tap on the board: the tap lands', async ({
   s.attendance[todayIso()].extra = [{ kind: 'coverage', area: 'barrel', hours: 2 }];
   await loadAppWithState(page, s);
   await openDay(page, 'board');
+  await page.locator('details[data-extra-row="0"] > summary').click();   // one line until opened (TM4b)
   await page.locator('input[data-att-extra-hours][data-idx="0"]').click();
   await page.keyboard.press('End');
   await page.keyboard.type('4');
@@ -210,7 +211,7 @@ test('QA6-3 a pick on a roll’s block keeps it the roll’s: read again, every 
   expect(blocks(d).every((x: any) => x.src === 'relay')).toBe(true);
   expect(blocks(d).find((x: any) => x.areas[0] === 'vat-a1').crew).toEqual([1, 2]);
   // Read the rolls again: both blocks are read afresh, with their 3 hours each, and the pick is put back on.
-  await page.locator('[data-action="invRelayReread"]').click();
+  await toolbarMore(page, 'Read the rolls again');   // Day's More (TM4b)
   await answerAsk(page, 'ok');
   await page.locator('[data-action="invRelaySave"]').click();
   d = await dayOf(page);
@@ -344,19 +345,19 @@ test('QA6-6 a role that may not see wages sees hours and heads on Staff, never a
   await unlock(page, 'U-sup', PINS.super);
   await switchTab(page, 'pageStaff');
   const content = page.locator('#attContent');
-  // Overview: the attendance and the hours, no labour ₹/kg and no payroll.
-  await expect(page.locator('#dashStaffToday')).toBeVisible();
+  // People opens on Attendance's Day (TM4b; its Overview went): no labour ₹/kg and no payroll, which are Pay's.
+  await expect(page.locator('#attDayVerdict')).toBeVisible();
   await expect(page.locator('#dashLabour')).toHaveCount(0);
   await expect(page.locator('#dashPayBank')).toHaveCount(0);
   // Day: no day's cost, no EXTRA rate.
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
   await page.locator('#attDate').fill(day);
   await page.locator('#attDate').dispatchEvent('change');
   await expect(page.locator('#attExtra')).toBeVisible();
   await expect(page.locator('[data-fold="attDayCost"]')).toHaveCount(0);
   await expect(content).not.toContainText('₹');
   // Week: the grid, no week's cost.
-  await page.locator('[data-action="invAttView"][data-view="week"]').click();
+  await openAttendance(page, 'week');
   await expect(page.locator('#attWeekGrid')).toBeVisible();
   await expect(page.locator('[data-card="labour"]')).toHaveCount(0);
   await expect(content).not.toContainText('₹');
@@ -381,7 +382,7 @@ test('QA6-6 a role that may not see wages sees hours and heads on Staff, never a
 /* ---------- QA6-12: an entry on Staff → Day is a floor entry ---------- */
 test('QA6-12 a role that may not make floor entries is told so on Staff → Day, never asked a PIN, and nothing is written', async ({ page }) => {
   await loadAppWithState(page, book());
-  await withUsers(page, { roles: { supervisor: { pages: ['pageHome', 'pageTodo', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: [], wages: false, finance: false } } });
+  await withUsers(page, { roles: { supervisor: { pages: ['pageHome', 'pageFloor', 'pageStaff', 'pageProduction', 'pageStock', 'pagePower'], may: [], wages: false, finance: false } } });
   await unlock(page, 'U-sup', PINS.super);
   await openDay(page, 'sheet');
   const refused = async () => {
@@ -400,7 +401,7 @@ test('QA6-12 a role that may not make floor entries is told so on Staff → Day,
   await refused();
   await page.locator('[data-action="invAttAddExtra"]').click();
   await refused();
-  await page.locator('[data-action="invAttDayDelete"]').click();
+  await toolbarMore(page, 'Delete this day');   // Day's More (TM4b)
   await refused();
   const d = await dayOf(page);
   expect(d.marks['1']).toEqual({ st: 'P', area: 'vat-a1', hours: 0, ot: 0 });

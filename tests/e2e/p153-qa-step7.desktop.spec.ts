@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse, recentTs, switchTab, todayIso, waitForBoot } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openFoldAt, openPulse, recentTs, switchTab, todayIso, waitForBoot } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P153 (desktop): the QA chain of 2 Oct 2026 over UX overhaul 2's step 7. The four new list-and-pane screens keep where the
@@ -109,6 +109,8 @@ test('Receivables: an address naming no client opens no pane; the receipts with 
   await page.locator('#recvList [data-action="invBankClient"]').first().click();
   await expect(page.locator('#recvHost')).toHaveClass(/inv-pane-open/);
   await page.locator('#pageFinance .inv-viewtab[data-tab="overview"]').click();
+  // The link is in the Owed to us hero's body (the tab map, TM3c), shut until opened.
+  await openFoldAt(page, 'fin-hero-owed');
   const link = page.locator('#pageFinance [data-action="invFinLoose"]');
   if (await link.count()) {
     await link.first().click();
@@ -160,11 +162,13 @@ test('a window crossing 1024px keeps the leave guard on a half-typed form', asyn
 async function columns(page: Page, sel: string) {
   return page.locator(sel).first().evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
 }
-test('above about 1,600px only Pulse, Stats and Finance go three across; To-do keeps its two lists', async ({ page }) => {
+test('above about 1,600px only Pulse, Stats and Finance go three across; every other grid keeps two', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await page.setViewportSize({ width: 1700, height: 1000 });
   await openPulse(page);
   expect(await columns(page, '[data-tdy-questions]')).toBe(3);
-  await switchTab(page, 'pageTodo');
-  expect(await columns(page, '#pageTodo .inv-panels')).toBe(2);
+  // The To-do's two lists were the example until the To-do joined Needs you (the tab map, TM2a), then Power's Overview until it went
+  // (TM4e): Floor's line cards are one now.
+  await switchTab(page, 'pageFloor');
+  expect(await columns(page, '#flrLines.inv-panels')).toBe(2);
 });

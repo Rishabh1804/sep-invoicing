@@ -1,9 +1,10 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
-// P56: Finance → Bills & notes (moved from Stock, 26 Sep 2026). The electricity bill and the credit note each had no door the owner
-// could find (26 Sep 2026); a stock line's name had none at all.
+// P56: the electricity bill and the credit note each had no door the owner could find (26 Sep 2026); a stock line's name had none at
+// all. They shared Finance → Bills & notes until the tab map (TM3a) put each where its work is: the bills on Money → Payments, the
+// credit notes in Office → Invoices → Credit notes.
 
 function prevMonth(): string {
   const d = new Date(todayIso() + 'T00:00:00'); d.setDate(1); d.setMonth(d.getMonth() - 1);
@@ -34,7 +35,12 @@ function state(): SepState {
 
 async function openBills(page: Page) {
   await switchTab(page, 'pageFinance');
-  await page.locator('[data-action="invFinTab"][data-tab="bills"]').click();
+  await page.locator('[data-action="invFinTab"][data-tab="payments"]').click();
+}
+async function openNotes(page: Page) {
+  await switchTab(page, 'pageRegister');
+  await toolbarMore(page, 'Credit notes');
+  await expect(page.locator('[data-cn-dialog]')).toBeVisible();
 }
 
 test('a closed month with no electricity bill is listed, and Add fills in that month', async ({ page }) => {
@@ -74,7 +80,7 @@ test('the To-do asks for last month\'s bill once it is due, and not before', asy
 
 test('a note already issued is recorded with its own number, and that number is never issued again', async ({ page }) => {
   await loadAppWithState(page, state());
-  await openBills(page);
+  await openNotes(page);
   await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
   await page.locator('#cnfNum').fill('4');
   await page.locator('#cnfClient').selectOption('1');
@@ -110,7 +116,7 @@ test('a note already issued is recorded with its own number, and that number is 
 
 test('a new note for a rate correction takes the next number and prints no batch annex', async ({ page }) => {
   await loadAppWithState(page, state());
-  await openBills(page);
+  await openNotes(page);
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   // The batch rebate is not offered here: it is raised from a Register selection.
   await expect(page.locator('#cnfReason option[value="rebate"]')).toHaveCount(0);
@@ -130,7 +136,7 @@ test('a new note for a rate correction takes the next number and prints no batch
 
 test('Other needs a description', async ({ page }) => {
   await loadAppWithState(page, state());
-  await openBills(page);
+  await openNotes(page);
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await page.locator('#cnfClient').selectOption('1');
   await page.locator('#cnfInv').selectOption('INV-2');
@@ -146,7 +152,6 @@ test('Other needs a description', async ({ page }) => {
 test('a stock line is renamed and re-united, and a message in the old name still finds it', async ({ page }) => {
   await loadAppWithState(page, state());
   await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
   await page.locator('[data-action="invStockOpen"][data-id="SI1"]').click();
   await page.locator('#stockEditName').fill('Nitric acid 68%');
   await page.locator('#stockEditUnit').selectOption('L');
@@ -157,15 +162,13 @@ test('a stock line is renamed and re-united, and a message in the old name still
   expect(await page.evaluate(() => { const w = window as any; return w.stockFindByKey(w.stockKey('Nitric acid 68%'))?.id; })).toBe('SI1');
 });
 
-test('a form left open on Stats does not capture the Finance form\'s Save', async ({ page }) => {
+test('Live cost has no bill form of its own: its Add a bill opens the one form, on Payments, on the month with no bill', async ({ page }) => {
   await loadAppWithState(page, state());
   await openStatsTab(page, 'cost');
-  await page.locator('#liveCost [data-action="invCostBillOpen"]').click();
-  // Left open; the same ids now also exist on Finance, and Stats comes first in the page.
-  await openBills(page);
+  await expect(page.locator('#liveCost #costBillAmount')).toHaveCount(0);
+  await page.locator('#liveCost [data-action="invCostBillGo"]').click();
   const m = prevMonth();
-  await page.locator(`[data-missing="${m}"] [data-action="invCostBillOpen"]`).click();
-  await expect(page.locator('#pageFinance #costBillAmount')).toBeFocused();
+  await expect(page.locator('#pageFinance #costBillMonth')).toHaveValue(m);
   await page.locator('#pageFinance #costBillAmount').fill('4200');
   await page.locator('#pageFinance [data-action="invCostBillSave"]').click();
   const bills = (await readStoredState(page)).costBills;
@@ -175,7 +178,7 @@ test('a form left open on Stats does not capture the Finance form\'s Save', asyn
 
 test('the taxable value is typed key by key without the form redrawing under it', async ({ page }) => {
   await loadAppWithState(page, state());
-  await openBills(page);
+  await openNotes(page);
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await page.locator('#cnfClient').selectOption('1');
   await page.locator('#cnfInv').selectOption('INV-2');
@@ -189,7 +192,7 @@ test('a note recorded from an earlier year holds no number in this year\'s serie
   const s0 = state();
   s0.invPrefix = 'SEP/2026-27/';
   await loadAppWithState(page, s0);
-  await openBills(page);
+  await openNotes(page);
   const record = async (num: string, fy: string, invNo: string) => {
     if (!(await page.locator('#cnfNum').count())) await page.locator('[data-action="invCnFormOpen"][data-mode="record"]').click();
     await page.locator('#cnfNum').fill(num);
@@ -218,7 +221,7 @@ test('a note recorded from an earlier year holds no number in this year\'s serie
 
 test('an adjustment note reads as its reason in the Register list, with no batch to re-pick', async ({ page }) => {
   await loadAppWithState(page, state());
-  await openBills(page);
+  await openNotes(page);
   await page.locator('[data-action="invCnFormOpen"][data-mode="new"]').click();
   await page.locator('#cnfClient').selectOption('1');
   await page.locator('#cnfInv').selectOption('INV-2');

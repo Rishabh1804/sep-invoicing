@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState, toolbarMore } from './fixtures';
 
 // P172 (owner, 7 Oct 2026): "Previewing assigns ID number which holds and doesn't change + the design for the ID is too simple.
 // It doesn't carry the address of the plant and the back side should be safety and hazard guidelines for a Zinc plating plant.
@@ -20,7 +20,7 @@ function book(): SepState {
 async function preview(page: Page) {
   await switchTab(page, 'pageStaff');
   await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-  await page.locator('#pageStaff [data-action="invIdcPrint"]').first().click();
+  await toolbarMore(page, 'ID cards');   // the Roster toolbar's More (TM4b)
   await page.locator('[data-action="invIdcPreview"]').click();
 }
 
@@ -63,7 +63,7 @@ test.describe('P172 ID cards and the worker record', () => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-    await page.locator('#pageStaff [data-action="invIdcPrint"]').first().click();
+    await toolbarMore(page, 'ID cards');   // the Roster toolbar's More (TM4b)
     await page.fill('#idcRules', 'Rule one\nRule two');
     await page.locator('[data-action="invIdcPreview"]').click();
     await expect(page.locator('#invPrintBody .inv-idc-rules li')).toHaveText(['Rule one', 'Rule two', 'Rule one', 'Rule two']);

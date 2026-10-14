@@ -51,9 +51,9 @@
       "url": "./?tab=pageIM&new=1"
     },
     {
-      "name": "To-do",
-      "short_name": "To-do",
-      "url": "./?tab=pageTodo"
+      "name": "Needs you",
+      "short_name": "Needs you",
+      "url": "./?tab=pageHome&v=needs"
     }
   ],
   "widgets": [

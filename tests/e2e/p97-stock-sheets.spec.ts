@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
 
 // P97: the stock paper route (owner, 29 Sep 2026: "the same for Stock as that has enter by hand option as well. Plus,
 // we need physical copy for record keeping"). Stock → Print sheets, for a day: the supervisor's sheet (his WhatsApp stock
@@ -39,7 +39,7 @@ test.describe('P97: stock sheets', () => {
   test('Stock → Print sheets previews the three for the day, each page one A4 sheet', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invStockSheetOpen"]').first().click();
+    await toolbarMore(page, 'Print sheets');   // Stock's More (TM4d)
     await expect(page.locator('#stockSheetDate')).toHaveValue(todayIso());
     await page.locator('[data-action="invStockSheetPreview"]').click();
     const pages = page.locator('.inv-print-view-active .inv-as-page');

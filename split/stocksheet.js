@@ -31,7 +31,7 @@ function stockSheetFillFor(iso) {
   return iso < localDateStr() && (stockData().entries || []).some(function(e) { return e.date === iso && !e.voided && e.kind !== 'bill'; });
 }
 
-function stockSheetSupHtml(iso, filled) {
+function stockSheetSupHtml(iso, filled, note) {
   var lines = stockSheetLines();
   var next = lines.reduce(function(m, l) { return Math.max(m, l.n); }, 0);
   var day = filled ? (stockData().entries || []).filter(function(e) { return e.date === iso && !e.voided && e.kind !== 'bill'; }) : [];
@@ -60,7 +60,8 @@ function stockSheetSupHtml(iso, filled) {
   // The window the message covered: the paste that recorded the day, else the day itself.
   var paste = filled ? (stockData().pastes || []).find(function(p) { return p.from && p.to && p.from <= iso && iso <= p.to; }) : null;
   return '<div class="inv-as-page" data-sheet="stock-sup"' + (filled ? ' data-filled' : '') + '>' + _asHead('Chemical use · chemical stock', iso, 'Supervisor') +
-    (filled ? '<div class="inv-as-note">Filled from the app&rsquo;s record of this day, as a worked example.</div>' : '') +
+    // `note` says what a filled sheet is where it is not a worked example (Mine's Print the day as entered, F5).
+    (filled ? '<div class="inv-as-note">' + (note ? escHtml(note) : 'Filled from the app&rsquo;s record of this day, as a worked example.') + '</div>' : '') +
     '<div class="inv-as-grid">' + _asFillField('From', filled ? formatDate(paste ? paste.from : iso) : '') + _asFillField('To', filled ? formatDate(paste ? paste.to : iso) : '') + '</div>' +
     '<table class="inv-as-table inv-as-tall"><thead><tr><th class="inv-as-tick">#</th><th>Line</th><th>Unit</th><th>Opening</th>' +
     '<th>Added (date · qty)</th><th>Used (days × a day = total)</th><th>Available</th><th>Note</th></tr></thead><tbody>' + rows + '</tbody></table>' +

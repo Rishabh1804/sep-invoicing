@@ -2,8 +2,10 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
-// P65: Staff and Stock open on an Overview (docs/FINANCE_INTELLIGENCE_SPEC.md, 7a and 7b). Every date is built from
-// today; names and figures are made up.
+// P65: Staff and Stock opened on an Overview (docs/FINANCE_INTELLIGENCE_SPEC.md, 7a and 7b); the tab map (TM4b, TM4d) took the
+// Overviews away and put each chart on the view it explains: attendance by week on Attendance → Week, OT by area on Areas, the
+// payroll against the bank on Pay; days left are Stock's groups, its spend, use and prices Spend and prices. Every date is built
+// from today; names and figures are made up.
 
 const day = (n: number) => { const d = new Date(todayIso() + 'T00:00:00'); d.setDate(d.getDate() + n); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0'); };
 const ym = (k: number) => { const d = new Date(todayIso().slice(0, 7) + '-01T00:00:00'); d.setMonth(d.getMonth() + k); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); };
@@ -54,36 +56,42 @@ function stockState(): SepState {
   return s;
 }
 
-test('Staff opens on Overview; the quick action still opens the Day', async ({ page }) => {
+test('People opens on Attendance, on its Day; the quick action opens the Day', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await openPulse(page);
   await switchTab(page, 'pageStaff');
-  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'overview');
-  await expect(page.locator('#dashStaffToday')).toBeVisible();
-  // Open the day opens the day the panel shows, even after the Day view was left on another date.
-  const shown = await ev(page, `attDaySummary().iso`);
-  await ev(page, `_attDate = '${addDays(todayIso(), -30)}'`);
-  await page.locator('[data-action="invDashOpenDay"]').click();
-  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'day');
-  expect(await ev(page, `_attDate`)).toBe(shown);
+  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'attendance');
+  await expect(page.locator('[data-att-period] [data-view="day"]')).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#attDayVerdict')).toBeVisible();
   await openPulse(page);
   await page.locator('[data-action="invHomeQuick"][data-go="attendance"]').click();
-  await expect(page.locator('.inv-viewtab[data-action="invAttView"][aria-selected="true"]')).toHaveAttribute('data-view', 'day');
+  await expect(page.locator('[data-att-period] [data-view="day"]')).toHaveAttribute('aria-pressed', 'true');
 });
 
-test('Staff overview: a week nobody typed is a gap, OT sits in its area, and payroll meets the bank', async ({ page }) => {
+test('People’s charts where they are explained: a week nobody typed is a gap, OT sits in its area, and payroll meets the bank', async ({ page }) => {
   await loadAppWithState(page, staffState());
   await switchTab(page, 'pageStaff');
   const weeks = await ev(page, `dashAttendanceByWeek(4).map(function(w) { return w.pct; })`) as any[];
   // Three weeks back full, two back nobody, last week full, this week so far: whatever today holds.
   expect(weeks.slice(0, 3)).toEqual([100, null, 100]);
+  // Attendance → Week: attendance by week, folded.
+  await page.locator('[data-att-period] [data-view="week"]').click();
+  await page.locator('details[data-fold="att-weeks"] > summary').click();
   await expect(page.locator('#dashAttWeeks .inv-chart-pt[data-read*="100.0%"]')).toHaveCount(2);
+  // Areas: the hours by area, OT among them, where it was worked.
   const ot = await ev(page, `areaHoursForRange(isoAddDays(attWeekStartOf(localDateStr()), -21), localDateStr()).rows.find(function(r) { return r.id === 'vat-a1'; }).ot`);
   expect(ot).toBe(4);   // two recorded weeks inside the four, two hours each
-  await expect(page.locator('#dashAreaHours .inv-chart-seg[data-read*="OT"]').first()).toBeVisible();
+  await page.locator('.inv-viewtab[data-action="invAttView"][data-view="areas"]').click();
+  // Areas reads one week unless asked for more; the four weeks the figure covers.
+  await page.locator('[data-att-toolbar="areas"] [data-action="invAreaSpan"][data-span="4"]').click();
+  // The hours by area are a table (TM4f): the OT column of VAT A1's row.
+  await expect(page.locator('#attContent details[data-fold="areaHours"] [data-area-hours-row="vat-a1"] td').nth(3)).toHaveText('4.0');
+  // Pay: the payroll against the bank; the task the gap raises is Needs you's.
   const pb = await ev(page, `dashPayrollVsBank().find(function(x) { return x.month === '${ym(-2)}'; })`);
   expect(pb).toMatchObject({ payroll: 12000, bank: 12500, src: 'slip' });
-  await expect(page.locator('#dashStaffRaised')).toContainText('differ from the slip');
+  await page.locator('.inv-viewtab[data-action="invAttView"][data-view="pay"]').click();
+  await expect(page.locator('#dashPayBank')).toContainText('Payroll against the bank');
+  expect(await ev(page, `todoApp().map(function(t) { return t.title + ' ' + (t.sub || ''); }).join(' | ')`)).toContain('differ from the slip');
 });
 
 test('attendance by week counts the active roster on both sides: a leaver present is not a head', async ({ page }) => {
@@ -104,21 +112,26 @@ test('attendance by week reads what was typed: an unmarked hand is not absent', 
   expect(weeks.slice(0, 3)).toEqual([100, null, 100]);
 });
 
-test('Stock opens on Overview: days left opens the line, a supplier lists its bills, the price select redraws only its chart', async ({ page }) => {
+test('Stock is one screen: a line opens from its group, a supplier lists its bills, the price select redraws only its chart', async ({ page }) => {
   await loadAppWithState(page, stockState());
   await switchTab(page, 'pageStock');
-  await expect(page.locator('[data-action="invDashStockView"][data-view="overview"]')).toHaveAttribute('aria-selected', 'true');
-  const nitric = page.locator('#dashStockDays .inv-chart-ranked-row', { hasText: 'Nitric acid' });
-  await expect(nitric.locator('.inv-chart-ranked-fill-danger')).toHaveCount(1);
+  await expect(page.locator('#stockContent .inv-viewtabs')).toHaveCount(0);
+  // Days left are the list's groups: Nitric acid, under a day left, in red.
+  const nitric = page.locator('#stockLines [data-action="invStockOpen"][data-id="N"]');
+  await expect(nitric).toHaveAttribute('data-tone', 'red');
   await nitric.click();
   await expect(page.locator('#stockContent')).toContainText('Price and pattern');
-  // Back returns to the Overview it came from, not to Lines.
+  // Back returns to the one screen.
   await page.locator('[data-action="invStockBack"]').click();
-  await expect(page.locator('[data-action="invDashStockView"][data-view="overview"]')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#stockVerdict')).toBeVisible();
 
+  // Spend and prices, folded at the list's foot on the phone.
+  await page.locator('#stockContent details[data-fold="stock-spend"] > summary').click();
   await page.locator('#dashSupplier .inv-chart-legend-row[data-key="Alpha"]').click();
   const list = page.locator('[data-dash-supplier="Alpha"]');
-  await expect(list.locator('.inv-row')).toHaveCount(2);
+  // The supplier first (suppliers.js, P208: its lead time and its door), then its bills.
+  await expect(list.locator('[data-supp-spend]')).toContainText('Alpha');
+  await expect(list.locator('.inv-row:not([data-supp-spend])')).toHaveCount(2);
   await expect(list).toContainText('A2');
 
   await expect(page.locator('#dashUsed')).toContainText('All lines');
@@ -128,6 +141,6 @@ test('Stock opens on Overview: days left opens the line, a supplier lists its bi
   await page.locator('#dashPriceLine').selectOption('Z');
   await expect(page.locator('#dashPriceChart')).toContainText('Caustic soda');
   await expect(page.locator('#dashSupplier')).toHaveAttribute('data-mark', '1');
-  // The reorder panel reads the reorder list.
-  await expect(page.locator('#dashReorder')).toContainText('Order, with GST');
+  // The reorder's cash is the card's (it was the Overview's panel).
+  await expect(page.locator('#stockVerdict .inv-hero-title')).toContainText('reorder');
 });

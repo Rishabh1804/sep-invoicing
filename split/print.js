@@ -261,12 +261,19 @@ function showPrintPreview(invId) {
 function printFit() {
   var view = document.getElementById('invPrintView'), body = document.getElementById('invPrintBody');
   if (!view || !body || !view.classList.contains('inv-print-view-active')) return;
-  body.style.setProperty('--pp-zoom', '1');
+  paperFit(body);
+}
+/* Paper fitted to the screen (the tab map, TM2f): the children of `host` zoomed to its width, never above life size. The print
+   view and a document drawn on a page (a report, the power case) fit the same way; the paper itself is unchanged, and in print
+   the zoom is 1 (styles.css). A host not on screen (no width) is left as it was. */
+function paperFit(host) {
+  if (!host || !host.clientWidth) return;
+  host.style.setProperty('--pp-zoom', '1');
   var widest = 0;
-  Array.prototype.forEach.call(body.children, function(el) { widest = Math.max(widest, el.getBoundingClientRect().width); });
-  var cs = getComputedStyle(body);
-  var room = body.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
-  body.style.setProperty('--pp-zoom', widest > room && widest > 0 ? String(Math.floor(room / widest * 1000) / 1000) : '1');
+  Array.prototype.forEach.call(host.children, function(el) { widest = Math.max(widest, el.getBoundingClientRect().width); });
+  var cs = getComputedStyle(host);
+  var room = host.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+  host.style.setProperty('--pp-zoom', widest > room && widest > 0 ? String(Math.floor(room / widest * 1000) / 1000) : '1');
 }
 window.addEventListener('resize', printFit);
 

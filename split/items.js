@@ -89,52 +89,82 @@ function renderClientsPage() {
 }
 
 function _buildClientsSubViewHtml() {
-  return '<div class="inv-toolbar">' +
+  clientFlagsRead();
+  return clientsVerdictHtml() + '<div class="inv-toolbar">' +
     '<label class="inv-search">' + ICON_SEARCH +
     '<input type="text" id="clientSearch" placeholder="Search clients" autocomplete="off" aria-label="Search clients"></label>' +
     '<button class="inv-btn inv-btn-primary" data-action="invAddClient">Add client</button>' +
-    '</div>' +
-    '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="clientsCount">' + S.clients.length + ' clients</span></div>';
+    '</div>';
 }
 
+/* A part with no weight a piece is a job waiting only where its lines need one to be weighed: one billed by the kilo is weighed by
+   its kilos, so it is not counted, listed or marked No weight (the card was never ok on a book whose last unweighed parts are billed
+   by the kilo). A part with no unit is billed by the kilo, as its edit sheet and detail read it. */
+function itemNoWeight(it) { return it.stdWeightKg == null && String(it.unit || 'KG').toUpperCase() !== 'KG'; }
+
+/* Parts' toolbar (the tab map, TM5e; it was three rows and a count): the search, Filter (No weight, Unused and the sort: inline on the
+   desktop, a dialog on the phone, said under the row as tokens), Add part the primary, and More for the tools. The parts with no
+   weight, the job waiting, are its verdict's (itemsVerdictHtml), with the move in its foot. */
 function _buildItemsSubViewHtml() {
   _invalidateUsageCache();
   var search = getItemsSearch();
   var sort = getItemsSort();
   var filter = getItemsFilter();
-  var noWeightCount = S.items.filter(function(it) { return it.stdWeightKg == null; }).length;
+  var noWeightCount = S.items.filter(itemNoWeight).length;
   var cache = _buildUsageCache();
   var unusedCount = S.items.filter(function(it) { return !cache[it.partNumber]; }).length;
   var opt = function(v, l) { return '<option value="' + v + '"' + (sort === v ? ' selected' : '') + '>' + l + '</option>'; };
-
   // A <select> speaks through change only (events.js), never a data-action: the click that opens it must not run it.
-  return '<div class="inv-toolbar">' +
-    '<label class="inv-search">' + ICON_SEARCH +
-    '<input type="text" id="itemsSearch" placeholder="Search items" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search items"></label>' +
-    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add item</button>' +
-    '</div>' +
-    '<div class="inv-toolbar">' +
-    '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
+  var controls = '<button class="inv-chip" data-action="invFilterNoWeight" aria-pressed="' + (filter === 'no-weight') + '">No weight (' + noWeightCount + ')</button>' +
     '<button class="inv-chip" data-action="invFilterUnused" aria-pressed="' + (filter === 'unused') + '">Unused (' + unusedCount + ')</button>' +
-    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort items">' +
-    opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>' +
-    '</div>' +
-    '<div class="inv-toolbar">' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invSelectAllUnused">Select unused</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCalcWeights">Calc weights</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenWeightEntry">Enter weights (' + noWeightCount + ')</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenMergeTool">Merge</button>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenPartWeights">Part weights (' + Object.keys(S.partWeights || {}).length + ')</button>' +
-    '</div>' +
-    '<div class="inv-pagehead"><span class="inv-pagehead-meta" id="itemsCount">' + S.items.length + ' items</span></div>';
+    '<select class="inv-select inv-toolbar-item" id="itemsSort" aria-label="Sort parts">' +
+    opt('alpha', 'A to Z') + opt('unit', 'Unit') + opt('rate', 'Rate') + opt('usage', 'Usage') + '</select>';
+  var sortWord = { unit: 'Unit', rate: 'Rate', usage: 'Usage' }[sort] || '';
+  return itemsVerdictHtml(noWeightCount, unusedCount) + '<div class="inv-toolbar" data-items-toolbar>' +
+    '<label class="inv-search">' + ICON_SEARCH +
+    '<input type="text" id="itemsSearch" placeholder="Search parts" value="' + escHtml(search) + '" autocomplete="off" aria-label="Search parts"></label>' +
+    uiFilterHtml({ key: 'items', count: (filter !== 'all' ? 1 : 0) + (sortWord ? 1 : 0), controls: controls }) +
+    '<button class="inv-btn inv-btn-primary" data-action="invAddItem">Add part</button>' +
+    // Part weights' count is its own row's (a count that waits on nothing is not carried to More's button).
+    uiToolbarMoreHtml([{ label: 'Part weights', action: 'invOpenPartWeights', badge: Object.keys(S.partWeights || {}).length ? { n: Object.keys(S.partWeights || {}).length, tone: 'neutral' } : null },
+      { label: 'Enter weights', action: 'invOpenWeightEntry' },
+      // Derive weights fills what a piece client's rate card allows (deriveWeightsFromRates), as the guide and the tab map say.
+      { label: 'Derive weights', action: 'invDeriveWeights' }, { label: 'Merge', action: 'invOpenMergeTool' }, { label: 'Select unused', action: 'invSelectAllUnused' }],
+      { icon: !_isDesktop }) + '</div>' +
+    uiTokensHtml([{ key: 'Show', value: filter === 'no-weight' ? 'No weight' : filter === 'unused' ? 'Unused' : '', action: 'invItemsFilterClear', attrs: ' data-clear="filter"' },
+      { key: 'Sort', value: sortWord, action: 'invItemsFilterClear', attrs: ' data-clear="sort"' }]);
+}
+/* Parts' verdict (the tab map, TM5e; the count was a page-head line and the parts with no weight a plain chip): how many parts, how
+   many billed by the piece have no weight a piece (they leave their lines out of tonnage, itemNoWeight), in its tone, with Enter
+   weights in its foot. */
+function itemsVerdictHtml(noWeight, unused) {
+  var total = S.items.length;
+  return uiVerdictHtml({ screen: 'Parts', tone: !total ? 'neutral' : noWeight ? 'warning' : 'ok',
+    verdict: !total ? 'No parts yet' : todoPlural(total, 'part') + (noWeight ? ' · ' + noWeight + ' with no weight' : ', every one weighed'),
+    facts: total ? [unused ? todoPlural(unused, 'part') + ' unused' : 'every part used', todoPlural(Object.keys(S.partWeights || {}).length, 'NOS-to-kg weight')] : [],
+    links: noWeight ? ['<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invOpenWeightEntry">Enter weights</button>'] : [],
+    key: 'pageClients-items', attrs: ' id="itemsVerdict" data-items-noweight="' + noWeight + '"' });
+}
+UI_FILTER_DONE.items = function() { renderClientsPage(); };
+/* A token tapped: its filter, or the sort, back to all and A to Z. */
+function itemsFilterClear(which) {
+  if (which === 'sort') regFilter.itemsSort = 'alpha'; else regFilter.itemsFilter = 'all';
+  saveRegFilter();
+  renderClientsPage();
 }
 
+/* The page's own row draws the group its sub-view is in (the tab map): Office's Clients covers Clients · Parts · Performance,
+   Office's Sales covers Prospects · Quotations. The parts master is called Parts wherever the user reads it; `items` stays the
+   sub-view's id. */
+var CLIENTS_GROUPS = { clients: ['clients', 'items', 'performance'], sales: ['prospects', 'quotes'] };
+var CLIENTS_VIEW_LABELS = { clients: 'Clients', items: 'Parts', performance: 'Performance', prospects: 'Prospects', quotes: 'Quotations' };
 function _buildSubViewToggle(active) {
-  var tab = function(k, l) {
-    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + l + '</button>';
+  var tab = function(k) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (active === k) + '" data-action="invSwitchSubView" data-view="' + k + '">' + CLIENTS_VIEW_LABELS[k] + '</button>';
   };
-  return '<div class="inv-viewtabs" role="tablist" aria-label="Clients">' +
-    tab('clients', 'Clients') + tab('items', 'Items') + tab('performance', 'Performance') + tab('quotes', 'Quotations') + tab('prospects', 'Prospects') + '</div>';
+  var sales = CLIENTS_GROUPS.sales.indexOf(active) >= 0;
+  return '<div class="inv-viewtabs" role="tablist" aria-label="' + (sales ? 'Sales' : 'Clients') + '">' +
+    (sales ? CLIENTS_GROUPS.sales : CLIENTS_GROUPS.clients).map(tab).join('') + '</div>';
 }
 
 /* ===== CLIENTS/ITEMS DESKTOP: LIST AND PANE =====
@@ -228,7 +258,7 @@ function _getSortedFilteredItems() {
 
   // Filter
   if (filter === 'no-weight') {
-    list = list.filter(function(it) { return it.stdWeightKg == null; });
+    list = list.filter(itemNoWeight);
   } else if (filter === 'unused') {
     var cache = _buildUsageCache();
     list = list.filter(function(it) { return !cache[it.partNumber]; });
@@ -267,17 +297,19 @@ function _itemCheckHtml(it) {
 /* The phone row: a tick box, then the part (which opens its edit sheet), then its rate. */
 function _itemRowHtml(it) {
   var usageCount = _getUsageCount(it.partNumber);
-  var meta = [it.desc || '', it.gauge || '', it.unit || '',
-    it.stdWeightKg != null ? formatNum(it.stdWeightKg, 3) + ' kg' : '',
-    usageCount > 0 ? usageCount + ' ref' + (usageCount !== 1 ? 's' : '') : 'Unused'].filter(Boolean).join(' · ');
+  // Two things (the tab map, TM5e; it was five, the unit, weight and references among them): what the part is, its description
+  // and gauge. Its end: the rate, over its weight a piece, else what it waits on (no weight) or that nothing uses it.
+  var meta = [it.desc || 'No description', it.gauge || it.unit || ''].filter(Boolean).join(' · ');
+  var state = itemNoWeight(it) ? uiDot('warning', 'No weight') : !usageCount ? uiDot('neutral', 'Unused')
+    : it.stdWeightKg != null ? '<span class="inv-row-meta">' + formatNum(it.stdWeightKg, 3) + ' kg</span>' : '';
   var hasRate = it.rate != null && it.rate > 0;
   return '<div class="inv-row inv-row-2' + (_itemsSelected[it.id] ? ' inv-row-selected' : '') + '" data-item-row="' + it.id + '">' +
     '<label class="inv-row-lead inv-row-tick">' + _itemCheckHtml(it) + '</label>' +
     '<button class="inv-row-main" data-action="invEditItem" data-id="' + it.id + '">' +
     '<span class="inv-row-title inv-id">' + escHtml(it.partNumber) + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button>' +
-    '<span class="inv-row-end">' + (hasRate ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') + '</span>' +
-    '</div>';
+    '<span class="inv-row-end"><span class="inv-row-stack">' + (hasRate ? '<span class="inv-num">' + formatCurrency(it.rate) + '</span>' : '<span class="inv-row-meta">No rate</span>') +
+    state + '</span></span></div>';
 }
 
 /* The desktop table: the part number is a real button, so the row opens from the keyboard. Its first thirty rows, and
@@ -306,7 +338,6 @@ function _itemsTableHtml(list, moreKey) {
    used to draw its first thirty with no way to the rest: the Load more row was left off whenever something was typed. */
 function _renderItemsList() {
   var listEl = document.getElementById('itemsList');
-  var countEl = document.getElementById('itemsCount');
   if (!listEl) return;
 
   // What is and is not used is read fresh for each drawing: a part put on a challan since is no longer Unused, and
@@ -320,7 +351,6 @@ function _renderItemsList() {
 
   _itemsSorted = _getSortedFilteredItems();
   var total = _itemsSorted.length;
-  if (countEl) countEl.textContent = total + ' item' + (total !== 1 ? 's' : '');
 
   if (total === 0) {
     listEl.innerHTML = _isDesktop ? '<div class="inv-empty">No items found</div>' : '<div class="inv-panel"><div class="inv-empty">No items found</div></div>';
@@ -354,7 +384,7 @@ function openItemAdd() {
 }
 
 function _showItemOverlay(item, isAdd) {
-  var title = isAdd ? 'Add item' : 'Edit item';
+  var title = isAdd ? 'Add part' : 'Edit part';
   var pn = item ? item.partNumber : '';
   var desc = item ? item.desc : '';
   var gauge = item ? (item.gauge || '') : '';
@@ -826,9 +856,9 @@ function openPartWeights() {
     '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAddPartWeight">Add weight</button></div>', { dismiss: true });
 }
 
+/* After a weight is added or removed: Parts drawn again where it is on screen, so its card's count and More's row say it. */
 function _partWeightsCount() {
-  var b = document.querySelector('[data-action="invOpenPartWeights"]');
-  if (b) b.textContent = 'Part weights (' + Object.keys(S.partWeights || {}).length + ')';
+  if (document.querySelector('.inv-page-active [data-items-toolbar]')) renderClientsPage();
 }
 
 function renderPartWeightsList() {
@@ -1090,62 +1120,6 @@ function deriveWeightsFromRates() {
   showToast('Derived ' + derived + ' weight' + (derived !== 1 ? 's' : '') +
     (notes.length ? ' (' + notes.join(', ') + ')' : ''),
     notes.length ? 'warning' : 'success');
-}
-
-function calculateStdWeights() {
-  if (!grdGate('rates', 'work out item weights', calculateStdWeights)) return;   // P1 (guard.js)
-  var calculated = 0;
-  var highVariance = 0;
-  var twoGauge = _partsInTwoGauges(), skipped = 0;
-
-  S.items.forEach(function(item) {
-    if (item.stdWeightKg != null) return;
-    // The lines name a part number, not a gauge: two gauges' pieces would be averaged into both rows.
-    if (twoGauge[item.partNumber]) { skipped++; return; }
-
-    var pairs = [];
-
-    (S.invoices || []).forEach(function(inv) {
-      inv.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
-          pairs.push({ kg: li.qty, nos: li.nosQty });
-        }
-      });
-    });
-
-    (S.incomingMaterial || []).forEach(function(im) {
-      im.items.forEach(function(li) {
-        if (li.partNumber === item.partNumber && li.unit === 'KG' && li.nosQty > 0 && li.qty > 0) {
-          pairs.push({ kg: li.qty, nos: li.nosQty });
-        }
-      });
-    });
-
-    if (pairs.length === 0) return;
-
-    var weights = pairs.map(function(p) { return p.kg / p.nos; });
-    var avg = weights.reduce(function(s, w) { return s + w; }, 0) / weights.length;
-
-    if (weights.length > 1) {
-      var variance = weights.reduce(function(s, w) { return s + Math.pow(w - avg, 2); }, 0) / weights.length;
-      var cv = (Math.sqrt(variance) / avg) * 100;
-      if (cv > 20) highVariance++;
-    }
-
-    item.stdWeightKg = gstRound(avg * 1000) / 1000;
-    calculated++;
-  });
-
-  if (calculated > 0) {
-    saveState();
-    _renderItemsList();
-  }
-
-  var msg = 'Calculated weights for ' + calculated + ' item' + (calculated !== 1 ? 's' : '') + ' from invoice/challan history';
-  if (highVariance > 0) msg += '. ' + highVariance + ' with high variance (>20% CV)';
-  if (skipped > 0) msg += '. ' + skipped + ' skipped: same part in two gauges';
-  if (calculated === 0) msg = 'No items with calculable weights found. Need invoice/challan data with both KG qty and NOS count.';
-  showToast(msg, calculated > 0 ? 'success' : 'warning');
 }
 
 /* --- Usage Scoring (Phase 6b) --- */

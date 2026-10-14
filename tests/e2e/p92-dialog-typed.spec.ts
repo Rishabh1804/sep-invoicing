@@ -15,7 +15,7 @@ async function openAdd(page: Page, view: 'clients' | 'items') {
   await switchTab(page, 'pageClients');
   await page.locator(`[data-action="invSwitchSubView"][data-view="${view}"]`).first().click();
   await page.locator(`.inv-toolbar [data-action="${view === 'clients' ? 'invAddClient' : 'invAddItem'}"]`).click();
-  await expect(page.locator('.inv-dialog-title')).toHaveText(view === 'clients' ? 'Add client' : 'Add item');
+  await expect(page.locator('.inv-dialog-title')).toHaveText(view === 'clients' ? 'Add client' : 'Add part');
 }
 const tapOutside = (page: Page) => page.locator('.inv-scrim-dialog').first().click({ position: { x: 4, y: 4 } });
 const clientCount = (page: Page) => page.evaluate(() => (0, eval)('S.clients.length'));
@@ -69,7 +69,7 @@ test.describe('P92: a dialog with typed work asks before closing', () => {
     await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
   });
 
-  test('every form dialog gets it from the shell: Add item', async ({ page }) => {
+  test('every form dialog gets it from the shell: Add part', async ({ page }) => {
     await loadAppWithState(page, state());
     await openAdd(page, 'items');
     await page.locator('#itemEditPN').fill('BRKT 77');

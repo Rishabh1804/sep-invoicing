@@ -69,10 +69,13 @@ var CHG_TRACK = [
   { path: 'costBills', kind: 'arr', noun: 'bill',
     label: function(r) { return chgJoin((typeof COST_BILL_KINDS !== 'undefined' && COST_BILL_KINDS[r.kind]) || r.kind, r.month, chgMoney(r.amount)); } },
   { path: 'payrollPaid', kind: 'arr', noun: 'payroll as paid', plural: 'payrolls as paid', label: function(r) { return chgJoin(r.month, r.source); } },
+  { path: 'suppliers', kind: 'arr', noun: 'supplier', label: function(r) { return r.name; } },
+  { path: 'supplierPays', kind: 'arr', noun: 'payment to a supplier', plural: 'payments to suppliers',
+    label: function(r) { var sp = (S.suppliers || []).find(function(x) { return x.id === r.supplierId; }); return chgJoin(sp ? sp.name : '', chgMoney(r.amount), r.how, r.date ? chgDay(r.date) : ''); } },
   { path: 'attendance', kind: 'map', noun: 'attendance', omit: ['scans'], plural: 'attendance days', label: function(r, k) { return chgDay(k); } },
   { path: 'shiftNeeds', kind: 'map', noun: 'heads needed', plural: 'days of heads needed', label: function(r, k) { return chgDay(k); } },
   { path: 'partWeights', kind: 'map', noun: 'part weight', label: function(r, k) { return k; } },
-  { path: 'areaTargets', kind: 'cfg', sec: 'Staff → Areas → complements' },
+  { path: 'areaTargets', kind: 'cfg', sec: 'People → Areas → complements' },
   { path: 'relayPastes', kind: 'raw', noun: 'roll', label: function(r) { return chgJoin(r.kind === 'in' ? 'in-time' : r.kind === 'out' ? 'out-time' : r.kind, r.date ? chgDay(r.date) : ''); } },
   { path: 'relayLearn', kind: 'skip' },
   { path: 'attRegister.months', kind: 'map', noun: 'register page', label: function(r, k) { return k; } },
@@ -92,9 +95,10 @@ var CHG_TRACK = [
     label: function(r) { return chgJoin(chgStockName(r.itemId), r.kind, r.qty != null ? r.qty + (chgStockUnit(r.itemId) ? ' ' + chgStockUnit(r.itemId) : '') : '', r.date ? chgDay(r.date) : ''); } },
   { path: 'stock.pastes', kind: 'raw', noun: 'stock message', label: function(r) { return chgJoin(r.sentBy, r.to ? chgDay(r.to) : ''); } },
   { path: 'production.entries', kind: 'arr', noun: 'production entry', plural: 'production entries',
-    label: function(r) { return chgJoin(r.kind, r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
+    label: function(r) { return chgJoin(r.kind, typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.client || chgClientName(r.clientId), r.part, r.qty != null ? r.qty + (r.unit ? ' ' + r.unit : '') : '', r.date ? chgDay(r.date) : ''); } },
   { path: 'production.pastes', kind: 'raw', noun: 'production message', label: function(r) { return chgJoin(r.kind, r.day ? chgDay(r.day) : ''); } },
   { path: 'production.photos', kind: 'raw', noun: 'register photo', label: function(r) { return r.name; } },
+  { path: 'production.pages', kind: 'raw', noun: 'register page', label: function(r) { return chgJoin(typeof PROD_LINE_LABEL !== 'undefined' ? PROD_LINE_LABEL[r.line] || r.line : r.line, r.date ? chgDay(r.date) : ''); } },
   { path: 'production.learn', kind: 'skip' },
   { path: 'kb.articles', kind: 'arr', noun: 'article', omit: ['versions'],
     label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },
@@ -107,6 +111,8 @@ var CHG_TRACK = [
   { path: 'bank.opening', kind: 'map', noun: 'opening balance', cid: function(r, k) { return k; }, label: function(r, k) { return chgClientName(k) || k; } },
   { path: 'bank.gstNotes', kind: 'map', noun: 'GST note', label: function(r, k) { return k; } },
   { path: 'bank.bounces', kind: 'map', noun: 'returned cheque', label: function(r, k) { return k; } },
+  { path: 'bank.cheques', kind: 'arr', noun: 'cheque received', cid: function(r) { return r.clientId; },
+    label: function(r) { return chgJoin(chgClientName(r.clientId), r.number ? 'cheque ' + r.number : '', r.amount != null ? chgMoney(r.amount) : ''); } },
   { path: 'bank.reminders', kind: 'arr', noun: 'payment reminder', cid: function(r) { return r.clientId; }, label: function(r) { return chgJoin(chgClientName(r.clientId), r.amount != null ? formatCurrency(r.amount) : '', r.how); } },
   { path: 'todo.tasks', kind: 'arr', noun: 'task', label: function(r) { return r.text; } },
   { path: 'todo.snoozes', kind: 'map', noun: 'snooze', label: function(r, k) { return k; } },
@@ -127,7 +133,8 @@ var CHG_TRACK = [
   // Settings: each one record, named by the section that sets it.
   { path: 'company', kind: 'cfg', sec: 'Company' },
   { path: 'labour', kind: 'cfg', sec: { otMult: 'Overtime', otCap: 'Overtime', otCapFrom: 'Overtime', gateFull: 'Rest days & attendance', gateHalf: 'Rest days & attendance',
-      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', modelPerKg: 'Modelled labour', '': 'Labour' },
+      restCreditMinDays: 'Rest days & attendance', holidays: 'Rest days & attendance', extraRate: 'The extra', extraHoursPerHead: 'The extra', snackOt: 'Overtime', snackNight: 'Overtime', modelPerKg: 'Modelled labour',
+      payCarryFrom: 'Pay → monthly balances', '': 'Labour' },
     dflt: function() { return getDefaultState().labour; } },
   { path: 'rateCheck', kind: 'cfg', sec: 'Rate & weight check', dflt: function() { return RATE_CHECK_DEFAULTS; } },
   { path: 'invStateCheck', kind: 'cfg', sec: 'Invoice states', dflt: function() { return INV_STATE_CHECK_DEFAULTS; } },
@@ -136,6 +143,7 @@ var CHG_TRACK = [
   { path: 'todoCheck', kind: 'cfg', sec: 'To-do', dflt: function() { return typeof TODO_CHECK_DEFAULTS !== 'undefined' ? TODO_CHECK_DEFAULTS : getDefaultState().todoCheck; } },
   { path: 'costModel', kind: 'cfg', sec: 'Live cost fallbacks', dflt: function() { return typeof COST_MODEL_DEFAULTS !== 'undefined' ? COST_MODEL_DEFAULTS : getDefaultState().costModel; } },
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
+  { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
     dflt: function() { return { ratePerKg: null, premiumPerKg: 15, upliftPct: typeof ZINC_DEFAULT_UPLIFT !== 'undefined' ? ZINC_DEFAULT_UPLIFT : null, basis: 'manual', updatedAt: null, source: '' }; } },
   { path: 'perfCfg', kind: 'cfg', sec: 'Clients → Performance → By the hour' },
@@ -164,8 +172,9 @@ var _chgHealth = { saves: 0, logged: 0, errors: 0, lastError: '', lastErrorAt: 0
 
 /* ---------- small helpers ---------- */
 function chgNow() { try { return performance.now(); } catch (e) { return Date.now(); } }
+// A record's name, its parts joined by commas: it is one fact on History's row (the tab map, TM6), never a chain of them.
 function chgJoin() {
-  return Array.prototype.filter.call(arguments, function(x) { return x != null && String(x).trim() !== ''; }).map(String).join(' · ');
+  return Array.prototype.filter.call(arguments, function(x) { return x != null && String(x).trim() !== ''; }).map(String).join(', ');
 }
 function chgCut(s, n) { s = s == null ? '' : String(s); n = n || CHG_VAL_MAX; return s.length > n ? s.slice(0, n - 1) + '…' : s; }
 function chgDay(iso) { return /^\d{4}-\d{2}-\d{2}$/.test(String(iso || '')) ? formatDate(iso) : String(iso == null ? '' : iso); }
@@ -580,23 +589,7 @@ function chgCap() {
   S.changeLog = keep;
 }
 
-/* ---------- for the gate, the devices, the merge ---------- */
-/* The log, newest last; `filter` a function or {coll, rid, op, by (null: no ID), dev, since, until}. */
-function chgEntries(filter) {
-  var log = S && Array.isArray(S.changeLog) ? S.changeLog : [];
-  if (!filter) return log.slice();
-  if (typeof filter === 'function') return log.filter(filter);
-  return log.filter(function(e) {
-    if (filter.coll && e.coll !== filter.coll) return false;
-    if (filter.rid != null && String(e.rid) !== String(filter.rid)) return false;
-    if (filter.op && e.op !== filter.op) return false;
-    if (Object.prototype.hasOwnProperty.call(filter, 'by') && (e.by == null ? null : String(e.by)) !== (filter.by == null ? null : String(filter.by))) return false;
-    if (filter.dev && e.dev !== filter.dev) return false;
-    if (filter.since && e.at < filter.since) return false;
-    if (filter.until && e.at > filter.until) return false;
-    return true;
-  });
-}
+/* ---------- who and where, for History and the diagnostics ---------- */
 /* What a device is called: its name on the devices list, this device's own name, else a short id. */
 function chgDeviceLabel(id) {
   if (!id) return '';
@@ -625,7 +618,11 @@ function chgHealthText() {
 
 /* ---------- History (stats.js) ---------- */
 var CHG_VERB = { add: 'added', change: 'changed', remove: 'removed' };
-var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier' };
+var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQty: 'pieces', ratePerKg: 'rate per kg', otCap: 'OT cap', otMult: 'OT multiplier',
+  orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
+  voidReason: 'reason', cancelReason: 'reason', voidBy: 'by',
+  // The flow thread's targets and terms (flow.js): the plant's in Settings, a client's own on the client.
+  turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';
@@ -637,7 +634,6 @@ function chgAct(e) {
 }
 var CHG_ACT_WORDS = { added: ['Added', 'ok'], changed: ['Changed', 'neutral'], removed: ['Removed', 'danger'], voided: ['Voided', 'danger'],
   cancelled: ['Cancelled', 'danger'], replaced: ['Replaced', 'warning'] };
-function chgKindWord(e) { return CHG_ACT_WORDS[chgAct(e)] || CHG_ACT_WORDS.changed; }
 function chgShow(v, f) {
   if (v == null || v === '') return '—';
   if (typeof v === 'number' && /At$/.test(f) && v > 1e11) return formatTimestamp(v);
@@ -660,16 +656,38 @@ function chgFieldText(e, x, ctx) {
   var name = chgFieldName(e, x.f, ctx);
   return x.secret ? name + ' changed' : name + ' ' + chgShow(x.from, x.f) + ' → ' + chgShow(x.to, x.f);
 }
-/* "Asha changed invoice SEP/26-27/00941 · ALPHA FORGINGS · rate 13 → 13.2". `all`: every field (the CSV). */
+/* "Asha changed invoice SEP/26-27/00941, ALPHA FORGINGS: rate 13 → 13.2; qty 3 → 4". `all`: every field (the CSV). The record is
+   one fact and what moved the other (the tab map, TM6); a label logged before 10 Oct 2026 joined its parts with "·" and is read
+   the same way. A void or a cancel says why, in the words typed. The row is never past CHG_ROW_MAX: a record's name too long for
+   it loses its last parts, said with "…", and the whole is the row's title, the pane's and the CSV's (TM6e). */
+var CHG_ROW_MAX = 110;
 function chgText(e, all, ctx) {
   var act = chgAct(e), noun = e.n || e.coll === 'book' ? '' : chgNounOf(e.coll, 1);
   var cfg = !e.n && e.coll !== 'book' && e.rid == null || e.coll === 'settings';
-  var head = chgUserName(e.by) + ' ' + act + ' ' + (cfg || !noun ? '' : noun + ' ') + (e.label || '');
+  var head = chgUserName(e.by) + ' ' + act + ' ' + (cfg || !noun ? '' : noun + ' ');
+  var label = String(e.label || '').split(' · ').join(', ');
   // A void or a cancel says so in its verb: the stamp that made it one is not said again.
   var fs = (e.fields || []).filter(function(x) { return !((act === 'voided' && /^voided(At)?$/.test(x.f)) || (act === 'cancelled' && x.f === 'cancelledAt')); });
-  var shown = all ? fs : fs.slice(0, 2);
+  var why = null;
+  if (!all && (act === 'voided' || act === 'cancelled')) {
+    why = fs.find(function(x) { return /^(void|cancel)Reason$|^reason$/.test(x.f) && x.from == null && x.to != null && x.to !== '' && !x.secret; }) || null;
+    // Who voided it is the head's, or the pane's: the row says why.
+    if (why) fs = fs.filter(function(x) { return x !== why && x.f !== 'voidBy'; });
+  }
+  var shown = all ? fs : fs.slice(0, why ? 1 : 2);
   var rest = fs.length - shown.length + (e.more || 0);
-  return head + shown.map(function(x) { return ' · ' + chgFieldText(e, x, ctx); }).join('') + (rest > 0 ? ' · +' + rest + ' more' : '');
+  var said = (why ? ['\u201c' + String(why.to) + '\u201d'] : []).concat(shown.map(function(x) { return chgFieldText(e, x, ctx); }), rest > 0 ? ['+' + rest + ' more'] : []);
+  var tail = said.length ? ': ' + said.join('; ') : '';
+  if (all || (head + label + tail).length <= CHG_ROW_MAX) return head + label + tail;
+  // Too long for a row: the name's last parts go first, then the name itself is cut, then what moved.
+  var room = CHG_ROW_MAX - head.length - tail.length, parts = label.split(', '), cut = '';
+  if (label) {
+    while (parts.length > 1 && parts.join(', ').length + 3 > room) parts.pop();
+    cut = parts.join(', ');
+    cut = cut !== label && cut.length + 3 <= room ? cut + ', \u2026' : cut.slice(0, Math.max(12, room - 1)).replace(/[\s,]+$/, '') + '\u2026';
+  }
+  var out = head + cut + tail;
+  return out.length <= CHG_ROW_MAX ? out : out.slice(0, CHG_ROW_MAX - 1).replace(/[\s,;:]+$/, '') + '\u2026';
 }
 /* The log's rows for History, and on the events already listed, who made them: an event and an entry on the same
    record within two seconds are one act, said once on the event's row ("by Asha"); the entry is still listed under
@@ -683,11 +701,22 @@ function chgHistoryEvents(events, clientFilter) {
   (S.invoices || []).forEach(function(r) { byId.invoices[r.id] = r; });
   (S.incomingMaterial || []).forEach(function(r) { byId.incomingMaterial[r.id] = r; });
   var ctx = { rec: function(e) { return byId[e.coll] ? byId[e.coll][e.rid] : null; } };
+  // An event that removed a record of another store in its save names it by its label (`foldRemoval`: a deleted invoice's
+  // tombstone keeps its number, not its id), so the removal is the event's row too, never a second row beside it.
+  var rem = events.filter(function(ev) { return ev.foldRemoval && ev.foldRemoval.label; });
+  var claim = function(ev, e) { if (!Object.prototype.hasOwnProperty.call(ev, 'by')) { ev.by = e.by; ev.byDev = e.dev; } };
   log.forEach(function(e) {
     var folded = false;
     if (e.rid != null) (idx[e.coll + '\u0001' + e.rid] || []).forEach(function(ev) {
       if (Math.abs((ev.ts || 0) - e.at) > CHG_MATCH_MS) return;
-      if (!Object.prototype.hasOwnProperty.call(ev, 'by')) { ev.by = e.by; ev.byDev = e.dev; }
+      claim(ev, e);
+      folded = true;
+    });
+    if (!folded && e.op === 'remove') rem.forEach(function(ev) {
+      var lb = String(e.label || ''), want = ev.foldRemoval.label;
+      if (folded || ev.foldRemoval.coll !== e.coll || Math.abs((ev.ts || 0) - e.at) > CHG_MATCH_MS) return;
+      if (lb !== want && lb.indexOf(want + ', ') !== 0) return;
+      claim(ev, e);
       folded = true;
     });
     if (clientFilter && String(e.cid) !== String(clientFilter)) return;

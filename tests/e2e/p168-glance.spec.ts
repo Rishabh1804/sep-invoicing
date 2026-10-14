@@ -37,7 +37,9 @@ test.describe('P168 at a glance', () => {
     await expect(row.locator('[data-ppl-glance="reliability"]')).toContainText('100');
     await expect(row.locator('[data-ppl-glance="workload"]')).toContainText('h');
     await expect(row.locator('[data-ppl-glance-meta]')).toContainText('VAT A1 4/5, Barrel 2/5');
-    await expect(row.locator('[data-ppl-glance-meta]')).toContainText('Motivation');
+    // The owner's motivation index follows the meta's two facts as a status, never a third fact after a "·" (the tab map §3b).
+    await expect(row.locator('[data-ppl-glance-mo]')).toContainText('Motivation');
+    expect((await row.locator('[data-ppl-glance-meta]').innerText()).split('·').length).toBeLessThanOrEqual(2);
   });
 
   test('a supervisor’s roster has the bars and never the motivation', async ({ page }) => {
@@ -48,6 +50,7 @@ test.describe('P168 at a glance', () => {
     const row = page.locator('[data-action="invAttEditWorker"][data-id="1"]').first();
     await expect(row.locator('[data-ppl-glance="reliability"]')).toBeVisible();
     await expect(row.locator('[data-ppl-glance-meta]')).not.toContainText('Motivation');
+    await expect(row.locator('[data-ppl-glance-mo]')).toHaveCount(0);
   });
 
   test('the owner’s To-do: check-ins due; a worker on firm figures under 50 to talk to', async ({ page }) => {

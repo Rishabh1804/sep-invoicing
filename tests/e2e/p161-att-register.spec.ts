@@ -75,7 +75,9 @@ test.describe('P161 the monthly register', () => {
     await g(page, `_aregMonth = '${M}'; _attView = 'register'; saveState()`);
     await switchTab(page, 'pageStaff');
     const grid = page.locator('#aregGrid');
-    await expect(grid.locator('[data-d="1"][data-c="0"]')).toHaveClass(/inv-cell-ok/);
+    // A cell that agrees asks nothing and is drawn plain, so the cells to act on stand out (TM4b); its label still says so.
+    await expect(grid.locator('[data-d="1"][data-c="0"]')).toHaveClass('inv-cell');
+    await expect(grid.locator('[data-d="1"][data-c="0"]')).toHaveAttribute('aria-label', /Agrees with the day/);
     await expect(grid.locator('[data-d="2"][data-c="0"]')).toHaveClass(/inv-cell-danger/);
     await expect(grid.locator('[data-d="1"][data-c="1"]')).toHaveClass(/inv-cell-warning/);
     await expect(grid.locator('[data-d="4"][data-c="0"]')).toHaveAttribute('data-unsure', '');
@@ -161,16 +163,13 @@ test.describe('P161 the monthly register', () => {
     expect(await g(page, `aregColWorker(aregMonthOf('2026-01'), 0).id`)).toBe(1);
   });
 
-  test('a photo of the page is read into the same shape, and a month on record is not read over', async ({ page }) => {
+  test('no page photo: the month has no photo door, and a month read from a photo before keeps its unsure cell asked', async ({ page }) => {
+    // The page photo, read by Gemini, came out (owner, 13 Oct 2026: "it simply never works"); a month read that way stays as read.
     await loadAppWithState(page, book());
-    await g(page, `geminiReadImage = function () { return Promise.resolve({ ok: true, json: { month: '2026-04', title: 'APRIL', columns: ['RAMU'],
-      days: [{ date: '2026-04-01', written: '1-4', kind: 'work', cells: [{ raw: 'P-8pm', unsure: true }] }], totals: [] } }); }`);
-    expect(await g(page, `aregPhotoRead(new Blob(['x'], { type: 'image/jpeg' }))`)).toBe(true);
-    const mo: any = await g(page, `aregMonthOf('2026-04')`);
-    expect(mo).toMatchObject({ src: 'photo', columns: [{ name: 'RAMU' }] });
-    expect(mo.days[0].cells[0]).toEqual({ raw: 'P-8pm', unsure: true });
-    expect(mo.photo.size).toBe(1);
-    expect(await g(page, `aregPhotoRead(new Blob(['x'], { type: 'image/jpeg' }))`)).toBe(false);
-    await answerAsk(page, 'ok');
+    await g(page, `(function () { var mo = aregCleanMonth({ month: '2026-04', title: 'APRIL', columns: [{ name: 'RAMU' }],
+      days: [{ date: '2026-04-01', written: '1-4', kind: 'work', cells: [{ raw: 'P-8pm', unsure: true }] }], totals: [] }, 'photo');
+      aregData().months['2026-04'] = mo; _aregMonth = '2026-04'; saveState(); return true; })()`);
+    expect(await g(page, `aregMonthOf('2026-04').days[0].cells[0]`)).toEqual({ raw: 'P-8pm', unsure: true });
+    expect(await g(page, `typeof aregPhoto + typeof aregPhotoRead + typeof geminiReadImage`)).toBe('undefinedundefinedundefined');
   });
 });

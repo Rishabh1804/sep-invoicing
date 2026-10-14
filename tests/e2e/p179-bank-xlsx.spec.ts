@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import path from 'path';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
+import { bankImportDoor, answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
 
 // P179: the bank statement as the owner has it (8 Oct 2026: "When uploading the bank statement in xlsx format we get an
 // error Row 50: page 2 cannot be read or not an excel file"). A statement of two pages ends in the bank's page foot, the
@@ -20,7 +20,7 @@ async function openBank(page: Page) {
 }
 async function importFile(page: Page, file: string) {
   const before = await page.evaluate(() => ((window as any).bankData().imports || []).length);
-  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+  const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
   await chooser.setFiles(file);
   await page.waitForFunction(n => (window as any).bankData().imports.length > n, before);
 }
@@ -31,7 +31,7 @@ test('a statement of two pages is read past the bank’s page foot, every balanc
   await loadAppWithState(page, state());
   await openBank(page);
   await importFile(page, XLS);
-  await expect(page.locator('#bankHead')).toContainText('8 rows');
+  await expect(page.locator('#bankVerdict')).toContainText('8 rows');
   await expect(page.locator('[data-bank-breaks="0"]')).toBeVisible();
   const b = (await readStoredState(page)).bank;
   expect(b.rows).toHaveLength(8);
@@ -81,7 +81,7 @@ test('what is not a statement is said: a zip with no workbook, a file that is no
     ['notes.xlsx', Buffer.from([0x50, 0x4B, 0x03, 0x04, 0, 0]), 'Not an Excel workbook'],
     ['notes.xls', Buffer.from('not a spreadsheet'), 'Not an Excel file'],
   ] as Array<[string, Buffer, string]>) {
-    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), page.locator('[data-action="invBankImport"]').click()]);
+    const [chooser] = await Promise.all([page.waitForEvent('filechooser'), bankImportDoor(page)]);
     await chooser.setFiles({ name, mimeType: 'application/octet-stream', buffer: bytes });
     await expect(page.locator('.inv-toast').last()).toContainText(said);
   }

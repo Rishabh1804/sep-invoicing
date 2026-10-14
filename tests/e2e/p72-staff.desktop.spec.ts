@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openAttendance } from './fixtures';
 
 // P72 (desktop): Day's controls sit beside the name on one row, pressed P in its tone (the desktop's grey
 // "on" segment does not win over a status); Areas' span is an inv-seg; the week grid is one table.
@@ -12,7 +12,7 @@ test('P72 desktop: Day rows carry their controls beside the name; Areas and Week
     attendance: { [todayIso()]: { marks: { 1: { st: 'P', ot: 0, hours: 0, area: 'vat-a1' } }, extra: [], note: '' } },
   } as unknown as SepState);
   await switchTab(page, 'pageStaff');
-  await page.locator('#attToolbar .inv-viewtab[data-view="day"]').click();
+  await openAttendance(page, 'day');
   const row = page.locator('[data-att-row="1"]');
   const [name, seg] = await Promise.all([row.locator('.inv-row-title').boundingBox(), row.locator('.inv-seg').boundingBox()]);
   expect(Math.abs((name!.y + name!.height / 2) - (seg!.y + seg!.height / 2))).toBeLessThan(name!.height);
@@ -27,6 +27,6 @@ test('P72 desktop: Day rows carry their controls beside the name; Areas and Week
   await page.locator('#attToolbar .inv-viewtab[data-view="areas"]').click();
   await expect(page.locator('.inv-seg [data-action="invAreaSpan"][aria-pressed="true"]')).toHaveText('1 week');
   await expect(page.locator('[data-area-row="vat-a1"] .inv-dot')).toContainText('under');
-  await page.locator('#attToolbar .inv-viewtab[data-view="week"]').click();
+  await openAttendance(page, 'week');
   await expect(page.locator('#attWeekGrid table.inv-table-grid tbody tr')).toHaveCount(1);
 });

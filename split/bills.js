@@ -1,10 +1,13 @@
-/* ===== BILLS & NOTES (Finance → Bills & notes) =====
+/* ===== BILLS AND CREDIT NOTES =====
  * Two records that had no findable door (owner, 26 Sep 2026: "We don't have a place to enter
- * electricity bills anywhere in the app … And even credit notes").
+ * electricity bills anywhere in the app … And even credit notes"). They shared a Finance tab,
+ * Bills & notes, until the tab map (TM3a, 10 Oct 2026) put each where its work is: the bills on
+ * Money → Payments, beside what the bank paid for them; the credit notes with the invoices, in
+ * Office → Invoices → Credit notes. The forms stay here.
  *
  * Electricity and other bills are S.costBills, the same records Stats → Live cost reads; they
- * were entered only at the foot of that card, under "Power". They are entered here now, a month
- * that closed without one is listed as missing, and the To-do rule `power` asks for it.
+ * were entered only at the foot of that card, under "Power". A month that closed without one is
+ * listed as missing, and the To-do rule `power` asks for it.
  *
  * Credit notes could only be RAISED, and only one way: a register selection priced at the SSS
  * Mehta batch discount. Two things had no door at all:
@@ -27,7 +30,7 @@ function cnReasonLabel(key) { var r = CN_REASONS.find(function(x) { return x[0] 
 /* A batch rebate is the SSS Mehta scheme: the To-do batch rule and the printed annex read only these. */
 function cnIsRebate(cn) { return !cn.kind || cn.kind === 'rebate'; }
 
-var _billForm = null;   // { mode: 'new' | 'record', ... } — the credit-note form on this view
+var _billForm = null;   // { mode: 'new' | 'record', ... } — the credit-note form, in the Credit notes dialog
 var _billsMonths = 6;   // closed months checked for a missing electricity bill
 
 function billsMonthLabel(ym) {
@@ -47,77 +50,50 @@ function billsMissingPower(n) {
 }
 
 
-function renderBillsNotes() {
-  return _billsPowerHtml() + _billsNotesHtml();
-}
 
-/* ---------- Electricity and other bills ---------- */
+/* ---------- Electricity and other bills (Money → Payments) ----------
+   The bill form when it is open here, the closed months with no electricity bill (what needs the owner), then the bills entered
+   in month order, folded to one row that says how many and the latest that stands; each opens with its note and its Void. Add a
+   bill is the screen's toolbar (bank.js). */
 function _billsPowerHtml() {
   var bills = costBills().slice().sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (b.at || 0) - (a.at || 0); });
-  var missing = billsMissingPower();
-  var h = '<div class="inv-panel inv-panel-flush" id="billsPower"><div class="inv-panel-head"><span class="inv-panel-title">Electricity and other bills' +
-    (bills.length ? ' <span class="inv-panel-count">' + bills.length + '</span>' : '') + '</span>' +
-    // Hidden only while the form is open HERE: a form left open on Stats must not take this door away.
-    // Primary only while no credit-note form is open, which carries the view's one primary then.
-    (_costBillOpen && _costBillOpen.where === 'finance' ? '' : '<button class="inv-btn ' + (_billForm ? 'inv-btn-secondary' : 'inv-btn-primary') +
-      ' inv-btn-sm" data-action="invCostBillOpen" data-where="finance">Add bill</button>') + '</div>';
-  if (_costBillOpen && _costBillOpen.where === 'finance') h += '<div class="inv-panel-body">' + costBillFormHtml() + '</div>';
-  /* One list in month order: a missing month sits where its bill would. */
-  var rows = missing.map(function(m) { return { month: m, missing: true }; }).concat(bills.map(function(b) { return { month: b.month, bill: b }; }));
-  rows.sort(function(a, b) { return a.month < b.month ? 1 : a.month > b.month ? -1 : (a.missing ? -1 : b.missing ? 1 : 0); });
-  if (!bills.length && !missing.length) {
-    h += '<div class="inv-empty">No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.</div>';
-  }
+  var missing = billsMissingPower(), open = _costBillOpen && _costBillOpen.where === 'finance', live = bills.filter(function(b) { return !b.voided; });
+  var h = '<div class="inv-panel inv-panel-flush" id="billsPower"><div class="inv-panel-head"><span class="inv-panel-title">Bills: electricity and other</span>' +
+    (missing.length ? '<span class="inv-dot inv-dot-warning" data-bills-missing="' + missing.length + '">' + escHtml(todoPlural(missing.length, 'month') + ' with no bill') + '</span>'
+      : '<span class="inv-panel-count">' + live.length + '</span>') + '</div>';
+  if (open) h += '<div class="inv-panel-body" data-bill-form>' + costBillFormHtml() + '</div>';
+  // The bank already says what was paid for a missing month: offered, never added unasked.
   var bankPower = missing.length ? bankPowerRows() : [];
-  rows.forEach(function(r) {
-    if (r.missing) {
-      var m = r.month;
-      // The bank already says what was paid for it: offered, never added unasked.
-      var paid = bankPower.find(function(v) { return bankBillMonth(v.row) === m; });
-      h += '<div class="inv-row" data-missing="' + m + '"><span class="inv-row-main"><span class="inv-dot inv-dot-warning">No electricity bill for ' + escHtml(billsMonthLabel(m)) + '</span></span>' +
-        '<span class="inv-row-end">' + (paid ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankAddBill" data-id="' + escHtml(paid.row.id) + '">Add ' + escHtml(formatCurrency(paid.row.dr)) + ' paid ' + escHtml(formatDate(paid.row.date)) + '</button>' : '') +
-        '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="finance" data-month="' + m + '">Add</button></span></div>';
-      return;
-    }
-    var b = r.bill;
+  // The latest three, the rest one tap away (TM3a: Payments took the bills, and gave the room back, I10); the head counts all.
+  h += uiMoreHtml('bills-missing', missing.map(function(m) {
+    var paid = bankPower.find(function(v) { return bankBillMonth(v.row) === m; });
+    var parts = ['<div class="inv-row" data-missing="' + m + '"><span class="inv-row-main"><span class="inv-dot inv-dot-warning">No electricity bill for ' + escHtml(billsMonthLabel(m)) + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillOpen" data-where="finance" data-month="' + m + '">Add</button></span></div>'];
+    // What the bank paid for it is an offer, a line of its own under the month (one action a row's end, §1a-11).
+    if (paid) parts.push('<div class="inv-row-children"><div class="inv-row" data-missing-paid="' + m + '"><span class="inv-row-main inv-row-meta">' +
+      escHtml(formatCurrency(paid.row.dr) + ' paid ' + formatDate(paid.row.date)) + '</span><span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invBankAddBill" data-id="' +
+      escHtml(paid.row.id) + '">Add as bill</button></span></div></div>');
+    return { parts: parts };
+  }), { n: 3, noun: 'months' });
+  if (!bills.length) {
+    if (!missing.length) h += '<div class="inv-empty">No bills recorded. Until there are, Live cost prices electricity and the other costs at the Settings fallbacks.</div>';
+    return h + '</div>';
+  }
+  var rows = bills.map(function(b) {
     var meta = [b.units ? formatNum(b.units, 0) + ' units' : ''].concat(costBillParts(b), [b.note || '', b.voided ? 'void: ' + (b.voidReason || '') : '']).filter(Boolean).join(' · ');
-    h += '<div class="inv-row inv-row-2' + (b.voided ? ' inv-row-muted' : '') + '" data-bill="' + escHtml(b.id) + '"><span class="inv-row-main">' +
+    return '<div class="inv-row inv-row-2' + (b.voided ? ' inv-row-muted' : '') + '" data-bill="' + escHtml(b.id) + '"><span class="inv-row-main">' +
       '<span class="inv-row-title">' + escHtml((b.label || COST_BILL_KINDS[b.kind] || b.kind) + ' · ' + billsMonthLabel(b.month)) + '</span>' +
-      (meta ? '<span class="inv-row-meta">' + escHtml(meta) + '</span>' : '') + '</span>' +
+      (meta ? '<span class="inv-row-meta inv-row-wrap">' + escHtml(meta) + '</span>' : '') + '</span>' +
       '<span class="inv-row-end"><span class="inv-num">' + formatCurrency(b.amount) + '</span>' +
       (b.voided ? '<span class="inv-dot inv-dot-neutral">Void</span>' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCostBillVoid" data-id="' + escHtml(b.id) + '">Void</button>') +
       '</span></div>';
-  });
-  return h + '</div>';
-}
-
-/* ---------- Credit notes ---------- */
-function _billsNotesHtml() {
-  var notes = getCreditNotes().slice().sort(function(a, b) { return (parseInt(b.cnNumber, 10) || 0) - (parseInt(a.cnNumber, 10) || 0); });
-  var h = '<div class="inv-panel inv-panel-flush" id="billsNotes"><div class="inv-panel-head"><span class="inv-panel-title">Credit notes' +
-    (notes.length ? ' <span class="inv-panel-count">' + notes.length + '</span>' : '') + '</span>' +
-    (_billForm ? '' : '<span class="inv-toolbar inv-toolbar-tight">' +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnFormOpen" data-mode="record">Record issued</button>' +
-      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invCnFormOpen" data-mode="new">New note</button></span>') + '</div>';
-  if (_billForm) h += '<div class="inv-panel-body">' + _billsCnFormHtml() + '</div>';
-  if (!notes.length) {
-    h += '<div class="inv-empty">No credit notes. The batch rebate is raised from a Register selection; any other note, or one already issued, is entered here.</div>';
-  }
-  notes.forEach(function(cn) {
-    var cancelled = cn.status === 'cancelled';
-    var kind = cnIsRebate(cn) ? 'Batch rebate' + (cn.discountPct ? ' ' + cn.discountPct + '%' : '') : (cn.reason || 'Credit note');
-    // Cancel is an end of its own, so on a phone it drops under the figures rather than squeezing the lines.
-    h += '<div class="inv-row inv-row-2 inv-row-flow' + (cancelled ? ' inv-row-muted' : '') + '" data-cn="' + escHtml(cn.id) + '">' +
-      '<button class="inv-row-main" data-action="invCnPreview" data-id="' + escHtml(cn.id) + '">' +
-      '<span class="inv-row-title"><span class="inv-id" title="' + escHtml(cn.displayNumber) + '">CN/' + escHtml(cn.cnNumber) + '</span> · ' + escHtml(cn.clientName) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml(formatDate(cn.date)) + ' · ' + escHtml(kind) + ' · against ' + escHtml(cnAgainstInvoiceLabel(cn)) +
-      (cn.recorded ? ' · recorded' : '') + '</span></button>' +
-      '<span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + formatCurrency(cn.grandTotal) + '</span>' +
-      (cancelled ? '<span class="inv-dot inv-dot-danger">Cancelled</span>' : '<span class="inv-row-meta inv-num">' + formatCurrency(cn.taxableValue) + ' taxable</span>') + '</span></span>' +
-      // A form open above the list has its own Cancel; the list's would cancel a GST note at a tap.
-      (cancelled || _billForm ? '' : '<span class="inv-row-end inv-row-actions"><button class="inv-btn inv-btn-danger inv-btn-sm" data-action="invCnCancel" data-id="' + escHtml(cn.id) + '">Cancel</button></span>') + '</div>';
-  });
-  if (notes.length) h += '<div class="inv-row"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invExportCreditNotes">Credit notes CSV</button></div>';
+  }).join('');
+  // A voided bill is listed inside, muted, and never leads the head.
+  h += '<details class="inv-row-fold" data-fold="bills-entered"' + (uiFoldOpen('bills-entered', !!_isDesktop) ? ' open' : '') + '><summary class="inv-row" data-bills-entered="' + live.length + '">' +
+    '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(live.length ? todoPlural(live.length, 'bill') + ' entered, the latest ' + billsMonthLabel(live[0].month)
+      : todoPlural(bills.length, 'bill') + ' entered, all voided') + '</span></span>' +
+    '<span class="inv-row-end">' + (live.length ? '<span class="inv-num">' + formatCurrency(live[0].amount) + '</span>' : '') + '</span></summary>' +
+    '<div class="inv-row-children">' + rows + '</div></details>';
   return h + '</div>';
 }
 
@@ -219,7 +195,7 @@ function billsCnFormOpen(mode) {
   _billForm = { mode: mode === 'record' ? 'record' : 'new', date: localDateStr(), clientId: '', invId: '', reason: mode === 'record' ? 'rebate' : 'rate',
     note: '', taxable: '', qty: '', unit: 'KG', num: '', fy: cnFyShort(), pct: CN_DEFAULT_PCT, from: '', to: '', invNo: '', invDate: '',
     cgst: '', sgst: '', igst: '' };
-  renderFinance();
+  renderCreditNoteList(true);
 }
 
 /* Read the form back into _billForm. A field that changes what the form shows redraws it; the
@@ -234,9 +210,9 @@ function billsCnFormInput(t) {
   if (!k) return false;
   _billForm[k] = ['taxable', 'qty', 'pct', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0 ? (t.value === '' ? '' : parseFloat(t.value)) : t.value;
   if (k === 'clientId') _billForm.invId = '';
-  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderFinance(); return true; }
+  if (['clientId', 'invId', 'reason'].indexOf(k) >= 0) { renderCreditNoteList(true); return true; }
   if (['taxable', 'cgst', 'sgst', 'igst'].indexOf(k) >= 0) {
-    var box = document.querySelector('[data-cn-figures]'), c = _billsCnFigures();
+    var box = document.querySelector('[data-cn-dialog] [data-cn-figures]'), c = _billsCnFigures();
     if (box) { box.innerHTML = _billsFiguresHtml(c); box.classList.toggle('inv-hidden', !c); }
   }
   return true;
@@ -351,7 +327,8 @@ async function billsCnFormSave() {
     billsCnFormOpen('record');
     _billForm.clientId = keep.clientId; _billForm.reason = keep.reason; _billForm.fy = billsCnFy(keep.fy); _billForm.saved = (keep.saved || 0) + 1;
   } else _billForm = null;
-  renderFinance();
+  renderCreditNoteList(true);
+  cnRegisterRefresh();
   showToast(cn.displayNumber + (rec ? ' recorded — ' : ' issued — ') + formatCurrency(cn.grandTotal) + (rec ? ' · the form is ready for the next' : ''));
   if (!rec) showCreditNotePreview(cn.id);
 }
@@ -410,7 +387,9 @@ function stockEditHtml(item) {
 function billsAction(action, btn) {
   switch (action) {
     case 'invCnFormOpen': billsCnFormOpen(btn.dataset.mode); return true;
-    case 'invCnFormCancel': _billForm = null; renderFinance(); return true;
+    case 'invCnFormCancel': _billForm = null; renderCreditNoteList(true); return true;
+    // The dialog's own ×: the form goes with it (asked first where something was typed).
+    case 'invCnListClose': { _billForm = null; var sc = btn.closest('.inv-scrim-dialog'); if (sc) dialogCloseScrim(sc); return true; }
     case 'invCnFormSave': billsCnFormSave(); return true;
     case 'invStockEditSave': stockEditSave(btn.dataset.id); return true;
   }

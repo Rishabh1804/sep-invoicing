@@ -15,7 +15,8 @@
    The hours rule is the roll's (`relayHoursOf`: the clock span to the whole hour, OT the hours past 8; a plain P is the shift,
    8:30 AM to 5:00 PM). Measured on the book's March page, it reproduces every written OT total to the hour. A Sunday or holiday
    worked is hours of its own: the August page's totals add them in, March's had none to add. Names in the build: none; the
-   pages arrive by import (`sep-att-register`), a photo read by Gemini, or by hand. */
+   pages arrive by import (`sep-att-register`) or by hand. A photo of the page was read by Gemini until 13 Oct 2026, when the
+   photo reading came out (owner: *"it simply never works"*); a month read that way keeps its unsure cells dashed. */
 
 var _aregMonth = null;   // 'YYYY-MM' on show
 var _aregCellAt = null;  // { d: day index, c: column index } in the cell dialog
@@ -145,56 +146,59 @@ function aregCompare(mo) {
 function aregTotalNum(raw) { var m = /(\d+(?:\.\d+)?)/.exec(String(raw || '')); return m ? +m[1] : null; }
 
 /* ===== THE SCREEN ===== */
-var AREG_TONE = { agree: 'ok', state: 'danger', ot: 'warning', reg: '', day: 'warning' };
+// A cell is drawn in the tone of what it asks (TM4b): one whose mark differs danger, one whose overtime differs warning; a cell that
+// agrees with the day asks nothing and is plain, so the cells to act on stand out (the survey: they were drawn the faintest).
+var AREG_TONE = { agree: '', state: 'danger', ot: 'warning', reg: '', day: 'warning' };
 var AREG_SAY = { agree: 'Agrees with the day', state: 'Differs from the day', ot: 'OT differs from the day', reg: 'Only on the register', day: 'Only on the day' };
 
 function aregViewHtml() {
-  var month = aregMonthShown(), mo = aregMonthOf(month);
-  var html = _attStepper('invAregStep', _attWeekLabel(escHtml(aregMonthLabel(month)), mo ? escHtml(aregSourceText(mo)) : 'Not on record'),
-    'invAregNow', 'This month', 'Previous month', 'Next month');
+  var month = aregMonthShown(), mo = aregMonthOf(month), phone = !_isDesktop, now = localDateStr().slice(0, 7);
   var cmp = aregCompare(mo);
-  // One primary: start the page, else fill the days the app never held, else mark the month checked.
+  // One look (TM4b): the month's verdict, one toolbar row (the month, the one primary, More), the switch, then where the register
+  // and the day differ, then the page. One primary: start the page, else fill the days the app never held, else mark it checked.
   var primary = !mo ? '<button class="inv-btn inv-btn-primary" data-action="invAregStart">Start this month</button>'
-    : cmp.n.reg ? '<button class="inv-btn inv-btn-primary" data-action="invAregFill">Fill ' + cmp.n.reg + ' from the register</button>'
+    : cmp.n.reg ? '<button class="inv-btn inv-btn-primary" data-action="invAregFill">Fill ' + todoPlural(cmp.n.reg, 'cell') + '</button>'
     : !mo.verifiedAt ? '<button class="inv-btn inv-btn-primary" data-action="invAregVerify">Mark checked</button>' : '';
-  html += '<div class="inv-toolbar">' + primary +
-    '<button class="inv-btn" data-action="invAregPhoto">Read page photo</button>' +
-    '<button class="inv-btn inv-btn-ghost" data-action="invAregImport">Import</button>' +
-    '<input type="file" id="aregFile" accept=".json,application/json" hidden>' +
-    '<input type="file" id="aregPhotoFile" accept="image/*" hidden></div>';
-  if (!mo) {
-    return html + '<div class="inv-panel"><div class="inv-panel-body inv-note">No register page for ' + escHtml(aregMonthLabel(month)) + '. ' +
-      '<b>Start this month</b> draws an empty page with a column for each monthly hand, to fill from the book as it is written; ' +
-      '<b>Read page photo</b> reads a photo of the page with Gemini, every cell shown before it counts; <b>Import</b> takes a ' +
-      '<code>sep-att-register</code> file. Each cell is then set against the day as the app holds it.</div></div>';
-  }
-  html += aregSummaryHtml(mo, cmp) + aregGridHtml(mo, cmp) + aregDiffHtml(mo, cmp) + uiFoldCard('aregTotals', aregTotalsHtml(mo, cmp), true);
+  var more = [phone && month !== now ? { label: 'Go to this month', action: 'invAregNow' } : null, { label: 'Import a register file', action: 'invAregImport' }];
+  var html = aregVerdictHtml(month, mo, cmp) + '<div class="inv-toolbar" data-att-toolbar="register">' +
+    // The phone's row has no room for the month's name beside the primary: the card above names it (Areas does the same).
+    _attStepInRow('invAregStep', phone ? '' : '<span class="inv-stepper-title">' + escHtml(aregMonthLabel(month)) + '</span>', 'Previous month', 'Next month') +
+    (phone ? '' : '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAregNow"' + (month === now ? ' disabled' : '') + '>This month</button>') + primary +
+    uiToolbarMoreHtml(more, { icon: phone }) +
+    '<input type="file" id="aregFile" accept=".json,application/json" hidden></div>' + _attPeriodSwitchHtml();
+  // No page yet: the card says so and the toolbar holds the two doors; what each does is the guide's (Using the app: attendance).
+  if (!mo) return html;
+  html += aregDiffHtml(mo, cmp) + aregGridHtml(mo, cmp) + uiFoldCard('aregTotals', aregTotalsHtml(mo, cmp), !!_isDesktop);
   if ((mo.notes || []).length) {
     html += uiFoldCard('aregNotes', '<div class="inv-panel inv-panel-flush" data-card="areg-notes"><div class="inv-panel-head"><span class="inv-panel-title">Notes on the page</span></div>' +
       mo.notes.map(function(n) { return '<div class="inv-row"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(n) + '</span></span></div>'; }).join('') + '</div>', false);
   }
   return html;
 }
+/* The month's verdict (§3e): how the register and the day agree, the four counts its factors (they were the summary's tiles). */
+function aregVerdictHtml(month, mo, cmp) {
+  var screen = 'Attendance · ' + aregMonthLabel(month);
+  if (!mo) return uiVerdictHtml({ screen: screen, verdict: 'No register page this month', tone: 'neutral', facts: ['start it or import a file'], attrs: ' id="aregSummary"' });
+  var n = cmp.n, cols = cmp.cols.filter(function(c) { return !c.w; }).length, differ = n.state + n.ot, check = cmp.unsure + cmp.unread + cols;
+  var tone = n.state ? 'danger' : n.ot || n.day || check ? 'warning' : n.reg ? 'info' : 'ok';
+  var verdict = [differ ? todoPlural(differ, 'cell') + ' differ' : '', n.reg ? n.reg + ' only on the register' : '', n.agree + ' agree'].filter(Boolean).join(', ');
+  return uiVerdictHtml({ screen: screen, verdict: verdict, tone: tone, facts: [aregSourceText(mo), n.day ? todoPlural(n.day, 'mark') + ' only on the day' : ''],
+    factors: [
+      { label: 'Agree with the day', fig: String(n.agree), tone: n.agree ? 'ok' : null, sub: 'the mark alike, OT within an hour', attrs: ' data-tile="agree"' },
+      { label: 'Differ', fig: String(differ), tone: n.state ? 'danger' : n.ot ? 'warning' : null, sub: n.state + ' on the mark · ' + n.ot + ' on the OT', attrs: ' data-tile="differ"' },
+      { label: 'Only on the register', fig: String(n.reg), sub: 'days the app holds no mark for', attrs: ' data-tile="reg"' },
+      { label: 'To check', fig: String(check), tone: check ? 'warning' : null,
+        sub: (cmp.unsure + cmp.unread) + ' unsure or unread · ' + todoPlural(cols, 'column') + ' with no worker', attrs: ' data-tile="unsure"' }],
+    attrs: ' id="aregSummary"' });
+}
 function aregSourceText(mo) {
   var src = mo.src === 'photo' ? 'read from a photo' : mo.src === 'hand' ? 'entered by hand' : 'imported';
   return src + (mo.verifiedAt ? ' · checked ' + formatDate(isoOf(new Date(mo.verifiedAt))) : ' · not yet checked');
 }
-function aregSummaryHtml(mo, cmp) {
-  var n = cmp.n, cols = cmp.cols.filter(function(c) { return !c.w; }).length;
-  var h = '<div class="inv-panel inv-panel-flush" data-card="areg-summary" id="aregSummary"><div class="inv-tiles inv-tiles-flush">' +
-    statsTile('agree', 'Agree with the day', String(n.agree), statsTileSub('present, half or absent alike, OT within an hour'), n.agree ? 'ok' : null) +
-    statsTile('differ', 'Differ', String(n.state + n.ot), statsTileSub(n.state + ' on the mark · ' + n.ot + ' on the OT'), n.state ? 'danger' : n.ot ? 'warning' : null) +
-    statsTile('reg', 'Only on the register', String(n.reg), statsTileSub('days the app holds no mark for'), null) +
-    statsTile('unsure', 'To check', String(cmp.unsure + cmp.unread + cols),
-      statsTileSub(cmp.unsure + ' cell' + (cmp.unsure === 1 ? '' : 's') + ' unsure · ' + cmp.unread + ' unread · ' + cols + ' column' + (cols === 1 ? '' : 's') + ' with no worker'),
-      cmp.unsure + cmp.unread + cols ? 'warning' : null) + '</div>';
-  if (n.day) h += _labNote(n.day + ' present mark' + (n.day === 1 ? '' : 's') + ' on the day with nothing on the register: a hand marked on the day the book left blank.');
-  return h + '</div>';
-}
 function aregGridHtml(mo, cmp) {
   var today = localDateStr();
+  // How a cell is coloured and settled is the guide's: the face says nothing a cell does not.
   var h = '<div class="inv-panel inv-panel-flush" data-card="areg-grid" id="aregGrid"><div class="inv-panel-head"><span class="inv-panel-title">The page</span></div>' +
-    _labNote('Each cell as written, coloured by the day as the app holds it: green agrees, red differs, amber the OT differs, plain only on the register. A dashed edge is a cell the reading was unsure of. Tap a cell to see both and settle it.') +
     '<div class="inv-scroll-x"><table class="inv-table inv-table-grid"><thead><tr><th scope="col">Day</th>' +
     mo.columns.map(function(col, i) {
       var w = cmp.cols[i].w;
@@ -203,7 +207,9 @@ function aregGridHtml(mo, cmp) {
     }).join('') + '</tr></thead><tbody>';
   mo.days.forEach(function(day, di) {
     var off = day.kind !== 'work';
-    h += '<tr' + (off ? ' data-sun' : '') + '><th scope="row"' + (day.date === today ? ' aria-current="date"' : '') + '>' +
+    // A Sunday or a holiday is said by its cells, as the week grid says its Sunday (one look a cell, design §6.28); the row
+    // carries no fill of its own.
+    h += '<tr><th scope="row"' + (day.date === today ? ' aria-current="date"' : '') + '>' +
       escHtml(day.date ? attDayName(day.date) + ' ' + attParseIso(day.date).getDate() : (day.written || '?')) +
       (off ? '<span class="inv-table-grid-date">' + (day.kind === 'holiday' ? 'holiday' : 'Sunday') + '</span>' : '') + '</th>';
     (day.cells || []).forEach(function(cell, ci) {
@@ -244,12 +250,12 @@ function aregTotalsHtml(mo, cmp) {
     var tone = written == null ? '' : written === col.ot || written === both ? 'ok' : 'warning';
     var say = written == null ? 'no total written'
       : written === col.ot ? 'matches the cells' : written === both ? 'matches with the Sunday and holiday hours' : 'the cells come to ' + col.ot + (col.off ? ' (' + both + ' with Sundays)' : '');
+    // Two facts a line (§3b-11): the cells' OT, and the day's beside it; what was written is the dot's to judge.
     h += _payRow(escHtml(col.name) + (col.w ? ' · ' + escHtml(col.w.name) : ''),
-      'cells: OT ' + col.ot + ' h' + (col.off ? ' · Sunday and holiday ' + col.off + ' h' : '') + (col.w ? ' · the day: OT ' + formatNum(col.dayOt, 1) + ' h' : '') +
-        (col.total ? ' · written &ldquo;' + escHtml(col.total) + '&rdquo;' : ''),
-      written == null ? '<span class="inv-unit">&mdash;</span>' : '<span class="inv-dot inv-dot-' + tone + '">' + say + '</span>');
+      'cells OT ' + col.ot + ' h' + (col.off ? ', Sundays and holidays ' + col.off + ' h' : '') + (col.w ? ' · the day OT ' + formatNum(col.dayOt, 1) + ' h' : ''),
+      written == null ? '<span class="inv-unit">&mdash;</span>' : '<span class="inv-row-stack"><span class="inv-num">' + escHtml(col.total) + '</span><span class="inv-dot inv-dot-' + tone + '">' + say + '</span></span>');
   });
-  return h + _labNote('A cell&rsquo;s OT is its span to the whole hour less 8, the rule a roll is read by; a plain P is the shift, 8:30 AM to 5:00 PM. A Sunday or holiday worked is counted apart: some months&rsquo; totals add it in.') + '</div>';
+  return h + '</div>';
 }
 
 /* ===== THE CELL ===== */
@@ -279,7 +285,8 @@ function aregCellHtml() {
     '<label class="inv-field"><span class="inv-field-label">As written</span><input class="inv-input" data-areg-raw value="' + escHtml(cell.raw || '') + '" placeholder="P, A, H, 6am-5pm, p-8pm" autocomplete="off"></label>' +
     '<div class="inv-rows">' +
     _payRow('The register reads', escHtml(read), cell.unsure ? '<span class="inv-dot inv-dot-warning">Unsure</span>' : '') +
-    _payRow('The day holds', escHtml(dayTxt), x ? '<span class="inv-dot inv-dot-' + (AREG_TONE[x.k] || 'info') + '">' + AREG_SAY[x.k] + '</span>' : '') +
+    // The cell's dot says how it stands: a cell that agrees is ok here, though plain on the page (AREG_TONE).
+    _payRow('The day holds', escHtml(dayTxt), x ? '<span class="inv-dot inv-dot-' + (x.k === 'agree' ? 'ok' : AREG_TONE[x.k] || 'info') + '">' + AREG_SAY[x.k] + '</span>' : '') +
     ((cell.edits || []).length ? _payRow('Corrected', cell.edits.map(function(e) { return '&ldquo;' + escHtml(e.from || 'blank') + '&rdquo; → &ldquo;' + escHtml(e.to || 'blank') + '&rdquo; ' + escHtml(formatDate(isoOf(new Date(e.at)))); }).join(' · '), '') : '') +
     '</div>' +
     (day.note ? '<div class="inv-note">' + escHtml(day.note) + '</div>' : '') + '</div>' +
@@ -508,49 +515,6 @@ function aregImportText(text, name) {
   showToast(bits.length ? bits.join(' · ') : 'Nothing in that file');
 }
 
-/* ===== A PHOTO OF THE PAGE, READ BY GEMINI =====
-   A transcription in the import's shape (the reading is this app's, in code). Nothing counts until it is on the screen, each
-   unsure cell dashed; only facts about the photo are kept, never the image. A month already on record is not read over. */
-var AREG_PROMPT = 'This is a photo of one page of a handwritten monthly attendance register from a factory. Transcribe it cell by cell, exactly as written; do not interpret, total or correct. ' +
-  'The page has a title (month and year), a header row of worker names left to right, a date column, and one cell per worker per day. A Sunday or holiday is a line with the letters S U N D A Y or H O L I D A Y spread across the columns, or the word written across. ' +
-  'Cells hold things like P, A, H, P-8pm, 6Am-5pm, 6Am-8pm, 6Am-12Am, P-6Am, 8:30Am-2pm, or a dash. Under the last row some columns carry a total like OT-89 or 103 Hrs. ' +
-  'Write times as 6am-5pm, p-8pm; keep P, A, H uppercase. Set unsure on any cell you cannot read with confidence, giving your best reading. One entry in days per written row, in page order; give each row its calendar date as YYYY-MM-DD and kind work, sunday or holiday.';
-var AREG_SCHEMA = { type: 'object', properties: {
-  month: { type: 'string', description: 'YYYY-MM' }, title: { type: 'string' },
-  columns: { type: 'array', items: { type: 'string' } },
-  days: { type: 'array', items: { type: 'object', properties: {
-    date: { type: 'string', nullable: true }, written: { type: 'string' }, kind: { type: 'string', enum: ['work', 'sunday', 'holiday'] },
-    cells: { type: 'array', items: { type: 'object', properties: { raw: { type: 'string' }, unsure: { type: 'boolean' } }, required: ['raw'] } },
-    note: { type: 'string', nullable: true } }, required: ['written', 'kind', 'cells'] } },
-  totals: { type: 'array', items: { type: 'object', properties: { col: { type: 'integer' }, raw: { type: 'string' } }, required: ['col', 'raw'] } },
-  notes: { type: 'array', items: { type: 'string' } } }, required: ['month', 'columns', 'days'] };
-function aregPhoto() {
-  if (!attFloorOk()) return;
-  var inp = document.getElementById('aregPhotoFile');
-  if (!inp) return;
-  inp.value = '';
-  inp.onchange = function(ev) { var f = ev.target.files[0]; if (f) aregPhotoRead(f); };
-  inp.click();
-}
-function aregPhotoRead(file) {
-  showToast('Reading the page…');
-  return geminiReadImage(file, AREG_PROMPT, { schema: AREG_SCHEMA, maxEdge: 2400, thinkingBudget: 0 }).then(function(res) {
-    if (!res.ok) { uiAlert({ title: 'The page was not read', body: res.error || 'Gemini did not answer.' }); return false; }
-    var j = res.json || {};
-    j.columns = (j.columns || []).map(function(n) { return { name: n }; });
-    var mo = aregCleanMonth(j, 'photo');
-    if (!mo) { uiAlert({ title: 'Not a register page', body: 'The photo did not read as a month&rsquo;s page with a column per worker.' }); return false; }
-    if (aregMonthOf(mo.month)) { uiAlert({ title: aregMonthLabel(mo.month) + ' is already on record', body: 'A page already on record is not read over. Correct its cells by tapping them.' }); return false; }
-    mo.photo = { size: file.size || 0, model: typeof geminiModel === 'function' ? geminiModel() : '', at: Date.now() };
-    aregData().months[mo.month] = mo;
-    _aregMonth = mo.month;
-    saveState();
-    renderAttendance();
-    showToast(aregMonthLabel(mo.month) + ' read: check the dashed cells');
-    return true;
-  });
-}
-
 /* ===== ACTIONS ===== */
 function aregStepMonth(n) {
   var d = attParseIso(aregMonthShown() + '-01');
@@ -567,7 +531,6 @@ function aregAction(action, btn) {
     case 'invAregFill': aregFill(); return true;
     case 'invAregVerify': aregVerify(); return true;
     case 'invAregImport': aregImport(); return true;
-    case 'invAregPhoto': aregPhoto(); return true;
     case 'invAregCol': dialogOpen(aregColHtml(parseInt(btn.dataset.c, 10)), { dismiss: true }); return true;
     case 'invAregCell': aregCellOpen(parseInt(btn.dataset.d, 10), parseInt(btn.dataset.c, 10)); return true;
     case 'invAregCellClose': _aregCellAt = null; closeOverlay(); return true;

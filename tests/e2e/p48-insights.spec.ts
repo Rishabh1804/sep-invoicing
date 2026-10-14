@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs, type SepState, toolbarMore } from './fixtures';
 
 // P48: insights (as To-do rules), predictions, the invoice prefill, and the
 // stock reorder list. Made-up clients and figures (the repo is public).
@@ -64,14 +64,16 @@ function state(): SepState {
 }
 
 test.describe('P48: insights, predictions and the reorder list', () => {
-  test('insights are raised from the book with their figures, and live on the To-do list and Stats', async ({ page }) => {
+  test('insights are raised from the book with their figures, and live on the tasks (Needs you)', async ({ page }) => {
     await loadAppWithState(page, state());
     const ins = await g(page, `todoAppAll().filter(function(t){ return t.rule.indexOf('ins') === 0; }).map(function(t){ return t.rule + '|' + t.title; })`) as string[];
     expect(ins).toContain('insQuiet|QUIET WORKS: no challan for 40 days');
     expect(ins).toContain('insClientDown|FALLING PARTS: billing down three months running');
-    await openStatsTab(page, 'overview');
-    await expect(page.locator('#statsInsights')).toContainText('QUIET WORKS: no challan for 40 days');
-    await page.locator('#statsInsights [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS' }).click();
+    // Stats' list of them went with its Overview (the tab map, TM2b): they are tasks, on Needs you.
+    await switchTab(page, 'pageHome');
+    await expect(page.locator('#homeNeeds')).toContainText('QUIET WORKS: no challan for 40 days');
+    // By its own words: QUIET WORKS owes past its 45-day terms too, a task of its own (P204).
+    await page.locator('#homeNeeds [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS: no challan' }).click();
     await expect(page.locator('[data-todo-facts]')).toContainText('Usual gap');
     // Switched off in Settings, it is gone.
     await g(page, `(function(){ S.todoCheck = Object.assign({}, S.todoCheck, { insQuiet: false }); })()`);
@@ -104,7 +106,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
   test('the reorder list: use over lead + cover, less the shelf, in packs, by supplier, copied as a message', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invStockReorder"]').click();
+    await toolbarMore(page, 'Reorder list');   // Stock's More (TM4d)
     await page.locator('#stockLeadDays').fill('10');
     await page.locator('#stockLeadDays').dispatchEvent('change');
     await page.locator('#stockCoverDays').fill('20');

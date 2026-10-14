@@ -51,10 +51,20 @@ function whyRealisation(filtered, prior) {
   });
   var d = b.R - a.R;
   var top = whyTop(causes, d, WHY_TOP, function(n) { return n + ' smaller change' + (n === 1 ? '' : 's'); }, 0.00005);
-  top.forEach(function(c) { c.rs = c.v * b.K; c.label = c.label || whyRealLabel(c, a.R); });
+  top.forEach(function(c) { c.rs = c.v * b.K; c.label = c.label || whyRealLabel(c, a.R); whyRealShort(c); });
   return { R0: a.R, R1: b.R, K0: a.K, K1: b.K, d: d, rs: d * b.K, causes: top };
 }
 function whyPct(s) { return Math.round(s * 100) + '%'; }
+/* A cause as a fact row (§3c): a few words for what moved (`short`), a few under it (`sub`); the long label stays the
+   sentence's (whySentence). */
+function whyRealShort(c) {
+  var rk = function(v) { return '₹' + formatNum(v, 2) + '/kg'; };
+  if (c.kind === 'rate') { c.short = c.name + '’s own rate'; c.sub = rk(c.r0) + ' → ' + rk(c.r1); }
+  else if (c.kind === 'mix') { c.short = c.name + '’s share'; c.sub = whyPct(c.s0) + ' → ' + whyPct(c.s1) + ' of the kilos, at ' + rk(c.r); }
+  else if (c.kind === 'new') { c.short = c.name + ', new'; c.sub = whyPct(c.s1) + ' of the kilos at ' + rk(c.r); }
+  else if (c.kind === 'gone') { c.short = c.name + ', not billed now'; c.sub = 'was ' + whyPct(c.s0) + ' of the kilos at ' + rk(c.r); }
+  return c;
+}
 function whyRealLabel(c, R0) {
   var rk = function(v) { return '₹' + formatNum(v, 2) + '/kg'; };
   if (c.kind === 'rate') return c.name + '’s own rate, ' + rk(c.r0) + ' → ' + rk(c.r1);
@@ -117,16 +127,17 @@ function whyCash() {
 }
 
 /* ---------- Drawing ---------- */
+/* A cause as a fact row (§3c): what moved and a few words under it, its ₹ at the end in the direction's tone. */
 function whyCauseRow(c, unit) {
   var tone = c.v > 0.005 ? 'ok' : c.v < -0.005 ? 'danger' : 'neutral';
   var fig = unit === 'kg' ? (c.v >= 0 ? '+' : '−') + '₹' + formatNum(Math.abs(c.v), 2) + '/kg' : (c.v >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(c.v)));
-  var sub = unit === 'kg' && c.rs != null ? (c.rs >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(c.rs))) + ' on the period' : '';
-  return '<div class="inv-row inv-row-auto" data-why-cause="' + escHtml(c.kind) + '"><span class="inv-row-main"><span class="inv-row-title inv-row-wrap">' + escHtml(c.label) + '</span>' +
+  var sub = c.sub || (unit === 'kg' && c.rs != null ? (c.rs >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(c.rs))) + ' on the period' : '');
+  return '<div class="inv-row' + (sub ? ' inv-row-2' : '') + '" data-why-cause="' + escHtml(c.kind) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(c.short || c.label) + '</span>' +
     (sub ? '<span class="inv-row-meta">' + escHtml(sub) + '</span>' : '') + '</span>' +
     '<span class="inv-row-end"><span class="inv-num' + (tone === 'neutral' ? '' : ' inv-fig-' + tone) + '">' + escHtml(fig) + '</span></span></div>';
 }
-function whyHeadRow(title, from, to, change, key) {
-  return '<div class="inv-row-group" data-why="' + key + '"><span>' + escHtml(title) + ' · ' + escHtml(from) + ' → ' + escHtml(to) + '</span><span class="inv-num">' + escHtml(change) + '</span></div>';
+function whyHeadRow(title, from, to, change, key, badge) {
+  return '<div class="inv-row-group" data-why="' + key + '"><span>' + escHtml(title) + ' · ' + escHtml(from) + ' → ' + escHtml(to) + (badge || '') + '</span><span class="inv-num">' + escHtml(change) + '</span></div>';
 }
 function whySigned(v, kg) { return (v >= 0 ? '+' : '−') + (kg ? '₹' + formatNum(Math.abs(v), 2) + '/kg' : formatCurrency(gstRound(Math.abs(v)))); }
 /* How sure (I2's rule): a month under INS_EARLY_DAYS working days in is early, a week's mix moves it; '' when not. */
@@ -135,31 +146,38 @@ function whyEarly(period) {
   var r = statsRangeIso(period), n = statsWorkingDays(r.from, r.to);
   return n < INS_EARLY_DAYS ? todoPlural(n, 'working day') + ' in, against the same days before: a few large invoices move these figures' : '';
 }
-/* The panel on Stats → Overview, for the period shown against the one before it. */
+/* Today → Pulse's Why it moved (the tab map, TM2b; it was a panel on Stats → Overview): a hero for the period shown against
+   the one before it. Its verdict names realisation's change and its largest cause, toned by direction; under it the causes,
+   which add up to the change exactly, as fact rows with their ₹, then contribution's and cash's the same way. Shut on the
+   phone, open on the desktop (§1a-3). How the bridges are drawn is the guide's (kbguides.js). */
 function whyHtml(period, filtered, prior) {
   if (period === 'all' || !prior.length) return '';
   var real = whyRealisation(filtered, prior), mg = real.none ? { none: real.none } : whyMargin(period, filtered, prior, real), cash = whyCash();
   var vs = PERIOD_PRIOR_LABELS[period] || 'the period before';
-  var h = statsPanel('why', 'Why it moved', 'against ' + escHtml(vs) + ', each cause with its ₹, adding up to the change', { wide: true, id: 'statsWhy' });
   var early = whyEarly(period);
-  if (early) h += '<div class="inv-callout inv-callout-info" data-why-early>' + uiDot('info', 'Early') + ' ' + escHtml(early) + '.</div>';
-  if (real.none) h += '<div class="inv-empty">Realisation cannot be compared: ' + escHtml(real.none) + '.</div>';
-  else {
-    h += whyHeadRow('Realisation', '₹' + formatNum(real.R0, 2), '₹' + formatNum(real.R1, 2) + '/kg', whySigned(real.d, true), 'real');
-    h += real.causes.map(function(c) { return whyCauseRow(c, 'kg'); }).join('');
+  var top = real.none ? null : real.causes.filter(function(c) { return c.kind !== 'other'; })[0];
+  var tone = real.none || Math.abs(real.d) < 0.005 ? 'neutral' : early ? 'info' : real.d >= 0 ? 'ok' : 'warning';
+  var title = real.none ? 'Realisation cannot be compared' : Math.abs(real.d) < 0.005 ? 'Realisation level with ' + vs
+    : 'Realisation ' + (real.d >= 0 ? 'up' : 'down') + ' ₹' + formatNum(Math.abs(real.d), 2) + '/kg';
+  var sub = (early ? '<span class="inv-badge inv-badge-info" data-why-early>Early: ' + escHtml(early.split(',')[0]) + '</span> ' : '') +
+    escHtml(real.none ? real.none : (top ? 'Mostly ' + (top.short || top.label) + ' · ' : '') + 'against ' + vs);
+  var body = '';
+  if (!real.none) {
+    body += whyHeadRow('Realisation', '₹' + formatNum(real.R0, 2), '₹' + formatNum(real.R1, 2) + '/kg', whySigned(real.d, true), 'real');
+    body += real.causes.map(function(c) { return whyCauseRow(c, 'kg'); }).join('');
   }
-  if (mg.none) h += '<div class="inv-empty">Contribution cannot be compared: ' + escHtml(mg.none) + '.</div>';
+  if (mg.none) body += '<div class="inv-row" data-why-none="margin"><span class="inv-row-main"><span class="inv-row-title">Contribution</span></span><span class="inv-row-end inv-row-meta">' + escHtml(mg.none) + '</span></div>';
   else {
-    h += whyHeadRow('Contribution at the live cost', whySigned(mg.C0).replace(/^\+/, ''), whySigned(mg.C1).replace(/^\+/, ''), whySigned(mg.d), 'margin');
-    if (mg.measured < 0.9) h += '<div class="inv-row" data-why-measured><span class="inv-row-main inv-row-meta inv-row-wrap">' + uiDot('warning', 'Partly measured') +
-      ' the live cost is ' + Math.round(mg.measured * 100) + '% measured in the less measured period; the rest is the model, so a cost line can move on what was not recorded</span></div>';
-    h += mg.causes.map(function(c) { return whyCauseRow(c); }).join('');
+    body += whyHeadRow('Contribution at the live cost', whySigned(mg.C0).replace(/^\+/, ''), whySigned(mg.C1).replace(/^\+/, ''), whySigned(mg.d), 'margin',
+      mg.measured < 0.9 ? ' <span class="inv-badge inv-badge-warning" data-why-measured>' + Math.round(mg.measured * 100) + '% measured</span>' : '');
+    body += mg.causes.map(function(c) { return whyCauseRow(c); }).join('');
   }
   if (!cash.none) {
-    h += whyHeadRow('Cash, net in the month, ' + billsMonthLabel(cash.m0) + ' to ' + billsMonthLabel(cash.m1), finRs(cash.net0), finRs(cash.net1), whySigned(cash.d), 'cash');
-    h += cash.causes.map(function(c) { return whyCauseRow(c); }).join('');
+    body += whyHeadRow('Cash, net in the month, ' + billsMonthLabel(cash.m0) + ' to ' + billsMonthLabel(cash.m1), finRs(cash.net0), finRs(cash.net1), whySigned(cash.d), 'cash');
+    body += cash.causes.map(function(c) { return whyCauseRow(c); }).join('');
   }
-  return h + '</div>';
+  return uiHeroHtml({ tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
+    body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'pulse-why', open: !!_isDesktop, attrs: ' id="statsWhy" data-card="why" data-verdict' });
 }
 /* One sentence for What changed? (intel.js): realisation's change and its largest cause. */
 function whySentence(filtered, prior, period) {

@@ -198,29 +198,5 @@ test.describe('P34: piece rates on record', () => {
   });
 });
 
-test.describe('P34: T-HC — the scanner reads the client\'s own rates', () => {
-  test('a scanned KG line takes the client ladder, not the scanner\'s frozen figure', async ({ page }) => {
-    await loadAppWithState(page, pieceState());
-    const r = await g(page, `(function(){
-      _applyScanResult({ clientName: 'DORABJI AUTO', challanNo: '41', challanDate: '2026-08-01',
-        items: [{ partNumber: 'P1', desc: 'P1', unit: 'KG', qty: 10, rate: 13, amount: 130 }] });
-      var line = _challanForm.items[0];
-      return { rate: line.rate, amount: line.amount };
-    })()`);
-    // _scanClientMap says 13; the client's own ladder says 13.75.
-    expect(r).toEqual({ rate: 13.75, amount: 137.5 });
-  });
-
-  test('a piece client keeps the challan\'s own amount; the card fills what it left out', async ({ page }) => {
-    await loadAppWithState(page, pieceState());
-    const r = await g(page, `(function(){
-      _applyScanResult({ clientName: 'PIECE CLIENT', challanNo: '42', challanDate: '2026-08-01',
-        items: [
-          { partNumber: '150X88X3', desc: 'L.C.Pad', unit: 'NOS', qty: 100, nosQty: 100, rate: 1.6, amount: 160 },
-          { partNumber: 'CLAMP 165X83 (NT)', desc: '40X6', unit: 'NOS', qty: 100, nosQty: 100, rate: 0, amount: 0 }
-        ] });
-      return _challanForm.items.map(function(l){ return [l.rate, l.amount]; });
-    })()`);
-    expect(r).toEqual([[1.6, 160], [4.89, 489]]);
-  });
-});
+// T-HC (the scanner read the client's own rates, not its frozen figures) went with the scanner: the challan scan and every
+// photo read by Gemini came out on 13 Oct 2026 (owner: "it simply never works").

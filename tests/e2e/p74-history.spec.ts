@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, recentTs, type SepState } from './fixtures';
+import { closeFilter, emptyState, loadAppWithState, noSeedIM, phoneFilter, switchTab, todayIso, recentTs, toolbarMoreLabels, type SepState } from './fixtures';
 
-// P74 (phone): History on the v2.0 components (design principles §7, §9 step 3). The filters are a toolbar
-// (search, client select, labelled dates) and the kind of event is chips pressed with aria-pressed; the log is a
-// flush panel of rows grouped by day, each led by its icon and ending in a dot and a word. A void is a plain row.
-// The survey's bug: the filter bar stretched the chips to the height of the filters beside them and clipped them
-// and the date fields off the phone's edge. No v1.0 class is drawn on any of it.
+// P74 (phone): History on the v2.0 components (design principles §7, §9 step 3). Since the tab map's TM6c the filters (client,
+// who, the kind of event, the dates) are behind Filter in one toolbar row with the search and More, said under it as tokens: as a
+// bar and seven chips they filled half the phone's first screen. The log is a flush panel of rows grouped by day, each led by its
+// icon and ending in a dot and a word. A void is a plain row. No v1.0 class is drawn on any of it.
 
 function state(): SepState {
   const s: any = emptyState();
@@ -33,35 +32,35 @@ async function open(page: Page) {
 }
 
 test.describe('P74: History', () => {
-  test('a toolbar of filters and pressed chips that fit the phone; no v1.0 class', async ({ page }) => {
+  test('one toolbar row: the search, Filter and More; the filters in Filter’s dialog, said as tokens; no v1.0 class', async ({ page }) => {
     await open(page);
-    const bar = page.locator('#historyToolbar');
+    const bar = page.locator('#historyToolbar [data-history-toolbar]');
     await expect(bar.locator('.inv-search #historySearch')).toHaveCount(1);
-    await expect(bar.locator('select.inv-select#historyClientFilter')).toHaveCount(1);
-    await expect(bar.locator('.inv-field #historyDateFrom')).toHaveCount(1);
-    await expect(bar.locator('.inv-field #historyDateTo')).toHaveCount(1);
-    const chips = bar.locator('.inv-chip[data-action="invHistoryType"]');
-    await expect(chips).toHaveText(['All', 'Invoices', 'Challans', 'Status', 'Floor', 'Audit', 'Changes']);
-    await expect(chips.nth(0)).toHaveAttribute('aria-pressed', 'true');
+    await expect(bar.locator('[data-action="invTbFilter"]')).toBeVisible();
+    await expect(bar.locator('select, input[type="date"], .inv-chip')).toHaveCount(0);
+    await phoneFilter(page);
+    const dlg = page.locator('[data-tb-filter-dialog]');
+    await expect(dlg.locator('select.inv-select#historyClientFilter')).toHaveCount(1);
+    await expect(dlg.locator('.inv-field #historyDateFrom')).toHaveCount(1);
+    await expect(dlg.locator('.inv-field #historyDateTo')).toHaveCount(1);
+    await expect(dlg.locator('select#historyType option')).toHaveText(['Every kind', 'Invoices', 'Challans', 'Status', 'Floor', 'Audit', 'Changes']);
+    await dlg.locator('select#historyType').selectOption('audit');
+    await closeFilter(page);
+    await expect(page.locator('#historyToolbar .inv-tokens [data-clear="kind"]')).toContainText('Audit');
+    await expect(bar.locator('[data-action="invTbFilter"] .inv-badge')).toHaveText('1');
     await expect(page.locator(V1)).toHaveCount(0);
-
-    // The filter bar fits: nothing runs off the page, and a chip is a chip's height, not the filters'.
-    const vw = page.viewportSize()!.width;
-    const boxes = await bar.locator('.inv-chip, input, select').evaluateAll((els) => els.map((e) => e.getBoundingClientRect()).map((r) => ({ right: r.right, h: r.height })));
-    for (const b of boxes) expect(b.right).toBeLessThanOrEqual(vw);
-    const chipH = (await chips.nth(0).boundingBox())!.height;
-    expect(chipH).toBeLessThan(60);
+    // Nothing runs off the page.
     expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true);
-
-    await chips.nth(5).click();
-    await expect(page.locator('#historyToolbar .inv-chip[data-type="audit"]')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.locator('#historyToolbar .inv-chip[data-type="all"]')).toHaveAttribute('aria-pressed', 'false');
+    // A token clears its own filter.
+    await page.locator('#historyToolbar .inv-tokens [data-clear="kind"]').click();
+    await expect(page.locator('#historyToolbar .inv-tokens')).toHaveCount(0);
   });
 
   test('the log is a flush panel of rows grouped by day, each ending in a dot and a word', async ({ page }) => {
     await open(page);
     const panel = page.locator('#historyList .inv-panel.inv-panel-flush[data-card="history"]');
-    await expect(panel.locator('.inv-panel-head [data-action="invHistoryExport"]')).toHaveText('Export CSV');
+    // Export is the toolbar's More (the tab map, TM6c), not the panel's head.
+    expect(await toolbarMoreLabels(page)).toEqual(['Export CSV']);
     // Created, dispatched, the void, the exception, and the fixture's seed-blocker challan.
     await expect(panel.locator('.inv-panel-count')).toHaveText('5');
     await expect(panel.locator('.inv-row-group').first()).toContainText(String(new Date().getFullYear()));

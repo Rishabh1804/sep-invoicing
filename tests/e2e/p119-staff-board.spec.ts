@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance } from './fixtures';
 
 // P119 (owner, 30 Sep 2026): Staff → Day is a board, a card per area and a line per hand, with the area, hours and OT on
 // the name; the Overview says where everyone stood, the office, gate, Flex and Civil included. Made-up names.
@@ -22,7 +22,7 @@ function book(): SepState {
 }
 async function openDay(page: Page) {
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
 }
 
 test('Day is a card per area with each hand on one line, and the absent in a strip of their own', async ({ page }) => {
@@ -56,7 +56,8 @@ test('a name opens the hand’s day: the area and the overtime change in place',
 
 test('the Overview says where everyone stood, office, gate, Flex and Civil included', async ({ page }) => {
   await loadAppWithState(page, book());
-  await switchTab(page, 'pageStaff');
-  const alloc = page.locator('#dashStaffToday [data-att-alloc]');
+  // Floor's Overview: its People card holds the day's attendance panel (TM4a; People's own Overview went).
+  await switchTab(page, 'pageFloor');
+  const alloc = page.locator('#flrAtt [data-att-alloc]');
   for (const [a, n] of [['office', '1'], ['gate', '1'], ['civil', '1'], ['flex', '1'], ['vat-a1', '1']]) await expect(alloc.locator(`[data-alloc="${a}"]`)).toContainText(n);
 });

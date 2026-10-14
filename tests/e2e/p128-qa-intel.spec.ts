@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P128: the intelligence screens' QA findings (30 Sep 2026) — Clients → Performance, the Stats stories and figures,
@@ -136,7 +136,9 @@ test.describe('P128: Clients → Performance', () => {
     await expect(row.locator('summary')).toContainText('₹186.67');
     await row.locator('summary').click();
     await expect(row).toContainText('₹7.00/pc');
-    await expect(row).toContainText('₹140.00 a round');
+    // What a round earns is a fact row of its own (the tab map, TM5f: it was a sentence).
+    await expect(row.locator('[data-cp-earns]')).toContainText('A round earns');
+    await expect(row.locator('[data-cp-earns]')).toContainText('₹140.00');
   });
 
   test('G5-8: the materials period counts back whole months, clamped at a short month', async ({ page }) => {
@@ -167,12 +169,14 @@ test.describe('P128: Clients → Performance', () => {
     const worked = page.locator('[data-card="worked"]');
     await expect(worked).toHaveJSProperty('open', false);
     await expect(worked.locator(':scope > summary')).toContainText('Materials worked');
-    // Steady parts are counted on their head and shown when asked; stopped and new lead.
+    // Steady parts are counted on their fold's head and shown when it is opened (the tab map, TM5f); stopped and new lead.
     const steady = page.locator('[data-cp-group="steady"]');
-    const n = Number((await steady.locator('.inv-row-group').innerText()).replace(/\D+/g, ''));
+    const n = Number((await steady.locator(':scope > summary').innerText()).replace(/\D+/g, ''));
     expect(n).toBeGreaterThan(0);
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(0);
-    await steady.locator('[data-action="invShowMore"]').click();
+    await steady.locator(':scope > summary').click();
+    await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(Math.min(n, 10));
+    if (n > 10) await steady.locator('[data-action="invShowMore"]').click();
     await expect(steady.locator('[data-cp-mat]:visible')).toHaveCount(n);
     // The page was 3.1 phone screens on this book with every steady part and Materials worked drawn open.
     await page.reload();
@@ -200,12 +204,13 @@ test.describe('P128: Stats', () => {
       inv(2, monthDay(-1, new Date(todayIso() + 'T00:00:00').getDate()), [{ part: 'PART Y1', unit: 'KG', qty: 100, rate: 12 }])];
     invs[0].clientName = evil; invs[1].clientName = 'QUIET OTHER CO';
     await loadAppWithState(page, book([client(1, evil, 'weight', 2), client(2, 'QUIET OTHER CO', 'weight', 12)], invs));
-    await openStatsTab(page, 'overview');
-    const story = page.locator('[data-story="clients"]');
+    // The questions are Pulse's since the tab map (TM2b).
+    await openPulse(page);
+    const story = page.locator('[data-tdy-q="clients"]');
     await expect(story.locator('[data-story-say]')).toHaveCount(2);
     await expect(story.locator('[data-story-say]').first()).toContainText('<img src=x');
     await expect(story.locator('[data-story-say]').last()).toContainText('<img src=x');
-    await expect(page.locator('[data-story] [data-p128-xss]')).toHaveCount(0);
+    await expect(page.locator('#pageHome [data-p128-xss]')).toHaveCount(0);
     expect(await g(page, 'window.__p128')).toBeUndefined();
   });
 
@@ -217,13 +222,19 @@ test.describe('P128: Stats', () => {
     ])]);
     b.invoices[0].items[0].zeroReason = 'replating';
     await loadAppWithState(page, b);
-    for (const tab of ['overview', 'clients', 'cost', 'billing', 'trends']) {
+    for (const tab of ['clients', 'cost', 'trends']) {
       await openStatsTab(page, tab);
-      await expect(page.locator('#statsContent')).not.toContainText('Infinity');
-      await expect(page.locator('#statsContent')).not.toContainText('NaN');
+      for (const sel of ['#statsContent', '#statsToolbar']) {
+        await expect(page.locator(sel)).not.toContainText('Infinity');
+        await expect(page.locator(sel)).not.toContainText('NaN');
+      }
     }
-    await openStatsTab(page, 'overview');
-    await expect(page.locator('[data-callout="coverage"]')).toContainText('none of the revenue');
+    await openStatsTab(page, 'trends');
+    await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('Nothing priced was weighed');
+    // Pulse reads the same period (its cards were the Overview's).
+    await openPulse(page);
+    await expect(page.locator('#homeQuestions')).not.toContainText('Infinity');
+    await expect(page.locator('#homeQuestions')).not.toContainText('NaN');
   });
 
   test('G5-6: GST and the total incl. GST are net of credit notes, as the taxable is, and agree with Finance’s GST due', async ({ page }) => {
@@ -236,10 +247,12 @@ test.describe('P128: Stats', () => {
     }));
     const net = await g(page, `JSON.stringify(statsInvoices().map(function(i) { return [i.taxableValue, i.cgstAmt, i.sgstAmt, i.igstAmt, i.grandTotal]; }))`);
     expect(JSON.parse(net as string)).toEqual([[9000, 810, 810, 0, 10620]]);
-    await openStatsTab(page, 'overview');
-    await expect(page.locator('[data-card="headline"] [data-tile="revenue"]')).toContainText('₹10,620.00 incl. GST');
-    await openStatsTab(page, 'billing');
-    await expect(page.locator('[data-card="gst"] .inv-panel-head')).toContainText('₹1,620.00');
+    // The headline is Trends' verdict card, and the GST is Money → GST's (the tab map, TM2b).
+    await openStatsTab(page, 'trends');
+    await expect(page.locator('#statsHeadline [data-tile="revenue"]')).toContainText('₹10,620.00 incl. GST');
+    await switchTab(page, 'pageFinance');
+    await page.locator('[data-action="invFinTab"][data-tab="gst"]').click();
+    await expect(page.locator('#finGst')).toContainText('₹1,620.00');
     expect(await g(page, `finGstByMonth([localDateStr().slice(0, 7)])[0].due`)).toBe(1620);
   });
 
@@ -329,7 +342,7 @@ test.describe('P128: History and Home', () => {
   test('G5-12: Home’s realisation line joins only what it has: no dangling separator with nothing to compare', async ({ page }) => {
     seq = 0;
     await loadAppWithState(page, book([client(1, 'OMICRON HOME CO', 'weight', 13)], [inv(1, todayIso(), [{ part: 'P1', unit: 'KG', qty: 100, rate: 13 }])]));
-    await openPulse(page);
+    await openWidget(page, 'mtd');
     const t = (await page.locator('#mtdPerKgDelta').innerText()).trim();
     expect(t).toMatch(/cost ₹[\d,.]+$/);
   });
@@ -337,7 +350,8 @@ test.describe('P128: History and Home', () => {
   test('G5-16: Edit Home keeps one primary on the page', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     await openPulse(page);
-    await page.locator('[data-action="invHomeEdit"]').click();
+    // Edit Home is under More in Pulse's head since the tab map (TM2b: one toolbar row).
+    await toolbarMore(page, 'Edit Home');
     await expect(page.locator('#homeEdit')).toBeVisible();
     await expect(page.locator('#pageHome .inv-btn-primary:visible')).toHaveCount(1);
     await expect(page.locator('[data-action="invHomeEditDone"]')).toHaveClass(/inv-btn-secondary/);
@@ -377,7 +391,7 @@ test.describe('P128: History and Home', () => {
       }
       // A widget set to full width still lays four across.
       await page.setViewportSize({ width: 1280, height: 800 });
-      await page.locator('[data-action="invHomeEdit"]').click();
+      await toolbarMore(page, 'Edit Home');
       await page.locator('[data-action="invHomeWide"][data-w="mtd"][data-v="1"]').click();
       await expect.poll(async () => (await stripFilled(page, '#homeTiles')).rows).toBe(1);
     });

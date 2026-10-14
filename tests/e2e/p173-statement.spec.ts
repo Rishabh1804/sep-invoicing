@@ -111,9 +111,9 @@ test('from Receivables: the dialog, the printed statement, and a reminder sent o
   await expect(doc.locator('tr[data-soa-age]')).toContainText('11,520.00');
   await expect(doc).toContainText('TEST BANK');
   await expect(doc).toContainText('20AAAAA0000A1Z5');
-  // Receivables says when the client was last asked.
+  // Receivables says when the client was last asked, in the client's fold beside the button (the tab map, TM3c).
   await page.evaluate(() => (window as any).closePrintPreview());
-  await expect(page.locator('[data-recv="1"]')).toContainText('reminded');
+  await expect(page.locator('[data-soa-row-btn="1"]')).toContainText(/reminded/i);
 });
 
 test('a statement that ends days ago, or receipts with no client, are said before anything goes out', async ({ page }) => {

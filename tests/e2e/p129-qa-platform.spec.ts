@@ -308,7 +308,7 @@ test('P129: with the shared pool full, moving between screens raises no error ab
 });
 
 test.describe('P129: a tap on the Windows widget leaves typed work only when told to (G7-10)', () => {
-  test('a challan being typed: Stay keeps it, Leave opens the To-do', async ({ page }) => {
+  test('a challan being typed: Stay keeps it, Leave opens the tasks (Needs you)', async ({ page }) => {
     await loadAppWithState(page, imState());
     await switchTab(page, 'pageIM');
     await page.locator('[data-action="invShowAddChallan"]').click();
@@ -319,7 +319,8 @@ test.describe('P129: a tap on the Windows widget leaves typed work only when tol
     await expect(page.locator('#imVehicleNo')).toHaveValue('JH 05 1234');
     await g(page, 'void todoHandleLaunch("open")');
     await answerAsk(page, 'ok');
-    await expect(page.locator('#pageTodo')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(page.locator('#homeNeeds')).toBeVisible();
   });
 
   test('a dialog holding typed work: Keep editing keeps it', async ({ page }) => {

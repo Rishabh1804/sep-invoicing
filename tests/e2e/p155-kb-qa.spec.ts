@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, setFilter, switchTab, todayIso, type SepState } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 import { imState } from './im-fixture';
 
@@ -100,10 +100,11 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     await expect.poll(() => g(page, 'window.scrollY')).toBe(0);
   });
 
-  test('a kind picked in the Library is not carried to Troubleshoot, which has no chip for it', async ({ page }) => {
+  test('a kind picked in the Library is not carried to Troubleshoot, which has no kind to pick', async ({ page }) => {
     await loadAppWithState(page, book([art('G1', 'guide', 'Rinsing'), art('F1', 'fault', 'Peeling', { symptom: 'The deposit peels' })]));
     await know(page);
-    await page.locator('#knowContent [data-action="invKbKind"][data-kind="guide"]').click();
+    // The kind is a choice behind Filter on the phone (the tab map, TM6f).
+    await setFilter(page, '#kbKindFilter', 'guide');
     await page.locator('#knowContent [data-action="invKbTab"][data-tab="troubleshoot"]').click();
     await expect(page.locator('#kbFaults')).toContainText('The deposit peels');
   });
@@ -129,12 +130,13 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     await expect(page.locator('#ceditName')).toHaveValue('ACME FORGINGS LTD');
   });
 
-  test('Leave, then Knowledge’s own tab: the form is gone, not shown again with nothing to say it was typed', async ({ page }) => {
+  test('Leave, then Knowledge’s own door: the form is gone, not shown again with nothing to say it was typed', async ({ page }) => {
     await loadAppWithState(page, book([art('G1', 'guide', 'Rinsing')]));
     await know(page);
     await page.locator('#knowContent .inv-toolbar [data-action="invKbNew"]').first().click();
     await field(page, 'title').fill('Half typed');
-    await page.locator('#wsTabs [data-tab="pageKnow"]').click();
+    // The top bar's book since the tab map (9 Oct 2026; Office's row had a Knowledge tab before).
+    await page.locator('.inv-topbar [data-action="invKbHelp"]:visible').click();
     expect(await answerAsk(page, 'ok')).toContain('Leave without saving?');
     await expect(field(page, 'title')).toHaveCount(0);
     expect(await g(page, '_kbEdit')).toBeNull();
@@ -378,10 +380,12 @@ test.describe('P155: Knowledge, training', () => {
   test('a path counts the hands it is for; a book’s path for a role replaces the app’s', async ({ page }) => {
     await loadAppWithState(page, book([], { kb: { articles: [], trained: [], paths: [{ id: 'kbp-floor', title: 'On the floor: the shop', role: 'floor', articles: ['app-today'] }] } }));
     await know(page, 'training');
+    // Each path's head says whom it is for; its lessons, nobody taught yet, say so (the tab map, TM6d).
     const office = page.locator('[data-kb-path="app-path-office"]');
-    await expect(office).toContainText('trained 0 of 1');
+    await expect(office.locator('[data-kb-path-who]')).toHaveText('for 1 hand');
+    await expect(office.locator('[data-kb-lesson] .inv-row-end').first()).toHaveText('Never taught');
     await expect(page.locator('[data-kb-path="app-path-floor"]')).toHaveCount(0);
-    await expect(page.locator('[data-kb-path="kbp-floor"]')).toContainText('trained 0 of 1');
+    await expect(page.locator('[data-kb-path="kbp-floor"] [data-kb-path-who]')).toHaveText('for 1 hand');
   });
 });
 

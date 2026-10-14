@@ -9,21 +9,29 @@ import { bigSweepState, problems, sweepState, type Stop } from './sweep-fixture'
 // exactly what IM, the Register and Receivables say. A stage opens its list, drawn with its own screen's rows, and its
 // action goes through the screen that owns it. The shell puts the page in Office; until then it opens in the page.
 
+const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 const STAGES = ['awaiting', 'created', 'printed', 'dispatched', 'delivered', 'owed'];
 const stage = (page: Page, k: string) => page.locator(`#pagePipeline [data-pipe-stage="${k}"]`);
 const list = (page: Page, k: string) => page.locator(`#pipeList [data-pipe-list="${k}"]`);
-/* A stage's row as read: its count, its amount, its words, and the tone of its node. */
+/* A stage's tile as read (the tab map, TM5a: the stages are coded tiles): its count, its amount, its words (the dot's, then any
+   line under it), and its tone (plain where nothing is judged). */
 async function readStage(page: Page, k: string) {
-  return stage(page, k).evaluate(el => ({
-    n: (el.querySelector('.inv-panel-count')?.textContent || '').trim(),
-    amount: (el.querySelector('.inv-row-end .inv-num')?.textContent || '').trim(),
-    of: (el.querySelector('.inv-row-end .inv-row-meta')?.textContent || '').trim(),
-    word: (el.querySelector('.inv-row-main > .inv-row-meta')?.textContent || '').trim(),
-    tone: ((el.querySelector('.inv-pipe-node .inv-dot')?.className || '').match(/inv-dot-(\w+)/) || [])[1] || '',
-    pressed: el.getAttribute('aria-pressed'),
-    button: el.tagName === 'BUTTON',
-  }));
+  return stage(page, k).evaluate(el => {
+    const amt = el.querySelector('[data-pipe-amount]'), num = amt && amt.querySelector('.inv-num');
+    const w = el.querySelector('[data-pipe-word]'), more: string[] = [];
+    for (let s = w && w.nextElementSibling; s; s = s.nextElementSibling) if (s.classList.contains('inv-tile-sub')) more.push((s.textContent || '').trim());
+    return {
+      n: (el.querySelector('[data-pipe-n]')?.textContent || '').trim(),
+      amount: (num?.textContent || '').trim(),
+      of: ((amt?.textContent || '').replace(num?.textContent || '', '')).trim(),
+      word: [(w?.textContent || '').trim()].concat(more.filter(x => !x.includes('Import statement'))).filter(Boolean).join(' · '),
+      tone: (el.className.match(/inv-tile-(danger|warning|ok|info)/) || [])[1] || 'neutral',
+      pressed: el.getAttribute('aria-pressed'),
+      button: el.tagName === 'BUTTON',
+    };
+  });
 }
+const rs = (amount: string) => amount.replace(/\.00$/, '');
 const openPipeline = (page: Page) => switchTab(page, 'pagePipeline');
 const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -44,20 +52,22 @@ test.describe('P137: Office → Pipeline', () => {
     expect([seen.delivered.n, seen.delivered.amount]).toEqual(['2', '₹870.00']);
     expect([seen.owed.n, seen.owed.amount, seen.owed.of]).toEqual(['3', '₹10,620.00', 'owed']);
 
-    // IM's Awaiting invoice says the same.
+    // IM's Awaiting invoice says the same, in its card (the tab map, TM5b).
     await switchTab(page, 'pageIM');
-    await expect(page.locator('#imList [data-im-summary]')).toHaveText(`${seen.awaiting.n} challans awaiting invoice · ${seen.awaiting.amount} to bill`);
-    // The Register, on each state, says the same.
+    await expect(page.locator('#pageIM [data-im-summary]')).toHaveAttribute('data-im-summary', seen.awaiting.n);
+    await expect(page.locator('#pageIM [data-im-summary] .inv-hero-title')).toHaveText(`${seen.awaiting.n} challans waiting · ${rs(seen.awaiting.amount)} to bill`);
+    // The Register, on each state, says the same in its card (TM5c): the invoices counted, the taxable its figure.
     for (const st of ['created', 'printed', 'dispatched', 'delivered']) {
       await page.evaluate(s => (window as any).regJump({ state: s }), st);
-      const n = seen[st].n;
-      await expect(page.locator('#regList [data-reg-summary]')).toHaveText(`${n} active invoice${n === '1' ? '' : 's'} · ${seen[st].amount} taxable`);
+      await expect(page.locator('#regVerdict [data-reg-summary]')).toHaveAttribute('data-reg-summary', seen[st].n);
+      await expect(page.locator('#regVerdict .inv-hero-fig')).toHaveText(rs(seen[st].amount));
     }
     // Receivables (Money's overview) say the same: what is owed and how many clients owe it.
     await switchTab(page, 'pageFinance');
     await page.locator('[data-action="invFinTab"][data-tab="overview"]').click();
-    await expect(page.locator('[data-fin-tile="owed"] .inv-tile-value')).toHaveText(seen.owed.amount);
-    await expect(page.locator('[data-fin-tile="owed"] .inv-tile-sub')).toContainText(`${seen.owed.n} clients`);
+    // Its Owed to us card (the tab map, TM3c) reads whole rupees and carries the exact figure in its title; its body lists who owes.
+    await expect(page.locator('[data-fin-tile="owed"] .inv-hero-fig [title]')).toHaveAttribute('title', seen.owed.amount);
+    await expect(page.locator('[data-fin-tile="owed"] [data-debtor]')).toHaveCount(Number(seen.owed.n));
     // Filed and cancelled are in no stage, and the pipeline says so.
     await openPipeline(page);
     await expect(page.locator('#pagePipeline [data-pipe-note]')).toContainText('Filed and cancelled invoices are not stages');
@@ -70,7 +80,7 @@ test.describe('P137: Office → Pipeline', () => {
     await openPipeline(page);
     expect(await readStage(page, 'awaiting')).toMatchObject({ n: '4', amount: '₹3,400.00' });
     await switchTab(page, 'pageIM');
-    await expect(page.locator('#imList [data-im-summary]')).toHaveText('4 challans awaiting invoice · ₹3,400.00 to bill');
+    await expect(page.locator('#pageIM [data-im-summary] .inv-hero-title')).toHaveText('4 challans waiting · ₹3,400 to bill');
     expect(errors).toEqual([]);
   });
 
@@ -87,7 +97,8 @@ test.describe('P137: Office → Pipeline', () => {
     // Delivered waits on its return: last month's GSTR-1 falls due on the 11th of this one, amber that many days before.
     const t = new Date(todayIso() + 'T00:00:00'), left = 11 - t.getDate();
     const dueTone = left < 0 ? 'danger' : left <= STATE_CHECK.fileWarnDays ? 'warning' : 'neutral';
-    expect(await readStage(page, 'delivered')).toMatchObject({ tone: dueTone, word: `GSTR-1 due 11 ${months[t.getMonth()]} ${t.getFullYear()}` });
+    // The year is this year's, so the tile leaves it out (TM5a).
+    expect(await readStage(page, 'delivered')).toMatchObject({ tone: dueTone, word: `GSTR-1 due 11 ${months[t.getMonth()]}` });
     // Owed: the debt over 90 days, in the words Home's Money tile uses for it.
     const owed = await readStage(page, 'owed');
     expect(owed).toMatchObject({ tone: 'danger', word: '₹6,608 over 90 days' });
@@ -122,7 +133,7 @@ test.describe('P137: Office → Pipeline', () => {
     expect((await readStage(page, 'awaiting')).pressed).toBe('true');
     await expect(list(page, 'awaiting')).toBeVisible();
     const printed = await readStage(page, 'printed');
-    expect(printed).toMatchObject({ button: false, word: 'None', n: '', amount: '' });
+    expect(printed).toMatchObject({ button: false, word: 'None', n: '0', amount: '' });
     await expect(stage(page, 'printed')).not.toHaveAttribute('data-action', /./);
   });
 
@@ -164,8 +175,11 @@ test.describe('P137: Office → Pipeline', () => {
     expect(ids).toEqual(['INV-C1', 'INV-C2', 'INV-C3']);
     await list(page, 'created').locator('[data-action="invPipeBulk"]').click();
     await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#regStateFilter')).toHaveValue('created');
-    await expect(page.locator('#regList [data-reg-summary]')).toHaveText('3 active invoices · ₹890.00 taxable');
+    // The state is the filter applied, under Filter on the phone and said as its token (the tab map, TM5c).
+    expect(await g(page, 'regFilter.state')).toBe('created');
+    await expect(page.locator('#pageRegister .inv-token[data-clear="state"]')).toContainText('Created');
+    await expect(page.locator('#regVerdict [data-reg-summary]')).toHaveAttribute('data-reg-summary', '3');
+    await expect(page.locator('#regVerdict .inv-hero-fig')).toHaveText('₹890');
     await expect(page.locator('#regSelBar .inv-selbar-count')).toHaveText('3 selected');
     expect(await page.locator('#regList input[data-action="invRegToggleInv"]:checked').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.id).sort())).toEqual(ids);
     await page.locator('#regSelBar [data-action="invRegBulkState"][data-state="dispatched"]').click();
@@ -176,7 +190,7 @@ test.describe('P137: Office → Pipeline', () => {
     // Printed: Mark dispatched opens the Register with the printed one selected, Dispatch on its bar.
     await stage(page, 'printed').click();
     await list(page, 'printed').locator('[data-action="invPipeBulk"]').click();
-    await expect(page.locator('#regStateFilter')).toHaveValue('printed');
+    expect(await g(page, 'regFilter.state')).toBe('printed');
     await expect(page.locator('#regSelBar [data-action="invRegBulkState"][data-state="dispatched"]')).toHaveText('Dispatch (1)');
 
     // Dispatched: Mark delivered, Deliver on the bar for all five.
@@ -190,8 +204,8 @@ test.describe('P137: Office → Pipeline', () => {
     await stage(page, 'delivered').click();
     const ym = lastMonth10().slice(0, 7);
     await list(page, 'delivered').locator(`[data-action="invPipeFile"][data-month="${ym}"]`).click();
-    await expect(page.locator('#regStateFilter')).toHaveValue('delivered');
-    await expect(page.locator('#regMonthFilter')).toHaveValue(ym);
+    expect(await g(page, 'regFilter.state')).toBe('delivered');
+    expect(await g(page, 'regFilter.month')).toBe(ym);
     await expect(page.locator('#regSelBar [data-action="invRegBulkState"][data-state="filed"]')).toHaveText('File (1)');
   });
 
@@ -227,7 +241,7 @@ test.describe('P137: Office → Pipeline', () => {
     await stage(page, 'awaiting').click();
     await list(page, 'awaiting').locator('[data-pipe-im="IM-3"]').click();
     await expect(page.locator('#pageIM')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#imClientFilter')).toHaveValue('2');
+    expect(await g(page, 'String(_imFilter.clientId)')).toBe('2');
     await expect(page.locator('#imList [data-im="IM-3"] [data-action="invToggleIM"]')).toHaveAttribute('aria-expanded', 'true');
   });
 

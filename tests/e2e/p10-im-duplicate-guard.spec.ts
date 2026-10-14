@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, recentTs, SepState, toolbarMore } from './fixtures';
 
 /*
  * IM duplicate guard.
@@ -155,9 +155,10 @@ test('P10: the scan counts duplicate groups and separates billed-twice from unbi
   await loadAppWithState(page, state);
   await switchTab(page, 'pageIM');
 
-  await expect(page.locator('#imDupeCheck [data-dupes]')).toHaveText('1');
+  // The check's count is carried by Challans' More (the tab map, TM5b).
+  await expect(page.locator('#pageIM [data-action="invTbMore"] .inv-badge-warning')).toHaveText('1');
 
-  await page.locator('#imDupeCheck').click();
+  await toolbarMore(page, 'Duplicate check');
   const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toBeVisible();
   await expect(overlay).toContainText('Duplicate check');
@@ -183,7 +184,7 @@ test('P10: two copies collapsed into one invoice are not reported as billed twic
 
   await loadAppWithState(page, state);
   await switchTab(page, 'pageIM');
-  await page.locator('#imDupeCheck').click();
+  await toolbarMore(page, 'Duplicate check');
 
   const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toContainText('Collapsed into one invoice');

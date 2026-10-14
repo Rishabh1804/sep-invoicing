@@ -44,14 +44,16 @@ Nothing here changes what the book records except TM3b.
 
 | Step | What | State |
 |---|---|---|
-| TM1 | The shell: the rows, the tools in the top bar, Sales, Parts, the redirect table, the names; the toolbar (Filter, More); one look's pieces (the verdict card, `data-screen`, the row end); the instruments (P195, P197) | Not built |
-| TM2 | Today: the To-do into Needs you, Pulse takes Stats → Overview and stays short, Stats' three tabs led by verdicts, Pulse's widgets, the Planner's Moves and header, Reports fitted | Not built |
-| ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | — |
-| TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | Not built |
-| TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | Not built |
-| TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | Not built |
-| TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | Not built |
-| TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | Not built |
+| TM1 | The shell: the rows, the tools in the top bar, Sales, Parts, the redirect table, the names; the toolbar (Filter, More); one look's pieces (the verdict card, `data-screen`, the row end); the instruments (P195, P197) | **Built** (9 Oct 2026; what it decided is under TM1, *As built*) |
+| TM2 | Today: the To-do into Needs you, Pulse takes Stats → Overview and stays short, Stats' three tabs led by verdicts, Pulse's widgets, the Planner's Moves and header, Reports fitted | **Built** (9 Oct 2026; what it decided is under TM2, *As built*) |
+| ⏸ | **Stop: the owner looks** at TM2's screens in one look, phone and desktop (§1a-14) | **Done** (10 Oct 2026, the owner: *"Go ahead"*) |
+| TM3 | Money and Invoices: Bills & notes split (TM3a); cheques awaiting deposit (TM3b); Money's screens led by what needs the owner (TM3c) | **Built** (10 Oct 2026; what it decided is under TM3, *As built*) |
+| TM4 | Floor: one Overview, People's Attendance, the page Overviews out; every Floor screen led by its verdict, its long rows folded | **Built** (10 Oct 2026; what it decided is under TM4, *As built*) |
+| TM5 | Office: Pipeline, Challans and Invoices led by verdicts and coloured by age, Clients' dot and word, Parts, Performance's hero, Sales, Create | **Built** (10 Oct 2026; what it decided is under TM5, *As built*) |
+| TM6 | Across the app: one tone per fact, the period to date in every chart, History, Knowledge → Training, the last long notes and toolbars; TM6f the screens no step touched, into one look | **Built** (10 Oct 2026; what it decided is under TM6, *As built*) |
+| TM7 | Docs, the full suite, every screen measured against §3d, the real-book harness, the draft PR | **Built** (13 Oct 2026; the measures after are in `docs/COGNITIVE_LOAD_SURVEY.md`, *After the tab map*; then the QA chain, on the owner's word) |
+| ✓ | **The owner's rulings of 13 Oct 2026** on what TM5–TM7 left open: the three cards that lengthened Challans → Invoiced, Knowledge → Training and Troubleshoot fold shut on the phone (`foldFacts`); the challan Scan and every Gemini photo read came out, so Challans, Add, Production, Floor, Today, the monthly register and Settings lost their photo doors; challans waiting are amber at 3 days, red at 6; labour is fixed, so By client settles the worst account one way (CLAUDE.md, *The owner's rulings of 13 Oct 2026*) | **Built** (13 Oct 2026, P210) |
+| ✓ | **The QA chain of 14 Oct 2026**: seven audits of TM1–TM7 and the asks of 10 Oct, one builder per area, each finding fixed with its test (P211–P216, 116 tests, each failing on the build before), the mechanical sweeps and the harness pressing every action (CLAUDE.md, *The QA chain of 14 Oct 2026*, has what it leaves as rules) | **Done** (14 Oct 2026) |
 
 ## 1. The rulings
 
@@ -77,7 +79,7 @@ Staff, Clients and Finance → one **Moves** tab with a switch; Clients' Quotati
 Owner's addition (9 Oct 2026): **a cheque received from a client and not yet deposited counts as paid by the client** (TM3b). It
 lives in Money → Receivables, where client payments are matched; Payments is money going out (said to the owner).
 
-### 1a. Calls this spec makes (the owner's to change before the build)
+### 1a. Calls this spec makes (accepted by the owner, 9 Oct 2026: *"go with all 14"*)
 
 1. **Floor's line cards lead with the worst**: danger, then warning, ok and info, with ties in line order (VAT A1, VAT A2, Barrel).
    The survey found the line needing the owner was the last card.
@@ -232,7 +234,7 @@ and P197 checks the anatomy. The targets are for the owner's book; P195 holds th
 | Today → Needs you | O | 2.6 (1.5) C | TM2a | the day's work list as now (its inputs, Now, This week, Later, recent as heroes); gains Add, Done and Snoozed (folded); red tasks still lead on the phone |
 | Today → Pulse | O | 5.5 (3.0) N | TM2b, TM2c | the questions as heroes; Why it moved, In one line and the pace as heroes (§1a-3); ≤ 3.5 with three widgets hidden |
 | Stats (Overview) | — | 10.9 (5.5) N; 13 blocks, 5 chains | TM2b | goes: its questions are Pulse's, the rest moves |
-| Stats → By client | W | 4.8 N; 7 blocks | TM2b | *2 large accounts below their variable cost · worst ₹5.34/kg* · the table; the worst settled both ways as tiles; ≤ 3; 0 blocks |
+| Stats → By client | W | 4.8 N; 7 blocks | TM2b | *2 large accounts below their variable cost · worst ₹5.34/kg* · the table; the worst settled both ways as tiles (one way since 13 Oct 2026: labour is fixed); ≤ 3; 0 blocks |
 | Stats → Cost | W | 4.4 N; 7 blocks | TM2b | *Live cost ₹7.31/kg · 40% measured* · sources as badges; recorded against paid as fact rows; ≤ 3; 0 blocks |
 | Stats → Trends | W | 1.7 C | TM2b, TM6b | *₹3.8L this month · +12% on the same days* (the headline's four figures its factors) · six months, the trend, top items; the month to date marked |
 | Stats → Billing | — | 1.4 C | TM2b | goes (Output tax to GST, states and unbilled to Pipeline, the dispatch cycle to Pipeline) |
@@ -245,7 +247,7 @@ and P197 checks the anatomy. The targets are for the owner's book; P195 holds th
 | Money → Bank | W | 1.8–3.1 C | TM3c | *To 08 Oct · ₹1.12L · 1 break in the balance* · the statement first; imports and the balance check folded |
 | Money → GST | W | 1.0 C | TM3c | *Sep ₹6,567 due by 20 Oct · Jul not in the bank* · a row a month on the phone |
 | Money → Bills & notes | — | 1.8–3.1 C | TM3a | goes (bills to Payments, notes to Invoices) |
-| Floor → Overview (was Day) | O | 1.5 (1.0) C | TM4a | the stepper; heroes for People, Production, Stock and Power; the line cards worst first; *Not weighed* |
+| Floor → Overview (was Day) | O | 1.5 (1.0) C | TM4a | the stepper; heroes for People, Production, Stock and Power, and the flow thread's Turnaround (10 Oct 2026, ENTRY_FACES §5, on a row of its own); the line cards worst first; *Not weighed* |
 | People → Overview | — | 2.7 (1.6) N | TM4b | goes |
 | People → Attendance · Day | W | 6.7 (2.5) N | TM4b | *12 of 16 on site · VAT A1 short 1* (on site, half day, absent, unmarked its factors; the tile strip goes into it) · the board; EXTRA rows folded; ≤ 4 |
 | People → Attendance · Week | W | 3.8 (2.5) N | TM4b | *Week 41: 92% present · Thu not recorded* · attendance by week, the grid; ≤ 3 |
@@ -335,7 +337,7 @@ kind is assembled one way, top to bottom.
    6. **What is finished**: a view tab, a fold, or `uiMoreHtml`'s *Show more*.
 3. **Document** (Reports, Power → Case): the toolbar (its kind and period, Print), then the paper fitted (`paperFit`, TM2f). The
    paper's own *In short* is its verdict.
-4. **Form** (Create, a challan, the paste checks, by hand, the photo check, a quotation, an article, a record opened as a
+4. **Form** (Create, a challan, the paste checks, by hand, a quotation, an article, a record opened as a
    sub-view): the back head (`inv-pagehead-back`), the fields, the action bar last; errors only after a try (TM5h).
 
 **What the verdict card replaces**, each taken out of where it led a screen:
@@ -424,7 +426,7 @@ place, so they add no row.
 | TM3a | `pageFinance` · `bills` | `pageFinance` · `payments` |
 | TM4 | `pageStaff` · `overview` | `pageFloor` |
 | TM4 | `pageProduction` · `overview` | `pageFloor` |
-| TM4 | `pageProduction` · `overview/paste` / `overview/hand` / `overview/photo` | `pageProduction` · `lines/<the same sub-view>` (a form open stays open) |
+| TM4 | `pageProduction` · `overview/paste` / `overview/hand` / `overview/photo` | `pageProduction` · `lines/<the same sub-view>` (a form open stays open; `photo` opens Lines since 13 Oct 2026, the photo reading taken out) |
 | TM4 | `pagePower` · `overview` | `pageFloor` |
 | TM4 | `pageStock` · `overview` | `pageStock` · `list` |
 
@@ -543,7 +545,7 @@ benchmark's instrument. Files: `workspace.js`, `nav.js`, `tabs.js`, `body.html`,
       - A verdict naming rupees takes `money: true`, and falls back to its count for a role without money (I4).
       - It throws in a test build when `verdict` runs past 60 characters or `factors` past four, so a builder finds out at once.
     - **`data-screen`**: `tabRender` sets it on the page root from **`SCREEN_KINDS`** (one map, `{pageX: kind, 'pageX/v': kind}`,
-      in `tabs.js`), so a view tab can differ from its page. A sub-view (paste, hand, photo, a record) sets `form` while it shows.
+      in `tabs.js`), so a view tab can differ from its page. A sub-view (paste, hand, a record) sets `form` while it shows.
     - **The row end** (§1a-11): **`uiRowEndHtml(fig, status, action)`** draws a row's end with at most one button. A row with more
       actions passes the rest to **`uiRowMoreHtml(actions)`**, which draws them in the row's fold on the phone and leaves the
       pane to draw them on the desktop.
@@ -580,6 +582,35 @@ desktop, its tiles filtering, its 60-character limit, the fall-back for a role w
 every page setting `data-screen`; P197 green with an empty `ONE_LOOK` and its census reported.
 **Specs P184** (`p184-tab-map.spec.ts`, `.desktop.spec.ts`), **P195 and P197** (`p197-one-look(.desktop).spec.ts`).
 **Grep after:** `label: 'Day'` in workspace.js (none); `'Items'` as a user-facing label (none outside comments).
+
+**As built (9 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **More is drawn on both layouts** (call 10, which item 11 predates); Filter is the phone's, the desktop's filters stay inline, and
+  the tokens are the phone's.
+- **A grouped view remembers its own sub-view** (`wsVsPut`, workspace.js). Clients and Sales share one page, whose memory holds only
+  the sub-view on screen, so Clients opened from Sales went back to its first view; it returns to where Clients was left (Parts).
+- **The verdict card flags, never throws**, past its limits: `data-verdict-long` and an error in a test browser's console, which
+  P197 fails on. A long client name must not take a screen down in the owner's hands. Its facts are spans the stylesheet sets
+  apart (`inv-hero-fact`), not one string joined with "·", and its default memory is the page and its view (`uiVerdictKey`).
+- **A pick in More shuts the dialog first** (a capture listener in state.js), so a layer the pick opens is drawn after it. Filter's
+  dialog redraws its row however it shuts (Done, ×, a tap outside, Back) through the scrim's close hook (`dialogClosed`,
+  `UI_FILTER_DONE[key]`, else the page in place).
+- **P195's budgets are the worst of eleven days of the calendar**: a Sunday, a Monday, a month's first and last days, the
+  financial year's first, the year's first and a February's last. A screen's length moves with the date (Stats → Clients ran 2.3
+  to 5.5 phone screens, Invoices 1.1 to 3.7), so one day's measure would fail on another. The face (Liberation) and the clock
+  (11:30 on today) are pinned, so a screen measures the same on any machine at any hour. A step lowering a budget measures the
+  same eleven days.
+- **`LOOKS` and `ONE_LOOK` live in `tests/e2e/load-fixture.ts`** beside the walk and the measures, so P197's phone and desktop
+  files read one list. `LOOKS` is the census's 38, the same on each of the eleven days.
+- **P197's anatomy checks are proven on screens the test draws**, one right and each way wrong, since no screen is assembled
+  until TM2.
+- **Today's row fits a phone, so its group is a hairline there** (§3a-4). *Needs you Pulse Insights Stats Reports Planner* ran
+  412 px at 393 under the fallback face and 449 under DejaVu: the row would scroll, the very cue it exists to avoid. Where the
+  whole row fits, the name gives its place to a hairline between Pulse and Stats (`data-group="rule"`); where it would not (a
+  role's row, a face wider still), the name stays as the cue (`data-group="word"`). `wsRowFit` measures on every draw and resize.
+  The desktop keeps the name.
+- **The top bar's title gives way** (P76): Create's back arrow, name and four tools ran 21 px past a 393 px screen. The name
+  shrinks to an ellipsis, and the cue pass gives it a `title`.
+- **Grep after**: `label: 'Day'` in workspace.js, none; `'Items'` as a user-facing label, none (the sub-view's id `items` stays).
 
 ### TM2 — Today
 
@@ -652,7 +683,9 @@ it used are deleted (the engine stays: `todoRanked`, `todoApp`, `todoGo`, the di
   - **Stats → By client** leads with a verdict (`data-verdict`): how many large accounts sit below their variable cost, the worst
     named with its ₹/kg against the live cost, in its tone.
     - The contribution table follows.
-    - The worst account settled both ways (labour fixed, labour scaling, the break-even) is tiles, with the working folded.
+    - The worst account settled both ways (labour fixed, labour scaling, the break-even) is tiles, with the working folded. Since the
+      owner ruled labour fixed (13 Oct 2026) it is settled one way: what it contributes, what it lacks of the full cost, and the
+      price at which it pays its share.
     - Realisation by client and concentration fold (`uiFoldCard`), shut on the phone.
   - **Stats → Cost** leads with the live cost's verdict: its ₹/kg against realisation, and how much of it is measured (*₹7.31/kg ·
     40% measured*, the share in its tone).
@@ -716,6 +749,58 @@ keeps them; the report on the page fits a 393 px screen; Stats' three tabs and t
 (TM2g) shot and asked. **Spec P185;** P197 extended; P195's budgets lowered for Pulse, Stats and the Planner. **Grep after:**
 `pageTodo` (only §5's row and comments), `renderTodo(`, `'overview'` / `'billing'` in intel.js, `advPulseHtml`,
 `statsStoriesHtml`, `invStatsInsightsAll`.
+
+**As built (9 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **Pulse's head is the period and More, with no period word**: the segments name the period, and the word beside them took the
+  head to a second row on the phone. More holds *Make a report*, *Open Stats* and **Edit Home**: the bar under the widgets
+  (`#homeEditBar`) is gone, and a role without money, who has no period to pick, sees the one button.
+- **Pulse follows a period changed on Stats** when it is next shown (`_homeDrawnPeriod`, tabs.js), not at the next save.
+- **Pulse's widgets are shut on the phone and open on the desktop**, remembered per device, as the verdict cards are (§1a-3). With
+  them open Pulse measured 4.95 phone screens on the owner's book, the widgets alone 2.3 of it; shut, 3.48. A widget's buttons are
+  in its body, one tap down (Zinc's Refresh, Money's Import statement).
+- **The factors carry badges** (`uiFactorTileHtml`'s `badge`, design §6.28): Trends' *99% weighed*, *net of notes*, *below cost*;
+  In one line's *90% weighed* and *N% measured*. Each old callout is one line under Trends' card; why is the screen's guide
+  (`kbguides.js`, Reading Stats). By client's margin says where its labour split came from as a badge (`data-margin-split`).
+- **By client folds the next challans** with realisation and concentration, and **Trends folds top items**, shut on the phone (the
+  long book's By client ran past its budget with the forecast open).
+- **Stats → Cost shows the bills without their notes and folded to one row** (*12 bills entered, the latest Sep 2026*), shut on the
+  phone: the bills are Money's, where each keeps its note (a note imported with a bill ran to 270 characters on Cost). The head
+  counts and names the bills that stand; a voided bill is listed inside, muted, and never leads. *Recorded against paid* is fact
+  rows: the gap at the end, and under the label the months compared, recorded and paid, then the months left out and why.
+- **Moves' switch is a control inside the view, not a navigation**: switching a kind keeps the page where it is (P79 found it
+  jumping to the top); only another view goes to the top.
+- **The Planner's plan picker is drawn only where there are two plans**; one plan has nothing to pick, and the select took the
+  phone's row to two. On the phone *Roll the trials* reads *Roll* and More is its mark (`{icon: true}`, design §6.7).
+- **A folded row's head keeps two short facts** (`plnRowHtml`: the head's meta never past 80 characters); a fact that reads as a
+  sentence goes under the row with the rest. P76 found a tech level's head cut past its two lines.
+- **The report on the page is the paper** (`.inv-rpt-sheet > .inv-rpt-doc` at the sheet's width, zoomed by `paperFit`); the page
+  is never printed (print hides every page), so Print sends the same document to the print view at life size.
+- **The first invoice's way on a new device** is Pulse's quick actions and Add: the Recent widget that carried *Create your first
+  invoice* is hidden by every preset, and Needs you draws no empty recent card (P164's ruling of 6 Oct). P3 holds both.
+- **What is measured is what is drawn** (P195's `drawn`): Pulse had been charged with Needs you's tasks and the three widgets TM2c
+  hides, all in the page under `display: none`. A fold's inside still counts (one tap from the face; folding is not shortening).
+- **Needs you's toolbar budget went from 0 to 1**, the To-do's Add row TM2a puts there: the one budget a step has raised, said at
+  the stop (I10). On the owner's book Needs you went from 2.85 to 3.00 phone screens, the Add row and the Snoozed and Done folds.
+- **Needs you and Pulse are on `ONE_LOOK`** with Stats' tabs and the Planner's views: both lead with heroes carrying
+  `data-verdict`. P197's overview check takes heroes packed on the desktop (`inv-panels`, `uiMasonry`) as it takes `inv-heroes`.
+- **The measures**, phone screens, the worst of eleven days on the long book (TM1's budget → TM2's measure, the budget lowered to
+  it):
+
+  | Screen | Long book | Owner's book (TM1 → TM2, same book) |
+  |---|---|---|
+  | Needs you | 3 → 2.83 | 2.85 → 3.00 |
+  | Pulse | 7 → 3.51 (blocks 4 → 0, chains 4 → 1) | 6.50 → **3.48** (target ≤ 3.5) |
+  | Stats → Overview | 12 → gone | 13.03 → gone |
+  | Stats → By client (was Clients) | 6 → 3.21 | 5.50 → **2.98**, 0 blocks (target ≤ 3, 0 blocks) |
+  | Stats → Cost | 4 → 2.76 (blocks 6 → 0) | 5.16 → **2.96**, blocks 7 → 0 (target ≤ 3, 0 blocks) |
+  | Stats → Billing | 2.5 → gone | 2.04 → gone |
+  | Stats → Trends | 3 → 1.82 | 2.02 → 1.82 |
+  | Reports | 7 → 2.84 | 7.35 → 3.10 |
+  | Planner → Play · Ledger · A day | 3.5 · 4.5 · 3 → 2.28 · 3.17 · 2.03 | 4.46 · 5.67 · 2.80 → 3.84 · 4.84 · 2.03 |
+  | Planner → Moves (was five views) | 2–5 → 3.78 | Plant 6.59 (Tech 3.68 · Staff 2.62 · Clients 4.31 · Finance 1.94) → 5.04 on Plant |
+
+  The Planner's toolbar went from three or four rows to one on every view, and its chains (Plant 22, Clients 16, Tech 13 on the
+  owner's book) to none. The owner's book is measured in a scratch harness that never enters the repository.
 
 ### TM3 — Money and Invoices
 
@@ -812,6 +897,66 @@ leads with its heroes inside the first phone screen; GST cuts nothing at 393 px;
 and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Grep after:** `'Bills & notes'` in UI strings
 (none), `finSetTab('bills')`, `renderBillsNotes`, `invGoBills`, `data-where="stats"`.
 
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **A deposit is the cheque's by its number, whatever its amount.** A client who wrote ₹23,500 on a cheque typed as ₹23,600 has
+  still paid by that cheque, and matching on the number and the amount would leave it counted beside its own deposit; the
+  difference is said on its row (*In the bank: ₹23,500.00*, amber). An offer (**Link**) is a credit of the same amount, carrying
+  no number of four digits or more (one that does is that cheque's), not placed on another client, within 15 days.
+- **A post-dated cheque is expected in the bank on its own date** in the forecast, not on the next working day.
+- **A cheque deposit is named by its number** on the statement and in search (*Deposit of cheque 525428*, `bankRowTitle`): placed
+  on its cheque's client, its line had chained the client's name, the number and *a cheque received* past two lines on the phone
+  (P76). Its edit says whose cheque it was.
+- **Add's door reads *Cheque*** (its neighbours are one word: *Payment*, *Bill*); the form's title says *Cheque received*. Eleven
+  doors at the desktop's five across left the last alone, so a last door alone on its row takes the row, as an odd last tile does.
+- **The method went to the bank guide** (`kbguides.js` `bank`, version 2): where receipts start, how a receipt is set (exact,
+  else oldest first), the opening, the cheques received, GST due and paid. Receivables keeps one line (*Since 5 Aug 2026. A
+  receipt pays the invoices it adds up to exactly, else the oldest first.*); GST keeps none.
+- **A client's line is two facts** (*pays in 32 d · oldest 47 d*). What it chained before, money on account, the opening not
+  set and the last reminder, are in its fold: *On account* and *Owed at the start* as fact rows, the reminder beside
+  *Statement and reminder*.
+- **Payments' sections fold** (electricity paid, the wages, suppliers, other), shut on the phone: open, Payments measured 2.34
+  phone screens on the long book against its budget of 2. **GST shows its latest six months on the phone**, the rest one tap
+  away: twelve rows measured 1.58 against 1.5.
+- **What needs the owner shows its first few, the rest one tap away** (`uiMoreHtml`), the verdict and the panel's head counting
+  them all: five receipts with no client (ten before), three payees not yet sorted, the three latest months with no electricity
+  bill. The verdict, the toolbar and the cheques took that room on Receivables, and the bills on Payments; given back, neither
+  screen is longer than at TM2 (I10). A payee list is sorted by what was paid, so the three are the ones that matter most.
+- **The statement's line is two facts** (the day, and what it is): a cheque's number left it, since the row's narration carries it
+  when opened and search finds it (on the owner's book, every payment by the shop's own cheques chained a third). A line naming a
+  client or a hand wraps whole (`inv-row-wrap`): the name sits in its status dot, which does not wrap, and a long one was cut.
+- **The Overview's figures are whole rupees, each carrying its exact amount in its title** (`finHeroFig`), as the tiles' did.
+- **The cheque task names the cheque, and its line the client** (*Deposit cheque 612301*; *ALPHA FORGINGS · ₹18,000.00, received
+  6 Oct 2026: not in the bank by 8 Oct 2026*): Needs you's groups name their tasks by title in one line, and a long client name
+  made it a block.
+- **The long book's cheques are its own** (`longBook`): one in hand four days, one deposited on its statement. It had kept the sweep
+  book's, whose second is deposited on a row the long book does not hold, so it read 22 days in hand.
+- **The Overview's heroes are shut on the desktop too**: the four across (two under 80rem) are its first screen, and one opened
+  takes its row, as Pulse's do. Their links into the tabs are `invFinGo`, never the tab row's own action, which made the tab's
+  selector find two.
+- **The Credit notes dialog drops its form when it shuts** (`_onClose`); a typed form asks first (the dialog guard), and the
+  dialog opened again is the list. **Typed, it is redrawn inside its own sheet**, which keeps its place and does not slide in
+  again on every pick (P79 found a client picked halfway down sending it to its top).
+- **P79 reads the scroller drawn now** (a list redrawn by its id) and how far it can still scroll: a receipt placed leaves less
+  below than was scrolled past, and the probe had read the list left detached, whose scroll is always 0.
+- **Three toolbar budgets went from 0 to 1**: Receivables, Payments and Bank, the one toolbar row a work screen has (§3e).
+  Said to the owner with TM3 (I10).
+- **The measures**, phone screens, the worst of eleven days on the long book (the TM2 build → TM3, each budget lowered to its
+  measure but the three toolbar rows above):
+
+  | Screen | Long book | Owner's book (TM2 → TM3, same book) |
+  |---|---|---|
+  | Money → Overview | 6.53 → **1.41** (blocks 4 → 1) | 6.88 → **1.39** (blocks 3 → 1, chains 4 → 0) (target ≤ 3) |
+  | Money → Receivables | 3.09 → **2.92** (blocks 1 → 0, chains 12 → 0) | 2.39 → **2.22** (blocks 4 → 0, chains 17 → 0) |
+  | Money → Payments | 1.72 → **1.72** (blocks 1 → 0) | 3.05 → **1.55** (chains 0; blocks 1 → 2, below) |
+  | Money → Bank | 3.38 → **3.20** (chains 7 → 0) | 3.56 → **3.31** (chains 8 → 0) |
+  | Money → GST | 1.11 → **1.10** (blocks 1 → 0) | 1.11 → **1.10** (blocks 1 → 0) |
+  | Money → Bills & notes | 1.15 → gone | 2.17 → gone (2 blocks, 6 chains) |
+  | Office → Invoices | 3.65 → 3.65 | 3.50 → 3.50 |
+  | Today → Needs you | 2.83 → 2.86 (the cheque in hand's task) | 3.00 → 2.79 |
+
+  The Overview's one block is the forecast's *what it rests on*, inside its fold (TM6, the last long notes). Payments' two on the
+  owner's book are two imported bills' own notes, inside the bills' fold: the owner's words, kept whole.
+
 ### TM4 — Floor
 
 **TM4a. Floor's Overview** (`floor.js`, `pageFloor`; the page keeps its address `?tab=pageFloor&d=…` and its day stepper):
@@ -833,8 +978,8 @@ and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Gr
 - On the desktop the heroes are a row (`.inv-heroes`), the lines below.
 - **The load:**
   - The first hero carries `data-verdict`.
-  - People's tone comes from one function built here, **`attOnSiteTone(d)`**: the 90 / 80% gate on the active roster, and warning
-    when the floor is short of its number. `attDayPanelHtml` and `renderAttHomeCard` read it from now on, and TM6a points every
+  - People's tone comes from one function built here, **`attOnSiteTone(d, areasShort)`**: the 90 / 80% gate on the active roster, and
+    warning when the floor, or an area the card names as short (Floor's People, Day's verdict), is short of its number. `attDayPanelHtml` and `renderAttHomeCard` read it from now on, and TM6a points every
     other on-site figure at it.
   - **The line cards lead with the worst** (§1a-1), and the Production hero's verdict names that line.
   - *Not weighed* stays open, since it needs the owner, at ten rows (`uiMoreHtml`: each row is a question).
@@ -910,7 +1055,7 @@ and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Gr
     (`inv-plt-unit`) goes, and with it its look from P197's `LOOKS`.
   - **The toolbar per view** (§1a-12):
     - Lines and Entries: Paste message the primary; Read register photo the one secondary; Enter by hand behind More (Entries'
-      Export and Import too).
+      Export and Import too). Read register photo came out on 13 Oct 2026 (owner: the photo reading *"simply never works"*).
     - In plant: no primary; its verdict card, then its exceptions.
   - **Entries' rows end in one action** (§1a-11): Correct stays; Void, and *Use VAT A1* on a load, go into the row's fold (phone)
     and the pane (desktop).
@@ -962,7 +1107,8 @@ and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Gr
 **TM4f. Redirect rows** for TM4 (§5).
 
 **Acceptance:** Floor's row is Overview · People · Production · Stock · Power; the Overview shows the four heroes per role (owner
-all four, supervisor all four, the floor role People without a link, Production and Stock, no Power), the line cards worst first
+all four, supervisor all four, the floor role People without a link, Production and Stock, no Power; since the flow thread, 10 Oct
+2026, a fifth, Turnaround, to each role that opens Production, on a row of its own), the line cards worst first
 and the stepper; People's row is four with the Day · Week · Month switch and unchanged addresses; Week leads with its verdict and
 attendance by week, Pay with labour ₹/kg and payroll against the bank (no bank series without money); Day's EXTRA rows are one line
 each until opened; Areas leads with its verdict and the rows to explain; Production's row is four, Lines leads with plated by line,
@@ -973,6 +1119,96 @@ Floor screen on `ONE_LOOK`; every old Overview address lands as §5 says. **Spec
 screen; P197 extended. **Grep after:** `staffOverviewHtml`, `stockOverviewHtml`, `prodOverviewHtml`, `powerOverviewHtml`,
 `stockViewTabsHtml`, `'overview'` as a view value in staff.js, relay.js, dash.js, stock.js, prodview.js, power.js, todo.js,
 today.js, search.js (none).
+
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **Floor's heroes are shut on both layouts**, two to a row (four across from 80rem), each to its line, as Money's and Pulse's
+  are; one opened takes its row. People carries the screen's verdict. The three tiles that led Floor → Day went into them (I8).
+- **To watch is the motivation index's own finding** (the To-do's `pplWatch`: low on firm figures). A check-in due is a count
+  among the card's factors, never *to watch*: a hand due a check-in is not a hand to worry about. **Both are filter tiles**
+  (`invAttRosterFilter`, a token under the toolbar on the phone saying which), and **a check-in due is no badge on the row**: the
+  rule names every hand not checked in for 45 days, so on the owner's book it marked 21 of 23 rows, and a mark on every row points
+  at no one. **The tier is the group** (the roster was already ordered by it: *Monthly*, *Hourly*, *Daily*) and **the row's meta
+  is two facts, the area and the pay** (where the role sees wages: the base rate with what an overtime hour pays, one fact, as
+  WB9 asks of the row): as badges the tier and the area took a line of their own under every name on the phone. A badge is a state
+  (*Motivation 42*, *Inactive*), and only a row holding one draws that line. The hands who left close the list under *Left*. With all three the roster went from 5.37 phone screens to
+  4.43 on the owner's book (the TM3 build: 4.72).
+- **A row says two facts, and a set of figures by category is a table**, measured on the owner's book where three or four had stood
+  in one line: Areas' hours by area is a table (area, worker-days, hours, OT among them, EXTRA, total); a line card's units say how
+  many work and what the line runs at (else the share of its kg a round available), and the units not working a status at a time
+  (*Down: Barrel 3, Barrel 4*); a zinc supplier under Spend and prices says its bills and kilos, the average and the timing each
+  bill's when opened.
+- **Equipment's units go two across on the phone** (`data-deck-sm`, `--deck-min-sm`: a unit's card is a word, a name and a figure),
+  and **the status changes are folded** (`plt-log`, shut on both layouts: the plant's history, seventeen rows on the owner's book).
+  One unit to a row and the log open, Equipment ran 5.09 phone screens on the owner's book; now 2.75 (the TM3 build: 3.74).
+- **Pay's payment form folds on the phone** (open on the desktop, and opened by a hand's Pay): open, it put due by worker a
+  screen down. Pay's verdict carries no figure of its own: the payout is said once, in the sentence.
+- **A period inside a toolbar row is one item** (`inv-tb-step`, the Planner's `inv-pl-step` renamed for every screen that uses
+  it): Day's date, Week's and Pay's and Areas' week. Back to today or this week is a ghost button on the desktop, More's on the
+  phone (and absent while it is already shown). The Month view's phone row carries no month name: its card's eyebrow says it.
+- **Week's verdict does not count today as a gap** before it is in (*today not in yet*), and attendance by week is shut on both
+  layouts: open, it put the grid a screen down on the desktop. **Pay's and Week's charts are shut on both layouts** for the same
+  reason.
+- **The method paragraphs went to the guides** (`kbguides.js`): *Using the app: attendance* (v2), *People: the areas and the
+  extra* (new), *pay* (v2), *production* (v2, the four views and how a run is weighed), *stock* (v2), *power cuts* (v2: what a cut
+  costs, the coding of the causes, the fixes' middle). The faces keep one line at most.
+- **Production → Entries on the phone badges only what qualifies a figure** (an estimate, not weighed, no client, no challan,
+  gauge unknown); where an entry came from is in its fold, and on the desktop's rows. With a source badge on every row the thirty
+  ran 3.4 phone screens. **Its flags are the card's factors**, each a filter tile; the desktop's chips keep only the kinds and
+  *No client*, so the list and the pane still fill the room under the toolbar (P80).
+- **In plant folds a client to its head** (its open amount, its stages as a dot and a word): open, the long book's ran 13 phone
+  screens. What needs a look (plated past its days, on the floor with no challan open) leads, unfolded.
+- **A line's day with a cut and no time back says so** (*no time back*), never *0 min*.
+- **Stock's check is a row** (*To check*, with **Check them**), and Production's photos waiting to be read were a row too (until the photo reading came out, 13 Oct 2026): both
+  were callouts leading their lists (§3e). Stock's **Spend and prices** is the phone's fold at the foot and the desktop's pane
+  (a toolbar button, pressed while open).
+- **Power → Cuts' *To look at* is one panel**: the load approved and not yet billed first, in red, then the cuts to complete under
+  their own head. A cut with no time back is *costed at* the typical length (said on its row, the median of the cuts with one), and
+  its clock is the time it went alone: its row had said *not back* and *no time back* both, with the status word a third time.
+- **Power → Causes' tiles**: with a reason, from the grid, in the plant and the costliest cause, each coloured only once three
+  cuts stand behind it, with fewer plain and *on 1 cut* (§1a-7); *to complete* is the card's link to Cuts, not a tile. A cause's
+  bar says two facts (its cuts, where it starts): where they hit and what brought it back are the panels beside it. A long cause
+  name is cut at a word to keep the verdict to 60 characters (`uiVerdictFit`).
+- **Power → Load & bills says each figure once**: the connection's three rows were the card's factors again, so they went; the
+  reference sits under *Approved*, the owner's note in the card. A bill's row ends in its amount; *Details* is in its fold.
+- **The case is fitted as the report is** (`paperFit` on an `inv-rpt-sheet`): 3.79 phone screens wide-scrolled, now the sheet
+  zoomed to the screen; at 1280 it is life size.
+- **The reorder's cash is every role's that opens Stock, and a cut's cost every role's that opens Power**, on their screens and
+  on Floor's heroes alike; only the bank's forecast waits on the money setting. The text above put the reorder's cash behind it,
+  but the guard's audit had ruled the order's cost the supervisor's and the forecast the bank's (QA4-4, 2 Oct 2026), and Stock
+  and Power show both to whoever opens them: a hero hiding a figure its own screen shows the same person says the guard is
+  stricter than it is. In plant's book (its rupees open on the challans) is every role's for the same reason, as it was.
+- **A note in a verdict card is a row on its sheet**, never bare text: the Planner's goal (TM2d) sat against the card's edge
+  with no padding, and Load & bills' note did too until drawn as a row.
+- **The measures**, phone screens, the worst of eleven days on the long book (the TM3 build → TM4):
+
+  | Screen | Long book | Owner's book (TM3 → TM4, same book) |
+  |---|---|---|
+  | Floor → Overview (was Day) | 2.22 → **2.43** (blocks 1 → 0, toolbar rows 2 → 1) | 2.51 → **2.72** (blocks 1 → 0, chains 2 → 0, toolbar rows 2 → 1) |
+  | People → Overview | 3.05 → gone | 3.09 → gone |
+  | People → Attendance · Day | 2.73 → **2.07** (blocks 3 → 1, toolbar rows 7 → 1) | 4.08 → **3.42** (blocks 3 → 1, toolbar rows 7 → 1) |
+  | People → Attendance · Week | 3.17 → **1.68** (blocks 4 → 3) | 4.36 → **2.56** (blocks 4 → 3) |
+  | People → Attendance · Month (was Register) | 1.00 → **1.00** (blocks 1 → 0, toolbar rows 3 → 1) | 4.57 → **3.15** (blocks 7 → 5, chains 9 → 0, toolbar rows 3 → 1) |
+  | People → Pay | 3.49 → **2.12** (blocks 4 → 1, chains 4 → 0) | 4.49 → **3.14** (blocks 4 → 1, chains 9 → 0) |
+  | People → Areas | 2.86 → **1.79** (blocks 6 → 0, chains 10 → 0) | 4.68 → **3.18** (blocks 8 → 0, chains 19 → 0) |
+  | People → Roster | 2.27 → **2.27** (toolbar rows 2 → 1) | 4.72 → **4.56** (toolbar rows 2 → 1) |
+  | Production → Overview | 4.62 → gone | 5.50 → gone |
+  | Production → Lines | 2.51 → **1.59** (blocks 3 → 0, toolbar rows 4 → 1) | 3.39 → **2.32** (blocks 3 → 0, chains 6 → 1, toolbar rows 4 → 1) |
+  | Production → In plant | 7.50 → **2.29** (blocks 3 → 0, chains 64 → 0, toolbar rows 3 → 1) | 6.69 → **1.74** (blocks 5 → 0, chains 31 → 0, toolbar rows 3 → 1) |
+  | Production → Entries | 17.20 → **3.85** (chains 109 → 0, toolbar rows 5 → 1) | 28.52 → **3.81** (chains 184 → 0, toolbar rows 5 → 1) |
+  | Production → Equipment | 1.72 → **1.50** (toolbar rows 3 → 1) | 3.74 → **2.72** (toolbar rows 3 → 1) |
+  | Stock → Overview | 2.89 → gone | 4.27 → gone |
+  | Stock (was Lines) | 1.26 → **1.07** (toolbar rows 3 → 1) | 2.61 → **2.42** (blocks 0 → 1, toolbar rows 3 → 1) |
+  | Power → Overview | 2.66 → gone | 2.58 → gone |
+  | Power → Cuts | 2.21 → **2.20** (chains 13 → 2) | 2.04 → **2.18** (chains 61 → 1) |
+  | Power → Causes | 2.82 → **1.56** (blocks 2 → 0, toolbar rows 1 → 0) | 2.62 → **1.49** (blocks 2 → 0, chains 7 → 2, toolbar rows 1 → 0) |
+  | Power → Load & bills | 1.00 → **1.00** | 1.93 → **1.14** (blocks 4 → 1, chains 2 → 0) |
+  | Power → Case | 3.79 → **2.13** | 4.38 → **2.41** |
+
+  Every Floor screen's budget went to its new measure, and no toolbar budget rose. The Overview grew by a fifth of a screen: the
+  four heroes stand above the line cards, each shut to its line. On the owner's book four screens stay over §3d's three: Month
+  (3.15, the register's page of 31 rows), Pay (3.14, due by worker), Areas (3.18, staffing for eight areas) and Entries (3.81,
+  its thirty rows). The long notes left are each in a fold and handed to TM6e (named there); Month's five are the register
+  page's own notes and Load & bills' one the load's own note, kept as written. The owner's book is measured in a scratch harness that never enters the repository.
 
 ### TM5 — Office
 
@@ -1032,6 +1268,93 @@ is one row on both layouts (its tokens under it on the phone) with every filter,
 reachable and the audit's badge on More; Performance under four phone screens on the long book; Office's screens on `ONE_LOOK`
 (P197 extended). **Spec P193** (`p193-office-load(.desktop).spec.ts`); P195's budgets lowered for every Office screen.
 
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **Pipeline's verdict names the stage the page opens on** (`pipeDefaultStage`: the first holding a red, else the first holding
+  anything) in that stage's words and tone, with no figure (the stage's tile under it has its amount, I8, and beside a figure the
+  line took two rows on the owner's book); the worst other stage running late is its one fact, in its own words (`pipeLateSay`:
+  *11 challans over 10 days*, *9 created over 2 days*, *2 delivered, GSTR-1 due 11 Oct*): every stage's words are its tile's too,
+  and two facts took the card to a second line on the phone. Nothing in it folds (its stages are beside it), so it is a card, not a
+  fold. A date in a stage's words drops this year's number (`pipeNoThisYear`). **The stages are coded tiles two across** (the desktop's rail spans an odd last one), a stage
+  with nothing to judge plain (`data-tone="neutral"`); `inv-pipe-node` and `inv-pipe-stage`, the rows' rail, are deleted. A client
+  awaiting invoice is two facts (*3 challans · ₹X to bill*) with its oldest a line of its own in its tone.
+- **One judge for a challan's wait** (`imWaitTone`, `imWaitDays`): IM's dot, Pipeline's first stage and the To-do's challan task.
+  **The task is amber from the To-do's challan days and red from twice them** (3 and 6 by default since the owner's ruling of 13 Oct 2026; 5 and 10 before); it was info at any age, so a
+  challan waiting ten days now leads Needs you's *Now*. A challan's meta is how long it has waited (dated after today, its date) and its items; invoiced, its
+  vehicle and its items. Awaiting invoice's verdict carries the oldest's days as its figure (*12 d*), how many are over the days
+  and how many are part invoiced as facts; its list lost its own head, which said the count a second time. The toolbar is one row:
+  Filter (client, and the status on Awaiting), **Add challan**, and More holding *Duplicate check* with its count (Scan came out on 13
+  Oct 2026).
+- **Invoices' row holds the register's files too**: the row of four buttons under the list (Sales register CSV and PDF, GSTR-1
+  CSV, Bulk mark filed) went into More with Credit notes and Number audit. **The phone's sort is one picker** (*Newest first*,
+  *Oldest first*, *Highest number first*, *Lowest number first*; it was two buttons, by date or number and the direction), a token
+  when not the newest first. **On the desktop the filters are inline and the range is a dialog of its own** (*Range*, the button
+  saying the range in use), since at 1024px the six controls wanted 926px of the row's 872: the row never wraps, its search gives
+  up room first and its client picker is at most a column and a half. Select-all is the table head's tick box; the phone keeps
+  Select. **The verdict reads what the filter shows** (each state as Pipeline reads it, `pipeStateStage`), its screen line naming the
+  month or range and *filtered*; with nothing late it says how many are on their way, *none late*.
+- **A neutral badge stays on its row** (design §6.7): More carries a count only when it waits on something (the Number audit's
+  unaccounted numbers, the duplicate check's), never how many credit notes or part weights there are.
+- **A client's dot is its worst flag** (`clientFlagsRead`: the To-do's tasks naming the client, not snoozed, that the role sees,
+  read when the view is drawn, and again when a client is saved or added) in the rule's short word (`CLIENT_FLAG_WORD`: *past terms*, *gone quiet*, *below cost*, *to
+  bill*, *past turnaround*…), every flag in its title; an inactive client keeps *Inactive*. The verdict counts the clients and
+  names the rule flagged worst, each client counted once a rule (*22 clients · 2 past terms*), one row on the phone (two rules had wrapped it on the owner's book);
+  how many are flagged and the next rules are its facts.
+- **Parts' tools are More's**: Part weights (its count a neutral badge on the row, redrawn when a weight is saved), Enter
+  weights, Derive weights (the Items Master's own word for `applyDerivedWeights`, which it runs since the QA chain of 14 Oct 2026: the row
+  had carried *Calc weights*' `calculateStdWeights`, kilos over pieces on KG lines, retired with it), Merge and Select
+  unused. *No weight* and *Unused* are one choice in the phone's Filter, so it shuts on the pick. A part's row is its description
+  and gauge, its end the rate over its kg a piece, else *No weight* (amber; a part billed by the piece only, the card's count and the filter
+  alike) or *Unused*.
+- **Performance's card is open on the desktop and shut on the phone**; its flags are coded tiles (up to four; a fifth keeps the
+  folded list under the picker) that open their tasks (each its amount for a role that sees money, else its count, else a dash; a role that does not see money
+  reads the realisation with no cost against it), and the card takes the worse of its realisation's tone and its worst flag's.
+  **Every fold under it is shut on both layouts**: the parts by Stopped, New, Steady and One-off (Stopped in warning while it holds a part, a
+  question, not a loss; an empty group plain), Materials worked, and By the hour (open while its form is). Open on the desktop, they had run its page to 7.79
+  screens on the owner's book. By the hour's parts are fact rows, each hint a row with its tone (`say`, `sub`; the sentence in its title).
+- **A client's page lists its flags and linked articles brief** (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`): the title, the
+  line and reason in the row's title and in the task's dialog. A flagged task's line had run to 150 characters there. **Its Money
+  panel is two facts a line** (where receivables start in the head, the two oldest age bands, *matched exactly* in the title), and
+  **the folded Turnaround card's head is its title and the verdict**, the target and the terms in the verdict's title: on the phone
+  the head had run under the chevron.
+- **The method went to a guide**: *Using the app: clients and sales* (new, on the office path after credit notes): what the flags
+  mean, Parts, the cadence rule, Materials worked, By the hour's arithmetic and what to look at, Sales' chances, the spare, Won,
+  the quotation rules and *To reprice*.
+- **Prospects' four tiles are its verdict's factors** (the chance per stage in the pipeline's title), and a prospect's line is two
+  facts (its stage and size; the follow-up, else why it was lost, else the work). **Quotations' reprice moves are the phone's card's
+  body** (as a Pulse question holds its moves, one card, the rest a tap away), **and the desktop's pane** while no quotation is
+  open (as Stock's *Spend and prices* is): under the card, two had put Quotations over its budget on the long book (1.64) and one
+  put the owner's book past a screen (1.00 → 1.10), and on the desktop the open card with its moves pushed the list below the
+  screen's foot (54px at 1280×800, P80). The card's line says how many clients are to reprice, and the card is in the worst tone of the moves it holds. A quotation's line is its days left
+  (else its date) and its rate, its date and items in its title. **Pulse's *Is the plant full?* carries *Spare a month*** (the last
+  90 days, as Prospects reads it, `prsSpare`) beside the period's own spare.
+- **Create's errors are keyed** (`validateInvoiceKeyed`: client, date, lines, a line's part and quantity, a line's reasons, and
+  the form's own state): one shows once its field is left (`createFieldLeft`, on a change in the form) or a save is tried
+  (`_tried`), a line's reason once any of its fields is left, the form's state at once; a removed line's marks move up with the
+  lines under it (`createLeftDrop`). Save is held only while an error shows; tapped with errors hidden, it shows them and says the
+  first.
+- **The measures**, phone screens, the worst of eleven days on the long book (the build before TM5, 54e54ce → TM5), and the owner's
+  book (same book, before → TM5):
+
+  | Screen | Long book | Owner's book |
+  |---|---|---|
+  | Office → Pipeline | 4.57 → **4.57** (chains 12 → 0) | 3.04 → **3.02** (chains 7 → 0) |
+  | Challans → Awaiting invoice | 3.71 → **3.71** (toolbar rows 2 → 1) | 1.99 → **1.93** (toolbar rows 3 → 1) |
+  | Challans → Invoiced | 2.34 → **2.27** (toolbar rows 3 → 2) | — |
+  | Invoices | 3.65 → **3.33** (toolbar rows 8 → 2) | 3.50 → **3.15** (toolbar rows 8 → 2) |
+  | Clients → Clients | 1.47 → **1.50** (toolbar rows 2 → 1) | 2.39 → **2.43** (chains 1 → 0, toolbar rows 2 → 1) |
+  | Clients → Parts | 1.00 → **1.00** (chains 3 → 0, toolbar rows 4 → 1) | 3.09 → **3.05** (chains 30 → 0, toolbar rows 4 → 1) |
+  | Clients → Performance | 2.69 → **2.56** (blocks 5 → 0, chains 9 → 0) | 5.72 → **3.23** (blocks 14 → 0, chains 57 → 0); the desktop's 7.79 → **3.69** |
+  | Sales → Prospects | 1.00 → **1.00** (toolbar rows 2 → 1) | 1.00 → **1.00** (toolbar rows 2 → 1) |
+  | Sales → Quotations | 1.00 → **1.00** (chains 3 → 0, toolbar rows 2 → 1) | 1.00 → **1.00** (toolbar rows 2 → 1) |
+  | Create | — (not in the walk) | 1.01 → **1.00** |
+
+  Every Office screen's budget went to its new measure, and no Office budget rose. **Two screens grew**: Clients by 0.03 of a
+  screen on the long book and 0.04 on the owner's, its card standing where a page-head line and a second toolbar row were, which
+  did not pay for all of it (said, I10); and Today → Needs you, 3.09 → 3.30 within its 3.5, because the To-do's challan task is red
+  at ten days now (TM5b) and on the long book it moved from Later into Now. **One budget rose, said in the PR**: Knowledge →
+  Library's length 3.5 → 4 (3.48 → 3.56), the new guide one more row; TM6 assembles Knowledge. The owner's book is measured in a
+  scratch harness that never enters the repository.
+
 ### TM6 — Across the app
 
 Files: `state.js`, `charts.js`, `payroll.js`, `floor.js`, `staff.js`, `today.js`, `report.js`, `areas.js`, `finance.js`, `bank.js`,
@@ -1041,7 +1364,7 @@ Files: `state.js`, `charts.js`, `payroll.js`, `floor.js`, `staff.js`, `today.js`
   - **On site against the roster**: `attOnSiteTone` (TM4a) is read by `attDayPanelHtml`, `renderAttHomeCard`, Floor's People hero,
     Staff → Day's head (`#attOnSite`), Needs you's floor card (`today.js`) and the report's staff section.
   - **Heads against the day's number, per area**: one function, **`areaNeedTone(heads, need)`** (short warning, met ok, over
-    info). It is read by Floor's line cards' staffing word, the attendance panel's *By area*, Day's board heads and Areas.
+    info). It is read by Floor's line cards' staffing word, the attendance panel's *By area* and its *On the floor* tile (the floor's heads against its whole number), Day's board heads and Areas.
   - **Owed by age**: `FIN_AGE_TONE` / `figToneAge`, wherever owed is drawn: Receivables, Money's Overview, Pulse's Money card and
     cash question, Pipeline's *Owed to us*, a client's Money panel, the statement of account.
   - **Below cost**: one judge (`figToneAgainst(realisation, liveCost, 5)`) on Pulse, Stats → By client, Performance and Sales.
@@ -1064,7 +1387,9 @@ Files: `state.js`, `charts.js`, `payroll.js`, `floor.js`, `staff.js`, `today.js`
   - Each row has a dot and a word by its status: due again warning, never taught info, up to date ok.
 - **TM6e. The last long words and long toolbars.**
   - Every note over 120 characters left on any screen (P195's `blocks`) becomes one line or moves to its screen's guide (the
-    guide's next `version`).
+    guide's next `version`). TM4 left Floor's in their folds, measured on the owner's book: the labour card's three on Day and
+    Week (how much is recorded, the variable labour by area, the extra's share), Pay's on the bank's cash draws, and Stock's on
+    the zinc market. Month's are the register page's own notes, and Load & bills' the load's own note: kept as written.
   - Every phone toolbar over two rows takes TM1's helpers.
   - After this, P195's `blocks` budget is zero everywhere and `toolbarRows` is two. The only exceptions are the ones the report
     names (§3b): a note shown as it was typed, or a guide's own text.
@@ -1085,6 +1410,75 @@ Files: `state.js`, `charts.js`, `payroll.js`, `floor.js`, `staff.js`, `today.js`
 its tokens under it on the phone; Training's verdict and row tones; every screen of §2 on `ONE_LOOK` and P197 green on both
 layouts; no `inv-pagehead-meta` in `split/`. **Spec P194** (`p194-load-across(.desktop).spec.ts`); P195's budgets at their floor;
 P197 complete.
+
+**As built (10 Oct 2026).** Where the text above left a choice open, or the build found otherwise:
+- **The judges.** `areaNeedTone(heads, need)` and `areaNeedWord` (state.js: short a warning, met ok, over info, half a head
+  either way the number) are read by Floor's line cards, the attendance panel's *By area*, Day's board and *Needed today*, and
+  Areas, **whose rows read short in danger and over in warning until now**. `figToneOwed(days, loose)` and `finOwedTone(days)`
+  (owed by the age of its oldest open invoice, never red while a receipt is unplaced, the owed90 rule's reason) are read by
+  Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline's *Owed to us*, a client's Money panel and the
+  statement. `attOnSiteTone` (TM4a) is read by Needs you's floor card and the day's report too. **The reprice move takes the
+  client's tone on Stats** (`figToneAgainst(net, full cost, 5)`: red where Stats draws it in danger, amber within 5%); it had been
+  red at any loss on the variable cost.
+- **The period to date** (`opts.toDate` on `chartLine`, `chartLines`, `chartBars`, `chartStack` and `chartSpark`; `chartToDateAt(keys, current)` finds it,
+  `finMonthToDate` gives Money's: the statement's last month unless the statement covers it to its end, the invoices' running
+  month). A label too near the period's own is not drawn (`_chartLabelShown`), since *to date* is longer.
+- **History**: the verdict card (`historyVerdictHtml`), then one row on both layouts (the search; Filter, inline on the desktop with
+  the range a dialog of its own, as Invoices'; More: Export CSV). **A floor day's row is its count** (*Attendance recorded: 17
+  present, 6 absent, 9.0 h OT*): where everybody stood is the row's whole (its title, the desktop's pane, the search, the CSV) and
+  the day's own board a tap away (`historyDayJump`, `invHistoryJumpDay`: People → Attendance on that day, for a role that opens
+  it); seven areas had run it past two lines on the owner's book. **A change's row is at most 110 characters** (`CHG_ROW_MAX`): a
+  void or cancel says why in the words typed (*Someone voided production entry …: "Incorrect part number"*), and a record's name
+  too long for the row loses its last parts, said with "…", whole in the title, the pane and the CSV. A production entry is named
+  by its line as the floor names it (*VAT A1*). The search reads a row's whole as well as its words.
+- **Knowledge**: every list view leads with its card and one row (the search; Filter: the kind, and for a writer drafts and
+  waiting, a dialog with its tokens on the phone, inline on the desktop; **Write** the primary; More: Export and Import). **Start**
+  draws only the cards that hold something (one, *Nothing waits on you*, when none does); a card says its count in its line and a
+  fact only where it is news (the oldest's day, the first review due), and on the phone the first card opens on its rows and the
+  rest wait shut (all open on the desktop): a figure over each line, a filler fact and every card open had put Start a quarter of
+  a screen past the lists it replaced on the long book. A row's summary is cut at a word near 90 characters, whole in its title.
+  A path's head says how many hands it is for. *Using the app: knowledge* says what Start, Filter and More hold (version 2).
+- **Challans → Invoiced**: its card (`imInvoicedVerdictHtml`: *N challans invoiced in Oct 2026 · ₹X*, in the tone of the oldest of
+  the month's challans still waiting, *N of the month still awaiting invoice* its fact, *by challan date*), then one row: the
+  month's ‹ › inside it (`imMonthPagerHtml`, `inv-tb-step`), Filter, and More holding Add challan, Scan a challan and Duplicate
+  check on this view (Scan a challan came out on 13 Oct 2026, and the card folds shut on the phone, its fact under its line). **Reports' Print is its action bar's**, under the sheet, as Create's Save is: two toolbar rows on the phone
+  (the kind, the period).
+- **The long words**, each a line or two facts, the method to its screen's guide: the day board's row (the tier, then the day in
+  one clause: *Monthly · OT 2 h*, *Hourly · Absent*; present is the pressed P and is not said); the labour card's three paragraphs
+  and Pay's on the bank's cash draws (*Using the app: People*, version 3; *pay*, version 5); Money's forecast's *What it rests on*,
+  a fold of fact rows each with its sentence in its title; Pulse's cash question; the insights' month below every month before and
+  the account below its variable cost (the rest in their figures); the zinc card's age and source; Power's rows (a cut's why, the
+  place tiles, the causes, fixes and units; a unit and its line one fact, *Rectifier 1 (VAT A1)*; the cause task's line); the
+  change log's text; a folded To-do group's line.
+- **The page-head line is gone** (`inv-pagehead-meta` and its rule): no screen drew it after TM5. HR-3's count is 721.
+- **The closed list** (design §6.28): the census over the owner's own book, both layouts, found five looks the long book never drew:
+  the Planner board's rule between lanes (two, added to `LOOKS`), and three where a box wore two components at once (a register
+  day's row filled as well as its cells; the EXTRA fold's lines padded as a panel's body), now each its own component. Two of TM1's
+  looks nothing draws on either book any more came off. 41 looks, each named with what wears it.
+- **The measures**, phone screens, the worst of eleven days on the long book (TM5's build → TM6), and the owner's book (same book,
+  before → TM6):
+
+  | Screen | Long book | Owner's book |
+  |---|---|---|
+  | History | 3.94 → **3.61** (chains 4 → 0, toolbar rows 5 → 1) | 4.29 → **4.04** (blocks 2 → 0, chains 21 → 0, toolbar rows 4 → 1) |
+  | Knowledge → Start | 1.61 → **1.64** | 1.62 → **1.39**; the desktop's 1.34 → **1.15** |
+  | Knowledge → Library | 3.56 → **3.40** (toolbar rows 5 → 1) | 5.50 → **5.34** (blocks 1 → 0, toolbar rows 5 → 1) |
+  | Knowledge → Troubleshoot | 1.00 → **1.00** (chains 1 → 0, toolbar rows 2 → 1) | 1.53 → **1.62** (toolbar rows 2 → 1) |
+  | Knowledge → Records | 1.03 → **1.00** (toolbar rows 4 → 1) | 3.99 → **3.91** (blocks 15 → 0, toolbar rows 4 → 1) |
+  | Knowledge → Training | 2.55 → **2.69** (chains 11 → 0) | 3.20 → **3.33** (chains 15 → 0) |
+  | Challans → Invoiced | 2.27 → **2.39** (toolbar rows 2 → 1) | 3.14 → **3.26** (toolbar rows 2 → 1) |
+  | Today → Reports | 2.89 → **2.86** (toolbar rows 4 → 2) | 3.11 → **3.08** (toolbar rows 4 → 2) |
+  | Today → Needs you, Pulse | chains 2 → 0, 1 → 0 | blocks 1 → 0 and chains 3 → 0, each |
+  | People → Attendance, Week, Pay | blocks 1, 3, 1 → 0 | blocks 2, 3, 1 → 0; Attendance's chains 17 → 0 |
+  | Power → Cuts, Causes | chains 2 → 0 each; Causes 1.56 → **1.54** | chains 2, 3 → 0; Causes 1.74 → **1.72** |
+  | Money → Overview | blocks 1 → 0 | blocks 1 → 0; the desktop's 5.50 → **5.27** |
+
+  **No note over 120 characters and no chain of three facts is left on any screen of either book, and no phone toolbar is over two
+  rows.** Every budget went to its new measure and **none rose**. **Three screens grew by the card they gained** (said, I10):
+  Challans → Invoiced, 0.12 on both books, its card where a second toolbar row was; Knowledge → Training, 0.14 on the long book and
+  0.13 on the owner's (0.14 on the desktop); Troubleshoot, 0.09 on the owner's book. Knowledge → Start is 0.03 longer on the long
+  book, where every card holds one row, and 0.23 shorter on the owner's. The owner's book is measured in a scratch harness that
+  never enters the repository.
 
 ### TM7 — Docs, verification, the PR
 
@@ -1123,7 +1517,7 @@ P197 complete.
 | P185 `p185-today-map(.desktop).spec.ts` | TM2 | Needs you's add / Done / Snoozed / Learnt; the launch URLs; Pulse's period switch, the moved cards folding to their verdicts on the phone; Stats' three tabs, By client's and Cost's verdicts and Cost's source badges; Trends' head; Pipeline's dispatch cycle; the Planner's Moves, its verdict card on every view (the goal in it) and its rows on the phone; the presets; the report fitted at 393 px; TM2's redirect rows |
 | P186 `p186-money-map.spec.ts` | TM3a, TM3c | Money's row; Payments' bills with and without a statement, and its order; the bills task; Record and New from the Credit notes dialog; the badge and CN marks; Live cost's link and no bills list; the Overview's verdict and folds; Receivables' rows; GST's rows on the phone; the redirect row |
 | P187 `p187-cheques-in-hand.spec.ts` | TM3b | record, owed falls, deposit by number takes over once and places the client, an amount offer, the held task at 3 and 7 days, void, export and import merge, the statement of account's line |
-| P188 `p188-floor-map(.desktop).spec.ts` | TM4 | Floor's Overview per role and its line cards worst first, People's switch and moved charts (bank series gated by money), Day's EXTRA rows folded, Week's, Month's and Areas' verdicts, Pay's change line, Roster's *To watch*, Production (Entries' thirty and badges, In plant's exceptions first, Lines toned, Equipment's primary), Stock (one toolbar row on the phone, fold and pane), Power (the order on Cuts, Causes' tiles from three cuts, the case fitted), TM4's redirect rows |
+| P188 `p188-floor-map(.desktop).spec.ts` | TM4 | Floor's Overview per role and its line cards worst first, People's switch and moved charts (bank series gated by money), Day's EXTRA rows folded, Week's, Month's and Areas' verdicts, Pay's change line, Roster's *To watch* and its check-ins due filtering the rows (none a badge), Production (Entries' thirty and badges, In plant's exceptions first, Lines toned, Equipment's primary), Stock (one toolbar row on the phone, fold and pane), Power (the order on Cuts, Causes' tiles from three cuts, the case fitted), TM4's redirect rows |
 | P193 `p193-office-load(.desktop).spec.ts` | TM5 | Pipeline's verdict and coded stages; the challan row and task in one tone at 4, 5 and 10 days; Invoices' phone toolbar (every control reachable, the audit's badge on More) and its verdict; Clients' dots and words; Parts' callout and toolbar; Performance's hero and folds; Sales' moves and the one spare; Create's errors only after a try |
 | P194 `p194-load-across(.desktop).spec.ts` | TM6 | each fact of TM6a in one tone wherever it is drawn (warning and danger books); the period to date in every chart that has one; History's phone toolbar; Training's verdict and row tones |
 
@@ -1213,7 +1607,11 @@ Prospects' spare: `p176-prospects`.
 **TM6, across the app.** History's filters on the phone: `p14-stats-history`, `p141-changelog`, `p29-floor-history`,
 `p74-history`. Training: `p154-knowledge`. A chart's title or label read by a spec gains *to date*: `p73-stats`, `p102-figures`,
 `p59-finance`, `p65-overviews`, `p88-prod-links`, `p115-power`. Tones made one: `p102-figures`, `p119-staff-board`,
-`p138-floor-day`, `p178` (a tone a spec pinned on one screen now comes from the shared function).
+`p138-floor-day`, `p178` (a tone a spec pinned on one screen now comes from the shared function). **As built, the specs rewritten
+were** `p14-stats-history`, `p141-changelog` (both layouts: a change's row, a record's name joined by commas), `p29-floor-history` (a
+floor day's areas in its whole, the day opened from its row), `p74-history`, `p154-knowledge`, `p155-kb-qa` (Filter and the
+tokens; a path's head), `p157-confidence` (the insight's loss as a range in two facts), `p55-im` (Invoiced's count and amount in its card), `p59-finance`
+(invoiced against received drawn to date) and `p72-staff` (the day board's row); the others named above passed as they stood.
 
 **One look, by step.** TM2: `p73-stats`, `p105-stats-fold`, `p128-qa-intel`, `p162-planner`, `p163-planner-qa` (the goal callout
 and the heads-up tiles now in the verdict card). TM4: `p71-stock` and `p125-qa-stock` (the status tiles in Stock's verdict card),

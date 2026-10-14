@@ -61,14 +61,15 @@ test.describe('P141 desktop: the change log', () => {
     await g(page, "S.stock.entries.find(function(e) { return e.id === 'u3'; }).voided = { at: Date.now(), by: '' }; saveState()");
     await g(page, "S.changeLogDropped = { n: 1204, before: Date.now() - 200 * 86400000 }");
     await switchTab(page, 'pageHistory');
-    await page.locator('#historyToolbar [data-action="invHistoryType"][data-type="change"]').click();
+    // The kind of event is a select in the toolbar's row (the tab map, TM6c).
+    await page.locator('#historyToolbar select#historyType').selectOption('change');
     const table = page.locator('#historyList table.inv-table.inv-table-history');
     await expect(table.locator('thead th')).toHaveText(['Time', 'Event', 'Kind', 'Amount']);
     const rows = table.locator('tr[data-ev="chg"]');
     await expect(rows).toHaveCount(2);
-    await expect(rows.nth(0)).toContainText('Ravi voided stock entry Nitric acid · used · 2 L');
+    await expect(rows.nth(0)).toContainText('Ravi voided stock entry Nitric acid, used, 2 L');
     await expect(rows.nth(0).locator('.inv-dot-danger')).toHaveText('Voided');
-    await expect(rows.nth(1)).toContainText('Asha changed client ALPHA FORGINGS PRIVATE LIMITED · notes — → Pays by cheque');
+    await expect(rows.nth(1)).toContainText('Asha changed client ALPHA FORGINGS PRIVATE LIMITED: notes — → Pays by cheque');
     await expect(rows.nth(1).locator('td').first()).toContainText('on Office PC');
     await expect(page.locator('#historyList [data-chg-dropped]')).toHaveText(/^1,204 older changes were dropped to keep the book small/);
     await expect(page.locator('#historyToolbar select#historyWho option')).toHaveText(['Everyone', 'Asha', 'Ravi', 'No ID']);

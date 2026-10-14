@@ -33,13 +33,13 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await load(page, { todo: { tasks: [{ id: 'TD-a', text: 'Late one', due: iso(-1), note: '', link: null, createdAt: 1, doneAt: null }], snoozes: {} } } as any);
     await expect(page.locator('.inv-side-item[data-ws="today"] [data-ws-count]')).toHaveText('1');
     await expect(page.locator('.inv-navbar')).toBeHidden();
-    await switchTab(page, 'pageTodo');
-    // A page Today holds without a tab of its own marks Today's door.
+    // The tasks are Needs you's (the tab map, TM2a): Today's door is lit and its first view holds them.
+    await switchTab(page, 'pageHome');
     await expect(page.locator('.inv-side-item[data-ws="today"]')).toHaveClass(/inv-side-item-on/);
-    await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Late one');
+    await expect(page.locator('#homeNeeds [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
     await page.locator('#todoNew').press('Enter');
-    await expect(page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Desk task' })).toHaveCount(1);
+    await expect(page.locator('#homeNeeds [data-todo="mine"]').filter({ hasText: 'Desk task' })).toHaveCount(1);
     expect((await readStoredState(page)).todo.tasks).toHaveLength(2);
   });
 
@@ -95,8 +95,12 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
       creditNotes: [{ id: 'CN-1', cnNumber: '007', displayNumber: 'CN/007/26-27', clientId: 2, clientName: 'PIECE CLIENT',
         status: 'active', invoiceIds: ['I1'], periodFrom: iso(-20), periodTo: iso(-20), discountPct: 2, createdAt: 1 }],
     } as any);
-    await openPulse(page);
-    await page.locator('#homeTodoCard [data-action="invTodoOpenApp"]').filter({ hasText: 'Credit note due' }).click();
+    // The task on Needs you, where the tasks are (Pulse's To-do card is off in every preset since the tab map, TM2c).
+    await switchTab(page, 'pageHome');
+    await page.locator('#wsTabs [data-v="needs"]').click();
+    const task = page.locator('#homeNeeds [data-action="invTodoOpenApp"][data-key="cn:2"]');
+    await task.evaluate(b => { const d = b.closest('details'); if (d) (d as HTMLDetailsElement).open = true; });
+    await task.click();
     await page.locator('.inv-dialog [data-action="invTodoGoApp"]').click();
     await expect(page.locator('#pageRegister.inv-page-active')).toBeVisible();
     expect(await g(page, `Object.keys(_regSelected).sort().join(',')`)).toBe('I2,I3');

@@ -40,7 +40,7 @@ function renderAddPartOption(idx, idPrefix, query, kind) {
     ' data-ac-new="1" data-action="invAddItemInline" data-kind="' + kind + '"' +
     ' data-idx="' + idx + '" data-q="' + escHtml(query) + '">' +
     '<span class="inv-menu-title">Add &ldquo;' + escHtml(query) + '&rdquo;</span>' +
-    '<span class="inv-menu-meta">New item in the master</span></div>';
+    '<span class="inv-menu-meta">New part in Parts</span></div>';
 }
 
 /* Render the suggestion rows for one part input. Shared by the invoice form

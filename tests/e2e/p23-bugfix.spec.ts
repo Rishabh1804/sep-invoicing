@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, setFilter } from './fixtures';
 
 /*
  * Regressions from the bug sweep.
@@ -103,7 +103,7 @@ test('P23: changing the material filter drops the selection it hides', async ({ 
   await page.locator('[data-action="invToggleIM"][data-id="IM-A"]').first().click();
   await tickIM(page, 'IM-A-0');
 
-  await page.locator('#imClientFilter').selectOption('2');
+  await setFilter(page, '#imClientFilter', '2');
 
   const count = await page.evaluate('Object.keys(_imSelected).length');
   expect(count).toBe(0);

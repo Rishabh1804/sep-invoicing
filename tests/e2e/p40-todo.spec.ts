@@ -1,12 +1,11 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse, openWidget } from './fixtures';
 
-// P40: the To-do tab, its Home card, and the payload the Windows widget draws.
-// Two kinds of task, always labelled: MINE (typed, ticked, never deleted) and
-// APP (raised from the book, cleared by fixing the thing, snoozed only against
-// the figures it was raised on). The widget host itself only exists on
+// P40: the To-do (Today → Needs you since the tab map, TM2a: the To-do page joined it), its Pulse card, and the payload the
+// Windows widget draws. Two kinds of task, always labelled: MINE (typed, ticked, never deleted) and APP (raised from the book,
+// cleared by fixing the thing, snoozed only against the figures it was raised on). The widget host itself only exists on
 // Windows; what is tested here is everything the app hands it and takes back.
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
@@ -53,67 +52,74 @@ function stockRunningOut() {
 test.describe('P40: To-do', () => {
   test('adds, ticks and reopens a task of your own; nothing is deleted', async ({ page }) => {
     await load(page, base());
-    await switchTab(page, 'pageTodo');
+    // Today opens on Needs you, which holds the tasks.
+    await expect(page.locator('#homeNeeds')).toBeVisible();
     await page.locator('#todoNew').fill('Ask about CN/001');
     await page.locator('#todoNew').press('Enter');
-    const row = page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' });
+    // Undated, it is this week's, open while nothing is red.
+    const row = page.locator('#homeNeeds [data-tdy-group="week"] [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' });
     await expect(row).toHaveCount(1);
     // Enter leaves the box ready for the next one.
     await expect(page.locator('#todoNew')).toBeFocused();
     await expect(page.locator('#todoNew')).toHaveValue('');
 
     await row.locator('[data-action="invTodoToggle"]').click();
-    await expect(page.locator('.inv-viewtab[data-v="done"]')).toContainText('Done 1');
+    const done = page.locator('#homeNeeds [data-card="done"]');
+    await expect(done.locator('.inv-panel-count')).toHaveText('1');
     let st = (await readStoredState(page)).todo;
     expect(st.tasks).toHaveLength(1);
     expect(st.tasks[0].doneAt).toBeGreaterThan(0);
 
-    await page.locator('[data-action="invTodoFoldDone"][data-v="done"]').click();
-    await expect(page.locator('.inv-viewtab[data-v="done"]')).toHaveAttribute('aria-selected', 'true');
-    await page.locator('#todoContent [data-done] [data-action="invTodoToggle"]').click();
+    // Done is folded at the foot; its tick reopens the task.
+    await done.locator(':scope > summary').click();
+    await done.locator('[data-done] [data-action="invTodoToggle"]').click();
     st = (await readStoredState(page)).todo;
     expect(st.tasks[0].doneAt).toBeNull();
-    await page.locator('[data-action="invTodoFoldDone"][data-v="open"]').click();
-    await expect(page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' })).not.toHaveAttribute('data-done', /.*/);
+    await expect(page.locator('#homeNeeds [data-card="done"]')).toHaveCount(0);
+    await expect(page.locator('#homeNeeds [data-todo="mine"]').filter({ hasText: 'Ask about CN/001' })).not.toHaveAttribute('data-done', /.*/);
   });
 
-  test('a task due yesterday is late: red, counted on Today, and on Home', async ({ page }) => {
+  test('a task due yesterday is late: red, counted on Today, first on Needs you, and on Pulse’s card', async ({ page }) => {
+    // Pulse's To-do card is hidden by every preset since the tab map (TM2c): a layout of the owner's own shows it.
+    await page.addInitScript(() => { try { localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', order: ['todo'], hidden: {}, wide: {} })); } catch { /* */ } });
     await load(page, base({ todo: { tasks: [task('TD-a', 'Later thing'), task('TD-b', 'Check the nitric count', iso(-1))], snoozes: {} } } as any));
     // Today carries every red row, a late task of your own included (More's count before DIRECTION_B); a task of your
     // own jumps nowhere, so no other workspace counts it.
     await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toHaveText('1');
     for (const ws of ['office', 'floor', 'money']) await expect(page.locator(`.inv-navbar [data-ws-count="${ws}"]`)).toBeHidden();
-    await openPulse(page);
+    await openWidget(page, 'todo');
     const home = page.locator('#homeTodoCard');
     await expect(home.locator('[data-todo]').first()).toContainText('Check the nitric count');
     await expect(home.locator('[data-todo]').first()).toContainText('Yesterday');
     await expect(home.locator('[data-todo="mine"] .inv-badge').first()).toBeVisible();
 
-    await switchTab(page, 'pageTodo');
-    await expect(page.locator('#todoContent [data-todo][data-tone="red"]')).toContainText('Check the nitric count');
-    await expect(page.locator('#todoContent .inv-pagehead-meta')).toContainText('2 open');
-    await expect(page.locator('#todoContent .inv-pagehead-meta')).toContainText('1 late');
+    await switchTab(page, 'pageHome');
+    await page.locator('#wsTabs [data-v="needs"]').click();
+    const now = page.locator('#homeNeeds [data-tdy-group="now"]');
+    await expect(now.locator('[data-todo][data-tone="red"]')).toContainText('Check the nitric count');
+    await expect(now.locator('[data-tdy-count]')).toHaveText('1');
+    await expect(page.locator('#homeNeeds [data-tdy-group="week"] [data-tdy-count]')).toHaveText('1');
   });
 
   test('stock running out raises an App task; a snooze holds until the figures change', async ({ page }) => {
     await load(page, base({ stock: stockRunningOut() } as any));
-    await switchTab(page, 'pageTodo');
-    const row = page.locator('#todoContent [data-action="invTodoOpenApp"]').filter({ hasText: 'Order Q558' });
-    await expect(row).toHaveCount(1);
-    await expect(row).toHaveAttribute('data-tone', 'red');
-    await expect(row).toContainText('8 KG left');
+    const card = () => page.locator('#homeNeeds [data-tdy-task="stock:SI-1"]');
+    await expect(card()).toHaveCount(1);
+    await expect(card()).toHaveAttribute('data-tone', 'red');
+    await expect(card()).toContainText('Order Q558');
+    await expect(card()).toContainText('8 KG left');
     // An App task has no tick box: it clears itself.
-    await expect(row.locator('.inv-check, [data-action="invTodoToggle"]')).toHaveCount(0);
+    await expect(card().locator('.inv-check, [data-action="invTodoToggle"]')).toHaveCount(0);
 
-    await row.click();
+    await card().locator('[data-action="invTodoOpenApp"]').click();
     await expect(page.locator('[data-todo-clears]').first()).toContainText('Clears itself');
     await page.locator('[data-action="invTodoSnooze"][data-v="sig"]').click();
-    await expect(page.locator('#todoContent [data-action="invTodoOpenApp"]').filter({ hasText: 'Order Q558' })).toHaveCount(0);
-    await expect(page.locator('#todoContent [data-todo-sec="snoozed"] .inv-panel-head')).toContainText('Snoozed 1');
+    await expect(card()).toHaveCount(0);
+    await expect(page.locator('#homeNeeds [data-card="snoozed"] .inv-panel-count')).toHaveText('1');
 
     // The line runs out: the figures the snooze was granted on no longer hold.
-    await g(page, `S.stock.entries.push({ id: 'SE-4', itemId: 'SI-1', kind: 'used', qty: 8, date: '${todayIso()}', at: 4, seq: 1, days: 1 }); saveState(); renderTodo();`);
-    await expect(page.locator('#todoContent [data-action="invTodoOpenApp"]').filter({ hasText: 'Order Q558' })).toContainText('Out');
+    await g(page, `S.stock.entries.push({ id: 'SE-4', itemId: 'SI-1', kind: 'used', qty: 8, date: '${todayIso()}', at: 4, seq: 1, days: 1 }); saveState(); todoRefreshViews();`);
+    await expect(card()).toContainText('Out');
   });
 
   test('a credit-note batch past 7 days raises a task that opens the register with the batch ticked', async ({ page }) => {
@@ -129,13 +135,14 @@ test.describe('P40: To-do', () => {
       creditNotes: [{ id: 'CN-1', cnNumber: '007', displayNumber: 'CN/007/26-27', clientId: 2, clientName: 'PIECE CLIENT',
         status: 'active', invoiceIds: ['I1'], periodFrom: iso(-20), periodTo: iso(-20), discountPct: 2, createdAt: 1 }],
     } as any));
-    await switchTab(page, 'pageTodo');
-    const row = page.locator('#todoContent [data-action="invTodoOpenApp"]').filter({ hasText: 'Credit note due: PIECE CLIENT' });
+    const row = page.locator('#homeNeeds [data-tdy-task="cn:2"]');
+    await expect(row).toContainText('Credit note due: PIECE CLIENT');
     await expect(row).toContainText('3 invoices since CN/007/26-27');
     await expect(row).toContainText('₹60.00');
-    await expect(row).toContainText('Batch spans 10 days');
 
-    await row.click();
+    await row.locator('[data-action="invTodoOpenApp"]').click();
+    await expect(page.locator('[data-todo-facts]')).toContainText('Batch spans');
+    await expect(page.locator('[data-todo-facts]')).toContainText('10 days');
     await page.locator('.inv-dialog [data-action="invTodoGoApp"]').click();
     await expect(page.locator('#pageRegister.inv-page-active')).toBeVisible();
     const sel = await g(page, `Object.keys(_regSelected).sort().join(',')`);
@@ -144,7 +151,6 @@ test.describe('P40: To-do', () => {
 
   test('a task edited with a due date and a link opens what it links to', async ({ page }) => {
     await load(page, base());
-    await switchTab(page, 'pageTodo');
     await page.locator('#todoNew').fill('Revise rate');
     await page.locator('[data-action="invTodoNew"]').click();
     await expect(page.locator('#todoText')).toHaveValue('Revise rate');
@@ -157,7 +163,7 @@ test.describe('P40: To-do', () => {
     const t = (await readStoredState(page)).todo.tasks[0];
     expect(t.due).toBe(iso(1));
     expect(t.link).toEqual({ kind: 'client', id: '1', label: 'TEST CLIENT KG' });
-    const row = page.locator('#todoContent [data-todo="mine"]').filter({ hasText: 'Revise rate' });
+    const row = page.locator('#homeNeeds [data-todo="mine"]').filter({ hasText: 'Revise rate' });
     await expect(row).toContainText('Tomorrow');
     await row.locator('[data-action="invTodoGo"]').click();
     await expect(page.locator('#ceditName')).toHaveValue('TEST CLIENT KG');
@@ -193,13 +199,20 @@ test.describe('P40: To-do', () => {
 
   test('the widget opens the app on a task, or on the box to add one', async ({ page }) => {
     await load(page, base({ todo: { tasks: [task('TD-a', 'Check the nitric count')], snoozes: {} } } as any));
-    await page.goto('/?tab=pageTodo&todo=' + encodeURIComponent('open:m:TD-a'));
+    // The address the service worker opens (sw.js widgetOpen), on Needs you.
+    await page.goto('/?tab=pageHome&v=needs&todo=' + encodeURIComponent('open:m:TD-a'));
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
     await expect(page.locator('#todoText')).toHaveValue('Check the nitric count');
+    await expect(page.locator('#homeNeeds')).toBeVisible();
 
+    // An older build's address still lands there (docs/TAB_MAP.md §5).
     await page.goto('/?tab=pageTodo&todo=add');
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
     await expect(page.locator('#todoNew')).toBeFocused();
+    await expect(page.locator('#homeNeeds')).toBeVisible();
+    const sw = readFileSync('sw.js', 'utf8');
+    expect(sw).toContain("'./?tab=pageHome&v=needs&todo='");
+    expect(JSON.parse(readFileSync('manifest.json', 'utf8')).shortcuts.map((x: any) => x.url)).toContain('./?tab=pageHome&v=needs');
   });
 
   test('manifest, template and worker agree on the widget', async () => {

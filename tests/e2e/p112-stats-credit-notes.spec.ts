@@ -28,8 +28,10 @@ test('a batch rebate comes off its invoices in proportion, and every Stats figur
   // Tonnage is untouched; realisation falls by the credit.
   expect(await g(page, 'weighLines(statsInvoices()).kg')).toBe(200);
   expect(await g(page, 'Math.round(weighLines(statsInvoices()).revKnown / weighLines(statsInvoices()).kg * 100) / 100')).toBe(9.8);
-  await switchTab(page, 'pageStats');
-  await expect(page.locator('#pageStats [data-callout="credit-notes"]')).toContainText('₹40.00 taken off');
+  // The headline is Trends' verdict card (the tab map, TM2b): the revenue badged net of notes, and a line saying how much.
+  await openStatsTab(page, 'trends');
+  await expect(page.locator('#statsHeadline [data-callout="credit-notes"]')).toContainText('₹40.00 taken off');
+  await expect(page.locator('#statsHeadline [data-tile="revenue"] .inv-badge')).toHaveText('net of notes');
 });
 
 test("a note against one invoice comes off that one; one naming no invoice in the book is said, not guessed", async ({ page }) => {
@@ -37,8 +39,9 @@ test("a note against one invoice comes off that one; one naming no invoice in th
     note('4', { againstInvoice: 'SEP/OLD-00443', invoiceIds: [], taxableValue: 75 })]));
   const net: any = await g(page, 'statsInvoices().map(function(i) { return i.taxableValue; })');
   expect(net).toEqual([1000, 960]);
-  await switchTab(page, 'pageStats');
-  await expect(page.locator('#pageStats [data-callout="credit-notes"]')).toContainText('1 note (₹75.00) name no invoice in the book');
+  await openStatsTab(page, 'trends');
+  await expect(page.locator('#statsHeadline [data-callout="credit-notes"]')).toContainText('1 note (₹75.00) name no invoice in the book');
+  await expect(page.locator('#statsHeadline [data-tile="revenue"] .inv-badge-warning')).toHaveText('net of notes');
 });
 
 // The trend keeps its own reach whatever the period chip says, and shades the period on it (owner, 30 Sep 2026: option 1).

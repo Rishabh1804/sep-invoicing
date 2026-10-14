@@ -108,7 +108,7 @@ function pplMotivation(w, st, labMemo) {
   var sig = [], today = localDateStr(), pen = 0;
   var add = function(key, word, weight) { sig.push({ key: key, word: word, weight: weight }); pen += weight; };
   try {
-    var carry = payCarried(w, payPeriodOf(w, today), labMemo || payLabMemo());
+    var carry = payOverdue(w, today, labMemo || payLabMemo());
     if (carry.amount >= 1) add('owed', formatCurrency(carry.amount) + ' owed, carried from ' + (carry.periods || 1) + ' period' + (carry.periods === 1 ? '' : 's'), 20);
   } catch (e) { /* a pay record that will not read says nothing here */ }
   var wk = attWeekStartOf(today), adv = 0;
@@ -461,12 +461,13 @@ function pplGlanceHtml(w, memo) {
     stat('reliability', 'Reliable', st.reliability, pplScoreTone(st.reliability, st.firm), st.reliability == null ? '—' : String(st.reliability)) +
     stat('consistency', 'Steady', st.consistency, pplScoreTone(st.consistency, st.firm), st.consistency == null ? '—' : String(st.consistency)) +
     stat('workload', 'OT 4 wk', Math.min(100, st.ot28 / 60 * 100), wt, formatNum(st.ot28, 0) + ' h') + '</span>';
-  var meta = [pplTenureWords(st.tenure), skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', '), st.firm ? '' : st.marked + ' days marked'].filter(Boolean).join(' · ');
-  if (pplOwner()) {
-    var mo = pplMotivation(w, st, memo);
-    meta += ' · ';
-    h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>';
-  } else h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) + '</span>';
+  // Two facts (the tab map §3b): how long here (and the days marked while that is too few to judge by), then the top skills; the
+  // owner's motivation index follows them as a status, a dot and a word, never a third fact after a "·".
+  var meta = [pplTenureWords(st.tenure) + (st.firm ? '' : ', ' + st.marked + ' marked'),
+    skills.map(function(a) { return areaLabel(a) + ' ' + w.skills[a] + '/5'; }).join(', ')].filter(Boolean).join(' · ');
+  var mo = pplOwner() ? pplMotivation(w, st, memo) : null;
+  h += '<span class="inv-row-meta inv-row-wrap" data-ppl-glance-meta>' + escHtml(meta) +
+    (mo ? (meta ? ' ' : '') + '<span data-ppl-glance-mo>' + uiDot(mo.tone, escHtml('Motivation ' + mo.score + (mo.firm ? '' : ', not firm'))) + '</span>' : '') + '</span>';
   return h;
 }
 
@@ -486,7 +487,7 @@ TODO_RULE_FNS.pplCheckin = function() {
     sub: due.slice(0, 4).map(function(w) { return w.name; }).join(', ') + (due.length > 4 ? ' and ' + (due.length - 4) + ' more' : ''), why: 'People · the motivation index',
     facts: due.slice(0, 8).map(function(w) { var ci = pplLastCheckin(w); return [w.name, ci ? 'last ' + formatDate(ci.on) : 'never']; }),
     clears: 'Clears itself as each is checked in (their record, Check in).', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
-    sig: due.map(function(w) { return w.id; }).join(',') }];
+    staffIds: due.map(function(w) { return w.id; }), sig: due.map(function(w) { return w.id; }).join(',') }];
 };
 TODO_RULES.push(['pplWatch', 'People: motivation low, on firm figures']);
 TODO_CHECK_DEFAULTS.pplWatch = true;
@@ -499,6 +500,6 @@ TODO_RULE_FNS.pplWatch = function() {
         sub: x.mo.sig.length ? x.mo.sig[0].word : 'the check-in', why: 'People · the motivation index',
         facts: x.mo.sig.map(function(s) { return [s.word, '−' + s.weight]; }).concat(x.mo.checkin ? [['Check-in ' + formatDate(x.mo.checkin.on), x.mo.checkin.score + ' of 5' + (x.mo.checkin.note ? ': ' + x.mo.checkin.note : '')]] : []),
         clears: 'Clears itself when the index is 50 or more: a signal resolved, or a better check-in.', go: { kind: 'staffRoster' }, goLabel: 'Open the roster',
-        sig: x.w.id + ':' + x.mo.score };
+        staffId: x.w.id, score: x.mo.score, sig: x.w.id + ':' + x.mo.score };
     });
 };

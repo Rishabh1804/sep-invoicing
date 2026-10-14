@@ -1,19 +1,15 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, prodFlag } from './fixtures';
 
 // P127: the QA audit of Production and Power (G4-1 … G4-16), one test each. Made-up clients, parts and workers in the
-// shop's shapes (P83–P90, P115, P122); Gemini is mocked as in P85.
+// shop's shapes (P83–P90, P115, P122).
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 const T = todayIso();
 const isoOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const iso = (k: number) => { const d = new Date(T + 'T00:00:00'); d.setDate(d.getDate() + k); return isoOf(d); };
 const dmy = (k: number) => { const s = iso(k); return `${s.slice(8, 10)}/${s.slice(5, 7)}/${s.slice(2, 4)}`; };
-const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
-const PNG2 = Buffer.concat([PNG, Buffer.from([0, 1, 2])]);
-const reply = (obj: unknown) => ({ candidates: [{ content: { parts: [{ text: JSON.stringify(obj) }] }, finishReason: 'STOP' }] });
-const GEMINI = 'https://generativelanguage.googleapis.com/**';
 
 const CLIENTS = [
   { id: 11, name: 'NOVA CLAMPS PVT. LTD.', billingMode: 'piece', gstType: 'intra', gstin: '', address: '' },
@@ -44,16 +40,6 @@ const read = (page: Page, text: string) => page.evaluate((t) => {
     items: m.read.items.map((it: any) => ({ kind: it.kind, date: it.date, time: it.time, to: it.to, clientId: it.clientId, part: it.part, qty: it.qty,
       codes: it.issues.map((x: any) => x.tone + ':' + x.code) })) }));
 }, text);
-/* A register photo read with the key set and Gemini answering `answer(n)` on its n-th request. */
-async function photoBoot(page: Page, state: SepState, answer: (n: number) => unknown) {
-  await loadAppWithState(page, state);
-  await page.evaluate(() => { try { localStorage.setItem('sep_inv_gemini_key', 'TEST-KEY'); localStorage.removeItem('sep_inv_prod_photo_draft'); } catch (e) { /* none */ } });
-  let n = 0;
-  await page.route(GEMINI, async route => { n++; await route.fulfill({ contentType: 'application/json', body: JSON.stringify(reply(answer(n))) }); });
-  await switchTab(page, 'pageProduction');
-  return () => n;
-}
-const pick = (page: Page, buffer: Buffer, name = 'register.png') => page.setInputFiles('#prodPhotoInput', { name, mimeType: 'image/png', buffer });
 
 /* SSS Mehta's gauge rules and Samarth's part rules are set by the owner's migrations on clients named so (P122). */
 function ruledBook(): SepState {
@@ -109,21 +95,6 @@ PICKLING TIME 10:20`);
     expect(await g(page, `S.production.entries.filter(function(e){ return !e.voidedAt; }).length`)).toBe(1);
   });
 
-  test('G4-2: a photo saved, voided and saved again is refused the third time', async ({ page }) => {
-    await photoBoot(page, { ...emptyState(), clients: CLIENTS, incomingMaterial: noSeedIM() } as SepState,
-      () => ({ page: 'production', date: dmy(0), line: 'VAT A1', rows: [{ time: '9:20', customer: 'Nova clamps', part: 'CLAMP 165x83', dim: '40x6', qtyText: '108' }] }));
-    await pick(page, PNG);
-    await page.locator('[data-action="invProdSavePhoto"]').click();
-    await g(page, `S.production.entries.forEach(function(e){ e.voidedAt = 1; e.voidReason = 'read wrong'; }); prodTouch(); saveState();`);
-    await pick(page, PNG);
-    await expect(page.locator('#prodPhotoRuns')).toBeVisible();
-    await expect(page.locator('#prodPhotoDup')).toHaveCount(0);
-    await page.locator('[data-action="invProdSavePhoto"]').click();
-    await pick(page, PNG);
-    await expect(page.locator('#prodPhotoDup')).toContainText('This photo was saved before');
-    await expect(page.locator('[data-action="invProdSavePhoto"]')).toBeDisabled();
-  });
-
   test('G4-3: Correct keeps what the hand form does not show, and the entry it corrects is no longer flagged', async ({ page }) => {
     const rounds1 = [{ time: '9:00 AM', qty: 94 }, { time: '10:00 AM', qty: 94 }, { time: '11:30 AM', qty: 112 }];
     await load(page, prod([
@@ -150,26 +121,20 @@ PICKLING TIME 10:20`);
     // The entry corrected is no longer asked about; its correction is, once.
     expect(await g(page, `todoAppAll(['prodGaugeUnknown']).map(function(t){ return t.facts[0][1]; })`)).toEqual(['1']);
     expect(await g(page, `prodGaugeFlagged(prodIndex().byId.R1)`)).toBe(false);
-    await page.locator('[data-action="invProdFilter"][data-flag="gauge"]').click();
+    await prodFlag(page, 'gauge');
     await expect(page.locator('#prodEntries [data-prod-entry]')).toHaveCount(1);
     await expect(page.locator('#prodEntries [data-prod-entry="R1"]')).toHaveCount(0);
   });
 
-  test('G4-4: the line picked on the photo check is the page’s line for the part rules, and is saved as set', async ({ page }) => {
+  test('G4-4: the line picked for a page is the page’s line for the part rules, set', async ({ page }) => {
     const A2 = { page: 'production', date: dmy(0), line: null, rows: [
       { time: '10:20 AM', mark: 'START', customer: 'SAMARTH', part: 'TINA' }, { time: '11:30 AM', mark: 'END', qtyText: '3×56' }] };
-    await photoBoot(page, ruledBook(), () => A2);
+    await loadAppWithState(page, ruledBook());
     const r = JSON.parse(await g(page, `JSON.stringify([{}, { line: 'vat-a2' }].map(function(ch) { var rd = prodFromRegisterRead(${JSON.stringify(A2)}, prodCtx(), null, ch);
       return [rd.line, rd.issues.map(function(x){ return x.code; }), rd.runs.map(function(e){ return [e.line, e.lineSrc, e.partNumber || null]; })]; }))`) as string);
     expect(r).toEqual([
       [null, ['line'], [[null, null, null]]],
       ['vat-a2', [], [['vat-a2', 'set', '5174 5460 3302']]]]);
-    await pick(page, PNG);
-    await page.locator('#prodPhotoLine').selectOption('vat-a2');
-    await expect(page.locator('[data-prod-run="0"]')).toContainText('5174 5460 3302');
-    await page.locator('[data-action="invProdSavePhoto"]').click();
-    const e = (await readStoredState(page)).production.entries.find((x: any) => x.kind === 'plated');
-    expect(e).toMatchObject({ line: 'vat-a2', lineSrc: 'set', partNumber: '5174 5460 3302', partSrc: 'rack' });
   });
 
   test('G4-5: a floor code written bare is the client’s part ending in it, on a load pasted now or held from before', async ({ page }) => {
@@ -234,20 +199,6 @@ Pickling time 2:30 pm`);
     expect(runs).toEqual([[3, 'TINA', 50], [2, 'CLAMP', 450]]);
   });
 
-  test('G4-7: a run read exactly can have its client changed on the photo check, and the name read exactly is not re-pointed', async ({ page }) => {
-    await photoBoot(page, ruledBook(), () => ({ page: 'production', date: dmy(0), line: 'VAT-A1', rows: [{ time: '9:20 AM', customer: 'DELTA', part: '188 CD', qtyText: '150' }] }));
-    await pick(page, PNG);
-    const run = page.locator('[data-prod-run="0"]');
-    await expect(run).toContainText('DELTA AUTO');
-    await run.locator('[data-action="invProdRunClient"]').click();
-    await page.locator('#prodRunClient0').selectOption('2');
-    await expect(page.locator('[data-prod-run="0"] .inv-row-title')).toContainText('MEHTA TEST INDUSTRIES');
-    await page.locator('[data-action="invProdSavePhoto"]').click();
-    const s = await readStoredState(page);
-    expect(s.production.entries.map((e: any) => [e.clientId, e.part])).toEqual([[2, '188 CD']]);
-    expect(s.production.learn.clients).toEqual({});
-  });
-
   test('G4-8: a power back that pairs with a cut saved before closes the cut where it is stored', async ({ page }) => {
     await load(page);
     const cut = `${dmy(-1)}, 11:02 am - Supervisor: Power cut 10:55am`;
@@ -269,24 +220,8 @@ Pickling time 2:30 pm`);
       basis: 'register', src: 'import', time: '09:00', gaugeUnknown: 94, at: 1 }]));
     expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(1);
     await openEntries(page);
-    await page.locator('[data-action="invProdFilter"][data-flag="gauge"]').click();
+    await prodFlag(page, 'gauge');
     await expect(page.locator('#prodEntries [data-prod-entry="GU-OLD"]')).toBeVisible();
-  });
-
-  test('G4-10: a challan handed to the scanner leaves the photos picked with it waiting, and they are read on', async ({ page }) => {
-    const calls = await photoBoot(page, { ...emptyState(), clients: CLIENTS, incomingMaterial: noSeedIM() } as SepState, n =>
-      n === 1 ? { page: 'challan', date: '18-9-26', rows: [] }
-        : n === 2 ? { challanNo: '133', challanDate: T, clientName: 'Nova clamps', vehicleNo: '', items: [{ partNumber: 'DRAIN PLUG', desc: 'DRAIN PLUG', unit: 'NOS', qty: 500, nosQty: 500, rate: 0, amount: 0 }] }
-          : { page: 'production', date: dmy(0), line: 'VAT A1', rows: [{ time: '9:20', customer: 'Nova clamps', part: 'CLAMP 165x83', dim: '40x6', qtyText: '108' }] });
-    await page.setInputFiles('#prodPhotoInput', [{ name: 'challan.png', mimeType: 'image/png', buffer: PNG }, { name: 'page.png', mimeType: 'image/png', buffer: PNG2 }]);
-    await expect(page.locator('#productionContent')).toContainText('a customer’s challan');
-    await page.locator('[data-action="invProdToScanner"]').click();
-    await expect.poll(() => g(page, '_challanForm && _challanForm.challanNo')).toBe('133');
-    await g(page, `switchTab('pageProduction')`);
-    await expect(page.locator('#prodPhotoWaiting')).toContainText('1 register photo');
-    await page.locator('#prodPhotoWaiting [data-action="invProdPhotoNext"]').click();
-    await expect(page.locator('#prodPhotoRuns')).toBeVisible();
-    expect(calls()).toBe(3);
   });
 
   test('G4-11: a power cut with no time read is kept and asked about, and a guessed meridiem is said', async ({ page }) => {

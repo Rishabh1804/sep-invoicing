@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openFoldAt } from './fixtures';
 
 // P99 (owner, 29 Sep 2026): Stock → Overview → Price trend, on Zinc, draws the market beside the bills: every day a
 // Refresh kept, landed as a bill is priced (LME × (1 + uplift) + premium), and each bill by supplier. Each supplier's
@@ -73,11 +73,12 @@ test.describe('P99: zinc, the market against bills', () => {
   test('Stock → Overview on Zinc: tiles, the chart, suppliers lowest and highest, a supplier opens its bills, the range', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
+    await openFoldAt(page, 'stock-spend');   // Spend and prices, folded at Stock's foot on the phone (TM4d)
     const panel = page.locator('#dashPrice');
     await page.locator('#dashPriceLine').selectOption('C');
-    await expect(panel.locator('.inv-panel-title')).toHaveText('Price trend');
+    await expect(panel.locator(':scope > .inv-row-group > span').first()).toHaveText('Price trend');
     await page.locator('#dashPriceLine').selectOption('Z');
-    await expect(panel.locator('.inv-panel-title')).toHaveText('Price trend: market against bills');
+    await expect(panel.locator(':scope > .inv-row-group > span').first()).toHaveText('Price trend: market against bills');
     await expect(panel.locator('.inv-tile').nth(0)).toContainText('345.00');
     await expect(panel.locator('.inv-tile').nth(1)).toContainText('350.00');
     // (2.60 × 1000 + 5 × 1000 − 6.60 × 500) ÷ 2500 = 1.72 over.
@@ -105,7 +106,7 @@ test.describe('P99: zinc, the market against bills', () => {
     await expect(page.locator('#dashPrice [data-action="invDashZincRange"][data-range="3M"]')).toHaveAttribute('aria-pressed', 'true');
     // Back to another line: the ordinary chart.
     await page.locator('#dashPriceLine').selectOption('C');
-    await expect(page.locator('#dashPrice .inv-panel-title')).toHaveText('Price trend');
+    await expect(page.locator('#dashPrice > .inv-row-group > span').first()).toHaveText('Price trend');
     await expect(page.locator('#dashPriceChart')).toContainText('Caustic soda');
   });
 
@@ -119,6 +120,7 @@ test.describe('P99: zinc, the market against bills', () => {
         [end]: { date: end, currencies: { INR: 0.0125, USD: 1 }, metals: { zinc: toz(290) } } } } });
     });
     await switchTab(page, 'pageStock');
+    await openFoldAt(page, 'stock-spend');   // Spend and prices, folded at Stock's foot on the phone (TM4d)
     await page.locator('#dashPriceLine').selectOption('Z');
     await expect(page.locator('#dashPrice')).toContainText('1 bill has no LME on record');
     await page.locator('#dashPrice [data-action="invDashZincLookup"]').click();
@@ -140,6 +142,7 @@ test.describe('P99: zinc, the market against bills', () => {
       let asked = 0;
       await page.route('https://api.metals.dev/v1/timeseries**', route => { asked++; return reply ? route.fulfill(reply as any) : route.abort('internetdisconnected'); });
       await switchTab(page, 'pageStock');
+      await openFoldAt(page, 'stock-spend');   // Spend and prices, folded at Stock's foot on the phone (TM4d)
       await page.locator('#dashPriceLine').selectOption('Z');
       await page.locator('#dashPrice [data-action="invDashZincLookup"]').click();
       await expect(page.locator('.inv-toast')).toContainText(said);
@@ -153,6 +156,7 @@ test.describe('P99: zinc, the market against bills', () => {
   test('with no metals.dev key the panel says where to add one, and offers no lookup', async ({ page }) => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageStock');
+    await openFoldAt(page, 'stock-spend');   // Spend and prices, folded at Stock's foot on the phone (TM4d)
     await page.locator('#dashPriceLine').selectOption('Z');
     await expect(page.locator('#dashPrice [data-zinc-nomarket]')).toContainText('add a metals.dev key in Settings → Connections');
     await expect(page.locator('#dashPrice [data-action="invDashZincLookup"]')).toHaveCount(0);

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, attDayAs } from './fixtures';
 
 // P144 (owner, 1 Oct 2026: "Attendance has no option to enter time in and time out by hand, so we have to rely on whatsapp
 // message only, there is no way to simply enter the data that is presented to us by Deepak in his sheet"). Staff → Day takes
@@ -21,7 +21,7 @@ function book(): SepState {
 }
 async function openDay(page: Page) {
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
 }
 async function setTime(page: Page, sel: string, v: string) {
   const f = page.locator(sel);
@@ -48,7 +48,7 @@ test('the hand’s dialog takes an in and an out; hours and OT are worked out as
 test('the sheet: a row a hand with P / H / A, area, in and out; only the out typed takes the shift’s in; an out past midnight runs on', async ({ page }) => {
   await loadAppWithState(page, book());
   await openDay(page);
-  await page.locator('[data-action="invAttDayAs"][data-v="sheet"]').click();
+  await attDayAs(page, 'sheet');
   const sheet = page.locator('#attSheetEntry');
   await expect(sheet.locator('tr[data-att-sheet-row]')).toHaveCount(3);
   // Out only: 8:30 AM assumed in, 6 PM out → 9 h, OT 1.
@@ -81,7 +81,7 @@ test('times typed by hand are the hand’s: the mark carries no relay source', a
   s.attendance[todayIso()].marks[1] = { st: 'P', area: 'vat-a1', hours: 8, ot: 0, inMin: 510, outMin: 1020, src: 'relay' };
   await loadAppWithState(page, s);
   await openDay(page);
-  await page.locator('[data-action="invAttDayAs"][data-v="sheet"]').click();
+  await attDayAs(page, 'sheet');
   await setTime(page, '[data-att-sheet-row="1"] input[data-att-out]', '20:00');
   const m = await mark(page, 1);
   expect(m.src).toBeUndefined();

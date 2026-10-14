@@ -23,11 +23,10 @@ function book(extra: any = {}): SepState {
   return Object.assign(s, extra) as SepState;
 }
 
-test('Power opens from More, with five views, and says where cuts come from when there are none', async ({ page }) => {
+test('Power opens on Cuts, with four views (the tab map, TM4e), and says where cuts come from when there are none', async ({ page }) => {
   await loadAppWithState(page, book());
   await switchTab(page, 'pagePower');
-  await expect(page.locator('#pagePower [data-action="invPowerTab"]')).toHaveText(['Overview', 'Cuts', 'Causes', 'Load & bills', 'Case']);
-  await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
+  await expect(page.locator('#pagePower [data-action="invPowerTab"]')).toHaveText(['Cuts', 'Causes', 'Load & bills', 'Case']);
   await expect(page.locator('#powerContent')).toContainText('No power cut on record');
   await page.locator('[data-action="invPowerTab"][data-tab="case"]').click();
   await expect(page.locator('[data-power-case]')).toContainText('No power cut is on record yet');
@@ -50,12 +49,17 @@ test('a cut costs its output at contribution, the wages of the hands standing id
   expect(k.c.fixed).toBeCloseTo(3000 / (days * 510) * 30, 2);
   await switchTab(page, 'pagePower');
   await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
+  // A cut is one line; what its damage is made of is in its fold, a fact a row (the tab map, TM4e).
   const row = page.locator(`[data-power-cut="${d}|600"]`);
-  await expect(row).toContainText('output ₹1,250.00, its contribution ₹250.00');
-  await expect(row).toContainText('idle wages ₹30.00 (1 plater)');
-  await expect(row).toContainText('restart ₹600.00');
-  await expect(row).toContainText('paid anyway');
-  await expect(row).toContainText('₹880.00');
+  await expect(row.locator('summary')).toContainText('₹880.00');
+  await row.locator('summary').click();
+  const part = (label: string) => row.locator('.inv-row-children .inv-row', { hasText: label });
+  await expect(part('Output not made')).toContainText('output ₹1,250.00');
+  await expect(part('Output not made').locator('.inv-row-end')).toHaveText('₹250.00');
+  await expect(part('Wages that bought nothing')).toContainText('1 plater');
+  await expect(part('Wages that bought nothing').locator('.inv-row-end')).toHaveText('₹30.00');
+  await expect(part('Restart').locator('.inv-row-end')).toHaveText('₹600.00');
+  await expect(part('Fixed charge')).toContainText('paid anyway');
 });
 
 test('an overnight cut runs to the next morning; one with no time back is costed at the typical length, never to the end of the day', async ({ page }) => {
@@ -81,8 +85,11 @@ test('the load is recorded, the To-do asks while the approved load is not on the
   expect(t[0].title).toBe('50 kVA approved, still billed at 25 kVA');
   expect(t[0].sub).toContain('₹5,220.00');
   await switchTab(page, 'pagePower');
-  await page.locator('[data-action="invPowerTab"][data-tab="load"]').click();
-  await expect(page.locator('#powerLoad')).toContainText('the bill still charges for 25 kVA');
+  await page.locator('#pagePower .inv-viewtab[data-tab="load"]').click();
+  // The load's card says it (the tab map, TM4e: it was a callout), in danger, the penalty since approval among its facts.
+  await expect(page.locator('#powerLoad .inv-hero-title')).toHaveText('Approved 50 kVA, billed at 25');
+  await expect(page.locator('#powerLoad')).toHaveClass(/inv-hero-danger/);
+  await expect(page.locator('#powerLoad')).toContainText('₹5,220.00 penalty since approval');
   await expect(page.locator('#powerLoad')).toContainText('48.70 kVA');
   // The next bill is billed at 50: the task clears itself.
   await g(page, `S.costBills.push({ id: 'B2', kind: 'power', month: '2026-06', amount: 50000, kvaBilled: 50, at: 2 }); saveState(); renderPower();`);
@@ -92,8 +99,10 @@ test('the load is recorded, the To-do asks while the approved load is not on the
 test("a bill's details are set on Load & bills, and the penalty cannot outgrow the bill", async ({ page }) => {
   await loadAppWithState(page, book({ costBills: [{ id: 'B1', kind: 'power', month: '2026-06', amount: 53188, at: 1 }] }));
   await switchTab(page, 'pagePower');
-  await page.locator('[data-action="invPowerTab"][data-tab="load"]').click();
+  await page.locator('#pagePower .inv-viewtab[data-tab="load"]').click();
   await expect(page.locator('[data-power-bill="B1"]')).toContainText('amount only: set its details');
+  // The bill's row ends in its amount; its Details are in its fold (§1a-11).
+  await page.locator('[data-power-bill="B1"] > summary').click();
   await page.locator('[data-power-bill="B1"] [data-action="invPowerBillEdit"]').click();
   await page.locator('#pwb_md').fill('47.5');
   await page.locator('#pwb_kvaBilled').fill('25');
@@ -241,7 +250,7 @@ test('a power-back the log gives only as a bound reads "after", and a single-pha
   const row = page.locator(`[data-power-cut="${d}|1060"]`);
   await expect(row).toContainText('5:40 PM – after 6:59 PM');
   await expect(row).toContainText('1 h 19 min at least');
-  await expect(row).toContainText('single-phase');
+  await expect(row).toContainText('Single-phase');
 });
 
 test('a power-back known only as a bound is costed to the later of the bound and the typical length, never the bound alone', async ({ page }) => {

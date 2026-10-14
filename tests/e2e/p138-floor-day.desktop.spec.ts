@@ -1,27 +1,29 @@
 import { test, expect } from '@playwright/test';
 import { loadAppWithState } from './fixtures';
 import { sweep, problems, type Stop } from './sweep-fixture';
-import { floorBook, openFloor, card, tile, g, T, D2 } from './p138-floor-day.fixture';
+import { floorBook, openFloor, card, hero, g, T, D2 } from './p138-floor-day.fixture';
 
-// P138 on the desktop (Direction B, step 5): Floor → Day's tiles above, its four line cards two across, the day named in the
-// top bar, a card opening Production → Lines and Back returning to the day. Made-up names and parts.
+// P138 on the desktop (Direction B, step 5): Floor's Overview (the tab map, TM4a): the heroes above, the four line cards two
+// across, the worst first; the day named in the top bar, a card opening Production → Lines and Back returning to the day.
+// Made-up names and parts.
 
-test('the tiles sit above the four cards, and the cards stand two across', async ({ page }) => {
+test('the heroes sit above the four cards, and the cards stand two across, the worst first', async ({ page }) => {
   await loadAppWithState(page, floorBook());
   await openFloor(page);
   const box = async (l: ReturnType<typeof card>) => (await l.boundingBox())!;
-  const [a1, a2, br, pk] = await Promise.all(['vat-a1', 'vat-a2', 'barrel', 'pickling'].map(l => box(card(page, l))));
-  const tiles = (await page.locator('#flrTiles').boundingBox())!;
-  // The three tiles on one row, above every card.
-  const tops = await Promise.all(['onsite', 'plated', 'power'].map(async k => (await tile(page, k).boundingBox())!.y));
-  expect(Math.max(...tops) - Math.min(...tops)).toBeLessThan(2);
-  expect(tiles.y + tiles.height).toBeLessThanOrEqual(Math.min(a1.y, a2.y) + 1);
-  // VAT A1 beside VAT A2; Barrel beside Pickling, under them.
-  expect(Math.abs(a1.y - a2.y)).toBeLessThan(2);
-  expect(a1.x + a1.width).toBeLessThanOrEqual(a2.x + 1);
-  expect(Math.abs(br.y - pk.y)).toBeLessThan(2);
-  expect(br.y).toBeGreaterThanOrEqual(a1.y + a1.height - 1);
-  expect(Math.abs(br.x - a1.x)).toBeLessThan(2);
+  // Pickling is judged by its heads (met); the plating lines' efficiency is not judged here (no units on record), after it.
+  const [pk, a1, a2, br] = await Promise.all(['pickling', 'vat-a1', 'vat-a2', 'barrel'].map(l => box(card(page, l))));
+  const heroes = (await page.locator('#flrHeroes').boundingBox())!;
+  // The four heroes in a row, above every card.
+  const tops = await Promise.all(['people', 'prod', 'stock', 'power'].map(async k => (await hero(page, k).boundingBox())!.y));
+  expect(new Set(tops.map(Math.round)).size).toBeLessThanOrEqual(2);
+  expect(heroes.y + heroes.height).toBeLessThanOrEqual(Math.min(pk.y, a1.y) + 1);
+  // Pickling beside VAT A1; VAT A2 beside Barrel, under them.
+  expect(Math.abs(pk.y - a1.y)).toBeLessThan(2);
+  expect(pk.x + pk.width).toBeLessThanOrEqual(a1.x + 1);
+  expect(Math.abs(a2.y - br.y)).toBeLessThan(2);
+  expect(a2.y).toBeGreaterThanOrEqual(pk.y + pk.height - 1);
+  expect(Math.abs(a2.x - pk.x)).toBeLessThan(2);
   expect(await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)).toBeLessThanOrEqual(0);
 });
 
@@ -36,7 +38,7 @@ test('the top bar names the day; a card opens Production → Lines on it, and Ba
   await card(page, 'barrel').locator('[data-action="invFlrLine"]').click();
   await expect(page.locator('#pageProduction.inv-page-active')).toBeVisible();
   await expect(page.locator('#productionContent [data-action="invProdLine"][data-line="barrel"]')).toHaveAttribute('aria-pressed', 'true');
-  await expect(page.locator('#productionContent .inv-stepper-title')).toHaveText(await g(page, `formatDate('${D2}')`) as string);
+  await expect(page.locator('#productionContent .inv-stepper-title')).toContainText(await g(page, `formatDate('${D2}')`) as string);
   await page.goBack();
   await expect(page.locator('#pageFloor.inv-page-active')).toBeVisible();
   await expect(page.locator('#flrDate')).toHaveValue(D2);

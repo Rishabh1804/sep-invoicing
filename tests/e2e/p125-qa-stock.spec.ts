@@ -126,7 +126,6 @@ function closing2324(): SepState {
 
 async function openLines(page: Page) {
   await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
 }
 async function paste(page: Page, text: string) {
   await switchTab(page, 'pageStock');
@@ -396,7 +395,9 @@ test('G6-8: a delivery entered by hand before its amount was kept still counts i
     imports: [{ id: 'BI-1', at: 1, file: 't.xls', account: '', from: iso(-60), to: iso(-1), rows: 3, added: 3, closing: 84990 }], parties: {}, opening: {}, gstNotes: {} } }));
   await switchTab(page, 'pageFinance');
   await page.locator('[data-action="invFinTab"][data-tab="payments"]').click();
-  await expect(page.locator('#bankSuppliers')).toContainText('stock bills recorded ₹15,000.00');
+  // The suppliers' card (suppliers.js): the delivery is a bill of price × quantity, set against the supplier's payment.
+  await expect(page.locator('#bankSuppliers [data-supplier]')).toContainText('Acme Chemicals');
+  expect(await g(page, `(function() { var sp = suppOfName('Acme Chemicals'); return [sp.bills[0].base, sp.bank.length]; })()`)).toEqual([15000, 1]);
 });
 
 /* ---------- G6-7: an address that opens a stock sub-view ---------- */

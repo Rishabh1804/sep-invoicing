@@ -130,7 +130,9 @@ test.describe('P152: the guard, after its QA', () => {
     await waitForBoot(tab);
     await unlock(tab, 'U-sup', PINS.super);
     await expect(tab.locator('#homePulse')).toBeVisible();
-    await expect(tab.locator('#homeQuestions')).toBeEmpty();
+    // No question and no period: the head holds Edit Home alone (in its More since the tab map, TM2b).
+    await expect(tab.locator('#homeQuestions [data-tdy-q], #homeQuestions [data-action="invStatsPeriod"], #statsWhy, #statsOverview, #statsPace')).toHaveCount(0);
+    await expect(tab.locator('#homeQuestions [data-tdy-pulse-head] button')).toHaveText(['Edit Home']);
     await expect(tab.locator('[data-home-w="mtd"]')).toBeHidden();
     await expect(tab.locator('[data-home-w="money"]')).toBeHidden();
     await expect(tab.locator('#homeFinCard')).toBeEmpty();
@@ -142,7 +144,7 @@ test.describe('P152: the guard, after its QA', () => {
     await withUsers(page);
     // At the start nobody is signed in: Today waits for the unlock, and the bar counts nothing.
     expect(await ev(page, "document.getElementById('homeNeeds').innerHTML")).toBe('');
-    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0 }));
+    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0, mine: 0 }));
     await unlock(page, 'U-sup', PINS.super);
     await expect(page.locator('#homeNeeds [data-card="tasks"]')).toBeVisible();
     await expect(page.locator('#homeNeeds [data-tdy-task^="challan:"]')).toHaveCount(0);
@@ -167,7 +169,9 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(tab.locator('#guardRoot')).toBeVisible();
     await expect(tab.locator('[data-todo-facts]')).toHaveCount(0);
     await unlock(tab, 'U-own', PINS.owner);
-    await expect(tab.locator('#pageTodo')).toHaveClass(/inv-page-active/);
+    // The tasks are Needs you's (the tab map, TM2a); the old address lands there.
+    await expect(tab.locator('#pageHome')).toHaveClass(/inv-page-active/);
+    await expect(tab.locator('#homeNeeds')).toBeVisible();
     await expect(tab.locator('[data-todo-facts]')).toContainText('Bill TEST CLIENT KG');
     await tab.close();
     // The supervisor tapping the same row is told the task is not theirs, and sees none of it.
@@ -194,6 +198,7 @@ test.describe('P152: the guard, after its QA', () => {
     await switchUser(page, 'U-own', PINS.owner);
     await switchTab(page, 'pageStaff');
     await g(page, "_attView = 'pay'; renderAttendance()");
+    await page.locator('#payFormFold > summary').click();   // folded on the phone until it is wanted (TM4b)
     await page.locator('#payAmount').fill('500');
     expect(await ev(page, '_pageTyped')).toBe(true);
     await switchUser(page, 'U-sup', PINS.super);
@@ -341,15 +346,17 @@ test.describe('P152: the guard, after its QA', () => {
       sub: 'paid with no bill', why: 'Payments', facts: [], clears: '', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: '1' }]; };
       TODO_RULE_FNS.payCarry = function () { return [{ key: 'payCarry', rule: 'payCarry', tone: 'red', title: 'A worker carries a balance',
       sub: '', why: 'Pay', facts: [], clears: '', go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: '1' }]; };`);
-    await switchTab(page, 'pageTodo');
-    const appKeys = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#todoContent [data-todo="app"]'), function (b) { return b.dataset.key; })`) as Promise<string[]>;
+    await switchTab(page, 'pageHome');
+    const appKeys = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#homeNeeds [data-todo="app"]'), function (b) { return b.dataset.tdyTask; })`) as Promise<string[]>;
     let keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).not.toContain(k);
+    // The challan's material past its turnaround target is a floor fact on Production, in quantities, which the supervisor opens (P204).
+    expect(keys).toContain('flowLate:1');
     // Opened by its key (the widget's launch), a task not the role's is not shown.
     await g(page, "todoOpenApp('supplierNoBill:x')");
     await expect(page.locator('[data-todo-facts]')).toHaveCount(0);
-    // The bar counts only what the role sees: nothing red here.
-    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0 }));
+    // The bar counts only what the role sees: of the red, the turnaround alone.
+    expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 1, office: 0, floor: 1, money: 0, mine: 0 }));
     // The link picker: a stock line, nothing else; no invoice, challan or client is listed.
     await page.locator('[data-action="invTodoNew"]').click();
     expect(await ev(page, `Array.prototype.map.call(document.querySelectorAll('#todoLinkKind option'), function (o) { return o.value; })`)).toEqual(['', 'stock']);
@@ -358,12 +365,13 @@ test.describe('P152: the guard, after its QA', () => {
 
     // The owner sees every one, and the counts are theirs.
     await switchUser(page, 'U-own', PINS.owner);
-    await switchTab(page, 'pageTodo');
+    await switchTab(page, 'pageHome');
     keys = await appKeys(page);
-    for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).toContain(k);
+    for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup', 'flowLate:1']) expect(keys).toContain(k);
     const n = JSON.parse(await ev(page, 'JSON.stringify(wsRedCounts())') as string);
-    expect(n.floor).toBe(2);
-    expect(n.today).toBe(2);
+    expect(n.floor).toBe(3);
+    // The challan waiting ten days is red now, toned by its days as its row is (the tab map, TM5b; it was always to know).
+    expect(n.today).toBe(4);
     await page.locator('[data-action="invTodoNew"]').click();
     expect(await ev(page, `Array.prototype.map.call(document.querySelectorAll('#todoLinkKind option'), function (o) { return o.value; })`)).toEqual(['', 'client', 'invoice', 'challan', 'stock']);
   });
@@ -372,14 +380,18 @@ test.describe('P152: the guard, after its QA', () => {
     const s: any = withBank(guardBook());
     s.production = { entries: [{ id: 'E1', at: 1, time: '10:00', unit: 'NOS', basis: 'register', src: 'photo', kind: 'plated', line: 'vat-a1', lineSrc: 'written',
       slot: 'general', clientId: 1, part: 'BRKT-1', qty: 100, date: workdayIso() }], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } };
+    // A line in use, with a price: an order to place.
+    s.stock.entries.push({ id: 'r1', itemId: 'N', kind: 'received', qty: 50, price: 40, supplier: 'GAMMA CHEMICALS', billNo: 'G/1', date: daysAgo(20), at: 1 },
+      { id: 'u1', itemId: 'N', kind: 'used', qty: 30, days: 6, from: daysAgo(7), date: daysAgo(1), at: 2 });
     await loadAppWithState(page, s);
     await withUsers(page);
     await unlock(page, 'U-sup', PINS.super);
-    // Stock → Overview: the order's cost, never the forecast's low (the bank's).
+    // Stock's card: the order's cost, never the forecast's low (the bank's). Floor's stock card says the same (TM4).
     await switchTab(page, 'pageStock');
-    await g(page, "stockSetView('overview')");
-    await expect(page.locator('#dashReorder')).toContainText('Order, with GST');
-    await expect(page.locator('#dashReorder')).not.toContainText('Forecast');
+    await expect(page.locator('#stockVerdict')).toContainText('with GST');
+    await expect(page.locator('#stockVerdict')).not.toContainText('after the order');
+    await switchTab(page, 'pageFloor');
+    await expect(page.locator('#flrHeroes [data-flr-reorder]')).toHaveCount(1);
     // What the bank paid a supplier is the bank's: nothing, on Stock's overview and on a line's page alike.
     expect(await ev(page, "finSupplierPaid('GAMMA CHEMICALS')")).toBeNull();
     // Production → Lines: no labour per kg without the wages.
@@ -405,8 +417,8 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(page.locator('[data-client-money]')).toHaveCount(1);
     await g(page, 'closeOverlay()');
     await switchTab(page, 'pageStock');
-    await g(page, "stockSetView('overview')");
-    await expect(page.locator('#dashReorder')).toContainText('Forecast');
+    // Stock's card: the forecast's low after the order (TM4d).
+    await expect(page.locator('#stockVerdict')).toContainText('after the order');
     expect(await ev(page, "finSupplierPaid('GAMMA CHEMICALS').paid")).toBe(5000);
     await switchTab(page, 'pageProduction');
     await g(page, "prodSetTab('lines'); renderProduction()");

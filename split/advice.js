@@ -185,12 +185,15 @@ function advRepriceMove(ctx, x) {
   // The full cost is the period's: the words say which, since an insight's move asks the same client for a month's own
   // (ADV_TASK_MOVES.insBelowVar) and both can be on one page (QA5-5). One decision, one key.
   var said = 'Ask ' + name + ' for ' + formatCurrency(target) + '/kg, the full cost ' + ctx.words;
-  return { key: 'reprice:' + x.id, tone: x.vsVar != null && x.vsVar < 0 ? 'red' : 'amber', what: name + ' below the full cost',
+  // Below the cost in the tone it takes wherever a client's realisation is judged (figToneAgainst at 5%, the tab map TM6a): within
+  // 5% of it amber, further under red.
+  return { key: 'reprice:' + x.id, tone: figToneAgainst(x.net, m.fullKg, 5) === 'danger' ? 'red' : 'amber', what: name + ' below the full cost',
     say: said,
     worth: mk > 0 ? { amount: (target - x.net) * mk, sign: 1, per: 'month', label: 'a month at the last three months’ tonnage' } : null,
     basis: basis, go: { kind: 'quoteDraft', clientId: x.id, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation',
     task: said,
-    hint: draft.unweighed.length ? 'Enter a weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' (its card, Part weights or the Items Master) to quote ' +
+    // One line (the tab map, TM2b: Pulse's words are short); where a weight is entered is the guide's (Reading Stats).
+    hint: draft.unweighed.length ? 'A weight per piece for ' + name + '’s ' + draft.unweighed.join(', ') + ' quotes ' +
       (draft.unweighed.length === 1 ? 'it' : 'them') + ' by the piece.' : '' };
 }
 
@@ -208,7 +211,8 @@ function advStockMoves(ctx) {
     var it = x.it, st = x.st, r = rows[it.id], unit = it.unit || '', out = st.group === 'out';
     var basis = [st.level != null ? stockFmtQty(Math.max(0, st.level)) + ' ' + unit + ' on the shelf' : '',
       st.rate && st.rate.rate ? 'uses ' + stockFmtRate(st.rate.rate) + ' ' + unit + ' a day' : 'no daily use on record',
-      r && r.price != null ? 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit : 'no price on record'].filter(Boolean).join(' · ');
+      r && r.price != null ? (r.lastFrom && r.supplier !== r.lastFrom ? 'order from ' + r.supplier + ' at ' + formatCurrency(r.price) + '/' + unit + ', ' + suppLeadText(r.pick && r.pick.lead)
+        : 'last bought ' + (r.supplier && r.supplier !== 'No supplier on record' ? 'from ' + r.supplier + ' ' : '') + 'at ' + formatCurrency(r.price) + '/' + unit) : 'no price on record'].filter(Boolean).join(' · ');
     return { key: 'stock:' + it.id, tone: 'red', soon: out ? 0 : Math.max(0, st.daysLeft || 0), cat: 0, what: it.name + (out ? ' out' : ' running out'),
       say: 'Order ' + it.name + (out ? ': it is out' : ': about ' + stockDaysText(st.daysLeft, !!(st.rate && st.rate.tentative)) + ' left'),
       worth: r && r.amount > 0 ? { amount: r.amount, sign: -1, label: 'for ' + stockFmtQty(r.qty) + ' ' + unit + ' at the last price, before GST' } : null,
@@ -372,8 +376,8 @@ function advMoneyMoves(ctx) {
   var plant = ctx.cards.plant;
   if (plant && plant.capPct != null && plant.capPct < 0.8) out.push(ctx.plantMoves()[0] || null);
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
-    none: !(ctx.a.tonnage.kg > 0) ? 'Nothing to work out yet: no weighed tonnage in the period. A weight per piece (the client’s card, Part weights or the Items Master) lets the app set what was billed against the cost.'
-      : 'Nothing to move on: no account with a tenth of the plant is below the full cost, nothing has waited ' + todoCfg().challanDays + ' days to be billed, and every cost line is within its model.' };
+    none: !(ctx.a.tonnage.kg > 0) ? 'No weighed tonnage in the period yet. A weight per piece lets the app set what was billed against the cost.'
+      : 'Nothing to move on: no large account below the full cost, nothing waiting ' + todoCfg().challanDays + ' days to bill, every cost within its model.' };
 }
 
 /* ---------- 3. Who is driving it? ---------- */
@@ -411,16 +415,6 @@ function advHourMove(ctx, x, name) {
     basis: hints.length ? hints[0].text : 'a round is ' + Math.round(worst.rd.total) + ' min for ' + worst.rd.pcs.v + ' pieces',
     go: { kind: 'perf', clientId: c.id, panel: 'hour' }, goLabel: 'By the hour', task: 'Look at ' + worst.t.name + '’s rounds for ' + name };
 }
-/* The labour question the decision turns on, settled both ways (the contribution table's own block). */
-function advLabourMove(ctx, x, name) {
-  var m = ctx.margins(), split = x.vsVar != null;
-  return { key: 'labour:' + x.id, tone: split && x.vsVar < 0 ? 'red' : 'amber',
-    say: 'Settle the labour question for ' + name + (split ? ': with labour fixed it ' + (x.vsVar >= 0 ? 'leaves ' + advRs(x.vsVar) : 'loses ' + advRs(x.vsVar)) +
-      '/kg, with labour scaling it loses ' + advRs(x.vsFull) + '/kg' : ': record the attendance or import the bank statement to split labour'),
-    worth: null, basis: 'contribution by client at the live cost ' + ctx.words + ', ' + statsPctOf(m.c.measuredShare) + '% measured',
-    // The period it was worked out for goes with it: Stats opens there, where this client is the block named.
-    go: { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: ctx.a.period }, goLabel: 'Contribution', task: 'Settle the labour question for ' + name };
-}
 function advClientsMoves(ctx, card) {
   var out = [], hints = [], m = ctx.margins(), x = card.worst;
   if (x && m) {
@@ -429,7 +423,7 @@ function advClientsMoves(ctx, card) {
     if (rp) { out.push(rp); if (rp.hint) hints.push(rp.hint); }
     out.push(advSafe(function() { return advRebateMove(ctx, x, name); }, null));
     out.push(advSafe(function() { return advHourMove(ctx, x, name); }, null));
-    out.push(advLabourMove(ctx, x, name));
+    // No labour move: labour is fixed (owner, 13 Oct 2026), so the contribution table settles the account one way.
   }
   var mv = card.mover;
   if (mv && mv.d < 0) {
@@ -442,7 +436,7 @@ function advClientsMoves(ctx, card) {
   }
   return { moves: advRank(out.filter(Boolean), ctx), hints: hints,
     none: !m ? 'Weighed billing in the period ranks the clients by what a kilo leaves; nothing to move on until then.'
-      : 'Nothing to move on: no account with a tenth of the plant is below the full cost, and no client billed less than ' + (PERIOD_PRIOR_LABELS[ctx.a.period] || 'the period before') + '.' };
+      : 'Nothing to move on: no large account below the full cost, no client billing less than ' + (PERIOD_PRIOR_LABELS[ctx.a.period] || 'the period before') + '.' };
 }
 
 /* ---------- 4. Is the plant full? ---------- */
@@ -517,11 +511,11 @@ function advPlantMoves(ctx) {
 }
 
 /* ---------- 5. Is cash coming in? ---------- */
-/* A debt over 90 days: a call where the client's master has a number, and its receivables either way. */
+/* A debt past the client's terms: a call where the client's master has a number, and its receivables either way. */
 function advOwedMove(t) {
-  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c);
-  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' over 90 days';
-  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed over 90 days' },
+  var c = advClient(t.clientId), name = advNameOf(c, ''), ct = advContact(c), past = t.terms ? 'past its ' + t.terms + '-day terms' : 'past its terms';
+  var say = (ct ? ct.verb + ' ' : 'Chase ') + name + ' about ' + advRs(t.amount) + ' ' + past;
+  var mv = { key: 'owed:' + t.clientId, tone: t.tone, say: say, worth: { amount: t.amount, sign: 1, label: 'owed ' + past },
     basis: todoPlural(t.n, 'invoice') + ', the oldest ' + formatDate(t.oldest) + ' · owed in all ' + advRs(t.owed),
     go: { kind: 'finance', tab: 'receipts', client: t.clientId }, goLabel: 'Receivables', task: say };
   if (ct) { mv.href = ct.href; mv.hrefLabel = ct.label; }
@@ -560,13 +554,13 @@ function advRunwayMove(t) {
 function advCashMoves(ctx) {
   if (!finHasBank()) return { moves: [], none: '' };
   var out = [];
-  // The To-do's own tests: owed over 90 days (the three largest), receipts with no client, a client paying slower than
+  // The To-do's own tests: owed past the client's terms (the three largest), receipts with no client, a client paying slower than
   // usual, the forecast below zero within 45 days.
   ctx.rule('owed90').slice().sort(function(a, b) { return b.amount - a.amount; }).slice(0, 3).forEach(function(t) { out.push(advOwedMove(t)); });
   ctx.rule('bankLoose').forEach(function(t) { out.push(advLooseMove(t)); });
   ctx.rule('payingSlower').forEach(function(t) { out.push(advSlowerMove(t)); });
   ctx.rule('runway').forEach(function(t) { out.push(advRunwayMove(t)); });
-  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes over 90 days, every receipt a week old is placed, and the forecast stays above zero.' };
+  return { moves: advRank(out, ctx), none: 'Nothing to chase: nobody owes past their terms, every receipt a week old is placed, and the forecast stays above zero.' };
 }
 
 /* ---------- 6. What changed? The insights, each with its own moves ---------- */
@@ -578,9 +572,9 @@ function advChangedMoves(ctx, card) {
 }
 
 /* ---------- The questions ---------- */
-/* The six questions in order, each {key, q, html, answer: {tone, say}, moves, none, hints, go, goLabel}: `html` the card's
-   body (statsStoryCards, intel.js, for the five the Overview had), `moves` what can be done, worked out from the book.
-   `range` is a period ('mtd'…) or statsPulseArgs' object. */
+/* The six questions in order, each {key, q, html, answer: {tone, say}, vital, moves, none, hints}: `html` the card's body
+   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Today →
+   Pulse draws them (today.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
 function advQuestions(range) {
   var a = range && typeof range === 'object' ? range : statsPulseArgs(range || _statsPeriod);
   var ctx = advCtx(a);
@@ -598,12 +592,6 @@ function advQuestions(range) {
   });
   return out.filter(Boolean);
 }
-/* The six cards for a period, read exactly as Stats → Overview reads them (statsPulseArgs): Today → Pulse draws them here. */
-function advPulseHtml(period) {
-  var a = statsPulseArgs(period || _statsPeriod);
-  return statsStoriesHtml(a.period, a.filtered, a.prior, a.tonnage, a.periodCost);
-}
-
 /* ---------- Moves on every app task ---------- */
 /* Built from the task's own data (attached at its rule: clientId, itemId, month…), never from its title. A rule with no
    entry keeps its one button. */
@@ -641,8 +629,10 @@ var ADV_TASK_MOVES = {
       worth: t.kg > 0 ? { amount: (target - t.net) * t.kg, sign: 1, per: 'month', label: 'a month at ' + insMonthLabel(t.month) + '’s tonnage' } : null,
       basis: insMonthLabel(t.month) + ': ' + formatCurrency(t.net) + '/kg against ' + formatCurrency(t.varKg) + ' variable and ' + formatCurrency(t.fullKg) + ' full',
       go: { kind: 'quoteDraft', clientId: t.clientId, lines: draft.lines, note: draft.note }, goLabel: 'Draft quotation', task: said },
-      { key: 'labour:' + t.clientId, tone: 'amber', say: 'Settle the labour question for ' + name, worth: null, basis: billsMonthLabel(t.month) + '’s contribution by client, against the variable and the full cost',
-        go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'Settle the labour question for ' + name }];
+      // The month's contribution by client, where the account is set against the variable and the full cost (labour fixed).
+      { key: 'margin:' + t.clientId + ':' + t.month, tone: 'info', say: 'See ' + insMonthLabel(t.month) + '’s contribution by client', worth: null,
+        basis: billsMonthLabel(t.month) + '’s report: each client against the variable and the full cost, labour fixed',
+        go: { kind: 'report', report: 'monthly', from: t.month + '-01', sec: 'clients' }, goLabel: 'Report', task: 'See ' + insMonthLabel(t.month) + '’s contribution by client' }];
   },
   insLabour: function(t) {
     return [{ key: 'labour-model:' + t.month, tone: 'amber', say: 'See where labour’s ' + formatCurrency(t.perKg) + '/kg went, against the ' + formatCurrency(t.model) + ' model',
@@ -681,7 +671,7 @@ var ADV_TASK_MOVES = {
   },
   power: function(t) {
     return [{ key: 'bill:power:' + t.month, tone: t.tone, say: 'Add the electricity bill for ' + billsMonthLabel(t.month), worth: null, basis: 'until then the live cost reads electricity at the model',
-      go: { kind: 'bills', month: t.month }, goLabel: 'Bills & notes', task: 'Add the electricity bill for ' + billsMonthLabel(t.month) }];
+      go: { kind: 'bills', month: t.month }, goLabel: 'Add the bill', task: 'Add the electricity bill for ' + billsMonthLabel(t.month) }];
   },
   bankStale: function(t) {
     return [{ key: 'statement', tone: t.tone, say: 'Import the bank statement: ' + advLower(t.sub), worth: null, basis: t.why, go: { kind: 'finance', tab: 'bank' }, goLabel: 'Bank', task: 'Import the bank statement' }];
@@ -797,17 +787,6 @@ function advMovesDeckHtml(moves, listKey, n, word) {
   var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
   return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
-/* A question's foot: What you can do, its moves, and what would make one appear where there is none. An insight's moves
-   are drawn under its row (`inline`), so What changed? draws a foot only to say there is none. */
-function advFootHtml(q) {
-  if (!q || (q.inline && q.moves.length)) return '';
-  var h = '<div class="inv-row-group" data-adv-head><span>What you can do</span>' + (q.moves.length ? '<span class="inv-num">' + q.moves.length + '</span>' : '') + '</div>';
-  if (!q.moves.length) return h + '<div class="inv-row inv-row-auto" data-adv-none><span class="inv-row-main inv-note inv-row-wrap">' + escHtml(q.none || 'Nothing to do here yet.') + '</span></div>';
-  h += advMovesHtml(q.moves, 'q-' + q.key);
-  (q.hints || []).forEach(function(x) { h += '<div class="inv-row inv-row-auto" data-adv-hint><span class="inv-row-main inv-note inv-row-wrap">' + escHtml(x) + '</span></div>'; });
-  return h;
-}
-
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */

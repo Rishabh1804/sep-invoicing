@@ -563,6 +563,31 @@ if (!S._cnSeriesStart1) {
   saveJSON(STORAGE_KEY, S);
 })();
 
+/* ===== THE PAYMENT TERMS THE REBATE BUYS, SET ONCE (docs/ENTRY_FACES.md §5, T1) =====
+   Owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every other client 45 days". Every other client reads the plant's 45
+   days (Settings → Checks & alerts → Turnaround and terms); the client whose name reads Mehta is set to 7, only where it has no terms
+   of its own, and once: the flag travels with the state, so terms the owner changes or clears stay so. */
+(function() {
+  if (S._clientTerms1) return;
+  var c = (S.clients || []).find(function(x) { return /MEHTA/i.test(String(x.name || '')); });
+  if (!c) return;
+  if (!(+c.payTermsDays > 0)) c.payTermsDays = 7;
+  S._clientTerms1 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
+/* ===== A CHALLAN WAITING: AMBER AT 3 DAYS, RED AT 6, SET ONCE =====
+   Owner, 13 Oct 2026, of the days a challan waits to be invoiced before it is amber (red at twice them), offered keep 5, 3 or 7:
+   "B", so 3 and 6. The To-do's task, Challans' rows and Pipeline's first stage read the one setting (Settings → Checks & alerts
+   → To-do). Moved only where it still holds the old 5, and once: the flag travels with the state, so a figure set later stays. */
+(function() {
+  if (S._challanDays3) return;
+  var c = S.todoCheck || (S.todoCheck = {});
+  if (c.challanDays == null || +c.challanDays === 5) c.challanDays = 3;
+  S._challanDays3 = true;
+  saveJSON(STORAGE_KEY, S);
+})();
+
 /* ===== MEHTA'S ROUND OF 108, AND THEIR LINERS BY THE ROUND, RECORDED ONCE =====
    Owner, 9 Oct 2026, asked which gauge a round of 108 of Mehta's clamps on VAT A1 is, and which liner is done at 126 a round
    and which at 90 or 87: "above 32x6", and "126 - 150xxxxxx series, 90/87 - everything else". A round of 108 joins the rule
@@ -730,6 +755,16 @@ if (!S._cnSeriesStart1) {
   }
 })();
 
+/* Two records for one supplier, made on two devices before they met, folded into one so its ledger is one (suppliers.js
+   suppFoldTwins). Structural (it re-points records the book holds), so it runs on a pull, an import and a merge as well. */
+(function() {
+  var n = typeof suppFoldTwins === 'function' ? suppFoldTwins() : 0;
+  if (n) {
+    saveJSON(STORAGE_KEY, S);
+    console.log('[migrate] ' + n + ' supplier record(s) folded into the one with the same name');
+  }
+})();
+
 
 }
 
@@ -786,6 +821,13 @@ new ResizeObserver(function() {
    here as ?tab=<pageId>[&new=1]. Writing the target into regFilter before the first layout pass means both the desktop
    and the mobile restore paths pick it up without a second switchTab; the view and the record are applied at the end
    of boot (navBoot), which writes the address back without the shortcut's one-off parameters. */
+/* The screen this device last had open, remembered by an older build, may have moved since (the redirect table, nav.js):
+   a device last on the To-do opens on Today. A launch's own address, read next, still wins. */
+(function() {
+  if (!regFilter || !regFilter.activeTab) return;
+  var to = navRedirect({ tab: regFilter.activeTab, v: '', id: '', d: '' });
+  if (to && to.tab !== regFilter.activeTab) { regFilter.activeTab = to.tab; saveRegFilter(); }
+})();
 var _launchNew = false;
 var _launchTodo = '';   // the widget's action when it opened the app: 'open', 'add', 'open:m:<id>', 'open:a:<key>'
 var _launchLoc = null;
@@ -837,6 +879,7 @@ function bootApp() {
   bootStep('the lock', function() { if (typeof grdBoot === 'function') grdBoot(); });
 
   // Initial layout detection (no debounce)
+  bootStep('the photo key', forgetGeminiKey);
   bootStep('the layout', updateLayoutMode);
   bootStep('the counts on the bar', updateStockBadge);
 

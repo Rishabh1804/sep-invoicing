@@ -152,7 +152,7 @@ function rptSec(n, title, cov, body) {
     (cov ? '<p class="inv-rpt-cov">' + cov + '</p>' : '') + body + '</section>';
 }
 function rptNone(text) { return '<p class="inv-rpt-none">' + text + '</p>'; }
-function rptP(text) { return '<p class="inv-rpt-p">' + text + '</p>'; }
+function rptP(text, key) { return '<p class="inv-rpt-p"' + (key ? ' data-rpt-p="' + key + '"' : '') + '>' + text + '</p>'; }
 /* head: [[label, numeric?]]; cells are html. */
 function rptTable(head, rows, foot, key) {
   var td = function(v, i, tag) { return '<' + tag + (head[i] && head[i][1] ? ' class="inv-rpt-num"' : '') + '>' + (v == null || v === '' ? '&mdash;' : v) + '</' + tag + '>'; };
@@ -166,7 +166,6 @@ function rptTile(key, label, value, sub, delta) {
     '<div class="inv-rpt-tile-v">' + value + '</div>' + (sub ? '<div class="inv-rpt-tile-s">' + sub + '</div>' : '') +
     (delta ? '<div class="inv-rpt-tile-s">' + delta + '</div>' : '') + '</div>';
 }
-function rptDash(why) { return { v: '&mdash;', s: why }; }
 
 /* ---------- The document ---------- */
 function rptHtml(kind, from, to) {
@@ -230,7 +229,7 @@ function rptHtml(kind, from, to) {
     : rptTile('plated', 'Plated (floor)', '&mdash;', 'no complete day recorded (attendance and every staffed line)'));
   tiles.push(att.pct != null
     ? rptTile('attendance', 'Attendance', figHtml(Math.round(att.pct) + '%', figTonePct(att.pct, 90, 80)),
-      'of the marks typed, Mon–Sat, a half day half, as Staff → Overview reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
+      'of the marks typed, Mon–Sat, a half day half, as People → Attendance reads it · ' + formatNum(att.avg, 1) + ' on site a day over ' + att.days + ' day' + (att.days === 1 ? '' : 's') + ' recorded',
       dl(att.pct, patt.pct, 'up'))
     : rptTile('attendance', 'Attendance', '&mdash;', att.days ? 'no mark of the active roster on the days recorded' : 'no working day recorded'));
   tiles.push(lab.total > 0
@@ -331,7 +330,7 @@ function rptBreakdownHtml(p, end, ctx) {
       f.plated ? rptInt(f.plated.kg) : '', f.att.pct != null ? Math.round(f.att.pct) + '%' : '', f.cutsKnown ? String(f.cuts) : ''];
   });
   var title = p.kind === 'weekly' ? 'By day' : p.kind === 'monthly' ? 'By pay week' : 'By month';
-  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is attendance as Staff → Overview reads it, the active roster’s marks typed Monday to Saturday, a half day half. A dash is a stretch nobody recorded, not a zero.',
+  return rptSec('breakdown', title, 'Invoiced is taxable, net of credit notes; kg and ₹/kg are the weighed lines; received is the challans’ kg (and NOS); plated is kg on complete days only; present is attendance as People → Attendance reads it, the active roster’s marks typed Monday to Saturday, a half day half. A dash is a stretch nobody recorded, not a zero.',
     rptTable([[p.kind === 'weekly' ? 'Day' : p.kind === 'monthly' ? 'Week' : 'Month'], ['Invoiced', 1], ['kg', 1], ['₹/kg', 1], ['Received', 1], ['Plated kg', 1], ['Present', 1], ['Cuts', 1]], rows2,
       ['Total', tot.inv ? escHtml(finRs(tot.inv)) : '', tot.kg > 0 ? rptInt(tot.kg) : '', tot.kg > 0 ? formatNum(tot.revKnown / tot.kg, 2) : '',
         tot.rec || tot.nos ? (tot.rec ? rptInt(tot.rec) : '') + (tot.nos ? (tot.rec ? ' · ' : '') + rptInt(tot.nos) + ' NOS' : '') : '',
@@ -358,7 +357,7 @@ function rptClientsHtml(p, end, invs, w) {
           return [escHtml(x.name), formatNum(x.net, 2), sg(x.vsVar), sg(x.vsFull), x.money != null ? figHtml(escHtml(finRs(x.money)), x.money >= 0 ? 'ok' : 'danger') : ''];
         }), null, 'margin') +
         rptP(escHtml('At the live cost of ' + formatCurrency(m.fullKg) + '/kg (' + statsPctOf(m.c.measuredShare) + '% measured), spread per kg' +
-          (m.varKg != null ? '; variable ' + formatCurrency(m.varKg) + '/kg' : '; fixed and variable not known for the period') + '.'));
+          '; variable ' + formatCurrency(m.varKg) + '/kg, everything but labour, which is fixed.'));
     }
   }
   return rptSec('clients', 'Clients', escHtml(roll.length + ' client' + (roll.length === 1 ? '' : 's') + ' invoiced, ' + formatCurrency(total) + ' taxable, net of credit notes.'), body);
@@ -388,10 +387,17 @@ function rptStaffHtml(p, end, lab, labV, w) {
     var need = 0, nd = 0;
     recDays.forEach(function(d) { var n = areaNeedOn(d, a.id); if (n != null) { need += n; nd++; } });
     var avg = a.headDays / as.recordedDays, needAvg = nd ? need / nd : null;
-    return [escHtml(a.label), formatNum(avg, 1), needAvg != null ? figHtml(formatNum(needAvg, 1), avg + 0.05 < needAvg ? 'warning' : null) : '',
+    // The heads in the tone heads against the number take wherever an area's staffing is drawn (areaNeedTone, TM6a).
+    return [escHtml(a.label), figHtml(formatNum(avg, 1), areaNeedTone(avg, needAvg)), needAvg != null ? formatNum(needAvg, 1) : '',
       a.otHours ? formatNum(a.otHours, 1) : '', a.extraHours ? formatNum(a.extraHours, 1) : ''];
   });
   var body = rptTable([['Area'], ['Heads a day', 1], ['Needed', 1], ['OT h', 1], ['EXTRA h', 1]], rows, null, 'areas');
+  // A day's report says who was on site against the day's roster, judged as Floor and People judge it (attOnSiteTone, TM6a).
+  if (p.kind === 'daily') {
+    var dd = attDaySummary(p.from);
+    if (dd.marked) body = rptP('On site ' + figHtml(escHtml((dd.p + dd.half) + ' of ' + dd.roster.length), attOnSiteTone(dd)) +
+      escHtml((dd.half ? ', ' + dd.half + ' half day' + (dd.half === 1 ? '' : 's') : '') + ', ' + dd.absent.length + ' absent' + (dd.unmarked ? ', ' + dd.unmarked + ' not marked' : '') + '.'), 'onsite') + body;
+  }
   if (p.kind === 'weekly') {
     var fc = payForecast(p.from), wk = fc.week;
     body += '<h4 class="inv-rpt-h4">The payout</h4>' + rptTable([['Pay week ' + escHtml(rptPeriodShort(p))], ['₹', 1]], [
@@ -419,10 +425,11 @@ function rptCostHtml(p, end, w, lc, real) {
   var rows = lc.rows.map(function(r) {
     return [escHtml(r.label), escHtml(finRs(r.amount)), formatNum(r.amount / w.kg, 2), escHtml(COST_SRC_LABEL[r.source] || r.source || '')];
   });
-  var contrib = real - lc.perKg;
+  // What a kilo left is judged as the price is, on the headline's tile and on Stats (figToneAgainst): within 5% under is a warning.
+  var contrib = real - lc.perKg, ct = figToneAgainst(real, lc.perKg, 5);
   var body = rptTable([['Component'], ['₹', 1], ['₹/kg', 1], ['Source']], rows, ['Live cost', escHtml(finRs(lc.total)), formatNum(lc.perKg, 2), statsPctOf(lc.measuredShare) + '% measured'], 'cost');
-  body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', contrib >= 0 ? 'ok' : 'danger') +
-    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), contrib >= 0 ? 'ok' : 'danger') + ' on the period. ' +
+  body += rptP('Realisation ' + rptMoney(real) + '/kg against it: ' + figHtml((contrib >= 0 ? '+' : '&minus;') + rptMoney(Math.abs(contrib)) + '/kg', ct) +
+    ', ' + figHtml((contrib >= 0 ? '' : '&minus;') + rptMoney(Math.abs(gstRound(contrib * w.kg))), ct) + ' on the period. ' +
     (statsCostWeighedNote(w) || ''));
   return rptSec('cost', 'Cost & margin', escHtml('The live cost over ' + rptKg(w.kg) + ' invoiced; a stretch not recorded is filled at the model and said in its source.'), body);
 }
@@ -586,15 +593,21 @@ function renderReports() {
     '<div class="inv-toolbar inv-stepper"><button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRptStep" data-step="-1" aria-label="Previous period">' + STAFF_BACK_ICON + '</button>' +
     '<div class="inv-stepper-label">' + pick + (sub ? '<span class="inv-stepper-sub">' + escHtml(sub) + (isNow ? ', to date' : '') + '</span>' : isNow ? '<span class="inv-stepper-sub">to date</span>' : '') + '</div>' +
     '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invRptStep" data-step="1" aria-label="Next period"' + (nextStarts ? '' : ' disabled') + '>' + STAFF_NEXT_ICON + '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRptNow"' + (isNow ? ' disabled' : '') + '>Now</button></div>' +
-    '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invRptPrint">Print</button>' +
-    '<span class="inv-note">A4, drawn from the records each time it is shown or printed.</span></div>';
+    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRptNow"' + (isNow ? ' disabled' : '') + '>Now</button></div>';
   var doc = rptHtml(p.kind, p.from);
-  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>';
+  // Print is the screen's one primary, in the action bar under the sheet, as Create's is (the tab map, TM6: two toolbar rows on
+  // the phone, where it had taken a third and its note a fourth).
+  el.innerHTML = h + '<div class="inv-rpt-sheet" id="rptSheet">' + doc + '</div>' +
+    '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">A4, drawn from the records each time it is shown or printed</div></div>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invRptPrint">Print</button></div>';
+  // The sheet as it prints, fitted to the screen (TM2f): a phone shows the whole A4 width, zoomed out, never its tables cut.
+  paperFit(document.getElementById('rptSheet'));
   // A report open in the print view follows the data too.
   var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
   if (body && view && view.classList.contains('inv-print-view-active') && body.querySelector('[data-rpt-doc]')) { body.innerHTML = doc; printFit(); }
 }
+
+window.addEventListener('resize', function() { var s = document.getElementById('rptSheet'); if (s && s.offsetParent) paperFit(s); });
 
 function rptPrint() {
   var body = document.getElementById('invPrintBody');
@@ -611,13 +624,13 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Stats → Overview → Make a report: the same period, as a report. Stats' All is the whole book, which no report covers
-   (a financial year at most): it opens the year to date and says so (QA5-14). */
+/* Today → Pulse → Make a report: the period Pulse shows, as a report (Stats → Overview's until the tab map, TM2b). All is the
+   whole book, which no report covers (a financial year at most): it opens the year to date and says so (QA5-14). */
 function rptFromStats() {
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
   rptSet(per === 'qtd' ? 'quarterly' : per === 'ytd' || per === 'all' ? 'yearly' : 'monthly', localDateStr());
   switchTab('pageReports');
-  if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book Stats showed. Step back a year with ‹.', 'info');
+  if (per === 'all') showToast('A report covers a financial year at most: this is ' + rptFyLabel(rptFy(localDateStr())) + ', not the whole book. Step back a year with ‹.', 'info');
 }
 
 /* The address (nav.js): `kind/first-day`. */

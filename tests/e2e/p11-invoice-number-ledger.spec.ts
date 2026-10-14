@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, SepState, toolbarMore } from './fixtures';
 
 /*
  * Invoice number ledger.
@@ -120,9 +120,10 @@ test('P11: the audit classifies every number in the series', async ({ page }) =>
   await loadAppWithState(page, state);
   await switchTab(page, 'pageRegister');
 
-  await expect(page.locator('#regNumberAudit [data-unaccounted]')).toHaveText('1');
+  // The audit's count is carried by More (the tab map, TM5c).
+  await expect(page.locator('#pageRegister [data-action="invTbMore"] .inv-badge-warning')).toHaveText('1');
 
-  await page.locator('#regNumberAudit').click();
+  await toolbarMore(page, 'Number audit');
   const overlay = page.locator('.inv-scrim-dialog');
   await expect(overlay).toContainText('2 live');
   await expect(overlay).toContainText('1 cancelled');
@@ -137,7 +138,7 @@ test('P11: a historical gap can be accounted for without inventing an invoice', 
   // 00002 is absent — the shape of the five cancelled-and-filed-at-zero numbers.
   await loadAppWithState(page, stateWith([1, 3], 4));
   await switchTab(page, 'pageRegister');
-  await page.locator('#regNumberAudit').click();
+  await toolbarMore(page, 'Number audit');
 
   await page.locator('[data-action="invAccountForNumber"][data-num="2"]').click();
   await page.locator('#invGapReason').fill('cancelled, filed in GSTR-1 at zero');
@@ -161,8 +162,8 @@ test('P11: the series is read from evidence, not from 1', async ({ page }) => {
   await loadAppWithState(page, stateWith([500, 501], 502));
   await switchTab(page, 'pageRegister');
 
-  await expect(page.locator('#regNumberAudit [data-unaccounted]')).toHaveCount(0);
-  await page.locator('#regNumberAudit').click();
+  await expect(page.locator('#pageRegister [data-action="invTbMore"] .inv-badge-warning')).toHaveCount(0);
+  await toolbarMore(page, 'Number audit');
   await expect(page.locator('.inv-scrim-dialog')).toContainText('0 unaccounted');
 });
 

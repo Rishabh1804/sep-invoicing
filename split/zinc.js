@@ -18,8 +18,7 @@
    Nothing here is ever labelled MCX without saying it was estimated.
 
    The rate lives on S so it travels with export/import. The API key does not —
-   it goes to localStorage under its own key, the same as the Gemini key the
-   challan scanner uses, so a backup JSON never carries a credential. */
+   it goes to localStorage under its own key, so a backup JSON never carries a credential. */
 
 var ZINC_STALE_DAYS = 7;
 var ZINC_DEFAULT_UPLIFT = 10.5;
@@ -102,10 +101,11 @@ function renderZincCard() {
         ' + ' + formatNum(z.upliftPct, 1) + '% duty/freight = MCX est. ' + formatCurrency(zincMcxRate()) + '</span>'
       : '') +
     '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
-    escHtml(ageText) + (z.source ? ' · ' + escHtml(z.source) : '') + (stale ? ' · may be out of date' : '') + '</span></span></span></div>';
+    // Two facts (the tab map, TM6): when, and where from (the service, the field it was read from in brackets).
+    escHtml(ageText + (stale ? ', may be out of date' : '')) + (z.source ? ' · ' + escHtml(String(z.source).replace(/^(.*?) · (.*)$/, '$1 ($2)')) : '') + '</span></span></span></div>';
   el.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : '', eyebrow: '<span>Zinc</span><span class="inv-panel-count">' + escHtml(ageText) + '</span>',
     title: 'Landed a kg', fig: figWrapHtml(escHtml(formatCurrency(landed))), sub: escHtml((z.basis === 'lme' ? 'MCX est. ' : 'MCX ') + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + ' premium'),
-    viz: line, fold: 'pulse-zinc', open: true, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh });
+    viz: line, fold: 'pulse-zinc', open: !!_isDesktop, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh });
 }
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the

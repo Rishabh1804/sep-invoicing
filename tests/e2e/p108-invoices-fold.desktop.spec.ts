@@ -2,7 +2,7 @@ import { test, expect, Page } from '@playwright/test';
 import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, noSeedIM, SepState } from './fixtures';
 
 /* P108 on the desktop: an edit returns to the Register with the invoice open in the pane, and the select-all
-   button follows the selection. */
+   box in the table's head follows the selection. */
 
 const g = (page: Page, expr: string) => page.evaluate(x => (0, eval)(x), expr);
 
@@ -41,9 +41,12 @@ test('IB2 (desktop): Update invoice returns to the Register with the invoice in 
 test('IB6 (desktop): ticking a row off after select-all offers Select all again', async ({ page }) => {
   await loadAppWithState(page, book());
   await switchTab(page, 'pageRegister');
-  const all = page.locator('[data-action="invRegSelectAll"]');
+  // Select-all is the table head's tick box (the tab map, TM5c: it was a button in the toolbar's row), and follows the rows.
+  const all = page.locator('#pageRegister thead [data-action="invRegSelectAll"]');
   await all.click();
-  await expect(all).toHaveText('Clear selection');
+  await expect(all).toBeChecked();
+  await expect(all).toHaveAttribute('aria-label', 'Clear the selection');
   await page.locator('#regMaster [data-action="invRegToggleInv"]').first().click();
-  await expect(all).toHaveText('Select all (2)');
+  await expect(all).not.toBeChecked();
+  await expect(all).toHaveAttribute('aria-label', 'Select all 2');
 });

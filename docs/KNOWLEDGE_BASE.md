@@ -112,7 +112,7 @@ that replaces another here supersedes it. Nothing is deleted.
 ## Screens
 
 **Knowledge**, a page of its own (`pageKnow`), Insights' fourth view; on every screen the book in the top bar beside search. Five views:
-- **Start**: your path and what is due, proposals waiting for the owner, decisions due for review, the latest changes.
+- **Start**: your path and what is due, proposals waiting for the owner, decisions due for review (the owner's), the latest changes.
 - **Library**: every article the role may read, by kind, searchable; the article opens beside the list on the desktop.
 - **Troubleshoot**: faults by symptom; an incident is logged from here.
 - **Records**: rulings, incidents and decisions in date order.

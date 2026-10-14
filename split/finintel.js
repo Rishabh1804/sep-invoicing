@@ -9,8 +9,10 @@
 var _finCtxMemo = null;
 function finCtx() {
   if (!_finCtxMemo) {
-    var rows = bankRows(), ctx = { rows: rows, cls: rows.length ? bankClassify(rows) : [], _recv: null };
+    var rows = bankRows(), ctx = { rows: rows, cls: rows.length ? bankClassify(rows) : [], _recv: null, _loose: null };
     ctx.recv = function() { return ctx._recv || (ctx._recv = bankReceivables(ctx.cls)); };
+    // Receipts with no client since receivables start: while any is, what is owed may be paid already (finOwedTone).
+    ctx.loose = function() { return ctx._loose != null ? ctx._loose : (ctx._loose = rows.length ? bankLooseReceipts(ctx.cls, bankRecvFrom(rows)).length : 0); };
     _finCtxMemo = ctx;
     Promise.resolve().then(function() { _finCtxMemo = null; });
   }
@@ -86,7 +88,13 @@ function finForecast(days) {
   var ctx = finCtx(), rows = ctx.rows;
   if (!rows.length) return null;
   var today = localDateStr(), last = rows[rows.length - 1], end = isoAddDays(today, days);
-  var ev = {}, rests = [];
+  // What it rests on, twice: `rests` the sentences (the To-do and the specs read them), `facts` the same as rows a fact each, a few
+  // words and the figure, which the Overview draws folded (the tab map, TM6e: the sentences ran to a paragraph under the chart).
+  var ev = {}, rests = [], facts = [];
+  var rest = function(full, label, value, sub, first) {
+    if (first) { rests.unshift(full); facts.unshift({ label: label, value: value || '', sub: sub || '', attrs: ' title="' + escHtml(full) + '"' }); return; }
+    rests.push(full); facts.push({ label: label, value: value || '', sub: sub || '', attrs: ' title="' + escHtml(full) + '"' });
+  };
   var add = function(date, k, lo, mid, hi) {
     if (date <= today || date > end) return;
     var e = ev[date] || (ev[date] = { in: [0, 0, 0], out: [0, 0, 0] });
@@ -135,13 +143,25 @@ function finForecast(days) {
     noInflow = { open: unread, amount: gstRound(unreadAmt),
       why: 'no receipt is placed against an invoice yet, so it cannot tell when clients pay, and ' + left.join(' and ') + (unread > 1 || left.length > 1 ? ' are' : ' is') + ' not counted in' };
   }
-  if (noInflow) rests.push('Outflows only: ' + noInflow.why + '.');
-  else if (bookMed == null) rests.push('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.');
-  else rests.push(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
-    (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.');
-  if (stale) rests.push(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.');
+  if (noInflow) rest('Outflows only: ' + noInflow.why + '.', 'Outflows only: no receipt placed on an invoice', '', 'money in is not counted');
+  else if (bookMed == null) rest('No receipt is placed against an invoice yet, so nothing is expected in: the forecast is outflows only.', 'Nothing expected in: no receipt placed on an invoice', '', 'outflows only');
+  else rest(todoPlural(nOpen, 'open invoice') + ', ' + formatCurrency(gstRound(amtOpen)) + ', each at its client’s usual days to pay (the book’s ' + Math.round(bookMed) + ' days where a client has under three receipts)' +
+    (late ? '; ' + late + ' a little past it (' + formatCurrency(gstRound(lateAmt)) + ') spread over four weeks, and not counted at the low end' : '') + '.',
+    todoPlural(nOpen, 'open invoice') + ' at each client’s days to pay', finRs(amtOpen), late ? late + ' a little past it, spread over four weeks' : 'the book’s ' + Math.round(bookMed) + ' days for a client with few receipts');
+  if (stale) rest(todoPlural(stale, 'invoice') + ' long past their usual day, ' + formatCurrency(gstRound(staleAmt)) + ', not expected: chase them, do not plan on them.',
+    todoPlural(stale, 'invoice') + ' long past their day, not expected', finRs(staleAmt), 'chase them, do not plan on them');
+  // In: a cheque in hand (TM3b) reaches the bank the next working day, or on its own date where it is dated later. It already
+  // settled the invoices it pays (bankReceivables), so they are not expected twice.
+  var held = bankChequesHeld(ctx.cls), heldDay = bankChequeNextWorkday(today);
+  held.list.forEach(function(o) {
+    var amt = Number(o.ch.amount) || 0, on = o.ch.chequeDate && o.ch.chequeDate > heldDay ? o.ch.chequeDate : heldDay;
+    add(on, 'in', amt, amt, amt);
+  });
+  if (held.n) rest(todoPlural(held.n, 'cheque') + ' in hand, ' + formatCurrency(held.amount) + ', expected in the bank on ' + formatDate(heldDay) + ' (a post-dated one on its date).',
+    todoPlural(held.n, 'cheque') + ' in hand, in on ' + stockShortDate(heldDay), finRs(held.amount), 'a post-dated one on its date');
   var loose = bankLooseReceipts(ctx.cls, bankRecvFrom(ctx.rows));
-  if (loose.length && bookMed != null) rests.push(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.');
+  if (loose.length && bookMed != null) rest(todoPlural(loose.length, 'receipt') + ' not placed on a client: the invoices they paid still read as open, so money in reads high.',
+    todoPlural(loose.length, 'receipt') + ' not placed on a client', '', 'money in reads high');
 
   if (bookMed != null) {
     var weeks = [];
@@ -151,7 +171,8 @@ function finForecast(days) {
       if (attParseIso(d).getDay() === 0) continue;
       add(isoAddDays(d, Math.round(bookMed)), 'in', perDay[0], perDay[1], perDay[2]);
     }
-    if (billed > 0) rests.push('New billing at the last eight weeks’ pace, ' + formatCurrency(gstRound(billed / 8)) + ' a week, paid ' + Math.round(bookMed) + ' days after it is invoiced.');
+    if (billed > 0) rest('New billing at the last eight weeks’ pace, ' + formatCurrency(gstRound(billed / 8)) + ' a week, paid ' + Math.round(bookMed) + ' days after it is invoiced.',
+      'New billing, at the last eight weeks’ pace', finRs(billed / 8) + ' a week', 'paid ' + Math.round(bookMed) + ' days after it is invoiced');
   }
 
   // Out: from the closed months the statement covers.
@@ -171,20 +192,22 @@ function finForecast(days) {
     else if (v.cat === 'power') { paidIn.power[m] = true; power.push(r.dr); powerDays.push(+r.date.slice(8, 10)); }
     else if (v.cat !== 'gst' && m in other) other[m] += r.dr;
   });
-  if (!closed.length) rests.push('The statement covers no whole month yet, so salaries, suppliers and other payments are not forecast.');
+  if (!closed.length) rest('The statement covers no whole month yet, so salaries, suppliers and other payments are not forecast.', 'No whole month on the statement yet', '', 'salaries and other payments not forecast');
   if (closed.length) {
     var wv = closed.map(function(m) { return wages[m]; }), sd = Math.round(finPct(days1, 0.5) || 14);
     if (finPct(wv, 0.5) > 0) {
       months.forEach(function(mm) { if (!paidIn.wages[mm]) add(onDay(mm, sd), 'out', finPct(wv, 0.25), finPct(wv, 0.5), finPct(wv, 0.75)); });
-      rests.push('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) +
-        (paidIn.wages[thisMonth] ? '; this month’s are on the statement already' : '') + '.');
+      rest('Salaries to named hands, ' + formatCurrency(gstRound(finPct(wv, 0.5))) + ' a month around the ' + finOrd(sd) +
+        (paidIn.wages[thisMonth] ? '; this month’s are on the statement already' : '') + '.',
+        'Salaries to named hands, around the ' + finOrd(sd), finRs(finPct(wv, 0.5)) + ' a month', paidIn.wages[thisMonth] ? 'this month’s on the statement already' : '');
     }
     var ov = closed.map(function(m) { return other[m]; });
     months.forEach(function(mm) {
       var n = +finMonthEnd(mm).slice(8, 10);
       for (var k = 1; k <= n; k++) add(mm + '-' + String(k).padStart(2, '0'), 'out', finPct(ov, 0.25) / n, finPct(ov, 0.5) / n, finPct(ov, 0.75) / n);
     });
-    rests.push('Suppliers and every other payment, ' + formatCurrency(gstRound(finPct(ov, 0.5))) + ' a month spread by day (the median of ' + closed.map(billsMonthLabel).join(', ') + ').');
+    rest('Suppliers and every other payment, ' + formatCurrency(gstRound(finPct(ov, 0.5))) + ' a month spread by day (the median of ' + closed.map(billsMonthLabel).join(', ') + ').',
+      'Suppliers and every other payment, by day', finRs(finPct(ov, 0.5)) + ' a month', 'the median of ' + todoPlural(closed.length, 'month'));
   }
   var cw = [], c0 = bankCover();
   for (var q = 1; q <= 8; q++) {
@@ -193,13 +216,15 @@ function finForecast(days) {
   }
   if (cw.length && finPct(cw, 0.5) > 0) {
     for (var sat = isoAddDays(attWeekStartOf(today), 6); sat <= end; sat = isoAddDays(sat, 7)) add(sat, 'out', finPct(cw, 0.25), finPct(cw, 0.5), finPct(cw, 0.75));
-    rests.push('Cash drawn for the weekly payout, ' + formatCurrency(gstRound(finPct(cw, 0.5))) + ' each Saturday (the median of ' + cw.length + ' weeks).');
+    rest('Cash drawn for the weekly payout, ' + formatCurrency(gstRound(finPct(cw, 0.5))) + ' each Saturday (the median of ' + cw.length + ' weeks).',
+      'Cash for the weekly payout, each Saturday', finRs(finPct(cw, 0.5)), 'the median of ' + cw.length + ' weeks');
   }
   if (power.length) {
     var pv = power.slice(-6), pd = Math.round(finPct(powerDays.slice(-6), 0.5));
     months.forEach(function(mm) { if (!paidIn.power[mm]) add(onDay(mm, pd), 'out', finPct(pv, 0.25), finPct(pv, 0.5), finPct(pv, 0.75)); });
-    rests.push('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) +
-      (paidIn.power[thisMonth] ? '; this month’s is on the statement already' : '') + '.');
+    rest('Electricity, ' + formatCurrency(gstRound(finPct(pv, 0.5))) + ' around the ' + finOrd(pd) +
+      (paidIn.power[thisMonth] ? '; this month’s is on the statement already' : '') + '.',
+      'Electricity, around the ' + finOrd(pd), finRs(finPct(pv, 0.5)), paidIn.power[thisMonth] ? 'this month’s on the statement already' : '');
   }
   // GST by the 20th: the month's own due where it is closed, else the last closed month's, at the share of
   // due the bank has paid (input credit takes the rest).
@@ -213,7 +238,7 @@ function finForecast(days) {
       var due = r && pm < today.slice(0, 7) ? r.due : lastDue;
       if (due > 0) add(mm + '-20', 'out', due * finPct(ratios, 0.25), due * ratio, due * finPct(ratios, 0.75));
     });
-    rests.push('GST by the 20th at ' + Math.round(ratio * 100) + '% of the output tax due, the share the bank has paid.');
+    rest('GST by the 20th at ' + Math.round(ratio * 100) + '% of the output tax due, the share the bank has paid.', 'GST by the 20th', Math.round(ratio * 100) + '% of the tax due', 'the share the bank has paid');
   }
 
   var bal = [last.balance, last.balance, last.balance], out = [], cross = null, min = { bal: last.balance, date: today }, was = last.balance;
@@ -228,8 +253,9 @@ function finForecast(days) {
     was = bal[1];
   }
   var stale = isoDaysBetween(last.date, today);
-  if (stale > 3) rests.unshift('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.');
-  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, noInflow: noInflow };
+  if (stale > 3) rest('Starts from the balance on ' + formatDate(last.date) + ', the statement’s last day: ' + stale + ' days of payments since are not on it.',
+    'Starts from the balance on ' + stockShortDate(last.date), finRs(last.balance), stale + ' days of payments since not on it', true);
+  return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, facts: facts, noInflow: noInflow };
 }
 
 function finForecastHtml() {
@@ -255,24 +281,26 @@ function finForecastHtml() {
   else if (fc.noInflow) h += '<div class="inv-callout inv-callout-warning">' + escHtml(why.trim()) + '</div>';
   h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
     { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
-  h += '<div class="inv-note">What it rests on:</div><ul class="inv-note">' + fc.rests.map(function(r) { return '<li>' + escHtml(r) + '</li>'; }).join('') + '</ul>';
-  return h + '</div></div>';
+  // What it rests on, a fact a row, folded (the tab map, TM6e); each row's whole sentence in its title.
+  return h + '</div>' + uiWorkingHtml('fin-forecast-rests', fc.facts, 'What it rests on', ' data-fc-rests') + '</div>';
 }
 
 /* ---------- The rules ---------- */
 var FIN_RULES = [
   ['bankStale', 'Finance: the bank statement is out of date'],
   ['bankLoose', 'Finance: receipts not placed on a client'],
-  ['owed90', 'Finance: a client owes invoices over 90 days old'],
+  ['owed90', 'Finance: a client owes invoices past its payment terms'],
   ['payingSlower', 'Finance: a client is paying slower than usual'],
   ['gstNotInBank', 'Finance: a month’s GST is not on the statement'],
   ['powerPaidNoBill', 'Finance: electricity paid with no bill entered'],
   ['supplierNoBill', 'Finance: a supplier paid with no stock bill'],
+  ['supplierOwed', 'Finance: a supplier is owed for a bill over 30 days old'],
   ['wageVsSlip', 'Finance: a salary paid differs from the payroll as paid'],
   ['cashSwing', 'Finance: a week’s cash drawn is well short of its payout'],
   ['costGap', 'Finance: a recorded cost is far from what was paid'],
   ['runway', 'Finance: the cash forecast goes below zero'],
-  ['bankBounce', 'Finance: a returned cheque is not matched to its deposit']
+  ['bankBounce', 'Finance: a returned cheque is not matched to its deposit'],
+  ['chequeHeld', 'Finance: a cheque received is not yet in the bank']
 ];
 FIN_RULES.forEach(function(r) { TODO_RULES.push(r); TODO_CHECK_DEFAULTS[r[0]] = true; });
 /* Who sees them (todo.js todoSees): every one reads the statement, which is money, whatever page its move lands on (a
@@ -288,9 +316,12 @@ TODO_RULES.push(['payCarry', 'Pay: a worker carries a balance from an earlier pe
 TODO_CHECK_DEFAULTS.payCarry = true;
 TODO_RULE_NEED.payCarry = 'wages';
 TODO_RULE_FNS.payCarry = function() {
-  if (!staffPayments().some(function(p) { return !p.voidedAt; })) return [];
-  var ws = attWeekStartOf(localDateStr());
-  var rows = payDue(ws).rows.filter(function(r) { return r.carried; });
+  if (!staffPayments().some(function(p) { return !p.voidedAt; }) && !payCarryFrom()) return [];
+  // What is owed as of today (payOverdue): last month's salary is not owed before the day it is paid by, so the days before
+  // payday raise nothing.
+  var ws = attWeekStartOf(localDateStr()), lab = payLabMemo();
+  var rows = payDue(ws).rows.map(function(r) { var o = payOverdue(r.w, null, lab); return { w: r.w, carried: Math.abs(o.amount) >= 1 ? o.amount : 0 }; })
+    .filter(function(r) { return r.carried; });
   if (!rows.length) return [];
   var owed = rows.filter(function(r) { return r.carried > 0; }), adv = rows.filter(function(r) { return r.carried < 0; });
   var sum = function(list) { return gstRound(list.reduce(function(t, r) { return t + Math.abs(r.carried); }, 0)); };
@@ -298,8 +329,23 @@ TODO_RULE_FNS.payCarry = function() {
     title: todoPlural(rows.length, 'worker') + ' carry a balance from an earlier period',
     sub: rows.slice(0, 3).map(function(r) { return r.w.name + ' ' + (r.carried > 0 ? 'owed ' : 'advanced ') + formatCurrency(Math.abs(r.carried)); }).join(' · '),
     why: 'Pay · brought forward', facts: [['Owed from before', formatCurrency(sum(owed))], ['Advanced before', formatCurrency(sum(adv))]],
-    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on Staff → Pay.',
+    clears: 'Clears itself when each balance is paid or worked off, or cleared with a reason on People → Pay.',
     go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: rows.map(function(r) { return r.w.id + ':' + r.carried; }).join('|') }];
+};
+/* A hand named on an overtime block whose own times do not reach it (payCrewGaps), this pay week and the last: the block's hours
+   are in nobody's pay until the day is put right (the week of 4 Oct, 10 Oct 2026). A floor entry, so the floor's task. */
+TODO_RULES.push(['payCrewGap', 'Attendance: a hand on an OT block their own times do not reach']);
+TODO_CHECK_DEFAULTS.payCrewGap = true;
+TODO_RULE_NEED.payCrewGap = 'floor';
+TODO_RULE_FNS.payCrewGap = function() {
+  var ws = attWeekStartOf(localDateStr()), gaps = payCrewGaps(isoAddDays(ws, -7), localDateStr());
+  if (!gaps.length) return [];
+  return [{ key: 'payCrewGap', rule: 'payCrewGap', tone: 'amber',
+    title: gaps.length === 1 ? gaps[0].name + ' is on an OT block their own times do not reach' : todoPlural(gaps.length, 'hand') + ' on an OT block their own times do not reach',
+    sub: gaps.slice(0, 3).map(function(gp) { return gp.name + ' ' + stockShortDate(gp.date); }).join(' · '),
+    why: 'Attendance · pay reads each hand’s own times', facts: gaps.slice(0, 4).map(function(gp) { return [gp.name, payGapText(gp)]; }),
+    clears: 'Clears itself when the hand’s in or out time reaches the block, or the hand is taken off its crew, on People → Attendance.',
+    go: { kind: 'staffDay', date: gaps[0].date }, goLabel: 'Open the day', sig: gaps.map(function(gp) { return gp.date + ':' + gp.staffId; }).join('|') }];
 };
 function finGo(tab, extra) { return Object.assign({ kind: 'finance', tab: tab }, extra || {}); }
 function _finRows() { return finCtx().rows; }
@@ -322,20 +368,26 @@ TODO_RULE_FNS.bankLoose = function() {
     why: 'Receivables · a week or more unplaced', facts: [['Receipts', String(loose.length)], ['Amount', formatCurrency(sum)], ['Oldest', formatDate(loose[0].row.date)]],
     clears: 'Clears itself when every receipt a week old is placed.', go: finGo('receipts', { anchor: 'bankLoose' }), goLabel: 'Place them', sig: loose.length + '|' + sum }];
 };
+/* An invoice past its client's payment terms (the entry faces' T2; owner, 10 Oct 2026: "Mehta 7 days - as we give 2% discount, every
+   other client 45 days"): the receivables' ageing against each client's terms (flow.js flowTerms), where it read a fixed 90 days. The
+   rule keeps its first name, so a switch or a snooze set on it before stands. */
 TODO_RULE_FNS.owed90 = function() {
+  // With no statement nothing says what was paid: every invoice would read open, so it asks nothing (Receivables says the same).
+  if (!finCtx().rows.length) return [];
   var today = localDateStr(), recv = finCtx().recv(), book = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
   // Unplaced receipts may have paid these: until they are placed the figure is an upper bound, never red.
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   return recv.map(function(r) {
-    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > 90; });
+    var terms = flowTerms(r.client.id).days;
+    var old = r.open.filter(function(o) { return o.inv && isoDaysBetween(o.date, today) > terms; });
     if (!old.length) return null;
-    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0));
+    var sum = gstRound(old.reduce(function(s, o) { return s + o.due; }, 0)), past = isoDaysBetween(old[0].date, today) - terms;
     return { key: 'owed90:' + r.client.id, rule: 'owed90', tone: !loose && book > 0 && sum >= book * 0.1 ? 'red' : 'amber',
-      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed,
-      title: r.client.name + ' owes ' + formatCurrency(sum) + ' over 90 days', sub: todoPlural(old.length, 'invoice') + ', oldest ' + formatDate(old[0].date) +
+      clientId: r.client.id, amount: sum, n: old.length, oldest: old[0].date, owed: r.owed, terms: terms,
+      title: r.client.name + ' owes ' + formatCurrency(sum) + ' past its ' + terms + '-day terms', sub: todoPlural(old.length, 'invoice') + ', the oldest ' + formatDate(old[0].date) + ', ' + todoPlural(past, 'day') + ' past them' +
         (loose ? ' · ' + todoPlural(loose, 'receipt') + ' not placed yet may have paid some' : ''),
-      why: 'Receivables · over 90 days', facts: [['Over 90 days', formatCurrency(sum)], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
-      clears: 'Clears itself when they are paid, or the opening balance is corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
+      why: 'Receivables · past the payment terms', facts: [['Past terms', formatCurrency(sum)], ['Terms', terms + ' days'], ['Invoices', String(old.length)], ['Owed in all', formatCurrency(r.owed)]],
+      clears: 'Clears itself when they are paid, or the opening balance or the client’s terms are corrected.', go: finGo('receipts', { client: r.client.id }), goLabel: 'Open the client', sig: old.length + '|' + sum };
   }).filter(Boolean);
 };
 TODO_RULE_FNS.payingSlower = function() {
@@ -364,7 +416,7 @@ TODO_RULE_FNS.gstNotInBank = function() {
   });
 };
 TODO_RULE_FNS.powerPaidNoBill = function() {
-  // Only the book's months: a payment for a month before the first invoice pays a bill Bills & notes never asks for
+  // Only the book's months: a payment for a month before the first invoice pays a bill Payments never asks for
   // (billsMissingPower) and nothing reads. Nor a month the power rule already asks for: one task per bill.
   var first = '';
   (S.invoices || []).forEach(function(i) { if (i.date && (!first || i.date < first)) first = i.date; });
@@ -387,54 +439,69 @@ TODO_RULE_FNS.powerPaidNoBill = function() {
     why: 'Payments · electricity', facts: ms.map(function(m) { return [billsMonthLabel(m), formatCurrency(miss[m])]; }),
     clears: 'Clears itself when each month has its bill (one tap on Payments: Add as bill).', go: finGo('payments', { anchor: 'bankPower' }), goLabel: 'Add as bills', sig: ms.join('|') }];
 };
+/* A payment to a supplier with no stock bill from them that month or the one before (a bill is paid after it is raised), read through
+   the suppliers (suppliers.js): every spelling the owner gave one is theirs, and "&" is AND, so a payment the statement writes one
+   way is set against bills written the other. */
 TODO_RULE_FNS.supplierNoBill = function() {
-  var today = localDateStr(), byKey = {}, bills = {};
-  stockData().entries.forEach(function(e) {
-    if (e.voided || !e.supplier || !(e.kind === 'bill' || e.kind === 'received')) return;
-    var k = bankKey(e.supplier), m = String(e.billDate || e.date || '').slice(0, 7);
-    if (k && m) bills[k + '|' + m] = 1;
+  var today = localDateStr(), out = [];
+  suppIndex().list.forEach(function(sp) {
+    var months = {}, by = {};
+    sp.bills.forEach(function(b) { months[b.date.slice(0, 7)] = 1; });
+    sp.bank.forEach(function(v) {
+      if (isoDaysBetween(v.row.date, today) > 90) return;
+      var m = v.row.date.slice(0, 7);
+      if (months[m] || months[bankPrevMonth(m + '-01')]) return;
+      var e = by[m] || (by[m] = { month: m, paid: 0, n: 0 });
+      e.paid = gstRound(e.paid + v.row.dr); e.n++;
+    });
+    Object.keys(by).forEach(function(m) {
+      var e = by[m];
+      out.push({ key: 'supplierNoBill:' + (sp.keys[0] || sp.id) + '|' + m, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + sp.name + ', ' + billsMonthLabel(m),
+        sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
+        why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(m)]],
+        clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' });
+    });
   });
-  var billKeys = Object.keys(bills).map(function(x) { return x.split('|')[0]; });
-  finCtx().cls.forEach(function(v) {
-    if (v.cat !== 'supplier' || !(v.row.dr > 0) || isoDaysBetween(v.row.date, today) > 90) return;
-    // The payee, or the narration where the payee is too short to read, read as finSupplierPaid reads it (one
-    // matcher, bank.js): prefix here and substring there made a payment covered on one screen and not the other.
-    var wk = bankSupplierWritten(v), m = v.row.date.slice(0, 7);
-    // A bill dated that month or the one before covers the payment: a bill is paid after it is raised.
-    if (billKeys.some(function(b) { return bankSupplierIs(wk, b) && (bills[b + '|' + m] || bills[b + '|' + bankPrevMonth(m + '-01')]); })) return;
-    var gk = wk + '|' + m;
-    var e = byKey[gk] || (byKey[gk] = { name: v.supplier || v.party || v.row.narration, month: m, paid: 0, n: 0 });
-    e.paid = gstRound(e.paid + v.row.dr); e.n++;
-  });
-  return Object.keys(byKey).map(function(k) {
-    var e = byKey[k];
-    return { key: 'supplierNoBill:' + k, rule: 'supplierNoBill', tone: 'info', title: 'Enter the stock bill for ' + e.name + ', ' + billsMonthLabel(e.month),
-      sub: formatCurrency(e.paid) + ' paid in ' + todoPlural(e.n, 'payment') + ' with no stock bill from them that month or the one before',
-      why: 'Payments · supplier', facts: [['Paid', formatCurrency(e.paid)], ['Month', billsMonthLabel(e.month)]],
-      clears: 'Clears itself when a stock bill from them is entered for that month.', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: e.paid + '' };
+  return out;
+};
+/* A supplier with a balance set whose oldest unpaid part is over SUPP_OWED_DAYS old (suppliers.js: the payments settle the oldest
+   first). Only to know: when to pay is the owner's. */
+TODO_RULE_FNS.supplierOwed = function() {
+  return suppTotals().rows.filter(function(x) { return x.L.balance > 0.5 && x.L.oldest && suppAgeDays(x.L.oldest.date) > SUPP_OWED_DAYS; }).map(function(x) {
+    var L = x.L, o = L.oldest;
+    return { key: 'supplierOwed:' + x.sp.id, rule: 'supplierOwed', tone: 'info', title: 'Pay ' + x.sp.name + ': ' + formatCurrency(L.balance) + ' owed',
+      sub: 'Unpaid from ' + formatDate(o.date) + ', ' + todoPlural(suppAgeDays(o.date), 'day') + ' ago',
+      why: 'Payments · suppliers', amount: L.balance,
+      facts: [['Owed', formatCurrency(L.balance)], ['Unpaid from', formatDate(o.date)], ['Balance set', formatCurrency(L.op.amount) + ' on ' + formatDate(L.op.date)]],
+      clears: 'Clears itself when nothing unpaid is over ' + SUPP_OWED_DAYS + ' days old.', go: { kind: 'supplier', id: x.sp.id }, goLabel: 'Open the supplier',
+      sig: L.balance + '|' + o.date };
   });
 };
 TODO_RULE_FNS.wageVsSlip = function() {
   var byMonth = {};
   finCtx().cls.forEach(function(v) {
     if (v.cat !== 'wages' || v.cash || v.staffId == null || !(v.row.dr > 0)) return;
-    var m = v.row.date.slice(0, 7), e = byMonth[m] || (byMonth[m] = {});
+    // By the month each leg pays for, as Pay reads it (payMonthPaidFor): one after the 20th is its own month's, never the slip's before.
+    var m = payMonthPaidFor({ date: v.row.date }).slice(0, 7), e = byMonth[m] || (byMonth[m] = {});
     e[String(v.staffId)] = gstRound((e[String(v.staffId)] || 0) + v.row.dr);
   });
-  return Object.keys(byMonth).map(function(m) {
-    var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
+  return Object.keys(byMonth).map(function(pm) {
+    var slip = payrollPaidFor(pm);
     if (!slip) return null;
+    // Once monthly balances are counted (Pay, Count from a month) a month's difference is Pay's: from that month on it carries to the
+    // next month's due, said there by month; the months before it the owner settled as they stand.
+    if (payCarryFrom()) return null;
     // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
     var off = [], byW = payrollRowsByWorker(slip.rows);
-    Object.keys(byMonth[m]).forEach(function(id) {
+    Object.keys(byMonth[pm]).forEach(function(id) {
       var row = byW[id];
       if (!row) return;
-      var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[m][id] - owed);
+      var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[pm][id] - owed);
       if (Math.abs(d) >= 1) off.push([(staffById(id) || { name: '?' }).name, d]);
     });
     if (!off.length) return null;
-    var pm = bankPrevMonth(m + '-01');
-    return { key: 'wageVsSlip:' + m, rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
+    // Keyed by the month its salaries go out in, as it always was, so a snooze holds.
+    return { key: 'wageVsSlip:' + bankNextMonth(pm), rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
       sub: off.slice(0, 3).map(function(o) { return o[0] + ' ' + (o[1] > 0 ? 'over' : 'short') + ' ' + formatCurrency(Math.abs(o[1])); }).join(' · '),
       why: 'Payments · wages against payroll as paid', facts: off.map(function(o) { return [o[0], (o[1] > 0 ? '+' : '−') + formatCurrency(Math.abs(o[1]))]; }),
       clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };
@@ -478,6 +545,23 @@ TODO_RULE_FNS.bankBounce = function() {
     sub: formatCurrency(sum) + ' went back out; until each is linked to its deposit, that client reads as paid',
     why: 'Receivables · returned cheques', facts: open.map(function(v) { return [formatDate(v.row.date), formatCurrency(v.row.dr)]; }),
     clears: 'Clears itself when each is linked to its deposit or marked not a bounce.', go: finGo('receipts', { anchor: 'bankBounces' }), goLabel: 'Match them', sig: open.map(function(v) { return v.row.id; }).join('|') }];
+};
+/* A cheque received and still in hand (TM3b): amber at 3 days, red at 7, one task a cheque (three or more fold into one). It
+   says whether the statement reaches past the day it came, so "not in the bank" is a fact, else to import the statement. */
+TODO_RULE_FNS.chequeHeld = function() {
+  var ctx = finCtx(), end = ctx.rows.length ? ctx.rows[ctx.rows.length - 1].date : '';
+  // Its days count from the day it could go in (bankChequeDue: a post-dated cheque's own date), and so does "not in the bank by".
+  return bankChequesHeld(ctx.cls).list.filter(function(o) { return o.days >= 3; }).map(function(o) {
+    var c = bankChequeClient(o.ch), past = end && end > bankChequeDue(o.ch), tone = o.days >= 7 ? 'red' : 'amber';
+    return { key: 'chequeHeld:' + o.ch.id, rule: 'chequeHeld', tone: tone, clientId: o.ch.clientId, amount: Number(o.ch.amount) || 0,
+      // The client is in its line, not its title: Needs you's groups name their tasks by title in one line (a long name made
+      // that line a block of text, P195).
+      title: 'Deposit cheque ' + o.ch.number,
+      sub: (c ? c.name + ' · ' : '') + formatCurrency(o.ch.amount) + ', received ' + formatDate(o.ch.receivedOn) + (past ? ': not in the bank by ' + formatDate(end) : ': import the statement to check'),
+      why: 'Receivables · cheque in hand', facts: [['Received', formatDate(o.ch.receivedOn)], ['In hand', todoPlural(o.days, 'day')], ['Statement to', end ? formatDate(end) : 'none yet']],
+      clears: 'Clears itself when its deposit is on the statement, or the cheque is voided.', go: finGo('receipts', { cheque: o.ch.id }), goLabel: 'Open the cheque',
+      sig: o.ch.id + '|' + tone };
+  });
 };
 TODO_RULE_FNS.runway = function() {
   var fc = finForecast(45);

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openAttendance, toolbarMore, toolbarMoreLabels } from './fixtures';
 
 // P124: the QA of the floor (30 Sep 2026) — attendance rolls, Pay, the payroll as paid, the roster, the exception ledger,
 // the Day board and Shyam's sheet — and "Read the rolls again", which repairs a day the old reader got wrong (the owner's
@@ -48,7 +48,7 @@ async function pasteAndSave(page: Page, text: string) {
 }
 async function openDay(page: Page, day: string) {
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+  await openAttendance(page, 'day');
   await page.locator('#attDate').fill(day);
   await page.locator('#attDate').dispatchEvent('change');
   await expect(page.locator('#attDate')).toHaveValue(day);
@@ -164,7 +164,7 @@ test.describe('P124: attendance rolls', () => {
     await loadAppWithState(page, book());
     const roll = `${dmy()}/ in time\n----8:30 AM---\n---VAT A 1----\n1) ALFA\n2) BRAVO\nEXTRA 8 HOURS`;
     await pasteAndSave(page, roll);
-    await page.locator('[data-action="invAttDayDelete"]').click();
+    await toolbarMore(page, 'Delete this day');   // Day's More (TM4b)
     expect(await answerAsk(page, 'ok', 'Entered against the wrong roster')).toContain('can be pasted again');
     const s = await readStoredState(page);
     expect(s.relayPastes).toHaveLength(0);
@@ -281,7 +281,7 @@ test.describe('P124: the roster, the ledger and the Day', () => {
     // Correctable: marked absent from the board.
     await row.locator('[data-action="invAttSet"][data-st="A"]').click();
     expect((await readStoredState(page)).attendance[day].marks[9].st).toBe('A');
-    await page.locator('[data-action="invAttView"][data-view="week"]').click();
+    await openAttendance(page, 'week');
     await expect(page.locator('#attWeekGrid tr[data-left]')).toContainText('GOLU');
   });
 
@@ -331,11 +331,11 @@ test.describe('P124: read the rolls again', () => {
   test('the day\'s rolls are read again: the rolls\' marks and rows are replaced, what was entered by hand is kept, the old day is logged', async ({ page }) => {
     await loadAppWithState(page, book(brokenDay()));
     await openDay(page, iso());
-    await page.locator('[data-action="invRelayReread"]').click();
+    await toolbarMore(page, 'Read the rolls again');   // Day's More (TM4b)
     // Asked first; Cancel leaves the day as it is.
     expect(await answerAsk(page, 'cancel')).toContain('3 rolls saved for');
     await expect(page.locator('#relayRereadNote')).toHaveCount(0);
-    await page.locator('[data-action="invRelayReread"]').click();
+    await toolbarMore(page, 'Read the rolls again');   // Day's More (TM4b)
     await answerAsk(page, 'ok');
     await expect(page.locator('#relayRereadNote')).toContainText('3 rolls saved for');
     // Saved rolls are not refused as already saved; the one posted twice is read once.
@@ -373,9 +373,9 @@ test.describe('P124: read the rolls again', () => {
   test('a day with no roll saved has no Read the rolls again; back from the check leaves Paste message empty', async ({ page }) => {
     await loadAppWithState(page, book(brokenDay()));
     await openDay(page, iso(-2));
-    await expect(page.locator('[data-action="invRelayReread"]')).toHaveCount(0);
+    expect(await toolbarMoreLabels(page)).not.toContain('Read the rolls again');
     await openDay(page, iso());
-    await page.locator('[data-action="invRelayReread"]').click();
+    await toolbarMore(page, 'Read the rolls again');   // Day's More (TM4b)
     await answerAsk(page, 'ok');
     await page.locator('[data-action="invRelayRereadBack"]').click();
     await expect(page.locator('#attDate')).toHaveValue(iso());

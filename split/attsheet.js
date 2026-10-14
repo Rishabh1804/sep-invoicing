@@ -59,7 +59,7 @@ function _asName(id) { var w = staffById(id); return w ? w.name : String(id); }
    printing out Shyam's sheet for any previous day, that way giving them a tutorial becomes easy") the same sheet comes
    out filled in his own shape: names under their area, the absent by tier, each block's area, crew and EXTRA, who left
    at 5 and who later, with their own times. */
-function attSheetShyamHtml(iso, rec) {
+function attSheetShyamHtml(iso, rec, note) {
   var marks = rec ? rec.marks || {} : {}, extra = rec ? rec.extra || [] : [];
   var byBox = {}, absM = [], absW = [], flex = [];
   var boxOf = { 'vat-a1': 0, 'vat-a2': 1, 'barrel': 2, 'pickling-barrel': 2, 'pickling-vat': 3, 'office': 4, 'gate': 4, 'civil': 5 };
@@ -98,7 +98,8 @@ function attSheetShyamHtml(iso, rec) {
   };
   var mBoxes = '';
   for (var k = 0; k < Math.max(2, morning.length); k++) mBoxes += block('Block ' + (k + 1) + (morning[k] ? ' · ' + _asClock(morning[k].from) + ' – ' + _asClock(morning[k].to) : ''), morning[k], 3);
-  var worked = rec ? '<div class="inv-as-note">Filled from the app&rsquo;s record of this day, as a worked example.</div>' : '';
+  // `note` says what a filled sheet is where it is not a worked example (Mine's Print the day as entered, F5).
+  var worked = rec ? '<div class="inv-as-note">' + (note ? escHtml(note) : 'Filled from the app&rsquo;s record of this day, as a worked example.') + '</div>' : '';
   var front = '<div class="inv-as-page" data-sheet="shyam-in"' + (rec ? ' data-filled' : '') + '>' + _asHead('In time', iso, 'Shyam') + worked +
     '<div class="inv-as-slot">6:00 AM</div><div class="inv-as-grid">' + mBoxes + '</div>' +
     '<div class="inv-as-slot">8:30 AM</div><div class="inv-as-grid">' + boxes + '</div>' +

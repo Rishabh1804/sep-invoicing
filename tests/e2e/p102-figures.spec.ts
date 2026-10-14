@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
 
 // P102: a figure says whether it is good (owner, 29 Sep 2026: "most numbers in our app don't convey any kind of meaning,
 // as in is it a good number or is it something of an issue, all are in default black"; the owner chose both options).
@@ -87,10 +87,12 @@ test.describe('P102: on the screens', () => {
 
   test('Stats: the headline realisation and its change are coloured, gross margin below zero is danger', async ({ page }) => {
     await loadAppWithState(page, monthState());
-    await switchTab(page, 'pageStats');
-    const head = page.locator('[data-card="headline"]');
+    // The headline is Trends' verdict card since the tab map (TM2b): each factor toned, the revenue by its change.
+    await openStatsTab(page, 'trends');
+    const head = page.locator('#statsHeadline');
     await expect(head.locator('[data-tile="realisation"]')).toHaveClass(/inv-tile-danger/);
-    await expect(head.locator('[data-tile="revenue"] .inv-fig-ok')).toBeVisible();
+    await expect(head.locator('[data-tile="revenue"]')).toHaveClass(/inv-tile-ok/);
+    await expect(head.locator('[data-tile="revenue"] .inv-tile-sub')).toContainText('on same days last month');
     await expect(head.locator('[data-tile="margin"]')).toHaveClass(/inv-tile-danger/);
   });
 

@@ -17,7 +17,10 @@ test('the phone keeps each screen as it was: no pane, the record where it was', 
   await switchTab(page, 'pageProduction');
   await page.locator('#pageProduction .inv-viewtab[data-tab="entries"]').click();
   await expect(page.locator('#pageProduction .inv-pane-host, #pageProduction [data-action="invProdEntryOpen"]')).toHaveCount(0);
-  await expect(page.locator('#prodEntries [data-action="invProdVoid"]').first()).toBeVisible();
+  // An entry's actions are in its own fold on the phone (TM4c), opened under its line.
+  const entry = page.locator('#prodEntries details[data-prod-entry]').first();
+  await entry.locator('> summary').click();
+  await expect(entry.locator('[data-action="invProdVoid"]')).toBeVisible();
 
   await switchTab(page, 'pageStaff');
   await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();

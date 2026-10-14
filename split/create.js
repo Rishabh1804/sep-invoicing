@@ -233,9 +233,9 @@ function renderCreateForm() {
   html += '<div id="invTotalsArea" class="inv-panel inv-panel-flush">' + createTotalsHtml(client) + '</div>';
   html += '</div>';
 
-  // Validation + the action bar: the grand total, Clear, and the page's one primary.
-  const errors = validateInvoice();
-  html += '<div id="invErrorsArea">' + errors.map(e => '<div class="inv-field-error">' + escHtml(e) + '</div>').join('') + '</div>';
+  // Validation + the action bar: the grand total, Clear, and the page's one primary. Only the errors due to show (TM5h).
+  const errors = createErrorsShown();
+  html += '<div id="invErrorsArea">' + createErrorsHtml(errors) + '</div>';
   html += '<div class="inv-actionbar"><div class="inv-actionbar-total"><div class="inv-actionbar-label">Grand total</div>' +
     '<div class="inv-actionbar-value" id="invGrandTotal">' + formatCurrency(createTotals(client).grand) + '</div></div>' +
     '<button type="button" class="inv-btn inv-btn-secondary" data-action="invResetForm">Clear</button>' +
@@ -726,42 +726,88 @@ function invSavedLine(i) {
     ...(i._imItemId && i.unitChangeAck ? { unitChangeAck: i.unitChangeAck } : {}) };
 }
 
-function validateInvoice() {
+/* Create's errors (the tab map, TM5h; red errors showed on a form nobody had touched): each names what it is about (`key`), and
+   shows once that field has been left, typed in and left or picked (createFieldLeft), or a save was tried (`_tried`): a line's part
+   and quantity each by their own field, a reason a line needs by any of its fields. One about the form's own state (its client or its
+   invoice gone meanwhile) shows at once. Save is held only while an error shows; tapped with errors hidden, it shows them. */
+function validateInvoiceKeyed() {
   const errors = [];
-  if (!invoiceForm.clientId) errors.push('Select a client');
+  const add = (text, key) => errors.push({ text: text, key: key });
+  if (!invoiceForm.clientId) add('Select a client', 'client');
   // Gone since the form was opened (another window, a merge): the save used to return without a word.
-  else if (!S.clients.some(c => c.id === invoiceForm.clientId)) errors.push('The client chosen is no longer in the client master — choose the client again');
-  if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) errors.push('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it');
-  if (!invoiceForm.date) errors.push('Enter invoice date');
-  if (invoiceForm.items.length === 0) errors.push('Add at least one line item');
+  else if (!S.clients.some(c => c.id === invoiceForm.clientId)) add('The client chosen is no longer in the client master — choose the client again', 'state');
+  if (invoiceForm.editingId && !S.invoices.some(i => i.id === invoiceForm.editingId)) add('The invoice being edited is no longer in the register (deleted, or changed in another window) — nothing can be saved to it', 'state');
+  if (!invoiceForm.date) add('Enter invoice date', 'date');
+  if (invoiceForm.items.length === 0) add('Add at least one line item', 'lines');
   invoiceForm.items.forEach((item, i) => {
     // A line bills a part, some of it: a blank line saved a ₹0 invoice, reached a quality certificate, and an
     // amount with no quantity printed 0.00 NOS.
     // A line whose Part field was typed in is named by the field (the part number); one never touched may be named by its
     // description alone, as a challan line written with only a description is.
-    if (!String((item._partTyped ? item.partNumber : item.partNumber || item.desc) || '').trim()) errors.push('Line ' + (i+1) + ': name the part');
-    if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) errors.push('Line ' + (i+1) + ': enter the quantity'); }
-    if (item.qty < 0) errors.push('Line ' + (i+1) + ': Quantity cannot be negative');
-    if (item.amount < 0) errors.push('Line ' + (i+1) + ': Amount cannot be negative');
-    if (isZeroBilledLine(item) && !item.zeroReason) errors.push('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason');
+    if (!String((item._partTyped ? item.partNumber : item.partNumber || item.desc) || '').trim()) add('Line ' + (i+1) + ': name the part', 'line:' + i + ':part');
+    if (!((item.qty || 0) > 0)) { if (!(item.qty < 0)) add('Line ' + (i+1) + ': enter the quantity', 'line:' + i + ':qty'); }
+    if (item.qty < 0) add('Line ' + (i+1) + ': Quantity cannot be negative', 'line:' + i + ':qty');
+    if (item.amount < 0) add('Line ' + (i+1) + ': Amount cannot be negative', 'line:' + i);
+    if (isZeroBilledLine(item) && !item.zeroReason) add('Line ' + (i+1) + ': billed at \u20B90 \u2014 pick a reason', 'line:' + i);
   });
   // A line the challan cannot vouch for: more than is left on it, or in another unit.
   if (invoiceForm.items.some(i => i._imItemId)) {
     const bIdx = imBilledIndex();
     createUnitChanges(bIdx).forEach(u => {
-      if (!createAckInit(u.item).unitReason) errors.push('Line ' + (u.idx + 1) + ': billed in ' + (u.to || 'another unit') + ', challan ' +
-        (u.sh.im.challanNo || '(no number)') + ' says ' + (u.from || 'no unit') + ' \u2014 pick a reason');
+      if (!createAckInit(u.item).unitReason) add('Line ' + (u.idx + 1) + ': billed in ' + (u.to || 'another unit') + ', challan ' +
+        (u.sh.im.challanNo || '(no number)') + ' says ' + (u.from || 'no unit') + ' \u2014 pick a reason', 'line:' + u.idx);
     });
     createOverBills(bIdx).forEach(o => {
-      if (!createAckInit(o.item).overReason) errors.push('Line ' + (o.idx + 1) + ': ' + createOverText(o) + ' \u2014 pick a reason');
+      if (!createAckInit(o.item).overReason) add('Line ' + (o.idx + 1) + ': ' + createOverText(o) + ' \u2014 pick a reason', 'line:' + o.idx);
     });
   }
   return errors;
 }
+function validateInvoice() { return validateInvoiceKeyed().map(e => e.text); }
+function createFieldLeft(key) { (invoiceForm._left = invoiceForm._left || {})[key] = true; }
+// A line removed: what was left on the lines under it moves up with them.
+function createLeftDrop(idx) {
+  const left = invoiceForm._left; if (!left) return;
+  const next = {};
+  Object.keys(left).forEach(k => {
+    const m = /^line:(\d+)(:.*)?$/.exec(k);
+    if (!m) { next[k] = left[k]; return; }
+    const i = +m[1];
+    if (i < idx) next[k] = left[k]; else if (i > idx) next['line:' + (i - 1) + (m[2] || '')] = left[k];
+  });
+  invoiceForm._left = next;
+}
+function createErrorsShown() {
+  const f = invoiceForm, left = f._left || {};
+  return validateInvoiceKeyed().filter(e => {
+    if (e.key === 'state' || f._tried || left[e.key]) return true;
+    // A line's reason shows once any of its fields was left.
+    const m = /^line:(\d+)$/.exec(e.key);
+    return !!m && Object.keys(left).some(k => k === e.key || k.indexOf(e.key + ':') === 0);
+  });
+}
+function createErrorsHtml(list) { return list.map(e => '<div class="inv-field-error">' + escHtml(e.text) + '</div>').join(''); }
+function createErrorsRefresh() {
+  const shown = createErrorsShown(), area = document.getElementById('invErrorsArea'), btn = document.getElementById('invSaveBtn');
+  if (area) area.innerHTML = createErrorsHtml(shown);
+  if (btn) btn.disabled = shown.length > 0;
+}
+// A field of the invoice form left after a change: its errors may show now (the line's own handlers run after this one).
+document.addEventListener('change', function(e) {
+  const t = e.target;
+  if (!t || !t.closest || !t.closest('#pageCreate')) return;
+  const idx = t.dataset ? t.dataset.idx : null;
+  const key = t.id === 'invDate' ? 'date' : idx != null && t.dataset.action === 'invEditLinePart' ? 'line:' + idx + ':part'
+    : idx != null && t.dataset.field ? 'line:' + idx + ':' + t.dataset.field : '';
+  if (!key) return;
+  createFieldLeft(key);
+  setTimeout(createErrorsRefresh, 0);
+});
 
 function selectClient(id) {
   captureOptionalFields();
   invoiceForm.clientId = id;
+  createFieldLeft('client');
   // PO and vehicle from the client's own history (insights.js): filled only
   // into an empty field, and only where the history clearly says what it is.
   predApplyToInvoice();
@@ -811,7 +857,8 @@ function createFyAsk() {
 
 async function saveInvoice() {
   const errors = validateInvoice();
-  if (errors.length > 0) { showToast(errors[0], 'error'); return; }
+  // A save tried: every error shows now, and the first is said.
+  if (errors.length > 0) { invoiceForm._tried = true; createErrorsRefresh(); showToast(errors[0], 'error'); return; }
   // P1 (guard.js): issuing or editing an invoice.
   if (!grdOk('billing') && !(await guardAsk('billing', invoiceForm.editingId ? 'save an edited invoice' : 'save an invoice'))) return;
 
@@ -978,7 +1025,7 @@ function rateMatchNote(m, compact) {
   } else if (m.status === 'none') text = compact ? '' : 'Add it to the client’s piece rates to check this line';
   else if (m.status === 'gauge') text = compact ? '' : 'This part is priced by gauge — put the gauge in the description';
   else if (m.status === 'unit') text = 'On record ' + formatCurrency(m.ref) + per + ' for this part, not in this line’s unit' + (compact ? '' :
-    m.need === 'weight' ? ': enter its weight in Items → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
+    m.need === 'weight' ? ': enter its weight in Clients → Parts → Part weights to price the pieces by it' : ': the line is at the client’s own rate; bill it in ' + m.need + ' to use it');
   return verdictHtml(m.status, RM_LABELS[m.status], text);
 }
 

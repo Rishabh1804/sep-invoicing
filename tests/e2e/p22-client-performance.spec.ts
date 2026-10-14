@@ -71,7 +71,9 @@ async function openPerf(page: Page) {
 
 /** Every part in one cadence group. */
 function group(page: Page, title: string) {
-  return page.locator('[data-cp-group]').filter({ has: page.locator('.inv-row-group', { hasText: title }) });
+  // Each group is a fold keyed by its kind (the tab map, TM5f), its head the title and count; shut, its rows are still its text.
+  const key: Record<string, string> = { Stopped: 'stopped', New: 'new', Steady: 'steady', 'One-off': 'oneoff' };
+  return page.locator(`[data-cp-group="${key[title] || title}"]`);
 }
 
 test('P22: a part that fell out of its rhythm is named, with how overdue it is', async ({ page }) => {

@@ -37,9 +37,8 @@ test('a cut saved with no time back is completed where it is shown: the time, wh
   const d = wday(1);
   await loadAppWithState(page, book([cut('C1', d, '14:10')]));
   await switchTab(page, 'pagePower');
-  // Overview leads with what is left to complete.
+  // Cuts, the first view (the tab map, TM4e), leads with what is left to complete.
   await expect(page.locator('#pcsComplete [data-pcs-cut="C1"]')).toContainText('no time back');
-  await page.locator('[data-action="invPowerTab"][data-tab="cuts"]').click();
   await page.locator('#pcsComplete [data-pcs-cut="C1"] [data-action="invPcsOpen"]').click();
   await expect(dlg(page)).toBeVisible();
   // The list starts from nothing and says so.
@@ -259,9 +258,8 @@ test('Power → Causes draws what causes the cuts by what they cost, where they 
   [reason('R1', 'Feeder trip at the substation', 'grid'), reason('R2', 'Panel MCB trip', 'plant'), reason('R3', 'Loose cable at the meter', ''),
     fix('F1', 'Waited for the supply'), fix('F2', 'Reset the MCB')]));
   await switchTab(page, 'pagePower');
-  // The Overview's bars, with the way to Causes.
-  await expect(page.locator('#pcsWhy')).toContainText('6 of 7 cuts have a reason');
-  await page.locator('#pcsWhy [data-action="invPowerTab"][data-tab="causes"]').click();
+  // Causes: its card counts the cuts with a reason (the Overview's bars went with the Overview, TM4e).
+  await page.locator('[data-action="invPowerTab"][data-tab="causes"]').click();
   await expect(page.locator('[data-pcs-tiles]')).toContainText('6/7');
   // The causes ranked by what they cost, coded: red in the plant three times in 30 days, blue from the grid, grey not placed.
   const bars = page.locator('#pcsReasons .inv-chart-ranked-row');
@@ -332,6 +330,8 @@ test('a supervisor completes a cut (a floor entry) under their own name; the lis
   await page.locator('#pagePower .inv-viewtab[data-tab="causes"]').click();
   await expect(page.locator('#pcsList-reason [data-pcs-entry="R1"]')).toBeVisible();
   await expect(page.locator('#pcsList-reason [data-action="invPcsEdit"]')).toHaveCount(0);
+  // A cut is completed on Cuts (the tab map, TM4e): Causes links there.
+  await page.locator('#pagePower .inv-viewtab[data-tab="cuts"]').click();
   await page.locator('#pcsComplete [data-pcs-cut="C1"] [data-action="invPcsOpen"]').click();
   await dlg(page).locator('#pcsTo').fill('14:30');
   await dlg(page).locator('[data-pcs-chips="reason"] [data-action="invPcsPick"][data-id="R1"]').click();

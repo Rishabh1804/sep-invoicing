@@ -60,6 +60,18 @@ function weighBook(): SepState {
 }
 const weigh = (page: Page, id: string) => g(page, `(function(){ var r = prodWeigh(prodIndex().byId['${id}']); return [r.how, r.kg == null ? null : Math.round(r.kg * 100) / 100, r.src || '']; })()`);
 
+/* The day's card is Floor → Overview's Production hero since the tab map (TM4a), for the day on Floor's stepper; it is shut to
+   its line on both layouts until opened. */
+async function dayCard(page: Page, day = D) {
+  await switchTab(page, 'pageFloor');
+  await page.locator('#flrDate').fill(day);
+  await page.locator('#flrDate').dispatchEvent('change');
+  const card = page.locator('#flrHeroes [data-card="flr-prod"]');
+  await expect(card).toHaveAttribute('data-prod-day', day);
+  if (!(await card.evaluate(el => (el as HTMLDetailsElement).open))) await card.locator(':scope > summary').click();
+  return card;
+}
+
 test.describe('P191: what a piece weighs, and what a tank takes a round', () => {
   test('a name that writes a size is that part; the default comes after the links and a kind whose parts agree', async ({ page }) => {
     await loadAppWithState(page, weighBook());
@@ -76,17 +88,17 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // Two brackets of one size weigh apart: neither is guessed; ORION has no default, so its usual by kind.
     expect((await weigh(page, 'R5'))[0]).toBe('kind');
     // The day's weighing names the default, with the door that changes it.
-    await switchTab(page, 'pageProduction');
-    const row = page.locator('[data-prod-weigh="default"]').first();
+    const card = await dayCard(page);
+    const row = card.locator('[data-prod-weigh="default"]').first();
     await expect(row).toContainText('At MEHTA TEST INDUSTRIES’s default');
     await expect(row.locator('.inv-row-meta')).toHaveText('0.560 kg a piece · 194 pcs');
   });
 
   test('the default is adjustable on the client: changed, the runs follow; cleared, the kind is used again', async ({ page }) => {
     await loadAppWithState(page, weighBook());
-    await switchTab(page, 'pageProduction');
+    await dayCard(page);
     // The routes are folded under "How it was weighed" (§6.27): opened, the default's Change is there.
-    await page.locator('[data-prod-day-weighing] > summary').click();
+    await page.locator('#flrHeroes [data-prod-day-weighing] > summary').click();
     await page.locator('[data-prod-weigh="default"] [data-action="invEditClient"]').first().click();
     const f = page.locator('#ceditDefaultKgPc');
     await expect(f).toHaveValue('0.56');
@@ -147,10 +159,10 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     await page.locator('#flrDate').fill(D);
     await page.locator('#flrDate').dispatchEvent('change');
     const card = page.locator('#flrLines > [data-line="vat-a2"]');
-    await expect(card.locator('.inv-hero-sub')).toHaveText('2 of 2 tanks working · 8.5 h run');
+    await expect(card.locator('.inv-hero-sub')).toHaveText('8.5 h run');
     const f = await workingFacts(card);
     expect(f.filter((x: string[]) => /^Rounds|^A full round (measured|typed)/.test(x[0]))).toEqual([['Rounds the hours allowed', '', '17'], ['Rounds run', 'counted on the register', '6'],
-      ['A full round measured', '25 kg a tank × 2 · 36 rounds · typed 90', '50 kg']]);
+      ['A full round measured', '25 kg a tank × 2, from 36 rounds · typed 90', '50 kg']]);
     // The plant strip says what the line plates a round, and that it is the line's round now.
     await switchTab(page, 'pageProduction');
     await page.locator('#productionContent .inv-viewtab[data-tab="equipment"]').click();
@@ -214,7 +226,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
     // 100 kg, twice the line's usual 50 (200%). 35% × 93% × 200% is the 66% the line plated of what it could.
     expect(await eff(page)).toEqual([20, 'measured', 30, 7, 'measured', 50, 9, 25.5, 66, 35, 93, 200, 100, true]);
     const card = await openDay(page);
-    await expect(card.locator('.inv-hero-sub')).toHaveText('2 of 2 tanks working · 8.5 h run');
+    await expect(card.locator('.inv-hero-sub')).toHaveText('8.5 h run');
     await expect(card.locator('[data-flr-effverdict]')).toHaveText('The time lost most');
     // The factors at a glance, a tile each: what it lost, in its tone; the parts only said.
     const tiles = await card.locator('[data-flr-effsplit] .inv-tile').evaluateAll(els => els.map(t => [(t as HTMLElement).dataset.flrFactor,
@@ -226,7 +238,7 @@ test.describe('P191: what a piece weighs, and what a tank takes a round', () => 
       ['A round every measured', 'on the register, 7 shifts · set 30', '20 min'],
       ['Rounds the hours allowed', '', '25.5'],
       ['Rounds run', 'counted on the register', '9'],
-      ['A full round measured', '25 kg a tank × 2 · 63 rounds · typed 90', '50 kg'],
+      ['A full round measured', '25 kg a tank × 2, from 63 rounds · typed 90', '50 kg'],
       ['Racks full', 'against each part’s fullest round', '93%'],
       ['GEAR 9', 'NOVA GEARS · 9 rounds of 100', '93%'],
       ['A full round of the day’s parts', '200% of the line’s round', '100 kg']]);

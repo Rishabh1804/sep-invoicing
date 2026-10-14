@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openSales, switchTab, todayIso, type SepState } from './fixtures';
 
 // P131 (desktop): Clients → Quotations is the Register's list and pane. A row opens its quotation in the pane, which has
 // an address (?id=) and only secondary buttons (the page's one primary is New quotation); an act there redraws it.
@@ -19,8 +19,7 @@ test('a quotation opens in the pane with its address, and Issue there numbers it
   const s = { ...emptyState(), incomingMaterial: noSeedIM(), quotations: [draft('A')],
     clients: [{ id: 1, name: 'ALPHA FORGINGS', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true, rates: [{ ratePerKg: 11, effectiveFrom: '2025-04-01' }], itemRates: [] }] } as SepState;
   await loadAppWithState(page, s);
-  await switchTab(page, 'pageClients');
-  await page.locator('#pageClients .inv-viewtab[data-view="quotes"]').click();
+  await openSales(page, 'quotes');
   await page.locator('#qtMaster [data-action="invQtOpen"]').first().click();
   const pane = page.locator('#qtPane');
   await expect(pane).toContainText('Draft');

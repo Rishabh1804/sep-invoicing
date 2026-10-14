@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync, writeFileSync } from 'fs';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, toolbarMore, prodEntryAct } from './fixtures';
 
 // P89: the production record's own door. Entered by hand, corrected by a new entry that names the old one, voided
 // with a reason and never deleted; exported whole as sep-production and merged back by id, never overwritten.
@@ -22,7 +22,8 @@ test.describe('P89: the production record', () => {
     await loadAppWithState(page, state());
     await switchTab(page, 'pageProduction');
     await expect(page.locator('#pageProduction [data-action="invProdPaste"]')).toHaveClass(/inv-btn-primary/);
-    for (const tab of ['overview', 'plant', 'lines', 'entries']) {
+    // The four views since the tab map (TM4c): its Overview went to Floor's.
+    for (const tab of ['lines', 'plant', 'entries', 'equipment']) {
       await page.locator(`[data-action="invProdTab"][data-tab="${tab}"]`).click();
       await expect(page.locator(`[data-action="invProdTab"][data-tab="${tab}"]`)).toHaveAttribute('aria-selected', 'true');
       await expect(page.locator('#productionContent')).not.toBeEmpty();
@@ -32,7 +33,7 @@ test.describe('P89: the production record', () => {
   test('by hand, corrected, voided with a reason', async ({ page }) => {
     await loadAppWithState(page, state());
     await openEntries(page);
-    await page.locator('#pageProduction [data-action="invProdHand"]').click();
+    await toolbarMore(page, 'Enter by hand');   // the toolbar's More (TM4c)
     await page.locator('#prodHandTime').fill('09:20');
     await page.locator('#prodHandLine').selectOption('vat-a2');
     await page.locator('#prodHandClient').selectOption('11');
@@ -58,19 +59,22 @@ test.describe('P89: the production record', () => {
     const fix = s.production.entries[1];
     expect(fix).toMatchObject({ replaces: e.id, qty: 402, basis: 'hand' });
     await openEntries(page);
-    await expect(page.locator(`[data-prod-entry="${e.id}"] .inv-row-meta`).first()).toContainText('corrected');
+    await expect(page.locator(`[data-prod-entry="${e.id}"] [data-prod-badges]`)).toContainText('corrected');
 
     // Void asks why, in the app's own dialog; cancel changes nothing, a reason voids it and it stays listed.
-    await page.locator(`[data-prod-entry="${fix.id}"] [data-action="invProdVoid"]`).click();
+    await prodEntryAct(page, fix.id, 'invProdVoid');   // in the entry's fold on the phone (TM4c)
     await answerAsk(page, 'cancel');
     expect((await readStoredState(page)).production.entries[1].voidedAt).toBeUndefined();
-    await page.locator(`[data-prod-entry="${fix.id}"] [data-action="invProdVoid"]`).click();
+    await prodEntryAct(page, fix.id, 'invProdVoid');   // in the entry's fold on the phone (TM4c)
     await answerAsk(page, 'ok', 'typed on the wrong day');
     s = await readStoredState(page);
     expect(s.production.entries).toHaveLength(2);
     expect(s.production.entries[1]).toMatchObject({ voidReason: 'typed on the wrong day' });
-    await expect(page.locator(`[data-prod-entry="${fix.id}"]`)).toHaveClass(/inv-row-muted/);
-    await expect(page.locator(`[data-prod-entry="${fix.id}"] .inv-row-meta`).first()).toContainText('void: typed on the wrong day');
+    // Muted on its line: the fold's summary on the phone (TM4c), the row itself on the desktop.
+    await expect(page.locator(`[data-prod-entry="${fix.id}"].inv-row-muted, [data-prod-entry="${fix.id}"] > summary.inv-row-muted`)).toHaveCount(1);
+    // A void is a badge on its line, its reason in its fold (TM4c).
+    await expect(page.locator(`[data-prod-entry="${fix.id}"] [data-prod-badges]`)).toContainText('void');
+    await expect(page.locator(`[data-prod-entry="${fix.id}"]`)).toContainText('typed on the wrong day');
   });
 
   test('export is whole; import merges by id and never overwrites', async ({ page }, info) => {
@@ -82,7 +86,7 @@ test.describe('P89: the production record', () => {
     await loadAppWithState(page, state({ production: { entries, pastes: [{ id: 'PP1', hash: 'h1', text: 'x', at: 1 }], photos: [], imports: [], learn: { clients: { NOVAK: 11 }, parts: {} } } }));
     await openEntries(page);
     const dl = page.waitForEvent('download');
-    await page.locator('[data-action="invProdExport"]').click();
+    await toolbarMore(page, 'Export');   // Entries' More (TM4c)
     const file = await (await dl).path();
     const json = JSON.parse(readFileSync(file, 'utf8'));
     expect(json).toMatchObject({ format: 'sep-production', version: 1 });
@@ -99,7 +103,7 @@ test.describe('P89: the production record', () => {
     const back = info.outputPath('back.json');
     writeFileSync(back, JSON.stringify(json));
     const chooser = page.waitForEvent('filechooser');
-    await page.locator('[data-action="invProdImport"]').click();
+    await toolbarMore(page, 'Import');   // Entries' More (TM4c)
     await (await chooser).setFiles(back);
     await expect(page.locator('.inv-toast')).toContainText('2 entries added');
     const s = await readStoredState(page);

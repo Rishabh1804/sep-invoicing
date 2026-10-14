@@ -60,6 +60,11 @@ async function openStats(page: Page, tab = 'trends') {
   await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
   await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
 }
+/** Top items fold shut on the phone (the tab map, TM2b): opened to reach the ranking, remembered across a redraw. */
+async function openTop(page: Page) {
+  const top = page.locator('[data-fold="stats-top"]');
+  if (!(await top.evaluate(el => (el as HTMLDetailsElement).open))) await top.locator(':scope > summary').click();
+}
 
 test('P21: the trend switches between revenue, tonnage and material arriving', async ({ page }) => {
   const s = statsState();
@@ -118,7 +123,9 @@ test('P21: line and bar draw the same series, and neither distorts its aspect', 
   await loadAppWithState(page, s);
   await openStats(page);
 
-  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toBeVisible();
+  // The months closed are one line; the month to date is its own dashed segment after it (the tab map, TM6b).
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-line:not(.inv-chart-todate)')).toBeVisible();
+  await expect(page.locator('.inv-chart-svg polyline.inv-chart-todate')).toHaveCount(1);
   await page.locator('[data-action="invStatsTrendType"][data-type="bar"]').click();
   await expect(page.locator('.inv-chart-svg rect.inv-chart-bar').first()).toBeVisible();
   await expect(page.locator('.inv-chart-svg polyline.inv-chart-line')).toHaveCount(0);
@@ -193,6 +200,7 @@ test('P21: top items rank by value, tonnage and price — three different orders
   ];
   await loadAppWithState(page, s);
   await openStats(page);
+  await openTop(page);
 
   const first = () => page.locator('.inv-chart-ranked-row').first();
   await expect(page.locator('[data-card="top"]', { hasText: 'Top items by value' })).toBeVisible();
@@ -217,6 +225,7 @@ test('P21: a weight ranking says how many parts it could not rank', async ({ pag
   ];
   await loadAppWithState(page, s);
   await openStats(page);
+  await openTop(page);
 
   await page.locator('[data-action="invStatsTopBy"][data-by="tonnage"]').click();
   // Stated, not silently dropped: the excluded parts are the piece-billed end,
@@ -232,6 +241,7 @@ test('P21: parts plated below cost are marked against the cost line', async ({ p
   ];
   await loadAppWithState(page, s);
   await openStats(page);
+  await openTop(page);
   await page.locator('[data-action="invStatsTopBy"][data-by="rate"]').click();
 
   // Green covers cost, red does not — the app's accent is itself a terracotta,

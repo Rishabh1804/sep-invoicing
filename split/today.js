@@ -2,7 +2,7 @@
    Owner, 1 Oct 2026 (docs/DIRECTION_B.md): Home becomes Today, two views of pageHome.
    - Needs you, the inbox:
      - the day's inputs, each saying whether it is in and, if not, when it usually arrives, with the one tap that brings it
-       (Add's paste box, the register photo);
+       (Add's paste box, the hand form for the register's page);
      - on the desktop, the floor now;
      - the last five invoices, each with its print button;
      - every open task, grouped Now / This week / Later, each with its one-tap move.
@@ -11,7 +11,7 @@
    The views are pageHome's own `v` (?tab=pageHome&v=pulse). The shell (workspace.js) draws their tabs once homeViews
    says they exist, and nav.js reads and applies the view. Nothing here is stored and nothing is worked out twice: each
    figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine, powerCuts, todoRanked,
-   advTaskMoves, advPulseHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
+   advTaskMoves, advQuestions, whyHtml, statsOverviewHtml, paceCardHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
    a task it may not see (todo.js todoSees), and Pulse's money is the finance permission's. */
 
 var TDY_VIEWS = [{ v: 'needs', label: 'Needs you' }, { v: 'pulse', label: 'Pulse' }];
@@ -37,13 +37,13 @@ function tdyInputsSeen() { return TDY_INPUTS.filter(function(def) { return tdySe
 /* ---------- The day's inputs ----------
    The five things the floor sends in a day, in the order they arrive. `usual` is the shop's own time, used until four
    weeks of record say otherwise (minutes after midnight): the roll by 9:30, the first pickling load and the stock message
-   by 10, the production records by the evening (the register clerk's photos are mostly sent 4 to 6 PM), the out-time roll
+   by 10, the production records by the evening (the register clerk's pages were mostly sent 4 to 6 PM), the out-time roll
    once the crews go home. `from` is when one is first looked for: the out-time roll is not late at noon. */
 var TDY_INPUTS = [
   { k: 'roll-in', title: 'In-time roll', usual: 570, from: 0, move: 'paste' },
   { k: 'pickling', title: 'Pickling loads', usual: 600, from: 0, move: 'paste' },
   { k: 'stock', title: 'Stock message', usual: 600, from: 0, move: 'paste' },
-  { k: 'production', title: 'Production records', usual: 1080, from: 0, move: 'photo' },
+  { k: 'production', title: 'Production records', usual: 1080, from: 0, move: 'hand' },
   { k: 'roll-out', title: 'Out-time roll', usual: 1170, from: 1020, move: 'paste' }
 ];
 
@@ -59,7 +59,6 @@ function tdyArrival(text, at, day, sent) {
   if (m) return m.sentAt;
   return at && isoOf(new Date(at)) === day ? tdyMinOfDay(at) : null;
 }
-function tdyCap(w) { return w.charAt(0).toUpperCase() + w.slice(1); }
 function tdyMedian(list) { return list.length ? Math.round(numMedian(list)) : null; }
 
 /* The rolls (S.relayPastes) for a day, of one kind. */
@@ -90,7 +89,8 @@ function tdyUsual(k, day) {
     } else if (k === 'stock') {
       tdyStockMsgs(d).forEach(function(p) { var a = tdyArrival(p.text, null, d); if (a != null && (m == null || a < m)) m = a; });
     } else if (k === 'production') {
-      // The day's records are in when the last line's is: the latest photo read that day (a photo has no header).
+      // The day's records are in when the last line's is: the latest page read that day (a photo of one, before the photo
+      // reading came out on 13 Oct 2026, has no header).
       ((S.production && S.production.photos) || []).forEach(function(p) { if (p && p.readDate === d && p.at && isoOf(new Date(p.at)) === d) { var a = tdyMinOfDay(p.at); if (m == null || a > m) m = a; } });
     }
     if (m != null) mins.push(m);
@@ -138,11 +138,17 @@ function tdyInput(def, day) {
     PROD_LINES.forEach(function(l) { (prodDayLine(day, l).entries.length ? have : miss).push(PROD_LINE_LABEL[l]); });
     o.lines = { have: have, miss: miss };
     if (!miss.length) { o.state = 'in'; o.text = 'All three lines in'; }
-    else if (have.length) { o.state = 'part'; o.text = have.join(', ') + ' in · ' + miss.join(', ') + ' not yet'; }
-    // Only the barrel list missing: it comes as a message, not a photo.
+    // One fact (the tab map, TM6e): which are in and which not, before when the rest are looked for.
+    else if (have.length) { o.state = 'part'; o.text = have.join(', ') + ' in; ' + miss.join(', ') + ' not yet'; }
+    // Only the barrel list missing: it comes as a message, not a page.
     if (miss.length === 1 && miss[0] === PROD_LINE_LABEL.barrel) o.move = 'paste';
   }
-  if (o.state === 'in') return o;
+  if (o.state === 'in') {
+    // Entered on a person's own screen (faces.js): said by whom, in place of "by hand".
+    var by = typeof faceInputBy === 'function' ? faceInputBy(def.k, day) : [];
+    if (by.length) { var bt = o.text.replace(/ · entered by hand$/, '').replace(/^entered by hand$/, ''); o.text = bt ? bt + ' · by ' + by.join(', ') : 'Entered by ' + by.join(', '); }
+    return o;
+  }
   var u = tdyUsual(def.k, day);
   o.usual = u.min;
   if (off) { o.state = 'off'; o.text = 'Not expected: ' + (new Date(day + 'T00:00:00').getDay() === 0 ? 'Sunday' : 'a paid holiday'); return o; }
@@ -183,8 +189,8 @@ function tdyInputsHtml(day, o) {
   var steps = rows.map(function(r, i) {
     var btn = '';
     if (r.state !== 'in' && r.state !== 'off') {
-      btn = r.move === 'photo'
-        ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPhoto" data-line="' + escHtml(tdyFirstMissingLine(r)) + '">Photo</button>'
+      btn = r.move === 'hand'
+        ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyHand" data-line="' + escHtml(tdyFirstMissingLine(r)) + '">By hand</button>'
         : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTdyPaste">Paste</button>';
     }
     var node = r.state === 'in' ? TDY_CHECK_SVG : r.state === 'late' ? '!' : String(i + 1);
@@ -208,9 +214,9 @@ function tdyInputsHtml(day, o) {
     fig: late.length ? escHtml(late.length + ' late') : '', sub: escHtml(sub), viz: meter, open: done < rows.length && !o.shut,
     body: '<div class="inv-hero-sheet"><div class="inv-panel-body inv-steps" data-tdy-steps>' + steps + '</div>' + wa +
       (shop ? '<div class="inv-panel-body inv-note">A time with no four weeks of record behind it is the shop’s usual one.</div>' : '') + '</div>',
-    attrs: ' data-card="inputs"' });
+    attrs: ' data-card="inputs" data-verdict' });
 }
-/* The first VAT line with no record (the register photo is theirs); else VAT A1. */
+/* The first VAT line with no record (the register's page is theirs); else VAT A1. */
 function tdyFirstMissingLine(r) {
   var miss = (r.lines && r.lines.miss) || [];
   for (var i = 0; i < PROD_LINES.length; i++) {
@@ -224,7 +230,7 @@ function tdyOpenInput(k) {
   var day = localDateStr();
   if (k === 'roll-in' || k === 'roll-out') { _attView = 'day'; _attDate = day; switchTab('pageStaff'); }
   else if (k === 'pickling') flrOpenLine('pickling');
-  else if (k === 'stock') { _stockView = 'overview'; switchTab('pageStock'); }
+  else if (k === 'stock') { _stockView = 'list'; switchTab('pageStock'); }
   else if (k === 'production') { if (tdySees('pageFloor')) { flrSetDay(null); switchTab('pageFloor'); } else flrOpenLine('vat-a1'); }
 }
 
@@ -249,9 +255,13 @@ function tdyFloorHtml(day) {
     '<div class="inv-tile-sub">' + (cuts.length ? uiDot(open ? 'warning' : 'neutral', escHtml(open ? open + ' with no time back' : powerDur(mins) + ' dark')) : uiDot('ok', 'None reported')) + '</div>' +
     '<div class="inv-tile-sub">' + escHtml(cuts.length ? cuts.map(function(c) { return powerClock(c.from) + (c.to != null ? ' – ' + powerClock(c.to) : ''); }).join(', ') : 'today') + '</div></button>');
   var staffed = FLR_LINES.filter(function(ln) { return ln.id !== 'pickling'; }).filter(function(ln) { var st = flrStaffing(day, ln, byArea, att.marked); return st.heads > 0; }).length;
-  return uiHeroHtml({ tone: worst || (open ? 'warning' : ''), eyebrow: '<span>Floor now</span>', title: att.marked ? escHtml(todoPlural(staffed, 'line') + ' staffed') : 'No attendance yet today',
-    sub: escHtml(att.marked ? (att.p + att.half) + ' on site · ' + att.absent.length + ' absent' : 'The in-time roll says who stands where'), fold: 'tdy-floor', open: true,
-    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div></div>', attrs: ' data-card="floor"' });
+  // Who is on site against the day's roster, in the tone Floor and People give it (attOnSiteTone, TM6a); the card takes the worst
+  // of what it holds.
+  var onTone = att.marked ? attOnSiteTone(att) : null;
+  var tone = [worst, open ? 'warning' : '', onTone].filter(Boolean).sort(function(a, b) { return (UI_TONE_RANK[b] || 0) - (UI_TONE_RANK[a] || 0); })[0] || '';
+  return uiHeroHtml({ tone: tone, eyebrow: '<span>Floor now</span>', title: att.marked ? escHtml(todoPlural(staffed, 'line') + ' staffed') : 'No attendance yet today',
+    sub: att.marked ? '<span data-tdy-onsite>' + figHtml(escHtml((att.p + att.half) + ' of ' + att.roster.length + ' on site'), onTone) + '</span>' + escHtml(' · ' + att.absent.length + ' absent') : 'The in-time roll says who stands where', fold: 'tdy-floor', open: true,
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush">' + tiles.join('') + '</div></div>', attrs: ' data-card="floor" data-verdict' });
 }
 
 /* ---------- The tasks ----------
@@ -307,7 +317,7 @@ function tdyAppCardHtml(t) {
 /* A task of your own as a card: its tick box and its due date in the head, its words, the place it was added from. */
 function tdyMineCardHtml(t) {
   var tone = todoMineTone(t), go = '';
-  if (t.go) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(t.goLabel || 'Open') + '</button>';
+  if (t.go) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoGoLabel(t)) + '</button>';
   else if (t.link) go = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoGo" data-id="' + escHtml(t.id) + '">' + escHtml(todoLinkLabel(t.link)) + '</button>';
   return '<article class="inv-deck-item" data-todo="mine" data-tone="' + escHtml(tone) + '">' +
     '<div class="inv-deck-head"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-action="invTodoToggle" data-id="' + escHtml(t.id) + '" aria-label="Mark done: ' + escHtml(t.text) + '"></label>' +
@@ -331,7 +341,9 @@ function tdyTasksHtml(rows) {
   var worth = function(list) { return gstRound(list.reduce(function(s, r) { return s + (r.app && r.app.worth > 0 ? r.app.worth : 0); }, 0)); };
   var card = function(r) { return r.app ? tdyAppCardHtml(r.app) : tdyMineCardHtml(r.mine); };
   var deck = function(g, list) { return uiMoreDeckHtml('tdy-' + g, list.map(card), { n: TDY_SHOW, noun: list.length - TDY_SHOW === 1 ? 'task' : 'tasks' }); };
-  var titles = function(list) { return list.slice(0, 3).map(function(r) { return r.app ? r.app.title : r.mine.text; }).join(' · ') + (list.length > 3 ? ' · and ' + (list.length - 3) + ' more' : ''); };
+  // What a folded group holds, in a line (the tab map, TM6e): its first two tasks, each cut to forty letters, a list (commas).
+  var clip = function(t) { t = String(t || ''); return t.length > 40 ? t.slice(0, 39).replace(/[\s,.;:·-]+$/, '') + '…' : t; };
+  var titles = function(list) { return list.slice(0, 2).map(function(r) { return clip(r.app ? r.app.title : r.mine.text); }).join(', ') + (list.length > 2 ? ' and ' + (list.length - 2) + ' more' : ''); };
   var counts = function(list, g) { return '<span>' + TDY_GROUPS.filter(function(x) { return x[0] === g; })[0][1] + '</span><span class="inv-panel-count" data-tdy-count>' + list.length + '</span>'; };
   // A group's figure is the rupees its tasks name, said as such: unlabelled, it read as a total owed (the survey of 8 Oct 2026).
   var stake = function(w) { return money && w > 0 ? figWrapHtml(escHtml(formatCurrency(w))) + '<span class="inv-tile-of"> at stake</span>' : ''; };
@@ -343,16 +355,67 @@ function tdyTasksHtml(rows) {
   h += uiHeroHtml({ tone: now.length ? (now.some(function(r) { return r.tone === 'red'; }) ? 'danger' : 'warning') : 'ok',
     eyebrow: counts(now, 'now'), title: now.length ? escHtml(todoPlural(now.length, 'thing needs', 'things need') + ' you now') : 'Nothing needs you now',
     fig: stake(wN), sub: escHtml(now.length ? rest || 'and nothing else is waiting' : rest ? rest + ', when you have a moment' : 'Every task is done'),
-    viz: meter, open: true, body: now.length ? deck('now', now) : null, attrs: ' data-tdy-group="now"' });
+    viz: meter, open: true, body: now.length ? deck('now', now) : null, attrs: ' data-tdy-group="now" data-verdict' });
   [['week', groups.week], ['later', groups.later]].forEach(function(p) {
     var g = p[0], list = p[1];
     if (!list.length) return;
     var w = worth(list);
     h += uiHeroHtml({ tone: TDY_GROUP_TONE[g], eyebrow: counts(list, g), title: escHtml(g === 'week' ? todoPlural(list.length, 'task') + ' for this week' : todoPlural(list.length, 'thing') + ' to know'),
       fig: stake(w), sub: escHtml(titles(list)), fold: 'tdy-' + g, open: g === 'week' && !now.length,
-      body: deck(g, list), attrs: ' data-tdy-group="' + g + '"' });
+      body: deck(g, list), attrs: ' data-tdy-group="' + g + '" data-verdict' });
   });
-  return '<div class="inv-hero-stack" data-card="tasks">' + h + '</div>';
+  return '<div class="inv-hero-stack" data-card="tasks">' + tdyAddHtml() + h + tdySnoozedHtml() + tdyDoneHtml() + tdyLearnHtml() + '</div>';
+}
+/* What only the To-do page had, here since the To-do joined Needs you (the tab map, TM2a): your own task typed where the tasks
+   are, the tasks snoozed with Wake, the tasks ticked with the tick that reopens, and what the app learnt from your answers.
+   The field and Add head the tasks (Add is the view's one primary; Enter in the field adds, events.js); the rest fold, shut. */
+function tdyAddHtml() {
+  // What is typed outlives a redraw (a tick on a task redraws Needs you while the field holds half a task), for the person who
+  // typed it: drawn for another ID after the lock, the field starts empty, since the last person's half-typed task is theirs.
+  var who = String((typeof grdUserId === 'function' && grdUserId()) || '');
+  var cur = document.getElementById('todoNew'), typed = cur && cur.getAttribute('data-uid') === who ? cur.value : '';
+  return '<div class="inv-toolbar" data-tdy-add><input class="inv-input inv-toolbar-item" id="todoNew" data-todo-new data-uid="' + escHtml(who) + '" placeholder="Add a task…" aria-label="New task" autocomplete="off"' +
+    (typed ? ' value="' + escHtml(typed) + '"' : '') + '>' +
+    '<button class="inv-btn inv-btn-primary" data-action="invTodoAdd">Add</button>' +
+    '<button class="inv-btn inv-btn-secondary" data-action="invTodoNew">Details</button></div>';
+}
+function tdySnoozedHtml() {
+  var td = todoData();
+  // Nothing snoozed is nothing to list: every rule read the whole book twice more on each draw of Needs you to find that out.
+  // Otherwise one pass serves the tasks and the folds (todoFolds' own reading, from the same tasks).
+  if (!Object.keys(td.snoozes || {}).length) return '';
+  var seen = todoAppAll().filter(todoSees);
+  var snoozed = seen.filter(todoIsSnoozed).concat(todoFoldList(seen.filter(function(t) { return !todoIsSnoozed(t); }))
+    .filter(function(t) { return t.rule === 'fold' && todoIsSnoozed(t); }));
+  if (!snoozed.length) return '';
+  var rows = snoozed.map(function(t) {
+    var sn = td.snoozes[t.key] || {};
+    return '<div class="inv-row inv-row-2" data-todo="snoozed"><span class="inv-row-main"><span class="inv-row-title" title="' + escHtml(t.title) + '">' + escHtml(t.title) + '</span>' +
+      '<span class="inv-row-meta">' + (sn.until ? 'Until ' + escHtml(stockShortDate(sn.until)) : 'Until the figures change') + '</span></span>' +
+      '<span class="inv-row-end"><button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invTodoWake" data-key="' + escHtml(t.key) + '">Wake</button></span></div>';
+  }).join('');
+  return uiFoldHtml('tdy-snoozed', '<span class="inv-panel-title">Snoozed <span class="inv-panel-count">' + snoozed.length + '</span></span>', rows, false, ' data-card="snoozed"');
+}
+function tdyDoneHtml() {
+  var done = todoData().tasks.filter(function(t) { return t.doneAt && todoMineSees(t); }).sort(function(a, b) { return b.doneAt - a.doneAt; });
+  if (!done.length) return '';
+  return uiFoldHtml('tdy-done', '<span class="inv-panel-title">Done <span class="inv-panel-count">' + done.length + '</span></span>',
+    uiMoreHtml('todoDone', done.map(function(t) { return todoMineRowHtml(t); }), { noun: 'done' }), false, ' data-card="done"');
+}
+function tdyLearnHtml() { return typeof learnPanelHtml === 'function' ? learnPanelHtml() : ''; }
+/* Your own task, from anywhere (Add → By hand → Task, search, the widget): Needs you, its field focused. */
+function tdyFocusAdd() {
+  tdySetView('needs');
+  switchTab('pageHome');
+  var inp = document.getElementById('todoNew');
+  if (inp) { uiRevealEl(inp); inp.focus(); }
+}
+/* Open the Done fold and bring it into sight (search's "Done tasks"). */
+function tdyShowDone() {
+  tdySetView('needs');
+  switchTab('pageHome');
+  var d = document.querySelector('#homeNeeds [data-card="done"]');
+  if (d) { d.open = true; uiRevealEl(d); }
 }
 
 /* ---------- Drawing ---------- */
@@ -383,7 +446,7 @@ function tdyRecentHtml() {
   return uiHeroHtml(Object.assign(tdyRecentHead(list), { fold: 'tdy-recent', open: true,
     body: '<div class="inv-hero-sheet">' + list.map(homeRecentRowHtml).join('') +
       '<div class="inv-row"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageRegister">All invoices</button></div></div>',
-    attrs: ' data-card="recent"' }));
+    attrs: ' data-card="recent" data-verdict' }));
 }
 /* The head of a card of recent invoices: what was made today and its total, else when the last was made. The rows under it name
    each invoice, the newest first, so the head does not name the newest again (the survey of 8 Oct 2026). */
@@ -397,30 +460,47 @@ function tdyRecentHead(list) {
 }
 /* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
    figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
-   moves worth most across every question. Without the finance permission there are no questions: every one reads money. */
+   moves worth most across every question, then what was Stats → Overview's (the tab map, TM2b): why the period moved, the
+   period in one line and the month's pace, each a hero shut on the phone. Its head is the period, one with Stats', and More:
+   Make a report and Open Stats where the role opens them, and Edit Home. Without the finance permission there are no questions,
+   since every one reads money, and the head is Edit Home alone. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
 function renderPulseQuestions() {
   var el = document.getElementById('homeQuestions');
   if (!el) return;
-  if (!tdySeesMoney()) { el.innerHTML = ''; return; }
+  if (!tdySeesMoney()) {
+    el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>';
+    return;
+  }
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  var qs = [];
-  try { qs = advQuestions(per); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
-  el.innerHTML = '<div class="inv-panel-head inv-mb-8" data-tdy-pulse-head><span class="inv-panel-title">' + escHtml(tdyCap(ADV_PERIOD_WORDS[per] || 'this month')) + '</span>' +
-    '<button class="inv-btn-link" data-action="invSwitchTab" data-tab="pageStats">Stats</button></div>' +
+  var a = null, qs = [], cards = '';
+  try { a = statsPulseArgs(per); qs = advQuestions(a); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
+  if (a) [function() { return whyHtml(per, a.filtered, a.prior); }, function() { return statsOverviewHtml(per, a.filtered, a.tonnage); }, paceCardHtml].forEach(function(f) {
+    try { cards += f() || ''; } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
+  });
+  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot). A door to
+  // a page the role does not open is not offered: More's rows wait in a template, where the guard's doors cannot reach them.
+  el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head>' +
+    statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') +
+    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+      tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
+      { label: 'Edit Home', action: 'invHomeEdit' }], { icon: !_isDesktop }) + '</div>' +
     (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
-      : '<div class="inv-empty">The questions could not be worked out: Office → Stats has the figures.</div>');
+      : '<div class="inv-empty">The questions could not be worked out: Stats has the figures.</div>') +
+    (cards ? '<div class="inv-hero-stack" data-tdy-pulse-cards>' + cards + '</div>' : '');
 }
 function tdyQuestionHtml(x) {
   var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };
   var moves = '';
+  // What you can do heads the moves, or says what would make one appear (an insight's moves are under its row: inline).
   if (!x.inline || !x.moves.length) {
-    moves = '<div class="inv-hero-moves" data-tdy-moves>' + (x.moves.length ? '<div class="inv-hero-eyebrow inv-mt-8 inv-mb-8">What you can do <span class="inv-panel-count">' + x.moves.length + '</span></div>' +
-      advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note inv-mt-8">' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
+    moves = '<div class="inv-hero-moves" data-tdy-moves><div class="inv-hero-eyebrow inv-mt-8 inv-mb-8" data-adv-head>What you can do' +
+      (x.moves.length ? ' <span class="inv-panel-count">' + x.moves.length + '</span>' : '') + '</div>' +
+      (x.moves.length ? advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note" data-adv-none>' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
       (x.hints || []).map(function(t) { return '<div class="inv-note inv-mt-8" data-adv-hint>' + escHtml(t) + '</div>'; }).join('') + '</div>';
   }
   return uiHeroHtml({ tone: v.tone || 'neutral', vital: true, eyebrow: '<span>' + escHtml(x.q) + '</span>', fig: v.fig || '', title: v.title || '', sub: v.sub || '', viz: v.viz || '',
-    fold: 'tdy-q-' + x.key, open: false, body: '<div class="inv-hero-sheet">' + x.html + '</div>' + moves, attrs: ' data-tdy-q="' + escHtml(x.key) + '"' });
+    fold: 'tdy-q-' + x.key, open: false, body: '<div class="inv-hero-sheet">' + x.html + '</div>' + moves, attrs: ' data-tdy-q="' + escHtml(x.key) + '" data-verdict' });
 }
 /* The moves worth most across every question, as cards: what to do first, before reading any answer. */
 function tdyFirstHtml(qs) {
@@ -444,7 +524,7 @@ function tdyAction(action, btn) {
   switch (action) {
     case 'invTdyInput': tdyOpenInput(btn.dataset.k); return true;
     case 'invTdyPaste': if (typeof addOpen === 'function') addOpen(); else relayOpen(); return true;
-    case 'invTdyPhoto': flrOpenLine(btn.dataset.line || 'vat-a1'); prodPhotoPick(); return true;
+    case 'invTdyHand': flrOpenLine(btn.dataset.line || 'vat-a1'); prodOpenHand(null, null, true); return true;
     case 'invTdyFloor': flrSetDay(null); switchTab('pageFloor'); return true;
     case 'invTdyPower': powerSetTab('cuts'); switchTab('pagePower'); return true;
   }

@@ -50,7 +50,8 @@ function soaCompute(clientId, from) {
   r.allocs.forEach(function(a, i) {
     var row = a.v.row, inst = bankInstrument(row);
     var paid = a.parts.filter(function(p) { return p.inv; }).map(function(p) { return p.label + (p.whole ? '' : ' (part)'); });
-    ev.push({ date: row.date, k: 3, i: i, kind: 'receipt', label: 'Received' + (inst ? ', cheque ' + inst : bankIsChequeDeposit(row) ? ', cheque' : ''),
+    // A cheque received and not yet in the bank (TM3b) is paid on the day it came, and says where it is.
+    ev.push({ date: row.date, k: 3, i: i, kind: 'receipt', label: a.v.pending ? 'Cheque ' + inst + ' received, not yet in the bank' : 'Received' + (inst ? ', cheque ' + inst : bankIsChequeDeposit(row) ? ', cheque' : ''),
       sub: paid.length ? 'for ' + paid.join(', ') : a.unapplied > 0.005 ? 'on account' : '', dr: 0, cr: gstRound(row.cr) });
     if (a.how === 'exact') {
       var sum = gstRound(a.parts.reduce(function(t, p) { return t + p.amount; }, 0)), diff = gstRound(sum - row.cr);
@@ -176,7 +177,7 @@ function soaOpen(clientId) {
   var html = '<div class="inv-dialog" data-soa-dialog="' + escHtml(String(c.id)) + '" role="dialog" aria-modal="true" aria-labelledby="soaTitle">' +
     dialogHeadHtml('<span id="soaTitle">' + escHtml(c.name) + '</span>') +
     '<div class="inv-panel inv-panel-flush"><div class="inv-panel-head"><span class="inv-panel-title">Statement of account</span>' +
-      '<span class="inv-num" data-soa-owed>' + figHtml(formatCurrency(s.closing), s.closing > 0.005 && s.open.length ? figToneAge(s.open[0].days) : null) + '</span></div>' +
+      '<span class="inv-num" data-soa-owed>' + figHtml(formatCurrency(s.closing), s.closing > 0.005 && s.open.length ? finOwedTone(s.open[0].days) : null) + '</span></div>' +
     '<div class="inv-panel-body"><div class="inv-field"><label class="inv-field-label" for="soaFrom">From</label>' +
       '<input class="inv-input inv-id" type="date" id="soaFrom" value="' + s.from + '" min="' + s.start + '" max="' + s.to + '"></div>' +
       '<div class="inv-note" data-soa-sum>' + s.rows.length + ' entr' + (s.rows.length === 1 ? 'y' : 'ies') + ' to ' + escHtml(formatDate(s.to)) +

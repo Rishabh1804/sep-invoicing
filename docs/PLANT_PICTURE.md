@@ -1,9 +1,11 @@
 # The plant picture
 
-**Status, 9 Oct 2026.** PP1 and PP3 are built, on PR #144: what a tank takes a round and the register's pace measured, the
+**Status, 10 Oct 2026.** PP1 and PP3 are built, on PR #144: what a tank takes a round and the register's pace measured, the
 efficiency split four ways, Mehta's default weight a piece (§5, questions 1 and 2), and stock by line (§5, question 3). The
-analysed figures are drawn in one way since the owner's notes of the same day (§6). PP2, PP4 and PP5 are proposals; their order is
-the owner's to set.
+analysed figures are drawn in one way since the owner's notes of the same day (§6). **PP2 is built in part** (owner, 10 Oct 2026:
+*"why don't we calculate the earnings?"*, and *"comparisons are missing"*; P206): what each line earned at the rates on record,
+against what a kilo costs and its usual day, the week against the four before, the day's earnings against the live cost; the
+efficiency's week grid and where the units' time went are still to come. PP4 and PP5 are proposals; their order is the owner's.
 
 ## 1. What the owner asked
 
@@ -90,7 +92,9 @@ On 8 Oct, with the round and the pace measured (§5):
 
 Each of these is one PR.
 
-- **PP2 · The line over time** (Production → Lines, Floor).
+- **PP2 · The line over time** (Production → Lines, Floor). *Built in part, 10 Oct 2026:* what each line earned (Floor's line card,
+  Lines' card and week), against what a kilo costs and its usual day; the week to the day against the four before, a recorded day's
+  average on each side; the day's earnings against the live cost, and the work no rate prices. Still to come:
   - Each line's efficiency by day as a coloured week grid, with the time, the racks and the parts over the weeks.
   - For each line and week, where the units' time went: what the units could plate, less what stood down, less the cuts, less the
     time nothing was run, ending in what was plated.

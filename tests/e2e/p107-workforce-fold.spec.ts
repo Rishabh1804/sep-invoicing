@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, answerAsk, type SepState, openPulse, openAttendance } from './fixtures';
 
 // P107: the QA sweep's fold over Staff — attendance rolls, Areas, labour and Pay. Names are made up in the shop's shapes
 // (the repo is public), ids are numbers as on a real device, and every date is built from today.
@@ -287,7 +287,7 @@ test.describe('P107: the roster', () => {
       { kind: 'block', areas: ['vat-a1'], area: 'vat-a1', from: '17:00', to: '20:00', hours: 0, crew: [1, 2, 3], need: 3 },
       { kind: 'block', areas: ['vat-a1'], area: 'vat-a1', from: '06:00', to: '09:00', hours: 3, crew: [] }] } } });
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    await openAttendance(page, 'day');
     await expect(page.locator('[data-block="0"] [data-block-check]')).toContainText('3 of 3');
     await expect(page.locator('[data-block="0"] [data-block-check]')).toHaveAttribute('data-block-check', 'ok');
     await expect(page.locator('[data-block="1"] [data-block-check]')).toHaveAttribute('data-block-check', 'none');
@@ -297,7 +297,7 @@ test.describe('P107: the roster', () => {
   test('WB7: moving the Day view\'s date moves the week; WB9: the rate line shows what an OT hour pays', async ({ page }) => {
     await load(page, { staff: [{ id: 1, name: 'Shyam', comp: 'monthly', dayRate: 576, area: 'vat-a1', active: true }] });
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    await openAttendance(page, 'day');
     for (let k = 0; k < 8; k++) await page.locator('[data-action="invAttStep"][data-step="-1"]').click();
     expect(await g(page, `_attWeekStart === attWeekStartOf(_attDate)`)).toBe(true);
     await page.locator('[data-action="invAttView"][data-view="roster"]').click();
@@ -329,7 +329,7 @@ test.describe('P107: labour and Areas', () => {
     const l = await g(page, `(function(){ var l = labourForRange('${t}', '${t}'); return [l.ratelessWorkers, l.hourlessMarks, l.byWorker[2].hourless]; })()`);
     expect(l).toEqual([['Norate Hand'], 1, 1]);
     await switchTab(page, 'pageStaff');
-    await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
+    await openAttendance(page, 'day');
     const card = page.locator('[data-card="labour"]');
     await expect(card).toContainText('no rate to price them at');
     await expect(card).toContainText('Norate Hand');
@@ -413,7 +413,9 @@ test.describe('P107: Pay', () => {
     });
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
-    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="3"]')).toContainText('left');
+    // A hand who has left is named so on their line (TM4b: the line's head; Pay is in its fold).
+    await expect(page.locator('#payDue [data-pay-row="3"] > summary')).toContainText('Left');
+    await expect(page.locator('#payDue [data-action="invPayPick"][data-id="3"]')).toHaveCount(1);
     await expect(page.locator('#payWorker option[value="3"]')).toHaveCount(1);
     await expect(page.locator('#payDue [data-pay-total="due"]').first()).toHaveText('₹800.00');
     await expect(page.locator('#payDue [data-pay-total="advanced"]').first()).toHaveText('₹300.00');

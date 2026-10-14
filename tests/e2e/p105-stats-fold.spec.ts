@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, switchTab, todayIso, recentTs, workingDaysBack } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, openStatsTab, switchTab, todayIso, recentTs, workingDaysBack } from './fixtures';
 
 // P105: the QA sweep's Stats, History and charts fold. Fixed and variable labour read from the instrument the
 // labour figure came from; one cost per kilo for a period, the drill-down included; the labour card's tonnage on
@@ -69,12 +69,14 @@ test.describe('S2: fixed and variable labour', () => {
     expect(r.variable).toBeCloseTo(r.total - 13000, 2);
     expect(r.from).toBe('bank');
 
-    // On the page, the note says where the split came from and prices the fixed part.
+    // The split is the power case's (powerMargin). On the page, labour is fixed whole (owner, 13 Oct 2026), said as a badge,
+    // and the variable cost sits under the full cost by all of labour.
     await openStatsTab(page, 'clients');
     await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
     const note = page.locator('#statsMargin .inv-panel-body .inv-note').first();
-    await expect(note).toContainText('fixed (monthly crew, read off the salaries the bank paid)');
-    await expect(note).not.toContainText('₹0.00/kg · full');
+    await expect(note.locator('[data-margin-split]')).toHaveText('labour fixed');
+    const [v, f] = ((await note.textContent()) || '').match(/₹[\d,.]+/g)!.map(x => parseFloat(x.slice(1).replace(/,/g, '')));
+    expect(v).toBeLessThan(f);
   });
 
   test('the stretch filled at the model takes the recorded fixed share, not all variable', async ({ page }) => {
@@ -96,28 +98,36 @@ test.describe('S2: fixed and variable labour', () => {
     expect(r.fixed).toBeGreaterThan(r.recFixed + 1);
   });
 
-  test('with nothing recorded the split is not known and says so, and no insight calls a client below it', async ({ page }) => {
+  test('with nothing recorded, labour is still fixed: the variable cost is everything but labour, and the worst account is settled on it', async ({ page }) => {
     const s = base();
     s.clients = [...s.clients, client(71, 'ALPHA WORKS'), client(72, 'BETA CLAMPS')];
-    s.invoices = [inv('00001', 71, 'ALPHA WORKS', [kg('PA', 1000, 13)]), inv('00002', 72, 'BETA CLAMPS', [kg('PB', 3000, 5)]),
-      inv('00003', 72, 'BETA CLAMPS', [kg('PB', 3000, 5)], monthBack(1) + '-10')];
+    s.invoices = [inv('00001', 71, 'ALPHA WORKS', [kg('PA', 1000, 13)]), inv('00002', 72, 'BETA CLAMPS', [kg('PB', 3000, 4)]),
+      inv('00003', 72, 'BETA CLAMPS', [kg('PB', 3000, 4)], monthBack(1) + '-10')];
     s.invNextNum = 4;
     await loadAppWithState(page, s);
+    // The power case's split of the monthly crew is not known with nothing recorded; the contribution does not need it.
     const sp: any = await g(page, `(function(){ var r = statsRangeIso('mtd'); return statsCostSplit(liveCost(r.from, r.to, 4000)); })()`);
     expect(sp.known).toBe(false);
-    expect(sp.fixed).toBeNull();
-    // "Below its variable cost even with labour fixed" was said of a variable cost that held all of labour.
-    expect(await g(page, `JSON.stringify(TODO_RULE_FNS.insBelowVar())`)).toBe('[]');
+    const m: any = await g(page, `(function(){ var r = statsClientMargins('mtd', statsInvoices().filter(function(i){ return i.date >= statsRangeIso('mtd').from; }),
+      weighLines(statsInvoices().filter(function(i){ return i.date >= statsRangeIso('mtd').from; })));
+      var lab = r.c.rows.find(function(x){ return x.key === 'labour'; });
+      return { full: r.fullKg, v: r.varKg, lab: lab.amount / r.kg }; })()`);
+    expect(m.v).toBeCloseTo(m.full - m.lab, 6);
+    expect(m.lab).toBeCloseTo(3.55, 2);                                         // every working day at the model
+    // BETA at ₹4/kg last month is below the variable cost even with labour fixed: the insight says so.
+    const ins: any = await g(page, `TODO_RULE_FNS.insBelowVar()`);
+    expect(ins.map((t: any) => t.clientId)).toEqual([72]);
+    expect(ins[0].title).toBe('BETA CLAMPS is below its variable cost');
 
     await openStatsTab(page, 'clients');
     const card = page.locator('#statsMargin');
-    await expect(card).toContainText('Fixed and variable are not known');
+    await expect(card.locator('[data-margin-split]')).toHaveText('labour fixed');
     const beta = card.locator('tbody tr', { hasText: 'BETA CLAMPS' });
-    await expect(beta.locator('td').nth(3)).toHaveText('—');                   // vs var.: not worked out
-    await expect(beta.locator('td').nth(3)).not.toHaveClass(/inv-num-neg/);
-    await expect(beta.locator('td').nth(4)).toHaveClass(/inv-num-neg/);        // vs full stands: ₹5.00 under the live cost
-    await expect(page.locator('#statsWorst [data-tile="fixed"]')).toContainText('split not known');
-    await expect(page.locator('#statsWorst')).toContainText('cannot be told until labour is split');
+    await expect(beta.locator('td').nth(3)).toHaveClass(/inv-num-neg/);        // vs var.: below it
+    await expect(beta.locator('td').nth(4)).toHaveClass(/inv-num-neg/);        // vs full
+    await expect(page.locator('#statsWorst [data-tile="contrib"]')).toContainText('Below its variable cost');
+    await expect(page.locator('#statsWorst')).toContainText('loses money on every kilo');
+    await expect(page.locator('#statsWorst')).not.toContainText('split labour');
   });
 });
 
@@ -146,6 +156,8 @@ test('S8: on the price ranking a part below cost ends short of the cost mark, on
   s.invNextNum = 3;
   await loadAppWithState(page, s);
   await openStatsTab(page, 'trends');
+  // Top items is the rest of Trends (TM2b): folded, shut on the phone.
+  await page.locator('[data-card="top"] > summary').click();
   await page.locator('[data-action="invStatsTopBy"][data-by="rate"]').click();
   const card = page.locator('[data-card="top"]');
   await expect(card).toContainText('Worst priced items');
@@ -170,6 +182,8 @@ test('S9, S14: the drill-down judges at the live cost, in words, and says how th
   s.invNextNum = 3;
   await loadAppWithState(page, s);
   await openStatsTab(page, 'clients');
+  // Realisation by client folds, shut on the phone (TM2b).
+  await page.locator('[data-card="realisation"] > summary').click();
   const alpha = page.locator('[data-card="realisation"] [data-client-row]', { hasText: 'ALPHA WORKS' });
   await expect(alpha.locator('.inv-dot-danger')).toHaveText('Below cost');     // the table, at the live cost
 
@@ -278,7 +292,8 @@ test('S18: the six months are named the app\'s way, never "Sept"', async ({ page
   s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 100, 10)], `${y}-09-10`)];
   s.invNextNum = 2;
   await loadAppWithState(page, s);
-  await openStatsTab(page, 'overview');
+  // The six months head Stats → Trends since the tab map (TM2b).
+  await openStatsTab(page, 'trends');
   await expect(page.locator('#statsMonths tbody tr td:first-child')).toHaveText(['Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep to date']);
 });
 
@@ -289,10 +304,12 @@ test('S19: coverage never reads 100% while a line is left out', async ({ page })
     inv('00002', 1, 'TEST CLIENT KG', [{ partNumber: 'NO WEIGHT PIN', unit: 'NOS', qty: 10, rate: 30 }])];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
-  await openStatsTab(page, 'overview');
-  const callout = page.locator('[data-card="headline"] [data-callout="coverage"]');
-  await expect(callout).toContainText('cover 99% of revenue');
+  // The headline is Trends' verdict card (TM2b): its coverage a badge on Tonnage and a line under the tiles.
+  await openStatsTab(page, 'trends');
+  const callout = page.locator('#statsHeadline [data-callout="coverage"]');
+  await expect(callout).toContainText('99% of revenue weighed');
   await expect(callout).toContainText('1 line worth ₹300.00');
+  await expect(page.locator('#statsHeadline [data-tile="tonnage"] .inv-badge')).toHaveText('99% weighed');
   expect(await g(page, `[statsPctOf(0.997), statsPctOf(1), statsPctOf(0.5), statsPctOf(0)].join(',')`)).toBe('99,100,50,0');
 });
 
@@ -324,11 +341,14 @@ test('SB1: where a line has no weight, the live cost per kg says it divides by t
   s.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 1000, 9)]), inv('00002', 1, 'TEST CLIENT KG', [{ partNumber: 'PIN', unit: 'NOS', qty: 100, rate: 10 }])];
   s.invNextNum = 3;
   await loadAppWithState(page, s);
-  await openStatsTab(page, 'overview');
-  await expect(page.locator('[data-card="headline"] [data-callout="coverage"]')).toContainText('so it reads high too: by about 11%');
-  await expect(page.locator('#statsOverview [data-callout="weighed"]')).toContainText('which carry 90% of the revenue, so it reads high: by about 11%');
+  // Trends' verdict says it in a line; Pulse's In one line carries the weighed share as a badge on realisation (TM2b).
+  await openStatsTab(page, 'trends');
+  await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('90% of revenue: it reads high by about 11%');
+  await openPulse(page);
+  await expect(page.locator('#statsOverview [data-tile="realisation"] .inv-badge')).toHaveText('90% weighed');
   await openStatsTab(page, 'clients');
-  await expect(page.locator('#statsMargin .inv-panel-body .inv-note').first()).toContainText('which carry 90% of the revenue');
+  // A note of its own under the cost's (TM2b: the margin's notes are a line each).
+  await expect(page.locator('#statsMargin .inv-panel-body .inv-note', { hasText: 'reads high' })).toContainText('90% of revenue: it reads high by about 11%');
   await openStatsTab(page, 'cost');
   await expect(page.locator('#liveCost [data-callout="weighed"]')).toContainText('by about 11%');
 
@@ -337,9 +357,12 @@ test('SB1: where a line has no weight, the live cost per kg says it divides by t
   w.invoices = [inv('00001', 1, 'TEST CLIENT KG', [kg('P1', 1000, 9)])];
   w.invNextNum = 2;
   await loadAppWithState(page, w);
-  await openStatsTab(page, 'overview');
-  await expect(page.locator('#statsOverview')).toBeVisible();
+  await openStatsTab(page, 'trends');
+  await expect(page.locator('#statsHeadline')).toBeVisible();
   await expect(page.locator('[data-callout="weighed"]')).toHaveCount(0);
+  await openPulse(page);
+  await expect(page.locator('#statsOverview')).toBeVisible();
+  await expect(page.locator('#statsOverview [data-tile="realisation"] .inv-badge')).toHaveCount(0);
 });
 
 test.describe('charts', () => {

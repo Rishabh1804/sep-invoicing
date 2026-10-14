@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, openPulse, withHomeWidgets, openWidget } from './fixtures';
 
 // P3 assertion: Home "Recent Invoices" empty-state upgraded from a bare muted-text
 // ("No invoices yet") to a more useful empty-state block with an icon + CTA that
@@ -9,12 +9,16 @@ import { emptyState, loadAppWithState, switchTab, openPulse } from './fixtures';
 //   1. positive match (new content present) + regression guard (legacy shape absent)
 //   2. CTA wiring intact
 //   3. positive regression (empty-state absent when data exists)
+//
+// The widget is off in every preset since the tab map (TM2c: the recent invoices are Needs you's), so each test shows it as
+// Edit Home does; on a new device the way to the first invoice is Pulse's quick actions and Add, the first test's last check.
 
 test.describe('P3: Home "Recent Invoices" empty-state', () => {
+  test.beforeEach(async ({ page }) => { await withHomeWidgets(page, ['recent']); });
 
   test('empty state renders icon + copy + CTA when no invoices exist', async ({ page }) => {
     await loadAppWithState(page, emptyState());
-    await openPulse(page);
+    await openWidget(page, 'recent');
     // App already lands on Home; renderHome() is called on init. Confirm explicit return.
     await expect(page.locator('#pageHome.inv-page-active')).toBeVisible();
 
@@ -34,9 +38,18 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     await expect(recent.locator('svg')).toHaveCount(1);
   });
 
-  test('CTA click routes to the Create tab (wiring intact)', async ({ page }) => {
+  test('on a new device (the Owner preset) the first invoice is one tap from Pulse: New invoice among the quick actions', async ({ page }) => {
+    await page.addInitScript(() => { try { localStorage.removeItem('sep_inv_home'); } catch { /* none */ } });
     await loadAppWithState(page, emptyState());
     await openPulse(page);
+    await expect(page.locator('[data-home-w="recent"]')).toBeHidden();
+    await page.locator('[data-home-w="quick"] [data-action="invCreateNew"]').first().click();
+    await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();
+  });
+
+  test('CTA click routes to the Create tab (wiring intact)', async ({ page }) => {
+    await loadAppWithState(page, emptyState());
+    await openWidget(page, 'recent');
 
     const cta = page.locator('#recentInvoices button[data-action="invCreateNew"]');
     await expect(cta).toBeVisible();
@@ -69,7 +82,7 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     }];
 
     await loadAppWithState(page, state);
-    await openPulse(page);
+    await openWidget(page, 'recent');
     await expect(page.locator('#pageHome.inv-page-active')).toBeVisible();
 
     const recent = page.locator('#recentInvoices');

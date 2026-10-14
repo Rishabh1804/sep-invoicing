@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workdayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workdayIso, type SepState, openAttendance, attDayAs } from './fixtures';
 
 // P145 (owner, 1 Oct 2026: "there is also no way to record which area the OT workers actually worked on, we get to select one
 // option for the entire day. Every worker can have states, like morning OT, General, Evening OT, Late night OT, etc. … right now
@@ -20,8 +20,8 @@ function book(): SepState {
 }
 async function openSheet(page: Page) {
   await switchTab(page, 'pageStaff');
-  await page.locator('[data-action="invAttView"][data-view="day"]').first().click();
-  await page.locator('[data-action="invAttDayAs"][data-v="sheet"]').click();
+  await openAttendance(page, 'day');
+  await attDayAs(page, 'sheet');
 }
 const day = async (page: Page) => (await readStoredState(page)).attendance[todayIso()];
 
@@ -43,7 +43,7 @@ test('the sheet takes an area for each OT slot; a slot is that slot’s OT crew,
   d = await day(page);
   expect(d.extra.find((x: any) => x.from === '06:00')).toBeUndefined();
   // The board says where each stood.
-  await page.locator('[data-action="invAttDayAs"][data-v="board"]').click();
+  await attDayAs(page, 'board');
   await expect(page.locator('[data-att-row="1"]')).toContainText('Evening OT VAT A2');
 });
 

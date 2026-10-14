@@ -28,7 +28,6 @@ test('P71 desktop: Lines as a table, a line in the pane, the reorder list as a t
     },
   } as unknown as SepState);
   await switchTab(page, 'pageStock');
-  await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
   const table = page.locator('#stockLines table.inv-table');
   await expect(table.locator('tr.inv-table-group')).toHaveText([/Out/, /OK/]);
   await expect(page.locator('#stockMasterDetail')).not.toHaveClass(/inv-pane-open/);
@@ -37,7 +36,8 @@ test('P71 desktop: Lines as a table, a line in the pane, the reorder list as a t
   await table.locator('button[data-action="invStockOpen"][data-id="Q"]').click();
   await expect(page.locator('#stockMasterDetail')).toHaveClass(/inv-pane-open/);
   await expect(table.locator('tr[data-id="Q"]')).toHaveAttribute('aria-current', 'true');
-  await expect(page.locator('[data-action="invDashStockView"][data-view="list"]')).toHaveAttribute('aria-selected', 'true');
+  // Stock is one screen (the tab map, TM4d): no view tabs to keep selected.
+  await expect(page.locator('#stockContent .inv-viewtabs')).toHaveCount(0);
   await expect(page.locator('#stockDetail #stockPattern')).toContainText('Price and pattern');
   // Every panel in the pane keeps its height (the pane scrolls; it does not squeeze them).
   const h = await page.locator('#stockDetail #stockEntries').evaluate(el => el.scrollHeight - el.clientHeight);

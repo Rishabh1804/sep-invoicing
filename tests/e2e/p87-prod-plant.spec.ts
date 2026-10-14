@@ -65,7 +65,9 @@ test.describe('P87: material in the plant', () => {
     await expect(page.locator('[data-prod-tile="plantPnp"] .inv-tile-value')).toHaveText('500 NOS');
     // With gaps in the record, plating on an unrecorded day would read as waiting: withheld, and said why.
     await expect(page.locator('[data-prod-tile="plantWait"] .inv-tile-value')).toHaveText('—');
-    await expect(page.locator('[data-prod-cover]')).toBeVisible();
+    // The card's tile says so (TM4c): withheld, with the share of line-days recorded.
+    await expect(page.locator('[data-prod-tile="plantWait"]')).toContainText('withheld');
+    await expect(page.locator('[data-prod-tile="plantWait"]')).toContainText('of line-days recorded');
     await expect(page.locator('[data-prod-plant="L2"] .inv-dot')).toHaveText('Plated, not invoiced');
     await expect(page.locator('[data-prod-plant="L3"] .inv-dot')).toHaveText('Pickled');
     await expect(page.locator('#prodNoChallan')).toContainText('BRKT 9');
@@ -102,7 +104,7 @@ test.describe('P87: material in the plant', () => {
     await loadAppWithState(page, state(true));
     await switchTab(page, 'pageProduction');
     await page.locator('[data-action="invProdTab"][data-tab="plant"]').click();
-    await expect(page.locator('[data-prod-cover]')).toHaveCount(0);
+    await expect(page.locator('[data-prod-tile="plantWait"]')).not.toContainText('withheld');
     await expect(page.locator('[data-prod-tile="plantWait"] .inv-tile-value')).toHaveText('300 NOS');
     // One client at a time.
     await page.locator('#prodPlantClient').selectOption('11');

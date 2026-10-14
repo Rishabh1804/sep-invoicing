@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, prodEntryAct } from './fixtures';
 
 // P84: the paste check. Every message beside what was read; a name nobody holds is red until it is picked or kept
 // as written; one pick answers for the whole paste and is remembered; the same message is never counted twice.
@@ -83,7 +83,7 @@ test.describe('P84: the paste check', () => {
     expect(s.production.learn.clients).toEqual({});
     const id = s.production.entries[0].id;
     await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
-    await page.locator(`[data-prod-entry="${id}"] [data-action="invProdVoid"]`).click();
+    await prodEntryAct(page, id, 'invProdVoid');   // in the entry's fold on the phone (TM4c)
     await answerAsk(page, 'ok', 'read wrong');
     await paste(page, one);
     await expect(page.locator('#prodDupNote')).toHaveCount(0);

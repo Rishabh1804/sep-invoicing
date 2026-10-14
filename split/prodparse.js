@@ -5,7 +5,7 @@
  *     the loads carry no quantity ("SSS MEHTA / CLAMP(40×6)"); a line is never named.
  *   - the supervisor: a daily "berral production" list, and short "----production----" blocks inside his in/out
  *     rolls, which report the overtime slot above them.
- *   - the register clerk: photos of the VAT register (read by Gemini, production.js).
+ *   - the register clerk: the VAT register's pages, typed as written on Mine (faces.js).
  * Everything read here is shown beside the text it came from before anything is saved (Stock's contract). A line
  * that cannot be read is listed, never dropped. The client list and the roster are passed in, so the census can
  * replay the real exports through the same functions.
@@ -708,51 +708,23 @@ function prodPairPower(msgs) {
   });
 }
 
-/* ---------- The VAT register, read from a photo by Gemini ---------- */
-/* The prompt asks for a TRANSCRIPTION, never a reading: times as written, customers and parts as spelt, every row
-   the clerk wrote, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
-   No client list is sent (the model would "correct" the floor's spellings to legal names), and the workers' box is not
-   asked for. Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are
-   this app's, in code, where they can be tested.
+/* ---------- The VAT register, as the clerk wrote it ---------- */
+/* A page is read from its rows as written (the clerk types them on Mine, faces.js): times as written, customers and parts
+   as spelt, every row, figures exactly as written ("72+10", "98×8+1"), struck rows and figures written over marked as such.
+   Converting times, adding up a figure, the START and END rules, rack arithmetic and the day's total are this app's, in
+   code, where they can be tested. The rows came first from photos read by Gemini, which came out on 13 Oct 2026 (owner:
+   *"it simply never works"*); the shape below is the one those reads took, kept so the runs saved from them still read.
 
-   Two page shapes, both seen on the real register (photos of 24–26 Sep 2026, owner):
+   A page is { page, date, weekday, line, dayTotal, rows }, a row { time, mark (START / END), customer, part, dim, qtyText,
+   struck, over, bracket, ditto, legible } or, on a power page, { date, event ("power cut" / "power in"), time }.
+
+   Two page shapes, both seen on the real register (pages of 24–26 Sep 2026, owner):
    - ROUNDS (VAT A1): one row per round, "9:45 AM - 72", a START row first. A START counts as a round of the next
      round's figure (the owner's rule, 26 Jun).
    - START / END (VAT A2): a run opens on a START row and its END row carries the run's whole figure ("98×8+1"); an
      END with no START of its own starts where the one before ended. A START here is only the run's start: counting it
      as a round, as the first build did, doubled every A2 run.
-   The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. A
-   photo of anything else (the weekly hours sheet) is said so and nothing is read. */
-var PROD_REGISTER_PROMPT_VER = 'reg-v2';
-var PROD_REGISTER_PROMPT = 'This is a photo of one page from the handwritten registers of a zinc electroplating plant in India.\n\n' +
-  'TRANSCRIBE the page exactly as written. Do not correct spellings, do not convert times, do not add up figures, do not add rows that are not written, do not invent anything.\n' +
-  '- page: "production" if it lists batches plated (customer, part, times, figures); "power" if it is a log of power cuts and power coming back; "challan" if it is a customer\'s printed delivery challan; "other" for anything else (a wages or hours sheet, a list of names).\n' +
-  '- date: the date written at the top, exactly as written (e.g. "24/09/26"), or null. weekday: the day name written at the top (e.g. "Thursday"), or null.\n' +
-  '- line: the line named at the top exactly as written (e.g. "VAT-A1", "VAT-A2", "BARREL"), or null.\n' +
-  '- dayTotal: a day total written on the page, else null.\n' +
-  '- rows: one per written row, top to bottom, skipping rows with nothing written but ditto marks. For each: time exactly as written without START or END (e.g. "9:45 AM", "3:00 PM"); ' +
-  'mark: "START" or "END" if the row says so, else null; customer and part as written (when a column holds only ditto marks, leave it null and set ditto true); dim (a size such as "35x6") if written; ' +
-  'qtyText: the figure written for the row, exactly as written with its signs (e.g. "72", "72+10", "98×8+1", "50+52+30", "3+4×156"), else null; when the only figure on the row is written in the part column (e.g. "(25 NOS) TINA"), put it in qtyText too; struck: true if the row or its figure is struck through; ' +
-  'over: what a correction was written over, as written; bracket: true if the row is inside a bracket carrying one total for several rows; legible: false if you cannot read the figure.\n' +
-  '- On a power page, each row: date as written on the row, event "power cut" or "power in" (also "power on"), and time as written.\n' +
-  'Ignore any box of workers\' names. Return only the JSON.';
-var PROD_REGISTER_SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    page: { type: 'STRING', nullable: true },
-    date: { type: 'STRING', nullable: true },
-    weekday: { type: 'STRING', nullable: true },
-    line: { type: 'STRING', nullable: true },
-    dayTotal: { type: 'NUMBER', nullable: true },
-    rows: { type: 'ARRAY', items: { type: 'OBJECT', properties: {
-      time: { type: 'STRING', nullable: true }, mark: { type: 'STRING', nullable: true }, customer: { type: 'STRING', nullable: true }, part: { type: 'STRING', nullable: true },
-      dim: { type: 'STRING', nullable: true }, qtyText: { type: 'STRING', nullable: true }, struck: { type: 'BOOLEAN', nullable: true }, over: { type: 'STRING', nullable: true },
-      bracket: { type: 'BOOLEAN', nullable: true }, ditto: { type: 'BOOLEAN', nullable: true }, legible: { type: 'BOOLEAN', nullable: true },
-      event: { type: 'STRING', nullable: true }, date: { type: 'STRING', nullable: true } } } }
-  },
-  required: ['rows']
-};
-
+   The register also keeps a POWER LOG ("25/09/26 Power cut - 10:26 AM / Power in - 10:36 AM"), read as power cuts. */
 /* A register time: the shift runs 8:30 to 5, so a bare 1–6 is the afternoon and 7–12 as written. */
 function prodRegisterTime(s) {
   var m = /(\d{1,2})\s*(?:[:.;]\s*(\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?/i.exec(String(s || ''));
@@ -821,7 +793,7 @@ var PROD_WEEKDAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
 function prodFromRegisterRead(json, ctx, photoDate, choices) {
   choices = choices || {};
   var out = { date: null, line: null, dayTotal: null, runs: [], issues: [], rows: [], downtime: [], page: 'production', style: 'rounds' };
-  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', code: 'rows', text: 'Gemini did not return any rows for this photo.' }); return out; }
+  if (!json || !Array.isArray(json.rows)) { out.issues.push({ tone: 'red', code: 'rows', text: 'No rows were read on this page.' }); return out; }
   var pg = String(json.page || '').toLowerCase();
   var events = json.rows.filter(function(r) { return r && r.event; }).length;
   out.page = /challan/.test(pg) ? 'challan' : /other/.test(pg) ? 'other' : /power/.test(pg) || (events && events === json.rows.filter(Boolean).length) ? 'power' : 'production';
@@ -877,6 +849,9 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     }
     return null;
   };
+  // A row of the register clerk's page on Mine names the client picked (faces.js sends its id beside the name): that client,
+  // whatever its name reads as ("M & M AUTO" read as no client by name). A photo's rows are read by name.
+  var itemOf = function(row) { return row.cid != null ? { clientId: row.cid, clientName: row.cust, clientHow: 'picked' } : prodReadItem(row.cust, ctx.clients); };
   var lastCust = '', lastPart = '', lastDim = '';
   json.rows.forEach(function(r0, i) {
     var r = r0 || {};
@@ -902,7 +877,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     if (/\+/.test(part) || (part && prodIsDitto(part))) part = tokenFill(part, lastPart);
     lastCust = cust || lastCust; lastPart = part || lastPart; if (!ditto || dim) lastDim = dim;
     var row = { i: i, time: String(r.time || '').replace(/\s*-?\s*(start|end)\s*$/i, ''), min: prodRegisterNoon(r.time), cust: cust, part: part, dim: dim,
-      mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
+      cid: r.clientId != null && r.clientId !== '' && String(r.customer || '').trim() ? r.clientId : null, mark: mark, start: mark === 'START', end: mark === 'END', rackSize: r.rackSize, rounds: r.rounds, short: r.short,
       qty: null, written: written, struck: !!r.struck, over: r.over || '', bracket: !!r.bracket, legible: r.legible !== false, issues: [] };
     if (written != null) {
       var q = prodRegisterQty(written);
@@ -944,7 +919,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     // Two clients in one round (owner, 30 Sep 2026: "sometimes two clients are done simultaneously"): each client's share
     // is a round of its own at the same time, in its own run. The figure splits on its + into as many shares as there are
     // clients or parts; a figure that does not is asked about and the row kept whole.
-    var cT = prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
+    var cT = row.cid != null ? [cust] : prodSplitTop(cust), pT = prodSplitTop(part), nShare = Math.max(cT.length, pT.length);
     if (nShare > 1 && (cT.length === 1 || pT.length === 1 || cT.length === pT.length)) {
       var fT = written != null ? prodSplitTop(written) : null;
       if (fT && fT.length !== nShare) {
@@ -1001,7 +976,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     out.rows.forEach(function(row) {
       if (row.start || lineGauge(String(row.part + ' ' + row.dim).replace(/[×✕]/g, 'X'))) return;
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
-      var it = prodReadItem(row.cust, ctx.clients);
+      var it = itemOf(row);
       var gs = it.clientId != null ? ctx.gaugeRule(it.clientId, row.part, rack) : null;
       // A round of a size no rule names, on a part a rule covers (the 108s, the 98s), is kept apart as gauge unknown: it
       // must not join a run whose gauge a rule read and take that gauge.
@@ -1016,7 +991,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   if (ctx.partRule) {
     out.rows.forEach(function(row) {
       var rack = row.rackSize || (!row.batch && row.qty > 0 ? row.qty : null);
-      var it = rack ? prodReadItem(row.cust, ctx.clients) : null;
+      var it = rack ? itemOf(row) : null;
       var pr = it && it.clientId != null ? ctx.partRule(it.clientId, rack, out.line, row.part) : null;
       // A round whose gauge no rule of its own client reads, of a size another client's part is on this line: asked.
       if (!pr && row.gaugeSet === 'none' && ctx.partRuleOther) {
@@ -1039,7 +1014,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
   var sideOf = function(row) { return row.min == null || (row.qty == null && row.written == null) ? '' : row.min < RELAY_GENERAL ? 'am' : row.min >= RELAY_GENERAL_OUT ? 'pm' : 'gen'; };
   var cur = null, open = {}, inShared = false;
   out.rows.forEach(function(row) {
-    var pd = row.part + ' ' + row.dim, ck = relayKey(row.cust) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
+    var pd = row.part + ' ' + row.dim, ck = (row.cid != null ? '#' + row.cid : relayKey(row.cust)) + '|' + rateKey(prodPartBase(pd)), g = lineGauge(pd.replace(/[×✕]/g, 'X'));
     var gs = row.gaugeSet || '', rp = row.rulePn || '', sd = sideOf(row);
     var run = row.shared != null || inShared ? open[ck] || null : cur;
     if (!run || run.ck !== ck || (g && run.g && g !== run.g) || (gs && run.gs && gs !== run.gs) || (gs && run.g) || (g && run.gs) || (rp && run.rp && rp !== run.rp) || (sd && run.sd && sd !== run.sd)) { run = { ck: ck, g: g, gs: gs, rp: rp, sd: sd, rows: [] }; out.runs.push(run); }
@@ -1050,7 +1025,7 @@ function prodFromRegisterRead(json, ctx, photoDate, choices) {
     cur = run;
   });
   out.runs = out.runs.map(function(run) {
-    var first = run.rows[0], it = prodReadItem(first.cust, ctx.clients), dimText = first.dim || run.g;
+    var first = run.rows[0], it = itemOf(first), dimText = first.dim || run.g;
     var partText = (first.part + (dimText && !lineGauge(first.part.replace(/[×✕]/g, 'X')) ? ' (' + dimText + ')' : '')).trim();
     var counted = run.rows.filter(function(x) { return x.counted && x.qty != null; });
     var qty = counted.reduce(function(s, x) { return s + x.qty; }, 0);

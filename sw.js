@@ -322,7 +322,7 @@ async function appWindows() {
   return all.filter(function(c) { return String(c.url || '').indexOf(self.registration.scope) === 0; });
 }
 
-// Open the app on the To-do tab, or bring an open window forward and tell it.
+// Open the app on Today → Needs you, where the tasks are (the To-do page joined it), or bring an open window forward and tell it.
 async function widgetOpen(action) {
   const open = await appWindows();
   if (open.length) {
@@ -332,7 +332,7 @@ async function widgetOpen(action) {
       return;
     } catch (err) { /* focus refused: open a window instead */ }
   }
-  await self.clients.openWindow('./?tab=pageTodo&todo=' + encodeURIComponent(action));
+  await self.clients.openWindow('./?tab=pageHome&v=needs&todo=' + encodeURIComponent(action));
 }
 
 self.addEventListener('widgetinstall', function(e) { e.waitUntil(widgetRender()); });

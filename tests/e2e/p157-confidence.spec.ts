@@ -88,7 +88,9 @@ test.describe('P157 how sure a finding is', () => {
     })()`);
     const firm: any = await run(5);
     expect(firm.tone).toBe('red');
-    expect(firm.sub).toContain('loses at least ₹1,000.00 (at the six months\' lowest, ₹6.00), up to ₹4,000.00');
+    // The row says the range in two facts (the tab map, TM6); the figures say where each end comes from.
+    expect(firm.sub).toContain('loses ₹1,000.00 to ₹4,000.00 with labour fixed');
+    expect(firm.facts.find((f: any) => f[0] === 'Loss with labour fixed')[1]).toBe('at least ₹1,000.00 (at the six months\' lowest, ₹6.00), up to ₹4,000.00');
     const soft: any = await run(7);
     expect(soft.tone).toBe('amber');
     expect(soft.toneRead).toBe('red');

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, openSettingsAt, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
+import { closeFilter, emptyState, filterControl, loadAppWithState, openSettingsAt, readStoredState, recentTs, setFilter, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
 import { problems, sweep } from './sweep-fixture';
 
 // P141: the change log (the guard, G1). Every save is compared with the book as the save before left it, record by
@@ -72,7 +72,7 @@ test.describe('P141: the change log', () => {
     await page.locator('#invSaveBtn').click();
     await expect.poll(async () => (await log(page)).length).toBe(1);
     let e = (await log(page))[0];
-    expect(e).toMatchObject({ op: 'change', coll: 'invoices', rid: 'INV-1', by: 'u-asha', dev: 'dev-office', label: 'SEP/TEST-00001 · ' + CLIENT });
+    expect(e).toMatchObject({ op: 'change', coll: 'invoices', rid: 'INV-1', by: 'u-asha', dev: 'dev-office', label: 'SEP/TEST-00001, ' + CLIENT });
     expect(field(e, 'items[0].rate')).toEqual({ f: 'items[0].rate', from: 13, to: 13.2 });
     expect(field(e, 'items[0].amount')).toEqual({ f: 'items[0].amount', from: 1300, to: 1320 });
     expect(field(e, 'taxableValue')).toEqual({ f: 'taxableValue', from: 1300, to: 1320 });
@@ -96,7 +96,7 @@ test.describe('P141: the change log', () => {
     await expect.poll(async () => (await log(page)).length).toBe(2);
     e = (await log(page))[1];
     expect(e).toMatchObject({ op: 'add', coll: 'incomingMaterial', by: 'u-asha', cid: 1, fields: [] });
-    expect(e.label).toContain('302 · ' + CLIENT);
+    expect(e.label).toContain('302, ' + CLIENT);
     expect(await g(page, "S.clients[0].recentVehicles.indexOf('JH 05XY 4321') >= 0")).toBe(true);
 
     // An invoice raised from challan 301: the challan's billed share and the invoice counter move by themselves.
@@ -109,20 +109,19 @@ test.describe('P141: the change log', () => {
     expect(await g(page, "S.incomingMaterial.find(function(m) { return m.id === 'IM-1'; }).items[0].invoiced")).toBe(true);
     let all = await log(page);
     expect(all).toHaveLength(3);
-    expect(all[2]).toMatchObject({ op: 'add', coll: 'invoices', label: 'SEP/TEST-00002 · ' + CLIENT });
+    expect(all[2]).toMatchObject({ op: 'add', coll: 'invoices', label: 'SEP/TEST-00002, ' + CLIENT });
     expect(all.filter(x => x.coll === 'incomingMaterial' && x.op === 'change')).toHaveLength(0);
     expect(all.filter(x => x.coll === 'settings')).toHaveLength(0);
 
     // A stock entry voided (never deleted).
     await switchTab(page, 'pageStock');
-    await page.locator('[data-action="invDashStockView"][data-view="list"]').click();
     await page.locator('#stockLines [data-action="invStockOpen"]').filter({ hasText: 'Nitric acid' }).click();
     await page.locator('#stockEntries [data-entry="u1"] [data-action="invStockVoid"]').click();
     await page.locator('[data-action="invStockVoid"][aria-pressed="true"]').click();
     await expect.poll(async () => (await log(page)).length).toBe(4);
     e = (await log(page))[3];
     expect(e).toMatchObject({ op: 'change', coll: 'stock.entries', rid: 'u1' });
-    expect(e.label).toBe('Nitric acid · used · 2 L · ' + await g(page, `formatDate('${dayOff(-1)}')`));
+    expect(e.label).toBe('Nitric acid, used, 2 L, ' + await g(page, `formatDate('${dayOff(-1)}')`));
     expect(field(e, 'voided')).toEqual({ f: 'voided', from: null, to: 'set' });
 
     // A Settings section saved: one record, named by its section.
@@ -137,13 +136,14 @@ test.describe('P141: the change log', () => {
     // A payment recorded on Staff → Pay.
     await switchTab(page, 'pageStaff');
     await page.locator('[data-action="invAttView"][data-view="pay"]').click();
+    await page.locator('#payFormFold > summary').click();   // the form is one line on the phone until it is wanted (TM4b)
     await page.locator('#payWorker').selectOption('1');
     await page.locator('#payAmount').fill('500');
     await page.locator('[data-action="invPaySave"]').click();
     await expect.poll(async () => (await log(page)).length).toBe(6);
     e = (await log(page))[5];
     expect(e).toMatchObject({ op: 'add', coll: 'staffPayments' });
-    expect(e.label).toContain('Ramu Kumar · payment · ₹500.00');
+    expect(e.label).toContain('Ramu Kumar, payment, ₹500.00');
 
     // A save that changed nothing adds nothing; the log travels in the stored book.
     await g(page, 'saveState()');
@@ -181,13 +181,13 @@ test.describe('P141: the change log', () => {
     await as(page, 'u-ravi');
     await g(page, "S.users[0].secret = { alg: 'PBKDF2-SHA256', iter: 150000, salt: 'bmV3LXNhbHQtbmV3', hash: 'bmV3LWhhc2gtbmV3', digits: true }; saveState()");
     const e = (await log(page))[0];
-    expect(e).toMatchObject({ op: 'change', coll: 'users', rid: 'u-asha', by: 'u-ravi', label: 'Asha · office', fields: [{ f: 'secret', secret: true }] });
+    expect(e).toMatchObject({ op: 'change', coll: 'users', rid: 'u-asha', by: 'u-ravi', label: 'Asha, office', fields: [{ f: 'secret', secret: true }] });
     await expect.poll(async () => ((await readStoredState(page)).changeLog || []).length).toBe(1);
     const stored = JSON.stringify((await readStoredState(page)).changeLog);
     for (const s of ['c2FsdC1vbmUtb25l', 'aGFzaC1vbmUtb25l', 'bmV3LXNhbHQtbmV3', 'bmV3LWhhc2gtbmV3', 'PBKDF2']) expect(stored).not.toContain(s);
     await switchTab(page, 'pageHistory');
-    await page.locator('#historyToolbar [data-action="invHistoryType"][data-type="change"]').click();
-    await expect(page.locator('#historyList [data-ev="chg"]').first()).toContainText('Ravi changed user Asha · office · secret changed');
+    await setFilter(page, '#historyType', 'change');
+    await expect(page.locator('#historyList [data-ev="chg"]').first()).toContainText('Ravi changed user Asha, office: secret changed');
   });
 
   test('History → Changes lists the log with names; Who narrows every row that carries a user', async ({ page }) => {
@@ -208,15 +208,15 @@ test.describe('P141: the change log', () => {
     const challanRow = list.locator('[data-ev="challan"]').filter({ hasText: 'Challan 309' });
     await expect(challanRow).toContainText('by Asha');
     await expect(list.locator('[data-ev="chg"]').filter({ hasText: 'challan 309' })).toHaveCount(0);
-    await expect(list.locator('[data-ev="chg"]').filter({ hasText: 'Ravi changed worker Ramu Kumar · hourRate 47.5 → 50' })).toHaveCount(1);
+    await expect(list.locator('[data-ev="chg"]').filter({ hasText: 'Ravi changed worker Ramu Kumar: hourRate 47.5 → 50' })).toHaveCount(1);
 
     // Changes: every entry, each ending in what it did.
-    await page.locator('#historyToolbar [data-action="invHistoryType"][data-type="change"]').click();
+    await setFilter(page, '#historyType', 'change');
     const rows = list.locator('[data-ev="chg"]');
     await expect(rows).toHaveCount(3);
-    await expect(rows.nth(0)).toContainText('Someone changed item P1 · desc Bracket → Bracket, zinc');
+    await expect(rows.nth(0)).toContainText('Someone changed item P1: desc Bracket → Bracket, zinc');
     await expect(rows.nth(1)).toContainText('Ravi changed worker Ramu Kumar');
-    await expect(rows.nth(2)).toContainText('Asha added challan 309 · ' + CLIENT);
+    await expect(rows.nth(2)).toContainText('Asha added challan 309, ' + CLIENT);
     await expect(rows.nth(2).locator('.inv-dot-ok')).toHaveText('Added');
     await expect(rows.nth(0).locator('.inv-dot-neutral')).toHaveText('Changed');
     await expect(rows.nth(2)).toContainText('on Office PC');
@@ -224,18 +224,20 @@ test.describe('P141: the change log', () => {
     await expect(rows.nth(2)).toHaveAttribute('data-action', 'invHistoryJumpChallan');
 
     // Who: the users, and No ID. The sweep's checks hold on the rows and the filter (P76 walks a book with no IDs).
-    const who = page.locator('#historyToolbar select#historyWho');
+    // On the phone they are behind Filter (the tab map, TM6c), said under the row as tokens.
+    const who = await filterControl(page, '#historyWho');
     await expect(who.locator('option')).toHaveText(['Everyone', 'Asha', 'Ravi', 'No ID']);
+    await closeFilter(page);
     expect(problems([await sweep(page, 'History › Changes')])).toEqual([]);
-    await who.selectOption('u-ravi');
+    await setFilter(page, '#historyWho', 'u-ravi');
     await expect(list.locator('[data-ev="chg"]')).toHaveCount(1);
     await expect(list.locator('[data-ev="chg"]')).toContainText('Ravi changed');
-    await page.locator('#historyToolbar select#historyWho').selectOption('_none');
+    await setFilter(page, '#historyWho', '_none');
     await expect(list.locator('[data-ev="chg"]')).toHaveCount(1);
     await expect(list.locator('[data-ev="chg"]')).toContainText('Someone changed item P1');
     // Every kind that carries a user: under All, Asha's challan is the event row, by Asha; rows nobody can name go.
-    await page.locator('#historyToolbar [data-action="invHistoryType"][data-type="all"]').click();
-    await page.locator('#historyToolbar select#historyWho').selectOption('u-asha');
+    await setFilter(page, '#historyType', 'all');
+    await setFilter(page, '#historyWho', 'u-asha');
     await expect(list.locator('[data-ev="challan"]')).toHaveCount(1);
     await expect(list.locator('[data-ev="challan"]')).toContainText('by Asha');
     await expect(list.locator('[data-ev="invoice"]')).toHaveCount(0);
@@ -270,7 +272,7 @@ test.describe('P141: the change log', () => {
     expect(after[after.length - 1]).toMatchObject({ coll: 'clients', fields: [{ f: 'notes', from: '', to: 'kept' }] });
     expect(await g(page, 'S.changeLogDropped.n')).toBe(4);
     await switchTab(page, 'pageHistory');
-    await page.locator('#historyToolbar [data-action="invHistoryType"][data-type="change"]').click();
+    await setFilter(page, '#historyType', 'change');
     await expect(page.locator('#historyList [data-chg-dropped]')).toContainText('4 older changes were dropped to keep the book small');
   });
 

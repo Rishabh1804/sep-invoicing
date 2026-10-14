@@ -58,8 +58,9 @@ test('600 invoiced as 200, 300 and 100: the share left, the status and the unbil
   it = await line(page);
   expect(it.billedQty).toBe(500);
   expect(it.invoiceIds).toHaveLength(2);
-  await openStatsTab(page, 'billing');
-  await expect(page.locator('[data-card="unbilled"]')).toContainText('₹1,550.00');   // 100 × 2.50 + 1,300
+  // What is left to bill is Pipeline's first stage (Stats → Billing's Unbilled card went there: the tab map, TM2b).
+  await switchTab(page, 'pagePipeline');
+  await expect(page.locator('[data-pipe-stage="awaiting"]')).toContainText('₹1,550.00');   // 100 × 2.50 + 1,300
 
   // The third takes what is left without typing, and closes the line.
   await invoiceQty(page, null, 3);
@@ -122,7 +123,8 @@ test('billing more than is left warns, asks for a reason, and stamps the line', 
   await page.locator('input[data-field="qty"][data-idx="0"]').fill('130');
   await expect(page.locator('#invImShare0 [data-im-over]')).toContainText('30 over what is left on challan 301');
 
-  // No reason yet: the save is held, and the error names the line.
+  // No reason yet: once the field is left (the tab map, TM5h: no error before), the save is held and the error names the line.
+  await page.locator('input[data-field="qty"][data-idx="0"]').blur();
   await expect(page.locator('#invSaveBtn')).toBeDisabled();
   await expect(page.locator('#invErrorsArea')).toContainText('Line 1: 30 over what is left on challan 301');
   expect((await readStoredState(page)).invoices).toHaveLength(2);

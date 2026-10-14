@@ -44,7 +44,8 @@ test('Production → Entries: an entry opens in the pane with what it holds and 
   await page.locator('#pageProduction .inv-viewtab[data-tab="entries"]').click();
   // The chips stay above the list and the pane, not inside the list's scroller.
   await expect(page.locator('#prodEntriesHost [data-action="invProdFilter"]')).toHaveCount(0);
-  const row = page.locator('#prodEntriesHost [data-prod-entry]').first();
+  // The list's own rows (the loads with the line unknown head the column above it, with their own moves, TM4c).
+  const row = page.locator('#prodEntries [data-prod-entry]').first();
   const id = await row.getAttribute('data-prod-entry');
   await row.locator('[data-action="invProdEntryOpen"]').click();
   const pane = page.locator(`#prodEntryPane [data-prod-pane="${id}"]`);

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, readStoredState, switchTab, todayIso, recentTs, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, readStoredState, switchTab, todayIso, recentTs, type SepState, prodFlag, prodEntryAct } from './fixtures';
 
 // P122 (owner, 30 Sep 2026): a register page's clamps take their gauge from the round's size (the owner's rule for Mehta),
 // a floor name with its code in brackets is matched to the client's part and learnt, a new part under the customer's
@@ -58,15 +58,15 @@ test('a code in brackets is the client’s part ending in it, learnt for the nam
   expect(r.ok !== false).toBe(true);
   await switchTab(page, 'pageProduction');
   await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
-  // TINA(0160) is the one part ending 0160, and TINA alone reads as it from then on.
-  await expect(page.locator('[data-prod-entry="E1"]')).toContainText('= 5164 5460 0160');
-  await expect(page.locator('[data-prod-entry="E3"]')).toContainText('= 5164 5460 0160');
+  // TINA(0160) is the one part ending 0160, and TINA alone reads as it from then on (each entry's part, in its fold: TM4c).
+  await expect(page.locator('[data-prod-entry="E1"]')).toContainText('5164 5460 0160');
+  await expect(page.locator('[data-prod-entry="E3"]')).toContainText('Read as5164 5460 0160');
   // KUDAL(0106) ends two parts: asked.
-  await page.locator('[data-prod-entry="E2"] [data-action="invProdAlias"]').click();
+  await prodEntryAct(page, 'E2', 'invProdAlias');
   await expect(page.locator('#prodAliasPick optgroup').first()).toHaveAttribute('label', 'Ending in 0106');
   await page.locator('#prodAliasPick').selectOption('5206 4920 0106');
   await page.locator('[data-action="invProdAliasSave"]').click();
-  await expect(page.locator('[data-prod-entry="E2"]')).toContainText('= 5206 4920 0106');
+  await expect(page.locator('[data-prod-entry="E2"]')).toContainText('5206 4920 0106');
   const learnt = (await readStoredState(page)).production.learn.parts;
   expect(Object.values(learnt).map((x: any) => x.partNumber)).toEqual(expect.arrayContaining(['5164 5460 0160', '5206 4920 0106']));
 });
@@ -194,9 +194,11 @@ test('a round no rule names is flagged until its gauge is picked, and a code two
   expect(await g(page, `todoAppAll(['prodGaugeUnknown']).length`)).toBe(1);
   await switchTab(page, 'pageProduction');
   await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();
-  await page.locator('[data-action="invProdFilter"][data-flag="gauge"]').click();
-  await expect(page.locator('[data-prod-entry="GU1"]')).toContainText('gauge unknown: a round of 94');
-  await page.locator('[data-prod-entry="GU1"] [data-action="invProdGauge"]').click();
+  await prodFlag(page, 'gauge');
+  // A badge on its line, and why in its fold's Gauge row (TM4c).
+  await expect(page.locator('[data-prod-entry="GU1"] [data-prod-badges]')).toContainText('gauge unknown');
+  await expect(page.locator('[data-prod-entry="GU1"]')).toContainText('Unknown: a round of 94');
+  await prodEntryAct(page, 'GU1', 'invProdGauge');
   await page.locator('#prodGaugePick').selectOption('35X6');
   await page.locator('[data-action="invProdGaugeSave"]').click();
   await expect(page.locator('[data-prod-entry="GU1"]')).toHaveCount(0);

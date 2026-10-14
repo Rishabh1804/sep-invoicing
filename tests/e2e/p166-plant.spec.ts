@@ -81,14 +81,17 @@ test.describe('P166 the plant register', () => {
     expect(gone).toEqual({ kept: 1, retired: true, why: 'scrapped', live: 0 });
   });
 
-  test('Overview leads with the plant; Floor → Day shows the line’s units on the day', async ({ page }) => {
+  test('Equipment shows the plant by line; Floor’s Overview shows the line’s units on the day', async ({ page }) => {
     await loadAppWithState(page, book([tank('A', 'Tank 1', 'vat-a1', 25), tank('B', 'Tank 2', 'vat-a1', 25, 'down', day(-5))],
       [{ id: 'L1', unitId: 'A', date: day(-30), from: null, to: 'run', at: 1 }, { id: 'L2', unitId: 'B', date: day(-30), from: null, to: 'run', at: 1 }, { id: 'L3', unitId: 'B', date: day(-5), from: 'run', to: 'down', at: 2 }]));
     await switchTab(page, 'pageProduction');
-    await page.locator('#productionContent .inv-viewtab[data-tab="overview"]').click();
-    await expect(page.locator('#pltGlance [data-plt-glance="vat-a1"]')).toContainText('1 of 2 tanks working · 50% available');
+    // The plant at a glance led Production's Overview; it is Equipment's now (the tab map, TM4c), its verdict naming the line.
+    await page.locator('#productionContent .inv-viewtab[data-tab="equipment"]').click();
+    await expect(page.locator('#pltVerdict .inv-hero-title')).toHaveText('1 of 2 tanks down on VAT A1');
+    await expect(page.locator('#pltVerdict [data-plt-factor="vat-a1"]')).toContainText('50% available');
     await switchTab(page, 'pageFloor');
-    await expect(page.locator('[data-line="vat-a1"] [data-flr-units]')).toContainText('Tank 2 down');
+    // The units not working, a status at a time (TM4f: a name a fact had read as a chain).
+    await expect(page.locator('[data-line="vat-a1"] [data-flr-units]')).toContainText('Down: Tank 2');
   });
 
   test('a unit down three days is a task, red at seven', async ({ page }) => {
@@ -105,9 +108,16 @@ test.describe('P166 the plant register', () => {
     const r: any = await g(page, `({ left: S.planner.machines.length, unit: S.plant.units[0].name, st: S.plant.units[0].station, m: plnLive('machines').map(function (x) { return [x.id, x.item, x.state, x.risk.p]; }) })`);
     expect(r).toEqual({ left: 0, unit: 'Barrel drive', st: 'barrel', m: [['MA-1', 'Barrel drive', 'needs', 0.1]] });
     await switchTab(page, 'pagePlanner');
-    await page.locator('#pagePlanner .inv-viewtab[data-v="plant"]').click();
+    // Plant is a kind under the planner's Moves since the tab map (TM2d); a book with nothing weighed to plan from shows the
+    // registers alone, the machines among them, on every view.
+    await page.locator('#pagePlanner .inv-viewtab[data-v="moves"]').click();
+    const plant = page.locator('#pagePlanner [data-action="invPlnMoves"][data-k="plant"]');
+    if (await plant.count()) await plant.click();
     await expect(page.locator('#plnMachines [data-pl-machine="MA-1"]')).toContainText('Barrel drive');
-    await page.locator('#plnMachines [data-pl-machine="MA-1"] [data-action="invPltEdit"]').click();
+    // On the phone the row's Edit is in its fold (TM2d).
+    const row = page.locator('#plnMachines [data-pl-machine="MA-1"]');
+    if (await row.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open)) await row.locator(':scope > summary').click();
+    await row.locator('[data-action="invPltEdit"]').click();
     await expect(page.locator('#pltName')).toHaveValue('Barrel drive');
   });
 

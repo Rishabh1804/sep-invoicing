@@ -7,7 +7,8 @@
    exact shape of an app task (todo.js), so they land on the To-do list, the
    Home card and the Windows widget with nothing new to learn, clear themselves
    when the figures change, and snooze against those figures. Each is switchable
-   in Settings → To-do. Stats → Overview lists them all in one place.
+   in Settings → To-do. They are Needs you's tasks with the rest, and Pulse's
+   What changed? names the three most urgent.
 
    Every insight states its instrument. A client "gone quiet" is judged against
    its OWN rhythm (the median gap between its challans), never a fixed cut-off;
@@ -232,9 +233,11 @@ TODO_RULE_FNS.insRealLow = function() {
   return [{ key: 'insRealLow:' + cur, rule: 'insRealLow', tone: early ? 'info' : 'amber', month: cur,
     conf: early ? { level: 'early', say: todoPlural(wd, 'working day') + ' into the month' } : null,
     title: insMonthLabel(cur) + ' is realising ₹' + formatNum(now.real, 2) + '/kg, the lowest in ' + (reals.length + 1) + ' months',
-    sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2) + (moved && Math.abs(moved.d) >= 0.05 ? ' · ' + moved.name + ' is ' + Math.round(moved.a * 100) + '% of revenue against ' + Math.round(moved.b * 100) + '%' : ''),
-    why: 'Money · this month', go: insGo('overview'), goLabel: 'Open Stats',
-    facts: [['This month', '₹' + formatNum(now.real, 2) + '/kg'], ['Lowest before', '₹' + formatNum(Math.min.apply(null, reals), 2)], ['Median before', '₹' + formatNum(med, 2)]],
+    // One fact on the row (the tab map, TM6: two at most, and an early month adds its own); whose share moved is in the figures.
+    sub: 'Median of the ' + reals.length + ' before: ₹' + formatNum(med, 2),
+    why: 'Money · this month', go: insGo('trends'), goLabel: 'Open Trends',
+    facts: [['This month', '₹' + formatNum(now.real, 2) + '/kg'], ['Lowest before', '₹' + formatNum(Math.min.apply(null, reals), 2)], ['Median before', '₹' + formatNum(med, 2)]]
+      .concat(moved && Math.abs(moved.d) >= 0.05 ? [['Share moved most', moved.name + ': ' + Math.round(moved.a * 100) + '% of revenue, was ' + Math.round(moved.b * 100) + '%']] : []),
     // Snoozed against the month alone: every invoice moves the realisation, and "until the figures change" came back with each.
     clears: 'Clears itself when the month climbs back above the lowest of the months before.', sig: cur }];
 };
@@ -276,7 +279,7 @@ TODO_RULE_FNS.insBelowVar = function() {
   var last = insMonthsBack(1)[0], from = last + '-01', to = payMonthEnd(from);
   var inv = insActive().filter(function(i) { return i.date >= from && i.date <= to; });
   var m = statsClientMargins(null, inv, weighLines(inv), { from: from, to: to });
-  // With labour not split into fixed and variable (statsCostSplit), there is no variable cost to be below.
+  // The variable cost is everything but labour, which is fixed (owner, 13 Oct 2026): known wherever the cost is.
   if (!m || m.varKg == null) return [];
   // The variable cost of one month moves with what its record caught (a lump of zinc after a delivery, a fill at the model).
   // So the finding is firm only where it holds against the LOWEST variable cost of the six months to it, and the loss is
@@ -293,12 +296,14 @@ TODO_RULE_FNS.insBelowVar = function() {
     var firm = x.net < lowVar, least = gstRound((lowVar - x.net) * x.kg), most = gstRound(-x.vsVar * x.kg);
     return { key: 'insBelowVar:' + x.id, rule: 'insBelowVar', tone: 'red', clientId: x.id, month: last, net: x.net, varKg: m.varKg, lowVarKg: lowVar, fullKg: m.fullKg, kg: x.kg,
       title: x.name + ' is below its variable cost',
-      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable · ' +
-        (firm && least < most ? 'loses at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most)
-          : 'loses ' + formatCurrency(most)) + ' even with labour fixed',
+      // Two facts on the row at most (the tab map, TM6): the month against the cost, then the loss as a range where it is firm;
+      // where it is not, the second is how sure (todoConfApply), and the loss is in the figures.
+      sub: insMonthLabel(last) + ': ₹' + formatNum(x.net, 2) + '/kg against ₹' + formatNum(m.varKg, 2) + ' variable' +
+        (!firm ? '' : ' · loses ' + (least < most ? formatCurrency(least) + ' to ' + formatCurrency(most) : formatCurrency(most)) + ' with labour fixed'),
       conf: firm ? null : { level: 'partial', say: 'below this month\'s cost only, ' + measured + '% of it measured' },
       why: 'Money · margin', go: insGo('clients'), goLabel: 'Open contribution by client',
-      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%']],
+      facts: [['Realised', '₹' + formatNum(x.net, 2) + '/kg'], ['Variable cost', '₹' + formatNum(m.varKg, 2) + '/kg'], ['Lowest variable cost, six months', '₹' + formatNum(lowVar, 2) + '/kg'], ['Full cost', '₹' + formatNum(m.fullKg, 2) + '/kg'], ['Share of tonnage', Math.round(x.kg / m.kg * 100) + '%'], ['Cost measured', Math.round(m.c.measuredShare * 100) + '%'],
+        ['Loss with labour fixed', firm && least < most ? 'at least ' + formatCurrency(least) + ' (at the six months\' lowest, ₹' + formatNum(lowVar, 2) + '), up to ' + formatCurrency(most) : formatCurrency(most)]],
       clears: 'Clears itself when a month realises above the variable cost.', sig: last };
   });
 };
@@ -342,32 +347,22 @@ TODO_RULE_FNS.insChemPrice = function() {
     facts: [['Lines', list.join(', ')]], clears: 'Clears itself when each has a bill.', sig: list.join('|') }];
 };
 
-/* ---------- Stats cards ---------- */
-function insightsCardHtml() {
-  var all = [];
-  try { all = todoAppAll().filter(function(t) { return t.rule.indexOf('ins') === 0; }); } catch (e) { all = []; }
-  var h = statsPanel('insights', 'Insights', 'what the book shows on its own, most urgent first', { wide: true, id: 'statsInsights' });
-  if (!all.length) return h + '<div class="inv-empty">Nothing stands out right now. Each insight appears here and on the To-do list when its figures call for it.</div></div>';
-  // The To-do's own rows: an insight is a task, and reads as one wherever it is listed.
-  h += all.map(function(t) { return todoAppRowHtml(t); }).join('');
-  return h + statsBody(statsNote('Tap one for its figures and what clears it. They are on the To-do list too, and can be switched off in Settings &rarr; Checks &amp; alerts &rarr; To-do.')) + '</div>';
-}
-
+/* ---------- This month at its pace: a hero on Today → Pulse (the tab map, TM2b; it was a card on Stats → Overview) ----------
+   The verdict is the month the pace points to, revenue and tonnes, its change against last month beside it; how far it could
+   swing and what it rests on are folded under it (§3c). Shut on the phone, open on the desktop (§1a-3). */
 function paceCardHtml() {
   var p = predMonthPace();
   if (!p) return '';
-  // The projection against last month, whole percent; nothing against a month with none.
-  var delta = function(cur, prev) { return prev > 0 ? ' · ' + (cur >= prev ? '+' : '&minus;') + Math.abs(Math.round((cur / prev - 1) * 100)) + '%' : ''; };
-  var h = statsPanel('pace', 'This month at its pace', p.done + ' of ' + p.total + ' working days in', { wide: true, id: 'statsPace' });
-  h += statsTiles(
-    statsTile('revenue', 'Revenue', escHtml(formatCurrency(p.projRev)), statsTileSub(escHtml(p.prevLabel) + ' ' + escHtml(formatCurrency(p.prevRev)) +
-      delta(p.projRev, p.prevRev)), '', 'paceRev') +
-    statsTile('tonnage', 'Tonnage', formatNum(p.projKg / 1000, 1) + '<span class="inv-tile-of"> t</span>', statsTileSub(escHtml(p.prevLabel) + ' ' + formatNum(p.prevKg / 1000, 1) + ' t' +
-      delta(p.projKg, p.prevKg))));
-  h += statsRow('So far', formatNum(p.kg / 1000, 1) + ' t billed', statsNum(escHtml(formatCurrency(p.rev)))) +
-    statsRow('Likely range', 'from how much the working days so far have varied', statsNum(escHtml(formatCurrency(p.low)) + ' – ' + escHtml(formatCurrency(p.high))), '', 'inv-row-flow') +
-    statsRow('Unbilled challans in hand', 'would lift the month if billed in it', statsNum(escHtml(formatCurrency(p.unbilled))));
-  return h + '</div>';
+  var down = p.prevRev > 0 && p.projRev < p.prevRev, tone = p.prevRev > 0 ? (down ? 'warning' : 'ok') : 'neutral';
+  var body = '<div class="inv-hero-sheet">' + [
+    { label: 'So far', sub: formatNum(p.kg / 1000, 1) + ' t billed', value: formatCurrency(p.rev), attrs: ' data-pace="sofar"' },
+    { label: 'Likely range', sub: 'how much the days so far varied', value: formatCurrency(p.low) + ' – ' + formatCurrency(p.high), attrs: ' data-pace="range"' },
+    { label: 'Tonnage at its pace', sub: p.prevLabel + ' ' + formatNum(p.prevKg / 1000, 1) + ' t', value: formatNum(p.projKg / 1000, 1) + ' t', attrs: ' data-pace="kg"' },
+    { label: 'Unbilled challans in hand', sub: 'would lift the month if billed in it', value: formatCurrency(p.unbilled), attrs: ' data-pace="unbilled"' }
+  ].map(uiFactRowHtml).join('') + '</div>';
+  return uiHeroHtml({ tone: tone, eyebrow: '<span>This month at its pace</span>', title: escHtml('On pace for ' + formatCurrency(p.projRev) + ' · ' + formatNum(p.projKg / 1000, 1) + ' t'),
+    sub: (p.prevRev > 0 ? figDeltaHtml(p.projRev, p.prevRev, p.prevLabel, 'up') + ' · ' : '') + escHtml(p.done + ' of ' + p.total + ' working days in'),
+    body: body, fold: 'pulse-pace', open: !!_isDesktop, attrs: ' id="statsPace" data-card="pace" data-verdict' });
 }
 
 function nextChallanCardHtml() {
@@ -383,5 +378,6 @@ function nextChallanCardHtml() {
       : '<span class="inv-nowrap">' + (c.next === today ? 'today' : escHtml(formatDate(c.next))) + '</span>';
     return statsRow(escHtml(c.name), 'every ' + formatNum(c.median, 0) + ' day' + (c.median === 1 ? '' : 's') + ' · last ' + escHtml(formatDate(c.last)), when);
   }), { n: 10, noun: 'clients' });
-  return h + statsBody(statsNote('The median gap between each client&rsquo;s challans, counted from the last one. Late is past that; quiet is past both 1.75 times the gap and three weeks beyond it.')) + '</div>';
+  // One line (the tab map, TM2b); how late and quiet are judged is the guide's (kbguides.js, Reading Stats).
+  return h + statsBody(statsNote('From each client&rsquo;s median gap between challans, counted from its last one.')) + '</div>';
 }

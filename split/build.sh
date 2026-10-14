@@ -57,6 +57,7 @@ JS_SOURCES=(
     "$DIR/xls.js" \
     "$DIR/xlsx.js" \
     "$DIR/bank.js" \
+    "$DIR/suppliers.js" \
     "$DIR/finance.js" \
     "$DIR/statement.js" \
     "$DIR/payslip.js" \
@@ -87,6 +88,9 @@ JS_SOURCES=(
     "$DIR/prodview.js" \
     "$DIR/floor.js" \
     "$DIR/today.js" \
+    "$DIR/faces.js" \
+    "$DIR/facesheet.js" \
+    "$DIR/flow.js" \
     "$DIR/power.js" \
     "$DIR/powercause.js" \
     "$DIR/report.js" \
@@ -97,8 +101,6 @@ JS_SOURCES=(
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \
-    "$DIR/vision.js" \
-    "$DIR/scanner.js" \
     "$DIR/events.js" \
     "$DIR/workspace.js" \
     "$DIR/swipe.js" \

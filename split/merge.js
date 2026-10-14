@@ -64,16 +64,6 @@ function mrgBasePut(stateStr, sha) {
     });
   }).catch(function() { return false; });
 }
-function mrgBaseClear() {
-  if (typeof idbOpen !== 'function') return Promise.resolve();
-  return idbOpen().then(function(db) {
-    if (!db) return;
-    return new Promise(function(resolve) {
-      try { var tx = db.transaction(IDB_STORE, 'readwrite'); tx.objectStore(IDB_STORE).delete(MRG_BASE_KEY); tx.oncomplete = tx.onerror = tx.onabort = function() { resolve(); }; }
-      catch (e) { resolve(); }
-    });
-  }).catch(function() {});
-}
 
 /* ---------- Walking three books ---------- */
 function mrgGet(book, path) {

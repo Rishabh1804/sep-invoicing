@@ -1,5 +1,5 @@
 import { test, expect, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, SepState } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, answerAsk, SepState, toolbarMore } from './fixtures';
 
 /* The financial year today falls in: the prefix and the notes' 'NN-NN' follow it, so a note dated today is in its series. */
 const FY0 = (() => { const t = todayIso(); return +t.slice(5, 7) >= 4 ? +t.slice(0, 4) : +t.slice(0, 4) - 1; })();
@@ -343,7 +343,7 @@ test('P19: a credit note is cancelled, never deleted — the number stays spent'
   await page.locator('[data-action="invCnSave"]').click();
   await page.locator('[data-action="invClosePrint"]').click();
 
-  await page.locator('[data-action="invCnList"]').click();
+  await toolbarMore(page, 'Credit notes');
   await page.locator('[data-action="invCnCancel"]').click();
   // Destructive, so it asks first (P108 IB5).
   await answerAsk(page, 'ok');
@@ -426,7 +426,7 @@ test('P19: the export is named for the notes it holds, not the register filter',
       (window as any).__csv = { filename, rows };
     };
   });
-  await page.locator('[data-action="invCnList"]').click();
+  await toolbarMore(page, 'Credit notes');
   await page.locator('[data-action="invExportCreditNotes"]').click();
 
   const csv = await page.evaluate(async () => (window as any).__csv as { filename: string });

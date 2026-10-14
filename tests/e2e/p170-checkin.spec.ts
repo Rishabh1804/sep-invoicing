@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, readStoredState, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, readStoredState, type SepState, toolbarMore } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 
 // P170 (owner, 7 Oct 2026, docs/WORKERS_AND_PLANT.md W5): the office QR. A worker's phone opens checkin.html from the sheet,
@@ -106,7 +106,7 @@ test.describe('P170 the office QR', () => {
     await loadAppWithState(page, s);
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-    await page.locator('#pageStaff [data-action="invCkSetup"]').first().click();
+    await toolbarMore(page, 'Office QR');   // the Roster toolbar's More (TM4b)
     await page.fill('#ckOffice', '+91 90000 00001');
     await page.fill('#ckLat', '22.8001');
     await page.fill('#ckLng', '86.1501');
@@ -126,7 +126,11 @@ test.describe('P170 the office QR', () => {
     await unlock(page, 'U-sup', PINS.super);
     await switchTab(page, 'pageStaff');
     await page.locator('#pageStaff .inv-viewtab[data-view="roster"]').click();
-    await expect(page.locator('#pageStaff [data-action="invCkSetup"]')).toHaveCount(0);
+    // The Roster toolbar's More has no Office QR for a supervisor (TM4b).
+    await toolbarMore(page);
+    await expect(page.locator('[data-tb-more-dialog] [data-tb-pick]', { hasText: 'Import a roster' })).toHaveCount(1);
+    await expect(page.locator('[data-tb-more-dialog] [data-tb-pick][data-action="invCkSetup"]')).toHaveCount(0);
+    await page.keyboard.press('Escape');
     await g(page, `ckSetupOpen()`);
     await expect(page.locator('[data-ck-setup]')).toHaveCount(0);
   });

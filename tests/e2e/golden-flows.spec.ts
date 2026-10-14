@@ -71,15 +71,17 @@ test.describe('Golden flows — smoke coverage for inv-1-2', () => {
     }];
 
     await loadAppWithState(page, state);
-    await openStatsTab(page, 'overview');
+    // The period's revenue is Stats → Trends' verdict card since the tab map (TM2b; it was the Overview's headline).
+    await openStatsTab(page, 'trends');
 
     const content = page.locator('#statsContent');
     await expect(content).toBeVisible();
 
     // Deepened per Cipher advisory on PR #3: assert actual numbers, not just visibility.
-    // Revenue Overview renders grandTotal (306.8) and taxableValue (260) via formatCurrency.
-    await expect(content).toContainText('₹306.80');
-    await expect(content).toContainText('₹260.00');
+    // The verdict card renders grandTotal (306.8) and taxableValue (260) via formatCurrency.
+    const head = page.locator('#statsHeadline');
+    await expect(head).toContainText('₹306.80');
+    await expect(head).toContainText('₹260.00');
     // Revenue by Client renders the seeded client name in its SVG bar label (Clients tab).
     await page.locator('[data-action="invStatsTab"][data-tab="clients"]').click();
     await expect(content).toContainText('TEST CLIENT KG');

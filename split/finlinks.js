@@ -26,19 +26,27 @@ function finClientMoney(clientId) {
 function finClientMoneyHtml(clientId) {
   var m = finClientMoney(clientId);
   if (!m) return '';
-  var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money</span>' +
+  // Two facts a line (the tab map, TM5f): the rest of a line in its title. Receivables start on the head's day.
+  var h = '<div class="inv-panel inv-panel-flush" data-client-money="' + escHtml(String(clientId)) + '"><div class="inv-panel-head"><span class="inv-panel-title">Money' +
+    ' <span class="inv-panel-count">since ' + escHtml(stockShortDate(m.from)) + '</span></span>' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="receipts" data-client="' + escHtml(String(clientId)) + '">Open in Finance</button></div>';
   if (!m.r) return h + '<div class="inv-empty">Nothing invoiced or received since ' + escHtml(formatDate(m.from)) + ', when receivables start.</div></div>';
-  var row = function(k, v, sub) {
-    return '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
+  var row = function(k, v, sub, title) {
+    return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + k + '</span>' + (sub ? '<span class="inv-row-meta">' + sub + '</span>' : '') + '</span><span class="inv-row-end inv-num">' + v + '</span></div>';
   };
-  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + m.r.oldestDays + ' days' : '') + ' · since ' + escHtml(formatDate(m.from)));
+  // Owed in its age's tone, as Receivables draws it (finOwedTone).
+  h += row(m.r.owed < -0.005 ? 'Paid ahead' : 'Owed', figHtml(escHtml(formatCurrency(Math.abs(m.r.owed))), m.r.owed > 0.005 ? finOwedTone(m.r.oldestDays) : null),
+    m.r.open.length + ' open' + (m.r.oldestDays != null ? ' · oldest ' + todoPlural(m.r.oldestDays, 'day') : ''));
+  // By age: the two oldest bands that hold anything; every band in the line's title.
   var aged = m.bands.filter(function(b) { return b.amount > 0.005; });
-  if (aged.length) h += row('By age', '', aged.map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '));
+  if (aged.length) h += row('By age', '', aged.slice(-2).reverse().map(function(b) { return escHtml(b.label) + ' ' + escHtml(formatCurrency(b.amount)); }).join(' · '),
+    aged.map(function(b) { return b.label + ' ' + formatCurrency(b.amount); }).join(', '));
   h += row('Pays in', m.dtp && m.dtp.median != null ? Math.round(m.dtp.median) + ' days' : '&mdash;',
-    m.dtp ? m.dtp.n + ' receipt' + (m.dtp.n === 1 ? '' : 's') + ' set against invoices · last three at ' + Math.round(m.dtp.last3) + ' days · ' + Math.round(m.dtp.exactShare * 100) + '% matched exactly' : 'no receipt set against an invoice yet');
+    m.dtp ? m.dtp.n + ' receipt' + (m.dtp.n === 1 ? '' : 's') + ' set against invoices · last three at ' + Math.round(m.dtp.last3) + ' days' : 'no receipt set against an invoice yet',
+    m.dtp ? Math.round(m.dtp.exactShare * 100) + '% matched exactly' : '');
   if (m.last) h += row('Last receipt', escHtml(formatCurrency(m.last.cr)), escHtml(formatDate(m.last.date)) + (bankInstrument(m.last) ? ' · chq ' + escHtml(bankInstrument(m.last)) : ''));
-  if (m.series.length) h += row('Cheques', '', '<span class="inv-id">' + escHtml(m.series.slice(-6).join(' · ')) + '</span>');
+  // A list of numbers, not facts: commas.
+  if (m.series.length) h += row('Cheques', '', '<span class="inv-id">' + escHtml(m.series.slice(-6).join(', ')) + '</span>');
   return h + '</div>';
 }
 
@@ -53,7 +61,7 @@ function finInvoicePayment(inv) {
   if (!r) return null;
   var label = inv.displayNumber || inv.invoiceNumber, paid = [];
   r.allocs.forEach(function(a) {
-    a.parts.forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: a.v.row.date, amount: p.amount, how: a.how, chq: bankInstrument(a.v.row) }); });
+    a.parts.forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: a.v.row.date, amount: p.amount, how: a.how, chq: bankInstrument(a.v.row), pending: !!a.v.pending }); });
   });
   (r.credits || []).forEach(function(p) { if (p.inv && p.label === label) paid.push({ date: '', amount: p.amount, how: 'account' }); });
   var open = r.open.find(function(o) { return o.inv && o.inv.id === inv.id; });
@@ -70,10 +78,17 @@ function finInvoicePaymentHtml(inv) {
         '<span class="inv-row-meta">paid before this invoice was raised</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
       return;
     }
+    // A cheque received and not yet in the bank pays it from the day it came (TM3b), and says so.
+    if (x.pending) {
+      h += '<div class="inv-row inv-row-2" data-inv-paid-cheque><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-info">Cheque in hand</span></span>' +
+        '<span class="inv-row-meta">received ' + escHtml(formatDate(x.date)) + (x.chq ? ' · chq ' + escHtml(x.chq) : '') + '</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
+      return;
+    }
     h += '<div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title"><span class="inv-dot inv-dot-' + (x.how === 'exact' ? 'ok' : 'info') + '">' + (x.how === 'exact' ? 'Paid, exact' : 'Paid, oldest first') + '</span></span>' +
       '<span class="inv-row-meta">' + escHtml(formatDate(x.date)) + (x.chq ? ' · chq ' + escHtml(x.chq) : '') + '</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(x.amount)) + '</span></div>';
   });
-  if (p.open > 0.005) h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-' + (p.days > 90 ? 'danger' : p.days > 60 ? 'warning' : 'neutral') + '">Open, ' + p.days + ' days</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(p.open)) + '</span></div>';
+  // Its age judged as owed is everywhere (finOwedTone): never red while a receipt is unplaced.
+  if (p.open > 0.005) h += '<div class="inv-row"><span class="inv-row-main"><span class="inv-dot inv-dot-' + (finOwedTone(p.days) || 'neutral') + '">Open, ' + p.days + ' days</span></span><span class="inv-row-end inv-num">' + escHtml(formatCurrency(p.open)) + '</span></div>';
   return h;
 }
 
@@ -82,9 +97,14 @@ function finInvoicePaymentHtml(inv) {
    one matcher every supplier figure uses (bankSupplierIs, bank.js). */
 function finSupplierPaid(name) {
   if (!name || !finSeen()) return null;
+  // The supplier as Payments reads it (suppliers.js): every spelling the owner gave it, "&" as AND.
+  var sp = suppOfName(name), out = { paid: 0, n: 0, last: null };
+  if (sp) {
+    sp.bank.forEach(function(v) { out.paid = gstRound(out.paid + v.row.dr); out.n++; if (!out.last || v.row.date >= out.last.date) out.last = v.row; });
+    return out.n ? out : null;
+  }
   var k = bankKey(name);
   if (k.length < 4) return null;
-  var out = { paid: 0, n: 0, last: null };
   finCtx().cls.forEach(function(v) {
     if (!(v.row.dr > 0) || v.cat !== 'supplier' || !bankSupplierIs(bankSupplierWritten(v), k)) return;
     out.paid = gstRound(out.paid + v.row.dr); out.n++; out.last = v.row;
@@ -96,6 +116,17 @@ function finSupplierPaid(name) {
 /* What is owed, by age, as a bar's tones: within a month fresh, a second month plain, then warning and danger (figToneAge's
    60 and 90 days). Pulse's Money card and the cash question draw the one bar (intel.js). */
 var FIN_AGE_TONE = ['ok', 'neutral', 'warning', 'danger'];
+/* A band's tone in that bar: over 90 days is danger, but a warning while a receipt is unplaced (finOwedTone's rule), so the bar
+   never reads red beside an owed figure that does not. */
+function finAgeTone(i) { var t = FIN_AGE_TONE[i] || 'danger'; return t === 'danger' && finHasBank() && finCtx().loose() > 0 ? 'warning' : t; }
+/* What is owed, judged by the age of its oldest open invoice (figToneOwed), one tone on every screen that draws it (the tab map,
+   TM6a: Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline, a client's Money panel, the statement):
+   never red while a receipt is unplaced. */
+function finOwedTone(days) { return figToneOwed(days, finHasBank() && finCtx().loose() > 0); }
+/* The oldest open invoice's days over the clients who owe. */
+function finOwedOldest(recv) {
+  return (recv || []).reduce(function(m, r) { return r.owed > 0.005 && r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
+}
 /* Pulse's Money as a hero: what is owed past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance
    (balance, owed, pays in, runway), each coded in its own tone. Coded by the worst of them. */
 function renderFinHomeCard() {
@@ -114,8 +145,9 @@ function renderFinHomeCard() {
   var book = bankBookDaysToPay(bankPayHistory(recv));
   var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
   var age = isoDaysBetween(last.date, localDateStr());
-  // What is owed is judged by its age: any of it past 90 days is danger, past 60 warning (figToneAge).
-  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0;
+  // What is owed is judged by its oldest invoice's age, past 90 days danger and past 60 warning, never red while a receipt is
+  // unplaced (finOwedTone: the one judge wherever owed is drawn); nothing past 60 days is ok, as on Money's card and Pipeline's.
+  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0, owedTone = finOwedTone(finOwedOldest(recv));
   var tones = [];
   var tile = function(tab, anchor, label, value, sub, tone) {
     if (tone) tones.push(tone);
@@ -128,8 +160,7 @@ function renderFinHomeCard() {
     tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
     tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
       : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
-      // Never red while a receipt is unplaced: that money may be in already, and the sub line names the receipts (owed90).
-      loose ? 'warning' : old90 > 0 ? 'danger' : old60 > 0 ? 'warning' : '') +
+      owedTone || 'ok') +
     (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
       '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
       (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
@@ -140,11 +171,11 @@ function renderFinHomeCard() {
     '</div>';
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
   var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
-  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: FIN_AGE_TONE[i] || 'neutral' }; }),
+  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
     { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
   el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
     title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
-    viz: meter, fold: 'pulse-money', open: true, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp });
+    viz: meter, fold: 'pulse-money', open: !!_isDesktop, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp });
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */
@@ -180,7 +211,9 @@ function finWagesHtml(cls, where) {
     return '<div class="inv-panel inv-panel-flush" id="bankWages"><div class="inv-row inv-row-2"><span class="inv-row-main"><span class="inv-row-title">Wages paid, from the bank</span>' +
       '<span class="inv-row-meta">' + sum + '</span></span><span class="inv-row-end"><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invGoPay">Open Staff &rarr; Pay</button></span></div></div>';
   }
-  var h = '<div class="inv-panel-body inv-note">A cash draw (SELF, TO SELF, TO CASH) is wages and the owner\'s drawings: each pay week\'s cash counts as wages up to the payout recorded for that week, and what is drawn past it is drawings, never a cost. A week with no attendance recorded cannot be split. Transfers to a hand on the roster are set against the payroll as paid for the month before.</div>';
+  // One line (the tab map, TM6e): how a cash draw is read, wages to the week's payout and drawings past it, is the guide's (Using the
+  // app: pay).
+  var h = '<div class="inv-panel-body inv-note">Cash drawn is wages up to each week’s payout, drawings past it.</div>';
   if (!months.length) h += '<div class="inv-empty">No wages on the statement.</div>';
   // The latest three months; the rest one tap away.
   h += uiMoreHtml('pay-wages-months', months.map(function(m) {
@@ -230,7 +263,6 @@ function finLinkAction(action, btn) {
     }
     case 'invHomeImportBank': finSetTab('bank'); switchTab('pageFinance'); bankImportFile(); return true;
     case 'invGoPay': _attView = 'pay'; switchTab('pageStaff'); return true;
-    case 'invGoBills': finSetTab('bills'); renderFinance(); return true;
     case 'invGoStock': _stockView = 'list'; switchTab('pageStock'); return true;
   }
   return false;

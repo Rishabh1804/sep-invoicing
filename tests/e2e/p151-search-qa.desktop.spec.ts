@@ -84,7 +84,9 @@ test.describe('P151 on the desktop', () => {
     await openFloor(page);
     await stubOpen(page);
     await page.locator('#flrLines [data-line="vat-a1"] [data-action="invFlrLine"]').click({ modifiers: ['Control'] });
-    await page.locator('#flrTiles [data-flr-tile="power"]').click({ button: 'middle' });
+    // The tiles are the heroes now (TM4a): Power's card opens to its link.
+    await page.locator('#flrHeroes [data-card="flr-power"] > summary').click();
+    await page.locator('#flrHeroes [data-card="flr-power"] [data-action="invFlrPower"]').click({ button: 'middle' });
     await page.locator('#flrLines [data-line="vat-a1"] [data-flr-staff]').click({ modifiers: ['Control'] });
     await page.locator('#flrLines [data-line="vat-a2"] [data-flr-extra]').click({ modifiers: ['Control'] });
     await expect(page.locator('#pageFloor')).toHaveClass(/inv-page-active/);

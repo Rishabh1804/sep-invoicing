@@ -9,12 +9,13 @@ test('a tab of the workspace row asks before leaving a typed challan', async ({ 
   await switchTab(page, 'pageIM');
   await page.locator('[data-action="invShowAddChallan"]').click();
   await page.locator('#imVehicleNo').fill('JH 05 1234');
-  await page.locator('#wsTabs [data-tab="pageStats"]').click();
+  // Another of Office's tabs (Stats, here until the tab map of 9 Oct 2026, is Today's now).
+  await page.locator('#wsTabs [data-tab="pageRegister"]').click();
   expect(await answerAsk(page, 'cancel')).toContain('Leave without saving?');
   await expect(page.locator('#imVehicleNo')).toHaveValue('JH 05 1234');
-  await page.locator('#wsTabs [data-tab="pageStats"]').click();
+  await page.locator('#wsTabs [data-tab="pageRegister"]').click();
   await answerAsk(page, 'ok');
-  await expect(page.locator('#pageStats')).toHaveClass(/inv-page-active/);
+  await expect(page.locator('#pageRegister')).toHaveClass(/inv-page-active/);
 });
 
 test("a workspace's door in the rail asks before leaving a typed challan", async ({ page }) => {

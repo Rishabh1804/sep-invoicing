@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore, filterControl, closeFilter } from './fixtures';
 
 // P106: the QA sweep of 29 Sep 2026 in Challans (IM), Items Master and Clients. Names and figures are made up.
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
@@ -147,38 +147,8 @@ test.describe('P106: a challan is saved whole', () => {
   });
 });
 
-test.describe('P106: the scanner hands the form numbers and the book\'s own client', () => {
-  test('C6: text figures, "Kg", a written date and a spaced name are read; a string never reaches the billing', async ({ page }) => {
-    const s = base();
-    s.clients.push({ id: 7, name: 'SSSMEHTA ENTERPRISES AND INDUSTRIES PVT LTD', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true,
-      rates: [{ ratePerKg: 5.4, ratePerPiece: null, effectiveFrom: '2020-04-01' }], itemRates: [] });
-    await loadAppWithState(page, s);
-    await switchTab(page, 'pageIM');
-    const f = await g(page, `(_applyScanResult({ clientName: 'S.S.S. Mehta Enterprises', challanNo: 41, challanDate: '04/08/2026', vehicleNo: 'JH05 1',
-      items: [{ partNumber: 'P1', desc: 'P1', unit: 'Kg', qty: '282.70', nosQty: '40', rate: '5', amount: '1,413.50' }] }), _challanForm)`);
-    expect(f.clientId).toBe(7);
-    expect(f.challanNo).toBe('41');
-    expect(f.challanDate).toBe('2026-08-04');
-    expect(f.items[0]).toMatchObject({ unit: 'KG', qty: 282.7, nosQty: 40, rate: 5.4, amount: 1526.58 });
-    await expect(page.locator('#imQty0')).toHaveValue('282.7');
-    // An invoice line carrying text quantities no longer throws in the billing sync (it ran at every boot).
-    const r = await g(page, `(function(){ S.incomingMaterial.push({ id: 'IM-T', clientId: 1, challanDate: '2026-08-04', items: [{ id: 'IM-T-0', unit: 'KG', qty: '10', amount: '140' }] });
-      S.invoices.push({ id: 'I-T', status: 'active', date: '2026-08-05', clientId: 1, items: [{ imItemId: 'IM-T-0', unit: 'KG', qty: '4' }, { imItemId: 'IM-T-0', unit: 'KG', qty: '6' }] });
-      imSyncBilled(); var it = S.incomingMaterial.find(function(m){ return m.id === 'IM-T'; }).items[0]; return [it.billedQty, it.invoiced, imChallanTotal({ items: [it] })]; })()`);
-    expect(r).toEqual([10, true, 140]);
-  });
-
-  test('C6: a short name the book does not hold is never given another client\'s id', async ({ page }) => {
-    const s = base();
-    s.clients.push({ id: 8, name: 'GENERAL ENGINEERING CORPORATION', billingMode: 'weight', gstType: 'intra', gstin: '', isActive: true, rates: [], itemRates: [] });
-    await loadAppWithState(page, s);
-    await switchTab(page, 'pageIM');
-    // Raw substring read GENERAL AUTO PARTS as General Engineering (and the seed's id 2 names another client here).
-    expect(await g(page, `(_applyScanResult({ clientName: 'General Auto Parts', challanDate: '2026-08-04', items: [] }), _challanForm.clientId)`)).toBeNull();
-    expect(await g(page, `(_applyScanResult({ clientName: 'SSSMEHTA', challanDate: '2026-08-04', items: [] }), _challanForm.clientId)`)).toBeNull();
-    expect(await g(page, `(_applyScanResult({ clientName: 'kilo works', challanDate: '2026-08-04', items: [] }), _challanForm.clientId)`)).toBe(1);
-  });
-});
+// C6 (the scanner's figures and client handed to the form) went with the scanner, 13 Oct 2026 (owner: the photo reading "simply
+// never works").
 
 test.describe('P106: the duplicate check and a jump to a challan say what is true', () => {
   const dupState = (inv: any[], copyB: any) => {
@@ -263,7 +233,7 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
     await loadAppWithState(page, mergeState());
     expect(await g(page, 'findDuplicateGroups(S.items).map(function(gr){ return gr.items.map(function(i){ return i.id; }); })')).toEqual([[2, 3]]);
     await openItems(page);
-    await page.locator('[data-action="invOpenMergeTool"]').click();
+    await toolbarMore(page, 'Merge');
     await expect(page.locator('#mergeGroup0 [data-gauge]').first()).toHaveText('40X6');
     await page.locator('[data-action="invMergeGroup"][data-group="0"]').click();
     await expect(page.locator('#mergeGroup0')).toContainText('Lines left as issued');
@@ -286,9 +256,12 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
   test('C8, C15, C14: usage is read fresh, a hidden tick is dropped, a delete takes its tick, an edit cannot make a twin', async ({ page }) => {
     await loadAppWithState(page, mergeState());
     await openItems(page);
-    await expect(page.locator('[data-action="invFilterUnused"]')).toHaveText('Unused (2)');
+    // Unused is a choice in Parts' Filter on the phone (the tab map, TM5e).
+    await expect(await filterControl(page, '[data-action="invFilterUnused"]')).toHaveText('Unused (2)');
+    await closeFilter(page);
     await g(page, 'S.incomingMaterial.push({ id: "IM-N", clientId: 1, challanDate: "2026-09-01", items: [{ id: "IM-N-0", partNumber: "CLAMP 165X83 (NT)", unit: "NOS", qty: 1 }] }); renderClientsPage(); 1');
-    await expect(page.locator('[data-action="invFilterUnused"]')).toHaveText('Unused (0)');
+    await expect(await filterControl(page, '[data-action="invFilterUnused"]')).toHaveText('Unused (0)');
+    await closeFilter(page);
     await page.locator('[data-item-row="1"] .inv-row-tick').click();
     await page.locator('#itemsSearch').fill('CLMP');
     await expect(page.locator('#itemsSelBar .inv-selbar')).toHaveCount(0);
@@ -331,7 +304,7 @@ test.describe('P106: the Items Master merges one part at one gauge, and its list
     s.invoices = [inv('D1', 'filed', [{ partNumber: 'CLAMP 165X83 (NT)', desc: 'CLAMP', unit: 'NOS', qty: 10, rate: 4.89, amount: 48.9 }])];
     await loadAppWithState(page, s);
     await openItems(page);
-    await page.locator('[data-action="invOpenWeightEntry"]').click();
+    await toolbarMore(page, 'Enter weights');
     await expect(page.locator('[data-two-gauge]')).toContainText('held in two gauges');
     await expect(page.locator('[data-action="invDeriveWeights"]')).toHaveCount(0);
   });

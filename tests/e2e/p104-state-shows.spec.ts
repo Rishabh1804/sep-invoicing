@@ -6,7 +6,8 @@ import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, type SepSt
 // be immediately once the invoice is printed and when I mark it dispatched the state should change immediately, right
 // now I have to refresh or switch tabs"). After Print nothing was redrawn, and a mark redrew only the Register, so
 // Home's recent invoices, a client or the To-do kept the old state under the sheet. A Mark button drawn before the
-// print also fell through: Mark printed on a printed invoice dispatched it.
+// print also fell through: Mark printed on a printed invoice dispatched it. Home's recent invoices are Today → Needs you's since
+// the tab map (TM2c: every preset hides Pulse's copy of them).
 
 const items = [{ partNumber: 'CLAMP 100X83 (NT)', desc: 'CLAMP 100X83 (NT)', hsn: '998873', unit: 'KG', qty: 10, rate: 13, amount: 130, nosQty: null }];
 const inv = (id: string, o: any = {}) => ({ id, invoiceNumber: id.slice(4).padStart(5, '0'), displayNumber: 'SEP/TEST-' + id.slice(4).padStart(5, '0'),
@@ -19,7 +20,7 @@ const book = (o: any = {}): SepState => { const s: any = emptyState(); s.invoice
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 const stored = (p: Page) => g(p, '({ st: S.invoices[0].invoiceState || "created", printedAt: S.invoices[0].printedAt || null })');
 const step = (p: Page) => p.locator('[data-inv-detail="INV-1"] [aria-current="step"]');
-const homeRow = (p: Page) => p.locator('#homeWidgets .inv-row').filter({ has: p.locator('[data-id="INV-1"]') }).first();
+const homeRow = (p: Page) => p.locator('#homeNeeds [data-card="recent"] .inv-row').filter({ has: p.locator('[data-id="INV-1"]') }).first();
 const regRow = (p: Page) => p.locator('#pageRegister .inv-page-active, #pageRegister').locator('[data-action="invViewInvoiceDetail"][data-id="INV-1"]').first();
 
 async function print(page: Page, from: string) {
@@ -31,13 +32,13 @@ async function print(page: Page, from: string) {
 test.describe('P104: a state shows the moment it changes', () => {
   test.beforeEach(async ({ page }) => {
     await loadAppWithState(page, book());
-    await openPulse(page);
+    await expect(page.locator('#homeNeeds [data-card="recent"]')).toBeVisible();
     await page.evaluate(() => { window.print = function() {}; });
   });
 
-  test("Print from Home's row shows Printed on the row at once", async ({ page }) => {
+  test("Print from Today's recent row shows Printed on the row at once", async ({ page }) => {
     await expect(homeRow(page).locator('.inv-badge')).toHaveText('Created');
-    await print(page, '#homeWidgets [data-action="invPreviewInvoice"][data-id="INV-1"]');
+    await print(page, '#homeNeeds [data-action="invPreviewInvoice"][data-id="INV-1"]');
     expect((await stored(page)).st).toBe('printed');
     await expect(homeRow(page).locator('.inv-badge')).toHaveText('Printed');
   });
@@ -58,8 +59,8 @@ test.describe('P104: a state shows the moment it changes', () => {
     await expect(regRow(page)).toContainText('Created');
   });
 
-  test("Mark dispatched from Home's sheet moves the sheet and Home's row with it", async ({ page }) => {
-    await page.locator('#homeWidgets button.inv-row-main[data-id="INV-1"]').click();
+  test("Mark dispatched from Today's sheet moves the sheet and Today's row with it", async ({ page }) => {
+    await page.locator('#homeNeeds button.inv-row-main[data-id="INV-1"]').click();
     await page.locator('[data-inv-detail="INV-1"] [data-action="invAdvanceState"][data-state="dispatched"]').click();
     expect((await stored(page)).st).toBe('dispatched');
     // The sheet stays open on its new step, and focus is on the next one.

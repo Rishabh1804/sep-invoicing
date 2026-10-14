@@ -1032,7 +1032,7 @@ function relayOpen(text) {
   if (ta) ta.focus();
 }
 
-/* A sub-view of Staff (§6.2): the way back to the view it was opened from, and its own title. */
+/* A sub-view of People (§6.2): the way back to the view it was opened from, and its own title. */
 function relayBackBar(action, label, title) {
   return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + action + '"' +
     (action === 'invAttView' ? ' data-view="' + escHtml(_attPrevView || 'day') + '"' : '') + '>' +
@@ -1041,7 +1041,7 @@ function relayBackBar(action, label, title) {
 
 function relayRenderView() {
   if (_relayView === 'review' && _relay) return relayRenderReview();
-  return relayBackBar('invAttView', 'Staff', 'Paste message') +
+  return relayBackBar('invAttView', 'People', 'Paste message') +
     '<div class="inv-panel">' +
     '<div class="inv-panel-head"><span class="inv-panel-title">The message</span>' + waLinksHtml('paste') + '</div>' +
     '<div class="inv-field inv-mt-8"><label class="inv-field-label" for="relayPasteText">The message as sent: an in-time or out-time roll, a chemical stock message, or the pickling and barrel production</label>' +

@@ -479,26 +479,27 @@ TODO_RULE_FNS.wageVsSlip = function() {
   var byMonth = {};
   finCtx().cls.forEach(function(v) {
     if (v.cat !== 'wages' || v.cash || v.staffId == null || !(v.row.dr > 0)) return;
-    var m = v.row.date.slice(0, 7), e = byMonth[m] || (byMonth[m] = {});
+    // By the month each leg pays for, as Pay reads it (payMonthPaidFor): one after the 20th is its own month's, never the slip's before.
+    var m = payMonthPaidFor({ date: v.row.date }).slice(0, 7), e = byMonth[m] || (byMonth[m] = {});
     e[String(v.staffId)] = gstRound((e[String(v.staffId)] || 0) + v.row.dr);
   });
-  return Object.keys(byMonth).map(function(m) {
-    var slip = payrollPaidFor(bankPrevMonth(m + '-01'));
+  return Object.keys(byMonth).map(function(pm) {
+    var slip = payrollPaidFor(pm);
     if (!slip) return null;
     // Once monthly balances are counted (Pay, Count from a month) a month's difference is Pay's: from that month on it carries to the
     // next month's due, said there by month; the months before it the owner settled as they stand.
     if (payCarryFrom()) return null;
     // The slip's rows by worker, matched by name like a roll (payrollRowsByWorker), once per month.
     var off = [], byW = payrollRowsByWorker(slip.rows);
-    Object.keys(byMonth[m]).forEach(function(id) {
+    Object.keys(byMonth[pm]).forEach(function(id) {
       var row = byW[id];
       if (!row) return;
-      var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[m][id] - owed);
+      var owed = gstRound(row.paid != null ? Number(row.paid) : (Number(row.dayPay) || 0) + (Number(row.ot) || 0)), d = gstRound(byMonth[pm][id] - owed);
       if (Math.abs(d) >= 1) off.push([(staffById(id) || { name: '?' }).name, d]);
     });
     if (!off.length) return null;
-    var pm = bankPrevMonth(m + '-01');
-    return { key: 'wageVsSlip:' + m, rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
+    // Keyed by the month its salaries go out in, as it always was, so a snooze holds.
+    return { key: 'wageVsSlip:' + bankNextMonth(pm), rule: 'wageVsSlip', tone: 'amber', title: todoPlural(off.length, 'salary', 'salaries') + ' for ' + billsMonthLabel(pm) + ' differ from the slip',
       sub: off.slice(0, 3).map(function(o) { return o[0] + ' ' + (o[1] > 0 ? 'over' : 'short') + ' ' + formatCurrency(Math.abs(o[1])); }).join(' · '),
       why: 'Payments · wages against payroll as paid', facts: off.map(function(o) { return [o[0], (o[1] > 0 ? '+' : '−') + formatCurrency(Math.abs(o[1]))]; }),
       clears: 'Clears itself when the amounts agree; snooze it if a note explains them.', go: { kind: 'payWages' }, goLabel: 'Open wages paid', sig: off.map(function(o) { return o[1]; }).join('|') };

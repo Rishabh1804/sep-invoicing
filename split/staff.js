@@ -383,24 +383,6 @@ function _attStepInRow(action, label, prevLabel, nextLabel, nextOff) {
     label + '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="1" aria-label="' + nextLabel + '"' + (nextOff ? ' disabled' : '') + '>' + STAFF_NEXT_ICON + '</button></span>';
 }
 
-/* A period stepper (§6.7): previous · the period · next · back to now. `label` is the middle: the date field
-   on Day, the week's number and dates elsewhere. */
-function _attStepper(action, label, nowAction, nowLabel, prevLabel, nextLabel) {
-  return '<div class="inv-toolbar inv-stepper">' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="-1" aria-label="' + prevLabel + '">' + STAFF_BACK_ICON + '</button>' +
-    '<div class="inv-stepper-label">' + label + '</div>' +
-    '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="' + action + '" data-step="1" aria-label="' + nextLabel + '">' + STAFF_NEXT_ICON + '</button>' +
-    '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="' + nowAction + '">' + nowLabel + '</button></div>';
-}
-function _attWeekLabel(title, sub) {
-  return '<span class="inv-stepper-title">' + title + '</span><span class="inv-stepper-sub">' + sub + '</span>';
-}
-
-/* The page's one primary on the views where marks are entered. */
-function _attPasteBar() {
-  return '<div class="inv-toolbar"><button class="inv-btn inv-btn-primary" data-action="invAttView" data-view="paste">Paste message</button></div>';
-}
-
 var _attDateSeen = null;   // the day the week last followed
 function renderAttendance() {
   _attRenderPage();
@@ -659,8 +641,9 @@ function _attDayVerdictHtml(iso, rec, roster, c) {
   var verdict = !d.marked ? (isToday ? 'Nothing recorded yet' : 'No attendance recorded')
     : on + ' of ' + total + ' on site' + (short.length === 1 ? ', ' + short[0].label + ' short ' + short[0].gap : short.length ? ', ' + short.length + ' areas short' : '');
   var h = function(n) { return formatNum(n, 1).replace(/\.0$/, '') + ' h'; };
+  // The card names the areas short, so it is never green while it does (attOnSiteTone); On site keeps its own tone.
   return uiVerdictHtml({ screen: 'Attendance · ' + (isToday ? 'today' : attDayName(iso) + ' ' + stockShortDate(iso)), verdict: verdict,
-    tone: d.marked ? tone || 'ok' : 'neutral', fig: d.marked ? on + '<span class="inv-tile-of">/' + total + '</span>' : '',
+    tone: d.marked ? attOnSiteTone(d, short.length) || 'ok' : 'neutral', fig: d.marked ? on + '<span class="inv-tile-of">/' + total + '</span>' : '',
     facts: [c.poolHours ? 'pool ' + h(c.poolHours) : '', c.otHours ? 'OT ' + h(c.otHours) : '', c.extraHours ? 'EXTRA ' + h(c.extraHours) : ''],
     factors: [
       { label: 'On site', fig: '<span id="attOnSite">' + on + '</span><span class="inv-tile-of">/' + total + '</span>', sub: c.present + ' present', tone: d.marked ? tone : null },
@@ -1068,7 +1051,9 @@ function _attWeekVerdictHtml(ws, days) {
   // count and said as a fact.
   var pending = days.indexOf(today) >= 0 && attParseIso(today).getDay() !== 0 && !labourIsHoliday(today) && unmarked(today);
   var work = days.filter(function(d) { return (d < today || (d === today && !pending)) && attParseIso(d).getDay() !== 0 && !labourIsHoliday(d); });
-  var gaps = work.filter(unmarked);
+  // The working days recorded, of the working days: a paid holiday somebody worked is in r.days but is no working day (it had read
+  // "6 days recorded of 5").
+  var gaps = work.filter(unmarked), recorded = work.length - gaps.length;
   var pct = r.pct, tone = figTonePct(pct, 90, 80) || 'neutral';
   if (gaps.length && tone !== 'danger') tone = 'warning';
   var gapWords = gaps.length <= 2 ? gaps.map(attDayName).join(' and ') : gaps.length + ' days';
@@ -1077,10 +1062,10 @@ function _attWeekVerdictHtml(ws, days) {
   var pw = wages ? payWeek(ws) : null, open = sat >= today;
   return uiVerdictHtml({ screen: 'Attendance · week ' + attPayWeekNumber(ws) + ', ' + stockShortDate(ws) + ' – ' + stockShortDate(sat), verdict: verdict, tone: tone,
     fig: pct == null ? '' : Math.round(pct) + '%',
-    facts: [todoPlural(r.days, 'day') + ' recorded of ' + work.length, pw ? 'payout ' + finRs(pw.total) + (open ? ' so far' : '') : ''],
+    facts: [todoPlural(recorded, 'day') + ' recorded of ' + work.length, pw ? 'payout ' + finRs(pw.total) + (open ? ' so far' : '') : ''],
     factors: [
       { label: 'Present', fig: pct == null ? '' : formatNum(pct, 1) + '%', tone: figTonePct(pct, 90, 80), sub: 'of the marks typed' },
-      { label: 'Days recorded', fig: r.days + '<span class="inv-tile-of">/' + work.length + '</span>', tone: gaps.length ? 'warning' : work.length ? 'ok' : null, sub: gaps.length ? gapWords + ' missing' : 'working days' },
+      { label: 'Days recorded', fig: recorded + '<span class="inv-tile-of">/' + work.length + '</span>', tone: gaps.length ? 'warning' : work.length ? 'ok' : null, sub: gaps.length ? gapWords + ' missing' : 'working days' },
       { label: 'On site a day', fig: r.avg == null ? '' : formatNum(r.avg, 1), sub: 'heads, on average' },
       pw ? { label: open ? 'Payout so far' : 'Payout', fig: escHtml(finRs(pw.total)), sub: 'weekly tiers and the EXTRA' } : null].filter(Boolean),
     attrs: ' id="attWeekVerdict"' });

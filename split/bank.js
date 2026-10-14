@@ -856,7 +856,8 @@ function bankNextMonth(ym) { var d = new Date(ym + '-01T00:00:00'); d.setMonth(d
 
 /* Per month it pays for: labour, power, other and supplies, each with the rows behind it, and
    whether the statement can speak for that month at all.
-   - Labour: a transfer to a named hand pays the month BEFORE (salaries go out ~14th for last month);
+   - Labour: a transfer to a named hand pays the month BEFORE (salaries go out ~14th for last month), one after the 20th its
+     own month (payMonthPaidFor, Pay's rule);
      cash pays the pay week it was drawn in, spread over that week's seven days, so a week that
      straddles two months is split between them.
    - Electricity: the month the payment settles (bankBillMonth: the month before, operator-settable).
@@ -879,7 +880,8 @@ function bankCostByMonth(cls) {
     var r = v.row;
     if (v.cat === 'wages') {
       if (!v.cash && v.staffId != null) {
-        var L = at(bankPrevMonth(r.date)).labour;
+        // The month Pay reads it for (payMonthPaidFor): on or before the 20th the month before, after it its own month.
+        var L = at(payMonthPaidFor({ date: r.date }).slice(0, 7)).labour;
         L.amount += r.dr; L.named += r.dr; L.rows.push(v);
       } else {
         var wk = attWeekStartOf(r.date);

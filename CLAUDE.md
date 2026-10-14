@@ -1278,7 +1278,8 @@ once a human has examined it and can say why, it becomes an entry in `S.extraExc
 accepted duplicate receipt, and for the same purpose: an audit must be able to tell an exception
 somebody examined from one nobody was shown. Explained exceptions are counted and listed apart from
 open disagreements, so the card distinguishes *"nobody has looked at this"* from *"this was looked at
-and here is what the record shows"*.
+and here is what the record shows"*. Explaining or reopening one is a floor entry (`areaExplainOk`): a role that may
+not make one is told so. Each list shows its first eight and the rest one tap away.
 
 **An acknowledgement is granted against specific figures, never as a blanket silence.** The record
 stores the expected and booked hours it was written about. If the data later moves — a crew
@@ -3661,7 +3662,8 @@ Stats → Cost → **Live cost** reads the statement as a second instrument besi
 (`docs/FINANCE_INTELLIGENCE_SPEC.md`, Phase 4; `bankCostByMonth`, `bankCostForRange` in `bank.js`). Two routes to one
 figure is the strongest evidence this repo has; this gives the live cost a second route.
 
-- **Every payment is set against the month it PAYS FOR.** A transfer to a named hand pays the month before, since
+- **Every payment is set against the month it PAYS FOR.** A transfer to a named hand pays the month before when dated by the 20th (one after the 20th pays its own month: Pay's rule,
+  `payMonthPaidFor`, which `wageVsSlip` reads too), since
   salaries go out around the 14th for the month before. Cash pays the pay week it was drawn in, spread over that week's
   seven days, so a week that straddles two months is split. **Cash is wages only up to that week's payout** (`payWeek`:
   the weekly tiers and the EXTRA); past it, it is the owner's drawings, never a cost (owner, 6 Oct 2026). A week whose
@@ -3731,7 +3733,7 @@ Finance intelligence (`finintel.js`; spec Phase 5). The bank statement feeds the
   - `gstNotInBank`: a month's GST has no payment and no note, and the statement reaches its due date;
   - `powerPaidNoBill`: one task naming the months;
   - `supplierNoBill`: no stock bill that month or the one before;
-  - `wageVsSlip`: a named salary leg against the payroll as paid;
+  - `wageVsSlip`: a named salary leg against the payroll as paid of the month it pays for (`payMonthPaidFor`);
   - `cashSwing`: last week's cash drawn is a quarter or more short of its payout (past it is drawings, 6 Oct 2026);
   - `costGap`: recorded against paid over three closed months;
   - `runway`: the forecast goes below zero within 45 days;
@@ -4097,12 +4099,15 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
   paid to each other's accounts, and the gate hand's ruled figure paid short, were to be adjusted in September; P205). A salary
   transfer on the statement read as wages to a hand on the roster (`payBankLegs`: the bank's own reading of the payee, a guessed
   name said as one) is a payment (`payPaymentsOf`, `payPaymentsFor`, `payPaidFor`); a payment typed here that the statement also
-  holds (the same hand, within a rupee, three days apart) is counted once. Paid had been the typed payments alone, so every salary
+  holds (the same hand, within a rupee, three days apart) is counted once, an advance as an advance, for the month it is dated in (it had counted twice: the leg as the month before's salary too), and listed once in *Payments in these periods*, on the leg's row (*typed on Pay too*). The statement is money: a role that sees wages and not money sees what was paid, never the bank's legs as the bank's (`paySeesBank`: no *by bank*, no legs in the list, no *Salaries paid from the bank*, *Crossed with another hand*, the slip's *Paid on …* alone). Paid had been the typed payments alone, so every salary
   paid by transfer read as unpaid, and the August legs paid to each other's accounts were invisible.
 - **A month on the payroll as paid is set against what was paid for it** (`payPeriodRow`): the slip is what was earned; with no
   payment for the month known it is settled by the slip, as before; with one, the difference stands (a difference under a rupee is
-  none: the shop pays whole rupees). A month whose payroll is on record but does not name the hand, with nothing paid to them, is
-  settled too (*not on the slip*: a hand new to the monthly tier had read the whole month as unpaid). Two hands each paid what the
+  none: the shop pays whole rupees; Pay's row and the slip say it, *Rounded to the rupee*, so they foot). A month whose payroll is on
+  record but does not name the hand, with nothing paid to them, is settled too (*not on the slip*: a hand new to the monthly tier had
+  read the whole month as unpaid). Pay's row says *Not on the month’s slip* and the slip *Paid outside the month's payroll*, so both
+  foot. A closed month with no mark for the hand, paid only by the bank's legs (none typed on Pay), is settled as well (*no earnings
+  recorded*, `unknown`): what it earned is not known, so neither is a difference; it had carried the whole salary as paid over. Two hands each paid what the
   other earned are named (`payCrossedWith`): *the bank legs crossed with … 's*.
 - **Monthly balances count from a month the owner sets** (`S.labour.payCarryFrom`, Pay → *Count from a month*, P1 payments): from
   it on, a month paid short is owed and a month paid over is taken back; before it, months are settled as they stand. The
@@ -4110,7 +4115,7 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
   brought-forward line names its months (`payPartWords`): *August 2026: paid ₹12,456.00 against ₹15,796.80 on the slip, the bank
   legs crossed with …'s*; a month's payment that settles what it earned and what was brought into it, each to the rupee, leaves
   nothing. A weekly hand's balance still starts at the first payment typed for them (paid in cash, never on the statement by name).
-  The month offered must have its earnings known (a slip or attendance). Once balances count, `wageVsSlip` stays quiet: Pay carries
+  The month offered must have its earnings known (a slip or attendance); last month only while no month is. Once balances count, `wageVsSlip` stays quiet: Pay carries
   each month.
 - **Snacks are a line of the weekly payout** (`paySnacks`, in `payWeek`'s total; owner, 10 Oct 2026, on the week of 4 Oct's Saturday
   cash: *"The 640 is snacks paid for OT and night shifts"*, *"20 per person regular OT, and 60 per person for night OT"*, night *"is when
@@ -4124,6 +4129,8 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
   own times do not reach it (out at or before its start, in at or after the 6 AM block's end, or marked absent). Pay reads each
   hand's own times, so the block's hours were in nobody's pay: on the week of 4 Oct a mark whose area was changed by hand kept the
   out-time roll from carrying it to 6 AM (13 hours) while the roll named the hand on the night. **Open the day** goes to it. P207.
+  Said on Pay's card face too (*N hands with hours to check*, the card a warning), since its fold is shut on the phone. A block from
+  midnight to 4 AM is the night's: its crew's outs are read, never their ins (P213).
 - **Last month's salary is owed from the 21st** (`payOverdue`, `PAY_SALARY_BY_DAY`): the To-do's `payCarry` and the motivation index
   read the balance as of today, so the days before payday raise nothing; Pay itself shows last month's salary brought forward.
 - **A hand's history** (a due row's **History**, `payHistoryOpen`): the last twelve months (a weekly hand's weeks), newest first,
@@ -4137,8 +4144,8 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
   the form with what is due.
 - **Weekly payout** = the weekly tiers' earnings + the EXTRA pool. While the week is open it is
   **predicted at its own pace**: the recorded days as they are, and the unrecorded Mon–Sat days
-  at the week's average per recorded working day. The Sunday is taken out of that average because
-  it is overtime and does not repeat. With nothing recorded yet, the median stands in and says so.
+  at the week's average per recorded working day. The Sunday is taken out of that average, its snacks
+  with it, because it is overtime and does not repeat. With nothing recorded yet, the median stands in and says so.
   **Swing** is measured against the median of the twelve weeks before, leaving out weeks with
   nothing recorded, because a week nobody typed is not a cheap week. The history lists the twelve
   weeks, each with what was paid against it.
@@ -4197,14 +4204,16 @@ People → Pay → Due by worker → **Pay slips** (`payslip.js`; owner, 7 Oct 2
 - **A slip is Pay's own row** (`payDue` for the week on screen): the worker's own period (the week for the weekly tiers, the month of the
   week's Sunday for the monthly), earned (`labourForRange().byWorker`), each payment and advance Pay counts for the period
   (`psPayments`, `payPaidFor`'s own reading), the balance brought forward (`payCarried`) and what is due. **It foots**: earned − paid ±
-  brought forward = due, as Pay shows it. A month on record as paid prints the payroll's row and reads settled.
+  what else settled the period (*Paid outside the month's payroll*, *No earnings recorded*, *Rounded to the rupee*, a line each,
+  `data-ps-settle`) ± brought forward = due, as Pay shows it. A month on record as paid prints the payroll's row and reads settled.
 - It shows attendance (present, half, absent in the period), the earnings line by line (days × the day rate, rest days, overtime hours, or
   hours × the hour rate), the worker's card, designation, area, tier and rate. The EXTRA pool is not on it, and a weekly slip says so.
 - **Two to an A4 page** with a line to cut along (`inv-ps-*`, its sizes declared once); the reference is derived (`PS/<period>/<card or
   id>`), so a reprint is the same slip and nothing is written when one is printed. Only a role that opens Pay reaches it.
 - **Any month's slips** (owner, 10 Oct 2026; P205): the dialog's *Monthly hands' month* picks the month (`_psMonth`, read through the
   month's first Sunday, `psMonthWeek`); the weekly hands' slips stay the week on Pay's. A hand's history prints one period's slip. A
-  slip lists each payment *by bank* or typed, and its brought-forward line names the months it is made of (`data-ps-carried`).
+  slip lists each payment *by bank* (to a role that sees money) or typed, a leg whose payee the statement's name only reads as the
+  hand *payee to confirm*, and its brought-forward line names the months it is made of (`data-ps-carried`).
 
 ### The monthly payroll AS PAID
 A closed month is not a thing to re-derive: somebody was paid against a slip, and the slip is the fact. The

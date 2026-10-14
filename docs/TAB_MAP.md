@@ -977,8 +977,8 @@ and TM3c) and P187 (cheques);** P195's budgets lowered for Money's screens. **Gr
 - On the desktop the heroes are a row (`.inv-heroes`), the lines below.
 - **The load:**
   - The first hero carries `data-verdict`.
-  - People's tone comes from one function built here, **`attOnSiteTone(d)`**: the 90 / 80% gate on the active roster, and warning
-    when the floor is short of its number. `attDayPanelHtml` and `renderAttHomeCard` read it from now on, and TM6a points every
+  - People's tone comes from one function built here, **`attOnSiteTone(d, areasShort)`**: the 90 / 80% gate on the active roster, and
+    warning when the floor, or an area the card names as short (Floor's People, Day's verdict), is short of its number. `attDayPanelHtml` and `renderAttHomeCard` read it from now on, and TM6a points every
     other on-site figure at it.
   - **The line cards lead with the worst** (§1a-1), and the Production hero's verdict names that line.
   - *Not weighed* stays open, since it needs the owner, at ten rows (`uiMoreHtml`: each row is a question).
@@ -1359,7 +1359,7 @@ Files: `state.js`, `charts.js`, `payroll.js`, `floor.js`, `staff.js`, `today.js`
   - **On site against the roster**: `attOnSiteTone` (TM4a) is read by `attDayPanelHtml`, `renderAttHomeCard`, Floor's People hero,
     Staff → Day's head (`#attOnSite`), Needs you's floor card (`today.js`) and the report's staff section.
   - **Heads against the day's number, per area**: one function, **`areaNeedTone(heads, need)`** (short warning, met ok, over
-    info). It is read by Floor's line cards' staffing word, the attendance panel's *By area*, Day's board heads and Areas.
+    info). It is read by Floor's line cards' staffing word, the attendance panel's *By area* and its *On the floor* tile (the floor's heads against its whole number), Day's board heads and Areas.
   - **Owed by age**: `FIN_AGE_TONE` / `figToneAge`, wherever owed is drawn: Receivables, Money's Overview, Pulse's Money card and
     cash question, Pipeline's *Owed to us*, a client's Money panel, the statement of account.
   - **Below cost**: one judge (`figToneAgainst(realisation, liveCost, 5)`) on Pulse, Stats → By client, Performance and Sales.

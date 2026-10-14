@@ -755,9 +755,12 @@ function _absorption(dates, roster, cfg) {
    whole failure the void ledger exists to prevent. */
 var _exPending = null;
 
+/* An explanation is a floor record (the guard): a role that may not make one is told so, never asked a PIN. */
+function areaExplainOk(what) { return typeof grdGate !== 'function' || grdGate('floor', what); }
 function openAreaExplain(payload) {
   var d;
   try { d = JSON.parse(decodeURIComponent(payload)); } catch (e) { return; }
+  if (!areaExplainOk('explain an exception')) return;
   _exPending = d;
   dialogOpen('<div class="inv-dialog">' +
     dialogHeadHtml('Explain this exception') +
@@ -777,7 +780,7 @@ function openAreaExplain(payload) {
 }
 
 function saveAreaExplain() {
-  if (!_exPending) return;
+  if (!_exPending || !areaExplainOk('explain an exception')) return;
   var el = document.getElementById('areaExReason');
   var reason = el ? el.value.trim() : '';
   if (!reason) {
@@ -793,6 +796,7 @@ function saveAreaExplain() {
 }
 
 function reopenAreaExplain(key) {
+  if (!areaExplainOk('reopen an exception')) return;
   removeExtraException(decodeURIComponent(key));
   renderAttendance();
   showToast('Exception reopened');
@@ -917,23 +921,23 @@ function _areaExtraCard(stats, flags) {
   // What needs the owner first (§3e): every disagreement nobody has explained, the danger ones first, each with Explain.
   if (flags.open.length) {
     html += '<div class="inv-row-group" data-area-to-explain><span>To explain</span><span class="inv-num">' + flags.open.length + '</span></div>';
-    flags.open.slice(0, 8).forEach(function(f) {
+    // The first eight, the rest one tap away: every one of them can be explained (a row past the eighth had no Explain).
+    html += uiMoreHtml('area-explain', flags.open.map(function(f) {
       var stale = flags.stale.some(function(x) { return exceptionKey(x.d) === exceptionKey(f); });
-      html += _areaFlagRow(f.tone, f.label, f.iso, f.detail, stale ? 'its explanation no longer matches' : '', f.key === 'shift' ? 'shift' : 'block',
+      return _areaFlagRow(f.tone, f.label, f.iso, f.detail, stale ? 'its explanation no longer matches' : '', f.key === 'shift' ? 'shift' : 'block',
         '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invAreaExplain" data-ex="' + encodeURIComponent(JSON.stringify({
           iso: f.iso, scope: f.scope, key: f.key, kind: f.kind, label: f.label, expected: f.expected, booked: f.booked })) + '">Explain</button>');
-    });
-    if (flags.open.length > 8) html += '<div class="inv-row" data-flag="more"><span class="inv-row-meta">' + (flags.open.length - 8) + ' more</span></div>';
+    }), { n: 8, noun: 'to explain' });
   } else if (stats.normed) {
     html += '<div class="inv-row" data-area-passed><span class="inv-row-main"><span class="inv-row-title">Every booking answers a shortfall</span></span>' +
       '<span class="inv-row-end">' + uiDot('ok', 'Passed') + '</span></div>';
   }
   if (flags.acked.length) {
     html += '<div class="inv-row-group"><span>Explained</span><span class="inv-num">' + flags.acked.length + '</span></div>';
-    flags.acked.slice(0, 8).forEach(function(a) {
-      html += _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso, a.d.detail || formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason), a.d.key === 'shift' ? 'shift' : 'block',
+    html += uiMoreHtml('area-explained', flags.acked.map(function(a) {
+      return _areaFlagRow('ack', a.x.label || a.d.label, a.d.iso, a.d.detail || formatNum(a.d.booked, 1) + ' h against ' + formatNum(a.d.expected, 1) + ' h', escHtml(a.x.reason), a.d.key === 'shift' ? 'shift' : 'block',
         '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invAreaUnexplain" data-key="' + encodeURIComponent(exceptionKey(a.x)) + '">Reopen</button>');
-    });
+    }), { n: 8, noun: 'explained' });
   }
 
   // How it is worked out: a fact a row, folded (§3c).
@@ -996,14 +1000,6 @@ function _areaFlagRow(tone, label, iso, hours, reason, of, action) {
     // The reason on the record (or why it no longer covers the figures): a line of its own, two facts a line (§3b-11).
     (reason ? '<span class="inv-row-meta inv-row-wrap" data-flag-reason>' + reason + '</span>' : '') + '</span>' +
     '<span class="inv-row-end"><span class="inv-num">' + hours + '</span>' + (action || '') + '</span></div>';
-}
-function _areaFlagList(flags, detail, tone) {
-  var html = '';
-  flags.slice(0, 8).forEach(function(f) { html += _areaFlagRow(tone, f.a.label, f.d.iso, detail(f), '', 'shift'); });
-  if (flags.length > 8) {
-    html += '<div class="inv-row" data-flag="more"><span class="inv-row-meta">' + (flags.length - 8) + ' more</span></div>';
-  }
-  return html;
 }
 
 /* Who carried the coverage. Ranked, because the question this answers is which

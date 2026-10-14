@@ -85,12 +85,18 @@ function psSlipHtml(r) {
     }).join('') +
     '<tr class="inv-ps-strong"><td colspan="3">Earned</td><td class="inv-ps-n" data-ps-gross>' + m(gross) + '</td></tr>';
   // A month on record as paid with no payment for it known is settled by its payroll: one line, as Pay reads it (payDue), so the
-  // slip foots. Otherwise each payment for the period, by bank or typed on Pay.
+  // slip foots. Otherwise each payment for the period, by bank (said only to a role that sees money: paySeesBank) or typed on Pay;
+  // a leg the statement's name only reads as this hand says its payee is still to confirm, never printed as a fact.
+  var bank = paySeesBank();
   if (!settled) pays.forEach(function(x) {
-    h += '<tr><td colspan="3">' + (x.kind === 'advance' ? 'Advance' : 'Paid') + ' on ' + escHtml(formatDate(x.date)) + (x.how === 'bank' ? ', by bank' : '') +
-      (x.note ? ' · ' + escHtml(x.note) : '') + '</td><td class="inv-ps-n">&minus;' + m(Number(x.amount) || 0) + '</td></tr>';
+    h += '<tr><td colspan="3">' + (x.kind === 'advance' ? 'Advance' : 'Paid') + ' on ' + escHtml(formatDate(x.date)) + (x.how === 'bank' && bank ? ', by bank' : '') +
+      (x.guess ? ' · payee to confirm' : '') + (x.note ? ' · ' + escHtml(x.note) : '') + '</td><td class="inv-ps-n">&minus;' + m(Number(x.amount) || 0) + '</td></tr>';
   });
   if (settled) h += '<tr><td colspan="3">Paid against the month\'s payroll</td><td class="inv-ps-n">&minus;' + m(gross) + '</td></tr>';
+  // What else settled the period, as Pay's row says it (payPeriodRow), so earned less paid, plus what is carried, is what is due.
+  if (r.offSlip && gross) h += '<tr data-ps-settle="offslip"><td colspan="3">Paid outside the month\'s payroll</td><td class="inv-ps-n">&minus;' + m(gross) + '</td></tr>';
+  if (r.unknown) h += '<tr data-ps-settle="unknown"><td colspan="3">No earnings recorded: the payment taken as the month\'s pay</td><td class="inv-ps-n">+' + m(r.paid) + '</td></tr>';
+  if (r.rounded) h += '<tr data-ps-settle="rounded"><td colspan="3">Rounded to the rupee</td><td class="inv-ps-n">' + (r.rounded > 0 ? '&minus;' : '+') + m(Math.abs(r.rounded)) + '</td></tr>';
   // What is brought forward names the periods it is made of (August's legs paid to each other, a ruled figure paid short).
   if (r.carried) h += '<tr data-ps-carried><td colspan="3">' + (r.carried > 0 ? 'Owed from before' : 'Paid over before, taken back') +
     ((r.carry && r.carry.parts) || []).slice(-3).map(function(pt) { return '<div class="inv-ps-sub">' + escHtml(payPartWords(w, pt)) + '</div>'; }).join('') +

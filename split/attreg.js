@@ -285,7 +285,8 @@ function aregCellHtml() {
     '<label class="inv-field"><span class="inv-field-label">As written</span><input class="inv-input" data-areg-raw value="' + escHtml(cell.raw || '') + '" placeholder="P, A, H, 6am-5pm, p-8pm" autocomplete="off"></label>' +
     '<div class="inv-rows">' +
     _payRow('The register reads', escHtml(read), cell.unsure ? '<span class="inv-dot inv-dot-warning">Unsure</span>' : '') +
-    _payRow('The day holds', escHtml(dayTxt), x ? '<span class="inv-dot inv-dot-' + (AREG_TONE[x.k] || 'info') + '">' + AREG_SAY[x.k] + '</span>' : '') +
+    // The cell's dot says how it stands: a cell that agrees is ok here, though plain on the page (AREG_TONE).
+    _payRow('The day holds', escHtml(dayTxt), x ? '<span class="inv-dot inv-dot-' + (x.k === 'agree' ? 'ok' : AREG_TONE[x.k] || 'info') + '">' + AREG_SAY[x.k] + '</span>' : '') +
     ((cell.edits || []).length ? _payRow('Corrected', cell.edits.map(function(e) { return '&ldquo;' + escHtml(e.from || 'blank') + '&rdquo; → &ldquo;' + escHtml(e.to || 'blank') + '&rdquo; ' + escHtml(formatDate(isoOf(new Date(e.at)))); }).join(' · '), '') : '') +
     '</div>' +
     (day.note ? '<div class="inv-note">' + escHtml(day.note) + '</div>' : '') + '</div>' +

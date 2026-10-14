@@ -134,7 +134,7 @@ function flrPeopleHeroHtml(day, isToday, d, lines) {
   var sub = [d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' : '', todoPlural(d.absent.length, 'absent', 'absent') + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '')].filter(Boolean).join(' · ');
   var viz = chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
     { title: d.p + ' present, ' + d.half + ' half day, ' + d.absent.length + ' absent' + (d.unmarked ? ', ' + d.unmarked + ' unmarked' : '') });
-  return uiHeroHtml({ tone: attOnSiteTone(d) || 'ok', vital: true, eyebrow: eyebrow, fig: on + '<span class="inv-tile-of">/' + n + '</span>', title: escHtml(title), sub: escHtml(sub), viz: viz,
+  return uiHeroHtml({ tone: attOnSiteTone(d, short.length) || 'ok', vital: true, eyebrow: eyebrow, fig: on + '<span class="inv-tile-of">/' + n + '</span>', title: escHtml(title), sub: escHtml(sub), viz: viz,
     body: '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'flrAtt') + '</div>', fold: 'flr-hero-people', open: false, attrs: attrs, foot: link });
 }
 /* The line the Production card names: the worst card's, where it is not ok (the line cards' own order). */

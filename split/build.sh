@@ -43,6 +43,7 @@ JS_SOURCES=(
     "$DIR/im.js" \
     "$DIR/autocomplete.js" \
     "$DIR/print.js" \
+    "$DIR/remoteprint.js" \
     "$DIR/quality-cert.js" \
     "$DIR/credit-note.js" \
     "$DIR/quote.js" \

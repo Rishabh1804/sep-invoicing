@@ -881,6 +881,7 @@ function bootApp() {
   // Initial layout detection (no debounce)
   bootStep('the photo key', forgetGeminiKey);
   bootStep('the layout', updateLayoutMode);
+  bootStep('the office printer', function() { if (typeof prtBoot === 'function') prtBoot(); });
   bootStep('the counts on the bar', updateStockBadge);
 
   /* Phase 6b: Restore active tab on refresh */

@@ -96,7 +96,7 @@
   --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem;
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
-  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510;
+  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510; --z-over-print: 520;
 
   /* Chart series: categorical only (§6.17). */
   --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
@@ -328,6 +328,9 @@ body:not(.inv-booted) { pointer-events: none; }
   background: var(--bg); overflow-y: auto;
 }
 .inv-print-view-active { display: block; }
+/* A toast raised from the preview (Send to office: sent, or why not) shows over it. Only a toast: a form dialog left open under a
+   preview (a credit note's) stays under it. */
+.inv-print-view-active ~ .inv-toast { z-index: var(--z-over-print); }
 .inv-print-toolbar {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;

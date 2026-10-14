@@ -96,7 +96,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 86 modules, ~66,500 lines total.
+Split-file PWA. 87 modules, ~66,800 lines total.
 
 ```
 split/
@@ -125,6 +125,7 @@ split/
 ├── im.js              ← Office → Challans: Awaiting invoice and Invoiced, each led by its verdict; a challan's wait judged once (imWaitTone); the list and selection (~810 lines)
 ├── autocomplete.js    ← Part autocomplete + inline item creation (270 lines)
 ├── print.js           ← formatInvoiceData + print preview; paperFit, a document zoomed to its room (224 lines)
+├── remoteprint.js     ← The office printer: a preview sent as a job over GitHub sync, the print station that prints it (~290 lines)
 ├── quality-cert.js    ← Test Certificate (ZN Plating): approved format + per-line certs (380 lines)
 ├── credit-note.js     ← Credit notes: batch discount, own series, CDNR export; Invoices → Credit notes, the dialog (~980 lines)
 ├── quote.js           ← Quotations: Office → Sales → Quotations, a number at issue, revisions, the reprice moves, the printed quotation (~990 lines)
@@ -192,7 +193,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -222,7 +223,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,884 tests, both layouts
+pnpm exec playwright test          # 1,890 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -889,6 +890,28 @@ laid out on screen as it is on paper, **210mm across with its gutters as padding
 `zoom` on `.inv-print-body > *`, never above life size), the credit note, certificate and sales register included (they
 were A4 already and ran off a phone's edge). In print the zoom is 1 and the sheet's screen width, height and margin are
 reset, so the printed page is unchanged. P94.
+
+### Printing at the office
+Settings → Connections → **Office printer** (`remoteprint.js`, P217; owner, 14 Oct 2026: *"Let's add a remote print option for invoices
+and anything else that is printed"*, the office's Brother laser on the office Wi-Fi). A page served from github.io cannot reach a printer
+on the office network (no https page may send to a 192.168… address, and a browser has no raw socket), so a print goes through the sync
+repository:
+- **A job** is the print view's body as previewed, its title, who sent it and the build, written as one file `print-queue/<time>-<id>.json`
+  beside the sync file (`prtSend`), by **Send to office** on every preview once the section is on. The same token and the same rule as a
+  push: a device without sync, or one the guard keeps from syncing, is told why and sends nothing. ID cards take their numbers when sent.
+- **The print station** is one device, marked on that device only (`sep_inv_print_station`, never in the book): while the app is open
+  there it reads the queue every 15 seconds (and when it comes into view), draws the oldest job in the print view, prints it and deletes
+  its file (`prtStationTick`); nothing is printed over a preview open on it. The job's HTML is cleaned first (`prtClean`: no script,
+  frame, form, control, style or handler survives). With Chrome's or Edge's `--kiosk-printing` it prints to the default printer with no
+  dialog; without it each job opens the dialog.
+- **The sender learns it printed** when the job's file is gone (`prtSentCheck`, every 20 seconds while one waits): a Created invoice is
+  then marked Printed on the sending device, as Print marks it. A waiting job is cancelled from the section (its file deleted). Over
+  three minutes waiting says *is the station on?*. No heartbeat is written: two commits a job, nothing else.
+- **The printer's details are the book's** (`S.printer`: on, name, address on the Wi-Fi, cartridge; a config in the change log and the
+  merge), typed by the owner: nothing about the shop is in the build. A toast raised over the preview shows above it
+  (`--z-over-print`; it had sat under the print view); a dialog left open under a preview (a credit note's form) stays under it.
+- ⚠ **Not tried on the printer**: the specs fake GitHub and stub `window.print`. The owner's first job from a phone to the station is
+  the check that counts, and whether a minimised station window still prints is not known.
 
 ### A tax invoice that runs past one page
 The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line
@@ -3272,7 +3295,10 @@ build: the people are the book's.
   Changes. The merge (below) reads it to say whose change stands.
 - **Devices** (`devices.js`, P142): with the guard on, a device pushes and pulls only once registered (Settings → Access →
   Devices, the owner's ID and PIN checked), and a copy goes to GitHub with `_device` beside the book. An unregistered device
-  can only import. The token is kept encrypted under a key that cannot leave the device. A device the owner removes stops
+  can only import. The token is kept encrypted under a key that cannot leave the device. **A device whose guard was turned on apart from the one that pushed** (its own owner ID, not on GitHub's copy; owner, 14 Oct
+  2026: the phone said *add the ID on the owner's device*) registers in GitHub's copy with the PIN of that copy's owner
+  (`devRemoteUser`, `grdPinAsk` on the copy's owner), never by a name alone; it takes the copy, its IDs and PINs, and is registered to
+  the same person there (same name and role), else to that owner. A device the owner removes stops
   syncing and forgets its token at its next load. With the guard off, sync is unchanged.
 - **The merge** (`merge.js`, P175; G4, owner 7 Oct 2026: *"start with 3 and 4"*). Sync had been one book written whole: a push over a
   copy not seen replaced the other device's work, a pull replaced this one's. Now each is a three-way merge against **the copy both

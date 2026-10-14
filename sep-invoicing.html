@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="f36143f9">
+<meta name="app-build" content="1e4b81bd">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -118,7 +118,7 @@
   --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem;
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
-  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510;
+  --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510; --z-over-print: 520;
 
   /* Chart series: categorical only (§6.17). */
   --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
@@ -350,6 +350,9 @@ body:not(.inv-booted) { pointer-events: none; }
   background: var(--bg); overflow-y: auto;
 }
 .inv-print-view-active { display: block; }
+/* A toast raised from the preview (Send to office: sent, or why not) shows over it. Only a toast: a form dialog left open under a
+   preview (a credit note's) stays under it. */
+.inv-print-view-active ~ .inv-toast { z-index: var(--z-over-print); }
 .inv-print-toolbar {
   position: sticky; top: 0; z-index: 1;
   display: flex; align-items: center; justify-content: space-between;
@@ -2759,6 +2762,10 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
       Back
     </button>
+    <button class="inv-print-toolbar-btn inv-hidden" id="invPrintRemote" data-action="invPrintRemote">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      Send to office
+    </button>
     <button class="inv-print-toolbar-btn" data-action="invPrint">
       <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
       Print
@@ -2857,7 +2864,9 @@ function getDefaultState() {
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice.
-    flowCfg: { turnDays: 1, termsDays: 45 },
+    flowCfg: { turnDays: 1, termsDays: 45, holidays: [] },
+    // The office printer (remoteprint.js): sent to over GitHub, printed by the print station.
+    printer: { on: false, name: '', address: '', cartridge: '' },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
@@ -3422,7 +3431,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg', 'printer'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -4114,6 +4123,7 @@ function bookReload(why) {
     if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
     // The book another window saved may say this device was removed: it forgets its GitHub token (devices.js).
     if (typeof devAfterLoad === 'function') devAfterLoad('reload');
+    if (typeof prtApply === 'function') prtApply();
     bookRedraw(why);
     // Users or roles changed elsewhere: a deactivated user is locked, a role that lost the page on screen sent Home.
     if (typeof grdRecheck === 'function') grdRecheck();
@@ -5608,6 +5618,7 @@ var CHG_TRACK = [
   { path: 'costModel', kind: 'cfg', sec: 'Live cost fallbacks', dflt: function() { return typeof COST_MODEL_DEFAULTS !== 'undefined' ? COST_MODEL_DEFAULTS : getDefaultState().costModel; } },
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
   { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
+  { path: 'printer', kind: 'cfg', sec: 'Office printer', dflt: function() { return getDefaultState().printer; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
     dflt: function() { return { ratePerKg: null, premiumPerKg: 15, upliftPct: typeof ZINC_DEFAULT_UPLIFT !== 'undefined' ? ZINC_DEFAULT_UPLIFT : null, basis: 'manual', updatedAt: null, source: '' }; } },
   { path: 'perfCfg', kind: 'cfg', sec: 'Clients → Performance → By the hour' },
@@ -12074,14 +12085,20 @@ var SETTINGS_SECS = {
     body: function() {
       var c = flowCfg();
       return _sRow(_sfg('Turnaround target, working days', 'setFlowTurn', _sNum('setFlowTurn', c.turnDays, 1, 0), '0 is the same day'),
-        _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1)));
+        _sfg('Payment terms, days', 'setFlowTerms', _sNum('setFlowTerms', c.termsDays, 1, 1))) +
+        _sfg('Other days the plant is shut (state holidays: MM-DD every year, or a full date)', 'setFlowHolidays',
+          '<input class="inv-input inv-id" id="setFlowHolidays" value="' + escHtml(c.holidays.join(', ')) + '">',
+          'Sundays and the paid holidays (Labour) are never counted');
     },
-    why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day. Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
+    why: 'The turnaround is counted from a challan’s day to the day its material is despatched (the day written on the invoice), in working days: a challan of Saturday back on Monday is one day, and Sundays, the paid holidays (Settings → Labour) and the other days the plant is shut are not counted (the owner, 14 Oct 2026). Payment terms are counted from the invoice’s date. A client, or one of its parts, can have its own (Clients → the client → Turnaround and terms). Material past its target, a job not plated by the day it is wanted, and an invoice past its terms are each a To-do task. Set 10 Oct 2026 at 1 working day and 45 days (the owner: “Target default one day”, “every other client 45 days”).',
     save: function() {
       if (!S.flowCfg) S.flowCfg = {};
       var t = _sNonNeg('setFlowTurn'), d = _sPos('setFlowTerms');
       if (t != null) S.flowCfg.turnDays = Math.round(t);
       if (d) S.flowCfg.termsDays = Math.round(d);
+      S.flowCfg.holidays = _sVal('setFlowHolidays').split(/[,;\s]+/).map(function(x) { return x.trim(); }).filter(function(x) {
+        return /^(\d{4}-)?\d{2}-\d{2}$/.test(x);
+      });
     }
   },
   stockAlerts: {
@@ -12762,6 +12779,7 @@ async function importDataText(text, name) {
     bookReplacedShow();
     // The book imported may say this device was removed: it forgets its GitHub token and says why (devices.js).
     if (typeof devAfterLoad === 'function') devAfterLoad('import');
+    if (typeof prtApply === 'function') prtApply();
     saveState().then(function(saved) {
       if (saved) showToast('Data imported');
       else showToast('NOT saved: ' + saveFailText() + '. The data is in memory only and will be lost on reload.', 'error');
@@ -13266,6 +13284,7 @@ async function ghPull(opts) {
     // The book pulled may say this device was removed: it forgets its token and says why (devices.js). The pulled
     // copy's `_device` was beside the book, never in it: adoptState took env.state alone.
     if (typeof devAfterLoad === 'function') devAfterLoad('pull');
+    if (typeof prtApply === 'function') prtApply();
     return landed;
   } catch (err) {
     ghSetBusy(false);
@@ -13887,6 +13906,7 @@ function devWhenClear(fn) {
 }
 
 /* ===== REGISTERING ===== */
+var _devRemoteUserId = null;   // who uses this device in GitHub's copy, set while registering in it
 function devRegisterClick() {
   var n = document.getElementById('devNameIn'), u = document.getElementById('devUserIn');
   return devRegister({ name: n ? n.value : '', user: u ? u.value : '' });
@@ -13909,13 +13929,16 @@ async function devRegister(o) {
   // GitHub's copy, where the guard is on in it and this device has not seen it, is the book: the device is registered in
   // that copy, never pushes its own (older, or imported) book over it. One with the guard off there is not: this
   // device's book goes up, and the push asks before it replaces anything, as every push does.
+  _devRemoteUserId = null;
   var taken = await devTakeRemote(user.id);
   if (taken === 'stop') return false;
   var took = taken === 'took';
+  // In GitHub's copy, who uses this device is that copy's ID (the same person, or its owner).
+  if (took && _devRemoteUserId != null) user = devUsers().find(function(u) { return String(u.id) === String(_devRemoteUserId); }) || user;
 
   if (!Array.isArray(S.devices)) S.devices = [];
   var id = devId(), row = devRow(id);
-  var fields = { id: id, name: name, user: user.id, registeredAt: Date.now(), registeredBy: devUserId(), build: APP_BUILD,
+  var fields = { id: id, name: name, user: user.id, registeredAt: Date.now(), registeredBy: took && _devRemoteUserId != null ? user.id : devUserId(), build: APP_BUILD,
     ua: String((typeof navigator !== 'undefined' && navigator.userAgent) || '').slice(0, 200) };
   if (row) {
     Object.keys(fields).forEach(function(k) { row[k] = fields[k]; });
@@ -13939,14 +13962,23 @@ async function devRegister(o) {
 }
 
 /* Why GitHub's copy cannot be the book this device registers in ('' when it can). */
-function devRemoteUnfit(env, userId) {
+function devRemoteUnfit(env) {
   if (!env || env.app !== 'sep-invoicing' || !env.state || !env.state.company || !env.state.clients) return 'GitHub\'s file is not a SEP Invoicing backup';
   if (env.schema > GH_SCHEMA) return 'GitHub\'s copy was written by a newer version of the app';
-  var users = Array.isArray(env.state.users) ? env.state.users : [];
-  if (!users.some(function(u) { return u && u.active !== false && String(u.id) === String(userId); })) {
-    return 'who uses this device is not an ID on GitHub\'s copy: add the ID on the owner\'s device and push, then register this one';
-  }
   return '';
+}
+/* Who uses this device, as an ID on GitHub's copy: the same id; or, with `byName` (once that copy's owner has given its PIN),
+   the one ID there of the same name and role (an owner who turned the guard on on two devices made two IDs of one person,
+   owner, 14 Oct 2026). null when there is none. A name alone never lets a device in. */
+function devRemoteUser(state, userId, byName) {
+  var users = (Array.isArray(state.users) ? state.users : []).filter(function(u) { return u && u.active !== false; });
+  var same = users.find(function(u) { return String(u.id) === String(userId); });
+  if (same || !byName) return same || null;
+  var mine = devUsers().find(function(u) { return u && String(u.id) === String(userId); });
+  if (!mine) return null;
+  var key = function(u) { return String(u.name || '').trim().toLowerCase() + '|' + u.role; };
+  var like = users.filter(function(u) { return key(u) === key(mine); });
+  return like.length === 1 ? like[0] : null;
 }
 function devGuardedBook(state) {
   return !!(state && Array.isArray(state.users) && state.users.some(function(u) { return u && u.role === 'owner' && u.active !== false; }));
@@ -13963,8 +13995,22 @@ async function devTakeRemote(userId) {
   catch (err) { showToast('Not registered: ' + err.message, 'error'); return 'stop'; }
   var env = full && full.envelope;
   if (!env || !env.state || !devGuardedBook(env.state)) return 'own';
-  var unfit = devRemoteUnfit(env, userId);
+  var unfit = devRemoteUnfit(env);
   if (unfit) { showToast('Not registered: ' + unfit, 'error'); return 'stop'; }
+  // This device's IDs are not GitHub's (the guard turned on here as well as on the device that pushed): the book is GitHub's,
+  // so its owner says yes with the PIN set on that copy, and the device is registered to the ID there.
+  var remoteUser = devRemoteUser(env.state, userId);
+  if (!remoteUser) {
+    var owner = (env.state.users || []).find(function(u) { return u && u.role === 'owner' && u.active !== false && u.secret; });
+    if (!owner) { showToast('Not registered: GitHub\'s copy has no owner ID to say yes', 'error'); return 'stop'; }
+    if (!(await uiConfirm({ title: 'This device has its own IDs', body: 'GitHub\'s copy was guarded on another device, with IDs of its own: ' +
+        'the ID chosen here is not one of them. To register this device in that copy, enter the PIN of ' + (owner.name || 'the owner') +
+        ', its owner, as set on that device. This device then takes GitHub\'s copy, its IDs and PINs with it, and is registered to the same person there (else to ' +
+        (owner.name || 'the owner') + '); sign in afterwards with the PINs of that copy.', okLabel: 'Enter the PIN' }))) return 'stop';
+    if (!(await grdPinAsk(owner, 'PIN of GitHub\'s copy'))) return 'stop';
+    remoteUser = devRemoteUser(env.state, userId, true) || owner;
+  }
+  _devRemoteUserId = remoteUser.id;
   if (!(await uiConfirm({ title: 'Register this device in GitHub’s copy?', body: 'GitHub holds a copy this device has not seen: ' + ghDescribeEnvelope(env) +
       '.\n\nThat copy is the book. It replaces this device\'s book (' + ghCountsText() + '), as a pull does; this device goes on its list, and the copy goes back to GitHub. Continue?',
       okLabel: 'Take it and register' }))) return 'stop';
@@ -17868,6 +17914,311 @@ function closePrintPreview() {
   if (document._savedTitle) { document.title = document._savedTitle; document._savedTitle = null; }
 }
 
+/* ===== REMOTE PRINT: THE OFFICE PRINTER =====
+   Owner, 14 Oct 2026: "Let's add a remote print option for invoices and anything else that is printed", the office's Brother laser
+   on the office Wi-Fi. A page served from github.io cannot reach a printer on the office network: a browser sends no job to a
+   192.168… address from an https page, and has no raw socket for the printer's port. So printing at the office goes through the
+   two things the app already has:
+   - A JOB is the document exactly as previewed (the print view's body), its title and who sent it, written by any device with GitHub
+     sync to the sync repository as one file under `print-queue/` (`prtSend`). The same token and the same registered-device rule as
+     a push: a device that may not sync may not send.
+   - THE PRINT STATION is one device in the office (a computer on the office Wi-Fi with the printer installed as its default), marked
+     so on that device alone (`sep_inv_print_station`, never on the book). While the app is open there it reads the queue every
+     few seconds, draws each job in the print view and prints it, oldest first, then deletes the job's file; the deletion is how the
+     sender learns it printed. Started with Chrome's or Edge's --kiosk-printing, the browser prints to the default printer with no
+     dialog; without it the station shows the print dialog for each job.
+   The printer's own details (its name, its address on the Wi-Fi, the cartridge it takes) are the book's (`S.printer`), typed in
+   Settings → Connections → Office printer: nothing about the shop is in this build. A job's HTML is the sender's own document and is
+   cleaned before it is drawn (`prtClean`: no script, frame, form or handler survives). An invoice sent while Created is marked
+   Printed on the sending device once the station has taken it, as Print marks it (print.js printMarkPrinted). */
+
+var PRT_DIR = 'print-queue';
+var PRT_STATION_KEY = 'sep_inv_print_station';
+var PRT_SENT_KEY = 'sep_inv_print_sent';
+var PRT_LOG_KEY = 'sep_inv_print_log';
+var PRT_POLL_MS = 15000;          // the station's look at the queue while the app is in view
+var PRT_SENT_POLL_MS = 20000;     // the sender's look while a job of its own waits
+var PRT_LATE_MS = 3 * 60000;      // a job waiting longer than this says the station may be off
+var PRT_MAX_HTML = 4 * 1024 * 1024;
+
+function prtCfg() {
+  var p = (S && S.printer) || {};
+  return { on: !!p.on, name: p.name || '', address: p.address || '', cartridge: p.cartridge || '' };
+}
+function prtName() { var c = prtCfg(); return c.name || 'the office printer'; }
+/* Whether this device can send a job, and if not, why (an empty string when it can). */
+function prtSendBlocked() {
+  if (!prtCfg().on) return 'Remote printing is off: Settings → Connections → Office printer.';
+  if (typeof ghIsConfigured === 'function' && !ghIsConfigured()) return 'This device has no GitHub sync set up, which carries the job to the office: Settings → Connections → GitHub sync.';
+  var b = typeof devSyncBlocked === 'function' ? devSyncBlocked() : '';
+  return b || '';
+}
+function prtIsStation() { var s = loadJSON(PRT_STATION_KEY, null); return !!(s && s.on); }
+function prtSetStation(on) { saveJSON(PRT_STATION_KEY, on ? { on: true, since: Date.now() } : { on: false }); }
+function prtSent() { var l = loadJSON(PRT_SENT_KEY, []); return Array.isArray(l) ? l : []; }
+function prtSentSave(l) { saveJSON(PRT_SENT_KEY, l.slice(0, 20)); }
+function prtLog() { var l = loadJSON(PRT_LOG_KEY, []); return Array.isArray(l) ? l : []; }
+function prtLogAdd(row) { var l = prtLog(); l.unshift(row); saveJSON(PRT_LOG_KEY, l.slice(0, 20)); }
+
+/* The print view's Send button shows only where remote printing is on. */
+function prtApply() {
+  var b = document.getElementById('invPrintRemote');
+  if (b) b.classList.toggle('inv-hidden', !prtCfg().on);
+  prtStationArm();
+}
+
+function prtDirUrl(cfg) {
+  var dir = cfg.path.split('/').slice(0, -1).filter(Boolean).concat([PRT_DIR]);
+  return 'https://api.github.com/repos/' + encodeURIComponent(cfg.owner) + '/' + encodeURIComponent(cfg.repo) + '/contents/' +
+    dir.map(encodeURIComponent).join('/');
+}
+function prtJobUrl(cfg, id) { return prtDirUrl(cfg) + '/' + encodeURIComponent(id + '.json'); }
+/* The jobs waiting: [{id, sha, name}], oldest first (an id starts with its time). An empty or missing folder is no jobs. */
+async function prtList(cfg) {
+  var rows;
+  try { rows = await ghRequest(prtDirUrl(cfg) + '?ref=' + encodeURIComponent(cfg.branch)); }
+  catch (e) { if (e.status === 404) return []; throw e; }
+  return (Array.isArray(rows) ? rows : []).filter(function(r) { return r && r.type === 'file' && /\.json$/.test(r.name); })
+    .map(function(r) { return { id: r.name.replace(/\.json$/, ''), sha: r.sha, name: r.name }; })
+    .sort(function(a, b) { return a.id < b.id ? -1 : a.id > b.id ? 1 : 0; });
+}
+async function prtDelete(cfg, job, message) {
+  await ghRequest(prtJobUrl(cfg, job.id), { method: 'DELETE', body: { message: message, sha: job.sha, branch: cfg.branch } });
+}
+
+/* ---- Sending ---- */
+function prtSenderName() {
+  var u = typeof grdUser === 'function' ? grdUser() : null;
+  var dev = typeof devName === 'function' ? devName() : (getGhConfig().deviceName || '');
+  return [u && u.name, dev].filter(Boolean).join(' · ') || 'a device';
+}
+async function prtSend() {
+  var why = prtSendBlocked();
+  // Said as a toast: a dialog would open under the preview it was asked from.
+  if (why) { showToast('Can’t send to ' + prtName() + '. ' + why, 'error'); return; }
+  var body = document.getElementById('invPrintBody');
+  var html = body ? body.innerHTML : '';
+  if (!html.trim()) { showToast('Nothing in the preview to send', 'error'); return; }
+  if (html.length > PRT_MAX_HTML) { showToast('This document is too large to send (over 4 MB): print it here', 'error'); return; }
+  var title = String(document.title || 'Document').slice(0, 120);
+  var id = new Date().toISOString().replace(/[-:.TZ]/g, '').slice(0, 14) + '-' + Math.random().toString(36).slice(2, 7);
+  var invId = typeof _printInvId !== 'undefined' ? _printInvId : null;
+  var job = { kind: 'sep-print', v: 1, id: id, title: title, html: html, sentAt: Date.now(), sentBy: prtSenderName(),
+    build: typeof APP_BUILD !== 'undefined' ? APP_BUILD : '' };
+  var cfg = getGhConfig();
+  var btn = document.getElementById('invPrintRemote');
+  if (btn) btn.disabled = true;
+  try {
+    await ghRequest(prtJobUrl(cfg, id), { method: 'PUT', body: { message: 'Print at the office: ' + title, content: ghEncode(JSON.stringify(job)), branch: cfg.branch } });
+  } catch (e) {
+    if (btn) btn.disabled = false;
+    showToast('Not sent, so nothing will print: ' + (e.message || e) + ' Print it here, or send it again.', 'error');
+    return;
+  }
+  if (btn) btn.disabled = false;
+  // ID cards take their numbers when their sheet goes to paper (idcard.js): a sheet sent is a sheet printed.
+  if (typeof idcPrintCommit === 'function') idcPrintCommit();
+  var l = prtSent();
+  l.unshift({ id: id, title: title, at: job.sentAt, invId: invId, state: 'waiting' });
+  prtSentSave(l);
+  showToast('Sent to ' + prtName() + ': it prints when the print station takes it', 'success');
+  prtSentArm();
+}
+
+/* The sender's look at its own waiting jobs: a job gone from the queue was printed (or cancelled here, which says so). */
+var _prtSentTimer = null;
+function prtSentArm() {
+  clearTimeout(_prtSentTimer);
+  if (!prtSent().some(function(j) { return j.state === 'waiting'; })) return;
+  _prtSentTimer = setTimeout(function() { prtSentCheck().catch(function() {}).then(prtSentArm); }, PRT_SENT_POLL_MS);
+}
+async function prtSentCheck() {
+  var l = prtSent(), waiting = l.filter(function(j) { return j.state === 'waiting'; });
+  if (!waiting.length || prtSendBlocked() || document.hidden) return;
+  var queue = await prtList(getGhConfig()), there = {};
+  queue.forEach(function(j) { there[j.id] = 1; });
+  var printed = [];
+  waiting.forEach(function(j) { if (!there[j.id]) { j.state = 'printed'; j.doneAt = Date.now(); printed.push(j); } });
+  if (!printed.length) { prtRefreshSection(); return; }
+  prtSentSave(l);
+  printed.forEach(function(j) {
+    // As Print marks a Created invoice Printed (print.js), the job taken marks it, on the device that sent it.
+    var inv = j.invId && S.invoices.find(function(i) { return i.id === j.invId; });
+    if (inv && inv.status !== 'cancelled' && getInvState(inv) === 'created' && (typeof grdCan !== 'function' || grdCan('billing'))) {
+      invSetState(inv, 'printed'); saveState(); if (typeof invStateShown === 'function') invStateShown(inv.id);
+    }
+  });
+  showToast(printed.length === 1 ? 'Printed at the office: ' + printed[0].title : printed.length + ' documents printed at the office', 'success');
+  prtRefreshSection();
+}
+async function prtCancel(id) {
+  var cfg = getGhConfig(), job = (await prtList(cfg)).find(function(j) { return j.id === id; });
+  var l = prtSent(), mine = l.find(function(j) { return j.id === id; });
+  if (!job) { if (mine && mine.state === 'waiting') { mine.state = 'printed'; mine.doneAt = Date.now(); prtSentSave(l); } showToast('Already taken by the print station', 'warning'); prtRefreshSection(); return; }
+  await prtDelete(cfg, job, 'Print cancelled: ' + (mine ? mine.title : id));
+  if (mine) { mine.state = 'cancelled'; mine.doneAt = Date.now(); prtSentSave(l); }
+  showToast('Cancelled: it will not print', 'success');
+  prtRefreshSection();
+}
+
+/* ---- The print station ---- */
+/* A job's document, cleaned: what a print needs (the markup and its classes) and nothing that runs. */
+function prtClean(html) {
+  var doc = new DOMParser().parseFromString('<!doctype html><body>' + String(html || '') + '</body>', 'text/html');
+  doc.body.querySelectorAll('script, iframe, object, embed, link, meta, base, form, input, button, textarea, select, style').forEach(function(el) { el.remove(); });
+  doc.body.querySelectorAll('*').forEach(function(el) {
+    Array.prototype.slice.call(el.attributes).forEach(function(a) {
+      var n = a.name.toLowerCase(), v = String(a.value || '').replace(/\s/g, '').toLowerCase();
+      if (/^on/.test(n) || n === 'data-action' || n === 'style' || ((n === 'href' || n === 'src' || n === 'xlink:href' || n === 'action') && /^(javascript|vbscript|data:text)/.test(v))) el.removeAttribute(a.name);
+    });
+  });
+  return doc.body.innerHTML;
+}
+var _prtTimer = null, _prtBusy = false, _prtLast = null;
+function prtStationArm() {
+  clearTimeout(_prtTimer);
+  if (!prtIsStation() || !prtCfg().on) return;
+  _prtTimer = setTimeout(function() { prtStationTick().catch(function(e) { _prtLast = { at: Date.now(), error: e.message || String(e) }; }).then(prtStationArm); }, PRT_POLL_MS);
+}
+/* One look: the oldest job is printed and taken off the queue; the next look takes the next. Nothing is printed over a preview
+   somebody has open here, or while the app cannot reach GitHub. */
+async function prtStationTick() {
+  // One window of the station prints: two open would print every job twice (the GitHub push's lock, github-sync.js).
+  if (navigator.locks && navigator.locks.request) {
+    return navigator.locks.request('sep-print-station', { ifAvailable: true }, function(lock) { return lock ? prtStationTickLocked() : null; });
+  }
+  return prtStationTickLocked();
+}
+async function prtStationTickLocked() {
+  if (_prtBusy || !prtIsStation() || !prtCfg().on || prtSendBlocked()) return;
+  var view = document.getElementById('invPrintView');
+  if (view && view.classList.contains('inv-print-view-active')) return;
+  _prtBusy = true;
+  try {
+    var cfg = getGhConfig(), queue = await prtList(cfg);
+    _prtLast = { at: Date.now(), waiting: queue.length };
+    var job = queue[0];
+    if (!job) return;
+    // Printed here already and its file not yet gone (a delete that failed): taken off, never printed twice.
+    if (prtLog().some(function(r) { return r.id === job.id && r.state === 'printed'; })) {
+      await prtDelete(cfg, job, 'Printed at the office (removed again)');
+      return;
+    }
+    var text = await ghRequest(prtJobUrl(cfg, job.id) + '?ref=' + encodeURIComponent(cfg.branch), { raw: true });
+    var data = null;
+    try { data = JSON.parse(text); } catch (e) { data = null; }
+    if (!data || data.kind !== 'sep-print' || typeof data.html !== 'string') {
+      await prtDelete(cfg, job, 'Print job not readable, removed by the print station');
+      prtLogAdd({ id: job.id, title: job.name, at: Date.now(), state: 'unreadable' });
+      return;
+    }
+    prtPrintHere(data);
+    prtLogAdd({ id: job.id, title: data.title || '', from: data.sentBy || '', sentAt: data.sentAt || null, at: Date.now(), state: 'printed' });
+    await prtDelete(cfg, job, 'Printed at the office: ' + String(data.title || job.id).slice(0, 120));
+    showToast('Printed: ' + (data.title || 'a document') + (data.sentBy ? ', sent from ' + data.sentBy : ''), 'success');
+    prtRefreshSection();
+  } finally { _prtBusy = false; }
+}
+/* The job drawn in the print view and printed: with --kiosk-printing straight to the default printer, else through the dialog. */
+function prtPrintHere(data) {
+  var body = document.getElementById('invPrintBody'), view = document.getElementById('invPrintView');
+  body.innerHTML = prtClean(data.html);
+  view.classList.add('inv-print-view-active');
+  document.body.style.overflow = 'hidden';
+  document._savedTitle = document.title;
+  document.title = String(data.title || 'Document');
+  printFit();
+  try { window.print(); } finally { closePrintPreview(); }
+}
+
+/* ---- Settings → Connections → Office printer ---- */
+function prtWhen(ts) { return ts ? formatDate(isoOf(new Date(ts))) + ' ' + new Date(ts).toTimeString().slice(0, 5) : ''; }
+function prtStatusHtml() {
+  var h = '';
+  if (prtIsStation()) {
+    var last = _prtLast;
+    h += '<div class="inv-callout inv-callout-' + (last && last.error ? 'warning' : 'info') + ' inv-mb-8" data-prt-station>This device is the print station. ' +
+      (last ? (last.error ? 'The last look at the queue failed: ' + escHtml(last.error) : 'Last looked ' + escHtml(prtWhen(last.at)) + ': ' + todoPlural(last.waiting, 'job') + ' waiting.') : 'It looks at the queue every few seconds while the app is open.') + '</div>';
+    var log = prtLog().slice(0, 5);
+    if (log.length) h += '<div class="inv-field-label">Printed here</div>' + log.map(function(r) {
+      return '<div class="inv-row" data-prt-log><span class="inv-row-main"><span class="inv-row-title">' + escHtml(r.title || r.id) + '</span>' +
+        '<span class="inv-row-meta">' + escHtml(prtWhen(r.at) + (r.from ? ' · from ' + r.from : '')) + '</span></span>' +
+        '<span class="inv-row-end"><span class="inv-dot inv-dot-' + (r.state === 'printed' ? 'ok' : 'warning') + '">' + (r.state === 'printed' ? 'printed' : 'not readable') + '</span></span></div>';
+    }).join('');
+  }
+  var sent = prtSent().slice(0, 6);
+  if (sent.length) h += '<div class="inv-field-label inv-mt-8">Sent from this device</div>' + sent.map(function(j) {
+    var late = j.state === 'waiting' && Date.now() - j.at > PRT_LATE_MS;
+    var word = j.state === 'printed' ? 'printed' : j.state === 'cancelled' ? 'cancelled' : late ? 'waiting: is the station on?' : 'waiting';
+    var tone = j.state === 'printed' ? 'ok' : j.state === 'cancelled' ? 'neutral' : late ? 'warning' : 'info';
+    return '<div class="inv-row" data-prt-sent="' + escHtml(j.id) + '"><span class="inv-row-main"><span class="inv-row-title">' + escHtml(j.title) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml('sent ' + prtWhen(j.at) + (j.doneAt ? ' · ' + j.state + ' ' + prtWhen(j.doneAt) : '')) + '</span></span>' +
+      '<span class="inv-row-end"><span class="inv-dot inv-dot-' + tone + '">' + word + '</span>' +
+      (j.state === 'waiting' ? '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invPrtCancel" data-id="' + escHtml(j.id) + '">Cancel</button>' : '') + '</span></div>';
+  }).join('');
+  return h;
+}
+function prtRefreshSection() {
+  var host = document.querySelector('[data-prt-status]');
+  if (host) host.innerHTML = prtStatusHtml();
+}
+function prtFieldsHtml() {
+  var c = prtCfg(), blocked = c.on ? prtSendBlocked() : '';
+  var inp = function(id, v, ph) { return '<input class="inv-input" id="' + id + '" value="' + escHtml(v) + '" placeholder="' + ph + '" autocomplete="off">'; };
+  return (blocked ? '<div class="inv-callout inv-callout-warning inv-mb-8" data-prt-blocked>' + escHtml(blocked) + '</div>' : '') +
+    '<div class="inv-field"><label class="inv-field-check" for="setPrtOn"><input type="checkbox" id="setPrtOn" class="inv-check"' + (c.on ? ' checked' : '') + '>' +
+    '<span>Send prints to the office printer</span></label>' +
+    '<div class="inv-field-hint">Every print preview gets <strong>Send to office</strong> beside Print, on every device with GitHub sync.</div></div>' +
+    '<div class="inv-fields">' + _sfg('Printer', 'setPrtName', inp('setPrtName', c.name, 'Brother DCP-B7535DW')) +
+      _sfg('Its address on the office Wi-Fi', 'setPrtAddr', inp('setPrtAddr', c.address, '192.168.1.5'), 'For setting it up on the station computer') + '</div>' +
+    _sfg('Toner cartridge', 'setPrtCart', inp('setPrtCart', c.cartridge, 'TN-B021')) +
+    '<div class="inv-field"><label class="inv-field-check" for="setPrtStation"><input type="checkbox" id="setPrtStation" class="inv-check"' + (prtIsStation() ? ' checked' : '') + '>' +
+    '<span>This device is the print station</span></label>' +
+    '<div class="inv-field-hint">Tick it on the office computer the printer is installed on, and on no other device. Kept on this device only.</div></div>' +
+    '<div data-prt-status>' + prtStatusHtml() + '</div>';
+}
+function prtSave() {
+  if (!S.printer) S.printer = {};
+  var on = document.getElementById('setPrtOn'), st = document.getElementById('setPrtStation');
+  S.printer.on = !!(on && on.checked);
+  S.printer.name = (_sVal('setPrtName') || '').trim();
+  S.printer.address = (_sVal('setPrtAddr') || '').trim();
+  S.printer.cartridge = (_sVal('setPrtCart') || '').trim();
+  if (st) prtSetStation(st.checked);
+  prtApply();
+}
+var PRT_SETTINGS_SEC = {
+  title: 'Office printer',
+  summary: function() {
+    var c = prtCfg();
+    if (!c.on) return 'off';
+    return escHtml((c.name || 'on') + (prtIsStation() ? ' · this device is the print station' : ''));
+  },
+  body: function() { return prtFieldsHtml(); },
+  why: 'A page on the internet cannot reach a printer on the office Wi-Fi, so a print sent from anywhere goes to the GitHub sync repository as a job, and the print station prints it. ' +
+    'To set the station up, once, on the office computer: add the printer in Windows by its address on the Wi-Fi and make it the default printer; ' +
+    'give the app’s shortcut (Chrome or Edge) <span class="inv-id">--kiosk-printing</span> at the end of its target, so it prints to the default printer with no dialog; open the app, tick ' +
+    '<strong>This device is the print station</strong> here, and leave the app open. A job waits on GitHub until the station is on; the device that sent it says when it has printed, and a ' +
+    'Created invoice sent this way is marked Printed then. On the office Wi-Fi a phone can also print straight from Print, through Android’s print service (Mopria or Brother’s plug-in).',
+  save: function() { prtSave(); }
+};
+
+function prtBoot() {
+  prtApply();
+  prtSentArm();
+  document.addEventListener('visibilitychange', function() {
+    if (document.hidden) return;
+    if (prtIsStation()) prtStationTick().catch(function() {});
+    prtSentCheck().catch(function() {});
+  });
+}
+
+(function() {
+  if (typeof SETTINGS_SECS === 'undefined' || typeof SETTINGS_GROUPS === 'undefined') return;
+  SETTINGS_SECS.printer = PRT_SETTINGS_SEC;
+  var g = SETTINGS_GROUPS.find(function(x) { return x.key === 'connections'; });
+  if (g && g.secs.indexOf('printer') < 0) g.secs.push('printer');
+})();
 /* ===== QUALITY CERTIFICATE (Test Certificate — ZN Plating) ===== */
 /*
  * A quality certificate is issued per part per dispatch, not per invoice: one
@@ -53499,7 +53850,7 @@ function fshProdPreview(kind) {
    - T3, THE FLOW ON SCREEN: on a client's page and Floor's Overview, the median working days from the challan to pickling, to
      plating and to despatch, and the days from invoice to payment, against the target and the terms; each open challan's expected
      despatch day and each open invoice's expected payment day.
-   Days of work are working days (Sundays out, statsWorkingDays): a challan of Saturday back on Monday met a one-day target. Days to
+   Days of work are working days (Sundays, the paid holidays and the days the plant is shut out, flowIsWorkday): a challan of Saturday back on Monday met a one-day target. Days to
    pay are calendar days, as the terms are. Despatch is the day written on the invoice as despatched (the invoice's own date is the
    day its challans are collected, the owner's word), else the invoice's date. Pickling and plating are In plant's own reading of
    which load and which run went against which challan line, oldest first (production.js prodInPlant): estimates for one line, firm
@@ -53512,7 +53863,17 @@ var FLOW_RED_AFTER = 2;      // working days past the target before material pas
 
 function flowCfg() {
   var c = (S && S.flowCfg) || {};
-  return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45 };
+  return { turnDays: c.turnDays >= 0 && c.turnDays !== '' && c.turnDays != null ? +c.turnDays : 1, termsDays: c.termsDays > 0 ? +c.termsDays : 45,
+    holidays: Array.isArray(c.holidays) ? c.holidays : [] };
+}
+/* A day the plant works, for the turnaround (owner, 14 Oct 2026: "the national holidays and state holidays should not count as
+   working days for turnaround"): never a Sunday, a paid holiday (Settings → Labour, the national ones), or a day the plant is shut
+   that is set on the turnaround (a state holiday: MM-DD every year, or a full date). */
+function flowIsWorkday(iso) {
+  if (new Date(iso + 'T00:00:00').getDay() === 0) return false;
+  var h = flowCfg().holidays;
+  if (h.indexOf(iso) >= 0 || h.indexOf(iso.slice(5)) >= 0) return false;
+  return typeof labourIsHoliday === 'function' ? !labourIsHoliday(iso) : true;
 }
 function flowClient(id) { return id == null ? null : (S.clients || []).find(function(c) { return String(c.id) === String(id); }) || null; }
 function flowSetNum(v) { return v !== '' && v != null && isFinite(+v) && +v >= 0; }
@@ -53535,11 +53896,16 @@ function flowBackWord(n) { return n === 0 ? 'back the same day' : 'back in ' + t
 /* "a 1-day target", "a same-day target": a target named in a head. */
 function flowTargetWord(n) { return (n === 0 ? 'same-day' : n + '-day') + ' target'; }
 /* Working days after `a` up to `b` (the day of `a` itself is day 0); never below 0. */
-function flowWd(a, b) { return a && b && b > a ? prodWorkingDaysBetween(a, b) : 0; }
+function flowWd(a, b) {
+  if (!(a && b && b > a)) return 0;
+  var n = 0, d = a;
+  for (var g = 0; g < 4000; g++) { d = isoAddDays(d, 1); if (d > b) break; if (flowIsWorkday(d)) n++; }
+  return n;
+}
 /* The working day `n` working days after `iso`. */
 function flowAddWd(iso, n) {
   var d = iso, g = 0;
-  while (n > 0 && g++ < 400) { d = isoAddDays(d, 1); if (new Date(d + 'T00:00:00').getDay() !== 0) n--; }
+  while (n > 0 && g++ < 400) { d = isoAddDays(d, 1); if (flowIsWorkday(d)) n--; }
   return d;
 }
 /* A median weighted by value (a line of ₹40,000 says more about the flow than one of ₹40); plain where nothing carries a value. */
@@ -60553,6 +60919,11 @@ function cpPriorSameDays(clientId) {
   return out;
 }
 
+/* Whether Performance shows rupees: what a client was billed, its ₹/kg, what an hour earns. A role that does not see money (the
+   Office role, by default) reads the client in tonnes and pieces only (owner, 14 Oct 2026: "Yes, it should be hidden too", on the
+   Office role seeing revenue here). */
+function cpSeesMoney() { return typeof grdSeesMoney !== 'function' || grdSeesMoney(); }
+
 /* ===== VIEW ===== */
 /* A material row: the part, how often and when it was last handled, and what it earned. A stopped
    part says how long it has been gone; a possible rename says so. */
@@ -60576,7 +60947,7 @@ function _cpMaterialRowList(list, renames) {
       // A part that only ever arrived on a challan has no revenue yet. Printing
       // Rs 0.00 for it reads as worthless work rather than unbilled work.
       '<span class="inv-row-end">' +
-      (m.invoiced > 0 ? '<span class="inv-num">' + formatCurrency(m.revenue) + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
+      (m.invoiced > 0 ? '<span class="inv-num">' + (cpSeesMoney() ? formatCurrency(m.revenue) : m.kg > 0 ? cpNum(m.kg) + ' kg' : 'invoiced') + '</span>' : '<span class="inv-badge inv-badge-neutral">Challan only</span>') +
       '</span></div>';
   });
 }
@@ -60589,8 +60960,12 @@ function cpVerdictHtml(clientId, monthly, flags) {
   var today = localDateStr(), last = monthly[monthly.length - 1] || null, prev = monthly.length > 1 ? monthly[monthly.length - 2] : null;
   var partial = !!last && last.month === today.slice(0, 7), bench = !last ? null : partial ? cpPriorSameDays(clientId) : prev;
   var bl = partial ? 'the same days' : prev ? prev.label : '';
-  var verdict, tone = 'neutral', delta = '', dTone = null, money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
-  if (last && last.realisation != null) {
+  var verdict, tone = 'neutral', delta = '', dTone = null, money = cpSeesMoney();
+  if (last && !money) {
+    // No rupees for this role: the month in tonnes, against the month before.
+    verdict = formatNum(last.kg / 1000, 2) + ' t ' + (partial ? 'this month' : 'in ' + last.label);
+    if (bench && bench.kg != null) { delta = figDeltaText(last.kg, bench.kg, bl); dTone = figDeltaTone(last.kg, bench.kg, 'up'); }
+  } else if (last && last.realisation != null) {
     // Against the cost is a margin, which a role that does not see money is not shown (guard.js: Office has no margins).
     var cost = money ? cpMonthCost(last.month) : null;
     tone = (cost && figToneAgainst(last.realisation, cost.perKg, 5)) || 'neutral';
@@ -60607,7 +60982,7 @@ function cpVerdictHtml(clientId, monthly, flags) {
   var word = function(t) { return typeof CLIENT_FLAG_WORD !== 'undefined' && CLIENT_FLAG_WORD[t.rule] || 'flagged'; };
   var facts = [worst ? { text: word(worst) + (flags.length > 1 ? ' and ' + (flags.length - 1) + ' more' : ''), tone: /^(warning|danger)$/.test(fTone) ? fTone : '' } : 'nothing flagged',
     delta ? { text: delta, tone: dTone || '' } : '',
-    last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
+    money && last && last.realisation != null ? finRs(last.revenue) + ' billed ' + (partial ? 'this month' : 'in ' + last.label) : ''];
   return uiVerdictHtml({ screen: 'Performance · ' + uiVerdictFit(c.name || '', ''), tone: tone, verdict: uiVerdictFit(verdict, ''), facts: facts,
     // A flag's figure: its amount in rupees for a role that sees money (the turnaround's tasks name one to every role that sees
     // them), else its own count, else a dash; never a 1 standing for a task that counts nothing.
@@ -60677,19 +61052,21 @@ function renderClientPerformance(container) {
   var seg = function(k, l) {
     return '<button type="button" class="inv-seg-btn" data-action="invPerfSeries" data-series="' + k + '" aria-pressed="' + (_cpSeries === k) + '">' + l + '</button>';
   };
+  var money = cpSeesMoney();
+  var measure = money ? _cpSeries : 'tonnage';
   html += '<div class="inv-panel" data-cp-trend>' +
     '<div class="inv-panel-head inv-mb-8"><span class="inv-panel-title">Month on month <span class="inv-note">last ' + monthly.length + ' month' + (monthly.length !== 1 ? 's' : '') + '</span></span></div>' +
-    '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>';
+    (money ? '<div class="inv-seg inv-mb-8" role="group" aria-label="Measure">' + seg('revenue', '₹') + seg('tonnage', 'Tonnes') + seg('rate', '₹/kg') + '</div>' : '');
 
   var series = monthly.map(function(r) {
     return {
       label: r.label,
       // A month with nothing weighed has no ₹/kg: a gap, never a ₹0.00 bar.
-      value: _cpSeries === 'tonnage' ? r.kg : _cpSeries === 'rate' ? r.realisation : r.revenue
+      value: measure === 'tonnage' ? r.kg : measure === 'rate' ? r.realisation : r.revenue
     };
   });
   html += chartBars(series, {
-    unit: _cpSeries === 'tonnage' ? 'kg' : _cpSeries === 'rate' ? 'rate' : 'money',
+    unit: measure === 'tonnage' ? 'kg' : measure === 'rate' ? 'rate' : 'money',
     ariaLabel: 'Month on month',
     // The month running is drawn as to date (TM6b).
     toDate: chartToDateAt(monthly.map(function(r) { return r.month; }), localDateStr().slice(0, 7))
@@ -60708,9 +61085,15 @@ function renderClientPerformance(container) {
     var p = function(v) { return bench ? { v: v, label: bl } : null; };
     // Realisation is judged at the month's own live cost, the figure Stats and Home judge it by, not the typed one; for a role that
     // sees money only, as the card's verdict is (the cost against it is a margin).
-    var cost = last.realisation != null && (typeof grdSeesMoney !== 'function' || grdSeesMoney()) ? cpMonthCost(last.month) : null;
+    var cost = last.realisation != null && money ? cpMonthCost(last.month) : null;
     var full = monthly.filter(function(r) { return r.month !== thisYm; });
-    html += '<div class="inv-tiles inv-tiles-flush">' +
+    if (!money) html += '<div class="inv-tiles inv-tiles-flush">' +
+      tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>',
+        last.count + ' invoice' + (last.count !== 1 ? 's' : '') + ' · ' + cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
+      tile('Average month', full.length ? formatNum(full.reduce(function(t, r) { return t + r.kg; }, 0) / full.length / 1000, 2) + '<span class="inv-tile-of"> t</span>' : '&mdash;',
+        full.length ? 'over ' + full.length + ' full month' + (full.length !== 1 ? 's' : '') : 'no full month yet', '') +
+      '</div>';
+    else html += '<div class="inv-tiles inv-tiles-flush">' +
       tile((partial ? 'Month to date · ' : 'Latest month · ') + escHtml(last.label), formatCurrency(last.revenue),
         last.count + ' invoice' + (last.count !== 1 ? 's' : ''), _cpDelta(last.revenue, p(bench && bench.revenue))) +
       tile('Tonnage', formatNum(last.kg / 1000, 2) + '<span class="inv-tile-of"> t</span>', cpNum(last.kg) + ' kg', _cpDelta(last.kg, p(bench && bench.kg))) +
@@ -60907,7 +61290,7 @@ function cpWorkedListHtml(clientId) {
   var h = '<div class="inv-row inv-row-strong" data-cp-worked-total><span class="inv-row-main"><span class="inv-row-title">' +
     (_cpQuery ? '&ldquo;' + escHtml(_cpQuery) + '&rdquo;' : 'Everything') + ' · ' + todoPlural(tot.parts, 'part') +
     (_cpScope === 'all' ? ' · ' + todoPlural(Object.keys(tot.clients).length, 'client') : '') + '</span>' +
-    '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
+    '<span class="inv-row-meta inv-row-wrap">' + todoPlural(nCh, 'challan') + ' in ' + escHtml(rg.label) + (tot.rev > 0 && cpSeesMoney() ? ' · ' + formatCurrency(tot.rev) + ' invoiced' : '') + '</span></span>' +
     '<span class="inv-row-end inv-num">' + escHtml(cpQtyText(tot.nos, tot.kg)) + '</span></div>';
   if (!list.length) return h + '<div class="inv-empty">' + (all.length ? 'No part matches that search in ' + escHtml(rg.label) + '.' : 'Nothing was sent or billed in ' + escHtml(rg.label) + '.') + '</div>';
   var rows = list.map(function(r) {
@@ -60925,7 +61308,7 @@ function cpWorkedListHtml(clientId) {
       var q = cpNum(e.qty, e.unit === 'KG' && e.qty % 1 ? 2 : 0) + ' ' + (e.unit === 'KG' ? 'kg' : 'NOS') + (e.nos ? ' (' + cpNum(e.nos) + ' NOS)' : '');
       var act = e.kind === 'invoice' ? ' data-action="invViewInvoiceDetail" data-id="' + escHtml(e.id) + '"' : ' data-action="invHistoryJumpChallan" data-id="' + escHtml(e.id) + '"';
       return '<div class="inv-row inv-row-2"><button class="inv-row-main"' + act + '><span class="inv-row-title">' + escHtml(formatDate(e.date)) + ' · ' + escHtml(what) + '</span>' +
-        '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
+        '<span class="inv-row-meta">' + (e.kind === 'challan' ? 'sent' : 'billed' + (e.amount && cpSeesMoney() ? ' · ' + formatCurrency(e.amount) : '')) + '</span></button>' +
         '<span class="inv-row-end inv-num">' + escHtml(q) + '</span></div>';
     }).join('');
     return '<details class="inv-row-fold" data-cp-worked="' + escHtml(r.key) + '"><summary class="inv-row inv-row-2"' + (r.plated ? ' title="' + escHtml(todoPlural(r.plated, 'plating')) + '"' : '') + '><span class="inv-row-main">' +
@@ -60935,7 +61318,7 @@ function cpWorkedListHtml(clientId) {
       (others.length ? '<span class="inv-row-meta inv-row-wrap" data-cp-shared title="' + escHtml(others.join(', ')) + '"><span class="inv-dot inv-dot-info">Code shared</span> ' +
         escHtml(others.length === 1 ? others[0] + ' also sends it' : others.length + ' other clients send it too') + ', counted apart</span>' : '') +
       '</span><span class="inv-row-end"><span class="inv-row-stack"><span class="inv-num">' + escHtml(cpQtyText(r.nos, r.kg, r.kgUnknown)) + '</span>' +
-      (r.revenue > 0 ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
+      (r.revenue > 0 && cpSeesMoney() ? '<span class="inv-row-meta">' + formatCurrency(r.revenue) + '</span>' : '') + '</span></span></summary>' +
       '<div class="inv-row-children">' + ev + '</div></details>';
   });
   return h + uiMoreHtml('cp-worked-' + (_cpScope === 'all' ? 'all' : clientId) + '-' + _cpPeriod, rows, { n: 30, noun: 'parts' });
@@ -61129,7 +61512,7 @@ function cpSrcWord(x) { return x.src === 'set' ? 'set' : x.src === 'measured' ? 
    step by step, what it earns, what the record has timed and what to look at, each a fact row (they were sentences of up to 160
    characters). How the figures are worked out is the guide's (Using the app: clients and sales). */
 function cpRoundRowHtml(client, t, ref, rg, auto) {
-  var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null;
+  var rd = cpRound(client, t), tone = rd.perHour != null && ref ? figToneAgainst(rd.perHour, ref.cost, 5) : null, money = cpSeesMoney();
   var fig = function(x, unit) { return x.v != null ? x.v + (unit || '') + ' (' + cpSrcWord(x) + ')' : '? (' + cpSrcWord(x) + ')'; };
   var mat = cpMaterials(client.id, rg.from, rg.to).filter(function(x) { return x.base === t.base && (!t.gauge || !x.gauge || x.gauge === t.gauge); });
   var pcs = mat.reduce(function(a, x) { return a + x.billedNos; }, 0), rev = mat.reduce(function(a, x) { return a + x.revenue; }, 0);
@@ -61140,18 +61523,18 @@ function cpRoundRowHtml(client, t, ref, rg, auto) {
     '<span class="inv-row-title"><span class="inv-id">' + escHtml(t.name) + '</span>' + (t.line ? ' · ' + escHtml(prodLineName(t.line)) : '') + (auto ? ' · <span class="inv-note">from the record</span>' : '') + '</span>' +
     '<span class="inv-row-meta inv-row-wrap">' + escHtml(fig(rd.pcs, ' pcs') + ' a round · ' + (rd.total ? Math.round(rd.total) + ' min a round' : 'its minutes not known')) + '</span>' +
     (hints.length ? '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot inv-dot-' + hints[0].tone + '">' + todoPlural(hints.length, 'thing', 'things') + ' to look at</span></span>' : '') +
-    '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
+    '</span><span class="inv-row-end"><span class="inv-row-stack">' + (rd.perHour != null && money ? figHtml(formatCurrency(rd.perHour), tone) + '<span class="inv-row-meta">an hour</span>' : rd.total && !money ? '<span class="inv-num">' + Math.round(rd.total) + ' min</span><span class="inv-row-meta">a round</span>' : '<span class="inv-row-meta">—</span>') + '</span></span></summary>' +
     '<div class="inv-row-children">';
   var step = function(label, x, key) { return uiFactRowHtml({ label: label, value: x.v != null ? x.v + ' min' : '', sub: cpSrcWord(x), attrs: ' data-cp-step="' + key + '"' }); };
   h += step('Pickling', rd.pickle, 'pickle') + step('Plating', rd.plate, 'plate') +
     uiFactRowHtml({ label: 'Logistics and other steps', value: rd.over + ' min', sub: 'every round, set on the panel', attrs: ' data-cp-step="over"' }) +
     (rd.total ? uiFactRowHtml({ label: 'A round', value: Math.round(rd.total) + ' min', sub: fig(rd.pcs, ' pieces'), attrs: ' data-cp-step="round"' }) : '');
   h += uiFactRowHtml({ label: 'Rate', value: rd.rate ? formatCurrency(rd.rate.rate) + '/' + (rd.rate.unit === 'NOS' ? 'pc' : 'kg') : '', sub: rd.rate ? rd.rate.src : 'no rate on record', attrs: ' data-cp-rate' }) +
-    (rd.perRound != null ? uiFactRowHtml({ label: 'A round earns', value: formatCurrency(rd.perRound), attrs: ' data-cp-earns' }) : '');
+    (rd.perRound != null && money ? uiFactRowHtml({ label: 'A round earns', value: formatCurrency(rd.perRound), attrs: ' data-cp-earns' }) : '');
   h += uiFactRowHtml({ label: 'Plating rounds timed', value: String(rd.m.nPlate || 0), attrs: ' data-cp-measured',
     sub: [rd.m.nPickle ? todoPlural(rd.m.nPickle, 'pickling load') + ' timed' : 'no pickling load timed', rd.m.first ? formatDate(rd.m.first) + ' – ' + formatDate(rd.m.last) : ''].filter(Boolean).join(' · ') });
   if (pcs > 0) h += uiFactRowHtml({ label: 'In ' + rg.label, value: 'about ' + formatNum(hrs, 1) + ' h', attrs: ' data-cp-billed',
-    sub: cpNum(pcs) + ' pcs billed for ' + formatCurrency(rev) + (ref ? ' · cost about ' + formatCurrency(hrs * ref.cost) : '') });
+    sub: cpNum(pcs) + ' pcs billed' + (money ? ' for ' + formatCurrency(rev) : '') + (ref ? ' · cost about ' + formatCurrency(hrs * ref.cost) : '') });
   // What to look at: a row each, its claim and its figures; the record's measure has Use at the end.
   hints.forEach(function(x) {
     h += '<div class="inv-row inv-row-2" data-cp-hint title="' + escHtml(x.text) + '"><span class="inv-row-main"><span class="inv-row-title">' + uiDot(x.tone === 'ok' ? 'ok' : x.tone === 'warning' ? 'warning' : 'info', escHtml(x.say)) + '</span>' +
@@ -62520,6 +62903,9 @@ function onDocClick(e) {
     case 'invFlowPrioSave': flowPrioritySave(); break;
     case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
     case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
+    // The office printer (remoteprint.js): the preview sent as a job; a waiting job cancelled.
+    case 'invPrintRemote': prtSend(); break;
+    case 'invPrtCancel': prtCancel(btn.dataset.id).catch(function(e) { showToast(e.message || String(e), 'error'); }); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;
@@ -66331,6 +66717,7 @@ function bootApp() {
   // Initial layout detection (no debounce)
   bootStep('the photo key', forgetGeminiKey);
   bootStep('the layout', updateLayoutMode);
+  bootStep('the office printer', function() { if (typeof prtBoot === 'function') prtBoot(); });
   bootStep('the counts on the bar', updateStockBadge);
 
   /* Phase 6b: Restore active tab on refresh */

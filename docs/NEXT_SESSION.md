@@ -7,6 +7,20 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 14 Oct 2026: printing at the office, and two answers (read this first)
+
+- **Remote print** (`remoteprint.js`, P217): Settings → Connections → Office printer. A preview is sent as a job to the sync repository
+  (`print-queue/`), and the office computer marked as the print station prints it. **A new data flow**: files under `print-queue/` in
+  the sync repository, written by any device and deleted by the station; they hold a rendered document (client names and figures),
+  live only until printed, and are no part of the book. The compile session should ignore that folder. **For the owner**: set the
+  printer up on the office computer (add it by its Wi-Fi address, make it the default, give the app's Chrome or Edge shortcut
+  `--kiosk-printing`), tick *This device is the print station* there, turn the section on, and send one invoice from a phone.
+- **Turnaround's working days** leave out the paid holidays (the national ones, Settings → Labour) and the days set on Turnaround and
+  terms as the plant shut (state holidays), as well as Sundays (`flowIsWorkday`; owner: *"Yes, the national holidays and state holidays
+  should not count as working days for turnaround"*). Every other day count in the app is unchanged.
+- **The Office role sees no rupee on Performance** (`cpSeesMoney`; owner: *"Yes, it should be hidden too"*): the month in tonnes, no ₹
+  or ₹/kg measure, no revenue on parts, Materials worked or By the hour.
+
 ## The owner's rulings of 13 Oct 2026 (PR #146)
 
 Asked ten open items with choices, the owner answered (CLAUDE.md, *The owner's rulings of 13 Oct 2026*, has each, built, P210):

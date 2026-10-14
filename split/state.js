@@ -60,7 +60,9 @@ function getDefaultState() {
     // Rate matcher thresholds (option E): Check at ≥ pct% off OR ≥ ₹stake on the line.
     rateCheck: { pct: 10, stake: 100, weightTol: 3 },
     // Turnaround and terms (flow.js, the entry faces' T1): working days from a challan to its despatch, days to pay an invoice.
-    flowCfg: { turnDays: 1, termsDays: 45 },
+    flowCfg: { turnDays: 1, termsDays: 45, holidays: [] },
+    // The office printer (remoteprint.js): sent to over GitHub, printed by the print station.
+    printer: { on: false, name: '', address: '', cartridge: '' },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
@@ -625,7 +627,7 @@ var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'par
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg', 'printer'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -1317,6 +1319,7 @@ function bookReload(why) {
     if (typeof _invalidateUsageCache === 'function') _invalidateUsageCache();
     // The book another window saved may say this device was removed: it forgets its GitHub token (devices.js).
     if (typeof devAfterLoad === 'function') devAfterLoad('reload');
+    if (typeof prtApply === 'function') prtApply();
     bookRedraw(why);
     // Users or roles changed elsewhere: a deactivated user is locked, a role that lost the page on screen sent Home.
     if (typeof grdRecheck === 'function') grdRecheck();

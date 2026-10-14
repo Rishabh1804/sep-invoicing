@@ -493,6 +493,7 @@ async function ghPull(opts) {
     // The book pulled may say this device was removed: it forgets its token and says why (devices.js). The pulled
     // copy's `_device` was beside the book, never in it: adoptState took env.state alone.
     if (typeof devAfterLoad === 'function') devAfterLoad('pull');
+    if (typeof prtApply === 'function') prtApply();
     return landed;
   } catch (err) {
     ghSetBusy(false);

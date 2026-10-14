@@ -253,6 +253,9 @@ function onDocClick(e) {
     case 'invFlowPrioSave': flowPrioritySave(); break;
     case 'invFlowPlant': prodSetTab('plant'); _prodView = 'main'; _prodPlantClient = ''; _prodEntryOpen = null; switchTab('pageProduction'); break;
     case 'invPrint': printMarkPrinted(); if (typeof idcPrintCommit === 'function') idcPrintCommit(); window.print(); break;
+    // The office printer (remoteprint.js): the preview sent as a job; a waiting job cancelled.
+    case 'invPrintRemote': prtSend(); break;
+    case 'invPrtCancel': prtCancel(btn.dataset.id).catch(function(e) { showToast(e.message || String(e), 'error'); }); break;
     // Quality certificate — one page per invoice line, single or bulk
     case 'invQualityCert': closeOverlay(); showQualityCertificates([btn.dataset.id]); break;
     case 'invRegQualityCerts': showQualityCertificates(_regSelectedIds()); break;

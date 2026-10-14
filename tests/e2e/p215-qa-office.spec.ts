@@ -183,7 +183,7 @@ test.describe('P215: Office and the flow thread, the QA chain', () => {
     expect(await tone(page, '[data-client-flow="11"] [data-flow-invoice="INV-91"] .inv-dot', 'dot')).toBe('warning');
   });
 
-  test('Performance: a role with no margins sees realisation with no cost against it; the owner sees the cost', async ({ page }) => {
+  test('Performance: a role with no money sees the client in tonnes, with no rupee, realisation or cost; the owner sees the cost', async ({ page }) => {
     const s = base(), thisMonth = todayIso().slice(0, 7);
     s.invoices = [inv('INV-1', 1, NOVA, thisMonth + '-01', 'dispatched', 100), inv('INV-2', 1, NOVA, monthBack(1) + '-10', 'filed', 50)];
     await loadAppWithState(page, s);
@@ -200,11 +200,12 @@ test.describe('P215: Office and the flow thread, the QA chain', () => {
     await withUsers(page);
     await unlock(page, 'U-off', PINS.office);
     await open();
-    await expect(page.locator('#cpVerdict .inv-hero-title')).toContainText('/kg');
-    await expect(page.locator('#cpVerdict .inv-hero-title')).not.toContainText('cost');
-    await expect(real).toContainText('/kg');
-    await expect(real).not.toContainText('cost');
-    expect(await real.evaluate(el => el.querySelector('.inv-fig-ok, .inv-fig-warning, .inv-fig-danger') !== null)).toBe(false);
+    // The owner, 14 Oct 2026: the Office role sees no revenue on Performance either ("Yes, it should be hidden too").
+    await expect(page.locator('#cpVerdict .inv-hero-title')).toContainText(' t ');
+    await expect(page.locator('#cpVerdict')).not.toContainText('₹');
+    await expect(real).toHaveCount(0);
+    await expect(page.locator('#clientPerfArea [data-cp-trend]')).not.toContainText('₹');
+    await expect(page.locator('#clientPerfArea [data-cp-trend] [data-action="invPerfSeries"]')).toHaveCount(0);
   });
 
   test('Performance → By the hour: a role with no margins reads each round’s earnings with no hour’s cost against them', async ({ page }) => {

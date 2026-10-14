@@ -262,6 +262,42 @@ test.describe('P142: devices, with the guard on', () => {
     await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
   });
 
+  test('a phone whose guard was turned on apart from the desk registers in GitHub\'s copy with that copy\'s owner PIN, never by a name', async ({ page }) => {
+    // The owner, 14 Oct 2026: the guard turned on on the desk and on the phone, each making its own owner ID. The phone's ID is
+    // not on GitHub's copy, which had stopped it with "add the ID on the owner's device".
+    const gh = new FakeGitHub();
+    await gh.on(page);
+    const desk = { id: 'dev-desk', name: 'Desk PC', user: 'u-own', registeredAt: Date.now() - 86400000, registeredBy: 'u-own', build: 'x' };
+    gh.setEnvelope(envelopeOf({ ...book({ users: [OWNER, SUPER], devices: [desk] }), clients: [{ id: 9, name: 'OWNERS CLIENT', billingMode: 'kg', gstType: 'intra' }] },
+      { device: 'Desk PC', deviceId: 'dev-desk' }));
+    // The phone's own owner: the same person, another ID and another PIN.
+    const phoneOwner = { ...OWNER, id: 'u-phone' };
+    await seedDevice(page, { token: TOKEN, session: 'u-phone', devId: 'dev-phone', cfg: { deviceName: 'Owner phone' } });
+    await open(page, book({ users: [phoneOwner], clients: [{ id: 1, name: 'PHONE CLIENT', billingMode: 'kg', gstType: 'intra' }] }));
+    await openSettingsAt(page, 'devices');
+    await page.locator('#devUserIn').selectOption('u-phone');
+    // The same name is not enough: GitHub's owner PIN is asked. A wrong one takes nothing.
+    await page.locator('[data-action="invDevRegister"]').click();
+    expect(await answerAsk(page, 'ok')).toContain('IDs of its own');
+    await page.locator('#grdAskPin').fill('0000');
+    await page.locator('[data-action="invGuardAskOk"]').click();
+    await expect(page.locator('[data-grd-err]')).not.toBeEmpty();
+    await page.locator('[data-grd-ask] [data-action="invGuardAskCancel"]').first().click();
+    expect(await g(page, 'S.clients[0].name')).toBe('PHONE CLIENT');
+    expect(await g(page, 'S.devices.length')).toBe(0);
+    expect(gh.puts).toHaveLength(0);
+    // GitHub's owner PIN: the phone takes the copy and is registered to the same person there.
+    await page.locator('[data-action="invDevRegister"]').click();
+    await answerAsk(page, 'ok');
+    await page.locator('#grdAskPin').fill('4826');
+    await page.locator('[data-action="invGuardAskOk"]').click();
+    expect(await answerAsk(page, 'ok')).toContain('GitHub holds a copy this device has not seen');
+    await expect(page.locator('.inv-toast')).toContainText('This device is registered in GitHub\'s copy');
+    expect(await g(page, 'S.clients[0].name')).toBe('OWNERS CLIENT');
+    expect(await g(page, 'S.devices.map(function (d) { return d.id + ":" + d.user; })')).toEqual(['dev-desk:u-own', 'dev-phone:u-own']);
+    expect(gh.envelope()._device).toMatchObject({ id: 'dev-phone', user: 'u-own' });
+  });
+
   test('beside an unguarded copy on GitHub, registering sends this device\'s book, and the push asks first as always', async ({ page }) => {
     const gh = new FakeGitHub();
     await gh.on(page);

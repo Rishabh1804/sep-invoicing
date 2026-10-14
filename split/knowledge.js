@@ -627,13 +627,17 @@ function kbLibraryHtml() {
   var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Articles <span class="inv-panel-count">' + list.length + '</span></span></div>';
   if (!list.length) h += '<div class="inv-empty">' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.') + '</div>';
   var rows = [];
-  KB_KINDS.forEach(function(k) {
-    var of = list.filter(function(a) { return a.kind === k[0]; }).sort(function(x, y) { return String(x.title).localeCompare(String(y.title)); });
+  // The shop's own articles first, by kind; the app's guides after them, as one group: 32 of them had led the list and put
+  // everything the shop wrote past its first thirty rows.
+  var byTitle = function(x, y) { return String(x.title).localeCompare(String(y.title)); };
+  var group = function(name, of) {
     if (!of.length) return;
-    rows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + escHtml(k[2]) + '</span><span>' + of.length + '</span></div>'] });
+    rows.push({ head: true, parts: ['<div class="inv-row-group"><span>' + escHtml(name) + '</span><span>' + of.length + '</span></div>'] });
     of.forEach(function(a) { rows.push(kbRowHtml(a)); });
-  });
-  return { verdict: verdict, search: 'Search articles', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: h + uiMoreHtml('kb-lib', rows, { n: 60, noun: 'articles' }) + '</div>' };
+  };
+  KB_KINDS.forEach(function(k) { group(k[2], list.filter(function(a) { return a.kind === k[0] && a.src !== 'build'; }).sort(byTitle)); });
+  group('The app’s guides', list.filter(function(a) { return a.src === 'build'; }).sort(byTitle));
+  return { verdict: verdict, search: 'Search articles', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: h + uiMoreHtml('kb-lib', rows, { noun: 'articles' }) + '</div>' };
 }
 /* Troubleshoot: faults by symptom, each with its incidents; then the latest incidents. */
 function kbTroubleHtml() {

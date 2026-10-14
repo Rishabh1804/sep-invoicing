@@ -93,6 +93,8 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     await loadAppWithState(page, book(Array.from({ length: 40 }, (_, i) => art('A' + i, 'guide', 'Article ' + String(i).padStart(2, '0'), i === 39 ? { body: long } : {}))));
     await know(page);
     const last = page.locator('[data-kb-row="A39"] [data-action="invKbOpen"]');
+    // The list shows its first thirty; the rest are a tap away.
+    if (!(await last.isVisible())) await page.locator('#kbLibrary [data-action="invShowMore"]').click();
     await last.scrollIntoViewIfNeeded();
     expect(await g(page, 'window.scrollY')).toBeGreaterThan(300);
     await last.click();

@@ -59,3 +59,36 @@ test('an unsaved section asks before the guide opens, and Keep editing stays', a
   await expect(page.locator('#settingsScrim')).toHaveCount(1);
   await expect(page.locator('#setPrtName')).toHaveValue('A printer');
 });
+
+/* The writing standard (owner, 14 Oct 2026): ASD-STE100 Simplified Technical English, followed 80% of the way. Before the
+   rewrite 106 of the guides' 696 sentences ran past 25 words; after it, 7 of 1,211, each a list written out in a sentence. */
+test('every app guide is written in Simplified Technical English, 80% of the way', async ({ page }) => {
+  await loadAppWithState(page, book());
+  const r = await page.evaluate(() => {
+    const sents = (b: string) => b.split('\n').map(l => l.replace(/^(#|-|\d+\.)\s+/, '')).join('\n')
+      .split(/(?<=[.!?])\s+|\n+/).map(s => s.trim()).filter(Boolean);
+    let all = 0, over25 = 0, over35 = 0, semis = 0;
+    for (const a of (window as any).KB_APP_GUIDES) {
+      for (const s of sents(a.body)) { const n = s.split(/\s+/).length; all++; if (n > 25) over25++; if (n > 35) over35++; }
+      semis += (a.body.match(/;/g) || []).length;
+    }
+    const w = (window as any).KB_APP_GUIDES.find((a: any) => a.id === 'app-writing');
+    return { all, over25, over35, semis, writing: w && w.body };
+  });
+  expect(r.over35).toBe(0);
+  expect(r.over25 / r.all).toBeLessThan(0.02);
+  expect(r.semis).toBe(0);
+  expect(r.writing).toContain('Simplified Technical English');
+  expect(r.writing).toContain('20 words or fewer');
+});
+
+test('the Library lists the shop’s own articles first, and the app’s guides after them in one group', async ({ page }) => {
+  const s = book();
+  (s as any).kb = { articles: [{ id: 'kb-mine-1', kind: 'guide', title: 'Zinc bath top-up', status: 'published', version: 1, versions: [], roles: [], body: 'Add the zinc.', links: [], by: 'Owner', at: Date.now() }], trained: [], paths: [] };
+  await loadAppWithState(page, s);
+  await page.evaluate(() => (window as any).navApply({ tab: 'pageKnow', v: 'library', id: '' }));
+  const heads = await page.locator('#kbLibrary .inv-row-group > span:first-child').allTextContents();
+  expect(heads[0]).toBe('How-tos');
+  expect(heads[heads.length - 1]).toBe('The app’s guides');
+  await expect(page.locator('#kbLibrary [data-kb-row="kb-mine-1"]')).toBeVisible();
+});

@@ -1192,6 +1192,7 @@ async function grdTurnOff() {
    its Save asks under (default 'settings'), and `saveIf` whether it has a Save at all. */
 var GRD_SETTINGS_SEC = {
   title: 'Users & access',
+  guide: 'app-guard',
   guard: 'users',
   summary: function() {
     if (!grdOn()) return 'off &middot; no ID or PIN asked';

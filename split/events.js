@@ -151,6 +151,7 @@ function onDocClick(e) {
     case 'invSaveInvoice': saveInvoice(); break;
     case 'invResetForm': initCreateForm(); break;
     case 'invSaveSettingsSec': saveSettingsSection(btn.dataset.sec); break;
+    case 'invSettingsGuide': settingsGuide(btn.dataset.id); break;
     case 'invSettingsGroup': settingsShowGroup(btn.dataset.group); break;
     case 'invAppearance': appearancePick(btn.dataset.k, btn.dataset.v); break;
     case 'invCloseSettings': closeSettings(); break;

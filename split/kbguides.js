@@ -379,7 +379,63 @@ var KB_APP_GUIDES = [
     '- The WhatsApp group keeps getting its messages: each save offers **Send to the group** in the shop’s own shape.\n\n' +
     '# Paper\n- Each person prints their own blank sheets and the day as entered from Mine. **Print sheets** on Production, under More in its toolbar, prints the pickling sheet, the barrel batches and the VAT pages for any day.',
     // Version 2: a face's entries need the role's Floor entries (the Office role has none by default).
-    { roles: ['owner'], version: 2 })
+    { roles: ['owner'], version: 2 }),
+  // The setup guides (owner, 14 Oct 2026: "These (print, GitHub, etc.) should be knowledge base documents"). Each is opened from its
+  // Settings section too (settings.js `guide`). They name no printer, repository or person: the book holds those.
+  _kbg('printer', 'Setting up: the office printer', 'Print from any phone on the office printer, through GitHub sync', ['pageRegister'],
+    'A phone cannot reach a printer on the office Wi-Fi from the app, so a print goes through GitHub: the phone leaves the job there, and one computer in the office, the **print station**, prints it.\n\n' +
+    '# Before you start\n- GitHub sync is set up on every device that sends, and on the station (*Setting up: GitHub sync*).\n' +
+    '- With the guard on, each of them is registered (*Setting up: a new device*).\n\n' +
+    '# On the station computer, once\n1. Add the printer to Windows: Settings → Bluetooth & devices → Printers & scanners → **Add device**. If it is not found, **Add manually** and give its address on the Wi-Fi. Print a test page.\n' +
+    '2. Make it the **default printer**, and switch off *Let Windows manage my default printer*.\n' +
+    '3. Right-click the shortcut the app is opened with → **Properties**. At the end of **Target**, after a space, add `--kiosk-printing`. Close every Chrome or Edge window and open the app from that shortcut. Without it each job opens the print dialog and waits for a click.\n' +
+    '4. Keep the computer awake while the office is open: Settings → System → Power → **Never** for sleep.\n\n' +
+    '# In the app\n1. Settings → Connections → **Office printer**: tick **Send prints to the office printer**. The printer’s name, its address and its cartridge are notes, for whoever sets it up next.\n' +
+    '2. On the station only, tick **This device is the print station**. Save.\n' +
+    '3. Leave the app open on the station. It looks for jobs every 15 seconds and when it comes into view.\n' +
+    '4. On every other device, Pull from GitHub once (or wait for the next sync), so it knows the printer is on.\n\n' +
+    '# Sending a print\n- Open any print preview (an invoice, a credit note, a certificate, a statement, pay slips, a report) and tap **Send to office**.\n' +
+    '- Office printer in Settings lists what you sent: **waiting** with **Cancel**, then **printed**. A Created invoice is marked **Printed** once the station has printed it.\n' +
+    '- Waiting over three minutes, it asks whether the station is on: check the computer is awake and the app open on it.\n' +
+    '- On the office Wi-Fi a phone can also use **Print** as before, through Android’s print service.',
+    { roles: ['office'] }),
+  _kbg('sync', 'Setting up: GitHub sync', 'One book on every device: the token, push, pull and what both changed', [],
+    'The book lives on each device. GitHub sync keeps a copy in a private GitHub repository, so the phone and the desktop work on the same book, and it is the backup.\n\n' +
+    '# Setting it up on a device\n1. In GitHub, make a **fine-grained token** for this repository only, with **Contents: Read and write**. Make one per device, so a lost phone’s token is the only one to revoke.\n' +
+    '2. Settings → Connections → **GitHub sync**: the owner, the repository, the branch and the file (the same on every device), and the token. Save.\n' +
+    '3. A new device: **Pull from GitHub** first, so it starts from the book. A device that has entries of its own pushes them instead.\n' +
+    '4. Tick **Back up automatically after changes**: a change goes up about 45 seconds later.\n\n' +
+    '# Push and pull\n- **Push to GitHub** sends this device’s book; **Pull from GitHub** brings GitHub’s.\n' +
+    '- Where both sides changed since they last met, the two are merged record by record. Where both changed the same thing, the owner’s change stands and the other is **held for you** (GitHub sync → *Held for you*), with a task on Needs you, to keep or swap.\n' +
+    '- **Replace from GitHub** throws this device’s book away for GitHub’s copy. It is the owner’s, and asks first.\n\n' +
+    '# With the guard on\n- A device pushes and pulls only once it is registered (*Setting up: a new device*). Until then it can only import a backup.\n' +
+    '- The token is kept locked to the device: a backup or a copy on GitHub never carries it.',
+    { roles: ['office'] }),
+  _kbg('devices', 'Setting up: a new device', 'Register a phone or a computer, for you or for someone on the team', [],
+    'With the guard on, a device syncs only once the owner has registered it. Registering is done **on the new device**, with the owner present to give the owner’s PIN.\n\n' +
+    '# Before you start\n1. On a device that already syncs, add the person’s ID if it is new (Settings → Access → **Users & access** → **Add user**), then **Push to GitHub**. A new device sees only the IDs in the book it holds, and it gets them from GitHub.\n' +
+    '2. On the new device, open the app and set up **GitHub sync** with that person’s own token (*Setting up: GitHub sync*). Do **not** turn the guard on there.\n\n' +
+    '# Registering\n1. Settings → Access → **Devices**: name the device (*Shop desk*, *Supervisor’s phone*). For **Who mainly uses it**, leave the owner.\n' +
+    '2. **Register this device**, and give the owner’s ID and PIN.\n' +
+    '3. **Take it and register**: the device takes GitHub’s copy, with every ID and PIN in it, goes on the list and sends the copy back.\n' +
+    '4. **Who mainly uses it** now lists everyone. Pick the person and **Save details**.\n' +
+    '5. Lock the app (the ID button in the top bar → **Lock now**). The person signs in with their own ID and PIN.\n\n' +
+    '# If something stops you\n- *This device has its own IDs*: the guard was turned on on this device by itself. Give the PIN of the owner as set on the device that pushed; this device then takes that book and its IDs.\n' +
+    '- *Enter the GitHub details first*: GitHub sync is not set up, or its fields are not saved.\n' +
+    '- A device the owner removes stops syncing and forgets its token. Register it again to bring it back.',
+    { roles: ['owner'] }),
+  _kbg('guard', 'Setting up: IDs, PINs and roles', 'The guard: who opens what, and what asks for a PIN', [],
+    'Until the guard is on, anyone holding a device can change anything. With it on, everyone signs in with an ID and a PIN, and each role opens only its screens.\n\n' +
+    '# Turning it on\n1. On the device you use most, Settings → Access → **Users & access** → **Turn on the guard**: your ID and PIN as the owner.\n' +
+    '2. Write down the **recovery code** it shows and keep it off the phone. A forgotten owner PIN with no recovery code locks the books.\n' +
+    '3. **Add user** for each person: their name, role (Office, Supervisor, Floor) and PIN. Tell them their PIN.\n' +
+    '4. **Push to GitHub**, then register every other device (*Setting up: a new device*). Turn the guard on **once**, on one device: the others take it from GitHub.\n\n' +
+    '# The roles\n- **What each role opens and may change** is the grid under the users: pages, floor entries, rates, payments, settings, and whether it sees wages and money.\n' +
+    '- A change that matters (an invoice, a rate, a payment, a void, Settings) asks the PIN again once the minutes set have passed.\n\n' +
+    '# Every day\n- The app locks after the minutes set in the background, and asks for a PIN when opened.\n' +
+    '- The ID button in the top bar: **Change my PIN**, **Switch user**, **Lock now**.\n' +
+    '- **Reset PIN** on a user gives them a new one; **Deactivate** keeps their history and stops them signing in. A user added, reset or deactivated reaches the other devices with the next push and pull.',
+    { roles: ['owner'] })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of

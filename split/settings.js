@@ -435,6 +435,7 @@ var SETTINGS_SECS = {
       return '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>' + escHtml(held ? ' · ' + held : last ? ' · synced ' + ghRelTime(last) : ' · not synced yet');
     },
     body: function() { return renderGhSyncFields(); },
+    guide: 'app-sync',
     // The token is stored locked to the device before the section reads as saved.
     save: async function() { await saveGhSyncSettings(); ghRenderCard(); }
   },
@@ -477,8 +478,22 @@ function _settingsSecHtml(key, open) {
     '<span class="inv-row-meta" data-sum="' + key + '">' + s.summary() + '</span></span></summary>' +
     '<div class="inv-panel-body">' + s.body() +
     (s.why ? '<details class="inv-mt-8"><summary class="inv-btn-link inv-summary">How this is used</summary><p class="inv-note inv-mt-4">' + s.why + '</p></details>' : '') +
+    _settingsGuideHtml(s.guide) +
     (s.save && (!s.saveIf || s.saveIf()) ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
     '</div></details>';
+}
+
+/* A section set up step by step has its guide in the knowledge base (kbguides.js): a link to it, for a role that reads it. */
+function _settingsGuideHtml(id) {
+  var a = id && typeof kbFind === 'function' ? kbFind(id) : null;
+  if (!a || !kbCanRead(a)) return '';
+  return '<div class="inv-mt-8"><button type="button" class="inv-btn-link" data-action="invSettingsGuide" data-id="' + escHtml(id) + '">Guide: ' + escHtml(a.title) + '</button></div>';
+}
+/* Settings shuts (asking first about an unsaved section), then the guide opens in the knowledge base. */
+async function settingsGuide(id) {
+  await closeSettings();
+  if (document.getElementById('settingsScrim')) return;
+  kbOpenArticle(id);
 }
 
 /* An unsaved edit is a dot and a word (DR-8) on the section's head and on its group in the list;

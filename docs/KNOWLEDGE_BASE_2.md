@@ -35,6 +35,7 @@ Nothing yet. Each release adds its line here when it merges.
 | 9 | Notes | Public (every reader), and private (the owner only) |
 | 10 | Needs the owner: WhatsApp too? | Yes |
 | 11 | A tracking pinned on Mine for its person | Yes |
+| 12 | The spec's own calls (follow-ups on the To-do, WhatsApp opened for a person to send, the book never closes alone, 3 clear checks, 12 open, a year kept) | Accepted, 15 Oct 2026: *"Makes sense"*, *"Good starting point"*, *"Sure"*; WhatsApp a workaround until a server sends messages |
 
 ## §2 Three ways to read an article
 
@@ -189,6 +190,8 @@ decision (a fork). Drawn on `--surface-3`; never coloured by kind (DR-1).
   removed, never its words (the rule for personal details and check-in notes).
 - **Said plainly in the guide and on the form:** a private note is hidden by the guard on every screen, but it travels with the
   book like everything else (backups, GitHub sync, the compile). It is not encrypted. (The same is true of worker details.)
+  **Owner, 15 Oct 2026:** acceptable for now; a server with its own database is planned, and private notes then live on the
+  server alone, served only to the owner's sign-in (to be specified with the server).
 - A note may be on a tracking too (§7f), with the same two kinds.
 - At most 500 characters; through `escHtml`; the STE hint does not apply (notes are notes).
 - `sep-kb` v2 export carries public notes; private notes only when the owner ticks *Include my private notes*.
@@ -309,7 +312,7 @@ is unreliable, and HR: no browser pop-ups).
   (`TODO_FOLD`).
 - Missed checks pile into *Missed 3 checks* on the timeline (CareTickets' *advance to next future*), never three tasks.
 
-### §7i WhatsApp on *Needs the owner* (owner, 15 Oct 2026: *"Yes"*)
+### §7i WhatsApp on *Needs the owner* (owner, 15 Oct 2026: *"Yes"*; a workaround until the server sends messages itself)
 
 When a tracking goes to *Needs the owner* on a device, the app shows **Tell the owner on WhatsApp** at once, with the message
 written in the shop's shape: the fault, the line, the trigger, the last check's answers, who checked, the time. It opens

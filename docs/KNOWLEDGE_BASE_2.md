@@ -8,7 +8,13 @@ force-resolve guards, validation on load. What changes for the shop is said wher
 
 ## §0 What is built
 
-Nothing yet. Each release adds its line here when it merges.
+- **KB2-1 · The look** (15 Oct 2026, `kbread.js`, P219): built as §2–§6 say, except where it says here.
+  - The mode is in the view part of the address (`v=library/read/2`), not a new `m=`: the trail and new windows already carry `v`.
+  - The kinds stay behind Filter (the tab map's one row), not chips over the list; the shelves are two more than §4 lists (*The shop's
+    how-tos and parts*, *Decisions and incidents*), so nothing the shop wrote is on no shelf, and the list is *Every article*.
+  - Quick reference shows a WARNING too: data or money at risk is never a tap away. A save opens Reader.
+  - Start's rows carry no kind icon (their ends hold status badges, and the meta was cut on a phone).
+  - The context column has no Tracking section until KB2-2. *Feeds* lists the inputs a line, a stock line, an area or a part reads.
 
 ## §1 The owner's words
 

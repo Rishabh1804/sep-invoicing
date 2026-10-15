@@ -401,3 +401,15 @@ export async function answerAsk(page: Page, answer: 'ok' | 'cancel' = 'ok', text
   await expect(page.locator(`[data-ui-ask="${id}"]`)).toHaveCount(0);
   return said;
 }
+
+/* Knowledge, second edition (KB2-1): an article on the phone lands on Quick reference, and Reader holds its whole text; the
+   desk reads already. */
+export async function kbRead(page: Page): Promise<void> {
+  if (await page.locator('#knowContent [data-kb-mode="quick"]').count()) await page.locator('#knowContent [data-kb-mode="quick"] [data-action="invKbMode"][data-mode="read"]').first().click();
+  await page.locator('#knowContent [data-kb-mode="read"]').first().waitFor();
+}
+/* The Library leads with its shelves; every article, by kind, is one tap away. */
+export async function kbEvery(page: Page): Promise<void> {
+  if (await page.locator('#kbShelves').count()) await page.locator('#kbShelves [data-kb-every]').click();
+  await page.locator('#kbLibrary').waitFor();
+}

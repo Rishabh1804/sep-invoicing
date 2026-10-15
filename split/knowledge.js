@@ -31,10 +31,11 @@ var _kbFilter = { q: '', kind: '', status: '', link: null };   // link: {type, i
 if (typeof STATE_CONTAINERS !== 'undefined' && STATE_CONTAINERS.indexOf('kb') < 0) STATE_CONTAINERS.push('kb');
 
 /* ---------- The store ---------- */
-/* deleted: [{id, at, by}], a draft deleted here, so an import of an older file does not bring it back. */
+/* deleted: [{id, at, by}], a draft deleted here, so an import of an older file does not bring it back. notes: an article's notes,
+   public or the owner's own (kbread.js, KB2-1). */
 function kbData() {
   if (!S.kb || typeof S.kb !== 'object' || Array.isArray(S.kb)) S.kb = {};
-  ['articles', 'trained', 'paths', 'deleted'].forEach(function(k) { if (!Array.isArray(S.kb[k])) S.kb[k] = []; });
+  ['articles', 'trained', 'paths', 'deleted', 'notes'].forEach(function(k) { if (!Array.isArray(S.kb[k])) S.kb[k] = []; });
   return S.kb;
 }
 function kbUid(p) { return (p || 'kb') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -100,7 +101,8 @@ function kbSeesProposal(a) { return !!(a && a.pending) && (kbIsOwner() || (a.pen
    character through escHtml. A numbered list had run into one paragraph (the app's own guides are written in them). */
 function kbBodyHtml(text) {
   var lines = String(text || '').replace(/\r/g, '').split('\n'), out = '', para = [], list = [], tag = '', start = 1;
-  var inline = function(s) { return escHtml(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); };
+  // The words as Reader draws them (kbread.js kbInline): **bold**, *italic* (its stars had printed), a screen's path a link.
+  var inline = function(s) { return kbInline(s); };
   var flushPara = function() { if (para.length) { out += '<p>' + para.map(inline).join(' ') + '</p>'; para = []; } };
   var flushList = function() {
     if (!list.length) return;
@@ -199,9 +201,14 @@ function kbRowHtml(a, brief) {
   var meta = [kbKindName(a.kind) + (day ? ', ' + formatDate(day) : ''), brief ? '' : clip].filter(Boolean).join(' · ');
   // The article open beside the list is marked as the current row (aria-current, as the Register's), in Knowledge's own
   // lists only: a client's panel is not that list.
+  // In Knowledge's own lists (KB2-1, §4): the kind's icon leads (not on Start, whose cards' rows carry status badges at the end), an app guide's kicker (Using the app:) is its meta's, a search
+  // says the line that matched, and the end is one useful thing (a ruling's day, a guide's version, a status).
+  var own = _kbListing, k = own ? kbKicker(a) : null, ask = own && _kbFilter.q ? kbAskLine(a, _kbFilter.q) : '';
+  if (own) meta = [k.kicker + (day && a.kind !== 'ruling' ? ', ' + formatDate(day) : ''), ask || (brief ? '' : clip)].filter(Boolean).join(' · ');
+  var end = a.status === 'published' && !a.pending ? (own && a.kind === 'ruling' && a.ruledOn ? '<span class="inv-num">' + escHtml(formatDate(a.ruledOn)) + '</span>' : own && a.src === 'build' ? '<span class="inv-num">v' + kbVer(a) + '</span>' : '') : kbStatusHtml(a);
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + (a.status === 'published' && !a.pending ? '' : kbStatusHtml(a)) + '</span></div>';
+    (own && _kbTab !== 'start' ? kbKindIco(a.kind) : '') + '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(own ? k.title : a.title || 'Untitled') + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + end + '</span></div>';
 }
 
 /* ---------- Photos, on this device only ---------- */
@@ -388,8 +395,14 @@ function kbNavReplace() {
   navTrailPut(now);
   navBarDraw();
 }
-/* The address: ?tab=pageKnow&v=<view>[/edit]&id=<article>. */
-function kbNavV() { return _kbTab + (_kbEdit ? '/edit' : ''); }
+/* The address: ?tab=pageKnow&v=<view>[/s-<shelf>][/edit | /<mode>[/<section>]]&id=<article>. The Library's list of one shelf, and
+   the mode an article is read in where it is not its landing (kbread.js kbModeV), so Back walks them. */
+function kbListV() { return _kbTab + (_kbTab === 'library' && _kbShelf ? '/s-' + _kbShelf : ''); }
+function kbNavV() {
+  if (_kbEdit) return _kbTab + '/edit';
+  var a = _kbOpen ? kbFind(_kbOpen) : null;
+  return kbListV() + (a && kbCanRead(a) ? kbModeV(a) : '');
+}
 function kbNavId() { return _kbEdit ? (_kbEdit.id || '') : (_kbOpen || ''); }
 /* The view an article opens on: the list of its kind, with the desktop's pane beside it (Start and Training have none). */
 function kbTabFor(kind) { return kind === 'fault' || kind === 'incident' ? 'troubleshoot' : kind === 'ruling' || kind === 'decision' ? 'records' : 'library'; }
@@ -409,6 +422,9 @@ function kbGo(loc, prep) {
 }
 function kbNavApply(v, id) {
   var parts = String(v || '').split('/'), a = id ? kbFind(id) : null, readable = !!a && kbCanRead(a);
+  // The shelf a Library list is of, then the rest as before (parts[1] the form or a mode).
+  var shelf = parts[1] && /^s-/.test(parts[1]) ? parts.splice(1, 1)[0].slice(2) : '';
+  _kbShelf = parts[0] === 'library' ? shelf : '';
   // An article named on a view with no pane (an older address) opens on its own list's view.
   if (readable && parts[1] !== 'edit' && !kbHasPane(parts[0])) parts[0] = kbTabFor(a.kind);
   kbSetTab(parts[0]);
@@ -424,10 +440,11 @@ function kbNavApply(v, id) {
   } else {
     _kbEdit = null;
     _kbOpen = readable ? a.id : null;
+    kbOpened(_kbOpen, parts);
   }
 }
 function kbNavLabel(v, id) {
-  var parts = String(v || '').split('/'), t = KB_TABS.find(function(x) { return x[0] === parts[0]; }), a = id && kbFind(id);
+  var parts = String(v || '').split('/').filter(function(x, i) { return !(i === 1 && /^s-/.test(x)); }), t = KB_TABS.find(function(x) { return x[0] === parts[0]; }), a = id && kbFind(id);
   return { sub: [t ? t[1] : 'Start', parts[1] === 'edit' ? (a ? 'Edit' : 'New article') : ''], rec: a && kbCanRead(a) ? a.title : '' };
 }
 function kbSetTab(t) {
@@ -439,8 +456,9 @@ function kbSetTab(t) {
    was typed. Leave, then a tap on Knowledge itself, had shown the form again with nothing to say it was typed. */
 function kbLeave() { _kbEdit = null; }
 function kbBackBar(title, action) {
+  // An article's own head names it (kbread.js kbHeadHtml): its bar is the way back alone.
   return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + (action || 'invKbBack') + '">' + STOCK_BACK_ICON + 'Knowledge</button>' +
-    '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
+    (title ? '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2>' : '') + '</div>';
 }
 function renderKnow() {
   var el = document.getElementById('knowContent');
@@ -451,7 +469,13 @@ function renderKnow() {
   if (open && !kbCanRead(open)) { open = null; _kbOpen = null; }
   var h, screen;
   if (_kbEdit) { h = kbFormHtml(); screen = 'form:' + (_kbEdit.id || 'new'); }
-  else if (open && !_isDesktop) { h = kbBackBar(open.title || 'Article') + kbArticleHtml(open); screen = 'article:' + open.id; }
+  // The phone: the article on its own screen, in its mode (kbread.js), the context a bar over the phone bar (not while Guided
+  // holds the foot with its steps).
+  else if (open && !_isDesktop) {
+    var mode = kbModeNow(open);
+    h = kbBackBar('') + kbModeHtml(open) + (mode === 'guide' ? '' : kbCtxBarHtml(open));
+    screen = 'article:' + open.id + ':' + mode + ':' + _kbSec + (mode === 'guide' ? ':' + _kbStep : '');
+  }
   else {
     screen = 'view:' + _kbTab;
     var pane = _isDesktop && kbHasPane(_kbTab), v;
@@ -467,17 +491,24 @@ function renderKnow() {
     h = '<div class="inv-viewtabs" role="tablist" aria-label="Knowledge">' + KB_TABS.map(function(t) {
       return '<button class="inv-viewtab" role="tab" aria-selected="' + (_kbTab === t[0]) + '" data-action="invKbTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>' + (v.verdict || '') + kbToolbarHtml(paneActs.some(function(x) { return x[2] === 'primary'; }), v) + kbTokensHtml(v.kinds);
-    // On the desktop the toolbar stays above the list as it scrolls (History's), the article beside it.
-    if (pane) h += '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="kbHost" data-open="' + (open ? escHtml(open.id) : '') + '"><div class="inv-pane-list">' + v.body + '</div>' +
-      '<div class="inv-pane" id="kbPane">' + (open ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.title || 'Article') + '</span>', 'invKbClose') + kbArticleHtml(open) : '') + '</div></div>';
+    // On the desktop the toolbar stays above the desk (KB2-1, §3): the list on the left, the article in the middle, its context
+    // on the right, each scrolling on its own.
+    if (pane) { h += kbDeskHtml(v.body, open); if (open) screen += ':' + open.id + ':' + kbModeNow(open) + ':' + _kbSec + ':' + _kbStep; }
     else h += v.body;
   }
   paneScrollKeep(function() { el.innerHTML = h; });
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   kbFillImages(el);
   // Another view, an article opened on the phone or the form is a navigation and starts at the top (they opened where the
-  // list had been scrolled, the article's title off the screen). A redraw of the same screen keeps its place.
-  if (screen !== _kbScreen) { var was = _kbScreen; _kbScreen = screen; if (was) viewTop(); }
+  // list had been scrolled, the article's title off the screen). A redraw of the same screen keeps its place. Reader opened at
+  // a section starts there (kbread.js kbAfterDraw).
+  if (screen !== _kbScreen) {
+    var was = _kbScreen; _kbScreen = screen;
+    if (was) viewTop();
+    var mid = el.querySelector('.inv-kb-mid');
+    if (mid) mid.scrollTop = 0;
+    kbAfterDraw(el);
+  }
 }
 /* The one toolbar row (the tab map, TM6f): a list view's search and its filters (kbFilterHtml), the view's one primary (Write;
    Troubleshoot's is Log an incident, with Write a fault behind More; Training's Record training), and the rest behind More (the
@@ -594,6 +625,7 @@ function kbTokensHtml(kinds) {
       '<span class="inv-token-key">' + escHtml(key) + '</span>' + escHtml(value) + '<span aria-hidden="true">&times;</span></button>';
   };
   var h = _kbFilter.link ? tok('Linked to', kbLinkName(_kbFilter.link), 'link', 'kbLinkFilter') : '';
+  if (_kbTab === 'library' && _kbShelf) h += tok('Shelf', kbShelfTitle(_kbShelf), 'shelf', 'kbShelfToken');
   if (!_isDesktop && kinds) {
     if (_kbFilter.kind) h += tok('Kind', kbKindName(_kbFilter.kind, true), 'kind');
     if (_kbFilter.status) h += tok('Status', 'Drafts and waiting', 'status');
@@ -618,13 +650,22 @@ function kbFilterOn() { return !!(_kbFilter.q || _kbFilter.kind || _kbFilter.sta
 /* Each list view: its verdict card, what its toolbar searches and filters (`search`, the placeholder; `kinds`), and its body.
    The Library's verdict (the tab map, TM6f): how many articles the list holds and how many wait for approval. */
 function kbLibraryHtml() {
-  var list = kbFiltered(kbReadable()), wait = kbWaitingList().length;
+  var list = kbShelfList(_kbShelf, kbFiltered(kbReadable())), wait = kbWaitingList().length;
   var drafts = kbReadable().filter(function(a) { return a.src !== 'build' && a.status === 'draft' && (kbIsOwner() || kbMine(a)); }).length;
   var guides = list.filter(function(a) { return a.src === 'build'; }).length;
   var verdict = uiVerdictHtml({ screen: 'Library' + (kbFilterOn() ? ' · filtered' : ''), tone: wait ? 'warning' : 'ok',
     verdict: todoPlural(list.length, 'article') + (wait ? ' · ' + wait + ' waiting for approval' : ''),
     facts: [drafts ? todoPlural(drafts, 'draft') + ' to review' : '', guides ? guides + ' of them the app’s own guides' : ''], key: 'pageKnow-library', attrs: ' data-kb-verdict="library"' });
-  var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Articles <span class="inv-panel-count">' + list.length + '</span></span></div>';
+  // Nothing searched and no list asked for: the shelves (KB2-1, §4). A search, a filter or a shelf's See all: the list, a search
+  // best first.
+  if (!kbFilterOn() && !_kbShelf) return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: kbShelvesHtml() };
+  if (_kbFilter.q) {
+    var ranked = kbAskRank(list, _kbFilter.q);
+    return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }),
+      body: '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Best matches <span class="inv-panel-count">' + ranked.length + '</span></span></div>' +
+        (ranked.length ? uiMoreHtml('kb-ask', ranked.map(function(a) { return kbRowHtml(a); }), { noun: 'articles' }) : '<div class="inv-empty">Nothing matches. Try fewer words, or the word the shop uses.</div>') + '</div>' };
+  }
+  var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(_kbShelf ? kbShelfTitle(_kbShelf) : 'Articles') + ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
   if (!list.length) h += '<div class="inv-empty">' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.') + '</div>';
   var rows = [];
   // The shop's own articles first, by kind; the app's guides after them, as one group: 32 of them had led the list and put
@@ -637,7 +678,7 @@ function kbLibraryHtml() {
   };
   KB_KINDS.forEach(function(k) { group(k[2], list.filter(function(a) { return a.kind === k[0] && a.src !== 'build'; }).sort(byTitle)); });
   group('The app’s guides', list.filter(function(a) { return a.src === 'build'; }).sort(byTitle));
-  return { verdict: verdict, search: 'Search articles', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: h + uiMoreHtml('kb-lib', rows, { noun: 'articles' }) + '</div>' };
+  return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: h + uiMoreHtml('kb-lib', rows, { noun: 'articles' }) + '</div>' };
 }
 /* Troubleshoot: faults by symptom, each with its incidents; then the latest incidents. */
 function kbTroubleHtml() {
@@ -763,58 +804,8 @@ function kbKvHtml(rows) {
   rows = rows.filter(function(r) { return r && r[1] != null && r[1] !== ''; });
   return rows.length ? '<div class="inv-kv">' + rows.map(function(r) { return '<div' + (r[2] ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(r[0]) + '</div><div>' + (r[3] ? r[1] : escHtml(String(r[1]))) + '</div></div>'; }).join('') + '</div>' : '';
 }
-function kbArticleHtml(a) {
-  var own = a.src !== 'build', h = '<div class="inv-panel" data-kb-article="' + escHtml(a.id) + '"><div class="inv-panel-body">' +
-    '<div class="inv-kb-badges"><span class="inv-badge inv-badge-neutral">' + escHtml(kbKindName(a.kind)) + '</span> ' + kbStatusHtml(a) + '</div>' +
-    (a.summary ? '<p class="inv-kb-summary">' + escHtml(a.summary) + '</p>' : '') + '</div>';
-  var meta = [];
-  if (a.kind === 'ruling') meta.push(['Ruled by', a.ruledBy], ['Ruled on', a.ruledOn ? formatDate(a.ruledOn) : '']);
-  var fault = a.kind === 'incident' && a.faultId ? kbFind(a.faultId) : null;
-  if (a.kind === 'incident') meta.push(['Day', a.on ? formatDate(a.on) : ''], ['Fault', fault ? (kbCanRead(fault) ? fault.title : 'A fault you do not read') : '']);
-  if (a.kind === 'decision') meta.push(['Decided', a.chosen != null && a.options && a.options[a.chosen] ? a.options[a.chosen].label : 'Not yet'], ['Decided on', a.decidedOn ? formatDate(a.decidedOn) : ''], ['Review on', a.reviewOn ? formatDate(a.reviewOn) : '']);
-  if (own) meta.push(['Read by', kbRolesText(a)], ['Version', kbVer(a) + (a.approvedAt ? ', ' + formatDate(isoOf(new Date(a.approvedAt))) : '')], ['Written by', a.by || ''], ['Source', a.src === 'import' ? 'soma-internal' + (a.srcRef ? ' · ' + a.srcRef : '') : '']);
-  h += kbKvHtml(meta) + '</div>';
-  // The rulings either side of this one, named only where this role reads them.
-  var later = a.status === 'superseded' && a.supersededBy ? kbFind(a.supersededBy) : null, earlier = a.supersedes ? kbFind(a.supersedes) : null;
-  if (a.status === 'superseded') h += '<div class="inv-callout inv-callout-warning">Replaced by a later ruling.' + (later && kbCanRead(later) ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(later.id) + '">Open it</button>' : '') + '</div>';
-  if (earlier) h += '<div class="inv-callout inv-callout-info">' + (kbCanRead(earlier) ? 'Replaces: ' + escHtml(earlier.title) + ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(earlier.id) + '">Open</button>' : 'Replaces an earlier ruling.') + '</div>';
-  if (a.status === 'retired') h += '<div class="inv-callout inv-callout-neutral">Retired' + (a.retiredAt ? ' ' + escHtml(formatDate(isoOf(new Date(a.retiredAt)))) : '') + (a.retireReason ? ': ' + escHtml(a.retireReason) : '') + '</div>';
-  // Why the owner said no: for the owner and the one who wrote what was declined, not every reader.
-  var dec = a.declined, decMine = dec && (kbIsOwner() || (dec.change ? dec.change.byId != null && dec.change.byId === kbMe().id : kbMine(a)));
-  if (decMine && (a.status === 'draft' || !a.pending)) h += '<div class="inv-callout inv-callout-warning">' + (dec.change ? 'A change by ' + escHtml(dec.change.by || 'someone') + ' was not approved' : 'Not approved') + (dec.reason ? ': ' + escHtml(dec.reason) : '') + '</div>';
-  // The kind's own parts.
-  if (a.kind === 'fault') {
-    if (a.symptom) h += '<div class="inv-callout inv-callout-info"><strong>What you see:</strong> ' + escHtml(a.symptom) + '</div>';
-    if ((a.causes || []).length) h += '<div class="inv-panel inv-panel-flush" data-kb-causes><div class="inv-panel-head"><span class="inv-panel-title">Likely causes, most likely first</span></div>' + a.causes.map(function(c, i) {
-      return '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-row-title">' + (i + 1) + '. ' + escHtml(c.cause || '') + '</div>' +
-        (c.check ? '<div class="inv-row-meta inv-row-wrap"><strong>Check:</strong> ' + escHtml(c.check) + '</div>' : '') + (c.fix ? '<div class="inv-row-meta inv-row-wrap"><strong>Fix:</strong> ' + escHtml(c.fix) + '</div>' : '') + '</div></div>';
-    }).join('') + '</div>';
-    var incs = kbReadable().filter(function(i) { return i.kind === 'incident' && i.faultId === a.id && i.status !== 'retired'; });
-    h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
-      (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
-      (incs.length ? incs.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
-  }
-  if (a.kind === 'incident') {
-    h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
-    h += kbDayContextHtml(a);
-  }
-  if (a.kind === 'decision') h += kbDecisionHtml(a);
-  h += kbBodyHtml(a.body);
-  h += kbImagesHtml(a.images);
-  if ((a.links || []).length) h += '<div class="inv-panel inv-panel-flush" data-kb-links><div class="inv-panel-head"><span class="inv-panel-title">Linked to</span></div><div class="inv-panel-body"><div class="inv-toolbar inv-toolbar-flush">' + a.links.map(function(l, i) {
-    return '<button class="inv-chip" data-action="invKbLinkGo" data-id="' + escHtml(a.id) + '" data-i="' + i + '">' + escHtml(kbLinkTypeName(l.type) + ': ' + kbLinkName(l)) + '</button>';
-  }).join('') + '</div></div></div>';
-  if (kbSeesProposal(a)) h += '<div class="inv-callout inv-callout-warning" data-kb-proposal>A change by ' + escHtml(a.pending.by || 'someone') + ' waits for approval' +
-    (a.pending.at ? ' (' + escHtml(formatTimestamp(a.pending.at)) + ')' : '') + '. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbProposal" data-id="' + escHtml(a.id) + '">See the change</button></div>';
-  if (a.kind === 'guide' && (a.quiz || []).length && kbLive(a)) h += '<div class="inv-panel inv-panel-flush" data-kb-quiz><div class="inv-panel-head"><span class="inv-panel-title">Check what was learnt <span class="inv-panel-count">' + a.quiz.length + '</span></span></div>' +
-    '<div class="inv-panel-body inv-note">Asked when training is recorded from this article: ' + escHtml(a.quiz.map(function(q) { return q.q; }).join(' · ')) + '</div></div>';
-  if ((a.versions || []).length) h += uiFoldHtml('kb-ver-' + a.id, '<span class="inv-panel-title">Earlier versions <span class="inv-panel-count">' + a.versions.length + '</span></span>', a.versions.slice().reverse().map(function(v) {
-    return '<div class="inv-row"><button class="inv-row-main" data-action="invKbVersion" data-id="' + escHtml(a.id) + '" data-v="' + escHtml(String(v.v)) + '"><span class="inv-row-title">Version ' + escHtml(String(v.v)) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml([v.at ? formatTimestamp(v.at) : '', v.by ? 'by ' + v.by : ''].filter(Boolean).join(' · ')) + '</span></button></div>';
-  }).join(''), false);
-  h += kbActionsHtml(a);
-  return h;
-}
+/* The article is drawn in its mode by kbread.js (kbModeHtml: Quick reference, Reader, Guided); its own parts are
+   kbArticleKindHtml and kbArticleTailHtml there. */
 function kbLinkTypeName(t) { var x = KB_LINK_TYPES.find(function(r) { return r[0] === t; }); return x ? x[1] : t; }
 /* What can be done to an article, by whom: [action, label, kind]. One primary at most. */
 function kbActionList(a) {
@@ -885,7 +876,8 @@ function kbDayContextHtml(a) {
     });
   } catch (e) { /* stock not readable */ }
   if (kbSeesPage('pagePower')) try {
-    prodDowntimeDay(d).forEach(function(c) { rows.push({ k: 'Power cut', t: (c.time || '?') + ' to ' + (c.to || 'not back') }); });
+    // A cut is its minutes (prodDowntimeDay: from, to); it read fields a cut does not have, and said "? to not back".
+    prodDowntimeDay(d).forEach(function(c) { rows.push({ k: 'Power cut', t: (c.from != null ? relayClockLabel(c.from) : '?') + ' to ' + (c.to != null ? relayClockLabel(c.to) : 'not back') }); });
   } catch (e) { /* power not readable */ }
   if (names) try {
     var rec = (S.attendance || {})[d];
@@ -899,7 +891,7 @@ function kbDayContextHtml(a) {
 
 /* ---------- Writing ---------- */
 function kbBlankForm(kind) {
-  return { id: null, kind: kind || 'guide', title: '', summary: '', body: '', tags: '', readers: KB_READ_ROLES.slice(), links: [], images: [], uid: kbMe().id, v0: null, s0: null,
+  return { id: null, kind: kind || 'guide', title: '', summary: '', glance: '', body: '', tags: '', readers: KB_READ_ROLES.slice(), links: [], images: [], uid: kbMe().id, v0: null, s0: null,
     f: { causes: [{ cause: '', check: '', fix: '' }], options: [{ label: '', case: '' }, { label: '', case: '' }], figures: [], quiz: [] } };
 }
 /* The form on an article: its text as it stands. The writer of a change still waiting gets their change back to work on;
@@ -908,7 +900,7 @@ function kbFormFrom(a) {
   var p = a.pending && !kbIsOwner() && a.pending.byId != null && a.pending.byId === kbMe().id ? a.pending : null;
   var src = p ? Object.assign({}, a, p.fields || {}, { title: p.title, summary: p.summary, body: p.body }) : a;
   var j = function(x) { return JSON.parse(JSON.stringify(x)); };
-  return { id: a.id, kind: a.kind, title: src.title || '', summary: src.summary || '', body: src.body || '', tags: (src.tags || []).join(', '), readers: kbReadersOf(a.roles),
+  return { id: a.id, kind: a.kind, title: src.title || '', summary: src.summary || '', glance: src.glance || '', body: src.body || '', tags: (src.tags || []).join(', '), readers: kbReadersOf(a.roles),
     links: j(src.links || []), images: j(src.images || []), uid: kbMe().id, v0: kbVer(a), s0: a.status, p0: a.pending ? a.pending.at : null,
     f: { ruledBy: src.ruledBy || '', ruledOn: src.ruledOn || '', supersedes: src.supersedes || '', symptom: src.symptom || '', causes: j(src.causes && src.causes.length ? src.causes : [{ cause: '', check: '', fix: '' }]),
       on: src.on || '', faultId: src.faultId || '', cause: src.cause || '', fix: src.fix || '', question: src.question || '', options: j(src.options && src.options.length ? src.options : [{ label: '', case: '' }]),
@@ -942,7 +934,10 @@ function kbFormHtml() {
   var h = kbBackBar(title, 'invKbFormCancel') + '<div class="inv-panel"><div class="inv-panel-body"><div class="inv-fields">';
   if (!a) h += _kbSel('Kind', 'kind', e.kind, KB_KINDS.map(function(k) { return [k[0], k[1]]; }));
   h += _kbIn('Title', 'title', e.title, 'text', { ph: e.kind === 'fault' ? 'Peeling on clamps after plating' : e.kind === 'ruling' ? 'Overtime for monthly hands' : '' }) +
-    _kbIn('In one line', 'summary', e.summary, 'text', { ph: 'What a reader learns here' }) + '</div>';
+    _kbIn('In one line', 'summary', e.summary, 'text', { ph: 'What a reader learns here' }) + '</div>' +
+    // At a glance (KB2-1, §2d): written here, else worked out by kind; what would be worked out is the placeholder.
+    _kbIn('At a glance (optional)', 'glance', e.glance, 'textarea', { rows: 3, ph: kbGlanceWorked(Object.assign({ links: e.links }, kbFormRecord())).map(function(r) { return r[0] + ': ' + r[1]; }).join('\n') || 'Where: Office → Challans\nYou tap: Add challan',
+      hint: 'Up to 4 lines, each "Label: value". Left empty, the app works them out from the article.' });
   if (e.kind === 'ruling') h += '<div class="inv-fields">' + _kbIn('Ruled by', 'f.ruledBy', f.ruledBy || (owner ? 'Owner' : ''), 'text') + _kbIn('Ruled on', 'f.ruledOn', f.ruledOn || localDateStr(), 'date') + '</div>';
   if (e.kind === 'incident') {
     var faults = kbReadable().filter(function(x) { return x.kind === 'fault' && x.status !== 'retired'; });
@@ -1055,7 +1050,7 @@ function kbFormInput(el) {
 function kbRedrawForm() { keepScroll(renderKnow); }
 /* The record as the form says, for a new article or a version. */
 function kbFormRecord() {
-  var e = _kbEdit, f = e.f, r = { kind: e.kind, title: String(e.title || '').trim(), summary: String(e.summary || '').trim(), body: String(e.body || '').replace(/\s+$/, ''),
+  var e = _kbEdit, f = e.f, r = { kind: e.kind, title: String(e.title || '').trim(), summary: String(e.summary || '').trim(), glance: String(e.glance || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean).slice(0, 4).join('\n'), body: String(e.body || '').replace(/\s+$/, ''),
     tags: String(e.tags || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean), links: e.links.slice(), images: e.images.slice() };
   if (e.kind === 'ruling') { r.ruledBy = String(f.ruledBy || '').trim(); r.ruledOn = f.ruledOn || ''; if (f.supersedes) r.supersedes = f.supersedes; }
   if (e.kind === 'fault') { r.symptom = String(f.symptom || '').trim(); r.causes = f.causes.filter(function(c) { return (c.cause || '').trim(); }); }
@@ -1082,7 +1077,7 @@ function kbFormProblem(r) {
   if (r.kind === 'decision' && !r.question) return 'A decision needs its question.';
   return '';
 }
-var KB_VERSION_FIELDS = ['title', 'summary', 'body', 'tags', 'links', 'images', 'ruledBy', 'ruledOn', 'symptom', 'causes', 'on', 'faultId', 'cause', 'fix', 'question', 'options', 'chosen', 'reason', 'decidedOn', 'reviewOn', 'figures', 'quiz'];
+var KB_VERSION_FIELDS = ['title', 'summary', 'glance', 'body', 'tags', 'links', 'images', 'ruledBy', 'ruledOn', 'symptom', 'causes', 'on', 'faultId', 'cause', 'fix', 'question', 'options', 'chosen', 'reason', 'decidedOn', 'reviewOn', 'figures', 'quiz'];
 function kbSnapshot(a) {
   var v = { v: kbVer(a), at: a.approvedAt || a.at, by: a.approvedBy || a.by || '' };
   KB_VERSION_FIELDS.forEach(function(k) { if (a[k] !== undefined) v[k] = JSON.parse(JSON.stringify(a[k])); });
@@ -1165,6 +1160,8 @@ async function kbSave(asDraft) {
   _kbEdit = null;
   _pageTyped = false;
   _kbOpen = a.id;
+  // What was just written is shown in full (Reader), not at its landing.
+  _kbMode = 'read'; _kbSec = 0;
   saveState();
   renderKnow();
   kbNavReplace();
@@ -1289,7 +1286,7 @@ function kbFieldText(k, v) {
   if (/^(ruledOn|on|decidedOn|reviewOn)$/.test(k)) return formatDate(v);
   return String(v);
 }
-var KB_FIELD_NAMES = { title: 'Title', summary: 'In one line', tags: 'Tags', links: 'Linked to', images: 'Photos', ruledBy: 'Ruled by', ruledOn: 'Ruled on', symptom: 'What you see',
+var KB_FIELD_NAMES = { title: 'Title', summary: 'In one line', glance: 'At a glance', tags: 'Tags', links: 'Linked to', images: 'Photos', ruledBy: 'Ruled by', ruledOn: 'Ruled on', symptom: 'What you see',
   causes: 'Causes', on: 'The day', faultId: 'The fault', cause: 'Cause found', fix: 'Fix', question: 'The question', options: 'The options', chosen: 'Decided', reason: 'Why',
   decidedOn: 'Decided on', reviewOn: 'Review on', figures: 'Figures', quiz: 'The check' };
 /* A proposed change, beside the article now: every field it changes (Approve takes them all), the text in full. */
@@ -1402,10 +1399,14 @@ async function kbReview(id) {
 
 /* ---------- Export and import (sep-kb v1) ---------- */
 /* The whole knowledge base, every role's articles: the owner's to take out. */
-function kbExport() {
+async function kbExport() {
   if (!kbIsOwner()) { grdRefuse('export the knowledge base'); return; }
-  var k = kbData(), out = { format: 'sep-kb', version: 1, exportedAt: new Date().toISOString(), build: (document.querySelector('meta[name="app-build"]') || {}).content || '',
-    articles: k.articles, trained: k.trained, paths: k.paths, deleted: k.deleted };
+  // Version 2 (KB2-1) carries the notes: the public ones, and the owner's private ones only when the owner says so.
+  var k = kbData(), priv = k.notes.some(function(n) { return n && n.private; });
+  var withPriv = priv ? await uiConfirm({ title: 'Include your private notes?', body: 'The file carries every public note. Your private notes go in it only if you say so. Anyone who opens the file can read them.',
+    okLabel: 'Include them', cancelLabel: 'Leave them out' }) : false;
+  var out = { format: 'sep-kb', version: 2, exportedAt: new Date().toISOString(), build: (document.querySelector('meta[name="app-build"]') || {}).content || '',
+    articles: k.articles, trained: k.trained, paths: k.paths, deleted: k.deleted, notes: k.notes.filter(function(n) { return n && (!n.private || withPriv); }) };
   var blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' }), a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'sep-kb-' + localDateStr() + '.json';
@@ -1449,6 +1450,7 @@ function kbCleanFields(x, out) {
   var types = KB_LINK_TYPES.map(function(t) { return t[0]; });
   out.links = _kbList(x.links, function(l) { return types.indexOf(l.type) >= 0 ? { type: l.type, id: _kbStr(l.id, 200), label: _kbStr(l.label, 300) } : null; });
   ['summary', 'body', 'ruledBy', 'symptom', 'cause', 'fix', 'question', 'reason'].forEach(function(k) { if (x[k] != null) out[k] = _kbStr(x[k]); });
+  if (x.glance != null) out.glance = _kbStr(x.glance, 1000);
   ['ruledOn', 'on', 'decidedOn', 'reviewOn'].forEach(function(k) { if (x[k] != null) out[k] = _kbDay(x[k]); });
   if (x.faultId != null) out.faultId = KB_ID_RE.test(String(x.faultId)) ? String(x.faultId) : '';
   if (x.causes != null) out.causes = _kbList(x.causes, function(c) { var r = { cause: _kbStr(c.cause), check: _kbStr(c.check), fix: _kbStr(c.fix) }; return r.cause.trim() ? r : null; });
@@ -1510,7 +1512,7 @@ var KB_RANK = { draft: 0, pending: 1, published: 2, superseded: 3, retired: 3 };
 function kbImportData(obj, name) {
   var arts = obj && (Array.isArray(obj) ? obj : obj.format === 'sep-kb' || Array.isArray(obj.articles) ? obj.articles : null);
   if (!Array.isArray(arts)) { if (!addFileElsewhere(obj, name, 'kb')) uiAlert({ title: 'Not a knowledge file', body: 'The file is not a sep-kb export.' }); return null; }
-  var k = kbData(), res = { added: 0, updated: 0, same: 0, kept: 0, refused: 0, deleted: 0, trained: 0, notOnRoster: 0, paths: 0 };
+  var k = kbData(), res = { added: 0, updated: 0, same: 0, kept: 0, refused: 0, deleted: 0, trained: 0, notOnRoster: 0, paths: 0, notes: 0 };
   var clean = [], seen = {};
   arts.forEach(function(x) {
     var a = kbCleanArticle(x);
@@ -1575,11 +1577,22 @@ function kbImportData(obj, name) {
     if (i < 0) k.paths.push(q); else k.paths[i] = q;
     res.paths++;
   });
-  var said = [res.added ? res.added + ' added' : '', res.updated ? res.updated + ' updated' : '', res.same ? res.same + ' already here' : '',
+  // Notes (sep-kb v2), by id, never written over; one on an article this book does not hold is left out.
+  (obj && Array.isArray(obj.notes) ? obj.notes : []).forEach(function(n) {
+    if (!n || typeof n !== 'object' || !KB_ID_RE.test(String(n.id || '')) || !kbFind(String(n.articleId || '')) || k.notes.some(function(x) { return x.id === String(n.id); })) return;
+    var text = _kbStr(n.text, KB_NOTE_MAX).trim();
+    if (!text) return;
+    var q = { id: String(n.id), articleId: String(n.articleId), text: text, private: n.private === true, by: _kbStr(n.by, 200), byId: n.byId == null ? null : _kbStr(n.byId, 100), at: _kbNum(n.at) || now };
+    if (_kbNum(n.editedAt) != null) q.editedAt = _kbNum(n.editedAt);
+    if (_kbNum(n.removedAt) != null) { q.removedAt = _kbNum(n.removedAt); q.removeReason = _kbStr(n.removeReason, 300); }
+    k.notes.push(q);
+    res.notes++;
+  });
+  var said = [res.added ? res.added + ' added' : '', res.updated ? res.updated + ' updated' : '', res.notes ? todoPlural(res.notes, 'note') : '', res.same ? res.same + ' already here' : '',
     res.kept ? res.kept + ' kept as changed here' : '', res.deleted ? res.deleted + ' deleted here, not brought back' : '',
     res.trained ? todoPlural(res.trained, 'training record') : '', res.notOnRoster ? res.notOnRoster + ' training not on the roster' : '',
     res.paths ? todoPlural(res.paths, 'path') : '', res.refused ? res.refused + ' refused' : ''].filter(Boolean).join(' · ');
-  if (!res.added && !res.updated && !res.trained && !res.paths && !tomb.length) { uiAlert({ title: 'Nothing imported', body: 'Nothing in ' + (name || 'the file') + ' is new here' + (said ? ': ' + said : '') + '.' }); return res; }
+  if (!res.added && !res.updated && !res.trained && !res.paths && !res.notes && !tomb.length) { uiAlert({ title: 'Nothing imported', body: 'Nothing in ' + (name || 'the file') + ' is new here' + (said ? ': ' + said : '') + '.' }); return res; }
   saveState();
   if (navPageOf() === 'pageKnow') renderKnow();
   showToast(said);
@@ -1599,7 +1612,8 @@ function kbOpenArticle(id) {
   if (!a || !kbCanRead(a)) { showToast('That article is not here', 'warning'); return; }
   if (dialogsTypedAsk(function() { kbOpenArticle(id); })) return;
   var tab = navPageOf() === 'pageKnow' && kbTabHolds(_kbTab, a.kind) ? _kbTab : kbTabFor(a.kind);
-  kbGo({ tab: 'pageKnow', v: tab, id: a.id });
+  // The Library's shelf list stays beside it on the desk; the article opens at its landing (kbread.js kbLandMode).
+  kbGo({ tab: 'pageKnow', v: tab === _kbTab ? kbListV() : tab, id: a.id }, function() { _kbMode = ''; _kbSec = 0; });
 }
 /* An article's address, for a new window (search.js): its own kind's list, open beside it. */
 function kbLocOf(id) { var a = kbFind(id); return a && kbCanRead(a) ? { tab: 'pageKnow', v: kbTabFor(a.kind), id: a.id } : null; }
@@ -1648,7 +1662,7 @@ function kbAction(action, btn) {
   var id = btn && btn.dataset ? btn.dataset.id : null;
   switch (action) {
     // A view starts as itself: a kind or the drafts picked on another view are not carried to one with no chip for them.
-    case 'invKbTab': kbGo({ tab: 'pageKnow', v: btn.dataset.tab, id: '' }, function() { _kbFilter.kind = ''; _kbFilter.status = ''; _kbFilter.link = null; }); return true;
+    case 'invKbTab': kbGo({ tab: 'pageKnow', v: btn.dataset.tab, id: '' }, function() { _kbFilter.kind = ''; _kbFilter.status = ''; _kbFilter.link = null; _kbShelf = ''; }); return true;
     case 'invKbOpen': kbOpenArticle(id); return true;
     case 'invKbClose': _kbOpen = null; renderKnow(); return true;
     // Back, or with no step before (an address opened as it is, a new window) the view the article is on.
@@ -1727,7 +1741,13 @@ function kbAction(action, btn) {
     case 'invKbTrain': kbTrainOpen(id || null, btn.dataset.staff != null ? btn.dataset.staff : null); return true;
     case 'invKbTrainSave': kbTrainSave(); return true;
     case 'invKbReview': kbReview(id); return true;
-    case 'invKbFilterClear': { var c = btn.dataset.clear; if (c === 'kind') _kbFilter.kind = ''; else if (c === 'status') _kbFilter.status = ''; else _kbFilter.link = null; keepScroll(renderKnow); return true; }
+    case 'invKbFilterClear': {
+      var c = btn.dataset.clear;
+      if (c === 'shelf') { kbGo({ tab: 'pageKnow', v: 'library', id: _kbOpen || '' }, function() { _kbShelf = ''; }); return true; }
+      if (c === 'kind') _kbFilter.kind = ''; else if (c === 'status') _kbFilter.status = ''; else _kbFilter.link = null;
+      keepScroll(renderKnow);
+      return true;
+    }
     case 'invKbShowDrafts': kbGo({ tab: 'pageKnow', v: 'library', id: '' }, function() { _kbFilter = { q: '', kind: '', status: 'draft', link: null }; }); return true;
     case 'invKbLinkGo': kbLinkGo(id, btn.dataset.i); return true;
     case 'invKbPath': { var p = kbPaths().find(function(x) { return x.id === id; }), first = p && kbPathArticles(p)[0]; if (first) kbOpenArticle(first.id); else kbGo({ tab: 'pageKnow', v: 'training', id: '' }); return true; }
@@ -1735,7 +1755,7 @@ function kbAction(action, btn) {
     case 'invKbImport': kbImport(); return true;
     case 'invKbHelp': kbHelp(); return true;
   }
-  return false;
+  return kbReadAction(action, btn);
 }
 /* Typing: the form's fields and the search box. A field is written as it is typed and never redrawn under the caret; the
    search redraws the list only. */

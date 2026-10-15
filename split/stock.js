@@ -79,6 +79,7 @@ function stockTokens(text) {
 }
 
 function stockRound(v) { return Math.round(v * 1000) / 1000; }
+var STOCK_TIME_OF_DAY = /^(NIGHT|MORNING|EVENING|DAY|NOON|AFTERNOON)$/i;
 
 /* An area written with its line's number apart ("VAT A 2", "V A 1", "VAT 1", "VAT-2") is read as one word, VAT A1 or
    VAT A2, before the line is: its digit is not a quantity. The 25–28 Sep message's zinc line ("use VAT A 2 / 25/09/26/
@@ -122,10 +123,12 @@ function stockNoteSansBaths(text) {
 /* Whether the figure at s stands in a use clause: after "use", with only areas, dates and days between (and a minus
    straight before it, "-25kg =150"). */
 function stockInUse(sig, s) {
+  // A bath's own figure ("VAT A2 20 = 50") stands in the use however many bath parts came before it.
+  var bathPart = sig[s - 1] && sig[s - 1].t === 'text' && stockBathOfWord(sig[s - 1].v);
   for (var b = s - 1; b >= 0; b--) {
     var t = sig[b];
     if (t.t === 'kw') return t.v === 'use';
-    if (t.t === 'num' || (t.t === 'op' && !(b === s - 1 && t.v === '-'))) return false;
+    if ((t.t === 'num' && !bathPart) || (t.t === 'op' && !(b === s - 1 && t.v === '-'))) return false;
   }
   return false;
 }
@@ -145,7 +148,11 @@ function parseStockLine(body) {
   for (; i < toks.length; i++) {
     var tk = toks[i], nx = toks[i + 1];
     if (tk.t === 'kw' || tk.t === 'date' || tk.t === 'days' || tk.t === 'op') break;
+    // "106 70 KG USE …" (14 Oct 2026): a line that opens on two figures is named by the first, as "106 SOLLT 20 KG" is.
+    if (i === 0 && tk.t === 'num' && nx && nx.t === 'num' && toks[i + 2] && toks[i + 2].t !== 'op') { nameParts.push(tk.s || tk.v); continue; }
     if (tk.t === 'num' && (!nx || nx.t === 'unit' || nx.t === 'op' || nx.t === 'kw' || nx.t === 'days' || nx.t === 'num')) break;
+    // "BRIGHTNER NIGHT USE 2 LTR +MORNING USE 2 LTR …": a time of day before a use is the use's, not the name's.
+    if (tk.t === 'text' && STOCK_TIME_OF_DAY.test(tk.v) && nx && nx.t === 'kw' && nameParts.length) break;
     if (tk.t === 'unit' && nameParts.length) break;
     nameParts.push(tk.s || tk.v);
   }
@@ -172,6 +179,24 @@ function parseStockLine(body) {
   toks = t2;
   toks.forEach(function(tk) { if (tk.t === 'unit' && !r.unit) r.unit = tk.v; });
   var sig = toks.filter(function(tk) { return tk.t !== 'unit' && tk.t !== 'sym'; });
+  // A "+" before a bath or a time of day joins the parts of a use, never two figures ("USE V A 1 30 KG +V A 2 20 KG= 50 KG",
+  // "NIGHT USE 2 LTR +MORNING USE 2 LTR"), and "=TOTAL 9" is "= 9".
+  sig = sig.filter(function(tk, k) {
+    var nx = sig[k + 1];
+    if (tk.t === 'op' && tk.v === '+' && nx && nx.t === 'text' && (stockBathOfWord(nx.v) || /^VAT$/i.test(nx.v) || STOCK_TIME_OF_DAY.test(nx.v))) return false;
+    if (tk.t === 'text' && /^TOTAL$/i.test(tk.v) && sig[k - 1] && sig[k - 1].v === '=') return false;
+    return true;
+  });
+  // "A SOLLT 17-3-14 LTR": two minuses where the first leaves the last figure, and nothing after, is "17 - 3 = 14" typed
+  // with one key wrong. Read so, and said.
+  for (var t3 = 0; t3 + 4 < sig.length; t3++) {
+    var a3 = sig[t3], b3 = sig[t3 + 2], c3 = sig[t3 + 4];
+    if (a3.t === 'num' && sig[t3 + 1].v === '-' && b3.t === 'num' && sig[t3 + 3].v === '-' && c3.t === 'num' && (!sig[t3 - 1] || sig[t3 - 1].t !== 'op')
+      && (!sig[t3 + 5] || sig[t3 + 5].t !== 'op') && stockRound(a3.v - b3.v) === stockRound(c3.v)) {
+      sig[t3 + 3] = { t: 'op', v: '=' };
+      r.issues.push({ level: 'amber', code: 'typo', text: 'Read ' + a3.v + '-' + b3.v + '-' + c3.v + ' as ' + a3.v + ' − ' + b3.v + ' = ' + c3.v + '.' });
+    }
+  }
   var claimed = [];
 
   // Chains: n (op n)+, where "=" states the running total. In a use clause a sum is what was used, and its total the use
@@ -189,7 +214,14 @@ function parseStockLine(body) {
           claimed[js + 1] = true;
           if (sig[js].v === '+') sum = stockRound(sum + sig[js + 1].v);
           else {
-            if (stockRound(sig[js + 1].v) !== sum) r.issues.push({ level: 'red', code: 'footing', text: 'Works out to ' + sum + ', written as ' + sig[js + 1].v });
+            if (stockRound(sig[js + 1].v) !== sum) {
+              // "NIGHT USE 2 + MORNING USE 2 + DAY USE 3+2=TOTAL 9": the total is the day's, every use before it in the line too.
+              var earlier = [];
+              for (var e0 = 0; e0 < s; e0++) if (sig[e0].t === 'num' && !claimed[e0] && sig[e0 - 1] && sig[e0 - 1].t === 'kw' && sig[e0 - 1].v === 'use') earlier.push(e0);
+              var withEarlier = stockRound(earlier.reduce(function(t, e1) { return t + sig[e1].v; }, sum));
+              if (earlier.length && withEarlier === stockRound(sig[js + 1].v)) earlier.forEach(function(e1) { claimed[e1] = true; });
+              else r.issues.push({ level: 'red', code: 'footing', text: 'Works out to ' + sum + ', written as ' + sig[js + 1].v });
+            }
             sum = sig[js + 1].v;
           }
           js += 2;
@@ -209,7 +241,11 @@ function parseStockLine(body) {
       var op = sig[j].v, n = sig[j + 1];
       claimed[j + 1] = true;
       if (op === '+') { var role = first === 'A' ? 'O' : 'A'; r[role] = (r[role] || 0) + n.v; total = stockRound(total + n.v); }
-      else if (op === '-') { r.U = stockRound((r.U || 0) + n.v); total = stockRound(total - n.v); minusU = true; if (n.days) { r.days = n.days; r.rate = n.rate; } }
+      else if (op === '-') {
+        // "… TOTAL 9 LTR USE 83-9=74": the use already stated, then the opening less it. Counted once.
+        if (!(r.U != null && !minusU && stockRound(r.U) === stockRound(n.v))) r.U = stockRound((r.U || 0) + n.v);
+        total = stockRound(total - n.v); minusU = true; if (n.days) { r.days = n.days; r.rate = n.rate; }
+      }
       else if (op === '=') {
         if (stockRound(n.v) !== total) r.issues.push({ level: 'red', code: 'footing', text: 'Works out to ' + total + ', written as ' + n.v });
         total = n.v; chainResult = { v: n.v, idx: j + 1 };
@@ -272,7 +308,12 @@ function parseStockLine(body) {
           if (!minusU) { r.U = stockRound((r.U || 0) + tq1.v); if (tq1.days) { r.days = tq1.days; r.rate = tq1.rate; } }
           useParts.push({ qty: tq1.v, date: curDate, baths: curBaths.slice(), words: curWords.slice() });
           bathsSpent = true; curDate = null;
-          if (sig[q1 + 1] && sig[q1 + 1].v === '=' && sig[q1 + 2] && sig[q1 + 2].t === 'num') {
+          var partsSum = 0;
+          for (var u0 = useParts.length - parts; u0 < useParts.length; u0++) partsSum += useParts[u0].qty;
+          if (parts > 1 && sig[q1 + 1] && sig[q1 + 1].v === '=' && sig[q1 + 2] && sig[q1 + 2].t === 'num' && stockRound(sig[q1 + 2].v) === stockRound(partsSum)) {
+            // "V A 1 30 KG V A 2 20 KG = 50 KG": the parts' total, said again.
+            claimed[q1 + 2] = true; q1 += 2;
+          } else if (sig[q1 + 1] && sig[q1 + 1].v === '=' && sig[q1 + 2] && sig[q1 + 2].t === 'num') {
             claimed[q1 + 2] = true; balance = { v: sig[q1 + 2].v, idx: q1 + 2 }; q1 += 2;
           }
           continue;
@@ -307,6 +348,8 @@ function parseStockLine(body) {
 
   var loose = [];
   sig.forEach(function(tk, idx) { if (tk.t === 'num' && !claimed[idx]) loose.push(idx); });
+  // "106 70 KG USE … 70-50=20": the opening written first and again in the working is one opening.
+  if (r.O != null) loose = loose.filter(function(idx) { return stockRound(sig[idx].v) !== stockRound(r.O); });
   if (r.C == null && loose.length) { r.C = sig[loose[loose.length - 1]].v; loose.pop(); }
   if (r.O == null && loose.length) { r.O = sig[loose[0]].v; loose.shift(); }
   loose.forEach(function(idx) { r.unread.push(String(sig[idx].v)); });
@@ -328,6 +371,37 @@ function parseStockLine(body) {
   return r;
 }
 
+/* A delivery as the supervisor sends it (owner, 15 Oct 2026): "14/10/26/ <supplier> TO SOMA HCL 600 LTR / NITRIC ACID 30 LTR". Who sent
+   it is the words before "TO SOMA", each line after is a name and what came; every figure is received, on the message's day.
+   "HCL <supplier> TO SOMA / 660 LTR NITRIC ACID 60 LTR": a first figure with no name of its own takes the first word before
+   "TO SOMA" when two are written there. A figure still with no name is asked, as a stock message's nameless line is. */
+var STOCK_DELIVERY_RE = /\bTO\s+SOMA\b/i;
+function stockParseDelivery(out, lines) {
+  var text = lines.join('\n'), dates = [], dm, dre = /(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/?/g;
+  while ((dm = dre.exec(text))) { var iso = isoFromDmy(dm[1], dm[2], dm[3]); if (iso) dates.push(iso); }
+  dates.sort();
+  if (dates.length) { out.from = dates[0]; out.to = dates[dates.length - 1]; }
+  else if (out.sentOn) { out.from = out.to = out.sentOn; }
+  out.header = lines.map(function(l) { return l.trim(); }).filter(Boolean);
+  var flat = text.replace(dre, ' ').replace(/\s+/g, ' ').trim(), at = flat.search(STOCK_DELIVERY_RE);
+  var before = flat.slice(0, at).replace(/[^A-Za-z0-9&. ]+/g, ' ').trim().split(/\s+/).filter(Boolean);
+  var after = flat.slice(at).replace(STOCK_DELIVERY_RE, ' ').trim();
+  var unitRe = new RegExp('([A-Za-z][A-Za-z0-9 .&-]*?)?\\s*(\\d+(?:\\.\\d+)?)\\s*(' + Object.keys(STOCK_UNITS).join('|') + ')\\b\\.?', 'gi');
+  var m, n = 0, first = true;
+  while ((m = unitRe.exec(after))) {
+    var name = (m[1] || '').replace(/^[\s,&+-]+|[\s,&+-]+$/g, '');
+    if (!name && first && before.length > 1) name = before.shift();
+    first = false;
+    n++;
+    out.lines.push({ n: n, raw: m[0].trim(), name: name, unit: STOCK_UNITS[m[3].toUpperCase()] || '', O: null, A: +m[2], U: null, C: null,
+      addDate: out.to, useDate: null, useFrom: null, days: null, rate: null, note: '', useParts: null, issues: [], unread: [], key: stockKey(name) });
+  }
+  out.supplier = before.join(' ');
+  out.delivery = true;
+  if (!out.lines.length) out.unread.push(after);
+  return out;
+}
+
 // "14) …" or "14. …"; a dot followed by a digit is a decimal, not a number's end ("80.5 LTR available", a wrapped
 // line, read as item 80).
 var STOCK_ITEM_RE = /^\s*(\d{1,2})\s*(?:\)|\.(?!\d))\s*(.*)$/;
@@ -341,6 +415,7 @@ function parseStockMessage(text) {
   var msgs = relaySplit(text), first = msgs.find(function(m) { return m.sentBy; });
   if (first) { out.sentBy = first.sentBy; out.sentOn = first.sentOn; }
   var lines = msgs.map(function(m) { return m.text; }).join('\n').split('\n');
+  if (lines.some(function(l) { return STOCK_DELIVERY_RE.test(l) && !STOCK_ITEM_RE.test(l); })) return stockParseDelivery(out, lines);
   var cur = null, dates = [];
   lines.forEach(function(line) {
     if (!line.trim() || /^[\s.\-_*]+$/.test(line)) return;
@@ -515,6 +590,12 @@ function stockFindByKey(key) {
   if (!key) return null;
   return stockData().items.find(function(i) { return i.key === key || stockAliases(i).indexOf(key) >= 0; }) || null;
 }
+/* The one line whose name starts with this whole word or words ("106" is "106 Salt"); none, or two, is no match. */
+function stockFindByLead(key) {
+  if (!key) return null;
+  var hits = stockData().items.filter(function(i) { return i.active !== false && (i.key || '').indexOf(key + ' ') === 0; });
+  return hits.length === 1 ? hits[0] : null;
+}
 function stockFindByPos(n) {
   return stockData().items.find(function(i) { return i.lastPos === n; }) || null;
 }
@@ -544,6 +625,11 @@ function resolveStockParse(parsed, choices) {
     else if (mapChoice && mapChoice !== 'new') { r.item = stockItem(mapChoice); r.via = 'chosen'; }
     else if (mapChoice === 'new' && l.key) { r.via = 'new'; }
     else if (byKey) { r.item = byKey; r.via = 'name'; }
+    else if (stockFindByLead(l.key)) {
+      // "106" where the book holds "106 Salt": the one line whose name begins so. Said, and learnt on save as a spelling.
+      r.item = stockFindByLead(l.key); r.via = 'chosen';
+      r.issues.push({ level: 'amber', code: 'readas', text: '"' + l.name + '" read as ' + r.item.name + '.' });
+    }
     else if (!l.key) {
       var byPos = stockFindByPos(l.n);
       if (byPos) {
@@ -608,7 +694,13 @@ function resolveStockParse(parsed, choices) {
       if (O != null && (prev == null || stockRound(O) !== stockRound(prev)) && (A != null || U != null || C == null || stockRound(O) !== stockRound(C))) {
         r.entries.push({ kind: 'count', qty: O, date: from, seq: 0, note: 'opening' });
       }
-      if (A != null) r.entries.push({ kind: 'received', qty: A, date: addDate, seq: 1 });
+      // The delivery message and the next stock message ("NITRIC ACID ADD 30+22=52") tell of one delivery: a delivery of the
+      // same figure already on record within four days is that one, said and not added again.
+      var twinIn = A != null && r.item ? stockData().entries.find(function(e) {
+        return e.itemId === r.item.id && e.kind === 'received' && !e.voided && (!parsed.pasteId || e.pasteId !== parsed.pasteId) && stockRound(e.qty) === stockRound(A) && Math.abs(isoDaysBetween(e.date, addDate)) <= 4;
+      }) : null;
+      if (twinIn) r.issues.push({ level: 'amber', code: 'received-twice', text: 'Received ' + stockFmtQty(A) + ' is already on record for ' + stockShortDate(twinIn.date) + (twinIn.supplier ? ' from ' + twinIn.supplier : '') + ': the same delivery, not added again.' });
+      else if (A != null) r.entries.push(parsed.supplier ? { kind: 'received', qty: A, date: addDate, seq: 1, supplier: parsed.supplier } : { kind: 'received', qty: A, date: addDate, seq: 1 });
       if (U != null) {
         // A use on one day is that day's; one whose parts name several days covers them (useFrom … useDate).
         var uFrom = l.useFrom || l.useDate || from, uDays = l.useFrom ? stockWorkingDays(l.useFrom, l.useDate) : l.useDate ? 1 : (l.days || stockWorkingDays(from, to));
@@ -668,13 +760,16 @@ function stockCommitPaste(parsed, res, meta) {
       item.aliases = stockAliases(item).concat([r.src.key]);
     }
     if (!item.unit && r.src.unit) item.unit = r.src.unit;
-    st.items.forEach(function(i) { if (i.lastPos === r.src.n && i !== item) delete i.lastPos; });
-    item.lastPos = r.src.n;
+    // A delivery's lines are not numbered as the stock message numbers them: they say nothing of a line's place.
+    if (!parsed.delivery) {
+      st.items.forEach(function(i) { if (i.lastPos === r.src.n && i !== item) delete i.lastPos; });
+      item.lastPos = r.src.n;
+    }
     lines++;
     r.entries.forEach(function(e) {
       var rec = { id: stockUid('SE'), itemId: item.id, kind: e.kind, qty: e.qty, date: e.date, seq: e.seq, at: at,
         source: 'paste', pasteId: pasteId, n: r.src.n, raw: r.src.raw, sentBy: meta.sentBy || '', by: meta.by || '' };
-      ['from', 'days', 'rate', 'note', 'unsettled', 'lines'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
+      ['from', 'days', 'rate', 'note', 'unsettled', 'lines', 'supplier'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
       if (e.kind === 'used' || e.kind === 'charged') { if (!rec.days) rec.days = 1; }
       st.entries.push(rec);
       ids.push(rec.id);
@@ -901,7 +996,7 @@ function stockReadPaste() {
   if (!text.trim()) { showToast('Paste the message first', 'error'); return; }
   var parsed = parseStockMessage(text);
   parsed.text = text;
-  if (!parsed.lines.length) { showToast('No numbered lines found — is this the stock message?', 'error'); return; }
+  if (!parsed.lines.length) { showToast(parsed.delivery ? 'No figure with a unit found in this delivery' : 'No numbered lines found — is this the stock message?', 'error'); return; }
   if (!parsed.to) { parsed.from = parsed.to = localDateStr(); parsed.noDate = true; }
   _stockReview = { text: text, parsed: parsed, choices: {}, sentBy: parsed.sentBy || '' };
   stockSetView('review');
@@ -942,7 +1037,8 @@ function renderStockReview() {
   }
   h += '<div class="inv-panel"><div class="inv-kv inv-mb-8">' +
     '<div><div class="inv-kv-k">Covers</div><div>' + escHtml(stockDayLabel(p.from)) + (p.to !== p.from ? ' – ' + escHtml(stockDayLabel(p.to)) : '') + '</div></div>' +
-    '<div><div class="inv-kv-k">Count dated</div><div>' + escHtml(stockDayLabel(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</div></div></div>' +
+    (p.delivery ? '<div><div class="inv-kv-k">Delivered by</div><div id="stockDeliveryFrom">' + escHtml(p.supplier || 'Not written') + '</div></div>'
+      : '<div><div class="inv-kv-k">Count dated</div><div>' + escHtml(stockDayLabel(p.to)) + (p.noDate ? ' (no date in the message: today)' : '') + '</div></div>') + '</div>' +
     '<div class="inv-fields">' +
     '<div class="inv-field"><label class="inv-field-label" for="stockSentBy">Sent by</label><input id="stockSentBy" class="inv-input" value="' + escHtml(rv.sentBy) + '" placeholder="Who counted" autocomplete="off"></div>' +
     '<div class="inv-field"><label class="inv-field-label" for="stockBy">Entered by</label><input id="stockBy" class="inv-input" value="' + escHtml(stockBy()) + '" placeholder="Your name" autocomplete="off"></div></div></div>';
@@ -1492,6 +1588,7 @@ function stockRereadDiff(p) {
   if (!p || !p.text) return null;
   var parsed;
   try { parsed = parseStockMessage(p.text); } catch (x) { return null; }
+  parsed.pasteId = p.id;   // its own delivery is not another message's (resolveStockParse, received-twice)
   if (!parsed.lines.length) return null;
   parsed.text = p.text;
   if (!parsed.to) { parsed.from = p.from || null; parsed.to = p.to || null; }
@@ -1516,7 +1613,7 @@ function stockRereadDiff(p) {
       // An opening is saved only where it differs from what the app held before the message, which moves when an earlier
       // message is read again; so openings are compared by the figure the message states, apart from the rest.
       var rec = { itemId: r.item.id, kind: e.kind, qty: e.qty, date: e.date, seq: e.seq, n: r.src.n, raw: r.src.raw };
-      ['from', 'days', 'rate', 'note', 'unsettled', 'lines'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
+      ['from', 'days', 'rate', 'note', 'unsettled', 'lines', 'supplier'].forEach(function(k) { if (e[k] != null && e[k] !== '') rec[k] = e[k]; });
       if ((e.kind === 'used' || e.kind === 'charged') && !rec.days) rec.days = 1;
       if (e.kind === 'count' && e.note === 'opening') freshOpen[r.item.id] = rec; else fresh.push(rec);
     });

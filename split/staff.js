@@ -1599,8 +1599,11 @@ function relayLearnFromRow(x) {
     // at his own) and puts the corrected one first, which is the one its EXTRA books to.
     var now = cov ? [x.area].concat(was.filter(function(a) { return a !== x.area; })) : extraAreas(x);
     var asRead = cov ? x.area === was[0] : now.slice().sort().join() === was.slice().sort().join();
+    // A heading that only names lines (relayHeadIsPlain) keeps the days it was corrected the same way: read so from the second.
+    var had = L.heads[k], days = had && (had.areas || []).slice().sort().join() === now.slice().sort().join() ? relayLessonDays(had).slice() : [];
+    if (days.indexOf(_attDate) < 0) days.push(_attDate);
     if (asRead) delete L.heads[k];
-    else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate };
+    else L.heads[k] = { areas: now, was: was, text: x.srcHead, slot: x.srcAt, at: at, day: _attDate, days: days };
   }
   // A row saved while "12:00AM--OUT TIME" still read as worded carries it as its slot: a time is no lesson (relayHeadHasWords).
   if (x.srcSlot && x.kind === 'block' && relayHeadHasWords(x.srcSlot)) {

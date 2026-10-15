@@ -128,6 +128,8 @@ test.describe('P98: learning from corrections', () => {
     // A heading's lesson is kept for its slot (P107): the night hold's slot, out at 6 AM.
     expect(L).toBe('["BERRAL V A 2 @ out 06:00"] ["NIGHT HOLD 8 PM TO 6 AM"]');
 
+    // A heading that only names its lines learns from the same correction on two days (owner, 15 Oct 2026): the second here.
+    await g(page, `relayLearnData().heads['BERRAL V A 2 @ out 06:00'].days.push('2026-01-05')`);
     const r = await parse(page, ROLL());
     expect(r.extra[3]).toMatchObject({ areas: ['barrel'], from: '21:00', to: '06:00' });
     expect(r.info.join(' ')).toContain('learnt from your correction');

@@ -23,6 +23,7 @@
 
 var RELAY_WA_RE = /^\s*\[?(\d{1,2})\/(\d{1,2})\/(\d{2,4}),?\s+\d{1,2}:\d{2}(?::\d{2})?\s*(?:[AaPp]\.?[Mm]\.?)?\]?\s*(?:-\s*)?([^:]{1,40}):\s?(.*)$/;
 var RELAY_GENERAL = 510;   // 8:30 AM, the general shift's start
+var RELAY_FLOOR_AREAS = ['vat-a1', 'vat-a2', 'barrel', 'pickling-vat', 'pickling-barrel'];   // the lines a block can run on
 var RELAY_GENERAL_OUT = 1020;  // 5:00 PM
 var RELAY_GATE = [420, 1140];  // 7 AM – 7 PM, the gate keeper's standing hours
 var RELAY_MORNING = 360;   // 6:00 AM
@@ -59,6 +60,18 @@ function relaySlotTag(mode, slot) {
   return (mode === 'out' ? 'out ' : 'in ') + (t == null ? '?' : relayHhmm(t));
 }
 function relayLearnKey(head, tag) { return relayHeadKey(head) + ' @ ' + tag; }
+/* A heading made of nothing but the lines it names ("VAT A1", "VAT A 2 & PICKLING", "BERRAL + V A 2"): it says where its crew
+   stood, and a block the owner corrects under it is that day's crew moving, never a way to read the heading (owner, 15 Oct
+   2026: the roll "misreads area assignment in overtime"; a 9 Oct correction of an evening "VAT A1" to three lines was being
+   read into every evening "VAT A1"). Outside the 8:30 shift such a heading's lesson is used once the same correction was made
+   on two days (`days`): one day's correction is that day's crew moving. */
+function relayHeadIsPlain(text) {
+  var k = ' ' + String(text || '').toUpperCase().replace(/[^A-Z0-9]+/g, ' ') + ' ';
+  if (!relayHeaderAreas(text).length) return false;
+  return !k.replace(/\b(VAT|VA|V|A|A1|A2|VA1|VA2|1|2|AND|SIDE|B[AE]R+[AE]*L+|BERAL|BARREL|PICK\w*|LINE)\b/g, ' ').trim();
+}
+function relayLessonDays(l) { return l ? (Array.isArray(l.days) ? l.days : l.day ? [l.day] : []) : []; }
+function relayLessonApplies(head, tag, l) { return tag === 'in ' + relayHhmm(RELAY_GENERAL) || !relayHeadIsPlain(head) || relayLessonDays(l).length >= 2; }
 function relaySlotLabel(tag) {
   var m = /^(in|out) (.*)$/.exec(String(tag || '')), t = m ? relayParseHhmm(m[2]) : null;
   if (!m) return 'any slot';
@@ -116,7 +129,11 @@ function relayHeaderAreas(text) {
   var k = ' ' + String(text || '').toUpperCase().replace(/[^A-Z0-9&]+/g, ' ') + ' ';
   var barrel = /\bB[AE]R+[AE]L+\b|\bBERAL\b|\bBARREL\b/.test(k);
   var pick = /PICK/.test(k);
-  var a1 = /\bA\s?1\b|\bVA\s?1\b/.test(k), a2 = /\bA\s?2\b|\bVA\s?2\b/.test(k);
+  // "VAT 2" is VAT A2 as "VAT A 2" is: with no A written it read as VAT A1 (a lesson had covered it, 10 Oct 2026).
+  var a1 = /\bA\s?1\b|\bVA\s?1\b|\bVAT\s?1\b/.test(k), a2 = /\bA\s?2\b|\bVA\s?2\b|\bVAT\s?2\b/.test(k);
+  // Both VAT lines written with one name: "VAT 1+2", "V A 1&2", "VAT A1+A2" (owner, 15 Oct 2026: "if 2 areas have + sign
+  // between them"). "+" is a space here; "PICKLING 1&2" is the pickling's own and is read above any VAT line.
+  if (/\b(VAT|V\s?A|A)\s?1\s*&?\s*(A\s?|VA\s?|V\s?A\s?|VAT\s?)?2\b/.test(k)) { a1 = true; a2 = true; }
   var vat = /\bVAT\b|\bV\s?A\b/.test(k) || a1 || a2;
   var out = [];
   // "pickling VA 1 & berral" is the VAT side's pickling that also serves the
@@ -328,6 +345,8 @@ function relayKind(text) {
   var dh = RELAY_ROLL_HEAD_RE.exec(String(text || ''));
   if (dh) return dh[1].toLowerCase();
   if (/c[ae]mical|chemical/i.test(head)) return 'stock';
+  // A chemical delivery: "14/10/26/ <supplier> TO SOMA HCL 600 LTR" (stock.js, stockParseDelivery).
+  if (/\bTO\s+SOMA\b/i.test(head)) return 'stock';
   var io = head.match(/\b(in|out)\s*-*\s*time(?![a-z])/i);
   if (io && /\d{1,2}\/\d{1,2}\/\d{2,4}/.test(head)) return io[1].toLowerCase();
   if (io && !/pickling\s*time/i.test(head)) return io[1].toLowerCase();
@@ -373,7 +392,8 @@ function parseRelayRoll(text, roster, sentOn, opts) {
   var lines = String(text || '').split('\n');
   var out = { kind: relayKind(text), date: null, days: {}, lines: [], issues: [] };
   var first = lines[0] || '';
-  var dm = first.match(/(\d{1,2})\/(\d{1,2})\/(\d{2,4})/);
+  // "Sunday Duty 11/ 10/ 26/ IN TIME 6:00 AM": spaces after the slashes are the same date (it was read as the day sent).
+  var dm = first.match(/(\d{1,2})\s*\/\s*(\d{1,2})\s*\/\s*(\d{2,4})/);
   // A date the calendar lacks (31/09) reads as no date, and with no day it was sent either there is no day to put it
   // on: it is said, and nothing from it is saved (relayPlan leaves out a roll with no date).
   var dated = dm ? isoFromDmy(dm[1], dm[2], dm[3]) : null;
@@ -382,7 +402,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
     ' the day it was sent is not known: nothing from it can be saved. Paste it with its WhatsApp line, or put the date on its first line.' });
   else if (!dm) out.issues.push({ tone: 'amber', text: 'The roll carries no date; read as the day it was sent.' });
   else if (!dated) out.issues.push({ tone: 'amber', text: '"' + dm[0] + '" is not a date; read as the day it was sent.' });
-  var headTimes = relayTimes(first.replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/?/, ''));
+  var headTimes = relayTimes(first.replace(/\d{1,2}\s*\/\s*\d{1,2}\s*\/\s*\d{2,4}\/?/, ''));
   var st = {
     mode: out.kind,
     iso: out.date,
@@ -480,6 +500,10 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         // When the group's own times differ, the block is the ones who stayed
         // latest (the others went home before it started).
         var crewIds = sec.crewIds.filter(function(id, k) { return sec.crewIds.indexOf(id) === k; });
+        // The gate keeper's 7 PM is their standing hours, not the block's (three hands out at 6 PM and the gate keeper at 7 PM over "EXTRA 3 HOURS", 13 Oct
+        // 2026): they are in no block while anybody else is under the tag; read as its whole crew, the EXTRA was theirs.
+        var notPost = crewIds.filter(function(id) { var w0 = (roster || []).find(function(r) { return String(r.id) === String(id); }); return !w0 || (w0.area !== 'gate' && w0.area !== 'office'); });
+        if (notPost.length) crewIds = notPost;
         if (st.mode === 'out' && crewIds.length) {
           var outs = crewIds.map(function(id) { var pp = day(st.iso).people[id]; return pp ? pp.outExp : null; });
           var known = outs.filter(function(o) { return o != null; });
@@ -626,6 +650,7 @@ function parseRelayRoll(text, roster, sentOn, opts) {
       // are two readings, and a correction to one must not move the other (the 8:30 shift's decides where hands stood).
       var at = slotAt(), rawAreas = (kindH.areas || []).slice();
       var lh = !kindH.absent ? learn.heads[relayLearnKey(bare, at)] : null;
+      if (lh && !relayLessonApplies(bare, at, lh)) lh = null;
       if (lh && Array.isArray(lh.areas)) {
         kindH.areas = lh.areas.slice();
         out.issues.push({ tone: 'info', n: ln.n, text: '"' + bare + '" read as ' + (lh.areas.map(relayAreaName).join(' + ') || 'no line') + ', ' + _relayLearntNote(lh) + '.' });
@@ -969,6 +994,24 @@ function relayPlan(rv) {
       return (o[a.next.st] - o[b.next.st]) || String(a.next.area).localeCompare(String(b.next.area)) || String(a.w.name).localeCompare(String(b.w.name));
     });
     out.counts.people += rows.length;
+    // A block that names no line ("----8:00 PM---- / a name / EXTRA 9 HOURS") ran where its crew stood on the day: the lines the
+    // day puts them on, said. It was booked to no line and read Not checkable on the Areas card.
+    var dayArea = {};
+    rows.forEach(function(r) { if (r.w && r.next && r.next.st === 'P' && r.next.area) dayArea[String(r.w.id)] = r.next.area; });
+    if (rec && rec.marks) Object.keys(rec.marks).forEach(function(id) { var mk = rec.marks[id]; if (mk && mk.st !== 'A' && mk.area && !dayArea[id]) dayArea[id] = mk.area; });
+    t.extra.forEach(function(x) {
+      if (x.kind !== 'block' || (x.areas && x.areas.length) || !x.crew.length) return;
+      var got = [];
+      x.crew.forEach(function(n) {
+        var w = roster.find(function(r) { return r.name === n; }), a = w ? dayArea[String(w.id)] : null;
+        if (a && RELAY_FLOOR_AREAS.indexOf(a) >= 0 && got.indexOf(a) < 0) got.push(a);
+      });
+      if (got.indexOf('barrel') >= 0 && got.indexOf('pickling-barrel') >= 0) got.splice(got.indexOf('pickling-barrel'), 1);
+      if (!got.length) return;
+      x.areas = got; x.areasFrom = 'crew';
+      issues.push({ tone: 'info', text: 'The block ' + relayClockLabel(relayParseHhmm(x.from)) + (x.to ? ' – ' + relayClockLabel(relayParseHhmm(x.to)) : '') + ' on ' + formatDate(iso) +
+        ' names no line: read as where its crew stood that day, ' + got.map(relayAreaName).join(' + ') + '.' });
+    });
     var extras = t.extra.map(function(x) {
       var row = x.kind === 'block'
         ? { kind: 'block', areas: x.areas, crew: x.crew.map(function(n) { var w = roster.find(function(r) { return r.name === n; }); return w ? w.id : null; }).filter(function(v) { return v != null; }),
@@ -1061,7 +1104,8 @@ function relayLearntHtml() {
       '<span class="inv-row-meta">' + escHtml((l.areas || []).map(relayAreaName).join(' + ') || 'no line') + ' · was ' + escHtml((l.was || []).map(relayAreaName).join(' + ') || 'no line') +
       // A lesson is read back on its own slot. One kept before that was known is not read: correct the row again.
       ' · ' + escHtml(l.slot ? relaySlotLabel(l.slot) : 'kept before lessons were per slot, not read; correct the row again') +
-      (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') + '</span></span>' +
+      (l.day ? ' · ' + escHtml(formatDate(l.day)) : '') +
+      (l.slot && !relayLessonApplies(l.text || '', l.slot, l) ? ' · used once corrected the same way on another day' : '') + '</span></span>' +
       '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRelayForget" data-kind="heads" data-key="' + escHtml(k) + '">Forget</button></div>';
   });
   Object.keys(L.slots).sort().forEach(function(k) {

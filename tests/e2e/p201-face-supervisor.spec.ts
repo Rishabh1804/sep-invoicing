@@ -156,7 +156,7 @@ test.describe('P201: the supervisor’s face', () => {
 
     // A lesson learnt from the owner's correction of a pasted roll: an evening "VAT A1" read as three areas. It moves a pasted roll's
     // heading; the face's headings are picks, read exactly as written.
-    await ev(page, `relayLearnData().heads[relayLearnKey('VAT A1', 'out 20:00')] = { areas: ['vat-a1', 'vat-a2', 'pickling-vat'], day: '${today}' }; saveState()`);
+    await ev(page, `relayLearnData().heads[relayLearnKey('VAT A1', 'out 20:00')] = { areas: ['vat-a1', 'vat-a2', 'pickling-vat'], day: '${today}', days: ['${today}', '2026-01-05'] }; saveState()`);
     await page.locator('[data-face-duty="roll-out"] [data-action="invFaceOpen"]').last().click();
     await expect(page.locator('[data-face-five] .inv-panel-count')).toHaveText('8');
     await page.locator('[data-face-late] [data-action="invFaceBlkAdd"]').click();

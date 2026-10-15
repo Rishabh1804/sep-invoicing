@@ -174,6 +174,11 @@ test.describe('P107: attendance rolls', () => {
     const inRoll = await parse(page, IN());
     expect(inRoll.marks.Chand.area).toBe('vat-a1');
     expect(inRoll.issues.join(' ')).not.toContain('learnt from your correction');
+    // A heading that only names its line (owner, 15 Oct 2026): one day's correction is that day's crew, not yet a way to read it.
+    const once = await parse(page, `${dmy()}/ out time\n----8:00 PM---\nVAT A 1\n1) ARUN\nEXTRA 6 HOURS`);
+    expect(once.extra[0].areas).toEqual(['vat-a1']);
+    // The same correction on a second day makes it one.
+    await g(page, `(function(){ var d = '2026-01-05', x = { kind: 'block', areas: ['vat-a2'], srcHead: 'VAT A 1', srcAt: 'out 20:00', srcAreas: ['vat-a1'] }; var was = _attDate; _attDate = d; relayLearnFromRow(x); _attDate = was; })()`);
     const outRoll = await parse(page, `${dmy()}/ out time\n----8:00 PM---\nVAT A 1\n1) ARUN\nEXTRA 6 HOURS`);
     expect(outRoll.extra[0].areas).toEqual(['vat-a2']);
 

@@ -368,12 +368,143 @@ function prodItemRecord(it, group, raw, n, date, noDate) {
 }
 
 /* ---------- The supervisor's barrel list ---------- */
+/* The list as the supervisor writes it from October 2026 (owner, 15 Oct 2026: "our parser cannot read this message"):
+   a batch a block between dashed lines, each with what came out of the barrel and when it was unloaded, and at the
+   end what went in for the night, unloaded the next morning and listed again on the next day's list:
+     15/10/26/ BERRAL PRODUCTION
+     KHURANA 150 KG 10:30 AM UNLOAD
+     ----------------
+     DORABJI 1040-341 NOS +0108-600 NOS
+     1:00 PM UNLOAD
+     ----------------
+     LOADING TIME 4:00 PM 90 CD 70 KG
+     40 CD 50 KG GENERAL
+     ------and------                      ("and" is the end of the message)
+   The unload time is the batch's end, written before or after its figures, on its line or the next; it closes every
+   batch above it in its block that has none. Two clients on one line ("DILIP PRESS 8257-60 KG PARAKH I BOLLT 50 KG") are
+   two batches. A barrel counted in barrels ("PAWAN AUTO 1 BERRAL") is the client's batch with no figure, asked. What is
+   loaded is not counted here: it is counted when it is unloaded. The older April log (loads under each time, counted
+   "×4" in barrels) has no unload time beside a kilo or a count, and no dashed blocks, and is still listed, not read. */
+var PROD_UNLOAD_RE = /\bun\s*(?:lo?a?d|old)(?:ing)?\b(?:\s*(?:timing|time|tim)\b)?/i;
+var PROD_LOADING_RE = /(?:^|[^A-Za-z])(?:loading|lodinig|loding|load)\b(?:\s*(?:timing|time)\b)?/i;
+var PROD_CLOCK_RE = /\b(\d{1,2}\s*[:.]\s*\d{2}\s*(?:[ap]\.?\s?m\.?)?|\d{1,2}\s*[ap]\.?\s?m\.?)(?![\d])/i;
+function prodIsBatchList(lines) {
+  var dashed = lines.some(function(l) { return /^\s*-{6,}\s*$/.test(l); });
+  var unload = lines.some(function(l) { return PROD_UNLOAD_RE.test(l); });
+  var withFigure = lines.some(function(l) { return PROD_UNLOAD_RE.test(l) && /\d\s*(kg|nos|no)\b/i.test(l); });
+  return unload && (dashed || withFigure);
+}
+function parseBarrelBatches(msg, ctx, lines) {
+  var items = [], notes = [], date = msg.sentOn || ctx.today, noDate = !msg.sentOn, group = null, power = {};
+  var pending = [], loading = null, skip = -1;
+  var clockOf = function(s) {
+    var m = PROD_CLOCK_RE.exec(s);
+    if (!m) return null;
+    // The list is often sent the next morning: when it was sent says nothing of a time on the day before.
+    var t = prodTimeOf(m[1], date === msg.sentOn ? msg.sentAt : null);
+    return { min: t.min, issue: t.issue || null, text: m[0] };
+  };
+  var close = function(recs, un) {
+    recs.forEach(function(r) {
+      r.to = prodHhmm(un.min);
+      if (un.issue) r.issues.push(un.issue);
+    });
+  };
+  var record = function(it, raw, n) {
+    var rec = prodItemRecord(it, it.clientId != null ? null : group, raw, n, date, false);
+    rec.kind = 'plated'; rec.line = 'barrel'; rec.lineSrc = 'written'; rec.slot = 'day'; rec.basis = 'relay';
+    if (it.clientId != null) group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow };
+    return rec;
+  };
+  lines.forEach(function(raw, i) {
+    if (i <= skip) return;
+    var n = i + 1, line = raw.trim();
+    if (!line) return;
+    var hm = line.match(PROD_LIST_HEAD_RE);
+    if (hm) { if (isoFromDmy(hm[1], hm[2], hm[3])) { date = isoFromDmy(hm[1], hm[2], hm[3]); noDate = false; } line = line.slice(hm[0].length).trim(); }
+    var core = line.replace(/^[\s\-–—_=*.]+|[\s\-–—_=*.]+$/g, '');
+    if (!core) { pending = []; loading = null; return; }
+    if (/^(and|end)$/i.test(core) || /^b[ae]r+[ae]*l+\.?\s*production$/i.test(core)) return;
+    var dm = core.replace(/\s+/g, '').match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\/*$/);
+    if (dm) { if (isoFromDmy(dm[1], dm[2], dm[3])) { date = isoFromDmy(dm[1], dm[2], dm[3]); noDate = false; } return; }
+    if (prodIsPowerLine(core)) { prodPowerStep(power, core, raw, n, date, date === msg.sentOn ? msg.sentAt : null, items, notes); return; }
+    if (!PROD_UNLOAD_RE.test(core) && PROD_LOADING_RE.test(core)) {
+      var lt = clockOf(core);
+      loading = lt && lt.min != null ? relayClockLabel(lt.min) : 'the end of the day';
+      var rest = core.replace(PROD_LOADING_RE, ' ').replace(lt ? lt.text : '', ' ').trim();
+      notes.push({ n: n, raw: raw, text: 'Loaded at ' + loading + (rest ? ': ' + rest : '') + '. Counted when it is unloaded' });
+      return;
+    }
+    if (loading) { notes.push({ n: n, raw: raw, text: 'Loaded at ' + loading + ': counted when it is unloaded' }); return; }
+    var un = null, text = core;
+    if (PROD_UNLOAD_RE.test(core)) {
+      text = core.replace(PROD_UNLOAD_RE, ' ');
+      un = clockOf(text);
+      if (un) text = text.replace(un.text, ' ');
+      else {
+        // "MEHTA LINEAR 600 NOS UNLOAD TIMING" / "4:00 PM": the time on the line under it.
+        var nx = String(lines[i + 1] || '').trim();
+        var nt = clockOf(nx);
+        if (nt && !nx.replace(nt.text, '').replace(/[\s\-.]/g, '')) { un = nt; skip = i + 1; raw = raw + '\n' + lines[i + 1]; }
+      }
+      if (!un) un = { min: null, issue: { tone: 'amber', code: 'time', text: 'No unload time read for this batch.' } };
+      text = text.replace(/\s+/g, ' ').trim();
+    }
+    var recs = [];
+    if (text) {
+      // Barrels counted in barrels: each client's batch, no figure ("PAWAN AUTO 1 BERRAL+ PARAKH 1 BERRAL HIGCO 1 BERRAL").
+      var bre = /([A-Za-z][A-Za-z .&]*?)\s*(\d+)\s*b[ae]r+[ae]*l+s?\b\s*\+?/gi, bm, any = false;
+      while ((bm = bre.exec(text))) {
+        any = true;
+        var bi = prodReadItem(bm[1].trim(), ctx.clients);
+        var br = record(bi, raw, n);
+        br.issues.push({ tone: 'amber', code: 'barrels', text: bm[2] + ' barrel' + (+bm[2] === 1 ? '' : 's') + ', with no weight or count written. Enter its figure, or keep it with none.' });
+        recs.push(br);
+      }
+      if (!any) {
+        // Two batches on one line split after a figure followed by a name or a "+": "8257-60 KG PARAKH I BOLLT 50 KG".
+        var chunks = [], from = 0, m;
+        PROD_QTY_TOKEN_RE.lastIndex = 0;
+        var toks = [];
+        while ((m = PROD_QTY_TOKEN_RE.exec(text))) { if (!/X\s*$/i.test(text.slice(0, m.index))) toks.push({ at: m.index, end: m.index + m[0].length }); }
+        toks.forEach(function(t, k) {
+          var nxt = toks[k + 1];
+          if (!nxt) return;
+          var between = text.slice(t.end, nxt.at);
+          if (/^\s*\+/.test(between) || /[A-Za-z]{3,}/.test(between)) { chunks.push(text.slice(from, t.end)); from = t.end; }
+        });
+        chunks.push(text.slice(from));
+        chunks.forEach(function(c) {
+          c = c.replace(/^[\s+,&-]+|[\s+,&-]+$/g, '');
+          if (!c) return;
+          var it = prodReadItem(c, ctx.clients);
+          if (!it.part && it.qty == null && it.clientId != null) {
+            // A client alone with an unload time is a batch whose figure was not written ("KHURANA UNLOAD TIMING 2:30 PM").
+            if (!un) { group = { client: it.client, clientId: it.clientId, clientName: it.clientName, how: it.clientHow }; return; }
+            var nr = record(it, raw, n);
+            nr.issues.push({ tone: 'amber', code: 'noqty', text: 'No figure written for this batch. Enter it, or keep it with none.' });
+            recs.push(nr);
+            return;
+          }
+          recs.push(record(it, raw, n));
+        });
+      }
+    }
+    if (un) { close(pending.concat(recs), un); pending = []; }
+    else pending = pending.concat(recs);
+    recs.forEach(function(r) { items.push(r); });
+  });
+  if (noDate) items.forEach(function(it) { it.issues.push({ tone: 'amber', code: 'nodate', text: 'No date on the list: read as ' + date + '.' }); });
+  prodPowerEnd(power, date, items);
+  return { items: items, notes: notes, date: date, noDate: noDate };
+}
 function parseProductionList(msg, ctx) {
   var lines = String(msg.text || '').split('\n'), items = [], notes = [];
   // Before 19 May the list was a timed log of unload and load cycles counted in barrels ("Unlod time 10:00am /
   // 90 CD ganral 120k ×4"): barrels, not pieces or kilograms. It is listed, not read. A count of barrels is a figure
   // before the word; the list's own date is not one ("22/09/26 berral production", with no slash after the date, was
   // taken for a count and the whole list thrown away).
+  if (prodIsBatchList(lines)) return parseBarrelBatches(msg, ctx, lines);
   if (/unlo?a?d/i.test(msg.text) || /\d\s*b[ae]r+[ae]*l+\b/i.test(String(msg.text || '').replace(/\d{1,2}\/\d{1,2}\/\d{2,4}\/*/g, ' '))) {
     lines.forEach(function(raw, i) { if (raw.trim()) notes.push({ n: i + 1, raw: raw, text: 'An older timed barrel log, in barrels; not read' }); });
     return { items: [], notes: notes, date: msg.sentOn || ctx.today };

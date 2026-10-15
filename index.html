@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="e25279c5">
+<meta name="app-build" content="fdc3f5a5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2535,6 +2535,11 @@ body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelves > :not(.inv-kb
 body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
 body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card { flex: none; }
 body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card:nth-child(n+6) { display: none; }
+/* A shelf with more than five takes two columns, its cards two across, its first ten shown, so a full shelf leaves no blank beside it. */
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide { grid-column: span 2; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-shelf-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-card:nth-child(n+6) { display: grid; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-card:nth-child(n+11) { display: none; }
 @container list (max-width: 24rem) {
   .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
   .inv-kb-card { flex: none; }
@@ -2729,7 +2734,7 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 <!-- TOP BAR (design system §4, §6.1) -->
 <header class="inv-topbar">
   <button class="inv-topbar-btn inv-topbar-back" id="navBack" data-action="invNavBack" aria-label="Back" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
   </button>
   <nav class="inv-topbar-trail" id="navTrail" aria-label="Trail"></nav>
   <h1 class="inv-topbar-title" id="topbarTitle">Today</h1>
@@ -2737,35 +2742,35 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
   <span class="inv-topbar-spacer"></span>
   <!-- Search (DIRECTION_B): a field-like button on the desktop, an icon on the phone; search.js builds what it opens. -->
   <button class="inv-search inv-ws-search" data-action="invSearchOpen" aria-keyshortcuts="Control+K">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
+    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
   </button>
   <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>
   </button>
   <!-- History (the tab map, 9 Oct 2026): a tool on every screen, in no section's row. Hidden for a role that does not open it. -->
   <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
   </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/></svg>
   </button>
   <!-- History and the book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop
        had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
   </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/></svg>
   </button>
   <!-- This screen in a new window (search.js). The desktop's: hidden on the phone. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invNewWindow" aria-label="Open this screen in a new window" title="Open this screen in a new window">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5.5"/></svg>
   </button>
   <!-- The guard (guard.js): who is signed in; their menu. Shown only while the guard is on. -->
   <button class="inv-guard-user" id="guardUserBtn" data-action="invGuardMenu" aria-label="Who is signed in" hidden></button>
   <button class="inv-topbar-btn" data-action="invOpenSettings" aria-label="Settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
   </button>
 </header>
 <!-- The open workspace's views (workspace.js): here on the phone, moved into the top bar on the desktop. -->
@@ -2782,12 +2787,12 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
     <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
     <div data-home-w="quick" class="inv-panels-wide">
       <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
-        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
+        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg><span>New invoice</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11V7.5L12 3 3.5 7.5v9L12 21l2-1"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M18.5 14v6M15.5 17h6"/></svg><span>New challan</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3h5M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15.5h9"/></svg><span>Stock entry</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 11l2 2 4-4"/></svg><span>Attendance</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><span>Paste message</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Add task</span></button>
       </div>
     </div>
     <div data-home-w="money" id="homeFinCard"></div>
@@ -2894,15 +2899,15 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 <div id="invPrintView" class="inv-print-view">
   <div class="inv-print-toolbar">
     <button class="inv-print-toolbar-btn" data-action="invClosePrint">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
       Back
     </button>
     <button class="inv-print-toolbar-btn inv-hidden" id="invPrintRemote" data-action="invPrintRemote">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/></svg>
       Send to office
     </button>
     <button class="inv-print-toolbar-btn" data-action="invPrint">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8.5" rx="2"/><path d="M7 14h10v6.5H7z"/></svg>
       Print
     </button>
   </div>
@@ -3949,8 +3954,86 @@ function uiRowMoreHtml(actions) {
    a neutral one (a plain count) stays on its row.
    The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
    (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
-var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
-var UI_ICON_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg>';
+/* ---------- The icon set (owner, 15 Oct 2026: "update the icon set") ----------
+   One set for the whole app, drawn on one 24-unit grid with one stroke (1.75, round ends and joins) and one corner (2–3 units),
+   each glyph inside 2.5–21.5 so none looks larger than its neighbour. Every screen reads it by name (iconSvg) or by its paths
+   (iconPathSvg, ICONS.<name>): the bar and the rail, the top bar, Add, Home's quick actions, History, the knowledge base, the empty
+   states. Charts, the brand's mark and the QR draw their own. HR-4: inline SVG, never an emoji. */
+var ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+var ICONS = {
+  // Moves
+  back: '<path d="M14.5 5.5 8 12l6.5 6.5"/>',
+  next: '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
+  close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  more: '<circle cx="5.5" cy="12" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="18.5" cy="12" r="1.25"/>',
+  filter: '<path d="M4 6.5h16M7 12h10M10 17.5h4"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>',
+  external: '<path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5.5"/>',
+  flip: '<path d="M16.5 3.5 20 7l-3.5 3.5"/><path d="M4 11.5V10a3 3 0 0 1 3-3h13"/><path d="M7.5 20.5 4 17l3.5-3.5"/><path d="M20 12.5V14a3 3 0 0 1-3 3H4"/>',
+  send: '<path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/>',
+  print: '<path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8.5" rx="2"/><path d="M7 14h10v6.5H7z"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 8l3 3"/>',
+  trash: '<path d="M4 6.5h16M9 6.5v-2h6v2"/><path d="M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5l1-13M10 11v6M14 11v6"/>',
+  copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  // Status
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  history: '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
+  caution: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5M12 16h.01"/>',
+  warning: '<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/>',
+  cancel: '<circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/>',
+  activity: '<path d="M3 12h4l2.5-7 5 14 2.5-7h4"/>',
+  rss: '<path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/><circle cx="5.5" cy="18.5" r="1"/>',
+  // Places
+  today: '<circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1"/>',
+  office: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18"/>',
+  floor: '<path d="M3 20.5h18"/><path d="M4.5 20.5V10l4.5 3.5V10l4.5 3.5V5h4v15.5"/><path d="M7.5 17h1.5M11.5 17H13"/>',
+  money: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v5M18 9.5v5"/>',
+  mine: '<circle cx="12" cy="8" r="3.75"/><path d="M4.5 20.5c.8-3.6 3.8-5.5 7.5-5.5s6.7 1.9 7.5 5.5"/>',
+  settings: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  book: '<path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/>',
+  // Things
+  file: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5"/>',
+  filePlus: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+  fileUp: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 17.5v-6M9.5 14l2.5-2.5 2.5 2.5"/>',
+  box: '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
+  boxPlus: '<path d="M20.5 11V7.5L12 3 3.5 7.5v9L12 21l2-1"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M18.5 14v6M15.5 17h6"/>',
+  flask: '<path d="M9.5 3h5M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15.5h9"/>',
+  rack: '<path d="M3 4.5h18M6 4.5v3M12 4.5v3M18 4.5v3M3 20.5h18"/><rect x="4.5" y="7.5" width="3" height="5.5" rx="1"/><rect x="10.5" y="7.5" width="3" height="7.5" rx="1"/><rect x="16.5" y="7.5" width="3" height="5.5" rx="1"/>',
+  zap: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 4.5a3.5 3.5 0 0 1 0 7M18.5 15.3c1.7.7 2.8 2.3 3 4.7"/>',
+  userCheck: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 11l2 2 4-4"/>',
+  message: '<path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/>',
+  task: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12l3 3 5-6"/>',
+  clipboard: '<path d="M9 4.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="3" rx="1"/>',
+  clipboardCheck: '<path d="M9 4.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="3" rx="1"/><path d="M8.5 13.5l2.5 2.5 4.5-5"/>',
+  tag: '<path d="M3.5 3.5h8l9 9-8 8-9-9z"/><circle cx="8" cy="8" r="1.25"/>',
+  cheque: '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M6 10h7M6 14h4M14.5 14.5c1-1 1.5-.5 2 0s1 1 2 0"/>',
+  receipt: '<path d="M5.5 3h13v18l-2.2-1.5L14 21l-2-1.5L10 21l-2.3-1.5L5.5 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>',
+  chart: '<path d="M4 4v16h16"/><path d="M8 16v-4M12 16V8M16 16v-6"/>',
+  shield: '<path d="M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6z"/><path d="M9.5 12l2 2 3.5-4"/>',
+  phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+  sync: '<path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/>',
+  bank: '<path d="M3 9.5 12 4l9 5.5M4.5 20.5h15M6 10.5v7M10 10.5v7M14 10.5v7M18 10.5v7"/>',
+  compass: '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5z"/>',
+  // The knowledge base's kinds
+  route: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/>',
+  nut: '<path d="M12 3 19.8 7.5v9L12 21l-7.8-4.5v-9z"/><circle cx="12" cy="12" r="3.25"/>',
+  scale: '<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7 2.5 13a2.5 2.5 0 0 0 5 0zM19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+  wrench: '<path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L3.5 17.5l3 3 5.7-5.7a4 4 0 0 0 5.3-5.3l-2.4 2.4-2.6-.4-.4-2.6z"/>',
+  flag: '<path d="M5 21V4M5 4h11.5l-2 4 2 4H5"/>',
+  fork: '<path d="M12 21v-6.5L6.5 9V4M12 14.5 17.5 9V4M4 6l2.5-2.5L9 6M15 6l2.5-2.5L20 6"/>'
+};
+/* An icon by its name; `cls` a class for the SVG where its box sets the size. */
+function iconSvg(name, cls) { return iconPathSvg(ICONS[name] || '', cls); }
+function iconPathSvg(paths, cls) { return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' ' + ICON_ATTRS + '>' + paths + '</svg>'; }
+var UI_ICON_MORE = iconSvg('more');
+var UI_ICON_FILTER = iconSvg('filter');
 var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
 function uiToolbarMoreHtml(items, opts) {
   var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon);
@@ -8336,8 +8419,8 @@ var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
 function uiDot(tone, word) { return '<span class="inv-dot inv-dot-' + uiTone(tone) + '">' + word + '</span>'; }
 function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
 
-var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
-var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+var ICON_SEARCH = iconSvg('search');
+var ICON_PRINT = iconSvg('print');
 
 /* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
 function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
@@ -8512,7 +8595,7 @@ function renderHomeRecentCard() {
   if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
   var recent = homeRecentInvoices(10);
   var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
-    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+    iconSvg('file', 'inv-empty-icon') +
     '<div>No invoices yet</div>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
     '</div>';
@@ -11006,7 +11089,7 @@ async function createClearClient() {
    small grid of fields under "Line n"; on the desktop the same fields line up
    as one row under a column head (inv-lines-head). One DOM for both layouts,
    so every control keeps its place, its data-k and its focus across a switch. */
-var LINE_X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+var LINE_X_ICON = iconSvg('close');
 
 function lineField(label, control, forId, cls) {
   return '<div class="inv-field' + (cls ? ' ' + cls : '') + '"><label class="inv-field-label"' +
@@ -11023,7 +11106,7 @@ function linesHeadHtml(qtyLabel) {
 function clientSearchHtml(inputId, resultsId, dataK) {
   return '<div class="inv-field"><label class="inv-field-label" for="' + inputId + '">Client</label>' +
     '<div class="inv-combo"><div class="inv-search">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>' +
+    iconSvg('search') +
     '<input type="text" id="' + inputId + '"' + (dataK ? ' data-k="' + dataK + '"' : '') + ' placeholder="Search client" autocomplete="off"' +
     ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + resultsId + '"></div>' +
     '<div id="' + resultsId + '" class="inv-menu inv-hidden" role="listbox"></div></div></div>';
@@ -12058,7 +12141,7 @@ function _sNum(id, value, step, min, max) {
     ' class="inv-input inv-input-num" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '">';
 }
 function _sRow() { return '<div class="inv-fields">' + Array.prototype.join.call(arguments, '') + '</div>'; }
-var _EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _EYE_SVG = iconSvg('eye');
 /* A secret typed once and kept on the device: the field, and an icon button that shows it. */
 function _sKey(id, value, placeholder, action, what) {
   return '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><input class="inv-input inv-id inv-toolbar-item" id="' + id + '" type="password" value="' + escHtml(value) +
@@ -21767,8 +21850,8 @@ function attViewOk(v) {
   return v === 'paste' || ATT_PERIODS.some(function(x) { return x[0] === v; }) || ATT_VIEWS.some(function(x) { return x[0] === v && v !== 'attendance'; });
 }
 function attIsPeriod(v) { return ATT_PERIODS.some(function(x) { return x[0] === v; }); }
-var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
-var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+var STAFF_BACK_ICON = iconSvg('back');
+var STAFF_NEXT_ICON = iconSvg('next');
 
 function _attTabsHtml() {
   // An ID that does not see wages has no Pay (guard.js).
@@ -21934,9 +22017,7 @@ function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWa
 
 function _attEmptyRoster() {
   return '<div class="inv-panel"><div class="inv-empty">' +
-    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>' +
-    '<polyline points="17 11 19 13 23 9"/></svg>' +
+    iconSvg('userCheck', 'inv-empty-icon') +
     '<div>No one on the roster yet</div>' +
     '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
     'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
@@ -27617,7 +27698,7 @@ function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e
 // charged into a bath is information, not a warning, and one with no rate yet is neutral.
 var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
 var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
-var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+var STOCK_BACK_ICON = iconSvg('back');
 
 function stockQtyUnit(v, unit) {
   return '<span class="inv-num">' + escHtml(stockFmtQty(v)) + (unit ? '<span class="inv-unit">' + escHtml(unit) + '</span>' : '') + '</span>';
@@ -37966,25 +38047,14 @@ function relayOnInput(t) {
 var _addClip = null;   // what the clipboard held when it was last checked: {text, desc}
 
 function addSvg(paths) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  return iconPathSvg(paths);
 }
-var ADD_ICON = {
-  clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>',
-  file: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3-3 3 3"/>'
-};
+var ADD_ICON = { clipboard: ICONS.clipboard, file: ICONS.fileUp };
 /* By hand, in the order of the day's work: [go, label, icon]. Each opens its form already on the job (addHand). */
 var ADD_HAND = [
-  ['challan', 'Challan', '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M12 8v8M8 12h8"/>'],
-  ['invoice', 'Invoice', '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15h6"/>'],
-  ['quote', 'Quotation', '<path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L2 12V2h10l8.6 8.6a2 2 0 010 2.8z"/><path d="M7 7h.01"/>'],
-  ['stock', 'Stock entry', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
-  ['production', 'Production', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
-  ['power', 'Power cut', '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
-  ['attendance', 'Attendance', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>'],
-  ['payment', 'Payment', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
-  ['cheque', 'Cheque', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h7M6 14h4M15 15l2-2 3 1"/>'],
-  ['bill', 'Bill', '<path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>'],
-  ['task', 'Task', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>']
+  ['challan', 'Challan', ICONS.boxPlus], ['invoice', 'Invoice', ICONS.filePlus], ['quote', 'Quotation', ICONS.tag], ['stock', 'Stock entry', ICONS.flask],
+  ['production', 'Production', ICONS.rack], ['power', 'Power cut', ICONS.zap], ['attendance', 'Attendance', ICONS.userCheck], ['payment', 'Payment', ICONS.money],
+  ['cheque', 'Cheque', ICONS.cheque], ['bill', 'Bill', ICONS.receipt], ['task', 'Task', ICONS.task]
 ];
 
 /* ---------- WhatsApp, opened where its messages are pasted ----------
@@ -41514,7 +41584,7 @@ function openClientDrillOverlay(clientId) {
   }).join('');
 
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
-  var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
+  var flipIcon = iconSvg('flip');
 
   // Two faces, one showing at a time (inv-flip-front / -back, §6.16): the figures, then the rows and the one primary.
   dialogOpen('<div class="inv-dialog" data-drill="' + clientId + '">' +
@@ -41585,15 +41655,8 @@ var HISTORY_TYPES = [
 
 // Inline SVG per event type (HR-4: no emoji).
 var HISTORY_ICONS = {
-  invoice: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-  challan: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>',
-  state: '<polyline points="20 6 9 17 4 12"/>',
-  cancel: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-  void: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
-  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
-  shift: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
-  extra: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-  except: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
+  invoice: ICONS.file, challan: ICONS.box, state: ICONS.check, cancel: ICONS.cancel, void: ICONS.trash, dupe: ICONS.copy,
+  shift: ICONS.users, extra: ICONS.clock, except: ICONS.warning
 };
 // A deleted attendance day is a deletion, as a deleted invoice is.
 HISTORY_ICONS.attDelete = HISTORY_ICONS.void;
@@ -41602,11 +41665,11 @@ HISTORY_ICONS.quote = HISTORY_ICONS.invoice;
 HISTORY_ICONS.quoteRev = HISTORY_ICONS.except;
 HISTORY_ICONS.quoteVoid = HISTORY_ICONS.void;
 // A change from the change log: a pencil.
-HISTORY_ICONS.chg = '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>';
+HISTORY_ICONS.chg = ICONS.pencil;
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + path + '</svg>';
+  return iconPathSvg(path);
 }
 
 /* What each kind of event is called on its row, and its tone (DR-8: a dot and a
@@ -51421,7 +51484,7 @@ function tdyInput(def, day) {
 }
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 var TDY_INPUT_SHORT = { 'roll-in': 'In-time roll', pickling: 'Pickling loads', stock: 'Stock message', production: 'Production records', 'roll-out': 'Out-time roll' };
-var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS.check + '</svg>';   // a tick inside a step's small dot: the set's check, heavier to read at its size
 /* An input's line on its step: what came, or when it is looked for (owner, 8 Oct 2026: less to read). */
 function tdyStepMeta(r) {
   if (r.state === 'in' || r.state === 'off') return r.text;
@@ -59402,7 +59465,7 @@ function kbRowHtml(a, brief) {
   if (own) meta = [k.kicker + (day && a.kind !== 'ruling' ? ', ' + formatDate(day) : ''), ask || (brief ? '' : clip)].filter(Boolean).join(' · ');
   var end = a.status === 'published' && !a.pending ? (own && a.kind === 'ruling' && a.ruledOn ? '<span class="inv-num">' + escHtml(formatDate(a.ruledOn)) + '</span>' : own && a.src === 'build' ? '<span class="inv-num">v' + kbVer(a) + '</span>' : '') : kbStatusHtml(a);
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    (own && _kbTab !== 'start' ? kbKindIco(a.kind) : '') + '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(own ? k.title : a.title || 'Untitled') + '</span>' +
+    (own && _kbTab !== 'start' ? kbArtIco(a) : '') + '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(own ? k.title : a.title || 'Untitled') + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + end + '</span></div>';
 }
 
@@ -61150,11 +61213,7 @@ function kbPathGo(tab, v) {
 }
 var KB_NOTICE_WORD = { warning: 'WARNING', caution: 'CAUTION', note: 'NOTE' };
 var KB_NOTICE_TONE = { warning: 'danger', caution: 'warning', note: 'info' };
-var KB_NOTICE_SVG = {
-  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
-  caution: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>',
-  note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
-};
+var KB_NOTICE_SVG = { warning: iconSvg('warning'), caution: iconSvg('caution'), note: iconSvg('info') };
 /* A notice: the one place colour fills a page (DR-1: colour is status), its icon and its word before its text. */
 function kbNoticeHtml(level, text) {
   return '<div class="inv-kb-notice inv-kb-notice-' + KB_NOTICE_TONE[level] + '" data-kb-notice="' + level + '" role="note">' + KB_NOTICE_SVG[level] +
@@ -61175,19 +61234,15 @@ function kbBlocksHtml(blocks) {
 }
 
 /* ---------- Kind icons (§5): stroke icons, never coloured by kind ---------- */
-var KB_KIND_SVG = {
-  guide: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>',
-  process: '<circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H14a3 3 0 0 1 0 6H10a3 3 0 0 0 0 6h6.5"/>',
-  part: '<path d="M12 2.5 20.5 7.3v9.4L12 21.5 3.5 16.7V7.3z"/><circle cx="12" cy="12" r="3.5"/>',
-  requirement: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M8.5 13l2.5 2.5 4.5-5"/>',
-  ruling: '<path d="M12 3v18M7 21h10M4 7h16"/><path d="M4 7l-2.5 6a3 3 0 0 0 5 0zM20 7l-2.5 6a3 3 0 0 0 5 0z"/>',
-  fault: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
-  incident: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
-  decision: '<path d="M12 21v-7M12 14 6 7M12 14l6-7M6 7V3M18 7V3M3.5 5.5 6 3l2.5 2.5M15.5 5.5 18 3l2.5 2.5"/>'
-};
+var KB_KIND_SVG = { guide: ICONS.book, process: ICONS.route, part: ICONS.nut, requirement: ICONS.clipboardCheck, ruling: ICONS.scale, fault: ICONS.wrench, incident: ICONS.flag, decision: ICONS.fork };
 function kbKindIco(kind) {
-  return '<span class="inv-kb-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
-    (KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</svg></span>';
+  return '<span class="inv-kb-ico" aria-hidden="true">' + iconPathSvg(KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</span>';
+}
+/* An app guide carries its subject's icon (the book on every one had read as one guide); the shop's articles their kind's. */
+var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield' };
+function kbArtIco(a) {
+  var k = a && KB_GUIDE_ICON[a.id];
+  return k && ICONS[k] ? '<span class="inv-kb-ico" aria-hidden="true">' + iconSvg(k) + '</span>' : kbKindIco(a ? a.kind : '');
 }
 /* An app guide's title carries its kicker (Using the app: …, Setting up: …): the kicker over the title, the rest the title. */
 function kbKicker(a) {
@@ -61313,7 +61368,7 @@ function kbHeadHtml(a, mode) {
   var k = kbKicker(a);
   var modes = [['quick', 'Quick'], ['read', 'Read'], ['guide', 'Step by step']].filter(function(m) { return (m[0] !== 'quick' || !_isDesktop) && (m[0] !== 'guide' || kbHasGuide(a)); });
   // On the desk the article's close is on its own head line (a pane head above it had held the × alone).
-  return '<header class="inv-kb-head">' + '<div class="inv-kb-kicker">' + kbKindIco(a.kind) + '<span>' + escHtml(k.kicker) + '</span>' +
+  return '<header class="inv-kb-head">' + '<div class="inv-kb-kicker">' + kbArtIco(a) + '<span>' + escHtml(k.kicker) + '</span>' +
     (a.status === 'published' && !a.pending ? '' : ' ' + kbStatusHtml(a)) +
     (_isDesktop ? '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-kb-close" data-action="invKbClose" aria-label="Close the article">&times;</button>' : '') + '</div>' +
     '<h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' + (a.summary ? '<p class="inv-kb-lede">' + kbInline(a.summary) + '</p>' : '') +
@@ -61338,7 +61393,7 @@ function kbQuickHtml(a) {
     (kbHasGuide(a) ? '<button class="inv-btn inv-btn-secondary" data-action="invKbMode" data-mode="guide">' + (a.kind === 'fault' ? 'Find the cause' : 'Follow step by step') + '</button>' : '') + '</div>';
   return h + kbArticleTailHtml(a) + '</div>';
 }
-var KB_CHEVRON = '<svg class="inv-kb-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+var KB_CHEVRON = iconSvg('next', 'inv-kb-chev');
 /* Reader: a manual page. The kind's own parts, then the sections, each a heading over its text. */
 function kbReaderHtml(a) {
   var P = kbParse(a.body), h = '<article class="inv-kb-read" data-kb-mode="read" data-kb-article="' + escHtml(a.id) + '">' + kbHeadHtml(a, 'read') + kbArticleKindHtml(a);
@@ -61357,7 +61412,7 @@ function kbGuidedHtml(a) {
     steps.map(function(x, j) { return '<span class="inv-kb-prog-seg' + (j < i || i === n ? ' inv-kb-prog-done' : j === i ? ' inv-kb-prog-now' : '') + '"></span>'; }).join('') + '</div>';
   var h = '<div class="inv-kb-guide" data-kb-mode="guide" data-kb-step="' + i + '" data-kb-article="' + escHtml(a.id) + '">' + prog, bar = '';
   if (i < 0) {
-    h += '<div class="inv-kb-kicker">' + kbKindIco(a.kind) + '<span>' + escHtml(k.kicker) + '</span></div><h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' +
+    h += '<div class="inv-kb-kicker">' + kbArtIco(a) + '<span>' + escHtml(k.kicker) + '</span></div><h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' +
       '<p class="inv-kb-lede">' + escHtml(fault ? (a.symptom ? 'You see: ' + a.symptom + '. ' : '') + todoPlural(n, 'cause') + ' to check, the most likely first.' : todoPlural(n, 'step')) + '</p>' +
       kbNotices(P).filter(function(x) { return x.level !== 'note'; }).map(function(x) { return kbNoticeHtml(x.level, x.text); }).join('') +
       '<button class="inv-btn inv-btn-link" data-action="invKbMode" data-mode="read">See all ' + (fault ? 'causes' : 'steps') + ' on one page</button>';
@@ -61659,14 +61714,7 @@ function kbSheetOpen(tab, redraw) {
 /* ---------- The desk (§3): the Library, the article, its context ---------- */
 var KB_CTX_SHORT = { glance: 'Glance', now: 'Plant', linked: 'Linked', feeds: 'Feeds', outputs: 'Outputs', notes: 'Notes' };
 /* The rail's doors: an icon for each section of the context. */
-var KB_CTX_SVG = {
-  glance: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  now: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
-  linked: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-  feeds: '<path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>',
-  outputs: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
-  notes: '<path d="M5 3h10l4 4v14H5z"/><path d="M9 11h6M9 15h6"/>'
-};
+var KB_CTX_SVG = { glance: ICONS.eye, now: ICONS.activity, linked: ICONS.link, feeds: ICONS.rss, outputs: ICONS.external, notes: ICONS.note };
 function kbDeskShut() { try { return localStorage.getItem(KB_DESK_KEY) === 'shut'; } catch (e) { return false; } }
 function kbDeskSet(shut) { try { localStorage.setItem(KB_DESK_KEY, shut ? 'shut' : 'open'); } catch (e) { /* a per-device convenience */ } }
 function kbDeskHtml(listHtml, open) {
@@ -61684,7 +61732,7 @@ function kbDeskHtml(listHtml, open) {
     var secs = kbCtxSections(open);
     h += '<aside class="inv-kb-ctx" id="kbCtx" aria-label="About this article"><div class="inv-kb-ctx-rail">' + secs.map(function(s) {
       return '<button type="button" class="inv-kb-ctx-door" data-action="invKbCtxOver" data-key="' + s.key + '" title="' + escHtml(s.title) + '">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (KB_CTX_SVG[s.key] || KB_CTX_SVG.glance) + '</svg>' +
+        iconPathSvg(KB_CTX_SVG[s.key] || KB_CTX_SVG.glance) +
         '<span>' + escHtml(KB_CTX_SHORT[s.key] || s.title) + '</span>' + (s.count !== '' ? '<span class="inv-kb-ctx-n">' + s.count + '</span>' : '') + '</button>';
     }).join('') + '</div><div class="inv-kb-ctx-body">' + (_kbCtxOver ? '<div class="inv-kb-lib-head"><span class="inv-panel-title">About this article</span><button type="button" class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbCtxOver" data-key="" aria-label="Close">&times;</button></div>' : '') +
       secs.map(function(s) {
@@ -61704,7 +61752,7 @@ function kbRecent() { return kbRecentIds().map(kbFind).filter(function(a) { retu
 function kbCardHtml(a) {
   var k = kbKicker(a), about = a.kind === 'fault' ? a.symptom : a.summary;
   return '<button type="button" class="inv-kb-card" data-action="invKbOpen" data-id="' + escHtml(a.id) + '" data-kb-card="' + escHtml(a.id) + '"' + (about ? ' title="' + escHtml(about) + '"' : '') + '>' +
-    kbKindIco(a.kind) + '<span class="inv-kb-card-t">' + escHtml(k.title) + '</span>' + (about ? '<span class="inv-kb-card-m">' + escHtml(about) + '</span>' : '') + '</button>';
+    kbArtIco(a) + '<span class="inv-kb-card-t">' + escHtml(k.title) + '</span>' + (about ? '<span class="inv-kb-card-m">' + escHtml(about) + '</span>' : '') + '</button>';
 }
 /* The shelves: what the Library leads with when nothing is searched. A shelf with nothing on it is not drawn. */
 function kbShelves() {
@@ -61734,9 +61782,9 @@ function kbShelvesHtml() {
   var h = kbPathHeroHtml(), rec = kbRecent();
   if (rec.length) h += '<section class="inv-kb-shelf" data-kb-shelf="recent"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">Recently opened</h3></div><div class="inv-kb-shelf-row">' + rec.map(kbCardHtml).join('') + '</div></section>';
   kbShelves().forEach(function(s) {
-    h += '<section class="inv-kb-shelf" data-kb-shelf="' + s.key + '"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">' + escHtml(s.title) + '</h3>' +
+    h += '<section class="inv-kb-shelf' + (s.list.length > 5 ? ' inv-kb-shelf-wide' : '') + '" data-kb-shelf="' + s.key + '"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">' + escHtml(s.title) + '</h3>' +
       (s.list.length > 1 ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbShelf" data-key="' + s.key + '">See all ' + s.list.length + '</button>' : '') + '</div>' +
-      '<div class="inv-kb-shelf-row">' + s.list.slice(0, 8).map(kbCardHtml).join('') + '</div></section>';
+      '<div class="inv-kb-shelf-row">' + s.list.slice(0, 10).map(kbCardHtml).join('') + '</div></section>';
   });
   var n = kbReadable().filter(function(a) { return a.status !== 'retired' && a.status !== 'superseded'; }).length;
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row"><button class="inv-row-main" data-action="invKbShelf" data-key="all" data-kb-every><span class="inv-row-title">Every article</span>' +
@@ -64992,17 +65040,10 @@ document.addEventListener('focusout', function(e) {
    every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
 var WS_ICONS = {
-  today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  office: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>',
-  floor: '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10M8 16h1M12 16h1M16 16h1"/>',
-  money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
-  add: '<path d="M12 5v14M5 12h14"/>',
-  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
-  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>',
-  mine: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>'
+  today: ICONS.today, office: ICONS.office, floor: ICONS.floor, money: ICONS.money, add: ICONS.plus, search: ICONS.search, settings: ICONS.settings, mine: ICONS.mine
 };
 function wsSvg(k) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
+  return iconPathSvg(WS_ICONS[k]);
 }
 
 /* The map. `views` are the tabs, in order: {tab, v?, vs?, label, group?}; a view carrying `group` starts a group of its own,

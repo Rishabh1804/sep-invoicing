@@ -126,11 +126,7 @@ function kbPathGo(tab, v) {
 }
 var KB_NOTICE_WORD = { warning: 'WARNING', caution: 'CAUTION', note: 'NOTE' };
 var KB_NOTICE_TONE = { warning: 'danger', caution: 'warning', note: 'info' };
-var KB_NOTICE_SVG = {
-  warning: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0z"/><path d="M12 9v4M12 17h.01"/></svg>',
-  caution: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4M12 16h.01"/></svg>',
-  note: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>'
-};
+var KB_NOTICE_SVG = { warning: iconSvg('warning'), caution: iconSvg('caution'), note: iconSvg('info') };
 /* A notice: the one place colour fills a page (DR-1: colour is status), its icon and its word before its text. */
 function kbNoticeHtml(level, text) {
   return '<div class="inv-kb-notice inv-kb-notice-' + KB_NOTICE_TONE[level] + '" data-kb-notice="' + level + '" role="note">' + KB_NOTICE_SVG[level] +
@@ -151,19 +147,15 @@ function kbBlocksHtml(blocks) {
 }
 
 /* ---------- Kind icons (§5): stroke icons, never coloured by kind ---------- */
-var KB_KIND_SVG = {
-  guide: '<path d="M4 4.5A2.5 2.5 0 0 1 6.5 2H20v17H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/>',
-  process: '<circle cx="5" cy="6" r="2.5"/><circle cx="19" cy="18" r="2.5"/><path d="M7.5 6H14a3 3 0 0 1 0 6H10a3 3 0 0 0 0 6h6.5"/>',
-  part: '<path d="M12 2.5 20.5 7.3v9.4L12 21.5 3.5 16.7V7.3z"/><circle cx="12" cy="12" r="3.5"/>',
-  requirement: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V2.5h6V4M8.5 13l2.5 2.5 4.5-5"/>',
-  ruling: '<path d="M12 3v18M7 21h10M4 7h16"/><path d="M4 7l-2.5 6a3 3 0 0 0 5 0zM20 7l-2.5 6a3 3 0 0 0 5 0z"/>',
-  fault: '<path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18l3 3 6.3-6.3a4 4 0 0 0 5.4-5.4l-2.6 2.6-2.4-.6-.6-2.4z"/>',
-  incident: '<path d="M5 21V4M5 4h11l-2 4 2 4H5"/>',
-  decision: '<path d="M12 21v-7M12 14 6 7M12 14l6-7M6 7V3M18 7V3M3.5 5.5 6 3l2.5 2.5M15.5 5.5 18 3l2.5 2.5"/>'
-};
+var KB_KIND_SVG = { guide: ICONS.book, process: ICONS.route, part: ICONS.nut, requirement: ICONS.clipboardCheck, ruling: ICONS.scale, fault: ICONS.wrench, incident: ICONS.flag, decision: ICONS.fork };
 function kbKindIco(kind) {
-  return '<span class="inv-kb-ico" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
-    (KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</svg></span>';
+  return '<span class="inv-kb-ico" aria-hidden="true">' + iconPathSvg(KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</span>';
+}
+/* An app guide carries its subject's icon (the book on every one had read as one guide); the shop's articles their kind's. */
+var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield' };
+function kbArtIco(a) {
+  var k = a && KB_GUIDE_ICON[a.id];
+  return k && ICONS[k] ? '<span class="inv-kb-ico" aria-hidden="true">' + iconSvg(k) + '</span>' : kbKindIco(a ? a.kind : '');
 }
 /* An app guide's title carries its kicker (Using the app: …, Setting up: …): the kicker over the title, the rest the title. */
 function kbKicker(a) {
@@ -289,7 +281,7 @@ function kbHeadHtml(a, mode) {
   var k = kbKicker(a);
   var modes = [['quick', 'Quick'], ['read', 'Read'], ['guide', 'Step by step']].filter(function(m) { return (m[0] !== 'quick' || !_isDesktop) && (m[0] !== 'guide' || kbHasGuide(a)); });
   // On the desk the article's close is on its own head line (a pane head above it had held the × alone).
-  return '<header class="inv-kb-head">' + '<div class="inv-kb-kicker">' + kbKindIco(a.kind) + '<span>' + escHtml(k.kicker) + '</span>' +
+  return '<header class="inv-kb-head">' + '<div class="inv-kb-kicker">' + kbArtIco(a) + '<span>' + escHtml(k.kicker) + '</span>' +
     (a.status === 'published' && !a.pending ? '' : ' ' + kbStatusHtml(a)) +
     (_isDesktop ? '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-kb-close" data-action="invKbClose" aria-label="Close the article">&times;</button>' : '') + '</div>' +
     '<h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' + (a.summary ? '<p class="inv-kb-lede">' + kbInline(a.summary) + '</p>' : '') +
@@ -314,7 +306,7 @@ function kbQuickHtml(a) {
     (kbHasGuide(a) ? '<button class="inv-btn inv-btn-secondary" data-action="invKbMode" data-mode="guide">' + (a.kind === 'fault' ? 'Find the cause' : 'Follow step by step') + '</button>' : '') + '</div>';
   return h + kbArticleTailHtml(a) + '</div>';
 }
-var KB_CHEVRON = '<svg class="inv-kb-chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 6l6 6-6 6"/></svg>';
+var KB_CHEVRON = iconSvg('next', 'inv-kb-chev');
 /* Reader: a manual page. The kind's own parts, then the sections, each a heading over its text. */
 function kbReaderHtml(a) {
   var P = kbParse(a.body), h = '<article class="inv-kb-read" data-kb-mode="read" data-kb-article="' + escHtml(a.id) + '">' + kbHeadHtml(a, 'read') + kbArticleKindHtml(a);
@@ -333,7 +325,7 @@ function kbGuidedHtml(a) {
     steps.map(function(x, j) { return '<span class="inv-kb-prog-seg' + (j < i || i === n ? ' inv-kb-prog-done' : j === i ? ' inv-kb-prog-now' : '') + '"></span>'; }).join('') + '</div>';
   var h = '<div class="inv-kb-guide" data-kb-mode="guide" data-kb-step="' + i + '" data-kb-article="' + escHtml(a.id) + '">' + prog, bar = '';
   if (i < 0) {
-    h += '<div class="inv-kb-kicker">' + kbKindIco(a.kind) + '<span>' + escHtml(k.kicker) + '</span></div><h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' +
+    h += '<div class="inv-kb-kicker">' + kbArtIco(a) + '<span>' + escHtml(k.kicker) + '</span></div><h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' +
       '<p class="inv-kb-lede">' + escHtml(fault ? (a.symptom ? 'You see: ' + a.symptom + '. ' : '') + todoPlural(n, 'cause') + ' to check, the most likely first.' : todoPlural(n, 'step')) + '</p>' +
       kbNotices(P).filter(function(x) { return x.level !== 'note'; }).map(function(x) { return kbNoticeHtml(x.level, x.text); }).join('') +
       '<button class="inv-btn inv-btn-link" data-action="invKbMode" data-mode="read">See all ' + (fault ? 'causes' : 'steps') + ' on one page</button>';
@@ -635,14 +627,7 @@ function kbSheetOpen(tab, redraw) {
 /* ---------- The desk (§3): the Library, the article, its context ---------- */
 var KB_CTX_SHORT = { glance: 'Glance', now: 'Plant', linked: 'Linked', feeds: 'Feeds', outputs: 'Outputs', notes: 'Notes' };
 /* The rail's doors: an icon for each section of the context. */
-var KB_CTX_SVG = {
-  glance: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
-  now: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
-  linked: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
-  feeds: '<path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>',
-  outputs: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
-  notes: '<path d="M5 3h10l4 4v14H5z"/><path d="M9 11h6M9 15h6"/>'
-};
+var KB_CTX_SVG = { glance: ICONS.eye, now: ICONS.activity, linked: ICONS.link, feeds: ICONS.rss, outputs: ICONS.external, notes: ICONS.note };
 function kbDeskShut() { try { return localStorage.getItem(KB_DESK_KEY) === 'shut'; } catch (e) { return false; } }
 function kbDeskSet(shut) { try { localStorage.setItem(KB_DESK_KEY, shut ? 'shut' : 'open'); } catch (e) { /* a per-device convenience */ } }
 function kbDeskHtml(listHtml, open) {
@@ -660,7 +645,7 @@ function kbDeskHtml(listHtml, open) {
     var secs = kbCtxSections(open);
     h += '<aside class="inv-kb-ctx" id="kbCtx" aria-label="About this article"><div class="inv-kb-ctx-rail">' + secs.map(function(s) {
       return '<button type="button" class="inv-kb-ctx-door" data-action="invKbCtxOver" data-key="' + s.key + '" title="' + escHtml(s.title) + '">' +
-        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (KB_CTX_SVG[s.key] || KB_CTX_SVG.glance) + '</svg>' +
+        iconPathSvg(KB_CTX_SVG[s.key] || KB_CTX_SVG.glance) +
         '<span>' + escHtml(KB_CTX_SHORT[s.key] || s.title) + '</span>' + (s.count !== '' ? '<span class="inv-kb-ctx-n">' + s.count + '</span>' : '') + '</button>';
     }).join('') + '</div><div class="inv-kb-ctx-body">' + (_kbCtxOver ? '<div class="inv-kb-lib-head"><span class="inv-panel-title">About this article</span><button type="button" class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbCtxOver" data-key="" aria-label="Close">&times;</button></div>' : '') +
       secs.map(function(s) {
@@ -680,7 +665,7 @@ function kbRecent() { return kbRecentIds().map(kbFind).filter(function(a) { retu
 function kbCardHtml(a) {
   var k = kbKicker(a), about = a.kind === 'fault' ? a.symptom : a.summary;
   return '<button type="button" class="inv-kb-card" data-action="invKbOpen" data-id="' + escHtml(a.id) + '" data-kb-card="' + escHtml(a.id) + '"' + (about ? ' title="' + escHtml(about) + '"' : '') + '>' +
-    kbKindIco(a.kind) + '<span class="inv-kb-card-t">' + escHtml(k.title) + '</span>' + (about ? '<span class="inv-kb-card-m">' + escHtml(about) + '</span>' : '') + '</button>';
+    kbArtIco(a) + '<span class="inv-kb-card-t">' + escHtml(k.title) + '</span>' + (about ? '<span class="inv-kb-card-m">' + escHtml(about) + '</span>' : '') + '</button>';
 }
 /* The shelves: what the Library leads with when nothing is searched. A shelf with nothing on it is not drawn. */
 function kbShelves() {
@@ -710,9 +695,9 @@ function kbShelvesHtml() {
   var h = kbPathHeroHtml(), rec = kbRecent();
   if (rec.length) h += '<section class="inv-kb-shelf" data-kb-shelf="recent"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">Recently opened</h3></div><div class="inv-kb-shelf-row">' + rec.map(kbCardHtml).join('') + '</div></section>';
   kbShelves().forEach(function(s) {
-    h += '<section class="inv-kb-shelf" data-kb-shelf="' + s.key + '"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">' + escHtml(s.title) + '</h3>' +
+    h += '<section class="inv-kb-shelf' + (s.list.length > 5 ? ' inv-kb-shelf-wide' : '') + '" data-kb-shelf="' + s.key + '"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">' + escHtml(s.title) + '</h3>' +
       (s.list.length > 1 ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbShelf" data-key="' + s.key + '">See all ' + s.list.length + '</button>' : '') + '</div>' +
-      '<div class="inv-kb-shelf-row">' + s.list.slice(0, 8).map(kbCardHtml).join('') + '</div></section>';
+      '<div class="inv-kb-shelf-row">' + s.list.slice(0, 10).map(kbCardHtml).join('') + '</div></section>';
   });
   var n = kbReadable().filter(function(a) { return a.status !== 'retired' && a.status !== 'superseded'; }).length;
   h += '<div class="inv-panel inv-panel-flush"><div class="inv-row"><button class="inv-row-main" data-action="invKbShelf" data-key="all" data-kb-every><span class="inv-row-title">Every article</span>' +

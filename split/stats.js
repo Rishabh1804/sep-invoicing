@@ -962,7 +962,7 @@ function openClientDrillOverlay(clientId) {
   }).join('');
 
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
-  var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
+  var flipIcon = iconSvg('flip');
 
   // Two faces, one showing at a time (inv-flip-front / -back, §6.16): the figures, then the rows and the one primary.
   dialogOpen('<div class="inv-dialog" data-drill="' + clientId + '">' +
@@ -1033,15 +1033,8 @@ var HISTORY_TYPES = [
 
 // Inline SVG per event type (HR-4: no emoji).
 var HISTORY_ICONS = {
-  invoice: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-  challan: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>',
-  state: '<polyline points="20 6 9 17 4 12"/>',
-  cancel: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-  void: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
-  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
-  shift: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
-  extra: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-  except: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
+  invoice: ICONS.file, challan: ICONS.box, state: ICONS.check, cancel: ICONS.cancel, void: ICONS.trash, dupe: ICONS.copy,
+  shift: ICONS.users, extra: ICONS.clock, except: ICONS.warning
 };
 // A deleted attendance day is a deletion, as a deleted invoice is.
 HISTORY_ICONS.attDelete = HISTORY_ICONS.void;
@@ -1050,11 +1043,11 @@ HISTORY_ICONS.quote = HISTORY_ICONS.invoice;
 HISTORY_ICONS.quoteRev = HISTORY_ICONS.except;
 HISTORY_ICONS.quoteVoid = HISTORY_ICONS.void;
 // A change from the change log: a pencil.
-HISTORY_ICONS.chg = '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>';
+HISTORY_ICONS.chg = ICONS.pencil;
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + path + '</svg>';
+  return iconPathSvg(path);
 }
 
 /* What each kind of event is called on its row, and its tone (DR-8: a dot and a

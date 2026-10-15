@@ -21,25 +21,14 @@
 var _addClip = null;   // what the clipboard held when it was last checked: {text, desc}
 
 function addSvg(paths) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  return iconPathSvg(paths);
 }
-var ADD_ICON = {
-  clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>',
-  file: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3-3 3 3"/>'
-};
+var ADD_ICON = { clipboard: ICONS.clipboard, file: ICONS.fileUp };
 /* By hand, in the order of the day's work: [go, label, icon]. Each opens its form already on the job (addHand). */
 var ADD_HAND = [
-  ['challan', 'Challan', '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M12 8v8M8 12h8"/>'],
-  ['invoice', 'Invoice', '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15h6"/>'],
-  ['quote', 'Quotation', '<path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L2 12V2h10l8.6 8.6a2 2 0 010 2.8z"/><path d="M7 7h.01"/>'],
-  ['stock', 'Stock entry', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
-  ['production', 'Production', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
-  ['power', 'Power cut', '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
-  ['attendance', 'Attendance', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>'],
-  ['payment', 'Payment', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
-  ['cheque', 'Cheque', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h7M6 14h4M15 15l2-2 3 1"/>'],
-  ['bill', 'Bill', '<path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>'],
-  ['task', 'Task', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>']
+  ['challan', 'Challan', ICONS.boxPlus], ['invoice', 'Invoice', ICONS.filePlus], ['quote', 'Quotation', ICONS.tag], ['stock', 'Stock entry', ICONS.flask],
+  ['production', 'Production', ICONS.rack], ['power', 'Power cut', ICONS.zap], ['attendance', 'Attendance', ICONS.userCheck], ['payment', 'Payment', ICONS.money],
+  ['cheque', 'Cheque', ICONS.cheque], ['bill', 'Bill', ICONS.receipt], ['task', 'Task', ICONS.task]
 ];
 
 /* ---------- WhatsApp, opened where its messages are pasted ----------

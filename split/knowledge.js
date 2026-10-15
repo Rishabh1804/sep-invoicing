@@ -207,7 +207,7 @@ function kbRowHtml(a, brief) {
   if (own) meta = [k.kicker + (day && a.kind !== 'ruling' ? ', ' + formatDate(day) : ''), ask || (brief ? '' : clip)].filter(Boolean).join(' · ');
   var end = a.status === 'published' && !a.pending ? (own && a.kind === 'ruling' && a.ruledOn ? '<span class="inv-num">' + escHtml(formatDate(a.ruledOn)) + '</span>' : own && a.src === 'build' ? '<span class="inv-num">v' + kbVer(a) + '</span>' : '') : kbStatusHtml(a);
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    (own && _kbTab !== 'start' ? kbKindIco(a.kind) : '') + '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(own ? k.title : a.title || 'Untitled') + '</span>' +
+    (own && _kbTab !== 'start' ? kbArtIco(a) : '') + '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(own ? k.title : a.title || 'Untitled') + '</span>' +
     '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + end + '</span></div>';
 }
 

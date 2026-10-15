@@ -359,8 +359,8 @@ function attViewOk(v) {
   return v === 'paste' || ATT_PERIODS.some(function(x) { return x[0] === v; }) || ATT_VIEWS.some(function(x) { return x[0] === v && v !== 'attendance'; });
 }
 function attIsPeriod(v) { return ATT_PERIODS.some(function(x) { return x[0] === v; }); }
-var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
-var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+var STAFF_BACK_ICON = iconSvg('back');
+var STAFF_NEXT_ICON = iconSvg('next');
 
 function _attTabsHtml() {
   // An ID that does not see wages has no Pay (guard.js).
@@ -526,9 +526,7 @@ function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWa
 
 function _attEmptyRoster() {
   return '<div class="inv-panel"><div class="inv-empty">' +
-    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>' +
-    '<polyline points="17 11 19 13 23 9"/></svg>' +
+    iconSvg('userCheck', 'inv-empty-icon') +
     '<div>No one on the roster yet</div>' +
     '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
     'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +

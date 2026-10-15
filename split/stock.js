@@ -709,7 +709,7 @@ function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e
 // charged into a bath is information, not a warning, and one with no rate yet is neutral.
 var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
 var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
-var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+var STOCK_BACK_ICON = iconSvg('back');
 
 function stockQtyUnit(v, unit) {
   return '<span class="inv-num">' + escHtml(stockFmtQty(v)) + (unit ? '<span class="inv-unit">' + escHtml(unit) + '</span>' : '') + '</span>';

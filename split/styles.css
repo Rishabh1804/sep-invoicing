@@ -2513,6 +2513,11 @@ body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelves > :not(.inv-kb
 body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
 body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card { flex: none; }
 body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card:nth-child(n+6) { display: none; }
+/* A shelf with more than five takes two columns, its cards two across, its first ten shown, so a full shelf leaves no blank beside it. */
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide { grid-column: span 2; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-shelf-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-card:nth-child(n+6) { display: grid; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-card:nth-child(n+11) { display: none; }
 @container list (max-width: 24rem) {
   .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
   .inv-kb-card { flex: none; }

@@ -166,7 +166,7 @@ function tdyInput(def, day) {
 }
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 var TDY_INPUT_SHORT = { 'roll-in': 'In-time roll', pickling: 'Pickling loads', stock: 'Stock message', production: 'Production records', 'roll-out': 'Out-time roll' };
-var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS.check + '</svg>';   // a tick inside a step's small dot: the set's check, heavier to read at its size
 /* An input's line on its step: what came, or when it is looked for (owner, 8 Oct 2026: less to read). */
 function tdyStepMeta(r) {
   if (r.state === 'in' || r.state === 'off') return r.text;

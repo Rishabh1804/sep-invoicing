@@ -25,17 +25,10 @@
    every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
 var WS_ICONS = {
-  today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  office: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>',
-  floor: '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10M8 16h1M12 16h1M16 16h1"/>',
-  money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
-  add: '<path d="M12 5v14M5 12h14"/>',
-  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
-  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>',
-  mine: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>'
+  today: ICONS.today, office: ICONS.office, floor: ICONS.floor, money: ICONS.money, add: ICONS.plus, search: ICONS.search, settings: ICONS.settings, mine: ICONS.mine
 };
 function wsSvg(k) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
+  return iconPathSvg(WS_ICONS[k]);
 }
 
 /* The map. `views` are the tabs, in order: {tab, v?, vs?, label, group?}; a view carrying `group` starts a group of its own,

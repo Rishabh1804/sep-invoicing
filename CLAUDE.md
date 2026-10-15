@@ -44,6 +44,21 @@ notes recorded through Record issued. The next build's order is still to be disc
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
+**The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
+both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` where the devices meet, the office PC
+(Windows, on a UPS, signed in) a full SQLite copy, its backups and the print station; every device stays offline-first. Six steps,
+S0–S5, one PR each, as ruled by the owner the same day: the app moves to `app.somaelectro.co.in` first (S0); sync is record by record
+from S1; private records never leave the device; *Ask* answers from the knowledge base through Claude on the server (S4); an Android
+app installed directly, with notifications and sync in the background (S5). Not built; KB2-2 onward builds on it.
+
+**The knowledge base's second edition is specified — read `docs/KNOWLEDGE_BASE_2.md`** (owner, 14–15 Oct 2026: *"lots of blocks of
+texts … weak visual hierarchy"*; four directions drawn, then ruled). Three ways to read (Quick reference with *At a glance*, Reader set as
+a manual with no tick boxes, Guided for training), the desk on the desktop (the Library left, the article in the middle, its context
+right: the plant now, links, feeds, outputs, notes public and the owner's private), and **tracking** after SproutLab's CareTickets: a
+fault, a process, a client requirement, checked from Mine and closed by what the book records. Four releases, one PR each: KB2-1 the
+look, KB2-2 faults, KB2-3 processes, KB2-4 requirements. **KB2-1 is built** (*The knowledge base, second edition* below); KB2-2 builds on
+the server (`docs/SERVER.md`).
+
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 
@@ -96,7 +111,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 87 modules, ~66,800 lines total.
+Split-file PWA. 88 modules, ~67,600 lines total.
 
 ```
 split/
@@ -105,7 +120,7 @@ split/
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More) (~2,450 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More); the icon set, `ICONS` (one 24 grid, stroke 1.75, round ends; `iconSvg(name)`, never an SVG drawn in a module) (~2,500 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters (~750 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
@@ -180,7 +195,8 @@ split/
 ├── planner.js         ← The planner's engine: the book's month rebuilt from its parts, moves, the ledger's build-up, the trials (~610 lines)
 ├── planview.js        ← The planner's screens: Play, Ledger, A day, Moves (Plant, Tech tree, Staff, Clients, Finance); its verdict; registers; the report (~990 lines)
 ├── kbguides.js        ← The app's own guides: how to use each screen, linked to it; the paths by role (~80 lines)
-├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,670 lines)
+├── knowledge.js       ← The knowledge base: articles by kind and role, approval, versions, photos on the device, training, decisions (~1,830 lines)
+├── kbread.js          ← Reading an article (KB2-1): one parser, Quick reference · Reader · Guided, At a glance, the desk and its context, the Library's shelves, notes (~790 lines)
 ├── client-perf.js     ← Clients → Performance: the client's card, month on month, material cadence, Materials worked, By the hour, folded (~990 lines)
 ├── im-form.js         ← IM add/edit/delete challan form (450 lines)
 ├── im-dupe.js         ← IM duplicate guard: fingerprint + pre-save warn + scan (305 lines)
@@ -193,7 +209,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -223,7 +239,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,890 tests, both layouts
+pnpm exec playwright test          # 1,915 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -526,7 +542,7 @@ where available / 10. We shall discuss this."* P210.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 715 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715; 14 Oct 2026, the QA chain: `inv-fig-info` added and `inv-dialog-body` styled, `inv-token-on` and `inv-token-add` deleted: 715); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 776 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715; 14 Oct 2026, the QA chain: `inv-fig-info` added and `inv-dialog-body` styled, `inv-token-on` and `inv-token-add` deleted: 715; 15 Oct 2026, the knowledge base's second edition (KB2-1): 61 `inv-kb-*` for the three modes, notices, At a glance, the kind icons, the Library's shelves and cards, the desk and its context, notes: 776); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -911,7 +927,7 @@ repository:
   merge), typed by the owner: nothing about the shop is in the build. A toast raised over the preview shows above it
   (`--z-over-print`; it had sat under the print view); a dialog left open under a preview (a credit note's form) stays under it.
 - ⚠ **Not tried on the printer**: the specs fake GitHub and stub `window.print`. The owner's first job from a phone to the station is
-  the check that counts, and whether a minimised station window still prints is not known.
+  the check that counts. A minimised station window on a locked, signed-in PC still prints (the owner, 15 Oct 2026).
 
 ### A tax invoice that runs past one page
 The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line
@@ -3072,6 +3088,33 @@ on the build before. What it leaves as rules:
 - **A late focus never pulls the cursor back** (`focusSoon`, state.js: Create's client search and the challan form's, 100 ms after
   they open): skipped when a click or tap went elsewhere first, or another field took it. On a slow CI runner it pulled the cursor
   back, and P139's C, then its ?, were typed into the search.
+
+### The knowledge base, second edition (KB2-1)
+`docs/KNOWLEDGE_BASE_2.md` (owner, 14–15 Oct 2026: *"lots of blocks of texts … weak visual hierarchy"*), release KB2-1, `kbread.js`. P219.
+- **One body, three ways** (`kbParse`: sections by `# `, paragraphs, `- ` and `1. ` lists, notices; drawn by `kbQuickHtml`, `kbReaderHtml`,
+  `kbGuidedHtml`): **Quick reference** (the head, *At a glance*, a WARNING, a line a section opening **Reader at that section**), **Reader**
+  (a manual page: 16 px on 1.7, a step a numbered item, no tick box; WARNING / CAUTION / NOTE filled in their tone; `*italic*` drawn, its
+  stars had printed; a screen's path, *Office → Challans*, one link, `kbPathGo`, trimmed to what the app can place) and **Guided** (a step a
+  screen, a bar of segments, *Good to know* and **Record training** at the end; a fault's causes in order, **Found it** logging an incident
+  with its cause and fix). `kbBodyHtml` draws the same words for versions and proposals.
+- **The mode is in the address** (`v=<view>[/s-<shelf>][/<mode>[/<section>]]`, `kbModeV`; the spec's `m=` was not needed) only where it is
+  not the article's landing, so Back walks Guided → Reader → Quick reference. **The landing** (`kbLandMode`): the desk reads; on the phone
+  Quick reference, Guided for a supervisor or floor ID on a lesson of their path not yet trained on its version. A save opens Reader.
+- **At a glance** (`kbGlance`): written (the form's *At a glance*, up to four `Label: value` lines, `glance` on the article and its
+  versions and imports) or worked out by kind (`kbGlanceWorked`: a how-to's *Where*, *You tap*, *Watch out*; a fault's symptom, first cause,
+  last incident; a ruling's ruling, who and when, in force; …). The form shows the worked-out rows as its placeholder.
+- **The desk** (`kbDeskHtml`, desktop): the list on the left (shut to a rail of kind icons on «, `sep_inv_kb_desk`), Reader in the middle,
+  the context on the right (`kbCtxSections`: At a glance, *The plant now* by the links, Linked, *Feeds* as Today reads its inputs,
+  *Outputs*, Notes), each scrolling inside `--fill-h`; under 80rem the context is a rail opening over the article. **The phone** has the
+  context in a sheet (Context · Notes) from a bar over the phone bar; an incident's *That day in the book* is its context.
+- **The Library** leads with **Recently opened** (`sep_inv_kb_recent`) and **shelves** (*When something goes wrong*, Rulings, Client
+  requirements, the shop's how-tos and parts, decisions and incidents, *Using the app*, *Setting up*), each **See all** (the shelf in the
+  address) and **Every article**; a search (**Ask**) is best first (the title, then the summary) with the line that matched. Rows and cards
+  carry the kind's icon (not on Start); an app guide's kicker (*Using the app:*) is its row's meta.
+- **Notes** (`S.kb.notes`, `kbNotesOf`): public (anyone who reads the article adds one, edits their own within a day) or the owner's
+  private ones, never drawn, searched or printed for any other role; the owner removes one with a reason. The change log names a note,
+  never its words. `sep-kb` export is version 2 with the notes, the private ones only when the owner says so; an import merges them by id.
+- The guides *Using the app: the knowledge base* (v4) and *Writing an article* (v2: CAUTION and NOTE, At a glance) say how.
 
 ### Entry faces
 `docs/ENTRY_FACES.md` (owner, 10 Oct 2026: *"develop app faces for each employee to enter data … We have guard in place, they will

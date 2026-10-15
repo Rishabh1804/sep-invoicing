@@ -281,7 +281,8 @@ test.describe('P194: TM6c–TM6f', () => {
     await expect(page.locator('#kbLibrary [data-kb-row="A2"]')).toHaveCount(0);
     await expect(page.locator('#kbLibrary [data-kb-row="A1"]')).toBeVisible();
     await page.locator('#knowContent [data-kb-tokens] [data-clear="kind"]').click();
-    await expect(page.locator('#kbLibrary [data-kb-row="A2"]')).toBeVisible();
+    // With nothing picked the Library leads with its shelves (KB2-1).
+    await expect(page.locator('#kbShelves [data-kb-card="A2"]')).toBeVisible();
     // Troubleshoot: an incident in the last 30 days is a warning; Log an incident the primary, Write a fault behind More.
     await page.locator('#knowContent .inv-viewtab[data-tab="troubleshoot"]').click();
     await expect(page.locator('#knowContent [data-kb-verdict="troubleshoot"] .inv-hero-title')).toHaveText('1 fault written · 1 incident in 30 days');

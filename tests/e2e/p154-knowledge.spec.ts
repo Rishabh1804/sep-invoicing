@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, kbEvery, kbRead, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 import { openSearch } from './p139-search.fixture';
 
@@ -32,7 +32,9 @@ test('the top bar’s book opens the guides for the screen on show; Start says h
   await expect(page.locator('#knowContent [data-action="invKbTab"]')).toHaveText(['Start', 'Library', 'Troubleshoot', 'Records', 'Training']);
   // From Today: the Library, linked to Today, holding the app's own guide to it.
   await expect(page.locator('#kbLinkFilter')).toContainText('Linked to');
-  await expect(page.locator('#kbLibrary')).toContainText('Using the app: Today');
+  // The list names an app guide by its title, its kicker (Using the app) in its meta (KB2-1).
+  await expect(page.locator('#kbLibrary [data-kb-row="app-today"]')).toContainText('Today');
+  await expect(page.locator('#kbLibrary [data-kb-row="app-today"] .inv-row-meta')).toContainText('Using the app');
   await tab(page, 'start');
   await expect(page.locator('#kbRecent')).toContainText('Nothing written yet');
   await expect(page).toHaveURL(/tab=pageKnow/);
@@ -46,7 +48,8 @@ test('the owner writes a how-to: published at once, its text drawn as text, an e
   await field(page, 'summary').fill('Hang the parts so none touch');
   await field(page, 'body').fill('Check the hooks first.\n\n- **Never** overlap two parts\n- Count the parts as you hang them\n\n# After\nTell the supervisor <b>the count</b>.');
   await page.locator('#knowContent [data-action="invKbSave"]').click();
-  const body = page.locator('#knowContent .inv-kb-body');
+  // Saved, the article is shown in full (Reader, KB2-1).
+  const body = page.locator('#knowContent .inv-kb-read');
   await expect(body.locator('li')).toHaveCount(2);
   await expect(body.locator('strong')).toHaveText('Never');
   await expect(body).toContainText('<b>the count</b>');   // typed markup stays text
@@ -136,6 +139,7 @@ test('an article names who reads it: a role it does not name finds it neither in
   await unlock(page, 'U-sup', PINS.super);
   await openKnow(page);
   await tab(page, 'library');
+  await kbEvery(page);
   await expect(page.locator('#kbLibrary')).toContainText('Sweeping the floor');
   await expect(page.locator('#kbLibrary')).not.toContainText('Client margins');
   const found: string[] = await page.evaluate(() => (window as any).srchIndex().filter((e: any) => e.kind === 'kb').map((e: any) => e.id));
@@ -236,10 +240,13 @@ test('an incident under a fault shows that day as the book has it: what was plat
       pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } }
   }));
   await page.evaluate(() => (window as any).kbOpenArticle('F1'));
+  await kbRead(page);
   await expect(page.locator('[data-kb-causes]')).toContainText('Water break test');
   await expect(page.locator('[data-kb-fault-incidents]')).toContainText('Peeling on brackets');
   await page.locator('[data-kb-fault-incidents] [data-action="invKbOpen"]').click();
-  const day = page.locator('[data-kb-day]');
+  // That day in the book is the incident's context: on the phone, in its sheet (KB2-1, §3a).
+  await page.locator('#knowContent .inv-kb-ctxbar-btn').click();
+  const day = page.locator('[data-kb-sheet] [data-kb-day]');
   await expect(day).toContainText('BRK-9');
   await expect(day).not.toContainText('OTHER-1');
   await expect(day).toContainText('Power cut');
@@ -272,5 +279,6 @@ test('search finds an article by its words and opens it', async ({ page }) => {
   await expect(hit).toContainText('The nitric dip');
   await hit.click();
   await expect(page.locator('#pageKnow.inv-page-active')).toBeVisible();
+  await kbRead(page);
   await expect(page.locator('#knowContent')).toContainText('Passivation needs a clean nitric dip.');
 });

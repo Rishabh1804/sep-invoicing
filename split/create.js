@@ -101,7 +101,7 @@ async function createClearClient() {
    small grid of fields under "Line n"; on the desktop the same fields line up
    as one row under a column head (inv-lines-head). One DOM for both layouts,
    so every control keeps its place, its data-k and its focus across a switch. */
-var LINE_X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+var LINE_X_ICON = iconSvg('close');
 
 function lineField(label, control, forId, cls) {
   return '<div class="inv-field' + (cls ? ' ' + cls : '') + '"><label class="inv-field-label"' +
@@ -118,7 +118,7 @@ function linesHeadHtml(qtyLabel) {
 function clientSearchHtml(inputId, resultsId, dataK) {
   return '<div class="inv-field"><label class="inv-field-label" for="' + inputId + '">Client</label>' +
     '<div class="inv-combo"><div class="inv-search">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>' +
+    iconSvg('search') +
     '<input type="text" id="' + inputId + '"' + (dataK ? ' data-k="' + dataK + '"' : '') + ' placeholder="Search client" autocomplete="off"' +
     ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + resultsId + '"></div>' +
     '<div id="' + resultsId + '" class="inv-menu inv-hidden" role="listbox"></div></div></div>';

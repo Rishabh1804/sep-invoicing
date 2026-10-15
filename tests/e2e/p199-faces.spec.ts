@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, readStoredState, todayIso, waitForBoot, openSettingsAt } from './fixtures';
+import { loadAppWithState, readStoredState, todayIso, waitForBoot, openSettingsAt, kbRead } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P199: entry faces, the shell (docs/ENTRY_FACES.md, F1; owner, 10 Oct 2026: "develop app faces for each employee to enter data …
@@ -108,8 +108,9 @@ test.describe('P199: entry faces, the shell', () => {
     expect((await rows.evaluateAll(els => els.map(e => e.getAttribute('data-kb-row')))).sort()).toEqual(['app-face-clerk', 'app-face-pickling', 'app-face-supervisor', 'app-mine']);
     await page.locator('#knowContent [data-kb-row="app-face-supervisor"] [data-action="invKbOpen"]').click();
     await expect(page.locator('[data-kb-article="app-face-supervisor"]')).toBeVisible();
-    await expect(page.locator('#knowContent .inv-kb-body')).toContainText('Usual places');
-    await expect(page.locator('#knowContent .inv-kb-body')).toContainText('Send to the group');
+    await kbRead(page);
+    await expect(page.locator('#knowContent .inv-kb-read')).toContainText('Usual places');
+    await expect(page.locator('#knowContent .inv-kb-read')).toContainText('Send to the group');
     // The owner reads the set-up guide as well.
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);

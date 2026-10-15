@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt } from './fixtures';
+import { emptyState, kbEvery, loadAppWithState, noSeedIM, openSettingsAt } from './fixtures';
 
 /*
  * P218: the setup guides (owner, 14 Oct 2026: "These (print, github, etc.) should be knowledge base documents"). The office
@@ -87,6 +87,7 @@ test('the Library lists the shop’s own articles first, and the app’s guides 
   (s as any).kb = { articles: [{ id: 'kb-mine-1', kind: 'guide', title: 'Zinc bath top-up', status: 'published', version: 1, versions: [], roles: [], body: 'Add the zinc.', links: [], by: 'Owner', at: Date.now() }], trained: [], paths: [] };
   await loadAppWithState(page, s);
   await page.evaluate(() => (window as any).navApply({ tab: 'pageKnow', v: 'library', id: '' }));
+  await kbEvery(page);
   const heads = await page.locator('#kbLibrary .inv-row-group > span:first-child').allTextContents();
   expect(heads[0]).toBe('How-tos');
   expect(heads[heads.length - 1]).toBe('The app’s guides');

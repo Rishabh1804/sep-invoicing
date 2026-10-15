@@ -104,6 +104,9 @@ var CHG_TRACK = [
     label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },
   { path: 'kb.trained', kind: 'arr', noun: 'training record', label: function(r) { return chgJoin(r.name, r.on ? chgDay(r.on) : ''); } },
   { path: 'kb.paths', kind: 'arr', noun: 'training path', label: function(r) { return r.title; } },
+  // A note's words are never in the log: a private note's are the owner's alone, and a public one is read on its article.
+  { path: 'kb.notes', kind: 'arr', noun: 'note', omit: ['text', 'removeReason'],
+    label: function(r) { var a = typeof kbFind === 'function' ? kbFind(r.articleId) : null; return chgJoin(r.private ? 'private' : 'public', a ? a.title : ''); } },
   { path: 'bank.rows', kind: 'rows', noun: 'statement row', proj: function(r) { return { set: r.set, clientId: r.clientId, notCost: r.notCost }; },
     label: function(r) { return chgJoin(r.date ? chgDay(r.date) : '', r.cr ? chgMoney(r.cr) + ' in' : r.dr ? chgMoney(r.dr) + ' out' : '', chgCut(r.narration, 40)); } },
   { path: 'bank.imports', kind: 'arr', noun: 'statement import', label: function(r) { return chgJoin(r.file, r.rows != null ? r.rows + ' rows' : '', r.from ? chgDay(r.from) + ' to ' + chgDay(r.to) : ''); } },

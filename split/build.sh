@@ -99,6 +99,7 @@ JS_SOURCES=(
     "$DIR/planview.js" \
     "$DIR/kbguides.js" \
     "$DIR/knowledge.js" \
+    "$DIR/kbread.js" \
     "$DIR/client-perf.js" \
     "$DIR/im-form.js" \
     "$DIR/im-dupe.js" \

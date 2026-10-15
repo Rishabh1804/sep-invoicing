@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, todayIso, waitForBoot, switchTab, emptyState, noSeedIM, recentTs, answerAsk, type SepState } from './fixtures';
+import { loadAppWithState, todayIso, waitForBoot, switchTab, emptyState, noSeedIM, recentTs, answerAsk, kbRead, type SepState } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P216: the QA chain before PR 146 merges, the entry faces on Mine (the VAT register page, the attendance sheet, the rolls),
@@ -372,6 +372,7 @@ test.describe('P216: Knowledge', () => {
     // Each says its kind and what it is about (a fault, its symptom).
     metas.forEach(m => expect(m).toContain(' · '));
     await ev(page, `kbOpenArticle('F1')`);
+    await kbRead(page);
     const inc = await page.locator('[data-kb-fault-incidents] [data-kb-row] .inv-row-meta').allTextContents();
     expect(inc.length).toBe(2);
     inc.forEach(m => expect(m).toContain('· About Peeling on VAT'));
@@ -468,7 +469,9 @@ test.describe('P216: Knowledge', () => {
     await loadAppWithState(page, s as SepState);
     await switchTab(page, 'pageKnow');
     await ev(page, `kbOpenArticle('L1')`);
-    const chip = page.locator('[data-action="invKbLinkGo"][data-id="L1"]');
+    // An article's links are its context: on the phone, in its sheet (KB2-1).
+    await page.locator('#knowContent .inv-kb-ctxbar-btn').click();
+    const chip = page.locator('[data-kb-sheet] [data-action="invKbLinkGo"][data-id="L1"]');
     await expect(chip).toHaveText('Screen: Needs you');
     await chip.click();
     await expect(page.locator('#pageHome.inv-page-active')).toBeVisible();

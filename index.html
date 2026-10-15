@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="ecf9a812">
+<meta name="app-build" content="fdc3f5a5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -107,6 +107,7 @@
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
+  --kb-measure: 42rem; --kb-ico: 2rem; --kb-ico-sm: 1.5rem; --kb-glance-k: 6.5rem; --kb-big-h: 3.125rem; --kb-card-w: 15rem; --kb-lib-w: 17.5rem; --kb-ctx-w: 20rem; --kb-rail-w: 4rem;
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem;
@@ -2457,6 +2458,145 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-kb-img { display: block; max-width: 100%; height: auto; border-radius: var(--r-md); border: var(--hair) solid var(--border); background: var(--surface-2); }
 .inv-kb-actions { padding-top: var(--sp-12); }
 
+/* ---- The knowledge base, second edition (KB2-1, docs/KNOWLEDGE_BASE_2.md): three ways to read, the desk, notes ---- */
+.inv-kb-read, .inv-kb-quick, .inv-kb-guide {
+  width: 100%; max-width: var(--kb-measure); margin-inline: auto; display: flex; flex-direction: column; gap: var(--sp-12); }
+.inv-kb-head { display: flex; flex-direction: column; gap: var(--sp-8); padding-block: var(--sp-8) var(--sp-4); }
+.inv-kb-kicker { display: flex; align-items: center; flex-wrap: wrap; gap: var(--sp-8); font-size: var(--fs-13); font-weight: 600; color: var(--text-3); }
+.inv-kb-kicker .inv-kb-ico { --kb-ico: var(--kb-ico-sm); }
+.inv-kb-title { margin: 0; font-size: var(--fs-24); font-weight: 650; line-height: 1.25; color: var(--text-1); text-wrap: balance; overflow-wrap: anywhere; }
+.inv-kb-lede { margin: 0; font-size: var(--fs-16); line-height: 1.5; color: var(--text-2); }
+.inv-kb-modes { align-self: flex-start; }
+/* Reader: a manual page, the text set at 16px on 1.7, no boxes round it. */
+.inv-kb-sec { font-size: var(--fs-16); line-height: 1.7; color: var(--text-1); overflow-wrap: anywhere; }
+.inv-kb-sec p { margin: 0 0 var(--sp-12); }
+.inv-kb-sec ul { margin: 0 0 var(--sp-12); padding-left: var(--sp-20); }
+.inv-kb-sec li { margin-bottom: var(--sp-6); }
+.inv-kb-sec-h { margin: var(--sp-16) 0 var(--sp-8); font-size: var(--fs-19); font-weight: 650; line-height: 1.3; color: var(--text-1); }
+.inv-kb-sub-h { margin: var(--sp-12) 0 var(--sp-6); font-size: var(--fs-16); font-weight: 600; color: var(--text-1); }
+.inv-kb-more { border-top: var(--hair) solid var(--border); padding-top: var(--sp-8); }
+/* A step is its numeral in the accent, mono, and its text; no row box, no tick box. */
+.inv-kb-steps { margin: 0 0 var(--sp-12); padding-left: var(--sp-32); }
+.inv-kb-steps > li { margin-bottom: var(--sp-10); padding-left: var(--sp-4); }
+.inv-kb-steps > li::marker { color: var(--accent); font-family: var(--ff-mono); font-weight: 600; }
+/* A notice: the one place colour fills the page (DR-1), its icon and its word first. */
+.inv-kb-notice { display: flex; align-items: flex-start; gap: var(--sp-10); margin: 0 0 var(--sp-12); padding: var(--sp-10) var(--sp-12);
+  border-radius: var(--r-md); border-left: var(--rule) solid var(--tone); background: var(--tone-bg); color: var(--text-1); font-size: var(--fs-14); line-height: 1.5; }
+.inv-kb-notice svg { width: 20px; height: 20px; flex: none; color: var(--tone); }
+.inv-kb-notice strong:first-child { color: var(--tone); }
+.inv-kb-notice-danger { --tone: var(--danger); --tone-bg: var(--danger-bg); }
+.inv-kb-notice-warning { --tone: var(--warning); --tone-bg: var(--warning-bg); }
+.inv-kb-notice-info { --tone: var(--info); --tone-bg: var(--info-bg); }
+.inv-kb-steps .inv-kb-notice { margin: 0; }
+/* A path of the app's screens: one link in the text. */
+.inv-kb-path { appearance: none; display: inline; padding: 0; border: 0; background: none; font: inherit; color: var(--accent); text-decoration: underline; text-underline-offset: var(--sp-2); cursor: pointer; }
+.inv-kb-path:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-sm); }
+/* The kind's icon: on a quiet tile, never coloured by kind. */
+.inv-kb-ico { width: var(--kb-ico); height: var(--kb-ico); flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border-radius: var(--r-md); background: var(--surface-3); color: var(--text-2); }
+.inv-kb-ico svg { width: 60%; height: 60%; }
+.inv-row > .inv-kb-ico { margin-left: var(--pad-x); align-self: center; }
+.inv-kb-chev { width: 20px; height: 20px; color: var(--text-3); }
+/* At a glance: up to four rows, a label and its value. */
+.inv-kb-glance { display: grid; gap: var(--sp-8); margin: 0; padding: var(--sp-12) var(--sp-16); border: var(--hair) solid var(--border); border-radius: var(--r-lg); background: var(--surface-2); }
+.inv-kb-glance-row { display: grid; grid-template-columns: var(--kb-glance-k) minmax(0, 1fr); gap: var(--sp-12); align-items: baseline; }
+.inv-kb-glance dt { font-size: var(--fs-12); font-weight: 600; color: var(--text-3); }
+.inv-kb-glance dd { margin: 0; font-size: var(--fs-14); line-height: 1.45; color: var(--text-1); overflow-wrap: anywhere; }
+.inv-kb-quick-acts { padding-block: var(--sp-4); }
+.inv-kb-about { padding-block: var(--sp-8); border-top: var(--hair) solid var(--border); }
+/* Guided: a step a screen in large type, a bar of segments, Back and Next big at the foot. */
+.inv-kb-prog { display: flex; gap: var(--sp-4); }
+.inv-kb-prog-seg { flex: 1 1 0; height: var(--sp-6); border-radius: var(--r-full); background: var(--surface-3); }
+.inv-kb-prog-now { background: var(--accent-soft); box-shadow: inset 0 0 0 var(--hair) var(--accent); }
+.inv-kb-prog-done { background: var(--accent); }
+.inv-kb-step-n { font-size: var(--fs-13); font-weight: 600; color: var(--text-3); }
+.inv-kb-step { font-size: var(--fs-22); font-weight: 600; line-height: 1.4; color: var(--text-1); overflow-wrap: anywhere; }
+.inv-kb-step-sub { font-size: var(--fs-16); line-height: 1.6; color: var(--text-2); }
+.inv-kb-guidebar { gap: var(--sp-8); }
+.inv-kb-big { flex: 1 1 0; min-height: var(--kb-big-h); font-size: var(--fs-16); }
+/* The Library: shelves that scroll sideways, a card an article. */
+.inv-kb-shelves { display: flex; flex-direction: column; gap: var(--sp-16); }
+.inv-kb-shelf { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.inv-kb-shelf-head { display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8); min-height: var(--touch); }
+.inv-kb-shelf-t { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-kb-shelf-row { display: flex; gap: var(--sp-8); overflow-x: auto; padding-bottom: var(--sp-4); scroll-snap-type: x proximity; }
+.inv-kb-card { flex: 0 0 var(--kb-card-w); display: grid; grid-template-columns: auto minmax(0, 1fr); column-gap: var(--sp-10); row-gap: var(--sp-2); align-content: start;
+  min-height: var(--touch); padding: var(--sp-10) var(--sp-12); border: var(--hair) solid var(--border); border-radius: var(--r-lg);
+  background: var(--surface); color: var(--text-1); font: inherit; text-align: left; cursor: pointer; scroll-snap-align: start; }
+.inv-kb-card:hover { border-color: var(--accent); }
+.inv-kb-card:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-kb-card > .inv-kb-ico { grid-row: 1 / span 2; }
+.inv-kb-card-t, .inv-kb-card-m { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+.inv-kb-card-t { font-size: var(--fs-14); font-weight: 600; line-height: 1.35; }
+.inv-kb-card-m { font-size: var(--fs-12); line-height: 1.4; color: var(--text-2); }
+/* The desk with nothing open: the shelves are columns in a grid that fills the width, each its first five cards. */
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelves { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--kb-card-w), 1fr)); gap: var(--sp-16) var(--sp-20); align-items: start; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelves > :not(.inv-kb-shelf) { grid-column: 1 / -1; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card { flex: none; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card:nth-child(n+6) { display: none; }
+/* A shelf with more than five takes two columns, its cards two across, its first ten shown, so a full shelf leaves no blank beside it. */
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide { grid-column: span 2; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-shelf-row { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-card:nth-child(n+6) { display: grid; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-wide .inv-kb-card:nth-child(n+11) { display: none; }
+@container list (max-width: 24rem) {
+  .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
+  .inv-kb-card { flex: none; }
+}
+/* The desk (the desktop): the Library, the article, its context, each scrolling on its own inside the room (--fill-h). */
+body.inv-desktop .inv-kb-desk { display: grid; grid-template-columns: minmax(0, 1fr); position: relative; }
+body.inv-desktop .inv-kb-desk > * { min-height: 0; overflow-y: auto; }
+body.inv-desktop .inv-kb-desk.inv-pane-open { grid-template-columns: var(--kb-lib-w) minmax(0, 1fr) var(--kb-ctx-w); }
+body.inv-desktop .inv-kb-desk.inv-pane-open.inv-kb-desk-shut { grid-template-columns: var(--kb-rail-w) minmax(0, 1fr) var(--kb-ctx-w); }
+body.inv-desktop .inv-kb-desk > .inv-kb-mid { padding: var(--sp-16) var(--sp-24); }
+body.inv-desktop .inv-kb-desk > .inv-kb-lib { padding-right: var(--sp-8); }
+.inv-kb-lib-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+  margin-bottom: var(--sp-8); padding-block: var(--sp-4); background: var(--bg); }
+.inv-kb-ctx .inv-kb-lib-head { background: var(--surface); }
+.inv-kb-collapse { display: flex; margin-left: auto; }
+.inv-kb-close { margin-left: auto; }
+.inv-kb-rail { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); }
+.inv-kb-rail-btn { padding: var(--sp-4); }
+.inv-kb-ctx { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-12); background: var(--surface); border-left: var(--hair) solid var(--border); }
+.inv-kb-ctx-body { display: flex; flex-direction: column; gap: var(--sp-8); }
+.inv-kb-ctx-rail { display: none; flex-direction: column; align-items: stretch; gap: var(--sp-4); }
+/* A door of the rail, as the app's own rail draws one: its icon over its word. */
+.inv-kb-ctx-door { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-height: var(--touch); padding: var(--sp-6) 0;
+  border: 0; border-radius: var(--r-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-11); cursor: pointer; }
+.inv-kb-ctx-door svg { width: 20px; height: 20px; }
+.inv-kb-ctx-door:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-kb-ctx-door:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-kb-ctx-n { position: absolute; top: var(--sp-2); right: var(--sp-6); min-width: var(--sp-16); padding-inline: var(--sp-4); border-radius: var(--r-full);
+  background: var(--accent-soft); color: var(--accent-soft-text); font-size: var(--fs-11); line-height: 1.4; text-align: center; }
+.inv-kb-ctx-links { display: flex; flex-wrap: wrap; gap: var(--sp-6); padding: var(--sp-8) var(--pad-x); }
+.inv-kb-ctx-rows { display: flex; flex-direction: column; }
+.inv-kb-ctx .inv-kb-glance { margin: var(--sp-8) var(--pad-x); padding: var(--sp-10) var(--sp-12); }
+.inv-kb-ctx .inv-kb-glance-row { grid-template-columns: minmax(0, 1fr); gap: 0; }
+/* Under 80rem the context column is a rail of its sections, opening over the article on a tap. */
+@media (max-width: 79.99rem) {
+  body.inv-desktop .inv-kb-desk.inv-pane-open { grid-template-columns: var(--kb-lib-w) minmax(0, 1fr) var(--kb-rail-w); }
+  body.inv-desktop .inv-kb-desk.inv-pane-open.inv-kb-desk-shut { grid-template-columns: var(--kb-rail-w) minmax(0, 1fr) var(--kb-rail-w); }
+  .inv-kb-ctx-rail { display: flex; }
+  .inv-kb-ctx-body { display: none; }
+  .inv-kb-desk:not(.inv-kb-ctx-over) > .inv-kb-ctx { padding: var(--sp-8) var(--sp-4); background: var(--surface-2); }
+  .inv-kb-ctx-over .inv-kb-ctx { position: absolute; top: 0; right: 0; bottom: 0; width: var(--kb-ctx-w); z-index: var(--z-bar); }
+  .inv-kb-ctx-over .inv-kb-ctx-rail { display: none; }
+  .inv-kb-ctx-over .inv-kb-ctx-body { display: flex; }
+}
+@container masterdetail (max-width: 50rem) {
+  body.inv-desktop .inv-kb-desk.inv-pane-open, body.inv-desktop .inv-kb-desk.inv-pane-open.inv-kb-desk-shut { grid-template-columns: minmax(0, 1fr) var(--kb-rail-w); }
+}
+/* The phone: the context a bar over the phone bar, opening its sheet. */
+.inv-kb-ctxbar { position: sticky; bottom: var(--nav-space); z-index: var(--z-bar); display: flex; padding-block: var(--sp-8); }
+.inv-kb-ctxbar-btn { flex: 1 1 auto; }
+.inv-kb-ctx-sec { margin-bottom: var(--sp-16); }
+.inv-kb-ctx-h { margin: 0 0 var(--sp-6); font-size: var(--fs-13); font-weight: 600; color: var(--text-2); }
+/* Notes. */
+.inv-kb-note-text { white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--fs-14); line-height: 1.5; color: var(--text-1); }
+.inv-kb-note-acts { display: flex; gap: var(--sp-8); }
+.inv-kb-noteform { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-8) var(--pad-x); }
+
 /* The planner (planner.js, planview.js; docs/PLANNER.md): the plans as chips, the goal with its level, the strip with its
    month stepper and stars, a move's month with its arrows. Everything else is the shared components. */
 /* Moves' switch sizes each kind to its word (the tab map, TM2d). */
@@ -2594,7 +2734,7 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 <!-- TOP BAR (design system §4, §6.1) -->
 <header class="inv-topbar">
   <button class="inv-topbar-btn inv-topbar-back" id="navBack" data-action="invNavBack" aria-label="Back" hidden>
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>
+    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
   </button>
   <nav class="inv-topbar-trail" id="navTrail" aria-label="Trail"></nav>
   <h1 class="inv-topbar-title" id="topbarTitle">Today</h1>
@@ -2602,35 +2742,35 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
   <span class="inv-topbar-spacer"></span>
   <!-- Search (DIRECTION_B): a field-like button on the desktop, an icon on the phone; search.js builds what it opens. -->
   <button class="inv-search inv-ws-search" data-action="invSearchOpen" aria-keyshortcuts="Control+K">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
+    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
   </button>
   <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>
+    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>
   </button>
   <!-- History (the tab map, 9 Oct 2026): a tool on every screen, in no section's row. Hidden for a role that does not open it. -->
   <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
   </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/></svg>
   </button>
   <!-- History and the book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop
        had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
   </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5a2 2 0 0 1 2-2h13v16H6a2 2 0 0 0-2 2z"/><path d="M4 21V5M8 7h7M8 11h5"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/></svg>
   </button>
   <!-- This screen in a new window (search.js). The desktop's: hidden on the phone. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invNewWindow" aria-label="Open this screen in a new window" title="Open this screen in a new window">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8 8M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5.5"/></svg>
   </button>
   <!-- The guard (guard.js): who is signed in; their menu. Shown only while the guard is on. -->
   <button class="inv-guard-user" id="guardUserBtn" data-action="invGuardMenu" aria-label="Who is signed in" hidden></button>
   <button class="inv-topbar-btn" data-action="invOpenSettings" aria-label="Settings">
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/></svg>
+    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
   </button>
 </header>
 <!-- The open workspace's views (workspace.js): here on the phone, moved into the top bar on the desktop. -->
@@ -2647,12 +2787,12 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
     <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
     <div data-home-w="quick" class="inv-panels-wide">
       <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
-        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg><span>New invoice</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg><span>New challan</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/></svg><span>Stock entry</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><polyline points="17 11 19 13 23 9"/></svg><span>Attendance</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg><span>Paste message</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg><span>Add task</span></button>
+        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg><span>New invoice</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11V7.5L12 3 3.5 7.5v9L12 21l2-1"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M18.5 14v6M15.5 17h6"/></svg><span>New challan</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3h5M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15.5h9"/></svg><span>Stock entry</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 11l2 2 4-4"/></svg><span>Attendance</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><span>Paste message</span></button>
+        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Add task</span></button>
       </div>
     </div>
     <div data-home-w="money" id="homeFinCard"></div>
@@ -2759,15 +2899,15 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 <div id="invPrintView" class="inv-print-view">
   <div class="inv-print-toolbar">
     <button class="inv-print-toolbar-btn" data-action="invClosePrint">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
       Back
     </button>
     <button class="inv-print-toolbar-btn inv-hidden" id="invPrintRemote" data-action="invPrintRemote">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"/><path d="M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/></svg>
       Send to office
     </button>
     <button class="inv-print-toolbar-btn" data-action="invPrint">
-      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>
+      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8.5" rx="2"/><path d="M7 14h10v6.5H7z"/></svg>
       Print
     </button>
   </div>
@@ -3814,8 +3954,86 @@ function uiRowMoreHtml(actions) {
    a neutral one (a plain count) stays on its row.
    The rows wait in a <template>: nothing hidden is drawn twice, and no id is held twice. `opts.icon`: the button is its mark alone
    (named for a screen reader), for a phone row that holds a stepper and a select beside its primary (the Planner's). */
-var UI_ICON_MORE = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="5" cy="12" r="1"/><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/></svg>';
-var UI_ICON_FILTER = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 5h16l-6 7v6l-4 2v-8z"/></svg>';
+/* ---------- The icon set (owner, 15 Oct 2026: "update the icon set") ----------
+   One set for the whole app, drawn on one 24-unit grid with one stroke (1.75, round ends and joins) and one corner (2–3 units),
+   each glyph inside 2.5–21.5 so none looks larger than its neighbour. Every screen reads it by name (iconSvg) or by its paths
+   (iconPathSvg, ICONS.<name>): the bar and the rail, the top bar, Add, Home's quick actions, History, the knowledge base, the empty
+   states. Charts, the brand's mark and the QR draw their own. HR-4: inline SVG, never an emoji. */
+var ICON_ATTRS = 'viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"';
+var ICONS = {
+  // Moves
+  back: '<path d="M14.5 5.5 8 12l6.5 6.5"/>',
+  next: '<path d="M9.5 5.5 16 12l-6.5 6.5"/>',
+  close: '<path d="M6.5 6.5l11 11M17.5 6.5l-11 11"/>',
+  check: '<path d="M5 12.5l4.5 4.5L19 7.5"/>',
+  plus: '<path d="M12 5v14M5 12h14"/>',
+  more: '<circle cx="5.5" cy="12" r="1.25"/><circle cx="12" cy="12" r="1.25"/><circle cx="18.5" cy="12" r="1.25"/>',
+  filter: '<path d="M4 6.5h16M7 12h10M10 17.5h4"/>',
+  search: '<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>',
+  external: '<path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5.5"/>',
+  flip: '<path d="M16.5 3.5 20 7l-3.5 3.5"/><path d="M4 11.5V10a3 3 0 0 1 3-3h13"/><path d="M7.5 20.5 4 17l3.5-3.5"/><path d="M20 12.5V14a3 3 0 0 1-3 3H4"/>',
+  send: '<path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/>',
+  print: '<path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8.5" rx="2"/><path d="M7 14h10v6.5H7z"/>',
+  eye: '<path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/>',
+  pencil: '<path d="M4 20h4L19 9a2.1 2.1 0 0 0-3-3L5 17z"/><path d="M14 8l3 3"/>',
+  trash: '<path d="M4 6.5h16M9 6.5v-2h6v2"/><path d="M6 6.5l1 13a1.5 1.5 0 0 0 1.5 1.5h7a1.5 1.5 0 0 0 1.5-1.5l1-13M10 11v6M14 11v6"/>',
+  copy: '<rect x="8.5" y="8.5" width="12" height="12" rx="2"/><path d="M15.5 8.5v-3a2 2 0 0 0-2-2h-8a2 2 0 0 0-2 2v8a2 2 0 0 0 2 2h3"/>',
+  link: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  // Status
+  clock: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 2"/>',
+  history: '<path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/>',
+  info: '<circle cx="12" cy="12" r="8.5"/><path d="M12 11v5M12 8h.01"/>',
+  caution: '<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5v5M12 16h.01"/>',
+  warning: '<path d="M10.3 4.2 2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4M12 17h.01"/>',
+  cancel: '<circle cx="12" cy="12" r="8.5"/><path d="M9 9l6 6M15 9l-6 6"/>',
+  activity: '<path d="M3 12h4l2.5-7 5 14 2.5-7h4"/>',
+  rss: '<path d="M4.5 11a8.5 8.5 0 0 1 8.5 8.5M4.5 4.5a15 15 0 0 1 15 15"/><circle cx="5.5" cy="18.5" r="1"/>',
+  // Places
+  today: '<circle cx="12" cy="12" r="4"/><path d="M12 3v1.5M12 19.5V21M3 12h1.5M19.5 12H21M5.6 5.6l1.1 1.1M17.3 17.3l1.1 1.1M5.6 18.4l1.1-1.1M17.3 6.7l1.1-1.1"/>',
+  office: '<rect x="3" y="7" width="18" height="13" rx="2.5"/><path d="M8.5 7V5.5A1.5 1.5 0 0 1 10 4h4a1.5 1.5 0 0 1 1.5 1.5V7M3 12.5h18"/>',
+  floor: '<path d="M3 20.5h18"/><path d="M4.5 20.5V10l4.5 3.5V10l4.5 3.5V5h4v15.5"/><path d="M7.5 17h1.5M11.5 17H13"/>',
+  money: '<rect x="2.5" y="6" width="19" height="12" rx="2.5"/><circle cx="12" cy="12" r="2.5"/><path d="M6 9.5v5M18 9.5v5"/>',
+  mine: '<circle cx="12" cy="8" r="3.75"/><path d="M4.5 20.5c.8-3.6 3.8-5.5 7.5-5.5s6.7 1.9 7.5 5.5"/>',
+  settings: '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>',
+  book: '<path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/>',
+  // Things
+  file: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5"/>',
+  filePlus: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/>',
+  fileUp: '<path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 17.5v-6M9.5 14l2.5-2.5 2.5 2.5"/>',
+  box: '<path d="M3.5 7.5 12 3l8.5 4.5v9L12 21l-8.5-4.5z"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9"/>',
+  boxPlus: '<path d="M20.5 11V7.5L12 3 3.5 7.5v9L12 21l2-1"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M18.5 14v6M15.5 17h6"/>',
+  flask: '<path d="M9.5 3h5M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15.5h9"/>',
+  rack: '<path d="M3 4.5h18M6 4.5v3M12 4.5v3M18 4.5v3M3 20.5h18"/><rect x="4.5" y="7.5" width="3" height="5.5" rx="1"/><rect x="10.5" y="7.5" width="3" height="7.5" rx="1"/><rect x="16.5" y="7.5" width="3" height="5.5" rx="1"/>',
+  zap: '<path d="M13 2.5 4.5 13.5H11l-1 8 8.5-11H12z"/>',
+  users: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 4.5a3.5 3.5 0 0 1 0 7M18.5 15.3c1.7.7 2.8 2.3 3 4.7"/>',
+  userCheck: '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 11l2 2 4-4"/>',
+  message: '<path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/>',
+  task: '<rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12l3 3 5-6"/>',
+  clipboard: '<path d="M9 4.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="3" rx="1"/>',
+  clipboardCheck: '<path d="M9 4.5H7a2 2 0 0 0-2 2V19a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V6.5a2 2 0 0 0-2-2h-2"/><rect x="9" y="3" width="6" height="3" rx="1"/><path d="M8.5 13.5l2.5 2.5 4.5-5"/>',
+  tag: '<path d="M3.5 3.5h8l9 9-8 8-9-9z"/><circle cx="8" cy="8" r="1.25"/>',
+  cheque: '<rect x="2.5" y="5.5" width="19" height="13" rx="2.5"/><path d="M6 10h7M6 14h4M14.5 14.5c1-1 1.5-.5 2 0s1 1 2 0"/>',
+  receipt: '<path d="M5.5 3h13v18l-2.2-1.5L14 21l-2-1.5L10 21l-2.3-1.5L5.5 21z"/><path d="M9 8h6M9 12h6M9 16h3"/>',
+  note: '<path d="M5 3h10l4 4v14H5z"/><path d="M15 3v4h4M9 12h6M9 16h6"/>',
+  chart: '<path d="M4 4v16h16"/><path d="M8 16v-4M12 16V8M16 16v-6"/>',
+  shield: '<path d="M12 3 5 6v5.5c0 4.4 3 8 7 9.5 4-1.5 7-5.1 7-9.5V6z"/><path d="M9.5 12l2 2 3.5-4"/>',
+  phone: '<rect x="6.5" y="2.5" width="11" height="19" rx="2.5"/><path d="M11 18.5h2"/>',
+  sync: '<path d="M20 11a8 8 0 0 0-14.3-4.9L4 8"/><path d="M4 3.5V8h4.5"/><path d="M4 13a8 8 0 0 0 14.3 4.9L20 16"/><path d="M20 20.5V16h-4.5"/>',
+  bank: '<path d="M3 9.5 12 4l9 5.5M4.5 20.5h15M6 10.5v7M10 10.5v7M14 10.5v7M18 10.5v7"/>',
+  compass: '<circle cx="12" cy="12" r="8.5"/><path d="M15.5 8.5 13.5 13.5 8.5 15.5 10.5 10.5z"/>',
+  // The knowledge base's kinds
+  route: '<circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="18" r="2.5"/><path d="M8.5 6H15a3 3 0 0 1 0 6H9a3 3 0 0 0 0 6h6.5"/>',
+  nut: '<path d="M12 3 19.8 7.5v9L12 21l-7.8-4.5v-9z"/><circle cx="12" cy="12" r="3.25"/>',
+  scale: '<path d="M12 4v16M8 20h8M5 7h14"/><path d="M5 7 2.5 13a2.5 2.5 0 0 0 5 0zM19 7l-2.5 6a2.5 2.5 0 0 0 5 0z"/>',
+  wrench: '<path d="M14.5 6.5a4 4 0 0 0-5.3 5.3L3.5 17.5l3 3 5.7-5.7a4 4 0 0 0 5.3-5.3l-2.4 2.4-2.6-.4-.4-2.6z"/>',
+  flag: '<path d="M5 21V4M5 4h11.5l-2 4 2 4H5"/>',
+  fork: '<path d="M12 21v-6.5L6.5 9V4M12 14.5 17.5 9V4M4 6l2.5-2.5L9 6M15 6l2.5-2.5L20 6"/>'
+};
+/* An icon by its name; `cls` a class for the SVG where its box sets the size. */
+function iconSvg(name, cls) { return iconPathSvg(ICONS[name] || '', cls); }
+function iconPathSvg(paths, cls) { return '<svg' + (cls ? ' class="' + cls + '"' : '') + ' ' + ICON_ATTRS + '>' + paths + '</svg>'; }
+var UI_ICON_MORE = iconSvg('more');
+var UI_ICON_FILTER = iconSvg('filter');
 var UI_TONE_RANK = { danger: 4, warning: 3, info: 2, ok: 1, neutral: 0 };
 function uiToolbarMoreHtml(items, opts) {
   var list = (items || []).filter(Boolean), icon = !!(opts && opts.icon);
@@ -5578,6 +5796,9 @@ var CHG_TRACK = [
     label: function(r) { return chgJoin(typeof kbKindName === 'function' ? kbKindName(r.kind) : r.kind, r.title); } },
   { path: 'kb.trained', kind: 'arr', noun: 'training record', label: function(r) { return chgJoin(r.name, r.on ? chgDay(r.on) : ''); } },
   { path: 'kb.paths', kind: 'arr', noun: 'training path', label: function(r) { return r.title; } },
+  // A note's words are never in the log: a private note's are the owner's alone, and a public one is read on its article.
+  { path: 'kb.notes', kind: 'arr', noun: 'note', omit: ['text', 'removeReason'],
+    label: function(r) { var a = typeof kbFind === 'function' ? kbFind(r.articleId) : null; return chgJoin(r.private ? 'private' : 'public', a ? a.title : ''); } },
   { path: 'bank.rows', kind: 'rows', noun: 'statement row', proj: function(r) { return { set: r.set, clientId: r.clientId, notCost: r.notCost }; },
     label: function(r) { return chgJoin(r.date ? chgDay(r.date) : '', r.cr ? chgMoney(r.cr) + ' in' : r.dr ? chgMoney(r.dr) + ' out' : '', chgCut(r.narration, 40)); } },
   { path: 'bank.imports', kind: 'arr', noun: 'statement import', label: function(r) { return chgJoin(r.file, r.rows != null ? r.rows + ' rows' : '', r.from ? chgDay(r.from) + ' to ' + chgDay(r.to) : ''); } },
@@ -8198,8 +8419,8 @@ var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
 function uiDot(tone, word) { return '<span class="inv-dot inv-dot-' + uiTone(tone) + '">' + word + '</span>'; }
 function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
 
-var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
-var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+var ICON_SEARCH = iconSvg('search');
+var ICON_PRINT = iconSvg('print');
 
 /* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
 function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
@@ -8374,7 +8595,7 @@ function renderHomeRecentCard() {
   if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
   var recent = homeRecentInvoices(10);
   var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
-    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+    iconSvg('file', 'inv-empty-icon') +
     '<div>No invoices yet</div>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
     '</div>';
@@ -10868,7 +11089,7 @@ async function createClearClient() {
    small grid of fields under "Line n"; on the desktop the same fields line up
    as one row under a column head (inv-lines-head). One DOM for both layouts,
    so every control keeps its place, its data-k and its focus across a switch. */
-var LINE_X_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>';
+var LINE_X_ICON = iconSvg('close');
 
 function lineField(label, control, forId, cls) {
   return '<div class="inv-field' + (cls ? ' ' + cls : '') + '"><label class="inv-field-label"' +
@@ -10885,7 +11106,7 @@ function linesHeadHtml(qtyLabel) {
 function clientSearchHtml(inputId, resultsId, dataK) {
   return '<div class="inv-field"><label class="inv-field-label" for="' + inputId + '">Client</label>' +
     '<div class="inv-combo"><div class="inv-search">' +
-    '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>' +
+    iconSvg('search') +
     '<input type="text" id="' + inputId + '"' + (dataK ? ' data-k="' + dataK + '"' : '') + ' placeholder="Search client" autocomplete="off"' +
     ' role="combobox" aria-expanded="false" aria-autocomplete="list" aria-controls="' + resultsId + '"></div>' +
     '<div id="' + resultsId + '" class="inv-menu inv-hidden" role="listbox"></div></div></div>';
@@ -11920,7 +12141,7 @@ function _sNum(id, value, step, min, max) {
     ' class="inv-input inv-input-num" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '">';
 }
 function _sRow() { return '<div class="inv-fields">' + Array.prototype.join.call(arguments, '') + '</div>'; }
-var _EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _EYE_SVG = iconSvg('eye');
 /* A secret typed once and kept on the device: the field, and an icon button that shows it. */
 function _sKey(id, value, placeholder, action, what) {
   return '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><input class="inv-input inv-id inv-toolbar-item" id="' + id + '" type="password" value="' + escHtml(value) +
@@ -21629,8 +21850,8 @@ function attViewOk(v) {
   return v === 'paste' || ATT_PERIODS.some(function(x) { return x[0] === v; }) || ATT_VIEWS.some(function(x) { return x[0] === v && v !== 'attendance'; });
 }
 function attIsPeriod(v) { return ATT_PERIODS.some(function(x) { return x[0] === v; }); }
-var STAFF_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
-var STAFF_NEXT_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6"/></svg>';
+var STAFF_BACK_ICON = iconSvg('back');
+var STAFF_NEXT_ICON = iconSvg('next');
 
 function _attTabsHtml() {
   // An ID that does not see wages has no Pay (guard.js).
@@ -21796,9 +22017,7 @@ function attSeesWages() { return typeof grdSeesWages !== 'function' || grdSeesWa
 
 function _attEmptyRoster() {
   return '<div class="inv-panel"><div class="inv-empty">' +
-    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' +
-    '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>' +
-    '<polyline points="17 11 19 13 23 9"/></svg>' +
+    iconSvg('userCheck', 'inv-empty-icon') +
     '<div>No one on the roster yet</div>' +
     '<div class="inv-note">Attendance and the labour breakdown both read the roster. ' +
     'Add each worker once with their comp class and rate; the wage arithmetic follows from there.</div>' +
@@ -27479,7 +27698,7 @@ function setStockBy(v) { try { localStorage.setItem(STOCK_BY_KEY, v); } catch (e
 // charged into a bath is information, not a warning, and one with no rate yet is neutral.
 var STOCK_TONE = { red: 'danger', amber: 'warning', ok: 'ok', bath: 'info', none: 'neutral' };
 var _stockFilter = null;   // a Lines tile pressed: 'out' | 'low' | 'ok' | 'none' (none takes the bath lines too)
-var STOCK_BACK_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6"/></svg>';
+var STOCK_BACK_ICON = iconSvg('back');
 
 function stockQtyUnit(v, unit) {
   return '<span class="inv-num">' + escHtml(stockFmtQty(v)) + (unit ? '<span class="inv-unit">' + escHtml(unit) + '</span>' : '') + '</span>';
@@ -37828,25 +38047,14 @@ function relayOnInput(t) {
 var _addClip = null;   // what the clipboard held when it was last checked: {text, desc}
 
 function addSvg(paths) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + paths + '</svg>';
+  return iconPathSvg(paths);
 }
-var ADD_ICON = {
-  clipboard: '<rect x="8" y="2" width="8" height="4" rx="1"/><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2"/>',
-  file: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15l3-3 3 3"/>'
-};
+var ADD_ICON = { clipboard: ICONS.clipboard, file: ICONS.fileUp };
 /* By hand, in the order of the day's work: [go, label, icon]. Each opens its form already on the job (addHand). */
 var ADD_HAND = [
-  ['challan', 'Challan', '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path d="M12 8v8M8 12h8"/>'],
-  ['invoice', 'Invoice', '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><path d="M12 18v-6M9 15h6"/>'],
-  ['quote', 'Quotation', '<path d="M20.6 13.4l-7.2 7.2a2 2 0 01-2.8 0L2 12V2h10l8.6 8.6a2 2 0 010 2.8z"/><path d="M7 7h.01"/>'],
-  ['stock', 'Stock entry', '<path d="M9 3h6"/><path d="M10 3v6L4.5 19a1.5 1.5 0 001.3 2h12.4a1.5 1.5 0 001.3-2L14 9V3"/><path d="M7 15h10"/>'],
-  ['production', 'Production', '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10"/>'],
-  ['power', 'Power cut', '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>'],
-  ['attendance', 'Attendance', '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M17 11l2 2 4-4"/>'],
-  ['payment', 'Payment', '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>'],
-  ['cheque', 'Cheque', '<rect x="2" y="5" width="20" height="14" rx="2"/><path d="M6 10h7M6 14h4M15 15l2-2 3 1"/>'],
-  ['bill', 'Bill', '<path d="M5 2h14v20l-3-2-2 2-2-2-2 2-2-2-3 2z"/><path d="M9 7h6M9 11h6M9 15h4"/>'],
-  ['task', 'Task', '<path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/>']
+  ['challan', 'Challan', ICONS.boxPlus], ['invoice', 'Invoice', ICONS.filePlus], ['quote', 'Quotation', ICONS.tag], ['stock', 'Stock entry', ICONS.flask],
+  ['production', 'Production', ICONS.rack], ['power', 'Power cut', ICONS.zap], ['attendance', 'Attendance', ICONS.userCheck], ['payment', 'Payment', ICONS.money],
+  ['cheque', 'Cheque', ICONS.cheque], ['bill', 'Bill', ICONS.receipt], ['task', 'Task', ICONS.task]
 ];
 
 /* ---------- WhatsApp, opened where its messages are pasted ----------
@@ -41376,7 +41584,7 @@ function openClientDrillOverlay(clientId) {
   }).join('');
 
   var periodLabel = PERIOD_LABELS[_statsPeriod] || 'All';
-  var flipIcon = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M17 1l4 4-4 4"/><path d="M3 11V9a4 4 0 014-4h14"/><path d="M7 23l-4-4 4-4"/><path d="M21 13v2a4 4 0 01-4 4H3"/></svg>';
+  var flipIcon = iconSvg('flip');
 
   // Two faces, one showing at a time (inv-flip-front / -back, §6.16): the figures, then the rows and the one primary.
   dialogOpen('<div class="inv-dialog" data-drill="' + clientId + '">' +
@@ -41447,15 +41655,8 @@ var HISTORY_TYPES = [
 
 // Inline SVG per event type (HR-4: no emoji).
 var HISTORY_ICONS = {
-  invoice: '<path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/>',
-  challan: '<path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/>',
-  state: '<polyline points="20 6 9 17 4 12"/>',
-  cancel: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
-  void: '<path d="M3 6h18"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/>',
-  dupe: '<rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/>',
-  shift: '<path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/>',
-  extra: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
-  except: '<path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>'
+  invoice: ICONS.file, challan: ICONS.box, state: ICONS.check, cancel: ICONS.cancel, void: ICONS.trash, dupe: ICONS.copy,
+  shift: ICONS.users, extra: ICONS.clock, except: ICONS.warning
 };
 // A deleted attendance day is a deletion, as a deleted invoice is.
 HISTORY_ICONS.attDelete = HISTORY_ICONS.void;
@@ -41464,11 +41665,11 @@ HISTORY_ICONS.quote = HISTORY_ICONS.invoice;
 HISTORY_ICONS.quoteRev = HISTORY_ICONS.except;
 HISTORY_ICONS.quoteVoid = HISTORY_ICONS.void;
 // A change from the change log: a pencil.
-HISTORY_ICONS.chg = '<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 013 3L7 19l-4 1 1-4z"/>';
+HISTORY_ICONS.chg = ICONS.pencil;
 
 function historyIcon(kind) {
   var path = HISTORY_ICONS[kind] || HISTORY_ICONS.state;
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">' + path + '</svg>';
+  return iconPathSvg(path);
 }
 
 /* What each kind of event is called on its row, and its tone (DR-8: a dot and a
@@ -51283,7 +51484,7 @@ function tdyInput(def, day) {
 }
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 var TDY_INPUT_SHORT = { 'roll-in': 'In-time roll', pickling: 'Pickling loads', stock: 'Stock message', production: 'Production records', 'roll-out': 'Out-time roll' };
-var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS.check + '</svg>';   // a tick inside a step's small dot: the set's check, heavier to read at its size
 /* An input's line on its step: what came, or when it is looked for (owner, 8 Oct 2026: less to read). */
 function tdyStepMeta(r) {
   if (r.state === 'in' || r.state === 'off') return r.text;
@@ -58854,14 +59055,28 @@ var KB_APP_GUIDES = [
   _kbg('knowledge', 'Using the app: the knowledge base', 'Read, write, approve and train', ['pageKnow'],
     '- Tap the book in the top bar to open the guides for the screen that you are on.\n' +
     '- Tap **Write** to write an article. An article can be a how-to, a process, a part, a client requirement, a ruling, a fault, an incident or a decision.\n' +
-    '- If a person other than the owner writes an article, it waits for the owner’s approval. A change to a published article waits beside the article.\n' +
+    '- If a person other than the owner writes an article, it waits for the owner’s approval. A change to a published article waits beside the article.\n\n' +
+    '# 3 ways to read an article\n' +
+    '- **Quick** shows *At a glance* and 1 line for each part of the article. Tap a line to read that part in full.\n' +
+    '- **Read** shows the whole article as a manual page. A WARNING is red, a CAUTION is amber and a NOTE is blue. A screen path, for example Office → Challans, is a link to that screen.\n' +
+    '- **Step by step** shows 1 step on the screen. Tap **Next** and **Back**. At the end, the owner or the supervisor can record the training. For a fault, it shows 1 cause at a time: tap **Found it** or **Not this**.\n' +
+    '- On a phone, an article opens on Quick. A supervisor or a floor hand opens a lesson of their path on Step by step until they are trained on it.\n\n' +
+    '# Around the article\n' +
+    '- On a phone, tap the bar at the bottom of the article to see its context and its notes.\n' +
+    '- On a computer, the Library is on the left, the article is in the middle and its context is on the right. Tap **«** to make the Library narrow.\n' +
+    '- The context shows the plant now for what the article links to (a line, a client, a part, a stock line, an area), how new that data is, and what the article led to.\n' +
+    '- Anybody can add a note to an article. The owner can make a note private. NOTE: A private note is hidden from the other IDs, but it goes with the book in backups and GitHub sync. It is not encrypted.\n\n' +
+    '# The Library\n' +
+    '- Type a question in **Ask**. The app shows the articles that match, the best first, with the line that matched.\n' +
+    '- With nothing typed, the Library shows the articles you opened last and the shelves. Tap **See all** for the list of a shelf, or **Every article** for the full list.\n' +
     '- In **Troubleshoot**, find a fault by what you see. If something goes wrong, record an incident. The app then shows that day as recorded.\n' +
     '- In **Training**, record who was taught each lesson. When a lesson changes, the training is due again.\n' +
     '- A photo stays on the device that took it.\n' +
-    '- **Start** shows what waits: articles to approve, drafts, decisions due for review and training due again. Each view opens on a card that shows its status.\n' +
+    '- **Start** shows what waits: articles to approve, drafts, decisions due for review and training due again.\n' +
     '- On a phone, the kind and the drafts are under **Filter**. In the Library, **Export** and **Import** are under **More**. Only the owner can use them.',
     // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 3 }),
+    // Version 4: the 3 ways to read, the context, notes and the Library's shelves (KB2-1, 15 Oct 2026).
+    { version: 4 }),
   _kbg('planner', 'Using the app: the planner', 'Simulate machines, certification, staff, clients and a loan', ['pagePlanner'],
     'Today → **Planner** plays a plan over the next 24 months. It starts from the book’s last 3 full months. The planner **never changes the book**.\n\n' +
     'The card at the top shows the plan’s status against its goal on each view. **Roll** and the month are under the card. **More** holds the other controls: a new card, the report, the copy and the name of the plan, and the goal.\n\n' +
@@ -58968,11 +59183,16 @@ var KB_APP_GUIDES = [
     '# Paragraphs and steps\n- Write one topic in one paragraph. A paragraph has 6 sentences or fewer.\n' +
     '- Write a sequence as numbered steps (start the line with `1. `). Write facts of the same kind as a list (start the line with `- `).\n' +
     '- Give each part a heading (start the line with `# `).\n\n' +
-    '# Warnings\n- If a step can lose data or money, write a warning before the step.\n- Start it with **WARNING:** and say the risk and the result in short sentences.\n\n' +
+    '# Warnings\n- If a step can lose data or money, write a warning before the step.\n- Start it with **WARNING:** and say the risk and the result in short sentences.\n' +
+    '- If a step can cause a fault or damage, start it with **CAUTION:**. For useful data that is not a risk, start it with **NOTE:**.\n\n' +
+    '# At a glance\n- Each article opens with *At a glance*: up to 4 lines, each a label and a value, for example *Where: Office → Challans*.\n' +
+    '- If you leave the field empty, the app makes the lines from the article. The field shows these lines before you type.\n' +
+    '- Write a line only if the app’s line is wrong or not useful. A line has 90 characters or fewer.\n\n' +
     '# What we keep (the other 20%)\n- The labels of the app, as the screen shows them, in bold: **Take it and register**, **Needs you**.\n' +
     '- The terms of the shop and the trade: challan, GSTR-1, realisation, live cost, EXTRA, round, rack, gauge.\n' +
     '- Every fact. Do not remove a rule, a number or an exception to make a sentence shorter.',
-    { roles: [] }),
+    // Version 2: CAUTION and NOTE, and At a glance (KB2-1, 15 Oct 2026).
+    { roles: [], version: 2 }),
   _kbg('printer', 'Setting up: the office printer', 'Print from any phone on the office printer, through GitHub sync', ['pageRegister'],
     'The app on a phone cannot get to a printer on the office Wi-Fi. So a print goes through GitHub. The phone puts the job there, and 1 computer in the office prints it. This computer is the **print station**.\n\n' +
     '# Before you start\n- Make sure that GitHub sync is set up on every device that sends, and on the station (*Setting up: GitHub sync*).\n' +
@@ -59069,10 +59289,11 @@ var _kbFilter = { q: '', kind: '', status: '', link: null };   // link: {type, i
 if (typeof STATE_CONTAINERS !== 'undefined' && STATE_CONTAINERS.indexOf('kb') < 0) STATE_CONTAINERS.push('kb');
 
 /* ---------- The store ---------- */
-/* deleted: [{id, at, by}], a draft deleted here, so an import of an older file does not bring it back. */
+/* deleted: [{id, at, by}], a draft deleted here, so an import of an older file does not bring it back. notes: an article's notes,
+   public or the owner's own (kbread.js, KB2-1). */
 function kbData() {
   if (!S.kb || typeof S.kb !== 'object' || Array.isArray(S.kb)) S.kb = {};
-  ['articles', 'trained', 'paths', 'deleted'].forEach(function(k) { if (!Array.isArray(S.kb[k])) S.kb[k] = []; });
+  ['articles', 'trained', 'paths', 'deleted', 'notes'].forEach(function(k) { if (!Array.isArray(S.kb[k])) S.kb[k] = []; });
   return S.kb;
 }
 function kbUid(p) { return (p || 'kb') + '-' + Date.now().toString(36) + Math.random().toString(36).slice(2, 6); }
@@ -59138,7 +59359,8 @@ function kbSeesProposal(a) { return !!(a && a.pending) && (kbIsOwner() || (a.pen
    character through escHtml. A numbered list had run into one paragraph (the app's own guides are written in them). */
 function kbBodyHtml(text) {
   var lines = String(text || '').replace(/\r/g, '').split('\n'), out = '', para = [], list = [], tag = '', start = 1;
-  var inline = function(s) { return escHtml(s).replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>'); };
+  // The words as Reader draws them (kbread.js kbInline): **bold**, *italic* (its stars had printed), a screen's path a link.
+  var inline = function(s) { return kbInline(s); };
   var flushPara = function() { if (para.length) { out += '<p>' + para.map(inline).join(' ') + '</p>'; para = []; } };
   var flushList = function() {
     if (!list.length) return;
@@ -59237,9 +59459,14 @@ function kbRowHtml(a, brief) {
   var meta = [kbKindName(a.kind) + (day ? ', ' + formatDate(day) : ''), brief ? '' : clip].filter(Boolean).join(' · ');
   // The article open beside the list is marked as the current row (aria-current, as the Register's), in Knowledge's own
   // lists only: a client's panel is not that list.
+  // In Knowledge's own lists (KB2-1, §4): the kind's icon leads (not on Start, whose cards' rows carry status badges at the end), an app guide's kicker (Using the app:) is its meta's, a search
+  // says the line that matched, and the end is one useful thing (a ruling's day, a guide's version, a status).
+  var own = _kbListing, k = own ? kbKicker(a) : null, ask = own && _kbFilter.q ? kbAskLine(a, _kbFilter.q) : '';
+  if (own) meta = [k.kicker + (day && a.kind !== 'ruling' ? ', ' + formatDate(day) : ''), ask || (brief ? '' : clip)].filter(Boolean).join(' · ');
+  var end = a.status === 'published' && !a.pending ? (own && a.kind === 'ruling' && a.ruledOn ? '<span class="inv-num">' + escHtml(formatDate(a.ruledOn)) + '</span>' : own && a.src === 'build' ? '<span class="inv-num">v' + kbVer(a) + '</span>' : '') : kbStatusHtml(a);
   return '<div class="inv-row' + (a.status === 'retired' || a.status === 'superseded' ? ' inv-row-muted' : '') + '" data-kb-row="' + escHtml(a.id) + '"' + (_kbListing && _isDesktop && _kbOpen === a.id ? ' aria-current="true"' : '') + '>' +
-    '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(a.title || 'Untitled') + '</span>' +
-    '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + (a.status === 'published' && !a.pending ? '' : kbStatusHtml(a)) + '</span></div>';
+    (own && _kbTab !== 'start' ? kbArtIco(a) : '') + '<button class="inv-row-main" data-action="invKbOpen" data-id="' + escHtml(a.id) + '"' + (about && (brief || clip !== about) ? ' title="' + escHtml(about) + '"' : '') + '><span class="inv-row-title">' + escHtml(own ? k.title : a.title || 'Untitled') + '</span>' +
+    '<span class="inv-row-meta">' + escHtml(meta) + '</span></button><span class="inv-row-end">' + end + '</span></div>';
 }
 
 /* ---------- Photos, on this device only ---------- */
@@ -59426,8 +59653,14 @@ function kbNavReplace() {
   navTrailPut(now);
   navBarDraw();
 }
-/* The address: ?tab=pageKnow&v=<view>[/edit]&id=<article>. */
-function kbNavV() { return _kbTab + (_kbEdit ? '/edit' : ''); }
+/* The address: ?tab=pageKnow&v=<view>[/s-<shelf>][/edit | /<mode>[/<section>]]&id=<article>. The Library's list of one shelf, and
+   the mode an article is read in where it is not its landing (kbread.js kbModeV), so Back walks them. */
+function kbListV() { return _kbTab + (_kbTab === 'library' && _kbShelf ? '/s-' + _kbShelf : ''); }
+function kbNavV() {
+  if (_kbEdit) return _kbTab + '/edit';
+  var a = _kbOpen ? kbFind(_kbOpen) : null;
+  return kbListV() + (a && kbCanRead(a) ? kbModeV(a) : '');
+}
 function kbNavId() { return _kbEdit ? (_kbEdit.id || '') : (_kbOpen || ''); }
 /* The view an article opens on: the list of its kind, with the desktop's pane beside it (Start and Training have none). */
 function kbTabFor(kind) { return kind === 'fault' || kind === 'incident' ? 'troubleshoot' : kind === 'ruling' || kind === 'decision' ? 'records' : 'library'; }
@@ -59447,6 +59680,9 @@ function kbGo(loc, prep) {
 }
 function kbNavApply(v, id) {
   var parts = String(v || '').split('/'), a = id ? kbFind(id) : null, readable = !!a && kbCanRead(a);
+  // The shelf a Library list is of, then the rest as before (parts[1] the form or a mode).
+  var shelf = parts[1] && /^s-/.test(parts[1]) ? parts.splice(1, 1)[0].slice(2) : '';
+  _kbShelf = parts[0] === 'library' ? shelf : '';
   // An article named on a view with no pane (an older address) opens on its own list's view.
   if (readable && parts[1] !== 'edit' && !kbHasPane(parts[0])) parts[0] = kbTabFor(a.kind);
   kbSetTab(parts[0]);
@@ -59462,10 +59698,11 @@ function kbNavApply(v, id) {
   } else {
     _kbEdit = null;
     _kbOpen = readable ? a.id : null;
+    kbOpened(_kbOpen, parts);
   }
 }
 function kbNavLabel(v, id) {
-  var parts = String(v || '').split('/'), t = KB_TABS.find(function(x) { return x[0] === parts[0]; }), a = id && kbFind(id);
+  var parts = String(v || '').split('/').filter(function(x, i) { return !(i === 1 && /^s-/.test(x)); }), t = KB_TABS.find(function(x) { return x[0] === parts[0]; }), a = id && kbFind(id);
   return { sub: [t ? t[1] : 'Start', parts[1] === 'edit' ? (a ? 'Edit' : 'New article') : ''], rec: a && kbCanRead(a) ? a.title : '' };
 }
 function kbSetTab(t) {
@@ -59477,8 +59714,9 @@ function kbSetTab(t) {
    was typed. Leave, then a tap on Knowledge itself, had shown the form again with nothing to say it was typed. */
 function kbLeave() { _kbEdit = null; }
 function kbBackBar(title, action) {
+  // An article's own head names it (kbread.js kbHeadHtml): its bar is the way back alone.
   return '<div class="inv-pagehead"><button class="inv-btn inv-btn-ghost inv-btn-sm inv-pagehead-back" data-action="' + (action || 'invKbBack') + '">' + STOCK_BACK_ICON + 'Knowledge</button>' +
-    '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2></div>';
+    (title ? '<h2 class="inv-pagehead-title">' + escHtml(title) + '</h2>' : '') + '</div>';
 }
 function renderKnow() {
   var el = document.getElementById('knowContent');
@@ -59489,7 +59727,13 @@ function renderKnow() {
   if (open && !kbCanRead(open)) { open = null; _kbOpen = null; }
   var h, screen;
   if (_kbEdit) { h = kbFormHtml(); screen = 'form:' + (_kbEdit.id || 'new'); }
-  else if (open && !_isDesktop) { h = kbBackBar(open.title || 'Article') + kbArticleHtml(open); screen = 'article:' + open.id; }
+  // The phone: the article on its own screen, in its mode (kbread.js), the context a bar over the phone bar (not while Guided
+  // holds the foot with its steps).
+  else if (open && !_isDesktop) {
+    var mode = kbModeNow(open);
+    h = kbBackBar('') + kbModeHtml(open) + (mode === 'guide' ? '' : kbCtxBarHtml(open));
+    screen = 'article:' + open.id + ':' + mode + ':' + _kbSec + (mode === 'guide' ? ':' + _kbStep : '');
+  }
   else {
     screen = 'view:' + _kbTab;
     var pane = _isDesktop && kbHasPane(_kbTab), v;
@@ -59505,17 +59749,24 @@ function renderKnow() {
     h = '<div class="inv-viewtabs" role="tablist" aria-label="Knowledge">' + KB_TABS.map(function(t) {
       return '<button class="inv-viewtab" role="tab" aria-selected="' + (_kbTab === t[0]) + '" data-action="invKbTab" data-tab="' + t[0] + '">' + t[1] + '</button>';
     }).join('') + '</div>' + (v.verdict || '') + kbToolbarHtml(paneActs.some(function(x) { return x[2] === 'primary'; }), v) + kbTokensHtml(v.kinds);
-    // On the desktop the toolbar stays above the list as it scrolls (History's), the article beside it.
-    if (pane) h += '<div class="inv-pane-host' + (open ? ' inv-pane-open' : '') + '" id="kbHost" data-open="' + (open ? escHtml(open.id) : '') + '"><div class="inv-pane-list">' + v.body + '</div>' +
-      '<div class="inv-pane" id="kbPane">' + (open ? paneHeadHtml('<span class="inv-panel-title">' + escHtml(open.title || 'Article') + '</span>', 'invKbClose') + kbArticleHtml(open) : '') + '</div></div>';
+    // On the desktop the toolbar stays above the desk (KB2-1, §3): the list on the left, the article in the middle, its context
+    // on the right, each scrolling on its own.
+    if (pane) { h += kbDeskHtml(v.body, open); if (open) screen += ':' + open.id + ':' + kbModeNow(open) + ':' + _kbSec + ':' + _kbStep; }
     else h += v.body;
   }
   paneScrollKeep(function() { el.innerHTML = h; });
   viewTabReveal(el.querySelector('.inv-viewtabs'));
   kbFillImages(el);
   // Another view, an article opened on the phone or the form is a navigation and starts at the top (they opened where the
-  // list had been scrolled, the article's title off the screen). A redraw of the same screen keeps its place.
-  if (screen !== _kbScreen) { var was = _kbScreen; _kbScreen = screen; if (was) viewTop(); }
+  // list had been scrolled, the article's title off the screen). A redraw of the same screen keeps its place. Reader opened at
+  // a section starts there (kbread.js kbAfterDraw).
+  if (screen !== _kbScreen) {
+    var was = _kbScreen; _kbScreen = screen;
+    if (was) viewTop();
+    var mid = el.querySelector('.inv-kb-mid');
+    if (mid) mid.scrollTop = 0;
+    kbAfterDraw(el);
+  }
 }
 /* The one toolbar row (the tab map, TM6f): a list view's search and its filters (kbFilterHtml), the view's one primary (Write;
    Troubleshoot's is Log an incident, with Write a fault behind More; Training's Record training), and the rest behind More (the
@@ -59632,6 +59883,7 @@ function kbTokensHtml(kinds) {
       '<span class="inv-token-key">' + escHtml(key) + '</span>' + escHtml(value) + '<span aria-hidden="true">&times;</span></button>';
   };
   var h = _kbFilter.link ? tok('Linked to', kbLinkName(_kbFilter.link), 'link', 'kbLinkFilter') : '';
+  if (_kbTab === 'library' && _kbShelf) h += tok('Shelf', kbShelfTitle(_kbShelf), 'shelf', 'kbShelfToken');
   if (!_isDesktop && kinds) {
     if (_kbFilter.kind) h += tok('Kind', kbKindName(_kbFilter.kind, true), 'kind');
     if (_kbFilter.status) h += tok('Status', 'Drafts and waiting', 'status');
@@ -59656,13 +59908,22 @@ function kbFilterOn() { return !!(_kbFilter.q || _kbFilter.kind || _kbFilter.sta
 /* Each list view: its verdict card, what its toolbar searches and filters (`search`, the placeholder; `kinds`), and its body.
    The Library's verdict (the tab map, TM6f): how many articles the list holds and how many wait for approval. */
 function kbLibraryHtml() {
-  var list = kbFiltered(kbReadable()), wait = kbWaitingList().length;
+  var list = kbShelfList(_kbShelf, kbFiltered(kbReadable())), wait = kbWaitingList().length;
   var drafts = kbReadable().filter(function(a) { return a.src !== 'build' && a.status === 'draft' && (kbIsOwner() || kbMine(a)); }).length;
   var guides = list.filter(function(a) { return a.src === 'build'; }).length;
   var verdict = uiVerdictHtml({ screen: 'Library' + (kbFilterOn() ? ' · filtered' : ''), tone: wait ? 'warning' : 'ok',
     verdict: todoPlural(list.length, 'article') + (wait ? ' · ' + wait + ' waiting for approval' : ''),
     facts: [drafts ? todoPlural(drafts, 'draft') + ' to review' : '', guides ? guides + ' of them the app’s own guides' : ''], key: 'pageKnow-library', attrs: ' data-kb-verdict="library"' });
-  var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Articles <span class="inv-panel-count">' + list.length + '</span></span></div>';
+  // Nothing searched and no list asked for: the shelves (KB2-1, §4). A search, a filter or a shelf's See all: the list, a search
+  // best first.
+  if (!kbFilterOn() && !_kbShelf) return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: kbShelvesHtml() };
+  if (_kbFilter.q) {
+    var ranked = kbAskRank(list, _kbFilter.q);
+    return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }),
+      body: '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">Best matches <span class="inv-panel-count">' + ranked.length + '</span></span></div>' +
+        (ranked.length ? uiMoreHtml('kb-ask', ranked.map(function(a) { return kbRowHtml(a); }), { noun: 'articles' }) : '<div class="inv-empty">Nothing matches. Try fewer words, or the word the shop uses.</div>') + '</div>' };
+  }
+  var h = '<div class="inv-panel inv-panel-flush" id="kbLibrary"><div class="inv-panel-head"><span class="inv-panel-title">' + escHtml(_kbShelf ? kbShelfTitle(_kbShelf) : 'Articles') + ' <span class="inv-panel-count">' + list.length + '</span></span></div>';
   if (!list.length) h += '<div class="inv-empty">' + (kbReadable().length ? 'Nothing matches.' : 'Nothing here yet.') + '</div>';
   var rows = [];
   // The shop's own articles first, by kind; the app's guides after them, as one group: 32 of them had led the list and put
@@ -59675,7 +59936,7 @@ function kbLibraryHtml() {
   };
   KB_KINDS.forEach(function(k) { group(k[2], list.filter(function(a) { return a.kind === k[0] && a.src !== 'build'; }).sort(byTitle)); });
   group('The app’s guides', list.filter(function(a) { return a.src === 'build'; }).sort(byTitle));
-  return { verdict: verdict, search: 'Search articles', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: h + uiMoreHtml('kb-lib', rows, { noun: 'articles' }) + '</div>' };
+  return { verdict: verdict, search: _isDesktop ? 'Ask the knowledge base' : 'Ask', kinds: KB_KINDS.map(function(k) { return k[0]; }), body: h + uiMoreHtml('kb-lib', rows, { noun: 'articles' }) + '</div>' };
 }
 /* Troubleshoot: faults by symptom, each with its incidents; then the latest incidents. */
 function kbTroubleHtml() {
@@ -59801,58 +60062,8 @@ function kbKvHtml(rows) {
   rows = rows.filter(function(r) { return r && r[1] != null && r[1] !== ''; });
   return rows.length ? '<div class="inv-kv">' + rows.map(function(r) { return '<div' + (r[2] ? ' class="inv-kv-wide"' : '') + '><div class="inv-kv-k">' + escHtml(r[0]) + '</div><div>' + (r[3] ? r[1] : escHtml(String(r[1]))) + '</div></div>'; }).join('') + '</div>' : '';
 }
-function kbArticleHtml(a) {
-  var own = a.src !== 'build', h = '<div class="inv-panel" data-kb-article="' + escHtml(a.id) + '"><div class="inv-panel-body">' +
-    '<div class="inv-kb-badges"><span class="inv-badge inv-badge-neutral">' + escHtml(kbKindName(a.kind)) + '</span> ' + kbStatusHtml(a) + '</div>' +
-    (a.summary ? '<p class="inv-kb-summary">' + escHtml(a.summary) + '</p>' : '') + '</div>';
-  var meta = [];
-  if (a.kind === 'ruling') meta.push(['Ruled by', a.ruledBy], ['Ruled on', a.ruledOn ? formatDate(a.ruledOn) : '']);
-  var fault = a.kind === 'incident' && a.faultId ? kbFind(a.faultId) : null;
-  if (a.kind === 'incident') meta.push(['Day', a.on ? formatDate(a.on) : ''], ['Fault', fault ? (kbCanRead(fault) ? fault.title : 'A fault you do not read') : '']);
-  if (a.kind === 'decision') meta.push(['Decided', a.chosen != null && a.options && a.options[a.chosen] ? a.options[a.chosen].label : 'Not yet'], ['Decided on', a.decidedOn ? formatDate(a.decidedOn) : ''], ['Review on', a.reviewOn ? formatDate(a.reviewOn) : '']);
-  if (own) meta.push(['Read by', kbRolesText(a)], ['Version', kbVer(a) + (a.approvedAt ? ', ' + formatDate(isoOf(new Date(a.approvedAt))) : '')], ['Written by', a.by || ''], ['Source', a.src === 'import' ? 'soma-internal' + (a.srcRef ? ' · ' + a.srcRef : '') : '']);
-  h += kbKvHtml(meta) + '</div>';
-  // The rulings either side of this one, named only where this role reads them.
-  var later = a.status === 'superseded' && a.supersededBy ? kbFind(a.supersededBy) : null, earlier = a.supersedes ? kbFind(a.supersedes) : null;
-  if (a.status === 'superseded') h += '<div class="inv-callout inv-callout-warning">Replaced by a later ruling.' + (later && kbCanRead(later) ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(later.id) + '">Open it</button>' : '') + '</div>';
-  if (earlier) h += '<div class="inv-callout inv-callout-info">' + (kbCanRead(earlier) ? 'Replaces: ' + escHtml(earlier.title) + ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(earlier.id) + '">Open</button>' : 'Replaces an earlier ruling.') + '</div>';
-  if (a.status === 'retired') h += '<div class="inv-callout inv-callout-neutral">Retired' + (a.retiredAt ? ' ' + escHtml(formatDate(isoOf(new Date(a.retiredAt)))) : '') + (a.retireReason ? ': ' + escHtml(a.retireReason) : '') + '</div>';
-  // Why the owner said no: for the owner and the one who wrote what was declined, not every reader.
-  var dec = a.declined, decMine = dec && (kbIsOwner() || (dec.change ? dec.change.byId != null && dec.change.byId === kbMe().id : kbMine(a)));
-  if (decMine && (a.status === 'draft' || !a.pending)) h += '<div class="inv-callout inv-callout-warning">' + (dec.change ? 'A change by ' + escHtml(dec.change.by || 'someone') + ' was not approved' : 'Not approved') + (dec.reason ? ': ' + escHtml(dec.reason) : '') + '</div>';
-  // The kind's own parts.
-  if (a.kind === 'fault') {
-    if (a.symptom) h += '<div class="inv-callout inv-callout-info"><strong>What you see:</strong> ' + escHtml(a.symptom) + '</div>';
-    if ((a.causes || []).length) h += '<div class="inv-panel inv-panel-flush" data-kb-causes><div class="inv-panel-head"><span class="inv-panel-title">Likely causes, most likely first</span></div>' + a.causes.map(function(c, i) {
-      return '<div class="inv-row inv-row-auto inv-row-top"><div class="inv-row-main"><div class="inv-row-title">' + (i + 1) + '. ' + escHtml(c.cause || '') + '</div>' +
-        (c.check ? '<div class="inv-row-meta inv-row-wrap"><strong>Check:</strong> ' + escHtml(c.check) + '</div>' : '') + (c.fix ? '<div class="inv-row-meta inv-row-wrap"><strong>Fix:</strong> ' + escHtml(c.fix) + '</div>' : '') + '</div></div>';
-    }).join('') + '</div>';
-    var incs = kbReadable().filter(function(i) { return i.kind === 'incident' && i.faultId === a.id && i.status !== 'retired'; });
-    h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
-      (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
-      (incs.length ? incs.map(function(a) { return kbRowHtml(a); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
-  }
-  if (a.kind === 'incident') {
-    h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
-    h += kbDayContextHtml(a);
-  }
-  if (a.kind === 'decision') h += kbDecisionHtml(a);
-  h += kbBodyHtml(a.body);
-  h += kbImagesHtml(a.images);
-  if ((a.links || []).length) h += '<div class="inv-panel inv-panel-flush" data-kb-links><div class="inv-panel-head"><span class="inv-panel-title">Linked to</span></div><div class="inv-panel-body"><div class="inv-toolbar inv-toolbar-flush">' + a.links.map(function(l, i) {
-    return '<button class="inv-chip" data-action="invKbLinkGo" data-id="' + escHtml(a.id) + '" data-i="' + i + '">' + escHtml(kbLinkTypeName(l.type) + ': ' + kbLinkName(l)) + '</button>';
-  }).join('') + '</div></div></div>';
-  if (kbSeesProposal(a)) h += '<div class="inv-callout inv-callout-warning" data-kb-proposal>A change by ' + escHtml(a.pending.by || 'someone') + ' waits for approval' +
-    (a.pending.at ? ' (' + escHtml(formatTimestamp(a.pending.at)) + ')' : '') + '. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbProposal" data-id="' + escHtml(a.id) + '">See the change</button></div>';
-  if (a.kind === 'guide' && (a.quiz || []).length && kbLive(a)) h += '<div class="inv-panel inv-panel-flush" data-kb-quiz><div class="inv-panel-head"><span class="inv-panel-title">Check what was learnt <span class="inv-panel-count">' + a.quiz.length + '</span></span></div>' +
-    '<div class="inv-panel-body inv-note">Asked when training is recorded from this article: ' + escHtml(a.quiz.map(function(q) { return q.q; }).join(' · ')) + '</div></div>';
-  if ((a.versions || []).length) h += uiFoldHtml('kb-ver-' + a.id, '<span class="inv-panel-title">Earlier versions <span class="inv-panel-count">' + a.versions.length + '</span></span>', a.versions.slice().reverse().map(function(v) {
-    return '<div class="inv-row"><button class="inv-row-main" data-action="invKbVersion" data-id="' + escHtml(a.id) + '" data-v="' + escHtml(String(v.v)) + '"><span class="inv-row-title">Version ' + escHtml(String(v.v)) + '</span>' +
-      '<span class="inv-row-meta">' + escHtml([v.at ? formatTimestamp(v.at) : '', v.by ? 'by ' + v.by : ''].filter(Boolean).join(' · ')) + '</span></button></div>';
-  }).join(''), false);
-  h += kbActionsHtml(a);
-  return h;
-}
+/* The article is drawn in its mode by kbread.js (kbModeHtml: Quick reference, Reader, Guided); its own parts are
+   kbArticleKindHtml and kbArticleTailHtml there. */
 function kbLinkTypeName(t) { var x = KB_LINK_TYPES.find(function(r) { return r[0] === t; }); return x ? x[1] : t; }
 /* What can be done to an article, by whom: [action, label, kind]. One primary at most. */
 function kbActionList(a) {
@@ -59923,7 +60134,8 @@ function kbDayContextHtml(a) {
     });
   } catch (e) { /* stock not readable */ }
   if (kbSeesPage('pagePower')) try {
-    prodDowntimeDay(d).forEach(function(c) { rows.push({ k: 'Power cut', t: (c.time || '?') + ' to ' + (c.to || 'not back') }); });
+    // A cut is its minutes (prodDowntimeDay: from, to); it read fields a cut does not have, and said "? to not back".
+    prodDowntimeDay(d).forEach(function(c) { rows.push({ k: 'Power cut', t: (c.from != null ? relayClockLabel(c.from) : '?') + ' to ' + (c.to != null ? relayClockLabel(c.to) : 'not back') }); });
   } catch (e) { /* power not readable */ }
   if (names) try {
     var rec = (S.attendance || {})[d];
@@ -59937,7 +60149,7 @@ function kbDayContextHtml(a) {
 
 /* ---------- Writing ---------- */
 function kbBlankForm(kind) {
-  return { id: null, kind: kind || 'guide', title: '', summary: '', body: '', tags: '', readers: KB_READ_ROLES.slice(), links: [], images: [], uid: kbMe().id, v0: null, s0: null,
+  return { id: null, kind: kind || 'guide', title: '', summary: '', glance: '', body: '', tags: '', readers: KB_READ_ROLES.slice(), links: [], images: [], uid: kbMe().id, v0: null, s0: null,
     f: { causes: [{ cause: '', check: '', fix: '' }], options: [{ label: '', case: '' }, { label: '', case: '' }], figures: [], quiz: [] } };
 }
 /* The form on an article: its text as it stands. The writer of a change still waiting gets their change back to work on;
@@ -59946,7 +60158,7 @@ function kbFormFrom(a) {
   var p = a.pending && !kbIsOwner() && a.pending.byId != null && a.pending.byId === kbMe().id ? a.pending : null;
   var src = p ? Object.assign({}, a, p.fields || {}, { title: p.title, summary: p.summary, body: p.body }) : a;
   var j = function(x) { return JSON.parse(JSON.stringify(x)); };
-  return { id: a.id, kind: a.kind, title: src.title || '', summary: src.summary || '', body: src.body || '', tags: (src.tags || []).join(', '), readers: kbReadersOf(a.roles),
+  return { id: a.id, kind: a.kind, title: src.title || '', summary: src.summary || '', glance: src.glance || '', body: src.body || '', tags: (src.tags || []).join(', '), readers: kbReadersOf(a.roles),
     links: j(src.links || []), images: j(src.images || []), uid: kbMe().id, v0: kbVer(a), s0: a.status, p0: a.pending ? a.pending.at : null,
     f: { ruledBy: src.ruledBy || '', ruledOn: src.ruledOn || '', supersedes: src.supersedes || '', symptom: src.symptom || '', causes: j(src.causes && src.causes.length ? src.causes : [{ cause: '', check: '', fix: '' }]),
       on: src.on || '', faultId: src.faultId || '', cause: src.cause || '', fix: src.fix || '', question: src.question || '', options: j(src.options && src.options.length ? src.options : [{ label: '', case: '' }]),
@@ -59980,7 +60192,10 @@ function kbFormHtml() {
   var h = kbBackBar(title, 'invKbFormCancel') + '<div class="inv-panel"><div class="inv-panel-body"><div class="inv-fields">';
   if (!a) h += _kbSel('Kind', 'kind', e.kind, KB_KINDS.map(function(k) { return [k[0], k[1]]; }));
   h += _kbIn('Title', 'title', e.title, 'text', { ph: e.kind === 'fault' ? 'Peeling on clamps after plating' : e.kind === 'ruling' ? 'Overtime for monthly hands' : '' }) +
-    _kbIn('In one line', 'summary', e.summary, 'text', { ph: 'What a reader learns here' }) + '</div>';
+    _kbIn('In one line', 'summary', e.summary, 'text', { ph: 'What a reader learns here' }) + '</div>' +
+    // At a glance (KB2-1, §2d): written here, else worked out by kind; what would be worked out is the placeholder.
+    _kbIn('At a glance (optional)', 'glance', e.glance, 'textarea', { rows: 3, ph: kbGlanceWorked(Object.assign({ links: e.links }, kbFormRecord())).map(function(r) { return r[0] + ': ' + r[1]; }).join('\n') || 'Where: Office → Challans\nYou tap: Add challan',
+      hint: 'Up to 4 lines, each "Label: value". Left empty, the app works them out from the article.' });
   if (e.kind === 'ruling') h += '<div class="inv-fields">' + _kbIn('Ruled by', 'f.ruledBy', f.ruledBy || (owner ? 'Owner' : ''), 'text') + _kbIn('Ruled on', 'f.ruledOn', f.ruledOn || localDateStr(), 'date') + '</div>';
   if (e.kind === 'incident') {
     var faults = kbReadable().filter(function(x) { return x.kind === 'fault' && x.status !== 'retired'; });
@@ -60093,7 +60308,7 @@ function kbFormInput(el) {
 function kbRedrawForm() { keepScroll(renderKnow); }
 /* The record as the form says, for a new article or a version. */
 function kbFormRecord() {
-  var e = _kbEdit, f = e.f, r = { kind: e.kind, title: String(e.title || '').trim(), summary: String(e.summary || '').trim(), body: String(e.body || '').replace(/\s+$/, ''),
+  var e = _kbEdit, f = e.f, r = { kind: e.kind, title: String(e.title || '').trim(), summary: String(e.summary || '').trim(), glance: String(e.glance || '').split('\n').map(function(l) { return l.trim(); }).filter(Boolean).slice(0, 4).join('\n'), body: String(e.body || '').replace(/\s+$/, ''),
     tags: String(e.tags || '').split(',').map(function(s) { return s.trim(); }).filter(Boolean), links: e.links.slice(), images: e.images.slice() };
   if (e.kind === 'ruling') { r.ruledBy = String(f.ruledBy || '').trim(); r.ruledOn = f.ruledOn || ''; if (f.supersedes) r.supersedes = f.supersedes; }
   if (e.kind === 'fault') { r.symptom = String(f.symptom || '').trim(); r.causes = f.causes.filter(function(c) { return (c.cause || '').trim(); }); }
@@ -60120,7 +60335,7 @@ function kbFormProblem(r) {
   if (r.kind === 'decision' && !r.question) return 'A decision needs its question.';
   return '';
 }
-var KB_VERSION_FIELDS = ['title', 'summary', 'body', 'tags', 'links', 'images', 'ruledBy', 'ruledOn', 'symptom', 'causes', 'on', 'faultId', 'cause', 'fix', 'question', 'options', 'chosen', 'reason', 'decidedOn', 'reviewOn', 'figures', 'quiz'];
+var KB_VERSION_FIELDS = ['title', 'summary', 'glance', 'body', 'tags', 'links', 'images', 'ruledBy', 'ruledOn', 'symptom', 'causes', 'on', 'faultId', 'cause', 'fix', 'question', 'options', 'chosen', 'reason', 'decidedOn', 'reviewOn', 'figures', 'quiz'];
 function kbSnapshot(a) {
   var v = { v: kbVer(a), at: a.approvedAt || a.at, by: a.approvedBy || a.by || '' };
   KB_VERSION_FIELDS.forEach(function(k) { if (a[k] !== undefined) v[k] = JSON.parse(JSON.stringify(a[k])); });
@@ -60203,6 +60418,8 @@ async function kbSave(asDraft) {
   _kbEdit = null;
   _pageTyped = false;
   _kbOpen = a.id;
+  // What was just written is shown in full (Reader), not at its landing.
+  _kbMode = 'read'; _kbSec = 0;
   saveState();
   renderKnow();
   kbNavReplace();
@@ -60327,7 +60544,7 @@ function kbFieldText(k, v) {
   if (/^(ruledOn|on|decidedOn|reviewOn)$/.test(k)) return formatDate(v);
   return String(v);
 }
-var KB_FIELD_NAMES = { title: 'Title', summary: 'In one line', tags: 'Tags', links: 'Linked to', images: 'Photos', ruledBy: 'Ruled by', ruledOn: 'Ruled on', symptom: 'What you see',
+var KB_FIELD_NAMES = { title: 'Title', summary: 'In one line', glance: 'At a glance', tags: 'Tags', links: 'Linked to', images: 'Photos', ruledBy: 'Ruled by', ruledOn: 'Ruled on', symptom: 'What you see',
   causes: 'Causes', on: 'The day', faultId: 'The fault', cause: 'Cause found', fix: 'Fix', question: 'The question', options: 'The options', chosen: 'Decided', reason: 'Why',
   decidedOn: 'Decided on', reviewOn: 'Review on', figures: 'Figures', quiz: 'The check' };
 /* A proposed change, beside the article now: every field it changes (Approve takes them all), the text in full. */
@@ -60440,10 +60657,14 @@ async function kbReview(id) {
 
 /* ---------- Export and import (sep-kb v1) ---------- */
 /* The whole knowledge base, every role's articles: the owner's to take out. */
-function kbExport() {
+async function kbExport() {
   if (!kbIsOwner()) { grdRefuse('export the knowledge base'); return; }
-  var k = kbData(), out = { format: 'sep-kb', version: 1, exportedAt: new Date().toISOString(), build: (document.querySelector('meta[name="app-build"]') || {}).content || '',
-    articles: k.articles, trained: k.trained, paths: k.paths, deleted: k.deleted };
+  // Version 2 (KB2-1) carries the notes: the public ones, and the owner's private ones only when the owner says so.
+  var k = kbData(), priv = k.notes.some(function(n) { return n && n.private; });
+  var withPriv = priv ? await uiConfirm({ title: 'Include your private notes?', body: 'The file carries every public note. Your private notes go in it only if you say so. Anyone who opens the file can read them.',
+    okLabel: 'Include them', cancelLabel: 'Leave them out' }) : false;
+  var out = { format: 'sep-kb', version: 2, exportedAt: new Date().toISOString(), build: (document.querySelector('meta[name="app-build"]') || {}).content || '',
+    articles: k.articles, trained: k.trained, paths: k.paths, deleted: k.deleted, notes: k.notes.filter(function(n) { return n && (!n.private || withPriv); }) };
   var blob = new Blob([JSON.stringify(out, null, 1)], { type: 'application/json' }), a = document.createElement('a');
   a.href = URL.createObjectURL(blob);
   a.download = 'sep-kb-' + localDateStr() + '.json';
@@ -60487,6 +60708,7 @@ function kbCleanFields(x, out) {
   var types = KB_LINK_TYPES.map(function(t) { return t[0]; });
   out.links = _kbList(x.links, function(l) { return types.indexOf(l.type) >= 0 ? { type: l.type, id: _kbStr(l.id, 200), label: _kbStr(l.label, 300) } : null; });
   ['summary', 'body', 'ruledBy', 'symptom', 'cause', 'fix', 'question', 'reason'].forEach(function(k) { if (x[k] != null) out[k] = _kbStr(x[k]); });
+  if (x.glance != null) out.glance = _kbStr(x.glance, 1000);
   ['ruledOn', 'on', 'decidedOn', 'reviewOn'].forEach(function(k) { if (x[k] != null) out[k] = _kbDay(x[k]); });
   if (x.faultId != null) out.faultId = KB_ID_RE.test(String(x.faultId)) ? String(x.faultId) : '';
   if (x.causes != null) out.causes = _kbList(x.causes, function(c) { var r = { cause: _kbStr(c.cause), check: _kbStr(c.check), fix: _kbStr(c.fix) }; return r.cause.trim() ? r : null; });
@@ -60548,7 +60770,7 @@ var KB_RANK = { draft: 0, pending: 1, published: 2, superseded: 3, retired: 3 };
 function kbImportData(obj, name) {
   var arts = obj && (Array.isArray(obj) ? obj : obj.format === 'sep-kb' || Array.isArray(obj.articles) ? obj.articles : null);
   if (!Array.isArray(arts)) { if (!addFileElsewhere(obj, name, 'kb')) uiAlert({ title: 'Not a knowledge file', body: 'The file is not a sep-kb export.' }); return null; }
-  var k = kbData(), res = { added: 0, updated: 0, same: 0, kept: 0, refused: 0, deleted: 0, trained: 0, notOnRoster: 0, paths: 0 };
+  var k = kbData(), res = { added: 0, updated: 0, same: 0, kept: 0, refused: 0, deleted: 0, trained: 0, notOnRoster: 0, paths: 0, notes: 0 };
   var clean = [], seen = {};
   arts.forEach(function(x) {
     var a = kbCleanArticle(x);
@@ -60613,11 +60835,22 @@ function kbImportData(obj, name) {
     if (i < 0) k.paths.push(q); else k.paths[i] = q;
     res.paths++;
   });
-  var said = [res.added ? res.added + ' added' : '', res.updated ? res.updated + ' updated' : '', res.same ? res.same + ' already here' : '',
+  // Notes (sep-kb v2), by id, never written over; one on an article this book does not hold is left out.
+  (obj && Array.isArray(obj.notes) ? obj.notes : []).forEach(function(n) {
+    if (!n || typeof n !== 'object' || !KB_ID_RE.test(String(n.id || '')) || !kbFind(String(n.articleId || '')) || k.notes.some(function(x) { return x.id === String(n.id); })) return;
+    var text = _kbStr(n.text, KB_NOTE_MAX).trim();
+    if (!text) return;
+    var q = { id: String(n.id), articleId: String(n.articleId), text: text, private: n.private === true, by: _kbStr(n.by, 200), byId: n.byId == null ? null : _kbStr(n.byId, 100), at: _kbNum(n.at) || now };
+    if (_kbNum(n.editedAt) != null) q.editedAt = _kbNum(n.editedAt);
+    if (_kbNum(n.removedAt) != null) { q.removedAt = _kbNum(n.removedAt); q.removeReason = _kbStr(n.removeReason, 300); }
+    k.notes.push(q);
+    res.notes++;
+  });
+  var said = [res.added ? res.added + ' added' : '', res.updated ? res.updated + ' updated' : '', res.notes ? todoPlural(res.notes, 'note') : '', res.same ? res.same + ' already here' : '',
     res.kept ? res.kept + ' kept as changed here' : '', res.deleted ? res.deleted + ' deleted here, not brought back' : '',
     res.trained ? todoPlural(res.trained, 'training record') : '', res.notOnRoster ? res.notOnRoster + ' training not on the roster' : '',
     res.paths ? todoPlural(res.paths, 'path') : '', res.refused ? res.refused + ' refused' : ''].filter(Boolean).join(' · ');
-  if (!res.added && !res.updated && !res.trained && !res.paths && !tomb.length) { uiAlert({ title: 'Nothing imported', body: 'Nothing in ' + (name || 'the file') + ' is new here' + (said ? ': ' + said : '') + '.' }); return res; }
+  if (!res.added && !res.updated && !res.trained && !res.paths && !res.notes && !tomb.length) { uiAlert({ title: 'Nothing imported', body: 'Nothing in ' + (name || 'the file') + ' is new here' + (said ? ': ' + said : '') + '.' }); return res; }
   saveState();
   if (navPageOf() === 'pageKnow') renderKnow();
   showToast(said);
@@ -60637,7 +60870,8 @@ function kbOpenArticle(id) {
   if (!a || !kbCanRead(a)) { showToast('That article is not here', 'warning'); return; }
   if (dialogsTypedAsk(function() { kbOpenArticle(id); })) return;
   var tab = navPageOf() === 'pageKnow' && kbTabHolds(_kbTab, a.kind) ? _kbTab : kbTabFor(a.kind);
-  kbGo({ tab: 'pageKnow', v: tab, id: a.id });
+  // The Library's shelf list stays beside it on the desk; the article opens at its landing (kbread.js kbLandMode).
+  kbGo({ tab: 'pageKnow', v: tab === _kbTab ? kbListV() : tab, id: a.id }, function() { _kbMode = ''; _kbSec = 0; });
 }
 /* An article's address, for a new window (search.js): its own kind's list, open beside it. */
 function kbLocOf(id) { var a = kbFind(id); return a && kbCanRead(a) ? { tab: 'pageKnow', v: kbTabFor(a.kind), id: a.id } : null; }
@@ -60686,7 +60920,7 @@ function kbAction(action, btn) {
   var id = btn && btn.dataset ? btn.dataset.id : null;
   switch (action) {
     // A view starts as itself: a kind or the drafts picked on another view are not carried to one with no chip for them.
-    case 'invKbTab': kbGo({ tab: 'pageKnow', v: btn.dataset.tab, id: '' }, function() { _kbFilter.kind = ''; _kbFilter.status = ''; _kbFilter.link = null; }); return true;
+    case 'invKbTab': kbGo({ tab: 'pageKnow', v: btn.dataset.tab, id: '' }, function() { _kbFilter.kind = ''; _kbFilter.status = ''; _kbFilter.link = null; _kbShelf = ''; }); return true;
     case 'invKbOpen': kbOpenArticle(id); return true;
     case 'invKbClose': _kbOpen = null; renderKnow(); return true;
     // Back, or with no step before (an address opened as it is, a new window) the view the article is on.
@@ -60765,7 +60999,13 @@ function kbAction(action, btn) {
     case 'invKbTrain': kbTrainOpen(id || null, btn.dataset.staff != null ? btn.dataset.staff : null); return true;
     case 'invKbTrainSave': kbTrainSave(); return true;
     case 'invKbReview': kbReview(id); return true;
-    case 'invKbFilterClear': { var c = btn.dataset.clear; if (c === 'kind') _kbFilter.kind = ''; else if (c === 'status') _kbFilter.status = ''; else _kbFilter.link = null; keepScroll(renderKnow); return true; }
+    case 'invKbFilterClear': {
+      var c = btn.dataset.clear;
+      if (c === 'shelf') { kbGo({ tab: 'pageKnow', v: 'library', id: _kbOpen || '' }, function() { _kbShelf = ''; }); return true; }
+      if (c === 'kind') _kbFilter.kind = ''; else if (c === 'status') _kbFilter.status = ''; else _kbFilter.link = null;
+      keepScroll(renderKnow);
+      return true;
+    }
     case 'invKbShowDrafts': kbGo({ tab: 'pageKnow', v: 'library', id: '' }, function() { _kbFilter = { q: '', kind: '', status: 'draft', link: null }; }); return true;
     case 'invKbLinkGo': kbLinkGo(id, btn.dataset.i); return true;
     case 'invKbPath': { var p = kbPaths().find(function(x) { return x.id === id; }), first = p && kbPathArticles(p)[0]; if (first) kbOpenArticle(first.id); else kbGo({ tab: 'pageKnow', v: 'training', id: '' }); return true; }
@@ -60773,7 +61013,7 @@ function kbAction(action, btn) {
     case 'invKbImport': kbImport(); return true;
     case 'invKbHelp': kbHelp(); return true;
   }
-  return false;
+  return kbReadAction(action, btn);
 }
 /* Typing: the form's fields and the search box. A field is written as it is typed and never redrawn under the caret; the
    search redraws the list only. */
@@ -60845,6 +61085,792 @@ TODO_RULE_FNS.kbTrainDue = function() {
     why: 'Knowledge · training', facts: due.slice(0, 8).map(function(x) { return [x.w.name, (x.a.roles && x.a.roles.length ? 'A lesson for some roles only' : x.a.title) + ' (v' + (x.t.v || 1) + ' given, v' + kbVer(x.a) + ' now)']; }),
     clears: 'Clears itself when the training is given again on the new version.', go: { kind: 'kb', tab: 'training' }, goLabel: 'Open Training', sig: due.map(function(x) { return x.t.id + ':' + kbVer(x.a); }).sort().join(',') }];
 };
+/* ===== READING AN ARTICLE: the second edition (docs/KNOWLEDGE_BASE_2.md, KB2-1) =====
+   One body read once (kbParse) and drawn three ways: Quick reference (At a glance and the sections, each opening Reader at
+   that section), Reader (a manual page, no tick boxes) and Guided (a step a screen, for training and a fault at the tank).
+   The desktop is a desk: the Library on the left, the article in the middle, its context on the right. The phone keeps the
+   modes and has the context in a sheet. Notes are public or the owner's own. The store and the rules (who reads, writes and
+   approves) stay knowledge.js's; nothing here writes an article. */
+
+var KB_MODES = ['quick', 'read', 'guide'];
+var KB_RECENT_KEY = 'sep_inv_kb_recent';    // the last opened on this device, a per-device convenience
+var KB_DESK_KEY = 'sep_inv_kb_desk';        // the desk's Library column shut or open
+var KB_NOTE_MAX = 500;
+var KB_NOTE_EDIT_MS = 24 * 3600 * 1000;     // one's own note is edited within a day
+var _kbMode = '';      // the mode the open article is read in; '' its landing (kbLandMode)
+var _kbSec = 0;        // Reader at a section (its index in kbParse's sections; 0 the top)
+var _kbStep = -1;      // Guided: -1 its start, 0.. a step, the count its end
+var _kbStepOf = '';    // the article and mode the step belongs to: another one starts at its start
+var _kbFound = null;   // a fault followed step by step: the cause found
+var _kbCtxOver = false;  // the desk's context column open over the article (a window under 80rem)
+var _kbShelf = '';     // the Library's list shown in place of its shelves: a shelf's key, or 'all'
+
+/* ---------- The text, read once ---------- */
+var KB_NOTICE_RE = /^(?:\*\*)?(WARNING|CAUTION|NOTE)(?:\*\*)?\s*:\s*(?:\*\*)?\s*/;
+/* The body as sections of blocks. A "# " heading starts a section; what comes before the first is the first section, with no
+   title of its own. A block: a paragraph, a list ("- ", "1. "), or a notice (a paragraph starting WARNING:, CAUTION: or
+   NOTE:). Kept as written: the drawing reads it. */
+function kbParse(text) {
+  var lines = String(text || '').replace(/\r/g, '').split('\n'), secs = [{ title: '', blocks: [] }], cur = secs[0], para = [], list = null;
+  var flushPara = function() {
+    if (!para.length) return;
+    var t = para.join(' '), n = KB_NOTICE_RE.exec(t);
+    cur.blocks.push(n ? { t: 'notice', level: n[1].toLowerCase(), text: t.slice(n[0].length) } : { t: 'p', text: t });
+    para = [];
+  };
+  var flushList = function() { if (list) { cur.blocks.push(list); list = null; } };
+  lines.forEach(function(l) {
+    var t = l.trim();
+    if (!t) { flushPara(); flushList(); return; }
+    var h = /^#{1,3}\s+(.*)$/.exec(t), ul = /^[-•]\s+(.*)$|^\*\s+(.*)$/.exec(t), ol = /^(\d{1,3})[.)]\s+(.*)$/.exec(t);
+    if (h) { flushPara(); flushList(); cur = { title: h[1].replace(/\*\*/g, '').trim(), blocks: [] }; secs.push(cur); return; }
+    if (ul || ol) {
+      flushPara();
+      var tg = ol ? 'ol' : 'ul';
+      if (list && list.t !== tg) flushList();
+      if (!list) list = { t: tg, start: ol ? +ol[1] : 1, items: [] };
+      list.items.push(ol ? ol[2] : (ul[1] || ul[2]));
+      return;
+    }
+    flushList();
+    para.push(t);
+  });
+  flushPara();
+  flushList();
+  if (!secs[0].blocks.length && secs.length > 1) secs.shift();
+  secs = secs.filter(function(s) { return s.blocks.length || s.title; });
+  secs.forEach(function(s, i) {
+    var steps = 0, points = 0, paras = 0;
+    s.blocks.forEach(function(b) { if (b.t === 'ol') steps += b.items.length; else if (b.t === 'ul') points += b.items.length; else if (b.t === 'p') paras++; });
+    s.steps = steps; s.points = points; s.paras = paras;
+    if (!s.title) s.title = i === 0 && secs.length > 1 ? (steps ? 'The steps' : 'Overview') : steps ? 'The steps' : 'In full';
+  });
+  return { sections: secs };
+}
+/* What a section holds, in a few words: its steps, else its points, else its paragraphs. */
+function kbSecCount(s) {
+  return s.steps ? todoPlural(s.steps, 'step') : s.points ? todoPlural(s.points, 'point') : s.paras ? todoPlural(s.paras, 'paragraph') : '';
+}
+/* Every numbered step in order, with the section it is in: what Guided walks. */
+function kbSteps(P) {
+  var out = [];
+  P.sections.forEach(function(s, si) { s.blocks.forEach(function(b) { if (b.t === 'ol') b.items.forEach(function(t) { out.push({ sec: si, title: s.title, text: t }); }); }); });
+  return out;
+}
+/* The notices, a WARNING before a CAUTION before a NOTE, each with the section it is in. */
+function kbNotices(P) {
+  var out = [], rank = { warning: 0, caution: 1, note: 2 };
+  P.sections.forEach(function(s, si) {
+    s.blocks.forEach(function(b) {
+      if (b.t === 'notice') out.push({ level: b.level, text: b.text, sec: si });
+      if (b.t === 'ul' || b.t === 'ol') b.items.forEach(function(t) { var n = KB_NOTICE_RE.exec(t); if (n) out.push({ level: n[1].toLowerCase(), text: t.slice(n[0].length), sec: si }); });
+    });
+  });
+  return out.sort(function(x, y) { return rank[x.level] - rank[y.level]; });
+}
+
+/* ---------- The words: bold, italic, a screen's path ---------- */
+/* Every character through escHtml first. **bold** is what the person taps; *italic* a word set apart (the renderer had printed
+   its stars); a path of the app's screens (Office → Challans) is one link that opens the screen. */
+function kbInline(s) {
+  var h = escHtml(String(s == null ? '' : s));
+  h = h.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
+  h = h.replace(/(^|[\s(;—–\/-])\*([^*\s](?:[^*]*[^*\s])?)\*(?=$|[\s.,;:!?)&—–\/-])/g, '$1<em>$2</em>');
+  return kbPathsHtml(h);
+}
+var KB_PATH_RE = /\b(Today|Office|Floor|Money)((?: → [A-Z][A-Za-z’']*(?: [a-z][A-Za-z’']*)*)+)/g;
+/* The place a path names: a workspace and one of its views (Money's own tabs for Money). A path the app cannot place is null,
+   and stays text. */
+function kbPathLoc(parts) {
+  if (typeof WORKSPACES === 'undefined') return null;
+  var ws = WORKSPACES.find(function(w) { return w.label === parts[0]; });
+  if (!ws || !parts[1]) return null;
+  var view = ws.views.find(function(x) { return x.label === parts[1]; });
+  if (view) return { tab: view.tab, v: view.v || '' };
+  if (ws.id === 'money' && typeof FIN_TABS !== 'undefined') { var ft = FIN_TABS.find(function(t) { return t[1] === parts[1]; }); if (ft) return { tab: 'pageFinance', v: ft[0] }; }
+  return null;
+}
+/* The path as far as the app can place it: the words after a view's name ("Office → Challans to see the challan") are text,
+   tried off one at a time from the end until a workspace and a view match. */
+function kbPathsHtml(h) {
+  return h.replace(KB_PATH_RE, function(m) {
+    var parts = m.split(' → '), words = (parts[1] || '').split(' ');
+    for (var n = words.length; n > 0; n--) {
+      var name = words.slice(0, n).join(' '), loc = kbPathLoc([parts[0], name]);
+      if (!loc) continue;
+      var text = parts[0] + ' → ' + name, rest = m.slice(text.length);
+      return '<button type="button" class="inv-kb-path" data-action="invKbPathGo" data-tab="' + escHtml(loc.tab) + '" data-v="' + escHtml(loc.v) + '">' + text + '</button>' + rest;
+    }
+    return m;
+  });
+}
+function kbPathGo(tab, v) {
+  if (!tab || (typeof isPageId === 'function' && !isPageId(tab))) return;
+  if (!kbSeesPage(tab)) { showToast('Your ID doesn’t open ' + (PAGE_TITLES[tab] || 'that screen'), 'warning'); return; }
+  if (dialogsTypedAsk(function() { kbPathGo(tab, v); })) return;
+  closeOverlay();
+  navOpen({ tab: tab, v: v || '', id: '', d: '' });
+}
+var KB_NOTICE_WORD = { warning: 'WARNING', caution: 'CAUTION', note: 'NOTE' };
+var KB_NOTICE_TONE = { warning: 'danger', caution: 'warning', note: 'info' };
+var KB_NOTICE_SVG = { warning: iconSvg('warning'), caution: iconSvg('caution'), note: iconSvg('info') };
+/* A notice: the one place colour fills a page (DR-1: colour is status), its icon and its word before its text. */
+function kbNoticeHtml(level, text) {
+  return '<div class="inv-kb-notice inv-kb-notice-' + KB_NOTICE_TONE[level] + '" data-kb-notice="' + level + '" role="note">' + KB_NOTICE_SVG[level] +
+    '<div><strong>' + KB_NOTICE_WORD[level] + '</strong> ' + kbInline(text) + '</div></div>';
+}
+/* A list item, a notice where it starts as one. */
+function kbItemHtml(t) {
+  var n = KB_NOTICE_RE.exec(t);
+  return '<li>' + (n ? kbNoticeHtml(n[1].toLowerCase(), t.slice(n[0].length)) : kbInline(t)) + '</li>';
+}
+function kbBlocksHtml(blocks) {
+  return blocks.map(function(b) {
+    if (b.t === 'p') return '<p>' + kbInline(b.text) + '</p>';
+    if (b.t === 'notice') return kbNoticeHtml(b.level, b.text);
+    if (b.t === 'ul') return '<ul>' + b.items.map(kbItemHtml).join('') + '</ul>';
+    return '<ol class="inv-kb-steps"' + (b.start !== 1 ? ' start="' + b.start + '"' : '') + '>' + b.items.map(kbItemHtml).join('') + '</ol>';
+  }).join('');
+}
+
+/* ---------- Kind icons (§5): stroke icons, never coloured by kind ---------- */
+var KB_KIND_SVG = { guide: ICONS.book, process: ICONS.route, part: ICONS.nut, requirement: ICONS.clipboardCheck, ruling: ICONS.scale, fault: ICONS.wrench, incident: ICONS.flag, decision: ICONS.fork };
+function kbKindIco(kind) {
+  return '<span class="inv-kb-ico" aria-hidden="true">' + iconPathSvg(KB_KIND_SVG[kind] || KB_KIND_SVG.guide) + '</span>';
+}
+/* An app guide carries its subject's icon (the book on every one had read as one guide); the shop's articles their kind's. */
+var KB_GUIDE_ICON = { 'app-today': 'today', 'app-stats': 'chart', 'app-add': 'plus', 'app-challan': 'box', 'app-invoice': 'filePlus', 'app-states': 'file', 'app-credit': 'receipt', 'app-clients': 'users', 'app-rolls': 'message', 'app-day': 'userCheck', 'app-areas': 'users', 'app-floor': 'floor', 'app-stock': 'flask', 'app-production': 'rack', 'app-plant-figures': 'activity', 'app-power': 'zap', 'app-pay': 'money', 'app-bank': 'bank', 'app-suppliers': 'cheque', 'app-search': 'search', 'app-knowledge': 'book', 'app-planner': 'compass', 'app-mine': 'mine', 'app-face-pickling': 'flask', 'app-face-supervisor': 'task', 'app-face-clerk': 'note', 'app-faces-owner': 'settings', 'app-writing': 'pencil', 'app-printer': 'print', 'app-sync': 'sync', 'app-devices': 'phone', 'app-guard': 'shield' };
+function kbArtIco(a) {
+  var k = a && KB_GUIDE_ICON[a.id];
+  return k && ICONS[k] ? '<span class="inv-kb-ico" aria-hidden="true">' + iconSvg(k) + '</span>' : kbKindIco(a ? a.kind : '');
+}
+/* An app guide's title carries its kicker (Using the app: …, Setting up: …): the kicker over the title, the rest the title. */
+function kbKicker(a) {
+  var m = /^(Using the app|Setting up):\s*(.+)$/.exec(String(a.title || ''));
+  return m ? { kicker: m[1], title: m[2].charAt(0).toUpperCase() + m[2].slice(1) } : { kicker: kbKindName(a.kind), title: a.title || 'Untitled' };
+}
+
+/* ---------- At a glance (§2d): written where it is, worked out where it is not ---------- */
+/* Written: up to four lines "Label: value". */
+function kbGlanceWritten(a) {
+  return String(a.glance || '').split('\n').map(function(l) {
+    var m = /^\s*([^:]{1,40}):\s*(.+?)\s*$/.exec(l);
+    return m ? [m[1].trim(), m[2].slice(0, 90)] : null;
+  }).filter(Boolean).slice(0, 4);
+}
+function kbGlanceWorked(a) {
+  var rows = [], P = kbParse(a.body), first = function(s) { var m = /^.*?[.!?](?:\s|$)/.exec(String(s || '')); return (m ? m[0] : String(s || '')).trim().slice(0, 90); };
+  var plain = function(s) { return String(s || '').replace(/\*\*?/g, ''); };
+  if (a.kind === 'guide' || a.kind === 'process') {
+    var where = '';
+    P.sections.some(function(s) { return s.blocks.some(function(b) { var t = b.text || (b.items || []).join(' '); var m = KB_PATH_RE.exec(t); KB_PATH_RE.lastIndex = 0; if (m) where = m[0]; return !!m; }); });
+    if (where) rows.push(['Where', where]);
+    var taps = [], seen = {};
+    String(a.body || '').replace(/\*\*([^*]+)\*\*/g, function(m, t) { t = t.trim().replace(/:$/, ''); if (!/^(WARNING|CAUTION|NOTE)$/.test(t) && !seen[t] && taps.length < 6) { seen[t] = 1; taps.push(t); } return m; });
+    if (taps.length) rows.push(['You tap', taps.join(' · ')]);
+    var n = kbNotices(P).filter(function(x) { return x.level !== 'note'; })[0];
+    if (n) rows.push(['Watch out', first(plain(n.text))]);
+  } else if (a.kind === 'fault') {
+    if (a.symptom) rows.push(['You see', a.symptom]);
+    if ((a.causes || [])[0]) rows.push(['Most likely', a.causes[0].cause]);
+    var inc = kbReadable().filter(function(i) { return i.kind === 'incident' && i.faultId === a.id && i.status !== 'retired' && i.on; }).map(function(i) { return i.on; }).sort().pop();
+    rows.push(['Last seen', inc ? formatDate(inc) : 'never logged']);
+  } else if (a.kind === 'ruling') {
+    if (a.summary) rows.push(['The ruling', a.summary]);
+    if (a.ruledBy || a.ruledOn) rows.push(['Ruled', [a.ruledBy, a.ruledOn ? formatDate(a.ruledOn) : ''].filter(Boolean).join(', ')]);
+    var later = a.supersededBy ? kbFind(a.supersededBy) : null;
+    rows.push(['In force', a.status === 'superseded' ? 'No: replaced' + (later && kbCanRead(later) ? ' by ' + later.title : '') : a.status === 'retired' ? 'No: retired' : 'Yes']);
+  } else if (a.kind === 'requirement') {
+    var cl = (a.links || []).filter(function(l) { return l && l.type === 'client'; })[0];
+    if (cl) rows.push(['Client', kbLinkName(cl)]);
+    if (a.summary) rows.push(['What', a.summary]);
+    rows.push(['Checked by', 'a check by hand']);
+  } else if (a.kind === 'part') {
+    var pc = (a.links || []).filter(function(l) { return l && l.type === 'client'; })[0], pp = (a.links || []).filter(function(l) { return l && l.type === 'part'; })[0];
+    if (pc) rows.push(['Client', kbLinkName(pc)]);
+    var size = pp ? String(pp.label || pp.id || '') : '';
+    if (size) rows.push(['Size and gauge', size]);
+    if (pc && pp && kbSeesPage('pageClients') && typeof prodKgPerPiece === 'function') try {
+      var w = prodKgPerPiece(pc.id, localDateStr(), pp.label || pp.id, '');
+      var kg = w && typeof w === 'object' ? w.kg : w;
+      if (kg > 0) rows.push(['Weight', (Math.round(kg * 1000) / 1000) + ' kg a piece']);
+    } catch (e) { /* no weight known */ }
+  } else if (a.kind === 'decision') {
+    rows.push(['Chosen', a.chosen != null && a.options && a.options[a.chosen] ? a.options[a.chosen].label : 'Not yet']);
+    if (a.reviewOn) rows.push(['Review', formatDate(a.reviewOn)]);
+  } else if (a.kind === 'incident') {
+    if (a.on) rows.push(['Day', formatDate(a.on)]);
+    var f = a.faultId ? kbFind(a.faultId) : null;
+    if (f) rows.push(['Fault', kbCanRead(f) ? f.title : 'A fault you do not read']);
+    if (a.fix) rows.push(['Fix', a.fix]);
+  }
+  return rows.filter(function(r) { return r[1]; }).map(function(r) { return [r[0], String(r[1]).slice(0, 90)]; }).slice(0, 4);
+}
+function kbGlance(a) { var w = kbGlanceWritten(a); return w.length ? { rows: w, written: true } : { rows: kbGlanceWorked(a), written: false }; }
+function kbGlanceHtml(a) {
+  var g = kbGlance(a);
+  if (!g.rows.length) return '';
+  return '<dl class="inv-kb-glance" data-kb-glance="' + (g.written ? 'written' : 'worked') + '">' + g.rows.map(function(r) {
+    return '<div class="inv-kb-glance-row"><dt>' + escHtml(r[0]) + '</dt><dd>' + kbInline(r[1]) + '</dd></div>';
+  }).join('') + '</dl>';
+}
+
+/* ---------- Which mode ---------- */
+/* Guided has something to walk: the numbered steps of a how-to or a process, a fault's causes. */
+function kbHasGuide(a) {
+  if (!a) return false;
+  if (a.kind === 'fault') return (a.causes || []).length > 0;
+  return (a.kind === 'guide' || a.kind === 'process') && kbSteps(kbParse(a.body)).length > 0;
+}
+/* Where an article opens (§2c): the desk reads; on the phone the owner and the office land on Quick reference, a supervisor or
+   a floor hand on Guided where the article is a lesson on their role's path and their hand has no training on its version. */
+function kbLandMode(a) {
+  if (_isDesktop) return 'read';
+  var u = kbGuardOn() && typeof grdUser === 'function' ? grdUser() : null;
+  if (u && (u.role === 'supervisor' || u.role === 'floor') && kbHasGuide(a) && kbIsLesson(a)) {
+    var onPath = kbPaths().some(function(p) { return (!p.role || p.role === u.role) && kbPathArticles(p).some(function(x) { return x.id === a.id; }); });
+    if (onPath && u.staffId != null && kbTrainState(u.staffId, a).state !== 'yes') return 'guide';
+  }
+  return 'quick';
+}
+function kbModeNow(a) {
+  var m = _kbMode || kbLandMode(a);
+  if (m === 'guide' && !kbHasGuide(a)) m = _isDesktop ? 'read' : 'quick';
+  if (m === 'quick' && _isDesktop) m = 'read';
+  return m;
+}
+/* The address (knowledge.js kbNavV): the mode only where it is not the landing, and Reader's section. */
+function kbModeV(a) {
+  if (!a) return '';
+  var m = kbModeNow(a);
+  if (m === kbLandMode(a) && !(m === 'read' && _kbSec)) return '';
+  return '/' + m + (m === 'read' && _kbSec ? '/' + _kbSec : '');
+}
+function kbModeFromV(parts) {
+  var m = KB_MODES.indexOf(parts[1]) >= 0 ? parts[1] : '';
+  _kbMode = m;
+  _kbSec = m === 'read' ? Math.max(0, parseInt(parts[2], 10) || 0) : 0;
+}
+/* A move between the modes is a step of the trail: Back walks Guided → Reader → Quick reference. */
+function kbModeGo(mode, sec) {
+  var a = _kbOpen ? kbFind(_kbOpen) : null;
+  if (!a) return;
+  var loc = { tab: 'pageKnow', v: _kbTab, id: a.id };
+  kbGo(loc, function() {
+    _kbMode = mode; _kbSec = mode === 'read' ? (sec || 0) : 0;
+    if (mode === 'guide') { _kbStep = -1; _kbStepOf = a.id + '|guide'; _kbFound = null; }
+    loc.v = _kbTab + kbModeV(a);
+  });
+}
+
+/* ---------- The three modes ---------- */
+function kbHeadHtml(a, mode) {
+  var k = kbKicker(a);
+  var modes = [['quick', 'Quick'], ['read', 'Read'], ['guide', 'Step by step']].filter(function(m) { return (m[0] !== 'quick' || !_isDesktop) && (m[0] !== 'guide' || kbHasGuide(a)); });
+  // On the desk the article's close is on its own head line (a pane head above it had held the × alone).
+  return '<header class="inv-kb-head">' + '<div class="inv-kb-kicker">' + kbArtIco(a) + '<span>' + escHtml(k.kicker) + '</span>' +
+    (a.status === 'published' && !a.pending ? '' : ' ' + kbStatusHtml(a)) +
+    (_isDesktop ? '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-kb-close" data-action="invKbClose" aria-label="Close the article">&times;</button>' : '') + '</div>' +
+    '<h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' + (a.summary ? '<p class="inv-kb-lede">' + kbInline(a.summary) + '</p>' : '') +
+    (modes.length > 1 ? '<div class="inv-seg inv-kb-modes" role="group" aria-label="How to read it">' + modes.map(function(m) {
+      return '<button type="button" class="inv-seg-btn" data-action="invKbMode" data-mode="' + m[0] + '" aria-pressed="' + (mode === m[0]) + '">' + m[1] + '</button>';
+    }).join('') + '</div>' : '') + '</header>';
+}
+/* Quick reference: the head, At a glance, then each section a line opening Reader at that section. Nothing unfolds in place. */
+function kbQuickHtml(a) {
+  var P = kbParse(a.body), h = '<div class="inv-kb-quick" data-kb-mode="quick" data-kb-article="' + escHtml(a.id) + '">' + kbHeadHtml(a, 'quick') + kbArticleStatusHtml(a) + kbGlanceHtml(a) +
+    // A WARNING (data or money at risk) is never only one tap away: it is on Quick reference too.
+    kbNotices(P).filter(function(x) { return x.level === 'warning'; }).map(function(x) { return kbNoticeHtml(x.level, x.text); }).join('');
+  var rows = [];
+  if (a.kind === 'fault' && (a.causes || []).length) rows.push({ s: 'causes', title: 'Likely causes', sub: todoPlural(a.causes.length, 'cause') + ', most likely first' });
+  if (a.kind === 'decision' && (a.options || []).length) rows.push({ s: 'options', title: 'The options', sub: todoPlural(a.options.length, 'option') });
+  P.sections.forEach(function(s, i) { rows.push({ s: i + 1, title: s.title, sub: kbSecCount(s) }); });
+  if (rows.length) h += '<div class="inv-panel inv-panel-flush" data-kb-toc>' + rows.map(function(r) {
+    return '<div class="inv-row"><button class="inv-row-main" data-action="invKbReadAt" data-s="' + escHtml(String(r.s)) + '"><span class="inv-row-title">' + escHtml(r.title) + '</span>' +
+      (r.sub ? '<span class="inv-row-meta">' + escHtml(r.sub) + '</span>' : '') + '</button><span class="inv-row-end">' + KB_CHEVRON + '</span></div>';
+  }).join('') + '</div>';
+  h += '<div class="inv-toolbar inv-toolbar-flush inv-kb-quick-acts">' + '<button class="inv-btn inv-btn-secondary" data-action="invKbMode" data-mode="read">Read in full</button>' +
+    (kbHasGuide(a) ? '<button class="inv-btn inv-btn-secondary" data-action="invKbMode" data-mode="guide">' + (a.kind === 'fault' ? 'Find the cause' : 'Follow step by step') + '</button>' : '') + '</div>';
+  return h + kbArticleTailHtml(a) + '</div>';
+}
+var KB_CHEVRON = iconSvg('next', 'inv-kb-chev');
+/* Reader: a manual page. The kind's own parts, then the sections, each a heading over its text. */
+function kbReaderHtml(a) {
+  var P = kbParse(a.body), h = '<article class="inv-kb-read" data-kb-mode="read" data-kb-article="' + escHtml(a.id) + '">' + kbHeadHtml(a, 'read') + kbArticleKindHtml(a);
+  P.sections.forEach(function(s, i) {
+    h += '<section class="inv-kb-sec" id="kbSec' + (i + 1) + '" data-kb-sec="' + (i + 1) + '">' + (P.sections.length > 1 || s.title !== 'In full' ? '<h2 class="inv-kb-sec-h">' + escHtml(s.title) + '</h2>' : '') +
+      kbBlocksHtml(s.blocks) + '</section>';
+  });
+  return h + kbArticleTailHtml(a) + '</article>';
+}
+/* Guided: one step a screen. For a fault, its causes in order, each found or not. */
+function kbGuidedHtml(a) {
+  if (_kbStepOf !== a.id + '|guide') { _kbStep = -1; _kbStepOf = a.id + '|guide'; _kbFound = null; }
+  var fault = a.kind === 'fault', P = kbParse(a.body), steps = fault ? (a.causes || []).map(function(c, i) { return { title: 'Cause ' + (i + 1), cause: c }; }) : kbSteps(P);
+  var n = steps.length, i = Math.max(-1, Math.min(_kbStep, n)), k = kbKicker(a);
+  var prog = '<div class="inv-kb-prog" role="progressbar" aria-valuemin="0" aria-valuemax="' + n + '" aria-valuenow="' + Math.max(0, Math.min(i + 1, n)) + '">' +
+    steps.map(function(x, j) { return '<span class="inv-kb-prog-seg' + (j < i || i === n ? ' inv-kb-prog-done' : j === i ? ' inv-kb-prog-now' : '') + '"></span>'; }).join('') + '</div>';
+  var h = '<div class="inv-kb-guide" data-kb-mode="guide" data-kb-step="' + i + '" data-kb-article="' + escHtml(a.id) + '">' + prog, bar = '';
+  if (i < 0) {
+    h += '<div class="inv-kb-kicker">' + kbArtIco(a) + '<span>' + escHtml(k.kicker) + '</span></div><h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' +
+      '<p class="inv-kb-lede">' + escHtml(fault ? (a.symptom ? 'You see: ' + a.symptom + '. ' : '') + todoPlural(n, 'cause') + ' to check, the most likely first.' : todoPlural(n, 'step')) + '</p>' +
+      kbNotices(P).filter(function(x) { return x.level !== 'note'; }).map(function(x) { return kbNoticeHtml(x.level, x.text); }).join('') +
+      '<button class="inv-btn inv-btn-link" data-action="invKbMode" data-mode="read">See all ' + (fault ? 'causes' : 'steps') + ' on one page</button>';
+    bar = '<button class="inv-btn inv-btn-secondary inv-kb-big" data-action="invKbBack">Back</button><button class="inv-btn inv-btn-primary inv-kb-big" data-action="invKbStep" data-d="1">Start</button>';
+  } else if (i < n) {
+    var st = steps[i];
+    h += '<div class="inv-kb-step-n">' + escHtml((fault ? 'Cause ' : 'Step ') + (i + 1) + ' of ' + n + (fault || !st.title || st.title === 'The steps' ? '' : ' · ' + st.title)) + '</div>';
+    if (fault) {
+      h += '<div class="inv-kb-step">' + kbInline(st.cause.cause) + '</div>' + (st.cause.check ? '<div class="inv-kb-step-sub"><strong>Check:</strong> ' + kbInline(st.cause.check) + '</div>' : '');
+      bar = '<button class="inv-btn inv-btn-secondary inv-kb-big" data-action="invKbStep" data-d="1">Not this</button><button class="inv-btn inv-btn-primary inv-kb-big" data-action="invKbFound" data-i="' + i + '">Found it</button>';
+    } else {
+      var nt = KB_NOTICE_RE.exec(st.text);
+      h += nt ? kbNoticeHtml(nt[1].toLowerCase(), st.text.slice(nt[0].length)) : '<div class="inv-kb-step">' + kbInline(st.text) + '</div>';
+      bar = '<button class="inv-btn inv-btn-secondary inv-kb-big" data-action="invKbStep" data-d="-1">Back</button><button class="inv-btn inv-btn-primary inv-kb-big" data-action="invKbStep" data-d="1">' + (i === n - 1 ? 'Done' : 'Next') + '</button>';
+    }
+  } else {
+    if (fault) {
+      var c = _kbFound != null && a.causes[_kbFound] ? a.causes[_kbFound] : null;
+      h += c ? '<div class="inv-kb-step-n">Cause found</div><div class="inv-kb-step">' + kbInline(c.cause) + '</div>' + (c.fix ? '<div class="inv-kb-step-sub"><strong>Fix:</strong> ' + kbInline(c.fix) + '</div>' : '')
+        : '<div class="inv-kb-step-n">No cause found</div><div class="inv-kb-step">None of the ' + todoPlural(n, 'cause') + ' was it.</div><p class="inv-kb-lede">Write what you saw as an incident, so the next cause can be added.</p>';
+      bar = '<button class="inv-btn inv-btn-secondary inv-kb-big" data-action="invKbMode" data-mode="read">Back to reading</button>' +
+        (kbCanWrite() ? '<button class="inv-btn inv-btn-primary inv-kb-big" data-action="invKbFoundLog" data-id="' + escHtml(a.id) + '">Log an incident</button>' : '');
+    } else {
+      h += '<div class="inv-kb-step-n">All ' + todoPlural(n, 'step') + ' done</div>';
+      var more = P.sections.filter(function(s) { return !s.steps && s.blocks.length; });
+      if (more.length) h += '<section class="inv-kb-sec inv-kb-more"><h2 class="inv-kb-sec-h">Good to know</h2>' + more.map(function(s) { return (more.length > 1 || s.title !== 'In full' ? '<h3 class="inv-kb-sub-h">' + escHtml(s.title) + '</h3>' : '') + kbBlocksHtml(s.blocks); }).join('') + '</section>';
+      var train = kbIsLesson(a) && kbTrainOk();
+      bar = '<button class="inv-btn inv-btn-secondary inv-kb-big" data-action="invKbMode" data-mode="read">Back to reading</button>' +
+        (train ? '<button class="inv-btn inv-btn-primary inv-kb-big" data-action="invKbTrain" data-id="' + escHtml(a.id) + '">Record training</button>' : '');
+    }
+  }
+  return h + '<div class="inv-actionbar inv-kb-guidebar">' + bar + '</div></div>';
+}
+function kbModeHtml(a) {
+  var m = kbModeNow(a);
+  return m === 'guide' ? kbGuidedHtml(a) : m === 'read' ? kbReaderHtml(a) : kbQuickHtml(a);
+}
+
+/* ---------- The article's own parts, kept from the first edition ---------- */
+/* What a reader must know before the text: replaced, retired, not approved; a fault's symptom and causes, an incident's
+   cause and fix, a decision's options and figures. */
+function kbArticleStatusHtml(a) {
+  var h = '';
+  var later = a.status === 'superseded' && a.supersededBy ? kbFind(a.supersededBy) : null, earlier = a.supersedes ? kbFind(a.supersedes) : null;
+  if (a.status === 'superseded') h += '<div class="inv-callout inv-callout-warning">Replaced by a later ruling.' + (later && kbCanRead(later) ? ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(later.id) + '">Open it</button>' : '') + '</div>';
+  if (earlier) h += '<div class="inv-callout inv-callout-info">' + (kbCanRead(earlier) ? 'Replaces: ' + escHtml(earlier.title) + ' <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(earlier.id) + '">Open</button>' : 'Replaces an earlier ruling.') + '</div>';
+  if (a.status === 'retired') h += '<div class="inv-callout inv-callout-neutral">Retired' + (a.retiredAt ? ' ' + escHtml(formatDate(isoOf(new Date(a.retiredAt)))) : '') + (a.retireReason ? ': ' + escHtml(a.retireReason) : '') + '</div>';
+  var dec = a.declined, decMine = dec && (kbIsOwner() || (dec.change ? dec.change.byId != null && dec.change.byId === kbMe().id : kbMine(a)));
+  if (decMine && (a.status === 'draft' || !a.pending)) h += '<div class="inv-callout inv-callout-warning">' + (dec.change ? 'A change by ' + escHtml(dec.change.by || 'someone') + ' was not approved' : 'Not approved') + (dec.reason ? ': ' + escHtml(dec.reason) : '') + '</div>';
+  return h;
+}
+/* The kind's own parts, in Reader. */
+function kbArticleKindHtml(a) {
+  var h = kbArticleStatusHtml(a);
+  if (a.kind === 'fault') {
+    if (a.symptom) h += '<div class="inv-callout inv-callout-info"><strong>What you see:</strong> ' + escHtml(a.symptom) + '</div>';
+    if ((a.causes || []).length) h += '<section class="inv-kb-sec" id="kbSeccauses" data-kb-sec="causes" data-kb-causes><h2 class="inv-kb-sec-h">Likely causes, most likely first</h2><ol class="inv-kb-steps">' + a.causes.map(function(c) {
+      return '<li><strong>' + kbInline(c.cause || '') + '</strong>' + (c.check ? '<div><em>Check:</em> ' + kbInline(c.check) + '</div>' : '') + (c.fix ? '<div><em>Fix:</em> ' + kbInline(c.fix) + '</div>' : '') + '</li>';
+    }).join('') + '</ol></section>';
+    var incs = kbReadable().filter(function(x) { return x.kind === 'incident' && x.faultId === a.id && x.status !== 'retired'; });
+    h += '<div class="inv-panel inv-panel-flush" data-kb-fault-incidents><div class="inv-panel-head"><span class="inv-panel-title">Incidents <span class="inv-panel-count">' + incs.length + '</span></span>' +
+      (kbCanWrite() ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbIncidentFor" data-id="' + escHtml(a.id) + '">Log one</button>' : '') + '</div>' +
+      (incs.length ? incs.map(function(x) { return kbRowHtml(x); }).join('') : '<div class="inv-empty">None logged yet.</div>') + '</div>';
+  }
+  if (a.kind === 'incident') h += kbKvHtml([['Cause found', a.cause, true], ['Fix', a.fix, true]]);
+  if (a.kind === 'decision') h += '<div id="kbSecoptions" data-kb-sec="options">' + kbDecisionHtml(a) + '</div>';
+  return h;
+}
+/* After the text: photos, a proposed change, the check, the earlier versions, who reads it, and what can be done. On the phone
+   the links are in the context sheet; on the desk, in the context column. */
+function kbArticleTailHtml(a) {
+  var h = kbImagesHtml(a.images);
+  if (kbSeesProposal(a)) h += '<div class="inv-callout inv-callout-warning" data-kb-proposal>A change by ' + escHtml(a.pending.by || 'someone') + ' waits for approval' +
+    (a.pending.at ? ' (' + escHtml(formatTimestamp(a.pending.at)) + ')' : '') + '. <button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbProposal" data-id="' + escHtml(a.id) + '">See the change</button></div>';
+  if (a.kind === 'guide' && (a.quiz || []).length && kbLive(a)) h += '<div class="inv-panel inv-panel-flush" data-kb-quiz><div class="inv-panel-head"><span class="inv-panel-title">Check what was learnt <span class="inv-panel-count">' + a.quiz.length + '</span></span></div>' +
+    '<div class="inv-panel-body inv-note">Asked when training is recorded from this article: ' + escHtml(a.quiz.map(function(q) { return q.q; }).join(' · ')) + '</div></div>';
+  if ((a.versions || []).length) h += uiFoldHtml('kb-ver-' + a.id, '<span class="inv-panel-title">Earlier versions <span class="inv-panel-count">' + a.versions.length + '</span></span>', a.versions.slice().reverse().map(function(v) {
+    return '<div class="inv-row"><button class="inv-row-main" data-action="invKbVersion" data-id="' + escHtml(a.id) + '" data-v="' + escHtml(String(v.v)) + '"><span class="inv-row-title">Version ' + escHtml(String(v.v)) + '</span>' +
+      '<span class="inv-row-meta">' + escHtml([v.at ? formatTimestamp(v.at) : '', v.by ? 'by ' + v.by : ''].filter(Boolean).join(' · ')) + '</span></button></div>';
+  }).join(''), false);
+  var meta = [];
+  if (a.src !== 'build') meta.push(['Read by', kbRolesText(a)], ['Version', kbVer(a) + (a.approvedAt ? ', ' + formatDate(isoOf(new Date(a.approvedAt))) : '')], ['Written by', a.by || ''], ['Source', a.src === 'import' ? 'soma-internal' + (a.srcRef ? ' · ' + a.srcRef : '') : '']);
+  else meta.push(['Version', String(kbVer(a))], ['Written by', 'The app']);
+  if (a.kind === 'ruling') meta.unshift(['Ruled by', a.ruledBy], ['Ruled on', a.ruledOn ? formatDate(a.ruledOn) : '']);
+  if (a.kind === 'decision') meta.unshift(['Decided on', a.decidedOn ? formatDate(a.decidedOn) : ''], ['Review on', a.reviewOn ? formatDate(a.reviewOn) : '']);
+  h += '<div class="inv-kb-about" data-kb-about>' + kbKvHtml(meta) + '</div>';
+  return h + kbActionsHtml(a);
+}
+
+/* ---------- The context (§3a): the desk's right column, the phone's sheet ---------- */
+/* Each section a {key, title, count, html}; one with nothing in it is not drawn. Every figure read by the function its own
+   screen uses, and only for a role that opens that screen. */
+function kbCtxSections(a) {
+  var out = [], links = (Array.isArray(a.links) ? a.links : []).filter(Boolean), today = localDateStr();
+  var add = function(key, title, html, count) { if (html) out.push({ key: key, title: title, html: html, count: count == null ? '' : count }); };
+  if (_isDesktop) add('glance', 'At a glance', kbGlanceHtml(a));
+  add('now', a.kind === 'incident' && a.on ? 'That day in the book' : 'The plant now', a.kind === 'incident' && a.on ? kbDayContextHtml(a) : kbPlantNowHtml(links, today));
+  if (links.length) add('linked', 'Linked', '<div class="inv-kb-ctx-links" data-kb-links>' + links.map(function(l, i) {
+    return '<button class="inv-chip" data-action="invKbLinkGo" data-id="' + escHtml(a.id) + '" data-i="' + i + '">' + escHtml(kbLinkTypeName(l.type) + ': ' + kbLinkName(l)) + '</button>';
+  }).join('') + '</div>', links.length);
+  var feeds = kbFeedsRows(links);
+  add('feeds', 'Feeds', feeds.html, feeds.n || '');
+  var outs = kbOutputsRows(a);
+  add('outputs', 'Outputs', outs.html, outs.n || '');
+  var notes = kbNotesOf(a);
+  add('notes', 'Notes', kbNotesHtml(a, notes), notes.length || '');
+  return out;
+}
+function kbFactRow(k, v, tone, title) {
+  return '<div class="inv-row inv-row-2"' + (title ? ' title="' + escHtml(title) + '"' : '') + '><span class="inv-row-main"><span class="inv-row-title">' + escHtml(k) + '</span></span>' +
+    '<span class="inv-row-end">' + (tone ? uiDot(tone, escHtml(v)) : '<span class="inv-row-meta">' + escHtml(v) + '</span>') + '</span></div>';
+}
+/* The plant now, by the article's links: a line, a client, a part, a stock line, an area. */
+function kbPlantNowHtml(links, today) {
+  var rows = [];
+  links.forEach(function(l) {
+    try {
+      if (l.type === 'line' && kbSeesPage('pageProduction') && typeof prodLineEfficiency === 'function') {
+        var name = kbLinkName(l), e = prodLineEfficiency(today, l.id);
+        if (e.n) rows.push(kbFactRow(name + ': units working', e.nAvail + ' of ' + e.n, e.nAvail < e.n ? (e.nAvail * 2 <= e.n ? 'danger' : 'warning') : 'ok'));
+        rows.push(kbFactRow(name + ': today', e.eff != null ? Math.round(e.eff * 100) + '% efficient' : e.word || (e.ran ? 'running' : 'nothing recorded yet'), e.eff != null ? e.tone : null, e.why || ''));
+        if (kbSeesPage('pageStock')) {
+          var from = isoAddDays(today, -6), into = {};
+          stockData().entries.forEach(function(se) {
+            if (se.voided || se.voidedAt || !(se.kind === 'charged' || se.kind === 'used') || se.date < from || se.date > today) return;
+            if (stockEntryLines(se).indexOf(l.id) < 0) return;
+            var it = stockItem(se.itemId), nm = it ? it.name : 'a stock line';
+            into[nm] = (into[nm] || 0) + (+se.qty || 0);
+          });
+          var ks = Object.keys(into);
+          if (ks.length) rows.push(kbFactRow(name + ': into its bath, 7 days', ks.slice(0, 3).map(function(k) { return k + ' ' + stockFmtQty(into[k]); }).join(' · ')));
+        }
+        if (kbSeesPage('pagePower')) { var cuts = prodDowntimeDay(today); if (cuts.length) rows.push(kbFactRow('Power cuts today', todoPlural(cuts.length, 'cut'), 'warning')); }
+      }
+      if (l.type === 'client' && kbSeesPage('pageClients')) {
+        var c = (S.clients || []).find(function(x) { return String(x.id) === String(l.id); });
+        if (!c) return;
+        var open = (S.incomingMaterial || []).filter(function(im) { return String(im.clientId) === String(c.id) && (im.items || []).some(function(it) { return !it.invoiced; }); });
+        if (open.length) {
+          var oldest = Math.max.apply(null, open.map(function(im) { return imWaitDays(im) || 0; }));
+          rows.push(kbFactRow(c.name + ': challans waiting', todoPlural(open.length, 'challan') + ', oldest ' + todoPlural(oldest, 'day'), imWaitTone(oldest)));
+        }
+        if (typeof flowStats === 'function') {
+          var f = flowStats(c.id);
+          if (f.usual && f.usual.d != null) rows.push(kbFactRow(c.name + ': back in', todoPlural(f.usual.d, 'working day') + (f.within != null ? ' · ' + Math.round(f.within * 100) + '% on time' : '')));
+        }
+        if (typeof finClientMoney === 'function') {
+          var m = finClientMoney(c.id);
+          if (m && m.r && m.r.owed > 0.005) rows.push(kbFactRow(c.name + ': owed', formatCurrency(m.r.owed) + (m.dtp && m.dtp.median != null ? ' · pays in ' + Math.round(m.dtp.median) + ' d' : ''), finOwedTone(m.r.oldestDays)));
+        }
+      }
+      if (l.type === 'stock' && kbSeesPage('pageStock')) {
+        var item = stockItem(l.id);
+        if (!item) return;
+        var st = stockStatus(item);
+        rows.push(kbFactRow(item.name, st.level == null ? 'not counted' : stockFmtQty(st.level) + ' ' + (item.unit || '') + (st.daysLeft != null ? ' · ' + Math.floor(st.daysLeft) + ' days left' : ''),
+          st.tone === 'red' ? 'danger' : st.tone === 'amber' ? 'warning' : st.tone === 'ok' ? 'ok' : null));
+      }
+      if (l.type === 'area' && kbSeesRoster() && typeof areaNeedOn === 'function') {
+        var rec = (S.attendance || {})[today], heads = 0;
+        if (rec && rec.marks) Object.keys(rec.marks).forEach(function(k) { var mk = rec.marks[k]; if (mk && (mk.st === 'P' || mk.st === 'H') && mk.area === l.id) heads++; });
+        var need = areaNeedOn(today, l.id);
+        if (rec && rec.marks) rows.push(kbFactRow(kbLinkName(l) + ': on the floor', heads + (need ? ' of ' + need : ''), need ? areaNeedTone(heads, need) : null));
+      }
+      if (l.type === 'part' && kbSeesPage('pageProduction') && typeof prodIndex === 'function') {
+        var key = kbNameKey(l.label || l.id), last = null;
+        prodIndex().live.forEach(function(e) { if (e.kind === 'plated' && key && kbNameKey((e.part || '') + (e.partNumber || '')).indexOf(key) >= 0 && (!last || e.date > last.date)) last = e; });
+        if (last) rows.push(kbFactRow(kbLinkName(l) + ': last plated', formatDate(last.date) + ' · ' + prodLineName(last.line)));
+      }
+    } catch (err) { /* a figure this book cannot read is left out */ }
+  });
+  return rows.length ? '<div class="inv-kb-ctx-rows">' + rows.join('') + '</div>' : '';
+}
+/* The records The plant now reads, each with how fresh it is, as Today reads the day's inputs. A feed this role does not open
+   is not listed. */
+var KB_FEEDS_BY_LINK = { line: ['production', 'pickling'], stock: ['stock'], area: ['roll-in', 'roll-out'], part: ['production'] };
+function kbFeedsRows(links) {
+  if (typeof TDY_INPUTS === 'undefined' || typeof tdyInput !== 'function') return { html: '', n: 0 };
+  var want = {};
+  links.forEach(function(l) { (KB_FEEDS_BY_LINK[l.type] || []).forEach(function(k) { want[k] = 1; }); });
+  var rows = [], today = localDateStr();
+  TDY_INPUTS.forEach(function(def) {
+    if (!want[def.k] || !kbSeesPage(TDY_INPUT_PAGE[def.k])) return;
+    try {
+      var r = tdyInput(def, today), dot = TDY_STATE_DOT[r.state] || TDY_STATE_DOT.wait;
+      rows.push(kbFactRow(TDY_INPUT_SHORT[def.k] || def.title, dot[1] + (r.state === 'in' || r.state === 'late' ? '' : '') , dot[0], tdyStepMeta(r)));
+    } catch (e) { /* an input this book cannot read */ }
+  });
+  return { html: rows.length ? '<div class="inv-kb-ctx-rows">' + rows.join('') + '</div>' : '', n: rows.length };
+}
+/* What the article has led to: its incidents, the rulings that replace it, the decisions that link it, the training on it. */
+function kbOutputsRows(a) {
+  var rows = [], all = kbReadable();
+  all.filter(function(x) { return x.kind === 'incident' && x.faultId === a.id && x.status !== 'retired'; }).forEach(function(x) { rows.push(kbRowHtml(x, true)); });
+  if (a.supersededBy) { var later = kbFind(a.supersededBy); if (later && kbCanRead(later)) rows.push(kbRowHtml(later, true)); }
+  all.filter(function(x) { return x.id !== a.id && x.kind === 'decision' && (x.links || []).some(function(l) { return l && l.type === 'article' && l.id === a.id; }); }).forEach(function(x) { rows.push(kbRowHtml(x, true)); });
+  var n = rows.length, html = rows.join('');
+  if (kbSeesRoster()) {
+    var tr = kbData().trained.filter(function(t) { return !t.voidedAt && t.articleId === a.id; });
+    if (tr.length) {
+      var cur = tr.filter(function(t) { return (t.v || 1) >= kbVer(a); }).length;
+      html += kbFactRow('Training on it', todoPlural(tr.length, 'record') + (cur < tr.length ? ' · ' + cur + ' on this version' : ''), cur < tr.length ? 'warning' : null);
+      n++;
+    }
+  }
+  return { html: html, n: n };
+}
+
+/* ---------- Notes (§6) ---------- */
+function kbNotesAll() { var k = kbData(); if (!Array.isArray(k.notes)) k.notes = []; return k.notes; }
+/* What this person reads: public notes on an article they read, newest first; private ones only the owner's. A note the owner
+   removed is the owner's to see, with why. */
+function kbNotesOf(a) {
+  if (!a || !kbCanRead(a)) return [];
+  var owner = kbIsOwner();
+  return kbNotesAll().filter(function(n) { return n && n.articleId === a.id && (!n.private || owner) && (!n.removedAt || owner); })
+    .sort(function(x, y) { return (y.at || 0) - (x.at || 0); });
+}
+function kbNoteMineEditable(n) { var me = kbMe(); return !n.removedAt && ((me.id != null && n.byId === me.id) || (me.id == null && kbIsOwner() && n.byId == null)) && Date.now() - (n.at || 0) < KB_NOTE_EDIT_MS; }
+function kbNotesHtml(a, notes) {
+  var owner = kbIsOwner(), h = '';
+  notes.forEach(function(n) {
+    var acts = (kbNoteMineEditable(n) ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbNoteEdit" data-id="' + escHtml(n.id) + '">Edit</button>' : '') +
+      (owner && !n.removedAt ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbNoteRemove" data-id="' + escHtml(n.id) + '">Remove</button>' : '');
+    h += '<div class="inv-row inv-row-auto inv-row-top' + (n.removedAt ? ' inv-row-muted' : '') + '" data-kb-note="' + escHtml(n.id) + '"' + (n.private ? ' data-kb-note-private' : '') + '><div class="inv-row-main">' +
+      '<div class="inv-row-meta">' + escHtml([n.by || 'Someone', formatTimestamp(n.editedAt || n.at), n.private ? 'private' : ''].filter(Boolean).join(' · ')) + '</div>' +
+      (n.removedAt ? '<div class="inv-row-meta inv-row-wrap">' + escHtml('Removed by the owner' + (n.removeReason ? ': ' + n.removeReason : '')) + '</div>' : '<div class="inv-kb-note-text">' + escHtml(n.text) + '</div>') +
+      (acts ? '<div class="inv-kb-note-acts">' + acts + '</div>' : '') + '</div></div>';
+  });
+  if (kbCanWrite() && kbCanRead(a)) h += '<div class="inv-kb-noteform"><label class="inv-field"><span class="inv-field-label">Add a note</span>' +
+    '<textarea class="inv-textarea" id="kbNoteText" data-kb-note-text rows="2" maxlength="' + KB_NOTE_MAX + '" placeholder="What a reader should know"></textarea></label>' +
+    (owner ? '<label class="inv-field-check"><input type="checkbox" id="kbNotePrivate"> Private: only you read it</label>' : '') +
+    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invKbNoteAdd" data-id="' + escHtml(a.id) + '">Add the note</button>' +
+    (owner ? '<div class="inv-note">A private note is hidden from every other ID, but it travels with the book (backups, GitHub sync). It is not encrypted.</div>' : '') + '</div>';
+  return h;
+}
+function kbNoteAdd(id, root) {
+  var a = kbFind(id);
+  if (!a || !kbCanRead(a) || !kbCanWrite()) { showToast('Sign in to write a note', 'warning'); return; }
+  var box = (root || document).querySelector('[data-kb-note-text]'), priv = (root || document).querySelector('#kbNotePrivate');
+  var text = box ? String(box.value || '').trim().slice(0, KB_NOTE_MAX) : '';
+  if (!text) { showToast('Write the note first', 'warning'); if (box) box.focus(); return; }
+  var me = kbMe();
+  kbNotesAll().push({ id: kbUid('kn'), articleId: a.id, text: text, private: !!(priv && priv.checked && kbIsOwner()), by: me.name || 'Owner', byId: me.id, at: Date.now() });
+  saveState();
+  _pageTyped = false;
+  showToast(priv && priv.checked && kbIsOwner() ? 'Private note added' : 'Note added');
+  kbCtxRedraw();
+}
+async function kbNoteEdit(id) {
+  var n = kbNotesAll().find(function(x) { return x.id === id; });
+  if (!n || !kbNoteMineEditable(n)) { showToast('Only your own note, within a day, can be edited', 'warning'); return; }
+  var t = await uiPrompt({ title: 'Edit the note', label: 'The note', value: n.text, required: true, okLabel: 'Save' });
+  if (t == null) return;
+  n.text = String(t).trim().slice(0, KB_NOTE_MAX);
+  n.editedAt = Date.now();
+  saveState();
+  kbCtxRedraw();
+}
+async function kbNoteRemove(id) {
+  var n = kbNotesAll().find(function(x) { return x.id === id; });
+  if (!n || !kbIsOwner()) return;
+  var why = await uiPrompt({ title: 'Remove the note', label: 'Why it goes', required: true, okLabel: 'Remove', danger: true });
+  if (why == null) return;
+  n.removedAt = Date.now(); n.removeReason = String(why).trim().slice(0, 300); n.removedBy = kbMe().name || 'Owner';
+  saveState();
+  kbCtxRedraw();
+}
+/* After a note: the sheet drawn again where it is open, else the page. */
+function kbCtxRedraw() {
+  if (document.querySelector('[data-kb-sheet]')) { kbSheetOpen(_kbSheetTab, true); return; }
+  keepScroll(renderKnow);
+}
+
+/* ---------- The phone's context: a bar over the phone bar, a sheet with its tabs ---------- */
+var _kbSheetTab = 'context';
+function kbCtxBarHtml(a) {
+  var secs = kbCtxSections(a), get = function(k) { return secs.find(function(s) { return s.key === k; }); };
+  var linked = get('linked'), notes = kbNotesOf(a).filter(function(n) { return !n.removedAt; });
+  var bits = [linked ? todoPlural(linked.count, 'linked', 'linked') : '', notes.length ? todoPlural(notes.length, 'note') : 'Notes', get('now') ? (get('now').title === 'The plant now' ? 'The plant now' : 'That day') : ''].filter(Boolean);
+  return '<div class="inv-kb-ctxbar"><button type="button" class="inv-btn inv-btn-secondary inv-kb-ctxbar-btn" data-action="invKbSheet" data-tab="context">' + escHtml(bits.join(' · ')) + '</button></div>';
+}
+function kbSheetOpen(tab, redraw) {
+  var a = _kbOpen ? kbFind(_kbOpen) : null;
+  if (!a || !kbCanRead(a)) return;
+  _kbSheetTab = tab === 'notes' ? 'notes' : 'context';
+  var secs = kbCtxSections(a), notes = secs.find(function(s) { return s.key === 'notes'; });
+  var ctx = secs.filter(function(s) { return s.key !== 'notes'; });
+  var body = _kbSheetTab === 'notes' ? (notes ? notes.html : '') : ctx.map(function(s) {
+    return '<section class="inv-kb-ctx-sec" data-kb-ctx="' + s.key + '"><h3 class="inv-kb-ctx-h">' + escHtml(s.title) + (s.count !== '' ? ' <span class="inv-panel-count">' + s.count + '</span>' : '') + '</h3>' + s.html + '</section>';
+  }).join('') || '<div class="inv-empty">Nothing linked to this article yet.</div>';
+  var tabs = '<div class="inv-viewtabs" role="tablist" aria-label="About this article">' + [['context', 'Context'], ['notes', 'Notes']].map(function(t) {
+    return '<button class="inv-viewtab" role="tab" aria-selected="' + (_kbSheetTab === t[0]) + '" data-action="invKbSheet" data-tab="' + t[0] + '">' + t[1] + '</button>';
+  }).join('') + '</div>';
+  dialogOpen('<div class="inv-dialog" data-kb-sheet>' + dialogHeadHtml(escHtml(kbKicker(a).title)) + tabs + '<div class="inv-dialog-main">' + body + '</div>' +
+    '<div class="inv-dialog-foot"><button class="inv-btn inv-btn-secondary" data-action="invCloseOverlay">Close</button></div></div>', { dismiss: true, replace: !!redraw || !!document.querySelector('[data-kb-sheet]') });
+}
+
+/* ---------- The desk (§3): the Library, the article, its context ---------- */
+var KB_CTX_SHORT = { glance: 'Glance', now: 'Plant', linked: 'Linked', feeds: 'Feeds', outputs: 'Outputs', notes: 'Notes' };
+/* The rail's doors: an icon for each section of the context. */
+var KB_CTX_SVG = { glance: ICONS.eye, now: ICONS.activity, linked: ICONS.link, feeds: ICONS.rss, outputs: ICONS.external, notes: ICONS.note };
+function kbDeskShut() { try { return localStorage.getItem(KB_DESK_KEY) === 'shut'; } catch (e) { return false; } }
+function kbDeskSet(shut) { try { localStorage.setItem(KB_DESK_KEY, shut ? 'shut' : 'open'); } catch (e) { /* a per-device convenience */ } }
+function kbDeskHtml(listHtml, open) {
+  // The Library shuts to its rail only beside an open article: with none open it is the whole desk.
+  var shut = kbDeskShut() && !!open;
+  var lib = shut ? '<div class="inv-kb-rail">' + KB_KINDS.map(function(k) {
+    return '<button type="button" class="inv-btn inv-btn-ghost inv-kb-rail-btn" data-action="invKbRailKind" data-kind="' + k[0] + '" title="' + escHtml(k[2]) + '" aria-label="' + escHtml(k[2]) + '">' + kbKindIco(k[0]) + '</button>';
+  }).join('') + '</div>' : listHtml;
+  var h = '<div class="inv-pane-host inv-kb-desk' + (open ? ' inv-pane-open' : '') + (shut ? ' inv-kb-desk-shut' : '') + (_kbCtxOver ? ' inv-kb-ctx-over' : '') + '" id="kbHost" data-open="' + (open ? escHtml(open.id) : '') + '">' +
+    // The Library's head (beside an open article only): its name and «, which shuts it to a rail of the kinds.
+    '<div class="inv-pane-list inv-kb-lib">' + (open ? '<div class="inv-kb-lib-head">' + (shut ? '' : '<span class="inv-panel-title">Library</span>') +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm inv-kb-collapse" data-action="invKbDeskShut" aria-expanded="' + !shut + '" aria-label="' + (shut ? 'Open the Library' : 'Shut the Library') + '">' + (shut ? '»' : '«') + '</button></div>' : '') + lib + '</div>' +
+    '<div class="inv-pane inv-kb-mid" id="kbPane">' + (open ? kbModeHtml(open) : '') + '</div>';
+  if (open) {
+    var secs = kbCtxSections(open);
+    h += '<aside class="inv-kb-ctx" id="kbCtx" aria-label="About this article"><div class="inv-kb-ctx-rail">' + secs.map(function(s) {
+      return '<button type="button" class="inv-kb-ctx-door" data-action="invKbCtxOver" data-key="' + s.key + '" title="' + escHtml(s.title) + '">' +
+        iconPathSvg(KB_CTX_SVG[s.key] || KB_CTX_SVG.glance) +
+        '<span>' + escHtml(KB_CTX_SHORT[s.key] || s.title) + '</span>' + (s.count !== '' ? '<span class="inv-kb-ctx-n">' + s.count + '</span>' : '') + '</button>';
+    }).join('') + '</div><div class="inv-kb-ctx-body">' + (_kbCtxOver ? '<div class="inv-kb-lib-head"><span class="inv-panel-title">About this article</span><button type="button" class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbCtxOver" data-key="" aria-label="Close">&times;</button></div>' : '') +
+      secs.map(function(s) {
+        return uiFoldHtml('kb-ctx-' + s.key, '<span class="inv-panel-title">' + escHtml(s.title) + (s.count !== '' ? ' <span class="inv-panel-count">' + s.count + '</span>' : '') + '</span>', s.html, true, ' data-kb-ctx="' + s.key + '"');
+      }).join('') + '</div></aside>';
+  }
+  return h + '</div>';
+}
+
+/* ---------- The Library (§4): Ask, Recently opened, shelves, the list ---------- */
+function kbRecentIds() { try { var v = JSON.parse(localStorage.getItem(KB_RECENT_KEY) || '[]'); return Array.isArray(v) ? v.filter(function(x) { return typeof x === 'string'; }) : []; } catch (e) { return []; } }
+function kbRecentPut(id) {
+  if (!id) return;
+  try { var l = kbRecentIds().filter(function(x) { return x !== id; }); l.unshift(id); localStorage.setItem(KB_RECENT_KEY, JSON.stringify(l.slice(0, 8))); } catch (e) { /* a per-device convenience */ }
+}
+function kbRecent() { return kbRecentIds().map(kbFind).filter(function(a) { return a && kbCanRead(a) && a.status !== 'retired'; }).slice(0, 5); }
+function kbCardHtml(a) {
+  var k = kbKicker(a), about = a.kind === 'fault' ? a.symptom : a.summary;
+  return '<button type="button" class="inv-kb-card" data-action="invKbOpen" data-id="' + escHtml(a.id) + '" data-kb-card="' + escHtml(a.id) + '"' + (about ? ' title="' + escHtml(about) + '"' : '') + '>' +
+    kbArtIco(a) + '<span class="inv-kb-card-t">' + escHtml(k.title) + '</span>' + (about ? '<span class="inv-kb-card-m">' + escHtml(about) + '</span>' : '') + '</button>';
+}
+/* The shelves: what the Library leads with when nothing is searched. A shelf with nothing on it is not drawn. */
+function kbShelves() {
+  var all = kbReadable().filter(function(a) { return a.status !== 'retired' && a.status !== 'superseded'; }), own = all.filter(function(a) { return a.src !== 'build'; });
+  var byTitle = function(x, y) { return String(kbKicker(x).title).localeCompare(String(kbKicker(y).title)); };
+  return [
+    { key: 'wrong', title: 'When something goes wrong', list: own.filter(function(a) { return a.kind === 'fault'; }).sort(byTitle).concat(own.filter(function(a) { return a.kind === 'process'; }).sort(byTitle)) },
+    { key: 'ruling', title: 'Rulings', list: own.filter(function(a) { return a.kind === 'ruling'; }).sort(function(x, y) { return String(y.ruledOn || '').localeCompare(String(x.ruledOn || '')); }) },
+    { key: 'requirement', title: 'Client requirements', list: own.filter(function(a) { return a.kind === 'requirement'; }).sort(byTitle) },
+    { key: 'shop', title: 'The shop’s how-tos and parts', list: own.filter(function(a) { return a.kind === 'guide' || a.kind === 'part'; }).sort(byTitle) },
+    { key: 'records', title: 'Decisions and incidents', list: own.filter(function(a) { return a.kind === 'decision' || a.kind === 'incident'; }).sort(function(x, y) { return String(kbDayOf(y)).localeCompare(String(kbDayOf(x))); }) },
+    { key: 'app', title: 'Using the app', list: all.filter(function(a) { return a.src === 'build' && !/^Setting up:/.test(a.title); }).sort(byTitle) },
+    { key: 'setup', title: 'Setting up', list: all.filter(function(a) { return a.src === 'build' && /^Setting up:/.test(a.title); }).sort(byTitle) }
+  ].filter(function(s) { return s.list.length; });
+}
+/* The training path's hero: this person's lessons done, and the next. */
+function kbPathHeroHtml() {
+  var u = kbGuardOn() && typeof grdUser === 'function' ? grdUser() : null;
+  if (!u || u.role === 'owner' || u.staffId == null) return '';
+  var p = kbPaths().find(function(x) { return x.role === u.role; });
+  if (!p) return '';
+  var arts = kbPathArticles(p), done = arts.filter(function(a) { return kbTrainState(u.staffId, a).state === 'yes'; }).length, next = arts.find(function(a) { return kbTrainState(u.staffId, a).state !== 'yes'; });
+  return uiHeroHtml({ tone: next ? 'info' : 'ok', eyebrow: '<span>Your training path</span>', title: escHtml(done + ' of ' + arts.length + ' done'), sub: escHtml(next ? 'Next: ' + kbKicker(next).title : 'Every lesson done'),
+    foot: next ? '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invKbOpen" data-id="' + escHtml(next.id) + '">Start the next lesson</button>' : '', attrs: ' data-kb-path-hero' });
+}
+function kbShelvesHtml() {
+  var h = kbPathHeroHtml(), rec = kbRecent();
+  if (rec.length) h += '<section class="inv-kb-shelf" data-kb-shelf="recent"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">Recently opened</h3></div><div class="inv-kb-shelf-row">' + rec.map(kbCardHtml).join('') + '</div></section>';
+  kbShelves().forEach(function(s) {
+    h += '<section class="inv-kb-shelf' + (s.list.length > 5 ? ' inv-kb-shelf-wide' : '') + '" data-kb-shelf="' + s.key + '"><div class="inv-kb-shelf-head"><h3 class="inv-kb-shelf-t">' + escHtml(s.title) + '</h3>' +
+      (s.list.length > 1 ? '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invKbShelf" data-key="' + s.key + '">See all ' + s.list.length + '</button>' : '') + '</div>' +
+      '<div class="inv-kb-shelf-row">' + s.list.slice(0, 10).map(kbCardHtml).join('') + '</div></section>';
+  });
+  var n = kbReadable().filter(function(a) { return a.status !== 'retired' && a.status !== 'superseded'; }).length;
+  h += '<div class="inv-panel inv-panel-flush"><div class="inv-row"><button class="inv-row-main" data-action="invKbShelf" data-key="all" data-kb-every><span class="inv-row-title">Every article</span>' +
+    '<span class="inv-row-meta">' + escHtml(todoPlural(n, 'article') + ', by kind') + '</span></button><span class="inv-row-end">' + KB_CHEVRON + '</span></div></div>';
+  return '<div class="inv-kb-shelves" id="kbShelves">' + h + '</div>';
+}
+/* A search, best first: where it matched counts (the title most), and the line that matched is said under the title. */
+function kbAskRank(list, q) {
+  var words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return list;
+  return list.map(function(a) {
+    var t = String(a.title || '').toLowerCase(), s = String(a.summary || a.symptom || '').toLowerCase(), score = 0;
+    words.forEach(function(w) { if (t.indexOf(w) >= 0) score += 3; if (s.indexOf(w) >= 0) score += 2; });
+    return { a: a, score: score };
+  }).sort(function(x, y) { return y.score - x.score || String(x.a.title).localeCompare(String(y.a.title)); }).map(function(x) { return x.a; });
+}
+function kbAskLine(a, q) {
+  var words = String(q || '').toLowerCase().split(/\s+/).filter(Boolean);
+  if (!words.length) return '';
+  var lines = kbPlain(a).replace(/\*\*?/g, '').split(/\n+|(?<=[.!?])\s+/);
+  var hit = lines.find(function(l) { var x = l.toLowerCase(); return words.some(function(w) { return x.indexOf(w) >= 0; }); });
+  return hit ? hit.trim().replace(/^#+\s*|^[-•]\s+|^\d+[.)]\s+/, '').slice(0, 110) : '';
+}
+/* The shelf a list is filtered to. */
+function kbShelfList(key, list) {
+  if (!key || key === 'all') return list;
+  var s = kbShelves().find(function(x) { return x.key === key; });
+  if (!s) return list;
+  var ids = {};
+  s.list.forEach(function(a) { ids[a.id] = 1; });
+  return list.filter(function(a) { return ids[a.id]; });
+}
+function kbShelfTitle(key) { var s = key === 'all' ? null : kbShelves().find(function(x) { return x.key === key; }); return key === 'all' ? 'Every article' : s ? s.title : ''; }
+
+/* ---------- Opening, and the actions ---------- */
+/* An article opened is put on this device's Recently opened, and its mode starts at its landing unless the address says. */
+function kbOpened(id, parts) {
+  kbModeFromV(parts);
+  if (id) kbRecentPut(id);
+  _kbCtxOver = false;
+}
+/* After a draw: Reader at its section, scrolled to it (on the desk inside the middle column). */
+function kbAfterDraw(el, again) {
+  if (!_kbSec || !el) return;
+  // A page opened from its address is drawn before it is laid out: scroll again on the next frame.
+  if (!again && typeof requestAnimationFrame === 'function') requestAnimationFrame(function() { kbAfterDraw(el, true); });
+  var sec = el.querySelector('[data-kb-sec="' + _kbSec + '"]') || el.querySelector('#kbSec' + _kbSec);
+  if (!sec) return;
+  var mid = sec.closest('.inv-kb-mid');
+  if (mid) mid.scrollTop = Math.max(0, sec.getBoundingClientRect().top - mid.getBoundingClientRect().top + mid.scrollTop - 8);
+  else window.scrollTo(0, Math.max(0, sec.getBoundingClientRect().top + window.scrollY - 120));
+}
+function kbReadAction(action, btn) {
+  var d = btn && btn.dataset ? btn.dataset : {};
+  switch (action) {
+    case 'invKbMode': kbModeGo(d.mode); return true;
+    case 'invKbReadAt': kbModeGo('read', /^\d+$/.test(d.s) ? +d.s : d.s); return true;
+    case 'invKbStep': {
+      var a = _kbOpen ? kbFind(_kbOpen) : null;
+      if (!a) return true;
+      var n = a.kind === 'fault' ? (a.causes || []).length : kbSteps(kbParse(a.body)).length;
+      _kbStep = Math.max(-1, Math.min(n, _kbStep + (+d.d || 1)));
+      renderKnow();
+      return true;
+    }
+    case 'invKbFound': { var fa = _kbOpen ? kbFind(_kbOpen) : null; if (!fa) return true; _kbFound = +d.i; _kbStep = (fa.causes || []).length; renderKnow(); return true; }
+    case 'invKbFoundLog': {
+      var f = kbFind(d.id), c = f && _kbFound != null && f.causes ? f.causes[_kbFound] : null;
+      if (!f || f.kind !== 'fault' || !kbCanRead(f)) return true;
+      kbOpenForm(null, 'incident', { title: f.symptom || f.title, links: JSON.parse(JSON.stringify((f.links || []).filter(function(l) { return l && l.type !== 'article'; }))),
+        f: { faultId: f.id, on: localDateStr(), cause: c ? c.cause : '', fix: c ? c.fix || '' : '' } });
+      return true;
+    }
+    case 'invKbPathGo': kbPathGo(d.tab, d.v); return true;
+    case 'invKbSheet': kbSheetOpen(d.tab, !!document.querySelector('[data-kb-sheet]')); return true;
+    case 'invKbNoteAdd': kbNoteAdd(d.id, btn.closest('.inv-kb-noteform') || document); return true;
+    case 'invKbNoteEdit': kbNoteEdit(d.id); return true;
+    case 'invKbNoteRemove': kbNoteRemove(d.id); return true;
+    case 'invKbDeskShut': kbDeskSet(!kbDeskShut()); keepScroll(renderKnow); return true;
+    case 'invKbRailKind': kbDeskSet(false); _kbFilter.kind = d.kind || ''; _kbShelf = 'all'; keepScroll(renderKnow); return true;
+    case 'invKbCtxOver': _kbCtxOver = !!d.key; keepScroll(renderKnow); if (d.key) { var s = document.querySelector('#kbCtx [data-kb-ctx="' + d.key + '"]'); if (s) s.scrollIntoView({ block: 'nearest' }); } return true;
+    // The shelf is in the address (knowledge.js kbListV), so Back returns to the shelves.
+    case 'invKbShelf': kbSetTab('library'); kbGo({ tab: 'pageKnow', v: 'library/s-' + (d.key || 'all'), id: _kbOpen || '' }); return true;
+  }
+  return false;
+}
 /* ===== CLIENT PERFORMANCE =====
  *
  * Month on month for one account, and — the part that earns its place — what
@@ -64014,17 +65040,10 @@ document.addEventListener('focusout', function(e) {
    every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
 var WS_ICONS = {
-  today: '<circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>',
-  office: '<rect x="3" y="7" width="18" height="13" rx="2"/><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2M3 12h18"/>',
-  floor: '<path d="M3 20h18M5 20V10l4 3V10l4 3V6l6 4v10M8 16h1M12 16h1M16 16h1"/>',
-  money: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
-  add: '<path d="M12 5v14M5 12h14"/>',
-  search: '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>',
-  settings: '<path d="M4 6h9M17 6h3M4 12h3M11 12h9M4 18h11M19 18h1M15 4v4M9 10v4M17 16v4"/>',
-  mine: '<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/>'
+  today: ICONS.today, office: ICONS.office, floor: ICONS.floor, money: ICONS.money, add: ICONS.plus, search: ICONS.search, settings: ICONS.settings, mine: ICONS.mine
 };
 function wsSvg(k) {
-  return '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + WS_ICONS[k] + '</svg>';
+  return iconPathSvg(WS_ICONS[k]);
 }
 
 /* The map. `views` are the tabs, in order: {tab, v?, vs?, label, group?}; a view carrying `group` starts a group of its own,

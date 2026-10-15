@@ -378,14 +378,28 @@ var KB_APP_GUIDES = [
   _kbg('knowledge', 'Using the app: the knowledge base', 'Read, write, approve and train', ['pageKnow'],
     '- Tap the book in the top bar to open the guides for the screen that you are on.\n' +
     '- Tap **Write** to write an article. An article can be a how-to, a process, a part, a client requirement, a ruling, a fault, an incident or a decision.\n' +
-    '- If a person other than the owner writes an article, it waits for the owner’s approval. A change to a published article waits beside the article.\n' +
+    '- If a person other than the owner writes an article, it waits for the owner’s approval. A change to a published article waits beside the article.\n\n' +
+    '# 3 ways to read an article\n' +
+    '- **Quick** shows *At a glance* and 1 line for each part of the article. Tap a line to read that part in full.\n' +
+    '- **Read** shows the whole article as a manual page. A WARNING is red, a CAUTION is amber and a NOTE is blue. A screen path, for example Office → Challans, is a link to that screen.\n' +
+    '- **Step by step** shows 1 step on the screen. Tap **Next** and **Back**. At the end, the owner or the supervisor can record the training. For a fault, it shows 1 cause at a time: tap **Found it** or **Not this**.\n' +
+    '- On a phone, an article opens on Quick. A supervisor or a floor hand opens a lesson of their path on Step by step until they are trained on it.\n\n' +
+    '# Around the article\n' +
+    '- On a phone, tap the bar at the bottom of the article to see its context and its notes.\n' +
+    '- On a computer, the Library is on the left, the article is in the middle and its context is on the right. Tap **«** to make the Library narrow.\n' +
+    '- The context shows the plant now for what the article links to (a line, a client, a part, a stock line, an area), how new that data is, and what the article led to.\n' +
+    '- Anybody can add a note to an article. The owner can make a note private. NOTE: A private note is hidden from the other IDs, but it goes with the book in backups and GitHub sync. It is not encrypted.\n\n' +
+    '# The Library\n' +
+    '- Type a question in **Ask**. The app shows the articles that match, the best first, with the line that matched.\n' +
+    '- With nothing typed, the Library shows the articles you opened last and the shelves. Tap **See all** for the list of a shelf, or **Every article** for the full list.\n' +
     '- In **Troubleshoot**, find a fault by what you see. If something goes wrong, record an incident. The app then shows that day as recorded.\n' +
     '- In **Training**, record who was taught each lesson. When a lesson changes, the training is due again.\n' +
     '- A photo stays on the device that took it.\n' +
-    '- **Start** shows what waits: articles to approve, drafts, decisions due for review and training due again. Each view opens on a card that shows its status.\n' +
+    '- **Start** shows what waits: articles to approve, drafts, decisions due for review and training due again.\n' +
     '- On a phone, the kind and the drafts are under **Filter**. In the Library, **Export** and **Import** are under **More**. Only the owner can use them.',
     // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 3 }),
+    // Version 4: the 3 ways to read, the context, notes and the Library's shelves (KB2-1, 15 Oct 2026).
+    { version: 4 }),
   _kbg('planner', 'Using the app: the planner', 'Simulate machines, certification, staff, clients and a loan', ['pagePlanner'],
     'Today → **Planner** plays a plan over the next 24 months. It starts from the book’s last 3 full months. The planner **never changes the book**.\n\n' +
     'The card at the top shows the plan’s status against its goal on each view. **Roll** and the month are under the card. **More** holds the other controls: a new card, the report, the copy and the name of the plan, and the goal.\n\n' +
@@ -492,11 +506,16 @@ var KB_APP_GUIDES = [
     '# Paragraphs and steps\n- Write one topic in one paragraph. A paragraph has 6 sentences or fewer.\n' +
     '- Write a sequence as numbered steps (start the line with `1. `). Write facts of the same kind as a list (start the line with `- `).\n' +
     '- Give each part a heading (start the line with `# `).\n\n' +
-    '# Warnings\n- If a step can lose data or money, write a warning before the step.\n- Start it with **WARNING:** and say the risk and the result in short sentences.\n\n' +
+    '# Warnings\n- If a step can lose data or money, write a warning before the step.\n- Start it with **WARNING:** and say the risk and the result in short sentences.\n' +
+    '- If a step can cause a fault or damage, start it with **CAUTION:**. For useful data that is not a risk, start it with **NOTE:**.\n\n' +
+    '# At a glance\n- Each article opens with *At a glance*: up to 4 lines, each a label and a value, for example *Where: Office → Challans*.\n' +
+    '- If you leave the field empty, the app makes the lines from the article. The field shows these lines before you type.\n' +
+    '- Write a line only if the app’s line is wrong or not useful. A line has 90 characters or fewer.\n\n' +
     '# What we keep (the other 20%)\n- The labels of the app, as the screen shows them, in bold: **Take it and register**, **Needs you**.\n' +
     '- The terms of the shop and the trade: challan, GSTR-1, realisation, live cost, EXTRA, round, rack, gauge.\n' +
     '- Every fact. Do not remove a rule, a number or an exception to make a sentence shorter.',
-    { roles: [] }),
+    // Version 2: CAUTION and NOTE, and At a glance (KB2-1, 15 Oct 2026).
+    { roles: [], version: 2 }),
   _kbg('printer', 'Setting up: the office printer', 'Print from any phone on the office printer, through GitHub sync', ['pageRegister'],
     'The app on a phone cannot get to a printer on the office Wi-Fi. So a print goes through GitHub. The phone puts the job there, and 1 computer in the office prints it. This computer is the **print station**.\n\n' +
     '# Before you start\n- Make sure that GitHub sync is set up on every device that sends, and on the station (*Setting up: GitHub sync*).\n' +

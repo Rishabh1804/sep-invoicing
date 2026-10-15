@@ -232,8 +232,8 @@ var UI_TONE = { red: 'danger', amber: 'warning', info: 'info', green: 'ok' };
 function uiDot(tone, word) { return '<span class="inv-dot inv-dot-' + uiTone(tone) + '">' + word + '</span>'; }
 function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.test(t) ? t : 'neutral'); }
 
-var ICON_SEARCH = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>';
-var ICON_PRINT = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><polyline points="6 9 6 2 18 2 18 9"/><path d="M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2"/><rect x="6" y="14" width="12" height="8"/></svg>';
+var ICON_SEARCH = iconSvg('search');
+var ICON_PRINT = iconSvg('print');
 
 /* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
 function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
@@ -408,7 +408,7 @@ function renderHomeRecentCard() {
   if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
   var recent = homeRecentInvoices(10);
   var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
-    '<svg class="inv-empty-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="12" y1="18" x2="12" y2="12"/><line x1="9" y1="15" x2="15" y2="15"/></svg>' +
+    iconSvg('file', 'inv-empty-icon') +
     '<div>No invoices yet</div>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
     '</div>';

@@ -47,7 +47,7 @@ function _sNum(id, value, step, min, max) {
     ' class="inv-input inv-input-num" id="' + id + '" value="' + escHtml(value == null ? '' : value) + '">';
 }
 function _sRow() { return '<div class="inv-fields">' + Array.prototype.join.call(arguments, '') + '</div>'; }
-var _EYE_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>';
+var _EYE_SVG = iconSvg('eye');
 /* A secret typed once and kept on the device: the field, and an icon button that shows it. */
 function _sKey(id, value, placeholder, action, what) {
   return '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight"><input class="inv-input inv-id inv-toolbar-item" id="' + id + '" type="password" value="' + escHtml(value) +

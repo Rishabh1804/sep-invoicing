@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, setFilter, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, kbEvery, kbRead, loadAppWithState, noSeedIM, readStoredState, setFilter, switchTab, todayIso, type SepState } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 import { imState } from './im-fixture';
 
@@ -65,7 +65,8 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     await expect(page.locator('#knowContent [data-kb-article]')).toBeVisible();
     await page.goBack();
     await expect(page.locator('#pageKnow')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#kbLibrary')).toContainText('Washing the jigs');
+    // The Library leads with its shelves (KB2-1): the new how-to is on the shop's shelf and Recently opened.
+    await expect(page.locator('#kbShelves')).toContainText('Washing the jigs');
   });
 
   test('an article opened by its address has a way back on the phone: Knowledge closes it to its view', async ({ page }) => {
@@ -75,7 +76,7 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     await expect(page.locator('#knowContent [data-kb-article="G1"]')).toBeVisible();
     await page.locator('#knowContent [data-action="invKbBack"]').click();
     await expect(page.locator('#knowContent [data-kb-article]')).toHaveCount(0);
-    await expect(page.locator('#kbLibrary')).toBeVisible();
+    await expect(page.locator('#kbShelves')).toBeVisible();
   });
 
   test('a form opened by its address cancels to its article, with no step before it', async ({ page }) => {
@@ -92,6 +93,7 @@ test.describe('P155: Knowledge, the steps a move takes', () => {
     const long = Array.from({ length: 80 }, (_, i) => 'Step ' + (i + 1) + ': rinse, look, and write down what was seen.').join('\n\n');
     await loadAppWithState(page, book(Array.from({ length: 40 }, (_, i) => art('A' + i, 'guide', 'Article ' + String(i).padStart(2, '0'), i === 39 ? { body: long } : {}))));
     await know(page);
+    await kbEvery(page);
     const last = page.locator('[data-kb-row="A39"] [data-action="invKbOpen"]');
     // The list shows its first thirty; the rest are a tap away.
     if (!(await last.isVisible())) await page.locator('#kbLibrary [data-action="invShowMore"]').click();
@@ -176,7 +178,7 @@ test.describe('P155: Knowledge, who reads and who edits', () => {
     await g(page, `grdLockAll('test')`);
     await unlock(page, 'U-sup', PINS.super);
     await know(page);
-    await expect(page.locator('#kbLibrary')).not.toContainText('Margins by client');
+    await expect(page.locator('#knowContent')).not.toContainText('Margins by client');
   });
 
   test('a change proposed leaves who reads it alone, and the owner sees every field it changes', async ({ page }) => {
@@ -268,15 +270,21 @@ test.describe('P155: Knowledge, who reads and who edits', () => {
       production: { entries: [{ id: 'p1', kind: 'plated', date: d, time: '10:00', slot: 'general', line: 'vat-a1', part: 'CLAMP', qty: 100, unit: 'NOS', basis: 'hand', src: 'hand', at: 1 }], pastes: [], photos: [], imports: [], learn: { clients: {}, parts: {} } },
       attendance: { [d]: { marks: { 1: { st: 'P', area: 'vat-a1' }, 2: { st: 'H', area: 'office' } }, extra: [] } } }));
     // The owner sees that day: the plating, and two on site (a mark's state is `st`).
+    // That day in the book is the incident's context: on the phone, in its sheet (KB2-1, §3a).
+    const daySheet = async () => { await page.locator('#knowContent .inv-kb-ctxbar-btn').click(); await page.locator('[data-kb-sheet]').waitFor(); };
     await g(page, `kbOpenArticle('I1')`);
+    await daySheet();
     await expect(page.locator('[data-kb-day]')).toContainText('Plated');
     await expect(page.locator('[data-kb-day]')).toContainText('On site');
     expect(await g(page, `document.querySelector('[data-kb-day]').innerText.match(/On site\\s*(\\d+)/)[1]`)).toBe('2');
+    await g(page, `closeOverlay()`);
     await withUsers(page);
     await unlock(page, 'U-off', PINS.office);
     await g(page, `kbOpenArticle('I1')`);
+    await daySheet();
     await expect(page.locator('[data-kb-day]')).not.toContainText('Plated');
     await expect(page.locator('[data-kb-day]')).not.toContainText('On site');
+    await g(page, `closeOverlay()`);
     await know(page, 'training');
     await expect(page.locator('#kbRoster')).toHaveCount(0);
     await expect(page.locator('#pageKnow')).not.toContainText('Alfa Kumar');
@@ -409,6 +417,7 @@ test.describe('P155: Knowledge, a file from outside', () => {
       await expect(page.locator(`#knowContent [data-kb-article="${id}"]`)).toBeVisible();
     }
     await g(page, `_kbOpen = null; kbSetTab('library'); renderKnow()`);
+    await kbEvery(page);
     await expect(page.locator('#kbLibrary')).toContainText('Bad quiz');
     await switchTab(page, 'pageClients');   // every client screen reads the links
     const st: any = await readStoredState(page);
@@ -451,8 +460,12 @@ test.describe('P155: Knowledge, what the first content needs', () => {
       art('Q1', 'requirement', 'A certificate', { links: [{ type: 'client', id: 'kb-c-9', label: 'ACME  FORGINGS.' }] })]));
     await g(page, `kbOpenArticle('F1')`);
     const a = page.locator('#knowContent [data-kb-article="F1"]');
-    await expect(page.locator('#knowContent [data-kb-links]')).toContainText('Area: VAT A1');
-    await expect(page.locator('#knowContent .inv-kb-body ol li')).toHaveCount(2);
+    await kbRead(page);
+    await expect(page.locator('#knowContent .inv-kb-read section:not([data-kb-causes]) ol li')).toHaveCount(2);
+    // The links are the article's context: on the phone, in its sheet.
+    await page.locator('#knowContent .inv-kb-ctxbar-btn').click();
+    await expect(page.locator('[data-kb-sheet] [data-kb-links]')).toContainText('Area: VAT A1');
+    await g(page, `closeOverlay()`);
     await expect(page.locator('#knowContent [data-action="invKbTrain"]')).toHaveCount(1);
     await expect(a).toBeVisible();
     expect(await g(page, `kbLinkedTo('client', 7, 'ACME FORGINGS').map(x => x.id).join()`)).toBe('Q1');

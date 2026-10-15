@@ -1041,6 +1041,24 @@ columns once. One grid on both layouts: the page is a person's own phone screen.
 
 ---
 
+### 6.30 An article — `inv-kb-*` (kbread.js, the knowledge base's second edition, KB2-1)
+
+The one place in the app set as a document to read rather than a list to scan (docs/KNOWLEDGE_BASE_2.md §2–§6).
+- **Reader** (`inv-kb-read`): a measure of `--kb-measure` (42rem, about 65 characters), the text at `--fs-16` on 1.7, no box round it; a
+  heading (`inv-kb-sec-h`) `--fs-19`; a step a numbered item (`inv-kb-steps`), its numeral the list marker in the accent and mono, **never a
+  tick box**.
+- **A notice** (`inv-kb-notice`, `-danger` / `-warning` / `-info` for WARNING / CAUTION / NOTE): its icon and word first, filled in its tone:
+  the one place colour fills an article (DR-1).
+- **A screen's path** in the text (`inv-kb-path`) is an inline link, never a button box.
+- **At a glance** (`inv-kb-glance`): up to four label and value rows on `--surface-2`.
+- **Guided** (`inv-kb-guide`): a bar of segments (`inv-kb-prog`), one step at `--fs-22`, Back and Next `--kb-big-h` in the action bar.
+- **A kind's icon** (`inv-kb-ico`): a stroke icon on `--surface-3`, never coloured by kind.
+- **The Library's card** (`inv-kb-card`): an icon, a title and a line, in a shelf that scrolls sideways (`inv-kb-shelf-row`), one column in the
+  desk's narrow left column.
+- **The desk** (`inv-kb-desk`, desktop): the list `--kb-lib-w`, the article, the context `--kb-ctx-w`; each column scrolls inside `--fill-h`;
+  under 80rem the context is a rail (`--kb-rail-w`) opening over the article. On the phone the context is a sheet opened from a bar over the
+  phone bar (`inv-kb-ctxbar`).
+
 ## 7. How each screen is assembled
 
 | Screen | Phone | Desktop |

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
+import { emptyState, kbEvery, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
 import { withUsers, unlock, PINS } from './p140-guard.fixture';
 
 // P155 on the desktop: the knowledge base's QA chain (5 Oct 2026). Each test failed on the build before its fix. Made-up
@@ -46,12 +46,13 @@ test.describe('P155 desktop: Knowledge', () => {
     await expect(book1).toHaveCount(1);
     await book1.click();
     await expect(page.locator('#pageKnow')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#kbLibrary')).toContainText('Using the app: Today');
+    await expect(page.locator('#kbLibrary [data-kb-row="app-today"]')).toContainText('Today');
   });
 
   test('an article’s row opens in a new window on a Ctrl+click, at its own address', async ({ page }) => {
     await loadAppWithState(page, book(many()));
     await g(page, `window.__opened = []; window.open = function(url) { window.__opened.push(url); return {}; }; kbSetTab('library'); switchTab('pageKnow')`);
+    await kbEvery(page);
     await page.locator('[data-kb-row="A3"] [data-action="invKbOpen"]').click({ modifiers: ['Control'] });
     expect(await g(page, 'window.__opened')).toEqual([expect.stringMatching(/tab=pageKnow&v=library&id=A3$/)]);
     await expect(page.locator('#kbHost')).not.toHaveClass(/inv-pane-open/);
@@ -60,6 +61,7 @@ test.describe('P155 desktop: Knowledge', () => {
   test('the search and the chips stay above the list as it scrolls; the open row is the current one, in Knowledge only', async ({ page }) => {
     await loadAppWithState(page, book(many().concat([art('Q1', 'requirement', 'ACME needs a certificate', { links: [{ type: 'client', id: '7', label: 'ACME FORGINGS' }] })])));
     await g(page, `kbSetTab('library'); switchTab('pageKnow')`);
+    await kbEvery(page);
     // The list shows its first thirty; the app's own guides are among them, so the rest are one tap away (uiMoreHtml).
     const more = page.locator('#kbLibrary [data-action="invShowMore"]');
     if (await more.count()) await more.first().click();

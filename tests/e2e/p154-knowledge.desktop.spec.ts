@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
+import { emptyState, kbEvery, loadAppWithState, noSeedIM, readStoredState, switchTab, type SepState } from './fixtures';
 
 // P154 on the desktop: Knowledge is a tool of the top bar (the tab map, TM1: no door lit, no row, its own title); the Library
 // is a list beside the open article, which has an address a reload and Back follow; the page never scrolls behind its list and
@@ -24,6 +24,7 @@ test('the Library is a list beside the open article; the article has an address 
   await expect(page.locator('#topbarTitle')).toHaveText('Knowledge');
   await expect(page.locator('#invSidebar [aria-current]')).toHaveCount(0);
   await page.locator('#knowContent [data-action="invKbTab"][data-tab="library"]').click();
+  await kbEvery(page);
   await page.locator('[data-kb-row="A3"] [data-action="invKbOpen"]').click();
   await expect(page.locator('#kbHost')).toHaveClass(/inv-pane-open/);
   await expect(page.locator('#kbPane')).toContainText('Text of Article 03.');

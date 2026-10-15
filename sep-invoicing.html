@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="e67928e9">
+<meta name="app-build" content="e25279c5">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -2529,6 +2529,12 @@ body.inv-desktop .inv-ws-search:hover { background: var(--surface-2); }
 .inv-kb-card-t, .inv-kb-card-m { overflow: hidden; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .inv-kb-card-t { font-size: var(--fs-14); font-weight: 600; line-height: 1.35; }
 .inv-kb-card-m { font-size: var(--fs-12); line-height: 1.4; color: var(--text-2); }
+/* The desk with nothing open: the shelves are columns in a grid that fills the width, each its first five cards. */
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelves { display: grid; grid-template-columns: repeat(auto-fill, minmax(var(--kb-card-w), 1fr)); gap: var(--sp-16) var(--sp-20); align-items: start; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelves > :not(.inv-kb-shelf) { grid-column: 1 / -1; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card { flex: none; }
+body.inv-desktop .inv-kb-desk:not(.inv-pane-open) .inv-kb-card:nth-child(n+6) { display: none; }
 @container list (max-width: 24rem) {
   .inv-kb-shelf-row { flex-direction: column; overflow-x: visible; }
   .inv-kb-card { flex: none; }
@@ -2540,13 +2546,24 @@ body.inv-desktop .inv-kb-desk.inv-pane-open { grid-template-columns: var(--kb-li
 body.inv-desktop .inv-kb-desk.inv-pane-open.inv-kb-desk-shut { grid-template-columns: var(--kb-rail-w) minmax(0, 1fr) var(--kb-ctx-w); }
 body.inv-desktop .inv-kb-desk > .inv-kb-mid { padding: var(--sp-16) var(--sp-24); }
 body.inv-desktop .inv-kb-desk > .inv-kb-lib { padding-right: var(--sp-8); }
+.inv-kb-lib-head { position: sticky; top: 0; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
+  margin-bottom: var(--sp-8); padding-block: var(--sp-4); background: var(--bg); }
+.inv-kb-ctx .inv-kb-lib-head { background: var(--surface); }
 .inv-kb-collapse { display: flex; margin-left: auto; }
+.inv-kb-close { margin-left: auto; }
 .inv-kb-rail { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); }
 .inv-kb-rail-btn { padding: var(--sp-4); }
 .inv-kb-ctx { display: flex; flex-direction: column; gap: var(--sp-8); padding: var(--sp-12); background: var(--surface); border-left: var(--hair) solid var(--border); }
 .inv-kb-ctx-body { display: flex; flex-direction: column; gap: var(--sp-8); }
-.inv-kb-ctx-rail { display: none; flex-direction: column; gap: var(--sp-4); }
-.inv-kb-ctx-rail > .inv-btn { padding-inline: 0; font-size: var(--fs-11); }
+.inv-kb-ctx-rail { display: none; flex-direction: column; align-items: stretch; gap: var(--sp-4); }
+/* A door of the rail, as the app's own rail draws one: its icon over its word. */
+.inv-kb-ctx-door { position: relative; display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-height: var(--touch); padding: var(--sp-6) 0;
+  border: 0; border-radius: var(--r-md); background: none; color: var(--text-2); font: inherit; font-size: var(--fs-11); cursor: pointer; }
+.inv-kb-ctx-door svg { width: 20px; height: 20px; }
+.inv-kb-ctx-door:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-kb-ctx-door:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-kb-ctx-n { position: absolute; top: var(--sp-2); right: var(--sp-6); min-width: var(--sp-16); padding-inline: var(--sp-4); border-radius: var(--r-full);
+  background: var(--accent-soft); color: var(--accent-soft-text); font-size: var(--fs-11); line-height: 1.4; text-align: center; }
 .inv-kb-ctx-links { display: flex; flex-wrap: wrap; gap: var(--sp-6); padding: var(--sp-8) var(--pad-x); }
 .inv-kb-ctx-rows { display: flex; flex-direction: column; }
 .inv-kb-ctx .inv-kb-glance { margin: var(--sp-8) var(--pad-x); padding: var(--sp-10) var(--sp-12); }
@@ -2557,6 +2574,7 @@ body.inv-desktop .inv-kb-desk > .inv-kb-lib { padding-right: var(--sp-8); }
   body.inv-desktop .inv-kb-desk.inv-pane-open.inv-kb-desk-shut { grid-template-columns: var(--kb-rail-w) minmax(0, 1fr) var(--kb-rail-w); }
   .inv-kb-ctx-rail { display: flex; }
   .inv-kb-ctx-body { display: none; }
+  .inv-kb-desk:not(.inv-kb-ctx-over) > .inv-kb-ctx { padding: var(--sp-8) var(--sp-4); background: var(--surface-2); }
   .inv-kb-ctx-over .inv-kb-ctx { position: absolute; top: 0; right: 0; bottom: 0; width: var(--kb-ctx-w); z-index: var(--z-bar); }
   .inv-kb-ctx-over .inv-kb-ctx-rail { display: none; }
   .inv-kb-ctx-over .inv-kb-ctx-body { display: flex; }
@@ -61294,8 +61312,10 @@ function kbModeGo(mode, sec) {
 function kbHeadHtml(a, mode) {
   var k = kbKicker(a);
   var modes = [['quick', 'Quick'], ['read', 'Read'], ['guide', 'Step by step']].filter(function(m) { return (m[0] !== 'quick' || !_isDesktop) && (m[0] !== 'guide' || kbHasGuide(a)); });
+  // On the desk the article's close is on its own head line (a pane head above it had held the × alone).
   return '<header class="inv-kb-head">' + '<div class="inv-kb-kicker">' + kbKindIco(a.kind) + '<span>' + escHtml(k.kicker) + '</span>' +
-    (a.status === 'published' && !a.pending ? '' : ' ' + kbStatusHtml(a)) + '</div>' +
+    (a.status === 'published' && !a.pending ? '' : ' ' + kbStatusHtml(a)) +
+    (_isDesktop ? '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-kb-close" data-action="invKbClose" aria-label="Close the article">&times;</button>' : '') + '</div>' +
     '<h1 class="inv-kb-title">' + escHtml(k.title) + '</h1>' + (a.summary ? '<p class="inv-kb-lede">' + kbInline(a.summary) + '</p>' : '') +
     (modes.length > 1 ? '<div class="inv-seg inv-kb-modes" role="group" aria-label="How to read it">' + modes.map(function(m) {
       return '<button type="button" class="inv-seg-btn" data-action="invKbMode" data-mode="' + m[0] + '" aria-pressed="' + (mode === m[0]) + '">' + m[1] + '</button>';
@@ -61638,6 +61658,15 @@ function kbSheetOpen(tab, redraw) {
 
 /* ---------- The desk (§3): the Library, the article, its context ---------- */
 var KB_CTX_SHORT = { glance: 'Glance', now: 'Plant', linked: 'Linked', feeds: 'Feeds', outputs: 'Outputs', notes: 'Notes' };
+/* The rail's doors: an icon for each section of the context. */
+var KB_CTX_SVG = {
+  glance: '<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>',
+  now: '<path d="M3 12h4l3-8 4 16 3-8h4"/>',
+  linked: '<path d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1"/>',
+  feeds: '<path d="M4 11a9 9 0 0 1 9 9M4 4a16 16 0 0 1 16 16"/><circle cx="5" cy="19" r="1"/>',
+  outputs: '<path d="M14 4h6v6M20 4l-9 9M18 14v5a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5"/>',
+  notes: '<path d="M5 3h10l4 4v14H5z"/><path d="M9 11h6M9 15h6"/>'
+};
 function kbDeskShut() { try { return localStorage.getItem(KB_DESK_KEY) === 'shut'; } catch (e) { return false; } }
 function kbDeskSet(shut) { try { localStorage.setItem(KB_DESK_KEY, shut ? 'shut' : 'open'); } catch (e) { /* a per-device convenience */ } }
 function kbDeskHtml(listHtml, open) {
@@ -61647,13 +61676,17 @@ function kbDeskHtml(listHtml, open) {
     return '<button type="button" class="inv-btn inv-btn-ghost inv-kb-rail-btn" data-action="invKbRailKind" data-kind="' + k[0] + '" title="' + escHtml(k[2]) + '" aria-label="' + escHtml(k[2]) + '">' + kbKindIco(k[0]) + '</button>';
   }).join('') + '</div>' : listHtml;
   var h = '<div class="inv-pane-host inv-kb-desk' + (open ? ' inv-pane-open' : '') + (shut ? ' inv-kb-desk-shut' : '') + (_kbCtxOver ? ' inv-kb-ctx-over' : '') + '" id="kbHost" data-open="' + (open ? escHtml(open.id) : '') + '">' +
-    '<div class="inv-pane-list inv-kb-lib"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm inv-kb-collapse" data-action="invKbDeskShut" aria-expanded="' + !shut + '" aria-label="' + (shut ? 'Open the Library' : 'Shut the Library') + '">' + (shut ? '»' : '«') + '</button>' + lib + '</div>' +
-    '<div class="inv-pane inv-kb-mid" id="kbPane">' + (open ? paneHeadHtml('<span class="inv-panel-title"></span>', 'invKbClose') + kbModeHtml(open) : '') + '</div>';
+    // The Library's head (beside an open article only): its name and «, which shuts it to a rail of the kinds.
+    '<div class="inv-pane-list inv-kb-lib">' + (open ? '<div class="inv-kb-lib-head">' + (shut ? '' : '<span class="inv-panel-title">Library</span>') +
+      '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm inv-kb-collapse" data-action="invKbDeskShut" aria-expanded="' + !shut + '" aria-label="' + (shut ? 'Open the Library' : 'Shut the Library') + '">' + (shut ? '»' : '«') + '</button></div>' : '') + lib + '</div>' +
+    '<div class="inv-pane inv-kb-mid" id="kbPane">' + (open ? kbModeHtml(open) : '') + '</div>';
   if (open) {
     var secs = kbCtxSections(open);
     h += '<aside class="inv-kb-ctx" id="kbCtx" aria-label="About this article"><div class="inv-kb-ctx-rail">' + secs.map(function(s) {
-      return '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invKbCtxOver" data-key="' + s.key + '" title="' + escHtml(s.title) + '">' + escHtml(KB_CTX_SHORT[s.key] || s.title) + '</button>';
-    }).join('') + '</div><div class="inv-kb-ctx-body">' + (_kbCtxOver ? '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invKbCtxOver" data-key="">Close</button>' : '') +
+      return '<button type="button" class="inv-kb-ctx-door" data-action="invKbCtxOver" data-key="' + s.key + '" title="' + escHtml(s.title) + '">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (KB_CTX_SVG[s.key] || KB_CTX_SVG.glance) + '</svg>' +
+        '<span>' + escHtml(KB_CTX_SHORT[s.key] || s.title) + '</span>' + (s.count !== '' ? '<span class="inv-kb-ctx-n">' + s.count + '</span>' : '') + '</button>';
+    }).join('') + '</div><div class="inv-kb-ctx-body">' + (_kbCtxOver ? '<div class="inv-kb-lib-head"><span class="inv-panel-title">About this article</span><button type="button" class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbCtxOver" data-key="" aria-label="Close">&times;</button></div>' : '') +
       secs.map(function(s) {
         return uiFoldHtml('kb-ctx-' + s.key, '<span class="inv-panel-title">' + escHtml(s.title) + (s.count !== '' ? ' <span class="inv-panel-count">' + s.count + '</span>' : '') + '</span>', s.html, true, ' data-kb-ctx="' + s.key + '"');
       }).join('') + '</div></aside>';

@@ -44,6 +44,11 @@ notes recorded through Record issued. The next build's order is still to be disc
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
+**The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
+both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` where the devices meet, the office PC
+(Windows, on a UPS) a full SQLite copy, its backups and the print station; every device stays offline-first. Six steps, S1–S6, one
+PR each; *Ask* answers from the knowledge base through Claude on the server (S5). Not built; KB2-2 onward builds on it.
+
 **The knowledge base's second edition is specified — read `docs/KNOWLEDGE_BASE_2.md`** (owner, 14–15 Oct 2026: *"lots of blocks of
 texts … weak visual hierarchy"*; four directions drawn, then ruled). Three ways to read (Quick reference with *At a glance*, Reader set as
 a manual with no tick boxes, Guided for training), the desk on the desktop (the Library left, the article in the middle, its context

@@ -45,11 +45,14 @@ roster with skills, personal details, tenure, reliability, consistency and a mot
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
-both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` where the devices meet, the office PC
-(Windows, on a UPS, signed in) a full SQLite copy, its backups and the print station; every device stays offline-first. Six steps,
-S0–S5, one PR each, as ruled by the owner the same day: the app moves to `app.somaelectro.co.in` first (S0); sync is record by record
-from S1; private records never leave the device; *Ask* answers from the knowledge base through Claude on the server (S4); an Android
-app installed directly, with notifications and sync in the background (S5). Not built; KB2-2 onward builds on it.
+both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
+the office PC (Windows, on a UPS, signed in) a copy of all of it, its backups and the print station; every device stays offline-first.
+Six steps, S0–S5, one PR each: the app moves to `app.somaelectro.co.in` first, publishing the app's files only (S0, the book and each
+device's registration handed over); sync is record by record from S1, merged on the server by the same `merge.js` with compare-and-set
+writes; **everything goes to the server, the sensitive sealed** (encrypted on the owner's devices, the key wrapped by the owner's PIN;
+the review's answers, 15 Oct 2026); *Ask* answers from the published articles through Claude on the server (S4); an APK (S5), its
+shell chosen once the phone the web app will not open on is diagnosed. The free plan first, reported on after a week. Not built;
+KB2-2 onward builds on it.
 
 **The knowledge base's second edition is specified — read `docs/KNOWLEDGE_BASE_2.md`** (owner, 14–15 Oct 2026: *"lots of blocks of
 texts … weak visual hierarchy"*; four directions drawn, then ruled). Three ways to read (Quick reference with *At a glance*, Reader set as
@@ -239,7 +242,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,915 tests, both layouts
+pnpm exec playwright test          # 1,923 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2082,6 +2085,18 @@ a line above it (VAT A1, VAT A2, Barrel and the shop's spellings, `prodLineOfTok
 one part's figures is one figure); the total after "=" checked and said when it disagrees; a power cut among the slots; a second date
 line. Each run is a plated entry on its line and slot (before 8:30 or from 5 PM overtime), basis relay, like the supervisor's block.
 P189.
+
+### The barrel list by batch
+Owner, 15 Oct 2026: *"our parser cannot read this message"*, of the supervisor's barrel list as written from October (P220). Every list
+carrying UNLOAD had been taken for the April log (loads counted "×4" in barrels) and listed, not read. A list with an unload time beside a
+figure, or dashed blocks, is now read batch by batch (`parseBarrelBatches`, prodparse.js): a block between dashed lines a batch, its unload
+time its end (`to`), written before or after its figures, on its line or the line under ("UNLOAD TIMING" / "4:00 PM"), spelt UNOLD too, and
+closing every batch above it in the block that has none; the date between dashes ("----13/10/26/----"); two clients on one line two
+batches ("8257-60 KG PARAKH I BOLLT 50 KG", split after a figure followed by a name or a "+"); a client with an unload time and no figure
+a batch with none (amber); "PAWAN AUTO 1 BERRAL+ PARAKH 1 BERRAL" a batch each, counted in barrels and asked; LOADING TIME and what follows
+it listed, never counted (it is counted when the next list unloads it); "----and----" the end; a power cut and its return. A list sent the
+next morning reads its times with no help from when it was sent. The April log, with no figure beside an unload and no dashed blocks, is
+still only listed. On the owner's lists of 12, 13 and 15 Oct: 20 batches and one cut.
 
 ### A day's plating, whole
 Owner, 9 Oct 2026, on Production's tile: *"Plated, last recorded day: 7,630 NOS + 150 kg … 0.68 t known, 14% of the pieces weighed … is
@@ -3958,6 +3973,21 @@ now**, and one read differently is listed with both readings; *Use the new readi
 the new entries at the message's own time (`reread` on the entries and the paste). A figure voided by hand stays voided, a line
 the new reading cannot place keeps its entries, and entries typed by hand are never touched. A use and a charge compare alike.
 
+### Stock messages of October 2026
+Owner, 15 Oct 2026 (*"Same for stock messages like these"*; P220):
+- **A line opening on two figures is named by the first**: "106 70 KG USE V A 1 30 KG +V A 2 20 KG= 50 KG 70-50=20 KG" is 106 at 70,
+  30 into VAT A1 and 20 into VAT A2, 20 left. **A name that is the start of one line's name is that line** (`stockFindByLead`: "106" is
+  106 Salt), said amber and learnt as a spelling on save.
+- **A "+" before a bath or a time of day joins a use's parts**, and **"= n" after the parts is their total**, never the balance.
+- **A time of day before USE is the use's**, not the name's: "BRIGHTNER NIGHT USE 2 LTR +MORNING USE 2 LTR +DAY USE 3+2=TOTAL 9 LTR USE
+  83-9=74" is 9 used, once ("= TOTAL" is "="; an opening less a use already stated does not add it again).
+- **"17-3-14" is "17 − 3 = 14"** where the first minus leaves the last figure and nothing follows, said amber (`typo`).
+- **A delivery** ("14/10/26/ <supplier> TO SOMA HCL 600 LTR / NITRIC ACID 30 LTR", `stockParseDelivery`, `STOCK_DELIVERY_RE`): a stock message
+  to the paste box (`relayKind`), every figure received on its day from the words before "TO SOMA" (`supplier` on the entry); a figure with
+  no name takes the first of two words before TO SOMA ("HCL <supplier> TO SOMA / 660 LTR"), else is asked. Its lines set no line's number.
+- **One delivery told twice is counted once**: a received figure the same as one on record for the line within four days (the delivery The stock message's opening was before that delivery: on its day or after it, the opening is the shelf with it in (22 + 30 = 52), so the evening's count and the delivery do not read against each other.
+  message, then the stock message's "ADD 30+22") is said (`received-twice`) and not added again; a message read again ignores its own.
+
 ### Stock by line
 PP3 of `docs/PLANT_PICTURE.md` (owner, 9 Oct 2026: *"Exactly"*, to the app reading the bath a stock message names; P192).
 - **The reader** (`parseStockLine`): a use is read bath by bath. A bath named stands for the figures after it until another is
@@ -4192,6 +4222,19 @@ or night block has its own **Needed** (`need` on its row), which `blockNorm` rea
 - **"Night hold is night shift"** (owner, 30 Sep 2026) on an in-time roll as on an out-time one: a night heading with one time
   keeps the other end, starts its block at its own time, and is never taken for a mislabelled morning (*"night hold 8 pm"* ahead
   of the 8:30 shift read as 8 AM).
+
+**Where an overtime block stood** (owner, 15 Oct 2026: *"it misreads area assignment in overtime or if 2 areas have + sign between
+them"*; P221):
+- **A block headed by a time alone** ("----8:00 PM---- / one name / EXTRA 9 HOURS") ran where its crew stood that day (`relayPlan`, the day's
+  marks), said; it had been booked to no line and read Not checkable.
+- **The gate keeper's standing 7 PM is never the block's**: the gate and office hands are left out of a block's crew while anybody else is
+  under the tag (three hands out at 6 PM and the gate keeper at 7 PM over "EXTRA 3 HOURS", 13 Oct 2026, had made the gate keeper the whole crew, to 7 PM).
+- **Two lines joined by + or &** ("VAT 1+2", "V A 1&2", "VAT A1 + VAT A2") are both, and "VAT 2" is VAT A2 (it read VAT A1).
+- **A heading that only names its lines learns from the same correction on two days** (`relayHeadIsPlain`, `relayLessonApplies`, the
+  lesson's `days`): outside the 8:30 shift, one day's correction under "VAT A1" is that day's crew moving. One correction of 9 Oct (an
+  evening "VAT A1" to A1 + A2 + pickling) had been read into every evening "VAT A1"; the Paste message view lists such a lesson as *used
+  once corrected the same way on another day*.
+- **A roll's date with spaces** ("Sunday Duty 11/ 10/ 26/ IN TIME") is the date; it was read as the day sent.
 
 **The reader learns from corrections** (owner: *"The parser should learn from feedback … by reading if the data was changed
 after the paste or save"*). A row the roll makes remembers the heading it came from and what was read (`srcHead`,

@@ -44,6 +44,13 @@ notes recorded through Record issued. The next build's order is still to be disc
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
+**The knowledge base's second edition is specified — read `docs/KNOWLEDGE_BASE_2.md`** (owner, 14–15 Oct 2026: *"lots of blocks of
+texts … weak visual hierarchy"*; four directions drawn, then ruled). Three ways to read (Quick reference with *At a glance*, Reader set as
+a manual with no tick boxes, Guided for training), the desk on the desktop (the Library left, the article in the middle, its context
+right: the plant now, links, feeds, outputs, notes public and the owner's private), and **tracking** after SproutLab's CareTickets: a
+fault, a process, a client requirement, checked from Mine and closed by what the book records. Four releases, one PR each: KB2-1 the
+look, KB2-2 faults, KB2-3 processes, KB2-4 requirements. Not built yet.
+
 **The knowledge base is built — `docs/KNOWLEDGE_BASE.md`** (owner, 2–5 Oct 2026: *"a training ground, a troubleshooting area, a
 record keeper, a tool used to make decisions"*). The chatbot is next and answers from it. See *The knowledge base* below.
 

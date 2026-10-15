@@ -9,6 +9,8 @@ a group in Office's row and the desktop's sidebar a rail of the workspaces alone
 the guides for the screen on show. It was Insights' fourth view because a group of its own made the sidebar taller than a
 1024 × 768 screen.
 
+**The second edition is specified in `docs/KNOWLEDGE_BASE_2.md`** (15 Oct 2026): three ways to read, the desk, notes and tracking.
+
 ## §0 What is built
 
 **K1–K4 are built (5 Oct 2026, one PR):** the store and page, writing and approval, versions, retire, roles, photos on the device,

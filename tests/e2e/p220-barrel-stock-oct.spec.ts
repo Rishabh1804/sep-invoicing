@@ -185,9 +185,19 @@ ${d.dmy}/
     }, stock);
     expect(after[0]).toMatchObject({ item: 'SI1', via: 'chosen', kinds: ['count:70', 'used:30', 'used:20', 'count:20'] });
     expect(after[0].codes).toContain('amber:readas');
-    expect(after[1].kinds).toEqual(['count:22', 'used:6', 'count:46']);
+    // The opening was before the delivery on record: the shelf with it in is 22 + 30 = 52, so the counts do not argue.
+    expect(after[1].kinds).toEqual(['count:52', 'used:6', 'count:46']);
     expect(after[1].codes).toContain('amber:received-twice');
     expect(after[2].kinds).toEqual(['used:200', 'count:400']);
     expect(after[2].codes).toContain('amber:received-twice');
+    const checks = await page.evaluate((t) => {
+      const ev = (0, eval);
+      // Nitric stood at 34 L before the delivery (the owner's book, 13 Oct): 34 + 30 = 64, counted 52 the same evening.
+      ev('S').stock.entries.push({ id: 'SE0', itemId: 'SI3', kind: 'count', qty: 34, date: ev('isoAddDays')(ev('localDateStr')(), -3), at: 1, by: 'Owner' });
+      const p = ev('parseStockMessage')(t); p.text = t;
+      ev('stockCommitPaste')(p, ev('resolveStockParse')(p, {}), { by: 'Owner', sentBy: 'Supervisor' });
+      return ['SI2', 'SI3'].map((id) => Object.values(ev('stockEntryChecks')(id)).flat().map((c: any) => c.k));
+    }, stock);
+    expect(checks).toEqual([[], []]);   // nothing to check: no count against the level, no delivery missing
   });
 });

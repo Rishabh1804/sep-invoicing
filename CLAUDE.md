@@ -3985,7 +3985,7 @@ Owner, 15 Oct 2026 (*"Same for stock messages like these"*; P220):
 - **A delivery** ("14/10/26/ <supplier> TO SOMA HCL 600 LTR / NITRIC ACID 30 LTR", `stockParseDelivery`, `STOCK_DELIVERY_RE`): a stock message
   to the paste box (`relayKind`), every figure received on its day from the words before "TO SOMA" (`supplier` on the entry); a figure with
   no name takes the first of two words before TO SOMA ("HCL <supplier> TO SOMA / 660 LTR"), else is asked. Its lines set no line's number.
-- **One delivery told twice is counted once**: a received figure the same as one on record for the line within four days (the delivery
+- **One delivery told twice is counted once**: a received figure the same as one on record for the line within four days (the delivery The stock message's opening was before that delivery: on its day or after it, the opening is the shelf with it in (22 + 30 = 52), so the evening's count and the delivery do not read against each other.
   message, then the stock message's "ADD 30+22") is said (`received-twice`) and not added again; a message read again ignores its own.
 
 ### Stock by line

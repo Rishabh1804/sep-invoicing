@@ -699,6 +699,10 @@ function resolveStockParse(parsed, choices) {
       var twinIn = A != null && r.item ? stockData().entries.find(function(e) {
         return e.itemId === r.item.id && e.kind === 'received' && !e.voided && (!parsed.pasteId || e.pasteId !== parsed.pasteId) && stockRound(e.qty) === stockRound(A) && Math.abs(isoDaysBetween(e.date, addDate)) <= 4;
       }) : null;
+      // The delivery on record already stands in the level, and the opening was before it: counted on the delivery's day or
+      // after it, the opening is the shelf with that delivery in (22 + 30 = 52), or the two counts read against each other.
+      var opEntry = twinIn ? r.entries.find(function(e) { return e.note === 'opening'; }) : null;
+      if (opEntry && twinIn.date <= opEntry.date) { opEntry.qty = stockRound(O + A); opEntry.note = 'opening, with the delivery on record'; }
       if (twinIn) r.issues.push({ level: 'amber', code: 'received-twice', text: 'Received ' + stockFmtQty(A) + ' is already on record for ' + stockShortDate(twinIn.date) + (twinIn.supplier ? ' from ' + twinIn.supplier : '') + ': the same delivery, not added again.' });
       else if (A != null) r.entries.push(parsed.supplier ? { kind: 'received', qty: A, date: addDate, seq: 1, supplier: parsed.supplier } : { kind: 'received', qty: A, date: addDate, seq: 1 });
       if (U != null) {

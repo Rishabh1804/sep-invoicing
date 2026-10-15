@@ -46,8 +46,10 @@ ID cards with a QR and a scanner; one office QR for checking in from a worker's 
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` where the devices meet, the office PC
-(Windows, on a UPS) a full SQLite copy, its backups and the print station; every device stays offline-first. Six steps, S1–S6, one
-PR each; *Ask* answers from the knowledge base through Claude on the server (S5). Not built; KB2-2 onward builds on it.
+(Windows, on a UPS, signed in) a full SQLite copy, its backups and the print station; every device stays offline-first. Six steps,
+S0–S5, one PR each, as ruled by the owner the same day: the app moves to `app.somaelectro.co.in` first (S0); sync is record by record
+from S1; private records never leave the device; *Ask* answers from the knowledge base through Claude on the server (S4); an Android
+app installed directly, with notifications and sync in the background (S5). Not built; KB2-2 onward builds on it.
 
 **The knowledge base's second edition is specified — read `docs/KNOWLEDGE_BASE_2.md`** (owner, 14–15 Oct 2026: *"lots of blocks of
 texts … weak visual hierarchy"*; four directions drawn, then ruled). Three ways to read (Quick reference with *At a glance*, Reader set as
@@ -925,7 +927,7 @@ repository:
   merge), typed by the owner: nothing about the shop is in the build. A toast raised over the preview shows above it
   (`--z-over-print`; it had sat under the print view); a dialog left open under a preview (a credit note's form) stays under it.
 - ⚠ **Not tried on the printer**: the specs fake GitHub and stub `window.print`. The owner's first job from a phone to the station is
-  the check that counts, and whether a minimised station window still prints is not known.
+  the check that counts. A minimised station window on a locked, signed-in PC still prints (the owner, 15 Oct 2026).
 
 ### A tax invoice that runs past one page
 The printed invoice is three copies, each `page-break-after: always`. An invoice with enough line

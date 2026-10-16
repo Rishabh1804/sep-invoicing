@@ -282,9 +282,15 @@ export async function census(page: Page): Promise<Census> {
       const fill = !tr(cs.backgroundColor) && cs.backgroundColor !== bgOf(el.parentElement);
       const sides = ['Top', 'Right', 'Bottom', 'Left'].map(s => px((cs as any)['border' + s + 'Width']) > 0 && !tr((cs as any)['border' + s + 'Color']) && (cs as any)['border' + s + 'Style'] !== 'none' ? px((cs as any)['border' + s + 'Width']) : 0);
       const shadow = cs.boxShadow && cs.boxShadow !== 'none';
+      // A well (UI pass 3, docs/UI_PASS_3.md §3g) presses in: every one of its shadows is inset. A card lifts: one shadow or more
+      // falls outside it. The shadows split on the commas outside a colour's own brackets.
+      const parts: string[] = []; let depth = 0, cur = '';
+      for (const ch of shadow ? cs.boxShadow : '') { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && !depth) { parts.push(cur); cur = ''; } else cur += ch; }
+      if (cur.trim()) parts.push(cur);
+      const well = shadow && parts.length > 0 && parts.every(s => /\binset\b/.test(s));
       if (!(grad || fill || sides.some(Boolean) || shadow)) continue;
       const edge = sides.every(Boolean) ? 'all' + sides[0] : sides.map((v, i) => v ? 'TRBL'[i] + v : '').join('') || 'none';
-      looks.add([grad ? 'grad' : fill ? 'fill' : 'nofill', 'edge:' + edge, 'r' + px(cs.borderTopLeftRadius), shadow ? 'lift' : 'flat', 'p' + px(cs.paddingTop) + '/' + px(cs.paddingLeft)].join(' '));
+      looks.add([grad ? 'grad' : fill ? 'fill' : 'nofill', 'edge:' + edge, 'r' + px(cs.borderTopLeftRadius), well ? 'well' : shadow ? 'lift' : 'flat', 'p' + px(cs.paddingTop) + '/' + px(cs.paddingLeft)].join(' '));
     }
     const comp = (el: Element) => {
       const c = Array.from(el.classList).filter(x => x.startsWith('inv-'));
@@ -361,7 +367,7 @@ export const LOOKS: string[] = [
   'nofill edge:all1 r6 flat p0/0',
   'nofill edge:all1 r6 flat p0/10',
   'nofill edge:all1 r6 lift p10/12',
-  'nofill edge:none r0 lift p0/0'
+  'nofill edge:none r0 well p0/0'
 ];
 
 /* The screens assembled to one look, by the place walkMap names them; each joins in the step that assembles it (TM1: none). */

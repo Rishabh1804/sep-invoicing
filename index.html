@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="fe8571f6">
+<meta name="app-build" content="9fdd81d6">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -27022,7 +27022,7 @@ var STOCK_SPELLINGS = {
   SOLLT: 'SALT', SOLT: 'SALT', SALLT: 'SALT', SOLTT: 'SALT',
   ZINK: 'ZINC', CYNEDE: 'CYANIDE', CYNIDE: 'CYANIDE', CYANID: 'CYANIDE', CYNED: 'CYANIDE',
   BRIGHTNER: 'BRIGHTENER', BRIGHTER: 'BRIGHTENER', BRITENER: 'BRIGHTENER', BRIGHTNR: 'BRIGHTENER',
-  CAMICAL: 'CHEMICAL', BERRAL: 'BARREL'
+  CAMICAL: 'CHEMICAL', BERRAL: 'BARREL', ACD: 'ACID', ACIED: 'ACID', ASID: 'ACID'
 };
 var STOCK_UNITS = { KG: 'kg', KGS: 'kg', LTR: 'L', LTRS: 'L', LT: 'L', L: 'L', LITRE: 'L', LITRES: 'L',
   LITER: 'L', NOS: 'nos', NO: 'nos', PCS: 'nos', PC: 'nos' };
@@ -27189,6 +27189,14 @@ function parseStockLine(body) {
       r.issues.push({ level: 'amber', code: 'typo', text: 'Read ' + a3.v + '-' + b3.v + '-' + c3.v + ' as ' + a3.v + ' − ' + b3.v + ' = ' + c3.v + '.' });
     }
   }
+  // "USE NIGHT 2 KG DAY 2 KG =4", "USE MORNING 2 LTR DAY 3LTR =5" (16 Oct 2026): inside a use, a time of day between two
+  // figures starts the next part, as a "+" would. Read without it, the last part alone was the use and its total a footing error.
+  var inUse = false;
+  sig = sig.map(function(tk, k) {
+    if (tk.t === 'kw') inUse = tk.v === 'use';
+    if (inUse && tk.t === 'text' && STOCK_TIME_OF_DAY.test(tk.v) && sig[k - 1] && sig[k - 1].t === 'num' && sig[k + 1] && sig[k + 1].t === 'num') return { t: 'op', v: '+' };
+    return tk;
+  });
   var claimed = [];
 
   // Chains: n (op n)+, where "=" states the running total. In a use clause a sum is what was used, and its total the use
@@ -27356,6 +27364,13 @@ function parseStockLine(body) {
     var sumParts = stockRound(useParts.reduce(function(t, x) { return t + x.qty; }, 0));
     if (sumParts === stockRound(r.U)) r.useParts = useParts;
     else r.issues.push({ level: 'amber', code: 'baths', text: 'The baths’ figures add to ' + sumParts + '; the use is ' + r.U + '. Saved as one use.' });
+  }
+  // "ADD 5 KG USE … =4) 5-4=1": the figure the use is taken from is the shelf with the delivery in, not an opening beside
+  // it. Where the opening less the use is what is left and the delivery added again is not, the opening was before it.
+  if (r.A != null && r.O != null && r.U != null && r.C != null && r.O >= r.A
+    && stockRound(r.O - r.U) === stockRound(r.C) && stockRound(r.O + r.A - r.U) !== stockRound(r.C)) {
+    r.issues.push({ level: 'amber', code: 'withadd', text: stockFmtQty(r.O) + ' − ' + stockFmtQty(r.U) + ' = ' + stockFmtQty(r.C) + ' is taken from the shelf with the ' + stockFmtQty(r.A) + ' added in: opening read as ' + stockFmtQty(stockRound(r.O - r.A)) + '.' });
+    r.O = stockRound(r.O - r.A);
   }
   if (r.C == null && r.A == null && r.U == null && r.O == null) {
     r.issues.push({ level: 'red', code: 'nofigure', text: 'No quantity found on this line' });
@@ -37323,6 +37338,12 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         ln.role = 'head';
         ln.read = st.mode === 'out' ? 'Out at ' + relayClockLabel(st.slot.end) + (kindH.start != null && kindH.end != null && kindH.start !== kindH.end ? ' (from ' + relayClockLabel(kindH.start) + ')' : '')
           : 'Slot from ' + relayClockLabel(kindH.start);
+        // The slot as this reader settled it, for Production's reading of the work under it (prodFromRoll): a heading that
+        // writes both ends ("NIGHT 8 PM TO 6 AM") is the night's whole span, never only the hour the crew went home.
+        if (st.mode === 'out') {
+          ln.slotTo = st.slot.end;
+          ln.slotFrom = st.slot.rangeStart != null ? st.slot.rangeStart : (kindH.start != null && kindH.end != null && kindH.start !== kindH.end ? kindH.start : null);
+        } else { ln.slotFrom = st.slot.start; ln.slotTo = st.slot.end != null ? st.slot.end : null; }
         if (kindH.areas && kindH.areas.length) ln.read += ', ' + kindH.areas.map(relayAreaName).join(' + ');
         return;
       }
@@ -39843,6 +39864,8 @@ function prodReadItem(line, idx) {
     partText = rest.join(' ').replace(/^[\s\-_,]+/, '');
   }
   var g = lineGauge(partText);
+  // "MEHTA CLAMP 2700 NOS 25×6": a gauge written after the count is the part's, as one written before it is.
+  if (!g && toks.length) g = lineGauge(s.slice(toks[0].end));
   out.gauge = g;
   out.part = partText.trim();
   return out;
@@ -40379,6 +40402,10 @@ function prodFromRoll(msg, ctx) {
         from = null; to = null;
         // An out-time roll's head is when the slot ended; an in-time roll's, when it began.
         if (tt.length) { if (/^Out at/.test(ln.read)) to = tt[tt.length - 1].min; else { from = tt[0].min; to = tt.length > 1 ? tt[1].min : null; } }
+        // The roll's own reading of the slot wins: a night heading names both its ends (8 PM to 6 AM), and a bare NIGHT is
+        // the night hold. Read here from the out time alone, the night's work ran to 6 AM from nowhere, dated as a morning.
+        if (ln.slotFrom != null) from = ln.slotFrom;
+        if (ln.slotTo != null) to = ln.slotTo;
         hint = null; inProd = false; group = null;
         return;
       }

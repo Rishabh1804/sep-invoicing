@@ -33,6 +33,13 @@ Thumbs.db
 # P228's record of how paper prints (computed styles of the printed documents on the sweep's made-up book, no business
 # data): the check that UI pass 3 never reaches paper.
 !tests/fixtures/paper-looks.json
+# The feeds Worker's lockfile: CI's npm ci and Cloudflare's build install from it,
+# and without this exception the *.json rule above drops it and both refuse to install.
+!server/feeds/package-lock.json
+# The feeds Worker run locally (wrangler dev): its state, and the local variables
+# file, which would hold the owner's contact.
+.wrangler/
+.dev.vars*
 
 # Playwright e2e (arming directive 2026-04-24)
 node_modules/

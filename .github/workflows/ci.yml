@@ -11,7 +11,7 @@ concurrency:
   # one should keep its own recorded result.
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
-# Neither job does anything but read the tree.
+# No job does anything but read the tree.
 permissions:
   contents: read
 
@@ -77,3 +77,28 @@ jobs:
           path: test-results/
           retention-days: 7
           if-no-files-found: ignore
+
+  feeds:
+    name: Feeds Worker tests
+    runs-on: ubuntu-latest
+    # The Worker's own suite (server/feeds, docs/UI_PASS_3.md §9a) runs inside the
+    # Workers runtime with GDELT and MET Norway faked, in about ten seconds once
+    # installed. A hang backstop, not a budget.
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server/feeds
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/feeds/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run the Worker's tests
+        run: npx vitest run

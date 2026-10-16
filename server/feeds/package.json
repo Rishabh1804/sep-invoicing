@@ -1,0 +1,17 @@
+{
+  "name": "sep-feeds",
+  "version": "1.0.0",
+  "private": true,
+  "description": "SEP Invoicing's feeds Worker: Tata Motors headlines (the GDELT Project) and the plant's weather (MET Norway) for Home.",
+  "type": "module",
+  "scripts": {
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-pool-workers": "0.12.21",
+    "vitest": "3.2.4",
+    "wrangler": "4.72.0"
+  }
+}

@@ -1,0 +1,26 @@
+# sep-feeds: the news and weather for SEP Invoicing's Home (docs/UI_PASS_3.md §9a).
+# No database, no binding, no secret: what it fetches is kept in Cloudflare's cache.
+# No routes: the custom domain (feeds.somaelectro.co.in) is added in the dashboard.
+name = "sep-feeds"
+main = "src/index.js"
+compatibility_date = "2026-03-01"
+
+# A deploy (each merge, through Workers Builds) writes the variables below and, without this,
+# deletes every variable set in the dashboard. CONTACT is the owner's, set in the dashboard, so
+# it must survive the deploy.
+keep_vars = true
+
+[vars]
+# The app's two homes. An Origin not listed gets no CORS header, so a browser on another site
+# cannot read the answers. Changed here, never in the dashboard: a deploy puts this value back.
+ALLOWED_ORIGINS = "https://rishabh1804.github.io,https://app.somaelectro.co.in"
+# CONTACT is deliberately NOT listed here. MET Norway's terms want the User-Agent to name a
+# contact (the shop's website or a mail address), and that is the owner's to type in the
+# dashboard, never the repo's. Listed here, even empty, the deploy would overwrite the owner's
+# value with this one on every merge (keep_vars keeps only what the file does not name). Unset,
+# /weather answers 503 {error: 'CONTACT is not set on the Worker'} and /health says contact: false.
+
+# Workers Logs: when GDELT or MET Norway fails, the Worker's one line saying which and why is
+# kept in the dashboard (the Worker's Logs tab) for a few days.
+[observability]
+enabled = true

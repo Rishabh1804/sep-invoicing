@@ -30,6 +30,9 @@ Thumbs.db
 # *.json rule drops it, and sw.js lists it in the atomic install set, so a
 # missing template would stop the service worker installing at all.
 !widgets/todo-template.json
+# P228's record of how paper prints (computed styles of the printed documents on the sweep's made-up book, no business
+# data): the check that UI pass 3 never reaches paper.
+!tests/fixtures/paper-looks.json
 
 # Playwright e2e (arming directive 2026-04-24)
 node_modules/

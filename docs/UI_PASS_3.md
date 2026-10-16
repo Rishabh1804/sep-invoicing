@@ -220,7 +220,7 @@ phone) and `--fs-48: 3rem` (the clock on the desktop). A figure is Geist Mono, t
 | Button `.inv-btn-primary` | accent fill | accent gradient (the accent to one step darker, 180°), `--lift-2`, `--r-ctl`; the text `--on-accent` |
 | Button `.inv-btn-secondary`, `-ghost` | as now | `--r-ctl`; secondary `--c-surface` + `--lift-1`; ghost unchanged |
 | Dialog, sheet, palette (§14) | as now | `--c-surface-3` in dark, `--r-card` (the sheet's top corners), `--shadow-dialog` |
-| Toast `.inv-toast` (:1918) | as now | a pill (`--r-full`), built in U1; its fill and its kind's icon arrive together in §14 (U7), so the toast keeps its inverted, high-contrast fill until its icon can carry the kind |
+| Toast `.inv-toast` (:1918) | as now | a pill on one line (`--r-toast`, half a line's height), built in U1: as wide as its words up to the room, and a toast that wraps keeps every word inside its fill (U1 first drew it `--r-full`, and a wrapped toast put its first and last words on the page, light on light; P228); its fill and its kind's icon arrive together in §14 (U7), so the toast keeps its inverted, high-contrast fill until its icon can carry the kind |
 | The phone bar, the rail | as now | the bar a floating card (`--r-card`, `--lift-2`); the door on screen keeps its `--accent-soft` pill (as built: the accent is for touch, and what is selected is the accent's job, DR-2) |
 
 - **A well's text keeps its contrast**: every tier, `--text-3` included, reads at 4.5:1 or more in a well on its card and on the

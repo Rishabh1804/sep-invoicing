@@ -186,8 +186,8 @@ test.describe('P217: remote print and the turnaround’s holidays', () => {
     await page.locator('#invPrintRemote').click();
     const toast = page.locator('.inv-toast');
     await expect(toast).toContainText('GitHub sync');
-    // Shown over the preview it was asked from.
-    expect(await toast.evaluate(t => document.elementFromPoint(t.getBoundingClientRect().x + 5, t.getBoundingClientRect().y + 5) === t || t.contains(document.elementFromPoint(t.getBoundingClientRect().x + 5, t.getBoundingClientRect().y + 5)))).toBe(true);
+    // Shown over the preview it was asked from: what is on top at the toast's middle (a corner is outside its rounded fill).
+    expect(await toast.evaluate(t => { const r = t.getBoundingClientRect(), e = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2); return e === t || t.contains(e); })).toBe(true);
   });
 
   test('Turnaround: Sundays, the paid (national) holidays and the days the plant is shut set on the turnaround are not working days', async ({ page }) => {

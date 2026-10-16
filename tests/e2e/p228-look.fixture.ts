@@ -133,6 +133,33 @@ export function lookSuite(layout: 'phone' | 'desktop') {
       }
     });
 
+    test('a toast is a pill on one line, as wide as its words up to the room, and when it wraps every word stays inside its fill', async ({ page }) => {
+      await loadAppWithState(page, sweepState());
+      const read = (msg: string) => page.evaluate(m => {
+        (window as any).showToast(m, 'error');
+        const t = document.querySelector('.inv-toast') as HTMLElement;
+        const r = t.getBoundingClientRect(), rad = parseFloat(getComputedStyle(t).borderTopLeftRadius);
+        const range = document.createRange(); range.selectNodeContents(t);
+        const lines = Array.from(range.getClientRects()).filter(q => q.width > 0);
+        // A point is in the fill when it is in the box and, in a corner's square, within the corner's circle.
+        const inFill = (x: number, y: number) => {
+          if (x < r.left - 0.5 || x > r.right + 0.5 || y < r.top - 0.5 || y > r.bottom + 0.5) return false;
+          const cx = x < r.left + rad ? r.left + rad : x > r.right - rad ? r.right - rad : x;
+          const cy = y < r.top + rad ? r.top + rad : y > r.bottom - rad ? r.bottom - rad : y;
+          return Math.hypot(x - cx, y - cy) <= rad + 0.5;
+        };
+        const out = lines.filter(q => !(inFill(q.left, q.top) && inFill(q.right, q.top) && inFill(q.left, q.bottom) && inFill(q.right, q.bottom)));
+        const room = Math.min(window.innerWidth - 24, 30 * parseFloat(getComputedStyle(document.documentElement).fontSize));
+        return { w: r.width, h: r.height, rad, lines: new Set(lines.map(q => Math.round(q.top))).size, out: out.length, room };
+      }, msg);
+      const short = await read('Saved');
+      expect(short.lines, 'a short toast is one line').toBe(1);
+      expect(short.rad, 'one line: a pill, its corners half its height').toBeGreaterThanOrEqual(short.h / 2 - 1);
+      const long = await read('This device has no GitHub sync set up, which carries the job to the office: Settings → Connections → GitHub sync.');
+      expect(long.out, 'every line of a toast that wraps is inside its fill').toBe(0);
+      if (long.lines > 1) expect(long.w, 'a toast wraps only once it is as wide as the room').toBeGreaterThan(long.room - 2);
+    });
+
     test('the six series and the scale are the validated values in both themes, and no retired token is left in the stylesheet', async ({ page }) => {
       await loadAppWithState(page, sweepState());
       const want: Record<string, [string, string]> = {

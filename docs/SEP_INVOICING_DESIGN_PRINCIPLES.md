@@ -277,7 +277,7 @@ their **own** paddings and heights — they read density aliases, so one attribu
 - Radius (UI pass 3, the same on both layouts): `--r-card 1.125rem (18)` a card (a panel, a hero, a deck card, the phone's bar, a
   dialog's corners) · `--r-tile 0.875rem (14)` a tile, a PIN box · `--r-ctl 0.75rem (12)` a field, a select, a button, a segmented
   control's track, the search, a menu · `--r-seg 0.5625rem (9)` a segmented control's pressed pill · `--r-key 1rem (16)` a keypad's
-  key · `--r-full` a chip, a badge, a dot, a switch, the toast. `--r-sm 0.25rem (4)`, `--r-md`, `--r-lg` and `--r-xl` stay for what
+  key · `--r-full` a chip, a badge, a dot, a switch · `--r-toast` (half a line's height and the padding over it) the toast: a pill on one line, a rounded box when it wraps. `--r-sm 0.25rem (4)`, `--r-md`, `--r-lg` and `--r-xl` stay for what
   they draw now (a tick box, a cell, a callout, a token, the sign-in card until U8) and are not used for a card.
 - Elevation (DR-6): **a card lifts** by `--lift-1` (two shadows, a tight one under the edge and a wide one under the card: 6–7%
   tinted in light, 32–40% black in dark) and `--lift-2` (the same, further: the one primary, a card being moved, the phone's bar);
@@ -847,7 +847,9 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   desktop only; `inv-dialog-main` scrolls under a head that stays put, holding a `section[data-group]` per group (the
   open one `data-on`; the phone stacks them all under an `inv-pagehead-title`).
 - `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
-- `inv-toast`: under the top bar, centred (clear of the action bar and the bottom bar), a pill (`--r-full`, UI pass 3), `--text-1`
+- `inv-toast`: under the top bar, centred (clear of the action bar and the bottom bar), as wide as its words up to the room
+  (`width: max-content`: placed at `left: 50%` it had wrapped at half the screen), a pill on one line whose corners stay half a
+  line's height when it wraps (`--r-toast`, UI pass 3: every word inside its fill, P228), `--text-1`
   background with `--surface` text (it inverts with the theme), `--shadow-pop`, tone shown by a leading dot (its kind's icon arrives
   with §14 of UI pass 3, U7) (`inv-toast-success|info|warning|error`; info says what another window did, *Updated from another window*).
 Replaces `inv-overlay-scrim/card/header/title/close`, `inv-more-scrim` (the duplicate scrim),

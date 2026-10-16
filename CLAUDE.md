@@ -747,6 +747,9 @@ rewritten to the new facts, never weakened.
   transparent border), its lift on `::after`, so every segment stays a 44px target.
 - **The one primary** runs from the accent to `--accent-deep` and lifts further. A ghost and a link cast nothing.
 - **New components**: the switch (`inv-switch`, design §6.31) and the blank state (`uiBlankHtml`, `inv-blank`, §6.32).
+- **The toast is a pill on one line** (`--r-toast`, half a line's height) and as wide as its words up to the room: drawn `--r-full`
+  at first, a toast that wrapped (it wrapped at half the phone, being placed at `left: 50%`) put its first and last words outside
+  its dark fill, light on the light page. P228 checks every line of a wrapped toast sits inside its fill.
 - **The closed list of box looks** (P197's `LOOKS`) was regenerated for the pass: 35 looks. `LOOKS_DUMP=1` writes each layout's
   census with what wears each look.
 - **Paper reads no palette.** P228 records every printed document's computed styles as it was before the pass and fails on any

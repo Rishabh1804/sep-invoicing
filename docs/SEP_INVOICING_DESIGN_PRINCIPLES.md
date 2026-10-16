@@ -358,7 +358,7 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 (`icons/icon-teal.svg`, `icon-zinc.svg`, `icon-terracotta.svg`), with PNG exports at 192 and 512;
 `icon-192.png` / `icon-512.png` at the root are the Teal exports the manifest names.
 
-- **In the app** — the browser tab icon, the Apple touch icon and the rail's brand mark — the icon follows
+- **In the app** — the browser tab icon, the Apple touch icon and the rail's brand mark (`markSvg`, §5.6) — the icon follows
   the device's palette at runtime.
 - ⚠ **The installed home-screen / Start-menu icon cannot follow it.** It is read from `manifest.json`, one
   file served to every device, and the browser fixes it at install and refreshes it only from that file. So
@@ -504,10 +504,25 @@ Hover `--surface-2` (pointer only) · pressed `--surface-3` · selected `--accen
 and `cursor: not-allowed` · focus `--focus-ring`.
 
 ### 5.6 Icons
-Inline SVG, 24 viewBox, `stroke: currentColor`, `stroke-width: 1.8` (2 at 16px), round caps and joins,
-no fill. 20px on the phone, 16px (compact) or 18px on the desktop. Icon-only buttons carry `aria-label`.
-The icon set is the one in `body.html`/`tabs.js` plus the additions in the mock-ups (items, pay, search,
-chevrons, settings sliders).
+**Icons v3** (UI pass 3, U1; `docs/UI_PASS_3.md` §4; the canvas's *Icon set v3*: *"24 grid, 1.75 stroke, round ends, 2 px clear
+of the edge. The ink line carries the shape; one brass tint fills its main part"*).
+- **One set**, `ICONS` in state.js, drawn by `iconSvg(name, cls)` and never by hand in a module: a 24 viewBox, `stroke: currentColor`
+  at 1.75, round caps and joins, `aria-hidden`, every glyph inside 2–22. Common shapes are Lucide's (lucide-static 0.460.0); the
+  plant's own things are drawn to match (`vat`, `barrel`, `pickling`, `rack`, `zinc`, `chemical`, `part`, `overtime`, `truck`,
+  `cheque`). A name kept from before keeps its call sites; aliases are one shape (`power` = `zap`, `upkeep` = `wrench`, `stats` =
+  `chart`, `know` = `info`, `warning` = `alert`, `receipt` = `invoice`).
+- **Two inks**: the line is the text's colour; a thing's main part carries one tint (a path stored `d:` in `ICONS`, drawn
+  `inv-ico-tint` under the lines, fill only): the accent at a fifth. In a toned place (a coded card and its boxes, a deck card, a
+  notice) the tint is the tone; in a status badge and on the accent (a primary button, the print bar) it is the ink's own colour,
+  so a tint never says a status by itself. A door at rest draws its line alone; the workspace on screen its tint too.
+- **The status icons** (§3.3, DR-8): ok `done`, warning `alert`, danger `cancel`, info `info`.
+- **The mark** (the nut): one builder, `markSvg(size, tone)`: `'tile'` (the accent's tile with the nut's line, the rail and the
+  lock) and `'brass'` (the nut cast in brass for the sign-in screen and the icon, U8); its gradient takes a new id each call.
+- **`body.html` holds slots** (`<span data-icon="name">`), filled from the set by `iconFill` at boot, before `inv-booted`.
+- Sizes: 20px on the phone, 16px (compact) or 18px on the desktop; a step's tick is `inv-ico-bold`. Icon-only buttons carry
+  `aria-label`. Drawings that are not icons (a person's bars and stars, the plant strip, the Planner's charts, a QR) are not in the set.
+- **The licences go with the build**: Lucide's ISC and Feather's MIT notices, in full, above `ICONS` and in Settings → Data & device →
+  Backup, storage & build → **Licences**. P228 (`p228-icons.spec.ts`) holds all of it.
 
 ---
 

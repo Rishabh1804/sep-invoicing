@@ -44,14 +44,16 @@ notes recorded through Record issued. The next build's order is still to be disc
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
-**UI pass 3 is specified — read `docs/UI_PASS_3.md`** (owner, 15–16 Oct 2026: *"We could really use another UI design pass"*, a
+**UI pass 3 is being built — read `docs/UI_PASS_3.md`** (owner, 15–16 Oct 2026: *"We could really use another UI design pass"*, a
 *"modern looking dashboard"*, a Home page with the time, predictions and Tata Motors' news; the design confirmed on a canvas: *"B with
 wells, 4-digit PIN, widgets should be flexible so different layouts are possible without breaking the UI"*, then *"Yes to Home, all of
 1–11, news Worker now, no Hindi"*). Cards that lift and wells for what is pressed or filled; icons v3; eight chart builders and a table
 behind every chart; widgets on boards each person arranges (Home, then Stats); Pulse folded into Home; a feeds Worker for the news
 (GDELT) and the weather (MET Norway); guided Enter by hand; People leads; the power case and the reports a picture first; a sign-in
 with a 4-digit PIN. Nine steps, U1–U9, one PR, **a stop after U2 for the owner to look**. Written to `docs/SERVER.md`: widgets read
-views shaped like the hub's typed tables, and the one change four digits force on the server plan is said (§15c).
+views shaped like the hub's typed tables, and the one change four digits force on the server plan is said (§15c). **U1 is being
+built** (16 Oct 2026): the look (*UI pass 3: the look* below), icons v3 and the data layer are built; the chart builders are next,
+then U2 and the stop.
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -123,7 +125,7 @@ Workforce management and invoicing PWA for **Soma Electro Products**, a zinc ele
 
 ## Architecture
 
-Split-file PWA. 88 modules, ~67,600 lines total.
+Split-file PWA. 89 modules, ~69,300 lines total.
 
 ```
 split/
@@ -132,7 +134,7 @@ split/
 ├── styles.css         ← All CSS with inv- prefix: tokens, shell, printed documents, the v2.0 components (1,553 lines)
 ├── body.html          ← HTML body, tabs, print view (137 lines)
 ├── data.js            ← ITEMS_MASTER + SEED_CLIENTS (27 lines)
-├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More); the icon set, `ICONS` (one 24 grid, stroke 1.75, round ends; `iconSvg(name)`, never an SVG drawn in a module) (~2,500 lines)
+├── state.js           ← IndexedDB store, verified coalesced saves, escHtml, gstRound, the dialog and pane shells, the hero card and packed grid, one look's pieces (the verdict card, the row end, the toolbar’s Filter and More), the blank state (`uiBlankHtml`); the icon set, `ICONS` (icons v3: Lucide's shapes and the plant's own on one 24 grid, stroke 1.75, round ends, a tint under the line; `iconSvg(name)`, never an SVG drawn in a module; `iconFill` fills body.html's slots; `markSvg`, the brand's one mark; the licences) (~2,800 lines)
 ├── errors.js          ← Error reports to Sentry: what went wrong and where, never the book's data; live site only (~150 lines)
 ├── changelog.js       ← The change log: every save compared record by record, with who and which device; History's Changes, a row at most 110 characters (~750 lines)
 ├── appearance.js      ← Theme / palette / density per device, theme-color, icon (~90 lines)
@@ -189,6 +191,7 @@ split/
 ├── advice.js          ← What to do: the moves under every question and app task, Add to my list, the jumps a move needs (~790 lines)
 ├── learn.js           ← Learning from answers: what the owner does with each task, suggestions to raise, switch off or lead (~230 lines)
 ├── dash.js            ← The charts People and Stock explain with: attendance by week, labour ₹/kg, payroll vs bank (Pay); supplier spend, use, prices (Stock's Spend and prices) (~230 lines)
+├── dataview.js        ← The data layer (UI pass 3 §6): views shaped like the hub's typed tables, worked out by the screens' own functions, cached once a book; `dvRows`, `dvSum`, `dvCols` (~600 lines)
 ├── production.js      ← Production store; derived index (which figure counts, usual line, matches, racks); a run's weight by every route; a day's picture; what a day and a line earned, a line's usual day and its week; a line's efficiency; in plant; rules; export (~1,820 lines)
 ├── plant.js           ← The plant register: every tank, barrel and machine, its status log, a line's capacity (as found before it was set up), sep-plant files (~450 lines)
 ├── people.js          ← Worker records: personal details, skills, ties, reliability and consistency, the motivation index, check-ins, sep-people (~460 lines)
@@ -221,7 +224,7 @@ split/
 └── init.js            ← Migrations + app bootstrap (567 lines)
 ```
 
-**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
+**Concat order defined in build.sh.** Dependencies: data → state → errors → changelog → appearance → guard → zinc → tabs → clients → items → create → settings → github-sync → devices → invoice-ops → number-audit → pipeline → exports → im → autocomplete → print → remoteprint → quality-cert → credit-note → quote → charts → staff → labour → areas → payroll → stock → cost → bills → xls → xlsx → bank → suppliers → finance → statement → payslip → todo → merge → prospects → relay → add → attsheet → attreg → stocksheet → prodparse → stats → intel → why → insights → finintel → finlinks → advice → learn → dash → dataview → production → plant → people → qr → idcard → checkin → prodview → floor → today → faces → facesheet → flow → power → powercause → report → planner → planview → kbguides → knowledge → kbread → client-perf → im-form → im-dupe → events → workspace → swipe → nav → search → seed → init.
 
 **Every module shares one global scope.** A top-level `var` or `function` in a later module silently replaces one of
 the same name in an earlier one; nothing warns. `bills.js` shipped a `STOCK_UNITS` array over `stock.js`'s unit map
@@ -554,7 +557,7 @@ where available / 10. We shall discuss this."* P210.
 |----|------|
 | HR-1 | No inline styles. CSS classes + design tokens. |
 | HR-2 | No inline onclick. data-action delegation only. |
-| HR-3 | inv- CSS prefix on every class. 776 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715; 14 Oct 2026, the QA chain: `inv-fig-info` added and `inv-dialog-body` styled, `inv-token-on` and `inv-token-add` deleted: 715; 15 Oct 2026, the knowledge base's second edition (KB2-1): 61 `inv-kb-*` for the three modes, notices, At a glance, the kind icons, the Library's shelves and cards, the desk and its context, notes: 776); P76 asserts every class the app draws is one of them or a named hook. |
+| HR-3 | inv- CSS prefix on every class. 794 classes, all of them (distinct class selectors in `split/styles.css`, comments stripped, 29 Sep 2026: the eighteen `inv-as-*` of the attendance and stock sheets added, then `inv-topbar-back` and `inv-topbar-trail`, then `inv-fig-ok/warning/danger`: 462; 30 Sep 2026, the QA sweep: `inv-pi-cancelled`, `inv-cn-cancelled`: 464; the power case's `inv-pc-sec`, `inv-pc-p`: 466; Staff → Day's `inv-board`: 467; the second QA chain added `inv-row-end-stack` and deleted `inv-row-fields`: 467; 1 Oct 2026, the printed quotation's 23 `inv-qt-*` and the report's 26 `inv-rpt-*`: 516; 2 Oct 2026, History's pane `inv-history-full`: 517; the QA chain the same day, `inv-panels-3` added, `inv-side-count-warning` deleted, the quotation's frame `inv-qt-frame`, `-head`, `-foot`, `-body`: 521; 5 Oct 2026, the knowledge base's `inv-kb-body`, `-h`, `-summary`, `-badges`, `-fig`, `-img`, `-actions`: 528; 6 Oct 2026, recounted before the planner at 554 (the steps since 5 Oct had added 26 uncounted), then the planner's 35 `inv-pl-*`: 589; 7 Oct 2026, the workers and the plant: the unit strips `inv-unit-*`, skills `inv-skill*`, the bars `inv-stat-bar*` and `inv-wstat*`, the QR `inv-qr*`, the ID cards `inv-idc*` and the office sheet `inv-ck-*`, 39 in all: 628; the same day the card's two sides, 12 `inv-idc-*` added and `-label`, `-row` deleted: 639; the statement's four `inv-soa-*` and the pay slip's eighteen `inv-ps-*`: 661; 8 Oct 2026, Today's cards: the hero `inv-hero*` (18), the deck `inv-deck*` (11), the steps `inv-step*` (6), the sparkline `inv-spark*` (8) and the meter `inv-meter*` (9), `inv-tile-viz`, `inv-masonry-on`, and the ranked bars' `-info` and `-neutral` fills: 717; the same day, HR-9's coded boxes: `inv-hero-foot` and `inv-coded`: 719; the same day, the rail and the five doors: `inv-navbar-mark` and `inv-viewtab-sep` added, `inv-navbar-add-mark`, `inv-side-item-sub`, `inv-side-count` and `inv-side-count-danger` deleted: 717; the same day, Office's group named in its row: `inv-viewtab-group` added, `inv-viewtab-sep` deleted: 717; 9 Oct 2026, a day on one bar: `inv-daystrip`, `inv-daystrip-axis`: 719; the same day, the tab map's TM1: the tokens' row `inv-tokens` and the verdict card's facts `inv-hero-fact`: 721; TM2: the Planner's Moves switch `inv-pl-moves` added, its retired goal, heads-up and chips `inv-pl-goal`, `inv-pl-hud`, `inv-pl-chips` deleted: 719; 10 Oct 2026, TM3: an overview's four heroes `inv-heroes-4`: 720; TM4: the toolbar's period `inv-tb-step` (the Planner's `inv-pl-step` renamed), the plant register's unit strips `inv-unit-strip`, `inv-plt-unit`, `inv-unit-name`, `inv-unit-sub` deleted: 716; entry faces F4, the register page's rows `inv-rnd-row`, `-head`, `-run`, `-batch`, `-wide`, `-tail`, `-lead`: 723; TM5, Pipeline's stages as coded tiles: its rail's `inv-pipe-node` and `inv-pipe-stage` deleted: 721; TM6, the period to date in a chart `inv-chart-todate` added, the page-head line `inv-pagehead-meta` deleted (no screen draws it): 721; 13 Oct 2026, the photo reading taken out (owner): the challan scan's busy card `inv-scan-processing` (with `-card`, `-text`, `-sub`), `inv-scan-spinner` and the register photo `inv-prod-photo` deleted: 715; 14 Oct 2026, the QA chain: `inv-fig-info` added and `inv-dialog-body` styled, `inv-token-on` and `inv-token-add` deleted: 715; 15 Oct 2026, the knowledge base's second edition (KB2-1): 61 `inv-kb-*` for the three modes, notices, At a glance, the kind icons, the Library's shelves and cards, the desk and its context, notes: 776; 16 Oct 2026, recounted before UI pass 3 at 781 (KB2-1's QA had added `inv-kb-close`, `-ctx-door`, `-ctx-n`, `-lib-head`, `-shelf-wide` uncounted), then U1: the blank state's seven `inv-blank*` and the switch `inv-switch`: 789; icons v3's `inv-ico-tint`, `-bold`, `-mark`, `-mark-lg`, `-mark-tile`, `-mark-brass` added and `inv-side-mark` deleted: 794); P76 asserts every class the app draws is one of them or a named hook. |
 | HR-4 | No emojis. Inline SVGs in HTML template. |
 | HR-5 | escHtml() on all user-data innerHTML. |
 | HR-6 | CSS design tokens only. No raw px/rem/hex/timing. |
@@ -578,7 +581,7 @@ document the interface is built on** — tokens, theme, density, navigation, eve
 is assembled, and the migration plan. Read it before touching `styles.css` or a render function; a UI
 change that needs something it does not define amends it in the same PR. Its design rules DR-1…DR-8 carry
 the weight of the hard rules above (colour means status; one accent for interaction; one primary button per
-view; figures mono and right-aligned; sentence case; no shadows on content; components, not one-offs; status
+view; figures mono and right-aligned; sentence case; a card lifts, a well sinks, a layer floats (UI pass 3; no shadows on content until then); components, not one-offs; status
 is a dot or badge plus a word).
 
 **Step 1 of the migration is built (26 Sep 2026):** the v2.0 tokens with three palettes (Teal default,
@@ -726,6 +729,31 @@ box). The screenshot audit's list went from 18 to 0 in both themes with no visib
 P76's sweep now also fails on a figure broken inside a group (`brokenFigures`), a phone meta line cut past its two lines on
 the sweep book (`cutMeta`), anything an ellipsis cuts without a `title` (`untitled`), and a tapped legend row under 44px; and
 the crore book asserts Home's revenue breaks after a comma and its recent invoices lead with the date.
+
+### UI pass 3: the look (U1)
+`docs/UI_PASS_3.md` §3–§6 (owner, 16 Oct 2026: *"B with wells"*). P226, P228 (the look, the icons, paper); P180, P182, P53 and P197
+rewritten to the new facts, never weakened.
+- **A card lifts, a well sinks, a layer floats** (DR-6 amended). A panel, a hero, a deck card and the phone's bar lift (`--lift-1/2`:
+  two outer shadows; `--r-card`, 18px; a fine `--edge`). What is pressed or filled sits in a well: a field, a search, a segmented
+  track, a tick box, a switch, a meter's track, a tile in a card (`--well`, `--press-1/2`, inset only; `--r-tile`, `--r-ctl`). A
+  dialog and a menu float (`--shadow-dialog`).
+- **The well is a veil** (`--well`: `rgb(20 25 30 / 0.05)` light, `rgb(0 0 0 / 0.22)` dark), laid over whatever it sits in, so a well
+  on a coded card is a well of its tone. Every text tier reads at 4.5:1 in a well, on the card and on the page; light text-3 was
+  darkened a step for it.
+- **Zinc & brass is the default palette.** A device on Teal because Teal was the default moves to Zinc; a palette chosen stays. The
+  page is a step under the card (0.92 against 0.96, OKLab L), so a card lifts off it.
+- **In dark, a layer steps up**: a dialog and a menu remap `--surface` to `--c-surface-2`, so a layer reads above the page.
+- **The segmented control's pill** is the card's surface clipped inside its segment (`background-clip: padding-box`, the inset a
+  transparent border), its lift on `::after`, so every segment stays a 44px target.
+- **The one primary** runs from the accent to `--accent-deep` and lifts further. A ghost and a link cast nothing.
+- **New components**: the switch (`inv-switch`, design §6.31) and the blank state (`uiBlankHtml`, `inv-blank`, §6.32).
+- **The closed list of box looks** (P197's `LOOKS`) was regenerated for the pass: 35 looks. `LOOKS_DUMP=1` writes each layout's
+  census with what wears each look.
+- **Paper reads no palette.** P228 records every printed document's computed styles as it was before the pass and fails on any
+  difference. It also draws each document on every palette: the sales register's frame had read `--border`, and is `--sr-frame` now.
+- **Icons v3** (design §5.6) and **the data layer** (`split/dataview.js`, §6: a view per typed table of the hub, its key the record
+  it comes from) are U1's too. Building the data layer found a Stats bug: a credit note had taken kilos off a piece line weighed by
+  its amount. Stats now weighs the amount as billed (`_gross`): a note takes rupees off, never kilos.
 
 ## Business Domain
 

@@ -460,7 +460,8 @@ var SETTINGS_SECS = {
         '<div><div class="inv-kv-k">Last save</div><div class="inv-save-status">' + renderLastSave() + '</div></div>' +
         '<div><div class="inv-kv-k">Build</div><div class="inv-id inv-build-id">' + escHtml(APP_BUILD) + '</div></div></div>' +
         '<div class="inv-toolbar inv-toolbar-flush inv-mt-8"><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invCheckUpdate">Check for a newer version</button>' +
-        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRunDiagnostics">Run storage diagnostics</button></div>' +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invRunDiagnostics">Run storage diagnostics</button>' +
+        '<button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invLicences">Licences</button></div>' +
         '<div id="storageDiagOut"></div>' + errSettingsHtml();
     },
     why: 'Import replaces the whole book with the file. Exporting also counts as a backup for the To-do reminder. Error reports go to the developer from the live site only, and carry no record, name or figure.'
@@ -481,6 +482,17 @@ function _settingsSecHtml(key, open) {
     _settingsGuideHtml(s.guide) +
     (s.save && (!s.saveIf || s.saveIf()) ? '<div class="inv-toolbar inv-toolbar-flush inv-toolbar-tight inv-mt-8"><button type="button" class="inv-btn inv-btn-primary inv-btn-sm" data-action="invSaveSettingsSec" data-sec="' + key + '" disabled>Save</button></div>' : '') +
     '</div></details>';
+}
+
+/* Licences (Backup, storage & build): the notices of the icon set's shapes, Lucide's and Feather's, in full (ICON_LICENCES,
+   state.js). A dialog over Settings; a view, so a tap outside shuts it. */
+function settingsLicencesOpen() {
+  dialogOpen('<div class="inv-dialog" data-licences>' + dialogHeadHtml('Licences', 'invCloseConfirm') +
+    '<div class="inv-dialog-body"><p class="inv-note">The app&rsquo;s icons follow Lucide, an open-source icon set; some of its shapes come from Feather. Their notices:</p>' +
+    ICON_LICENCES.map(function(l) {
+      return '<section data-licence="' + escHtml(l.name) + '"><h3 class="inv-panel-title inv-mt-8">' + escHtml(l.name + ' · ' + l.licence) + '</h3>' +
+        l.text.map(function(t) { return '<p class="inv-note inv-mt-4">' + escHtml(t) + '</p>'; }).join('') + '</section>';
+    }).join('') + '</div></div>', { dismiss: true });
 }
 
 /* A section set up step by step has its guide in the knowledge base (kbguides.js): a link to it, for a role that reads it. */

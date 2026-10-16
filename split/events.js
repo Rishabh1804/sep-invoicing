@@ -164,6 +164,7 @@ function onDocClick(e) {
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
     case 'invRunDiagnostics': runStorageDiagnostics(); break;
+    case 'invLicences': settingsLicencesOpen(); break;
     case 'invReloadForUpdate': window.location.reload(); break;
     case 'invDismissUpdate': dismissUpdateBanner(); break;
     case 'invAddPartWeight': addPartWeight(); break;

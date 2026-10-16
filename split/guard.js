@@ -435,8 +435,6 @@ var _grdPick = null;       // the user chosen on the lock
 var _grdForgot = false;    // the lock shows the owner's recovery
 var _grdBusy = false;
 var _grdFocusBack = null;  // where focus was when the lock came down
-var GRD_MARK_SVG = '<svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
-  '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg>';
 
 function grdPinInput(id, u, extra) {
   return '<input class="inv-input" id="' + id + '" type="password" autocomplete="off"' + (u && u.secret && u.secret.digits ? ' inputmode="numeric"' : '') +
@@ -447,7 +445,7 @@ function grdLockHtml() {
   if (!users.some(function(u) { return u.id === _grdPick; })) _grdPick = null;
   var u = _grdPick ? grdUserById(_grdPick) : null;
   var h = '<div class="inv-guard-card">' +
-    '<div class="inv-guard-brand">' + GRD_MARK_SVG + '<span>' + escHtml((S && S.company && S.company.name) || 'SEP Invoicing') + '</span></div>' +
+    '<div class="inv-guard-brand">' + markSvg('sm', 'tile') + '<span>' + escHtml((S && S.company && S.company.name) || 'SEP Invoicing') + '</span></div>' +
     '<h1 class="inv-guard-title" id="grdTitle">Who is using the app?</h1>' +
     '<div class="inv-guard-rows" role="radiogroup" aria-labelledby="grdTitle">' + users.map(function(x) {
       return '<button type="button" class="inv-row inv-row-2" role="radio" aria-checked="' + (x.id === _grdPick) + '" data-action="invGuardPick" data-id="' + escHtml(x.id) + '">' +

@@ -81,7 +81,9 @@ export function lookSuite(layout: 'phone' | 'desktop') {
       expect(outer(knob), 'the knob lifts').toBe(true);
       await page.locator('#p228sw').click();
       await expect(page.locator('#p228sw .inv-switch')).toBeChecked();
-      expect((await boxOf(page, '#p228sw .inv-switch')).fill, 'on, the track is the accent').toBe(await token(page, '--accent', 'background-color'));
+      // The track changes colour over its transition, so it is read once it has settled.
+      const accent = await token(page, '--accent', 'background-color');
+      await expect.poll(async () => (await boxOf(page, '#p228sw .inv-switch')).fill, { message: 'on, the track is the accent' }).toBe(accent);
     });
 
     test('a card lifts with a card’s corners, and in dark it carries its fine edge; the primary’s face deepens and lifts further', async ({ page }) => {

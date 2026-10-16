@@ -266,8 +266,7 @@ function renderSidebar() {
   if (!_isDesktop) return;
   // The brand's mark opens Today → Pulse (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on the
   // top left of the screen should take us back to the pulse screen, as today takes us to the needs you screen").
-  var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Soma Electro · Pulse"><svg class="inv-side-mark" viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="96"/>' +
-    '<polygon points="256,106 385.9,181 385.9,331 256,406 126.1,331 126.1,181"/><polygon points="256,160 339.1,208 339.1,304 256,352 172.9,304 172.9,208"/><circle cx="256" cy="256" r="38"/></svg></button>' +
+  var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Soma Electro · Pulse">' + markSvg('sm', 'tile') + '</button>' +
     wsDoorHtml('inv-side-item inv-navbar-add', 'data-action="invAddOpen" data-shell-primary aria-keyshortcuts="A" title="Add (A)"', 'add', 'Add');
   if (typeof faceMineDoor === 'function' && faceMineDoor()) html += wsDoorHtml('inv-side-item', 'data-action="invWsGo" data-ws="mine"', 'mine', 'Mine', 'mine');
   WORKSPACES.forEach(function(w) {

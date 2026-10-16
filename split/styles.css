@@ -233,6 +233,18 @@ body:not(.inv-desktop)::after {
 .inv-navbar-add .inv-navbar-mark { background: var(--accent); color: var(--on-accent); }
 .inv-navbar-add:active .inv-navbar-mark { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
 
+/* Icons v3 (docs/UI_PASS_3.md §4; ICONS, state.js): two inks. The line is the text's colour; a thing's main part carries one tint
+   (a path stored `d:` in ICONS), the accent at a fifth, never a stroke. In a toned place (a coded card and the boxes in it, a deck
+   card, a notice) the tint is the tone, and in a status badge and on the accent (a primary button, the print bar) the ink's own
+   colour, so a tint never says a status by itself. A door at rest draws its line alone, the workspace on screen its tint too (the
+   board's "resting" and "on screen"). */
+.inv-ico-tint { fill: var(--ico-tint, var(--accent)); fill-opacity: 0.22; stroke: none; }
+.inv-hero, .inv-coded, .inv-deck-item, :is(.inv-hero, .inv-coded) .inv-tile, .inv-kb-notice { --ico-tint: var(--tone); }
+.inv-badge, .inv-btn-primary, .inv-print-toolbar { --ico-tint: currentColor; }
+.inv-navbar-item:not(.inv-navbar-item-on) .inv-ico-tint, .inv-side .inv-side-item:not(.inv-side-item-on) .inv-ico-tint { display: none; }
+/* A tick inside a step's small dot (today.js, faces.js): the set's check, heavier to read at its size. */
+.inv-ico-bold { stroke-width: 3; }
+
 /* ===== PAGES ===== */
 .inv-page { display: none; padding: var(--sp-16); }
 .inv-page-active { display: block; }
@@ -394,6 +406,7 @@ body:not(.inv-booted) { pointer-events: none; }
   border-radius: var(--r-md); padding: 0 var(--sp-8);
 }
 .inv-print-toolbar-btn:active { opacity: 0.7; }
+.inv-print-toolbar-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
 .inv-print-body { padding: var(--sp-8); }
 /* Every document in the preview is laid out at its paper width and scaled to the screen as a whole
    (printFit(), print.js), so what is seen is what prints, on a phone as on the desktop. */
@@ -1021,11 +1034,16 @@ body.inv-desktop .inv-side {
   min-height: var(--sp-32); padding: 0 var(--sp-8); margin-bottom: var(--sp-6);
   font-size: var(--fs-13); font-weight: 600; color: var(--text-1);
 }
-.inv-side-mark { width: 20px; height: 20px; flex-shrink: 0; }
-.inv-side .inv-side-mark { width: var(--sp-32); height: var(--sp-32); }
-.inv-side-mark rect, .inv-side-mark circle { fill: var(--accent); }
-.inv-side-mark polygon { fill: none; stroke: var(--on-accent); stroke-width: 22; stroke-linejoin: round; }
-.inv-side-mark polygon + polygon { fill: var(--on-accent); stroke: none; }
+/* The brand's mark, the nut (markSvg, state.js): a tile of the accent with the nut's line on it in the accent's own ink (the rail,
+   the lock), or the nut cast in brass with its hole the colour behind it, lit from its top left in both themes (the sign-in
+   screen, the app's icon). */
+.inv-ico-mark { width: var(--sp-32); height: var(--sp-32); flex-shrink: 0; }
+.inv-ico-mark-lg { width: calc(var(--sp-32) * 2); height: calc(var(--sp-32) * 2); }
+.inv-ico-mark-tile rect { fill: var(--accent); }
+.inv-ico-mark-tile :is(path, circle) { fill: none; stroke: var(--on-accent); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.inv-ico-mark-brass stop:first-child { stop-color: light-dark(color-mix(in oklab, var(--accent) 60%, var(--accent-soft)), color-mix(in oklab, var(--accent) 55%, var(--accent-soft-text))); }
+.inv-ico-mark-brass stop:last-child { stop-color: light-dark(color-mix(in oklab, var(--accent) 80%, var(--text-1)), color-mix(in oklab, var(--accent) 70%, var(--bg))); }
+.inv-ico-mark-brass path + path { fill: none; stroke: light-dark(var(--accent-soft), var(--accent-soft-text)); stroke-width: 0.9; stroke-linecap: round; opacity: 0.8; }
 /* Settings' group list (its dialog's left pane) is a column of these too. */
 .inv-side-item {
   display: flex; align-items: center; gap: var(--sp-8); width: 100%;
@@ -2432,7 +2450,6 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
   background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
 }
 .inv-guard-brand { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-16); font-size: var(--fs-14); font-weight: 600; color: var(--text-2); }
-.inv-guard-brand .inv-side-mark { width: var(--sp-32); height: var(--sp-32); }
 .inv-guard-title { font-size: var(--fs-19); font-weight: 600; line-height: 1.3; margin-bottom: var(--sp-12); }
 /* Rows on their container's own padding (the lock's users, Settings' users, the user's menu), ruled off above. */
 .inv-guard-rows { border-top: var(--hair) solid var(--border); margin-bottom: var(--sp-12); }

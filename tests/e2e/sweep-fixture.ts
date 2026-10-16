@@ -504,6 +504,8 @@ export async function walkQuoteForm(page: Page, tag: string, stops: Stop[]) {
 /* Every dialog, opened the way its button does. */
 export const DIALOGS: Array<[string, string]> = [
   ['settings', `openSettings()`],
+  // The icon set's licences (P228): Settings → Data & device → Backup, storage & build → Licences.
+  ['licences', `settingsLicencesOpen()`],
   ['client-add', `openClientAdd()`],
   ['client-edit', `openClientEdit(1)`],
   ['item-edit', `openItemEdit(1)`],

@@ -638,7 +638,11 @@ function tdyApplyView() {
 }
 /* Home left, for Needs you or another page (tabs.js switchTab): its clock and live widgets stop and arranging ends. Shown again
    with nothing to draw anew, they start at once (homeArrive, tabs.js tabRender). */
-function homeLeave() { homeClockStop(); wdgLiveStop('home'); if (wdgArrangeOn('home')) wdgArrangeDone(true); }
+function homeLeave() {
+  homeClockStop(); wdgLiveStop('home');
+  // Arranging ends with Home, and Home is drawn plain when it is next shown (its handles and Done would otherwise stay drawn).
+  if (wdgArrangeOn('home')) { wdgArrangeDone(true); _tabDirty.home = true; }
+}
 function homeArrive() {
   homeClockStart();
   var host = document.getElementById('homeBoard');

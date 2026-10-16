@@ -147,6 +147,18 @@ test.describe('P223 Home and its board (phone)', () => {
     await page.goBack();
     await expect(page.locator('.inv-wboard[data-arranging]')).toHaveCount(0);
     await expect(page.locator('#homeDash [data-home-day]')).toBeVisible();
+    // Leaving Home while arranging ends it, and Home is drawn plain when it is next shown: no handle, and the board's own toolbar.
+    // Home is first drawn clean by a visit elsewhere, so nothing but the leaving marks it to be drawn again (the handles and a Done
+    // that did nothing had stayed on screen).
+    await switchTab(page, 'pageRegister');
+    await switchTab(page, 'pageHome');
+    await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
+    await expect(page.locator('[data-wdg-handle]')).toHaveCount(4);
+    await switchTab(page, 'pageRegister');
+    await switchTab(page, 'pageHome');
+    await expect(page.locator('#homeDash [data-wdg-handle], .inv-wboard[data-arranging]')).toHaveCount(0);
+    await expect(page.locator('[data-home-toolbar] [data-action="invWdgArrange"]')).toBeVisible();
+    await expect(page.locator('[data-home-toolbar] [data-action="invWdgDone"]')).toHaveCount(0);
     // Reset asks, then puts the phone's back to the role's preset.
     await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
     await page.locator('[data-home-toolbar] [data-action="invWdgReset"]').click();

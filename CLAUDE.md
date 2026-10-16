@@ -258,14 +258,15 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,926 tests, both layouts
+pnpm exec playwright test          # 2,030 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
 the matching one. The session hook detects that and sets `PW_CHROMIUM_PATH`, which
 `playwright.config.ts` reads; unset everywhere else. The suite takes about 27 minutes on
 a CI runner's two workers (26.6 on 10 Oct 2026, 1,734 tests; the job allows 45, since the apt step behind Chromium's
-install has taken 5 on its own) — don't read a slow run as a hang.
+install has taken 5 on its own) — don't read a slow run as a hang. ⚠ It has grown: 38.0 minutes on 16 Oct 2026 at 2,030
+tests (a run with 37 failing, some at their timeouts), so the 45 is close; split the job or raise it before it cuts a run off.
 
 **No browser pop-ups: every message has an in-app path** (owner, 27 Sep 2026: *"make sure in case of browser
 pop-up failure there is another way that the message or error gets relayed - in all places in our app"*). Never
@@ -807,6 +808,8 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
   its place (*3 of 11*), its sizes and Remove (with *Undo* in the toast); the toolbar *Add a widget*, *Reset* (asked through
   `uiConfirm`) and **Done**. A mouse drags at once, a finger after a 250 ms hold within 8 px (a scroll is never taken for a drag);
   Escape or a cancelled pointer puts it back. The handle's keys move it (← ↑ → ↓, Home, End), said in an `aria-live` line.
+  Leaving Home ends it (`homeLeave`), and Home is drawn plain when next shown: a Home drawn clean before had come back with its
+  handles and a Done that did nothing (P223).
 - **The gallery** (`wdgGalleryOpen`, a dialog): the sections as chips (All, Money, Office, Floor, People, Market, Analysis,
   Questions; one with nothing the role may see left out), each widget a card with its live preview at its first size (drawn as it
   comes into view, `IntersectionObserver`), its title, question and sizes, and **Add to Home** or *On Home* with Remove. Added, it

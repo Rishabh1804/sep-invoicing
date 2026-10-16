@@ -562,8 +562,9 @@ border, lifted by `--lift-1` — the default) · `inv-btn-ghost`
 (transparent with a hairline border: a lighter secondary, never bare text, which reads as a label) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
 for the final button of a confirm dialog) · `inv-btn-link` (accent
 text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block`.
-`inv-btn-grid` lays launch buttons out — three across on the phone (icon over label), one row on the desktop;
-Home's quick actions are the one use.
+`inv-btn-grid` lays launch buttons out, three across with each label under its icon. In a dialog (Add's By hand) it is five
+across on the desktop. In a widget (Home's quick actions) it follows the card, not the window (UI pass 3): six across once the card
+is 40rem wide. The window's rule (one row on the desktop) set six across in a half-board card, and the labels had no room.
 Height `--ctl-h`, radius `--r-ctl`, `--t-body` 500 (primary 600). A button is a small card (UI pass 3): it lifts, a ghost and a link
 cast nothing, pressed it sinks back to its card, and focus keeps the shared ring over its lift. Replaces `inv-stk-btn*`, `inv-stk-tool`,
 `inv-stk-back`, `inv-link-btn`, `inv-quick-action`, `inv-header-btn`, `inv-overlay-close`,
@@ -1184,7 +1185,9 @@ A **widget** answers one question in a card; a **board** is a grid of widgets th
   an `aria-live` line.
 - **The gallery** (`inv-gallery`, a dialog): the sections as chips, each widget a card (`inv-gallery-card`) with its live preview at
   its first size (`inv-gallery-preview`, drawn as it comes into view), its title, question and sizes, and **Add to Home** or *On Home*
-  with Remove. A widget a role may not see is in no gallery and on no board.
+  with Remove. A widget a role may not see is in no gallery and on no board. A preview is one height, drawn or not (a Small widget's
+  cap), so drawing one moves no card under the finger. A tap that changes the gallery swaps its parts inside the dialog, never the
+  dialog: a dialog replaced replays its entrance.
 - **A widget's own controls**: a button inside a card names its widget with `data-wid` (`data-w` is the card's alone). An action
   the framework does not know goes to that widget's `act(action, btn, card)`, a change inside the card (or in a dialog naming it,
   `data-wdg-for`) to its `change(el, card, board)`; a widget with `feed: true` is drawn again when a news or weather copy lands

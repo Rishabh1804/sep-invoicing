@@ -715,14 +715,31 @@ function wdgGalleryOpen(board) {
   dialogOpen(wdgGalleryHtml(), { dismiss: true });
   wdgGalleryWire();
 }
-function wdgGalleryRedraw() {
-  var scrim = document.querySelector('.inv-scrim-dialog [data-wdg-gallery]');
-  if (!scrim) return;
-  var list = scrim.querySelector('[data-wdg-gallery-list]'), top = list ? list.scrollTop : 0;
-  keepScroll(function() { dialogOpen(wdgGalleryHtml(), { replace: true }); });
-  var nl = document.querySelector('.inv-scrim-dialog [data-wdg-gallery-list]');
+/* The gallery drawn again after a chip, a board, an Add or a Remove: its parts are swapped inside the dialog that is open, never the
+   dialog itself (a dialog replaced replays its slide-in, so every tap slid the sheet up again), a preview already drawn is carried
+   over as it is (drawn anew, every preview in sight flashed blank), and the list keeps where it was scrolled. `focusSel` names the
+   control that holds the focus after (the card's Remove after an Add, its Add after a Remove); else keepScroll's own key finds it. */
+function wdgGalleryRedraw(focusSel) {
+  var dlg = document.querySelector('.inv-scrim-dialog [data-wdg-gallery]');
+  if (!dlg) return;
+  var list = dlg.querySelector('[data-wdg-gallery-list]'), top = list ? list.scrollTop : 0;
+  var tmp = document.createElement('div');
+  tmp.innerHTML = wdgGalleryHtml();
+  var fresh = tmp.firstElementChild;
+  if (!fresh) return;
+  Array.prototype.forEach.call(dlg.querySelectorAll('[data-wdg-preview][data-drawn]'), function(old) {
+    var nu = fresh.querySelector('[data-wdg-preview="' + CSS.escape(old.dataset.wdgPreview) + '"]');
+    if (nu) nu.parentNode.replaceChild(old, nu);
+  });
+  keepScroll(function() {
+    while (dlg.firstChild) dlg.removeChild(dlg.firstChild);
+    while (fresh.firstChild) dlg.appendChild(fresh.firstChild);
+  });
+  var nl = dlg.querySelector('[data-wdg-gallery-list]');
   if (nl) nl.scrollTop = top;
   wdgGalleryWire();
+  var f = focusSel ? dlg.querySelector(focusSel) : null;
+  if (f) f.focus({ preventScroll: true });
 }
 /* Each preview is drawn as it comes into view, on the book as it is: its blank state where it has nothing yet. */
 function wdgGalleryWire() {
@@ -789,8 +806,16 @@ function wdgAction(action, btn) {
     case 'invWdgGallery': wdgGalleryOpen(board); return true;
     case 'invWdgGalleryBoard': _wdgGallery.board = btn.dataset.board; wdgGalleryRedraw(); return true;
     case 'invWdgGallerySec': _wdgGallery.section = btn.dataset.sec; wdgGalleryRedraw(); return true;
-    case 'invWdgGalleryAdd': wdgAdd(_wdgGallery.board, btn.dataset.wid); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
-    case 'invWdgGalleryRemove': wdgRemoveFromGallery(_wdgGallery.board, btn.dataset.wid); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
+    case 'invWdgGalleryAdd':
+      wdgAdd(_wdgGallery.board, btn.dataset.wid);
+      wdgGalleryRedraw('[data-gallery-w="' + CSS.escape(btn.dataset.wid) + '"] [data-action="invWdgGalleryRemove"]');
+      wdgRedrawBoard(_wdgGallery.board);
+      return true;
+    case 'invWdgGalleryRemove':
+      wdgRemoveFromGallery(_wdgGallery.board, btn.dataset.wid);
+      wdgGalleryRedraw('[data-gallery-w="' + CSS.escape(btn.dataset.wid) + '"] [data-action="invWdgGalleryAdd"]');
+      wdgRedrawBoard(_wdgGallery.board);
+      return true;
     case 'invWdgGalleryDone': closeTopOverlay(); return true;
   }
   // A widget's own tap (its def's `act`): the widget the button names, else the card it sits in, else the dialog it opened.

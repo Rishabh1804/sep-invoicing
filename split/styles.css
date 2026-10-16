@@ -1408,16 +1408,13 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 /* Looks disabled, still takes a tap: a button whose tap explains why it cannot act (a challan with a line invoiced). */
 .inv-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
-/* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
+/* A grid of launch buttons: three across, each label under its icon. In a dialog (Add's By hand) five across on the desktop; in a
+   widget (the quick actions) it follows the card, not the window: six across from 40rem (below, with the widgets). */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
 .inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
 .inv-btn-grid > .inv-btn svg { width: 20px; height: 20px; }
 .inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
-body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
-/* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
 /* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). Counted
    over the doors shown: a role's hidden ones ([data-grd-off]) had left Office's Task a row of its own beside an empty one. */
 body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:nth-last-child(1 of :not([data-grd-off])):nth-child(5n+1 of :not([data-grd-off])) { grid-column: 1 / -1; }
@@ -2133,9 +2130,7 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 .inv-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; margin-bottom: var(--gap); }
 .inv-board .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
-/* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
-.inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }
-/* A panel in the page's grid (a Home widget, a Stats story, a Finance card) lays its tiles out by the room it has (half,
+/* A panel in the page's grid (a Stats story, a Finance card) lays its tiles out by the room it has (half,
    a third or full width, on any window), never leaving a blank cell
    beside the last tile: the Money panel's four tiles sat three and one at 1280, and its three two and one at 1024. Where
    two across is all that fits, an odd last tile takes the row, as on the phone; four go four across only where four fit,
@@ -2995,8 +2990,8 @@ button.inv-widget-door:focus-visible { outline: none; box-shadow: var(--focus-ri
 .inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
 .inv-widget-body > .inv-blank { margin: 0; }
 /* Quick actions in a widget follow the card, not the window: three across with each label under its icon, six across from 40rem. */
-.inv-widget[data-w] .inv-btn-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); margin-bottom: 0; }
-.inv-widget[data-w] .inv-btn-grid > .inv-btn { flex-direction: column; min-width: 0; min-height: calc(var(--ctl-h) * 1.75); }
+.inv-widget[data-w] .inv-btn-grid { margin-bottom: 0; }
+.inv-widget[data-w] .inv-btn-grid > .inv-btn { min-width: 0; }
 @container widget (min-width: 40rem) { .inv-widget[data-w] .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
 @container widget (max-width: 13rem) { .inv-widget-fig { font-size: var(--fs-19); } }
 /* A widget's parts by its width: stacked under 18rem, side by side to 36rem, in columns over it. */
@@ -3029,7 +3024,9 @@ body.inv-wdg-dragging { user-select: none; -webkit-user-select: none; cursor: gr
 .inv-gallery-card { display: flex; flex-direction: column; gap: var(--sp-8); min-width: 0; padding: var(--sp-12); border: var(--hair) solid var(--edge);
   border-radius: var(--r-card); background: var(--surface-2); }
 /* A preview shows the widget's top, fading where the card stops, so a cut reads as a glimpse rather than a break. */
-.inv-gallery-preview { pointer-events: none; min-height: calc(var(--sp-24) * 2); max-height: var(--wdg-cap-s); overflow: hidden; border-radius: var(--r-card);
+/* A preview is one height, drawn or not (a Small widget's cap), so a preview drawn as it comes into view moves no card under the
+   finger, and the list drawn again after an Add puts every card back where it stood. */
+.inv-gallery-preview { pointer-events: none; height: var(--wdg-cap-s); overflow: hidden; border-radius: var(--r-card);
   mask-image: linear-gradient(to bottom, var(--text-1) calc(100% - var(--sp-32)), transparent); }
 .inv-gallery-preview > .inv-widget { margin: 0; box-shadow: none; }
 .inv-gallery-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }

@@ -695,6 +695,12 @@ a sheet on the phone; `dialogOpen`):
   its blank state where it has nothing yet), its title and question, its sizes, and **Add to Home** (a secondary button) or **On Home ✓**
   with **Remove**. Added, it goes to the end of the layout on screen, and to the end of the other layout at its first size.
 - A widget the role may not see is never in it (I4); a widget already on the board says so.
+- *As built (U2):* every preview is one height, drawn or not (`--wdg-cap-s`). Drawn to its content, a preview grew from 48 to
+  160 px as it came into view, the cards under it jumped while scrolling, and a tap on Add could land on the card that moved
+  there. A chip, a board, an Add or a Remove swaps the gallery's parts inside the dialog (`wdgGalleryRedraw`). Replaced whole
+  (`dialogOpen`'s `replace`), the sheet slid up again at every tap and every preview in sight flashed blank. The focus goes to
+  the card's other button. Five other dialogs still redraw by replacing (the credit note, the guard's form, the planner's card,
+  the quotation): U7's (§14a).
 
 ### 7g. Presets by role
 
@@ -1130,6 +1136,10 @@ optional copy and our copy, so that we know the entire context."*
   icon (§3d). P80 holds: the page never scrolls on the desktop.
 - **Dialogs** (`dialogOpen`, state.js:1268): `--r-card`, the title `--fs-17` semibold, close a ghost icon button, the foot as now
   (sticky, last). **Sheets** (a dialog on the phone, the More and Filter dialogs): top corners `--r-card`, a grabber bar (decorative).
+  **A dialog drawn again in place does not slide in again** (found building U2's gallery): `dialogOpen`'s `replace` writes a new
+  `.inv-dialog`, whose entrance replays at every redraw. Five dialogs redraw that way: the credit note (two), the guard's form, the
+  planner's card and the quotation. Each swaps its parts inside the dialog that is open, as the gallery does (`wdgGalleryRedraw`),
+  or `replace` marks the new dialog so it does not animate.
 - **Toasts** (`showToast` state.js:1953): a pill with its kind's icon (success `done`, error `cancel`, warning `alert`, info `info`),
   above the phone bar, as now in place and time.
 - **Search** (search.js): the input a large well with its icon; results grouped by kind (Screens, Invoices, Clients, Challans, …),

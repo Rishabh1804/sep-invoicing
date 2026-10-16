@@ -43,13 +43,34 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     expect((await readStoredState(page)).todo.tasks).toHaveLength(2);
   });
 
-  test('the six quick actions sit in one row and each reaches its screen', async ({ page }) => {
+  test('the six quick actions follow their card: three across under 40rem, six from it, every label whole; each reaches its screen', async ({ page }) => {
     await load(page, { staff: STAFF } as any);
     await openPulse(page);
-    const qa = page.locator('.inv-btn-grid .inv-btn');
+    const qa = page.locator('[data-w="quick"] .inv-btn-grid .inv-btn');
     await expect(qa).toHaveCount(6);
-    const ys = await qa.evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().top)));
-    expect(new Set(ys).size).toBe(1);
+    // UI pass 3: a widget's launch buttons follow the card, not the window (design §6.3). The card at Medium is half the board, under
+    // 40rem at 1280 px: two rows of three, each label under its icon. The window rule had set six across in a half-board card, a label
+    // beside its icon in about 85 px.
+    const rows = () => qa.evaluateAll(els => {
+      const at: Record<string, number> = {};
+      els.forEach(e => { const t = String(Math.round(e.getBoundingClientRect().top)); at[t] = (at[t] || 0) + 1; });
+      return Object.keys(at).sort((a, b) => +a - +b).map(k => at[k]);
+    });
+    const whole = () => qa.evaluateAll(els => els.every(e => {
+      const s = e.querySelector('span') as HTMLElement, svg = e.querySelector('svg') as SVGElement, b = e.getBoundingClientRect();
+      const r = s.getBoundingClientRect();
+      return s.scrollWidth <= s.clientWidth + 1 && r.left >= b.left - 0.5 && r.right <= b.right + 0.5 && svg.getBoundingClientRect().bottom <= r.top + 0.5;
+    }));
+    expect(await page.locator('[data-w="quick"]').evaluate(e => e.getBoundingClientRect().width / parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeLessThan(40);
+    expect(await rows()).toEqual([3, 3]);
+    expect(await whole()).toBe(true);
+    // A window wide enough for the card to pass 40rem: one row of six, every label whole.
+    await page.setViewportSize({ width: 1800, height: 900 });
+    await expect.poll(() => page.locator('[data-w="quick"]').evaluate(e => e.getBoundingClientRect().width / parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(40);
+    await expect.poll(rows).toEqual([6]);
+    expect(await whole()).toBe(true);
+    await page.setViewportSize({ width: 1280, height: 720 });
+    await expect.poll(rows).toEqual([3, 3]);
 
     await page.locator('[data-action="invHomeQuick"][data-go="challan"]').click();
     await expect(page.locator('#pageIM.inv-page-active')).toBeVisible();

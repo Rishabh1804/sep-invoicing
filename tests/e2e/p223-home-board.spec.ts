@@ -222,8 +222,27 @@ test.describe('P223 Home and its board (phone)', () => {
     await page.locator('.inv-chip[data-sec="all"]').click();
     // On Home: said, with Remove; not on it: Add to Home, which puts it at the end.
     await expect(page.locator('[data-gallery-w="mtd"] [data-wdg-on]')).toHaveText('On Home');
-    await page.locator('[data-gallery-w="recent"] [data-action="invWdgGalleryAdd"]').click();
+    // Every preview is one height, drawn or not, so a preview drawn as it comes into view moves nothing under the finger, and the
+    // list drawn again after an Add puts every card back where it stood (a preview grew from 48 px to 160 px when drawn: the cards
+    // under it jumped while scrolling, and a tap on Add landed on the card that moved there).
+    const recent = page.locator('[data-gallery-w="recent"]');
+    await recent.scrollIntoViewIfNeeded();
+    await expect(recent.locator('[data-wdg-preview]')).toHaveAttribute('data-drawn', '1');
+    const heights = await page.locator('[data-wdg-preview]').evaluateAll(els => els.map(e => Math.round(e.getBoundingClientRect().height)));
+    expect(new Set(heights).size).toBe(1);
+    const add = page.locator('[data-gallery-w="recent"] [data-action="invWdgGalleryAdd"]');
+    await add.hover();   // where a tap finds it (the click would scroll it there itself), measured after
+    const topBefore = await recent.evaluate(e => e.getBoundingClientRect().top);
+    await page.evaluate(() => { (window as any).__galDialog = document.querySelector('[data-wdg-gallery]'); });
+    await add.click();
     await expect(page.locator('[data-gallery-w="recent"] [data-wdg-on]')).toHaveText('On Home');
+    expect(Math.abs(await recent.evaluate(e => e.getBoundingClientRect().top) - topBefore)).toBeLessThan(1);
+    // Drawn again in place: the same dialog (a dialog replaced replayed its slide-in at every tap), the preview drawn as it was (not
+    // blank until drawn again), and the focus on the card's Remove (it had fallen to the page).
+    expect(await page.evaluate(() => (window as any).__galDialog.isConnected)).toBe(true);
+    await expect(recent.locator('[data-wdg-preview]')).toHaveAttribute('data-drawn', '1');
+    expect(await recent.locator('[data-wdg-preview] [data-w]').count()).toBe(1);
+    await expect(page.locator('[data-gallery-w="recent"] [data-action="invWdgGalleryRemove"]')).toBeFocused();
     await page.locator('[data-wdg-gallery] .inv-dialog-foot [data-action="invWdgGalleryDone"]').click();
     await expect.poll(() => ids(page)).toEqual(['mtd', 'pace', 'recent']);
     // The other layout gets it too, at its first size.

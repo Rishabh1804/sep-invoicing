@@ -813,7 +813,11 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
 - **The gallery** (`wdgGalleryOpen`, a dialog): the sections as chips (All, Money, Office, Floor, People, Market, Analysis,
   Questions; one with nothing the role may see left out), each widget a card with its live preview at its first size (drawn as it
   comes into view, `IntersectionObserver`), its title, question and sizes, and **Add to Home** or *On Home* with Remove. Added, it
-  goes to the end of the layout on screen and of the other layout at its first size.
+  goes to the end of the layout on screen and of the other layout at its first size. **Every preview is one height, drawn or not**
+  (`--wdg-cap-s`): a preview drawn as it came into view grew from 48 to 160 px, and the cards under it jumped while scrolling. A
+  chip, a board, an Add or a Remove swaps the gallery's parts inside the dialog (`wdgGalleryRedraw`), never the dialog: a dialog
+  replaced replays its slide-in, so every tap slid the sheet up again. The previews drawn stay drawn, the list stays where it was,
+  and the focus goes to the card's other button (P223).
 - **Presets by role** (`WDG_PRESETS`): Owner (the owner, or the guard off), Office, Floor (a supervisor or a floor ID); a widget the
   role cannot see is left out when the preset is drawn. Any change makes the layout the person's own; **Reset** goes back.
 - **Where a layout is kept** (`sep_inv_layout`, localStorage: `{v: 1, people: {<ID or '-'>: {home: {preset, desk, phone, opts}}}}`):
@@ -4194,7 +4198,9 @@ The *Quick actions* widget (`quick`; Pulse's since Direction B; Add is the one d
 each opening its screen **already on the job**: New invoice, New challan (the form open), Stock entry (the by-hand form), Attendance
 (today's day), Paste message (the one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check, and the
 pickling and production messages to Production's; it opens without a roster), Add task (the box focused). A role sees only the
-buttons whose screen it opens.
+buttons whose screen it opens. **The buttons follow the card, not the window** (UI pass 3; design §6.3): three across with each
+label under its icon, six across once the card is 40rem wide, a Medium on a wide desktop. The window's rule had set six across in a
+half-board card, each label beside its icon in about 85 px (P42).
 
 ### To-do
 Home → **Needs you** (the To-do page joined it in the tab map, TM2a: its Add, Snoozed, Done and Learnt are Needs you's), the

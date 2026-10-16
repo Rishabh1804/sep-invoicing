@@ -918,6 +918,21 @@ function uiHeroHtml(o) {
   return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
     '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div>' + foot + '</details>';
 }
+/* One set of blank states (docs/UI_PASS_3.md §7c, §14b): what a widget, a list or a chart says when it has nothing to show, in one
+   component. `o`: kind ('empty' nothing recorded yet, 'early' too little to say it surely, 'offline' no signal, 'notset' a setting
+   needed, 'error' it could not be drawn, 'loading' it is being fetched), title and body (text, escaped here), action (HTML: a button
+   or link its caller built), small (one line, for a Small widget or a chart's empty box). Never a zero standing for unknown. */
+var UI_BLANK_ICON = { empty: 'box', early: 'clock', offline: 'rss', notset: 'settings', error: 'caution', loading: 'sync' };
+function uiBlankHtml(o) {
+  o = o || {};
+  var kind = UI_BLANK_ICON[o.kind] ? o.kind : 'empty';
+  var icon = typeof iconSvg === 'function' ? iconSvg(o.icon || UI_BLANK_ICON[kind]) : '';
+  return '<div class="inv-blank' + (o.small ? ' inv-blank-sm' : '') + '" data-blank="' + kind + '"' + (kind === 'loading' ? ' aria-busy="true"' : '') + '>' +
+    '<span class="inv-blank-icon">' + icon + '</span><div class="inv-blank-text">' +
+    (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : '') +
+    (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : '') + '</div>' +
+    (o.action ? '<div class="inv-blank-act">' + o.action + '</div>' : '') + '</div>';
+}
 /* ===== ONE LOOK'S PIECES (docs/TAB_MAP.md §3e; design §6.28, §6.6, §6.7) =====
    The owner, 9 Oct 2026: "UI still feels inconsistent to me". The components were alike everywhere; how each screen was put
    together was not: of 60 phone screens, 34 led with no summary and the rest five different ways. These are the pieces every

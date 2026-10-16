@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="zinc"||p==="terracotta")?p:"teal";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="9fdd81d6">
+<meta name="app-build" content="568dde96">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -39,6 +39,7 @@
   --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#57676d, #7d8f91);
   --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
   --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
+  --c-well: light-dark(#e0e9eb, #0f1516); --c-edge: light-dark(rgb(16 40 48 / 0.06), rgb(236 242 242 / 0.08));
 }
 :root[data-palette="zinc"] {
   --c-bg: light-dark(#e6eaee, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
@@ -47,6 +48,7 @@
   --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5a6570, #86919c);
   --c-accent: light-dark(#8a5d0c, #dcaa4c); --c-on-accent: light-dark(#fbf7ef, #1b1204);
   --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
+  --c-well: light-dark(#e3e8ec, #101317); --c-edge: light-dark(rgb(20 25 30 / 0.06), rgb(237 240 243 / 0.08));
 }
 :root[data-palette="terracotta"] {
   --c-bg: light-dark(#eee8df, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
@@ -55,6 +57,7 @@
   --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#696358, #948d80);
   --c-accent: light-dark(#a94b28, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
   --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
+  --c-well: light-dark(#ece7de, #171614); --c-edge: light-dark(rgb(40 30 20 / 0.06), rgb(243 240 234 / 0.08));
 }
 
 :root {
@@ -94,12 +97,34 @@
   --text-1: var(--c-text-1); --text-2: var(--c-text-2); --text-3: var(--c-text-3);
   --accent: var(--c-accent); --on-accent: var(--c-on-accent);
   --accent-soft: var(--c-accent-soft); --accent-soft-text: var(--c-accent-soft-text);
+  /* UI pass 3 (docs/UI_PASS_3.md §3a): a well sinks into its card; a card's fine edge. */
+  --well: var(--c-well); --edge: var(--c-edge);
 
   /* Status tones, shared by every palette. */
   --danger: light-dark(#b42318, #f38b81); --danger-bg: light-dark(#fdecea, #3a1916);
   --warning: light-dark(#8a5700, #e8b95c); --warning-bg: light-dark(#fcf1d9, #352911);
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
+  /* A status mark (an icon, a dot, a chart's status mark): a step lighter than the tone's text, so a small mark is seen. */
+  --ok-mark: light-dark(#2f8a50, #72c98f); --warning-mark: light-dark(#c08a2a, #e8b95c);
+  --danger-mark: light-dark(#c4382b, #f38b81); --info-mark: light-dark(#3f6e9a, #8dbaf0);
+
+  /* UI pass 3 (docs/UI_PASS_3.md §3a): a card lifts off the page, a well presses into its card. */
+  --lift-1: 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.06), rgb(0 0 0 / 0.40)), 0 0.375rem 1.125rem light-dark(rgb(20 25 30 / 0.07), rgb(0 0 0 / 0.32));
+  --lift-2: 0 0.125rem 0.25rem light-dark(rgb(20 25 30 / 0.08), rgb(0 0 0 / 0.45)), 0 0.875rem 1.875rem light-dark(rgb(20 25 30 / 0.12), rgb(0 0 0 / 0.40));
+  --press-1: inset 0 0.0625rem 0.1875rem light-dark(rgb(20 25 30 / 0.14), rgb(0 0 0 / 0.45));
+  --press-2: inset 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.10), rgb(0 0 0 / 0.35));
+  --r-card: 1.125rem; --r-tile: 0.875rem; --r-ctl: 0.75rem; --r-key: 1rem;
+  --fs-28: 1.75rem; --fs-36: 2.25rem; --fs-48: 3rem;
+
+  /* Series (§3d): which thing a line or bar is, in this order and never by rank; validated for colour blindness in both
+     themes (16 Oct 2026). How much (a heat map): one blue, light to dark; dark mode from dim to bright. */
+  --series-1: light-dark(#2e75b6, #5a98dc); --series-2: light-dark(#c0622b, #d9733d); --series-3: light-dark(#1f8a6a, #2fa37f);
+  --series-4: light-dark(#a87c00, #b8890f); --series-5: light-dark(#c2508a, #d06a9c); --series-6: light-dark(#6b55c9, #8576e8);
+  --series-other: light-dark(#9aa4ae, #5d6772);
+  --seq-1: light-dark(#cde2fb, #163a63); --seq-2: light-dark(#9ec5f4, #1d4f8a); --seq-3: light-dark(#6da7ec, #256abf);
+  --seq-4: light-dark(#3987e5, #3987e5); --seq-5: light-dark(#256abf, #6da7ec); --seq-6: light-dark(#184f95, #9ec5f4);
+  --seq-7: light-dark(#0d366b, #cde2fb);
 
   /* Today's cards: a card in a deck at least this wide (a deck of small cards, `data-deck-sm`, the narrower: a unit of the plant);
      a sparkline's and a meter's height; a step's node; the small row a packed grid counts in. */
@@ -2727,6 +2752,20 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-ck-steps { margin: 0; padding-left: var(--ck-indent); line-height: 1.5; max-width: var(--ck-steps-w); }
 .inv-ck-foot { margin-top: auto; font-size: var(--ck-fs-foot); color: #333; text-align: center; max-width: var(--ck-foot-w); }
 @media print { .inv-ck-sheet { border: none; } }
+
+/* ===== BLANK STATES (docs/UI_PASS_3.md §7c, §14b): nothing to show, said one way everywhere ===== */
+.inv-blank { display: flex; align-items: center; gap: var(--sp-12); padding: var(--pad-y) var(--pad-x); color: var(--text-2); min-width: 0; }
+.inv-blank-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--touch); height: var(--touch);
+  border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); }
+.inv-blank-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-blank-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-blank-body { margin: 0; font-size: var(--fs-13); color: var(--text-2); }
+.inv-blank-act { flex: none; }
+.inv-blank-sm { padding: var(--sp-6) 0; gap: var(--sp-8); }
+.inv-blank-sm .inv-blank-icon { width: var(--step-node); height: var(--step-node); }
+.inv-blank[data-blank="error"] .inv-blank-icon { color: var(--danger-mark); }
+.inv-blank[data-blank="offline"] .inv-blank-icon, .inv-blank[data-blank="notset"] .inv-blank-icon { color: var(--warning-mark); }
+
 </style>
 </head>
 <body>
@@ -3861,6 +3900,21 @@ function uiHeroHtml(o) {
   var open = o.fold ? uiFoldOpen(o.fold, o.open) : !!o.open;
   return '<details class="' + cls + '"' + (o.fold ? ' data-fold="' + escHtml(o.fold) + '"' : '') + (o.attrs || '') + (open ? ' open' : '') + '>' +
     '<summary class="inv-hero-head">' + head + '</summary><div class="inv-hero-body">' + o.body + '</div>' + foot + '</details>';
+}
+/* One set of blank states (docs/UI_PASS_3.md §7c, §14b): what a widget, a list or a chart says when it has nothing to show, in one
+   component. `o`: kind ('empty' nothing recorded yet, 'early' too little to say it surely, 'offline' no signal, 'notset' a setting
+   needed, 'error' it could not be drawn, 'loading' it is being fetched), title and body (text, escaped here), action (HTML: a button
+   or link its caller built), small (one line, for a Small widget or a chart's empty box). Never a zero standing for unknown. */
+var UI_BLANK_ICON = { empty: 'box', early: 'clock', offline: 'rss', notset: 'settings', error: 'caution', loading: 'sync' };
+function uiBlankHtml(o) {
+  o = o || {};
+  var kind = UI_BLANK_ICON[o.kind] ? o.kind : 'empty';
+  var icon = typeof iconSvg === 'function' ? iconSvg(o.icon || UI_BLANK_ICON[kind]) : '';
+  return '<div class="inv-blank' + (o.small ? ' inv-blank-sm' : '') + '" data-blank="' + kind + '"' + (kind === 'loading' ? ' aria-busy="true"' : '') + '>' +
+    '<span class="inv-blank-icon">' + icon + '</span><div class="inv-blank-text">' +
+    (o.title ? '<p class="inv-blank-title">' + escHtml(o.title) + '</p>' : '') +
+    (o.body && !o.small ? '<p class="inv-blank-body">' + escHtml(o.body) + '</p>' : '') + '</div>' +
+    (o.action ? '<div class="inv-blank-act">' + o.action + '</div>' : '') + '</div>';
 }
 /* ===== ONE LOOK'S PIECES (docs/TAB_MAP.md §3e; design §6.28, §6.6, §6.7) =====
    The owner, 9 Oct 2026: "UI still feels inconsistent to me". The components were alike everywhere; how each screen was put

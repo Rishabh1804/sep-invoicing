@@ -307,7 +307,8 @@ function advQSmooth(ctx) {
   moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
   // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): how many things could stop the plant, coded by how soon.
   var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
-    sub: escHtml(moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ')),
+    // No words under the figure: the story's sentence under it names the same things (Home's widget draws both).
+    sub: '',
     viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
       { title: [byTone.red ? byTone.red + ' to act on now' : '', byTone.amber ? byTone.amber + ' soon' : '', byTone.info ? byTone.info + ' to know' : ''].filter(Boolean).join(' · ') }) : '',
     tone: moves.length ? uiTone(worst === 'ok' ? 'info' : worst) : 'ok' };
@@ -779,7 +780,9 @@ function advMoveCardHtml(mv, listed, word) {
     '<div class="inv-deck-head">' + todoGlyph(mv.tone) + '<span class="inv-deck-word">' + escHtml(word || (mv.tone === 'red' || mv.tone === 'amber' ? TODO_TONE_WORD[mv.tone] : 'To know')) + '</span>' +
     (mv.worth && mv.worth.amount > 0.005 ? '<span class="inv-deck-fig">' + figHtml('<span class="inv-num" data-adv-worth>' + (mv.worth.sign < 0 ? '&minus;' : '+') + escHtml(advRs(mv.worth.amount)) + '</span>', mv.worth.sign < 0 ? 'danger' : 'ok') + '</span>' : '') + '</div>' +
     '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(mv.say) + '</span>' +
-    ((mv.worth && mv.worth.amount > 0.005 && advWorthLabel(mv.worth)) || mv.basis ? '<span class="inv-deck-sub">' + escHtml([mv.worth && mv.worth.amount > 0.005 ? advWorthLabel(mv.worth) : '', mv.basis || ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>' +
+    // What the worth is counted over, then what the move rests on: a line each, never one run-on line (P195's blocks).
+    (mv.worth && mv.worth.amount > 0.005 && advWorthLabel(mv.worth) ? '<span class="inv-deck-sub" data-adv-over>' + escHtml(advWorthLabel(mv.worth)) + '</span>' : '') +
+    (mv.basis ? '<span class="inv-deck-sub" data-adv-basis>' + escHtml(mv.basis) + '</span>' : '') + '</div>' +
     '<div class="inv-deck-foot">' + btn + add + '</div></article>';
 }
 /* Moves as a deck: the first `n` (all where none is given), the rest one tap away. */

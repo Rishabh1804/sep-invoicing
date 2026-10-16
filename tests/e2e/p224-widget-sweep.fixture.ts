@@ -34,6 +34,9 @@ export async function widgetProblems(page: Page, where: string): Promise<string[
       const card = c as HTMLElement, at = card.dataset.w + '@' + card.dataset.size;
       if (card.dataset.state === 'error') out.push(at + ': drawn as an error');
       if (card.scrollHeight > card.clientHeight + 1) out.push(at + ': cut, ' + (card.scrollHeight - card.clientHeight) + 'px past its size');
+      // Under its foot: a body shrunk to leave the foot its room, its last rows drawn beneath the foot's links.
+      const body = card.querySelector('.inv-widget-body') as HTMLElement | null;
+      if (body && body.scrollHeight > body.clientHeight + 1) out.push(at + ': ' + (body.scrollHeight - body.clientHeight) + 'px under its foot');
       const box = card.getBoundingClientRect();
       const inScroller = (el: Element) => { for (let p = el.parentElement; p && p !== card; p = p.parentElement) if (getComputedStyle(p).overflowX !== 'visible' && getComputedStyle(p).overflowX !== 'clip') return true; return false; };
       for (const el of Array.from(card.querySelectorAll('*')) as HTMLElement[]) {

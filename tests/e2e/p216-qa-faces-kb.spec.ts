@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, todayIso, waitForBoot, switchTab, emptyState, noSeedIM, recentTs, answerAsk, kbRead, type SepState } from './fixtures';
+import { loadAppWithState, todayIso, waitForBoot, switchTab, emptyState, noSeedIM, recentTs, answerAsk, kbRead, openNeeds, type SepState } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P216: the QA chain before PR 146 merges, the entry faces on Mine (the VAT register page, the attendance sheet, the rolls),
@@ -203,8 +203,10 @@ test.describe('P216: the entry faces on Mine', () => {
     await signIn(page, CLERK);
     await page.locator('[data-face-duty="attsheet"] [data-action="invFaceOpen"]').last().click();
     await page.locator('#attSheetEntry [data-action="invAttSet"][data-id="5"][data-st="P"]').click();
-    // The owner's Today: the roll was pasted, nobody wrote it on a face; the clerk's mark after it is not the roll.
+    // The owner's Needs you (Home's second view since UI pass 3, U2): the roll was pasted, nobody wrote it on a face; the clerk's
+    // mark after it is not the roll.
     await signIn(page, OWNER);
+    await openNeeds(page);
     expect(await ev(page, `faceInputBy('roll-in', '${today}')`)).toEqual([]);
     await expect(page.locator('[data-tdy-input="roll-in"] .inv-step-meta')).not.toContainText('Gita Bose');
     // A roll written on the clerk's face is theirs.

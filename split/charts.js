@@ -1085,6 +1085,24 @@ function chartDumbbell(rows, opts) {
     { cols: [{ label: opts.labelHead || '' }, { label: aL, unit: unit }, { label: bL, unit: unit }], rows: list.map(function(r) { return [r.label, ok(r.a) ? Number(r.a) : null, ok(r.b) ? Number(r.b) : null]; }) });
 }
 
+/* One bar of 100%: the parts of a whole side by side, a surface gap apart, each in its own slot's colour (`slot`, seriesSlot), its
+   share in its title, and the keys under it with each share. First for where a kilo's cost goes (Home's `kilo` widget). */
+function chartShareBar(parts, title) {
+  var sum = parts.reduce(function(s, p) { return s + p.v; }, 0);
+  if (!(sum > 0)) return '';
+  var W = 400, gap = 2, x = 0, live = parts.filter(function(p) { return p.v > 0; });
+  var rects = live.map(function(p, i) {
+    var w = p.v / sum * W, r = '<rect class="inv-sharebar-part ' + chartSlotClass(p.slot) + '" x="' + _chartN(x) + '" y="0" width="' + _chartN(Math.max(0.5, w - (i < live.length - 1 ? gap : 0))) +
+      '" height="10"><title>' + escHtml(p.label + ': ' + formatNum(p.v / sum * 100, 1) + '%') + '</title></rect>';
+    x += w;
+    return r;
+  }).join('');
+  var keys = '<div class="inv-chart-keys">' + live.map(function(p) {
+    return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + chartSlotClass(p.slot) + '"></span>' + escHtml(p.label + ' ' + Math.round(p.v / sum * 100) + '%') + '</span>';
+  }).join('') + '</div>';
+  return '<svg class="inv-sharebar" viewBox="0 0 ' + W + ' 10" preserveAspectRatio="none" role="img" aria-label="' + escHtml(title) + '"><title>' + escHtml(title) + '</title>' + rects + '</svg>' + keys;
+}
+
 /* Shares of a whole, each bar 100%: labels and series as chartStack (values ≥ 0), the parts a surface gap apart, the top part's
    end rounded. opts: unit (the values', said beside each share), keys, id, toDate (an index), ariaLabel, emptyText. A label with
    nothing in it is a gap. First for the share of tonnage against the share of revenue, and what a kilo costs. */

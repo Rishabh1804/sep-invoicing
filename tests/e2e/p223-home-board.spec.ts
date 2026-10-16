@@ -251,9 +251,11 @@ test.describe('P223 Home and its board (phone)', () => {
     await page.locator('[data-home-toolbar] [data-action="invWdgDone"]').click();
     const mine = await ids(page);
     expect(mine[mine.length - 1]).toBe('mtd');
+    // A reload keeps the window's sign-in (sessionStorage, guard.js): the same person, the same layout, no lock.
     await page.reload();
     await waitForBoot(page);
-    await unlock(page, 'U-own', PINS.owner);
+    await expect(page.locator('#guardRoot')).toBeHidden();
+    await page.locator('#homeDash:not(.inv-hidden) #homeBoard .inv-widget').first().waitFor();
     expect(await ids(page)).toEqual(mine);
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);

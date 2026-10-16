@@ -89,20 +89,25 @@ function prodSrcWord(e) { return { paste: 'message', photo: 'register photo', ha
    the book holds (prodWeigh), what of it is estimated said, the range the estimates allow, against two shifts and the
    plant's usual day; each line's runs on the clock, the clients, the pieces nothing weighs with the move that weighs them,
    the cuts and the loads. One card for Floor's Overview and Pulse (`compact`: the lines and how it was weighed); Production's own Overview went in the tab map's TM4. */
-function prodDayHeroHtml(date, opts) {
+function prodDayHeroHtml(date, opts) { return uiHeroHtml(prodDayHeroOpts(date, opts)); }
+/* The day card as a hero's options (uiHeroHtml's): what Floor's Overview draws, and Home's prodday widget at its sizes
+   (widgetcards.js). Beside the hero's own options it carries what it was read from: the day (`date`, `isToday`, `lag`, `when`)
+   and its picture (`pic`), none where no day is on record. */
+function prodDayHeroOpts(date, opts) {
   opts = opts || {};
   var isToday = date === localDateStr(), attrs = ' data-prod-day="' + escHtml(date || '') + '"' + (opts.attrs || '');
   var foot = function(line) {
     return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invProdDayLines" data-day="' + escHtml(date || '') + '" data-line="' + escHtml(line || '') + '">' + (date ? 'Open the lines' : 'Open Production') + '</button>';
   };
-  if (!date) return uiHeroHtml({ tone: 'neutral', vital: !!opts.vital, eyebrow: '<span>' + escHtml(opts.label || 'Plated') + '</span>', fig: opts.vital ? '&mdash;' : '', title: 'No plating on record yet', attrs: attrs, fold: opts.fold, foot: foot('') });
+  if (!date) return { tone: 'neutral', vital: !!opts.vital, eyebrow: '<span>' + escHtml(opts.label || 'Plated') + '</span>', fig: opts.vital ? '&mdash;' : '', title: 'No plating on record yet', attrs: attrs, fold: opts.fold, foot: foot('') };
   // Pulse shows the last day on record: how long ago it was is said, and a record days behind is amber (it has stopped).
   var lag = opts.compact ? isoDaysBetween(date, localDateStr()) : 0;
   var pic = prodDayPicture(date), when = opts.when || attDayName(date) + ' ' + formatDate(date) + (isToday ? ' · so far' : lag === 1 ? ' · yesterday' : lag > 1 ? ' · ' + lag + ' days ago' : '');
   var eyebrow = '<span>' + escHtml(opts.label || 'Plated') + '</span><span class="inv-panel-count">' + escHtml(when) + '</span>';
+  var at = { date: date, isToday: isToday, lag: lag, when: when, pic: pic };
   if (!pic.runs) {
-    return uiHeroHtml({ tone: pic.missing.length ? 'warning' : 'neutral', vital: !!opts.vital, fig: opts.vital ? '&mdash;' : '', eyebrow: eyebrow, attrs: attrs, fold: opts.fold, foot: foot(''),
-      title: escHtml(pic.missing.length ? prodLinesWord(pic.missing) + ' had heads and no record' : isToday ? 'No plating recorded yet today' : 'No plating recorded this day: a gap, not a zero') });
+    return Object.assign({ tone: pic.missing.length ? 'warning' : 'neutral', vital: !!opts.vital, fig: opts.vital ? '&mdash;' : '', eyebrow: eyebrow, attrs: attrs, fold: opts.fold, foot: foot(''),
+      title: escHtml(pic.missing.length ? prodLinesWord(pic.missing) + ' had heads and no record' : isToday ? 'No plating recorded yet today' : 'No plating recorded this day: a gap, not a zero') }, at);
   }
   var estd = pic.est > 0.0005, sure = pic.by.written + pic.by.record, de = prodDayEfficiency(date);
   // The colour is the plant's efficiency (owner, 9 Oct 2026: efficiency decides a card's colour), made worse by a general shift
@@ -114,7 +119,7 @@ function prodDayHeroHtml(date, opts) {
   else if (pic.unweighed && pic.unweighed / pic.pieces > 0.1) { worse('warning'); title = Math.round(pic.unweighed).toLocaleString('en-IN') + ' pieces not weighed: the day reads short'; }
   else if (effWord) title = (isToday ? 'So far today, ' : '') + effWord;
   else if (isToday) title = 'So far today, on ' + todoPlural(pic.ran.length, 'line');
-  else if (pic.usual != null && pic.kg < pic.usual * 0.8) { worse('warning'); title = 'Under a usual day of ' + prodKgFig(pic.usual, true); }
+  else if (prodDayUnder(pic.kg, pic.usual)) { worse('warning'); title = 'Under a usual day of ' + prodKgFig(pic.usual, true); }
   else if (pic.usual != null) { worse('ok'); title = (pic.kg > pic.usual * 1.2 ? 'Over' : 'About') + ' a usual day of ' + prodKgFig(pic.usual, true); }
   else title = todoPlural(pic.ran.length, 'line') + ' ran';
   if (lag > 2 && !tone) tone = 'warning';
@@ -132,8 +137,8 @@ function prodDayHeroHtml(date, opts) {
   var fig = pic.kg > 0 ? prodKgFig(pic.kg, estd, pic.unweighed > 0) : Math.round(pic.pieces).toLocaleString('en-IN') + ' pieces';
   // On Floor's Overview the pieces nothing weighs are its own list, under the line cards (opts.floor): not listed here as well.
   var body = '<div class="inv-hero-sheet" data-prod-day-sheet>' + prodDayLinesHtml(pic, opts.compact) + prodDayWeighHtml(pic, opts.compact, opts.floor) + (opts.compact ? '' : prodDayMoreHtml(pic)) + '</div>';
-  return uiHeroHtml({ tone: tone, vital: !!opts.vital, eyebrow: eyebrow, title: escHtml(title), fig: escHtml(fig), sub: escHtml(sub), viz: viz, body: body,
-    open: opts.open !== false, fold: opts.fold, attrs: attrs, foot: foot(opts.lead ? opts.lead.line : pic.ran[0]) });
+  return Object.assign({ tone: tone, vital: !!opts.vital, eyebrow: eyebrow, title: escHtml(title), fig: escHtml(fig), sub: escHtml(sub), viz: viz, body: body,
+    open: opts.open !== false, fold: opts.fold, attrs: attrs, foot: foot(opts.lead ? opts.lead.line : pic.ran[0]) }, at);
 }
 function prodLinesWord(list) { return list.map(prodLineName).join(list.length === 2 ? ' and ' : ', '); }
 /* Each line that ran: its weight and pieces, its hours on the clock and its runs; a line with heads and no record says so. */

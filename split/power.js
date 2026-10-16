@@ -497,6 +497,26 @@ function powerAnalysis() {
     first: first, span: span, invCapture: invCapture, load: powerLoad(), typical: typical, quiet: quiet, recovery: recovery };
 }
 
+/* The hours the plant's cuts most often start (Home's risk widget): of the hours from `from` to `to` (6 AM to 10 PM), the two
+   together in which the most cuts on record began, the earlier on a tie, read off Cuts' own count by the hour they began
+   (powerAnalysis().hours, its "When they come"). → {from, to (hours), cuts, inRange: the cuts that began from `from` to `to`, total:
+   every cut}; null with none in those hours. A window over fewer than POWER_RISK_MIN cuts is said as early (`early`): too few to
+   name one, as a usual day wants five days. */
+var POWER_RISK_HOURS = 2, POWER_RISK_MIN = 5;
+function powerRiskWindow(hours, from, to) {
+  from = from == null ? 6 : from; to = to == null ? 22 : to;
+  var at = function(h) { return Number(hours && hours[h]) || 0; }, total = 0, inRange = 0, best = null;
+  for (var h = 0; h < 24; h++) { total += at(h); if (h >= from && h < to) inRange += at(h); }
+  if (!inRange) return null;
+  for (var a = from; a + POWER_RISK_HOURS <= to; a++) {
+    var n = 0;
+    for (var k = a; k < a + POWER_RISK_HOURS; k++) n += at(k);
+    if (!best || n > best.cuts) best = { from: a, to: a + POWER_RISK_HOURS, cuts: n };
+  }
+  best.inRange = inRange; best.total = total; best.early = inRange < POWER_RISK_MIN;
+  return best;
+}
+
 /* ---------- The connection's load ---------- */
 /* The load record, and what the bills say of it: the load billed, the peak drawn, the over-limit penalty. */
 function powerBills() {

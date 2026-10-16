@@ -16,8 +16,9 @@ function iso(offset: number): string {
 
 function state(): SepState {
   const [d1, d2, d3] = workingDaysBack(4).slice(1).reverse();
+  // The insight rules are p48's and Tata's month P225's (UI pass 3, U2): off here, so the counts are the To-do's own.
   const insightsOff = { insQuiet: false, insRealLow: false, insClientDown: false, insLeak: false, insBelowVar: false,
-    insLabour: false, insAttGap: false, insChemPrice: false };
+    insLabour: false, insAttGap: false, insChemPrice: false, mktTata: false };
   return {
     ...emptyState(), incomingMaterial: noSeedIM(), todoCheck: insightsOff,
     stock: {

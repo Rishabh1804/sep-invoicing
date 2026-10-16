@@ -1384,10 +1384,12 @@ function uiMasonry(el) {
   if (_masonryObs) Array.prototype.forEach.call(el.children, function(c) { _masonryObs.observe(c); });
 }
 function uiMasonryPack(el) {
-  var cs = getComputedStyle(el), row = parseFloat(cs.gridAutoRows) || 4, gap = parseFloat(cs.rowGap) || 0;
+  // The rows are a few pixels each with no gap between them (styles.css), and a card spans its height and the gap under it: every
+  // card sits a gap, near to the pixel, under the one above (rounding to a 16 px unit of row and gap had left 12 to 27).
+  var cs = getComputedStyle(el), row = parseFloat(cs.gridAutoRows) || 4, gap = parseFloat(cs.columnGap) || 0;
   Array.prototype.forEach.call(el.children, function(c) {
     var h = c.getBoundingClientRect().height;
-    var n = h > 0 ? Math.max(1, Math.ceil((h + gap) / (row + gap))) : 1;
+    var n = h > 0 ? Math.max(1, Math.ceil((h + gap) / row)) : 1;
     if (c.style.getPropertyValue('--rows') !== String(n)) c.style.setProperty('--rows', String(n));
   });
 }
@@ -1961,6 +1963,16 @@ function figDeltaHtml(cur, prev, label, better) {
   if (!better) return text;
   var good = better === 'up' ? pct > 0 : pct < 0;
   return figHtml(text, good ? 'ok' : Math.abs(pct) <= FIG_BAD_PCT ? 'warning' : 'danger');
+}
+
+/* A name in running words (a sentence, a line naming several), never past `max` characters (28 by default): a long one loses its
+   last words, said with "…". The whole name stays where the record itself is listed (a fold's members, a row's own title). */
+function uiNameShort(name, max) {
+  var s = String(name == null ? '' : name).replace(/\s+/g, ' ').trim();
+  max = max > 0 ? max : 28;
+  if (s.length <= max) return s;
+  var cut = s.slice(0, max - 1), sp = cut.lastIndexOf(' ');
+  return (sp > max * 0.5 ? cut.slice(0, sp) : cut).replace(/[\s,;:.\-–—&]+$/, '') + '\u2026';
 }
 
 /* A figure in a tile breaks only after a comma group, never inside its paise: \u20B910,46,48,655.51 wraps as

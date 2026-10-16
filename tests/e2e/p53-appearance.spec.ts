@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, switchTab, readStoredState, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openNeeds, openSettingsAt, switchTab, readStoredState, type SepState } from './fixtures';
 
 // P53: design system v2.0 foundation — theme follows the phone, three palettes chosen
 // per device, the new top bar and bottom bar, and printed documents left on their own faces. Zinc & brass is the default since
@@ -57,14 +57,17 @@ test.describe('P53: appearance', () => {
     await page.emulateMedia({ colorScheme: 'dark' });
     await load(page);
     // Zinc & brass's dark accent is light, so its text is dark — never the v1.0 hard-coded white. The primary's face runs from the
-    // accent to a step deeper (UI pass 3, §3b).
-    expect(await css(page, '#pageHome .inv-btn-grid .inv-btn-primary', 'color')).toBe('rgb(27, 18, 4)');
-    expect(await css(page, '#pageHome .inv-btn-grid .inv-btn-primary', 'background-image')).toBe('linear-gradient(rgb(220, 170, 76), rgb(185, 143, 63))');
+    // accent to a step deeper (UI pass 3, §3b). Needs you's Add is the view's primary (the quick actions are secondary on Home's
+    // board since U2, a view holding one primary).
+    await openNeeds(page);
+    expect(await css(page, '#pageHome [data-action="invTodoAdd"].inv-btn-primary', 'color')).toBe('rgb(27, 18, 4)');
+    expect(await css(page, '#pageHome [data-action="invTodoAdd"].inv-btn-primary', 'background-image')).toBe('linear-gradient(rgb(220, 170, 76), rgb(185, 143, 63))');
   });
 
   test('the top bar names the workspace, its tab row the screen, and the system bar matches it', async ({ page }) => {
     await load(page);
-    await expect(page.locator('#topbarTitle')).toHaveText('Today');
+    // Home since UI pass 3 (U2; Today until then).
+    await expect(page.locator('#topbarTitle')).toHaveText('Home');
     await switchTab(page, 'pageRegister');
     await expect(page.locator('#topbarTitle')).toHaveText('Office');
     await expect(page.locator('#wsTabs .inv-viewtab[aria-selected="true"]')).toHaveText('Invoices');

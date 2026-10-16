@@ -59,10 +59,10 @@ function whyPct(s) { return Math.round(s * 100) + '%'; }
    sentence's (whySentence). */
 function whyRealShort(c) {
   var rk = function(v) { return '₹' + formatNum(v, 2) + '/kg'; };
-  if (c.kind === 'rate') { c.short = c.name + '’s own rate'; c.sub = rk(c.r0) + ' → ' + rk(c.r1); }
-  else if (c.kind === 'mix') { c.short = c.name + '’s share'; c.sub = whyPct(c.s0) + ' → ' + whyPct(c.s1) + ' of the kilos, at ' + rk(c.r); }
-  else if (c.kind === 'new') { c.short = c.name + ', new'; c.sub = whyPct(c.s1) + ' of the kilos at ' + rk(c.r); }
-  else if (c.kind === 'gone') { c.short = c.name + ', not billed now'; c.sub = 'was ' + whyPct(c.s0) + ' of the kilos at ' + rk(c.r); }
+  if (c.kind === 'rate') { c.short = uiNameShort(c.name) + '’s own rate'; c.sub = rk(c.r0) + ' → ' + rk(c.r1); }
+  else if (c.kind === 'mix') { c.short = uiNameShort(c.name) + '’s share'; c.sub = whyPct(c.s0) + ' → ' + whyPct(c.s1) + ' of the kilos, at ' + rk(c.r); }
+  else if (c.kind === 'new') { c.short = uiNameShort(c.name) + ', new'; c.sub = whyPct(c.s1) + ' of the kilos at ' + rk(c.r); }
+  else if (c.kind === 'gone') { c.short = uiNameShort(c.name) + ', not billed now'; c.sub = 'was ' + whyPct(c.s0) + ' of the kilos at ' + rk(c.r); }
   return c;
 }
 function whyRealLabel(c, R0) {

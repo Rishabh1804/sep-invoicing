@@ -54,7 +54,7 @@ test('arranging removes a widget, sets one Large and adds one from the gallery; 
   // Stock days left is not in the Owner preset: from the gallery it goes to the end, and says the line running out.
   await page.locator('[data-home-toolbar] [data-action="invWdgGallery"]').click();
   await page.locator('.inv-gallery [data-action="invWdgGalleryAdd"][data-wid="stockdays"]').click();
-  await page.locator('.inv-gallery [data-action="invWdgGalleryDone"]').first().click();
+  await page.locator('[data-wdg-gallery] .inv-dialog-foot [data-action="invWdgGalleryDone"]').click();
   await page.locator('[data-home-toolbar] [data-action="invWdgDone"]').click();
   expect((await order(page)).slice(-1)).toEqual(['stockdays']);
   await expect(page.locator('#homeBoard [data-w="stockdays"]')).toContainText('Nitric acid');

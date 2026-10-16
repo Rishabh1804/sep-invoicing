@@ -46,7 +46,8 @@ test.describe('P155 desktop: Knowledge', () => {
     await expect(book1).toHaveCount(1);
     await book1.click();
     await expect(page.locator('#pageKnow')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#kbLibrary [data-kb-row="app-today"]')).toContainText('Today');
+    // The guide to the screen on show: Home's (Today's until UI pass 3, U2; its id is kept).
+    await expect(page.locator('#kbLibrary [data-kb-row="app-today"]')).toContainText('Home');
   });
 
   test('an article’s row opens in a new window on a Ctrl+click, at its own address', async ({ page }) => {

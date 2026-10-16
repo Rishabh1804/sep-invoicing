@@ -73,6 +73,8 @@ function switchTab(tabId) {
   if (currentPage && currentPage.id === 'pageKnow' && typeof kbLeave === 'function') kbLeave();
   // A face's form is left with its page (faces.js): Mine opens on the face again, not on a form someone left half filled.
   if (currentPage && currentPage.id === 'pageFace' && tabId !== 'pageFace' && typeof _faceForm !== 'undefined') _faceForm = null;
+  // Home's clock and live widgets stop when Home is left (today.js homeLeave); they start again when it is shown.
+  if (currentPage && currentPage.id === 'pageHome' && tabId !== 'pageHome' && typeof homeLeave === 'function') homeLeave();
 
   // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
   _viewTopAt++;
@@ -150,6 +152,7 @@ function tabRender(tabId, isDirty) {
     // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both). Home's dashboard
     // (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late.
     if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr()) { renderHome(); _tabDirty.home = false; }
+    else if (tdyView() === 'home' && typeof homeArrive === 'function') homeArrive();
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
       renderRegisterTable();

@@ -564,20 +564,26 @@ function homeDayRefresh() {
 var _homeClockT = null;
 function homeClockTick() {
   var c = document.querySelector('#homeDash [data-home-clock]'), s = document.querySelector('#homeDash [data-home-shift]');
-  if (!c || !c.isConnected) { homeClockStop(); return; }
+  if (!homeClockShown(c)) { homeClockStop(); return; }
   var now = new Date(), ct = homeClockText(now), st = homeShiftText(now);
   if (c.textContent !== ct) c.textContent = ct;
   if (s && s.textContent !== st) s.textContent = st;
 }
+/* The clock on screen: drawn, on the page shown, its view not hidden and the window in view. */
+function homeClockShown(c) {
+  c = c || document.querySelector('#homeDash [data-home-clock]');
+  return !!(c && c.isConnected && c.closest('.inv-page-active') && !c.closest('.inv-hidden') && !document.hidden);
+}
 function homeClockStart() {
   homeClockStop();
+  if (!homeClockShown()) return;
   homeClockTick();
   homeFeedsAsk();
   var wait = 60000 - (Date.now() % 60000);
   _homeClockT = setTimeout(function next() {
     homeClockTick();
+    if (_homeClockT === null) return;   // Home went out of view: the tick stopped the clock, and nothing is asked
     homeFeedsAsk();
-    if (_homeClockT === null) return;
     _homeClockT = setTimeout(next, 60000 - (Date.now() % 60000));
   }, wait);
 }
@@ -628,7 +634,15 @@ function tdyApplyView() {
   var v = tdyView(), needs = document.getElementById('homeNeeds'), dash = document.getElementById('homeDash');
   if (needs) needs.classList.toggle('inv-hidden', v !== 'needs');
   if (dash) dash.classList.toggle('inv-hidden', v !== 'home');
-  if (v !== 'home') { homeClockStop(); wdgLiveStop('home'); if (wdgArrangeOn('home')) wdgArrangeDone(true); }
+  if (v !== 'home') homeLeave();
+}
+/* Home left, for Needs you or another page (tabs.js switchTab): its clock and live widgets stop and arranging ends. Shown again
+   with nothing to draw anew, they start at once (homeArrive, tabs.js tabRender). */
+function homeLeave() { homeClockStop(); wdgLiveStop('home'); if (wdgArrangeOn('home')) wdgArrangeDone(true); }
+function homeArrive() {
+  homeClockStart();
+  var host = document.getElementById('homeBoard');
+  if (host && tdyView() === 'home') wdgLiveStart(host, 'home');
 }
 
 function tdyAction(action, btn) {

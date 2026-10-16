@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { loadAppWithState, openPulse, switchTab } from './fixtures';
+import { loadAppWithState, openHome, openNeeds, openPulse, switchTab } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P228, the look (docs/UI_PASS_3.md §3, §3g; owner, 16 Oct 2026: "B with wells"): cards lift off the page, what you press or fill
@@ -92,13 +92,20 @@ export function lookSuite(layout: 'phone' | 'desktop') {
         await page.emulateMedia({ colorScheme: scheme });
         const rCard = parseFloat(await token(page, '--r-card', 'border-top-left-radius'));
         const edge = await token(page, '--edge', 'border-top-color');
-        await switchTab(page, 'pageHome');
+        // Home's board first (UI pass 3, U2: a widget is a card), then Needs you, its second view.
+        await openHome(page);
+        await openNeeds(page);
         for (const sel of ['#homeNeeds .inv-hero', '#homeNeeds .inv-deck-item']) {
           const c = await boxOf(page, sel);
           expect(layers(c.shadow).length, `${scheme} ${sel}: two shadows`).toBe(2);
           expect(outer(c.shadow), `${scheme} ${sel}: outside it`).toBe(true);
           expect(c.radius, `${scheme} ${sel}: a card's corners`).toBe(rCard);
         }
+        await openHome(page);
+        const w = await boxOf(page, '#homeBoard .inv-widget');
+        expect(layers(w.shadow).length, `${scheme} a widget: two shadows`).toBe(2);
+        expect(outer(w.shadow), `${scheme} a widget: outside it`).toBe(true);
+        expect(w.radius, `${scheme} a widget: a card's corners`).toBe(rCard);
         await switchTab(page, 'pageCreate');
         const panel = await boxOf(page, '#pageCreate .inv-panel');
         expect(layers(panel.shadow).length, `${scheme} a panel: two shadows`).toBe(2);

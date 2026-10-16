@@ -40,11 +40,12 @@ test.describe('P223 Home and its board (desktop)', () => {
     await page.mouse.move(h.x + h.width / 2, h.y + h.height / 2);
     await page.mouse.down();
     await expect(page.locator('.inv-widget-lifted')).toHaveCount(1);
-    // Over Recent invoices' far half: the lifted card's centre is the pointer's, less where the card was taken.
+    // Over Recent invoices' far quarter (its right and its lower half, so "after" whether the card is split across or down): the
+    // lifted card's centre is the pointer's, less where the card was taken.
     const at = await page.evaluate(() => {
       const r = document.querySelector('#homeBoard [data-w="recent"]')!.getBoundingClientRect();
       const c = document.querySelector('#homeBoard [data-w="mtd"]')!.getBoundingClientRect();
-      return { dx: (r.left + r.width * 0.75) - (c.left + c.width / 2), dy: (r.top + r.height / 2) - (c.top + Math.min(c.height, 160) / 2) };
+      return { dx: (r.left + r.width * 0.75) - (c.left + c.width / 2), dy: (r.top + r.height * 0.75) - (c.top + Math.min(c.height, 160) / 2) };
     });
     await page.mouse.move(h.x + h.width / 2 + at.dx, h.y + h.height / 2 + at.dy, { steps: 6 });
     await page.mouse.up();

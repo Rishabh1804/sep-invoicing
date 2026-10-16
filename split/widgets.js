@@ -259,6 +259,8 @@ function wdgData(def, ctx) {
 function wdgStateHtml(def, size, d) {
   var k = WDG_STATE_TITLE[d.state] ? d.state : 'empty';
   var action = d.action || (k === 'error' ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgReport" data-wid="' + escHtml(def.id) + '">Report it</button>' : '');
+  // A Small on the phone is half the screen: its head is the door, and a button beside the words would run past the card.
+  if (size === 's' && typeof _isDesktop !== 'undefined' && !_isDesktop) action = '';
   return uiBlankHtml({ kind: k, title: d.title || WDG_STATE_TITLE[k], body: d.body || '', action: action, small: size === 's' });
 }
 function wdgBodyHtml(def, size, d, ctx) {
@@ -306,14 +308,23 @@ function wdgAfterOne(el) {
 /* A widget never cuts what it shows (§7b): one taller than its size's cap lets go of its last rows, the list's own (rows, fact
    rows, cards in a deck, steps), until it fits, and says how many are on its screen (Show all, the head's door). Measured only
    where the card is laid out; a widget with nothing left to let go of keeps what it has (the sweep, P224, says so). A fact row
-   is a row, a row that folds open goes whole. */
-var WDG_FIT_ROWS = '.inv-row, .inv-deck-item, .inv-step, .inv-row-fold';
+   is a row, a row that folds open goes whole, and a ranked bar is a row (its chart's table keeps every one). Before any row, the
+   parts a widget can do without go, all together: a tile's line of the months before (its change line says the same in words),
+   and whatever a widget marks `data-wdg-opt`. */
+var WDG_FIT_ROWS = '.inv-row, .inv-deck-item, .inv-step, .inv-row-fold, .inv-chart-ranked-row';
+var WDG_FIT_OPT = '[data-wdg-opt], .inv-tile-viz';
 function wdgFit(card) {
   if (!card || !card.isConnected || !card.offsetParent) return;
-  var over = function() { return card.scrollHeight > card.clientHeight + 1; };
-  if (!over()) return;
+  // Past the cap, or under the foot: a body shrunk to leave the foot its room runs its last rows beneath it, with the card itself
+  // no taller than its cap.
   var body = card.querySelector('.inv-widget-body');
+  var over = function() { return card.scrollHeight > card.clientHeight + 1 || !!body && body.scrollHeight > body.clientHeight + 1; };
+  if (!over()) return;
   if (!body) return;
+  // Let go of: marked, and hidden by the mark (a row's or a card's own display would show a bare `hidden`).
+  var cut = function(el) { el.setAttribute('data-wdg-cut', ''); el.hidden = true; };
+  var opt = Array.prototype.filter.call(body.querySelectorAll(WDG_FIT_OPT), function(el) { return !el.hidden && !el.closest('[data-wdg-cut]'); });
+  if (opt.length) { opt.forEach(cut); if (!over()) return; }
   var rows = Array.prototype.filter.call(body.querySelectorAll(WDG_FIT_ROWS), function(r) {
     return !r.hidden && !r.closest('[hidden], [data-wdg-cut]') && !r.closest('.inv-widget-more') && !r.parentElement.closest(WDG_FIT_ROWS);
   });
@@ -328,12 +339,10 @@ function wdgFit(card) {
     more.innerHTML = def && wdgCanGo(def) ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGo" data-wid="' + escHtml(def.id) + '">' + escHtml(label) + '</button>'
       : '<span class="inv-note">' + escHtml(label) + '</span>';
   };
-  // Let go of: marked, and hidden by the mark (a row's or a card's own display would show a bare `hidden`).
-  var cut = function(el) { el.setAttribute('data-wdg-cut', ''); el.hidden = true; };
   while (rows.length && over()) { cut(rows.pop()); hid++; say(); }
   if (!hid) { more.remove(); return; }
-  // A sheet whose rows all went goes with them.
-  Array.prototype.forEach.call(body.querySelectorAll('.inv-hero-sheet'), function(sh) {
+  // A sheet whose rows all went goes with them, and a list of moves with its head.
+  Array.prototype.forEach.call(body.querySelectorAll('.inv-hero-sheet, .inv-hero-moves'), function(sh) {
     if (!sh.querySelector(WDG_FIT_ROWS.split(', ').map(function(s) { return s + ':not([data-wdg-cut])'; }).join(', ')) && sh.querySelector(WDG_FIT_ROWS)) cut(sh);
   });
 }

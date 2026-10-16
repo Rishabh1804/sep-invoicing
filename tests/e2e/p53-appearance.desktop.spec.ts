@@ -7,7 +7,8 @@ import { emptyState, loadAppWithState, noSeedIM, openSettingsAt, type SepState, 
 test.describe('P53 desktop: rail and density', () => {
   test('the rail is the workspaces; Parts and Pay are views inside their page, whose tab stays pressed', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM() } as SepState);
-    await expect(page.locator('#invSidebar .inv-side-item[data-ws]')).toHaveText([/^Today/, /^Office/, /^Floor/, /^Money/]);
+    // The first workspace is Home since UI pass 3 (U2; Today until then).
+    await expect(page.locator('#invSidebar .inv-side-item[data-ws]')).toHaveText([/^Home/, /^Office/, /^Floor/, /^Money/]);
     expect(await page.evaluate(() => getComputedStyle(document.body).marginLeft)).toBe('88px');
     await expect(page.locator('#invSidebar [data-sub], #invSidebar [data-tab]')).toHaveCount(0);
     await page.locator('#invSidebar [data-ws="office"]').click();

@@ -45,7 +45,9 @@ test.describe('P9: zinc market rate', () => {
   test('prompts for setup when no rate is recorded and no key is set', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
     await openWidget(page, 'zinc');
-    await expect(page.locator('[data-w="zinc"]')).toContainText('No rate recorded');
+    // The widget's blank state (UI pass 3, U2): what is missing, and where to set it.
+    await expect(page.locator('[data-w="zinc"]')).toContainText('No zinc rate recorded');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('add a metals.dev API key');
     // Nothing to press yet — a refresh would only report the missing key.
     await expect(page.locator('[data-action="invRefreshZinc"]')).toHaveCount(0);
   });

@@ -199,10 +199,15 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await openPulse(page);
     const q = page.locator('[data-tdy-q="clients"]');
     await expect(q).toHaveClass(/inv-hero-warning/);
-    await expect(q.locator('.inv-chart-ranked-fill-warning')).toHaveCount(1);
-    await expect(q.locator('.inv-chart-ranked-fill-danger')).toHaveCount(0);
     await expect(q.locator('[data-story-say] .inv-dot-warning')).toHaveCount(1);
     await expect(q.locator('.inv-meter-warning')).toHaveCount(1);
+    // The clients ranked by tonnage are the question's own story, opened from the widget's head (UI pass 3, U2: the card holds
+    // the answer and its sentence; its bars and tiles are a tap away).
+    await q.locator('.inv-widget-door').click();
+    const open = page.locator('[data-tdy-q-open="clients"]');
+    await expect(open.locator('.inv-chart-ranked-fill-warning')).toHaveCount(1);
+    await expect(open.locator('.inv-chart-ranked-fill-danger')).toHaveCount(0);
+    await expect(open.locator('[data-story-say] .inv-dot-warning')).toHaveCount(1);
   });
 
   test('A7-15: a loss within 5% of the live cost is a warning on Home, on Stats’ Cost and Trends, and on the report', async ({ page }) => {
@@ -213,7 +218,10 @@ test.describe('P211: the price against the cost, judged one way', () => {
     const money = page.locator('[data-tdy-q="money"]');
     await expect(money).toHaveClass(/inv-hero-warning/);
     await expect(money.locator('[data-story-say] .inv-dot-warning')).toHaveCount(1);
-    await expect(money.locator('.inv-tile-warning')).toHaveCount(2);
+    // Its tiles are the question's own story, opened from the widget's head (UI pass 3, U2).
+    await money.locator('.inv-widget-door').click();
+    await expect(page.locator('[data-tdy-q-open="money"] .inv-tile-warning')).toHaveCount(2);
+    await page.locator('[data-tdy-q-open="money"] [data-action="invCloseOverlay"]').first().click();
     await openStatsTab(page, 'cost');
     const contrib = page.locator('#statsVerdict .inv-tile', { has: page.locator('.inv-tile-label', { hasText: 'Contribution' }) });
     await expect(contrib).toHaveClass(/inv-tile-warning/);

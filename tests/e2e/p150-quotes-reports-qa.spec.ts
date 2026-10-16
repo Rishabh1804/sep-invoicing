@@ -312,7 +312,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
         go: { kind: 'quoteDraft', clientId: 1, lines: [{ item: 'B', partNumber: 'B', basis: 'kg', rate: 2 }], note: 'second draft' } });
       var host = document.createElement('div'); host.id = 'p150Moves';
       host.innerHTML = advMovesHtml([a], 'p150a') + advMovesHtml([b], 'p150b');
-      document.getElementById('homeQuestions').prepend(host);
+      document.getElementById('homeDash').prepend(host);
     })()`);
     await page.locator('#p150Moves [data-adv-move="reprice:9"]').first().locator('[data-action="invAdvGo"]').click();
     await expect(page.locator('#clientsPageContent [data-qt-draft-note]')).toHaveText('first draft');
@@ -321,7 +321,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     await openToday(page);
     await g(page, `(function(){ var old = document.getElementById('p150Moves'); if (old) old.remove(); var host = document.createElement('div'); host.id = 'p150Moves';
       host.innerHTML = advMovesHtml([_advRows['reprice:9#Ask X for ₹1.00/kg, the full cost this month']], 'p150a') + advMovesHtml([_advRows['reprice:9#Ask X for ₹2.00/kg, the full cost in ${monthName}']], 'p150b');
-      document.getElementById('homeQuestions').prepend(host); })()`);
+      document.getElementById('homeDash').prepend(host); })()`);
     await page.locator('#p150Moves [data-adv-move="reprice:9"]').nth(1).locator('[data-action="invAdvTask"]').click();
     const tasks = (await readStoredState(page)).todo.tasks.filter((t: any) => t.advKey === 'reprice:9');
     expect(tasks.map((t: any) => t.text)).toEqual(['second task']);

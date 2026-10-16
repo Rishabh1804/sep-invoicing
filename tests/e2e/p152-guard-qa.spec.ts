@@ -368,7 +368,8 @@ test.describe('P152: the guard, after its QA', () => {
 
     // The owner sees every one, and the counts are theirs.
     await switchUser(page, 'U-own', PINS.owner);
-    await switchTab(page, 'pageHome');
+    // Needs you is Home's second view since UI pass 3 (U2).
+    await openNeeds(page);
     keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup', 'flowLate:1']) expect(keys).toContain(k);
     const n = JSON.parse(await ev(page, 'JSON.stringify(wsRedCounts())') as string);

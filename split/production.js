@@ -1258,6 +1258,10 @@ function prodUsualDay(date) {
   }).filter(function(x) { return x != null && x > 0; });
   return kgs.length >= 5 ? numMedian(kgs) : null;
 }
+/* A day under its usual: under four fifths of it, one judge for the day card ("Under a usual day") and Home's Plated each day
+   (its light days). False where no usual day is known. */
+var PROD_DAY_UNDER = 0.8;
+function prodDayUnder(kg, usual) { return usual != null && usual > 0 && kg != null && kg < usual * PROD_DAY_UNDER; }
 
 /* ---------- A line's efficiency on a day ----------
    Owner, 9 Oct 2026: "where it says VAT A1 did a particular amount of production, calculate its efficiency as well, we can

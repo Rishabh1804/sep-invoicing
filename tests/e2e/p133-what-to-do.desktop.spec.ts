@@ -29,10 +29,10 @@ test('a move keeps its sentence readable in its card, its call is a link drawn a
   await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
 
   // Every visible move: inside its question (or Do first), its sentence at least 16rem wide or alone on its line above the
-  // buttons.
+  // buttons. A move is a card, or a row under an insight of What changed? (its story is open on the widget at Large since U2).
   const rows = await page.locator('#homeDash [data-adv-move]:visible').evaluateAll(els => els.map(el => {
     const card = el.closest('[data-tdy-q], [data-card="first"]')!.getBoundingClientRect(), r = el.getBoundingClientRect();
-    const main = el.querySelector('.inv-deck-body')!.getBoundingClientRect(), end = el.querySelector('.inv-deck-foot')!.getBoundingClientRect();
+    const main = el.querySelector('.inv-deck-body, .inv-row-main')!.getBoundingClientRect(), end = el.querySelector('.inv-deck-foot, .inv-row-end')!.getBoundingClientRect();
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
     return { key: (el as HTMLElement).dataset.advMove, inside: r.left >= card.left - 1 && r.right <= card.right + 1 && end.right <= card.right + 1,
       readable: main.width >= 16 * rem - 1 || end.top >= main.bottom - 1 };

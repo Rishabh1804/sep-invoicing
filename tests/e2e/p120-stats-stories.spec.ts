@@ -53,6 +53,6 @@ test('Pulse leads with the questions, each answered in a sentence, before the fi
   const order = await page.locator('#homeBoard .inv-widget').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.w as string));
   expect(order.indexOf('q-smooth')).toBe(0);
   expect(order.indexOf('q-changed')).toBeLessThan(order.indexOf('figures'));
-  await expect(page.locator('#homeBoard [data-w="figures"] #statsOverview')).toHaveCount(1);
+  await expect(page.locator('#homeBoard #statsOverview[data-w="figures"]')).toHaveCount(1);
   await expect(page.locator('#statsInsights')).toHaveCount(0);
 });

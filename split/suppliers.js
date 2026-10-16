@@ -781,10 +781,15 @@ function suppReorderPick(item, daysLeft) {
 /* The pick in words, for the list's row and the line's task: who, how long, by when. */
 function suppPickText(pk) {
   if (!pk || !pk.sp) return '';
-  var when = '';
-  if (pk.orderBy) when = pk.late ? (pk.daysLeft != null && pk.daysLeft <= 0 ? ', order now: it is out' : ', order now: it runs out before it can come')
-    : pk.orderBy === localDateStr() ? ', order today' : ', order by ' + stockShortDate(pk.orderBy);
-  return pk.name + (pk.mine ? ' (your pick)' : '') + ': ' + suppLeadText(pk.lead) + when;
+  var when = suppPickWhen(pk);
+  return pk.name + (pk.mine ? ' (your pick)' : '') + ': ' + suppLeadText(pk.lead) + (when ? ', ' + when : '');
+}
+/* When to order, in a few words (the pick's own, for the list and the line's task, and Home's stockdays): "order by 18 Oct", "order
+   today", "order now: it is out"; '' where no lead time says when. */
+function suppPickWhen(pk) {
+  if (!pk || !pk.orderBy) return '';
+  return pk.late ? (pk.daysLeft != null && pk.daysLeft <= 0 ? 'order now: it is out' : 'order now: it runs out before it can come')
+    : pk.orderBy === localDateStr() ? 'order today' : 'order by ' + stockShortDate(pk.orderBy);
 }
 
 /* ---------- Compare suppliers ----------

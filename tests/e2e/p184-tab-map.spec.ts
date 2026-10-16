@@ -25,22 +25,23 @@ function book(): SepState {
   return { ...emptyState(), incomingMaterial: noSeedIM() } as SepState;
 }
 
-/* The rows of §2 as TM1 leaves them: Stats keeps its five tabs and the Planner its eight until TM2; Money's row is its page's. */
+/* The rows of §2 as TM1 leaves them: Stats keeps its five tabs and the Planner its eight until TM2; Money's row is its page's.
+   Today is Home since UI pass 3 (U2): Home and Needs you, then its Insights; the workspace's id stays `today`. */
 export const ROWS: Record<string, string[]> = {
-  today: ['Needs you', 'Pulse', 'Stats', 'Reports', 'Planner'],
+  today: ['Home', 'Needs you', 'Stats', 'Reports', 'Planner'],
   office: ['Pipeline', 'Challans', 'Invoices', 'Clients', 'Sales'],
   floor: ['Overview', 'People', 'Production', 'Stock', 'Power'],
 };
 
 test.describe('P184: the tab map on the phone', () => {
-  test('each section’s row is the map’s, Insights named in Today’s; Money’s row is its page’s', async ({ page }) => {
+  test('each section’s row is the map’s, Insights named in Home’s; Money’s row is its page’s', async ({ page }) => {
     await loadAppWithState(page, book());
     for (const [ws, labels] of Object.entries(ROWS)) {
       await bar(page, ws).click();
       await expect(row(page)).toHaveText(labels);
       await expect(bar(page, ws)).toHaveClass(/inv-navbar-item-on/);
     }
-    // The group's name stands before Stats in Today's row, and Office's row has none.
+    // The group's name stands before Stats in Home's row, and Office's row has none.
     await bar(page, 'today').click();
     await expect(page.locator('#wsTabs .inv-viewtab-group')).toHaveText(['Insights']);
     expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-group').nextElementSibling.textContent`)).toBe('Stats');
@@ -149,9 +150,9 @@ test.describe('P184: the tab map on the phone', () => {
     await page.locator('[data-grd-menu] [data-action="invGuardLockNow"]').click();
     await unlock(page, 'U-off', PINS.office);
     await expect(page.locator('.inv-topbar [data-action="invGoHistory"]:visible')).toHaveCount(0);
-    // Today's row holds only what the role opens: its Insights, and their name, go with them.
+    // Home's row holds only what the role opens: its Insights, and their name, go with them.
     await bar(page, 'today').click();
-    await expect(row(page)).toHaveText(['Needs you', 'Pulse']);
+    await expect(row(page)).toHaveText(['Home', 'Needs you']);
     await expect(page.locator('#wsTabs .inv-viewtab-group')).toHaveCount(0);
     // A page refused is named as the map names it.
     await g(page, `switchTab('pageStaff')`);

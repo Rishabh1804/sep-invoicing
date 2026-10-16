@@ -348,6 +348,7 @@ export const LOOKS: string[] = [
   'fill edge:all1 r12 well p0/12',   // inv-search
   'fill edge:all1 r12 well p0/2',    // inv-seg, the segmented control's track
   'nofill edge:none r0 well p0/0',   // inv-viewtabs, the tab row's rule (an inset line)
+  'fill edge:none r9999 well p0/0',  // inv-blank-icon, the blank state's icon in a round well (design §6.32), in a widget saying it is empty
   // Inside a card: heads, bodies, strips, rows (§6.8, §6.10).
   'nofill edge:B1 r0 flat p10/12',   // inv-panel-head, a flush card's head
   'nofill edge:B1 r0 flat p8/12',    // inv-panel-head, inv-row-auto

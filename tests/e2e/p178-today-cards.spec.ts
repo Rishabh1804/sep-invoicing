@@ -110,9 +110,19 @@ test('Home: each question a widget that leads with its figure; at Large it takes
   await expect(money).toHaveClass(/inv-hero-(danger|warning|ok|info|neutral)/);
   // The month's realisation against the cost, drawn small.
   await expect(money.locator('.inv-widget-viz svg.inv-spark')).toHaveCount(1);
-  // At Large, its story and what you can do, as cards.
-  await expect(money.locator('.inv-hero-sheet[data-tdy-story]')).toBeVisible();
+  // At Large, what you can do, as cards; its story beside them where the card has room for both, else the story gives way to the
+  // moves (the phone's Large has Medium's room) and is the question's own, a tap away on its head.
   await expect(money.locator('[data-tdy-moves]')).toBeVisible();
+  await expect(money.locator('[data-tdy-moves] [data-adv-move]').first()).toBeVisible();
+  const story = money.locator('.inv-hero-sheet[data-tdy-story]');
+  await expect(story).toHaveCount(1);
+  if ((await story.getAttribute('data-wdg-cut')) === null) await expect(story).toBeVisible();
+  else {
+    await expect(story).toBeHidden();
+    await money.locator('.inv-widget-door').click();
+    await expect(page.locator('[data-tdy-q-open="money"] [data-story-say]')).toBeVisible();
+    await page.locator('[data-tdy-q-open="money"] [data-action="invCloseOverlay"]').first().click();
+  }
   // Large spans the board's row.
   const [w, gw] = await money.evaluate(e => [e.getBoundingClientRect().width, e.parentElement!.getBoundingClientRect().width]);
   expect(Math.abs(w - gw)).toBeLessThan(2);

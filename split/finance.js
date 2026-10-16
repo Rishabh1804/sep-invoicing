@@ -198,17 +198,27 @@ function finGstTabHtml() {
    charts follow, each a fold, shut on the phone. */
 /* A hero's figure in whole rupees, its exact amount in its title (the Overview reads at a glance; every tab keeps the paise). */
 function finHeroFig(v, tone) { return '<span title="' + escHtml(formatCurrency(v)) + '">' + figHtml(escHtml(finRs(v)), tone || null) + '</span>'; }
+/* How the cash stands, one reading for the Overview's Cash hero and Home's cash widget (widgetcards.js): the statement's last row
+   and how old it is, the forecast over 60 days and the cheques in hand; the tone (overdrawn, or below zero counting money in, is
+   danger; below zero counting outflows only, or a statement over a week old, a warning) and the words. null with no statement.
+   `cls`, the statement classified once, where the caller has it. */
+function finCashRead(rows, cls) {
+  rows = rows || bankRows();
+  if (!rows.length) return null;
+  var last = rows[rows.length - 1], stale = isoDaysBetween(last.date, localDateStr()), fc = finForecast(60), held = bankChequesHeld(cls);
+  return { last: last, stale: stale, fc: fc, held: held,
+    tone: last.balance < 0 || (fc && fc.cross && !fc.noInflow) ? 'danger' : (fc && fc.cross) || stale > 7 ? 'warning' : 'ok',
+    title: last.balance < 0 ? 'Overdrawn on the statement' : fc && fc.cross ? 'Below zero on ' + stockShortDate(fc.cross) + (fc.noInflow ? ', outflows only' : '')
+      : fc ? 'Lowest ' + finRs(fc.min.bal) + ' in 60 days' : 'In the bank',
+    sub: ['on ' + stockShortDate(last.date) + (stale > 7 ? ', ' + stale + ' days old' : ''), held.n ? '+ ' + finRs(held.amount) + ' in cheques in hand' : ''].filter(Boolean).join(' · ') };
+}
 function finCashHeroHtml(rows, months) {
   var tile = ' data-card="fin-cash" data-fin-tile="balance" data-verdict';
   if (!rows.length) {
     return uiHeroHtml({ tone: 'neutral', vital: true, eyebrow: '<span>Cash</span>', title: 'No bank statement yet', fig: '&mdash;', sub: 'the balance reads from the statement',
       attrs: tile, foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invBankImport">Import the statement</button>' });
   }
-  var last = rows[rows.length - 1], stale = isoDaysBetween(last.date, localDateStr()), fc = finForecast(60), held = bankChequesHeld();
-  var tone = last.balance < 0 || (fc && fc.cross && !fc.noInflow) ? 'danger' : (fc && fc.cross) || stale > 7 ? 'warning' : 'ok';
-  var title = last.balance < 0 ? 'Overdrawn on the statement' : fc && fc.cross ? 'Below zero on ' + stockShortDate(fc.cross) + (fc.noInflow ? ', outflows only' : '')
-    : fc ? 'Lowest ' + finRs(fc.min.bal) + ' in 60 days' : 'In the bank';
-  var sub = ['on ' + stockShortDate(last.date) + (stale > 7 ? ', ' + stale + ' days old' : ''), held.n ? '+ ' + finRs(held.amount) + ' in cheques in hand' : ''].filter(Boolean).join(' · ');
+  var c = finCashRead(rows), last = c.last, fc = c.fc, held = c.held, tone = c.tone, title = c.title, sub = c.sub;
   var at = function(n) { return fc && fc.days.length ? fc.days[Math.min(n, fc.days.length) - 1] : null; };
   var only = fc && fc.noInflow ? 'outflows only' : '';
   var facts = [
@@ -261,12 +271,20 @@ function finOwedHeroHtml(rows, cls, recv) {
       { title: 'Owed by age: ' + bands.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '',
     body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'fin-hero-owed', open: false, attrs: tile, foot: go });
 }
+/* A month's GST in words, as the Overview's GST hero and Home's gst widget say it (finGstStatus's reading): its title, its tone
+   (nothing due is plain) and the few words under it. */
+function finGstSay(r, st) {
+  st = st || finGstStatus(r);
+  return { tone: r.due <= 0 ? 'neutral' : st.tone,
+    title: r.due <= 0 ? 'Nothing due for ' + billsMonthLabel(r.month) : r.paidBank > 0 ? 'Paid ' + stockShortDate(r.rows[r.rows.length - 1].date)
+      : r.paidOther > 0 ? 'Paid outside the bank' : r.note ? 'Noted' : r.open ? 'Due by ' + stockShortDate(r.dueBy) : st.missing ? 'Not in the bank' : st.text,
+    sub: r.paid > 0 ? 'paid ' + finRs(r.paid) : r.open ? 'due ' + formatDate(r.dueBy) : st.text };
+}
 function finGstHeroHtml(cls) {
   var r = finGstByMonth(insMonthsBack(1), cls)[0], st = finGstStatus(r), six = finGstByMonth(insMonthsBack(5).concat([r.month]).filter(function(m, i, a) { return a.indexOf(m) === i; }).sort(), cls);
-  var title = r.due <= 0 ? 'Nothing due for ' + billsMonthLabel(r.month) : r.paidBank > 0 ? 'Paid ' + stockShortDate(r.rows[r.rows.length - 1].date)
-    : r.paidOther > 0 ? 'Paid outside the bank' : r.note ? 'Noted' : r.open ? 'Due by ' + stockShortDate(r.dueBy) : st.missing ? 'Not in the bank' : st.text;
-  return uiHeroHtml({ tone: r.due <= 0 ? 'neutral' : st.tone === 'neutral' ? 'neutral' : st.tone, vital: true, eyebrow: '<span>GST · ' + escHtml(billsMonthLabel(r.month)) + '</span>',
-    title: escHtml(title), fig: finHeroFig(r.due), sub: escHtml(r.paid > 0 ? 'paid ' + finRs(r.paid) : r.open ? 'due ' + formatDate(r.dueBy) : st.text),
+  var say = finGstSay(r, st);
+  return uiHeroHtml({ tone: say.tone, vital: true, eyebrow: '<span>GST · ' + escHtml(billsMonthLabel(r.month)) + '</span>',
+    title: escHtml(say.title), fig: finHeroFig(r.due), sub: escHtml(say.sub),
     viz: chartSpark(six.map(function(x) { return Math.max(0, x.due); }), { labels: six.map(function(x) { return insMonthLabel(x.month); }), title: 'GST due by month', zero: true }),
     attrs: ' data-card="fin-gst" data-fin-tile="gst"', foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="gst">Open GST</button>' });
 }
@@ -303,14 +321,19 @@ function finFromSlices(from) {
   else if (rest.length) out.push({ key: '__others', label: rest.length + ' others', value: gstRound(rest.reduce(function(t, k) { return t + from[k]; }, 0)), slot: 'other' });
   return out;
 }
+/* GST due against paid month by month, grouped bars, the month running drawn to date: the months are GST's own (I8). `g`, those
+   months as finGstByMonth reads them, oldest first. The Overview's panel and Home's gst widget (widgetcards.js) draw it. */
+function finGstMonthsChart(months, g) {
+  return chartStack(months.map(function(m) { return insMonthLabel(m) + (months.length > 12 ? " '" + m.slice(2, 4) : ''); }), [
+    { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }), slot: 1 },
+    { label: 'Paid', values: g.map(function(r) { return r.paid; }), slot: 2 }
+  ], { mode: 'group', ariaLabel: 'GST due and paid', keys: months, toDate: finMonthToDate(months, 'invoices') });
+}
 /* GST due against paid over the range, a chart: the months themselves are GST's own (I8). */
 function finGstChartHtml(months, cls) {
   var g = finGstByMonth(months, cls);
   return '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finGstChart"><div class="inv-panel-head"><span class="inv-panel-title">GST due and paid</span></div>' +
-    '<div class="inv-panel-body">' + chartStack(months.map(function(m) { return insMonthLabel(m) + (months.length > 12 ? " '" + m.slice(2, 4) : ''); }), [
-      { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }), slot: 1 },
-      { label: 'Paid', values: g.map(function(r) { return r.paid; }), slot: 2 }
-    ], { mode: 'group', ariaLabel: 'GST due and paid', keys: months, toDate: finMonthToDate(months, 'invoices') }) + '</div>' +
+    '<div class="inv-panel-body">' + finGstMonthsChart(months, g) + '</div>' +
     '<div class="inv-row"><span class="inv-row-main inv-row-meta">Each month’s status and its note</span><span class="inv-row-end">' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="gst">Open GST</button></span></div></div>';
 }

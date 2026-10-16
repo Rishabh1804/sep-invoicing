@@ -528,7 +528,9 @@ per widget, so the framework has no widget's arithmetic in it. An entry:
   resize; a chart's drawing scales (charts.js draws at its natural aspect, sized by CSS).
 - **A cap per size**, so no layout lets one widget run a screen long: Small at most 10rem tall, Medium 26rem, Large 40rem (the phone:
   Medium and Large 30rem). A widget's list shows the rows its size allows (Small 1, Medium 3 to 5, Large 8 to 10) and *Show all* goes
-  to the list's screen. The sweep (§7i) fails on any widget over its cap.
+  to the list's screen. The sweep (§7i) fails on any widget over its cap. *As built (U2):* past its cap a widget first lets go of the
+  parts it can do without, all together (a tile's line of the months before; a part marked `data-wdg-opt`), then its last rows, and
+  says *N more: Show all* (`wdgFit`); a crore month or a long story never cuts a card.
 
 ### 7c. States, one set
 
@@ -622,7 +624,7 @@ functions behind it; every figure is its screen's.
 
 | id | Title | Sizes | Who | Small · Medium · Large |
 |---|---|---|---|---|
-| `q-smooth` | Is the plant running smoothly? | m s l | anyone | the answer's vital (figure, word, sparkline or meter) · + its story · + *What you can do*, three moves |
+| `q-smooth` | Is the plant running smoothly? | m s l | anyone | the answer's vital (figure, word, sparkline or meter) · + its story · + *What you can do*, three moves (as built: every move a card, the fit keeping what the card holds; where the moves need the room, the vital's line and the story give way, as on the phone's Large, which has Medium's room; the head opens the whole story and every move) |
 | `q-money` | Are we making money? | s m l | M | as above |
 | `q-clients` | Who is driving it? | m s l | M | as above |
 | `q-plant` | Is the plant full? | m s l | anyone | as above |

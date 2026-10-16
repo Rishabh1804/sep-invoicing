@@ -477,7 +477,8 @@ function todoFoldOf(rule, list) {
   var money = !todoGuardOn() || grdSeesMoney();
   var worth = list.reduce(function(s, m) { return s + (m.worth || 0); }, 0), w = money ? gstRound(worth) : 0;
   var tone = list[0].tone, top = list[0];
-  var name = function(m) { return todoFoldName(m) + (money && m.worth ? ' ' + formatCurrency(gstRound(m.worth)) : ''); };
+  // Named in one line (a long name shortened, whole in the fold's own list): never a block past P195's 120 characters.
+  var name = function(m) { return uiNameShort(todoFoldName(m)) + (money && m.worth ? ' ' + formatCurrency(gstRound(m.worth)) : ''); };
   // How sure (todoConfApply): said once on the fold when every member says it, and the fold ranks as they do.
   var conf = list.every(function(m) { return m.conf && TODO_CONF_WORD[m.conf.level]; }) ? { level: list[0].conf.level } : undefined;
   return { key: 'fold:' + rule, rule: 'fold', foldRule: rule, members: list, tone: tone, worth: worth, conf: conf,

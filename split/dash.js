@@ -240,6 +240,25 @@ function _dashZincFrom(range) {
 function _dashZincOver(v) {
   return (v > 0 ? '+' : v < 0 ? '\u2212' : '') + formatCurrency(Math.abs(v));
 }
+/* What the bills paid over the market, a kg before GST, weighted by their kilos so a 25 kg top-up does not count like a tonne
+   (Spend and prices' "Paid over market", Home's zincpaid): {over (null with no bill set against the market), set: the bills set
+   against it}. */
+function dashZincPaidOver(T) {
+  var set = T.bills.filter(function(b) { return b.over != null; });
+  var wkg = set.reduce(function(a, b) { return a + (b.qty || 1); }, 0);
+  return { over: set.length ? gstRound(set.reduce(function(a, b) { return a + b.over * (b.qty || 1); }, 0) / wkg) : null, set: set };
+}
+/* Each supplier against the market (Spend and prices' rows, Home's zincpaid): where two or more are set against it, the lowest
+   over it ok and the highest a warning; else over it info, at or under it ok. → function (supplier) → [tone, word], null for a
+   supplier with no bill set against the market. */
+function dashZincSupStatus(T) {
+  var compared = T.suppliers.filter(function(s) { return s.over != null; });
+  var lo = compared.length > 1 ? Math.min.apply(null, compared.map(function(s) { return s.over; })) : null;
+  var hi = compared.length > 1 ? Math.max.apply(null, compared.map(function(s) { return s.over; })) : null;
+  return function(s) {
+    return s.over == null ? null : lo != null && lo !== hi && s.over === lo ? ['ok', 'Lowest'] : hi != null && lo !== hi && s.over === hi ? ['warning', 'Highest'] : s.over > 0 ? ['info', 'Over market'] : ['ok', 'At or under'];
+  };
+}
 function dashZincHtml() {
   var T = zincTrend(_dashZincFrom(_dashZincRange)), unit = (T.item && T.item.unit) || 'kg';
   var dates = {};
@@ -265,9 +284,7 @@ function dashZincHtml() {
   var chart = chartLines(keys.map(stockShortDate), series, { unit: 'rate', fit: true, keys: keys, xs: keys.map(day), ariaLabel: 'Zinc: the market against bills by supplier',
     emptyText: T.market.length || T.bills.length ? 'Needs two days, a market day or a bill, in this range' : 'No market day and no bill in this range. Refresh the zinc rate on Home to start the market line.' });
 
-  var set = T.bills.filter(function(b) { return b.over != null; });
-  var wkg = set.reduce(function(a, b) { return a + (b.qty || 1); }, 0);
-  var over = set.length ? gstRound(set.reduce(function(a, b) { return a + b.over * (b.qty || 1); }, 0) / wkg) : null;
+  var po = dashZincPaidOver(T), set = po.set, over = po.over;
   var last = T.lastBill, ml = T.market.map(function(m) { return m.landed; });
   var mLo = ml.length ? Math.min.apply(null, ml) : null, mHi = ml.length ? Math.max.apply(null, ml) : null;
   var tiles = '<div class="inv-tiles inv-tiles-flush">' +
@@ -291,11 +308,9 @@ function dashZincHtml() {
     (getMetalsKey() ? '.</div><div class="inv-toolbar inv-toolbar-flush"><button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDashZincLookup">Look up LME</button></div>'
       : '; add a metals.dev key in Settings → Connections to look it up.</div>');
 
-  var compared = T.suppliers.filter(function(s) { return s.over != null; });
-  var lo = compared.length > 1 ? Math.min.apply(null, compared.map(function(s) { return s.over; })) : null;
-  var hi = compared.length > 1 ? Math.max.apply(null, compared.map(function(s) { return s.over; })) : null;
+  var standing = dashZincSupStatus(T);
   var rows = T.suppliers.map(function(s) {
-    var tone = s.over == null ? null : lo != null && lo !== hi && s.over === lo ? ['ok', 'Lowest'] : hi != null && lo !== hi && s.over === hi ? ['warning', 'Highest'] : s.over > 0 ? ['info', 'Over market'] : ['ok', 'At or under'];
+    var tone = standing(s);
     var open = _dashZincSupplier === s.name;
     var h = '<div class="inv-row inv-row-2" data-zinc-supplier="' + escHtml(s.name) + '"><button type="button" class="inv-row-main" data-action="invDashZincSupplier" data-key="' + escHtml(s.name) + '" aria-pressed="' + open + '">' +
       // Two facts (TM4f): the average paid and the timing are each bill's, under the supplier when opened; the row's end is how far
@@ -318,6 +333,18 @@ function dashZincHtml() {
 function _dashZincRedraw() {
   var el = document.getElementById('dashPrice');
   if (el) el.outerHTML = dashPricePanelHtml();
+}
+/* Stock on Spend and prices with zinc's price trend (Home's zincpaid door): on the desktop its pane holds them; on the phone its
+   fold at the list's foot is opened, as a tap opens it, and brought into sight. */
+function dashZincShow() {
+  var z = stockData().items.find(function(i) { return i.key === 'ZINC'; });
+  if (z) _dashPriceItem = z.id;
+  if (_isDesktop) _stockSpendOpen = true;
+  navOpen({ tab: 'pageStock', v: 'list', id: '' });
+  if (_isDesktop) return;
+  var fold = document.getElementById('stockSpend');
+  if (fold && !fold.open) fold.open = true;
+  uiRevealEl(document.getElementById('dashPrice') || fold);
 }
 /* ---------- Doing ---------- */
 function dashAction(action, btn) {

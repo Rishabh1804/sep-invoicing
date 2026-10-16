@@ -907,7 +907,8 @@ lets a tap through to the datum under it.
   function, read by the words a widget says too), `chartHeat` (a calendar: a column a pay week, a row a day, the value on
   `--seq-*`, a hatch for no record), `chartDumbbell` (a rule from `a` to a dot at `b`, the dot in the row's tone),
   `chartStack100` (shares summing to 100%, 2 px surface gaps) and `chartRing` (one share of a whole, its figure in the centre).
-  A dial is never drawn: a figure against a mark is a meter or a diverging bar.
+  A dial is never drawn: a figure against a mark is a meter or a diverging bar. A whole's parts on one line, in a widget, is
+  `chartShareBar` (U2: one bar of 100%, each part its slot's colour, its keys under it with each share; `inv-sharebar`).
 - **A colour follows the thing, never its rank** (`seriesSlot(kind, id)`, §3.3 *Series*): slots `inv-chart-s1…s6` read
   `--series-1…6`, `inv-chart-other` reads `--series-other`, `inv-chart-one` the accent (the period on show against the rest, in
   Other); a status series `inv-chart-ok`, `-warning`, `-danger`, `-info` reads the `--*-mark` tones, `-neutral` `--text-3`; the heat
@@ -1164,10 +1165,15 @@ A **widget** answers one question in a card; a **board** is a grid of widgets th
 - **Three sizes, each with a cap**: Small (`s`, a figure and its line), Medium (`m`, with a chart or a short list), Large (`l`, with
   what it rests on). Small at most `--wdg-cap-s` (10rem) tall, Medium `--wdg-cap-m` (26rem), Large `--wdg-cap-l` (40rem); on the
   phone Medium and Large `--wdg-cap-phone` (30rem). A list that would pass its cap lets go of its last rows (`wdgFit`, `data-wdg-cut`)
-  and says *N more: Show all*, its door; nothing is cut mid-row.
+  and says *N more: Show all*, its door; nothing is cut mid-row. Before any row, the parts the widget can do without go, all together
+  (`WDG_FIT_OPT`): a tile's line of the months before (its change line says it in words) and whatever the widget marks
+  `data-wdg-opt` (a question's story at Large, so its moves keep their room). A sheet, or a list of moves, whose rows all went goes
+  with them, its head too. In a widget on the phone a tile's sparkline is a quarter lower and closer to its figure.
 - **The board** (`inv-wboard` holding `inv-wgrid`) takes its columns from its own width: 12 from 60rem, 6 from 36rem, 2 under it.
   A Small spans 3 (one of 2 on the phone), a Medium 6 (the row on the phone), a Large 12 (6 at six columns). Heights follow content,
-  packed in the layout's order by `uiMasonry` (§6.25). Under the board, its foot: *Add a widget · N to choose from*.
+  packed in the layout's order by `uiMasonry` (§6.25): rows of `--masonry-row` with no row gap, each card spanning its own height and
+  the column gap under it, so cards stand one gap apart whatever their heights. Under the board, its foot: *Add a widget · N to
+  choose from*.
 - **States, one set** (§6.32): `ok` draws the body; `empty`, `early`, `notset`, `offline`, `loading` and `error` draw `uiBlankHtml`
   at the widget's size, never a blank card and never a zero standing for unknown. A widget that throws draws `error` and the board
   goes on.

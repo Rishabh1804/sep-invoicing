@@ -50,7 +50,9 @@ test.describe('P151 on the desktop', () => {
     await page.locator('#wsTabs [data-tab="pageHome"][data-v="home"]').click({ button: 'middle' });
     await page.locator('#wsTabs [data-tab="pageHome"][data-v="needs"]').click({ modifiers: ['Control'] });
     expect(await opened(page)).toEqual([['pageHome', 'home', '', '_blank'], ['pageHome', 'home', '', '_blank'], ['pageHome', 'needs', '', '_blank']]);
-    await expect(page.locator('#wsTabs [data-v="needs"]')).toHaveAttribute('aria-selected', 'true');
+    // This window stays where it was: Home, the app's first view since U2.
+    await expect(page.locator('#wsTabs [data-v="home"]')).toHaveAttribute('aria-selected', 'true');
+    await expect(page.locator('#wsTabs [data-v="needs"]')).toHaveAttribute('aria-selected', 'false');
   });
 
   test('QA3-8: Pipeline\'s stages, challans and debtors open in a new window, and this one stays', async ({ page }) => {

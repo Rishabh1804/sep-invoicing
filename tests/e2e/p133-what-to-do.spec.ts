@@ -128,7 +128,7 @@ test.describe('P133: what to do', () => {
     const qs = (await readStoredState(page)).quotations;
     expect(qs.length).toBe(1);
     expect(qs[0]).toMatchObject({ status: 'draft', num: null, clientId: 1 });
-    expect(qs[0].draftNote).toContain('Drafted from the Pulse');
+    expect(qs[0].draftNote).toContain('Drafted from Home');
   });
 
   test('an app task’s dialog lists its moves above what clears it, and a move lands on its place', async ({ page }) => {

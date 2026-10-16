@@ -8,34 +8,38 @@
 /* Palettes (§3.1): primitives only. Nothing on screen is white (HR-9; owner, 26 Sep 2026: "nothing in absolute white — it
    puts a lot of stress on our eyes", and 8 Oct 2026: "we will be avoiding pure white everywhere in the app, this should be an
    HR"). The off-white of 26 Sep (#f8fafa, lightness 98%) still read as white beside the coloured cards, so every light fill is
-   a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.93. Paper is the one exception (§8).
-   Nothing but the aliases below reads a --c-* token. */
-:root, :root[data-palette="teal"] {
-  --c-bg: light-dark(#e1ebed, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
-  --c-surface-2: light-dark(#dae6e7, #1a2224); --c-surface-3: light-dark(#cfdddf, #222c2e);
-  --c-border: light-dark(#c7d6d7, #293537);
-  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#57676d, #7d8f91);
-  --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
-  --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
-  --c-well: light-dark(#e0e9eb, #0f1516); --c-edge: light-dark(rgb(16 40 48 / 0.06), rgb(236 242 242 / 0.08));
-}
-:root[data-palette="zinc"] {
-  --c-bg: light-dark(#e6eaee, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
+   a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.92 (UI pass 3 took it a step down, so a card stands
+   off it). Paper is the one exception (§8). --text-3 is a step darker in light since UI pass 3, so it reads at 4.5:1 in a well on
+   the page too (P180). Nothing but the aliases below reads a --c-* token. */
+:root, :root[data-palette="zinc"] {
+  --c-bg: light-dark(#e1e6eb, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
   --c-surface-2: light-dark(#dfe3e9, #1c2126); --c-surface-3: light-dark(#d5dbe1, #242a30);
   --c-border: light-dark(#cdd3da, #2b323a);
-  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5a6570, #86919c);
+  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#545e68, #86919c);
   --c-accent: light-dark(#8a5d0c, #dcaa4c); --c-on-accent: light-dark(#fbf7ef, #1b1204);
   --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
-  --c-well: light-dark(#e3e8ec, #101317); --c-edge: light-dark(rgb(20 25 30 / 0.06), rgb(237 240 243 / 0.08));
+  --c-accent-deep: light-dark(#704b08, #b98f3f);
+  --c-edge: light-dark(rgb(20 25 30 / 0.06), rgb(237 240 243 / 0.08));
+}
+:root[data-palette="teal"] {
+  --c-bg: light-dark(#dee7e9, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
+  --c-surface-2: light-dark(#dae6e7, #1a2224); --c-surface-3: light-dark(#cfdddf, #222c2e);
+  --c-border: light-dark(#c7d6d7, #293537);
+  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#516065, #7d8f91);
+  --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
+  --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
+  --c-accent-deep: light-dark(#085650, #41a296);
+  --c-edge: light-dark(rgb(16 40 48 / 0.06), rgb(236 242 242 / 0.08));
 }
 :root[data-palette="terracotta"] {
-  --c-bg: light-dark(#eee8df, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
+  --c-bg: light-dark(#eae4db, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
   --c-surface-2: light-dark(#e9e2d6, #24221e); --c-surface-3: light-dark(#e2d9ca, #2d2a25);
   --c-border: light-dark(#dbd1c1, #36322c);
-  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#696358, #948d80);
-  --c-accent: light-dark(#a94b28, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
+  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#625c52, #948d80);
+  --c-accent: light-dark(#a54926, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
   --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
-  --c-well: light-dark(#ece7de, #171614); --c-edge: light-dark(rgb(40 30 20 / 0.06), rgb(243 240 234 / 0.08));
+  --c-accent-deep: light-dark(#863a1d, #c57553);
+  --c-edge: light-dark(rgb(40 30 20 / 0.06), rgb(243 240 234 / 0.08));
 }
 
 :root {
@@ -56,10 +60,9 @@
   /* Hairlines (§5.2): every divider and control edge is --hair; an accent or chevron rule is --rule. */
   --hair: 1px; --rule: 2px;
 
-  /* Elevation (§3.6, DR-6): content casts no shadow; only floating layers do. */
+  /* Elevation (§3.6, DR-6, amended by UI pass 3): a card lifts (--lift-1, below), a well sinks (--press-1, --press-2), a layer
+     floats (these two); nothing else casts a shadow. */
   --shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14);
-  /* A tile's lift (§3.8, DR-6): the one shadow content carries. Darker in dark mode, where a light shadow is not seen. */
-  --shadow-tile: 0 0.0625rem 0.125rem light-dark(rgb(16 40 48 / 0.08), rgb(0 0 0 / 0.45)), 0 0.125rem 0.5rem light-dark(rgb(16 40 48 / 0.07), rgb(0 0 0 / 0.32));
   --shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28);
   --scrim: rgb(0 0 0 / 0.45);
 
@@ -75,8 +78,12 @@
   --text-1: var(--c-text-1); --text-2: var(--c-text-2); --text-3: var(--c-text-3);
   --accent: var(--c-accent); --on-accent: var(--c-on-accent);
   --accent-soft: var(--c-accent-soft); --accent-soft-text: var(--c-accent-soft-text);
-  /* UI pass 3 (docs/UI_PASS_3.md §3a): a well sinks into its card; a card's fine edge. */
-  --well: var(--c-well); --edge: var(--c-edge);
+  /* UI pass 3 (docs/UI_PASS_3.md §3a): a card's fine edge; the primary button's accent a step deeper down its face; and a well, a
+     veil over whatever it is sunk into, so it is a step under its card, a dialog or the page alike: over Zinc's card it reads
+     #e3e8ec in light (OKLab L 0.929, the card 0.962) and #101317 in dark (0.185, the card 0.211); over a coded card it is that
+     card's own fill sunk. Never lighter than what it sits in, so never white (HR-9). */
+  --edge: var(--c-edge); --accent-deep: var(--c-accent-deep);
+  --well: light-dark(rgb(20 25 30 / 0.05), rgb(0 0 0 / 0.22));
 
   /* Status tones, shared by every palette. */
   --danger: light-dark(#b42318, #f38b81); --danger-bg: light-dark(#fdecea, #3a1916);
@@ -93,6 +100,8 @@
   --press-1: inset 0 0.0625rem 0.1875rem light-dark(rgb(20 25 30 / 0.14), rgb(0 0 0 / 0.45));
   --press-2: inset 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.10), rgb(0 0 0 / 0.35));
   --r-card: 1.125rem; --r-tile: 0.875rem; --r-ctl: 0.75rem; --r-key: 1rem;
+  /* A segmented control's pressed pill (36px in a 44px track on the approved board) and a switch's track and knob (§3b). */
+  --r-seg: 0.5625rem; --switch-w: 3.25rem; --switch-h: 1.875rem; --switch-knob: 1.5rem;
   --fs-28: 1.75rem; --fs-36: 2.25rem; --fs-48: 3rem;
 
   /* Series (§3d): which thing a line or bar is, in this order and never by rank; validated for colour blindness in both
@@ -119,7 +128,7 @@
 
   /* Density (§3.5): comfortable here, compact below. */
   /* A small control is still a 44px touch target while the density is comfortable (§3.5); only compact shrinks it. */
-  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem;
+  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem; --seg-inset: var(--sp-4);
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
   --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510; --z-over-print: 520;
@@ -135,7 +144,7 @@
 }
 @media (pointer: fine) {
   :root[data-density="compact"] {
-    --row-h: 2rem; --row-h-2: 2.75rem; --ctl-h: 1.875rem; --ctl-h-sm: 1.625rem; --pad-y: var(--sp-8);
+    --row-h: 2rem; --row-h-2: 2.75rem; --ctl-h: 1.875rem; --ctl-h-sm: 1.625rem; --pad-y: var(--sp-8); --seg-inset: var(--sp-2);
   }
 }
 
@@ -194,13 +203,14 @@ body.inv-desktop .inv-topbar-trail:empty { display: none; }
    into office tab, that way we have 5 icons again, which can be arranged in a better way"). Every door is one geometry, its mark (the
    icon in a pill) over its word, so the five words share a line; the workspace on screen fills its pill in the accent's soft
    colour, and Add, the centre door, fills its pill in the accent: the same shape, the strongest fill. The card is the surface's
-   colour, rounded as a card and lifted by the floating layers' shadow (DR-6); the page fades into its own colour under it, so
-   nothing scrolled beneath it shows as a line cut in the gap. The desktop's rail draws the same doors (.inv-side). */
+   colour with a card's fine edge and corners, lifted as a card being moved is (--lift-2; UI pass 3, §3b; DR-6); the page fades
+   into its own colour under it, so nothing scrolled beneath it shows as a line cut in the gap. The desktop's rail draws the same
+   doors (.inv-side). */
 .inv-navbar {
   position: fixed; left: var(--nav-gap); right: var(--nav-gap); bottom: max(var(--nav-gap), env(safe-area-inset-bottom)); z-index: var(--z-bar);
   display: flex; align-items: stretch; height: var(--nav-h); padding: 0 var(--sp-4);
   max-width: calc(var(--max-w) - var(--nav-gap) - var(--nav-gap)); margin: 0 auto;
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow-pop);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-2);
 }
 body:not(.inv-desktop)::after {
   content: ''; position: fixed; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-bar) - 1); pointer-events: none;
@@ -227,28 +237,42 @@ body:not(.inv-desktop)::after {
 .inv-page { display: none; padding: var(--sp-16); }
 .inv-page-active { display: block; }
 
-/* Segmented control (design system §6.5): a setting of the current view, never navigation. */
+/* Segmented control (design system §6.5): a setting of the current view, never navigation. A well (UI pass 3, §3b): the track
+   sinks into its card and the pressed segment is a pill of the card's surface lifted in it. A segment is still a 44px touch
+   target on the phone: its transparent border is the track's inner margin and its fill is clipped inside it, so the pill sits
+   --seg-inset in from the track's edge (36px in the 44px track, as on the approved board). The pill's lift is its ::after, which
+   the segment's own clip lets show --seg-inset round it; the track's clip keeps it inside the well. */
 .inv-seg {
-  display: flex; width: 100%; max-width: 100%;
-  border: var(--hair) solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); overflow: hidden;
+  display: flex; width: 100%; max-width: 100%; padding: 0 var(--sp-2);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl);
+  background: var(--well); box-shadow: var(--press-1); overflow: hidden;
 }
 .inv-seg-btn {
+  position: relative; isolation: isolate;
   flex: 1; min-width: 0; min-height: var(--ctl-h); padding: 0 var(--sp-10);
-  border: none; border-left: var(--hair) solid var(--border); background: none; cursor: pointer;
+  border: 0 solid transparent; border-width: var(--seg-inset) var(--sp-2);
+  border-radius: calc(var(--r-seg) + var(--sp-2)) / calc(var(--r-seg) + var(--seg-inset));
+  background: none; background-clip: padding-box; cursor: pointer;
   color: var(--text-2); font-size: var(--fs-13); font-weight: 500; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; transition: background var(--dur-1), color var(--dur-1);
+  overflow: clip; overflow-clip-margin: var(--seg-inset); text-overflow: ellipsis;
+  transition: background-color var(--dur-1), color var(--dur-1);
 }
-.inv-seg-btn:first-child { border-left: none; }
-.inv-seg-btn:hover { background: var(--surface-2); color: var(--text-1); }
-.inv-seg-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-soft-text); font-weight: 600; }
+.inv-seg-btn:hover:not([aria-pressed="true"]) { background-color: color-mix(in oklab, var(--surface) 45%, transparent); color: var(--text-1); }
+.inv-seg-btn[aria-pressed="true"] { background-color: var(--surface); color: var(--text-1); font-weight: 600; }
+.inv-seg-btn[aria-pressed="true"]::after, .inv-seg-btn:focus-visible::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--r-seg); pointer-events: none;
+  box-shadow: var(--lift-1), inset 0 0 0 var(--hair) var(--edge);
+}
+/* Focus is the accent ring drawn on the pill: the shared ring, outside the segment, would fall in the track's clip. */
+.inv-seg-btn:focus-visible { box-shadow: none; }
+.inv-seg-btn:focus-visible::after { box-shadow: inset 0 0 0 var(--rule) var(--accent); }
+.inv-seg-btn[aria-pressed="true"]:focus-visible::after { box-shadow: var(--lift-1), inset 0 0 0 var(--rule) var(--accent); }
 body.inv-desktop .inv-seg { width: auto; display: inline-flex; }
 body.inv-desktop .inv-seg-btn { flex: 0 1 auto; padding: 0 var(--sp-16); }
-body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2); color: var(--text-1); }
 /* A segment that records a status (Staff → Day's P / H / A) is pressed in its tone, which switches with the theme. */
-.inv-seg .inv-seg-btn.inv-seg-btn-ok[aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); }
-.inv-seg .inv-seg-btn.inv-seg-btn-warning[aria-pressed="true"] { background: var(--warning-bg); color: var(--warning); }
-.inv-seg .inv-seg-btn.inv-seg-btn-danger[aria-pressed="true"] { background: var(--danger-bg); color: var(--danger); }
+.inv-seg .inv-seg-btn.inv-seg-btn-ok[aria-pressed="true"] { background-color: var(--ok-bg); color: var(--ok); }
+.inv-seg .inv-seg-btn.inv-seg-btn-warning[aria-pressed="true"] { background-color: var(--warning-bg); color: var(--warning); }
+.inv-seg .inv-seg-btn.inv-seg-btn-danger[aria-pressed="true"] { background-color: var(--danger-bg); color: var(--danger); }
 /* A segmented control the width of its buttons, for a card's head or toolbar (Stats' Ranked / Share, the trend's series). */
 .inv-seg-fit { width: auto; display: inline-flex; flex: 0 0 auto; }
 .inv-seg-fit .inv-seg-btn { flex: 0 1 auto; min-height: var(--ctl-h-sm); }
@@ -1091,12 +1115,14 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   --sr-page-pad: 6mm;
   --sr-rule-w: 0.5pt;
   --sr-sheet-w: 194mm;
+  /* The sheet's frame prints, in the grey it always printed in: paper reads no palette token (UI pass 3, §17 I12). */
+  --sr-frame: #c7d6d7;
 
   background: var(--sr-paper); color: var(--sr-ink);
   font-family: var(--ff-base); font-size: var(--sr-fs); line-height: 1.3;
   width: var(--sr-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--sr-page-pad);
-  border: var(--hair) solid var(--border);
+  border: var(--hair) solid var(--sr-frame);
 }
 .inv-sr-head { text-align: center; margin-bottom: var(--sp-8); }
 .inv-sr-co { font-weight: 700; font-size: var(--sr-fs-co); }
@@ -1250,28 +1276,33 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
    Every screen is assembled from these. A module adds a modifier, never a parallel family (DR-7).
    ====================================================================== */
 
-/* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. */
+/* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. A button is a small card (UI pass 3, §3b): it
+   lifts (--lift-1), the one primary the accent deepening down its face and lifted further (--lift-2); a ghost and a link cast
+   nothing; pressed, a button sinks back to its card. Focus keeps the shared ring over the lift. */
 .inv-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-6);
-  min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-md);
-  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-1);
+  min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-ctl);
+  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-1); box-shadow: var(--lift-1);
   font-size: var(--fs-14); font-weight: 500; line-height: 1.2; cursor: pointer;
-  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
+  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1), box-shadow var(--dur-1);
 }
 .inv-btn:hover { background: var(--surface-2); }
-.inv-btn:active { background: var(--surface-3); }
-.inv-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-.inv-btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text-1)); }
-.inv-btn-primary:active { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
+.inv-btn:active { background: var(--surface-3); box-shadow: none; }
+.inv-btn:focus-visible { box-shadow: var(--focus-ring), var(--lift-1); }
+.inv-btn-primary { background: linear-gradient(180deg, var(--accent), var(--accent-deep)); border-color: transparent; color: var(--on-accent); font-weight: 600; box-shadow: var(--lift-2); }
+.inv-btn-primary:hover { background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 80%, var(--accent-deep)), var(--accent-deep)); }
+.inv-btn-primary:active { background: var(--accent-deep); box-shadow: var(--lift-1); }
+.inv-btn-primary:focus-visible { box-shadow: var(--focus-ring), var(--lift-2); }
 .inv-btn-secondary { background: var(--surface); border-color: var(--border); color: var(--text-1); }
-.inv-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-1); }
+.inv-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-1); box-shadow: none; }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
 .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
 .inv-btn-link {
-  min-height: auto; padding: 0; border: none; background: none;
+  min-height: auto; padding: 0; border: none; background: none; box-shadow: none;
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
+:is(.inv-btn-ghost, .inv-btn-link):focus-visible { box-shadow: var(--focus-ring); }
 .inv-btn-link:hover { text-decoration: underline; background: none; color: var(--accent); }
 /* Before the icon rule: same specificity, so the later one wins. */
 .inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
@@ -1326,14 +1357,16 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 /* §6.6 Chips: a choice among options. Tokens: an applied filter. */
 .inv-chip {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-4);
-  min-height: var(--ctl-h); padding: 0 var(--sp-12); border-radius: var(--r-md);
-  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-2);
+  min-height: var(--ctl-h); padding: 0 var(--sp-12); border-radius: var(--r-full);
+  border: var(--hair) solid var(--edge); background: var(--surface); color: var(--text-2); box-shadow: var(--lift-1);
   font-size: var(--fs-13); font-weight: 500; white-space: nowrap; cursor: pointer;
-  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
+  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1), box-shadow var(--dur-1);
 }
 .inv-chip:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-chip:focus-visible { box-shadow: var(--focus-ring), var(--lift-1); }
+/* Picked, a chip sinks into the accent's soft fill (UI pass 3, §3b): the choice is made. */
 .inv-chip-on, .inv-chip[aria-pressed="true"] {
-  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600;
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600; box-shadow: var(--press-2);
 }
 .inv-token {
   display: inline-flex; align-items: center; gap: var(--sp-6); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8);
@@ -1347,12 +1380,13 @@ button.inv-token:hover { background: var(--surface-3); }
 
 /* §6.7 Toolbar and search */
 .inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
+/* A search is a well (UI pass 3, §3b): sunk into what it sits on, its glass --text-2. */
 .inv-search {
   display: flex; align-items: center; gap: var(--sp-8); flex: 1 1 var(--search-min); min-width: 0;
-  min-height: var(--ctl-h); padding: 0 var(--sp-10);
-  border: var(--hair) solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-3);
+  min-height: var(--ctl-h); padding: 0 var(--sp-12);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-1); color: var(--text-2);
 }
-.inv-search:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.inv-search:focus-within { border-color: var(--accent); box-shadow: var(--press-1), var(--focus-ring); }
 .inv-search svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14);
   align-self: stretch; margin-block: calc(-1 * var(--hair)); }
@@ -1400,12 +1434,11 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* §6.8 Panel */
+/* §6.8 Panel: a card (UI pass 3, §3b), lifted off the page by --lift-1, its fine edge --edge and a card's corners on both layouts. */
 .inv-panel {
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-1);
   padding: var(--sp-16) var(--pad-x); margin-bottom: var(--gap);
 }
-body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
 .inv-panel-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
@@ -1438,8 +1471,9 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
-/* §6.9 Stat tiles: a strip of raised tiles (owner, 8 Oct 2026: "Let's give our tiles elevation as well"). Each tile is a box of its
-   own, lifted off what it sits on by --shadow-tile, the one shadow content carries (DR-6); the strip only lays them out. */
+/* §6.9 Stat tiles: a strip of tiles, each a box of its own (owner, 8 Oct 2026: "Let's give our tiles elevation as well"). A tile is
+   a well (UI pass 3, §3b; DR-6 amended): sunk a step into the card it stands in (--well, --press-2), so the card is what lifts and
+   its figures sit in it; the strip only lays them out, at least --sp-8 apart. */
 .inv-tiles {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap);
 }
@@ -1452,14 +1486,15 @@ body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr))
 /* Three counts that read as one row on the phone too (a check's Needs you · Check · Clear). */
 .inv-tiles-3, body.inv-desktop .inv-tiles-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inv-tile {
-  background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; font: inherit; color: var(--text-1);
-  border: var(--hair) solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-tile);
+  background: var(--well); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; font: inherit; color: var(--text-1);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-tile); box-shadow: var(--press-2);
 }
 button.inv-tile { cursor: pointer; }
-button.inv-tile:hover { background: var(--surface-2); }
-/* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. Pressed, it is let down (no lift)
-   and edged in the accent. */
-button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+button.inv-tile:hover { background-color: color-mix(in oklab, var(--surface) 35%, transparent); }
+button.inv-tile:focus-visible { box-shadow: var(--press-2), var(--focus-ring); }
+/* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. Pressed, it sinks deeper, into the
+   accent's soft fill, and is edged in the accent. */
+button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: var(--press-1); }
 button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-text); }
 .inv-tile-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
@@ -1520,25 +1555,27 @@ body:not(.inv-desktop) .inv-row-meta:not(.inv-row-wrap) {
 /* A task ticked done: still listed (never deleted), its text struck through. */
 .inv-row-done .inv-row-title { color: var(--text-2); text-decoration: line-through; }
 .inv-row-strong { font-weight: 600; }
-/* A tick box (and a radio) the app draws itself (HR-9): the browser paints an unticked box white whatever the theme. Ticked,
+/* A tick box (and a radio) the app draws itself (HR-9): the browser paints an unticked box white whatever the theme (a switch in
+   the same label, .inv-switch, is its own component and is left out). Ticked,
    it takes the accent with the tick cut out of --on-accent; a radio's mark is a dot. Focus is the shared ring (§3.6). */
-.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]) {
+.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch) {
   appearance: none; -webkit-appearance: none; display: inline-grid; place-content: center; margin: 0;
   width: var(--sp-20); height: var(--sp-20); flex-shrink: 0; cursor: pointer; color: var(--on-accent);
-  background: var(--surface); border: var(--rule) solid var(--text-3); border-radius: var(--r-sm);
+  background: var(--well); border: var(--rule) solid var(--text-3); border-radius: var(--r-sm); box-shadow: var(--press-2);
   transition: background var(--dur-1), border-color var(--dur-1);
 }
 .inv-check[type="radio"], .inv-field-check > input[type="radio"] { border-radius: var(--r-full); }
-.inv-check:hover, .inv-field-check > input:is([type="checkbox"], [type="radio"]):hover { border-color: var(--accent); }
-.inv-check:checked, .inv-field-check > input:is([type="checkbox"], [type="radio"]):checked { background: var(--accent); border-color: var(--accent); }
-.inv-check:not([type="radio"]):checked::before, .inv-field-check > input[type="checkbox"]:checked::before {
+.inv-check:hover, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch):hover { border-color: var(--accent); }
+.inv-check:checked, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch):checked { background: var(--accent); border-color: var(--accent); box-shadow: none; }
+:is(.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch)):focus-visible { box-shadow: var(--focus-ring); }
+.inv-check:not([type="radio"]):checked::before, .inv-field-check > input[type="checkbox"]:not(.inv-switch):checked::before {
   content: ''; width: var(--sp-12); height: var(--sp-12); background: currentColor;
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
 }
 .inv-check[type="radio"]:checked::before, .inv-field-check > input[type="radio"]:checked::before {
   content: ''; width: var(--sp-8); height: var(--sp-8); border-radius: var(--r-full); background: currentColor;
 }
-.inv-check:disabled, .inv-field-check > input:is([type="checkbox"], [type="radio"]):disabled { opacity: 0.55; cursor: not-allowed; }
+.inv-check:disabled, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch):disabled { opacity: 0.55; cursor: not-allowed; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
 .inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 /* In a row that sizes to its content (a task), the tick box and the task's button still reach the row's edges, and the
@@ -1757,15 +1794,19 @@ body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd)
 .inv-input, .inv-select, .inv-textarea { width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12); }
 /* A picker or figure that sits in a row's end, beside the value it acts on. */
 .inv-select-sm, .inv-input-sm { width: var(--col-sm-w); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); font-size: var(--fs-13); }
+/* A field is a well (UI pass 3, §3b): sunk into what it sits in, its fine edge --edge; focused, the accent edge and the ring. A
+   select's open list is drawn on the surface, never on the well's veil. */
 .inv-input, .inv-select, .inv-textarea {
-  border: var(--hair) solid var(--border); border-radius: var(--r-md); background-color: var(--surface); color: var(--text-1);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background-color: var(--well); box-shadow: var(--press-1); color: var(--text-1);
   font-size: var(--fs-14); transition: border-color var(--dur-1);
 }
+.inv-select option { background-color: var(--surface); color: var(--text-1); }
 .inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: var(--textarea-h); }
 /* A message pasted as sent: kept in its own shape, one line per line. */
 .inv-textarea-mono { font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
-:is(.inv-input, .inv-select, .inv-textarea):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
-.inv-input[readonly] { background: var(--surface-2); color: var(--text-2); }
+:is(.inv-input, .inv-select, .inv-textarea):focus { outline: none; border-color: var(--accent); box-shadow: var(--press-1), var(--focus-ring); }
+/* A field that shows a figure it will not take is flat: nothing to fill. */
+.inv-input[readonly] { background: var(--surface-2); color: var(--text-2); box-shadow: none; }
 .inv-input-num { font-family: var(--ff-mono); text-align: right; }
 .inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
 body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr)); }
@@ -1875,15 +1916,21 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
   background: var(--scrim);
 }
 .inv-scrim-dialog { z-index: var(--z-dialog); }
-.inv-dialog { background: var(--surface); border: var(--hair) solid var(--border); box-shadow: var(--shadow-dialog); }
+/* A layer (a dialog, the search, a menu) floats over everything: in dark it is a step lighter than a card (UI pass 3, §3c), and what
+   is drawn on it reads the layer as its surface, so a button, a panel or a pill on it never sits darker than the layer. */
+.inv-dialog, .inv-menu {
+  --surface: light-dark(var(--c-surface), var(--c-surface-2)); --surface-2: light-dark(var(--c-surface-2), var(--c-surface-3));
+  --surface-3: var(--c-surface-3);
+}
+.inv-dialog { background: var(--surface); border: var(--hair) solid var(--edge); box-shadow: var(--shadow-dialog); }
 /* A dialog is a sheet from the bottom on the phone and centred on the desktop. Its body scrolls; the foot stays put. */
 .inv-dialog {
   width: 100%; max-width: var(--max-w); max-height: var(--dialog-max-h); overflow-y: auto;
-  padding: var(--sp-20); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-20); border-bottom: none; border-radius: var(--r-card) var(--r-card) 0 0;
   font-size: var(--fs-14); line-height: 1.45; color: var(--text-1);
 }
 body.inv-desktop .inv-scrim-dialog { align-items: center; padding: var(--sp-16); }
-body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: none; max-height: var(--dialog-max-h-desk); border-bottom: var(--hair) solid var(--border); border-radius: var(--r-xl); }
+body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: none; max-height: var(--dialog-max-h-desk); border-bottom: var(--hair) solid var(--edge); border-radius: var(--r-card); }
 .inv-dialog-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
@@ -1892,7 +1939,7 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
 /* The content between a dialog's head and its foot: a name typed without a space (a part, a client) breaks rather than pushing
    the sheet past the phone's edge, and nothing else about its size changes. */
 .inv-dialog-body { overflow-wrap: break-word; }
-.inv-dialog-close { border-color: transparent; background: none; color: var(--text-3); font-size: var(--fs-19); }
+.inv-dialog-close { border-color: transparent; background: none; box-shadow: none; color: var(--text-3); font-size: var(--fs-19); }
 .inv-dialog-close:hover { color: var(--text-1); }
 /* The actions, primary last, held at the foot of a dialog that scrolls. */
 .inv-dialog-foot {
@@ -1923,7 +1970,7 @@ body.inv-desktop .inv-dialog-panes { overflow: hidden; display: grid; grid-templ
 body.inv-desktop .inv-dialog-nav { display: flex; flex-direction: column; gap: var(--sp-2); border-right: var(--hair) solid var(--border); padding-right: var(--sp-12); }
 body.inv-desktop .inv-dialog-main { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
 body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
-.inv-menu { background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.inv-menu { background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
 .inv-combo { position: relative; }
@@ -1943,7 +1990,7 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-toast {
   position: fixed; top: calc(var(--bar-h) + var(--sp-8)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
   max-width: min(calc(100% - var(--sp-24)), var(--toast-max)); padding: var(--sp-10) var(--sp-16);
-  background: var(--text-1); color: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+  background: var(--text-1); color: var(--surface); border-radius: var(--r-full); box-shadow: var(--shadow-pop);
   font-size: var(--fs-14); font-weight: 500;
 }
 .inv-toast::before {
@@ -2028,21 +2075,24 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 .inv-hero-warning, .inv-deck-item:is([data-tone="amber"], [data-tone="warning"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-warning, [data-tone="amber"], [data-tone="warning"]) { --tone: var(--warning); --tone-bg: var(--warning-bg); }
 .inv-hero-ok, .inv-deck-item:is([data-tone="green"], [data-tone="ok"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-ok, [data-tone="green"], [data-tone="ok"]) { --tone: var(--ok); --tone-bg: var(--ok-bg); }
 .inv-hero-info, .inv-deck-item[data-tone="info"], :is(.inv-hero, .inv-coded) :is(.inv-tile-info, [data-tone="info"]) { --tone: var(--info); --tone-bg: var(--info-bg); }
-.inv-hero-neutral, :is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
+/* A plain card is the surface (UI pass 3, §3d); a plain box inside a coded one is a step of grey. */
+.inv-hero-neutral { --tone: var(--text-3); --tone-bg: var(--surface); }
+:is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
 
 /* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
-   tone, and, as a <details>, folds open to what is under it. Its fill runs from its tone into its tone's background and
-   stays in it: the corner it starts from is the strongest, and no part of it is the plain surface. */
+   tone, and, as a <details>, folds open to what is under it. A card (UI pass 3, §3b, §3d): lifted (--lift-1), a card's corners,
+   filled in its tone from its tone's background to a step deeper (160°), as on the approved board; a plain card is the surface. */
 .inv-hero {
-  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--border));
-  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
-  background: linear-gradient(135deg, color-mix(in oklab, var(--tone) 18%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone) 8%, var(--tone-bg)) 55%, color-mix(in oklab, var(--tone) 4%, var(--tone-bg)) 100%);
+  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--edge));
+  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-card); color: var(--text-1); margin-bottom: var(--gap);
+  box-shadow: var(--lift-1);
+  background: linear-gradient(160deg, var(--tone-bg) 0%, color-mix(in oklab, var(--tone) 7%, var(--tone-bg)) 100%);
 }
 .inv-hero-danger { --hero-tone: var(--danger); }
 .inv-hero-warning { --hero-tone: var(--warning); }
 .inv-hero-ok { --hero-tone: var(--ok); }
 .inv-hero-info { --hero-tone: var(--info); }
-.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); }
+.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--edge); }
 .inv-hero-head {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
   padding: var(--sp-12) var(--sp-16); list-style: none;
@@ -2052,7 +2102,7 @@ summary.inv-hero-head::-webkit-details-marker { display: none; }
 summary.inv-hero-head::after { content: ''; position: absolute; right: var(--sp-16); top: var(--sp-20); width: var(--sp-6); height: var(--sp-6);
   border-right: var(--rule) solid var(--text-2); border-bottom: var(--rule) solid var(--text-2); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
 details.inv-hero[open] > summary.inv-hero-head::after { transform: translateY(-25%) rotate(225deg); }
-summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-xl); }
+summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-card); }
 .inv-hero-eyebrow { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
 /* The eyebrow sits on the fill's strongest corner, where --text-3 falls under 4.5:1 (§3.10): its count reads --text-2. */
 .inv-hero-eyebrow .inv-panel-count { color: var(--text-2); }
@@ -2071,30 +2121,41 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
 .inv-hero-body + .inv-hero-foot { padding-top: 0; }
 
-/* §6.26 A box inside a card: what a hero opens to (a sheet of rows or tiles, a question's story), a card in its deck, a tile
-   in its strip. Its fill is its tone's background with a little of the tone in the corner it starts from, lightening into
-   the surface: lighter than the card around it, so it reads as laid on it, and coded by its own status where it has one. */
-.inv-hero-sheet, .inv-deck-item, .inv-hero .inv-tile, .inv-coded .inv-tile {
-  background: linear-gradient(150deg, color-mix(in oklab, var(--tone) 5%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone-bg) 45%, var(--surface)) 100%);
+/* §6.26 The boxes inside a card (UI pass 3, §3b): a card in its deck lifts off it, lighter than the card in both themes and in its
+   own tone where it has one; a tile sinks into it, a well; what a hero opens to (its sheet: rows, a question's story) draws no box
+   of its own, only a hairline under the head. */
+.inv-deck-item {
+  background: linear-gradient(160deg,
+    light-dark(color-mix(in oklab, var(--tone-bg) 40%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg))) 0%,
+    light-dark(color-mix(in oklab, var(--tone-bg) 75%, var(--surface)), color-mix(in oklab, var(--tone) 8%, var(--tone-bg))) 100%);
 }
-.inv-hero-sheet { border: var(--hair) solid color-mix(in oklab, var(--tone) 22%, var(--border)); border-radius: var(--r-lg); overflow: hidden; }
-/* What a sheet holds is drawn on the sheet: a panel or a strip inside it has no fill or box of its own, and its hairlines
+/* A tile in a coded block that names a tone is a well of it: a step deeper in its tone than the card in light, its tone sunk toward
+   the page in dark. A tile that names none is the card's own fill under the well's veil (.inv-tile), never coded in the card's tone. */
+:is(.inv-hero, .inv-coded) .inv-tile:is(.inv-tile-danger, .inv-tile-warning, .inv-tile-ok, .inv-tile-info, [data-tone]) {
+  background: linear-gradient(160deg,
+    light-dark(color-mix(in oklab, var(--tone) 13%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 60%, var(--bg))) 0%,
+    light-dark(color-mix(in oklab, var(--tone) 9%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 45%, var(--bg))) 100%);
+}
+.inv-hero-sheet { border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+/* What a sheet holds is drawn on the card: a panel or a strip inside it has no fill or box of its own, and its hairlines
    take the card's tone. */
-.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; }
+.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; box-shadow: none; }
 .inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
 /* An analysis's caption and its folded working (§6.27) are drawn on the card's box: no page-coloured band, the card's hairlines. */
 .inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
 .inv-hero details.inv-row-fold > summary:hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
-:is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--border)); }
+:is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--edge)); }
 .inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
 .inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)), .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
-  background: color-mix(in oklab, var(--tone-bg) 55%, var(--surface)); border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
+  background: light-dark(color-mix(in oklab, var(--tone-bg) 55%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg)));
+  border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
 }
 .inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover, .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
-/* On the phone the sheet reaches the card's edges: a row inside keeps the width a flush panel's row has. */
-body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); border-left: none; border-right: none; border-radius: 0; }
-body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); border-bottom: none; border-radius: 0 0 calc(var(--r-xl) - var(--hair)) calc(var(--r-xl) - var(--hair)); }
+/* The sheet reaches the card's edges: a row inside keeps the width a flush panel's row has, and the last one keeps the card's
+   corners (a hovered row's fill stays inside them). */
+.inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); }
+.inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
 /* A strip in a sheet carries no margin of its own; its tiles are each coded. */
 .inv-hero-sheet > .inv-tiles { margin-bottom: 0; }
 /* A sheet holding a strip alone lays its tiles on the card: the tiles are the boxes, and the sheet draws none of its own. The
@@ -2102,7 +2163,7 @@ body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bott
    the row's end, P128). */
 .inv-hero-sheet:has(> .inv-tiles:only-child) { background: none; border: none; overflow: visible; }
 .inv-hero-sheet > .inv-tiles:only-child { padding: 0; border-bottom: none; }
-body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: 0; border-radius: 0; }
+.inv-hero-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: 0; border-radius: 0; }
 /* On the desktop the sheet is its strip's container (panel-w, above), so the tiles lay out by the room the sheet has: measured
    from the widget around the card, Money's tiles left a blank cell at 1280. */
 body.inv-desktop .inv-hero-sheet { container: panel-w / inline-size; }
@@ -2137,15 +2198,15 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-deck[data-deck-sm] { --deck-min: var(--deck-min-sm); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
-  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--border)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
-  border-radius: var(--r-lg); box-shadow: var(--shadow-tile); transition: border-color var(--dur-1);
+  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--edge)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
+  border-radius: var(--r-card); box-shadow: var(--lift-1); transition: border-color var(--dur-1);
 }
 .inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
 .inv-deck-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
 .inv-deck-word { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-deck-fig { font-family: var(--ff-mono); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
 .inv-deck-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.inv-deck-main::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-lg); }
+.inv-deck-main::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-card); }
 /* A card that is not itself a door (a move: its button is at its foot). */
 .inv-deck-body { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 /* "Show N more" under a deck, outside its grid (uiMoreDeckHtml). */
@@ -2192,8 +2253,9 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-spark-warning .inv-spark-line { stroke: var(--warning); }
 .inv-spark-ok .inv-spark-line { stroke: var(--ok); }
 .inv-spark-info .inv-spark-line { stroke: var(--info); }
-.inv-meter { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; }
-.inv-meter-track { fill: var(--surface-3); }
+.inv-meter { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; box-shadow: var(--press-1); }
+/* The track is a well (UI pass 3, §3b), the share in its tone lies in it. */
+.inv-meter-track { fill: var(--well); }
 .inv-meter-danger { fill: var(--danger); }
 .inv-meter-warning { fill: var(--warning); }
 .inv-meter-ok { fill: var(--ok); }
@@ -2744,3 +2806,24 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-blank[data-blank="error"] .inv-blank-icon { color: var(--danger-mark); }
 .inv-blank[data-blank="offline"] .inv-blank-icon, .inv-blank[data-blank="notset"] .inv-blank-icon { color: var(--warning-mark); }
 
+
+/* ===== SWITCH (docs/UI_PASS_3.md §3b) =====
+   An on/off setting that takes effect at once (a widget shown on Home, a rule switched on): a tick box drawn as a well track with a
+   lifted knob, the accent's track when on. Written <input type="checkbox" role="switch" class="inv-switch"> inside a label that is
+   the whole touch target (.inv-field-check). */
+.inv-switch {
+  appearance: none; -webkit-appearance: none; position: relative; flex-shrink: 0; margin: 0; cursor: pointer;
+  width: var(--switch-w); height: var(--switch-h); border-radius: var(--r-full);
+  border: var(--hair) solid var(--edge); background: var(--well); box-shadow: var(--press-1);
+  transition: background-color var(--dur-1), border-color var(--dur-1);
+}
+.inv-switch::before {
+  content: ''; position: absolute; top: 50%; left: var(--sp-2); width: var(--switch-knob); height: var(--switch-knob);
+  border-radius: var(--r-full); background: var(--surface); box-shadow: var(--lift-1);
+  transform: translateY(-50%); transition: transform var(--dur-1);
+}
+.inv-switch:checked { background: var(--accent); border-color: var(--accent); }
+.inv-switch:checked::before { transform: translate(calc(var(--switch-w) - var(--switch-knob) - var(--sp-4) - var(--hair) - var(--hair)), -50%); }
+.inv-switch:focus-visible { box-shadow: var(--press-1), var(--focus-ring); }
+.inv-switch:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { .inv-switch, .inv-switch::before { transition: none; } }

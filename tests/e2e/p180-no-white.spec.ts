@@ -9,8 +9,10 @@ import { sweepState, sweep, WHITE_CEIL } from './sweep-fixture';
 // colour coded gradients, we will be avoiding pure white everywhere in the app, this should be an HR … Pulse still holds generic
 // cards as well, so it looks like a half designed space"). P76's sweep reads every screen, view and dialog, both themes and both
 // layouts, for a fill above the ceiling; this file proves that instrument sees the failure, reads the stylesheet for white
-// outside paper, measures each palette's surfaces, and holds Today's coding: every box in a card in its own tone and lighter
-// than the card, and every Pulse widget a card coded by what it says.
+// outside paper, measures each palette's surfaces, and holds Today's coding: every box in a card in its own tone, and every Pulse
+// widget a card coded by what it says. UI pass 3 (docs/UI_PASS_3.md §3a–§3c, §3g) added the wells and dark's steps: a well lies
+// a step under its card (between the page and the card in light), each dark surface a step over the one under it, text reads in a
+// well; and inside a coded card a card in its deck lies lighter than it in both themes, a tile sinks darker, a sheet draws no box.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 
@@ -94,39 +96,110 @@ test('every palette’s light surfaces are tinted under the ceiling, and its tex
   }
 });
 
-test('Needs you: every box in a card is coded in its own tone and laid lighter on it; none is the plain surface', async ({ page }) => {
-  await page.emulateMedia({ colorScheme: 'light' });
+/* The well is a veil over what it sits in: its colour over a fill, composited as the browser lays it. */
+function over(veil: string, base: string) {
+  const v = (veil.match(/[\d.]+/g) || []).map(Number), b = rgbOf(base).map(x => x * 255);
+  const a = v[3] == null ? 1 : v[3];
+  return 'rgb(' + [0, 1, 2].map(i => Math.round(v[i] * a + b[i] * (1 - a))).join(', ') + ')';
+}
+
+test('every palette’s well lies a step under its card, dark’s surfaces step up 0.03 each, and text reads in a well, in both themes', async ({ page }) => {
   await loadAppWithState(page, sweepState());
-  const r = await g(page, `(function () {
-    var plain = getComputedStyle(document.querySelector('.inv-topbar')).backgroundColor;
-    var heroes = Array.prototype.map.call(document.querySelectorAll('#homeNeeds .inv-hero'), function (h) {
-      var boxes = Array.prototype.map.call(h.querySelectorAll('.inv-hero-sheet, .inv-deck-item, .inv-hero .inv-tile'), function (b) {
-        var cs = getComputedStyle(b);
-        return { tone: b.getAttribute('data-tone') || '', img: cs.backgroundImage, color: cs.backgroundColor };
-      });
-      return { cls: h.className, img: getComputedStyle(h).backgroundImage, boxes: boxes };
-    });
-    return { plain: plain, heroes: heroes };
-  })()`) as any;
-  expect(r.heroes.length).toBeGreaterThan(2);
-  const cards: any[] = [];
-  for (const h of r.heroes) {
-    expect(h.img, h.cls).toMatch(/^linear-gradient\(/);
-    for (const b of h.boxes) {
-      // A box is a gradient of its tone, never the surface laid flat …
-      expect(b.img, `${h.cls} › ${b.tone}`).toMatch(/^linear-gradient\(/);
-      // … and lighter than the card it is laid on, so it reads as on it.
-      expect(meanL(b.img), `${h.cls} › ${b.tone}`).toBeGreaterThan(meanL(h.img));
-      if (b.tone) cards.push(b);
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    for (const pal of ['zinc', 'teal', 'terracotta']) {
+      const c = await g(page, `(function () {
+        document.documentElement.dataset.palette = ${JSON.stringify(pal)};
+        var out = {};
+        ['bg', 'surface', 'surface-2', 'surface-3', 'well', 'text-1', 'text-2', 'text-3', 'accent', 'on-accent', 'accent-deep'].forEach(function (k) {
+          var d = document.createElement('div'); d.style.setProperty('color', 'var(--' + k + ')'); document.body.appendChild(d);
+          out[k] = getComputedStyle(d).color; d.remove();
+        });
+        return out;
+      })()`) as Record<string, string>;
+      const well = over(c.well, c.surface), wellPage = over(c.well, c.bg), tag = `${pal} ${scheme}`;
+      // A well is a step under its card: at least 0.025 in light, 0.02 in dark (a hollow, not a hole), and in light still over
+      // the page, so a well on the page sinks the page and one in a card never reaches the page's grey.
+      expect(okL(c.surface) - okL(well), `${tag} well under the card`).toBeGreaterThanOrEqual(scheme === 'light' ? 0.025 : 0.02);
+      if (scheme === 'light') expect(okL(well), `${tag} well over the page`).toBeGreaterThan(okL(c.bg));
+      expect(okL(wellPage), `${tag} a well on the page sinks it`).toBeLessThan(okL(c.bg));
+      // Dark: the page, a card, a card in a card, a layer, each at least 0.03 over the one under it (§3c).
+      if (scheme === 'dark') {
+        const steps = ['bg', 'surface', 'surface-2', 'surface-3'].map(k => okL(c[k]));
+        for (let i = 1; i < steps.length; i++) expect(steps[i] - steps[i - 1], `${tag} step ${i}`).toBeGreaterThanOrEqual(0.03);
+      }
+      // Text reads at 4.5:1 in a well on its card and on the page, every tier.
+      for (const t of ['text-1', 'text-2', 'text-3']) {
+        expect(contrast(c[t], well), `${tag} ${t} in a well`).toBeGreaterThanOrEqual(4.5);
+        expect(contrast(c[t], wellPage), `${tag} ${t} in a well on the page`).toBeGreaterThanOrEqual(4.5);
+      }
+      // The primary button's face runs from the accent to a step deeper; its words read at 4.5:1 down the whole of it.
+      for (const f of ['accent', 'accent-deep']) expect(contrast(c['on-accent'], c[f]), `${tag} on-accent on ${f}`).toBeGreaterThanOrEqual(4.5);
+      if (scheme === 'light') expect(okL(c['accent-deep']), `${tag} the deeper accent is deeper`).toBeLessThan(okL(c.accent));
     }
   }
-  // Cards of one tone share a fill; cards of two tones never do: the colour says the status.
-  const byTone: Record<string, Set<string>> = {};
-  for (const c of cards) (byTone[c.tone] = byTone[c.tone] || new Set()).add(c.img);
-  const tones = Object.keys(byTone);
-  expect(tones.length).toBeGreaterThan(1);
-  for (const t of tones) expect(byTone[t].size, t).toBe(1);
-  expect(new Set(tones.map(t => [...byTone[t]][0])).size).toBe(tones.length);
+});
+
+test('Needs you: inside a coded card, a card in its deck lies lighter in its own tone, a tile sinks darker, a sheet draws no box; in both themes', async ({ page }) => {
+  await loadAppWithState(page, sweepState());
+  const seen = { deck: 0, toned: 0, plain: 0, sheet: 0 };
+  for (const scheme of ['light', 'dark'] as const) {
+    await page.emulateMedia({ colorScheme: scheme });
+    const r = await g(page, `(function () {
+      var probe = document.createElement('div'); probe.style.background = 'var(--well)'; document.body.appendChild(probe);
+      var veil = getComputedStyle(probe).backgroundColor; probe.remove();
+      var heroes = Array.prototype.map.call(document.querySelectorAll('#homeNeeds .inv-hero'), function (h) {
+        var pick = function (sel) { return Array.prototype.filter.call(h.querySelectorAll(sel), function (b) { return b.closest('.inv-hero') === h; }); };
+        var box = function (b) { var cs = getComputedStyle(b); return { tone: b.getAttribute('data-tone') || (b.className.match(/inv-tile-(danger|warning|ok|info)/) || [, ''])[1],
+          img: cs.backgroundImage, color: cs.backgroundColor, shadow: cs.boxShadow, edges: [cs.borderLeftStyle, cs.borderRightStyle, cs.borderBottomStyle] }; };
+        return { cls: h.className, img: getComputedStyle(h).backgroundImage, shadow: getComputedStyle(h).boxShadow,
+          decks: pick('.inv-deck-item').map(box), tiles: pick('.inv-tile').map(box), sheets: pick('.inv-hero-sheet').map(box) };
+      });
+      return { veil: veil, heroes: heroes };
+    })()`) as any;
+    expect(r.heroes.length).toBeGreaterThan(2);
+    const decks: any[] = [];
+    for (const h of r.heroes) {
+      const tag = `${scheme} ${h.cls}`;
+      // The card is a gradient of its tone, lifted off the page.
+      expect(h.img, tag).toMatch(/^linear-gradient\(/);
+      expect(h.shadow, tag).not.toBe('none');
+      expect(h.shadow, tag).not.toMatch(/inset/);
+      for (const d of h.decks) {
+        // A card in a deck is a gradient of its own tone, never the surface laid flat, lighter than the card it lies on.
+        expect(d.img, `${tag} › deck ${d.tone}`).toMatch(/^linear-gradient\(/);
+        expect(meanL(d.img), `${tag} › deck ${d.tone}`).toBeGreaterThan(meanL(h.img));
+        expect(d.shadow, `${tag} › deck ${d.tone}`).not.toMatch(/inset/);
+        seen.deck++;
+        if (d.tone && scheme === 'light') decks.push(d);
+      }
+      for (const t of h.tiles) {
+        // A tile sinks: its one shadow is inset. One that names a tone is a gradient of it, darker than the card; one that names
+        // none is the card's own fill under the well's veil.
+        expect(t.shadow, `${tag} › tile`).toMatch(/inset/);
+        if (t.tone) { expect(t.img, `${tag} › tile ${t.tone}`).toMatch(/^linear-gradient\(/); expect(meanL(t.img), `${tag} › tile ${t.tone}`).toBeLessThan(meanL(h.img)); seen.toned++; }
+        else { expect(t.img, `${tag} › plain tile`).toBe('none'); expect(t.color, `${tag} › plain tile`).toBe(r.veil); seen.plain++; }
+      }
+      for (const sh of h.sheets) {
+        // What a hero opens to draws no box of its own: no fill, no side or foot edge.
+        expect(sh.img + '|' + sh.color, `${tag} › sheet`).toBe('none|rgba(0, 0, 0, 0)');
+        expect(sh.edges, `${tag} › sheet`).toEqual(['none', 'none', 'none']);
+        seen.sheet++;
+      }
+    }
+    if (scheme === 'light') {
+      // Cards of one tone share a fill; cards of two tones never do: the colour says the status.
+      const byTone: Record<string, Set<string>> = {};
+      for (const c of decks) (byTone[c.tone] = byTone[c.tone] || new Set()).add(c.img);
+      const tones = Object.keys(byTone);
+      expect(tones.length).toBeGreaterThan(1);
+      for (const t of tones) expect(byTone[t].size, t).toBe(1);
+      expect(new Set(tones.map(t => [...byTone[t]][0])).size).toBe(tones.length);
+    }
+  }
+  // The sweep book shows each kind of box, so none of the checks above passes for want of a box to check.
+  expect(seen.deck).toBeGreaterThan(0);
+  expect(seen.sheet).toBeGreaterThan(0);
 });
 
 test('Pulse: every widget is a card, coded by the worst of what it holds; no generic panel is left', async ({ page }) => {

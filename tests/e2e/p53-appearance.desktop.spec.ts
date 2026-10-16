@@ -36,6 +36,6 @@ test.describe('P53 desktop: rail and density', () => {
     await openSettingsAt(page, 'appearance');
     await page.locator('[data-action="invAppearance"][data-k="density"][data-v="comfortable"]').click();
     await expect(html).toHaveAttribute('data-density', 'comfortable');
-    await expect(page.locator('[data-sum="appearance"]')).toHaveText('Teal · follows the phone · comfortable');
+    await expect(page.locator('[data-sum="appearance"]')).toHaveText('Zinc & brass · follows the phone · comfortable');
   });
 });

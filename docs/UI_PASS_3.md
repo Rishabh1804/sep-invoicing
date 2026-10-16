@@ -151,16 +151,25 @@ semantic names.
 | `--c-surface` | `#eff3f6` (L 0.962) | `#15191d` | a card: panel, hero, widget, the sign-in card |
 | `--c-surface-2` | `#dfe3e9` | `#1c2126` | a raised card in dark (§3c); a neutral icon chip |
 | `--c-surface-3` | `#d5dbe1` | `#242a30` | a layer in dark: a dialog, a sheet, the search, a keypad key |
-| `--c-well` (new) | `#e3e8ec` (L 0.928) | `#101317` | a well: a field, a search box, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card, a PIN box |
+| `--well` (new, built as a veil) | `#e3e8ec` over the card (L 0.929) | `#101317` over the card | a well: a field, a search box, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card, a PIN box |
 | `--c-edge` (new) | `rgb(20 25 30 / 0.06)` | `rgb(237 240 243 / 0.08)` | a card's fine edge (§3c) |
 
-- **The other two palettes are drawn to the same structure**, each neutral tinted toward its accent's hue: Teal's well between its
-  page `#e1ebed` and its surface `#ecf4f5`, Terracotta's between `#eee8df` and `#f7f2ea`; dark wells a step under each palette's
-  dark surface. U1 sets the four values, then P180's palette check (extended, §3g) proves each: the well lies between the page and the
-  card in light (at least 0.025 under the card), under the card in dark (at least 0.02), and every fill is at or under L 0.97 (HR-9).
+- **As built (U1), the well is a veil over what it sits in**, `light-dark(rgb(20 25 30 / 0.05), rgb(0 0 0 / 0.22))`, not a colour
+  per palette: over each palette's card it lands where the table says (Zinc `#e3e8ec` / `#101317`), over a coded card it is that
+  card's own fill sunk, and on the page it sinks the page, so a field in a toolbar reads as a well too. A colour per palette would
+  have been lighter than the page under a field on the page.
+- **The other two palettes are drawn to the same structure**, each neutral tinted toward its accent's hue. Their pages went a step
+  darker than written here so a card stands off them by the same 0.03 Zinc's does: Teal's page `#dee7e9` (written `#e1ebed`),
+  Terracotta's `#eae4db` (written `#eee8df`), and Terracotta's light accent `#a54926` (from `#a94b28`, 4.46:1 on the darker page, now
+  4.64). **`--text-3` is a step darker in light on all three** (Zinc `#545e68`, Teal `#516065`, Terracotta `#625c52`): a well on the
+  page darkens the page under it, and the old `--text-3` read 4.3:1 there. P180's palette check (extended, §3g) proves each: the well
+  a step under the card (at least 0.025 in light, 0.02 in dark) and over the page in light, a well on the page under the page, the
+  dark steps, every text tier at 4.5:1 in a well on its card and on the page, and every fill at or under L 0.97 (HR-9).
 - **The default palette is Zinc & brass** (§1a-2): `head.html`'s first paint and `appearance.js` (`applyAppearance`) take `zinc`
   where the device has no `sep_inv_palette`; `:root` alone carries Zinc's primitives, `[data-palette="teal"]` Teal's. A device that
-  chose a palette keeps it.
+  chose a palette keeps it. **A device on Teal because Teal was the default moves to Zinc**: choosing the default never stored a
+  key (appearance.js removes it), so a device that picked Teal while it was the default holds no choice to keep. One that picked
+  Zinc or Terracotta keeps it.
 
 **Lift** (a card off the page) and **press** (a well into its card), as tokens:
 
@@ -198,10 +207,10 @@ phone) and `--fs-48: 3rem` (the clock on the desktop). A figure is Geist Mono, t
 |---|---|---|
 | Panel `.inv-panel` (styles.css:1379) | surface, hairline, `--r-xl` | surface, `--c-edge` hairline, `--r-card`, `--lift-1` |
 | Hero `.inv-hero` (:2011), `uiHeroHtml` | tone gradient, `--r-xl`, flat | tone gradient (§3d), `--r-card`, `--lift-1` |
-| Hero sheet `.inv-hero-sheet` (:2052) | a box in the hero | no box of its own: its tiles are the wells |
+| Hero sheet `.inv-hero-sheet` (:2052) | a box in the hero | no box of its own (built: its rows and story drawn on the card, a hairline under the head, its last row in the card's corners); its tiles are the wells |
 | Tile `.inv-tile` (:1418), `uiFactorTileHtml` | `--r-md`, `--shadow-tile` | inside a card: `--c-well` (or its tone's fill), `--r-tile`, `--press-2`; a pressed filter tile an accent edge, `aria-pressed` |
 | Deck card `.inv-deck > *` (:2111) | `--r-lg`, `--shadow-tile`, a left rule | `--r-card`, `--lift-1`, its tone's left rule kept |
-| Field `.inv-input`, `.inv-select`, `.inv-textarea` (:1732) | surface, hairline | `--c-well`, no border, `--press-1`, `--r-ctl`; focus: the ring as now |
+| Field `.inv-input`, `.inv-select`, `.inv-textarea` (:1732) | surface, hairline | `--well`, the fine edge `--edge` in place of the hairline (it carries the accent on focus), `--press-1`, `--r-ctl`; focus: the ring as now |
 | Search `.inv-search` (:1325) | a field | a well; the palette's input a large well (`--ctl-h` × 1.25) |
 | Segmented `.inv-seg` (:206) | a bordered strip | a well (track); the pressed segment `--c-surface`, `--lift-1`, its text `--text-1` |
 | Tick box `.inv-check` (:1500) | drawn by the app | a well; ticked: `--accent` fill, the tick `--on-accent` |
@@ -211,10 +220,12 @@ phone) and `--fs-48: 3rem` (the clock on the desktop). A figure is Geist Mono, t
 | Button `.inv-btn-primary` | accent fill | accent gradient (the accent to one step darker, 180°), `--lift-2`, `--r-ctl`; the text `--on-accent` |
 | Button `.inv-btn-secondary`, `-ghost` | as now | `--r-ctl`; secondary `--c-surface` + `--lift-1`; ghost unchanged |
 | Dialog, sheet, palette (§14) | as now | `--c-surface-3` in dark, `--r-card` (the sheet's top corners), `--shadow-dialog` |
-| Toast `.inv-toast` (:1918) | as now | a pill (`--r-full`), `--c-surface-3`, its icon by kind (§14) |
-| The phone bar, the rail | as now | the bar a floating card (`--r-card`, `--lift-2`); the door on screen a well under its mark |
+| Toast `.inv-toast` (:1918) | as now | a pill (`--r-full`), built in U1; its fill and its kind's icon arrive together in §14 (U7), so the toast keeps its inverted, high-contrast fill until its icon can carry the kind |
+| The phone bar, the rail | as now | the bar a floating card (`--r-card`, `--lift-2`); the door on screen keeps its `--accent-soft` pill (as built: the accent is for touch, and what is selected is the accent's job, DR-2) |
 
-- **A well never holds text lighter than `--text-2`** and never loses its edge in dark (§3c). C's faint grey-on-grey is not taken.
+- **A well's text keeps its contrast**: every tier, `--text-3` included, reads at 4.5:1 or more in a well on its card and on the
+  page, in every palette and both themes (P180 measures it), and a well never loses its edge in dark (§3c). C's faint grey-on-grey is
+  not taken. (Written first as *never lighter than `--text-2`*; measured, `--text-3` passes once darkened, §3a, so tile labels keep it.)
 - **Paper is untouched**: no token above reaches `.inv-print-invoice`, `.inv-qc-page`, `.inv-cn-doc`, `.inv-sr-doc`, `.inv-qt-doc`,
   `.inv-rpt-doc`, `.inv-ps-*`, `.inv-as-*`, `.inv-idc*`, which declare their own (HR-6's exceptions).
 
@@ -223,7 +234,8 @@ phone) and `--fs-48: 3rem` (the clock on the desktop). A figure is Geist Mono, t
 A shadow is barely seen on a dark page, so in dark **a card is lifted by a lighter surface and a fine edge**, the shadow only adding to
 them:
 - the page `#0e1114`, a card `#15191d` with a 1 px `--c-edge` (`rgb(237 240 243 / 0.08)`) all round, a card inside a card (a deck
-  card) `#1c2126`, a layer `#242a30`;
+  card) a step lighter in its tone, a layer (a dialog, the search, a menu) `#1c2126` (built: `#242a30` put `--text-3` under 4.5:1 on
+  Teal and Terracotta, 4.23 and 4.34, so a layer is `--c-surface-2` and what is drawn on it reads the layer as its surface, §3b);
 - a well is darker than the card it sits in (`#101317`), with `--press-1` and the same fine edge, so it reads as a hollow and not a
   hole;
 - each step at least 0.03 OKLab L above the one under it, which P180 asserts per palette (§3g);
@@ -242,8 +254,10 @@ them:
 | info | Know | `info` | worth knowing, no judgement | `--info` `#1d5ea6` / `#e6effa` | `--info-mark` `#3f6e9a` |
 | neutral | Plain | none | a count or a sum, nothing to judge | `--text-1` / `--c-surface` | `--text-3` |
 
-- **A coded card is filled in its tone** (a 160° gradient from `--tone-bg` to one step deeper, as Today's cards are since 8 Oct 2026,
-  `--tone` / `--tone-bg` on the element), its word and icon in `--tone`, its figure in `--tone`. **A card takes the tone of the worst
+- **A coded card is filled in its tone** (a 160° gradient from `--tone-bg` to the tone 7% into it, as on the approved board; Today's
+  cards since 8 Oct 2026 ran 135° from the tone 18%, and are taken down to the board's), `--tone` / `--tone-bg` on the element, its word
+  and icon in `--tone`, its figure in `--tone`. Inside it a card in its deck lies lighter in both themes and a tile sinks darker
+  (design §3.3 *Fills*). **A card takes the tone of the worst
   thing it holds**, as now (HR-9's coded boxes). A plain card is `--c-surface`.
 - **A coloured figure always has its reason in words beside it and its icon** (DR-8, amended in §3f): the colour is never the only
   signal. Where a row has no room, a dot and the word stay (`uiRowEndHtml`), as now.

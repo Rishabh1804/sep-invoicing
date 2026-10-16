@@ -10,8 +10,10 @@ import { sweepState } from './sweep-fixture';
 // register, the quotation, the statement, the pay slips, the attendance and stock sheets and the ID cards print exactly as they
 // did. Each document is drawn in the print view under print media, and every element under its paper root is read for the
 // properties that make how it prints (colours, fills, edges, corners, shadows, spacing, type) and not for its laid-out size (which
-// a machine's fonts move). The record was taken on the build before UI pass 3 (PAPER_RECORD=1 writes it); any difference after
-// fails, naming the document and the element.
+// a machine's fonts move). The record was taken on the build before UI pass 3 (PAPER_RECORD=1 writes it) on Teal, the default
+// palette until then, and is compared on Teal; any difference after fails, naming the document and the element. Paper reads no
+// palette either: the second test draws every document on each palette and holds the ink to Teal's (an element's own text, a
+// border drawn, a fill), the screens' palette being a device's choice and paper being the same for everyone.
 
 const RECORD = path.join(__dirname, '..', 'fixtures', 'paper-looks.json');
 const PROPS = ['color', 'background-color', 'background-image', 'border-top-width', 'border-top-style', 'border-top-color',
@@ -35,8 +37,9 @@ const DOCS: [string, string][] = [
   ['id-cards', `paperShow(idcSheetsHtml(S.staff.slice(0, 3).map(function(w, i) { return { w: w, card: 'SEP-000' + (i + 1) }; }), true))`],
 ];
 
-async function looksOf(page: Page, js: string) {
-  return page.evaluate(([src, props]) => {
+async function looksOf(page: Page, js: string, palette = 'teal') {
+  return page.evaluate(([src, props, pal]) => {
+    document.documentElement.dataset.palette = pal;
     const w = window as any;
     // The print view's own way in (qtPrint's): the document in #invPrintBody, the view on, fitted.
     w.paperShow = (html: string) => {
@@ -49,18 +52,30 @@ async function looksOf(page: Page, js: string) {
     (0, eval)(src);
     const root = document.getElementById('invPrintBody')!;
     const out: Record<string, string[]> = {};
+    // The ink: what reaches paper from an element shown in print, its own text's colour, a border it draws, a fill it lays.
+    const ink: string[] = [];
     const els = [root, ...Array.from(root.querySelectorAll('*'))];
-    for (const el of els) {
+    els.forEach((el, i) => {
       const cls = Array.from(el.classList).filter(c => c.startsWith('inv-')).sort().join('.');
       const sig = el.tagName.toLowerCase() + (cls ? '.' + cls : '');
       const cs = getComputedStyle(el);
       const style = props.map(p => p + ':' + cs.getPropertyValue(p)).join(';');
       (out[sig] = out[sig] || []);
       if (!out[sig].includes(style)) out[sig].push(style);
-    }
+      if (!(el as HTMLElement).checkVisibility?.()) return;
+      const own = Array.from(el.childNodes).some(n => n.nodeType === 3 && (n.textContent || '').trim());
+      const parts: string[] = [];
+      if (own || el.tagName === 'svg' || el.closest('svg')) parts.push('ink ' + cs.color + ' ' + cs.fill + ' ' + cs.stroke);
+      for (const side of ['top', 'right', 'bottom', 'left']) {
+        if (cs.getPropertyValue('border-' + side + '-style') !== 'none' && parseFloat(cs.getPropertyValue('border-' + side + '-width')) > 0) parts.push(side + ' ' + cs.getPropertyValue('border-' + side + '-color'));
+      }
+      if (!/rgba\([^)]*,\s*0\)$/.test(cs.backgroundColor) && cs.backgroundColor !== 'transparent') parts.push('fill ' + cs.backgroundColor);
+      if (cs.backgroundImage !== 'none') parts.push('image ' + cs.backgroundImage);
+      if (parts.length) ink.push(i + ' ' + sig + ' ' + parts.join(' | '));
+    });
     Object.keys(out).forEach(k => out[k].sort());
-    return { n: els.length, looks: out };
-  }, [js, PROPS] as const);
+    return { n: els.length, looks: out, ink };
+  }, [js, PROPS, palette] as const);
 }
 
 test('paper prints as it did before UI pass 3: every document, every element, every property that prints', async ({ page }) => {
@@ -91,4 +106,21 @@ test('paper prints as it did before UI pass 3: every document, every element, ev
     }
   }
   expect(diffs.slice(0, 40), 'paper unchanged').toEqual([]);
+});
+
+test('paper reads no palette: every document prints the same ink on Zinc & brass and Terracotta as on Teal', async ({ page }) => {
+  test.setTimeout(180000);
+  await page.clock.install({ time: new Date(todayIso() + 'T11:30:00') });
+  await loadAppWithState(page, sweepState());
+  await page.emulateMedia({ media: 'print', colorScheme: 'light' });
+  const diffs: string[] = [];
+  for (const [name, js] of DOCS) {
+    const teal = (await looksOf(page, js, 'teal')).ink;
+    for (const pal of ['zinc', 'terracotta']) {
+      const other = (await looksOf(page, js, pal)).ink;
+      expect(other.length, name + ' on ' + pal).toBe(teal.length);
+      teal.forEach((t, i) => { if (t !== other[i]) diffs.push(name + ' on ' + pal + ': ' + t + '  ≠  ' + other[i]); });
+    }
+  }
+  expect(diffs.slice(0, 20), 'no palette reaches paper').toEqual([]);
 });

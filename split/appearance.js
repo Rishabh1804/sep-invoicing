@@ -7,7 +7,8 @@
 var APPEARANCE_KEYS = { theme: 'sep_inv_theme', palette: 'sep_inv_palette', density: 'sep_inv_density' };
 var APPEARANCE_OPTS = {
   theme: [['system', 'System'], ['light', 'Light'], ['dark', 'Dark']],
-  palette: [['teal', 'Teal'], ['zinc', 'Zinc & brass'], ['terracotta', 'Terracotta']],
+  // Zinc & brass first: the default since UI pass 3 (docs/UI_PASS_3.md §1a-2), the palette every board was drawn in.
+  palette: [['zinc', 'Zinc & brass'], ['teal', 'Teal'], ['terracotta', 'Terracotta']],
   density: [['auto', 'Auto'], ['comfortable', 'Comfortable'], ['compact', 'Compact']]
 };
 var _darkQuery = window.matchMedia ? window.matchMedia('(prefers-color-scheme: dark)') : null;
@@ -47,7 +48,7 @@ function applyAppearance(theme, palette, density) {
 
 function _cssColorHex(c) {
   var m = /rgba?\((\d+),\s*(\d+),\s*(\d+)/.exec(c || '');
-  if (!m) return '#f8fafa';
+  if (!m) return '#eff3f6';
   return '#' + [m[1], m[2], m[3]].map(function(n) { return ('0' + (+n).toString(16)).slice(-2); }).join('');
 }
 

@@ -113,21 +113,25 @@ var PERIOD_PRIOR_LABELS = {
  * weight prices back at exactly that rate, so it can never rank a part by
  * margin — but it measures tonnage correctly, and tonnage is the only thing it
  * is used for here.
+ *
+ * `src` names the route a known weight came by (the data layer's kg_src, dataview.js): 'line' (a KG line's own
+ * quantity), 'part' (S.partWeights), 'master' (the Items Master stdWeightKg), 'rate' (a piece client's amount
+ * over its ₹/kg); null when the weight is not known. Nothing else reads it.
  */
 function lineWeightKg(item, client, dateStr) {
-  if (!item) return { kg: 0, known: false };
+  if (!item) return { kg: 0, known: false, src: null };
   var qty = item.qty || 0;
-  if ((item.unit || 'KG') === 'KG') return { kg: qty, known: qty > 0 };
+  if ((item.unit || 'KG') === 'KG') return { kg: qty, known: qty > 0, src: qty > 0 ? 'line' : null };
 
   var key = (item.partNumber || '').toUpperCase();
-  var per = (S.partWeights && S.partWeights[key] != null) ? S.partWeights[key] : null;
+  var per = (S.partWeights && S.partWeights[key] != null) ? S.partWeights[key] : null, src = per != null ? 'part' : null;
   if (per == null) {
     var master = (S.items || []).find(function(it) {
       return (it.partNumber || '').toUpperCase() === key;
     });
-    if (master && master.stdWeightKg != null) per = master.stdWeightKg;
+    if (master && master.stdWeightKg != null) { per = master.stdWeightKg; src = 'master'; }
   }
-  if (per != null && per > 0) return { kg: qty * per, known: true };
+  if (per != null && per > 0) return { kg: qty * per, known: true, src: src };
 
   /* Piece-billed line with nothing in the catalogue: the weight is on the line
      itself and needs no registry at all. The piece rate WAS weight x ratePerKg,
@@ -139,15 +143,17 @@ function lineWeightKg(item, client, dateStr) {
      vary in spelling between invoices ("Clamp 165x83" against
      "CLAMP 165X83(40X6)"), so registry matching would stay fragile even if
      the rows existed. Reading the line direct sidesteps both. */
-  if (client && client.billingMode === 'piece' && (item.amount || 0) > 0) {
+  // The amount as billed (_gross on a line statsInvoices netted of a credit note): the note takes rupees off, never kilos.
+  var billed = item._gross != null ? Number(item._gross) || 0 : item.amount || 0;
+  if (client && client.billingMode === 'piece' && billed > 0) {
     var rateInfo = getLineItemRate(client, dateStr || localDateStr(), item.partNumber);
     // An itemRates override is a negotiated per-piece figure with no weight
     // basis; inverting it would invent a number rather than recover one.
     if (!rateInfo._override && rateInfo.ratePerKg > 0) {
-      return { kg: (item.amount || 0) / rateInfo.ratePerKg, known: true };
+      return { kg: billed / rateInfo.ratePerKg, known: true, src: 'rate' };
     }
   }
-  return { kg: 0, known: false };
+  return { kg: 0, known: false, src: null };
 }
 
 /* Client for an invoice or challan row, cached per call site by the callers
@@ -383,7 +389,9 @@ function statsInvoices() {
     return Object.assign({}, inv, { taxableValue: gstRound(tv * f), _credit: gstRound(tv - tv * f),
       cgstAmt: gstRound((Number(inv.cgstAmt) || 0) * f), sgstAmt: gstRound((Number(inv.sgstAmt) || 0) * f), igstAmt: gstRound((Number(inv.igstAmt) || 0) * f),
       grandTotal: gstRound((Number(inv.grandTotal) || 0) * f),
-      items: (inv.items || []).map(function(it) { return Object.assign({}, it, { amount: gstRound((Number(it.amount) || 0) * f) }); }) });
+      // A line keeps what it billed (_gross) beside its net amount: a piece line with no weight on record is weighed by its amount
+      // over its ₹/kg (lineWeightKg), and a credit note takes rupees off a line, never kilos.
+      items: (inv.items || []).map(function(it) { return Object.assign({}, it, { amount: gstRound((Number(it.amount) || 0) * f), _gross: it.amount }); }) });
   });
 }
 

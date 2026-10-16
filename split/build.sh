@@ -80,6 +80,7 @@ JS_SOURCES=(
     "$DIR/advice.js" \
     "$DIR/learn.js" \
     "$DIR/dash.js" \
+    "$DIR/dataview.js" \
     "$DIR/production.js" \
     "$DIR/plant.js" \
     "$DIR/people.js" \

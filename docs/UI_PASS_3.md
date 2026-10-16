@@ -442,18 +442,27 @@ from it instead, and no widget changes.
 |---|---|---|
 | `invoice_lines` | date, month, invoice_id, line, number, client_id, part, gauge, unit, qty, kg, kg_src, taxable, taxable_net, tax | `statsInvoices` (net of credit notes), `weighLines`, `lineWeightKg` |
 | `invoices` | id, number, date, client_id, state, state_since, taxable, taxable_net, tax, total, terms_days, due_on, paid_on, paid_how, open_amount | the register, `invStateTone`'s stamps, `flowTerms`, `bankReceivables` |
-| `receipts` | date, client_id, amount, placed, how (exact / oldest / on account), invoice_ids | `bankReceivables` |
-| `challan_lines` | date, client_id, challan_no, part, unit, qty, open_qty, open_amount, billed_qty, wanted_by | `imLineOpen`, `imBilledIndex`, `flowPriorityOf` |
+| `receipts` | id, source (bank / cheque), date, client_id, amount, placed, how (exact / oldest / on account), invoice_ids | `bankReceivables` |
+| `challan_lines` | id, challan_id, date, client_id, challan_no, part, unit, qty, open_qty, open_amount, billed_qty, wanted_by | `imLineOpen`, `imBilledIndex`, `flowPriorityOf` |
 | `production_days` | date, line, kg, kg_est (bool), pieces, pieces_unweighed, rounds, efficiency, earned, cut_minutes | `prodLineDaySum`, `prodLineEfficiency`, `prodDayWorth`, `prodDowntimeDay` |
 | `attendance_days` | date, roster, on_site, floor_heads, floor_need, ot_hours, extra_hours, recorded (bool) | `attDayRoster`, `attHoursSplit`, `areaNeedOn` |
-| `power_cuts` | date, from, to, minutes, working_minutes, reason, where, damage | `powerCuts`, `powerAnalysis` |
+| `power_cuts` | id, date, from, to, minutes, working_minutes, reason, where, damage | `powerCuts`, `powerAnalysis` |
 | `stock_lines` | id, name, unit, level, days_left, use_day, last_price, supplier_id | `stockStatus`, `stockReplay` |
-| `bank_rows` | date, amount_in, amount_out, balance, category, party, client_id | the bank's rows as Money reads them |
+| `bank_rows` | id, date, amount_in, amount_out, balance, category, party, client_id | the bank's rows as Money reads them |
 | `cost_months` | month, kg, labour, zinc, chemicals, power, other, measured_share | `liveCost`, `bankCostByMonth` |
-| `daily` | date, week, and one column per series of §7d's *corr* catalogue | joins of the views above |
+| `daily` | date, week, and one column per series of §7d's *corr* catalogue, named by its key (`cutMin`, `heads`, `otHours`, `zinc`, `invSize`, `tonnes`, `real`, `dtp`, `eff`) | joins of the views above |
 | `market_tata` | month, cv_total, cv_domestic, cv_export, hcv, released_on | `S.market.tata` (§9c) |
 | `weather_days` | date, t_max, t_min, rain_mm, thunder (bool) | `S.market.weather` (§9d) |
 
+- **Each view has its key** (built, U1): the hub's `PRIMARY KEY` is the record the row comes from, so a typed table can be filled
+  and refilled by it. `invoice_lines` (invoice_id, line), `invoices` (id), `receipts` (id: the statement row's, or `chq:` and the
+  cheque's for one in hand, with `source` saying which), `challan_lines` (id, the line's; `challan_id` its challan's),
+  `production_days` (date, line), `attendance_days` (date), `power_cuts` (id: the report typed first, one cut being every
+  report joined), `stock_lines` (id), `bank_rows` (id), `cost_months` (month), `daily` (date), `market_tata` (month), `weather_days` (date).
+- **A line is weighed as billed** (found building U1): Stats nets a line by its credit notes, and a piece client's line with no
+  weight on record is weighed by its amount over the client's ₹/kg, so the netted amount had been weighed and a 2% rebate took 2%
+  of those kilos off the plant's tonnage. `statsInvoices` keeps the amount billed beside the net (`_gross`), and `lineWeightKg`
+  weighs that: a note takes rupees off, never kilos (P226).
 - **The rule for widgets** (§7a): a widget's `data` reads views and the functions its screen already draws with, and nothing else of
   `S`. A screen moves to views when a step touches it; no step rewrites a screen to views for its own sake.
 - **The hub's shape, for S1** (written here so the two stay one): a typed table is the view's columns with `PRIMARY KEY` on its key

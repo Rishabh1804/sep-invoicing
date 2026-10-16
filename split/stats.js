@@ -519,6 +519,19 @@ function buildClientRollup(invoices) {
   }).sort(function(a, b) { return b.total - a.total; });
 }
 
+/* Revenue by client as shares: a client in its own colour (seriesSlot: the six with the most kilos plated over the book, on
+   every chart), each tapping through to the client; two or more outside the six fold into one named wedge in Other, so the
+   tail is visibly a tail. */
+function statsShareSlices(ranked) {
+  var out = [], rest = [];
+  ranked.forEach(function(r) {
+    var slot = seriesSlot('client', r.clientId);
+    if (slot === 'other') rest.push(r); else out.push({ label: r.name, value: r.total, clientId: r.clientId, slot: slot });
+  });
+  if (rest.length === 1) out.push({ label: rest[0].name, value: rest[0].total, clientId: rest[0].clientId, slot: 'other' });
+  else if (rest.length) out.push({ label: rest.length + ' others', value: rest.reduce(function(t, r) { return t + r.total; }, 0), slot: 'other', _others: true });
+  return out;
+}
 /* Revenue by client, ranked: the ranked-bar chart (charts.js), each bar tapping through to the
    client. An empty period says what would fill it and offers the way there. */
 function renderRevenueBars(ranked, totalRev) {
@@ -569,8 +582,7 @@ function renderStats() {
     html += statsPanel('revenue', 'Revenue by client', '', { wide: true,
       end: statsSeg('invStatsClientChart', 'chart', { bar: 'Ranked', pie: 'Share' }, _statsClientChart, 'Chart') }) +
       (_statsClientChart === 'pie'
-        ? statsBody(chartPie(ranked.map(function(r) { return { label: r.name, value: r.total, clientId: r.clientId }; }),
-            { unit: 'money', ariaLabel: 'Revenue share by client' }))
+        ? statsBody(chartPie(statsShareSlices(ranked), { unit: 'money', ariaLabel: 'Revenue share by client' }))
         : renderRevenueBars(ranked, totalRev)) +
       '</div>';
 

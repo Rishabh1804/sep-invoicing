@@ -290,13 +290,26 @@ function finOutHeroHtml(cls, months) {
     body: '<div class="inv-hero-sheet">' + cats.slice(0, 5).map(function(k) { return uiFactRowHtml({ label: k, value: finRs(byCat[k]), attrs: ' data-went-top="' + escHtml(k) + '"' }); }).join('') + '</div>',
     fold: 'fin-hero-out', open: false, attrs: tile, foot: go });
 }
+/* Where money came from, as slices: a client in its own colour (seriesSlot, the same on every chart), receipts with no client
+   a slice of their own that needs the owner (warning, it opens them), and two or more clients outside the six one slice in Other. */
+function finFromSlices(from) {
+  var out = [], rest = [];
+  Object.keys(from).forEach(function(k) {
+    if (k === '__loose') { out.push({ key: k, label: 'Not placed yet', value: from[k], tone: 'warning' }); return; }
+    var slot = seriesSlot('client', k);
+    if (slot === 'other') rest.push(k); else out.push({ key: k, label: insClientName(k), value: from[k], slot: slot });
+  });
+  if (rest.length === 1) out.push({ key: rest[0], label: insClientName(rest[0]), value: from[rest[0]], slot: 'other' });
+  else if (rest.length) out.push({ key: '__others', label: rest.length + ' others', value: gstRound(rest.reduce(function(t, k) { return t + from[k]; }, 0)), slot: 'other' });
+  return out;
+}
 /* GST due against paid over the range, a chart: the months themselves are GST's own (I8). */
 function finGstChartHtml(months, cls) {
   var g = finGstByMonth(months, cls);
   return '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finGstChart"><div class="inv-panel-head"><span class="inv-panel-title">GST due and paid</span></div>' +
     '<div class="inv-panel-body">' + chartStack(months.map(function(m) { return insMonthLabel(m) + (months.length > 12 ? " '" + m.slice(2, 4) : ''); }), [
-      { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }) },
-      { label: 'Paid', values: g.map(function(r) { return r.paid; }), tone: 2 }
+      { label: 'Due', values: g.map(function(r) { return Math.max(0, r.due); }), slot: 1 },
+      { label: 'Paid', values: g.map(function(r) { return r.paid; }), slot: 2 }
     ], { mode: 'group', ariaLabel: 'GST due and paid', keys: months, toDate: finMonthToDate(months, 'invoices') }) + '</div>' +
     '<div class="inv-row"><span class="inv-row-main inv-row-meta">Each month’s status and its note</span><span class="inv-row-end">' +
     '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invFinGo" data-tab="gst">Open GST</button></span></div></div>';
@@ -327,9 +340,9 @@ function finOverviewHtml() {
   var cashMonths = inRange.filter(function(m) { return byMonth[m]; });
   var cash = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finCash"><div class="inv-panel-head"><span class="inv-panel-title">Cash by month</span></div>' +
     '<div class="inv-panel-body">' + chartLines(cashMonths.map(lab), [
-      { label: 'Balance', values: cashMonths.map(function(m) { return byMonth[m].close; }) },
-      { label: 'In', values: cashMonths.map(function(m) { return byMonth[m].cr; }), tone: 2 },
-      { label: 'Out', values: cashMonths.map(function(m) { return byMonth[m].dr; }), tone: 3 }
+      { label: 'Balance', values: cashMonths.map(function(m) { return byMonth[m].close; }), slot: 1 },
+      { label: 'In', values: cashMonths.map(function(m) { return byMonth[m].cr; }), slot: 2 },
+      { label: 'Out', values: cashMonths.map(function(m) { return byMonth[m].dr; }), slot: 3 }
     ], { ariaLabel: 'Cash by month', pointAction: 'invFinMonth', keys: cashMonths, emptyText: 'The statement covers under two months of this range', toDate: finMonthToDate(cashMonths) }) + '</div>' +
     '<div class="inv-scroll"><table class="inv-table"><thead><tr><th>Month</th><th class="inv-num">In</th><th class="inv-num">Out</th><th class="inv-num">Closed at</th></tr></thead><tbody>';
   cashMonths.slice().reverse().forEach(function(k) {
@@ -352,14 +365,15 @@ function finOverviewHtml() {
     (outByMonthCat[m] = outByMonthCat[m] || {})[k] = gstRound(((outByMonthCat[m] || {})[k] || 0) + v.row.dr);
     if (inRange.indexOf(m) >= 0) cats[k] = gstRound((cats[k] || 0) + v.row.dr);
   });
-  // Past the eighth, the smallest categories fold into one series that names them, as the pie folds its tail: the
-  // stack used to drop a ninth, and its money with it.
+  // A category wears its own colour in every range (seriesSlot 'bankcat', docs/UI_PASS_3.md §3d: a colour follows the thing, never
+  // its rank), the largest first; the rest, two or more, fold into one series in Other that names them, as the pie folds its tail:
+  // the stack used to drop a ninth, and its money with it. The stack and the pie under it agree.
   var catAll = Object.keys(cats).sort(function(a, b) { return cats[b] - cats[a]; });
-  var catOrder = catAll.length > CHART_SERIES_MAX ? catAll.slice(0, CHART_SERIES_MAX - 1) : catAll, catTail = catAll.slice(catOrder.length);
+  var catOrder = catAll.filter(function(k) { return seriesSlot('bankcat', k) !== 'other'; }), catTail = catAll.filter(function(k) { return catOrder.indexOf(k) < 0; });
   var stackSeries = catOrder.map(function(k) {
-    return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }) };
+    return { label: catLabel(k), values: cashMonths.map(function(m) { return (outByMonthCat[m] || {})[k] || 0; }), slot: seriesSlot('bankcat', k) };
   });
-  if (catTail.length) stackSeries.push({ label: catTail.length + ' others: ' + catTail.map(catLabel).join(', '), tone: 'x',
+  if (catTail.length) stackSeries.push({ label: catTail.length === 1 ? catLabel(catTail[0]) : catTail.length + ' others: ' + catTail.map(catLabel).join(', '), slot: 'other',
     values: cashMonths.map(function(m) { return gstRound(catTail.reduce(function(t, k) { return t + ((outByMonthCat[m] || {})[k] || 0); }, 0)); }) });
   var paidMonth = months.length ? months[months.length - 1] : null;
   var ym = _finMonth && byMonth[_finMonth] ? _finMonth : (cashMonths.length ? cashMonths[cashMonths.length - 1] : paidMonth.month);
@@ -374,7 +388,7 @@ function finOverviewHtml() {
     '<div class="inv-panel-body">' + chartStack(cashMonths.map(lab), stackSeries,
       { action: 'invFinMonth', keys: cashMonths, selected: ym, ariaLabel: 'Outflow by category', readHint: 'Tap a month to read it; the pie below follows', toDate: finMonthToDate(cashMonths) }) + '</div>' +
     // A category keeps its colour in both: one folded into the stack's others takes the others' colour here too.
-    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { var t = catOrder.indexOf(k); return { key: k, label: catLabel(k), value: byCat[k], tone: t >= 0 ? t : catTail.indexOf(k) >= 0 ? 'x' : null }; }),
+    '<div class="inv-panel-body">' + chartPieTap(Object.keys(byCat).map(function(k) { return { key: k, label: catLabel(k), value: byCat[k], slot: seriesSlot('bankcat', k) }; }),
       { action: 'invFinCat', selected: sel, ariaLabel: 'Outflow in ' + billsMonthLabel(ym), emptyText: 'Nothing paid out in ' + billsMonthLabel(ym), readHint: 'Tap a slice to list its payments' }) + '</div>';
   Object.keys(byCat).sort(function(a, b) { return byCat[b] - byCat[a]; }).forEach(function(k) {
     went += '<div class="inv-row" data-went-cat="' + escHtml(k) + '"><span class="inv-row-main">' + escHtml(catLabel(k)) + '</span><span class="inv-row-end inv-num">' + formatCurrency(byCat[k]) + '</span></div>';
@@ -401,9 +415,7 @@ function finOverviewHtml() {
     from[k] = gstRound((from[k] || 0) + v.row.cr);
   });
   h += fold('fin-from', '<div class="inv-panel inv-panel-flush" id="finFrom"><div class="inv-panel-head"><span class="inv-panel-title">Where money came from</span></div>' +
-    '<div class="inv-panel-body">' + chartPieTap(Object.keys(from).map(function(k) {
-      return { key: k, label: k === '__loose' ? 'Not placed yet' : insClientName(k), value: from[k] };
-    }), { action: 'invFinFrom', ariaLabel: 'Receipts by client', emptyText: 'No receipts in this range', readHint: 'Tap a client to open what it owes' }) + '</div></div>');
+    '<div class="inv-panel-body">' + chartPieTap(finFromSlices(from), { action: 'invFinFrom', ariaLabel: 'Receipts by client', emptyText: 'No receipts in this range', readHint: 'Tap a client to open what it owes' }) + '</div></div>');
 
   // Invoiced against received: the gap between the lines is what the book is lending its clients.
   var invBy = {}, recBy = {};
@@ -411,8 +423,8 @@ function finOverviewHtml() {
   cls.forEach(function(v) { if (v.cat === 'receipt' && v.row.cr > 0) recBy[insMonthKey(v.row.date)] = gstRound((recBy[insMonthKey(v.row.date)] || 0) + v.row.cr); });
   h += fold('fin-invrec', '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finInvRec"><div class="inv-panel-head"><span class="inv-panel-title">Invoiced against received</span></div>' +
     '<div class="inv-panel-body">' + chartLines(inRange.map(lab), [
-      { label: 'Invoiced', values: inRange.map(function(m) { return invBy[m] || 0; }) },
-      { label: 'Received', values: inRange.map(function(m) { return byMonth[m] ? (recBy[m] || 0) : null; }), tone: 2 }
+      { label: 'Invoiced', values: inRange.map(function(m) { return invBy[m] || 0; }), slot: 1 },
+      { label: 'Received', values: inRange.map(function(m) { return byMonth[m] ? (recBy[m] || 0) : null; }), slot: 2 }
     ], { ariaLabel: 'Invoiced against received', emptyText: 'Needs two months in the range',
       toDate: finMonthToDate(inRange, 'invoices') != null ? finMonthToDate(inRange, 'invoices') : finMonthToDate(inRange) }) + '</div>' +
     '<div class="inv-panel-body inv-note">Invoiced incl. GST, by invoice date; received is every receipt on the statement.</div></div>');

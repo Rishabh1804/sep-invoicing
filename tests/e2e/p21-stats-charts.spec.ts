@@ -185,10 +185,12 @@ test('P21: the share chart folds a long tail into one named wedge', async ({ pag
   await openStats(page, 'clients');
   await page.locator('[data-action="invStatsClientChart"][data-chart="pie"]').click();
 
-  // Eight wedges plus the fold — slivers nobody can aim at are not drawn, and
-  // the fold is named so the tail is visibly a tail.
-  await expect(page.locator('.inv-chart-legend')).toContainText('3 others');
-  await expect(page.locator('.inv-chart-legend-row')).toHaveCount(9);
+  // Six wedges, the clients holding the six series colours (UI pass 3 §3d: seriesSlot, the most kilos over the book), plus
+  // the fold — slivers nobody can aim at are not drawn, and the fold is named and drawn in Other so the tail is visibly a tail.
+  await expect(page.locator('.inv-chart-legend')).toContainText('5 others');
+  await expect(page.locator('.inv-chart-legend-row')).toHaveCount(7);
+  await expect(page.locator('.inv-chart-wedge.inv-chart-other')).toHaveCount(1);
+  for (const n of [1, 2, 3, 4, 5, 6]) await expect(page.locator(`.inv-chart-wedge.inv-chart-s${n}`)).toHaveCount(1);
 });
 
 test('P21: top items rank by value, tonnage and price — three different orders', async ({ page }) => {

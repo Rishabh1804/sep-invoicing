@@ -451,6 +451,9 @@ function onDocClick(e) {
     default:
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
+      // A chart's Table: the drawing and its table trade places in the box (charts.js). It is pressed, so the click above ran
+      // it inside keepScroll: the page stays where it was.
+      if (action === 'invChartTable') { chartTableToggle(btn); break; }
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
       // The toolbar's More and Filter (state.js, one look).
       if (uiToolbarAction(action, btn)) break;

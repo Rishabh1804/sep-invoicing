@@ -148,6 +148,7 @@ export function lookSuite(layout: 'phone' | 'desktop') {
       }
       const css = fs.readFileSync(path.join(__dirname, '..', '..', 'split', 'styles.css'), 'utf8').replace(/\/\*[\s\S]*?\*\//g, '');
       expect(css, 'the tile’s lift is retired: inside a card a tile is a well').not.toContain('--shadow-tile');
+      expect(css, 'the eight chart colours and their frame names are retired: a series is a slot, the frame --plot-*').not.toContain('--chart-');
     });
   });
 }

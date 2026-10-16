@@ -461,7 +461,7 @@ test('BB3: money on account that has since settled later invoices is not shown a
 });
 
 /* ---------- BB4: a ninth category of money out ---------- */
-test('BB4: past the eighth, money-out categories fold into one named series in the stack, and none is dropped', async ({ page }) => {
+test('BB4: past the sixth, money-out categories fold into one named series in the stack, and none is dropped', async ({ page }) => {
   seq = 0;
   const m = ym(-1);
   const rows = [row(ym(-2) + '-28', 'NEFT-UTR0-ALPHA FORGINGS', 0, 100000, { cat: 'receipt', clientId: 1 }),
@@ -474,13 +474,17 @@ test('BB4: past the eighth, money-out categories fold into one named series in t
   await openFinance(page, 'overview');
   await page.locator('[data-action="invFinRange"][data-range="ALL"]').click();
   const stack = page.locator('#finWent .inv-chart-box').first();
-  await expect(stack.locator('.inv-chart-key')).toHaveCount(8);
-  await expect(stack.locator('.inv-chart-key').last()).toContainText('2 others: Bank charges, Returned');
+  // Six series colours (UI pass 3 §3d), each category's own in every range (wages, suppliers, cash wages, electricity, GST,
+  // income tax), and the other three folded into one named series.
+  await expect(stack.locator('.inv-chart-key')).toHaveCount(7);
+  await expect(stack.locator('.inv-chart-key').last()).toContainText('3 others: Other, Bank charges, Returned');
   // Every rupee paid out that month is in the stack: 45,000 in all.
   const segs = await stack.locator(`rect.inv-chart-seg[data-key="${m}"]`).evaluateAll(els => els.map(e => (e as HTMLElement).dataset.read || ''));
   const total = segs.reduce((s, t) => s + Number(t.replace(/^.*₹/, '').replace(/,/g, '')), 0);
   expect(total).toBe(45000);
-  await expect(stack.locator(`rect.inv-chart-cx[data-key="${m}"]`)).toHaveCount(1);
+  // The folded series is drawn in Other, and the six each in its own slot.
+  await expect(stack.locator(`rect.inv-chart-other[data-key="${m}"]`)).toHaveCount(1);
+  for (const n of [1, 2, 3, 4, 5, 6]) await expect(stack.locator(`rect.inv-chart-s${n}[data-key="${m}"]`)).toHaveCount(1);
 });
 
 /* ---------- BB5: a recorded note for a client with no invoice here ---------- */

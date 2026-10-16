@@ -532,9 +532,10 @@ function plnPinRefresh() {
 /* The outcome: the plan's margin against today's and the goal, the 8-in-10 band once rolled, the goal month's spread, achievements. */
 function plnOutcomeHtml(P) {
   var R = _plnResult, g = plnGoal(P.sc), target = plnGoalMargin(g, P.B), labels = P.months.map(function(_, i) { return plnMonthLabel(i); });
-  var series = [{ label: R ? 'The middle trial' : 'The plan, every move landing', values: R ? R.p50 : P.months.map(function(x) { return Math.round(x.margin); }) },
-    { label: 'As it runs', values: P.base.map(function(x) { return Math.round(x.margin); }), tone: 6, dashed: true }];
-  if (target != null) series.push({ label: 'The goal', values: P.months.map(function() { return Math.round(target); }), tone: 2, dashed: true });
+  // The plan in its slot, the month as it runs (what the plan is set against) in Other, the goal a mark of what is good (ok).
+  var series = [{ label: R ? 'The middle trial' : 'The plan, every move landing', values: R ? R.p50 : P.months.map(function(x) { return Math.round(x.margin); }), slot: 1 },
+    { label: 'As it runs', values: P.base.map(function(x) { return Math.round(x.margin); }), slot: 'other', dashed: true }];
+  if (target != null) series.push({ label: 'The goal', values: P.months.map(function() { return Math.round(target); }), tone: 'ok', dashed: true });
   var h = '<div class="inv-panel" id="plnOutcome"><div class="inv-panel-head"><span class="inv-panel-title">' + (R ? 'After ' + PLN_TRIALS + ' trials' : 'Margin a month') + '</span>' +
     '<span class="inv-panel-count">' + escHtml(R ? Math.round(R.red * 100) + '% dip below zero · CQI-11 in time in ' + Math.round(R.cqiShare * 100) + '%' : 'roll the trials for the odds') + '</span></div>' +
     chartLines(labels, series, { ariaLabel: 'Margin a month', band: R ? R.p10.map(function(v, i) { return { lo: v, hi: R.p90[i] }; }) : null, maxLabels: 6 });
@@ -659,7 +660,8 @@ function plnDayHtml() {
   var P = plnPlanned(_plnMode), mo = _plnDayMode === 'now' ? P.base[_plnMonth] : P.months[_plnMonth], B = P.B;
   var X0 = 96, W = 1000, SPAN = 22, X = function(h) { return X0 + (h - 6) / SPAN * (W - X0 - 12); };
   var rowH = 46, H = 30 + (PLN_LINE_IDS.length + 1) * rowH + 24;
-  var palette = {}; B.clients.forEach(function(c, i) { palette[c.id] = i % 8; }); palette.card = 7;
+  // A round is coloured by its client's own series colour (seriesSlot, the same on every chart); your cards are Other.
+  var palette = {}; B.clients.forEach(function(c) { palette[c.id] = chartSlotClass(seriesSlot('client', c.id)); }); palette.card = 'inv-chart-other';
   var s = '<svg class="inv-pl-day" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="An average day on the lines">';
   for (var hh = 6; hh <= 28; hh += 2) s += '<line x1="' + X(hh) + '" x2="' + X(hh) + '" y1="20" y2="' + (H - 20) + '" class="inv-chart-grid"/><text x="' + X(hh) + '" y="14" text-anchor="' + (hh === 28 ? 'end' : 'middle') + '" class="inv-chart-grid-label">' + (hh % 24) + ':00</text>';
   var cutAt = 12.25, cutLen = mo.cutH, rounds = 0;
@@ -685,7 +687,7 @@ function plnDayHtml() {
         if (cutLen > 0.01 && t + step > cutAt && t < cutAt + cutLen) { t = cutAt + cutLen; continue; }
         if (waitEvery && qi > 0 && qi % waitEvery === 0 && !acc['w' + qi]) { acc['w' + qi] = 1; s += '<rect x="' + X(t) + '" y="' + (y + 6) + '" width="' + Math.max(1, X(t + step) - X(t) - 1) + '" height="28" class="inv-pl-day-wait"><title>Waiting for pickling</title></rect>'; t += step; continue; }
         var cid = seq[qi++];
-        s += '<rect x="' + X(t) + '" y="' + (y + 6) + '" width="' + Math.max(1, X(t + step) - X(t) - 1.2) + '" height="28" rx="2" class="inv-chart-c' + (palette[cid] != null ? palette[cid] : 7) + (w[2] === 'gen' ? '' : ' inv-pl-day-otr') + '"><title>' + escHtml((cid === 'card' ? 'Your cards' : plnClientNameOf(cid)) + ' · ' + formatNum(l.kgRound, 0) + ' kg') + '</title></rect>';
+        s += '<rect x="' + X(t) + '" y="' + (y + 6) + '" width="' + Math.max(1, X(t + step) - X(t) - 1.2) + '" height="28" rx="2" class="inv-chart-bar ' + (palette[cid] || 'inv-chart-other') + (w[2] === 'gen' ? '' : ' inv-pl-day-otr') + '"><title>' + escHtml((cid === 'card' ? 'Your cards' : plnClientNameOf(cid)) + ' · ' + formatNum(l.kgRound, 0) + ' kg') + '</title></rect>';
         rounds++; t += step;
       }
     });
@@ -704,7 +706,7 @@ function plnDayHtml() {
       tile('Overtime', escHtml(formatNum(mo.otH, 1) + ' line-h'), escHtml('today ' + formatNum(B.otBase, 1) + (mo.nightH ? ' · night ' + formatNum(mo.nightH, 1) : ''))) +
       tile('Lost', escHtml(formatNum(mo.cutH * 60, 0) + ' min'), escHtml(mo.pickShare < 0.999 ? 'to cuts · pickling feeds ' + Math.round(mo.pickShare * 100) + '% of what the lines could take' : 'to cuts · pickling keeps up')) + '</div>' +
     '<div class="inv-scroll-x">' + s + '</div>' +
-    '<div class="inv-chart-keys">' + B.clients.filter(function(c) { return (mo.byClient[c.id] || 0) > 0; }).slice(0, 8).map(function(c) { return '<span class="inv-chart-key"><span class="inv-chart-swatch inv-chart-c' + palette[c.id] + '"></span>' + escHtml(plnClientShort(c)) + '</span>'; }).join('') +
+    '<div class="inv-chart-keys">' + B.clients.filter(function(c) { return (mo.byClient[c.id] || 0) > 0; }).slice(0, 8).map(function(c) { return '<span class="inv-chart-key"><span class="inv-chart-swatch ' + palette[c.id] + '"></span>' + escHtml(plnClientShort(c)) + '</span>'; }).join('') +
       '<span class="inv-chart-key"><span class="inv-chart-swatch inv-pl-day-wait"></span>Waiting for pickling</span><span class="inv-chart-key"><span class="inv-chart-swatch inv-pl-day-cut"></span>Power cut</span></div>' +
     '</div>';
   h += '<div class="inv-panel inv-panel-flush" id="plnDayWhy"><div class="inv-panel-head"><span class="inv-panel-title">Why the day is as it is</span></div><div class="inv-scroll-x"><table class="inv-table"><thead><tr><th>Line</th><th class="inv-num">Kilos to plate</th><th class="inv-num">Kg an hour</th><th class="inv-num">Hours needed</th><th class="inv-num">Hours run</th><th class="inv-num">Plated</th></tr></thead><tbody>' +

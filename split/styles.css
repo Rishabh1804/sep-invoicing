@@ -133,14 +133,11 @@
 
   --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510; --z-over-print: 520;
 
-  /* Chart series: categorical only (§6.17). */
-  --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
-  --chart-4: light-dark(#8a6b08, #d4b848); --chart-5: light-dark(#8b6c4a, #c8b898); --chart-6: light-dark(#6b4c8a, #b79ae0);
-  --chart-7: light-dark(#b5583a, #e8a888); --chart-8: light-dark(#2f7d7d, #7fd0d0); --chart-other: light-dark(#9a958c, #6e6a63);
-  /* Chart frames (§6.17). The -fs- sizes are in the drawing's own viewBox units, which scale with it. */
-  --chart-h: 15rem; --chart-h-wide: 20rem; --pie: 11.25rem; --pie-wide: 13.75rem; --legend-min: 13.75rem;
+  /* Chart frames (§6.17). The -fs- sizes are in the drawing's own viewBox units, which scale with it. A series' colour is a slot
+     (--series-1…6, --series-other, UI pass 3 §3d); the eight --chart-* colours are retired. */
+  --plot-h: 15rem; --plot-h-wide: 20rem; --pie: 11.25rem; --pie-wide: 13.75rem; --legend-min: 13.75rem;
   --legend-row-h: 1.5rem; --legend-pct-w: 2.75rem; --swatch: 0.625rem; --track-h: 0.5rem;
-  --chart-fs-axis: 0.5625rem; --chart-fs-centre: 0.9375rem;
+  --plot-fs-axis: 0.5625rem; --plot-fs-centre: 0.9375rem;
 }
 @media (pointer: fine) {
   :root[data-density="compact"] {
@@ -882,13 +879,40 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-cn-doc { border: none; margin: 0; width: auto; }
 }
 
-/* ===== CHARTS (design system §6.17) ===== */
-/* The line chart's parts: gridlines and their labels, the area under the line, the line, its points, the axis. */
-.inv-chart-grid { stroke: var(--border); stroke-width: calc(var(--hair) / 2); }
-.inv-chart-grid-label, .inv-chart-axis { font-size: var(--chart-fs-axis); fill: var(--text-3); font-family: var(--ff-mono); }
-.inv-chart-line { fill: none; stroke: var(--accent); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
-.inv-chart-area { fill: var(--surface-2); opacity: 0.5; }
-.inv-chart-dot { fill: var(--accent); stroke: var(--surface); stroke-width: var(--rule); }
+/* ===== CHARTS (design system §6.17; docs/UI_PASS_3.md §5) ===== */
+/* The marks, the same on every builder (the dataviz method): one axis; bars at most 24 units thick, their data end rounded
+   (--r-sm) and square where they stand; lines 2 (--rule); dots 8 across with a 2-unit ring in the surface colour; gridlines solid
+   hairlines; the axes and every word recessive, in text tokens, never in a series colour. A drawing is in its own viewBox units,
+   sized by CSS, and its marks scale with it. */
+.inv-chart-grid { stroke: var(--border); stroke-width: var(--hair); }
+.inv-chart-grid-label, .inv-chart-axis { font-size: var(--plot-fs-axis); fill: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-axis-title, .inv-chart-mark-label { font-size: var(--plot-fs-axis); fill: var(--text-2); font-family: var(--ff-base); }
+.inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
+
+/* The ink a mark wears (§3d): six series slots in one order, Other for the rest; the accent for the one against the rest (the
+   period on show, the thing picked: the accent marks what is selected, never a series); a status mark where the colour judges.
+   Each sets --ink on the mark, or on the group holding it; the stroke, the fill and a legend's swatch read it. */
+.inv-chart-s1 { --ink: var(--series-1); }
+.inv-chart-s2 { --ink: var(--series-2); }
+.inv-chart-s3 { --ink: var(--series-3); }
+.inv-chart-s4 { --ink: var(--series-4); }
+.inv-chart-s5 { --ink: var(--series-5); }
+.inv-chart-s6 { --ink: var(--series-6); }
+.inv-chart-other { --ink: var(--series-other); }
+.inv-chart-one { --ink: var(--accent); }
+.inv-chart-ok { --ink: var(--ok-mark); }
+.inv-chart-warning { --ink: var(--warning-mark); }
+.inv-chart-danger { --ink: var(--danger-mark); }
+.inv-chart-info { --ink: var(--info-mark); }
+.inv-chart-neutral { --ink: var(--text-3); }
+/* How much (a heat map's day): the one blue ramp, light to dark (dim to bright in dark). */
+.inv-chart-seq1 { --ink: var(--seq-1); }
+.inv-chart-seq2 { --ink: var(--seq-2); }
+.inv-chart-seq3 { --ink: var(--seq-3); }
+.inv-chart-seq4 { --ink: var(--seq-4); }
+.inv-chart-seq5 { --ink: var(--seq-5); }
+.inv-chart-seq6 { --ink: var(--seq-6); }
+.inv-chart-seq7 { --ink: var(--seq-7); }
 
 /* Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
    phone and on a desktop. The old trend chart stretched a 400x160 drawing with
@@ -896,43 +920,78 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
    markers came out as ellipses and text skewed. */
 .inv-chart-svg {
   width: 100%; height: auto; display: block;
-  max-height: var(--chart-h); margin: 0 auto;
+  max-height: var(--plot-h); margin: 0 auto;
 }
 /* A wider screen gets a taller frame: the same series, more room between
    gridlines, and labels that stop colliding. */
-:is(body.inv-tablet, body.inv-desktop) .inv-chart-svg { max-height: var(--chart-h-wide); }
-.inv-chart-bar { fill: var(--accent); }
-/* Phase 2 charts (docs/FINANCE_INTELLIGENCE_SPEC.md). A box holds the drawing, its keys and a readout
-   line: on a phone there is no hover to raise a <title>, so a tap writes the figure there. */
-.inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); }
-.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0; font-size: var(--fs-13); color: var(--text-2); }
-.inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
-.inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
-.inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
-.inv-chart-band { fill: var(--chart-1); opacity: 0.16; }
-.inv-chart-path { fill: none; stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
-.inv-chart-s0 { stroke: var(--chart-1); } .inv-chart-s1 { stroke: var(--chart-2); } .inv-chart-s2 { stroke: var(--chart-3); }
-.inv-chart-s3 { stroke: var(--chart-4); } .inv-chart-s4 { stroke: var(--chart-5); } .inv-chart-s5 { stroke: var(--chart-6); }
-.inv-chart-s6 { stroke: var(--chart-7); } .inv-chart-s7 { stroke: var(--chart-8); }
-.inv-chart-pt, .inv-chart-seg, .inv-chart-wedge { cursor: pointer; stroke: var(--surface); stroke-width: var(--hair); }
+:is(body.inv-tablet, body.inv-desktop) .inv-chart-svg { max-height: var(--plot-h-wide); }
+
+/* Lines 2, round; the area under a line a wash of its colour; a band (a forecast's range, the period on show) a lighter one. */
+:is(.inv-chart-line, .inv-chart-path) { fill: none; stroke: var(--ink, var(--series-1)); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
+.inv-chart-area { fill: var(--ink, var(--series-1)); opacity: 0.1; }
+.inv-chart-band { fill: var(--ink, var(--series-1)); opacity: 0.16; }
+/* A dot: 8 across, its ring drawn under the fill (paint-order), so the ring is 2 outside it in the surface colour. */
+:is(.inv-chart-dot, .inv-chart-pt) { fill: var(--ink, var(--series-1)); stroke: var(--surface); stroke-width: calc(var(--rule) * 2); paint-order: stroke; }
+:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-wedge, .inv-chart-cell) { fill: var(--ink, var(--series-1)); }
+/* A bar's data end: rounded where it ends, square where it stands (above zero the top, below zero the bottom). A stack's parts
+   stand a surface gap apart in their geometry; a pie's wedges by a ring of the surface. */
+.inv-chart-up { clip-path: inset(0 round var(--r-sm) var(--r-sm) 0 0); }
+.inv-chart-down { clip-path: inset(0 round 0 0 var(--r-sm) var(--r-sm)); }
+.inv-chart-wedge { stroke: var(--surface); stroke-width: var(--rule); }
+.inv-chart-hole { fill: var(--surface); }
+/* A reference: a mark's rule (the terms, a cost), a fitted line, a heat map's day with no record. */
+.inv-chart-mark { stroke: var(--text-2); stroke-width: var(--rule); }
+.inv-chart-fit { fill: none; stroke: var(--ink, var(--series-1)); stroke-width: var(--rule); stroke-linecap: round; opacity: 0.7; }
+.inv-chart-cell-none { fill: none; stroke: var(--border); stroke-width: var(--hair); }
+.inv-chart-hatch { stroke: var(--text-3); stroke-width: var(--hair); }
+/* A reference is never a datum: a tap on a mark's rule, its label, a zero rule or a fitted line falls through to the datum under
+   it (a histogram's mark stands over the bin it falls in). */
+:is(.inv-chart-mark, .inv-chart-mark-label, .inv-chart-zero, .inv-chart-fit) { pointer-events: none; }
 /* A period not yet ended (TM6b, §6.17): its line runs in dashed, its bar or point lighter; its label says "to date". */
 :is(.inv-chart-line, .inv-chart-path, .inv-spark-line).inv-chart-todate { stroke-dasharray: var(--sp-4) var(--sp-4); }
-:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-dot, .inv-chart-pt).inv-chart-todate { opacity: 0.5; }
+:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-dot, .inv-chart-pt, .inv-chart-cell).inv-chart-todate { opacity: 0.5; }
+
+/* Every datum can be read: a mark that is its own datum, or a group with a hit area larger than its mark (never painted, never
+   outlined). The one read last is outlined in the text colour. */
+:is(.inv-chart-dot, .inv-chart-pt, .inv-chart-bar, .inv-chart-seg, .inv-chart-wedge)[data-action], .inv-chart-datum { cursor: pointer; }
+.inv-chart-hit { fill: transparent; stroke: none; pointer-events: all; }
 .inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: var(--rule); }
-.inv-chart-centre { font-size: var(--chart-fs-centre); font-weight: 600; fill: var(--text-1); font-family: var(--ff-mono); pointer-events: none; }
+:is(.inv-chart-dot, .inv-chart-pt).inv-chart-read-on, .inv-chart-read-on .inv-chart-pt { stroke: var(--text-1); stroke-width: calc(var(--rule) * 2); }
+.inv-chart-datum.inv-chart-read-on .inv-chart-hit { fill: var(--text-1); fill-opacity: 0.06; }
+.inv-chart-centre { font-size: var(--plot-fs-centre); font-weight: 600; fill: var(--text-1); stroke: none; font-family: var(--ff-mono); pointer-events: none; }
+
+/* The box (§5): the drawing, the table behind it, the readout line. A tap writes a datum's figure into the readout (a phone has
+   no hover); Table swaps the drawing for the table and back. */
+.inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.inv-chart-draw { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.inv-chart-draw[hidden], .inv-chart-table[hidden] { display: none; }
+.inv-chart-table { min-width: 0; }
+.inv-chart-readline { display: flex; align-items: center; gap: var(--sp-8); min-height: var(--row-h); min-width: 0; }
+.inv-chart-readout { flex: 1 1 auto; min-width: 0; padding: 0; font-size: var(--fs-13); color: var(--text-2); }
+.inv-chart-readline > .inv-btn { flex: none; }
+.inv-chart-box[data-table="on"] .inv-chart-readout { visibility: hidden; }
 .inv-chart-ranges { margin-bottom: var(--sp-8); }
+
+/* The keys under a drawing of two series or more: each swatch the shape of its mark, its name in text. */
+.inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
+.inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
+.inv-chart-swatch { width: var(--swatch); height: var(--swatch); border-radius: var(--r-sm); flex: 0 0 auto; background: var(--ink, var(--series-other)); }
+.inv-chart-swatch-line { height: var(--rule); border-radius: var(--r-full); }
+.inv-chart-swatch-dash { height: 0; border-radius: 0; background: none; border-top: var(--rule) dashed var(--ink, var(--series-other)); }
+.inv-chart-swatch-dot { border-radius: var(--r-full); }
+.inv-chart-swatch-tick, .inv-chart-swatch-rule { width: var(--rule); height: var(--sp-12); border-radius: 0; background: var(--text-2); }
+.inv-chart-swatch-hatch { background: repeating-linear-gradient(45deg, var(--text-3) 0 var(--hair), transparent var(--hair) var(--sp-4)); box-shadow: inset 0 0 0 var(--hair) var(--border); }
+.inv-chart-ramp { display: inline-flex; gap: var(--sp-2); }
+
+/* Composition: a pie's wedges in their slots (Other last, so the tail is visibly a tail), the legend a row a slice. */
 button.inv-chart-legend-row { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .inv-chart-legend-row[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-soft-text); }
-
-/* Composition. Eight series colours (--chart-*), plus a
-   ninth for the folded "others" wedge so the tail is visibly a tail. */
 .inv-chart-pie-wrap {
   display: flex; flex-wrap: wrap; gap: var(--sp-16);
   align-items: center; justify-content: center;
 }
 .inv-chart-pie-svg { width: var(--pie); height: var(--pie); flex: 0 0 auto; }
 :is(body.inv-tablet, body.inv-desktop) .inv-chart-pie-svg { width: var(--pie-wide); height: var(--pie-wide); }
-.inv-chart-hole { fill: var(--surface); }
 .inv-chart-legend { flex: 1 1 var(--legend-min); min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 .inv-chart-legend-row {
   display: flex; align-items: center; gap: var(--sp-8);
@@ -946,7 +1005,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
    laptop) and 26px on the compact desktop, so the desktop legend stays a dense list (§6.17). */
 :is(button.inv-chart-legend-row, .inv-chart-legend-row[data-action]) { min-height: max(var(--legend-row-h), var(--ctl-h-sm)); }
 .inv-chart-legend-row[data-action]:active { background: var(--surface-2); }
-.inv-chart-swatch { width: var(--swatch); height: var(--swatch); border-radius: var(--r-sm); flex: 0 0 auto; }
 .inv-chart-legend-label {
   flex: 1; min-width: 0; color: var(--text-1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -954,29 +1012,13 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-legend-val { color: var(--text-2); white-space: nowrap; }
 .inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: var(--legend-pct-w); text-align: right; }
 
-.inv-chart-c0 { fill: var(--chart-1); }
-.inv-chart-c1 { fill: var(--chart-2); }
-.inv-chart-c2 { fill: var(--chart-3); }
-.inv-chart-c3 { fill: var(--chart-4); }
-.inv-chart-c4 { fill: var(--chart-5); }
-.inv-chart-c5 { fill: var(--chart-6); }
-.inv-chart-c6 { fill: var(--chart-7); }
-.inv-chart-c7 { fill: var(--chart-8); }
-.inv-chart-cx { fill: var(--chart-other); }
-.inv-chart-swatch.inv-chart-c0 { background: var(--chart-1); }
-.inv-chart-swatch.inv-chart-c1 { background: var(--chart-2); }
-.inv-chart-swatch.inv-chart-c2 { background: var(--chart-3); }
-.inv-chart-swatch.inv-chart-c3 { background: var(--chart-4); }
-.inv-chart-swatch.inv-chart-c4 { background: var(--chart-5); }
-.inv-chart-swatch.inv-chart-c5 { background: var(--chart-6); }
-.inv-chart-swatch.inv-chart-c6 { background: var(--chart-7); }
-.inv-chart-swatch.inv-chart-c7 { background: var(--chart-8); }
-.inv-chart-swatch.inv-chart-cx { background: var(--chart-other); }
-
-/* Ranked horizontal bars — for "top N by X", where reading the names matters
-   more than the profile of the series. */
+/* Ranked horizontal bars — for "top N by X", where reading the names matters more than the profile of the series. One series,
+   so one colour (slot 1); a status where the row judges. The track is drawn in percentages of its own width, never stretched,
+   so the data end is a true round and the start square. */
 .inv-chart-ranked { display: flex; flex-direction: column; gap: var(--sp-10); }
 .inv-chart-ranked-row { display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-chart-ranked-row[data-action] { cursor: pointer; }
+.inv-chart-ranked-row.inv-chart-read-on .inv-chart-ranked-label { color: var(--accent); }
 .inv-chart-ranked-head { display: flex; align-items: baseline; gap: var(--sp-8); }
 .inv-chart-ranked-label {
   flex: 1; min-width: 0; font-size: var(--fs-13); font-weight: 600;
@@ -985,14 +1027,43 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-val { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
 .inv-chart-ranked-track { width: 100%; }
 .inv-chart-ranked-svg { width: 100%; height: var(--track-h); display: block; }
-.inv-chart-ranked-fill { fill: var(--accent); }
-.inv-chart-ranked-fill-danger { fill: var(--danger); }
-.inv-chart-ranked-fill-warning { fill: var(--warning); }
-.inv-chart-ranked-fill-good { fill: var(--ok); }
-.inv-chart-ranked-fill-info { fill: var(--info); }
+.inv-chart-ranked-fill { fill: var(--series-1); stroke: none; clip-path: inset(0 round 0 var(--r-sm) var(--r-sm) 0); }
+.inv-chart-ranked-fill-danger { fill: var(--danger-mark); }
+.inv-chart-ranked-fill-warning { fill: var(--warning-mark); }
+.inv-chart-ranked-fill-good { fill: var(--ok-mark); }
+.inv-chart-ranked-fill-info { fill: var(--info-mark); }
 .inv-chart-ranked-fill-neutral { fill: var(--text-3); }
-.inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
+.inv-chart-ranked-mark { fill: var(--text-1); stroke: none; opacity: 0.55; }
 .inv-chart-ranked-sub { font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
+
+/* Rows on one scale (chartDots, chartDumbbell): a row a thing, its name, the track, its figure at the row's end. The rows' tracks
+   are one column (a subgrid), so a value sits at one place on every row and a mark's rule runs straight down; a row is its
+   datum, a button, a touch target. */
+.inv-chart-rows { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; column-gap: var(--sp-8); min-width: 0; }
+.inv-chart-row {
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; min-height: var(--ctl-h-sm); min-width: 0;
+  padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.inv-chart-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-chart-row.inv-chart-read-on { background: var(--surface-2); }
+.inv-chart-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); color: var(--text-1); }
+.inv-chart-row-sub { margin-left: var(--sp-6); font-size: var(--fs-11); color: var(--text-3); }
+.inv-chart-row-val { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
+.inv-chart-track { display: block; width: 100%; height: var(--ctl-h-sm); overflow: visible; }
+.inv-chart-rail { stroke: var(--border); stroke-width: var(--hair); }
+.inv-chart-dumb-rule { stroke: var(--text-3); stroke-width: var(--rule); }
+.inv-chart-dumb-a { stroke: var(--text-2); stroke-width: var(--rule); }
+.inv-chart-scale { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-scale-ends { display: flex; justify-content: space-between; gap: var(--sp-8); }
+
+/* A heat map: a cell a day at its natural size, shrinking to the box on a narrow one. A ring: one share on a well track. */
+.inv-chart-heat-wrap { min-width: 0; }
+.inv-chart-heat { display: block; max-width: 100%; height: auto; }
+.inv-chart-ring-wrap { display: flex; justify-content: center; }
+.inv-chart-ring { display: block; width: var(--pie); height: var(--pie); }
+.inv-chart-ring-track { fill: none; stroke: var(--well); }
+.inv-chart-ring-arc { fill: none; stroke: var(--ink, var(--series-1)); }
+.inv-chart-ring-sub { font-size: var(--plot-fs-axis); fill: var(--text-3); stroke: none; font-family: var(--ff-base); pointer-events: none; }
 
 .inv-mt-16 { margin-top: var(--sp-16); }
 
@@ -2710,19 +2781,20 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-pin { display: block; width: 100%; min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-md); color: var(--on-accent);
   font: 600 var(--fs-12) var(--ff-base); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .inv-pl-pin:focus-visible { box-shadow: var(--focus-ring); outline: none; }
-.inv-pl-lane-plant { background: var(--chart-2); } .inv-pl-lane-tech { background: var(--chart-6); } .inv-pl-lane-staff { background: var(--chart-7); }
-.inv-pl-lane-clients { background: var(--chart-1); } .inv-pl-lane-money { background: var(--chart-4); } .inv-pl-lane-custom { background: var(--chart-8); }
+/* The board's six lanes are six things: the six series colours in their order (docs/UI_PASS_3.md §3d). */
+.inv-pl-lane-plant { background: var(--series-1); } .inv-pl-lane-tech { background: var(--series-6); } .inv-pl-lane-staff { background: var(--series-2); }
+.inv-pl-lane-clients { background: var(--series-3); } .inv-pl-lane-money { background: var(--series-4); } .inv-pl-lane-custom { background: var(--series-5); }
 .inv-pl-pin-never { opacity: 0.5; text-decoration: line-through; }
 .inv-pl-ach { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: var(--sp-8) 0; }
-/* A day on the clock: rounds coloured by client (inv-chart-c*), the overtime and night windows, waiting, lunch, the cut. */
+/* A day on the clock: rounds coloured by client (their series slot, seriesSlot), the overtime and night windows, waiting, lunch, the cut. */
 .inv-pl-day { display: block; width: 100%; min-width: calc(var(--content-max) * 0.6); height: auto; }
-.inv-pl-day-l { fill: var(--text-2); font: 600 var(--chart-fs-centre) var(--ff-base); }
-.inv-pl-day-ot { fill: var(--warning); opacity: 0.14; } .inv-pl-day-night { fill: var(--chart-6); opacity: 0.16; }
+.inv-pl-day-l { fill: var(--text-2); font: 600 var(--plot-fs-centre) var(--ff-base); }
+.inv-pl-day-ot { fill: var(--warning); opacity: 0.14; } .inv-pl-day-night { fill: var(--series-6); opacity: 0.16; }
 .inv-pl-day-otr { opacity: 0.72; }
 .inv-pl-day-wait { fill: var(--warning); background: var(--warning); }
 .inv-pl-day-cut { fill: var(--danger); opacity: 0.18; background: var(--danger); }
 .inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
-.inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
+.inv-pl-day-pick { fill: var(--series-other); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
 
 /* The plant register (plant.js, owner 7 Oct 2026): a line's units are deck cards in their status's tone (§6.22; the tab map,

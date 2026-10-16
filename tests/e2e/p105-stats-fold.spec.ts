@@ -161,11 +161,14 @@ test('S8: on the price ranking a part below cost ends short of the cost mark, on
   await page.locator('[data-action="invStatsTopBy"][data-by="rate"]').click();
   const card = page.locator('[data-card="top"]');
   await expect(card).toContainText('Worst priced items');
-  const geo = await card.evaluate(el => Array.from(el.querySelectorAll('.inv-chart-ranked-svg')).map(svg => ({
-    fill: +svg.querySelector('.inv-chart-ranked-fill')!.getAttribute('width')!,
-    mark: +svg.querySelector('.inv-chart-ranked-mark')!.getAttribute('x')!,
-  })));
+  // The track is drawn in percentages of its own width (UI pass 3 §5: never stretched, so a bar's data end is a true round):
+  // the bar's end and the cost mark are read on that one scale, 0 to 100.
+  const geo = await card.evaluate(el => Array.from(el.querySelectorAll('.inv-chart-ranked-svg')).map(svg => {
+    const w = svg.querySelector('.inv-chart-ranked-fill')!.getAttribute('width')!, x = svg.querySelector('.inv-chart-ranked-mark')!.getAttribute('x')!;
+    return { fill: parseFloat(w), mark: parseFloat(x), pct: /%$/.test(w) && /%$/.test(x) };
+  }));
   expect(geo).toHaveLength(2);
+  for (const r of geo) expect(r.pct, 'the bar and the mark on the track’s one percentage scale').toBe(true);
   // Both parts are plated below the live cost: both bars end short of the mark. On the bars' own scale the
   // better-priced one filled its track and sat on the mark, reading as at cost.
   for (const r of geo) expect(r.fill).toBeLessThan(r.mark - 1);

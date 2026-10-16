@@ -104,15 +104,16 @@ function payLabourPanelsHtml() {
   if (!attSeesWages()) return '';
   var bank = finSeen(), labs = _dashLabMonths(insMonthsBack(6)), lm = dashLabourByMonth(labs), model = labourCfg().modelPerKg || 3.55;
   var h = uiFoldCard('pay-labour-kg', _dashPanel('dashLabour', 'Labour ₹/kg by month', chartLines(lm.map(function(x) { return insMonthLabel(x.month); }), [
-    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }) },
-    bank ? { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), tone: 2 } : null,
-    { label: 'Model', values: lm.map(function() { return model; }), tone: 3 }
+    // Two measures in their slots, and the model they are set against in Other (docs/UI_PASS_3.md §3d).
+    { label: 'Recorded', values: lm.map(function(x) { return x.recorded == null ? null : gstRound(x.recorded); }), slot: 1 },
+    bank ? { label: 'Paid, bank', values: lm.map(function(x) { return x.paid == null ? null : gstRound(x.paid); }), slot: 2 } : null,
+    { label: 'Model', values: lm.map(function() { return model; }), slot: 'other' }
   ].filter(Boolean), { unit: 'rate', ariaLabel: 'Labour per kg by month', emptyText: 'Needs two months with tonnage' }) +
     '<div class="inv-note">Recorded where 90% of a month is typed; the model is Settings → Labour.</div>'), false);
   var pb = dashPayrollVsBank(labs);
   h += uiFoldCard('pay-payroll', _dashPanel('dashPayBank', bank ? 'Payroll against the bank' : 'Monthly payroll', chartStack(pb.map(function(x) { return insMonthLabel(x.month); }), [
-    { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }) },
-    bank ? { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }) } : null
+    { label: 'Payroll', values: pb.map(function(x) { return x.payroll; }), slot: 1 },
+    bank ? { label: 'Paid, bank', values: pb.map(function(x) { return x.bank; }), slot: 2 } : null
   ].filter(Boolean), { mode: 'group', ariaLabel: bank ? 'Payroll against the bank' : 'Monthly payroll', emptyText: 'No monthly payroll in six months' }) +
     '<div class="inv-note">The slip as paid where one is imported, else the wage model' +
     (pb.some(function(x) { return x.src === 'model'; }) ? ' (' + escHtml(pb.filter(function(x) { return x.src === 'model'; }).map(function(x) { return insMonthLabel(x.month); }).join(', ')) + ')' : '') + '.</div>'), false);
@@ -152,7 +153,7 @@ function dashUsedByWeek(n) {
     if (!it) return;
     var p = stockPriceAt(it.id, e.date);
     if (!p) { unpriced[it.name] = 1; return; }
-    var r = byItem[it.id] || (byItem[it.id] = { name: it.name, v: weeks.map(function() { return 0; }), total: 0 });
+    var r = byItem[it.id] || (byItem[it.id] = { id: it.id, name: it.name, v: weeks.map(function() { return 0; }), total: 0 });
     r.v[w] += e.qty * p.price; r.total += e.qty * p.price;
   });
   var lines = Object.keys(byItem).map(function(k) { return byItem[k]; }).sort(function(a, b) { return b.total - a.total; });
@@ -172,7 +173,13 @@ function _dashSection(id, title, body, head, rows) {
    groups; the reorder's cash is the list's card. */
 function stockSpendHtml() {
   var sp = dashSupplierSpend(6), sel = sp.list.find(function(x) { return x.name === _dashSupplier; });
-  var body = chartPieTap(sp.list.map(function(x) { return { key: x.name, label: x.name, value: x.amount }; }),
+  // A supplier wears its own colour (seriesSlot: the six with the most spend over the book), on this pie and on zinc's chart alike;
+  // the rest, two or more, are one wedge in Other.
+  var named = sp.list.filter(function(x) { return x.named && seriesSlot('supplier', x.name) !== 'other'; }), rest = sp.list.filter(function(x) { return named.indexOf(x) < 0; });
+  var slices = named.map(function(x) { return { key: x.name, label: x.name, value: x.amount, slot: seriesSlot('supplier', x.name) }; });
+  if (rest.length === 1) slices.push({ key: rest[0].name, label: rest[0].name, value: rest[0].amount, slot: 'other' });
+  else if (rest.length) slices.push({ key: '__others', label: rest.length + ' others', value: gstRound(rest.reduce(function(t, x) { return t + x.amount; }, 0)), slot: 'other' });
+  var body = chartPieTap(slices,
     { action: 'invDashSupplier', selected: _dashSupplier, ariaLabel: 'Spend by supplier', emptyText: 'No priced bill in six months', readHint: 'Tap a supplier to list its bills' });
   var rows = '';
   if (sel) {
@@ -190,8 +197,9 @@ function stockSpendHtml() {
   }
   var h = _dashSection('dashSupplier', 'Spend by supplier, six months', body + '<div class="inv-note">Bills before GST from ' + escHtml(formatDate(sp.from)) + '.</div>', '', rows);
   var u = dashUsedByWeek(12), labs = u.weeks.map(function(w) { return _dashWeekLabel(isoAddDays(w, 6)); });
-  h += _dashSection('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total }].concat(u.top.map(function(l, i) {
-    return { label: l.name, values: l.v, tone: i + 2 };
+  // The total in Other, each line under it in its own colour (seriesSlot: a stock line by its spend over the book).
+  h += _dashSection('dashUsed', 'Used, in rupees, by week', chartLines(labs, [{ label: 'All lines', values: u.total, slot: 'other' }].concat(u.top.map(function(l) {
+    return { label: l.name, values: l.v, slot: seriesSlot('stock', l.id) };
   })), { ariaLabel: 'Stock used by week in rupees', emptyText: 'Needs two weeks of use recorded',
     // The week running is drawn as to date (TM6b).
     toDate: u.weeks.length && isoAddDays(u.weeks[u.weeks.length - 1], 6) >= localDateStr() ? u.weeks.length - 1 : null }) +
@@ -243,15 +251,16 @@ function dashZincHtml() {
   var mk = blank();
   T.market.forEach(function(m) { mk[at[m.date]] = m.landed; });
   var shown = T.suppliers.slice(0, DASH_ZINC_SUPPLIERS), rest = T.suppliers.length > DASH_ZINC_SUPPLIERS ? T.suppliers.slice(DASH_ZINC_SUPPLIERS) : [];
-  var series = [{ label: 'Market, landed', values: mk, tone: 0, dashed: true }];
-  var seriesOf = function(names, label, tone) {
+  // The market is what every bill is set against: Other, dashed. A supplier wears its own colour (seriesSlot), the rest Other.
+  var series = [{ label: 'Market, landed', values: mk, slot: 'other', dashed: true }];
+  var seriesOf = function(names, label, slot) {
     var v = blank();
     // Two bills on one day: the later in stockPurchases' order is the larger, the one that set the price.
     T.bills.forEach(function(b) { if (names.indexOf(b.supplier || 'Supplier not named') >= 0) v[at[b.date]] = b.price; });
-    series.push({ label: label, values: v, tone: tone });
+    series.push({ label: label, values: v, slot: slot });
   };
-  shown.forEach(function(s, i) { seriesOf([s.name], s.name, i + 1); });
-  if (rest.length) seriesOf(rest.map(function(s) { return s.name; }), rest.length + ' other suppliers', DASH_ZINC_SUPPLIERS + 1);
+  shown.forEach(function(s) { seriesOf([s.name], s.name, seriesSlot('supplier', s.name)); });
+  if (rest.length) seriesOf(rest.map(function(s) { return s.name; }), rest.length + ' other suppliers', 'other');
   var day = function(d) { return Math.round(new Date(d + 'T00:00:00').getTime() / 86400000); };
   var chart = chartLines(keys.map(stockShortDate), series, { unit: 'rate', fit: true, keys: keys, xs: keys.map(day), ariaLabel: 'Zinc: the market against bills by supplier',
     emptyText: T.market.length || T.bills.length ? 'Needs two days, a market day or a bill, in this range' : 'No market day and no bill in this range. Refresh the zinc rate on Home to start the market line.' });

@@ -298,7 +298,8 @@ function prodDayMoreHtml(pic) {
    (the guide says why). */
 function prodChartHtml() {
   var today = localDateStr(), from = isoAddDays(today, -27);
-  var labels = [], series = PROD_LINES.map(function(l) { return { label: PROD_LINE_LABEL[l], values: [] }; });
+  // A line wears its own colour, the same on every chart (seriesSlot: VAT A1, VAT A2, barrel).
+  var labels = [], series = PROD_LINES.map(function(l) { return { label: PROD_LINE_LABEL[l], values: [], slot: seriesSlot('line', l) }; });
   for (var d = from; d <= today; d = isoAddDays(d, 1)) {
     if (new Date(d + 'T00:00:00').getDay() === 0) continue;
     labels.push(stockShortDate(d));

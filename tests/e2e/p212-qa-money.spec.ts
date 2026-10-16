@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse, readStoredState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse, readStoredState, recentTs, switchTab, todayIso, type SepState, openWidget } from './fixtures';
 import { PINS, withUsers, unlock, windowGone } from './p140-guard.fixture';
 
 // P212: the QA chain's money findings (before PR 146 merges). Cheques in hand: "not this deposit" keeps that row apart and the
@@ -190,7 +190,7 @@ test.describe('P212: what is owed, one tone wherever it is drawn', () => {
     const bar = page.locator('#finOwed svg.inv-meter');
     await expect(bar.locator('rect.inv-meter-warning')).toHaveCount(1);
     await expect(bar.locator('rect.inv-meter-danger')).toHaveCount(0);
-    await openPulse(page);
+    await openWidget(page, 'money');   // the Money widget, put on Home's board: Pulse's presets hid it (TM2c)
     await expect(page.locator('#homeFin svg.inv-meter rect.inv-meter-warning')).toHaveCount(1);
     await expect(page.locator('#homeFin svg.inv-meter rect.inv-meter-danger')).toHaveCount(0);
     // The cash question draws the same bar.
@@ -209,7 +209,7 @@ test.describe('P212: what is owed, one tone wherever it is drawn', () => {
     await switchTab(page, 'pageFinance');
     await page.locator('[data-action="invFinTab"][data-tab="overview"]').click();
     await expect(page.locator('#finOwed')).toHaveClass(/inv-hero-ok/);
-    await openPulse(page);
+    await openWidget(page, 'money');   // the Money widget, put on Home's board: Pulse's presets hid it (TM2c)
     await expect(page.locator('#homeFin [data-home-fin="Owed to us"]')).toHaveClass(/inv-tile-ok/);
     await switchTab(page, 'pagePipeline');
     await expect(page.locator('[data-pipe-stage="owed"]')).toHaveClass(/inv-tile-ok/);

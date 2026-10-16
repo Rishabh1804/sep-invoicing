@@ -14,7 +14,8 @@ const where = (p: Page) => { const u = url(p); return [u.searchParams.get('tab')
 test.describe('P100: navigation on the phone', () => {
   test('each screen and view tab is a step: back and forward walk them, the address follows', async ({ page }) => {
     await loadAppWithState(page, imState());
-    expect(where(page)).toEqual(['pageHome', 'needs']);
+    // The app opens on Home's own view (UI pass 3, U2: Home before Needs you).
+    expect(where(page)).toEqual(['pageHome', 'home']);
     await expect(page.locator('#navBack')).toBeHidden();
     // Office is a step of its own (its first view), then Challans in its tab row.
     await switchTab(page, 'pagePipeline');

@@ -26,7 +26,7 @@
    every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
 var WS_ICONS = {
-  today: ICONS.today, office: ICONS.office, floor: ICONS.floor, money: ICONS.money, add: ICONS.plus, search: ICONS.search, settings: ICONS.settings, mine: ICONS.mine
+  today: ICONS.today, home: ICONS.home, office: ICONS.office, floor: ICONS.floor, money: ICONS.money, add: ICONS.plus, search: ICONS.search, settings: ICONS.settings, mine: ICONS.mine
 };
 function wsSvg(k) {
   return iconPathSvg(WS_ICONS[k]);

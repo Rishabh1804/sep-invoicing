@@ -210,7 +210,7 @@ test('full attendance credits the range’s rest days to the monthly tier', asyn
     attendance: recordedDays(26, { [LEAD.id]: { st: 'P', ot: 0, hours: 0, area: 'vat-a1' } }),
   }));
   await openStatsTab(page, 'cost');
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
 
   const row = page.locator('[data-card="labour"] .inv-row', { hasText: 'Rest days credited' });
   await expect(row).toBeVisible();
@@ -229,7 +229,7 @@ test('attendance below the gate credits no rest days at all', async ({ page }) =
   // card rightly credited it (₹500), and the spec failed every October.
   await loadAppWithState(page, staffState({ attendance, labour: { otMult: 1.1, restCreditMinDays: 6, extraRate: 47.5, modelPerKg: 3.55, gateFull: 0.9, gateHalf: 0.8, holidays: [] } }));
   await openStatsTab(page, 'cost');
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
 
   const row = page.locator('[data-card="labour"] .inv-row', { hasText: 'Rest days credited' });
   await expect(row.locator('.inv-num')).toHaveText('₹0.00');
@@ -684,7 +684,7 @@ test('Stats prints a labour ₹/kg once coverage and range allow, against the mo
   await openStatsTab(page, 'cost');
   // 'All' spans the attendance store's own dates, which the fixture controls
   // end to end — MTD would depend on what day of the month the suite runs.
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
 
   const card = page.locator('[data-card="labour"]');
   await expect(card).toBeVisible();
@@ -709,7 +709,7 @@ test('Stats withholds labour ₹/kg when the days are not on file, and says whic
     }],
   }));
   await openStatsTab(page, 'cost');
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
 
   const card = page.locator('[data-card="labour"]');
   // Visible, not merely composed: a reporting path that only proves its message

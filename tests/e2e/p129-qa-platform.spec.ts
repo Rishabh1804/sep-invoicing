@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
 import { readFile } from 'node:fs/promises';
-import { answerAsk, emptyState, loadAppWithState, openSettingsAt, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState, openPulse } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, openSettingsAt, readStoredState, recentTs, switchTab, todayIso, waitForBoot, type SepState, openPulse, openWidget } from './fixtures';
 import { imState } from './im-fixture';
 
 // P129: the platform's share of the QA audit of 30 Sep 2026. The four worst findings share one root: the GitHub SHA
@@ -97,15 +97,16 @@ test.describe('P129: a stand-in book never leaves the device as if it were the b
     expect(await g(page, '_ghPushTimer')).toBeNull();
     expect(await g(page, 'ghPushLocked({ silent: true })')).toBe(false);
     expect(remote.puts()).toBe(0);
-    // Back up now: a question naming this window's stand-in and GitHub's copy, with their counts.
-    await page.locator('#homeSyncCard [data-action="invGhPush"]').dispatchEvent('click');
+    // Back up now (the backup widget, put on Home's board): a question naming this window's stand-in and GitHub's copy, with their counts.
+    await openWidget(page, 'sync');
+    await page.locator('[data-w="sync"] [data-action="invGhPush"]').dispatchEvent('click');
     const said = await answerAsk(page, 'cancel');
     expect(said).toContain('stand-in');
     expect(said).toContain('0 invoices');
     expect(said).toContain('7 invoices, 3 challans');
     expect(remote.puts()).toBe(0);
     // Asked and answered, it goes; the SHA is not taken as this device's, so the next push asks again.
-    await page.locator('#homeSyncCard [data-action="invGhPush"]').dispatchEvent('click');
+    await page.locator('[data-w="sync"] [data-action="invGhPush"]').dispatchEvent('click');
     await answerAsk(page, 'ok');
     await expect.poll(() => remote.puts()).toBe(1);
     expect((await syncCfg(page)).sha).toBe('remotesha');
@@ -232,7 +233,7 @@ test.describe('P129: the SHA is this device\'s only for a book that reached its 
     await openPulse(page);
     await breakStateWrites(page);
     expect(await g(page, 'S.company.name = "UNSAVED CO"; saveState()')).toBe(false);
-    await page.locator('#homeSyncCard [data-action="invGhPush"]').dispatchEvent('click');
+    await page.locator('[data-w="sync"] [data-action="invGhPush"]').dispatchEvent('click');
     await expect.poll(() => remote.puts()).toBe(1);
     await expect(page.locator('.inv-toast')).toContainText('Pushed');
     expect((await syncCfg(page)).sha).toBe('remotesha');

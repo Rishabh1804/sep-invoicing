@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs, type SepState, toolbarMore } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, switchTab, todayIso, recentTs, type SepState, toolbarMore, openNeeds } from './fixtures';
 
 // P48: insights (as To-do rules), predictions, the invoice prefill, and the
 // stock reorder list. Made-up clients and figures (the repo is public).
@@ -70,7 +70,7 @@ test.describe('P48: insights, predictions and the reorder list', () => {
     expect(ins).toContain('insQuiet|QUIET WORKS: no challan for 40 days');
     expect(ins).toContain('insClientDown|FALLING PARTS: billing down three months running');
     // Stats' list of them went with its Overview (the tab map, TM2b): they are tasks, on Needs you.
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds')).toContainText('QUIET WORKS: no challan for 40 days');
     // By its own words: QUIET WORKS owes past its 45-day terms too, a task of its own (P204).
     await page.locator('#homeNeeds [data-action="invTodoOpenApp"]').filter({ hasText: 'QUIET WORKS: no challan' }).click();

@@ -7,7 +7,7 @@ import { sweepState } from './sweep-fixture';
 // apart; a number accounted for says so; Cancel and Edit from History's pane act where they should; an address naming no
 // client opens no pane; a jump to the receipts with no client shuts a pane left open; Production's pane names an open cut
 // and the barrel list as they are; the roster's rate shows at 1280; a window crossing 1024px keeps the leave guard;
-// and only Pulse, Stats and Finance's Overview go three across. Every name is made up.
+// and only Stats and Finance's Overview go three across (Pulse too until UI pass 3). Every name is made up.
 
 test.beforeEach(async ({ page }) => { await page.setViewportSize({ width: 1280, height: 800 }); });
 
@@ -162,11 +162,12 @@ test('a window crossing 1024px keeps the leave guard on a half-typed form', asyn
 async function columns(page: Page, sel: string) {
   return page.locator(sel).first().evaluate(el => getComputedStyle(el).gridTemplateColumns.split(' ').length);
 }
-test('above about 1,600px only Pulse, Stats and Finance go three across; every other grid keeps two', async ({ page }) => {
+test('above about 1,600px Home’s board keeps its own twelve columns; every other grid but Stats and Finance keeps two', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await page.setViewportSize({ width: 1700, height: 1000 });
+  // Pulse's questions went three across until UI pass 3 (U2): on Home's board a widget's size is its span.
   await openPulse(page);
-  expect(await columns(page, '[data-tdy-questions]')).toBe(3);
+  expect(await columns(page, '#homeBoard .inv-wgrid')).toBe(12);
   // The To-do's two lists were the example until the To-do joined Needs you (the tab map, TM2a), then Power's Overview until it went
   // (TM4e): Floor's line cards are one now.
   await switchTab(page, 'pageFloor');

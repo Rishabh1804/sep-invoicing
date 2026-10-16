@@ -8,17 +8,15 @@ import { adviceState, ORION } from './p133-what-to-do.fixture';
 // they reach. Each test names its finding. Names, parts and figures are made up; every date is built from today.
 
 const g = (p: Page, expr: string) => p.evaluate(e => (0, eval)(e), expr);
-/** Today → Pulse over the whole book, with the questions named opened (the questions were Stats → Overview's until the tab
- *  map, TM2b). */
+/** Home over the whole book, with the questions named drawn whole (Today → Pulse's until UI pass 3; Stats → Overview's until the
+ *  tab map, TM2b). */
 async function openPulse(p: Page, ...qs: string[]) {
   await openToday(p);
-  const all = p.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="all"]');
+  const all = p.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
   await all.click();
   await expect(all).toHaveAttribute('aria-pressed', 'true');
-  for (const k of qs) {
-    const q = p.locator(`[data-tdy-q="${k}"]`);
-    if (!(await q.evaluate(el => (el as HTMLDetailsElement).open))) await q.locator(':scope > summary').click();
-  }
+  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its story and its moves.
+  for (const k of qs) await expect(p.locator(`[data-tdy-q="${k}"] [data-tdy-story]`)).toHaveCount(1);
 }
 const pad = (n: number) => String(n).padStart(2, '0');
 const isoOf = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
@@ -459,7 +457,7 @@ test.describe('P150: the QA chain on Quotations, Reports and What to do', () => 
     // the owner's ruling of 13 Oct 2026; the jump stays).
     await openPulse(page, 'clients');
     const go = { kind: 'stats', tab: 'clients', anchor: 'statsWorst', period: 'all' };
-    await page.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="mtd"]').click();
+    await page.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="mtd"]').click();
     await g(page, `todoGo(${JSON.stringify(go)})`);
     expect(await g(page, '_statsPeriod')).toBe('all');
     await expect(page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]')).toHaveAttribute('aria-pressed', 'true');

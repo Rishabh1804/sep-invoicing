@@ -34,8 +34,8 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 
 | Step | What | State |
 |---|---|---|
-| U1 | Foundations: the look's tokens (lift, wells, radii, dark elevation), the default palette, icons v3, the chart builders and the table behind every chart, the blank states, the data layer (§3–§6) | Not built |
-| U2 | Home and its widgets: the door renamed, the day card with its clock and weather, Pulse folded in, the widget grid, sizes, arranging, the gallery, presets by role; the feeds Worker and its client; Tata's figures and the plant's calendar (§7–§9) | Not built |
+| U1 | Foundations: the look's tokens (lift, wells, radii, dark elevation), the default palette, icons v3, the chart builders and the table behind every chart, the blank states, the data layer (§3–§6) | Built, 16 Oct 2026 (P226, P227, P228) |
+| U2 | Home and its widgets: the door renamed, the day card with its clock and weather, Pulse folded in, the widget grid, sizes, arranging, the gallery, presets by role; the feeds Worker and its client; Tata's figures and the plant's calendar (§7–§9) | Built, 16 Oct 2026 (P223, P224, P225): every widget §7d marks U2; the Worker is the owner's to deploy (§9e) |
 | ⏸ | **Stop: the owner looks** at Home and the gallery on the phone and the desktop, in both themes (§1a-1) | |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
@@ -952,6 +952,28 @@ it keeps what it fetched in Cloudflare's cache and refreshes it in the backgroun
 3. In the Worker's **Settings → Domains & Routes → Add → Custom domain**: `feeds.somaelectro.co.in` (Cloudflare makes the DNS record).
 4. In the app: Settings → Connections → News and weather → **Check**. The guide `app-feeds` gives the same steps as the screens are
    named that day. Until then the news and weather widgets say *not set up yet* and link the guide (§7c `notset`).
+
+### 9f. As built (`split/feeds.js`, P225), where it says more than the above
+
+- **Who asks**: the functions are the widgets'; `feedEnsure()` is called by whoever draws Home (the board, the day card), not by
+  `feeds.js`. A copy landing is a `sep-feeds` event on `document`, for a board to redraw its feed widgets.
+- **The minute between asks is kept on the device** (`tried` in `sep_inv_feeds`), so a reload does not ask again. An ask not answered
+  in 8 s is dropped as slow. A copy asked for another place is not this plant's weather and is never shown.
+- **Under test the feeds stay quiet** (`navigator.webdriver`, as `errors.js`) unless a spec sets `window.__sepFeedsOn`.
+- **The place** is the feeds' own where typed, else the Office QR's, read when asked and never copied into the book: Settings' Save
+  stores none while its fields still hold the QR's place, so a place moved on the QR is followed.
+- **§7c's states gain `loading`** (the first copy on its way). A feed never reached from this device whose ask failed is `notset`,
+  *not set up yet*, with the guide's door; once a copy has landed, a failure keeps it, shown with `failed` (why). Every blank carries
+  its door as `action` (Settings for an ID that may change them, else the guide). The guide is every role's, since any widget links it.
+- **A weather day is the widest of the day's forecasts** (the highest high, the lowest low, the most rain, thunder if any said so): a
+  fetch at 6 PM covers only the hours left. Its save is quiet twice over: written to the device without the change log's pass and
+  without arming the GitHub push, so a forecast refetched every half hour is not a push each time; the next save of a change carries it.
+- **The models followed are one record in the change log too** (§16's merge and hub): compared as their list joined
+  (*Tata Motors → the models followed: models Prima, Signa … → …*). A Tata month's and a calendar day's `at` and `by` are their
+  stamp: never compared (`omit`), and never a conflict in the merge (`mrgQuiet` on the spec), so two devices typing one month hold
+  only a figure that differs.
+- **The Tata dialog's writes are the settings permission's** (`grdGate('settings')`); any ID reads it. It opens from Settings' section,
+  the rule's task and (the widget's builder) the `tata` widget's head; Settings' on and off is a tick box, under Settings' own Save.
 
 ## 10. Stats as a dashboard (U3)
 

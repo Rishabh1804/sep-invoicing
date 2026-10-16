@@ -1,5 +1,5 @@
 /* ===== TO-DO =====
-   Today → To-do, Needs you, and a Windows 11 widget. The owner's own list,
+   Home → Needs you (the To-do joined it), and a Windows 11 widget. The owner's own list,
    inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
    later — S.todo is self-contained.
 
@@ -645,7 +645,7 @@ function todoHomeOpts(n) {
 
 function todoRefreshViews() {
   var page = document.querySelector('.inv-page-active');
-  // Today → Needs you lists the tasks (today.js; the To-do page joined it, the tab map TM2a): a tick there is redrawn there.
+  // Home → Needs you lists the tasks (today.js; the To-do page joined it, the tab map TM2a): a tick there is redrawn there.
   if (page && page.id === 'pageHome' && typeof tdyView === 'function' && tdyView() === 'needs') keepScroll(renderNeeds);
   // On Home's dashboard: the needs widget and the day card's count (today.js), each in place.
   if (typeof wdgRefresh === 'function') wdgRefresh('needs');
@@ -875,6 +875,8 @@ function todoGo(go) {
     // Awaiting shows a challan invoiced in part too; the status 'pending' it set hid exactly those (the QA sweep).
     case 'im': imJumpClient(go.clientId); break;
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
+    // Tata Motors' month to type (feeds.js, mktTata): the dialog on that month, over the screen it was opened from.
+    case 'mktTata': mktTataOpen(go.month); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'todoLearn': {

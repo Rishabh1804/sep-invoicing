@@ -50,12 +50,12 @@ test.describe('P47: Stats tabs, the overview and the margin by client', () => {
   test('in one line reads realisation against the live cost, and says what is model', async ({ page }) => {
     await loadAppWithState(page, state());
     await openPulse(page);
+    // The period in figures, a widget on Home since UI pass 3 (U2; Pulse's In one line before): its line what a kilo lost against
+    // the live cost, its words what the period lost, and at Large the tiles.
     const ov = page.locator('#statsOverview');
-    // Its verdict says it shut: what a kilo lost against the live cost, and on the period.
-    await expect(ov.locator(':scope > summary .inv-hero-title')).toHaveText('Every kilo lost ₹1.64 against the live cost');
-    await expect(ov.locator(':scope > summary .inv-hero-fig')).toContainText('−₹1.64');    // ₹6.92 less the ₹8.56 live cost
-    await expect(ov.locator(':scope > summary .inv-hero-sub')).toHaveText('−₹6,540.00 on the period');   // ₹27,700 less 4 t at ₹8.56
-    await ov.locator(':scope > summary').click();
+    await expect(ov.locator('.inv-widget-line')).toHaveText('Every kilo lost ₹1.64 against the live cost');
+    await expect(ov.locator('.inv-widget-fig')).toContainText('−₹1.64');    // ₹6.92 less the ₹8.56 live cost
+    await expect(ov.locator('.inv-widget-sub')).toHaveText('−₹6,540.00 on the period');   // ₹27,700 less 4 t at ₹8.56
     await expect(ov.locator('[data-tile="realisation"]')).toContainText('₹6.92');   // ₹28,000 less the ₹300 note, on 4 t (net of credit notes, owner 30 Sep 2026)
     await expect(ov.locator('[data-tile="cost"]')).toContainText('₹8.56');          // every cost on its model figure
     // What is not measured is a badge on its tile; Stats → Cost names each component's source.

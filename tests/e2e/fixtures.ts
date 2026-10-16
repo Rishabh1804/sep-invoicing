@@ -227,35 +227,94 @@ export async function switchTab(page: Page, tabId: string): Promise<void> {
   await active.waitFor();
 }
 
-/** Today → Pulse (DIRECTION_B, B3): Home's cards (the month to date, money, attendance, sync, zinc, recent invoices, quick
- *  actions) are Pulse's widgets now, drawn only while it shows. Opens Today first when another page is on screen, then
- *  presses its Pulse tab the way the operator does. */
-export async function openPulse(page: Page): Promise<void> {
+/** Home's dashboard (UI pass 3, U2; docs/UI_PASS_3.md §8): the day card, its toolbar and the board of widgets. Opens Home first
+ *  when another page is on screen, then presses its Home tab the way the operator does. */
+export async function openHome(page: Page): Promise<void> {
   if (!(await page.locator('#pageHome.inv-page-active').count())) await switchTab(page, 'pageHome');
-  const tab = page.locator('#wsTabs [data-v="pulse"]');
+  const tab = page.locator('#wsTabs [data-v="home"]');
   if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
-  await page.locator('#homePulse:not(.inv-hidden)').waitFor();
+  await page.locator('#homeDash:not(.inv-hidden) #homeBoard').waitFor();
 }
-
-/** A Pulse widget opened to its body: each is a hero shut on the phone until opened (the tab map, TM2c), its line answering at a
- *  glance and its tiles, rows and buttons inside. Opens Pulse first. */
+/** Needs you, Home's other view (the day's inputs, the tasks, the recent invoices): Home opens on its dashboard since U2. */
+export async function openNeeds(page: Page): Promise<void> {
+  if (!(await page.locator('#pageHome.inv-page-active').count())) await switchTab(page, 'pageHome');
+  const tab = page.locator('#wsTabs [data-v="needs"]');
+  if ((await tab.getAttribute('aria-selected')) !== 'true') await tab.click();
+  await page.locator('#homeNeeds:not(.inv-hidden)').waitFor();
+}
+/** The widgets Pulse showed until UI pass 3 (the owner's preset of the tab map, TM2c): its six questions, Do first, Why it moved,
+ *  In one line (The period in figures since) and the month's pace, then the month to date, quick actions, attendance, unbilled,
+ *  the backup and zinc. A spec written against Pulse opens Home with them on the board (openPulse), each at its largest size
+ *  (fitted to the sizes it allows), unless the spec or the person set a layout of their own. */
+export const PULSE_WIDGETS = ['q-smooth', 'q-money', 'q-clients', 'q-plant', 'q-cash', 'q-changed', 'dofirst', 'why', 'figures', 'pace',
+  'mtd', 'quick', 'atttoday', 'unbilled', 'sync', 'zinc'];
+/** Pulse's widget keys by their widgets' ids (§7h): the rest are the same. */
+const WIDGET_OF: Record<string, string> = { todo: 'needs', attendance: 'atttoday', production: 'prodday', power: 'powercuts', stock: 'stockdays' };
+export const widgetId = (k: string): string => WIDGET_OF[k] || k;
+/** Home's dashboard with Pulse's widgets on the board (PULSE_WIDGETS, then any withHomeWidgets named), for the person signed in;
+ *  a layout already the person's own stands. The board is drawn again as it then is. */
+export async function openPulse(page: Page): Promise<void> {
+  await page.evaluate(set => {
+    const w = window as any, who = typeof w.wdgPerson === 'function' ? w.wdgPerson() : '-';
+    let st: any = null;
+    try { st = JSON.parse(localStorage.getItem('sep_inv_layout') || 'null'); } catch { st = null; }
+    if (!st || st.v !== 1 || !st.people) st = { v: 1, people: {} };
+    const rec = st.people[who] && st.people[who].home;
+    if (rec && (Array.isArray(rec.desk) || Array.isArray(rec.phone))) return;
+    let extra: string[] = [];
+    try { extra = JSON.parse(localStorage.getItem('sep_inv_test_widgets') || '[]'); } catch { extra = []; }
+    const list = set.concat(extra.filter(x => set.indexOf(x) < 0)).map(i => [i, 'l']);
+    st.people[who] = Object.assign({}, st.people[who], { home: { preset: 'custom', desk: list, phone: list } });
+    localStorage.setItem('sep_inv_layout', JSON.stringify(st));
+  }, PULSE_WIDGETS);
+  await openHome(page);
+  await page.evaluate(() => (window as any).renderHome());
+  await page.locator('#homeDash:not(.inv-hidden) #homeBoard').waitFor();
+}
+/** A widget on Home's board, drawn (a widget does not fold, §7a): opens Home with Pulse's widgets, puts this one on the board where
+ *  it is not, and waits for it. */
 export async function openWidget(page: Page, key: string): Promise<void> {
   await openPulse(page);
-  const hero = page.locator(`[data-home-w="${key}"] details.inv-hero`).first();
-  if ((await hero.count()) && !(await hero.evaluate(el => (el as HTMLDetailsElement).open))) await hero.locator(':scope > summary').click();
+  const id = widgetId(key);
+  // A widget off the board is not drawn (Pulse's presets hid Money, To-do and Recent since TM2c, and a role preset may lack it):
+  // it is put at the end of the person's layout, both layouts, at its largest size, and the board drawn again.
+  if (!(await page.locator(`#homeBoard [data-w="${id}"]`).count())) {
+    await page.evaluate(id => {
+      const w = window as any, def = w.wdgDef(id);
+      if (!def) throw new Error('No widget named ' + id);
+      const size = def.sizes.indexOf('l') >= 0 ? 'l' : def.sizes.indexOf('m') >= 0 ? 'm' : 's';
+      ['desk', 'phone'].forEach((lay: string) => {
+        const list = w.wdgItems('home', lay);
+        if (!list.some((x: string[]) => x[0] === id)) w.wdgItemsPut('home', lay, list.concat([[id, size]]));
+      });
+      w.renderHome();
+    }, id);
+  }
+  await page.locator(`#homeBoard [data-w="${id}"]`).first().waitFor();
 }
-/** Pulse's widgets every preset hides since the tab map (TM2c: To-do, Recent invoices and Money are Needs you's and Money's),
- *  shown on this device as Edit Home's switch shows them, the layout then the owner's own. Call before loadAppWithState: the
- *  layout is written before each load. */
+/** Widgets put on Home's board on this device, after Pulse's (openPulse): written before each load, and only where the device
+ *  has no layout yet, so a reload keeps what the spec arranged. Call before loadAppWithState. */
 export async function withHomeWidgets(page: Page, keys: string[]): Promise<void> {
-  await page.addInitScript(ks => {
+  const ids = keys.map(widgetId);
+  await page.addInitScript(([ids, set]) => {
     try {
-      const hidden: Record<string, boolean> = { production: true, power: true, stock: true, money: true, todo: true, recent: true };
-      ks.forEach(k => { delete hidden[k]; });
-      localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', hidden, wide: { mtd: true, quick: true, recent: true },
-        order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'production', 'power', 'stock', 'sync', 'zinc', 'recent'] }));
+      localStorage.setItem('sep_inv_test_widgets', JSON.stringify(ids));
+      if (localStorage.getItem('sep_inv_layout')) return;
+      const list = set.concat(ids.filter(x => set.indexOf(x) < 0)).map(i => [i, 'l']);
+      localStorage.setItem('sep_inv_layout', JSON.stringify({ v: 1, people: { '-': { home: { preset: 'custom', desk: list, phone: list } } } }));
     } catch { /* storage refused: the presets stand */ }
-  }, keys);
+  }, [ids, PULSE_WIDGETS] as [string[], string[]]);
+}
+/** Exactly these widgets on Home's board, in this order and at these sizes (or each at its largest), for this device's person
+ *  with the guard off: the board a spec of the board itself sets (P223, P224). Call before loadAppWithState. */
+export async function withWidgets(page: Page, items: Array<string | [string, string]>): Promise<void> {
+  const list = items.map(x => (typeof x === 'string' ? [widgetId(x), 'l'] : [widgetId(x[0]), x[1]]));
+  await page.addInitScript(l => {
+    try {
+      if (localStorage.getItem('sep_inv_layout')) return;
+      localStorage.setItem('sep_inv_layout', JSON.stringify({ v: 1, people: { '-': { home: { preset: 'custom', desk: l, phone: l } } } }));
+    } catch { /* storage refused: the presets stand */ }
+  }, list);
 }
 
 /** Office → Sales (the tab map, 9 Oct 2026): Prospects and Quotations are Sales' own row, on the page Clients shares. Opens Sales

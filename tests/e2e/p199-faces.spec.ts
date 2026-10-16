@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, readStoredState, todayIso, waitForBoot, openSettingsAt, kbRead } from './fixtures';
+import { loadAppWithState, readStoredState, todayIso, waitForBoot, openSettingsAt, kbRead, openNeeds } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P199: entry faces, the shell (docs/ENTRY_FACES.md, F1; owner, 10 Oct 2026: "develop app faces for each employee to enter data …
@@ -68,6 +68,7 @@ test.describe('P199: entry faces, the shell', () => {
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
     await expect(page.locator('.inv-navbar-item[data-ws="mine"]')).toHaveCount(0);
+    await openNeeds(page);
     await expect(page.locator('[data-tdy-input="stock"] .inv-step-meta')).toContainText('by Esha Pal');
     // A role with no face is refused the screen by its address.
     await page.goto('/?tab=pageFace');

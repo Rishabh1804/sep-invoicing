@@ -4,7 +4,8 @@ import { emptyState, loadAppWithState, noSeedIM, openPulse, todayIso, recentTs }
 
 // P120 (owner, 30 Sep 2026): the owner's questions, each answered as a story: the figure, one sentence saying what it means, a
 // small chart. Stats → Overview opened on them; since the tab map (TM2b) they are Pulse's, each a hero that opens to its story,
-// and the figures behind them (In one line) follow. Made-up names and figures.
+// and the figures behind them (In one line) follow; since UI pass 3 (U2) each is a widget on Home, its story drawn at Medium and
+// Large. Made-up names and figures.
 
 const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 
@@ -39,19 +40,19 @@ test('Pulse leads with the questions, each answered in a sentence, before the fi
   s.invNextNum = 3;
   await loadAppWithState(page, s);
   await openPulse(page);
-  const qs = page.locator('#homeQuestions [data-tdy-q]');
+  const qs = page.locator('#homeDash [data-tdy-q]');
   // Is the plant running smoothly? leads (Direction B, P133), then the questions this spec was written for.
   await expect(qs.first()).toHaveAttribute('data-tdy-q', 'smooth');
   for (const k of ['smooth', 'money', 'clients', 'plant', 'changed']) await expect(page.locator(`[data-tdy-q="${k}"]`)).toBeVisible();
-  // Each opens to its story: the sentence that says what it means.
-  for (const k of ['money', 'clients', 'plant']) await page.locator(`[data-tdy-q="${k}"] > summary`).click();
+  // Each holds its story: the sentence that says what it means (a widget at Large since UI pass 3, U2, drawn whole).
   await expect(page.locator('[data-tdy-q="money"] [data-story-say]')).toContainText(/every kilo/);
   await expect(page.locator('[data-tdy-q="clients"] [data-story-say]').first()).toContainText('ALPHA WORKS fills');
   await expect(page.locator('[data-tdy-q="plant"] [data-story-say]')).toContainText(/two shifts/);
-  // The questions come before the figures they read (In one line, under Do first); the insights are tasks on Needs you.
-  const order = await page.locator('#homeQuestions > *').evaluateAll(els => els.map(e => e.matches('[data-tdy-questions]') ? 'questions'
-    : e.querySelector('#statsOverview') ? 'figures' : (e as HTMLElement).dataset.card || ''));
-  expect(order.indexOf('questions')).toBeGreaterThanOrEqual(0);
-  expect(order.indexOf('questions')).toBeLessThan(order.indexOf('figures'));
+  // The board draws its widgets in the order laid out: Pulse's, here, the questions before the figures they read (The period in
+  // figures, Pulse's In one line); the insights are tasks on Needs you.
+  const order = await page.locator('#homeBoard .inv-widget').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.w as string));
+  expect(order.indexOf('q-smooth')).toBe(0);
+  expect(order.indexOf('q-changed')).toBeLessThan(order.indexOf('figures'));
+  await expect(page.locator('#homeBoard [data-w="figures"] #statsOverview')).toHaveCount(1);
   await expect(page.locator('#statsInsights')).toHaveCount(0);
 });

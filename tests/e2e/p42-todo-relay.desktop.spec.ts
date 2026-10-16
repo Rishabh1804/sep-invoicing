@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openPulse, openNeeds } from './fixtures';
 
 // P42 desktop: the To-do tab, the Home quick actions and the attendance-roll
 // paste in the desktop layout — sidebar instead of the More sheet, the register
@@ -34,7 +34,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
     await expect(page.locator('.inv-side-item[data-ws="today"] [data-ws-count]')).toHaveText('1');
     await expect(page.locator('.inv-navbar')).toBeHidden();
     // The tasks are Needs you's (the tab map, TM2a): Today's door is lit and its first view holds them.
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await expect(page.locator('.inv-side-item[data-ws="today"]')).toHaveClass(/inv-side-item-on/);
     await expect(page.locator('#homeNeeds [data-todo][data-tone="red"]')).toContainText('Late one');
     await page.locator('#todoNew').fill('Desk task');
@@ -96,7 +96,7 @@ test.describe('P42 desktop: to-do, quick actions, attendance paste', () => {
         status: 'active', invoiceIds: ['I1'], periodFrom: iso(-20), periodTo: iso(-20), discountPct: 2, createdAt: 1 }],
     } as any);
     // The task on Needs you, where the tasks are (Pulse's To-do card is off in every preset since the tab map, TM2c).
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await page.locator('#wsTabs [data-v="needs"]').click();
     const task = page.locator('#homeNeeds [data-action="invTodoOpenApp"][data-key="cn:2"]');
     await task.evaluate(b => { const d = b.closest('details'); if (d) (d as HTMLDetailsElement).open = true; });

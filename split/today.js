@@ -544,7 +544,7 @@ function homeDayCardHtml() {
   var links = ['<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
     (open ? ' · ' + open : '') + '</button>'];
   if (tdySees('pageReports')) links.push('<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeReport">Make today’s report</button>');
-  var wx = typeof feedWeatherNowHtml === 'function' ? feedWeatherNowHtml() : '';
+  var wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
   return uiVerdictHtml({ key: 'home-day', screen: homeGreeting(now), verdict: lead.text, tone: tone,
     fig: '<span class="inv-homeday-clock" data-home-clock>' + escHtml(homeClockText(now)) + '</span>' +
       '<span class="inv-homeday-shift" data-home-shift>' + escHtml(homeShiftText(now)) + '</span>',
@@ -572,13 +572,20 @@ function homeClockTick() {
 function homeClockStart() {
   homeClockStop();
   homeClockTick();
+  homeFeedsAsk();
   var wait = 60000 - (Date.now() % 60000);
   _homeClockT = setTimeout(function next() {
     homeClockTick();
+    homeFeedsAsk();
     if (_homeClockT === null) return;
     _homeClockT = setTimeout(next, 60000 - (Date.now() % 60000));
   }, wait);
 }
+/* The news and the weather are asked for when Home is drawn, and on the minute while it shows: feeds.js asks only for a copy over
+   30 minutes old, never offline, hidden or twice within the minute (§9b). */
+function homeFeedsAsk() { if (typeof feedEnsure === 'function') { try { feedEnsure(); } catch (e) { /* a feed failing is not Home failing */ } } }
+/* A copy landed: the day card's weather is drawn again with it (the board's feed widgets draw themselves, widgets.js). */
+document.addEventListener('sep-feeds', function(e) { if (!(e.detail && e.detail.busy)) homeDayRefresh(); });
 function homeClockStop() { if (_homeClockT) clearTimeout(_homeClockT); _homeClockT = null; }
 document.addEventListener('visibilitychange', function() {
   if (document.hidden) { homeClockStop(); return; }

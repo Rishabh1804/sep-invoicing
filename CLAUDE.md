@@ -51,9 +51,10 @@ wells, 4-digit PIN, widgets should be flexible so different layouts are possible
 behind every chart; widgets on boards each person arranges (Home, then Stats); Pulse folded into Home; a feeds Worker for the news
 (GDELT) and the weather (MET Norway); guided Enter by hand; People leads; the power case and the reports a picture first; a sign-in
 with a 4-digit PIN. Nine steps, U1–U9, one PR, **a stop after U2 for the owner to look**. Written to `docs/SERVER.md`: widgets read
-views shaped like the hub's typed tables, and the one change four digits force on the server plan is said (§15c). **U1 is built**
-(16 Oct 2026): the look (*UI pass 3: the look* below), icons v3, charts v3 and the data layer. U2 (Home and its widgets) is being
-built, then the stop.
+views shaped like the hub's typed tables, and the one change four digits force on the server plan is said (§15c). **U1 and U2 are
+built** (16 Oct 2026): the look (*UI pass 3: the look* below), icons v3, charts v3 and the data layer; Home, its board of widgets, the
+gallery and the feeds (*UI pass 3: Home and its widgets* below). **The build stops here for the owner to look** (§1a-1): U3 waits on
+their word.
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -183,7 +184,7 @@ split/
 ├── stocksheet.js      ← Stock sheets to print: the supervisor's message, Enter by hand, the day as entered (~150 lines)
 ├── prodparse.js       ← Production messages read (pure): pickling loads, barrel list, a roll's block, slots typed as text, the register (~1,140 lines)
 ├── stats.js           ← Stats' panels (By client, Cost, Trends) + History, the audit trail in the top bar, led by its card (~1,630 lines)
-├── intel.js           ← Stats' three tabs; the questions' stories and In one line for Pulse; six months; contribution by client (~230 lines)
+├── intel.js           ← Stats' three tabs; the questions' stories and The period in figures for Home's widgets; six months; contribution by client (~230 lines)
 ├── why.js             ← Why it moved: realisation, contribution and cash broken into causes that add up (~170 lines)
 ├── insights.js        ← Insights (as To-do rules), predictions, invoice PO/vehicle prefill (~330 lines)
 ├── finintel.js        ← Finance intelligence: thirteen bank To-do rules, days to pay, the cash forecast (~520 lines)
@@ -203,7 +204,7 @@ split/
 ├── faces.js           ← Entry faces: Mine, a person's own screen: the duties as steps, the pickling hand's forms, the supervisor's two rolls and the barrel's batches, the clerk's VAT register page and the sheet against the roll, the group's message, the checks against what they link to, what was entered (~1,865 lines)
 ├── facesheet.js       ← The sheets on paper: each face's blank sheets and the day as entered; the pickling sheet, the barrel batch sheet, the VAT register pages; Production's Print sheets (~290 lines)
 ├── flow.js            ← The flow thread: turnaround targets and payment terms, a challan wanted by a day, the tasks they raise, the flow on Floor's Overview and a client's page (~360 lines)
-├── today.js           ← Today as cards: Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) and Pulse (the period, the questions, Why it moved, In one line, the pace) (~500 lines)
+├── today.js           ← Home: the day card (the greeting, the clock on the minute, the shift, one sentence), the board's toolbar; Needs you (the day's inputs as steps, the tasks Now / This week / Later as decks, Add, Snoozed, Done) (~560 lines)
 ├── power.js           ← Power: cuts and what each costs, the connection's load and bills, the printable case for backup (~560 lines)
 ├── powercause.js      ← Why a cut came: a cut completed where it is shown, the reasons and fixes a list written one way, read for the plant (~800 lines)
 ├── report.js          ← Reports: daily, weekly, monthly, quarterly, yearly; one document drawn live and printed (~650 lines)
@@ -322,7 +323,7 @@ change's words, which name a user who can be renamed; two alike are numbered in 
 pane were scrolled (`paneScrollKeep`; the host's `data-open` says which record, and the pane keeps its place only while that record
 is open). The phone is unchanged: a client still opens under its row, a worker their sheet, a History row the invoice. **A role
 that may not see wages sees no rate on the roster** (`grdSeesWages`; the rows showed it to every role that could open Staff). Above
-a 100rem window the `inv-panels-3` grids (Pulse's questions and widgets, Stats, Finance's Overview) are three columns, and every
+a 100rem window the `inv-panels-3` grids (Stats, Finance's Overview; Pulse's questions and widgets until UI pass 3, whose board has its own grid) are three columns, and every
 panel in a grid is a `panel-w` container, so a strip of tiles never leaves a blank cell (the Home widgets' rule, now every
 panel's); every other grid stays two across, since three left a column empty or a lone card under a row. P147, P80, P153.
 
@@ -423,7 +424,7 @@ before it. The detail is in each area's section; what it leaves as rules:
 - **One split places overtime** for Labour, the Areas card and Hours by area; **a hand's OT slot is its own pick** (`rec.slotHand`),
   kept apart from the EXTRA rows; a field typed in on People → Attendance → Day is drawn around, never replaced (Labour and attendance).
 - **A list-and-pane screen keeps its scroll on a redraw**, and an event's key in History survives a rename (UX overhaul 2, step 7).
-- A swipe is a step of the trail; Pulse opened from elsewhere is drawn; a window crossing 1024px keeps the leave guard; Cancel,
+- A swipe is a step of the trail; Home opened from elsewhere is drawn (Pulse, until UI pass 3); a window crossing 1024px keeps the leave guard; Cancel,
   Delete and Edit from History's pane act where they can be seen; an address naming no record opens no pane.
 
 **The QA chain of 14 Oct 2026** (owner: *"Be thorough, run QA chain before final merge, merge once CI is green"*). Seven audits of the
@@ -432,11 +433,11 @@ build before (P211 the shell, Today and Stats; P212 Money, the cheques and the s
 and the plant register; P215 Office and the flow thread; P216 the entry faces, Knowledge and History; 116 tests); the mechanical
 sweeps (no duplicate name; the dead code each builder found went, `calculateStdWeights` with it) and the harness pressing every
 action. The detail is in each area's section; what it leaves as rules:
-- **One judge for the price against the live cost**: a loss within 5% of it is a warning wherever it is drawn (Pulse, Stats' cards,
+- **One judge for the price against the live cost**: a loss within 5% of it is a warning wherever it is drawn (Home's widgets, Stats' cards,
   the report), as realisation always was; a figure over its mark is info (`inv-fig-info`).
 - **Owed with nothing past 60 days is ok** wherever it is drawn, and owed is never red while a receipt has no client
   (`finAgeTone`, `figToneOwed`).
-- **A door is drawn only for a role that opens where it goes** (Pulse's More, *Add a bill* on Power and Live cost, Add's grid laid
+- **A door is drawn only for a role that opens where it goes** (Home's More, *Add a bill* on Power and Live cost, Add's grid laid
   out over the doors shown); **a margin is money**: By the hour's hour cost, Performance's cost and its flags' rupees only for a role
   that sees money.
 - **A cheque**: *Not this deposit* keeps that row apart and the number goes on; a post-dated cheque is in hand from its own date;
@@ -759,6 +760,98 @@ rewritten to the new facts, never weakened.
 - **Icons v3** (design §5.6) and **the data layer** (`split/dataview.js`, §6: a view per typed table of the hub, its key the record
   it comes from) are U1's too. Building the data layer found a Stats bug: a credit note had taken kilos off a piece line weighed by
   its amount. Stats now weighs the amount as billed (`_gross`): a note takes rupees off, never kilos.
+
+### UI pass 3: Home and its widgets (U2)
+`docs/UI_PASS_3.md` §7–§9 (owner, 15–16 Oct 2026: *"We need a Home page and dashboard for it as well, a clean, live and informative
+dashboard. It should show the time, some predictions, some news"*; *"widgets should be flexible so different layouts are possible
+without breaking the UI"*; *"Yes to Home, all of 1–11, news Worker now, no Hindi"*). P223, P224, P225; the specs that opened Pulse
+rewritten to where each fact now lives (§21), never weakened. **The build stops here for the owner to look** (§1a-1).
+- **The door is Home** (the workspace's id stays `today`): its row *Home · Needs you*, then the Insights (Stats, Reports, the
+  Planner). `?tab=pageHome&v=home` is the default; an old `v=pulse` (an address, a saved step, `sep_inv_ws_last`) lands on Home
+  (`NAV_REDIRECTS`), and `invGoPulse` is kept as an alias of `invGoHome`, which the rail's mark and the brand open. Search finds Home
+  (`G H`) and Needs you apart; signing in lands on Home (Mine for a person with a face, as before).
+- **The day card leads** (`homeDayCardHtml`, today.js; a verdict card): *Good morning, <name> · Friday, 16 October*, the clock and the
+  general shift's end as its figure (`[data-home-clock]`, `[data-home-shift]`; *General shift ends 5:00 PM · 3 h 2 min*), one sentence
+  in its tone (cash below zero within 14 days, red tasks, a line half down, the month's pace against last month, else *Nothing needs
+  you now*), two facts, **Open Needs you · N** and *Make today's report* for a role that opens Reports. **The clock ticks on the
+  minute** (`homeClockStart` / `homeClockStop`), touching only the two texts, and stops when Home is left or hidden; the day card is
+  drawn again when the day turns (`_homeDrawnDay`). Shut on the phone to its head, open on the desktop.
+- **One toolbar row** (`[data-home-toolbar]`): the period (`MTD · QTD · YTD · All`, the one `_statsPeriod`), **Customise** (an icon
+  on the phone) and More (*Make a report*, *Open Stats*, *Reset Home*). Then **the board** (`#homeBoard`), then its foot, *Add a widget
+  · N to choose from*. Needs you is unchanged in what it holds (`#homeNeeds`).
+- **The framework** (`widgets.js`, design §6.33) holds no widget's arithmetic: `wdgDefine({id, title, q, section, sizes, needs, go,
+  live, feed, card, data(ctx), draw(d, size, ctx), foot, after, act, change})`, the card (a hero coded in the tone `data` gives), the
+  states through `uiBlankHtml` (`empty`, `early`, `notset`, `offline`, `loading`, `error`), the board, arranging, the gallery, the
+  presets and the layout store. **A button inside a card names its widget with `data-wid`**; `data-w` is the card's alone. An action
+  the framework does not know goes to the widget's `act(action, btn, card)`, a change in the card (or in a dialog carrying
+  `data-wdg-for`) to its `change(el, card, board)`, and `feed: true` draws it again when a news or weather copy lands. A widget's
+  own options are kept with the layout (`wdgOpts`, `wdgOptsPut`: `corr`'s pair).
+  **A widget never throws its board down**: one that throws draws its error state and reports once a session. `wdgFromHero(o)` takes
+  a hero's options, so a figure Pulse drew is drawn from the same function (`homeMtdOpts`, `homeUnbilledOpts`, `homeRecentOpts`,
+  `attHomeOpts`, `finHomeOpts`, `zincCardOpts`, `ghCardOpts`, `whyHeroOpts`, `statsOverviewOpts`, `paceCardOpts`, `todoHomeOpts`),
+  and `wdgMemo(key, fn)` keeps a widget's figures until the book, the period or the person changes.
+- **Three sizes with a cap each** (Small 10rem, Medium 26rem, Large 40rem; Medium and Large 30rem on the phone): the size decides
+  what is drawn, and a list that would pass its cap lets go of its last rows (`wdgFit`, `data-wdg-cut`) and says *N more: Show all*.
+  The board's columns come from its own width (12 from 60rem, 6 from 36rem, 2 under it): a Small spans 3 (one of two on the phone),
+  a Medium 6, a Large the row; packed in the layout's order (`uiMasonry`).
+- **Who sees a widget** is its `needs` (`page` by `grdSees`, `money`, `wages`, `perm`, `owner`, `when`; `wdgSees`): a widget a role
+  may not see is in no gallery and on no board, and a layout naming one keeps it and skips it at draw. A door a role cannot follow
+  is drawn as text.
+- **Arranging is a layer** (`navLayerOpen`; Back, Escape and Done leave it, and a swipe does nothing): each card shows its handle,
+  its place (*3 of 11*), its sizes and Remove (with *Undo* in the toast); the toolbar *Add a widget*, *Reset* (asked through
+  `uiConfirm`) and **Done**. A mouse drags at once, a finger after a 250 ms hold within 8 px (a scroll is never taken for a drag);
+  Escape or a cancelled pointer puts it back. The handle's keys move it (← ↑ → ↓, Home, End), said in an `aria-live` line.
+- **The gallery** (`wdgGalleryOpen`, a dialog): the sections as chips (All, Money, Office, Floor, People, Market, Analysis,
+  Questions; one with nothing the role may see left out), each widget a card with its live preview at its first size (drawn as it
+  comes into view, `IntersectionObserver`), its title, question and sizes, and **Add to Home** or *On Home* with Remove. Added, it
+  goes to the end of the layout on screen and of the other layout at its first size.
+- **Presets by role** (`WDG_PRESETS`): Owner (the owner, or the guard off), Office, Floor (a supervisor or a floor ID); a widget the
+  role cannot see is left out when the preset is drawn. Any change makes the layout the person's own; **Reset** goes back.
+- **Where a layout is kept** (`sep_inv_layout`, localStorage: `{v: 1, people: {<ID or '-'>: {home: {preset, desk, phone, opts}}}}`):
+  one per person and per layout (the desktop's and the phone's sizes differ), never in the book, a backup, a push, a merge or the
+  change log; at S1 it goes to the hub as the person's `prefs` (`docs/SERVER.md`). A device's Pulse layout is moved once
+  (`wdgFromPulse`: its role's preset, then every widget Pulse showed that the preset lacks, by the new ids: `todo` → `needs`,
+  `attendance` → `atttoday`, `production` → `prodday`, `power` → `powercuts`, `stock` → `stockdays`).
+- **The widgets** (`widgetcards.js`, `WIDGET_DEFS`; every one §7d marks U2), each reading the function its screen draws with, never
+  a second arithmetic:
+  - **Money**: `money`; `cash` (the balance, the forecast's low point, the 60 days); `owed` (by age, the largest debtors); `dtp` (days
+    to pay against each client's terms); `gst` (due against paid by month).
+  - **Office**: `mtd`, `pace`, `unbilled`, `recent`, `quick`, `sync`; `turn` (the turnaround against its target); `pipe` (the stages,
+    the worst late one); `quote` (quotations and prospects against the spare).
+  - **Floor**: `powercuts`, `zinc`; `floornow` (on site, the lines); `prodday` (the last day's plating, the day card at Large); `heat`
+    (plated each day, the light days that were cut days named); `eff` (each line's efficiency and what lost most); `risk` (the hours
+    the plant's cuts start, the forecast's thunder hours beside them); `stockdays` (what runs out first, the day to order by);
+    `zincpaid` (the market against what each bill paid).
+  - **People**: `atttoday`; `attweek` (attendance by week); `ot` (overtime and the EXTRA by area).
+  - **Market**: `tata` (the month's three figures with their change, the plant's week, 13 months against the year before, the models
+    and four headlines); `weather` (now, the next 12 hours, then the cut days that had rain once 30 days are kept).
+  - **Analysis**: `corr` (*Does one move the other?*: two of `daily`'s figures paired at the coarser grain over 182 days, early under
+    10 points, the words by |r| and the slope in the figure's own step, always *a pattern, not proof*; the pair kept per person);
+    `clientprice` (each client's ₹ a kilo against the full cost, worst first); `kilo` (the live cost's parts as one bar, the share
+    measured).
+  - **The questions** (`q-smooth`, `q-money`, `q-clients`, `q-plant`, `q-cash`, `q-changed`: Small the answer's vital, Medium with its
+    story, Large with *What you can do*; every move one tap away in its dialog), `dofirst`, `why`, `figures` (Pulse's *In one line*),
+    `needs`, and `coming` (dated predictions soonest first: cash under zero, a stock line out before its supplier can deliver, a
+    client's next challan, the month's landing, a turnaround about to pass, thunder in the hours cuts start).
+
+  The hooks specs read are kept inside them (`#homeFin`, `#homeAtt`, `#homeAttOnSite`, `#homeTiles`, the `#mtd*` ids,
+  `#recentInvoices`, `[data-card="sync"]`, `[data-zinc-age]`, `[data-tdy-questions]`, `#statsWhy`, `#statsOverview`, `#statsPace`).
+- **The news and the weather** (`feeds.js`, P225; UI_PASS_3 §9, §9f as built). A Worker of the owner's own (`server/feeds/`, deployed
+  by the owner, never by the build) answers `/news` (GDELT: Tata Motors' sales, Jamshedpur, its exports and the models followed) and
+  `/weather` (MET Norway, at the plant's place to two decimals). The app asks when Home is drawn and on the minute while it shows,
+  only for a copy over 30 minutes old, never offline, hidden, under test (unless a spec sets `window.__sepFeedsOn`) or twice within
+  the minute (`tried`, kept on the device). The copy is the device's (`sep_inv_feeds`), never the book's; a landing is a `sep-feeds`
+  event, which the day card and every `feed: true` widget redraw on. **Tata's figures and the plant's calendar are the book's**
+  (`S.market`: the months typed in the Tata dialog, the days the plant is shut, the models followed, a weather day a day; in the
+  change log and the merge, the weather quiet in both); a headline's figure or day is offered, never applied. To-do `mktTata` asks
+  for last month's figures from the 2nd. Settings → Connections → News and weather, and the guide *Setting up: the news and weather*
+  (`app-feeds`).
+- **The sweep** (P224): every widget at every size it allows, on the long, empty and crore books, light and dark, phone and desktop
+  (1280 and 1024 px), then each preset and three seeded random arrangements, failing on anything past a widget's box, a widget past
+  its cap, a block over 120 characters, an error drawn and everything P76's sweep and P197's looks fail on; and each role, the guard
+  on, shown only what it may see.
+- Fixtures: `openHome`, `openNeeds`, `openPulse` (puts Pulse's widgets on the board at Large for the person signed in, then draws
+  Home), `openWidget(page, id)`, `withWidgets(page, list)`; a spec reading a widget puts it on the board first.
 
 ## Business Domain
 
@@ -1995,7 +2088,7 @@ register photo until 13 Oct 2026, below). **Owned by `soma-internal`, like stock
   included. The row says *100 kg ≈ 400 NOS at 0.25 kg/pc (client card)*, each client's head says how many lines were
   worked out, and a line with no weight known stays in kg and is named with where to put the weight. Before this a
   kilo line with no count took none of the floor's piece counts, which all read *on the floor, no challan open*.
-- **Linked in.** *In one line* (Today → Pulse; Stats → Overview's until the tab map) gets *Plated (floor)*, only on **complete days** (attendance recorded and every
+- **Linked in.** *The period in figures* (a Home widget; Pulse's *In one line* until UI pass 3, Stats → Overview's until the tab map) gets *Plated (floor)*, only on **complete days** (attendance recorded and every
   staffed line with a general-shift record), never a zero. Lines shows labour ₹/kg by line: variable labour of the
   line's areas over the same days as its kilograms, the VAT side's pickling hands shared by each day's kg, uncoloured: the modelled
   labour is every tier's, the monthly crew included, so it is no benchmark for the variable part (QA chain, P214). Two To-do
@@ -2177,7 +2270,7 @@ gradient for cards in this tab will be decided. Barrel is also a special case as
   the week table, the four-week chart and labour per kg by line (a line-day counts with nine tenths of its pieces weighed, estimates
   included), Stats' *Plated (floor)* row, the reports and Today's floor tiles.
 - **The day is one card** (`prodDayHeroHtml`, prodview.js; `prodDayPicture`, production.js), on Floor → Overview's Production card in
-  place of the tile, and on Pulse (`compact`): the tonnes; what was recorded, what is estimated and what is not weighed; a meter of the
+  place of the tile, and in Home's *Production, the last day* widget at Large (`compact`; Pulse's until UI pass 3): the tonnes; what was recorded, what is estimated and what is not weighed; a meter of the
   weighing routes against two shifts (~4 t), the plant's usual day marked (`prodUsualDay`: the median of five or more days in 60,
   each nine tenths weighed); each line on the clock, 6 AM to 6 AM (`chartDayStrip`, runs ok, cuts danger, the general shift's ends
   marked), its runs, rounds, units working, heads against the day's number, clients and its efficiency; how it was weighed by route
@@ -2343,7 +2436,7 @@ workers and every personal detail are the book's; the owner's private files (`se
   - Card numbers never return (`S.cardSeq`); ten cards fit one A4 page (measured under print media).
 
 ### The planner
-Today → **Planner** (in its Insights; Office's until the tab map of 9 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
+Home → **Planner** (in its Insights; Today's until UI pass 3, Office's until the tab map of 9 Oct 2026; `planner.js`, `planview.js`; `docs/PLANNER.md`; owner, 6 Oct 2026: simulate machinery, certification, staff,
 clients and a loan as a game whose every figure adds up, *"it is fine on a macro level but doesn't work on a micro level"* on the
 prototypes). P162.
 - **Four views: Play · Ledger · A day · Moves** (the tab map, TM2d; eight until then), Moves a switch over Plant · Tech tree · Staff ·
@@ -2427,17 +2520,17 @@ a month spare), and nothing kept who was approached, what they were offered or w
   (`qtOpenDraft` with `to` and `prospectId`); one issued makes the prospect read *quoted* (`prsStage`) until it is moved on.
 - **Won makes the client**: the client form opens filled from the prospect; saving it links the two (`clientId`, `prsClientAdded`) and
   gives its quotations the client, so accepting one can post its rates.
-- **To-do `prospectFollow`**: a follow-up due amber, a week late red. **Pulse → Is the plant full?** names the pipeline against the
+- **To-do `prospectFollow`**: a follow-up due amber, a week late red. **Home → Is the plant full?** (a question widget) names the pipeline against the
   spare with what it would bill a month, weighted (`prsPlantMove`). Search finds the screen.
 
 ### Reports
-Today → **Reports** (in its Insights, after Stats; Office's until the tab map of 9 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
+Home → **Reports** (in its Insights, after Stats; Today's until UI pass 3, Office's until the tab map of 9 Oct 2026) (`report.js`; owner, 1 Oct 2026: *"a daily weekly and a monthly
 quarterly yearly report generator"*). Shaped on soma-internal's hand-compiled daily, weekly and monthly reports (`reports/`); a
 quarterly and a yearly follow the monthly's shape. P132.
 - **Kinds and periods**: Daily · Weekly · Monthly · Quarterly · Yearly; a day, the pay week Sun–Sat numbered by its Saturday's ISO week,
   a month, a quarter of the financial year (Q1 Apr–Jun), a financial year. ‹ › steppers (never past the current period), a picker, Now,
   and **Print** the one primary. A period not yet ended reads *to date* and stops at today. Kept per device (`sep_inv_report`); the
-  address is `?tab=pageReports&v=<kind>/<first day>`. Pulse's head → More → *Make a report* opens it on the same period.
+  address is `?tab=pageReports&v=<kind>/<first day>`. Home's toolbar → More → *Make a report* opens it on the same period (Pulse's head until UI pass 3).
 - **The report on the page is the paper, fitted** (the tab map, TM2f): laid out at the sheet's width and zoomed to the screen
   (`paperFit`, print.js, the print view's own fit), so its tables never run past a phone's edge.
 - **One document, drawn from the data every time** — the Power case's contract: `rptHtml(kind, from, to)` is the page and the print
@@ -2654,7 +2747,7 @@ the stock (price, usage, cadence, etc.)"*). `cost.js`.
   (and `costBills`), merged by id. The file is built from the private records and never committed here. Its supplier finds one held
   here by its name too, its payments re-pointed to it, and its prices quoted merge by id onto the line as this book holds it.
 
-**The phone bar is Direction B's** (below): Today · Office · Add · Floor · Money, with no More. Each workspace carries a red
+**The phone bar is Direction B's** (below): Home · Office · Add · Floor · Money (Today until UI pass 3), with no More. Each workspace carries a red
 count of the red rows that jump into it (stock out, your own tasks overdue on Today). The test fixture's `switchTab` opens
 the target's workspace first when no door to it is on screen.
 
@@ -2668,7 +2761,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
   `prodGeneralLines` / `prodStaffedLines`, `cpHourParts`, `qtToFromClient`); a worth that cannot be worked out is left out of
   the sentence, never guessed. **Nothing is applied**: a move opens a place or a draft, and nothing is written until the owner
   saves there.
-- **The six questions** on Today → Pulse (Stats → Overview's too until the tab map, TM2b), each ending in
+- **The six questions**, each a widget on Home since UI pass 3 (Today → Pulse's until then, Stats → Overview's too until the tab map, TM2b), each ending in
   *What you can do* — three moves shown, ranked by worth then tone, the rest behind *Show N more moves*; where none can be
   worked out, one line says what would make one appear:
   1. **Is the plant running smoothly?** (new) A stock line out or red, with the reorder list's cost; this month's cuts, with
@@ -2692,7 +2785,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
   tonnage over 90 days, a piece line at target ₹/kg × the client's own kg per piece where it is known, else per kg; the draft
   keeps `draftNote` (never printed, dropped on a revision).
 - **Add to my list** makes a task of the owner's own, due today, carrying the move's button (`go`, `goLabel`, `advKey`); the
-  move reads *On your list* wherever it is drawn until the task is ticked. A decision taken on the Pulse is tracked on the
+  move reads *On your list* wherever it is drawn until the task is ticked. A decision taken on Home is tracked on the
   To-do.
 - **The jumps a move needs** (`advGoTo`, behind `todoGo`'s default): `quoteDraft`, `quotes`, `perf` (a client's Performance on
   a panel), `reorder`, `powerCase`, `areas`, `payWeek`, `liveCost` (a component open), `prodLines`, `createFor` (Create with the
@@ -2707,7 +2800,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
 
 ### The tab map: the shell (TM1)
 `docs/TAB_MAP.md` (owner, 8–9 Oct 2026; *"Merge and go with all 14"*). TM1 built what every later step stands on. P184, P195, P197.
-- **The rows** (`WORKSPACES`): Today is Needs you, Pulse, then its *Insights* Stats, Reports and the Planner; Office is Pipeline,
+- **The rows** (`WORKSPACES`): Today is Needs you, Pulse, then its *Insights* Stats, Reports and the Planner (since UI pass 3 the workspace is Home: Home, Needs you, then the Insights); Office is Pipeline,
   Challans, Invoices, Clients and Sales; Floor is Overview, People, Production, Stock and Power; Money is its page's own row. Stats
   keeps its five tabs and the Planner its eight until TM2.
 - **Clients and Sales are one page** (`pageClients`): a view may cover several of a page's own (`vs`). Clients covers clients,
@@ -2742,7 +2835,7 @@ of things in the app that can answer itself but that linkage is missing."*). The
 
 ### The tab map: Today (TM2)
 `docs/TAB_MAP.md` TM2 (9 Oct 2026): the first screens assembled to one look (§3e), and the build's stop (§1a-14): the owner looks at
-them before TM3. P185; P195's budgets lowered for Today's screens and P197's `ONE_LOOK` filled with them.
+them before TM3. *Pulse folded into Home's board in UI pass 3 (U2, below): each of its parts is a widget now.* P185; P195's budgets lowered for Today's screens and P197's `ONE_LOOK` filled with them.
 - **The To-do is Needs you's** (TM2a). The tasks stack opens with the To-do's toolbar (`#todoNew`, **Add** the view's one primary,
   **Details**), then Now, This week and Later as before, then **Snoozed** (Wake) and **Done** (the tick reopens), each a fold shut,
   and *Learnt from your answers* (`#todoLearn`) at the foot for a role that may change settings. `#pageTodo` is gone: an address, a
@@ -2890,8 +2983,8 @@ facts and the long cards fold. P193; P195's budgets lowered for every Office scr
   earns it only for a role that sees money. A client's flagged tasks and linked articles are brief rows
   (`todoAppRowHtml(t, true)`, `kbRowHtml(a, true)`), its Money panel two facts a line, the folded Turnaround card's head its title
   and verdict.
-- **Sales**: Prospects' four tiles are its verdict's factors (`prsVerdictHtml`), the spare one figure (`prsSpare`, said under Pulse's
-  *Is the plant full?* too); **To reprice**, Pulse's reprice moves (`qtRepriceMoves`), is Quotations' card's body on the phone (one
+- **Sales**: Prospects' four tiles are its verdict's factors (`prsVerdictHtml`), the spare one figure (`prsSpare`, said under Home's
+  *Is the plant full?* too); **To reprice**, the questions' reprice moves (`qtRepriceMoves`), is Quotations' card's body on the phone (one
   card, the rest a tap away) and the desktop's pane while no quotation is open (`qtRepricePaneHtml`), where open above the list it
   had made the page scroll (P80). Quotations' card takes the worst tone of the reprice moves it holds.
 - **Create** (`validateInvoiceKeyed`, `createErrorsShown`, `createErrorsRefresh`): an error shows once its field is left or a save
@@ -2913,7 +3006,7 @@ floor (no note over 120 characters and no chain of three facts on any screen, no
 - **One tone per fact**: `areaNeedTone(heads, need)` / `areaNeedWord` (state.js: short a warning, met ok, over info) on Floor's line
   cards, the attendance panel, Day's board and *Needed today*, and Areas (which read short in danger and over in warning until
   now); `figToneOwed(days, loose)` / `finOwedTone(days)` (finlinks.js: owed by its oldest invoice's age, never red while a receipt is
-  unplaced) on Receivables, Money's Overview, Pulse's Money card and cash question, Pipeline's *Owed to us*, a client's Money panel
+  unplaced) on Receivables, Money's Overview, Home's Money widget and cash question, Pipeline's *Owed to us*, a client's Money panel
   and the statement; `attOnSiteTone` on Needs you's floor card and the day's report too; the reprice move takes the client's tone
   on Stats (`figToneAgainst(net, full cost, 5)`).
 - **The period to date** (charts.js, design §6.17): `opts.toDate` on `chartLine`, `chartLines`, `chartBars`, `chartStack` and
@@ -2939,7 +3032,7 @@ floor (no note over 120 characters and no chain of three facts on any screen, no
 - **Invoiced** (`imInvoicedVerdictHtml`, `imMonthPagerHtml`): its card, then one row with the month inside it (`inv-tb-step`) and More
   holding Add challan and Duplicate check (Scan a challan came out on 13 Oct 2026). **Reports**' Print is its action bar's, under the sheet.
 - **The long words** went to a line or two facts, the method to its guide (*Using the app: People* v3, *pay* v5, *knowledge* v2): the
-  day board's row, the labour card, Pay's cash draws, Money's forecast (*What it rests on*, a fold of fact rows), Pulse's cash
+  day board's row, the labour card, Pay's cash draws, Money's forecast (*What it rests on*, a fold of fact rows), the cash
   question, the insights' lines, the zinc card, Power's rows (a unit and its line one fact: *Rectifier 1 (VAT A1)*), the change
   log, a folded To-do group. The page-head line (`inv-pagehead-meta`) is gone.
 - **The closed list of box looks** (design §6.28, `LOOKS` in `tests/e2e/load-fixture.ts`): 41, each named with what wears it, checked
@@ -2952,15 +3045,15 @@ floor (no note over 120 characters and no chain of three facts on any screen, no
 
 ### Direction B: workspaces, Today, Add, Pipeline, Floor → Overview, search
 The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P139.
-- **Workspaces** (`workspace.js`, P134). The phone bar is **Today · Office · Add · Floor · Money**, with no More; the desktop's
+- **Workspaces** (`workspace.js`, P134). The phone bar is **Home · Office · Add · Floor · Money** (Today until UI pass 3), with no More; the desktop's
   rail is the same doors (the mark, Add, the four workspaces, Settings). A workspace is a layer over the pages that exist: every
   page keeps its id, its address and its own view tabs, and the workspace draws its views as a tab row under the top bar
-  (`#wsTabs`; `WORKSPACES` is the one map). Since the tab map (9 Oct 2026, below): Today holds Needs you and Pulse, then its
+  (`#wsTabs`; `WORKSPACES` is the one map). Since UI pass 3 (U2, below): Home (its id still `today`) holds Home and Needs you, then its
   Insights under their name (Stats, Reports, the Planner); Office holds Pipeline, Challans (pageIM), Invoices (pageRegister),
   Clients and Sales (one page, pageClients); Create is a page it holds without a tab. Floor holds its Overview (pageFloor),
   People (pageStaff), Production, Stock and Power. Money is Finance. History and Knowledge are the top bar's tools, in no
   workspace. Opening a workspace from the bar or the rail is a step of its own (its last view this session, else its first),
-  so Back from Challans goes to the Office view it came from. Swiping stays inside the open workspace (Pulse to Stats crosses
+  so Back from Challans goes to the Office view it came from. Swiping stays inside the open workspace (Needs you to Stats crosses
   into the Insights).
 - **Three levels, the same on both layouts** (owner, 8 Oct 2026: *"in the desktop view we have many tabs that are actually tabs
   that exist under a different tab but it is there on the sidebar which I feel is the wrong design choice as user will not
@@ -2970,9 +3063,9 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   on the desktop too (it stood in the top bar, and the sidebar listed every view again beside the workspaces); a **page's own
   views** are the row under that. `--fill-h` takes the row off the room a list-and-pane screen fills. Insights was a workspace,
   the bar's sixth (6 Oct 2026, *"Insights has no direct link"*, P164), and put Add off the bar's centre: it was Office's
-  Insights (8 Oct 2026), and is Today's since the tab map (9 Oct 2026). **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
+  Insights (8 Oct 2026), and is Home's since the tab map (9 Oct 2026; the workspace was named Today until UI pass 3). **One door, one geometry** (`wsDoorHtml`): a mark (`inv-navbar-mark`, the icon in a pill) over its word, every word on one
   line; the workspace on screen fills its pill in the accent's soft colour, Add (the centre door) in the accent, never raised;
-  the red count sits on the mark's corner. The rail's mark opens Pulse, and opens it in a new window on a Ctrl+click.
+  the red count sits on the mark's corner. The rail's mark opens Home (`invGoHome`; Pulse until UI pass 3), and opens it in a new window on a Ctrl+click.
 - **A group is named in its row, and a row past the screen says so** (owner, 8 Oct 2026: *"Insights seems to be missing on
   mobile?"*; P183). Office's row is twice a phone's width, and the Insights after Clients were out of sight with nothing naming
   them. The group's name heads it (`inv-viewtab-group`, `group` on the view in `WORKSPACES`): sticky at the row's right edge on
@@ -2981,19 +3074,19 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   more under 24rem (a 360 px screen), so the name stands after Clients' word, never over it; on the desktop a hairline sets it
   off. A page's own tab row that runs past the screen fades on the side with more (`data-more`, set by the overflow pass,
   `_ovMoreSet`, as a table's is); the workspace's row is never faded, since its cue is the name. **Since the tab map (TM1) the
-  group is Today's Insights, and Today's row fits a phone**: where the whole row fits, the name is a hairline between Pulse and
+  group is Home's Insights, and Home's row fits a phone**: where the whole row fits, the name is a hairline between Needs you and
   Stats (`data-group="rule"`); only a row that would run past the screen keeps the word as its cue (`data-group="word"`), measured
   on every draw and resize (`wsRowFit`, workspace.js). On the desktop the name stands in its row as before.
-- **Today** (`today.js`, P135) is pageHome, two views with addresses (`?tab=pageHome&v=needs|pulse`). **Needs you** (the
-  default): the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records, the
-  out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
+- **Home** (`today.js`, P135; *Today* until UI pass 3) is pageHome, two views with addresses (`?tab=pageHome&v=home|needs`; an
+  old `v=pulse` lands on Home, `navRedirect`). **Home** (the default, U2 below): the day card, then the board of widgets each person
+  arranges. **Needs you**: the day's five inputs (the in-time roll, the pickling loads, the stock message, the production records,
+  the out-time roll), each in, late or not yet against the minute it usually arrives (the median of the last four weeks, else
   the shop's own time), with its door; on the desktop, the floor now; **the last five invoices, each with its print button**
-  (`tdyRecentHtml`, the Pulse widget's own rows, `homeRecentRowHtml`; owner, 6 Oct 2026: *"to print a recent invoice is 4
-  clicks"*: the list had been only on Pulse, under the questions; now Today → print → Print, P164); then every open task grouped **Now** (red, and your
-  own due today or late), **This week** and **Later**, each with its one-tap move (and since the tab map the To-do's Add, Snoozed,
-  Done and Learnt, TM2a). **Pulse**: the period, the questions with what to do (advice.js), Why it moved, In one line and the
-  month's pace (Stats → Overview's until TM2b), then the Home widgets the owner arranged. **The widgets are drawn only while Pulse shows** (`renderHome`), so
-  a spec reaching one opens Pulse first (`openPulse` in the fixtures).
+  (`tdyRecentHtml`, the *Recent invoices* widget's own rows, `homeRecentRowHtml`; owner, 6 Oct 2026: *"to print a recent invoice
+  is 4 clicks"*, P164); then every open task grouped **Now** (red, and your own due today or late), **This week** and **Later**,
+  each with its one-tap move (and since the tab map the To-do's Add, Snoozed, Done and Learnt, TM2a). Pulse (the period, the
+  questions, Why it moved, In one line and the month's pace, then the owner's widgets) was the second view until UI pass 3; its
+  parts are Home's widgets now, and a spec reaching one puts it on the board (`openPulse`, `openWidget` in the fixtures).
 - **Today is cards** (owner, 8 Oct 2026: *"need the pulse screen and needs you screen to have less cognitive load, data
   presentation on these screens are still primitive"*; *"If it is in list form, it should be presented better, maybe as a card or
   atleast an expandable hero card"*; design §6.21–6.25, P178). Needs you: the day's inputs a hero (*N of 5 in*, a meter, the next
@@ -3002,9 +3095,9 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   rows. On the desktop the tasks go across the top and the other cards are packed under them (`uiMasonry`). Pulse: each question
   a hero that leads with its answer as a figure, a word and a sparkline or meter (`vital`, intel.js `statsStoryCards`), opening
   across its row to the story and *What you can do* as cards (`advMovesDeckHtml`); then **Do first**, the three moves worth most
-  across the questions; the month's tiles each carry a sparkline of the months before (`homeMonthsBack`). **The sidebar's name
-  and mark open Pulse** (`invGoPulse`), where Today's own item opens Needs you; the phone's bar has no name or mark.
-- **Pulse's widgets are cards too** (owner, 8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed
+  across the questions; the month's tiles each carry a sparkline of the months before (`homeMonthsBack`). **The rail's mark
+  opens Home** (`invGoHome`; Pulse, `invGoPulse`, until UI pass 3, kept as an alias); the phone's bar has no name or mark.
+- **Pulse's widgets are cards too** (*Home's widgets since UI pass 3, below, which draw them from the same options*; owner, 8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed
   space"*; P180). Each is a hero with its eyebrow, a one-line verdict, its figure where the line is not one, a meter or sparkline,
   coded by the worst of what it holds, shut on the phone and open on the desktop until moved, remembered per device (`fold:
   'pulse-<widget>'`; open at first until the tab map, TM2c), its links in its foot
@@ -3014,15 +3107,15 @@ The rest of `docs/DIRECTION_B.md` (owner, 1 Oct 2026), steps B2 to B6. P134–P1
   head), Unbilled (coded as Pipeline's first stage), Production, Power cuts, Stock running low, GitHub backup, Zinc (the market's
   last refreshes as a line), Recent invoices (`homeRecentCard`, ten rows). The quick actions are an `inv-coded` grid. Every hook a
   spec reads is kept: `#homeFin [data-home-fin]`, `#homeAtt`, `#homeAttOnSite`, `#homeTiles`, the `#mtd*` ids, `#recentInvoices`,
-  `[data-card="sync"]`, `[data-zinc-age]`. **A card's `data-card` names it across the whole app**: Pulse's Unbilled and Recent are
-  `unbilled-pulse` and `recent-pulse`, since Stats' Unbilled and Needs you's Recent hold the plain names (a spec reading Stats'
+  `[data-card="sync"]`, `[data-zinc-age]`. **A card's `data-card` names it across the whole app**: the Unbilled and Recent widgets are
+  `unbilled-pulse` and `recent-pulse` (their names from Pulse), since Stats' Unbilled and Needs you's Recent hold the plain names (a spec reading Stats'
   card found two). On the desktop a card's sheet is its tile strip's container (`panel-w`), so the strip lays out by the sheet's
   width: measured from the widget, Money's four tiles left a blank cell at 1280.
 - **What the survey changed on Today** (8 Oct 2026, `docs/COGNITIVE_LOAD_SURVEY.md`): on the phone the day's inputs open shut while
   a red task waits (`tdyInputsHtml(day, {shut})`), so the red tasks lead and the head still says how many are in; a task group's
   figure reads *at stake* (the rupees its tasks name, never a total owed); the recent invoices' head says what was made today and
-  its total (`tdyRecentHead`, Pulse's card too), not the newest row a second time; the cash question is judged as Pulse's Money
-  card is (overdrawn danger, owed past 90 days danger unless a receipt is unplaced, past 60 warning, how fast clients pay), and
+  its total (`tdyRecentHead`, the *Recent invoices* widget too), not the newest row a second time; the cash question is judged as the
+  Money widget is (overdrawn danger, owed past 90 days danger unless a receipt is unplaced, past 60 warning, how fast clients pay), and
   both draw the one age bar (`FIN_AGE_TONE`): it had read green beside a red Money card.
 - **The phone bar floats** (owner, 8 Oct 2026: *"the bottom bar … doesn't look quite nice with how the app is designed now"*, then
   *"still doesn't look right"*): a card in the surface's colour floating a step above the screen's foot (`--nav-space` is the room
@@ -3394,7 +3487,7 @@ build: the people are the book's.
   too; Print marks Printed on the permission alone, since the print dialog cannot wait), rates and the client master, voids,
   payments and wages (Finance's edits included, `bankGate`), the floor's imports, Settings (an area's complement included),
   users and devices. A role that may not make a change is told so and never asked. A page a role may not open is refused with
-  a word and its doors are hidden (`grdApplyDoors`), on the phone bar, the sidebar, the tab rows, Add and Pulse's quick
+  a word and its doors are hidden (`grdApplyDoors`), on the phone bar, the sidebar, the tab rows, Add and the quick actions widget's
   actions; Settings' door too.
 - **Replacing the book is the owner's alone** (`grdBookAsk`, the `users` permission; the QA chain of 2 Oct 2026): a backup
   imported (Settings or Add → File) and a pull from GitHub take the users and the guard's settings with them, and `adoptState`
@@ -3406,8 +3499,8 @@ build: the people are the book's.
   new recovery code asks the owner's PIN whatever the window: an owner who forgets the PIN with no recovery code cannot reset it.
 - **Nothing a role decides is drawn while nobody is signed in** (`grdHeld`): the unlock draws the screen for whoever unlocks and
   shuts what somebody else left open (`grdAfterUser`); a launch waits for it (`grdWhenIn`). **Each role sees what its screens
-  show**: its tasks (`todoSees`; the finance rules need money, the pay ones wages), Needs you's inputs, the bar's counts, Pulse
-  and its moves, Pipeline's *Owed to us*, a client's Money panel, Stock's forecast, Production's labour per kg and Staff's rupees
+  show**: its tasks (`todoSees`; the finance rules need money, the pay ones wages), Needs you's inputs, the bar's counts, Home's
+  widgets and their moves, Pipeline's *Owed to us*, a client's Money panel, Stock's forecast, Production's labour per kg and Staff's rupees
   (`attSeesWages`); a To-do jump to a page the role does not open opens nothing (`todoGo`).
 - **The change log** (`changelog.js`, P141): every save compared with the book before it, record by record, each changed
   field from → to, tagged with who was signed in and the device; kept in the book (`S.changeLog`), shown in History →
@@ -3440,25 +3533,25 @@ build: the people are the book's.
 - **Data flows**: `S.users`, `S.guardCfg`, `S.devices` and `S.changeLog` travel with the book (backups, GitHub, the
   compile). A PIN, a token or a key never does.
 
-### Stats in tabs, and the questions on Pulse
+### Stats in tabs, and the questions on Home
 Stats is three tabs over one period chip row since the tab map (TM2b, 9 Oct 2026; five from 25 Sep 2026, owner: *"break up the stats
 page into multiple grouped tabs"*): **By client** (contribution by client, the next challans, revenue, realisation, concentration),
 **Cost** (labour, live cost) and **Trends** (the headline, six months, the trend chart, top items), each led by its verdict card. The
 open tab is remembered on the device; `renderStats()` draws the open tab's cards.
 
-- **The owner's questions, each a story, are Today → Pulse's** (owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
+- **The owner's questions, each a story, are Home's question widgets** (Today → Pulse's until UI pass 3; owner, 30 Sep 2026: *"Stats view needs an overhaul, it puts insights front
   and center and doesn't present itself in a really engaging way"*; they chose question-led story cards, `statsStoryCards`, intel.js;
   Stats → Overview's until the tab map):
   *Are we making money?* (realisation and what a kilo leaves, six months against the cost), *Who is driving it?* (the four largest
   clients by tonnage, the worst-priced large account, the biggest mover against the period before), *Is the plant full?* (capacity and
   tonnes by month), *What changed?* (the month's pace and the three most urgent insights) and, with a statement, *Is cash coming in?*.
-  Each says what it means in one sentence with its tone (`data-story-say`). They read the figures the panels beside them read: on Pulse,
-  *Why it moved*, *In one line* and the pace follow them; the headline and six months are Trends'; the insights are tasks on Needs you.
+  Each says what it means in one sentence with its tone (`data-story-say`). They read the figures the widgets beside them read: on Home,
+  *Why it moved*, *The period in figures* and the pace are widgets of their own; the headline and six months are Trends'; the insights are tasks on Needs you.
   P120, P185.
 - **Every "below cost" on Stats is judged against the period's live cost**, not the typed ₹8.55, so
-  Trends' headline and Pulse's *In one line* cannot disagree. The typed figure is used only where there is no tonnage to
+  Trends' headline and Home's *The period in figures* cannot disagree. The typed figure is used only where there is no tonnage to
   divide by (and still by Items Master's break-even).
-- **In one line** (Pulse): realisation, live cost, contribution per kg and on the period, and capacity against
+- **The period in figures** (a Home widget; Pulse's *In one line* until UI pass 3): realisation, live cost, contribution per kg and on the period, and capacity against
   ~2 t per shift × two shifts × working days. Whatever is not measured is a badge on its tile.
 - **Six months** (Trends): each month at its own live cost, with labour ₹/kg shown only where 90% of the days are
   recorded and the share of cost measured.
@@ -3497,7 +3590,7 @@ stock lines and three clients' challans each a row of its own, in the rules' ord
   now too).
 
 ### Why it moved
-Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Today → Pulse → **Why it moved** (Stats → Overview's until the tab map), under the questions, for the period shown
+Intelligence step I4 (`why.js`, 6 Oct 2026; P159). Home's **Why it moved** widget (Today → Pulse's until UI pass 3, Stats → Overview's until the tab map), for the period shown
 against the one before (Stats' own: same days last month, quarter, year), and *What changed?* names realisation's largest cause.
 Every cause carries its ₹ and **the causes add up to the change exactly**; the top few are listed and the rest is one line.
 - **Realisation** (`whyRealisation`) over the weighed lines, the figure Stats shows: each client's own rate (its share now × its
@@ -3546,7 +3639,7 @@ Parts three and four of the intelligence engine (owner, 25 Sep 2026). `insights.
   - **last pay week with no attendance**;
   - **stock lines used in 30 days with no price**.
 - **Predictions**, each saying what it rests on:
-  - **This month at its pace** (Today → Pulse): revenue and tonnage per working day so far × the month's
+  - **This month at its pace** (a Home widget): revenue and tonnage per working day so far × the month's
     working days, a band from how much those days varied, and unbilled challans in hand.
   - **Next challan expected** (Clients): each client's median gap after its last challan; late past it,
     quiet past the rule above.
@@ -3595,7 +3688,7 @@ address or a saved step naming `bills` opens Payments). The open tab is remember
   - **Owed to us**: the sum over 90 or 60 days as its title, the age bar (0–30 · 31–60 · 61–90 · over 90 days, from
     the invoice date) and the five largest debtors, each opening Receivables with its client expanded; never red while
     a receipt is unplaced (the age bar's over-90 band, `finAgeTone`, and an invoice's own *Open, N days* included), ok with
-    nothing past 60 days (here, on Pulse's tile and the cash question's, and on Pipeline's stage), and receipts with no client are
+    nothing past 60 days (here, on Home's Money widget and the cash question's, and on Pipeline's stage), and receipts with no client are
     said, not counted;
   - **GST** for last month, toned by its status;
   - **Paid out** last month, where most of it went (SELF draws as *Wages (cash)*), and what came in.
@@ -3839,7 +3932,7 @@ say so: what the client owed read high for days. P187.
 - **Counted as paid from the day it came**: `bankReceivables` takes each cheque in hand as a receipt on its day (`pending`), placed by a
   receipt's own rules (exact to the rupee, else oldest first, never an invoice raised after it). Owed, the ageing, days to pay, the
   statement of account (*Cheque 525428 received, not yet in the bank*), Pipeline, a client's Money panel, the invoice detail (*Cheque in
-  hand*), Pulse and the finance rules follow with nothing else changed. It is never offered as an opening. A cheque received before
+  hand*), Home's widgets and the finance rules follow with nothing else changed. It is never offered as an opening. A cheque received before
   receivables start (`bankRecvFrom`) is not read, as no receipt from before it is.
 - **Its deposit is found by its number** (`bankChequeLinks`, worked out on every read): a credit whose instrument number is the
   cheque's, from three days before it came to 60 after the day it can go in (its own date where it is post-dated,
@@ -3963,7 +4056,7 @@ Finance linked into every screen (`finlinks.js`; spec Phase 6). Each screen carr
 as a link into Finance, never a second copy of the arithmetic. With no statement, each screen says nothing rather
 than a zero.
 
-- **Pulse → Money:** balance, owed, pays-in and runway tiles, each opening Finance, plus *Import statement*.
+- **Home → Money** (a widget): balance, owed, pays-in and runway tiles, each opening Finance, plus *Import statement*.
 - **Stats:** *In one line* gets a Cash row. Contribution by client shows *owes · pays in* under each name.
 - **Clients:** a *Money* panel on the detail, the edit sheet and Performance.
 - **Register:** the detail says *Paid, exact* / *Paid, oldest first* with its receipt, *Cheque in hand*, or *Open, N days*.
@@ -3993,7 +4086,7 @@ at the list's foot on the phone, the pane on the desktop). What each showed, as 
   - rupees used by week;
   - one line's price trend;
   - the reorder list's cash against the forecast.
-- Entry keeps its doors: Pulse's attendance card opens Attendance's Day, and Paste message and Enter by hand are Stock's toolbar's.
+- Entry keeps its doors: Home's *Attendance today* widget opens Attendance's Day, and Paste message and Enter by hand are Stock's toolbar's.
 
 ### Stock on paper
 Stock → **Print sheets** (`stocksheet.js`; owner, 29 Sep 2026: *"the same for Stock as that has enter by hand option as
@@ -4078,29 +4171,23 @@ message** gives a WhatsApp-ready order by supplier. Nothing is ordered from the 
 supplier's own GST (`withGst`), on the list, Stock's verdict and Floor's Stock card.
 
 ### Home, arranged by the owner
-*These are Today → Pulse's widgets since Direction B (above).* Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where — dynamic home
-screen which user can adjust"*; they chose **presets and an edit mode, kept per device** (`tabs.js`, `HOME_WIDGETS`, `sep_inv_home`).
-- Every card on Home is a widget (`data-home-w` in `#homeWidgets`): month to date, quick actions, money, to-do, attendance, unbilled,
-  **production** (the last day plated, by line), **power cuts** (this month's and the last), **stock running low** (red and amber lines,
-  soonest out first), GitHub sync, zinc, recent invoices. The three new ones are drawn only while shown (`renderHomeExtraCards`).
-- **Presets**: *Owner* is the Home there was (the three new widgets hidden), *Floor* leads with quick actions, attendance, production,
-  stock and power, *Money* with the month and unbilled. **Every preset hides To-do, Recent invoices and Money since the tab map** (TM2c:
-  Needs you holds them, and Pulse gave the room to the cards it took from Stats), and a device on a preset follows the preset as the
-  build defines it; a layout of the owner's own is kept as it is.
-- **Edit Home** (Pulse's head → More; a bar at the foot until the tab map): each widget with a switch, up and down, and **Half / Full** (its width on a wide screen; a phone is
-  one column). Any change makes the layout *your own* (`preset: 'custom'`). A widget added by a later build joins at the end, hidden, so a
-  new build never rearranges a Home. Kept in localStorage, never in the book: a backup or a pull does not rearrange another device. P121.
+Owner, 30 Sep 2026: *"Home screen needs an overhaul with an option to select what widget to show on the home screen and where —
+dynamic home screen which user can adjust"*. They chose presets and an edit mode, kept per device (`HOME_WIDGETS`, `sep_inv_home`,
+*Edit Home* on Pulse; P121). **UI pass 3 replaced it** (U2, *UI pass 3: Home and its widgets* above): the board is arranged in place
+(Customise: drag, keys, size, remove), widgets are added from the gallery, the presets are by role, and the layout is kept per person
+and per layout (`sep_inv_layout`). A device's Pulse layout is moved once onto the board (`wdgFromPulse`); `sep_inv_home` is left as
+it is, since an older build in another window still reads it.
 
 ### Home quick actions
-*A Pulse widget since Direction B; Add is the one door for what comes in.* Six buttons under Month to Date, each opening its screen **already on the job**: New invoice, New
-challan (the form open), Stock entry (the by-hand form), Attendance (today's day), Paste message (the
-one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check, and the pickling and production
-messages to Production's; it opens without a roster), Add task (the
-box focused). Three across on the phone, six on the desktop.
+The *Quick actions* widget (`quick`; Pulse's since Direction B; Add is the one door for what comes in): six buttons, three at Small,
+each opening its screen **already on the job**: New invoice, New challan (the form open), Stock entry (the by-hand form), Attendance
+(today's day), Paste message (the one box for WhatsApp rolls — a stock message pasted there is handed to the Stock check, and the
+pickling and production messages to Production's; it opens without a roster), Add task (the box focused). A role sees only the
+buttons whose screen it opens.
 
 ### To-do
-Today → **Needs you** (the To-do page joined it in the tab map, TM2a: its Add, Snoozed, Done and Learnt are Needs you's), Pulse's
-To-do card, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
+Home → **Needs you** (the To-do page joined it in the tab map, TM2a: its Add, Snoozed, Done and Learnt are Needs you's), the
+*Needs you* widget on Home, and a **Windows 11 widget**. The owner's own list (owner, 25 Sep 2026:
 *just me*, *both, labelled*, *Windows 11*, *in SEP Invoicing for now*, *not the phone yet*). `S.todo`
 is self-contained so it can move to `sep-dashboard` whole.
 
@@ -4118,7 +4205,7 @@ is self-contained so it can move to `sep-dashboard` whole.
   come back every time a litre is used.
 - One rule failing on an unexpected shape is caught; it must not take the list with it.
 - **Your own tasks lead** (owner, 26 Sep 2026: *"once I add a todo of my own, it still stays at the end of all the
-  system generated one, that makes it easy to miss"*). `todoRanked()` (Needs you, Pulse's card, the widget) puts every
+  system generated one, that makes it easy to miss"*). `todoRanked()` (Needs you, Home's *Needs you* widget, the Windows widget) puts every
   open task of yours ahead of every raised one that is not red. Only a red task outranks yours; between two red ones, yours comes first. Ranked by tone alone,
   an undated task of yours had no tone and fell below every info task the data raised (P69).
 
@@ -4392,7 +4479,7 @@ People → **Pay** (`payroll.js`), for the selected pay week (owner, 25 Sep 2026
 - **Hours by area** (Areas view): every tier's hours on each mark, where the worker stood that
   day, with OT among them and the EXTRA booked to the area. A mark with no hours counts 8 (4 for
   a half day), and the card says how many were counted that way.
-- **Pulse → Attendance**: today's on-site count against the active roster, floor heads against
+- **Home → Attendance today** (a widget): today's on-site count against the active roster, floor heads against
   the complement, the absentees by name, and the EXTRA booked. If nothing has been typed today,
   it shows the last day that has, and names it.
 
@@ -4721,7 +4808,7 @@ day** in a dialog (`attEditOpen`: state, area, hours or OT, saved as they change
 (`attAbsentList`), *Needed today* and the day's cost fold (`uiFoldCard`, state.js, folds any panel whose head holds no button). Pay leads
 with the payout and dues, its history and the slips as paid folded; Areas folds its hours and the absorption. **Civil** is an area
 (a post, off the floor, like the office and the gate; a roll heading *civil* reads to it). **The attendance panel** (Floor → Overview's
-People card, Pulse) says where everyone on site stood, by area, the floor against its number. P119.
+People card, Home's *Attendance today* widget) says where everyone on site stood, by area, the floor against its number. P119.
 
 **In and out are typed by hand too** (owner, 1 Oct 2026: *"Attendance has no option to enter time in and time out by hand, so we
 have to rely on whatsapp message only, there is no way to simply enter the data that is presented to us by Deepak in his sheet"*).

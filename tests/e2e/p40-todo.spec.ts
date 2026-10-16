@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import { readFileSync } from 'fs';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse, openWidget } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse, openWidget, openNeeds } from './fixtures';
 
 // P40: the To-do (Today → Needs you since the tab map, TM2a: the To-do page joined it), its Pulse card, and the payload the
 // Windows widget draws. Two kinds of task, always labelled: MINE (typed, ticked, never deleted) and APP (raised from the book,
@@ -29,6 +29,8 @@ function base(extra: Partial<SepState> = {}): SepState {
 async function load(page: Page, state: SepState) {
   await page.addInitScript(() => { try { localStorage.setItem('sep_inv_last_export', String(Date.now())); } catch { /* */ } });
   await loadAppWithState(page, state);
+  // The To-do is Needs you's (the tab map, TM2a), Home's second view since UI pass 3 (U2).
+  await openNeeds(page);
 }
 
 function task(id: string, text: string, due = '', extra: Record<string, unknown> = {}) {
@@ -52,7 +54,7 @@ function stockRunningOut() {
 test.describe('P40: To-do', () => {
   test('adds, ticks and reopens a task of your own; nothing is deleted', async ({ page }) => {
     await load(page, base());
-    // Today opens on Needs you, which holds the tasks.
+    // Needs you holds the tasks.
     await expect(page.locator('#homeNeeds')).toBeVisible();
     await page.locator('#todoNew').fill('Ask about CN/001');
     await page.locator('#todoNew').press('Enter');
@@ -88,12 +90,12 @@ test.describe('P40: To-do', () => {
     await expect(page.locator('.inv-navbar [data-ws-count="today"]')).toHaveText('1');
     for (const ws of ['office', 'floor', 'money']) await expect(page.locator(`.inv-navbar [data-ws-count="${ws}"]`)).toBeHidden();
     await openWidget(page, 'todo');
-    const home = page.locator('#homeTodoCard');
+    const home = page.locator('[data-w="needs"]');
     await expect(home.locator('[data-todo]').first()).toContainText('Check the nitric count');
     await expect(home.locator('[data-todo]').first()).toContainText('Yesterday');
     await expect(home.locator('[data-todo="mine"] .inv-badge').first()).toBeVisible();
 
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await page.locator('#wsTabs [data-v="needs"]').click();
     const now = page.locator('#homeNeeds [data-tdy-group="now"]');
     await expect(now.locator('[data-todo][data-tone="red"]')).toContainText('Check the nitric count');

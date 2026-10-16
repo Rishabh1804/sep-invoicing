@@ -313,7 +313,7 @@ function navPush(loc, extra) {
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
 }
-/* Opens a place as a new step: a workspace tab naming one of a page's own views (Today → Pulse). The step is taken first
+/* Opens a place as a new step: a workspace tab naming one of a page's own views (Home → Needs you). The step is taken first
    and navApply puts the app there, writing onto it where the app arrived. */
 function navOpen(loc) {
   if (_navBooted && navKey(loc) !== navKey(navLoc())) navPush(loc);

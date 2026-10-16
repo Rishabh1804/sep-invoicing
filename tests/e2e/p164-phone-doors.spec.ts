@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, todayIso, type SepState, openNeeds } from './fixtures';
 
 // P164 (owner, 6 Oct 2026): "On the phone screen access to many tabs are missing. Insights has no direct link to open it?" and
 // "earlier we used to see the recently created invoices for quick print, now to print a recent invoice is 4 clicks".
@@ -45,6 +45,7 @@ test.describe('P164 the phone reaches every screen, and a recent invoice prints 
 
   test('Needs you lists the last five invoices, newest first, and the print button opens the preview', async ({ page }) => {
     await loadAppWithState(page, book());
+    await openNeeds(page);
     const card = page.locator('#homeNeeds [data-card="recent"]');
     await expect(card).toBeVisible();
     await expect(card.locator('[data-recent-inv]')).toHaveCount(5);
@@ -56,6 +57,7 @@ test.describe('P164 the phone reaches every screen, and a recent invoice prints 
 
   test('with no invoices, Needs you shows no empty recent card', async ({ page }) => {
     await loadAppWithState(page, book(0));
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds [data-card="inputs"]')).toBeVisible();
     await expect(page.locator('#homeNeeds [data-card="recent"]')).toHaveCount(0);
   });

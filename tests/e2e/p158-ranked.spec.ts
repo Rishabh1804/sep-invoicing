@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openNeeds } from './fixtures';
 
 // P158: one ranked list (the intelligence's third step, 6 Oct 2026). On the owner's book the To-do held 23 tasks: three
 // clients owing over 90 days, six stock lines and three clients' challans each a row of their own, and inside a tone the
@@ -56,7 +56,7 @@ test.describe('P158 one ranked list', () => {
     expect(await g(page, `todoAppAll(['owed90']).length`)).toBe(3);
 
     // Needs you holds the tasks (the tab map, TM2a): the fold is one card there.
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     const rows = page.locator('#homeNeeds [data-todo="app"] [data-action="invTodoOpenApp"]');
     await expect(rows).toHaveCount(1);
     await rows.first().click();
@@ -79,7 +79,7 @@ test.describe('P158 one ranked list', () => {
     await g(page, `todoSnooze('fold:owed90', 'sig')`);
     expect(await g(page, `todoApp().length`)).toBe(0);
     expect(await g(page, `todoData().snoozes['fold:owed90'].rule`)).toBe('owed90');
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds [data-card="snoozed"] .inv-panel-count')).toHaveText('1');
     // A fourth client: the figures it was snoozed on are not the figures now.
     await stub(page, { owed90: [owed(1, 100), owed(2, 500), owed(3, 250), owed(4, 50)] });

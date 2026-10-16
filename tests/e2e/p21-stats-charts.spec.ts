@@ -58,7 +58,7 @@ function statsState(over: Partial<SepState> = {}): SepState {
 async function openStats(page: Page, tab = 'trends') {
   await switchTab(page, 'pageStats');
   await page.locator(`[data-action="invStatsTab"][data-tab="${tab}"]`).click();
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
 }
 /** Top items fold shut on the phone (the tab map, TM2b): opened to reach the ranking, remembered across a redraw. */
 async function openTop(page: Page) {

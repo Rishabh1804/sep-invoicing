@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, workingDaysBack, type SepState, openPulse, openNeeds } from './fixtures';
 
 // P69 (phone): the To-do on the v2.0 components (design principles §7, §9 step 3), on Today → Needs you since the tab map
 // (TM2a: the To-do page joined it). The add field in a toolbar with the view's one primary, heading the tasks; the tasks as
@@ -46,6 +46,8 @@ async function openFold(d: Locator) {
 async function load(page: Page) {
   await page.addInitScript(() => { try { localStorage.setItem('sep_inv_last_export', String(Date.now())); } catch { /* */ } });
   await loadAppWithState(page, state());
+  // The To-do is Needs you's (the tab map, TM2a), Home's second view since UI pass 3 (U2).
+  await openNeeds(page);
 }
 
 test.describe('P69: To-do', () => {
@@ -58,6 +60,7 @@ test.describe('P69: To-do', () => {
     expect(order.slice(3).length).toBeGreaterThan(0);
     expect(order.slice(3).every((k: string) => k.startsWith('app:') && k !== 'app:red')).toBe(true);
     // Needs you draws them so: Now is yours, then the raised red one; This week leads with yours.
+    await openNeeds(page);
     const now = page.locator('#homeNeeds [data-tdy-group="now"] .inv-deck-item');
     expect(await now.evaluateAll(els => els.map(e => (e as HTMLElement).dataset.todo))).toEqual(['mine', 'app']);
     // A task just added lands with yours, ahead of the raised ones.
@@ -76,7 +79,7 @@ test.describe('P69: To-do', () => {
     await expect(page.locator('#homeNeeds [data-card="tasks"] > .inv-toolbar #todoNew.inv-input')).toBeVisible();
     await expect(page.locator('#homeNeeds [data-todo="app"]')).toHaveCount(1);
     await expect(page.locator('#homeNeeds .inv-deck-item[data-todo="mine"]')).toHaveCount(2);
-    await expect(page.locator('#homeNeeds [class*="inv-td-"], #homeTodoCard [class*="inv-td-"]')).toHaveCount(0);
+    await expect(page.locator('#homeNeeds [class*="inv-td-"], [data-w="needs"] [class*="inv-td-"]')).toHaveCount(0);
 
     const done = page.locator('#homeNeeds [data-card="done"]');
     await expect(done.locator('.inv-panel-count')).toHaveText('1');
@@ -134,14 +137,17 @@ test.describe('P69: To-do', () => {
     await expect(card.locator('#todoDue')).toHaveValue(todayIso());
   });
 
-  test('Pulse: Add task opens Needs you on the field, though Done was left open', async ({ page }) => {
-    // Pulse's To-do card is hidden by every preset since the tab map (TM2c): a layout of the owner's own shows it.
+  test('Home: Add task opens Needs you on the field, though Done was left open', async ({ page }) => {
+    // Pulse's To-do card was hidden by every preset since the tab map (TM2c): a layout of the owner's own showed it, and moves to
+    // Home's board as its Needs you widget (UI pass 3, U2), with the quick actions.
     await page.addInitScript(() => { try { localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', order: ['quick', 'todo'], hidden: {}, wide: {} })); } catch { /* */ } });
     await load(page);
     await openFold(page.locator('#homeNeeds [data-card="done"]'));
     await openPulse(page);
-    const home = page.locator('#homeTodoCard');
-    await expect(home.locator('[data-todo="mine"] .inv-row-tick .inv-check')).toHaveCount(2);
+    // The widget lists Now's tasks: the late one of yours carries its tick, the raised red one opens.
+    const home = page.locator('[data-w="needs"]');
+    await expect(home.locator('[data-todo="mine"] .inv-row-tick .inv-check')).toHaveCount(1);
+    await expect(home.locator('[data-todo="app"]')).toHaveCount(1);
     await page.locator('[data-action="invHomeQuick"][data-go="task"]').click();
     await expect(page.locator('#homeNeeds')).toBeVisible();
     await expect(page.locator('#todoNew')).toBeFocused();

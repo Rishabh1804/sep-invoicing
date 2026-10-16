@@ -66,9 +66,9 @@ test.describe('P73: Stats', () => {
     await expect(head.locator('[data-callout="below-cost"]')).toContainText('below full cost');
     await expect(head).toHaveClass(/inv-hero-danger/);
     await expect(page.locator('#statsMonths table.inv-table tbody tr')).toHaveCount(6);
-    // The contribution a kilo is Pulse's In one line, in the danger tone.
+    // The contribution a kilo is Home's The period in figures (Pulse's In one line until UI pass 3), in the danger tone.
     await openPulse(page);
-    await expect(page.locator('#statsOverview > summary .inv-hero-fig .inv-fig-danger')).toContainText('−₹');
+    await expect(page.locator('#statsOverview .inv-widget-fig .inv-fig-danger')).toContainText('−₹');
   });
 
   test('clients: rows that drill through, a dot and a word for below cost; the drill-down turns over to rows', async ({ page }) => {

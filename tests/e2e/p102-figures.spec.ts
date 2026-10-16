@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openStatsTab, recentTs, switchTab, todayIso, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openStatsTab, recentTs, switchTab, todayIso, type SepState, openPulse, openWidget } from './fixtures';
 
 // P102: a figure says whether it is good (owner, 29 Sep 2026: "most numbers in our app don't convey any kind of meaning,
 // as in is it a good number or is it something of an issue, all are in default black"; the owner chose both options).
@@ -115,7 +115,8 @@ test.describe('P102: on the screens', () => {
     const rows = [row(1, day(-120), 'SMS CHARGES', 10, 0), row(2, day(-20), 'NEFT-ALPHA FORGINGS', 0, 11800, { cat: 'receipt', clientId: 1 }), row(3, day(-1), 'SMS CHARGES', 10, 0)];
     s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 't.xls', account: '', from: rows[0].date, to: rows[2].date, rows: 3, added: 3, closing: 250000 }], parties: {}, opening: {}, gstNotes: {} };
     await loadAppWithState(page, s as SepState);
-    await openPulse(page);
+    // The Money widget, put on Home's board: Pulse's presets hid it since the tab map (TM2c), and a widget off the board is not drawn.
+    await openWidget(page, 'money');
     const owed = page.locator('#homeFin [data-home-fin="Owed to us"]');
     await expect(owed).toHaveClass(/inv-tile-danger/);
     await expect(owed).toContainText('over 90 days');
@@ -137,7 +138,8 @@ test.describe('P102: on the screens', () => {
     const rows = [row(1, day(-120), 'SMS CHARGES', 10, 0), row(2, day(-10), 'NEFT-UNKNOWN TRADERS', 0, 3000), row(3, day(-1), 'SMS CHARGES', 10, 0)];
     s.bank = { rows, imports: [{ id: 'BI', at: 1, file: 't.xls', account: '', from: rows[0].date, to: rows[2].date, rows: 3, added: 3, closing: 250000 }], parties: {}, opening: {}, gstNotes: {} };
     await loadAppWithState(page, s as SepState);
-    await openPulse(page);
+    // The Money widget, put on Home's board: Pulse's presets hid it since the tab map (TM2c), and a widget off the board is not drawn.
+    await openWidget(page, 'money');
     const owed = page.locator('#homeFin [data-home-fin="Owed to us"]');
     await expect(owed).toContainText('not placed');
     await expect(owed).toHaveClass(/inv-tile-warning/);

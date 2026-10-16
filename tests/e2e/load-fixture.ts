@@ -382,9 +382,9 @@ export const LOOKS: string[] = [
 /* The screens assembled to one look, by the place walkMap names them; each joins in the step that assembles it (TM1: none). */
 export const ONE_LOOK: string[] = [
   // TM2: Today's two views, Stats' three tabs and the Planner's four views (Moves on the kind it opens on).
-  'Today › Needs you', 'Today › Pulse',
-  'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
-  'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+  'Home › Needs you', 'Home › Home',
+  'Home › Stats › By client', 'Home › Stats › Cost', 'Home › Stats › Trends',
+  'Home › Planner › Play', 'Home › Planner › Ledger', 'Home › Planner › A day', 'Home › Planner › Moves',
   // TM3: Money's five.
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
   // TM4: Floor's Overview, People (Attendance's Day, Week and Month, Pay, Areas, Roster), Production's four, Stock, Power's four.
@@ -400,7 +400,7 @@ export const ONE_LOOK: string[] = [
   'Office › Sales › Prospects', 'Office › Sales › Quotations',
   // TM6f: the screens no step had touched. Reports (a document), Challans' Invoiced, History and Knowledge's five views. The list is
   // now every screen of the map.
-  'Today › Reports', 'Office › Challans › Invoiced', 'History',
+  'Home › Reports', 'Office › Challans › Invoiced', 'History',
   'Knowledge › Start', 'Knowledge › Library', 'Knowledge › Troubleshoot', 'Knowledge › Records', 'Knowledge › Training',
 ];
 

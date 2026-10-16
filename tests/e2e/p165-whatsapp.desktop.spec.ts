@@ -1,11 +1,12 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openNeeds } from './fixtures';
 
 // P165 on the desktop: WhatsApp Web in one named window, and the desktop app by its scheme, beside Today's inputs.
 
 test('the desktop offers WhatsApp Web in its own window and the desktop app', async ({ page }) => {
   const s: any = emptyState(); s.incomingMaterial = noSeedIM();
   await loadAppWithState(page, s);
+  await openNeeds(page);
   const box = page.locator('#homeNeeds [data-tdy-wa] [data-wa="today"]');
   await expect(box.locator('[data-wa-go="web"]')).toHaveAttribute('href', 'https://web.whatsapp.com/');
   await expect(box.locator('[data-wa-go="web"]')).toHaveAttribute('target', 'sepWhatsApp');

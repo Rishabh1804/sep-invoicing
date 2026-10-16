@@ -146,7 +146,7 @@ test.describe('P44: pay', () => {
     const t = todayIso();
     await load(page, { attendance: { [t]: { marks: { 1: { st: 'P', hours: 8, ot: 0, area: 'vat-a1' }, 2: { st: 'A', ot: 0, hours: 0, area: 'flex' } }, extra: [{ kind: 'coverage', area: 'vat-a1', hours: 8 }], note: '' } } } as any);
     await openWidget(page, 'attendance');
-    const card = page.locator('#homeAttCard');
+    const card = page.locator('[data-w="atttoday"]');
     await expect(card).toContainText('today');
     await expect(page.locator('#homeAttOnSite')).toHaveText('1/3');
     await expect(card).toContainText('1 absent · 1 unmarked');

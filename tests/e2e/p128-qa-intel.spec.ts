@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page, Locator } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, openPulse, toolbarMore, openWidget, withWidgets, openHome } from './fixtures';
 import { sweepState } from './sweep-fixture';
 
 // P128: the intelligence screens' QA findings (30 Sep 2026) — Clients → Performance, the Stats stories and figures,
@@ -233,8 +233,8 @@ test.describe('P128: Stats', () => {
     await expect(page.locator('#statsHeadline [data-callout="weighed"]')).toContainText('Nothing priced was weighed');
     // Pulse reads the same period (its cards were the Overview's).
     await openPulse(page);
-    await expect(page.locator('#homeQuestions')).not.toContainText('Infinity');
-    await expect(page.locator('#homeQuestions')).not.toContainText('NaN');
+    await expect(page.locator('#homeDash')).not.toContainText('Infinity');
+    await expect(page.locator('#homeDash')).not.toContainText('NaN');
   });
 
   test('G5-6: GST and the total incl. GST are net of credit notes, as the taxable is, and agree with Finance’s GST due', async ({ page }) => {
@@ -347,14 +347,14 @@ test.describe('P128: History and Home', () => {
     expect(t).toMatch(/cost ₹[\d,.]+$/);
   });
 
-  test('G5-16: Edit Home keeps one primary on the page', async ({ page }) => {
+  test('G5-16: arranging Home keeps one primary on the page: Done', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     await openPulse(page);
-    // Edit Home is under More in Pulse's head since the tab map (TM2b: one toolbar row).
-    await toolbarMore(page, 'Edit Home');
-    await expect(page.locator('#homeEdit')).toBeVisible();
+    // Edit Home was under More in Pulse's head (TM2b); since UI pass 3 (U2) Customise puts the board in arrange mode.
+    await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
+    await expect(page.locator('#homeBoard [data-wdg-handle]').first()).toBeVisible();
     await expect(page.locator('#pageHome .inv-btn-primary:visible')).toHaveCount(1);
-    await expect(page.locator('[data-action="invHomeEditDone"]')).toHaveClass(/inv-btn-secondary/);
+    await expect(page.locator('#pageHome .inv-btn-primary:visible')).toHaveAttribute('data-action', 'invWdgDone');
   });
 
   test.describe('on the desktop', () => {
@@ -372,13 +372,12 @@ test.describe('P128: History and Home', () => {
       }, sel);
     }
 
-    test('UX-4: Home’s tiles fill every row at half width, three or four of them, at 1280 and 1024', async ({ page }) => {
-      // Month to date at half width too: four tiles in a half-width widget.
-      await page.addInitScript(() => localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom',
-        order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'sync', 'zinc', 'recent', 'production', 'power', 'stock'],
-        hidden: { production: true, power: true, stock: true }, wide: { quick: true, recent: true } })));
+    test('UX-4: Home’s tiles fill every row of a Medium widget, at 1280 and 1024', async ({ page }) => {
+      // Month to date and Money at Medium, four tiles each: half the board's twelve columns at 1280, the whole of its six at 1024
+      // (the board's columns come from its own width since UI pass 3, U2).
+      await withWidgets(page, [['mtd', 'm'], ['money', 'm'], ['quick', 'm'], ['atttoday', 's'], ['unbilled', 's'], ['recent', 'l']]);
       await loadAppWithState(page, sweepState());
-      await openPulse(page);
+      await openHome(page);
       for (const w of [1280, 1024]) {
         await page.setViewportSize({ width: w, height: 800 });
         await expect(page.locator('body')).toHaveClass(/inv-desktop/);
@@ -389,10 +388,11 @@ test.describe('P128: History and Home', () => {
         expect(mtd.filled, `Month to date at ${w}`).toBe(true);
         expect(mtd.rows).not.toBe(3);
       }
-      // A widget set to full width still lays four across.
+      // A widget set to Large, the row, lays its four across.
       await page.setViewportSize({ width: 1280, height: 800 });
-      await toolbarMore(page, 'Edit Home');
-      await page.locator('[data-action="invHomeWide"][data-w="mtd"][data-v="1"]').click();
+      await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
+      await page.locator('#homeBoard [data-action="invWdgSize"][data-wid="mtd"][data-size="l"]').click();
+      await page.locator('[data-home-toolbar] [data-action="invWdgDone"]').click();
       await expect.poll(async () => (await stripFilled(page, '#homeTiles')).rows).toBe(1);
     });
   });

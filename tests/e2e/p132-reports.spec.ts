@@ -18,15 +18,16 @@ async function openReports(page: Page, kind?: string) {
 }
 const doc = (page: Page) => page.locator('#rptSheet [data-rpt-doc]');
 
-test("Reports is in Today's Insights, after Stats; each kind draws with its title and the open period reads \"to date\"", async ({ page }) => {
+test("Reports is in Home's Insights, after Stats; each kind draws with its title and the open period reads \"to date\"", async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await switchTab(page, 'pageStats');
-  // Today's Insights since the tab map (9 Oct 2026; Office's review from 8 Oct; History and Knowledge are the top bar's tools).
+  // Home's Insights (Today's from the tab map of 9 Oct 2026 to UI pass 3; Office's review from 8 Oct; History and Knowledge are the
+  // top bar's tools).
   const labels = await page.locator('#wsTabs .inv-viewtab').allInnerTexts();
   expect(labels.slice(labels.indexOf('Stats'))).toEqual(['Stats', 'Reports', 'Planner']);
   await page.locator('#wsTabs [data-tab="pageReports"]').click();
   await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
-  await expect(page.locator('#topbarTitle')).toHaveText('Today');
+  await expect(page.locator('#topbarTitle')).toHaveText('Home');
   await expect(page.locator('#wsTabs [data-tab="pageReports"]')).toHaveAttribute('aria-selected', 'true');
   const t = todayIso(), d = new Date(t + 'T00:00:00');
   const fy = d.getMonth() >= 3 ? d.getFullYear() : d.getFullYear() - 1, fyl = `FY ${fy}-${String(fy + 1).slice(2)}`;
@@ -69,7 +70,7 @@ test('the figures are the app\'s own: invoiced equals Stats\' headline for the m
   await loadAppWithState(page, sweepState());
   // The headline is Stats → Trends' verdict card, and Make a report is Pulse's (the tab map, TM2b): one period for both.
   await openStatsTab(page, 'trends');
-  await page.locator('[data-action="invStatsPeriod"][data-period="mtd"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="mtd"]').click();
   await openVerdict(page);
   const statsRev = (await page.locator('#statsHeadline [data-tile="revenue"] .inv-tile-value').innerText()).replace(/\s+/g, '');
   // Make a report from Pulse opens Reports on the same period.

@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { loadAppWithState, openPulse } from './fixtures';
+import { loadAppWithState, openPulse, openNeeds, openHome } from './fixtures';
 import { sweepState, sweep, WHITE_CEIL } from './sweep-fixture';
 
 // P180: HR-9, no white (owner, 8 Oct 2026: "In needs you and pulse, the boxes inside the cards are still just white instead of
@@ -41,7 +41,7 @@ function meanL(img: string) {
 test('the sweep sees white: the surface of 26 Sep and a tick box the browser draws both fail it', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await loadAppWithState(page, sweepState());
-  expect((await sweep(page, 'Needs you')).white).toEqual([]);
+  expect((await sweep(page, 'Home')).white).toEqual([]);
   // The off-white the owner read as white (#f8fafa, L 0.984): every card on the screen is flagged.
   const tag = await page.addStyleTag({ content: ':root, :root[data-palette="teal"] { --c-surface: light-dark(#f8fafa, #131a1b) !important; }' });
   const old = (await sweep(page, 'the old surface')).white;
@@ -52,7 +52,7 @@ test('the sweep sees white: the surface of 26 Sep and a tick box the browser dra
   await page.waitForFunction(() => !document.getAnimations().some(a => a instanceof CSSTransition && a.playState === 'running'));
   expect((await sweep(page, 'back')).white).toEqual([]);
   // A tick box the browser paints is white whatever its computed fill says, so one not drawn by the app is flagged by name.
-  await g(page, `document.getElementById('homeNeeds').insertAdjacentHTML('afterbegin', '<input type="checkbox" id="p180tick">')`);
+  await g(page, `document.getElementById('homeDash').insertAdjacentHTML('afterbegin', '<input type="checkbox" id="p180tick">')`);
   expect((await sweep(page, 'a browser tick')).white).toEqual([expect.stringContaining('the browser’s own tick box')]);
 });
 
@@ -142,6 +142,7 @@ test('every palette’s well lies a step under its card, dark’s surfaces step 
 
 test('Needs you: inside a coded card, a card in its deck lies lighter in its own tone, a tile sinks darker, a sheet draws no box; in both themes', async ({ page }) => {
   await loadAppWithState(page, sweepState());
+  await openNeeds(page);
   const seen = { deck: 0, toned: 0, plain: 0, sheet: 0 };
   for (const scheme of ['light', 'dark'] as const) {
     await page.emulateMedia({ colorScheme: scheme });
@@ -202,41 +203,39 @@ test('Needs you: inside a coded card, a card in its deck lies lighter in its own
   expect(seen.sheet).toBeGreaterThan(0);
 });
 
-test('Pulse: every widget is a card, coded by the worst of what it holds; no generic panel is left', async ({ page }) => {
+test('Home: every widget is a card, coded by the worst of what it holds; no generic panel is left', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await loadAppWithState(page, sweepState());
-  // Every widget on, so each is drawn.
-  await g(page, `localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', order: HOME_WIDGETS.map(function (w) { return w[0]; }), hidden: {}, wide: {} }))`);
-  await openPulse(page);
+  // Every widget on the board (UI pass 3, U2; Pulse's widgets before), each at Medium where it may be, so each is drawn.
+  await g(page, `(function () { var l = WIDGET_DEFS.filter(wdgSees).map(function (d) { return [d.id, d.sizes.indexOf('m') >= 0 ? 'm' : d.sizes[0]]; });
+    localStorage.setItem('sep_inv_layout', JSON.stringify({ v: 1, people: { '-': { home: { preset: 'custom', desk: l, phone: l } } } })); })()`);
+  await openHome(page);
   await g(page, `renderHome()`);
-  const w = await g(page, `Array.prototype.map.call(document.querySelectorAll('#homeWidgets > [data-home-w]'), function (el) {
-    var first = el.firstElementChild;
-    return { k: el.dataset.homeW, empty: !first, hero: !!first && first.classList.contains('inv-hero'), coded: !!first && first.classList.contains('inv-coded'),
-      panel: !!el.querySelector(':scope > .inv-panel') };
+  const w = await g(page, `Array.prototype.map.call(document.querySelectorAll('#homeBoard .inv-widget'), function (el) {
+    return { k: el.dataset.w, hero: el.classList.contains('inv-hero'), toned: /inv-hero-(danger|warning|ok|info|neutral)/.test(el.className),
+      panel: !!el.querySelector('.inv-widget-body > .inv-panel') };
   })`) as any[];
   for (const x of w) {
-    if (x.empty) continue;
+    expect(x.hero, x.k).toBe(true);
+    expect(x.toned, x.k).toBe(true);
     expect(x.panel, x.k).toBe(false);
-    if (x.k === 'quick') expect(x.coded, x.k).toBe(true);
-    else expect(x.hero, x.k).toBe(true);
   }
-  expect(w.filter(x => x.hero).length).toBeGreaterThanOrEqual(8);
-  // The card is coded by the worst tone among what it holds: Money by its tiles, Attendance by who is on site, the month by its
-  // billing and realisation.
+  expect(w.length).toBeGreaterThanOrEqual(8);
+  // The card is coded by the worst tone among what it holds: Money by its tiles, the month by its billing and realisation.
   const rank: Record<string, number> = { danger: 3, warning: 2, ok: 1 };
   const worst = (ts: string[]) => ts.filter(t => rank[t]).sort((a, b) => rank[b] - rank[a])[0] || '';
   const toneOf = (cls: string) => (cls.match(/inv-hero-(danger|warning|ok|info|neutral)/) || [, ''])[1];
   const money = await g(page, `({ hero: document.getElementById('homeFin').className,
     tiles: Array.prototype.map.call(document.querySelectorAll('#homeFin [data-home-fin]'), function (t) { return (t.className.match(/inv-tile-(danger|warning|ok)/) || [, ''])[1]; }) })`) as any;
-  expect(toneOf(money.hero)).toBe(worst(money.tiles));
-  const mtd = await g(page, `({ hero: document.querySelector('[data-card="mtd"]').className,
+  expect(toneOf(money.hero)).toBe(worst(money.tiles) || 'neutral');
+  const mtd = await g(page, `({ hero: document.querySelector('#homeBoard [data-w="mtd"]').className,
     rev: document.getElementById('mtdRevenue').closest('.inv-tile').getAttribute('data-tone') || '',
     real: (document.getElementById('mtdPerKgTile').className.match(/inv-tile-(danger|warning|ok)/) || [, ''])[1] })`) as any;
-  expect(toneOf(mtd.hero)).toBe(worst([mtd.rev, mtd.real]));
-  // The quick actions are tinted, the one primary aside: none is the plain surface.
-  const quick = await g(page, `Array.prototype.map.call(document.querySelectorAll('[data-home-w="quick"] .inv-btn-secondary'), function (b) { return getComputedStyle(b).backgroundColor; })`) as string[];
+  expect(toneOf(mtd.hero)).toBe(worst([mtd.rev, mtd.real]) || 'neutral');
+  // The quick actions are tinted: none is the plain surface (six at Medium, every one secondary on the board).
+  const quick = await g(page, `Array.prototype.map.call(document.querySelectorAll('[data-w="quick"] .inv-btn-secondary'), function (b) { return getComputedStyle(b).backgroundColor; })`) as string[];
   const surface = await g(page, `(function () { var d = document.createElement('div'); d.style.background = 'var(--surface)'; document.body.appendChild(d); var c = getComputedStyle(d).backgroundColor; d.remove(); return c; })()`) as string;
-  expect(quick.length).toBe(5);
+  expect(quick.length).toBe(6);
   for (const c of quick) expect(c).not.toBe(surface);
 });
 

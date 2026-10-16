@@ -1,7 +1,7 @@
 import { test, expect, type Page } from '@playwright/test';
 import { readFileSync, readdirSync } from 'fs';
 import path from 'path';
-import { emptyState, loadAppWithState, openPulse, openSettingsAt, switchTab } from './fixtures';
+import { emptyState, loadAppWithState, openPulse, openSettingsAt, switchTab, withWidgets } from './fixtures';
 
 // P228: icons v3 (docs/UI_PASS_3.md §4). One set, ICONS in state.js, drawn by iconSvg on a 24 grid with the glyph inside 2–22:
 // every name a module draws exists in it; every name the spec lists is there (the board's 64, the kept names, the aliases as one
@@ -185,16 +185,18 @@ test.describe('P228: icons v3, the set', () => {
   test('body.html is slots: each filled from the set at boot, the shell’s icons where they were', async ({ page }) => {
     const body = src('body.html');
     expect(body).not.toContain('<svg');
-    expect((body.match(/<span data-icon="[A-Za-z]+"><\/span>/g) || []).length).toBeGreaterThanOrEqual(18);
+    // Twelve: the quick actions' six left body.html for their widget (UI pass 3, U2), which draws them from the set (iconSvg).
+    expect((body.match(/<span data-icon="[A-Za-z]+"><\/span>/g) || []).length).toBeGreaterThanOrEqual(12);
+    await withWidgets(page, [['quick', 'm']]);
     await loadAppWithState(page, emptyState());
     await expect(page.locator('[data-icon]')).toHaveCount(0);
     // A slot is its icon: the top bar's, the print bar's, the quick actions'.
     for (const sel of ['#navBack', '.inv-topbar [data-action="invOpenSettings"].inv-topbar-btn', '.inv-topbar [data-action="invGoHistory"].inv-topbar-btn',
       '.inv-topbar [data-action="invKbHelp"].inv-topbar-btn', '.inv-topbar [data-action="invNewWindow"]', '.inv-ws-search', '[data-action="invClosePrint"]',
-      '#invPrintRemote', '[data-action="invPrint"]', '[data-home-w="quick"] [data-action="invCreateNew"]']) {
+      '#invPrintRemote', '[data-action="invPrint"]', '[data-w="quick"] [data-action="invCreateNew"]']) {
       await expect(page.locator(sel + ' > svg[aria-hidden="true"]'), sel).toHaveCount(1);
     }
-    await expect(page.locator('[data-home-w="quick"] [data-action="invHomeQuick"] > svg')).toHaveCount(5);
+    await expect(page.locator('[data-w="quick"] [data-action="invHomeQuick"] > svg')).toHaveCount(5);
     // The back arrow is the set's own, as the browser holds it once parsed.
     expect(await page.locator('#navBack > svg').evaluate(s => s.outerHTML)).toBe(await g(page,
       `(function() { var t = document.createElement('template'); t.innerHTML = iconSvg('back'); return t.content.firstElementChild.outerHTML; })()`));

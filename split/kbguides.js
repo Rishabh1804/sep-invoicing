@@ -8,20 +8,34 @@ function _kbg(id, title, summary, screens, body, extra) {
     title: title, summary: summary, body: body, links: screens.map(function(s) { return { type: 'screen', id: s, label: '' }; }) }, extra || {});
 }
 var KB_APP_GUIDES = [
-  _kbg('today', 'Using the app: Today', 'What needs you now, and how the plant is doing', ['pageHome'],
-    'Today is the first screen. It has 2 views. After them are its Insights: Stats, Reports and the Planner.\n\n' +
+  _kbg('today', 'Using the app: Home', 'The dashboard, your widgets, and what needs you now', ['pageHome'],
+    'Home is the first screen. It has 2 views: **Home**, the dashboard, and **Needs you**. After them are its Insights: Stats, Reports and the Planner.\n\n' +
+    '# The day card\n- The day card is at the top of Home. It shows the greeting, the date and the time. The time changes each minute.\n' +
+    '- Under the time, the card shows when the general shift ends.\n- The sentence of the card is the first item that needs you: a cash low point, red tasks, a line that is half down, or the pace of the month.\n' +
+    '- To see all your tasks, tap **Open Needs you**. To make the report of today, tap **Make today’s report**.\n\n' +
+    '# The widgets\n- Under the day card is the period (**MTD**, **QTD**, **YTD**, **All**). Stats uses the same period.\n' +
+    '- Under the period are the widgets. Each widget answers 1 question. To open the screen of a widget, tap its title.\n' +
+    '- A widget with nothing to show tells you what records it. A widget that is too long for its size shows how many more rows there are. To see all of them, tap **Show all**.\n\n' +
+    '# The world outside and the analysis\n- **Tata Motors, Jamshedpur** shows the figures of the month that you typed from the release of Tata. To type a month, tap the title of the widget. It also shows the week of the plant and the headlines.\n' +
+    '- **Weather at the plant** shows the weather now and the next 12 hours. After 30 days, it also shows the cut days that had rain.\n' +
+    '- The news and the weather come from the feeds Worker. Until the Worker is set up, these widgets say so. To set it up, read **Setting up: the news and weather**.\n' +
+    '- **Does one move the other?** compares 2 figures over the last 6 months. To select the 2 figures, tap **Change the pair**. The widget shows a pattern, not proof that one figure causes the other.\n' +
+    '- **What’s coming** shows the next events, soonest first. For example: cash below zero, a stock line that runs out, or the next challan of a client.\n\n' +
+    '# Arrange the widgets\n1. Tap **Customise**.\n2. To move a widget, drag its handle. On a phone, hold the handle for a moment, then drag it.\n' +
+    '3. To move a widget with the keys, select its handle. Then push an arrow key, Home or End.\n4. To change the size of a widget, tap **S**, **M** or **L**.\n' +
+    '5. To remove a widget, tap **×**. To get it back, tap **Undo** in the message.\n6. When you are done, tap **Done**.\n' +
+    '- To add a widget, tap **Add a widget**. Tap a type, then tap **Add to Home** on the widget.\n' +
+    '- NOTE: **Reset** puts back the widgets of your role on this screen. It asks you first. The other screen keeps its widgets.\n' +
+    '- Your arrangement is yours, and it stays on this device. The phone and the computer each keep their own arrangement.\n\n' +
     '# Needs you\n- The day’s 5 inputs are the in-time roll, the pickling loads, the stock message, the production records and the out-time roll. Each input shows **in**, **late** or **not yet**.\n' +
     '- Under the inputs are all the open tasks, in 3 groups: **Now**, **This week** and **Later**.\n- To see why the app raised a task and what clears it, tap the task.\n- A red task is late or wrong. An amber task needs an examination soon.\n' +
     '- To add a task of your own, type it in the field above the tasks. Then tap **Add** or push Enter.\n- To give your task a due date, a note and a link, tap **Details**.\n' +
-    '- When your task is done, tick it. The app moves it to **Done**, which is folded at the bottom. To open the task again, tap its tick.\n- A task that you snoozed stays under **Snoozed**. To show it again, tap **Wake**.\n\n' +
-    '# Pulse\n- The period at the top (**MTD**, **QTD**, **YTD**, **All**) is the same period that Stats shows.\n- **More**, next to the period, holds **Make a report** (the period as a report), **Open Stats** and **Edit Home**.\n' +
-    '- Then come the owner’s questions: is the plant running smoothly, are we making money, is cash coming in. Each question shows what to do.\n- **Do first** shows the moves with the highest value.\n' +
-    '- **Why it moved**, **In one line** and **This month at its pace** each give their answer in 1 line. To see the data for an answer, tap it.\n' +
-    '- The widgets are below these. To select which widgets show and where, use **Edit Home** (under More).',
+    '- When your task is done, tick it. The app moves it to **Done**, which is folded at the bottom. To open the task again, tap its tick.\n- A task that you snoozed stays under **Snoozed**. To show it again, tap **Wake**.',
     // Version 4: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 4 }),
+    // Version 5: Home (UI pass 3, 16 Oct 2026): the dashboard, its day card, the widgets, Customise and the gallery; Pulse folded into it.
+    { version: 5 }),
   _kbg('stats', 'Reading Stats', 'By client, Cost and Trends, and how the app calculates their figures', ['pageStats', 'pageHome'],
-    'Stats has 3 tabs. All 3 tabs use 1 period, which is the same period as Pulse. Each tab starts with a card that shows its status. On a phone, tap the card to see its figures.\n\n' +
+    'Stats has 3 tabs. All 3 tabs use 1 period, which is the same period as Home. Each tab starts with a card that shows its status. On a phone, tap the card to see its figures.\n\n' +
     '# By client\n- Contribution by client shows the worst client first. It shows what 1 kg leaves after its **variable** cost (all costs but labour), and after the **full** cost.\n' +
     '- **Labour is fixed**. The owner ruled this on 13 Oct 2026. The contract crew does not increase or decrease with the work, and the monthly crew never did. Thus 1 kg more or less changes the zinc, chemicals, power and other costs, but not the wages.\n' +
     '- The app divides cost equally per kg. Thus a thin clamp and a heavy bracket have the same cost per kg here. This is the one assumption that the table cannot examine.\n' +
@@ -40,10 +54,11 @@ var KB_APP_GUIDES = [
     '# Trends\n- Trends shows the revenue, tonnage, realisation and margin of the period, compared with the same days before.\n- Then it shows 6 months, each at its own live cost. Then the trend and the top items.\n' +
     '- In the 6 months, labour shows only where 90% of the month is recorded, or where the bank statement shows the payments for it. If a month has less, the app does not show its labour, because the figure would be too low.\n- **Measured** is the share of the cost of that month that comes from the app’s own records.\n' +
     '- Realisation is revenue divided by the tonnage of the same lines. The app removes the lines with no weight from both figures. These lines are the low-priced work billed by the piece. Thus a partial figure is too **high**.\n\n' +
-    '# Why it moved (on Pulse)\n- The app divides the change in realisation into 2 causes: the rate of each client, and the mix. The mix is the share of the kg of a client, at its rate compared with the average before.\n- The app divides the change in contribution into the price, each cost line and the kg.\n- The causes add up to the change exactly.',
+    '# Why it moved (a widget on Home)\n- The app divides the change in realisation into 2 causes: the rate of each client, and the mix. The mix is the share of the kg of a client, at its rate compared with the average before.\n- The app divides the change in contribution into the price, each cost line and the kg.\n- The causes add up to the change exactly.',
     // Version 2: labour is fixed (owner, 13 Oct 2026), so the worst account is settled one way.
     // Version 3: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 3 }),
+    // Version 4: Pulse folded into Home (UI pass 3, 16 Oct 2026).
+    { version: 4 }),
   _kbg('add', 'Using the app: the Add button', 'One door for everything that comes in', ['pageHome', 'pageStaff', 'pageStock', 'pageProduction'],
     'All data that comes into the app goes through **Add**. On a phone, **Add** is the filled button in the middle of the bottom bar. On a computer, it is at the top of the rail. You can also push the key A.\n\n' +
     '- **Paste**: a WhatsApp message (an attendance roll, the stock message, pickling loads, a production list). The app reads the message. Before it saves anything, it shows each line next to what it read.\n' +
@@ -103,9 +118,10 @@ var KB_APP_GUIDES = [
     '- The **spare** is the quantity that the plant can plate each month but does not. The app compares the invoiced tonnes of the last 90 days with about 2 t a shift, 2 shifts each working day.\n' +
     '- **Won** opens the client form, filled from the prospect.\n' +
     '- **Quotations**: a draft has no number. **Issue** gives it a number.\n- You cannot edit an issued quotation. **Revise** makes the next revision.\n- When a client accepts a quotation, the app offers its rates to the client’s record. The app never writes them without your approval.\n' +
-    '- **To reprice**, in the Quotations card, lists the moves from Pulse for the clients billed below the cost. Each move opens a draft quotation.',
+    '- **To reprice**, in the Quotations card, lists the reprice moves from the questions on Home, for the clients billed below the cost. Each move opens a draft quotation.',
     // Version 2: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 2 }),
+    // Version 3: the reprice moves are Home's questions' (UI pass 3, 16 Oct 2026).
+    { version: 3 }),
   _kbg('rolls', 'Using the app: the attendance rolls', 'Pasting the in-time and out-time rolls', ['pageStaff', 'pageFloor'],
     '1. Copy the roll from WhatsApp.\n' +
     '2. Open Add → Paste. You can also open Floor → People → Attendance → Day → **Paste message**.\n' +
@@ -251,7 +267,7 @@ var KB_APP_GUIDES = [
     '- **Labour per kg, 30 days** is the variable labour of the areas of the line divided by the kilos. Variable labour is the pool, the daily tier, overtime and the EXTRA. The kilos of each day share the pickling hands of the VAT side. The labour and the kilos use the same days, which are the days with 9 tenths of the pieces weighed.\n' +
     '- The monthly crew is the standing crew and is not by line. The app does not show **Labour per kg** for less than 5 days. The figure has no colour. The modelled labour (Settings → Labour) includes all tiers, the monthly crew too, so it is not a measure of this part only.\n\n' +
     '# In plant\n' +
-    '- **Book** is all that is open on the challans and not invoiced. It is the same figure as the unbilled figure on Today.\n' +
+    '- **Book** is all that is open on the challans and not invoiced. It is the same figure as the Unbilled challans widget on Home.\n' +
     '- The floor splits each open line into *waiting to pickle*, *pickled, not plated* and *plated, not invoiced*. The app compares the plating and the pickling of a part with its challans, oldest first. A line billed whole is closed on the day of its last invoice.\n' +
     '- The app does not show **Waiting to pickle** until each line is recorded on 90% of the working days. If not, plating on a day that is not recorded shows as still waiting. Plated, not invoiced can show low, but never high.\n' +
     '- If the app knows the kg a piece of the part, it counts a challan received by the kilo in pieces. It looks first at the card of the client, then part weights, then Parts. If a line has no kg a piece, the app lists it for you to examine. Set the weight on the card of the client.\n' +
@@ -265,7 +281,8 @@ var KB_APP_GUIDES = [
     // Version 4: Print sheets (the entry faces' F5, 10 Oct 2026). Version 3: what a line earned, and the day and the week against
     // the line's usual (owner, 10 Oct 2026). Version 5: the register photo came out (owner, 13 Oct 2026).
     // Version 6: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 6 }),
+    // Version 7: the unbilled figure is a widget on Home (UI pass 3, 16 Oct 2026).
+    { version: 7 }),
   // How the analysed figures are worked out (§6.27): the screens show the verdict, its factors and a folded working; the reasoning is
   // here, one tap away on the top bar's book (owner, 9 Oct 2026: "designing a way to present our analysed data in a coherent manner").
   _kbg('plant-figures', 'Reading the plant’s figures', 'A line’s efficiency, the round and the pace, and stock by line', ['pageFloor', 'pageProduction', 'pageStock'],
@@ -401,7 +418,7 @@ var KB_APP_GUIDES = [
     // Version 4: the 3 ways to read, the context, notes and the Library's shelves (KB2-1, 15 Oct 2026).
     { version: 4 }),
   _kbg('planner', 'Using the app: the planner', 'Simulate machines, certification, staff, clients and a loan', ['pagePlanner'],
-    'Today → **Planner** plays a plan over the next 24 months. It starts from the book’s last 3 full months. The planner **never changes the book**.\n\n' +
+    'Home → **Planner** plays a plan over the next 24 months. It starts from the book’s last 3 full months. The planner **never changes the book**.\n\n' +
     'The card at the top shows the plan’s status against its goal on each view. **Roll** and the month are under the card. **More** holds the other controls: a new card, the report, the copy and the name of the plan, and the goal.\n\n' +
     '# Make a plan\n1. Tap **More** → **Suggest a start** to add the CQI-11 path at its earliest. Or add moves 1 by 1 on **Moves**. Its views are **Plant** (an upgrade tree for each station), **Tech tree**, **Staff** (hires and training) and **Clients** (ask for a rate, plan the work that a client holds back).\n' +
     '2. A level or node opens when the things it needs are in the plan. On the **board** (Play), tap a move to move it by 1 month or to remove it. On a phone, tap the row of a move to see its controls.\n' +
@@ -418,7 +435,8 @@ var KB_APP_GUIDES = [
     // Version 2: the Planner is Today's (the tab map, 9 Oct 2026). Version 3: four views, the five kinds on Moves, the verdict
     // card and More (TM2d).
     // Version 4: rewritten in Simplified Technical English (owner, 14 Oct 2026).
-    { version: 4 }),
+    // Version 5: the Planner is Home's (UI pass 3, 16 Oct 2026).
+    { version: 5 }),
   // The entry faces (docs/ENTRY_FACES.md, F6): Mine, one guide a face, and the owner's. Each person reads the one for what they
   // enter; the top bar's book on Mine lists them, and the role paths below carry them.
   _kbg('mine', 'Using the app: my screen (Mine)', 'Your day, what you enter, your sheets and the group’s message', ['pageFace'],
@@ -569,7 +587,32 @@ var KB_APP_GUIDES = [
     '# Every day\n- The app locks after the set minutes in the background. When you open the app, it asks for a PIN.\n' +
     '- The ID button in the top bar has **Change my PIN**, **Switch user** and **Lock now**.\n' +
     '- **Reset PIN** on a user gives the user a new PIN. **Deactivate** keeps the history of the user and stops their sign-in. The other devices get an added, reset or deactivated user with the next push and pull.',
-    { roles: ['owner'], version: 1 })
+    { roles: ['owner'], version: 1 }),
+  // The news and the weather (feeds.js, docs/UI_PASS_3.md §9e): every role reads it, since a widget with no feed links it.
+  _kbg('feeds', 'Setting up: the news and weather', 'The feeds Worker on Cloudflare, its address in the app, and what the app sends', ['pageHome'],
+    'The news and the weather come through the shop’s own **feeds Worker** on Cloudflare. The Worker gets the news from the GDELT Project and the weather from MET Norway. The app asks only the Worker.\n\n' +
+    '# In Cloudflare, once\n1. Go to **Workers & Pages → Create → Import a repository**. Select this repository.\n' +
+    '2. Set the root directory to `server/feeds` and the production branch to `main`. Cloudflare then deploys the Worker after each merge.\n' +
+    '3. In the Worker’s **Settings → Variables**, add `ALLOWED_ORIGINS`. Type each address of the app, with a comma between them. Settings in the app shows the address of this app.\n' +
+    '4. Add `CONTACT` too. Type the website of the shop or an e-mail address. MET Norway asks for it, so that it can write about the requests.\n' +
+    '5. In the Worker’s **Settings → Domains & Routes → Add → Custom domain**, type the address that the app asks. Cloudflare makes the DNS record.\n\n' +
+    '# In the app\n1. Open Settings → Connections → **News and weather**. Make sure that **Show the news and the weather** is ticked.\n' +
+    '2. If the Worker is not at the address shown, type its address. Tap **Check**. The app asks the Worker and shows what came back.\n' +
+    '3. Type the latitude and the longitude of the plant. If the Office QR has a place, the app uses that place. Tap **Save**.\n' +
+    '4. Open Home. The app gets the news and the weather. Then it asks again only when Home opens and its copy is more than 30 minutes old.\n\n' +
+    '# What Check says\n- **Reached**: the Worker answered.\n- **Refused**: the address answered with an error. Examine the address and the variables of the Worker.\n' +
+    '- **Not reachable**: nothing answered. Make sure that the custom domain is set. Make sure that `ALLOWED_ORIGINS` has the address of this app.\n' +
+    '- **No answer in 8 seconds**: try again later.\n\n' +
+    '# What the app sends\n- The 4 news topics: the sales, Jamshedpur, the models and the exports.\n- The models that you follow, as words.\n' +
+    '- The place of the plant, to 2 decimals. This is approximately 1 km.\n- Nothing from the book: no record, no figure and no name.\n' +
+    '- The app keeps the headlines and the forecast on this device only. Each day’s forecast also goes into the book, to compare with the power cuts.\n' +
+    '- The app asks only when Home opens or when you tap **Refresh**. It never asks while the device is offline, and never more than once a minute.\n\n' +
+    '# Tata Motors’ figures\n- Tata Motors gives its sales each month. From the 2nd of the month, the app adds a task to type the month before.\n' +
+    '- Tap the task, or **Tata Motors’ figures and the plant’s week** in Settings. Type each figure from the release: this year and the same month a year before.\n' +
+    '- Leave a figure blank if the release does not give it.\n- A headline can give a figure. The app shows it with **Use**. Compare it with the release before you save.\n' +
+    '- A headline can say that the plant is shut or works on a day. The app shows it with **Add**. The calendar changes only when you tap.\n\n' +
+    '# The credits\n- News: the GDELT Project. Weather: MET Norway, CC BY 4.0. The app shows both under its news and its weather.',
+    { roles: [], version: 1 })
 ];
 /* The paths when the book has none of its own: a lesson list per role. */
 /* Mine and the face a role most often carries lead each path (F6): a face is a person's, so a path also names the faces a hand of

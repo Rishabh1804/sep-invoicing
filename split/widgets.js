@@ -4,9 +4,12 @@
 
    This module is the framework and holds no widget's arithmetic: the card, the board, the states, the presets by role, where a
    layout is kept, arranging and the gallery. Each widget is an entry in WIDGET_DEFS (widgetcards.js, by wdgDefine):
-     { id, title, q, section, sizes, needs, go, live, card, data(ctx), draw(d, size, ctx), foot(d, size, ctx), after(el, d, size) }
+     { id, title, q, section, sizes, needs, go, live, feed, card, data(ctx), draw(d, size, ctx), foot(d, size, ctx), after(el, d, size),
+     act(action, btn, card), change(el, card) }
    `data` reads the views (dataview.js) and the functions its screen already draws with and returns {state, tone, …}; `draw`
    returns the body's HTML for 's' | 'm' | 'l'. A widget that throws draws its error state and the rest of the board is drawn.
+   `act` takes a tap on a button of its own (an invWdg… action the framework does not know), `change` a pick in a <select> of its
+   own; `feed` marks a widget that reads a feed's copy (feeds.js), drawn again where it stands when a copy lands.
 
    The card is a hero card (§6.21) without its fold: lifted, a card's corners, coded in the tone `data` gives, its head the
    widget's door to its screen. The board is a grid whose columns come from its own width (12, 6 or 2), packed with no gap in
@@ -236,7 +239,7 @@ function wdgFromPulse() {
 
 /* ---------- The card (§7a, §7c) ---------- */
 var WDG_STATE_TITLE = { empty: 'Nothing recorded yet', early: 'Not enough yet', notset: 'Not set up yet', offline: 'Offline',
-  error: 'This widget could not be drawn' };
+  loading: 'Fetching…', error: 'This widget could not be drawn' };
 var _wdgErrSeen = {};
 function wdgErr(def, e) {
   if (typeof navigator !== 'undefined' && navigator.webdriver && typeof console !== 'undefined') console.error('widget ' + def.id + ': ' + (e && e.stack || e));
@@ -255,7 +258,7 @@ function wdgData(def, ctx) {
 }
 function wdgStateHtml(def, size, d) {
   var k = WDG_STATE_TITLE[d.state] ? d.state : 'empty';
-  var action = d.action || (k === 'error' ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgReport" data-w="' + escHtml(def.id) + '">Report it</button>' : '');
+  var action = d.action || (k === 'error' ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgReport" data-wid="' + escHtml(def.id) + '">Report it</button>' : '');
   return uiBlankHtml({ kind: k, title: d.title || WDG_STATE_TITLE[k], body: d.body || '', action: action, small: size === 's' });
 }
 function wdgBodyHtml(def, size, d, ctx) {
@@ -275,7 +278,7 @@ function wdgCardHtml(def, size, o) {
   var tone = d.state === 'ok' && WDG_TONES[d.tone] ? d.tone : 'neutral';
   var sec = wdgSection(def.section), id = escHtml(def.id), title = escHtml(def.title);
   var door = wdgCanGo(def) && !o.preview
-    ? '<button type="button" class="inv-widget-door" data-action="invWdgGo" data-w="' + id + '" aria-label="' + title + ': open">' +
+    ? '<button type="button" class="inv-widget-door" data-action="invWdgGo" data-wid="' + id + '" aria-label="' + title + ': open">' +
       '<span class="inv-widget-title">' + title + '</span>' + iconSvg('next', 'inv-widget-chev') + '</button>'
     : '<span class="inv-widget-door"><span class="inv-widget-title">' + title + '</span></span>';
   var head = (o.arranging ? wdgArrangeCtlHtml(def, size, o) : '') +
@@ -322,7 +325,7 @@ function wdgFit(card) {
   var hid = 0;
   var say = function() {
     var label = hid + ' more' + (def && wdgCanGo(def) ? ': Show all' : '');
-    more.innerHTML = def && wdgCanGo(def) ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGo" data-w="' + escHtml(def.id) + '">' + escHtml(label) + '</button>'
+    more.innerHTML = def && wdgCanGo(def) ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGo" data-wid="' + escHtml(def.id) + '">' + escHtml(label) + '</button>'
       : '<span class="inv-note">' + escHtml(label) + '</span>';
   };
   // Let go of: marked, and hidden by the mark (a row's or a card's own display would show a bare `hidden`).
@@ -419,13 +422,13 @@ function wdgArrangeCtlHtml(def, size, o) {
   var id = escHtml(def.id), title = escHtml(def.title);
   var sizes = def.sizes.length > 1 ? '<span class="inv-seg inv-widget-sizes" role="group" aria-label="Size of ' + title + '">' +
     ['s', 'm', 'l'].filter(function(s) { return def.sizes.indexOf(s) >= 0; }).map(function(s) {
-      return '<button type="button" class="inv-seg-btn" data-action="invWdgSize" data-w="' + id + '" data-size="' + s + '" aria-pressed="' + (s === size) + '" aria-label="' +
+      return '<button type="button" class="inv-seg-btn" data-action="invWdgSize" data-wid="' + id + '" data-size="' + s + '" aria-pressed="' + (s === size) + '" aria-label="' +
         WDG_SIZE_NAMES[s] + '">' + WDG_SIZE_SHORT[s] + '</button>';
     }).join('') + '</span>' : '';
   return '<div class="inv-widget-ctl">' +
     '<button type="button" class="inv-widget-handle" data-wdg-handle="' + id + '" aria-label="Move ' + title + ', ' + (o.i + 1) + ' of ' + o.n + '">' + iconSvg('grip') + '</button>' +
     '<span class="inv-widget-place" data-wdg-place>' + (o.i + 1) + ' of ' + o.n + '</span>' + sizes +
-    '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-widget-remove" data-action="invWdgRemove" data-w="' + id + '" aria-label="Remove ' + title + '">' + iconSvg('close') + '</button></div>';
+    '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-widget-remove" data-action="invWdgRemove" data-wid="' + id + '" aria-label="Remove ' + title + '">' + iconSvg('close') + '</button></div>';
 }
 function wdgArrangeOn(board) { return _wdgArrange === board; }
 function wdgArrangeStart(board) {
@@ -518,6 +521,8 @@ function wdgSay(board, text) {
 
 /* By keys: a focused handle moves its widget ← ↑ earlier, → ↓ later, Home first, End last. */
 document.addEventListener('keydown', function(e) {
+  // Escape during a drag puts the widget back and stays arranging, wherever the focus is (the layer's own Escape leaves arranging).
+  if (e.key === 'Escape' && (_wdgDrag || _wdgHold)) { e.preventDefault(); e.stopPropagation(); wdgDragCancel(); return; }
   var h = e.target && e.target.closest ? e.target.closest('[data-wdg-handle]') : null;
   if (!h || !_wdgArrange) return;
   var board = _wdgArrange, id = h.dataset.wdgHandle, shown = wdgShown(board).map(function(x) { return x[0]; });
@@ -526,7 +531,6 @@ document.addEventListener('keydown', function(e) {
   else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = i + 1;
   else if (e.key === 'Home') to = 0;
   else if (e.key === 'End') to = shown.length - 1;
-  else if (e.key === 'Escape' && _wdgDrag) { e.preventDefault(); e.stopPropagation(); wdgDragCancel(); return; }
   if (to == null) return;
   e.preventDefault();
   var r = wdgMove(board, id, to);
@@ -680,8 +684,8 @@ function wdgGalleryHtml() {
   var cards = list.map(function(d) {
     var id = escHtml(d.id), name = WDG_BOARDS[board] || 'the board';
     var act = on[d.id]
-      ? '<span class="inv-dot inv-dot-ok" data-wdg-on>On ' + escHtml(name) + '</span><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgGalleryRemove" data-w="' + id + '">Remove</button>'
-      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgGalleryAdd" data-w="' + id + '">Add to ' + escHtml(name) + '</button>';
+      ? '<span class="inv-dot inv-dot-ok" data-wdg-on>On ' + escHtml(name) + '</span><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgGalleryRemove" data-wid="' + id + '">Remove</button>'
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgGalleryAdd" data-wid="' + id + '">Add to ' + escHtml(name) + '</button>';
     return '<article class="inv-gallery-card" data-gallery-w="' + id + '">' +
       '<div class="inv-gallery-preview" data-wdg-preview="' + id + '" aria-hidden="true"></div>' +
       '<div class="inv-gallery-text"><p class="inv-gallery-title">' + escHtml(d.title) + '</p><p class="inv-gallery-q">' + escHtml(d.q || '') + '</p>' +
@@ -754,9 +758,9 @@ function showToastAct(msg, label, fn) {
 function wdgAction(action, btn) {
   var board = (btn.closest && btn.closest('.inv-wboard') ? btn.closest('.inv-wboard').dataset.board : null) || btn.dataset.board || _wdgArrange || 'home';
   switch (action) {
-    case 'invWdgGo': { var def = wdgDef(btn.dataset.w); if (def) wdgGo(def); return true; }
+    case 'invWdgGo': { var def = wdgDef(btn.dataset.wid); if (def) wdgGo(def); return true; }
     case 'invWdgReport': {
-      var dr = wdgDef(btn.dataset.w);
+      var dr = wdgDef(btn.dataset.wid);
       if (dr && typeof errReport === 'function') errReport(new Error('A widget could not be drawn: ' + dr.id), 'widget: ' + dr.id);
       showToast('Reported. The rest of the board is drawn.', 'success');
       return true;
@@ -765,20 +769,47 @@ function wdgAction(action, btn) {
     case 'invWdgDone': wdgArrangeDone(); return true;
     case 'invWdgReset': wdgReset(board); return true;
     case 'invWdgSize': {
-      wdgSetSize(board, btn.dataset.w, btn.dataset.size);
+      wdgSetSize(board, btn.dataset.wid, btn.dataset.size);
       var card = btn.closest('.inv-widget');
       if (card) keepScroll(function() { wdgRedrawOne(card, btn.dataset.size); });
-      var nb = document.querySelector('.inv-wboard[data-board="' + board + '"] .inv-widget[data-w="' + CSS.escape(btn.dataset.w) + '"] [data-action="invWdgSize"][data-size="' + btn.dataset.size + '"]');
+      var nb = document.querySelector('.inv-wboard[data-board="' + board + '"] .inv-widget[data-w="' + CSS.escape(btn.dataset.wid) + '"] [data-action="invWdgSize"][data-size="' + btn.dataset.size + '"]');
       if (nb) nb.focus({ preventScroll: true });
       return true;
     }
-    case 'invWdgRemove': wdgRemove(board, btn.dataset.w); wdgRedrawBoard(board); return true;
+    case 'invWdgRemove': wdgRemove(board, btn.dataset.wid); wdgRedrawBoard(board); return true;
     case 'invWdgGallery': wdgGalleryOpen(board); return true;
     case 'invWdgGalleryBoard': _wdgGallery.board = btn.dataset.board; wdgGalleryRedraw(); return true;
     case 'invWdgGallerySec': _wdgGallery.section = btn.dataset.sec; wdgGalleryRedraw(); return true;
-    case 'invWdgGalleryAdd': wdgAdd(_wdgGallery.board, btn.dataset.w); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
-    case 'invWdgGalleryRemove': wdgRemoveFromGallery(_wdgGallery.board, btn.dataset.w); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
+    case 'invWdgGalleryAdd': wdgAdd(_wdgGallery.board, btn.dataset.wid); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
+    case 'invWdgGalleryRemove': wdgRemoveFromGallery(_wdgGallery.board, btn.dataset.wid); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
     case 'invWdgGalleryDone': closeTopOverlay(); return true;
+  }
+  // A widget's own tap (its def's `act`): the widget the button names, else the card it sits in, else the dialog it opened.
+  var card = btn.closest ? btn.closest('.inv-widget[data-w]') : null, own = wdgDef(btn.dataset.wid || (card ? card.dataset.w : ''));
+  if (own && typeof own.act === 'function') {
+    try { if (own.act(action, btn, card) !== false) return true; } catch (e) { wdgErr(own, e); return true; }
   }
   return false;
 }
+/* A pick in a widget's own <select> (its def's `change`): a select speaks through change, never click. In the card, or in a dialog
+   the widget opened (`data-wdg-for` its id, `data-board` its board), whose card on the board is handed over to be drawn again. */
+function wdgOnChange(el) {
+  if (!el || !el.closest) return false;
+  var card = el.closest('.inv-wboard .inv-widget[data-w]'), host = card ? null : el.closest('[data-wdg-for]'), board = null;
+  if (host) {
+    board = host.dataset.board || 'home';
+    card = document.querySelector('.inv-wboard[data-board="' + CSS.escape(board) + '"] .inv-widget[data-w="' + CSS.escape(host.dataset.wdgFor) + '"]');
+  }
+  var def = wdgDef(host ? host.dataset.wdgFor : card ? card.dataset.w : '');
+  if (!def || typeof def.change !== 'function') return false;
+  try { return def.change(el, card, board) !== false; } catch (e) { wdgErr(def, e); return true; }
+}
+/* A feed's copy landing, or an ask starting (feeds.js's sep-feeds event): every widget that reads a feed is drawn again where it
+   stands, never while one is being dragged. */
+document.addEventListener('sep-feeds', function() {
+  if (_wdgDrag) return;
+  Array.prototype.forEach.call(document.querySelectorAll('.inv-wboard .inv-widget[data-w]'), function(card) {
+    var def = wdgDef(card.dataset.w);
+    if (def && def.feed && card.isConnected) keepScroll(function() { wdgRedrawOne(card); });
+  });
+});

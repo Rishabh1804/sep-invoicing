@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, todayIso, waitForBoot, answerAsk } from './fixtures';
+import { loadAppWithState, todayIso, waitForBoot, answerAsk, openNeeds } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P202: the register clerk's face (docs/ENTRY_FACES.md, F4; owner, 10 Oct 2026: "[the register clerk] - Attendance, VAT
@@ -247,6 +247,7 @@ test.describe('P202: the register clerk’s face', () => {
     await page.locator('[data-action="invFaceFormDone"]').first().click();
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
+    await openNeeds(page);
     await expect(page.locator('[data-tdy-input="production"] .inv-step-meta')).toContainText('VAT A1 in');
     expect(await ev(page, `faceInputBy('production', '${today}')`)).toEqual(['Gita Bose']);
   });

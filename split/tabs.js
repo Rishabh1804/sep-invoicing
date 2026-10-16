@@ -392,7 +392,7 @@ function homeRecentOpts(n) {
 }
 /* The invoices made last, newest first. */
 function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
-/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Today → Needs you and the
+/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Home → Needs you and the
    Pulse widget draw the same row). */
 function homeRecentRowHtml(inv) {
   return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '" data-recent-inv="' + escHtml(inv.id) + '">' +

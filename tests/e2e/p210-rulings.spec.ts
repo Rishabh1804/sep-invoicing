@@ -163,10 +163,11 @@ test.describe('P210: contract labour is fixed', () => {
     await expect(worst).not.toContainText('If labour scales');
     await expect(page.locator('#statsMargin [data-margin-split]')).toHaveText('labour fixed');
 
-    // Pulse's "Who is driving it?" asks BETA for the full cost, and asks no labour question.
+    // Home's "Who is driving it?" (Pulse's until UI pass 3, a widget at Large here) asks BETA for the full cost, and asks no
+    // labour question.
     await openPulse(page);
     const q = page.locator('[data-tdy-q="clients"]');
-    if (!(await q.evaluate(el => (el as HTMLDetailsElement).open))) await q.locator(':scope > summary').click();
+    await expect(q.locator('[data-tdy-story]')).toHaveCount(1);
     await expect(q.locator('[data-adv-move="reprice:72"]')).toHaveCount(1);
     await expect(q.locator('[data-adv-move^="labour:"]')).toHaveCount(0);
     await expect(q).not.toContainText('Settle the labour question');

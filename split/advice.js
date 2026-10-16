@@ -305,7 +305,7 @@ function advQSmooth(ctx) {
     : { tone: 'ok', say: 'Yes: nothing stands in the way this week.' };
   var byTone = { red: 0, amber: 0, info: 0 };
   moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
-  // The card as a tile on Today → Pulse (§6.21): how many things could stop the plant, coded by how soon.
+  // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): how many things could stop the plant, coded by how soon.
   var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
     sub: escHtml(moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ')),
     viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
@@ -573,8 +573,8 @@ function advChangedMoves(ctx, card) {
 
 /* ---------- The questions ---------- */
 /* The six questions in order, each {key, q, html, answer: {tone, say}, vital, moves, none, hints}: `html` the card's body
-   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Today →
-   Pulse draws them (today.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
+   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Home's
+   question widgets draw them (widgetcards.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
 function advQuestions(range) {
   var a = range && typeof range === 'object' ? range : statsPulseArgs(range || _statsPeriod);
   var ctx = advCtx(a);
@@ -768,7 +768,7 @@ function advMovesHtml(moves, listKey, n) {
   var listed = advListedKeys();
   return uiMoreHtml('adv-' + listKey, moves.map(function(mv) { return advMoveRowHtml(mv, listed); }), { n: n || ADV_SHOW, noun: moves.length - (n || ADV_SHOW) === 1 ? 'move' : 'moves' });
 }
-/* A move as a card (§6.22, Today → Pulse): its mark and what it answers in the head with its worth, the move and what it
+/* A move as a card (§6.22, Home's questions): its mark and what it answers in the head with its worth, the move and what it
    rests on, its button and Add to my list at the foot. The same keys and refs as its row, so a tap acts as the row's does. */
 function advMoveCardHtml(mv, listed, word) {
   var ref = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"';

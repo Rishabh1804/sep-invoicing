@@ -357,7 +357,9 @@ function paceCardOpts() {
   var down = p.prevRev > 0 && p.projRev < p.prevRev, tone = p.prevRev > 0 ? (down ? 'warning' : 'ok') : 'neutral';
   var facts = [
     { label: 'So far', sub: formatNum(p.kg / 1000, 1) + ' t billed', value: formatCurrency(p.rev), attrs: ' data-pace="sofar"' },
-    { label: 'Likely range', sub: 'how much the days so far varied', value: formatCurrency(p.low) + ' – ' + formatCurrency(p.high), attrs: ' data-pace="range"' },
+    // A band is a prediction: whole rupees on its face, the paise in its title (as Money's Overview draws its figures).
+    { label: 'Likely range', sub: 'as the days so far varied', value: finRs(p.low) + ' – ' + finRs(p.high),
+      attrs: ' data-pace="range" title="' + escHtml(formatCurrency(p.low) + ' – ' + formatCurrency(p.high)) + '"' },
     { label: 'Tonnage at its pace', sub: p.prevLabel + ' ' + formatNum(p.prevKg / 1000, 1) + ' t', value: formatNum(p.projKg / 1000, 1) + ' t', attrs: ' data-pace="kg"' },
     { label: 'Unbilled challans in hand', sub: 'would lift the month if billed in it', value: formatCurrency(p.unbilled), attrs: ' data-pace="unbilled"' }
   ].map(uiFactRowHtml);

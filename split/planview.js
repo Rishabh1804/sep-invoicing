@@ -1,5 +1,5 @@
 /* ===== THE PLANNER'S SCREENS (planner.js holds the engine; docs/PLANNER.md) =====
-   Today → Planner: Play · Ledger · A day · Moves, and on Moves a switch: Plant · Tech tree · Staff · Clients · Finance (the tab
+   Home → Planner: Play · Ledger · A day · Moves, and on Moves a switch: Plant · Tech tree · Staff · Clients · Finance (the tab
    map, TM2d: the five were views of their own). One scenario runs through every view; one verdict card leads each, the plan's
    margin against the goal. The registers (machines, the CQI-11 checklist, lenders, rates heard, work held back) are edited here,
    behind Settings' permission: they are records of the shop. A scenario's moves are not: the page is a sandbox. */

@@ -7,8 +7,8 @@ import { dayOff } from './sweep-fixture';
 // §6's table names, each in its declared type or null; unknown stays null, never 0; a sum over a view is the figure its screen
 // shows (Stats' months, Production → Lines' week, Money's Cash hero) and every other view agrees with the function its screen
 // draws with; each view is worked out once a book state and kept until a save (a production view also until _prodVer moves).
-// Run on both layouts (p226-data-layer.spec.ts, p226-data-layer.desktop.spec.ts). §16's paths in CHG_TRACK are U2's: they do
-// not exist before it.
+// Run on both layouts (p226-data-layer.spec.ts, p226-data-layer.desktop.spec.ts). §16's paths in CHG_TRACK are U2's (feeds.js,
+// changelog.js), held by the last test here.
 
 /* §6's table, column for column. */
 export const P226_COLS: Record<string, string[]> = {
@@ -455,6 +455,31 @@ export function dataLayerSpec(layout: 'phone' | 'desktop') {
       expect(r.weather).toEqual([
         { date: y, t_max: 33, t_min: 24, rain_mm: 0, thunder: false },
         { date: today, t_max: 31.4, t_min: 22, rain_mm: 4.2, thunder: true }]);
+    });
+
+    // §16 (U2): every path the pass adds to the book is a record the hub can hold, so each is in CHG_TRACK under the parent
+    // `market`, which the merge (mrgUnits) and the hub after it read; the weather days are a fetched copy, quiet.
+    test('§16’s market paths are in CHG_TRACK under `market`, the weather days quiet; the feeds’ settings one record', async ({ page }) => {
+      await loadAppWithState(page, p226Book());
+      const r = await page.evaluate(() => {
+        const w = window as any, sp = (p: string) => { const x = w.CHG_TRACK.find((t: any) => t.path === p); return x ? { kind: x.kind, quiet: !!x.quiet } : null; };
+        return { tata: sp('market.tata'), calendar: sp('market.calendar'), models: sp('market.models'), weather: sp('market.weather'), feeds: sp('feedsCfg'),
+          parent: w.CHG_PARENTS.market,
+          units: w.chgUnits().map((u: any) => u.path).filter((p: string) => /^(market\.|feedsCfg$)/.test(p)).sort(),
+          merge: w.mrgUnits([(0, eval)('S')]).filter((u: any) => /^market\.[a-z]/.test(u.path)).map((u: any) => [u.path, !!u.quiet]).sort(),
+          shape: (0, eval)('S').market };
+      });
+      expect(r.tata).toEqual({ kind: 'map', quiet: false });
+      expect(r.calendar).toEqual({ kind: 'map', quiet: false });
+      expect(r.models).toEqual({ kind: 'cfg', quiet: false });
+      expect(r.weather).toEqual({ kind: 'map', quiet: true });
+      expect(r.feeds).toEqual({ kind: 'cfg', quiet: false });
+      expect(r.parent).toBe(1);
+      // The change log compares the three the owner types and never the weather; the merge takes all four, the weather quietly.
+      expect(r.units).toEqual(['feedsCfg', 'market.calendar', 'market.models', 'market.tata']);
+      expect(r.merge).toEqual([['market.calendar', false], ['market.models', false], ['market.tata', false], ['market.weather', true]]);
+      // A book from before U2 is given the market's shape, empty, the models followed the default.
+      expect(r.shape).toEqual({ tata: {}, calendar: {}, models: ['Prima', 'Signa', 'Ultra', 'Azura'], weather: {} });
     });
   });
 }

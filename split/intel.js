@@ -20,7 +20,7 @@
    paying its share of it. */
 
 /* Three tabs since the tab map (TM2b, 9 Oct 2026): Overview's questions, why it moved, the period in one line and the month's
-   pace are Today → Pulse's; Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
+   pace are Home's widgets (Pulse's until UI pass 3); Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
    (overview, billing) opens By client (docs/TAB_MAP.md §5). */
 var STATS_TABS = [['clients', 'By client'], ['cost', 'Cost'], ['trends', 'Trends']];
 var STATS_TAB_KEY = 'sep_inv_stats_tab';
@@ -240,7 +240,7 @@ function statsMarginHtml(period, filtered, tonnage) {
    Owner, 30 Sep 2026: "Stats view needs an overhaul, it puts insights front and center and doesn't present itself in a
    really engaging way"; they chose the questions the owner asks, each answered as a story card: the figure, one sentence
    that says what it means and why, a small chart, and the way to the tab with the detail. Stats → Overview's until the tab
-   map (TM2b), Today → Pulse's since. The cards read the same figures as the panels beside them (statsOverviewHtml, the
+   map (TM2b), Pulse's, then Home's widgets (UI pass 3). The cards read the same figures as the panels beside them (statsOverviewHtml, the
    six months, the insights), never a second arithmetic. */
 function statsMonthRows(n) {
   var today = localDateStr(), rows = [], active = statsInvoices().filter(function(i) { return i.date; });
@@ -261,7 +261,7 @@ function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap"
 /* The five cards Stats → Overview had (owner, 30 Sep 2026), each as {key, q, html, answer, vital}: the html is the card's
    body (the figure, the sentence, the small chart), `answer` the sentence that answers it ({tone, say}, `say` html with every
    name escaped), `vital` its face as a hero. advQuestions (advice.js) puts the new first question before them and the moves
-   under each; Today → Pulse draws them (today.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
+   under each; Home's question widgets draw them (widgetcards.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
    margins and the To-do's tasks are worked out once. The clients card also hands on what it found (`worst`, `mover`) for
    the moves, and the plant card its capacity. */
 function statsStoryCards(a, ctx) {
@@ -295,7 +295,7 @@ function statsStoryCards(a, ctx) {
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
     : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
-  // The card as a tile on Today → Pulse (§6.21): the figure that answers it, its words, the six months as a line.
+  // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): the figure that answers it, its words, the six months as a line.
   c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',

@@ -490,6 +490,7 @@ function onDocClick(e) {
       if (faceAction(action, btn)) break;
       if (tdyAction(action, btn)) break;
       if (srchAction(action, btn)) break;
+      if (mktAction(action, btn)) break;
       if (typeof devAction === 'function' && devAction(action, btn)) break;
       if (action.indexOf('invGuard') === 0) { if (typeof guardAction === 'function') guardAction(action, btn); break; }
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
@@ -542,6 +543,8 @@ function onDocChange(e) {
   if (rptOnChange(e.target)) return;
   if (flrOnChange(e.target)) return;
   if (faceOnChange(e.target)) return;
+  if (mktOnChange(e.target)) return;
+  if (wdgOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;

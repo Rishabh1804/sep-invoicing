@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import path from 'path';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, todayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, readStoredState, todayIso, type SepState, openNeeds } from './fixtures';
 
 // P136: Add, the one door (Direction B, step B4; owner, 1 Oct 2026). One sheet for everything that comes in: a WhatsApp
 // message pasted (the one paste box), the clipboard read only on a tap, a photo (the register reader, which offers a

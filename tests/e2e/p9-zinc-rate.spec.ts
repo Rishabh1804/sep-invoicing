@@ -25,11 +25,11 @@ test.describe('P9: zinc market rate', () => {
     await loadAppWithState(page, stateWithZinc(400, 15, Date.now()));
     await openWidget(page, 'zinc');
 
-    const card = page.locator('#homeZincCard');
+    const card = page.locator('[data-w="zinc"]');
     await expect(card).toContainText('Zinc');
     await expect(card).toContainText('₹415');       // 400 + 15 landed
     await expect(card).toContainText('updated today');
-    await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toHaveCount(0);
+    await expect(page.locator('[data-w="zinc"] [data-zinc-age="stale"]')).toHaveCount(0);
   });
 
   test('flags a rate that has gone stale', async ({ page }) => {
@@ -37,15 +37,15 @@ test.describe('P9: zinc market rate', () => {
     await loadAppWithState(page, stateWithZinc(400, 15, tenDaysAgo));
     await openWidget(page, 'zinc');
 
-    await expect(page.locator('#homeZincCard')).toContainText('10 days ago');
-    await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toBeVisible();
-    await expect(page.locator('#homeZincCard [data-zinc-age="stale"]')).toContainText('may be out of date');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('10 days ago');
+    await expect(page.locator('[data-w="zinc"] [data-zinc-age="stale"]')).toBeVisible();
+    await expect(page.locator('[data-w="zinc"] [data-zinc-age="stale"]')).toContainText('may be out of date');
   });
 
   test('prompts for setup when no rate is recorded and no key is set', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(null));
     await openWidget(page, 'zinc');
-    await expect(page.locator('#homeZincCard')).toContainText('No rate recorded');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('No rate recorded');
     // Nothing to press yet — a refresh would only report the missing key.
     await expect(page.locator('[data-action="invRefreshZinc"]')).toHaveCount(0);
   });
@@ -57,7 +57,7 @@ test.describe('P9: zinc market rate', () => {
     await page.reload();
     await page.waitForSelector('body.inv-booted', { state: 'attached' });
 
-    const card = page.locator('#homeZincCard');
+    const card = page.locator('[data-w="zinc"]');
     await expect(card).toContainText('Tap Refresh');
     await expect(card).not.toContainText('add a metals.dev API key');
     await expect(page.locator('[data-action="invRefreshZinc"]')).toBeVisible();
@@ -79,7 +79,7 @@ test.describe('P9: zinc market rate', () => {
 
     await page.locator('[data-action="invRefreshZinc"]').click();
     // 387.10 LME + 10.5% = 427.75 MCX est., + 15 premium = 442.75 landed.
-    await expect(page.locator('#homeZincCard')).toContainText('442.75');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('442.75');
   });
 
   test('refresh without a key tells you to add one rather than failing silently', async ({ page }) => {
@@ -105,14 +105,14 @@ test.describe('P9: zinc market rate', () => {
 
     // metals.dev carries no MCX base metal, so this is LME and gets uplifted:
     // 387.10 + 10.5% = 427.75 MCX est., + 15 premium = 442.75 landed.
-    await expect(page.locator('#homeZincCard')).toContainText('442.75');
-    await expect(page.locator('#homeZincCard')).toContainText('updated today');
-    await expect(page.locator('#homeZincCard')).toContainText('metals.dev');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('442.75');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('updated today');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('metals.dev');
     // The derivation is spelled out, so an estimate never reads as a quote,
     // and the matched field is named — here the bare `zinc` alias, since this
     // fixture carries no explicit lme_zinc.
-    await expect(page.locator('#homeZincCard')).toContainText('MCX est.');
-    await expect(page.locator('#homeZincCard')).toContainText('metals.zinc');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('MCX est.');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('metals.zinc');
   });
 
   test('prefers an MCX figure over LME when both are offered', async ({ page }) => {
@@ -132,16 +132,16 @@ test.describe('P9: zinc market rate', () => {
     await page.locator('[data-action="invRefreshZinc"]').click();
     // A genuine MCX figure is the Indian price already: no uplift, so
     // 392.00 + 15 = 407.00 landed, and no "est." qualifier.
-    await expect(page.locator('#homeZincCard')).toContainText('407.00');
-    await expect(page.locator('#homeZincCard')).toContainText('mcx_zinc');
-    await expect(page.locator('#homeZincCard')).not.toContainText('MCX est.');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('407.00');
+    await expect(page.locator('[data-w="zinc"]')).toContainText('mcx_zinc');
+    await expect(page.locator('[data-w="zinc"]')).not.toContainText('MCX est.');
   });
 
   test('a hand-entered rate is treated as MCX and is never uplifted', async ({ page }) => {
     // basis 'manual' with the real MCX quote the operator read off the market.
     await loadAppWithState(page, stateWithZinc(392, 15, Date.now(), 'manual'));
     await openWidget(page, 'zinc');
-    const card = page.locator('#homeZincCard');
+    const card = page.locator('[data-w="zinc"]');
     await expect(card).toContainText('407.00');   // 392 + 15, uplift not applied
     await expect(card).not.toContainText('MCX est.');
   });
@@ -149,7 +149,7 @@ test.describe('P9: zinc market rate', () => {
   test('an LME-basis rate shows its full derivation rather than a bare number', async ({ page }) => {
     await loadAppWithState(page, stateWithZinc(355.11, 15, Date.now(), 'lme', 10.5));
     await openWidget(page, 'zinc');
-    const card = page.locator('#homeZincCard');
+    const card = page.locator('[data-w="zinc"]');
     // 355.11 + 10.5% = 392.40 MCX est., + 15 = 407.40 landed.
     await expect(card).toContainText('407.40');
     await expect(card).toContainText('LME ₹355.11');

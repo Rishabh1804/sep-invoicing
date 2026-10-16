@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, readStoredState, switchTab, todayIso, type SepState, openNeeds } from './fixtures';
 
 // P160: learning from responses (the intelligence's fifth step, 6 Oct 2026). How the owner answers the tasks the app raises
 // tunes what it raises and in what order: suggested, never silent, applied with a tap and put back with one. Made-up figures.
@@ -37,7 +37,7 @@ test.describe('P160 learning from responses', () => {
     expect(sug.map((x: any) => [x.kind, x.rule, x.from, x.to])).toEqual([['raise', 'challan', 3, 6]]);
     expect(sug[0].title).toBe('Raise a challan is waiting to be billed to 6 days');
     // Learnt from your answers is on Needs you, at the foot of the tasks (the tab map, TM2a).
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     const row = page.locator('#homeNeeds [data-learn="raise:challan"]');
     await expect(row).toContainText('3 snoozes in 90 days, none acted on. Now 3 days.');
     await row.locator('[data-action="invLearnApply"]').click();
@@ -88,7 +88,7 @@ test.describe('P160 learning from responses', () => {
   test('a fold snoozed is one decision for its members, and the snooze is recorded where it is made', async ({ page }) => {
     await loadAppWithState(page, book());
     await stub(page, { owed90: [task('owed90', 1, { amount: 100 }), task('owed90', 2, { amount: 200 }), task('owed90', 3, { amount: 300 })] });
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await page.locator('#homeNeeds [data-todo="app"] [data-action="invTodoOpenApp"]').first().click();
     // The clock ticks between the members on a slow device (CI caught it, 9 Oct 2026): here it ticks on every reading.
     await page.evaluate(() => { const now = Date.now.bind(Date); let n = 0; Date.now = () => now() + n++; });
@@ -103,7 +103,7 @@ test.describe('P160 learning from responses', () => {
   test('a task’s button and a move under it are answers; the To-do raises one task that opens the suggestions', async ({ page }) => {
     await loadAppWithState(page, book({ todo: { tasks: [], snoozes: {}, resp: resp('challan', 'snooze', 3) } }));
     await stub(page, { owed90: [task('owed90', 1, { amount: 100 })] });
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await page.locator('#homeNeeds [data-tdy-task="owed90:1"] [data-action="invTodoOpenApp"]').click();
     await page.locator('.inv-dialog-foot [data-action="invTodoGoApp"]').click();
     expect(await g(page, `todoData().resp.filter(function (x) { return x.key === 'owed90:1'; }).map(function (x) { return x.act; })`)).toEqual(['go']);

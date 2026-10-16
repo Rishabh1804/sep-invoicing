@@ -72,7 +72,7 @@ test.describe('S2: fixed and variable labour', () => {
     // The split is the power case's (powerMargin). On the page, labour is fixed whole (owner, 13 Oct 2026), said as a badge,
     // and the variable cost sits under the full cost by all of labour.
     await openStatsTab(page, 'clients');
-    await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+    await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
     const note = page.locator('#statsMargin .inv-panel-body .inv-note').first();
     await expect(note.locator('[data-margin-split]')).toHaveText('labour fixed');
     const [v, f] = ((await note.textContent()) || '').match(/₹[\d,.]+/g)!.map(x => parseFloat(x.slice(1).replace(/,/g, '')));
@@ -221,7 +221,7 @@ test('S10: on All, labour per kg divides by the tonnage billed inside the attend
   s.invNextNum = 3;
   await loadAppWithState(page, s);
   await openStatsTab(page, 'cost');
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
   const want = await g(page, `(function(){ var r = labourRangeForPeriod('all'), lab = labourForRange(r.from, r.to); return formatCurrency(lab.total / 1000); })()`) as string;
   // The labour is the span's; so is the 1,000 kg under it. The whole book's 4,000 kg read it at a quarter.
   await expect(page.locator('[data-card="labour"] [data-tile="perkg"]')).toContainText(want);

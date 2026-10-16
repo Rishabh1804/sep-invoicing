@@ -1,16 +1,17 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse, switchTab, toolbarMore, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, switchTab, toolbarMore, type SepState, openNeeds } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P185 desktop: the tab map, step TM2 on the desktop. The same places as the phone's (p185-today-map.spec.ts), in the desktop's
-// form: Pulse's three cards and every verdict card open, the period as wide as its segments beside More, the Planner's tables
+// form: Pulse's three cards (widgets on Home since UI pass 3) and every verdict card open, the period as wide as its segments beside More, the Planner's tables
 // kept, its toolbar one row with "Roll the trials", and Needs you's Add, Snoozed and Done in the tasks' stack. Made-up book.
 
 test.describe('P185: Today on the desktop', () => {
   test.beforeEach(async ({ page }) => { await page.setViewportSize({ width: 1280, height: 800 }); });
 
-  test('Needs you keeps Add at the head of the tasks; Pulse’s cards are open; the period sits beside More', async ({ page }) => {
+  test('Needs you keeps Add at the head of the tasks, a task added there lands in it and the field keeps the focus', async ({ page }) => {
     await loadAppWithState(page, { ...emptyState(), incomingMaterial: noSeedIM(), todo: { tasks: [{ id: 'T1', text: 'Ring the plater', due: '', note: '', link: null, createdAt: 1, doneAt: 2 }], snoozes: {} } } as unknown as SepState);
+    await openNeeds(page);
     const tasks = page.locator('#homeNeeds [data-card="tasks"]');
     await expect(tasks.locator(':scope > *').first()).toHaveAttribute('data-tdy-add', '');
     await expect(tasks.locator('[data-card="done"] .inv-panel-count')).toHaveText('1');
@@ -20,16 +21,18 @@ test.describe('P185: Today on the desktop', () => {
     await expect(page.locator('#todoNew')).toBeFocused();
   });
 
-  test('Pulse: Why it moved, In one line and the pace open; the period as wide as its segments; More holds the rest', async ({ page }) => {
+  test('Home: Why it moved, In one line and the pace are widgets drawn whole; the period as wide as its segments; More holds the rest', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await openPulse(page);
+    // Pulse's three cards are widgets on Home's board since UI pass 3 (U2): drawn whole, with no fold to open.
     for (const id of ['statsWhy', 'statsOverview', 'statsPace']) {
-      expect(await page.locator('#' + id).evaluate(el => (el as HTMLDetailsElement).open), id).toBe(true);
+      await expect(page.locator('#' + id), id).toHaveClass(/inv-widget/);
+      await expect(page.locator('#' + id + ' .inv-widget-body'), id).toBeVisible();
     }
-    const w = await page.locator('[data-tdy-pulse-head]').evaluate(el => ({ head: el.getBoundingClientRect().width, seg: (el.querySelector('.inv-seg') as HTMLElement).getBoundingClientRect().width }));
+    const w = await page.locator('[data-home-toolbar]').evaluate(el => ({ head: el.getBoundingClientRect().width, seg: (el.querySelector('.inv-seg') as HTMLElement).getBoundingClientRect().width }));
     expect(w.seg).toBeLessThan(w.head / 2);
     await toolbarMore(page);
-    await expect(page.locator('[data-tb-more-dialog] [data-tb-pick]')).toHaveText(['Make a report', 'Open Stats', 'Edit Home']);
+    await expect(page.locator('[data-tb-more-dialog] [data-tb-pick]')).toHaveText(['Make a report', 'Open Stats', 'Reset Home']);
   });
 
   test('Stats’ verdict cards are open; the Planner keeps its tables and one toolbar row', async ({ page }) => {

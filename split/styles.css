@@ -3042,6 +3042,74 @@ body.inv-desktop .inv-homeday-clock { font-size: var(--fs-48); }
 /* widgets · floor and people (U2d): each widget's own parts, after this line. */
 
 /* widgets · market, analysis and what's coming (U2d): each widget's own parts, after this line. */
+/* A widget's caption over a part of it (the plant's week, a chart, the headlines): the eyebrow's look, sentence case. */
+.inv-widget-cap { margin: var(--sp-8) 0 var(--sp-4); font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+.inv-widget-credit { min-width: 0; }
+/* The weather now as a figure, its icon beside the temperature; the next 12 hours as small wells, a thunder hour in its warning and a
+   wet one in info (the plant's week's look). */
+.inv-wx-fig { display: flex; align-items: center; gap: var(--sp-6); }
+.inv-wx-fig .inv-wx-ico { flex: none; width: var(--sp-24); height: var(--sp-24); }
+.inv-wx-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp-4); }
+@container widget (min-width: 32rem) { .inv-wx-hours { grid-template-columns: repeat(12, minmax(0, 1fr)); } }
+.inv-wx-hour { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-4) var(--sp-2);
+  border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); }
+.inv-wx-hour[data-tone="warning"] { background: var(--warning-bg); color: var(--warning); box-shadow: none; }
+.inv-wx-hour[data-tone="info"] { background: var(--info-bg); color: var(--info); box-shadow: none; }
+.inv-wx-hour-t { font-size: var(--fs-11); white-space: nowrap; }
+.inv-wx-hour-c { font-size: var(--fs-12); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.inv-wx-hour[data-tone] .inv-wx-hour-c { color: inherit; }
+/* Tata at Large: its three parts stacked, two side by side (the headlines under them) from 36rem, three across from 60rem. */
+.inv-widget-parts-3 { grid-template-columns: minmax(0, 1fr); align-items: start; margin-top: var(--sp-8); }
+@container widget (min-width: 36rem) {
+  .inv-widget-parts-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .inv-widget-parts-3 > :last-child { grid-column: 1 / -1; }
+}
+@container widget (min-width: 60rem) {
+  .inv-widget-parts-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .inv-widget-parts-3 > :last-child { grid-column: auto; }
+}
+/* With no chart (the phone), its two parts are two across from 36rem, the headlines beside the figures. */
+@container widget (min-width: 36rem) { .inv-widget-parts-2 > :last-child { grid-column: auto; } }
+.inv-widget-part { min-width: 0; }
+.inv-widget-part > .inv-widget-rows { margin-left: 0; margin-right: 0; }
+.inv-widget-part > .inv-tiles { margin-top: 0; }
+/* The pair a "Does one move the other?" asks about: two pickers on a row, each as wide as the row allows. */
+.inv-corr-picks { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-8); }
+.inv-corr-pick { flex: 1 1 12rem; min-width: 0; margin: 0; }
+.inv-corr-pick .inv-select { width: 100%; }
+/* A kilo's cost as one bar of 100%, each part in its own colour (seriesSlot 'cost'), a gap between parts, in a well. */
+.inv-sharebar { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; background: var(--well); box-shadow: var(--press-1); }
+.inv-sharebar-part { fill: var(--ink); }
 
 @media print { .inv-wboard, .inv-widget-lifted { display: none; } }
 @media (prefers-reduced-motion: reduce) { .inv-widget-lifted { transition: none; } }
+/* ===== THE WORLD OUTSIDE (feeds.js, docs/UI_PASS_3.md §9): the Tata dialog, a headline, the weather on one line =====
+   A headline is a row whose whole face is its link out. The month's figures are a grid: a label, then this year's field and the
+   same month's a year before. The plant's week is seven small wells, a day the calendar names filled in its tone (shut warning,
+   works info). The weather now is an icon, the temperature and the window of rain or thunder on one line (the day card's, §8b). */
+.inv-mkt-news { text-decoration: none; }
+.inv-mkt-news .inv-row-end { color: var(--text-3); }
+.inv-mkt-news .inv-row-end svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-mkt-news:hover .inv-row-end, .inv-mkt-news:focus-visible .inv-row-end { color: var(--accent); }
+.inv-mkt-figs {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--line-fig-w)) minmax(0, var(--line-fig-w));
+  gap: var(--sp-6) var(--sp-10); align-items: center; margin: var(--sp-12) 0;
+}
+.inv-mkt-figs > .inv-field-label:not(:first-child) { text-align: right; }
+.inv-mkt-fig-k { min-width: 0; font-size: var(--fs-14); color: var(--text-1); overflow-wrap: anywhere; }
+.inv-mkt-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.inv-mkt-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-4); }
+.inv-mkt-day {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-6) var(--sp-2);
+  border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); text-align: center;
+}
+.inv-mkt-day[data-tone="warning"] { background: var(--warning-bg); color: var(--warning); box-shadow: none; }
+.inv-mkt-day[data-tone="info"] { background: var(--info-bg); color: var(--info); box-shadow: none; }
+.inv-mkt-day-dow { font-size: var(--fs-11); font-weight: 600; }
+.inv-mkt-day-d { font-size: var(--fs-16); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.inv-mkt-day[data-tone] .inv-mkt-day-d { color: inherit; }
+.inv-mkt-day-s { font-size: var(--fs-11); line-height: 1.2; overflow-wrap: anywhere; }
+.inv-wx-now { display: inline-flex; align-items: center; gap: var(--sp-4); max-width: 100%; color: var(--text-2); font-size: var(--fs-13); font-weight: 500; vertical-align: middle; }
+.inv-wx-ico { flex: none; width: var(--sp-16); height: var(--sp-16); }
+.inv-wx-temp { color: var(--text-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.inv-wx-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

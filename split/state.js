@@ -63,6 +63,12 @@ function getDefaultState() {
     flowCfg: { turnDays: 1, termsDays: 45, holidays: [] },
     // The office printer (remoteprint.js): sent to over GitHub, printed by the print station.
     printer: { on: false, name: '', address: '', cartridge: '' },
+    // The news and the weather (feeds.js, UI pass 3 §9): the owner's feeds Worker and the plant's place. No place ships: it is
+    // typed on the device, else read from the Office QR's (S.checkinCfg) when asked.
+    feedsCfg: { on: true, url: 'https://feeds.somaelectro.co.in', lat: null, lon: null, place: '' },
+    // The world outside (feeds.js, §16): Tata Motors' months as typed from its release, the plant's calendar by day, the models
+    // whose headlines are followed, and each day's forecast as it stood when the weather was fetched (kept quietly, 400 days).
+    market: { tata: {}, calendar: {}, models: ['Prima', 'Signa', 'Ultra', 'Azura'], weather: {} },
     invStateCheck: { createdAmber: 1, createdRed: 2, printedAmber: 1, printedRed: 2, dispatchedAmber: 3, dispatchedRed: 7, fileWarnDays: 3 },
     // Chemical stock: lines, the events that move them, and each pasted
     // message whole. Ships empty — the lines arrive with the first message.
@@ -622,12 +628,12 @@ function hideStorageBanner(kind) {
 // app must never invent business data to repair a shape.
 var STATE_CONTAINERS = ['clients', 'items', 'invoices', 'incomingMaterial', 'partWeights',
   'voidedNumbers', 'creditNotes', 'extraExceptions', 'attendanceDeletes', 'staff', 'attendance', 'areaTargets', 'shiftNeeds', 'stock', 'todo', 'relayPastes', 'relayLearn', 'attRegister', 'planner', 'staffPayments', 'payCarryClears', 'costBills', 'payrollPaid', 'suppliers', 'supplierPays', 'bank', 'production', 'quotations',
-  'devices'];
+  'devices', 'market'];
 // Config objects are the opposite: a missing one is filled from the defaults,
 // and so is a missing KEY inside one. `labourCfg()` reads `extraRate || 0`, so
 // a backup predating a constant would silently price the extra at nothing
 // rather than at ₹47.50 — a wrong number, not a visible gap.
-var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg', 'printer'];
+var STATE_CONFIGS = ['labour', 'rateCheck', 'stockCheck', 'todoCheck', 'invStateCheck', 'qtnCfg', 'flowCfg', 'printer', 'feedsCfg'];
 
 function ensureStateShape(s) {
   if (!s) return s;
@@ -642,6 +648,11 @@ function ensureStateShape(s) {
     });
   });
   if (!s.cnNextNum) s.cnNextNum = 1;
+  // The market's four stores (feeds.js): each its own shape, filled empty; the models followed take the default only where
+  // there is no list at all (a list emptied by the owner stays empty).
+  var mk = s.market && typeof s.market === 'object' && !Array.isArray(s.market) ? s.market : (s.market = {});
+  ['tata', 'calendar', 'weather'].forEach(function(k) { if (!mk[k] || typeof mk[k] !== 'object' || Array.isArray(mk[k])) mk[k] = {}; });
+  if (!Array.isArray(mk.models)) mk.models = d.market.models.slice();
   // A record's lines are read as an array in some 150 places: an invoice or challan written without one (a
   // hand-edited backup, an older scanner) made the first screen to read it throw, Home at launch (the QA sweep,
   // 29 Sep 2026). An empty list is a shape, not invented business data.

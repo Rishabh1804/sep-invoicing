@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse, openSettingsAt, openStatsTab, openWidget, phoneFilter, readStoredState, recentTs,
-  setFilter, switchTab, todayIso, toolbarMore, toolbarMoreLabels, workdayIso, type SepState } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, noSeedIM, openPulse, openSettingsAt, openStatsTab, openWidget, phoneFilter, readStoredState, recentTs, setFilter, switchTab, todayIso, toolbarMore, toolbarMoreLabels, workdayIso, type SepState, openNeeds } from './fixtures';
 import { PINS, lockNow, unlock, withUsers } from './p140-guard.fixture';
 import { sweep } from './sweep-fixture';
 
@@ -70,19 +69,20 @@ test.describe('P211: the shell, navigation, More and Filter, the change log', ()
     expect(await g(page, `chgText(S.changeLog.filter(function (x) { return x.coll === 'clients'; }).pop())`)).toBe('Someone changed client NOVA GEARS: payment terms — → 7');
   });
 
-  test('A1-4: Pulse’s More offers only the screens the role opens', async ({ page }) => {
+  test('A1-4: Home’s More offers only the screens the role opens', async ({ page }) => {
     await loadAppWithState(page, priced([1000, 9], [50, 9]));
     // Office given the money, and still no Stats or Reports among its pages.
     await withUsers(page, { roles: { office: { finance: true } } });
     await unlock(page, 'U-off', PINS.office);
     await openPulse(page);
-    await expect(page.locator('[data-tdy-questions]')).toHaveCount(1);
-    expect(await toolbarMoreLabels(page)).toEqual(['Edit Home']);
+    // The questions are money: drawn for an office given it (a widget each since UI pass 3, U2).
+    expect(await page.locator('#homeBoard [data-tdy-questions]').count()).toBeGreaterThan(0);
+    expect(await toolbarMoreLabels(page)).toEqual(['Reset Home']);
     // The owner opens both.
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
     await openPulse(page);
-    expect(await toolbarMoreLabels(page)).toEqual(['Make a report', 'Open Stats', 'Edit Home']);
+    expect(await toolbarMoreLabels(page)).toEqual(['Make a report', 'Open Stats', 'Reset Home']);
   });
 
   test('A1-7: Add names the screens as the app calls them now: People, and Attendance → Month', async ({ page }) => {
@@ -132,6 +132,7 @@ test.describe('P211: the shell, navigation, More and Filter, the change log', ()
 test.describe('P211: Today', () => {
   test('A2-2: a task saved from Details leaves the field empty, so the next Add does not make it twice', async ({ page }) => {
     await loadAppWithState(page, base());
+    await openNeeds(page);
     const field = page.locator('#todoNew');
     await field.fill('Call NOVA GEARS about the rate');
     await page.locator('[data-action="invTodoNew"]').click();
@@ -147,13 +148,16 @@ test.describe('P211: Today', () => {
     await loadAppWithState(page, base());
     await withUsers(page);
     await unlock(page, 'U-own', PINS.owner);
+    await openNeeds(page);
     await page.locator('#todoNew').fill('Owner half task');
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
+    await openNeeds(page);
     await expect(page.locator('#todoNew')).toHaveValue('Owner half task');
     await lockNow(page);
     await unlock(page, 'U-off', PINS.office);
     await expect(page.locator('#pageHome [data-card="tasks"]')).toBeVisible();
+    await openNeeds(page);
     await expect(page.locator('#todoNew')).toHaveValue('');
   });
 
@@ -176,11 +180,13 @@ test.describe('P211: Today', () => {
     expect(r.h).toContain(title);
   });
 
-  test('A2-8: Edit Home from Pulse’s More is brought into sight, its head and Done on screen', async ({ page }) => {
+  test('A2-8: arranging Home is on screen where it starts: its toolbar’s Done and the first widget’s handle', async ({ page }) => {
     await loadAppWithState(page, priced([1000, 9], [50, 9]));
     await openPulse(page);
-    await toolbarMore(page, 'Edit Home');
-    await expect(page.locator('#homeEdit [data-action="invHomeEditDone"]')).toBeInViewport();
+    // Edit Home opened at the page's foot until UI pass 3 (U2); Customise arranges the board in place.
+    await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
+    await expect(page.locator('[data-home-toolbar] [data-action="invWdgDone"]')).toBeInViewport();
+    await expect(page.locator('#homeBoard [data-wdg-handle]').first()).toBeInViewport();
   });
 });
 
@@ -199,7 +205,7 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await expect(q.locator('.inv-meter-warning')).toHaveCount(1);
   });
 
-  test('A7-15: a loss within 5% of the live cost is a warning on Pulse, on Stats’ Cost and Trends, and on the report', async ({ page }) => {
+  test('A7-15: a loss within 5% of the live cost is a warning on Home, on Stats’ Cost and Trends, and on the report', async ({ page }) => {
     // ₹8,750 for 1,050 kg: ₹8.33/kg against ₹8.56, 2.7% under.
     await loadAppWithState(page, priced([1000, 8.3], [50, 9]));
     await openPulse(page);
@@ -277,7 +283,7 @@ test.describe('P211: the price against the cost, judged one way', () => {
     await loadAppWithState(page, s);
     const info = await infoColour(page);
     await openWidget(page, 'attendance');
-    const fig = page.locator('#homeAttCard [data-alloc="vat-a1"] .inv-fig-info');
+    const fig = page.locator('[data-w="atttoday"] [data-alloc="vat-a1"] .inv-fig-info');
     await expect(fig).toHaveText('5/4');
     expect(await fig.evaluate(el => getComputedStyle(el).color)).toBe(info);
     // The day's report: the heads a day in the paper's own blue.

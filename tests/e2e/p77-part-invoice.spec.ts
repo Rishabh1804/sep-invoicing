@@ -44,7 +44,7 @@ test('600 invoiced as 200, 300 and 100: the share left, the status and the unbil
   await expect(await imStatus(page)).toHaveText('Part invoiced');
   // Home: the unbilled amount is the open share, never the whole line.
   await openPulse(page);
-  await expect(page.locator('#homeUnbilledCard')).toContainText('₹2,300.00');   // 400 × 2.50 + challan 401's 1,300
+  await expect(page.locator('[data-w="unbilled"]')).toContainText('₹2,300.00');   // 400 × 2.50 + challan 401's 1,300
 
   // The picker offers what is left, and says what went before.
   await pickChallan(page, 'samarth', 'IM-301');

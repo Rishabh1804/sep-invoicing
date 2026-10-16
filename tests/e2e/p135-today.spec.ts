@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, todayIso, waitForBoot, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, todayIso, waitForBoot, type SepState, openNeeds } from './fixtures';
 
-// P135: Today (DIRECTION_B, step B3; owner, 1 Oct 2026). Home is Today, two views: Needs you (the day's inputs, each
-// with when it usually arrives, and every open task grouped Now / This week / Later with its one-tap move) and Pulse
-// (the questions with what to do, then the widgets the owner arranged). Each view has an address, so Back walks them.
-// Every name is made up; dates are from today.
+// P135: Today (DIRECTION_B, step B3; owner, 1 Oct 2026), Home since UI pass 3 (U2), two views: Home (the day card and the board
+// of widgets each person arranges; Pulse's questions and widgets are on it) and Needs you (the day's inputs, each with when it
+// usually arrives, and every open task grouped Now / This week / Later with its one-tap move). Each view has an address, so Back
+// walks them. Every name is made up; dates are from today.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 const where = (p: Page) => { const u = new URL(p.url()); return [u.searchParams.get('tab'), u.searchParams.get('v') || '']; };
@@ -30,11 +30,13 @@ function state(): SepState {
   } as unknown as SepState;
 }
 
-test('Today opens on Needs you: the day’s inputs, then the tasks grouped by when they want doing', async ({ page }) => {
+test('Home opens on its board; Needs you holds the day’s inputs, then the tasks grouped by when they want doing', async ({ page }) => {
   await loadAppWithState(page, state());
   await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
-  await expect(page.locator('#homeNeeds')).toBeVisible();
-  await expect(page.locator('#homePulse')).toBeHidden();
+  await expect(page.locator('#homeDash')).toBeVisible();
+  await expect(page.locator('#homeNeeds')).toBeHidden();
+  await openNeeds(page);
+  await expect(page.locator('#homeDash')).toBeHidden();
   // Five inputs; the roll is in because the day was entered by hand.
   const inputs = page.locator('[data-tdy-input]');
   await expect(inputs).toHaveCount(5);
@@ -52,26 +54,31 @@ test('Today opens on Needs you: the day’s inputs, then the tasks grouped by wh
   await expect(app.locator('.inv-deck-foot button, .inv-deck-foot a')).toHaveCount(1);
 });
 
-test('Pulse is the second view; each view has its address and Back walks between them', async ({ page }) => {
+test('Needs you is the second view; each view has its address and Back walks between them', async ({ page }) => {
   await loadAppWithState(page, state());
-  expect(where(page)).toEqual(['pageHome', 'needs']);
-  await page.locator('#wsTabs [data-v="pulse"]').click();
-  await expect(page.locator('#homePulse')).toBeVisible();
-  await expect(page.locator('#homeNeeds')).toBeHidden();
-  await expect.poll(() => where(page)).toEqual(['pageHome', 'pulse']);
-  await expect(page.locator('#wsTabs [data-v="pulse"]')).toHaveAttribute('aria-selected', 'true');
-  await page.goBack();
+  await expect.poll(() => where(page)).toEqual(['pageHome', 'home']);
+  await page.locator('#wsTabs [data-v="needs"]').click();
   await expect(page.locator('#homeNeeds')).toBeVisible();
+  await expect(page.locator('#homeDash')).toBeHidden();
   await expect.poll(() => where(page)).toEqual(['pageHome', 'needs']);
-  // A reload opens the view the address names.
+  await expect(page.locator('#wsTabs [data-v="needs"]')).toHaveAttribute('aria-selected', 'true');
+  await page.goBack();
+  await expect(page.locator('#homeDash')).toBeVisible();
+  await expect.poll(() => where(page)).toEqual(['pageHome', 'home']);
+  // A reload opens the view the address names; Pulse's old address lands on Home's board.
+  await page.goto(page.url().replace('v=home', 'v=needs'));
+  await waitForBoot(page);
+  await expect(page.locator('#homeNeeds')).toBeVisible();
+  expect(await g(page, 'tdyView()')).toBe('needs');
   await page.goto(page.url().replace('v=needs', 'v=pulse'));
   await waitForBoot(page);
-  await expect(page.locator('#homePulse')).toBeVisible();
-  expect(await g(page, 'tdyView()')).toBe('pulse');
+  await expect(page.locator('#homeDash')).toBeVisible();
+  expect(await g(page, 'tdyView()')).toBe('home');
 });
 
 test('an input not in yet offers its door, and a row opens where it lands', async ({ page }) => {
   await loadAppWithState(page, state());
+  await openNeeds(page);
   const stock = page.locator('[data-tdy-input="stock"]');
   await expect(stock).not.toHaveAttribute('data-state', 'in');
   await expect(stock.locator('[data-action="invTdyPaste"]')).toHaveCount(1);

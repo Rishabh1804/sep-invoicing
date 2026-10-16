@@ -16,7 +16,7 @@ const own = (p: Page) => p.locator('.inv-page-active .inv-viewtabs:not(#wsTabs) 
 const rail = (p: Page, ws: string) => p.locator(`#invSidebar [data-ws="${ws}"]`);
 
 const ROWS: Record<string, string[]> = {
-  today: ['Needs you', 'Pulse', 'Stats', 'Reports', 'Planner'],
+  today: ['Home', 'Needs you', 'Stats', 'Reports', 'Planner'],
   office: ['Pipeline', 'Challans', 'Invoices', 'Clients', 'Sales'],
   floor: ['Overview', 'People', 'Production', 'Stock', 'Power'],
 };
@@ -45,7 +45,7 @@ test.describe('P184: the tab map on the desktop', () => {
     await rail(page, 'today').click();
     await row(page).filter({ hasText: /^Planner$/ }).click();
     await expect(page.locator('#pagePlanner')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#topbarTitle')).toHaveText('Today');
+    await expect(page.locator('#topbarTitle')).toHaveText('Home');
     await expect(page.locator('#topbarCtx')).toContainText('Planner');
     await rail(page, 'office').click();
     await row(page).filter({ hasText: /^Sales$/ }).click();
@@ -84,16 +84,16 @@ test.describe('P184: the tab map on the desktop', () => {
     await switchTab(page, 'pageIM');
     await page.locator('[data-action="invShowAddChallan"]').click();
     await page.locator('#imVehicleNo').fill('JH 05 1234');
-    await page.locator('#invSidebar [data-action="invGoPulse"]').click();
+    await page.locator('#invSidebar [data-action="invGoHome"]').click();
     expect(await answerAsk(page, 'cancel')).toContain('Leave without saving?');
     await expect(page.locator('#imVehicleNo')).toHaveValue('JH 05 1234');
     // And the History tool, the same.
     await page.locator('.inv-topbar [data-action="invGoHistory"]:visible').click();
     expect(await answerAsk(page, 'cancel')).toContain('Leave without saving?');
     await expect(page.locator('#imVehicleNo')).toHaveValue('JH 05 1234');
-    await page.locator('#invSidebar [data-action="invGoPulse"]').click();
+    await page.locator('#invSidebar [data-action="invGoHome"]').click();
     await answerAsk(page, 'ok');
-    await expect(page.locator('#homePulse:not(.inv-hidden)')).toBeVisible();
+    await expect(page.locator('#homeDash:not(.inv-hidden)')).toBeVisible();
   });
 });
 

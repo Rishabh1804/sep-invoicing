@@ -624,7 +624,7 @@ function rptPrint() {
     p.kind === 'quarterly' ? 'Q' + rptQuarter(p.from) + '-' + rptFyLabel(rptFy(p.from)).replace(' ', '-') : p.kind === 'weekly' ? 'W' + attPayWeekNumber(p.from) + '-' + p.to.slice(0, 4) : p.from);
 }
 
-/* Today → Pulse → Make a report: the period Pulse shows, as a report (Stats → Overview's until the tab map, TM2b). All is the
+/* Home → More → Make a report: the period Home shows, as a report (Stats → Overview's until the tab map, TM2b). All is the
    whole book, which no report covers (a financial year at most): it opens the year to date and says so (QA5-14). */
 function rptFromStats() {
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';

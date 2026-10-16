@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, todayIso, waitForBoot, switchTab } from './fixtures';
+import { loadAppWithState, todayIso, waitForBoot, switchTab, openNeeds } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P201: the supervisor's face (docs/ENTRY_FACES.md, F3; owner, 10 Oct 2026: "[the supervisor] - Attendance, Stock, Barrel", "Should
@@ -127,6 +127,7 @@ test.describe('P201: the supervisor’s face', () => {
     // The roll sent to the group and pasted by the owner later is refused as saved before.
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
+    await openNeeds(page);
     await expect(page.locator('[data-tdy-input="roll-in"] .inv-step-meta')).toContainText('by Esha Pal');
     // The roll as it stands, and the first version too (sent to the group before it was corrected): neither is read twice.
     const last = await ev(page, `S.relayPastes[S.relayPastes.length - 1].text`);

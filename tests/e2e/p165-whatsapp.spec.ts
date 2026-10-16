@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, type SepState, openNeeds } from './fixtures';
 
 // P165 (owner, 7 Oct 2026): "When connected to the internet let's have a webpage loader in the app where it can directly
 // open the web.whatsapp.com page or the installed app for us." WhatsApp Web refuses to be framed by another site
@@ -11,6 +11,7 @@ const g = (page: any, e: string) => page.evaluate((x: string) => (0, eval)(x), e
 test.describe('P165 WhatsApp opened from the paste boxes', () => {
   test('the phone opens the installed app, from Add, Paste message and Today', async ({ page }) => {
     await loadAppWithState(page, book());
+    await openNeeds(page);
     // Pixel 5 is an Android phone: the app by its package, which Chrome sends to the Play Store when it is missing.
     const today = page.locator('#homeNeeds [data-tdy-wa] [data-wa-go]');
     await expect(today).toHaveCount(1);
@@ -42,6 +43,7 @@ test.describe('P165 WhatsApp opened from the paste boxes', () => {
 
   test('offline the links hide and say why; back online they return in place', async ({ page, context }) => {
     await loadAppWithState(page, book());
+    await openNeeds(page);
     const link = page.locator('#homeNeeds [data-tdy-wa] [data-wa-go]');
     const off = page.locator('#homeNeeds [data-tdy-wa] [data-wa-off]');
     await expect(link).toBeVisible();

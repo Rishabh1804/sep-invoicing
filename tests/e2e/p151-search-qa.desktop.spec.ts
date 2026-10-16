@@ -42,13 +42,14 @@ test.describe('P151 on the desktop', () => {
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
   });
 
-  test("QA3-7: Ctrl+click Pulse, the rail's mark or the tab row, opens Pulse in a new window", async ({ page }) => {
+  test("QA3-7: Ctrl+click Home, the rail's mark or the tab row, opens Home in a new window", async ({ page }) => {
     await loadAppWithState(page, searchBook());
     await stubOpen(page);
-    await page.locator('#invSidebar .inv-side-brand[data-action="invGoPulse"]').click({ modifiers: ['Control'] });
-    await page.locator('#wsTabs [data-tab="pageHome"][data-v="pulse"]').click({ button: 'middle' });
+    // The mark opened Pulse until UI pass 3 (U2), whose Pulse folded into Home.
+    await page.locator('#invSidebar .inv-side-brand[data-action="invGoHome"]').click({ modifiers: ['Control'] });
+    await page.locator('#wsTabs [data-tab="pageHome"][data-v="home"]').click({ button: 'middle' });
     await page.locator('#wsTabs [data-tab="pageHome"][data-v="needs"]').click({ modifiers: ['Control'] });
-    expect(await opened(page)).toEqual([['pageHome', 'pulse', '', '_blank'], ['pageHome', 'pulse', '', '_blank'], ['pageHome', 'needs', '', '_blank']]);
+    expect(await opened(page)).toEqual([['pageHome', 'home', '', '_blank'], ['pageHome', 'home', '', '_blank'], ['pageHome', 'needs', '', '_blank']]);
     await expect(page.locator('#wsTabs [data-v="needs"]')).toHaveAttribute('aria-selected', 'true');
   });
 

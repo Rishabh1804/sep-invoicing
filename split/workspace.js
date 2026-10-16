@@ -9,9 +9,9 @@
 
    The map is here and nowhere else (WORKSPACES): the phone bar, the tab row, the sidebar, swiping, the red counts and the
    top bar's names all read it. A page not in the DOM is left out (wsViewsPresent), so the steps that add Pipeline and Day
-   fit in as they land. Today's two views, Needs you and Pulse, are pageHome's own `v`: drawn once pageHome says it has
-   them (`homeViews`, the Today step's), and opened as places through nav.js (navOpen), which takes the step and applies
-   the view. A page a workspace holds without a tab (Create in Office, the To-do in Today) lights its workspace and is
+   fit in as they land. Home's two views, the dashboard and Needs you, are pageHome's own `v`: drawn once pageHome says it
+   has them (`homeViews`, today.js), and opened as places through nav.js (navOpen), which takes the step and applies
+   the view. A page a workspace holds without a tab (Create in Office, the To-do in Home) lights its workspace and is
    named in the top bar.
 
    Three levels, the same on both layouts (owner, 8 Oct 2026: "in the desktop view we have many tabs that are actually tabs
@@ -19,8 +19,9 @@
    is a door on the phone's bar or the desktop's rail, never anything under it; its views are the tab row under the top bar;
    a page's own views are the row under that.
 
-   The tab map (docs/TAB_MAP.md, owner, 9 Oct 2026: "Go with all four recommendations"): four sections by subject. Today is
-   the whole business (Needs you, Pulse, then its Insights: Stats, Reports, the Planner); Office the paperwork (Pipeline,
+   The tab map (docs/TAB_MAP.md, owner, 9 Oct 2026: "Go with all four recommendations"): four sections by subject. Home (Today
+   until UI pass 3) is the whole business (the dashboard, Needs you, then its Insights: Stats, Reports, the Planner); Office the
+   paperwork (Pipeline,
    Challans, Invoices, Clients, Sales); Floor the plant; Money the cash. History and Knowledge are tools in the top bar on
    every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
@@ -37,8 +38,9 @@ function wsSvg(k) {
    and `v` is the one it opens first. `members` are pages held without a tab. `bar`: a door on the phone bar and the desktop
    rail (Add stands between Office and Floor, the bar's centre). */
 var WORKSPACES = [
-  { id: 'today', label: 'Today', icon: 'today', bar: true,
-    views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' },
+  // Home (UI pass 3 §8a): its id stays `today` (a saved trail, the bar's counts and the specs name it); the label and the icon are Home's.
+  { id: 'today', label: 'Home', icon: 'home', bar: true,
+    views: [{ tab: 'pageHome', v: 'home', label: 'Home' }, { tab: 'pageHome', v: 'needs', label: 'Needs you' },
       { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
     members: [] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
@@ -71,8 +73,8 @@ function wsOf(tabId) {
   }
   return null;
 }
-/* A workspace's views whose page is in the DOM. Today's two are pageHome's own views, drawn once pageHome declares them;
-   until then Today is pageHome alone, and has no tab row. */
+/* A workspace's views whose page is in the DOM. Home's two are pageHome's own views, drawn once pageHome declares them;
+   until then Home is pageHome alone, and has no tab row. */
 function wsViewsPresent(ws) {
   var w = typeof ws === 'string' ? wsGet(ws) : ws;
   if (!w) return [];
@@ -150,6 +152,7 @@ function wsTarget(id) {
   if (!views.length) return null;
   if (wsOf(navPageOf()) === w.id) return views[0];
   var last = _wsLast[w.id];
+  if (last && typeof navRedirect === 'function') last = navRedirect(last);
   if (last && isPageId(last.tab) && wsOf(last.tab) === w.id) {
     var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || wsViewHas(x, last.v)); })[0];
     // A view covering several returns to the one that was open (Office's door back onto Quotations).
@@ -179,7 +182,7 @@ function wsDoorHtml(cls, attrs, icon, label, countId) {
   return '<button class="' + cls + '" ' + attrs + '><span class="inv-navbar-mark">' + wsSvg(icon) + '</span>' + label +
     (countId ? '<span class="inv-navbar-count inv-hidden" data-ws-count="' + countId + '"></span>' : '') + '</button>';
 }
-/* The phone bar, from the map: Today · Office · Add · Floor · Money, Add the centre of five (owner, 8 Oct 2026: "Move insights
+/* The phone bar, from the map: Home · Office · Add · Floor · Money, Add the centre of five (owner, 8 Oct 2026: "Move insights
    into office tab, that way we have 5 icons again, which can be arranged in a better way"; with Insights the bar's sixth, Add
    stood off its centre). Add is the shell's one primary (data-shell-primary, which P76's one-primary-per-view check knows is
    not a view's). Drawn at load: it needs no book. */
@@ -257,16 +260,16 @@ window.addEventListener('resize', function() {
   _wsFitTimer = setTimeout(function() { wsRowFit(); }, 120);
 });
 
-/* The desktop rail (§4.2): the phone's bar stood on its side. The mark (it opens Pulse) · Add (the shell's primary, key A) ·
+/* The desktop rail (§4.2): the phone's bar stood on its side. The mark (it opens Home) · Add (the shell's primary, key A) ·
    the workspaces · Settings at the foot, each a door drawn as the bar draws it. A workspace's views are never listed here:
    they are its tab row, under the top bar, as on the phone (owner, 8 Oct 2026, above). Search is the top bar's field. */
 function renderSidebar() {
   var existing = document.getElementById('invSidebar');
   if (existing) existing.remove();
   if (!_isDesktop) return;
-  // The brand's mark opens Today → Pulse (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on the
-  // top left of the screen should take us back to the pulse screen, as today takes us to the needs you screen").
-  var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Soma Electro · Pulse">' + markSvg('sm', 'tile') + '</button>' +
+  // The brand's mark opens Home's dashboard (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on the
+  // top left of the screen should take us back to the pulse screen"; Pulse is Home's board since UI pass 3, §8a).
+  var html = '<button type="button" class="inv-side-brand" data-action="invGoHome" aria-label="Soma Electro: open Home" title="Soma Electro · Home">' + markSvg('sm', 'tile') + '</button>' +
     wsDoorHtml('inv-side-item inv-navbar-add', 'data-action="invAddOpen" data-shell-primary aria-keyshortcuts="A" title="Add (A)"', 'add', 'Add');
   if (typeof faceMineDoor === 'function' && faceMineDoor()) html += wsDoorHtml('inv-side-item', 'data-action="invWsGo" data-ws="mine"', 'mine', 'Mine', 'mine');
   WORKSPACES.forEach(function(w) {
@@ -297,8 +300,8 @@ function markSideActive(tabId) {
 
 /* ---------- The red counts ----------
    More carried every red row; the count moved to the bar (and the sidebar's heads). Each workspace carries the red app
-   tasks whose jump lands in it; Today carries every red row, your own late tasks included (the old More count). A task
-   with no jump, or one landing nowhere a workspace holds (Settings), counts on Today alone. */
+   tasks whose jump lands in it; Home carries every red row, your own late tasks included (the old More count). A task
+   with no jump, or one landing nowhere a workspace holds (Settings), counts on Home alone. */
 var WS_GO_PAGE = {
   home: 'pageHome',
   im: 'pageIM', challan: 'pageIM',
@@ -369,8 +372,8 @@ function wsGroupReveal(el) {
 function wsAction(action, btn) {
   if (action === 'invWsGo') { wsGo(btn.dataset.ws); return true; }
   if (action === 'invWsGroup') { wsGroupReveal(btn); return true; }
-  // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
-  if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
+  // The brand: Home's dashboard, at its top (a step of the trail, as a tab is). invGoPulse is its old name (a saved trail, a test).
+  if (action === 'invGoHome' || action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'home' }); viewTop(); return true; }
   // The top bar's History: a tool, not a section's view (the tab map, 9 Oct 2026). A step of the trail, at its top.
   if (action === 'invGoHistory') { navOpen({ tab: 'pageHistory', v: '', id: '' }); viewTop(); return true; }
   return false;

@@ -127,18 +127,15 @@ function finOwedTone(days) { return figToneOwed(days, finHasBank() && finCtx().l
 function finOwedOldest(recv) {
   return (recv || []).reduce(function(m, r) { return r.owed > 0.005 && r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
 }
-/* Pulse's Money as a hero: what is owed past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance
-   (balance, owed, pays in, runway), each coded in its own tone. Coded by the worst of them. */
-function renderFinHomeCard() {
-  var el = document.getElementById('homeFinCard');
-  if (!el) return;
-  // Pulse's Money widget is the finance permission's: for another role it is not drawn at all (tabs.js homeWidgetSeen).
-  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) { el.innerHTML = ''; return; }
+/* Money at a glance as a hero's options (Home's money widget, widgetcards.js; Pulse's Money card until UI pass 3): what is owed
+   past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance (balance, owed, pays in, runway), each
+   coded in its own tone (#homeFin, [data-home-fin]). Coded by the worst of them. The widget is the finance permission's: for
+   another role it is never drawn (widgets.js wdgSees). `none` with no statement. */
+function finHomeOpts() {
   var imp = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button>';
   if (!finHasBank()) {
-    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet',
-      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp });
-    return;
+    return { tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet', none: true,
+      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp };
   }
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
   var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
@@ -173,9 +170,9 @@ function renderFinHomeCard() {
   var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
   var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
     { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
-  el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
+  return { tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
     title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
-    viz: meter, fold: 'pulse-money', open: !!_isDesktop, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp });
+    viz: meter, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp };
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */

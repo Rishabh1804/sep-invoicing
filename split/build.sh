@@ -90,6 +90,8 @@ JS_SOURCES=(
     "$DIR/prodview.js" \
     "$DIR/floor.js" \
     "$DIR/today.js" \
+    "$DIR/widgets.js" \
+    "$DIR/widgetcards.js" \
     "$DIR/faces.js" \
     "$DIR/facesheet.js" \
     "$DIR/flow.js" \

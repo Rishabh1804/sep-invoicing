@@ -75,11 +75,12 @@ function statsCostSplit(c) {
 function statsMoney(n) { return (n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 function statsSigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
-/* ---------- Today → Pulse: the period in one line (the tab map, TM2b; it was Stats → Overview's card) ----------
-   A hero (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the factors
-   are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its tile;
-   the floor's plated row under them. Shut on the phone, open on the desktop (§1a-3). */
-function statsOverviewHtml(period, filtered, tonnage) {
+/* ---------- The period in figures (Home's figures widget, widgetcards.js; Pulse's In one line until UI pass 3, Stats →
+   Overview's card before the tab map) ----------
+   A hero's options (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the
+   factors are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its
+   tile; the floor's plated row under them (#statsOverview). */
+function statsOverviewOpts(period, filtered, tonnage) {
   var r = statsRangeIso(period), kg = tonnage.kg;
   var c = liveCost(r.from, r.to, kg);
   var real = kg > 0 ? tonnage.revKnown / kg : null;
@@ -109,10 +110,10 @@ function statsOverviewHtml(period, filtered, tonnage) {
   var body = '<div class="inv-hero-sheet"><div class="inv-tiles' + (factors.length === 4 ? ' inv-tiles-4' : ' inv-tiles-3') + '">' + factors.map(uiFactorTileHtml).join('') + '</div></div>';
   var plated = prodStatsRowHtml(r.from, r.to);
   if (plated) body += '<div class="inv-hero-sheet">' + plated + '</div>';
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>In one line</span>', title: escHtml(title),
+  return { tone: tone, eyebrow: '<span>The period in figures</span>', title: escHtml(title),
     fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
     sub: contrib != null ? escHtml((contrib >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(contrib * kg))) + ' on the period') : '',
-    body: body, fold: 'pulse-overview', open: !!_isDesktop, attrs: ' id="statsOverview" data-card="overview" data-verdict' });
+    body: body, attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };
 }
 
 /* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */

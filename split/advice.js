@@ -173,7 +173,7 @@ function advRepriceDraft(clientId, target, inv, basis) {
     return { item: item, partNumber: r.part, desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' };
   });
   if (!lines.length) lines = [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' }];
-  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
+  return { lines: lines, unweighed: unweighed, note: 'Drafted from Home on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
 }
 /* Ask a client below the full cost for the full cost, a quotation drafted with its largest parts. */
 function advRepriceMove(ctx, x) {
@@ -480,7 +480,7 @@ function advPlantMoves(ctx) {
         worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, per: 'period', label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
         basis: 'the full cost ' + ctx.words + ' ' + formatCurrency(m.fullKg) + '/kg × 1.1' + (m.varKg != null ? ' · the variable cost ' + formatCurrency(m.varKg) + '/kg' : ''),
         go: { kind: 'quoteDraft', lines: [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: rate, refWeightKg: null, note: '' }],
-          note: 'Drafted from the Pulse on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
+          note: 'Drafted from Home on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
         goLabel: 'Draft quotation', task: 'Quote new work at ' + formatCurrency(rate) + '/kg' });
     }
     // The line with the most working days and no plating on record, the last 30 days or since the record began: a day

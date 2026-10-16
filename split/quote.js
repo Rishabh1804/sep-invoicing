@@ -292,7 +292,7 @@ function qtRepriceMovesHtml(moves) {
 /* The desktop's, in the pane while no quotation is open: its head, then the moves a card each, the pane scrolling inside itself. */
 function qtRepricePaneHtml(moves) {
   return '<div class="inv-pane-head"><span class="inv-panel-title">To reprice <span class="inv-panel-count">' + moves.length + '</span></span>' +
-    '<span class="inv-note">Pulse’s moves</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
+    '<span class="inv-note">From Home’s questions</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
 }
 function qtViewHtml() {
   if (_qtForm) return qtFormHtml();

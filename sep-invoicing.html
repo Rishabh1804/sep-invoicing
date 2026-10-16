@@ -18,7 +18,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400;500;600;700&family=Geist+Mono:wght@400;500;600&family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700&family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <!-- Appearance before first paint (§3.2): the device's theme and palette, so nothing flashes in the wrong colours. -->
 <script>(function(){try{var d=document.documentElement,t=localStorage.getItem("sep_inv_theme"),p=localStorage.getItem("sep_inv_palette");if(t==="light"||t==="dark")d.dataset.theme=t;d.dataset.palette=(p==="teal"||p==="terracotta")?p:"zinc";}catch(e){document.documentElement.dataset.palette="teal";}})();</script>
-<meta name="app-build" content="c294fcfe">
+<meta name="app-build" content="cac45516">
 <style>
 /* ===== DESIGN TOKENS (design system v2.0 — docs/SEP_INVOICING_DESIGN_PRINCIPLES.md §3) ===== */
 /* Theme: colour-scheme decides every light-dark() below. <html data-theme> is set before first paint
@@ -138,6 +138,9 @@
   /* Today's cards: a card in a deck at least this wide (a deck of small cards, `data-deck-sm`, the narrower: a unit of the plant);
      a sparkline's and a meter's height; a step's node; the small row a packed grid counts in. */
   --deck-min: 15rem; --deck-min-sm: 9rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
+  /* A widget's cap by its size (UI pass 3 §7b), so no layout lets one run a screen long (the phone's Medium and Large one cap); the
+     chip holding its section's icon. */
+  --wdg-cap-s: 10rem; --wdg-cap-m: 26rem; --wdg-cap-l: 40rem; --wdg-cap-phone: 30rem; --wdg-chip: 1.75rem;
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
@@ -2941,6 +2944,129 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-switch:focus-visible { box-shadow: var(--press-1), var(--focus-ring); }
 .inv-switch:disabled { opacity: 0.55; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { .inv-switch, .inv-switch::before { transition: none; } }
+
+
+/* ===== WIDGETS AND THE BOARD (docs/UI_PASS_3.md §7; widgets.js) =====
+   A widget is a card answering one question: a hero card's look (lifted, a card's corners, coded in its tone), its head the
+   section's icon, the title and the door to its screen. A board is a grid whose columns come from its own width: 12 from 60rem, 6
+   from 36rem, 2 under (the phone); a Small spans a quarter of the desktop's (3 of 12, 3 of 6, 1 of 2), a Medium half, a Large the
+   row. Height follows content, packed with no gap in the layout's order (uiMasonry), and capped by size. */
+.inv-wboard { container: wboard / inline-size; margin-bottom: var(--gap); }
+.inv-wgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
+.inv-wgrid > * { grid-column: span 2; min-width: 0; }
+.inv-wgrid > [data-size="s"] { grid-column: span 1; }
+.inv-wgrid > .inv-wgrid-blank { grid-column: 1 / -1; }
+@container wboard (min-width: 36rem) {
+  .inv-wgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .inv-wgrid > * { grid-column: span 6; }
+  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+}
+@container wboard (min-width: 60rem) {
+  .inv-wgrid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .inv-wgrid > * { grid-column: span 12; }
+  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+  .inv-wgrid > [data-size="m"] { grid-column: span 6; }
+}
+.inv-wgrid > .inv-widget { margin-bottom: 0; }
+/* The card: its parts arranged by its own width (each widget a container), its height capped by its size. */
+.inv-widget { container: widget / inline-size; display: flex; flex-direction: column; overflow: clip; overflow-clip-margin: var(--sp-4);
+  max-height: var(--wdg-cap-m); }
+.inv-widget[data-size="s"] { max-height: var(--wdg-cap-s); }
+.inv-widget[data-size="l"] { max-height: var(--wdg-cap-l); }
+body:not(.inv-desktop) .inv-widget:not([data-size="s"]) { max-height: var(--wdg-cap-phone); }
+.inv-widget-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; padding: var(--sp-8) var(--sp-12) var(--sp-4); }
+.inv-widget-chip { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--wdg-chip); height: var(--wdg-chip);
+  border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-1); color: var(--text-2); }
+.inv-widget-chip svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-door { display: inline-flex; align-items: center; gap: var(--sp-4); flex: 1 1 auto; min-width: 0; min-height: var(--ctl-h-sm);
+  padding: 0; border: none; background: none; font: inherit; color: var(--text-2); text-align: left; }
+button.inv-widget-door { cursor: pointer; color: var(--accent-soft-text); border-radius: var(--r-ctl); }
+button.inv-widget-door:hover .inv-widget-title { text-decoration: underline; }
+button.inv-widget-door:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-widget-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-12); font-weight: 600; }
+.inv-widget-chev { flex-shrink: 0; width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-body { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 var(--sp-12) var(--sp-12); }
+.inv-widget-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12) var(--sp-12); }
+/* What a widget says: its figure in its tone, its line (at most 60 characters), a few words under it, its chart. */
+.inv-widget-fig { font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.15;
+  color: var(--hero-tone); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.inv-widget-fig .inv-tile-of { font-size: var(--fs-14); color: var(--text-2); }
+.inv-widget-line { margin-top: var(--sp-2); font-size: var(--fs-14); font-weight: 600; line-height: 1.3; color: var(--text-1); }
+.inv-widget-sub { margin-top: var(--sp-2); font-size: var(--fs-12); line-height: 1.35; color: var(--text-2); }
+.inv-widget-viz { margin-top: var(--sp-8); min-width: 0; }
+.inv-widget-rows { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-widget-body > .inv-tiles { margin-top: var(--sp-8); margin-bottom: 0; }
+/* A screen's hero sheet inside a widget runs to the card's edges, as in a hero's body. */
+.inv-widget-body > .inv-hero-sheet { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; }
+.inv-widget-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
+.inv-widget-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: var(--sp-8) 0 0; border-radius: 0; }
+.inv-widget-foot:empty { display: none; }
+/* What a widget let go of to fit its size (wdgFit): how many more, and its screen's door. */
+.inv-widget-more { display: flex; align-items: center; padding-top: var(--sp-4); }
+.inv-widget-body [data-wdg-cut] { display: none !important; }
+/* The board's foot: the door to the gallery, centred under the widgets. */
+.inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
+.inv-widget-body > .inv-blank { margin: 0; }
+@container widget (max-width: 13rem) { .inv-widget-fig { font-size: var(--fs-19); } }
+/* A widget's parts by its width: stacked under 18rem, side by side to 36rem, in columns over it. */
+.inv-widget-parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-12); }
+@container widget (min-width: 18rem) { .inv-widget-parts { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; } }
+@container widget (min-width: 36rem) { .inv-widget-parts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); align-items: start; } }
+/* Arranging (§7e): the handle, the place, the size and Remove ride over the head; a widget lifted follows the pointer while a
+   placeholder of its size keeps its room. */
+.inv-wboard[data-arranging] .inv-widget { outline: var(--rule) dashed color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: calc(-1 * var(--rule)); }
+/* While arranging a widget is as tall as it needs: its controls take a row, and nothing is let go of under them. */
+body .inv-wboard[data-arranging] .inv-widget[data-size] { max-height: none; }
+.inv-widget-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); padding: var(--sp-8) var(--sp-8) 0 var(--sp-12); }
+.inv-widget-remove { margin-left: auto; }
+.inv-widget-handle { display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--lift-1); color: var(--text-2);
+  cursor: grab; touch-action: none; }
+.inv-widget-handle:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--lift-1); }
+.inv-widget-handle svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-place { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
+.inv-widget-sizes { width: auto; flex-shrink: 0; }
+.inv-widget-sizes .inv-seg-btn { flex: 0 0 auto; padding: 0 var(--sp-6); }
+.inv-widget-lifted { position: fixed; left: var(--drag-x); top: var(--drag-y); width: var(--drag-w); z-index: var(--z-dialog); margin: 0;
+  box-shadow: var(--lift-2); pointer-events: none; opacity: 0.94; }
+.inv-widget-ph { min-height: var(--ph-h); border: var(--rule) dashed var(--edge); border-radius: var(--r-card); background: var(--well); }
+body.inv-wdg-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+/* The gallery (§7f): the categories as chips, each widget a card with its live preview at its first size. */
+.inv-gallery-chips { display: flex; flex-shrink: 0; gap: var(--sp-6); overflow-x: auto; padding: var(--sp-8) 0; scrollbar-width: none; }
+.inv-gallery { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--gap); align-content: start; padding: var(--sp-4) 0 var(--sp-12); }
+.inv-gallery-card { display: flex; flex-direction: column; gap: var(--sp-8); min-width: 0; padding: var(--sp-12); border: var(--hair) solid var(--edge);
+  border-radius: var(--r-card); background: var(--surface-2); }
+/* A preview shows the widget's top, fading where the card stops, so a cut reads as a glimpse rather than a break. */
+.inv-gallery-preview { pointer-events: none; min-height: calc(var(--sp-24) * 2); max-height: var(--wdg-cap-s); overflow: hidden; border-radius: var(--r-card);
+  mask-image: linear-gradient(to bottom, var(--text-1) calc(100% - var(--sp-32)), transparent); }
+.inv-gallery-preview > .inv-widget { margin: 0; box-shadow: none; }
+.inv-gallery-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-gallery-q { margin: var(--sp-2) 0 0; font-size: var(--fs-13); line-height: 1.35; color: var(--text-2); }
+.inv-gallery-sizes { margin: var(--sp-2) 0 0; font-size: var(--fs-12); color: var(--text-3); }
+.inv-gallery-act { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-8); margin-top: auto; }
+/* A toast carrying one act (Remove's Undo). */
+.inv-toast-act { display: flex; align-items: center; gap: var(--sp-12); }
+.inv-toast-btn { min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-ctl); background: none;
+  font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
+.inv-toast-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Home's day card (§8b): its figure is the clock, ticking on the minute; under it when the general shift ends; the weather now. */
+.inv-homeday-clock { display: block; font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.05;
+  color: var(--text-1); font-variant-numeric: tabular-nums; }
+body.inv-desktop .inv-homeday-clock { font-size: var(--fs-48); }
+/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. */
+[data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
+.inv-homeday-shift { display: block; margin-top: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
+.inv-homeday-wx { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-13); color: var(--text-2); }
+.inv-homeday-wx svg { width: var(--sp-20); height: var(--sp-20); }
+/* widgets · money and office (U2d): each widget's own parts, after this line. */
+
+/* widgets · floor and people (U2d): each widget's own parts, after this line. */
+
+/* widgets · market, analysis and what's coming (U2d): each widget's own parts, after this line. */
+
+@media print { .inv-wboard, .inv-widget-lifted { display: none; } }
+@media (prefers-reduced-motion: reduce) { .inv-widget-lifted { transition: none; } }
 </style>
 </head>
 <body>
@@ -2951,7 +3077,7 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
     <span data-icon="back"></span>
   </button>
   <nav class="inv-topbar-trail" id="navTrail" aria-label="Trail"></nav>
-  <h1 class="inv-topbar-title" id="topbarTitle">Today</h1>
+  <h1 class="inv-topbar-title" id="topbarTitle">Home</h1>
   <span class="inv-topbar-ctx" id="topbarCtx"></span>
   <span class="inv-topbar-spacer"></span>
   <!-- Search (DIRECTION_B): a field-like button on the desktop, an icon on the phone; search.js builds what it opens. -->
@@ -2992,35 +3118,10 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
-  <!-- Today (today.js): Needs you, then Pulse; one of the two shown (pageHome's own view, ?tab=pageHome&v=pulse). -->
-  <div id="homeNeeds" data-today="needs"></div>
-  <div id="homePulse" data-today="pulse" class="inv-hidden">
-  <div id="homeQuestions"></div>
-  <div id="homeEditArea"></div>
-  <div class="inv-panels inv-panels-3" id="homeWidgets">
-    <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
-    <div data-home-w="quick" class="inv-panels-wide">
-      <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
-        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><span data-icon="filePlus"></span><span>New invoice</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><span data-icon="boxPlus"></span><span>New challan</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><span data-icon="flask"></span><span>Stock entry</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><span data-icon="userCheck"></span><span>Attendance</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><span data-icon="message"></span><span>Paste message</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><span data-icon="task"></span><span>Add task</span></button>
-      </div>
-    </div>
-    <div data-home-w="money" id="homeFinCard"></div>
-    <div data-home-w="todo" id="homeTodoCard"></div>
-    <div data-home-w="attendance" id="homeAttCard"></div>
-    <div data-home-w="unbilled" id="homeUnbilledCard"></div>
-    <div data-home-w="production" id="homeProdCard"></div>
-    <div data-home-w="power" id="homePowerCard"></div>
-    <div data-home-w="stock" id="homeStockCard"></div>
-    <div data-home-w="sync" id="homeSyncCard"></div>
-    <div data-home-w="zinc" id="homeZincCard"></div>
-    <div data-home-w="recent" class="inv-panels-wide" id="homeRecentCard"></div>
-  </div>
-  </div>
+  <!-- Home (today.js): the dashboard (the day card, its toolbar, the board of widgets: widgets.js, widgetcards.js) and Needs you;
+       one of the two shown (pageHome's own view, ?tab=pageHome&v=home | needs). -->
+  <div id="homeNeeds" data-today="needs" class="inv-hidden"></div>
+  <div id="homeDash" data-today="home"></div>
 </div>
 
 <div id="pageCreate" class="inv-page">
@@ -4251,6 +4352,7 @@ var ICONS = {
   // Moves and actions (Lucide): a control is its line alone
   back: '<path d="m15 18-6-6 6-6"/>',
   next: '<path d="m9 18 6-6-6-6"/>',
+  grip: '<circle cx="9" cy="5" r="1"/><circle cx="9" cy="12" r="1"/><circle cx="9" cy="19" r="1"/><circle cx="15" cy="5" r="1"/><circle cx="15" cy="12" r="1"/><circle cx="15" cy="19" r="1"/>',
   close: '<path d="M18 6 6 18"/><path d="m6 6 12 12"/>',
   check: '<path d="M20 6 9 17l-5-5"/>',
   plus: '<path d="M5 12h14"/><path d="M12 5v14"/>',
@@ -8232,11 +8334,11 @@ function zincAgeDays() {
   return Math.max(0, isoDaysBetween(isoOf(new Date(z.updatedAt)), localDateStr()));
 }
 
-/* Pulse's Zinc as a hero: the landed rate a kg, the market's last refreshes as a line (S.zinc.lmeHistory, landed at the uplift
-   and premium set now, as the price trend draws it), coded warning once the rate is out of date; the derivation under it. */
-function renderZincCard() {
-  var el = document.getElementById('homeZincCard');
-  if (!el) return;
+/* The zinc rate as a hero's options (Home's zinc widget, widgetcards.js; Pulse's card until UI pass 3): the landed rate a kg, the
+   market's last refreshes as a line (S.zinc.lmeHistory, landed at the uplift and premium set now, as the price trend draws it),
+   coded warning once the rate is out of date; the derivation under it. renderZincCard redraws the widget where it stands. */
+function renderZincCard() { if (typeof wdgRefresh === 'function') wdgRefresh('zinc'); }
+function zincCardOpts() {
   var z = getZinc();
   var landed = zincLandedRate();
   var refresh = '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invRefreshZinc">Refresh</button>';
@@ -8246,11 +8348,10 @@ function renderZincCard() {
     // to carry the Refresh button too. Without it, setting a key left the card
     // still asking for a key and no way to act on it.
     var hasKey = !!getMetalsKey();
-    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Zinc</span>', title: 'No rate recorded',
+    return { tone: 'neutral', eyebrow: '<span>Zinc</span>', title: 'No rate recorded', none: true,
       sub: hasKey ? 'Tap Refresh to pull the current market rate, or enter it by hand in Settings.'
         : 'Set it in Settings, or add a metals.dev API key there to pull it from the market.',
-      attrs: ' data-card="zinc"', foot: hasKey ? refresh : '' });
-    return;
+      attrs: ' data-card="zinc"', foot: hasKey ? refresh : '' };
   }
 
   var age = zincAgeDays();
@@ -8277,9 +8378,9 @@ function renderZincCard() {
     '<span class="inv-row-meta inv-row-wrap"><span class="inv-dot ' + (stale ? 'inv-dot-warning' : 'inv-dot-ok') + '" data-zinc-age="' + (stale ? 'stale' : 'fresh') + '">' +
     // Two facts (the tab map, TM6): when, and where from (the service, the field it was read from in brackets).
     escHtml(ageText + (stale ? ', may be out of date' : '')) + (z.source ? ' · ' + escHtml(String(z.source).replace(/^(.*?) · (.*)$/, '$1 ($2)')) : '') + '</span></span></span></div>';
-  el.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : '', eyebrow: '<span>Zinc</span><span class="inv-panel-count">' + escHtml(ageText) + '</span>',
+  return { tone: stale ? 'warning' : '', eyebrow: '<span>Zinc</span><span class="inv-panel-count">' + escHtml(ageText) + '</span>',
     title: 'Landed a kg', fig: figWrapHtml(escHtml(formatCurrency(landed))), sub: escHtml((z.basis === 'lme' ? 'MCX est. ' : 'MCX ') + formatCurrency(zincMcxRate()) + ' + ' + formatCurrency(z.premiumPerKg || 0) + ' premium'),
-    viz: line, fold: 'pulse-zinc', open: !!_isDesktop, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh });
+    viz: line, attrs: ' data-card="zinc"', body: '<div class="inv-hero-sheet">' + body + '</div>', foot: refresh, age: ageText, stale: stale };
 }
 
 /* Pull the live rate. Deliberately forgiving about the response shape: the
@@ -8593,7 +8694,7 @@ function zincLookupBillLme(from) {
 /* Each page by the name it carries on screen (the tab map, 9 Oct 2026: one word, one meaning). They reach users in refusal
    toasts, the guard's roles grid and a screen that could not be drawn. */
 const PAGE_TITLES = {
-  pageHome: 'Today', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
+  pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
   pageClients: 'Clients', pageFinance: 'Money', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
   pageFloor: 'Floor overview', pagePipeline: 'Pipeline', pageFace: 'Mine',
   pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
@@ -8738,8 +8839,9 @@ function tabRender(tabId, isDirty) {
     // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
     // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
     // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
-    // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both).
-    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod) { renderHome(); _tabDirty.home = false; }
+    // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both). Home's dashboard
+    // (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late.
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr()) { renderHome(); _tabDirty.home = false; }
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
       renderRegisterTable();
@@ -8826,15 +8928,13 @@ function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.
 var ICON_SEARCH = iconSvg('search');
 var ICON_PRINT = iconSvg('print');
 
-/* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
-function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
-/* Home's month so far as a hero (§6.21): the month's billing against the same days last month, realisation against the
+/* The month so far as a hero's options (§6.21; Home's mtd widget draws it, widgetcards.js): the month's billing against the same days last month, realisation against the
    cost, and the four tiles under it, each with the tonnage behind the revenue (What Stats measures) and a line of the months
    before. A tile whose change has a direction is coded in it (§6.26: data-tone, its figure a plain fact); realisation, which
    the app judges against the cost, is coloured as well (inv-tile-<tone>). */
-function renderHomeTiles(active) {
-  var host = document.getElementById('homeMtdCard');
-  if (!host) return;
+function homeMtdOpts(active, opt) {
+  opt = opt || {};
+  var withViz = opt.viz !== false;   // the tiles' lines of the months before: the mtd widget draws them at Large only
   var w = weighLines(active);
   // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
   var month = TREND_MONTH_LABELS[new Date().getMonth()];
@@ -8859,7 +8959,7 @@ function renderHomeTiles(active) {
     return '<div class="inv-tile' + (o.cls ? ' inv-tile-' + o.cls : '') + '"' + (o.id ? ' id="' + o.id + '"' : '') + (o.tone ? ' data-tone="' + o.tone + '"' : '') + '>' +
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value" id="mtd' + key + '">' + value + '</div>' +
       '<div class="inv-tile-sub" id="mtd' + key + 'Sub">' + sub + '</div><div class="inv-tile-sub" id="mtd' + key + 'Delta">' + delta + '</div>' +
-      '<div class="inv-tile-viz" id="mtd' + key + 'Viz">' + viz + '</div></div>';
+      (withViz ? '<div class="inv-tile-viz" id="mtd' + key + 'Viz">' + viz + '</div>' : '') + '</div>';
   };
   var tiles = tile('Count', 'Invoices', String(active.length), escHtml(month) + ' to date', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '',
       chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') })) +
@@ -8888,9 +8988,14 @@ function renderHomeTiles(active) {
   var sub = real == null ? (active.length ? 'Nothing weighed yet, so no realisation' : '')
     : 'Realising ' + formatCurrency(real) + ' a kg' + (cost != null ? (real >= cost ? ', clearing the cost of ' : ' against a cost of ') + formatCurrency(cost) : '');
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = [revTone, realTone].filter(Boolean).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
-  host.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
-    title: escHtml(title), sub: escHtml(sub), fold: 'pulse-mtd', open: !!_isDesktop, attrs: ' data-card="mtd"',
-    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' });
+  return { tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
+    title: escHtml(title), sub: escHtml(sub), attrs: ' data-card="mtd"', rev: rev, revTone: revTone, revDelta: has ? figDeltaHtml(rev, prev, lbl, 'up') : '',
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' };
+}
+/* The month's invoices so far, net of their credit notes (statsInvoices), so Home and Stats read one revenue. */
+function homeMonthInvoices() {
+  var now = new Date(), ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  return statsInvoices().filter(function(i) { return i.date && i.date.startsWith(ym); });
 }
 /* The last n months that have ended, oldest first, as Stats reads them (statsMonthRows: realisation over the weighed lines,
    at each month's own live cost), with the invoices counted. */
@@ -8914,49 +9019,23 @@ function homePriorSameDays() {
     invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
-/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
-var _homeDrawnView = '';   // the view of Today drawn last (tabRender)
-var _homeDrawnPeriod = '';   // the period Pulse was drawn on last: Stats and Pulse share one (tabRender)
+/* Home (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
+var _homeDrawnView = '';   // the view of Home drawn last (tabRender)
+var _homeDrawnPeriod = '';   // the period the dashboard was drawn on last: Stats and Home share one (tabRender)
+var _homeDrawnDay = '';      // the day Home was drawn on last (tabRender)
 function renderHome() {
   if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
   _homeDrawnPeriod = _statsPeriod;
+  _homeDrawnDay = localDateStr();
   tdyApplyView();
   // The bar's red counts on either view: Needs you had none drawn, so they stood as the start counted them (QA2-7).
-  if (tdyView() === 'needs') { renderNeeds(); updateStockBadge(); return; }
-  renderPulseQuestions();
-  renderHomeWidgets();
-}
-/* A widget's card emptied: one the role signed in does not see is not drawn at all, hidden or not (the QA audit, QA4-4:
-   the money cards were drawn in full and hidden, for any role). */
-function homeWidgetBlank(ids) { ids.forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = ''; }); }
-/* Pulse's widgets, as the owner arranged them. */
-function renderHomeWidgets() {
-  const now = new Date();
-  const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
-  if (homeWidgetSeen('mtd')) {
-    const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
-    renderHomeTiles(active);
-  } else homeBlankTiles();
-
-  if (homeWidgetSeen('zinc')) renderZincCard(); else homeWidgetBlank(['homeZincCard']);
-  if (homeWidgetSeen('money')) renderFinHomeCard(); else homeWidgetBlank(['homeFinCard']);
-  renderTodoHomeCard();
-  if (homeWidgetSeen('attendance')) renderAttHomeCard(); else homeWidgetBlank(['homeAttCard']);
+  if (tdyView() === 'needs') renderNeeds(); else renderHomeBoard();
   updateStockBadge();
-  if (homeWidgetSeen('sync')) ghRenderCard(); else homeWidgetBlank(['homeSyncCard']);
-  renderHomeUnbilledCard();
-  renderHomeRecentCard();
-  // Laid out once every card is drawn: the packed grid measures their heights (§6.25).
-  homeApplyLayout();
 }
-/* Unbilled material as a hero: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline codes its
-   first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
-function renderHomeUnbilledCard() {
-  var el = document.getElementById('homeUnbilledCard');
-  if (!el) return;
-  if (!homeWidgetSeen('unbilled')) { el.innerHTML = ''; return; }
+/* Unbilled material as a hero's options: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline
+   codes its first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
+function homeUnbilledOpts() {
   var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null, oldest = null;
   (S.incomingMaterial || []).forEach(function(im) {
     var hasPending = false;
@@ -8966,7 +9045,7 @@ function renderHomeUnbilledCard() {
     if (hasPending) { pendingChallans++; if (im.challanDate && (!oldest || im.challanDate < oldest)) oldest = im.challanDate; }
     if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
   });
-  if (!pendingChallans && !latestChallan) { el.innerHTML = ''; return; }
+  if (!pendingChallans && !latestChallan) return null;
   var age = oldest ? isoDaysBetween(oldest, localDateStr()) : 0, amberD = todoCfg().challanDays;
   var tone = !pendingChallans ? 'ok' : age >= amberD * 2 ? 'danger' : age >= amberD ? 'warning' : '';
   var body = '';
@@ -8984,28 +9063,24 @@ function renderHomeUnbilledCard() {
       '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
       escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
   }
-  el.innerHTML = uiHeroHtml({ tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
+  return { tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
     title: pendingChallans ? escHtml(todoPlural(pendingChallans, 'challan') + ' to invoice') : 'Everything received is invoiced',
     fig: pendingChallans ? figWrapHtml(escHtml(formatCurrency(pendingAmount))) : '',
     sub: pendingChallans && oldest ? escHtml('The oldest from ' + formatDate(oldest) + (age > 0 ? ', ' + todoPlural(age, 'day') + ' ago' : ', today')) : '',
-    fold: 'pulse-unbilled', open: !!_isDesktop, attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' });
+    attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' };
 }
-/* The recent invoices as a hero, as Needs you draws them (tdyRecentHtml), ten of them: the latest and its figure, opening to
-   the rows with their print buttons. With none yet, the way to the first. */
-function renderHomeRecentCard() {
-  var host = document.getElementById('homeRecentCard');
-  if (!host) return;
-  if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
-  var recent = homeRecentInvoices(10);
+/* The recent invoices as a hero's options, as Needs you draws them (tdyRecentHtml), `n` of them: the latest and its figure, its
+   rows with their print buttons. With none yet, the way to the first. */
+function homeRecentOpts(n) {
+  var recent = homeRecentInvoices(n || 10);
   var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
     iconSvg('file', 'inv-empty-icon') +
     '<div>No invoices yet</div>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
     '</div>';
-  host.innerHTML = uiHeroHtml(Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
-    fold: 'pulse-recent', open: !!_isDesktop, attrs: ' data-card="recent-pulse"',
-    body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' }));
+  return Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
+    attrs: ' data-card="recent-pulse"', body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' });
 }
 /* The invoices made last, newest first. */
 function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
@@ -9022,190 +9097,27 @@ function homeRecentRowHtml(inv) {
 }
 
 
-/* ===== HOME, AS THE OWNER ARRANGES IT =====
-   Owner, 30 Sep 2026: "Home screen needs an overhaul with an option to select what widget to show on the home screen and
-   where: a dynamic home screen which user can adjust." They chose presets and an edit mode, kept per device (the phone
-   and the PC each keep their own Home, like the theme; a backup or a pull never rearranges another device).
-
-   Every card on Home is a widget (`data-home-w`). A layout is {preset, order, hidden, wide}: the order the widgets stand
-   in, which are hidden, and which take the page's width on the desktop (half otherwise; the phone is one column). A preset
-   is a starting layout; Edit Home shows each widget with a switch, up and down, and half or full. */
-var HOME_LAYOUT_KEY = 'sep_inv_home';
-/* Each widget is a hero whose line answers at a glance: shut on the phone and open on the desktop until moved, remembered per
-   device (`pulse-<widget>`), as the verdict cards are (the tab map, §1a-3, TM2c: Pulse at or under three and a half phone screens
-   on the owner's book; open, its widgets alone ran past three). */
-var HOME_WIDGETS = [
-  ['mtd', 'Month to date'], ['quick', 'Quick actions'], ['money', 'Money'], ['todo', 'To-do'], ['attendance', 'Attendance'],
-  ['unbilled', 'Unbilled material'], ['production', 'Production'], ['power', 'Power cuts'], ['stock', 'Stock running low'],
-  ['sync', 'GitHub sync'], ['zinc', 'Zinc rate'], ['recent', 'Recent invoices']
-];
-/* Every preset hides the To-do, the recent invoices and Money (the tab map, TM2c): the tasks and the recent invoices are Needs
-   you's, the money is Money's own section, and Pulse gives that room to the cards it took from Stats. They come last, so a layout
-   made from a preset that shows one again puts it where it was. */
-var HOME_PRESETS = {
-  owner: { label: 'Owner', order: ['mtd', 'quick', 'attendance', 'unbilled', 'sync', 'zinc', 'production', 'power', 'stock', 'money', 'todo', 'recent'],
-    hidden: ['production', 'power', 'stock', 'money', 'todo', 'recent'], wide: ['mtd', 'quick', 'recent'] },
-  floor: { label: 'Floor', order: ['quick', 'attendance', 'production', 'stock', 'power', 'unbilled', 'mtd', 'sync', 'zinc', 'money', 'todo', 'recent'],
-    hidden: ['mtd', 'sync', 'zinc', 'money', 'todo', 'recent'], wide: ['quick'] },
-  money: { label: 'Money', order: ['mtd', 'unbilled', 'zinc', 'quick', 'attendance', 'production', 'power', 'stock', 'sync', 'money', 'todo', 'recent'],
-    hidden: ['quick', 'attendance', 'production', 'power', 'stock', 'sync', 'money', 'todo', 'recent'], wide: ['mtd', 'recent'] }
-};
-var _homeEdit = false;
-function homePresetLayout(k) {
-  var p = HOME_PRESETS[k] || HOME_PRESETS.owner, hid = {}, wide = {};
-  p.hidden.forEach(function(x) { hid[x] = true; });
-  p.wide.forEach(function(x) { wide[x] = true; });
-  return { preset: HOME_PRESETS[k] ? k : 'owner', order: p.order.slice(), hidden: hid, wide: wide };
+/* The last day plated, the month's power cuts and the stock running low, as heroes' options (Home's prodday, powercuts and
+   stockdays widgets draw them, widgetcards.js). Each says nothing rather than a zero. */
+/* The last day with plating on record, or '' with none. */
+function homeLastPlatedDay() {
+  var last = '';
+  prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && (!last || e.date > last)) last = e.date; });
+  return last;
 }
-function homeLayout() {
-  var l = null;
-  try { l = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); } catch (e) { l = null; }
-  if (!l || !Array.isArray(l.order)) return homePresetLayout('owner');
-  // A device on a preset follows the preset as this build defines it (TM2c); a layout of the owner's own is kept as it is.
-  if (l.preset !== 'custom' && HOME_PRESETS[l.preset]) return homePresetLayout(l.preset);
-  // A widget added since the layout was saved joins at the end, hidden, so a new build never rearranges a Home.
-  HOME_WIDGETS.forEach(function(w) { if (l.order.indexOf(w[0]) < 0) { l.order.push(w[0]); (l.hidden = l.hidden || {})[w[0]] = true; } });
-  l.order = l.order.filter(function(k) { return HOME_WIDGETS.some(function(w) { return w[0] === k; }); });
-  l.hidden = l.hidden || {}; l.wide = l.wide || {};
-  return l;
-}
-function homeLayoutSave(l) {
-  try { localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(l)); } catch (e) { /* a per-device convenience only */ }
-}
-/* The layout onto the page: each widget moved to its place, hidden or shown, full or half. */
-/* What a widget needs to be shown to the person signed in (guard.js; everything with the guard off): the money widgets
-   the finance permission, GitHub sync the owner, the others the screen they open. */
-var HOME_WIDGET_NEEDS = { mtd: 'money', money: 'money', zinc: 'money', sync: 'owner', unbilled: 'pageIM', recent: 'pageRegister',
-  attendance: 'pageStaff', production: 'pageProduction', power: 'pagePower', stock: 'pageStock', quick: 'pageCreate' };
-function homeWidgetSeen(k) {
-  var need = HOME_WIDGET_NEEDS[k];
-  if (!need || typeof grdOn !== 'function' || !grdOn()) return true;
-  if (need === 'money') return grdSeesMoney();
-  if (need === 'owner') return grdIsOwner();
-  return grdSees(need);
-}
-function homeApplyLayout() {
-  var host = document.getElementById('homeWidgets');
-  if (!host) return;
-  var l = homeLayout();
-  renderHomeExtraCards();
-  l.order.forEach(function(k) {
-    var el = host.querySelector('[data-home-w="' + k + '"]');
-    if (!el) return;
-    host.appendChild(el);
-    el.classList.toggle('inv-hidden', !!l.hidden[k] || !homeWidgetSeen(k));
-    el.classList.toggle('inv-panels-wide', !!l.wide[k]);
-  });
-  // Packed with no gaps on the desktop (§6.25): a short widget no longer leaves its row's height empty beside it.
-  if (_isDesktop) uiMasonry(host); else if (host.classList.contains('inv-masonry-on')) uiMasonry(host);
-  // Edit Home is opened from More in Pulse's head (the tab map, TM2b: one toolbar row; it was a toolbar of its own at the foot).
-  var area = document.getElementById('homeEditArea');
-  if (area) area.innerHTML = _homeEdit ? homeEditHtml(l) : '';
-}
-function homeEditHtml(l) {
-  var name = {}; HOME_WIDGETS.forEach(function(w) { name[w[0]] = w[1]; });
-  var h = '<div class="inv-panel inv-panel-flush" id="homeEdit" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">Edit Home</span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHomeEditDone">Done</button></div>' +
-    '<div class="inv-panel-body"><div class="inv-field-label">Start from</div><div class="inv-seg" role="group" aria-label="Preset">' +
-    Object.keys(HOME_PRESETS).map(function(k) { return '<button class="inv-seg-btn" data-action="invHomePreset" data-preset="' + k + '" aria-pressed="' + (l.preset === k) + '">' + HOME_PRESETS[k].label + '</button>'; }).join('') +
-    '</div><div class="inv-note inv-mt-8">' + (l.preset === 'custom' ? 'Your own arrangement. ' : '') + 'Kept on this device only. Half or full is the width on a wide screen; a phone shows one column.</div></div>';
-  l.order.forEach(function(k, i) {
-    if (!homeWidgetSeen(k)) return;
-    var on = !l.hidden[k];
-    h += '<div class="inv-row' + (on ? '' : ' inv-row-muted') + '" data-home-edit="' + k + '"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-home-show="' + k + '"' + (on ? ' checked' : '') + ' aria-label="Show ' + escHtml(name[k]) + '"></label>' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(name[k]) + '</span></span><span class="inv-row-end">' +
-      '<span class="inv-seg" role="group" aria-label="Width of ' + escHtml(name[k]) + '">' +
-      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="0" aria-pressed="' + !l.wide[k] + '">Half</button>' +
-      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="1" aria-pressed="' + !!l.wide[k] + '">Full</button></span>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="-1" aria-label="Move ' + escHtml(name[k]) + ' up"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="1" aria-label="Move ' + escHtml(name[k]) + ' down"' + (i === l.order.length - 1 ? ' disabled' : '') + '>&darr;</button></span></div>';
-  });
-  return h + '</div>';
-}
-function homeEditChange(fn) {
-  var l = homeLayout();
-  fn(l);
-  l.preset = 'custom';
-  homeLayoutSave(l);
-  homeApplyLayout();
-}
-function homeAction(action, btn) {
-  switch (action) {
-    case 'invHomeEdit':
-      _homeEdit = true;
-      homeApplyLayout();
-      // The panel is drawn under Pulse's questions and cards: brought into sight there, its head and Done under the bars (sent
-      // to the top of the page, it was screens below, out of sight).
-      var ed = document.getElementById('homeEdit');
-      if (ed) ed.scrollIntoView({ block: 'start' });
-      return true;
-    case 'invHomeEditDone': _homeEdit = false; homeApplyLayout(); return true;
-    case 'invHomePreset': homeLayoutSave(homePresetLayout(btn.dataset.preset)); homeApplyLayout(); return true;
-    case 'invHomeWide': homeEditChange(function(l) { l.wide[btn.dataset.w] = btn.dataset.v === '1'; }); return true;
-    case 'invHomeMove': homeEditChange(function(l) {
-      var i = l.order.indexOf(btn.dataset.w), j = i + parseInt(btn.dataset.d, 10);
-      if (i < 0 || j < 0 || j >= l.order.length) return;
-      l.order.splice(j, 0, l.order.splice(i, 1)[0]);
-    }); return true;
-  }
-  return false;
-}
-function homeShowToggle(el) {
-  homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
-}
-
-/* The three widgets Home had no card for, as heroes. Each is drawn only while shown, to a role that sees it (homeWidgetSeen),
-   and says nothing rather than a zero. */
-function renderHomeExtraCards() {
-  var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
-  var open = function(go) { return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="' + go + '">Open</button>'; };
-  // Production: the last day with plating on record, as Production's own day card (prodDayHeroHtml): one unit, the lines.
-  if (!l.hidden.production && homeWidgetSeen('production')) {
-    var h = '';
-    try {
-      var last = null;
-      prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && (!last || e.date > last)) last = e.date; });
-      h = prodDayHeroHtml(last, { compact: true, fold: 'pulse-production', open: !!_isDesktop, attrs: ' data-card="production"' });
-    } catch (e) { h = ''; }
-    set('homeProdCard', h);
-  } else set('homeProdCard', '');
-  // Power: this month's cuts and the last one.
-  if (!l.hidden.power && homeWidgetSeen('power')) {
-    var ph = '';
-    try {
-      var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
-      var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
-      var openCuts = cuts.filter(function(c) { return c.open; }).length;
-      ph = uiHeroHtml({ tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
-        title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
-        fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
-        fold: 'pulse-power', open: !!_isDesktop, attrs: ' data-card="power"',
-        body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
-          '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
-          '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
-          '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>',
-        foot: open('pagePower') });
-    } catch (e) { ph = ''; }
-    set('homePowerCard', ph);
-  } else set('homePowerCard', '');
-  // Stock: the lines red or amber, soonest out first.
-  if (!l.hidden.stock && homeWidgetSeen('stock')) {
-    var sh = '';
-    try {
-      var low = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
-        .filter(function(x) { return x.s.tone === 'red' || x.s.tone === 'amber'; }).sort(function(a, b) { return (a.s.daysLeft == null ? -1 : a.s.daysLeft) - (b.s.daysLeft == null ? -1 : b.s.daysLeft); });
-      var red = low.filter(function(x) { return x.s.tone === 'red'; }).length;
-      sh = uiHeroHtml({ tone: red ? 'danger' : low.length ? 'warning' : 'ok', eyebrow: '<span>Stock running low</span>' + (low.length ? '<span class="inv-panel-count">' + low.length + '</span>' : ''),
-        title: low.length ? escHtml(todoPlural(low.length, 'line') + ' running low') : 'No line is running low',
-        sub: low.length ? escHtml(low.slice(0, 3).map(function(x) { return x.i.name; }).join(' · ') + (low.length > 3 ? ' · and ' + (low.length - 3) + ' more' : '')) : '',
-        fold: 'pulse-stock', open: !!_isDesktop, attrs: ' data-card="stock-low"',
-        body: low.length ? '<div class="inv-hero-sheet">' + low.slice(0, 5).map(function(x) {
-          return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
-        }).join('') + (low.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (low.length - 5) + ' more</span></div>' : '') + '</div>' : null,
-        foot: open('pageStock') });
-    } catch (e) { sh = ''; }
-    set('homeStockCard', sh);
-  } else set('homeStockCard', '');
+/* Power: this month's cuts and the last one. */
+function homePowerOpts() {
+  var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
+  var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
+  var openCuts = cuts.filter(function(c) { return c.open; }).length;
+  return { tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
+    title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
+    fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
+    attrs: ' data-card="power"', cuts: cuts.length, mins: mins,
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
+      '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>' };
 }
 /* ===== CLIENT MASTER ===== */
 var _clientsActiveId = null;
@@ -14032,24 +13944,23 @@ function ghRelTime(ts) {
 
 /* Home card. A backup whose state you cannot see is a backup you will not
    trust, so the last sync time sits on the first screen rather than three
-   taps into Settings. A hero (§6.21): when it last went, coded by whether a working day has passed since, with its button. */
-function ghRenderCard() {
-  var host = document.getElementById('homeSyncCard');
-  if (!host) return;
+   taps into Settings. A hero's options (§6.21; Home's sync widget, widgetcards.js): when it last went, coded by whether a working
+   day has passed since, with its button. Null where sync is not set up. */
+function ghRenderCard() { if (typeof wdgRefresh === 'function') wdgRefresh('sync'); }
+function ghCardOpts() {
   // The guard keeps this device from syncing (devices.js): the card says so, and offers to register it unless it was
   // removed. A removed device's token is gone, and the card stays to say why.
   var blockedShort = typeof devSyncBlockedShort === 'function' ? devSyncBlockedShort() : '';
   if (blockedShort) {
     var bc = getGhConfig();
-    if (!bc.owner || !bc.repo) { host.innerHTML = ''; return; }
+    if (!bc.owner || !bc.repo) return null;
     var removed = typeof devRemovedRow === 'function' && !!devRemovedRow();
     // Removed: the whole sentence, who and when and why. Not registered: the few words, with the way to fix it beside.
     var why = removed ? devSyncBlocked() : blockedShort.charAt(0).toUpperCase() + blockedShort.slice(1);
-    host.innerHTML = uiHeroHtml({ tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
-      attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' });
-    return;
+    return { tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
+      attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' };
   }
-  if (!ghIsConfigured()) { host.innerHTML = ''; return; }
+  if (!ghIsConfigured()) return null;
 
   var cfg = getGhConfig();
   var last = ghLastSyncAt();
@@ -14057,11 +13968,11 @@ function ghRenderCard() {
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
   var when = 'Last synced ' + ghRelTime(last);
-  host.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
+  return { tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
     // The status is a dot and a word (DR-8), the title the time; the repository under it.
     title: stale ? uiDot('warning', escHtml(when)) : escHtml(when), sub: '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>',
     attrs: ' data-card="sync"',
-    foot: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' + (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' });
+    foot: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' + (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' };
 }
 
 /* ===== SETTINGS SECTION ===== */
@@ -20585,7 +20496,7 @@ function qtRepriceMovesHtml(moves) {
 /* The desktop's, in the pane while no quotation is open: its head, then the moves a card each, the pane scrolling inside itself. */
 function qtRepricePaneHtml(moves) {
   return '<div class="inv-pane-head"><span class="inv-panel-title">To reprice <span class="inv-panel-count">' + moves.length + '</span></span>' +
-    '<span class="inv-note">Pulse’s moves</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
+    '<span class="inv-note">From Home’s questions</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
 }
 function qtViewHtml() {
   if (_qtForm) return qtFormHtml();
@@ -27993,24 +27904,23 @@ function attDayPanelHtml(d, headBtn, id) {
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';
 }
-/* Pulse's Attendance as a hero: who is on site against the roster, judged at the rest-day gate's 90% and 80%, the floor
-   against its number, the day as a bar of present, half, absent and unmarked; the panel's tiles and rows under it. */
-function renderAttHomeCard() {
-  var el = document.getElementById('homeAttCard');
-  if (!el) return;
-  if (!staffActive().length) { el.innerHTML = ''; return; }
+/* Attendance today as a hero's options (Home's atttoday widget, widgetcards.js; Pulse's card until UI pass 3): who is on site
+   against the roster, judged at the rest-day gate's 90% and 80%, the floor against its number, the day as a bar of present, half,
+   absent and unmarked; the panel's tiles and rows under it (#homeAtt, #homeAttOnSite). Null with no roster. */
+function attHomeOpts() {
+  if (!staffActive().length) return null;
   var d = attDaySummary(), n = d.roster.length, on = d.p + d.half;
   var tone = attOnSiteTone(d);
   var meter = d.marked ? chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
     { title: d.p + ' present · ' + d.half + ' half day · ' + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') }) : '';
   var floor = d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' + (d.short ? ', ' + (d.complement - d.floorHeads) + ' short' : '') : '';
-  el.innerHTML = uiHeroHtml({ tone: d.marked ? tone || 'ok' : 'neutral',
+  return { tone: d.marked ? tone || 'ok' : 'neutral',
     eyebrow: '<span>Attendance</span><span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span>',
     title: d.marked ? escHtml(on + ' of ' + n + ' on site') : 'Nothing recorded yet',
     sub: escHtml([floor, d.marked ? todoPlural(d.absent.length, 'absent', 'absent') : ''].filter(Boolean).join(' · ')), viz: meter,
-    fold: 'pulse-attendance', open: !!_isDesktop, attrs: ' data-card="attendance"',
+    attrs: ' data-card="attendance"', marked: d.marked, on: on, n: n, day: d,
     body: d.marked ? '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'homeAtt') + '</div>' : null,
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' });
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' };
 }
 /* ===== STOCK =====
    Chemical stock, owned by soma-internal (owner's ruling, 24 Sep 2026): this
@@ -36079,8 +35989,8 @@ var TODO_RULE_FNS = {
       clears: 'Clears itself when you export a backup or push to GitHub.',
       go: { kind: 'settings', sec: 'data' }, goLabel: 'Open backup', sig: String(last) }];
   },
-  // Settings → Costing → Zinc rate, where the rate is set and derived: the zinc card is a Pulse widget, and "Open Home"
-  // opened Needs you, where it is not (the QA audit, QA2-11).
+  // Settings → Costing → Zinc rate, where the rate is set and derived: the zinc card is a widget on Home's board, and "Open
+  // Home" opened Needs you, where it is not (the QA audit, QA2-11).
   zinc: function() {
     var age = zincAgeDays();
     if (age == null || age <= ZINC_STALE_DAYS) return [];
@@ -36384,21 +36294,20 @@ function todoMineRowHtml(t) {
     (end ? '<span class="inv-row-end inv-row-stack">' + end + '</span>' : '') + '</div>';
 }
 
-/* Pulse: the To-do as a hero, grouped as Needs you groups it (Now, this week, to know: today.js tdyGroupOf), coded by its worst
-   task, with the top three as rows, both kinds labelled. */
-function renderTodoHomeCard() {
-  var el = document.getElementById('homeTodoCard');
-  if (!el) return;
-  if (typeof grdHeld === 'function' && grdHeld()) return;
-  var ranked = todoRanked(), groups = { now: 0, week: 0, later: 0 }, worth = 0;
+/* Needs you as a hero's options (Home's needs widget, widgetcards.js; Pulse's To-do card until UI pass 3), grouped as Needs you
+   groups it (Now, this week, to know: today.js tdyGroupOf), coded by its worst task: the Now group's first `n` as rows, both kinds
+   labelled; with nothing now, the next tasks. */
+function todoHomeOpts(n) {
+  var ranked = todoRanked(), groups = { now: 0, week: 0, later: 0 }, worth = 0, nowRows = [];
   ranked.forEach(function(r) {
     var g = typeof tdyGroupOf === 'function' ? tdyGroupOf(r) : r.tone === 'red' ? 'now' : r.tone === 'amber' ? 'week' : 'later';
     groups[g]++;
+    if (g === 'now') nowRows.push(r);
     if (g === 'now' && r.app && r.app.worth > 0) worth += r.app.worth;
   });
   var rows = '';
   if (!ranked.length) rows = '<div class="inv-empty">Nothing due</div>';
-  ranked.slice(0, 3).forEach(function(r) {
+  (nowRows.length ? nowRows : ranked).slice(0, n || 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
       rows += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
@@ -36419,20 +36328,22 @@ function renderTodoHomeCard() {
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   var meter = ranked.length ? chartMeter([{ v: groups.now, tone: 'danger' }, { v: groups.week, tone: 'warning' }, { v: groups.later, tone: 'info' }],
     { title: groups.now + ' now · ' + groups.week + ' this week · ' + groups.later + ' later' }) : '';
-  el.innerHTML = uiHeroHtml({ tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
+  return { tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
     eyebrow: '<span>To-do</span>' + (ranked.length ? '<span class="inv-panel-count">' + ranked.length + '</span>' : ''),
     title: escHtml(!ranked.length ? 'Nothing due' : groups.now ? todoPlural(groups.now, 'thing needs', 'things need') + ' you now' : todoPlural(ranked.length, 'task') + ' open, none urgent'),
     fig: money && worth > 0.005 ? figWrapHtml(escHtml(formatCurrency(gstRound(worth)))) : '',
     sub: escHtml([groups.week ? groups.week + ' this week' : '', groups.later ? groups.later + ' to know' : ''].filter(Boolean).join(' · ')),
-    viz: meter, fold: 'pulse-todo', open: !!_isDesktop, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>',
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' });
+    viz: meter, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>', open: ranked.length, now: groups.now,
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' };
 }
 
 function todoRefreshViews() {
   var page = document.querySelector('.inv-page-active');
   // Today → Needs you lists the tasks (today.js; the To-do page joined it, the tab map TM2a): a tick there is redrawn there.
   if (page && page.id === 'pageHome' && typeof tdyView === 'function' && tdyView() === 'needs') keepScroll(renderNeeds);
-  renderTodoHomeCard();
+  // On Home's dashboard: the needs widget and the day card's count (today.js), each in place.
+  if (typeof wdgRefresh === 'function') wdgRefresh('needs');
+  if (typeof homeDayRefresh === 'function') homeDayRefresh();
   updateStockBadge();
 }
 
@@ -36688,9 +36599,9 @@ function todoGo(go) {
     case 'stats':
       // A move worked out for a period opens Stats on it, so the block it names is the one on screen (advice.js).
       if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
-      // A task saved naming a tab that moved (the tab map, TM2b, §5): Overview's cards are Pulse's, Billing's dispatch cycle
+      // A task saved naming a tab that moved (the tab map, TM2b, §5): Overview's cards are Home's widgets, Billing's dispatch cycle
       // Pipeline's.
-      if (go.tab === 'overview') { tdySetView('pulse'); switchTab('pageHome'); }
+      if (go.tab === 'overview') { tdySetView('home'); switchTab('pageHome'); }
       else if (go.tab === 'billing') switchTab('pagePipeline');
       else {
         try { localStorage.setItem(STATS_TAB_KEY, go.tab || 'clients'); } catch (e) { /* per-device */ }
@@ -43699,11 +43610,12 @@ function statsCostSplit(c) {
 function statsMoney(n) { return (n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 function statsSigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
-/* ---------- Today → Pulse: the period in one line (the tab map, TM2b; it was Stats → Overview's card) ----------
-   A hero (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the factors
-   are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its tile;
-   the floor's plated row under them. Shut on the phone, open on the desktop (§1a-3). */
-function statsOverviewHtml(period, filtered, tonnage) {
+/* ---------- The period in figures (Home's figures widget, widgetcards.js; Pulse's In one line until UI pass 3, Stats →
+   Overview's card before the tab map) ----------
+   A hero's options (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the
+   factors are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its
+   tile; the floor's plated row under them (#statsOverview). */
+function statsOverviewOpts(period, filtered, tonnage) {
   var r = statsRangeIso(period), kg = tonnage.kg;
   var c = liveCost(r.from, r.to, kg);
   var real = kg > 0 ? tonnage.revKnown / kg : null;
@@ -43733,10 +43645,10 @@ function statsOverviewHtml(period, filtered, tonnage) {
   var body = '<div class="inv-hero-sheet"><div class="inv-tiles' + (factors.length === 4 ? ' inv-tiles-4' : ' inv-tiles-3') + '">' + factors.map(uiFactorTileHtml).join('') + '</div></div>';
   var plated = prodStatsRowHtml(r.from, r.to);
   if (plated) body += '<div class="inv-hero-sheet">' + plated + '</div>';
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>In one line</span>', title: escHtml(title),
+  return { tone: tone, eyebrow: '<span>The period in figures</span>', title: escHtml(title),
     fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
     sub: contrib != null ? escHtml((contrib >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(contrib * kg))) + ' on the period') : '',
-    body: body, fold: 'pulse-overview', open: !!_isDesktop, attrs: ' id="statsOverview" data-card="overview" data-verdict' });
+    body: body, attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };
 }
 
 /* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */
@@ -44198,12 +44110,12 @@ function whyEarly(period) {
   var r = statsRangeIso(period), n = statsWorkingDays(r.from, r.to);
   return n < INS_EARLY_DAYS ? todoPlural(n, 'working day') + ' in, against the same days before: a few large invoices move these figures' : '';
 }
-/* Today → Pulse's Why it moved (the tab map, TM2b; it was a panel on Stats → Overview): a hero for the period shown against
-   the one before it. Its verdict names realisation's change and its largest cause, toned by direction; under it the causes,
-   which add up to the change exactly, as fact rows with their ₹, then contribution's and cash's the same way. Shut on the
-   phone, open on the desktop (§1a-3). How the bridges are drawn is the guide's (kbguides.js). */
-function whyHtml(period, filtered, prior) {
-  if (period === 'all' || !prior.length) return '';
+/* Why it moved as a hero's options (Home's why widget, widgetcards.js; Pulse's card until UI pass 3, a panel on Stats → Overview
+   before the tab map): the period shown against the one before it. Its verdict names realisation's change and its largest cause,
+   toned by direction; under it the causes, which add up to the change exactly, as fact rows with their ₹, then contribution's and
+   cash's the same way (#statsWhy). How the bridges are drawn is the guide's (kbguides.js). Null with nothing to compare. */
+function whyHeroOpts(period, filtered, prior, parts) {
+  if (period === 'all' || !prior.length) return null;
   var real = whyRealisation(filtered, prior), mg = real.none ? { none: real.none } : whyMargin(period, filtered, prior, real), cash = whyCash();
   var vs = PERIOD_PRIOR_LABELS[period] || 'the period before';
   var early = whyEarly(period);
@@ -44218,6 +44130,9 @@ function whyHtml(period, filtered, prior) {
     body += whyHeadRow('Realisation', '₹' + formatNum(real.R0, 2), '₹' + formatNum(real.R1, 2) + '/kg', whySigned(real.d, true), 'real');
     body += real.causes.map(function(c) { return whyCauseRow(c, 'kg'); }).join('');
   }
+  // `parts` 'real': realisation's bridge alone (the widget's Medium); else contribution's and cash's after it.
+  if (parts === 'real') return { tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
+    body: body ? '<div class="inv-hero-sheet">' + body + '</div>' : '', attrs: ' id="statsWhy" data-card="why"' };
   if (mg.none) body += '<div class="inv-row" data-why-none="margin"><span class="inv-row-main"><span class="inv-row-title">Contribution</span></span><span class="inv-row-end inv-row-meta">' + escHtml(mg.none) + '</span></div>';
   else {
     body += whyHeadRow('Contribution at the live cost', whySigned(mg.C0).replace(/^\+/, ''), whySigned(mg.C1).replace(/^\+/, ''), whySigned(mg.d), 'margin',
@@ -44228,8 +44143,8 @@ function whyHtml(period, filtered, prior) {
     body += whyHeadRow('Cash, net in the month, ' + billsMonthLabel(cash.m0) + ' to ' + billsMonthLabel(cash.m1), finRs(cash.net0), finRs(cash.net1), whySigned(cash.d), 'cash');
     body += cash.causes.map(function(c) { return whyCauseRow(c); }).join('');
   }
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
-    body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'pulse-why', open: !!_isDesktop, attrs: ' id="statsWhy" data-card="why" data-verdict' });
+  return { tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
+    body: '<div class="inv-hero-sheet">' + body + '</div>', attrs: ' id="statsWhy" data-card="why"' };
 }
 /* One sentence for What changed? (intel.js): realisation's change and its largest cause. */
 function whySentence(filtered, prior, period) {
@@ -44590,22 +44505,24 @@ TODO_RULE_FNS.insChemPrice = function() {
     facts: [['Lines', list.join(', ')]], clears: 'Clears itself when each has a bill.', sig: list.join('|') }];
 };
 
-/* ---------- This month at its pace: a hero on Today → Pulse (the tab map, TM2b; it was a card on Stats → Overview) ----------
-   The verdict is the month the pace points to, revenue and tonnes, its change against last month beside it; how far it could
-   swing and what it rests on are folded under it (§3c). Shut on the phone, open on the desktop (§1a-3). */
-function paceCardHtml() {
+/* ---------- This month at its pace (Home's pace widget, widgetcards.js; a hero on Pulse until UI pass 3, a card on Stats →
+   Overview before the tab map) ----------
+   A hero's options: the verdict is the month the pace points to, revenue and tonnes, its change against last month beside it;
+   how far it could swing and what it rests on under it (§3c; #statsPace). Null before the month has a pace. */
+function paceCardOpts() {
   var p = predMonthPace();
-  if (!p) return '';
+  if (!p) return null;
   var down = p.prevRev > 0 && p.projRev < p.prevRev, tone = p.prevRev > 0 ? (down ? 'warning' : 'ok') : 'neutral';
-  var body = '<div class="inv-hero-sheet">' + [
+  var facts = [
     { label: 'So far', sub: formatNum(p.kg / 1000, 1) + ' t billed', value: formatCurrency(p.rev), attrs: ' data-pace="sofar"' },
     { label: 'Likely range', sub: 'how much the days so far varied', value: formatCurrency(p.low) + ' – ' + formatCurrency(p.high), attrs: ' data-pace="range"' },
     { label: 'Tonnage at its pace', sub: p.prevLabel + ' ' + formatNum(p.prevKg / 1000, 1) + ' t', value: formatNum(p.projKg / 1000, 1) + ' t', attrs: ' data-pace="kg"' },
     { label: 'Unbilled challans in hand', sub: 'would lift the month if billed in it', value: formatCurrency(p.unbilled), attrs: ' data-pace="unbilled"' }
-  ].map(uiFactRowHtml).join('') + '</div>';
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>This month at its pace</span>', title: escHtml('On pace for ' + formatCurrency(p.projRev) + ' · ' + formatNum(p.projKg / 1000, 1) + ' t'),
+  ].map(uiFactRowHtml);
+  var body = '<div class="inv-hero-sheet">' + facts.join('') + '</div>';
+  return { tone: tone, eyebrow: '<span>This month at its pace</span>', title: escHtml('On pace for ' + formatCurrency(p.projRev) + ' · ' + formatNum(p.projKg / 1000, 1) + ' t'),
     sub: (p.prevRev > 0 ? figDeltaHtml(p.projRev, p.prevRev, p.prevLabel, 'up') + ' · ' : '') + escHtml(p.done + ' of ' + p.total + ' working days in'),
-    body: body, fold: 'pulse-pace', open: !!_isDesktop, attrs: ' id="statsPace" data-card="pace" data-verdict' });
+    body: body, facts: facts, attrs: ' id="statsPace" data-card="pace"', pace: p };
 }
 
 function nextChallanCardHtml() {
@@ -45338,18 +45255,15 @@ function finOwedTone(days) { return figToneOwed(days, finHasBank() && finCtx().l
 function finOwedOldest(recv) {
   return (recv || []).reduce(function(m, r) { return r.owed > 0.005 && r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
 }
-/* Pulse's Money as a hero: what is owed past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance
-   (balance, owed, pays in, runway), each coded in its own tone. Coded by the worst of them. */
-function renderFinHomeCard() {
-  var el = document.getElementById('homeFinCard');
-  if (!el) return;
-  // Pulse's Money widget is the finance permission's: for another role it is not drawn at all (tabs.js homeWidgetSeen).
-  if (typeof grdSeesMoney === 'function' && !grdSeesMoney()) { el.innerHTML = ''; return; }
+/* Money at a glance as a hero's options (Home's money widget, widgetcards.js; Pulse's Money card until UI pass 3): what is owed
+   past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance (balance, owed, pays in, runway), each
+   coded in its own tone (#homeFin, [data-home-fin]). Coded by the worst of them. The widget is the finance permission's: for
+   another role it is never drawn (widgets.js wdgSees). `none` with no statement. */
+function finHomeOpts() {
   var imp = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button>';
   if (!finHasBank()) {
-    el.innerHTML = uiHeroHtml({ tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet',
-      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp });
-    return;
+    return { tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet', none: true,
+      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp };
   }
   var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
   var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
@@ -45384,9 +45298,9 @@ function renderFinHomeCard() {
   var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
   var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
     { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
-  el.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
+  return { tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
     title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
-    viz: meter, fold: 'pulse-money', open: !!_isDesktop, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp });
+    viz: meter, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp };
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */
@@ -45653,7 +45567,7 @@ function advRepriceDraft(clientId, target, inv, basis) {
     return { item: item, partNumber: r.part, desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' };
   });
   if (!lines.length) lines = [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' }];
-  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
+  return { lines: lines, unweighed: unweighed, note: 'Drafted from Home on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
 }
 /* Ask a client below the full cost for the full cost, a quotation drafted with its largest parts. */
 function advRepriceMove(ctx, x) {
@@ -45960,7 +45874,7 @@ function advPlantMoves(ctx) {
         worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, per: 'period', label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
         basis: 'the full cost ' + ctx.words + ' ' + formatCurrency(m.fullKg) + '/kg × 1.1' + (m.varKg != null ? ' · the variable cost ' + formatCurrency(m.varKg) + '/kg' : ''),
         go: { kind: 'quoteDraft', lines: [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: rate, refWeightKg: null, note: '' }],
-          note: 'Drafted from the Pulse on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
+          note: 'Drafted from Home on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
         goLabel: 'Draft quotation', task: 'Quote new work at ' + formatCurrency(rate) + '/kg' });
     }
     // The line with the most working days and no plating on record, the last 30 days or since the record began: a day
@@ -53292,33 +53206,38 @@ function flrOnChange(t) {
   renderFloor();
   return true;
 }
-/* ===== TODAY: NEEDS YOU AND PULSE (Direction B, step 3; P135) =====
-   Owner, 1 Oct 2026 (docs/DIRECTION_B.md): Home becomes Today, two views of pageHome.
+/* ===== HOME: THE DASHBOARD AND NEEDS YOU (Direction B, step 3; UI pass 3, U2; P135, P223) =====
+   Owner, 1 Oct 2026 (docs/DIRECTION_B.md), then 15–16 Oct 2026 (docs/UI_PASS_3.md §8: "a Home page and dashboard for it as
+   well, a clean, live and informative dashboard. It should show the time, some predictions, some news"). Two views of pageHome:
+   - Home, the dashboard (the default): the day card, Home's verdict (the greeting, the clock ticking on the minute, the general
+     shift's end, the weather now, the first thing that needs the owner), then one toolbar row (the period, Customise, More), then
+     the board of widgets each person arranges (widgets.js, widgetcards.js). Pulse's questions, Do first, Why it moved, the
+     period in figures and the month's pace are widgets on it.
    - Needs you, the inbox:
      - the day's inputs, each saying whether it is in and, if not, when it usually arrives, with the one tap that brings it
        (Add's paste box, the hand form for the register's page);
      - on the desktop, the floor now;
      - the last five invoices, each with its print button;
      - every open task, grouped Now / This week / Later, each with its one-tap move.
-   - Pulse: the six questions with what to do (advice.js), then the widgets the owner arranged (tabs.js), with Edit.
 
-   The views are pageHome's own `v` (?tab=pageHome&v=pulse). The shell (workspace.js) draws their tabs once homeViews
-   says they exist, and nav.js reads and applies the view. Nothing here is stored and nothing is worked out twice: each
-   figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine, powerCuts, todoRanked,
-   advTaskMoves, advQuestions, whyHtml, statsOverviewHtml, paceCardHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
-   a task it may not see (todo.js todoSees), and Pulse's money is the finance permission's. */
+   The views are pageHome's own `v` (?tab=pageHome&v=needs; an old ?v=pulse opens the dashboard, nav.js NAV_REDIRECTS). The shell
+   (workspace.js) draws their tabs once homeViews says they exist, and nav.js reads and applies the view. Nothing here is stored and
+   nothing is worked out twice: each figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine,
+   powerCuts, todoRanked, advTaskMoves, finForecast, pltCapacity, predMonthPace). What a role may not open is not offered
+   (guard.js): an input whose screen it does not open, a task it may not see (todo.js todoSees), a widget it may not see. */
 
-var TDY_VIEWS = [{ v: 'needs', label: 'Needs you' }, { v: 'pulse', label: 'Pulse' }];
+var TDY_VIEWS = [{ v: 'home', label: 'Home' }, { v: 'needs', label: 'Needs you' }];
 var TDY_SHOW = 10;            // a group of tasks shows its first ten; the rest one tap away (uiMoreHtml)
 var TDY_LATE_MIN = 45;        // an input this long past its usual time is amber
 var TDY_LEARN_DAYS = 28;      // the usual time is read off the last four weeks
 var TDY_MIN_SEEN = 3;         // under three days seen, the usual time is the shop's own (TDY_INPUTS' `usual`)
-var _tdyView = 'needs';
+var _tdyView = 'home';
 
-/* The shell draws Today's two tabs once this says it has them (workspace.js, wsViewsPresent). */
+/* The shell draws Home's two tabs once this says it has them (workspace.js, wsViewsPresent). The dashboard is the default; an
+   old view's name (Pulse's) is the dashboard. */
 function homeViews() { return TDY_VIEWS.slice(); }
-function tdyView() { return _tdyView === 'pulse' ? 'pulse' : 'needs'; }
-function tdySetView(v) { _tdyView = v === 'pulse' ? 'pulse' : 'needs'; }
+function tdyView() { return _tdyView === 'needs' ? 'needs' : 'home'; }
+function tdySetView(v) { _tdyView = v === 'needs' ? 'needs' : 'home'; }
 
 /* What a role may see on Today. With the guard off, everything (guard.js answers yes). */
 function tdySees(tabId) { return typeof grdSees !== 'function' || grdSees(tabId); }
@@ -53752,66 +53671,165 @@ function tdyRecentHead(list) {
     title: escHtml(made.length ? todoPlural(made.length, 'invoice') + ' made today' : last ? 'The last made ' + formatDate(last.date) : 'No invoices yet'),
     fig: made.length && tdySeesMoney() ? figWrapHtml(escHtml(formatCurrency(sum))) : '' };
 }
-/* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
-   figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
-   moves worth most across every question, then what was Stats → Overview's (the tab map, TM2b): why the period moved, the
-   period in one line and the month's pace, each a hero shut on the phone. Its head is the period, one with Stats', and More:
-   Make a report and Open Stats where the role opens them, and Edit Home. Without the finance permission there are no questions,
-   since every one reads money, and the head is Edit Home alone. */
+/* ---------- Home, the dashboard (docs/UI_PASS_3.md §8b, §8c) ----------
+   The day card leads (Home's verdict), then one toolbar row, then the board of widgets (widgets.js), then the foot's door to the
+   gallery. The questions Pulse asked are widgets now (widgetcards.js: q-*, dofirst, why, figures, pace); the moves worth most across
+   them are worked out here once a draw (tdyFirstMoves), for the dofirst widget. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
-function renderPulseQuestions() {
-  var el = document.getElementById('homeQuestions');
-  if (!el) return;
-  if (!tdySeesMoney()) {
-    el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>';
-    return;
+/* The questions for the period the board shows, worked out once a book, a period and a person (wdgMemo). */
+function tdyQuestions() {
+  if (!tdySeesMoney()) return [];
+  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
+  return wdgMemo('tdy-questions', function() {
+    try { return advQuestions(statsPulseArgs(per)); } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Home questions'); return []; }
+  });
+}
+/* The moves worth most across every question, best first: what to do first, before reading any answer. Each keeps the word of
+   the question it came from. */
+function tdyFirstMoves(qs, n) {
+  var from = {}, all = [];
+  (qs || []).forEach(function(q) { if (!q.inline) (q.moves || []).forEach(function(mv) { if (!from[mv.key]) { from[mv.key] = q.key; all.push(mv); } }); });
+  return advRank(all, null).slice(0, n || 3).map(function(mv) { return { mv: mv, word: TDY_Q_WORD[from[mv.key]] }; });
+}
+
+/* The day card (§8b): the greeting and the date, the clock with the general shift's end under it, the weather now, and the first
+   of what holds as its verdict, the next two as its facts. Its tone is the worst of them. A role without money reads only what
+   it may (the forecast and the pace are money). */
+function homeGreeting(now) {
+  var h = now.getHours(), part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  var u = typeof grdUser === 'function' ? grdUser() : null, name = u && u.name ? String(u.name).trim().split(/\s+/)[0] : '';
+  var day = now.toLocaleDateString('en-IN', { weekday: 'long' }) + ', ' + now.getDate() + ' ' + now.toLocaleDateString('en-IN', { month: 'long' });
+  return 'Good ' + part + (name ? ', ' + name : '') + ' · ' + day;
+}
+/* The clock (9:42 AM, 2:00 PM: a clock keeps its minutes, where a roll's time drops ":00"), and the general shift's end: "General
+   shift ends 5:00 PM · 7 h 18 min", or that it has ended. The shift is the roll's own (relay.js: 8:30 AM to 5:00 PM). */
+function homeClockMin(m) { var h = Math.floor(m / 60) % 24, mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
+function homeClockText(now) { return homeClockMin(now.getHours() * 60 + now.getMinutes()); }
+function homeShiftText(now) {
+  var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
+  if (m >= end) return 'The general shift has ended';
+  if (m < start) return 'General shift starts ' + homeClockMin(start);
+  var left = end - m, h = Math.floor(left / 60), mm = left % 60;
+  return 'General shift ends ' + homeClockMin(end) + ' · ' + [h ? h + ' h' : '', mm ? mm + ' min' : ''].filter(Boolean).join(' ');
+}
+/* What may lead the day card, in the order it leads: each {tone, text, money}. */
+function homeDayFacts() {
+  var out = [], today = localDateStr(), money = tdySeesMoney();
+  if (money && tdySees('pageFinance') && typeof finHasBank === 'function' && finHasBank()) {
+    try {
+      var fc = finForecast(60);
+      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', money: true });
+      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), money: true });
+    } catch (e) { /* the forecast's own screen says what went wrong */ }
+  }
+  var red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
+  if (red) out.push({ tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now' });
+  if (tdySees('pageProduction') && typeof pltCapacity === 'function') {
+    PROD_LINES.forEach(function(l) {
+      try {
+        var c = pltCapacity(l, null, true);
+        if (c && c.n >= 2 && c.down.length * 2 >= c.n) out.push({ tone: 'danger', text: prodLineName(l) + ': ' + c.down.length + ' of ' + c.n + ' down' });
+      } catch (e) { /* the plant register says what went wrong */ }
+    });
+  }
+  if (money && tdySees('pageRegister') && typeof predMonthPace === 'function') {
+    try {
+      var p = predMonthPace();
+      if (p && p.prevRev > 0) {
+        var ahead = p.projRev >= p.prevRev;
+        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + formatInrShort(p.projRev) + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevLabel, money: true });
+      }
+    } catch (e) { /* the pace's own widget says what went wrong */ }
+  }
+  return out;
+}
+var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
+function homeDayCardHtml() {
+  var now = new Date(), facts = homeDayFacts(), lead = facts[0] || { tone: 'ok', text: 'Nothing needs you now' };
+  var rest = facts.slice(1, 3), tone = [lead].concat(rest).map(function(f) { return f.tone; })
+    .sort(function(a, b) { return (HOME_TONE_RANK[b] || 0) - (HOME_TONE_RANK[a] || 0); })[0] || 'ok';
+  var open = tdyTasks().length;
+  var links = ['<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
+    (open ? ' · ' + open : '') + '</button>'];
+  if (tdySees('pageReports')) links.push('<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeReport">Make today’s report</button>');
+  var wx = typeof feedWeatherNowHtml === 'function' ? feedWeatherNowHtml() : '';
+  return uiVerdictHtml({ key: 'home-day', screen: homeGreeting(now), verdict: lead.text, tone: tone,
+    fig: '<span class="inv-homeday-clock" data-home-clock>' + escHtml(homeClockText(now)) + '</span>' +
+      '<span class="inv-homeday-shift" data-home-shift>' + escHtml(homeShiftText(now)) + '</span>',
+    viz: wx ? '<span class="inv-homeday-wx" data-home-wx>' + wx + '</span>' : '',
+    facts: rest.map(function(f) { return { text: f.text, tone: f.tone }; }), links: links, attrs: ' data-home-day' });
+}
+/* The day card drawn again in place (a task ticked on the board changes what leads it and its count), its clock running on. */
+function homeDayRefresh() {
+  var host = document.querySelector('#homeDash [data-home-daycard]');
+  if (!host || !host.isConnected || typeof grdHeld === 'function' && grdHeld()) return;
+  keepScroll(function() { host.innerHTML = homeDayCardHtml(); });
+  homeClockTick();
+}
+/* The clock ticks on the minute while the dashboard is drawn and visible (§8b): it sets the two texts, waits to the next minute and
+   then every 60 s, and stops when the page is hidden or Home is left; coming back sets them at once. Only the two texts change: no
+   node is added, so nothing that watches the page is woken. */
+var _homeClockT = null;
+function homeClockTick() {
+  var c = document.querySelector('#homeDash [data-home-clock]'), s = document.querySelector('#homeDash [data-home-shift]');
+  if (!c || !c.isConnected) { homeClockStop(); return; }
+  var now = new Date(), ct = homeClockText(now), st = homeShiftText(now);
+  if (c.textContent !== ct) c.textContent = ct;
+  if (s && s.textContent !== st) s.textContent = st;
+}
+function homeClockStart() {
+  homeClockStop();
+  homeClockTick();
+  var wait = 60000 - (Date.now() % 60000);
+  _homeClockT = setTimeout(function next() {
+    homeClockTick();
+    if (_homeClockT === null) return;
+    _homeClockT = setTimeout(next, 60000 - (Date.now() % 60000));
+  }, wait);
+}
+function homeClockStop() { if (_homeClockT) clearTimeout(_homeClockT); _homeClockT = null; }
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) { homeClockStop(); return; }
+  var dash = document.getElementById('homeDash');
+  if (dash && !dash.classList.contains('inv-hidden') && dash.closest('.inv-page-active')) homeClockStart();
+});
+
+/* The board's toolbar (§8c): the period (one with Stats'), Customise and More (Make a report, Open Stats, Reset Home). Arranging,
+   the toolbar is Add a widget, Reset and Done, the one primary. A door the role does not open is not offered. */
+function homeToolbarHtml() {
+  if (wdgArrangeOn('home')) {
+    return '<div class="inv-toolbar" data-home-toolbar data-arranging>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgGallery" data-board="home">' + iconSvg('plus') + '<span>Add a widget</span></button>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgReset" data-board="home">Reset</button>' +
+      '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invWdgDone" data-board="home">Done</button></div>';
   }
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  var a = null, qs = [], cards = '';
-  try { a = statsPulseArgs(per); qs = advQuestions(a); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
-  if (a) [function() { return whyHtml(per, a.filtered, a.prior); }, function() { return statsOverviewHtml(per, a.filtered, a.tonnage); }, paceCardHtml].forEach(function(f) {
-    try { cards += f() || ''; } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
-  });
-  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot). A door to
-  // a page the role does not open is not offered: More's rows wait in a template, where the guard's doors cannot reach them.
-  el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head>' +
-    statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') +
-    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+  return '<div class="inv-toolbar" data-home-toolbar>' +
+    (tdySeesMoney() ? statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') : '') +
+    (_isDesktop ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgArrange" data-board="home" aria-label="Customise Home">' + iconSvg('widgets') + '<span>Customise</span></button>'
+      : '<button class="inv-btn inv-btn-secondary inv-btn-icon" data-action="invWdgArrange" data-board="home" aria-label="Customise Home" title="Customise Home">' + iconSvg('widgets') + '</button>') +
+    uiToolbarMoreHtml([tdySees('pageReports') && tdySeesMoney() ? { label: 'Make a report', action: 'invRptFromStats' } : null,
       tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
-      { label: 'Edit Home', action: 'invHomeEdit' }], { icon: !_isDesktop }) + '</div>' +
-    (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
-      : '<div class="inv-empty">The questions could not be worked out: Stats has the figures.</div>') +
-    (cards ? '<div class="inv-hero-stack" data-tdy-pulse-cards>' + cards + '</div>' : '');
+      { label: 'Reset Home', action: 'invWdgReset', attrs: ' data-board="home"' }], { icon: !_isDesktop }) + '</div>';
 }
-function tdyQuestionHtml(x) {
-  var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };
-  var moves = '';
-  // What you can do heads the moves, or says what would make one appear (an insight's moves are under its row: inline).
-  if (!x.inline || !x.moves.length) {
-    moves = '<div class="inv-hero-moves" data-tdy-moves><div class="inv-hero-eyebrow inv-mt-8 inv-mb-8" data-adv-head>What you can do' +
-      (x.moves.length ? ' <span class="inv-panel-count">' + x.moves.length + '</span>' : '') + '</div>' +
-      (x.moves.length ? advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note" data-adv-none>' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
-      (x.hints || []).map(function(t) { return '<div class="inv-note inv-mt-8" data-adv-hint>' + escHtml(t) + '</div>'; }).join('') + '</div>';
-  }
-  return uiHeroHtml({ tone: v.tone || 'neutral', vital: true, eyebrow: '<span>' + escHtml(x.q) + '</span>', fig: v.fig || '', title: v.title || '', sub: v.sub || '', viz: v.viz || '',
-    fold: 'tdy-q-' + x.key, open: false, body: '<div class="inv-hero-sheet">' + x.html + '</div>' + moves, attrs: ' data-tdy-q="' + escHtml(x.key) + '" data-verdict' });
+/* The dashboard drawn: the day card, the toolbar, the board, the foot. */
+function renderHomeBoard() {
+  var el = document.getElementById('homeDash');
+  if (!el) return;
+  if (typeof grdHeld === 'function' && grdHeld()) return;
+  var n = wdgAddable('home');
+  el.innerHTML = '<div data-home-daycard>' + homeDayCardHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
+    (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">Add a widget · ' +
+      n + ' to choose from</button></div>' : '');
+  wdgBoardDraw(document.getElementById('homeBoard'), 'home');
+  homeClockStart();
 }
-/* The moves worth most across every question, as cards: what to do first, before reading any answer. */
-function tdyFirstHtml(qs) {
-  var from = {}, all = [];
-  qs.forEach(function(q) { if (!q.inline) (q.moves || []).forEach(function(mv) { if (!from[mv.key]) { from[mv.key] = q.key; all.push(mv); } }); });
-  var top = advRank(all, null).slice(0, 3);
-  if (!top.length) return '';
-  var listed = advListedKeys();
-  return uiHeroHtml({ eyebrow: '<span>Do first</span><span class="inv-panel-count">' + top.length + '</span>', title: 'The moves worth most',
-    sub: 'Across every question above, by what each is worth a month; each question opens to its own', fold: 'tdy-first', open: true, attrs: ' data-card="first"',
-    body: '<div class="inv-deck" data-adv-deck="first">' + top.map(function(mv) { return advMoveCardHtml(mv, listed, TDY_Q_WORD[from[mv.key]]); }).join('') + '</div>' });
-}
-/* The view on screen: one of the two blocks shown. */
+/* The view on screen: one of the two blocks shown. Leaving the dashboard stops its clock and its live widgets. */
 function tdyApplyView() {
-  var v = tdyView(), needs = document.getElementById('homeNeeds'), pulse = document.getElementById('homePulse');
+  var v = tdyView(), needs = document.getElementById('homeNeeds'), dash = document.getElementById('homeDash');
   if (needs) needs.classList.toggle('inv-hidden', v !== 'needs');
-  if (pulse) pulse.classList.toggle('inv-hidden', v !== 'pulse');
+  if (dash) dash.classList.toggle('inv-hidden', v !== 'home');
+  if (v !== 'home') { homeClockStop(); wdgLiveStop('home'); if (wdgArrangeOn('home')) wdgArrangeDone(true); }
 }
 
 function tdyAction(action, btn) {
@@ -53821,9 +53839,1036 @@ function tdyAction(action, btn) {
     case 'invTdyHand': flrOpenLine(btn.dataset.line || 'vat-a1'); prodOpenHand(null, null, true); return true;
     case 'invTdyFloor': flrSetDay(null); switchTab('pageFloor'); return true;
     case 'invTdyPower': powerSetTab('cuts'); switchTab('pagePower'); return true;
+    // The day card's link: today's report (the daily kind on today), on Reports.
+    case 'invHomeReport': rptSet('daily', localDateStr()); switchTab('pageReports'); return true;
   }
   return false;
 }
+/* ===== WIDGETS (docs/UI_PASS_3.md §7; UI pass 3, U2) =====
+   Owner, 16 Oct 2026: "widgets should be flexible so different layouts are possible without breaking the UI". A widget answers
+   one question in a card. Home (today.js) and, from U3, Stats are boards of widgets each person arranges.
+
+   This module is the framework and holds no widget's arithmetic: the card, the board, the states, the presets by role, where a
+   layout is kept, arranging and the gallery. Each widget is an entry in WIDGET_DEFS (widgetcards.js, by wdgDefine):
+     { id, title, q, section, sizes, needs, go, live, card, data(ctx), draw(d, size, ctx), foot(d, size, ctx), after(el, d, size) }
+   `data` reads the views (dataview.js) and the functions its screen already draws with and returns {state, tone, …}; `draw`
+   returns the body's HTML for 's' | 'm' | 'l'. A widget that throws draws its error state and the rest of the board is drawn.
+
+   The card is a hero card (§6.21) without its fold: lifted, a card's corners, coded in the tone `data` gives, its head the
+   widget's door to its screen. The board is a grid whose columns come from its own width (12, 6 or 2), packed with no gap in
+   the layout's order (uiMasonry). A layout is kept on the device, one per person, board and layout (the desktop's and the
+   phone's sizes differ), never in the book. */
+
+var WIDGET_DEFS = [];           // every widget, in the gallery's order (wdgDefine)
+var _wdgIdx = {};
+var WDG_SIZE_NAMES = { s: 'Small', m: 'Medium', l: 'Large' };
+var WDG_SIZE_SHORT = { s: 'S', m: 'M', l: 'L' };
+/* The gallery's chips and each card's head: the section, its name and its icon (icons v3). */
+var WDG_SECTIONS = [
+  { id: 'money', label: 'Money', icon: 'money' }, { id: 'office', label: 'Office', icon: 'office' },
+  { id: 'floor', label: 'Floor', icon: 'floor' }, { id: 'people', label: 'People', icon: 'users' },
+  { id: 'market', label: 'Market', icon: 'market' }, { id: 'analysis', label: 'Analysis', icon: 'correlation' },
+  { id: 'questions', label: 'Questions', icon: 'info' }
+];
+var WDG_BOARDS = { home: 'Home' };
+var WDG_STORE_KEY = 'sep_inv_layout';
+var WDG_TONES = { danger: 1, warning: 1, ok: 1, info: 1, neutral: 1 };
+
+/* A widget joins the set. Refused (and said to a test build) when its id is taken or it allows no size: one bad entry must
+   not take the board down. */
+function wdgDefine(def) {
+  if (!def || typeof def.id !== 'string' || !def.id || _wdgIdx[def.id] || !Array.isArray(def.sizes)) {
+    if (typeof console !== 'undefined') console.error('wdgDefine refused: ' + (def && def.id));
+    return null;
+  }
+  def.sizes = def.sizes.filter(function(s) { return !!WDG_SIZE_NAMES[s]; });
+  if (!def.sizes.length || typeof def.draw !== 'function') {
+    if (typeof console !== 'undefined') console.error('wdgDefine refused: ' + def.id + ' has no size or no draw');
+    return null;
+  }
+  _wdgIdx[def.id] = def;
+  WIDGET_DEFS.push(def);
+  return def;
+}
+function wdgDef(id) { return Object.prototype.hasOwnProperty.call(_wdgIdx, id) ? _wdgIdx[id] : null; }
+function wdgSection(id) { return WDG_SECTIONS.filter(function(s) { return s.id === id; })[0] || WDG_SECTIONS[WDG_SECTIONS.length - 1]; }
+/* A size the widget allows: the one asked for, else Medium where it has it, else its first. */
+function wdgFitSize(def, size) {
+  if (!def) return size;
+  if (def.sizes.indexOf(size) >= 0) return size;
+  return def.sizes.indexOf('m') >= 0 ? 'm' : def.sizes[0];
+}
+
+/* What several widgets read in one draw (the questions, a forecast) is worked out once a book, a period and a person. */
+var _wdgMemo = { key: '', v: {} };
+function wdgMemo(key, fn) {
+  var k = _bookWrites + '|' + (typeof _statsPeriod === 'string' ? _statsPeriod : '') + '|' + (typeof grdUserId === 'function' ? grdUserId() || '' : '');
+  if (_wdgMemo.key !== k) _wdgMemo = { key: k, v: {} };
+  if (!Object.prototype.hasOwnProperty.call(_wdgMemo.v, key)) _wdgMemo.v[key] = fn();
+  return _wdgMemo.v[key];
+}
+
+/* ---------- A widget's body, the house anatomy (§7a) ----------
+   The figure in its tone, its line (at most 60 characters), a few words under it; then, from Medium, its viz and what it holds:
+   `more` (tiles, a chart), `rows` (row HTML, cut to the rows the size allows: Small 1, Medium 4, Large 9; *Show all* is the head's
+   door), and at Large `large`. Every field is HTML its widget built (escaped there). A Small with no figure says its line and words. */
+var WDG_ROWS = { s: 1, m: 4, l: 9 };
+function wdgStdHtml(d, size) {
+  var h = '';
+  if (d.fig) h += '<div class="inv-widget-fig">' + d.fig + '</div>';
+  if (d.line) h += '<div class="inv-widget-line">' + d.line + '</div>';
+  if (d.sub && (size !== 's' || !d.fig)) h += '<div class="inv-widget-sub">' + d.sub + '</div>';
+  if (size === 's') return h;
+  if (d.viz) h += '<div class="inv-widget-viz">' + d.viz + '</div>';
+  if (d.more) h += d.more;
+  var rows = (d.rows || []).filter(Boolean);
+  if (rows.length) h += '<div class="inv-widget-rows">' + rows.slice(0, WDG_ROWS[size] || 4).join('') + '</div>';
+  if (size === 'l' && d.large) h += d.large;
+  return h;
+}
+/* A widget drawn from its screen's own hero (uiHeroHtml's options: tone, title, fig, sub, viz, body, foot, attrs): its line is the
+   hero's title, its words the hero's sub, and from Medium what the hero held. The hero's attributes go on the widget (its id and
+   data-card: the hooks a spec reads); a verdict's mark does not, since Home's verdict is the day card. No options, nothing to say. */
+function wdgFromHero(o, extra) {
+  if (!o) return Object.assign({ state: 'empty' }, extra || {});
+  var attrs = String(o.attrs || '').replace(/\s+data-verdict(-long)?\b/g, '');
+  return Object.assign({ state: 'ok', tone: WDG_TONES[o.tone] ? o.tone : 'neutral', fig: o.fig || '', line: o.title || '', sub: o.sub || '',
+    viz: o.viz || '', more: o.body || '', heroFoot: o.foot || '', attrs: attrs }, extra || {});
+}
+function wdgHeroDraw(d, size) { return wdgStdHtml(d, size); }
+function wdgHeroFoot(d, size) { return size === 's' ? '' : d.heroFoot || ''; }
+/* A widget drawn again in place wherever it stands on a board on screen: what an old renderer's caller asks for (a push redraws
+   the backup widget, a refresh the zinc widget). */
+function wdgRefresh(id) {
+  Array.prototype.forEach.call(document.querySelectorAll('.inv-wboard .inv-widget[data-w="' + CSS.escape(id) + '"]'), function(card) {
+    if (card.offsetParent || card.isConnected) keepScroll(function() { wdgRedrawOne(card); });
+  });
+}
+
+/* ---------- Who sees a widget (§7d, §17 I4) ----------
+   `needs`: page (the screen it opens, grdSees), money (grdSeesMoney), wages (grdSeesWages), perm (a permission, grdCan), owner,
+   when (a test of its own). With the guard off, everything. A widget a role may not see is never drawn, in a board or the gallery. */
+function wdgSeesMoney() { return typeof grdSeesMoney !== 'function' || grdSeesMoney(); }
+function wdgSees(def) {
+  if (!def) return false;
+  var n = def.needs || {};
+  if (n.page && typeof grdSees === 'function' && !grdSees(n.page)) return false;
+  if (n.money && !wdgSeesMoney()) return false;
+  if (n.wages && typeof grdSeesWages === 'function' && !grdSeesWages()) return false;
+  if (n.perm && typeof grdCan === 'function' && !grdCan(n.perm)) return false;
+  if (n.owner && typeof grdIsOwner === 'function' && !grdIsOwner()) return false;
+  if (typeof n.when === 'function') { try { if (!n.when()) return false; } catch (e) { return false; } }
+  return true;
+}
+/* A widget's door: its head opens its screen, where the role opens it; else the title is text (I4). `go` is a place ({tab, v}),
+   a section of Settings ({settings}: the settings permission's), or a function of the widget's own. */
+function wdgCanGo(def) {
+  var go = def && def.go;
+  if (!go) return false;
+  if (typeof go === 'function') return true;
+  if (go.settings) return typeof grdCan !== 'function' || grdCan('settings');
+  return !go.tab || typeof grdSees !== 'function' || grdSees(go.tab);
+}
+function wdgGo(def) {
+  var go = def && def.go;
+  if (!go) return;
+  if (typeof go === 'function') { go(); return; }
+  if (go.settings) { openSettings(go.settings); return; }
+  if (go.v) navOpen({ tab: go.tab, v: go.v, id: '' });
+  else switchTab(go.tab);
+}
+
+/* ---------- Presets by role (§7g) ----------
+   A board starts from its role's preset; any change makes it the person's own, and Reset returns to the preset. The phone keeps
+   the desktop's order: a Small stays Small, the rest Medium. A widget the role may not see, or the build does not have, is left
+   out when the preset is drawn. */
+var WDG_PRESETS = {
+  owner: { label: 'Owner', home: [['mtd', 's'], ['q-money', 's'], ['prodday', 's'], ['cash', 's'], ['pace', 'm'], ['coming', 'm'], ['tata', 'l'],
+    ['floornow', 'm'], ['risk', 's'], ['turn', 's'], ['dtp', 's'], ['q-smooth', 'm'], ['dofirst', 'm']] },
+  office: { label: 'Office', home: [['needs', 'm'], ['mtd', 's'], ['unbilled', 's'], ['owed', 's'], ['dtp', 's'], ['pipe', 'm'], ['recent', 'm'],
+    ['turn', 's'], ['quote', 's'], ['tata', 'm']] },
+  floor: { label: 'Floor', home: [['floornow', 'l'], ['prodday', 's'], ['atttoday', 's'], ['risk', 's'], ['weather', 's'], ['eff', 'm'],
+    ['stockdays', 'm'], ['attweek', 'm'], ['ot', 'm'], ['tata', 'm']] }
+};
+function wdgRole() {
+  if (typeof grdOn !== 'function' || !grdOn()) return 'owner';
+  var u = typeof grdUser === 'function' ? grdUser() : null;
+  return u ? u.role : 'owner';
+}
+function wdgPresetKey() { var r = wdgRole(); return r === 'office' ? 'office' : (r === 'supervisor' || r === 'floor') ? 'floor' : 'owner'; }
+function wdgPresetList(board, lay) {
+  var p = WDG_PRESETS[wdgPresetKey()] || WDG_PRESETS.owner;
+  return (p[board] || []).filter(function(x) { return !!wdgDef(x[0]); }).map(function(x) {
+    return [x[0], wdgFitSize(wdgDef(x[0]), lay === 'phone' && x[1] !== 's' ? 'm' : x[1])];
+  });
+}
+
+/* ---------- Where a layout is kept (§7h) ----------
+   On the device, one per person (the signed-in ID, `-` with the guard off), board and layout: localStorage sep_inv_layout,
+   {v: 1, people: {<id>: {<board>: {preset, desk, phone, opts}}}}. A list present is the person's own for that layout; none, the
+   layout follows its role's preset as this build defines it. Never in the book: a backup, a pull or a merge never rearranges
+   another device, and the change log never sees it. At S1 the body goes to the hub as the person's `prefs` (docs/SERVER.md). */
+function wdgStoreRead() {
+  var o = null;
+  try { o = JSON.parse(localStorage.getItem(WDG_STORE_KEY) || 'null'); } catch (e) { o = null; }
+  if (!o || typeof o !== 'object' || o.v !== 1 || !o.people || typeof o.people !== 'object') o = { v: 1, people: {} };
+  return o;
+}
+function wdgStoreWrite(o) { try { localStorage.setItem(WDG_STORE_KEY, JSON.stringify(o)); } catch (e) { /* a per-device convenience only */ } }
+function wdgPerson() { return typeof grdOn === 'function' && grdOn() ? (grdUserId() || '-') : '-'; }
+function wdgLay() { return _isDesktop ? 'desk' : 'phone'; }
+/* The person's record of a board, made from Pulse's layout the first time it is read (wdgFromPulse). */
+function wdgBoardRec(board) {
+  var st = wdgStoreRead(), who = wdgPerson();
+  var p = st.people[who] && typeof st.people[who] === 'object' ? st.people[who] : null;
+  var b = p && p[board] && typeof p[board] === 'object' ? p[board] : null;
+  if (!b && board === 'home') {
+    b = wdgFromPulse();
+    if (b) { st.people[who] = p || {}; st.people[who][board] = b; wdgStoreWrite(st); }
+  }
+  return b || {};
+}
+function wdgBoardPut(board, fn) {
+  var st = wdgStoreRead(), who = wdgPerson();
+  var p = st.people[who] = st.people[who] && typeof st.people[who] === 'object' ? st.people[who] : {};
+  var b = p[board] = p[board] && typeof p[board] === 'object' ? p[board] : (board === 'home' ? (wdgFromPulse() || {}) : {});
+  fn(b);
+  b.preset = Array.isArray(b.desk) || Array.isArray(b.phone) ? 'custom' : wdgPresetKey();
+  wdgStoreWrite(st);
+}
+/* A board's widgets for a layout, in order: [[id, size], …]. A widget the build no longer has drops at load (and comes back if a
+   later build has it: what is stored is left as it was); one named twice is read once; a size the widget does not allow is fitted. */
+function wdgItems(board, lay) {
+  lay = lay || wdgLay();
+  var b = wdgBoardRec(board), list = Array.isArray(b[lay]) ? b[lay] : wdgPresetList(board, lay), seen = {};
+  return list.filter(function(x) {
+    if (!Array.isArray(x) || !wdgDef(x[0]) || seen[x[0]]) return false;
+    seen[x[0]] = true;
+    return true;
+  }).map(function(x) { return [x[0], wdgFitSize(wdgDef(x[0]), x[1])]; });
+}
+function wdgCustom(board, lay) { var b = wdgBoardRec(board); return Array.isArray(b[lay || wdgLay()]); }
+function wdgItemsPut(board, lay, list) { wdgBoardPut(board, function(b) { b[lay] = list.map(function(x) { return [x[0], x[1]]; }); }); }
+/* A widget's own options on a board (the pair a *corr* is set to), shared by both layouts. */
+function wdgOpts(board, id) { var b = wdgBoardRec(board); return (b.opts && b.opts[id]) || {}; }
+function wdgOptsPut(board, id, o) { wdgBoardPut(board, function(b) { b.opts = b.opts && typeof b.opts === 'object' ? b.opts : {}; b.opts[id] = o; }); }
+
+/* Pulse's layout, moved once (§7h): `sep_inv_home` ({preset, order, hidden, wide}) is read and left as it is (an older build in
+   another window still reads it). A device on a named preset starts on its role's preset; a custom one starts on its role's preset
+   too and adds, at its end and in Pulse's order, every widget Pulse showed that the preset lacks (wide as Large, the rest Medium),
+   by the new ids, so nothing it showed is lost. */
+var WDG_PULSE_IDS = { todo: 'needs', attendance: 'atttoday', production: 'prodday', power: 'powercuts', stock: 'stockdays' };
+function wdgFromPulse() {
+  var l = null;
+  try { l = JSON.parse(localStorage.getItem('sep_inv_home') || 'null'); } catch (e) { l = null; }
+  if (!l || l.preset !== 'custom' || !Array.isArray(l.order)) return null;
+  var out = { preset: 'custom', from: 'pulse', opts: {} };
+  ['desk', 'phone'].forEach(function(lay) {
+    var list = wdgPresetList('home', lay), has = {};
+    list.forEach(function(x) { has[x[0]] = true; });
+    l.order.forEach(function(k) {
+      if (l.hidden && l.hidden[k]) return;
+      var id = WDG_PULSE_IDS[k] || k;
+      if (has[id]) return;
+      has[id] = true;
+      // Kept by its id even where this build has no such widget, so a later build draws it: wdgItems leaves it out until then.
+      var def = wdgDef(id);
+      list.push([id, def ? wdgFitSize(def, l.wide && l.wide[k] ? 'l' : 'm') : (l.wide && l.wide[k] ? 'l' : 'm')]);
+    });
+    out[lay] = list;
+  });
+  return out;
+}
+
+/* ---------- The card (§7a, §7c) ---------- */
+var WDG_STATE_TITLE = { empty: 'Nothing recorded yet', early: 'Not enough yet', notset: 'Not set up yet', offline: 'Offline',
+  error: 'This widget could not be drawn' };
+var _wdgErrSeen = {};
+function wdgErr(def, e) {
+  if (typeof navigator !== 'undefined' && navigator.webdriver && typeof console !== 'undefined') console.error('widget ' + def.id + ': ' + (e && e.stack || e));
+  if (_wdgErrSeen[def.id]) return;
+  _wdgErrSeen[def.id] = true;
+  if (typeof errReport === 'function') errReport(e, 'widget: ' + def.id);
+}
+/* What a widget has to say, worked out once per draw: {state, tone, …}. A state other than ok is drawn as the one blank state. */
+function wdgData(def, ctx) {
+  try {
+    var d = typeof def.data === 'function' ? def.data(ctx) : { state: 'ok' };
+    if (!d || typeof d !== 'object') d = { state: 'ok' };
+    if (!d.state) d.state = 'ok';
+    return d;
+  } catch (e) { wdgErr(def, e); return { state: 'error' }; }
+}
+function wdgStateHtml(def, size, d) {
+  var k = WDG_STATE_TITLE[d.state] ? d.state : 'empty';
+  var action = d.action || (k === 'error' ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgReport" data-w="' + escHtml(def.id) + '">Report it</button>' : '');
+  return uiBlankHtml({ kind: k, title: d.title || WDG_STATE_TITLE[k], body: d.body || '', action: action, small: size === 's' });
+}
+function wdgBodyHtml(def, size, d, ctx) {
+  if (d.state !== 'ok') return wdgStateHtml(def, size, d);
+  try { return def.draw(d, size, ctx) || wdgStateHtml(def, size, { state: 'empty' }); }
+  catch (e) { wdgErr(def, e); d.state = 'error'; return wdgStateHtml(def, size, d); }
+}
+/* A card: <section class="inv-widget"> coded in the tone its data gives (a hero's look, §3d), its head the section's icon, the
+   title and the door's chevron, its body the widget at its size, its foot (where it has one) its own links. In arrange mode its
+   handle, its place, its size and its Remove ride over the head (§7e). */
+function wdgCardHtml(def, size, o) {
+  o = o || {};
+  var ctx = { board: o.board || 'home', size: size, opts: wdgOpts(o.board || 'home', def.id), period: typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd',
+    preview: !!o.preview };
+  var d = wdgData(def, ctx);
+  var body = wdgBodyHtml(def, size, d, ctx);
+  var tone = d.state === 'ok' && WDG_TONES[d.tone] ? d.tone : 'neutral';
+  var sec = wdgSection(def.section), id = escHtml(def.id), title = escHtml(def.title);
+  var door = wdgCanGo(def) && !o.preview
+    ? '<button type="button" class="inv-widget-door" data-action="invWdgGo" data-w="' + id + '" aria-label="' + title + ': open">' +
+      '<span class="inv-widget-title">' + title + '</span>' + iconSvg('next', 'inv-widget-chev') + '</button>'
+    : '<span class="inv-widget-door"><span class="inv-widget-title">' + title + '</span></span>';
+  var head = (o.arranging ? wdgArrangeCtlHtml(def, size, o) : '') +
+    '<div class="inv-widget-head"><span class="inv-widget-chip" aria-hidden="true">' + iconSvg(sec.icon) + '</span>' + door + '</div>';
+  var foot = '';
+  if (d.state === 'ok' && typeof def.foot === 'function' && !o.preview) {
+    try { foot = def.foot(d, size, ctx) || ''; } catch (e) { wdgErr(def, e); foot = ''; }
+  }
+  // The widget's own hooks: those its data gives (a screen's hero's id and data-card, in whatever state it says), else its def's
+  // card. Ours, never typed.
+  var attrs = d.attrs ? String(d.attrs) : '';
+  if (def.card && !/\bdata-card=/.test(attrs)) attrs += ' data-card="' + escHtml(def.card) + '"';
+  if (o.preview) attrs = attrs.replace(/\s+id="[^"]*"/g, '').replace(/\s+data-card="[^"]*"/g, '');
+  return '<section class="inv-widget inv-hero inv-hero-' + tone + '" data-w="' + id + '" data-size="' + size + '" data-tone="' + tone + '" data-state="' + escHtml(d.state) + '"' +
+    attrs + ' aria-label="' + title + '">' + head +
+    '<div class="inv-widget-body">' + body + '</div>' + (foot ? '<div class="inv-widget-foot">' + foot + '</div>' : '') + '</section>';
+}
+/* After a card is in the page: a widget's own hook (a chart measured, a fold wired), never one that writes the book; then its fit. */
+function wdgAfterOne(el) {
+  var def = el && wdgDef(el.dataset.w);
+  if (!def) return;
+  if (typeof def.after === 'function' && el.dataset.state === 'ok') { try { def.after(el, el.dataset.size); } catch (e) { wdgErr(def, e); } }
+  wdgFit(el);
+}
+/* A widget never cuts what it shows (§7b): one taller than its size's cap lets go of its last rows, the list's own (rows, fact
+   rows, cards in a deck, steps), until it fits, and says how many are on its screen (Show all, the head's door). Measured only
+   where the card is laid out; a widget with nothing left to let go of keeps what it has (the sweep, P224, says so). A fact row
+   is a row, a row that folds open goes whole. */
+var WDG_FIT_ROWS = '.inv-row, .inv-deck-item, .inv-step, .inv-row-fold';
+function wdgFit(card) {
+  if (!card || !card.isConnected || !card.offsetParent) return;
+  var over = function() { return card.scrollHeight > card.clientHeight + 1; };
+  if (!over()) return;
+  var body = card.querySelector('.inv-widget-body');
+  if (!body) return;
+  var rows = Array.prototype.filter.call(body.querySelectorAll(WDG_FIT_ROWS), function(r) {
+    return !r.hidden && !r.closest('[hidden], [data-wdg-cut]') && !r.closest('.inv-widget-more') && !r.parentElement.closest(WDG_FIT_ROWS);
+  });
+  if (!rows.length) return;
+  var def = wdgDef(card.dataset.w), more = document.createElement('div');
+  more.className = 'inv-widget-more';
+  more.setAttribute('data-wdg-more', '');
+  body.appendChild(more);
+  var hid = 0;
+  var say = function() {
+    var label = hid + ' more' + (def && wdgCanGo(def) ? ': Show all' : '');
+    more.innerHTML = def && wdgCanGo(def) ? '<button type="button" class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGo" data-w="' + escHtml(def.id) + '">' + escHtml(label) + '</button>'
+      : '<span class="inv-note">' + escHtml(label) + '</span>';
+  };
+  // Let go of: marked, and hidden by the mark (a row's or a card's own display would show a bare `hidden`).
+  var cut = function(el) { el.setAttribute('data-wdg-cut', ''); el.hidden = true; };
+  while (rows.length && over()) { cut(rows.pop()); hid++; say(); }
+  if (!hid) { more.remove(); return; }
+  // A sheet whose rows all went goes with them.
+  Array.prototype.forEach.call(body.querySelectorAll('.inv-hero-sheet'), function(sh) {
+    if (!sh.querySelector(WDG_FIT_ROWS.split(', ').map(function(s) { return s + ':not([data-wdg-cut])'; }).join(', ')) && sh.querySelector(WDG_FIT_ROWS)) cut(sh);
+  });
+}
+function wdgAfter(root) {
+  if (root) Array.prototype.forEach.call(root.querySelectorAll('.inv-widget[data-w]'), wdgAfterOne);
+}
+
+/* ---------- The board (§7b) ---------- */
+var _wdgArrange = null;      // the board being arranged, or null
+var _wdgUndo = null;         // the last widget removed: {board, lay, list}
+/* A board's widgets as the person signed in may see them, for the layout on screen. */
+function wdgShown(board) {
+  return wdgItems(board).filter(function(x) { return wdgSees(wdgDef(x[0])); });
+}
+/* How many widgets the role may add to a board: every one it may see that is not on it. */
+function wdgAddable(board) {
+  var on = {};
+  wdgItems(board).forEach(function(x) { on[x[0]] = true; });
+  return WIDGET_DEFS.filter(function(d) { return !on[d.id] && wdgSees(d) && (!d.boards || d.boards.indexOf(board) >= 0); }).length;
+}
+function wdgBoardHtml(board) {
+  var shown = wdgShown(board), arranging = _wdgArrange === board, n = shown.length;
+  var cards = shown.map(function(x, i) { return wdgCardHtml(wdgDef(x[0]), x[1], { board: board, i: i, n: n, arranging: arranging }); }).join('');
+  if (!n) cards = '<div class="inv-wgrid-blank">' + uiBlankHtml({ kind: 'empty', title: 'Nothing on ' + (WDG_BOARDS[board] || 'the board') + ' yet',
+    body: 'Add the widgets you want to see here.',
+    action: '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgGallery" data-board="' + escHtml(board) + '">Add a widget</button>' }) + '</div>';
+  return '<div class="inv-wboard" data-board="' + escHtml(board) + '"' + (arranging ? ' data-arranging' : '') + '>' +
+    '<div class="inv-visually-hidden" aria-live="polite" data-wdg-live></div>' +
+    '<div class="inv-wgrid" data-wgrid="' + escHtml(board) + '">' + cards + '</div></div>';
+}
+/* Draws a board into its host, then lays it out: each widget's hook, the packed grid, the live redraws. */
+function wdgBoardDraw(host, board) {
+  if (!host) return;
+  host.innerHTML = wdgBoardHtml(board);
+  wdgAfter(host);
+  wdgPack(host);
+  wdgLiveStart(host, board);
+}
+function wdgPack(host) {
+  var grid = host && host.querySelector('.inv-wgrid');
+  if (grid && grid.querySelector('.inv-widget')) uiMasonry(grid);
+}
+/* One widget drawn again where it stands (a size picked, a live widget's minute): nothing else on the board is touched. */
+function wdgRedrawOne(el, size) {
+  var board = el.closest('.inv-wboard'), def = wdgDef(el.dataset.w);
+  if (!board || !def) return;
+  var shown = wdgShown(board.dataset.board), i = shown.map(function(x) { return x[0]; }).indexOf(def.id);
+  var t = document.createElement('div');
+  t.innerHTML = wdgCardHtml(def, size || el.dataset.size, { board: board.dataset.board, i: i, n: shown.length, arranging: _wdgArrange === board.dataset.board });
+  var card = t.firstElementChild;
+  el.replaceWith(card);
+  wdgAfterOne(card);
+  var grid = card.parentElement;
+  if (grid && grid.classList.contains('inv-masonry-on')) uiMasonry(grid);
+}
+
+/* A live widget (§7a `live`: the seconds between redraws while it is on screen; a feed's half hour) is redrawn in place while
+   its board is drawn and visible; a widget with none is redrawn when the book changes. One timer a board, stopped when the board
+   leaves the page or the page is hidden. */
+var _wdgLive = {};
+function wdgLiveStart(host, board) {
+  wdgLiveStop(board);
+  var due = {};
+  wdgShown(board).forEach(function(x) { var d = wdgDef(x[0]); if (d.live > 0) due[d.id] = Date.now() + d.live * 1000; });
+  if (!Object.keys(due).length) return;
+  _wdgLive[board] = setInterval(function() {
+    var el = host.isConnected ? host.querySelector('.inv-wboard[data-board="' + board + '"]') : null;
+    if (!el) { wdgLiveStop(board); return; }
+    if (document.hidden || _wdgArrange === board || !el.offsetParent) return;
+    var now = Date.now();
+    Object.keys(due).forEach(function(id) {
+      if (now < due[id]) return;
+      due[id] = now + wdgDef(id).live * 1000;
+      var card = el.querySelector('.inv-widget[data-w="' + CSS.escape(id) + '"]');
+      if (card) keepScroll(function() { wdgRedrawOne(card); });
+    });
+  }, 15000);
+}
+function wdgLiveStop(board) { if (_wdgLive[board]) { clearInterval(_wdgLive[board]); delete _wdgLive[board]; } }
+
+/* ---------- Arranging (§7e) ----------
+   Customise puts the board in arrange mode, a layer over the screen (Back, Escape and Done leave it; a swipe does nothing while
+   it is on). Each widget shows its handle, its place, its size and Remove; the toolbar Add a widget, Reset and Done. A drop, a
+   key, a size or a removal writes the layout on screen only: the desktop's and the phone's are their own. */
+function wdgArrangeCtlHtml(def, size, o) {
+  var id = escHtml(def.id), title = escHtml(def.title);
+  var sizes = def.sizes.length > 1 ? '<span class="inv-seg inv-widget-sizes" role="group" aria-label="Size of ' + title + '">' +
+    ['s', 'm', 'l'].filter(function(s) { return def.sizes.indexOf(s) >= 0; }).map(function(s) {
+      return '<button type="button" class="inv-seg-btn" data-action="invWdgSize" data-w="' + id + '" data-size="' + s + '" aria-pressed="' + (s === size) + '" aria-label="' +
+        WDG_SIZE_NAMES[s] + '">' + WDG_SIZE_SHORT[s] + '</button>';
+    }).join('') + '</span>' : '';
+  return '<div class="inv-widget-ctl">' +
+    '<button type="button" class="inv-widget-handle" data-wdg-handle="' + id + '" aria-label="Move ' + title + ', ' + (o.i + 1) + ' of ' + o.n + '">' + iconSvg('grip') + '</button>' +
+    '<span class="inv-widget-place" data-wdg-place>' + (o.i + 1) + ' of ' + o.n + '</span>' + sizes +
+    '<button type="button" class="inv-btn inv-btn-icon inv-btn-ghost inv-widget-remove" data-action="invWdgRemove" data-w="' + id + '" aria-label="Remove ' + title + '">' + iconSvg('close') + '</button></div>';
+}
+function wdgArrangeOn(board) { return _wdgArrange === board; }
+function wdgArrangeStart(board) {
+  _wdgArrange = board;
+  wdgRedrawBoard(board);
+  var first = document.querySelector('.inv-wboard[data-board="' + board + '"] [data-wdg-handle]');
+  if (first && !touchScreen()) first.focus({ preventScroll: true });
+}
+/* Done, Back or Escape leave arrange mode; `quiet`, the board is not drawn again (Home was left). */
+function wdgArrangeDone(quiet) {
+  var board = _wdgArrange;
+  if (!board) return false;
+  _wdgArrange = null;
+  wdgDragCancel();
+  if (!quiet) wdgRedrawBoard(board);
+  return true;
+}
+/* The board's screen draws itself (Home: renderHome), toolbar and all, keeping the page where it is. */
+function wdgRedrawBoard(board) {
+  keepScroll(function() {
+    if (board === 'home' && typeof renderHomeBoard === 'function') renderHomeBoard();
+  });
+}
+/* The order on screen as a list of [id, size], every widget the layout holds kept (one the role may not see stays where it is). */
+function wdgMove(board, id, to) {
+  var lay = wdgLay(), list = wdgItems(board, lay), shown = list.filter(function(x) { return wdgSees(wdgDef(x[0])); });
+  var from = shown.map(function(x) { return x[0]; }).indexOf(id);
+  if (from < 0) return null;
+  to = Math.max(0, Math.min(shown.length - 1, to));
+  if (to === from) return { i: from, n: shown.length };
+  var item = shown.splice(from, 1)[0];
+  shown.splice(to, 0, item);
+  // The hidden ones keep their places in the full list; the seen ones are written back in their new order.
+  var k = 0, out = list.map(function(x) { return wdgSees(wdgDef(x[0])) ? shown[k++] : x; });
+  wdgItemsPut(board, lay, out);
+  return { i: to, n: shown.length };
+}
+function wdgSetSize(board, id, size) {
+  var lay = wdgLay(), list = wdgItems(board, lay), def = wdgDef(id);
+  if (!def || def.sizes.indexOf(size) < 0) return;
+  list.forEach(function(x) { if (x[0] === id) x[1] = size; });
+  wdgItemsPut(board, lay, list);
+}
+function wdgRemove(board, id) {
+  var lay = wdgLay(), list = wdgItems(board, lay), def = wdgDef(id);
+  _wdgUndo = { board: board, lay: lay, list: list.map(function(x) { return [x[0], x[1]]; }) };
+  wdgItemsPut(board, lay, list.filter(function(x) { return x[0] !== id; }));
+  showToastAct((def ? def.title : 'The widget') + ' removed', 'Undo', function() {
+    var u = _wdgUndo;
+    if (!u) return;
+    _wdgUndo = null;
+    wdgItemsPut(u.board, u.lay, u.list);
+    wdgRedrawBoard(u.board);
+  });
+}
+/* Added from the gallery: to the end of the layout on screen, and to the end of the other layout at its first size. */
+function wdgAdd(board, id) {
+  var def = wdgDef(id);
+  if (!def || !wdgSees(def)) return;
+  var lay = wdgLay();
+  ['desk', 'phone'].forEach(function(l) {
+    var list = wdgItems(board, l);
+    if (list.some(function(x) { return x[0] === id; })) return;
+    list.push([id, l === lay ? def.sizes[0] : wdgFitSize(def, l === 'phone' && def.sizes[0] !== 's' ? 'm' : def.sizes[0])]);
+    wdgItemsPut(board, l, list);
+  });
+}
+function wdgRemoveFromGallery(board, id) {
+  var lay = wdgLay();
+  wdgItemsPut(board, lay, wdgItems(board, lay).filter(function(x) { return x[0] !== id; }));
+}
+/* Reset asks first, then puts this board and this layout back to the role's preset. */
+function wdgReset(board) {
+  var name = (WDG_PRESETS[wdgPresetKey()] || WDG_PRESETS.owner).label;
+  return uiConfirm({ title: 'Put ' + (WDG_BOARDS[board] || 'the board') + ' back as the ' + name + ' layout?',
+    body: 'Your arrangement on this ' + (_isDesktop ? 'computer’s screen' : 'phone') + ' goes. The other layout and its widgets stay as they are.',
+    okLabel: 'Reset', danger: true }).then(function(ok) {
+    if (!ok) return false;
+    var lay = wdgLay();
+    wdgBoardPut(board, function(b) { delete b[lay]; });
+    wdgRedrawBoard(board);
+    return true;
+  });
+}
+/* The aria-live line names where the widget moved (§7e): "Cash and its low point, 3 of 11". */
+function wdgSay(board, text) {
+  var el = document.querySelector('.inv-wboard[data-board="' + board + '"] [data-wdg-live]');
+  if (el) el.textContent = text;
+}
+
+/* By keys: a focused handle moves its widget ← ↑ earlier, → ↓ later, Home first, End last. */
+document.addEventListener('keydown', function(e) {
+  var h = e.target && e.target.closest ? e.target.closest('[data-wdg-handle]') : null;
+  if (!h || !_wdgArrange) return;
+  var board = _wdgArrange, id = h.dataset.wdgHandle, shown = wdgShown(board).map(function(x) { return x[0]; });
+  var i = shown.indexOf(id), to = null;
+  if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') to = i - 1;
+  else if (e.key === 'ArrowRight' || e.key === 'ArrowDown') to = i + 1;
+  else if (e.key === 'Home') to = 0;
+  else if (e.key === 'End') to = shown.length - 1;
+  else if (e.key === 'Escape' && _wdgDrag) { e.preventDefault(); e.stopPropagation(); wdgDragCancel(); return; }
+  if (to == null) return;
+  e.preventDefault();
+  var r = wdgMove(board, id, to);
+  if (!r) return;
+  wdgRedrawBoard(board);
+  var nh = document.querySelector('.inv-wboard[data-board="' + board + '"] [data-wdg-handle="' + CSS.escape(id) + '"]');
+  if (nh) nh.focus({ preventScroll: false });
+  var def = wdgDef(id);
+  wdgSay(board, (def ? def.title : id) + ', ' + (r.i + 1) + ' of ' + r.n);
+}, true);
+
+/* Drag (§7e): the handle takes a pointer (a mouse at once; a finger after 250 ms held within 8 px, so a scroll is never taken for
+   a drag). The widget lifts and follows the pointer, a placeholder of its size keeps its room, and the placeholder moves before or
+   after the widget under the pointer's centre; near the screen's top or bottom the page scrolls. Escape or a cancelled pointer
+   puts it back; a drop writes the order. Nothing else on the board is drawn again while dragging. */
+var WDG_HOLD_MS = 250, WDG_HOLD_PX = 8, WDG_EDGE_PX = 64;
+var _wdgDrag = null, _wdgHold = null;
+document.addEventListener('pointerdown', function(e) {
+  var h = e.target && e.target.closest ? e.target.closest('[data-wdg-handle]') : null;
+  if (!h || !_wdgArrange || e.button > 0) return;
+  var card = h.closest('.inv-widget');
+  if (!card) return;
+  if (e.pointerType === 'mouse') { e.preventDefault(); wdgDragStart(card, e); return; }
+  // A finger: held still for 250 ms before the widget lifts.
+  _wdgHold = { x: e.clientX, y: e.clientY, id: e.pointerId, card: card, t: setTimeout(function() {
+    var hd = _wdgHold;
+    _wdgHold = null;
+    if (hd) wdgDragStart(hd.card, { clientX: hd.x, clientY: hd.y, pointerId: hd.id });
+  }, WDG_HOLD_MS) };
+}, true);
+document.addEventListener('pointermove', function(e) {
+  if (_wdgHold && e.pointerId === _wdgHold.id && Math.hypot(e.clientX - _wdgHold.x, e.clientY - _wdgHold.y) > WDG_HOLD_PX) {
+    clearTimeout(_wdgHold.t);
+    _wdgHold = null;
+  }
+  if (_wdgDrag && e.pointerId === _wdgDrag.pid) { e.preventDefault(); wdgDragMove(e.clientX, e.clientY); }
+}, { capture: true, passive: false });
+document.addEventListener('pointerup', function(e) {
+  if (_wdgHold && e.pointerId === _wdgHold.id) { clearTimeout(_wdgHold.t); _wdgHold = null; }
+  if (_wdgDrag && e.pointerId === _wdgDrag.pid) wdgDragDrop();
+}, true);
+document.addEventListener('pointercancel', function(e) {
+  if (_wdgHold && e.pointerId === _wdgHold.id) { clearTimeout(_wdgHold.t); _wdgHold = null; }
+  if (_wdgDrag && e.pointerId === _wdgDrag.pid) wdgDragCancel();
+}, true);
+/* While a finger drags, the page does not scroll under it. */
+document.addEventListener('touchmove', function(e) { if (_wdgDrag) e.preventDefault(); }, { capture: true, passive: false });
+
+function wdgDragStart(card, e) {
+  var grid = card.parentElement, r = card.getBoundingClientRect();
+  if (!grid) return;
+  var ph = document.createElement('div');
+  ph.className = 'inv-widget-ph';
+  ph.dataset.size = card.dataset.size;
+  ph.setAttribute('aria-hidden', 'true');
+  ph.style.setProperty('--ph-h', r.height + 'px');
+  if (card.style.getPropertyValue('--rows')) ph.style.setProperty('--rows', card.style.getPropertyValue('--rows'));
+  grid.insertBefore(ph, card);
+  card.classList.add('inv-widget-lifted');
+  card.style.setProperty('--drag-w', r.width + 'px');
+  card.style.setProperty('--drag-x', r.left + 'px');
+  card.style.setProperty('--drag-y', r.top + 'px');
+  _wdgDrag = { card: card, ph: ph, grid: grid, board: _wdgArrange, pid: e.pointerId, dx: e.clientX - r.left, dy: e.clientY - r.top,
+    from: Array.prototype.indexOf.call(grid.children, card), x: e.clientX, y: e.clientY, raf: 0 };
+  document.body.classList.add('inv-wdg-dragging');
+  wdgDragScroll();
+}
+function wdgDragMove(x, y) {
+  var d = _wdgDrag;
+  if (!d) return;
+  d.x = x; d.y = y;
+  d.card.style.setProperty('--drag-x', (x - d.dx) + 'px');
+  d.card.style.setProperty('--drag-y', (y - d.dy) + 'px');
+  // The widget under the pointer's centre: the placeholder goes before it in its first half, after it in its second.
+  var cx = x - d.dx + d.card.offsetWidth / 2, cy = y - d.dy + Math.min(d.card.offsetHeight, 160) / 2;
+  var over = null;
+  Array.prototype.some.call(d.grid.children, function(el) {
+    if (el === d.card || el === d.ph || !el.classList.contains('inv-widget')) return false;
+    var r = el.getBoundingClientRect();
+    if (cx >= r.left && cx <= r.right && cy >= r.top && cy <= r.bottom) { over = { el: el, r: r }; return true; }
+    return false;
+  });
+  if (!over) return;
+  var after = over.r.width > over.r.height * 1.5 ? cx > over.r.left + over.r.width / 2 : cy > over.r.top + over.r.height / 2;
+  var ref = after ? over.el.nextSibling : over.el;
+  if (ref !== d.ph && ref !== d.ph.nextSibling) {
+    d.grid.insertBefore(d.ph, ref);
+    if (d.grid.classList.contains('inv-masonry-on')) uiMasonryPack(d.grid);
+  }
+}
+/* Near the screen's top or bottom while dragging, the page scrolls toward it. */
+function wdgDragScroll() {
+  var d = _wdgDrag;
+  if (!d) return;
+  var h = window.innerHeight, step = 0;
+  if (d.y < WDG_EDGE_PX) step = -Math.ceil((WDG_EDGE_PX - d.y) / 4);
+  else if (d.y > h - WDG_EDGE_PX) step = Math.ceil((d.y - (h - WDG_EDGE_PX)) / 4);
+  if (step) { window.scrollBy(0, step); wdgDragMove(d.x, d.y); }
+  d.raf = requestAnimationFrame(wdgDragScroll);
+}
+function wdgDragEnd() {
+  var d = _wdgDrag;
+  if (!d) return null;
+  _wdgDrag = null;
+  cancelAnimationFrame(d.raf);
+  document.body.classList.remove('inv-wdg-dragging');
+  d.card.classList.remove('inv-widget-lifted');
+  ['--drag-w', '--drag-x', '--drag-y'].forEach(function(p) { d.card.style.removeProperty(p); });
+  return d;
+}
+function wdgDragDrop() {
+  var d = wdgDragEnd();
+  if (!d) return;
+  var ids = Array.prototype.filter.call(d.grid.children, function(el) { return el === d.ph || (el.classList.contains('inv-widget') && el !== d.card); })
+    .map(function(el) { return el === d.ph ? d.card.dataset.w : el.dataset.w; });
+  d.ph.replaceWith(d.card);
+  var to = ids.indexOf(d.card.dataset.w), r = wdgMove(d.board, d.card.dataset.w, to);
+  wdgRedrawBoard(d.board);
+  var def = wdgDef(d.card.dataset.w);
+  if (r) wdgSay(d.board, (def ? def.title : d.card.dataset.w) + ', ' + (r.i + 1) + ' of ' + r.n);
+}
+function wdgDragCancel() {
+  if (_wdgHold) { clearTimeout(_wdgHold.t); _wdgHold = null; }
+  var d = wdgDragEnd();
+  if (!d) return;
+  d.ph.remove();
+  var ref = d.grid.children[d.from] || null;
+  d.grid.insertBefore(d.card, ref);
+  if (d.grid.classList.contains('inv-masonry-on')) uiMasonryPack(d.grid);
+}
+
+/* ---------- The gallery (§7f) ----------
+   Add a widget opens a dialog: the board it adds to, the categories as chips, and each widget a card with its live preview at its
+   first size (drawn as it comes into view), its question, its sizes, and Add or On Home with Remove. A widget the role may not
+   see is never in it; a chip with nothing the role may see is left out. */
+var _wdgGallery = { board: 'home', section: 'all' };
+var _wdgPreviewObs = null;
+function wdgGalleryDefs(board) {
+  return WIDGET_DEFS.filter(function(d) { return wdgSees(d) && (!d.boards || d.boards.indexOf(board) >= 0); });
+}
+function wdgGalleryHtml() {
+  var board = _wdgGallery.board, defs = wdgGalleryDefs(board), on = {};
+  wdgItems(board).forEach(function(x) { on[x[0]] = true; });
+  var secs = WDG_SECTIONS.filter(function(s) { return defs.some(function(d) { return d.section === s.id; }); });
+  if (_wdgGallery.section !== 'all' && !secs.some(function(s) { return s.id === _wdgGallery.section; })) _wdgGallery.section = 'all';
+  var chips = '<div class="inv-gallery-chips" role="group" aria-label="Kind of widget">' +
+    [{ id: 'all', label: 'All' }].concat(secs).map(function(s) {
+      return '<button type="button" class="inv-chip" data-action="invWdgGallerySec" data-sec="' + s.id + '" aria-pressed="' + (_wdgGallery.section === s.id) + '">' + escHtml(s.label) + '</button>';
+    }).join('') + '</div>';
+  var list = defs.filter(function(d) { return _wdgGallery.section === 'all' || d.section === _wdgGallery.section; });
+  var cards = list.map(function(d) {
+    var id = escHtml(d.id), name = WDG_BOARDS[board] || 'the board';
+    var act = on[d.id]
+      ? '<span class="inv-dot inv-dot-ok" data-wdg-on>On ' + escHtml(name) + '</span><button type="button" class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgGalleryRemove" data-w="' + id + '">Remove</button>'
+      : '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgGalleryAdd" data-w="' + id + '">Add to ' + escHtml(name) + '</button>';
+    return '<article class="inv-gallery-card" data-gallery-w="' + id + '">' +
+      '<div class="inv-gallery-preview" data-wdg-preview="' + id + '" aria-hidden="true"></div>' +
+      '<div class="inv-gallery-text"><p class="inv-gallery-title">' + escHtml(d.title) + '</p><p class="inv-gallery-q">' + escHtml(d.q || '') + '</p>' +
+      '<p class="inv-gallery-sizes">' + d.sizes.map(function(s) { return WDG_SIZE_NAMES[s]; }).join(' · ') + '</p></div>' +
+      '<div class="inv-gallery-act">' + act + '</div></article>';
+  }).join('');
+  var boards = Object.keys(WDG_BOARDS);
+  var head = dialogHeadHtml('Add a widget', 'invWdgGalleryDone', 'Close') ;
+  return '<div class="inv-dialog inv-dialog-wide" role="dialog" aria-modal="true" aria-label="Add a widget" data-wdg-gallery>' + head +
+    (boards.length > 1 ? '<div class="inv-seg" role="group" aria-label="Board">' + boards.map(function(b) {
+      return '<button type="button" class="inv-seg-btn" data-action="invWdgGalleryBoard" data-board="' + b + '" aria-pressed="' + (b === board) + '">' + escHtml(WDG_BOARDS[b]) + ' · ' + wdgShown(b).length + '</button>';
+    }).join('') + '</div>' : '<p class="inv-note">' + escHtml((WDG_BOARDS[board] || 'Board') + ' · ' + wdgShown(board).length + ' on it') + '</p>') +
+    chips + '<div class="inv-gallery" data-wdg-gallery-list>' + (cards || uiBlankHtml({ kind: 'empty', title: 'No widget here for your ID' })) + '</div>' +
+    '<div class="inv-dialog-foot"><button type="button" class="inv-btn inv-btn-primary" data-action="invWdgGalleryDone">Done</button></div></div>';
+}
+function wdgGalleryOpen(board) {
+  _wdgGallery.board = WDG_BOARDS[board] ? board : 'home';
+  dialogOpen(wdgGalleryHtml(), { dismiss: true });
+  wdgGalleryWire();
+}
+function wdgGalleryRedraw() {
+  var scrim = document.querySelector('.inv-scrim-dialog [data-wdg-gallery]');
+  if (!scrim) return;
+  var list = scrim.querySelector('[data-wdg-gallery-list]'), top = list ? list.scrollTop : 0;
+  keepScroll(function() { dialogOpen(wdgGalleryHtml(), { replace: true }); });
+  var nl = document.querySelector('.inv-scrim-dialog [data-wdg-gallery-list]');
+  if (nl) nl.scrollTop = top;
+  wdgGalleryWire();
+}
+/* Each preview is drawn as it comes into view, on the book as it is: its blank state where it has nothing yet. */
+function wdgGalleryWire() {
+  var list = document.querySelector('.inv-scrim-dialog [data-wdg-gallery-list]');
+  if (!list) return;
+  if (_wdgPreviewObs) _wdgPreviewObs.disconnect();
+  var draw = function(el) {
+    if (el.dataset.drawn) return;
+    el.dataset.drawn = '1';
+    var def = wdgDef(el.dataset.wdgPreview);
+    if (!def) return;
+    el.innerHTML = wdgCardHtml(def, def.sizes[0], { board: _wdgGallery.board, preview: true });
+    wdgAfter(el);
+  };
+  var els = list.querySelectorAll('[data-wdg-preview]');
+  if (typeof IntersectionObserver !== 'function') { Array.prototype.forEach.call(els, draw); return; }
+  _wdgPreviewObs = new IntersectionObserver(function(entries) {
+    entries.forEach(function(en) { if (en.isIntersecting) { draw(en.target); _wdgPreviewObs.unobserve(en.target); } });
+  }, { root: list, rootMargin: '200px 0px' });
+  Array.prototype.forEach.call(els, function(el) { _wdgPreviewObs.observe(el); });
+}
+
+/* A toast carrying one act (Remove's Undo, §7e): the toast as every toast, its button the act. Six seconds, or until tapped. */
+function showToastAct(msg, label, fn) {
+  document.querySelectorAll('.inv-toast').forEach(function(t) { t.remove(); });
+  var t = document.createElement('div');
+  t.className = 'inv-toast inv-toast-success inv-toast-act';
+  t.setAttribute('role', 'status');
+  var span = document.createElement('span');
+  span.textContent = msg;
+  var b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'inv-toast-btn';
+  b.textContent = label;
+  b.addEventListener('click', function() { t.remove(); fn(); });
+  t.appendChild(span);
+  t.appendChild(b);
+  document.body.appendChild(t);
+  setTimeout(function() { t.remove(); }, 6000);
+}
+
+function wdgAction(action, btn) {
+  var board = (btn.closest && btn.closest('.inv-wboard') ? btn.closest('.inv-wboard').dataset.board : null) || btn.dataset.board || _wdgArrange || 'home';
+  switch (action) {
+    case 'invWdgGo': { var def = wdgDef(btn.dataset.w); if (def) wdgGo(def); return true; }
+    case 'invWdgReport': {
+      var dr = wdgDef(btn.dataset.w);
+      if (dr && typeof errReport === 'function') errReport(new Error('A widget could not be drawn: ' + dr.id), 'widget: ' + dr.id);
+      showToast('Reported. The rest of the board is drawn.', 'success');
+      return true;
+    }
+    case 'invWdgArrange': wdgArrangeStart(board); return true;
+    case 'invWdgDone': wdgArrangeDone(); return true;
+    case 'invWdgReset': wdgReset(board); return true;
+    case 'invWdgSize': {
+      wdgSetSize(board, btn.dataset.w, btn.dataset.size);
+      var card = btn.closest('.inv-widget');
+      if (card) keepScroll(function() { wdgRedrawOne(card, btn.dataset.size); });
+      var nb = document.querySelector('.inv-wboard[data-board="' + board + '"] .inv-widget[data-w="' + CSS.escape(btn.dataset.w) + '"] [data-action="invWdgSize"][data-size="' + btn.dataset.size + '"]');
+      if (nb) nb.focus({ preventScroll: true });
+      return true;
+    }
+    case 'invWdgRemove': wdgRemove(board, btn.dataset.w); wdgRedrawBoard(board); return true;
+    case 'invWdgGallery': wdgGalleryOpen(board); return true;
+    case 'invWdgGalleryBoard': _wdgGallery.board = btn.dataset.board; wdgGalleryRedraw(); return true;
+    case 'invWdgGallerySec': _wdgGallery.section = btn.dataset.sec; wdgGalleryRedraw(); return true;
+    case 'invWdgGalleryAdd': wdgAdd(_wdgGallery.board, btn.dataset.w); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
+    case 'invWdgGalleryRemove': wdgRemoveFromGallery(_wdgGallery.board, btn.dataset.w); wdgGalleryRedraw(); wdgRedrawBoard(_wdgGallery.board); return true;
+    case 'invWdgGalleryDone': closeTopOverlay(); return true;
+  }
+  return false;
+}
+/* ===== THE WIDGETS (docs/UI_PASS_3.md §7d; UI pass 3, U2) =====
+   One entry a widget (wdgDefine, widgets.js), in the gallery's order: its sections, then the widgets in each. Every figure is its
+   screen's, read with the function its screen draws with (I8): a widget never works a figure out a second way, and where a screen's
+   card already says it (a hero's options: homeMtdOpts, finHomeOpts, attHomeOpts…), the widget is that card at its size
+   (wdgFromHero). A widget's `data` returns {state, tone, …} (§7c); `draw` its body for 's' | 'm' | 'l'; `foot` its own links.
+   Who sees each is its `needs` (§7g, I4): the page it opens, money, wages, a permission. */
+
+/* The one blank-state door a widget offers where nothing is recorded yet: a button to where it is recorded. */
+function wcAct(label, action, attrs) {
+  return '<button type="button" class="inv-btn inv-btn-secondary inv-btn-sm" data-action="' + escHtml(action) + '"' + (attrs || '') + '>' + escHtml(label) + '</button>';
+}
+/* The period's figures the questions and the cards read, once a book and a period (statsPulseArgs). */
+function wcPulseArgs(per) { return wdgMemo('pulse-args:' + per, function() { return statsPulseArgs(per); }); }
+/* Moves in a dialog (a question's whole list, Do first's longer list): the deck the board draws, every move in it. */
+function wcMovesOpen(title, moves, key, words) {
+  var listed = typeof advListedKeys === 'function' ? advListedKeys() : {};
+  var deck = moves.length ? '<div class="inv-deck" data-adv-deck="' + escHtml(key) + '">' + moves.map(function(mv, i) {
+    return advMoveCardHtml(mv, listed, words ? words[i] : undefined);
+  }).join('') + '</div>' : uiBlankHtml({ kind: 'empty', title: 'Nothing to do here yet' });
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="' + escHtml(title) + '" data-wc-moves="' + escHtml(key) + '">' +
+    dialogHeadHtml(title, 'invCloseOverlay', 'Close') + '<div class="inv-dialog-body">' + deck + '</div></div>', { dismiss: true });
+}
+
+/* ---------- Money ---------- */
+wdgDefine({ id: 'money', title: 'Money at a glance', q: 'Where does the money stand?', section: 'money', sizes: ['m'],
+  needs: { page: 'pageFinance', money: true }, go: { tab: 'pageFinance', v: 'overview' },
+  data: function() {
+    var o = finHomeOpts();
+    if (o.none) return { state: 'empty', title: 'No bank statement yet', body: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.',
+      action: wcAct('Import statement', 'invHomeImportBank'), attrs: o.attrs };
+    return wdgFromHero(o);
+  },
+  draw: wdgHeroDraw, foot: wdgHeroFoot });
+/* U2d · Money: cash, owed, dtp, gst (§7d), each after this line in the table's order. */
+
+/* ---------- Office ---------- */
+wdgDefine({ id: 'mtd', title: 'Month to date', q: 'How is the month going?', section: 'office', sizes: ['s', 'm', 'l'],
+  needs: { page: 'pageRegister', money: true }, go: { tab: 'pageRegister' },
+  data: function(ctx) {
+    var o = homeMtdOpts(homeMonthInvoices(), { viz: ctx.size === 'l' });
+    // Small: what is billed and its change on the same days last month, coded by that change alone; from Medium the four tiles
+    // and the worse of billing and realisation, at Large the tiles' lines.
+    var d = wdgFromHero(o, { fig: figWrapHtml(escHtml(formatCurrency(o.rev))), delta: o.revDelta });
+    if (ctx.size === 's') d.tone = WDG_TONES[o.revTone] ? o.revTone : 'neutral';
+    return d;
+  },
+  draw: function(d, size) {
+    if (size !== 's') return wdgStdHtml(d, size);
+    return '<div class="inv-widget-fig">' + d.fig + '</div>' + (d.delta ? '<div class="inv-widget-sub">' + d.delta + '</div>' : '<div class="inv-widget-sub">billed this month, taxable</div>');
+  } });
+wdgDefine({ id: 'unbilled', title: 'Unbilled challans', q: 'What is waiting to be invoiced?', section: 'office', sizes: ['s', 'm'],
+  needs: { page: 'pageIM' }, go: { tab: 'pageIM', v: 'awaiting' },
+  data: function() {
+    var o = homeUnbilledOpts();
+    if (!o) return { state: 'empty', title: 'No challan recorded yet', body: 'A challan received is recorded on Challans.',
+      action: wcAct('Add challan', 'invHomeQuick', ' data-go="challan"'), attrs: ' data-card="unbilled-pulse"' };
+    return wdgFromHero(o, { line: o.title });
+  },
+  draw: function(d, size) {
+    if (size !== 's') return wdgStdHtml(d, size);
+    return (d.fig ? '<div class="inv-widget-fig">' + d.fig + '</div>' : '') + '<div class="inv-widget-line">' + d.line + '</div>' + (!d.fig && d.sub ? '<div class="inv-widget-sub">' + d.sub + '</div>' : '');
+  }, foot: wdgHeroFoot });
+wdgDefine({ id: 'recent', title: 'Recent invoices', q: 'What went out last?', section: 'office', sizes: ['m', 'l'],
+  needs: { page: 'pageRegister' }, go: { tab: 'pageRegister' },
+  data: function(ctx) { return wdgFromHero(homeRecentOpts(ctx.size === 'l' ? 10 : 5)); },
+  draw: wdgHeroDraw });
+/* Quick actions: each action by its page (the guard's own map, GRD_QUICK_PAGE); three at Small, six at Medium. */
+var WC_QUICK = [
+  { label: 'New invoice', icon: 'filePlus', page: 'pageCreate', action: 'invCreateNew' },
+  { label: 'New challan', icon: 'boxPlus', page: 'pageIM', go: 'challan' },
+  { label: 'Paste message', icon: 'message', page: 'pageStaff', go: 'paste' },
+  { label: 'Stock entry', icon: 'flask', page: 'pageStock', go: 'stock' },
+  { label: 'Attendance', icon: 'userCheck', page: 'pageStaff', go: 'attendance' },
+  { label: 'Add task', icon: 'task', page: 'pageHome', go: 'task' }
+];
+wdgDefine({ id: 'quick', title: 'Quick actions', q: 'What do I start?', section: 'office', sizes: ['s', 'm'], card: 'quick',
+  data: function() {
+    var list = WC_QUICK.filter(function(a) { return typeof grdSees !== 'function' || grdSees(a.page); });
+    if (!list.length) return { state: 'empty', title: 'Nothing to start here for your ID' };
+    return { state: 'ok', tone: 'neutral', list: list };
+  },
+  draw: function(d, size) {
+    return '<div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">' + d.list.slice(0, size === 's' ? 3 : 6).map(function(a) {
+      return '<button type="button" class="inv-btn inv-btn-secondary" data-action="' + (a.action || 'invHomeQuick') + '"' + (a.go ? ' data-go="' + a.go + '"' : '') + '>' +
+        iconSvg(a.icon) + '<span>' + escHtml(a.label) + '</span></button>';
+    }).join('') + '</div>';
+  } });
+wdgDefine({ id: 'sync', title: 'GitHub backup', q: 'Is the book backed up?', section: 'office', sizes: ['s'],
+  needs: { perm: 'settings' }, go: { settings: 'sync' },
+  data: function() {
+    var o = ghCardOpts();
+    if (!o) return { state: 'notset', title: 'GitHub sync is not set up', body: 'A second copy of the book on GitHub, pushed from this device.',
+      action: wcAct('Set it up', 'invWdgGo', ' data-w="sync"'), attrs: ' data-card="sync"' };
+    return wdgFromHero(o);
+  },
+  draw: function(d) { return '<div class="inv-widget-line">' + d.line + '</div>' + (d.sub ? '<div class="inv-widget-sub">' + d.sub + '</div>' : ''); },
+  // Back up now is the widget's whole point: drawn at its one size.
+  foot: function(d) { return d.heroFoot || ''; } });
+/* U2d · Office: turn, pipe, quote (§7d), each after this line in the table's order. */
+
+/* ---------- Floor ---------- */
+wdgDefine({ id: 'powercuts', title: 'Power cuts', q: 'How much power did we lose?', section: 'floor', sizes: ['s', 'm'],
+  needs: { page: 'pagePower' }, go: { tab: 'pagePower', v: 'cuts' },
+  data: function() { var o = homePowerOpts(); return wdgFromHero(o, { line: o.title }); },
+  draw: function(d, size) {
+    if (size !== 's') return wdgStdHtml(d, size);
+    return (d.fig ? '<div class="inv-widget-fig">' + d.fig + '</div>' : '') + '<div class="inv-widget-line">' + d.line + '</div>';
+  } });
+wdgDefine({ id: 'zinc', title: 'Zinc rate', q: 'What is zinc costing today?', section: 'floor', sizes: ['s', 'm'],
+  needs: { money: true }, go: { settings: 'zinc' },
+  data: function() {
+    var o = zincCardOpts();
+    if (o.none) return { state: 'notset', title: 'No zinc rate recorded', body: o.sub.replace(/<[^>]*>/g, ''), action: o.foot, attrs: o.attrs };
+    return wdgFromHero(o, { age: o.age, stale: o.stale });
+  },
+  draw: function(d, size) {
+    if (size !== 's') return wdgStdHtml(d, size);
+    // The rate's age, a dot and a word ([data-zinc-age]): an out-of-date rate is said at every size.
+    return '<div class="inv-widget-fig">' + d.fig + '</div><div class="inv-widget-sub"><span class="inv-dot ' + (d.stale ? 'inv-dot-warning' : 'inv-dot-ok') +
+      '" data-zinc-age="' + (d.stale ? 'stale' : 'fresh') + '">' + escHtml(d.age) + '</span></div>';
+  }, foot: wdgHeroFoot });
+/* U2d · Floor: floornow, prodday, heat, eff, risk, stockdays, zincpaid (§7d), each after this line in the table's order. */
+
+/* ---------- People ---------- */
+wdgDefine({ id: 'atttoday', title: 'Attendance today', q: 'Is the crew in?', section: 'people', sizes: ['s', 'm'],
+  needs: { page: 'pageStaff' }, go: { tab: 'pageStaff', v: 'day' },
+  data: function() {
+    var o = attHomeOpts();
+    if (!o) return { state: 'empty', title: 'No roster yet', body: 'People → Roster holds the crew; a day is marked against it.',
+      action: wcAct('Open the roster', 'invWdgGo', ' data-w="atttoday"'), attrs: ' data-card="attendance"' };
+    return wdgFromHero(o);
+  },
+  draw: wdgHeroDraw, foot: wdgHeroFoot });
+/* U2d · People: attweek, ot (§7d), each after this line in the table's order. */
+
+/* ---------- Market and the world outside (§9) ---------- */
+/* U2d · Market: tata, weather (§7d), each after this line, reading feeds.js. */
+
+/* ---------- Analysis ---------- */
+/* U2d · Analysis: corr, clientprice, kilo (§7d), each after this line in the table's order. */
+
+/* ---------- The questions (Pulse's, folded into Home: §8c) ----------
+   Each question a widget: its answer as a figure, a word and a small chart (its vital, statsStoryCards); from Medium its story;
+   at Large what can be done, three moves. Its head opens the whole of it, every move, in a dialog. The questions read money in
+   every figure, so each is money's (the old Pulse showed them only with the finance permission). */
+var WC_QUESTIONS = [
+  { k: 'smooth', title: 'Is the plant running smoothly?', q: 'Stock, power, staffing, records, the payout and the backup, in one answer', sizes: ['m', 's', 'l'] },
+  { k: 'money', title: 'Are we making money?', q: 'Realisation and what a kilo leaves, against the cost', sizes: ['s', 'm', 'l'] },
+  { k: 'clients', title: 'Who is driving it?', q: 'The accounts that fill the plant, and the one priced worst', sizes: ['m', 's', 'l'] },
+  { k: 'plant', title: 'Is the plant full?', q: 'Capacity used, and the tonnes spare', sizes: ['m', 's', 'l'] },
+  { k: 'cash', title: 'Is cash coming in?', q: 'What is owed, how fast it comes and the account’s low point', sizes: ['m', 's', 'l'], bank: true },
+  { k: 'changed', title: 'What changed?', q: 'The month’s pace and what has moved most', sizes: ['m', 's', 'l'] }
+];
+function wcQuestion(k) { return tdyQuestions().filter(function(x) { return x.key === k; })[0] || null; }
+function wcQuestionMovesHtml(x) {
+  if (x.inline && x.moves.length) return '';
+  return '<div class="inv-hero-moves" data-tdy-moves><div class="inv-hero-eyebrow inv-mt-8 inv-mb-8" data-adv-head>What you can do' +
+    (x.moves.length ? ' <span class="inv-panel-count">' + x.moves.length + '</span>' : '') + '</div>' +
+    (x.moves.length ? advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note" data-adv-none>' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
+    (x.hints || []).map(function(t) { return '<div class="inv-note inv-mt-8" data-adv-hint>' + escHtml(t) + '</div>'; }).join('') + '</div>';
+}
+WC_QUESTIONS.forEach(function(qd) {
+  wdgDefine({ id: 'q-' + qd.k, title: qd.title, q: qd.q, section: 'questions', sizes: qd.sizes,
+    needs: { money: true, when: qd.bank ? function() { return finHasBank(); } : null },
+    go: function() {
+      var x = wcQuestion(qd.k);
+      if (!x) return;
+      var listed = typeof advListedKeys === 'function' ? advListedKeys() : {};
+      dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="' + escHtml(qd.title) + '" data-tdy-q-open="' + qd.k + '">' +
+        dialogHeadHtml(qd.title, 'invCloseOverlay', 'Close') + '<div class="inv-dialog-body"><div class="inv-hero-sheet">' + x.html + '</div>' +
+        (x.inline && x.moves.length ? '' : '<div class="inv-hero-eyebrow inv-mt-8 inv-mb-8">What you can do</div>' + (x.moves.length
+          ? '<div class="inv-deck" data-adv-deck="q-' + qd.k + '-all">' + x.moves.map(function(mv) { return advMoveCardHtml(mv, listed); }).join('') + '</div>'
+          : '<div class="inv-note">' + escHtml(x.none || 'Nothing to do here yet.') + '</div>')) + '</div></div>', { dismiss: true });
+    },
+    data: function() {
+      var x = wcQuestion(qd.k);
+      if (!x) return { state: 'empty', title: 'Not worked out yet', body: 'The question reads the period’s invoices; Stats has the figures.' };
+      var v = x.vital || { fig: '', title: x.answer ? escHtml(x.answer.say) : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };
+      return { state: 'ok', tone: WDG_TONES[v.tone] ? v.tone : 'neutral', x: x, v: v, attrs: ' data-tdy-questions data-tdy-q="' + escHtml(qd.k) + '"' };
+    },
+    draw: function(d, size) {
+      var v = d.v, x = d.x;
+      var h = (v.fig ? '<div class="inv-widget-fig">' + v.fig + '</div>' : '') + (v.title ? '<div class="inv-widget-line">' + v.title + '</div>' : '') +
+        (v.sub && size !== 's' ? '<div class="inv-widget-sub">' + v.sub + '</div>' : '') + (v.viz ? '<div class="inv-widget-viz">' + v.viz + '</div>' : '');
+      if (size === 's') return h;
+      h += '<div class="inv-hero-sheet" data-tdy-story>' + x.html + '</div>';
+      if (size === 'l') h += wcQuestionMovesHtml(x);
+      return h;
+    } });
+});
+/* Do first: the moves worth most across every question (tdyFirstMoves, advRank): three at Medium, five at Large; the head opens
+   the first ten. */
+wdgDefine({ id: 'dofirst', title: 'Do first', q: 'The three moves worth most, across every question', section: 'questions', sizes: ['m', 'l'],
+  needs: { money: true }, card: 'first',
+  go: function() {
+    var top = tdyFirstMoves(tdyQuestions(), 10);
+    wcMovesOpen('Do first: the moves worth most', top.map(function(t) { return t.mv; }), 'first-all', top.map(function(t) { return t.word; }));
+  },
+  data: function(ctx) {
+    var top = tdyFirstMoves(tdyQuestions(), ctx.size === 'l' ? 5 : 3);
+    if (!top.length) return { state: 'empty', title: 'No move worth making yet', body: 'A move appears once a question finds one: a price under the cost, a debt past its terms, a line idle.' };
+    return { state: 'ok', tone: 'neutral', top: top };
+  },
+  draw: function(d) {
+    var listed = typeof advListedKeys === 'function' ? advListedKeys() : {};
+    return '<div class="inv-widget-line">The moves worth most</div><div class="inv-widget-sub">By what each is worth a month, across the questions</div>' +
+      '<div class="inv-deck" data-adv-deck="first">' + d.top.map(function(t) { return advMoveCardHtml(t.mv, listed, t.word); }).join('') + '</div>';
+  } });
+wdgDefine({ id: 'why', title: 'Why it moved', q: 'What moved the figures against the period before?', section: 'questions', sizes: ['m', 'l'],
+  needs: { money: true }, go: { tab: 'pageStats', v: 'trends' },
+  data: function(ctx) {
+    var a = wcPulseArgs(ctx.period), o = whyHeroOpts(ctx.period, a.filtered, a.prior, ctx.size === 'm' ? 'real' : '');
+    if (!o) return { state: 'early', title: ctx.period === 'all' ? 'All has no period before it' : 'Nothing to compare yet',
+      body: ctx.period === 'all' ? 'Pick MTD, QTD or YTD to see what moved against the period before.' : 'The period before has no invoices.' };
+    return wdgFromHero(o);
+  },
+  draw: wdgHeroDraw });
+wdgDefine({ id: 'figures', title: 'The period in figures', q: 'Price, cost, contribution, capacity', section: 'questions', sizes: ['m', 'l'],
+  needs: { money: true }, go: { tab: 'pageStats', v: 'cost' },
+  data: function(ctx) {
+    var a = wcPulseArgs(ctx.period), o = statsOverviewOpts(ctx.period, a.filtered, a.tonnage);
+    return wdgFromHero(o);
+  },
+  draw: wdgHeroDraw });
+wdgDefine({ id: 'pace', title: 'This month at its pace', q: 'Where does the month land?', section: 'office', sizes: ['m', 'l'],
+  needs: { page: 'pageRegister', money: true }, go: { tab: 'pageRegister' },
+  data: function() {
+    var o = paceCardOpts();
+    if (!o) return { state: 'early', title: 'The month has no pace yet', body: 'A pace needs a working day billed this month.' };
+    return wdgFromHero(o, { facts: o.facts });
+  },
+  draw: function(d, size) {
+    // Medium: the band and the line against last month; Large: what it rests on too (the tonnage, unbilled in hand).
+    return '<div class="inv-widget-line">' + d.line + '</div>' + (d.sub ? '<div class="inv-widget-sub">' + d.sub + '</div>' : '') +
+      '<div class="inv-hero-sheet">' + d.facts.slice(0, size === 'l' ? 4 : 2).join('') + '</div>';
+  } });
+wdgDefine({ id: 'needs', title: 'Needs you', q: 'What needs me now?', section: 'questions', sizes: ['m', 'l'],
+  go: { tab: 'pageHome', v: 'needs' },
+  data: function(ctx) { return wdgFromHero(todoHomeOpts(ctx.size === 'l' ? 5 : 3)); },
+  draw: wdgHeroDraw, foot: wdgHeroFoot });
+/* U2d · Questions: coming (§7d), after this line. */
 /* ===== ENTRY FACES: EACH HAND ENTERS THEIR OWN (docs/ENTRY_FACES.md, step F1: the shell) =====
    Owner, 10 Oct 2026: "develop app faces for each employee to enter data … We have guard in place, they will all be using the
    phone app", and "Each their own phone, no one shares any screens. Attendance screen for [the clerk] and [the supervisor] will be
@@ -66146,7 +67191,7 @@ function onDocClick(e) {
     case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
-    // One period for Stats and Today → Pulse (the tab map, TM2b): a change redraws whichever is on screen.
+    // One period for Stats and Home's board (the tab map, TM2b; UI pass 3 §8c): a change redraws whichever is on screen.
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; if (navPageOf() === 'pageHome') renderHome(); else renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
     // P9: Trend granularity chips (day/week/month)
@@ -66324,7 +67369,7 @@ function onDocClick(e) {
       if (pplAction(action, btn)) break;
       if (idcAction(action, btn)) break;
       if (ckAction(action, btn)) break;
-      if (homeAction(action, btn)) break;
+      if (action.indexOf('invWdg') === 0 && wdgAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (pcsAction(action, btn)) break;
       if (kbAction(action, btn)) break;
@@ -66540,7 +67585,6 @@ function onDocChange(e) {
     return;
   }
   if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
-  if (e.target.dataset && e.target.dataset.homeShow) { homeShowToggle(e.target); return; }
   if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
     if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();
@@ -67006,9 +68050,9 @@ document.addEventListener('focusout', function(e) {
 
    The map is here and nowhere else (WORKSPACES): the phone bar, the tab row, the sidebar, swiping, the red counts and the
    top bar's names all read it. A page not in the DOM is left out (wsViewsPresent), so the steps that add Pipeline and Day
-   fit in as they land. Today's two views, Needs you and Pulse, are pageHome's own `v`: drawn once pageHome says it has
-   them (`homeViews`, the Today step's), and opened as places through nav.js (navOpen), which takes the step and applies
-   the view. A page a workspace holds without a tab (Create in Office, the To-do in Today) lights its workspace and is
+   fit in as they land. Home's two views, the dashboard and Needs you, are pageHome's own `v`: drawn once pageHome says it
+   has them (`homeViews`, today.js), and opened as places through nav.js (navOpen), which takes the step and applies
+   the view. A page a workspace holds without a tab (Create in Office, the To-do in Home) lights its workspace and is
    named in the top bar.
 
    Three levels, the same on both layouts (owner, 8 Oct 2026: "in the desktop view we have many tabs that are actually tabs
@@ -67016,8 +68060,9 @@ document.addEventListener('focusout', function(e) {
    is a door on the phone's bar or the desktop's rail, never anything under it; its views are the tab row under the top bar;
    a page's own views are the row under that.
 
-   The tab map (docs/TAB_MAP.md, owner, 9 Oct 2026: "Go with all four recommendations"): four sections by subject. Today is
-   the whole business (Needs you, Pulse, then its Insights: Stats, Reports, the Planner); Office the paperwork (Pipeline,
+   The tab map (docs/TAB_MAP.md, owner, 9 Oct 2026: "Go with all four recommendations"): four sections by subject. Home (Today
+   until UI pass 3) is the whole business (the dashboard, Needs you, then its Insights: Stats, Reports, the Planner); Office the
+   paperwork (Pipeline,
    Challans, Invoices, Clients, Sales); Floor the plant; Money the cash. History and Knowledge are tools in the top bar on
    every screen and belong to no section: no door lit, no row, no swipe. No row is wider than five. */
 
@@ -67034,8 +68079,9 @@ function wsSvg(k) {
    and `v` is the one it opens first. `members` are pages held without a tab. `bar`: a door on the phone bar and the desktop
    rail (Add stands between Office and Floor, the bar's centre). */
 var WORKSPACES = [
-  { id: 'today', label: 'Today', icon: 'today', bar: true,
-    views: [{ tab: 'pageHome', v: 'needs', label: 'Needs you' }, { tab: 'pageHome', v: 'pulse', label: 'Pulse' },
+  // Home (UI pass 3 §8a): its id stays `today` (a saved trail, the bar's counts and the specs name it); the label and the icon are Home's.
+  { id: 'today', label: 'Home', icon: 'home', bar: true,
+    views: [{ tab: 'pageHome', v: 'home', label: 'Home' }, { tab: 'pageHome', v: 'needs', label: 'Needs you' },
       { tab: 'pageStats', label: 'Stats', group: 'Insights' }, { tab: 'pageReports', label: 'Reports' }, { tab: 'pagePlanner', label: 'Planner' }],
     members: [] },
   { id: 'office', label: 'Office', icon: 'office', bar: true,
@@ -67068,8 +68114,8 @@ function wsOf(tabId) {
   }
   return null;
 }
-/* A workspace's views whose page is in the DOM. Today's two are pageHome's own views, drawn once pageHome declares them;
-   until then Today is pageHome alone, and has no tab row. */
+/* A workspace's views whose page is in the DOM. Home's two are pageHome's own views, drawn once pageHome declares them;
+   until then Home is pageHome alone, and has no tab row. */
 function wsViewsPresent(ws) {
   var w = typeof ws === 'string' ? wsGet(ws) : ws;
   if (!w) return [];
@@ -67147,6 +68193,7 @@ function wsTarget(id) {
   if (!views.length) return null;
   if (wsOf(navPageOf()) === w.id) return views[0];
   var last = _wsLast[w.id];
+  if (last && typeof navRedirect === 'function') last = navRedirect(last);
   if (last && isPageId(last.tab) && wsOf(last.tab) === w.id) {
     var hit = views.filter(function(x) { return x.tab === last.tab && (!x.v || wsViewHas(x, last.v)); })[0];
     // A view covering several returns to the one that was open (Office's door back onto Quotations).
@@ -67176,7 +68223,7 @@ function wsDoorHtml(cls, attrs, icon, label, countId) {
   return '<button class="' + cls + '" ' + attrs + '><span class="inv-navbar-mark">' + wsSvg(icon) + '</span>' + label +
     (countId ? '<span class="inv-navbar-count inv-hidden" data-ws-count="' + countId + '"></span>' : '') + '</button>';
 }
-/* The phone bar, from the map: Today · Office · Add · Floor · Money, Add the centre of five (owner, 8 Oct 2026: "Move insights
+/* The phone bar, from the map: Home · Office · Add · Floor · Money, Add the centre of five (owner, 8 Oct 2026: "Move insights
    into office tab, that way we have 5 icons again, which can be arranged in a better way"; with Insights the bar's sixth, Add
    stood off its centre). Add is the shell's one primary (data-shell-primary, which P76's one-primary-per-view check knows is
    not a view's). Drawn at load: it needs no book. */
@@ -67254,16 +68301,16 @@ window.addEventListener('resize', function() {
   _wsFitTimer = setTimeout(function() { wsRowFit(); }, 120);
 });
 
-/* The desktop rail (§4.2): the phone's bar stood on its side. The mark (it opens Pulse) · Add (the shell's primary, key A) ·
+/* The desktop rail (§4.2): the phone's bar stood on its side. The mark (it opens Home) · Add (the shell's primary, key A) ·
    the workspaces · Settings at the foot, each a door drawn as the bar draws it. A workspace's views are never listed here:
    they are its tab row, under the top bar, as on the phone (owner, 8 Oct 2026, above). Search is the top bar's field. */
 function renderSidebar() {
   var existing = document.getElementById('invSidebar');
   if (existing) existing.remove();
   if (!_isDesktop) return;
-  // The brand's mark opens Today → Pulse (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on the
-  // top left of the screen should take us back to the pulse screen, as today takes us to the needs you screen").
-  var html = '<button type="button" class="inv-side-brand" data-action="invGoPulse" aria-label="Soma Electro: open Pulse" title="Soma Electro · Pulse">' + markSvg('sm', 'tile') + '</button>' +
+  // The brand's mark opens Home's dashboard (owner, 8 Oct 2026: "Clicking on the company name (Soma Electro) or the icon on the
+  // top left of the screen should take us back to the pulse screen"; Pulse is Home's board since UI pass 3, §8a).
+  var html = '<button type="button" class="inv-side-brand" data-action="invGoHome" aria-label="Soma Electro: open Home" title="Soma Electro · Home">' + markSvg('sm', 'tile') + '</button>' +
     wsDoorHtml('inv-side-item inv-navbar-add', 'data-action="invAddOpen" data-shell-primary aria-keyshortcuts="A" title="Add (A)"', 'add', 'Add');
   if (typeof faceMineDoor === 'function' && faceMineDoor()) html += wsDoorHtml('inv-side-item', 'data-action="invWsGo" data-ws="mine"', 'mine', 'Mine', 'mine');
   WORKSPACES.forEach(function(w) {
@@ -67294,8 +68341,8 @@ function markSideActive(tabId) {
 
 /* ---------- The red counts ----------
    More carried every red row; the count moved to the bar (and the sidebar's heads). Each workspace carries the red app
-   tasks whose jump lands in it; Today carries every red row, your own late tasks included (the old More count). A task
-   with no jump, or one landing nowhere a workspace holds (Settings), counts on Today alone. */
+   tasks whose jump lands in it; Home carries every red row, your own late tasks included (the old More count). A task
+   with no jump, or one landing nowhere a workspace holds (Settings), counts on Home alone. */
 var WS_GO_PAGE = {
   home: 'pageHome',
   im: 'pageIM', challan: 'pageIM',
@@ -67366,8 +68413,8 @@ function wsGroupReveal(el) {
 function wsAction(action, btn) {
   if (action === 'invWsGo') { wsGo(btn.dataset.ws); return true; }
   if (action === 'invWsGroup') { wsGroupReveal(btn); return true; }
-  // The brand: Today → Pulse, at its top (a step of the trail, as a tab is).
-  if (action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'pulse' }); viewTop(); return true; }
+  // The brand: Home's dashboard, at its top (a step of the trail, as a tab is). invGoPulse is its old name (a saved trail, a test).
+  if (action === 'invGoHome' || action === 'invGoPulse') { wsShowView({ tab: 'pageHome', v: 'home' }); viewTop(); return true; }
   // The top bar's History: a tool, not a section's view (the tab map, 9 Oct 2026). A step of the trail, at its top.
   if (action === 'invGoHistory') { navOpen({ tab: 'pageHistory', v: '', id: '' }); viewTop(); return true; }
   return false;
@@ -67509,8 +68556,11 @@ function navLocFromUrl(search) {
 var NAV_REDIRECTS = [
   // TM2a: the To-do joined Needs you. A widget's launch (todo=) still works: init.js reads it once the address has landed here.
   { tab: 'pageTodo', v: null, to: function() { return { tab: 'pageHome', v: 'needs' }; } },
-  // TM2b: Stats → Overview went to Today → Pulse; Stats → Billing's dispatch cycle to Pipeline, its other cards to Money → GST.
-  { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'pulse' }; } },
+  // TM2b: Stats → Overview went to Today → Pulse (Home's board since UI pass 3); Stats → Billing's dispatch cycle to Pipeline, its
+  // other cards to Money → GST.
+  { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'home' }; } },
+  // UI pass 3, U2 (§8d): Pulse folded into Home's dashboard; its questions, its widgets and its cards are widgets on the board.
+  { tab: 'pageHome', v: 'pulse', to: function() { return { tab: 'pageHome', v: 'home' }; } },
   { tab: 'pageStats', v: 'billing', to: function() { return { tab: 'pagePipeline', v: '' }; } },
   // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
   { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } },
@@ -67575,7 +68625,7 @@ function navLabel(loc) {
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
-    case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
+    case 'pageHome': sub.push(parts[0] === 'needs' ? 'Needs you' : 'Home'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff':
       // Attendance's three views are a switch under one tab (the tab map, TM4b): "Attendance · Month, Sep 2026".
@@ -67708,7 +68758,8 @@ function navApply(loc) {
 }
 
 /* ---------- Recording ---------- */
-function navLayerOpen() { return !!document.querySelector('.inv-scrim-dialog, .inv-print-view-active'); }
+// A board being arranged is a layer too (UI pass 3 §7e): Back and Escape leave it, a swipe does nothing while it is on.
+function navLayerOpen() { return !!document.querySelector('.inv-scrim-dialog, .inv-print-view-active, .inv-wboard[data-arranging]'); }
 function navState(loc, extra) { return Object.assign({ sep: 1, idx: _navIdx, loc: loc }, extra || {}); }
 function navTrailPut(loc) {
   _navTrail.length = _navIdx + 1;
@@ -67768,9 +68819,9 @@ function navLeaveOk() {
    Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
    layer over the screen and leave nothing. */
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
-// So do the top bar's History and the brand's mark (Pulse): both leave the screen.
+// So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invGoPulse: 1, invFaceFormDone: 1 };
+  invGoHistory: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -67797,6 +68848,7 @@ function navCloseLayer() {
     return dialogLeaveOk(top).then(function(ok) { if (ok) dialogCloseScrim(top); });
   }
   if (document.querySelector('.inv-print-view-active')) closePrintPreview();
+  else if (document.querySelector('.inv-wboard[data-arranging]') && typeof wdgArrangeDone === 'function') wdgArrangeDone();
   return Promise.resolve();
 }
 
@@ -67986,16 +69038,17 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
   worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn', kb: 'knowledge article how why' };
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
-   that this build holds. Since the tab map (9 Oct 2026) the Insights are a group in Today's row, Sales ends Office's, and
-   History and Knowledge are the top bar's tools, in no workspace. */
+   that this build holds; the fourth is the workspace's id (its door's data-ws). Since the tab map (9 Oct 2026) the Insights are
+   a group in Home's row, Sales ends Office's, and History and Knowledge are the top bar's tools, in no workspace. Home was Today
+   until UI pass 3 (U2): G T still opens it, unlisted, for the hands that learnt it. */
 var SRCH_SPACES = [
-  ['t', 'Today', ['needs', 'pulse', 'stats', 'reports', 'planner']],
-  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'sales']],
-  ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power']],
-  ['m', 'Money', ['money']]
+  ['h', 'Home', ['home', 'needs', 'stats', 'reports', 'planner'], 'today'],
+  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'sales'], 'office'],
+  ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power'], 'floor'],
+  ['m', 'Money', ['money'], 'money']
 ];
 /* Screens of their own key: Invoices (R), Challans (C), and Stats (I, the key Insights had while it was a workspace). */
-var SRCH_G_MORE = { r: ['register'], c: ['im'], i: ['stats'] };
+var SRCH_G_MORE = { r: ['register'], c: ['im'], i: ['stats'], t: ['home'] };
 
 /* ---------- Folding ---------- */
 /* An identifier folded: case, spaces and punctuation out, each run of digits without its leading zeros, so 00834 is 834
@@ -68041,11 +69094,11 @@ function srchScreens() {
   var at = function(tab, v) { return { kind: 'place', loc: { tab: tab, v: v || '', id: '' } }; };
   var act = function(a) { return { kind: 'act', act: a }; };
   var list = [
-    ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
-    ['pulse', 'Pulse', 'Today', 'home questions what to do widgets why it moved in one line pace contribution capacity overview', at('pageHome', 'pulse')],
+    ['home', 'Home', 'Home', 'dashboard today pulse widgets customise clock weather news tata questions what to do why it moved figures pace contribution capacity overview', at('pageHome', 'home')],
+    ['needs', 'Needs you', 'Home', 'today inputs tasks inbox', at('pageHome', 'needs')],
     // The To-do joined Needs you (the tab map, TM2a): its tasks are there, its Done a fold there.
-    ['todo', 'Your tasks', 'Today › Needs you', 'tasks todo to-do my list needs you', at('pageHome', 'needs')],
-    ['todo-done', 'Done tasks', 'Today › Needs you', 'tasks todo to-do ticked done', { kind: 'act', act: 'todoDone' }],
+    ['todo', 'Your tasks', 'Home › Needs you', 'tasks todo to-do my list needs you', at('pageHome', 'needs')],
+    ['todo-done', 'Done tasks', 'Home › Needs you', 'tasks todo to-do ticked done', { kind: 'act', act: 'todoDone' }],
     ['pipeline', 'Pipeline', 'Office', 'awaiting created printed dispatched delivered owed stages', at('pagePipeline')],
     ['im', 'Challans', 'Office · was IM', 'im incoming material awaiting invoice', at('pageIM', 'awaiting')],
     ['im-invoiced', 'Challans, invoiced', 'Office · was IM', 'im incoming material billed', at('pageIM', 'invoiced')],
@@ -68088,20 +69141,20 @@ function srchScreens() {
     ['bills', 'Bills', 'Money › Payments', 'electricity bills power bill other bills', at('pageFinance', 'payments')],
     ['cheques', 'Cheques received', 'Money › Receivables', 'cheque in hand received not deposited', at('pageFinance', 'receipts')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
-    ['stats', 'Stats', 'Today', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
-    ['stats-clients', 'By client', 'Today › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
-    ['live-cost', 'Live cost', 'Today › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
+    ['stats', 'Stats', 'Home', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
+    ['stats-clients', 'By client', 'Home › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
+    ['live-cost', 'Live cost', 'Home › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
     ['stats-billing', 'Dispatch cycle', 'Office › Pipeline', 'dispatch delivered cycle days invoice states', at('pagePipeline')],
-    ['trends', 'Trends', 'Today › Stats', 'trend chart top items headline six months', at('pageStats', 'trends')],
-    ['reports', 'Reports', 'Today', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
-    ['planner', 'Planner', 'Today', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
-    ['planner-ledger', 'Planner ledger', 'Today › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
-    ['planner-day', 'A day, simulated', 'Today › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
-    ['planner-plant', 'Upgrade trees', 'Today › Planner › Moves', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'moves/plant')],
-    ['planner-tech', 'Tech tree', 'Today › Planner › Moves', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'moves/tech')],
-    ['planner-staff', 'Planner staff', 'Today › Planner › Moves', 'hire specialist lab hand night crew training', at('pagePlanner', 'moves/staff')],
-    ['planner-clients', 'Planner clients', 'Today › Planner › Moves', 'ask rate held back work certificates turnaround', at('pagePlanner', 'moves/clients')],
-    ['planner-finance', 'Planner finance', 'Today › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
+    ['trends', 'Trends', 'Home › Stats', 'trend chart top items headline six months', at('pageStats', 'trends')],
+    ['reports', 'Reports', 'Home', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
+    ['planner', 'Planner', 'Home', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
+    ['planner-ledger', 'Planner ledger', 'Home › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
+    ['planner-day', 'A day, simulated', 'Home › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
+    ['planner-plant', 'Upgrade trees', 'Home › Planner › Moves', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'moves/plant')],
+    ['planner-tech', 'Tech tree', 'Home › Planner › Moves', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'moves/tech')],
+    ['planner-staff', 'Planner staff', 'Home › Planner › Moves', 'hire specialist lab hand night crew training', at('pagePlanner', 'moves/staff')],
+    ['planner-clients', 'Planner clients', 'Home › Planner › Moves', 'ask rate held back work certificates turnaround', at('pagePlanner', 'moves/clients')],
+    ['planner-finance', 'Planner finance', 'Home › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
     // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
     ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
     ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
@@ -68895,7 +69948,7 @@ function srchKeysOpen() {
   var k = srchKbd, or = function(a, b) { return a + ' or ' + b; };
   var groups = [
     ['When no field has focus', [['Search', or(k('Ctrl K'), k('/'))], ['Add', k('A')], ['New invoice', k('N')], ['New challan', k('C')], ['This list', k('?')]]],
-    ['G, then a letter', [['Today', k('G') + k('T')], ['Office', k('G') + k('O')], ['Floor', k('G') + k('F')], ['Money', k('G') + k('M')],
+    ['G, then a letter', [['Home', k('G') + k('H')], ['Office', k('G') + k('O')], ['Floor', k('G') + k('F')], ['Money', k('G') + k('M')],
       ['Invoices', k('G') + k('R')], ['Challans', k('G') + k('C')], ['Stats', k('G') + k('I')]]],
     ['Invoices and Challans', [['Next row', k('J')], ['Previous row', k('K')], ['Open the row', k('Enter')], ['Close the pane', k('Esc')]]],
     ['Search', [['Move', k('\u2191') + k('\u2193')], ['Open', k('Enter')], ['Open in a new window', k('Ctrl') + k('Enter')]]],
@@ -68957,14 +70010,14 @@ function srchLocOf(el) {
   var act = a.dataset.action, d = a.dataset;
   if (act === 'invSearchPick') { var s = _srch && _srch.shown[+d.n]; return s && s.e ? srchEntryLoc(s.e) : null; }
   if (a.closest('.inv-scrim')) return null;
-  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
-  // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
+  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Home's dashboard and Needs you). They
+  // carried data-sub before Direction B, and a view opened in a new window as the page's first (QA3-7).
   if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
-  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail; the top bar's History, History.
-  if (act === 'invGoPulse') return { tab: 'pageHome', v: 'pulse', id: '' };
+  // The rail's mark opens Home's dashboard (invGoPulse its old name, UI pass 3); the top bar's History, History.
+  if (act === 'invGoHome' || act === 'invGoPulse') return { tab: 'pageHome', v: 'home', id: '' };
   if (act === 'invGoHistory') return { tab: 'pageHistory', v: '', id: '' };
   if (act === 'invWsGo') {
-    var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
+    var sp = SRCH_SPACES.find(function(x) { return x[3] === String(d.ws || ''); });
     var go = sp ? srchGTarget(sp[0]) : null;
     return go && go.kind === 'place' ? go.loc : null;
   }

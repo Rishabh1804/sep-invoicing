@@ -7,7 +7,7 @@
     <span data-icon="back"></span>
   </button>
   <nav class="inv-topbar-trail" id="navTrail" aria-label="Trail"></nav>
-  <h1 class="inv-topbar-title" id="topbarTitle">Today</h1>
+  <h1 class="inv-topbar-title" id="topbarTitle">Home</h1>
   <span class="inv-topbar-ctx" id="topbarCtx"></span>
   <span class="inv-topbar-spacer"></span>
   <!-- Search (DIRECTION_B): a field-like button on the desktop, an icon on the phone; search.js builds what it opens. -->
@@ -48,35 +48,10 @@
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
-  <!-- Today (today.js): Needs you, then Pulse; one of the two shown (pageHome's own view, ?tab=pageHome&v=pulse). -->
-  <div id="homeNeeds" data-today="needs"></div>
-  <div id="homePulse" data-today="pulse" class="inv-hidden">
-  <div id="homeQuestions"></div>
-  <div id="homeEditArea"></div>
-  <div class="inv-panels inv-panels-3" id="homeWidgets">
-    <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
-    <div data-home-w="quick" class="inv-panels-wide">
-      <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
-        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><span data-icon="filePlus"></span><span>New invoice</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><span data-icon="boxPlus"></span><span>New challan</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><span data-icon="flask"></span><span>Stock entry</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><span data-icon="userCheck"></span><span>Attendance</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><span data-icon="message"></span><span>Paste message</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><span data-icon="task"></span><span>Add task</span></button>
-      </div>
-    </div>
-    <div data-home-w="money" id="homeFinCard"></div>
-    <div data-home-w="todo" id="homeTodoCard"></div>
-    <div data-home-w="attendance" id="homeAttCard"></div>
-    <div data-home-w="unbilled" id="homeUnbilledCard"></div>
-    <div data-home-w="production" id="homeProdCard"></div>
-    <div data-home-w="power" id="homePowerCard"></div>
-    <div data-home-w="stock" id="homeStockCard"></div>
-    <div data-home-w="sync" id="homeSyncCard"></div>
-    <div data-home-w="zinc" id="homeZincCard"></div>
-    <div data-home-w="recent" class="inv-panels-wide" id="homeRecentCard"></div>
-  </div>
-  </div>
+  <!-- Home (today.js): the dashboard (the day card, its toolbar, the board of widgets: widgets.js, widgetcards.js) and Needs you;
+       one of the two shown (pageHome's own view, ?tab=pageHome&v=home | needs). -->
+  <div id="homeNeeds" data-today="needs" class="inv-hidden"></div>
+  <div id="homeDash" data-today="home"></div>
 </div>
 
 <div id="pageCreate" class="inv-page">

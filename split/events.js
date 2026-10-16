@@ -297,7 +297,7 @@ function onDocClick(e) {
     case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
-    // One period for Stats and Today → Pulse (the tab map, TM2b): a change redraws whichever is on screen.
+    // One period for Stats and Home's board (the tab map, TM2b; UI pass 3 §8c): a change redraws whichever is on screen.
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; if (navPageOf() === 'pageHome') renderHome(); else renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
     // P9: Trend granularity chips (day/week/month)
@@ -475,7 +475,7 @@ function onDocClick(e) {
       if (pplAction(action, btn)) break;
       if (idcAction(action, btn)) break;
       if (ckAction(action, btn)) break;
-      if (homeAction(action, btn)) break;
+      if (action.indexOf('invWdg') === 0 && wdgAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (pcsAction(action, btn)) break;
       if (kbAction(action, btn)) break;
@@ -691,7 +691,6 @@ function onDocChange(e) {
     return;
   }
   if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
-  if (e.target.dataset && e.target.dataset.homeShow) { homeShowToggle(e.target); return; }
   if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
     if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();

@@ -347,22 +347,24 @@ TODO_RULE_FNS.insChemPrice = function() {
     facts: [['Lines', list.join(', ')]], clears: 'Clears itself when each has a bill.', sig: list.join('|') }];
 };
 
-/* ---------- This month at its pace: a hero on Today → Pulse (the tab map, TM2b; it was a card on Stats → Overview) ----------
-   The verdict is the month the pace points to, revenue and tonnes, its change against last month beside it; how far it could
-   swing and what it rests on are folded under it (§3c). Shut on the phone, open on the desktop (§1a-3). */
-function paceCardHtml() {
+/* ---------- This month at its pace (Home's pace widget, widgetcards.js; a hero on Pulse until UI pass 3, a card on Stats →
+   Overview before the tab map) ----------
+   A hero's options: the verdict is the month the pace points to, revenue and tonnes, its change against last month beside it;
+   how far it could swing and what it rests on under it (§3c; #statsPace). Null before the month has a pace. */
+function paceCardOpts() {
   var p = predMonthPace();
-  if (!p) return '';
+  if (!p) return null;
   var down = p.prevRev > 0 && p.projRev < p.prevRev, tone = p.prevRev > 0 ? (down ? 'warning' : 'ok') : 'neutral';
-  var body = '<div class="inv-hero-sheet">' + [
+  var facts = [
     { label: 'So far', sub: formatNum(p.kg / 1000, 1) + ' t billed', value: formatCurrency(p.rev), attrs: ' data-pace="sofar"' },
     { label: 'Likely range', sub: 'how much the days so far varied', value: formatCurrency(p.low) + ' – ' + formatCurrency(p.high), attrs: ' data-pace="range"' },
     { label: 'Tonnage at its pace', sub: p.prevLabel + ' ' + formatNum(p.prevKg / 1000, 1) + ' t', value: formatNum(p.projKg / 1000, 1) + ' t', attrs: ' data-pace="kg"' },
     { label: 'Unbilled challans in hand', sub: 'would lift the month if billed in it', value: formatCurrency(p.unbilled), attrs: ' data-pace="unbilled"' }
-  ].map(uiFactRowHtml).join('') + '</div>';
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>This month at its pace</span>', title: escHtml('On pace for ' + formatCurrency(p.projRev) + ' · ' + formatNum(p.projKg / 1000, 1) + ' t'),
+  ].map(uiFactRowHtml);
+  var body = '<div class="inv-hero-sheet">' + facts.join('') + '</div>';
+  return { tone: tone, eyebrow: '<span>This month at its pace</span>', title: escHtml('On pace for ' + formatCurrency(p.projRev) + ' · ' + formatNum(p.projKg / 1000, 1) + ' t'),
     sub: (p.prevRev > 0 ? figDeltaHtml(p.projRev, p.prevRev, p.prevLabel, 'up') + ' · ' : '') + escHtml(p.done + ' of ' + p.total + ' working days in'),
-    body: body, fold: 'pulse-pace', open: !!_isDesktop, attrs: ' id="statsPace" data-card="pace" data-verdict' });
+    body: body, facts: facts, attrs: ' id="statsPace" data-card="pace"', pace: p };
 }
 
 function nextChallanCardHtml() {

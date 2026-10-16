@@ -116,6 +116,9 @@
   /* Today's cards: a card in a deck at least this wide (a deck of small cards, `data-deck-sm`, the narrower: a unit of the plant);
      a sparkline's and a meter's height; a step's node; the small row a packed grid counts in. */
   --deck-min: 15rem; --deck-min-sm: 9rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
+  /* A widget's cap by its size (UI pass 3 §7b), so no layout lets one run a screen long (the phone's Medium and Large one cap); the
+     chip holding its section's icon. */
+  --wdg-cap-s: 10rem; --wdg-cap-m: 26rem; --wdg-cap-l: 40rem; --wdg-cap-phone: 30rem; --wdg-chip: 1.75rem;
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
@@ -2919,3 +2922,126 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-switch:focus-visible { box-shadow: var(--press-1), var(--focus-ring); }
 .inv-switch:disabled { opacity: 0.55; cursor: not-allowed; }
 @media (prefers-reduced-motion: reduce) { .inv-switch, .inv-switch::before { transition: none; } }
+
+
+/* ===== WIDGETS AND THE BOARD (docs/UI_PASS_3.md §7; widgets.js) =====
+   A widget is a card answering one question: a hero card's look (lifted, a card's corners, coded in its tone), its head the
+   section's icon, the title and the door to its screen. A board is a grid whose columns come from its own width: 12 from 60rem, 6
+   from 36rem, 2 under (the phone); a Small spans a quarter of the desktop's (3 of 12, 3 of 6, 1 of 2), a Medium half, a Large the
+   row. Height follows content, packed with no gap in the layout's order (uiMasonry), and capped by size. */
+.inv-wboard { container: wboard / inline-size; margin-bottom: var(--gap); }
+.inv-wgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
+.inv-wgrid > * { grid-column: span 2; min-width: 0; }
+.inv-wgrid > [data-size="s"] { grid-column: span 1; }
+.inv-wgrid > .inv-wgrid-blank { grid-column: 1 / -1; }
+@container wboard (min-width: 36rem) {
+  .inv-wgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .inv-wgrid > * { grid-column: span 6; }
+  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+}
+@container wboard (min-width: 60rem) {
+  .inv-wgrid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .inv-wgrid > * { grid-column: span 12; }
+  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+  .inv-wgrid > [data-size="m"] { grid-column: span 6; }
+}
+.inv-wgrid > .inv-widget { margin-bottom: 0; }
+/* The card: its parts arranged by its own width (each widget a container), its height capped by its size. */
+.inv-widget { container: widget / inline-size; display: flex; flex-direction: column; overflow: clip; overflow-clip-margin: var(--sp-4);
+  max-height: var(--wdg-cap-m); }
+.inv-widget[data-size="s"] { max-height: var(--wdg-cap-s); }
+.inv-widget[data-size="l"] { max-height: var(--wdg-cap-l); }
+body:not(.inv-desktop) .inv-widget:not([data-size="s"]) { max-height: var(--wdg-cap-phone); }
+.inv-widget-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; padding: var(--sp-8) var(--sp-12) var(--sp-4); }
+.inv-widget-chip { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--wdg-chip); height: var(--wdg-chip);
+  border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-1); color: var(--text-2); }
+.inv-widget-chip svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-door { display: inline-flex; align-items: center; gap: var(--sp-4); flex: 1 1 auto; min-width: 0; min-height: var(--ctl-h-sm);
+  padding: 0; border: none; background: none; font: inherit; color: var(--text-2); text-align: left; }
+button.inv-widget-door { cursor: pointer; color: var(--accent-soft-text); border-radius: var(--r-ctl); }
+button.inv-widget-door:hover .inv-widget-title { text-decoration: underline; }
+button.inv-widget-door:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-widget-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-12); font-weight: 600; }
+.inv-widget-chev { flex-shrink: 0; width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-body { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 var(--sp-12) var(--sp-12); }
+.inv-widget-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12) var(--sp-12); }
+/* What a widget says: its figure in its tone, its line (at most 60 characters), a few words under it, its chart. */
+.inv-widget-fig { font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.15;
+  color: var(--hero-tone); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.inv-widget-fig .inv-tile-of { font-size: var(--fs-14); color: var(--text-2); }
+.inv-widget-line { margin-top: var(--sp-2); font-size: var(--fs-14); font-weight: 600; line-height: 1.3; color: var(--text-1); }
+.inv-widget-sub { margin-top: var(--sp-2); font-size: var(--fs-12); line-height: 1.35; color: var(--text-2); }
+.inv-widget-viz { margin-top: var(--sp-8); min-width: 0; }
+.inv-widget-rows { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-widget-body > .inv-tiles { margin-top: var(--sp-8); margin-bottom: 0; }
+/* A screen's hero sheet inside a widget runs to the card's edges, as in a hero's body. */
+.inv-widget-body > .inv-hero-sheet { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; }
+.inv-widget-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
+.inv-widget-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: var(--sp-8) 0 0; border-radius: 0; }
+.inv-widget-foot:empty { display: none; }
+/* What a widget let go of to fit its size (wdgFit): how many more, and its screen's door. */
+.inv-widget-more { display: flex; align-items: center; padding-top: var(--sp-4); }
+.inv-widget-body [data-wdg-cut] { display: none !important; }
+/* The board's foot: the door to the gallery, centred under the widgets. */
+.inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
+.inv-widget-body > .inv-blank { margin: 0; }
+@container widget (max-width: 13rem) { .inv-widget-fig { font-size: var(--fs-19); } }
+/* A widget's parts by its width: stacked under 18rem, side by side to 36rem, in columns over it. */
+.inv-widget-parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-12); }
+@container widget (min-width: 18rem) { .inv-widget-parts { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; } }
+@container widget (min-width: 36rem) { .inv-widget-parts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); align-items: start; } }
+/* Arranging (§7e): the handle, the place, the size and Remove ride over the head; a widget lifted follows the pointer while a
+   placeholder of its size keeps its room. */
+.inv-wboard[data-arranging] .inv-widget { outline: var(--rule) dashed color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: calc(-1 * var(--rule)); }
+/* While arranging a widget is as tall as it needs: its controls take a row, and nothing is let go of under them. */
+body .inv-wboard[data-arranging] .inv-widget[data-size] { max-height: none; }
+.inv-widget-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); padding: var(--sp-8) var(--sp-8) 0 var(--sp-12); }
+.inv-widget-remove { margin-left: auto; }
+.inv-widget-handle { display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--lift-1); color: var(--text-2);
+  cursor: grab; touch-action: none; }
+.inv-widget-handle:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--lift-1); }
+.inv-widget-handle svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-place { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
+.inv-widget-sizes { width: auto; flex-shrink: 0; }
+.inv-widget-sizes .inv-seg-btn { flex: 0 0 auto; padding: 0 var(--sp-6); }
+.inv-widget-lifted { position: fixed; left: var(--drag-x); top: var(--drag-y); width: var(--drag-w); z-index: var(--z-dialog); margin: 0;
+  box-shadow: var(--lift-2); pointer-events: none; opacity: 0.94; }
+.inv-widget-ph { min-height: var(--ph-h); border: var(--rule) dashed var(--edge); border-radius: var(--r-card); background: var(--well); }
+body.inv-wdg-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+/* The gallery (§7f): the categories as chips, each widget a card with its live preview at its first size. */
+.inv-gallery-chips { display: flex; flex-shrink: 0; gap: var(--sp-6); overflow-x: auto; padding: var(--sp-8) 0; scrollbar-width: none; }
+.inv-gallery { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--gap); align-content: start; padding: var(--sp-4) 0 var(--sp-12); }
+.inv-gallery-card { display: flex; flex-direction: column; gap: var(--sp-8); min-width: 0; padding: var(--sp-12); border: var(--hair) solid var(--edge);
+  border-radius: var(--r-card); background: var(--surface-2); }
+/* A preview shows the widget's top, fading where the card stops, so a cut reads as a glimpse rather than a break. */
+.inv-gallery-preview { pointer-events: none; min-height: calc(var(--sp-24) * 2); max-height: var(--wdg-cap-s); overflow: hidden; border-radius: var(--r-card);
+  mask-image: linear-gradient(to bottom, var(--text-1) calc(100% - var(--sp-32)), transparent); }
+.inv-gallery-preview > .inv-widget { margin: 0; box-shadow: none; }
+.inv-gallery-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-gallery-q { margin: var(--sp-2) 0 0; font-size: var(--fs-13); line-height: 1.35; color: var(--text-2); }
+.inv-gallery-sizes { margin: var(--sp-2) 0 0; font-size: var(--fs-12); color: var(--text-3); }
+.inv-gallery-act { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-8); margin-top: auto; }
+/* A toast carrying one act (Remove's Undo). */
+.inv-toast-act { display: flex; align-items: center; gap: var(--sp-12); }
+.inv-toast-btn { min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-ctl); background: none;
+  font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
+.inv-toast-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Home's day card (§8b): its figure is the clock, ticking on the minute; under it when the general shift ends; the weather now. */
+.inv-homeday-clock { display: block; font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.05;
+  color: var(--text-1); font-variant-numeric: tabular-nums; }
+body.inv-desktop .inv-homeday-clock { font-size: var(--fs-48); }
+/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. */
+[data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
+.inv-homeday-shift { display: block; margin-top: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
+.inv-homeday-wx { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-13); color: var(--text-2); }
+.inv-homeday-wx svg { width: var(--sp-20); height: var(--sp-20); }
+/* widgets · money and office (U2d): each widget's own parts, after this line. */
+
+/* widgets · floor and people (U2d): each widget's own parts, after this line. */
+
+/* widgets · market, analysis and what's coming (U2d): each widget's own parts, after this line. */
+
+@media print { .inv-wboard, .inv-widget-lifted { display: none; } }
+@media (prefers-reduced-motion: reduce) { .inv-widget-lifted { transition: none; } }

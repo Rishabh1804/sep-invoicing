@@ -44,6 +44,15 @@ notes recorded through Record issued. The next build's order is still to be disc
 roster with skills, personal details, tenure, reliability, consistency and a motivation index; the production area unit by unit;
 ID cards with a QR and a scanner; one office QR for checking in from a worker's own phone). Five steps, W1–W5, one PR.
 
+**UI pass 3 is specified — read `docs/UI_PASS_3.md`** (owner, 15–16 Oct 2026: *"We could really use another UI design pass"*, a
+*"modern looking dashboard"*, a Home page with the time, predictions and Tata Motors' news; the design confirmed on a canvas: *"B with
+wells, 4-digit PIN, widgets should be flexible so different layouts are possible without breaking the UI"*, then *"Yes to Home, all of
+1–11, news Worker now, no Hindi"*). Cards that lift and wells for what is pressed or filled; icons v3; eight chart builders and a table
+behind every chart; widgets on boards each person arranges (Home, then Stats); Pulse folded into Home; a feeds Worker for the news
+(GDELT) and the weather (MET Norway); guided Enter by hand; People leads; the power case and the reports a picture first; a sign-in
+with a 4-digit PIN. Nine steps, U1–U9, one PR, **a stop after U2 for the owner to look**. Written to `docs/SERVER.md`: widgets read
+views shaped like the hub's typed tables, and the one change four digits force on the server plan is said (§15c).
+
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
 the office PC (Windows, on a UPS, signed in) a copy of all of it, its backups and the print station; every device stays offline-first.

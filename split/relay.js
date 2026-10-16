@@ -626,6 +626,12 @@ function parseRelayRoll(text, roster, sentOn, opts) {
         ln.role = 'head';
         ln.read = st.mode === 'out' ? 'Out at ' + relayClockLabel(st.slot.end) + (kindH.start != null && kindH.end != null && kindH.start !== kindH.end ? ' (from ' + relayClockLabel(kindH.start) + ')' : '')
           : 'Slot from ' + relayClockLabel(kindH.start);
+        // The slot as this reader settled it, for Production's reading of the work under it (prodFromRoll): a heading that
+        // writes both ends ("NIGHT 8 PM TO 6 AM") is the night's whole span, never only the hour the crew went home.
+        if (st.mode === 'out') {
+          ln.slotTo = st.slot.end;
+          ln.slotFrom = st.slot.rangeStart != null ? st.slot.rangeStart : (kindH.start != null && kindH.end != null && kindH.start !== kindH.end ? kindH.start : null);
+        } else { ln.slotFrom = st.slot.start; ln.slotTo = st.slot.end != null ? st.slot.end : null; }
         if (kindH.areas && kindH.areas.length) ln.read += ', ' + kindH.areas.map(relayAreaName).join(' + ');
         return;
       }

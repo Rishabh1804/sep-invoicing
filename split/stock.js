@@ -30,7 +30,7 @@ var STOCK_SPELLINGS = {
   SOLLT: 'SALT', SOLT: 'SALT', SALLT: 'SALT', SOLTT: 'SALT',
   ZINK: 'ZINC', CYNEDE: 'CYANIDE', CYNIDE: 'CYANIDE', CYANID: 'CYANIDE', CYNED: 'CYANIDE',
   BRIGHTNER: 'BRIGHTENER', BRIGHTER: 'BRIGHTENER', BRITENER: 'BRIGHTENER', BRIGHTNR: 'BRIGHTENER',
-  CAMICAL: 'CHEMICAL', BERRAL: 'BARREL'
+  CAMICAL: 'CHEMICAL', BERRAL: 'BARREL', ACD: 'ACID', ACIED: 'ACID', ASID: 'ACID'
 };
 var STOCK_UNITS = { KG: 'kg', KGS: 'kg', LTR: 'L', LTRS: 'L', LT: 'L', L: 'L', LITRE: 'L', LITRES: 'L',
   LITER: 'L', NOS: 'nos', NO: 'nos', PCS: 'nos', PC: 'nos' };
@@ -197,6 +197,14 @@ function parseStockLine(body) {
       r.issues.push({ level: 'amber', code: 'typo', text: 'Read ' + a3.v + '-' + b3.v + '-' + c3.v + ' as ' + a3.v + ' − ' + b3.v + ' = ' + c3.v + '.' });
     }
   }
+  // "USE NIGHT 2 KG DAY 2 KG =4", "USE MORNING 2 LTR DAY 3LTR =5" (16 Oct 2026): inside a use, a time of day between two
+  // figures starts the next part, as a "+" would. Read without it, the last part alone was the use and its total a footing error.
+  var inUse = false;
+  sig = sig.map(function(tk, k) {
+    if (tk.t === 'kw') inUse = tk.v === 'use';
+    if (inUse && tk.t === 'text' && STOCK_TIME_OF_DAY.test(tk.v) && sig[k - 1] && sig[k - 1].t === 'num' && sig[k + 1] && sig[k + 1].t === 'num') return { t: 'op', v: '+' };
+    return tk;
+  });
   var claimed = [];
 
   // Chains: n (op n)+, where "=" states the running total. In a use clause a sum is what was used, and its total the use
@@ -364,6 +372,13 @@ function parseStockLine(body) {
     var sumParts = stockRound(useParts.reduce(function(t, x) { return t + x.qty; }, 0));
     if (sumParts === stockRound(r.U)) r.useParts = useParts;
     else r.issues.push({ level: 'amber', code: 'baths', text: 'The baths’ figures add to ' + sumParts + '; the use is ' + r.U + '. Saved as one use.' });
+  }
+  // "ADD 5 KG USE … =4) 5-4=1": the figure the use is taken from is the shelf with the delivery in, not an opening beside
+  // it. Where the opening less the use is what is left and the delivery added again is not, the opening was before it.
+  if (r.A != null && r.O != null && r.U != null && r.C != null && r.O >= r.A
+    && stockRound(r.O - r.U) === stockRound(r.C) && stockRound(r.O + r.A - r.U) !== stockRound(r.C)) {
+    r.issues.push({ level: 'amber', code: 'withadd', text: stockFmtQty(r.O) + ' − ' + stockFmtQty(r.U) + ' = ' + stockFmtQty(r.C) + ' is taken from the shelf with the ' + stockFmtQty(r.A) + ' added in: opening read as ' + stockFmtQty(stockRound(r.O - r.A)) + '.' });
+    r.O = stockRound(r.O - r.A);
   }
   if (r.C == null && r.A == null && r.U == null && r.O == null) {
     r.issues.push({ level: 'red', code: 'nofigure', text: 'No quantity found on this line' });

@@ -202,6 +202,8 @@ function prodReadItem(line, idx) {
     partText = rest.join(' ').replace(/^[\s\-_,]+/, '');
   }
   var g = lineGauge(partText);
+  // "MEHTA CLAMP 2700 NOS 25×6": a gauge written after the count is the part's, as one written before it is.
+  if (!g && toks.length) g = lineGauge(s.slice(toks[0].end));
   out.gauge = g;
   out.part = partText.trim();
   return out;
@@ -738,6 +740,10 @@ function prodFromRoll(msg, ctx) {
         from = null; to = null;
         // An out-time roll's head is when the slot ended; an in-time roll's, when it began.
         if (tt.length) { if (/^Out at/.test(ln.read)) to = tt[tt.length - 1].min; else { from = tt[0].min; to = tt.length > 1 ? tt[1].min : null; } }
+        // The roll's own reading of the slot wins: a night heading names both its ends (8 PM to 6 AM), and a bare NIGHT is
+        // the night hold. Read here from the out time alone, the night's work ran to 6 AM from nowhere, dated as a morning.
+        if (ln.slotFrom != null) from = ln.slotFrom;
+        if (ln.slotTo != null) to = ln.slotTo;
         hint = null; inProd = false; group = null;
         return;
       }

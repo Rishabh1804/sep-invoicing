@@ -200,4 +200,21 @@ ${d.dmy}/
     }, stock);
     expect(checks).toEqual([[], []]);   // nothing to check: no count against the level, no delivery missing
   });
+
+  test('the message of 16 Oct: a use told by time of day with no "+", the shelf after a delivery, ACD for acid', async ({ page }) => {
+    await load(page);
+    // A time of day between two figures inside a use starts the next part: the parts add to the total written, no footing error.
+    expect(await line(page, 'BRIGHTNER USE NIGHT 2 LTR DAY 2+3=7 LTR USE 74-7=67 LTR')).toMatchObject({ O: 74, A: null, U: 7, C: 67, codes: [] });
+    expect(await line(page, '65 M USE MORNING 2 LTR DAY 3LTR =5 ) 30-5=25 LTR')).toMatchObject({ name: '65 M', O: 30, U: 5, C: 25, codes: [] });
+    expect(await line(page, '65 R USE MORNING 1 LTR DAY 2 LTR =3 )24-3=21 LTR')).toMatchObject({ O: 24, U: 3, C: 21, codes: [] });
+    expect(await line(page, 'NITRIC ACD USE NIGHT 2 LTR DAY 4 LTR =6 LTR 38-6=32 LTR')).toMatchObject({ O: 38, U: 6, C: 32, codes: [] });
+    expect(await line(page, 'A SOLLT USE DAY 4 LTR ) 14-4=10 LTR')).toMatchObject({ O: 14, U: 4, C: 10, codes: [] });
+    expect(await line(page, 'HCL USE DAY 200 LTR 400-200=200 LTR')).toMatchObject({ O: 400, U: 200, C: 200, codes: [] });
+    // "ADD 5 … =4) 5-4=1": the 5 the use is taken from is the shelf with the delivery in; the opening was before it.
+    expect(await line(page, 'Q558 ADD 5 KG USE NIGHT 2 KG DAY 2 KG =4) 5-4=1 KG')).toMatchObject({ name: 'Q558', O: 0, A: 5, U: 4, C: 1, codes: ['amber:withadd'] });
+    // A real opening beside a delivery still adds up as before.
+    expect(await line(page, 'NITRIC ACID ADD 30+22=52-6=46 LTR')).toMatchObject({ A: 30, O: 22, U: 6, C: 46, codes: [] });
+    // ACD is ACID: the line is Nitric Acid, not a new one.
+    expect(await g(page, `stockKey('NITRIC ACD')`)).toBe(await g(page, `stockKey('NITRIC ACID')`));
+  });
 });

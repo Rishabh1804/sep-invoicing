@@ -242,7 +242,7 @@ every session start — nothing to set up by hand. CI (`build-sync`) is the back
 ### Tests
 
 ```bash
-pnpm exec playwright test          # 1,923 tests, both layouts
+pnpm exec playwright test          # 1,926 tests, both layouts
 ```
 
 Some sandboxes ship a Chromium build Playwright does not expect and block downloading
@@ -2097,6 +2097,14 @@ a batch with none (amber); "PAWAN AUTO 1 BERRAL+ PARAKH 1 BERRAL" a batch each, 
 it listed, never counted (it is counted when the next list unloads it); "----and----" the end; a power cut and its return. A list sent the
 next morning reads its times with no help from when it was sent. The April log, with no figure beside an unload and no dashed blocks, is
 still only listed. On the owner's lists of 12, 13 and 15 Oct: 20 batches and one cut.
+
+### The night block's production
+Owner, 16 Oct 2026: *"Parser is not reading night 8 pm to 6 am, the production below it is usually what was plated on the night shift"*
+(P222). The out-time roll's reader keeps each slot it settles on its heading line (`ln.slotFrom`, `ln.slotTo`, relay.js), and Production's
+reading of the work under the slot takes them (`prodFromRoll`): a heading that writes both ends ("NIGHT 8 PM TO 6 AM") is the night's whole
+span, and the work under it ran 8 PM to 6 AM on the roll's day, on the line headed above it. It had read the heading as the hour the crew
+went home: a run ending at 6 AM with no start, dated as a morning. A gauge written after the count ("2700 NOS 25×6") is the part's
+(`prodReadItem`).
 
 ### A day's plating, whole
 Owner, 9 Oct 2026, on Production's tile: *"Plated, last recorded day: 7,630 NOS + 150 kg … 0.68 t known, 14% of the pieces weighed … is
@@ -3985,6 +3993,10 @@ Owner, 15 Oct 2026 (*"Same for stock messages like these"*; P220):
 - **A delivery** ("14/10/26/ <supplier> TO SOMA HCL 600 LTR / NITRIC ACID 30 LTR", `stockParseDelivery`, `STOCK_DELIVERY_RE`): a stock message
   to the paste box (`relayKind`), every figure received on its day from the words before "TO SOMA" (`supplier` on the entry); a figure with
   no name takes the first of two words before TO SOMA ("HCL <supplier> TO SOMA / 660 LTR"), else is asked. Its lines set no line's number.
+- **A use told by time of day with no "+"** ("USE NIGHT 2 KG DAY 2 KG =4", "USE MORNING 2 LTR DAY 3LTR =5"; owner, 16 Oct 2026): a time of
+  day between two figures inside a use starts the next part, so the parts add to the total written; the last part alone had been the use
+  and the total a red footing error. **"ADD 5 … =4) 5-4=1"**: the figure the use is taken from is the shelf with the delivery in, so the
+  opening was before it (here 0), said amber (`withadd`); it read as an opening of 5 beside a delivery of 5. **ACD is ACID** (`STOCK_SPELLINGS`).
 - **One delivery told twice is counted once**: a received figure the same as one on record for the line within four days (the delivery The stock message's opening was before that delivery: on its day or after it, the opening is the shelf with it in (22 + 30 = 52), so the evening's count and the delivery do not read against each other.
   message, then the stock message's "ADD 30+22") is said (`received-twice`) and not added again; a message read again ignores its own.
 

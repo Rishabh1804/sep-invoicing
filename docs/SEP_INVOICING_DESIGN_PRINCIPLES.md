@@ -858,7 +858,7 @@ Same module, restyled: axis text mono `--text-3`, gridlines `--border`, baseline
 `inv-chart-grid` / `-grid-label`, `inv-chart-area`, `inv-chart-line`, `inv-chart-dot`, `inv-chart-axis` (v1.0 called them
 `inv-svg-*`); an empty chart is an `inv-empty`.
 **Single series:** bars `--surface-3`, the current or selected bar `--accent`, value labels mono above bars.
-**Second measure** (e.g. ₹/kg over revenue): a 1.5px `--text-2` line. **Categorical:** `--chart-*`.
+**Second measure** (e.g. ₹/kg over revenue): a 1.5px `--text-2` line. **Categorical:** a slot (below).
 Legend is inline in the panel head. Every datum keeps its `<title>`.
 **Axis, keys, legend and a pie's centre abbreviate money the Indian way** through one helper, `formatInrShort()` (`state.js`,
 read by `chartShort`): ₹950, ₹12.5K, ₹8.4L, ₹12.0Cr — thousands to 99.9K, lakh to 99.9L, then crore; negative `−₹`. A readout,
@@ -872,7 +872,7 @@ a `<title>`, a table and a tile keep `formatCurrency()`'s exact figure. **An x-a
 drawing, its keys (`inv-chart-keys`, each series with its last value), and an `inv-chart-readout` line (the base face: it reads as a sentence, "Tap a point to read it", until a tap writes a figure into it) — a phone has
 no hover, so a tap on any datum writes its exact figure there (`data-read`, action `invChartRead`, `chartShowRead`),
 and the tapped datum is ringed.
-- `chartLines(labels, series, opts)` — several series on one axis (`--chart-*` strokes `inv-chart-s0…7`), a range
+- `chartLines(labels, series, opts)` — several series on one axis (a slot's stroke, `inv-chart-s1…6`, `inv-chart-other`), a range
   that crosses zero draws a zero rule (`inv-chart-zero`), `opts.band` draws a forecast range (`inv-chart-band`).
   `opts.fit` frames a price around its data (`chartFitRange`: four steps of 1, 2, 2.5 or 5 × a power of ten) rather
   than from zero, where a few percent is invisible; `opts.xs` places each label at its distance in time (a day count),
@@ -892,6 +892,28 @@ drawn hollow, a bar or a stacked segment lighter (`inv-chart-todate`, the one cl
 sparklines, Money's cash by month, outflow by category, GST and invoiced against received (a statement month only while the
 statement stops short of the month's end, `finMonthToDate`), Production's plated by line, Pay's weekly payouts, People's
 attendance by week, Stock's use by week, Power's cuts by month and Performance's months. P194 walks them.
+
+**Charts v3** (UI pass 3, U1; `docs/UI_PASS_3.md` §5; the dataviz method). **Every builder obeys the same marks**: one axis, never
+two; bars at most 24 px thick with 4 px rounded data ends anchored to the baseline; lines 2 px; dots at least 8 px with a 2 px ring
+in the surface; gridlines solid hairlines, the axes recessive; text in text tokens, never a series colour; selective direct
+labels, never a number on every mark; hit targets larger than the mark, and a reference mark (a target, a fitted line, a zero rule)
+lets a tap through to the datum under it.
+- **The eight new builders**: `chartDiverging` (bars up and down from a zero rule, coloured by status: a judgement),
+  `chartHistogram` (counts by bin, a reference mark), `chartDots` (a dot a row on one scale, marks as rules), `chartScatter`
+  (dots and the least-squares line; `chartFit(points)` → `{n, r, slope, intercept}`, null under 3 points, the one statistics
+  function, read by the words a widget says too), `chartHeat` (a calendar: a column a pay week, a row a day, the value on
+  `--seq-*`, a hatch for no record), `chartDumbbell` (a rule from `a` to a dot at `b`, the dot in the row's tone),
+  `chartStack100` (shares summing to 100%, 2 px surface gaps) and `chartRing` (one share of a whole, its figure in the centre).
+  A dial is never drawn: a figure against a mark is a meter or a diverging bar.
+- **A colour follows the thing, never its rank** (`seriesSlot(kind, id)`, §3.3 *Series*): slots `inv-chart-s1…s6` read
+  `--series-1…6`, `inv-chart-other` reads `--series-other`, `inv-chart-one` the accent (the period on show against the rest, in
+  Other); a status series `inv-chart-ok`, `-warning`, `-danger`, `-info` reads the `--*-mark` tones, `-neutral` `--text-3`; the heat
+  ramp `inv-chart-seq1…7`. A seventh thing folds into *Other*. A filter that hides one never repaints the rest.
+- **Every boxed chart has a table behind it**: its readout line carries **Table** (`invChartTable`), which swaps the drawing for an
+  `inv-table` of the same data, the builder's own columns in its unit, and back, in place. A sparkline or meter inside a tile is
+  the tile's figure drawn, not a chart, and has none.
+- The frame's sizes are `--plot-h`, `--plot-h-wide`, `--plot-fs-axis`, `--plot-fs-centre` (the `--chart-*` tokens are retired).
+  P227 holds it.
 
 ### 6.18 Callout and empty state — `inv-callout`, `inv-empty`
 - `inv-callout-info|warning|danger|neutral`: tone bg + tone text, `--r-lg`, leading icon, `--t-body`.

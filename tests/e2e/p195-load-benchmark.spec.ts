@@ -14,8 +14,12 @@ import { type Load, longBook, measureLoad, pinFace, walkMap } from './load-fixtu
 // Knowledge's whole): every screen measured on eleven days of the calendar (a Sunday, a month's first
 // and last days, the financial year's first, the year's), the worst of them kept, the length rounded up to the next half
 // screen. A toolbar's rows are its controls standing side by side, their heights overlapping (TM4: tops binned by 8px had
-// counted a smaller button centred in its row as a second row). The face is pinned
-// (Liberation, as on every runner) and the clock to 11:30 on today, so a screen measures the same on any machine at any hour.
+// counted a smaller button centred in its row as a second row). The face is pinned to the app's own, Geist (UI pass 3, U2R;
+// docs/UI_PASS_3.md §24m: the test server serves it), and the clock to 11:30 on today, so a screen measures the same on any machine
+// at any hour. Until U2R every budget was measured in Liberation, the face every runner had: its line is about 1.15 of its size
+// where Geist's is 1.3, so a row of two lines reads 4px taller in the face the app draws in. Measured again in Geist on the same
+// eleven days (17 Oct 2026), every screen stayed within its budget but three, by that alone, with nothing on them changed; each of
+// the three is its Geist measure to the hundredth, never rounded up: no room is given that a step did not measure.
 // What is measured is what is drawn: a view or widget the page hides is not on the screen's face (TM2: Pulse had been charged
 // with Needs you's tasks and the widgets TM2c hides).
 
@@ -43,7 +47,8 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Office › Challans › Awaiting invoice': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Challans › Invoiced': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Invoices': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Office › Clients › Clients': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Geist's line, not the screen (U2R item 1, said at its stop): 1.50 in Liberation, 1.51 in Geist.
+  'Office › Clients › Clients': { screens: 1.51, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Clients › Parts': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Clients › Performance': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
   'Office › Sales › Prospects': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
@@ -62,7 +67,8 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   'Floor › Production › Lines': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › In plant': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Production › Entries': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Floor › Production › Equipment': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Geist's line, not the screen (U2R item 1, said at its stop): 1.50 in Liberation, 1.51 in Geist.
+  'Floor › Production › Equipment': { screens: 1.51, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Stock': { screens: 1.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Cuts': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Floor › Power › Causes': { screens: 2, blocks: 0, chains: 0, toolbarRows: 0 },
@@ -87,7 +93,9 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // there were five (3.56 → 3.40).
   'Knowledge › Library': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
   'Knowledge › Troubleshoot': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Knowledge › Records': { screens: 1, blocks: 0, chains: 0, toolbarRows: 1 },
+  // Geist's line, not the screen (U2R item 1, said at its stop): 1.00 in Liberation, 1.02 in Geist (a ruling's meta takes a second
+  // line beside its date).
+  'Knowledge › Records': { screens: 1.02, blocks: 0, chains: 0, toolbarRows: 1 },
   'Knowledge › Training': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
 };
 

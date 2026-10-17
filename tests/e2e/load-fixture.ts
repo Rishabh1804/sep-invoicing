@@ -140,19 +140,12 @@ export function longBook(): SepState {
 
 /* ---------- The instruments' walk and measures (P195, P197) ---------- */
 
-/* The same face on every machine: the webfont is not fetched (CI reaches Google's fonts and a sandbox cannot), and the page is
-   set in Liberation Sans and Mono, which Playwright's own install puts on every runner. A length or a row's wrap measured in
+/* The same face on every machine: the app's own, Geist and Geist Mono (docs/UI_PASS_3.md §24m). The test server serves the files
+   in tests/fixtures/fonts in Google Fonts' place, on every runner and in every sandbox, and this keeps any other copy from arriving
+   (a page that still named Google's would be drawn in a face the machine happens to reach). A length or a row's wrap measured in
    whatever face a machine happens to have is not a measure (CLAUDE.md, the invoice's grid). Call before the app loads. */
 export async function pinFace(page: Page): Promise<void> {
   await page.route(/fonts\.(googleapis|gstatic)\.com/, r => r.abort());
-  await page.addInitScript(() => {
-    const put = () => {
-      const st = document.createElement('style');
-      st.textContent = ":root, :root[data-palette] { --ff-base: 'Liberation Sans', sans-serif !important; --ff-mono: 'Liberation Mono', monospace !important; }";
-      document.head.appendChild(st);
-    };
-    if (document.head) put(); else document.addEventListener('DOMContentLoaded', put);
-  });
 }
 
 /* Settles a screen for measuring: drawn, nothing focused, the pointer off it, charts and folds laid out. */

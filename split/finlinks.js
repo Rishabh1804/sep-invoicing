@@ -127,52 +127,25 @@ function finOwedTone(days) { return figToneOwed(days, finHasBank() && finCtx().l
 function finOwedOldest(recv) {
   return (recv || []).reduce(function(m, r) { return r.owed > 0.005 && r.oldestDays != null && (m == null || r.oldestDays > m) ? r.oldestDays : m; }, null);
 }
-/* Money at a glance as a hero's options (Home's money widget, widgetcards.js; Pulse's Money card until UI pass 3): what is owed
-   past 60 and 90 days, the ageing as a bar in its tones, and the four tiles into Finance (balance, owed, pays in, runway), each
-   coded in its own tone (#homeFin, [data-home-fin]). Coded by the worst of them. The widget is the finance permission's: for
-   another role it is never drawn (widgets.js wdgSees). `none` with no statement. */
-function finHomeOpts() {
-  var imp = '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeImportBank">Import statement</button>';
-  if (!finHasBank()) {
-    return { tone: 'neutral', eyebrow: '<span>Money</span>', title: 'No bank statement yet', none: true,
-      sub: 'Import the bank’s .xls or .xlsx to see the balance, what is owed and the forecast.', attrs: ' id="homeFin" data-card="money"', foot: imp };
-  }
-  var rows = bankRows(), last = rows[rows.length - 1], recv = finCtx().recv(), fc = finForecast(45);
-  var owed = recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0);
-  var book = bankBookDaysToPay(bankPayHistory(recv));
-  var loose = bankLooseReceipts(finCtx().cls, bankRecvFrom(finCtx().rows)).length;
-  var age = isoDaysBetween(last.date, localDateStr());
-  // What is owed is judged by its oldest invoice's age, past 90 days danger and past 60 warning, never red while a receipt is
-  // unplaced (finOwedTone: the one judge wherever owed is drawn); nothing past 60 days is ok, as on Money's card and Pipeline's.
-  var over = finAgeing(recv), old90 = over[3] ? over[3].amount : 0, old60 = over[2] ? over[2].amount : 0, owedTone = finOwedTone(finOwedOldest(recv));
-  var tones = [];
-  var tile = function(tab, anchor, label, value, sub, tone) {
-    if (tone) tones.push(tone);
-    return '<button class="inv-tile' + (tone ? ' inv-tile-' + tone : '') + '" data-action="invFinGo" data-tab="' + tab + '"' + (anchor ? ' data-anchor="' + anchor + '"' : '') + ' data-home-fin="' + label + '">' +
-      '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value inv-tile-value-sm inv-nowrap" title="' + escHtml(formatCurrency(value)) + '">' + finRs(value) + '</div><div class="inv-tile-sub">' + sub + '</div></button>';
-  };
-  var pays = book && book.median != null ? figTonePaysIn(book.median) : null;
-  if (pays) tones.push(pays);
-  var tiles = '<div class="inv-tiles inv-tiles-flush">' +
-    tile('bank', '', 'Balance', last.balance, 'on ' + escHtml(stockShortDate(last.date)) + (age > 7 ? ', ' + age + ' days ago' : ''), last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '') +
-    tile('receipts', loose ? 'bankLoose' : '', 'Owed to us', owed, loose ? loose + ' receipt' + (loose === 1 ? '' : 's') + ' not placed'
-      : old90 > 0 ? finRs(old90) + ' over 90 days' : old60 > 0 ? finRs(old60) + ' over 60 days' : 'since ' + escHtml(stockShortDate(bankRecvFrom(rows))),
-      owedTone || 'ok') +
-    (book && book.median != null ? '<button class="inv-tile' + (pays ? ' inv-tile-' + pays : '') + '" data-action="invFinGo" data-tab="receipts" data-home-fin="Pays in"><div class="inv-tile-label">Pays in</div>' +
-      '<div class="inv-tile-value inv-tile-value-sm">' + Math.round(book.median) + ' days</div><div class="inv-tile-sub">the book, invoice to receipt' +
-      (book.median > 60 ? ' · over two months' : book.median > 30 ? ' · over a month' : '') + '</div></button>' : '') +
-    // Overdrawn on the statement says so; counting outflows only (no receipt yet says when clients pay) is a warning, said.
-    tile('overview', 'finForecast', 'Runway', fc ? fc.min.bal : last.balance, !fc ? '' : fc.overdrawn ? 'overdrawn on ' + escHtml(stockShortDate(fc.asOf)) + (fc.noInflow ? ' · outflows only' : '')
-      : (fc.noInflow ? 'outflows only · ' : '') + (fc.cross ? 'below zero on ' + escHtml(stockShortDate(fc.cross)) : 'lowest in 45 days, ' + escHtml(stockShortDate(fc.min.date))),
-      !fc ? '' : fc.overdrawn ? 'danger' : fc.cross ? (fc.noInflow ? 'warning' : 'danger') : '') +
-    '</div>';
-  var rank = { danger: 3, warning: 2, ok: 1 }, worst = tones.filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
-  var title = owed < 0.5 ? 'Nothing owed to us' : old90 > 0 ? finRs(old90) + ' owed over 90 days' : old60 > 0 ? finRs(old60) + ' owed over 60 days' : 'Nothing owed over 60 days';
-  var meter = owed >= 0.5 ? chartMeter(over.map(function(b, i) { return { v: b.amount, tone: finAgeTone(i) }; }),
-    { title: 'Owed by age: ' + over.map(function(b) { return b.label + ' ' + finRs(b.amount); }).join(' · ') }) : '';
-  return { tone: worst, eyebrow: '<span>Money</span><span class="inv-panel-count">statement to ' + escHtml(stockShortDate(last.date)) + '</span>',
-    title: escHtml(title), sub: escHtml([owed >= 0.5 ? finRs(owed) + ' owed in all' : '', book && book.median != null ? 'clients pay in ' + Math.round(book.median) + ' days' : '', finRs(last.balance) + ' in the bank'].filter(Boolean).join(' · ')),
-    viz: meter, attrs: ' id="homeFin" data-card="money"', body: '<div class="inv-hero-sheet">' + tiles + '</div>', foot: imp };
+/* Money at a glance, read once (Home's money widget, widgetcards.js; Pulse's Money card until UI pass 3): the statement's last row
+   and how old it is, what is owed and by age (finAgeing), the receipts with no client, how fast the book pays (bankBookDaysToPay) and
+   the forecast's 45 days, each figure in its own tone as Money's Overview judges it: the balance overdrawn danger and a statement over
+   a week old a warning; what is owed by its oldest invoice's age, past 90 days danger and past 60 warning, never red while a receipt
+   is unplaced (finOwedTone: the one judge wherever owed is drawn), nothing past 60 days ok; pays in by figTonePaysIn; the runway
+   overdrawn, or below zero counting money in, danger, below zero on outflows only a warning. The card is coded by the worst of them.
+   The widget is the finance permission's: for another role it is never drawn (widgets.js wdgSees). Null with no statement. */
+function finHomeRead() {
+  if (!finHasBank()) return null;
+  var rows = bankRows(), last = rows[rows.length - 1], fx = finCtx(), recv = fx.recv(), fc = finForecast(45);
+  var owed = gstRound(recv.reduce(function(s, r) { return s + Math.max(0, r.owed); }, 0));
+  var book = bankBookDaysToPay(bankPayHistory(recv)), pays = book && book.median != null ? Math.round(book.median) : null;
+  var loose = bankLooseReceipts(fx.cls, bankRecvFrom(fx.rows)).length, age = isoDaysBetween(last.date, localDateStr());
+  var bands = finAgeing(recv), old90 = bands[3] ? bands[3].amount : 0, old60 = bands[2] ? bands[2].amount : 0;
+  var tones = { balance: last.balance < 0 ? 'danger' : age > 7 ? 'warning' : '', owed: finOwedTone(finOwedOldest(recv)) || 'ok',
+    pays: pays != null ? figTonePaysIn(book.median) || '' : '', runway: !fc ? '' : fc.overdrawn ? 'danger' : fc.cross ? (fc.noInflow ? 'warning' : 'danger') : '' };
+  var rank = { danger: 3, warning: 2, ok: 1 };
+  var worst = Object.keys(tones).map(function(k) { return tones[k]; }).filter(function(t) { return rank[t]; }).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
+  return { last: last, age: age, owed: owed, bands: bands, old90: old90, old60: old60, loose: loose, from: bankRecvFrom(rows), fc: fc, pays: pays, tones: tones, tone: worst };
 }
 
 /* ---------- Wages: the bank's legs beside the payroll, on Finance → Payments and on Staff → Pay ---------- */

@@ -141,6 +141,9 @@ export function recentTs(msAgo = 0): number {
    that touches state may run before this. */
 export async function waitForBoot(page: Page): Promise<void> {
   await page.waitForSelector('body.inv-booted', { state: 'attached' });
+  // And drawn in its face: the test server serves Geist (docs/UI_PASS_3.md §24m), which swaps in once loaded, so nothing is
+  // measured in the fallback first.
+  await page.evaluate(() => document.fonts.ready.then(() => true));
 }
 
 /* Seeds through the LEGACY localStorage key, which the app migrates into

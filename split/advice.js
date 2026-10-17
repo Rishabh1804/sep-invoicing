@@ -790,6 +790,30 @@ function advMovesDeckHtml(moves, listKey, n, word) {
   var listed = advListedKeys(), cards = moves.map(function(mv) { return advMoveCardHtml(mv, listed, word); });
   return uiMoreDeckHtml('advd-' + listKey, cards, { n: n || cards.length, noun: moves.length - n === 1 ? 'move' : 'moves', attrs: ' data-adv-deck="' + escHtml(listKey) + '"' });
 }
+/* A move's dialog (docs/UI_PASS_3.md §24e, U2R): a tap on a move in a card on a board (anywhere but its action) opens it. The move,
+   what it is worth to the paisa and over what, what the worth rests on, then Add to my list (On your list once it is) and the
+   move's own action, the dialog's one primary. Add to my list lives here, so a card's row ends in the move's one action. */
+function advMoveOpen(ref, key) {
+  var mv = (ref && _advRows[ref]) || _advMoves[key];
+  if (!mv) { showToast('That move has changed: open the card again', 'warning'); return; }
+  var r = escHtml(advRowRef(mv)), k = escHtml(mv.key), listed = advListedKeys();
+  var act = mv.href ? '<a class="inv-btn inv-btn-primary" href="' + escHtml(mv.href) + '" data-adv-call>' + escHtml(mv.hrefLabel || 'Call') + '</a>'
+    : mv.go ? '<button type="button" class="inv-btn inv-btn-primary" data-action="invAdvGo" data-key="' + k + '" data-adv-row="' + r + '">' + escHtml(mv.goLabel || 'Open') + '</button>' : '';
+  var add = listed[mv.key] ? ADV_LISTED_HTML : '<button type="button" class="inv-btn inv-btn-secondary" data-action="invAdvTask" data-key="' + k + '" data-adv-row="' + r + '">Add to my list</button>';
+  var w = mv.worth && mv.worth.amount > 0.005 ? mv.worth : null;
+  var rows = '<div class="inv-row inv-row-auto" data-adv-move-say><span class="inv-row-lead">' + todoGlyph(mv.tone) + '</span><span class="inv-row-main">' +
+      '<span class="inv-row-title inv-row-wrap">' + escHtml(mv.say) + '</span></span></div>' +
+    (w ? '<div class="inv-row' + (advWorthLabel(w) ? ' inv-row-2' : '') + '" data-adv-move-worth><span class="inv-row-main"><span class="inv-row-title">Worth</span>' +
+      (advWorthLabel(w) ? '<span class="inv-row-meta">' + escHtml(advWorthLabel(w)) + '</span>' : '') + '</span><span class="inv-row-end inv-num">' +
+      figHtml('<span data-adv-worth>' + (w.sign < 0 ? '&minus;' : '+') + escHtml(advRs(w.amount)) + '</span>', w.sign < 0 ? 'danger' : 'ok') + '</span></div>' : '') +
+    (mv.basis ? '<div class="inv-row inv-row-auto" data-adv-move-basis><span class="inv-row-main"><span class="inv-row-title">What it rests on</span>' +
+      '<span class="inv-row-meta inv-row-wrap">' + escHtml(mv.basis) + '</span></span></div>' : '');
+  dialogOpen('<div class="inv-dialog" role="dialog" aria-modal="true" aria-label="' + escHtml(mv.say) + '" data-adv-dialog="' + k + '" data-tone="' + escHtml(mv.tone) + '">' +
+    dialogHeadHtml('What you can do', 'invCloseOverlay', 'Close') +
+    '<div class="inv-dialog-body"><div class="inv-panel inv-panel-flush">' + rows + '</div></div>' +
+    '<div class="inv-dialog-foot">' + add + act + '</div></div>', { dismiss: true });
+}
+
 /* ---------- Add to my list ---------- */
 /* The move becomes a task of the owner's own, due today, that keeps the move's button (`go`) and says what it was worth
    and rested on; the move then reads On your list wherever it is drawn, until the task is ticked. */
@@ -886,5 +910,6 @@ function advAction(action, btn) {
     return true;
   }
   if (action === 'invAdvTask') { advAddTask(btn.dataset.key, btn.dataset.advRow); return true; }
+  if (action === 'invAdvMove') { advMoveOpen(btn.dataset.advRow, btn.dataset.key); return true; }
   return false;
 }

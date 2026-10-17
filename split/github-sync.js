@@ -601,7 +601,8 @@ function ghCardOpts() {
     var removed = typeof devRemovedRow === 'function' && !!devRemovedRow();
     // Removed: the whole sentence, who and when and why. Not registered: the few words, with the way to fix it beside.
     var why = removed ? devSyncBlocked() : blockedShort.charAt(0).toUpperCase() + blockedShort.slice(1);
-    return { tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
+    return { tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why), say: why, repo: bc.owner + '/' + bc.repo,
+      act: removed ? null : { label: 'Register', action: 'invDevGo', attrs: ' data-sec="devices"' },
       attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' };
   }
   if (!ghIsConfigured()) return null;
@@ -612,7 +613,10 @@ function ghCardOpts() {
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
   var when = 'Last synced ' + ghRelTime(last);
-  return { tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
+  // Home's backup widget (a Small, U2R): the verdict in a few words, the repository its detail, Back up now its one tinted button.
+  var say = last ? 'Backed up ' + ghRelTime(last) : 'Not backed up yet';
+  return { tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>', say: say, repo: cfg.owner + '/' + cfg.repo,
+    act: { label: _ghBusy ? 'Syncing…' : 'Back up now', action: 'invGhPush', disabled: !!_ghBusy },
     // The status is a dot and a word (DR-8), the title the time; the repository under it.
     title: stale ? uiDot('warning', escHtml(when)) : escHtml(when), sub: '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>',
     attrs: ' data-card="sync"',

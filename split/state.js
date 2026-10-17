@@ -1887,6 +1887,37 @@ function formatInrShort(v) {
   return '\u20B9' + (v / 1e7).toFixed(1) + 'Cr';
 }
 
+/* Money on a board (U2R, docs/UI_PASS_3.md §24k; owner, 17 Oct 2026, call 3): whole rupees under a lakh, lakhs to two places from a
+   lakh, crores from a crore: \u20B966,476 · \u20B93.50 L · \u20B91.24 Cr, where the owner reads "about one lakh twenty" and the card had written
+   \u20B91,19,656.80. Every step through gstRound (HR-8), so 3,49,800 is \u20B93.50 L and 99,999.60 is \u20B91.00 L. {text, num, unit, neg,
+   exact}: the whole, its figure and unit for drawing, the sign, and the amount to the paisa (formatCurrency) for its title. A
+   board's figures only: every other screen keeps the paise, and a rate keeps them on a board too (\u20B917.67 a kilo). */
+function inrCard(v) {
+  v = Number(v) || 0;
+  var a = Math.abs(v), neg = gstRound(a, 0) > 0 && v < 0, num, unit = '';
+  var group = function(int) { int = String(int); return int.length > 3 ? int.slice(0, -3).replace(/\B(?=(\d{2})+(?!\d))/g, ',') + ',' + int.slice(-3) : int; };
+  var r = gstRound(a, 0);
+  if (r < 100000) num = group(r);
+  else {
+    var L = gstRound(a / 1e5, 2);
+    if (L < 100) { num = L.toFixed(2); unit = 'L'; }
+    else {
+      var C = gstRound(a / 1e7, 2).toFixed(2).split('.');
+      num = group(C[0]) + '.' + C[1]; unit = 'Cr';
+    }
+  }
+  return { text: (neg ? '\u2212' : '') + '\u20B9' + num + (unit ? ' ' + unit : ''), num: num, unit: unit, neg: neg, exact: formatCurrency(v) };
+}
+/* The same amount drawn as a figure: the rupee small and raised (inv-cur), L or Cr as its unit (inv-unit), the sign before it
+   (inv-sign), the exact amount its title. */
+function inrFigHtml(v) {
+  var m = inrCard(v);
+  return '<span title="' + escHtml(m.exact) + '">' + (m.neg ? '<span class="inv-sign">\u2212</span>' : '') + '<span class="inv-cur">\u20B9</span>' + escHtml(m.num) +
+    (m.unit ? '<span class="inv-unit">' + m.unit + '</span>' : '') + '</span>';
+}
+/* The same amount in words (a verdict, a fact, a line of a card): its short text, the exact amount its title. */
+function inrTextHtml(v) { var m = inrCard(v); return '<span title="' + escHtml(m.exact) + '">' + escHtml(m.text) + '</span>'; }
+
 /* ===== A FIGURE SAYS WHETHER IT IS GOOD (owner, 29 Sep 2026) =====
    "most numbers in our app don't convey any kind of meaning, as in is it a good number or is it something of an issue,
    all are in default black". The owner chose both: a figure the app can judge is coloured by the status tones (DR-1:

@@ -77,8 +77,16 @@ function _chartLabelStride(n, maxLabels) {
 /* An x-axis label, centred under its datum unless that would run it past the drawing's edge: the last label
    of a line chart sits on the right edge and was cut in half ("26 No"), so an end label is anchored inward instead.
    The width is estimated from the axis face (mono, --plot-fs-axis 9 units, about 0.62 of that a character). */
+/* A chart in a card is bare (§24d of docs/UI_PASS_3.md, U2R): drawn at the card's own width (opts.w, opts.h, the viewBox in the
+   card's pixels) with no box, no readout and no Table, each datum keeping its <title>; its labels render at 11px there (styles.css,
+   --plot-k), so a label's half width is a step wider a character than the 9-unit axis face's. Each builder that draws labels sets
+   it when it begins (_chartBegin), so it is never another chart's. */
+var _chartHalf = 2.8;
+function _chartBegin(opts) { _chartHalf = opts && opts.bare && opts.w > 0 ? 3.3 : 2.8; }
+function _chartW(opts, W) { return opts && opts.bare && opts.w > 0 ? Math.max(160, Math.round(opts.w)) : W; }
+function _chartH(opts, H) { return opts && opts.bare && opts.h > 0 ? Math.max(64, Math.round(opts.h)) : H; }
 function _chartXLabel(x, y, label, W, cls) {
-  var half = String(label).length * 2.8, anchor = 'middle', at = x;
+  var half = String(label).length * _chartHalf, anchor = 'middle', at = x;
   if (x + half > W - 2) { anchor = 'end'; at = W - 2; }
   else if (x - half < 2) { anchor = 'start'; at = 2; }
   return '<text x="' + at + '" y="' + y + '" text-anchor="' + anchor + '" class="' + (cls || 'inv-chart-axis') + '">' + escHtml(label) + '</text>';
@@ -96,7 +104,7 @@ function chartToDateAt(keys, cur) { var i = (keys || []).indexOf(cur); return i 
 function _chartLabelShown(i, n, stride, td, xs, labels) {
   if (i !== td && !(i % stride === 0 || i === n - 1)) return false;
   if (td == null || i === td) return true;
-  var room = (String(labels[td]).length + 8) * 2.8 + String(labels[i]).length * 2.8 + 4;
+  var room = (String(labels[td]).length + 8) * _chartHalf + String(labels[i]).length * _chartHalf + 4;
   return Math.abs(xs[i] - xs[td]) >= room;
 }
 /* The x labels of an evenly spaced axis, thinned by stride, the period to date's always kept. */
@@ -207,6 +215,7 @@ function seriesSlot(kind, id) {
    unit. */
 function _chartBox(inner, opts, table) {
   opts = opts || {};
+  if (opts.bare) return '<div class="inv-chart-bare"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + '>' + inner + '</div>';
   var t = table && table.rows && table.rows.length ? table : null;
   return '<div class="inv-chart-box"' + (opts.id ? ' id="' + escHtml(opts.id) + '"' : '') + ' data-table="off"><div class="inv-chart-draw">' + inner + '</div>' +
     (t ? '<div class="inv-chart-table" hidden>' + chartTableHtml(t.cols, t.rows) + '</div>' : '') +
@@ -307,7 +316,8 @@ function chartLine(data, opts) {
   if (!data || data.length === 0) return _chartEmpty(opts.emptyText);
   if (data.length < 2) return _chartEmpty('Need at least two points to show a trend', 'early');
 
-  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = { l: 46, r: 12, t: 14, b: 30 };
   var f = _chartFrame(data, unit, W, H, pad);
   var points = data.map(function(d, i) {
     return {
@@ -365,8 +375,12 @@ function chartBars(data, opts) {
   var unit = opts.unit || 'money';
   if (!data || data.length === 0) return _chartEmpty(opts.emptyText);
 
-  var W = 480, H = 220, pad = { l: 46, r: 12, t: 14, b: 30 };
+  // opts.axis === false (a bare chart in a Small card): the bars alone, no gridline and no label; each bar keeps its title.
+  _chartBegin(opts);
+  var bars = opts.bare && opts.axis === false;
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = bars ? { l: 1, r: 1, t: 2, b: 1 } : { l: 46, r: 12, t: 14, b: 30 };
   var f = _chartFrame(data, unit, W, H, pad);
+  if (bars) f.svg = '';
   var slot = f.chartW / data.length;
   var barW = Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
   // One against the rest (§3d): with a stretch chosen (opts.span) its bars are the accent's and the rest Other; else one series.
@@ -392,7 +406,7 @@ function chartBars(data, opts) {
     if (d.value != null && isFinite(d.value)) svg += '<rect x="' + x + '" y="' + y + '" width="' + barW + '" height="' + Math.max(h, 0) +
       '" class="inv-chart-bar inv-chart-up ' + inkOf(i) + (i === td ? ' inv-chart-todate' : '') + '"' + (i === td ? ' data-todate' : '') +
       ' data-action="invChartRead" data-read="' + escHtml(read) + '"><title>' + escHtml(read) + '</title></rect>';
-    if (_chartLabelShown(i, data.length, stride, td, xs, labels)) {
+    if (!bars && _chartLabelShown(i, data.length, stride, td, xs, labels)) {
       svg += _chartXLabel(x + barW / 2, pad.t + f.chartH + 14, labels[i], W);
     }
   });
@@ -578,7 +592,8 @@ function chartLines(labels, series, opts) {
   series.forEach(function(s) { s.values.forEach(function(v) { if (v != null && isFinite(v)) all.push(v); }); });
   (opts.band || []).forEach(function(b) { if (b) { all.push(b.lo); all.push(b.hi); } });
   if (!all.length) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = { l: 50, r: 12, t: 14, b: 30 };
   var r = (opts.fit ? chartFitRange : chartNiceRange)(Math.min.apply(null, all), Math.max.apply(null, all));
   // Nothing but zeros has no scale: the frame is a nominal one, and only its zero line is labelled (as _chartFrame).
   var zeros = all.every(function(v) { return v === 0; });
@@ -658,7 +673,8 @@ function chartStack(labels, series, opts) {
   });
   var max = Math.max.apply(null, totals.concat([0]));
   if (!(max > 0)) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 };
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = { l: 50, r: 12, t: 14, b: 30 };
   var f = _chartFrame(labels.map(function(l, i) { return { label: l, value: totals[i] }; }), unit, W, H, pad);
   var slot = f.chartW / labels.length, n = series.length;
   var barW = group ? Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX * n + CHART_GAP * (n - 1)) : Math.min(Math.max(slot * 0.62, 1), CHART_BAR_MAX);
@@ -779,7 +795,8 @@ function chartDiverging(rows, opts) {
   var ok = function(v) { return v != null && isFinite(v); };
   var vals = data.map(function(r) { return r.value; }).filter(ok).map(Number);
   if (!vals.length) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var rg = chartNiceRange(Math.min.apply(null, vals), Math.max.apply(null, vals));
   var y = function(v) { return pad.t + ch - (v - rg.lo) / (rg.hi - rg.lo) * ch; };
   var zeros = vals.every(function(v) { return v === 0; });
@@ -830,7 +847,8 @@ function chartHistogram(values, opts) {
   vs.forEach(function(v) { counts[Math.max(0, Math.min(n - 1, Math.floor((v - start) / bw + 1e-9)))]++; });
   var edge = function(k) { return _chartN(start + k * bw); };
   var binLabel = function(k) { return chartShort(edge(k), unit) + '\u2013' + chartShort(edge(k + 1), unit); };
-  var W = 480, H = 220, pad = { l: 46, r: 12, t: 22, b: 30 };
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = { l: 46, r: 12, t: 22, b: 30 };
   var f = _chartFrame(counts.map(function(c) { return { value: c }; }), 'count', W, H, pad, _chartCountMax(Math.max.apply(null, counts)));
   var slot = f.chartW / n, barW = Math.min(Math.max(slot - CHART_GAP, 1), CHART_BAR_MAX);
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'How they spread') + '">' + f.svg;
@@ -938,7 +956,8 @@ function chartScatter(series, opts) {
   var X = [], Y = [];
   ss.forEach(function(x) { x.pts.forEach(function(p) { X.push(p.x); Y.push(p.y); }); });
   var rx = chartFitRange(Math.min.apply(null, X), Math.max.apply(null, X)), ry = chartFitRange(Math.min.apply(null, Y), Math.max.apply(null, Y));
-  var W = 480, H = 240, pad = { l: 50, r: 16, t: 18, b: 34 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 240), pad = { l: 50, r: 16, t: 18, b: 34 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var px = function(v) { return pad.l + (v - rx.lo) / (rx.hi - rx.lo) * cw; }, py = function(v) { return pad.t + ch - (v - ry.lo) / (ry.hi - ry.lo) * ch; };
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'One against the other') + '">';
   for (var g = 0; g <= 4; g++) {
@@ -1005,6 +1024,7 @@ function _chartHatch(x, y, c) {
 }
 function chartHeat(cells, opts) {
   opts = opts || {};
+  _chartBegin(opts);
   var unit = opts.unit || 'kg';
   var by = {};
   (cells || []).forEach(function(c) { if (c && /^\d{4}-\d{2}-\d{2}$/.test(c.date || '')) by[c.date] = c; });
@@ -1113,7 +1133,8 @@ function chartStack100(labels, series, opts) {
   var val = function(s, i) { var v = s.values ? s.values[i] : null; return v != null && isFinite(v) && v > 0 ? Number(v) : 0; };
   var totals = labels.map(function(_, i) { return series.reduce(function(t, s) { return t + val(s, i); }, 0); });
   if (!totals.some(function(t) { return t > 0; })) return _chartEmpty(opts.emptyText);
-  var W = 480, H = 220, pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
+  _chartBegin(opts);
+  var W = _chartW(opts, 480), H = _chartH(opts, 220), pad = { l: 50, r: 12, t: 14, b: 30 }, cw = W - pad.l - pad.r, ch = H - pad.t - pad.b;
   var y = function(sh) { return pad.t + ch - sh * ch; };
   var inks = series.map(function(s, si) { return chartInk(s, si); });
   var svg = '<svg class="inv-chart-svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="' + escHtml(opts.ariaLabel || 'Shares') + '">';

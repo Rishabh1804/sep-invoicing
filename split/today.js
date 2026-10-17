@@ -461,7 +461,7 @@ function tdyRecentHead(list) {
   var sum = gstRound(made.reduce(function(t, i) { return t + (i.grandTotal || 0); }, 0)), last = list[0];
   return { eyebrow: '<span>Recent invoices</span><span class="inv-panel-count">' + list.length + '</span>',
     title: escHtml(made.length ? todoPlural(made.length, 'invoice') + ' made today' : last ? 'The last made ' + formatDate(last.date) : 'No invoices yet'),
-    fig: made.length && tdySeesMoney() ? figWrapHtml(escHtml(formatCurrency(sum))) : '' };
+    fig: made.length && tdySeesMoney() ? figWrapHtml(escHtml(formatCurrency(sum))) : '', made: made.length, sum: sum };
 }
 /* ---------- Home, the dashboard (docs/UI_PASS_3.md §8b, §8c) ----------
    The day card leads (Home's verdict), then one toolbar row, then the board of widgets (widgets.js), then the foot's door to the
@@ -493,34 +493,42 @@ function homeGreeting(now) {
   var day = now.toLocaleDateString('en-IN', { weekday: 'long' }) + ', ' + now.getDate() + ' ' + now.toLocaleDateString('en-IN', { month: 'long' });
   return 'Good ' + part + (name ? ', ' + name : '') + ' · ' + day;
 }
-/* The clock (9:42 AM, 2:00 PM: a clock keeps its minutes, where a roll's time drops ":00"), and the general shift's end: "General
-   shift ends 5:00 PM · 7 h 18 min", or that it has ended. The shift is the roll's own (relay.js: 8:30 AM to 5:00 PM). */
+/* The clock (9:42 AM, 2:00 PM: a clock keeps its minutes, where a roll's time drops ":00"), and the general shift (the roll's own,
+   relay.js: 8:30 AM to 5:00 PM): before it "General shift starts 8:30 AM · in 1 h 10 min", during it "General shift ends 5:00 PM ·
+   2 h 30 min left" over a track of the shift gone, after it "The general shift has ended" (§24j). `short`, the phone's: "Shift ends
+   5:00 PM", no track. */
 function homeClockMin(m) { var h = Math.floor(m / 60) % 24, mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
 function homeClockText(now) { return homeClockMin(now.getHours() * 60 + now.getMinutes()); }
-function homeShiftText(now) {
+function homeShiftText(now, short) {
   var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
-  if (m >= end) return 'The general shift has ended';
-  if (m < start) return 'General shift starts ' + homeClockMin(start);
-  var left = end - m, h = Math.floor(left / 60), mm = left % 60;
-  return 'General shift ends ' + homeClockMin(end) + ' · ' + [h ? h + ' h' : '', mm ? mm + ' min' : ''].filter(Boolean).join(' ');
+  var span = function(left) { var h = Math.floor(left / 60), mm = left % 60; return [h ? h + ' h' : '', mm ? mm + ' min' : ''].filter(Boolean).join(' '); };
+  if (m >= end) return short ? 'Shift ended' : 'The general shift has ended';
+  if (m < start) return short ? 'Shift starts ' + homeClockMin(start) : 'General shift starts ' + homeClockMin(start) + ' · in ' + span(start - m);
+  return short ? 'Shift ends ' + homeClockMin(end) : 'General shift ends ' + homeClockMin(end) + ' · ' + span(end - m) + ' left';
 }
-/* What may lead the day card, in the order it leads: each {tone, text, money}. */
+/* How much of the general shift has gone, 0 to 1 (before it 0); null after it, when no track is drawn. */
+function homeShiftDone(now) {
+  var m = now.getHours() * 60 + now.getMinutes();
+  if (m >= RELAY_GENERAL_OUT) return null;
+  return m <= RELAY_GENERAL ? 0 : Math.round((m - RELAY_GENERAL) / (RELAY_GENERAL_OUT - RELAY_GENERAL) * 1000) / 1000;
+}
+/* What may lead the masthead, in the order it leads: each {key, tone, text, money}. */
 function homeDayFacts() {
   var out = [], today = localDateStr(), money = tdySeesMoney();
   if (money && tdySees('pageFinance') && typeof finHasBank === 'function' && finHasBank()) {
     try {
       var fc = finForecast(60);
-      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', money: true });
-      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), money: true });
+      if (fc && fc.overdrawn) out.push({ key: 'cash', tone: 'danger', text: 'The bank account is overdrawn', money: true });
+      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ key: 'cash', tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), money: true });
     } catch (e) { /* the forecast's own screen says what went wrong */ }
   }
   var red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
-  if (red) out.push({ tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now' });
+  if (red) out.push({ key: 'tasks', tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now' });
   if (tdySees('pageProduction') && typeof pltCapacity === 'function') {
     PROD_LINES.forEach(function(l) {
       try {
         var c = pltCapacity(l, null, true);
-        if (c && c.n >= 2 && c.down.length * 2 >= c.n) out.push({ tone: 'danger', text: prodLineName(l) + ': ' + c.down.length + ' of ' + c.n + ' down' });
+        if (c && c.n >= 2 && c.down.length * 2 >= c.n) out.push({ key: 'line', tone: 'danger', text: prodLineName(l) + ': ' + c.down.length + ' of ' + c.n + ' down' });
       } catch (e) { /* the plant register says what went wrong */ }
     });
   }
@@ -529,45 +537,57 @@ function homeDayFacts() {
       var p = predMonthPace();
       if (p && p.prevRev > 0) {
         var ahead = p.projRev >= p.prevRev;
-        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + formatInrShort(p.projRev) + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevLabel, money: true });
+        out.push({ key: 'pace', tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + inrCard(p.projRev).text + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevLabel, money: true });
       }
     } catch (e) { /* the pace's own widget says what went wrong */ }
   }
   return out;
 }
 var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
-function homeDayCardHtml() {
+/* The masthead (§24j): Home's verdict drawn flat on the page under the top bar, never a card and never folded. The greeting and the
+   date; the first of what holds as its sentence with its lamp (after it, on the desktop, how many tasks are open where it counts
+   them); up to two more as its facts, then the weather now; Open Needs you and Make today's report; the clock and the shift at its
+   right. Its tone is the worst of what it says. */
+function homeMastHtml() {
   var now = new Date(), facts = homeDayFacts(), lead = facts[0] || { tone: 'ok', text: 'Nothing needs you now' };
   var rest = facts.slice(1, 3), tone = [lead].concat(rest).map(function(f) { return f.tone; })
     .sort(function(a, b) { return (HOME_TONE_RANK[b] || 0) - (HOME_TONE_RANK[a] || 0); })[0] || 'ok';
-  var open = tdyTasks().length;
-  var links = ['<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
-    (open ? ' · ' + open : '') + '</button>'];
-  if (tdySees('pageReports')) links.push('<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeReport">Make today’s report</button>');
+  var open = tdyTasks().length, desk = !!_isDesktop;
+  var act = wdgActHtml({ tint: { label: 'Open Needs you' + (!desk && open ? ' · ' + open : ''), action: 'invSwitchTab', attrs: ' data-tab="pageHome" data-v="needs" data-home-needs' },
+    text: desk && tdySees('pageReports') ? { label: 'Make today’s report', action: 'invHomeReport' } : null });
   var wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
-  return uiVerdictHtml({ key: 'home-day', screen: homeGreeting(now), verdict: lead.text, tone: tone,
-    fig: '<span class="inv-homeday-clock" data-home-clock>' + escHtml(homeClockText(now)) + '</span>' +
-      '<span class="inv-homeday-shift" data-home-shift>' + escHtml(homeShiftText(now)) + '</span>',
-    viz: wx ? '<span class="inv-homeday-wx" data-home-wx>' + wx + '</span>' : '',
-    facts: rest.map(function(f) { return { text: f.text, tone: f.tone }; }), links: links, attrs: ' data-home-day' });
+  var clock = homeClockText(now).split(' '), done = homeShiftDone(now);
+  return '<header class="inv-mast" data-home-day data-tone="' + escHtml(tone) + '">' +
+    '<div class="inv-mast-date">' + escHtml(homeGreeting(now)) + '</div>' +
+    '<div class="inv-mast-say">' + uiDot(lead.tone, '') + '<span>' + escHtml(lead.text) + '</span>' +
+      (desk && lead.key === 'tasks' && open ? '<span class="inv-mast-of">· ' + open + ' open</span>' : '') + '</div>' +
+    '<div class="inv-mast-time"><div class="inv-mast-clock" data-home-clock><span data-home-hm>' + escHtml(clock[0]) + '</span> <span class="inv-unit" data-home-ap>' + escHtml(clock[1]) + '</span></div>' +
+      '<div class="inv-mast-shift"><span data-home-shift>' + escHtml(homeShiftText(now, !desk)) + '</span>' + (desk && done != null ? '<span class="inv-mast-track" data-home-track></span>' : '') + '</div></div>' +
+    (rest.length || wx ? '<div class="inv-mast-facts">' + rest.map(function(f) { return '<span>' + uiDot(f.tone, escHtml(f.text)) + '</span>'; }).join('') +
+      (wx ? '<span data-home-wx>' + wx + '</span>' : '') + '</div>' : '') +
+    act + '</header>';
 }
-/* The day card drawn again in place (a task ticked on the board changes what leads it and its count), its clock running on. */
+/* The masthead drawn again in place (a task ticked on the board changes what leads it and its count), its clock running on. */
 function homeDayRefresh() {
   var host = document.querySelector('#homeDash [data-home-daycard]');
   if (!host || !host.isConnected || typeof grdHeld === 'function' && grdHeld()) return;
-  keepScroll(function() { host.innerHTML = homeDayCardHtml(); });
+  keepScroll(function() { host.innerHTML = homeMastHtml(); });
   homeClockTick();
 }
-/* The clock ticks on the minute while the dashboard is drawn and visible (§8b): it sets the two texts, waits to the next minute and
-   then every 60 s, and stops when the page is hidden or Home is left; coming back sets them at once. Only the two texts change: no
-   node is added, so nothing that watches the page is woken. */
+/* The clock ticks on the minute while the dashboard is drawn and visible (§8b, §24j): it sets the clock's text, the shift's text and
+   the track's --shift-done, waits to the next minute and then every 60 s, and stops when the page is hidden or Home is left; coming
+   back sets them at once. Nothing else changes: no node is added, so nothing that watches the page is woken. */
 var _homeClockT = null;
 function homeClockTick() {
   var c = document.querySelector('#homeDash [data-home-clock]'), s = document.querySelector('#homeDash [data-home-shift]');
   if (!homeClockShown(c)) { homeClockStop(); return; }
-  var now = new Date(), ct = homeClockText(now), st = homeShiftText(now);
-  if (c.textContent !== ct) c.textContent = ct;
+  var now = new Date(), ct = homeClockText(now).split(' '), st = homeShiftText(now, !_isDesktop);
+  var hm = c.querySelector('[data-home-hm]'), ap = c.querySelector('[data-home-ap]');
+  if (hm && hm.textContent !== ct[0]) hm.textContent = ct[0];
+  if (ap && ap.textContent !== ct[1]) ap.textContent = ct[1];
   if (s && s.textContent !== st) s.textContent = st;
+  var tr = document.querySelector('#homeDash [data-home-track]'), done = homeShiftDone(now);
+  if (tr) { if (done == null) tr.hidden = true; else tr.style.setProperty('--shift-done', String(done)); }
 }
 /* The clock on screen: drawn, on the page shown, its view not hidden and the window in view. */
 function homeClockShown(c) {
@@ -623,7 +643,7 @@ function renderHomeBoard() {
   if (!el) return;
   if (typeof grdHeld === 'function' && grdHeld()) return;
   var n = wdgAddable('home');
-  el.innerHTML = '<div data-home-daycard>' + homeDayCardHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
+  el.innerHTML = '<div data-home-daycard>' + homeMastHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
     (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">Add a widget · ' +
       n + ' to choose from</button></div>' : '');
   wdgBoardDraw(document.getElementById('homeBoard'), 'home');

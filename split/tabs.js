@@ -274,8 +274,8 @@ function homeMtdOpts(active, opt) {
   };
   var tiles = tile('Count', 'Invoices', String(active.length), escHtml(month) + ' to date', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '',
       chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') })) +
-    tile('Revenue', 'Revenue', figWrapHtml(formatCurrency(rev)),
-      credited > 0.005 ? 'taxable, net of ' + escHtml(formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes',
+    tile('Revenue', 'Revenue', opt.short ? inrFigHtml(rev) : figWrapHtml(formatCurrency(rev)),
+      credited > 0.005 ? 'taxable, net of ' + escHtml(opt.short ? inrCard(credited).text : formatCurrency(credited)) + ' in credit notes' : 'taxable, net of credit notes',
       has ? figDeltaHtml(rev, prev, lbl, 'up') : '', chartSpark(hist.map(function(x) { return x.rev; }), { labels: labels, dot: false }), { tone: revTone }) +
     // Two places, as Stats shows it: one place read 40 kg as '0.0 t'.
     tile('Kg', 'Tonnage billed', w.kg > 0 ? formatNum(w.kg / 1000, 2) + ' t' : '&mdash;', w.kg > 0 ? Math.round(w.kg).toLocaleString('en-IN') + ' kg' : 'nothing weighed yet',
@@ -299,9 +299,13 @@ function homeMtdOpts(active, opt) {
   var sub = real == null ? (active.length ? 'Nothing weighed yet, so no realisation' : '')
     : 'Realising ' + formatCurrency(real) + ' a kg' + (cost != null ? (real >= cost ? ', clearing the cost of ' : ' against a cost of ') + formatCurrency(cost) : '');
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = [revTone, realTone].filter(Boolean).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
+  // The same in a few words, for a card a quarter of the board across (Home's Small): "12% ahead of last month".
+  var short = !active.length ? 'Nothing billed yet' : pct == null ? 'The month’s first invoices' : Math.abs(pct) <= FIG_FLAT_PCT ? 'Level with last month'
+    : formatNum(Math.abs(pct), 0) + '% ' + (pct > 0 ? 'ahead of' : 'behind') + ' last month';
+  var grid = '<div class="inv-tiles" id="homeTiles">' + tiles + '</div>';
   return { tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
-    title: escHtml(title), sub: escHtml(sub), attrs: ' data-card="mtd"', rev: rev, revTone: revTone, revDelta: has ? figDeltaHtml(rev, prev, lbl, 'up') : '',
-    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' };
+    title: escHtml(title), sub: escHtml(sub), short: short, month: month, attrs: ' data-card="mtd"', rev: rev, revTone: revTone, revDelta: has ? figDeltaHtml(rev, prev, lbl, 'up') : '',
+    tiles: grid, body: '<div class="inv-hero-sheet">' + grid + '</div>' };
 }
 /* The month's invoices so far, net of their credit notes (statsInvoices), so Home and Stats read one revenue. */
 function homeMonthInvoices() {

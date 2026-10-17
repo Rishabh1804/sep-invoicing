@@ -258,10 +258,16 @@ function finForecast(days) {
   return { asOf: last.date, start: last.balance, overdrawn: last.balance < 0, days: out, cross: cross, min: min, rests: rests, facts: facts, noInflow: noInflow };
 }
 
+/* The forecast drawn: the balance every third day with its P25–P75 band, the zero rule where it dips (the Overview's forecast and
+   Home's cash widget, widgetcards.js). */
+function finForecastChart(fc) {
+  var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
+  return chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
+    { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
+}
 function finForecastHtml() {
   var fc = finForecast(60);
   if (!fc) return '';
-  var pts = fc.days.filter(function(x, i) { return i % 3 === 2 || i === fc.days.length - 1; });
   var h = '<div class="inv-panel inv-panel-flush inv-panels-wide" id="finForecast"><div class="inv-panel-head"><span class="inv-panel-title">Cash forecast, 60 days</span></div>';
   var at = function(n) { return fc.days[Math.min(n, fc.days.length) - 1]; };
   // Counting outflows only, a figure the forecast made is a warning below zero, never a danger, and says why beside it
@@ -279,8 +285,7 @@ function finForecastHtml() {
     (fc.cross ? ' At this pace it comes back into credit and goes below zero again on ' + formatDate(fc.cross) + '.' : '') + why) + '</div>';
   else if (fc.cross) h += '<div class="inv-callout inv-callout-' + (fc.noInflow ? 'warning' : 'danger') + '">' + escHtml('At this pace the account goes below zero on ' + formatDate(fc.cross) + '.' + why) + '</div>';
   else if (fc.noInflow) h += '<div class="inv-callout inv-callout-warning">' + escHtml(why.trim()) + '</div>';
-  h += chartLines(pts.map(function(x) { return stockShortDate(x.date); }), [{ label: 'Balance', values: pts.map(function(x) { return x.bal; }) }],
-    { band: pts.map(function(x) { return { lo: x.lo, hi: x.hi }; }), ariaLabel: 'Cash forecast' });
+  h += finForecastChart(fc);
   // What it rests on, a fact a row, folded (the tab map, TM6e); each row's whole sentence in its title.
   return h + '</div>' + uiWorkingHtml('fin-forecast-rests', fc.facts, 'What it rests on', ' data-fc-rests') + '</div>';
 }

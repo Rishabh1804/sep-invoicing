@@ -72,7 +72,7 @@ test.describe('S2: fixed and variable labour', () => {
     // The split is the power case's (powerMargin). On the page, labour is fixed whole (owner, 13 Oct 2026), said as a badge,
     // and the variable cost sits under the full cost by all of labour.
     await openStatsTab(page, 'clients');
-    await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+    await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
     const note = page.locator('#statsMargin .inv-panel-body .inv-note').first();
     await expect(note.locator('[data-margin-split]')).toHaveText('labour fixed');
     const [v, f] = ((await note.textContent()) || '').match(/₹[\d,.]+/g)!.map(x => parseFloat(x.slice(1).replace(/,/g, '')));
@@ -161,11 +161,14 @@ test('S8: on the price ranking a part below cost ends short of the cost mark, on
   await page.locator('[data-action="invStatsTopBy"][data-by="rate"]').click();
   const card = page.locator('[data-card="top"]');
   await expect(card).toContainText('Worst priced items');
-  const geo = await card.evaluate(el => Array.from(el.querySelectorAll('.inv-chart-ranked-svg')).map(svg => ({
-    fill: +svg.querySelector('.inv-chart-ranked-fill')!.getAttribute('width')!,
-    mark: +svg.querySelector('.inv-chart-ranked-mark')!.getAttribute('x')!,
-  })));
+  // The track is drawn in percentages of its own width (UI pass 3 §5: never stretched, so a bar's data end is a true round):
+  // the bar's end and the cost mark are read on that one scale, 0 to 100.
+  const geo = await card.evaluate(el => Array.from(el.querySelectorAll('.inv-chart-ranked-svg')).map(svg => {
+    const w = svg.querySelector('.inv-chart-ranked-fill')!.getAttribute('width')!, x = svg.querySelector('.inv-chart-ranked-mark')!.getAttribute('x')!;
+    return { fill: parseFloat(w), mark: parseFloat(x), pct: /%$/.test(w) && /%$/.test(x) };
+  }));
   expect(geo).toHaveLength(2);
+  for (const r of geo) expect(r.pct, 'the bar and the mark on the track’s one percentage scale').toBe(true);
   // Both parts are plated below the live cost: both bars end short of the mark. On the bars' own scale the
   // better-priced one filled its track and sat on the mark, reading as at cost.
   for (const r of geo) expect(r.fill).toBeLessThan(r.mark - 1);
@@ -218,7 +221,7 @@ test('S10: on All, labour per kg divides by the tonnage billed inside the attend
   s.invNextNum = 3;
   await loadAppWithState(page, s);
   await openStatsTab(page, 'cost');
-  await page.locator('[data-action="invStatsPeriod"][data-period="all"]').click();
+  await page.locator('#pageStats [data-action="invStatsPeriod"][data-period="all"]').click();
   const want = await g(page, `(function(){ var r = labourRangeForPeriod('all'), lab = labourForRange(r.from, r.to); return formatCurrency(lab.total / 1000); })()`) as string;
   // The labour is the span's; so is the 1,000 kg under it. The whole book's 4,000 kg read it at a quarter.
   await expect(page.locator('[data-card="labour"] [data-tile="perkg"]')).toContainText(want);

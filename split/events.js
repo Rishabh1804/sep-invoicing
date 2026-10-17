@@ -164,6 +164,7 @@ function onDocClick(e) {
     case 'invImportData': importData(); break;
     case 'invCheckUpdate': checkForUpdateManually(); break;
     case 'invRunDiagnostics': runStorageDiagnostics(); break;
+    case 'invLicences': settingsLicencesOpen(); break;
     case 'invReloadForUpdate': window.location.reload(); break;
     case 'invDismissUpdate': dismissUpdateBanner(); break;
     case 'invAddPartWeight': addPartWeight(); break;
@@ -296,7 +297,7 @@ function onDocClick(e) {
     case 'invNotPrinted': invNotPrinted(btn.dataset.id); break;
     case 'invBulkMarkFiled': bulkMarkFiled(); break;
     // Phase 7: Stats period chips
-    // One period for Stats and Today → Pulse (the tab map, TM2b): a change redraws whichever is on screen.
+    // One period for Stats and Home's board (the tab map, TM2b; UI pass 3 §8c): a change redraws whichever is on screen.
     case 'invStatsPeriod': _statsPeriod = btn.dataset.period; if (navPageOf() === 'pageHome') renderHome(); else renderStats(); break;
     case 'invStatsTab': statsSetTab(btn.dataset.tab); break;
     // P9: Trend granularity chips (day/week/month)
@@ -450,6 +451,9 @@ function onDocClick(e) {
     default:
       // A chart datum: its figure goes into the chart's readout line (a phone has no hover).
       if (action === 'invChartRead') { chartShowRead(btn); break; }
+      // A chart's Table: the drawing and its table trade places in the box (charts.js). It is pressed, so the click above ran
+      // it inside keepScroll: the page stays where it was.
+      if (action === 'invChartTable') { chartTableToggle(btn); break; }
       if (action === 'invShowMore') { uiShowMore(btn.dataset.key); break; }
       // The toolbar's More and Filter (state.js, one look).
       if (uiToolbarAction(action, btn)) break;
@@ -471,7 +475,7 @@ function onDocClick(e) {
       if (pplAction(action, btn)) break;
       if (idcAction(action, btn)) break;
       if (ckAction(action, btn)) break;
-      if (homeAction(action, btn)) break;
+      if (action.indexOf('invWdg') === 0 && wdgAction(action, btn)) break;
       if (powerAction(action, btn)) break;
       if (pcsAction(action, btn)) break;
       if (kbAction(action, btn)) break;
@@ -486,6 +490,7 @@ function onDocClick(e) {
       if (faceAction(action, btn)) break;
       if (tdyAction(action, btn)) break;
       if (srchAction(action, btn)) break;
+      if (mktAction(action, btn)) break;
       if (typeof devAction === 'function' && devAction(action, btn)) break;
       if (action.indexOf('invGuard') === 0) { if (typeof guardAction === 'function') guardAction(action, btn); break; }
       if (action.indexOf('invStock') === 0) stockAction(action, btn);
@@ -538,6 +543,8 @@ function onDocChange(e) {
   if (rptOnChange(e.target)) return;
   if (flrOnChange(e.target)) return;
   if (faceOnChange(e.target)) return;
+  if (mktOnChange(e.target)) return;
+  if (wdgOnChange(e.target)) return;
   if (stockOnChange(e.target)) return;
   if (billsCnFormInput(e.target)) return;
   if (e.target.id !== 'bankSearch' && bankInput(e.target)) return;
@@ -687,7 +694,6 @@ function onDocChange(e) {
     return;
   }
   if (e.target.id === 'cpOverhead') { cpSetOverhead(e.target.value); return; }
-  if (e.target.dataset && e.target.dataset.homeShow) { homeShowToggle(e.target); return; }
   if (e.target.id === 'cpFrom' || e.target.id === 'cpTo') {
     if (e.target.id === 'cpFrom') _cpFrom = e.target.value; else _cpTo = e.target.value;
     renderClientsPage();

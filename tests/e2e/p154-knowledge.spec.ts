@@ -30,10 +30,10 @@ test('the top bar’s book opens the guides for the screen on show; Start says h
   await loadAppWithState(page, book());
   await openKnow(page);
   await expect(page.locator('#knowContent [data-action="invKbTab"]')).toHaveText(['Start', 'Library', 'Troubleshoot', 'Records', 'Training']);
-  // From Today: the Library, linked to Today, holding the app's own guide to it.
+  // From Home: the Library, linked to Home, holding the app's own guide to it (Today until UI pass 3; its id is kept).
   await expect(page.locator('#kbLinkFilter')).toContainText('Linked to');
   // The list names an app guide by its title, its kicker (Using the app) in its meta (KB2-1).
-  await expect(page.locator('#kbLibrary [data-kb-row="app-today"]')).toContainText('Today');
+  await expect(page.locator('#kbLibrary [data-kb-row="app-today"]')).toContainText('Home');
   await expect(page.locator('#kbLibrary [data-kb-row="app-today"] .inv-row-meta')).toContainText('Using the app');
   await tab(page, 'start');
   await expect(page.locator('#kbRecent')).toContainText('Nothing written yet');

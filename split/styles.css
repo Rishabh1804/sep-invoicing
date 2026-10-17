@@ -8,31 +8,38 @@
 /* Palettes (§3.1): primitives only. Nothing on screen is white (HR-9; owner, 26 Sep 2026: "nothing in absolute white — it
    puts a lot of stress on our eyes", and 8 Oct 2026: "we will be avoiding pure white everywhere in the app, this should be an
    HR"). The off-white of 26 Sep (#f8fafa, lightness 98%) still read as white beside the coloured cards, so every light fill is
-   a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.93. Paper is the one exception (§8).
-   Nothing but the aliases below reads a --c-* token. */
-:root, :root[data-palette="teal"] {
-  --c-bg: light-dark(#e1ebed, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
-  --c-surface-2: light-dark(#dae6e7, #1a2224); --c-surface-3: light-dark(#cfdddf, #222c2e);
-  --c-border: light-dark(#c7d6d7, #293537);
-  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#57676d, #7d8f91);
-  --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
-  --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
-}
-:root[data-palette="zinc"] {
-  --c-bg: light-dark(#e6eaee, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
+   a tinted step at or under 97% (OKLab L 0.97): the surface 0.96, the page 0.92 (UI pass 3 took it a step down, so a card stands
+   off it). Paper is the one exception (§8). --text-3 is a step darker in light since UI pass 3, so it reads at 4.5:1 in a well on
+   the page too (P180). Nothing but the aliases below reads a --c-* token. */
+:root, :root[data-palette="zinc"] {
+  --c-bg: light-dark(#e1e6eb, #0e1114); --c-surface: light-dark(#eff3f6, #15191d);
   --c-surface-2: light-dark(#dfe3e9, #1c2126); --c-surface-3: light-dark(#d5dbe1, #242a30);
   --c-border: light-dark(#cdd3da, #2b323a);
-  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#5a6570, #86919c);
+  --c-text-1: light-dark(#14191e, #edf0f3); --c-text-2: light-dark(#4d5761, #a9b3bd); --c-text-3: light-dark(#545e68, #86919c);
   --c-accent: light-dark(#8a5d0c, #dcaa4c); --c-on-accent: light-dark(#fbf7ef, #1b1204);
   --c-accent-soft: light-dark(#f5ead3, #33291a); --c-accent-soft-text: light-dark(#6a4606, #ecc983);
+  --c-accent-deep: light-dark(#704b08, #b98f3f);
+  --c-edge: light-dark(rgb(20 25 30 / 0.06), rgb(237 240 243 / 0.08));
+}
+:root[data-palette="teal"] {
+  --c-bg: light-dark(#dee7e9, #0d1213); --c-surface: light-dark(#ecf4f5, #131a1b);
+  --c-surface-2: light-dark(#dae6e7, #1a2224); --c-surface-3: light-dark(#cfdddf, #222c2e);
+  --c-border: light-dark(#c7d6d7, #293537);
+  --c-text-1: light-dark(#11191c, #ecf2f2); --c-text-2: light-dark(#4a585e, #a6b6b8); --c-text-3: light-dark(#516065, #7d8f91);
+  --c-accent: light-dark(#0d6b63, #4fc1b3); --c-on-accent: light-dark(#f6faf9, #04211d);
+  --c-accent-soft: light-dark(#dcefec, #15302d); --c-accent-soft-text: light-dark(#0a4d47, #8fdcd2);
+  --c-accent-deep: light-dark(#085650, #41a296);
+  --c-edge: light-dark(rgb(16 40 48 / 0.06), rgb(236 242 242 / 0.08));
 }
 :root[data-palette="terracotta"] {
-  --c-bg: light-dark(#eee8df, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
+  --c-bg: light-dark(#eae4db, #141311); --c-surface: light-dark(#f7f2ea, #1c1b18);
   --c-surface-2: light-dark(#e9e2d6, #24221e); --c-surface-3: light-dark(#e2d9ca, #2d2a25);
   --c-border: light-dark(#dbd1c1, #36322c);
-  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#696358, #948d80);
-  --c-accent: light-dark(#a94b28, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
+  --c-text-1: light-dark(#1b1916, #f3f0ea); --c-text-2: light-dark(#58534b, #bcb6aa); --c-text-3: light-dark(#625c52, #948d80);
+  --c-accent: light-dark(#a54926, #e98c64); --c-on-accent: light-dark(#fbf6f2, #1f0e06);
   --c-accent-soft: light-dark(#f6e6dc, #3b2419); --c-accent-soft-text: light-dark(#7e3418, #f2b89c);
+  --c-accent-deep: light-dark(#863a1d, #c57553);
+  --c-edge: light-dark(rgb(40 30 20 / 0.06), rgb(243 240 234 / 0.08));
 }
 
 :root {
@@ -53,10 +60,9 @@
   /* Hairlines (§5.2): every divider and control edge is --hair; an accent or chevron rule is --rule. */
   --hair: 1px; --rule: 2px;
 
-  /* Elevation (§3.6, DR-6): content casts no shadow; only floating layers do. */
+  /* Elevation (§3.6, DR-6, amended by UI pass 3): a card lifts (--lift-1, below), a well sinks (--press-1, --press-2), a layer
+     floats (these two); nothing else casts a shadow. */
   --shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14);
-  /* A tile's lift (§3.8, DR-6): the one shadow content carries. Darker in dark mode, where a light shadow is not seen. */
-  --shadow-tile: 0 0.0625rem 0.125rem light-dark(rgb(16 40 48 / 0.08), rgb(0 0 0 / 0.45)), 0 0.125rem 0.5rem light-dark(rgb(16 40 48 / 0.07), rgb(0 0 0 / 0.32));
   --shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28);
   --scrim: rgb(0 0 0 / 0.45);
 
@@ -72,16 +78,47 @@
   --text-1: var(--c-text-1); --text-2: var(--c-text-2); --text-3: var(--c-text-3);
   --accent: var(--c-accent); --on-accent: var(--c-on-accent);
   --accent-soft: var(--c-accent-soft); --accent-soft-text: var(--c-accent-soft-text);
+  /* UI pass 3 (docs/UI_PASS_3.md §3a): a card's fine edge; the primary button's accent a step deeper down its face; and a well, a
+     veil over whatever it is sunk into, so it is a step under its card, a dialog or the page alike: over Zinc's card it reads
+     #e3e8ec in light (OKLab L 0.929, the card 0.962) and #101317 in dark (0.185, the card 0.211); over a coded card it is that
+     card's own fill sunk. Never lighter than what it sits in, so never white (HR-9). */
+  --edge: var(--c-edge); --accent-deep: var(--c-accent-deep);
+  --well: light-dark(rgb(20 25 30 / 0.05), rgb(0 0 0 / 0.22));
 
   /* Status tones, shared by every palette. */
   --danger: light-dark(#b42318, #f38b81); --danger-bg: light-dark(#fdecea, #3a1916);
   --warning: light-dark(#8a5700, #e8b95c); --warning-bg: light-dark(#fcf1d9, #352911);
   --ok: light-dark(#176e37, #72c98f); --ok-bg: light-dark(#e4f3e8, #14301e);
   --info: light-dark(#1d5ea6, #8dbaf0); --info-bg: light-dark(#e6effa, #15263a);
+  /* A status mark (an icon, a dot, a chart's status mark): a step lighter than the tone's text, so a small mark is seen. */
+  --ok-mark: light-dark(#2f8a50, #72c98f); --warning-mark: light-dark(#c08a2a, #e8b95c);
+  --danger-mark: light-dark(#c4382b, #f38b81); --info-mark: light-dark(#3f6e9a, #8dbaf0);
+
+  /* UI pass 3 (docs/UI_PASS_3.md §3a): a card lifts off the page, a well presses into its card. */
+  --lift-1: 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.06), rgb(0 0 0 / 0.40)), 0 0.375rem 1.125rem light-dark(rgb(20 25 30 / 0.07), rgb(0 0 0 / 0.32));
+  --lift-2: 0 0.125rem 0.25rem light-dark(rgb(20 25 30 / 0.08), rgb(0 0 0 / 0.45)), 0 0.875rem 1.875rem light-dark(rgb(20 25 30 / 0.12), rgb(0 0 0 / 0.40));
+  --press-1: inset 0 0.0625rem 0.1875rem light-dark(rgb(20 25 30 / 0.14), rgb(0 0 0 / 0.45));
+  --press-2: inset 0 0.0625rem 0.125rem light-dark(rgb(20 25 30 / 0.10), rgb(0 0 0 / 0.35));
+  --r-card: 1.125rem; --r-tile: 0.875rem; --r-ctl: 0.75rem; --r-key: 1rem;
+  /* A segmented control's pressed pill (36px in a 44px track on the approved board) and a switch's track and knob (§3b). */
+  --r-seg: 0.5625rem; --switch-w: 3.25rem; --switch-h: 1.875rem; --switch-knob: 1.5rem;
+  --fs-28: 1.75rem; --fs-36: 2.25rem; --fs-48: 3rem;
+
+  /* Series (§3d): which thing a line or bar is, in this order and never by rank; validated for colour blindness in both
+     themes (16 Oct 2026). How much (a heat map): one blue, light to dark; dark mode from dim to bright. */
+  --series-1: light-dark(#2e75b6, #5a98dc); --series-2: light-dark(#c0622b, #d9733d); --series-3: light-dark(#1f8a6a, #2fa37f);
+  --series-4: light-dark(#a87c00, #b8890f); --series-5: light-dark(#c2508a, #d06a9c); --series-6: light-dark(#6b55c9, #8576e8);
+  --series-other: light-dark(#9aa4ae, #5d6772);
+  --seq-1: light-dark(#cde2fb, #163a63); --seq-2: light-dark(#9ec5f4, #1d4f8a); --seq-3: light-dark(#6da7ec, #256abf);
+  --seq-4: light-dark(#3987e5, #3987e5); --seq-5: light-dark(#256abf, #6da7ec); --seq-6: light-dark(#184f95, #9ec5f4);
+  --seq-7: light-dark(#0d366b, #cde2fb);
 
   /* Today's cards: a card in a deck at least this wide (a deck of small cards, `data-deck-sm`, the narrower: a unit of the plant);
      a sparkline's and a meter's height; a step's node; the small row a packed grid counts in. */
   --deck-min: 15rem; --deck-min-sm: 9rem; --spark-h: 1.75rem; --meter-h: 0.5rem; --step-node: 1.75rem; --masonry-row: 0.25rem;
+  /* A widget's cap by its size (UI pass 3 §7b), so no layout lets one run a screen long (the phone's Medium and Large one cap); the
+     chip holding its section's icon. */
+  --wdg-cap-s: 10rem; --wdg-cap-m: 26rem; --wdg-cap-l: 40rem; --wdg-cap-phone: 30rem; --wdg-chip: 1.75rem;
 
   /* Layout (§3.7) */
   --bar-h: 3.25rem; --bar-h-desk: 3rem; --fill-h: calc(100dvh - var(--bar-h-desk)); --pane-host-min: 20rem; --nav-h: 4rem; --nav-gap: var(--sp-8); --nav-space: calc(var(--nav-h) + var(--nav-gap)); --door-w: 3.5rem; --door-h: 2rem; --side-w: 5.5rem; --content-max: 80rem; --pane-w: 22rem; --scroll-max: 55vh; --board-col: 17rem;
@@ -89,28 +126,26 @@
   --filter-w: 9rem; --col-sm-w: 8rem; --fade-w: var(--sp-24); --line-fig-w: 7rem; --line-unit-w: 5.5rem; --menu-max: 17.5rem;
   --max-w: 32.5rem; --set-card-w: 55rem; --set-nav-w: 12.5rem;
   --dialog-w: 40rem; --dialog-max-h: 90vh; --dialog-max-h-desk: 85vh; --toast-max: 30rem;
+  --r-toast: calc(var(--sp-10) + 0.5lh);
   --tile-min: 10rem; --field-min: 12rem; --search-min: 16rem; --textarea-h: 5rem; --dot: 0.4375rem;
   --palette-h: 32rem;   /* the search palette's one height on the desktop (search.js) */
 
   /* Density (§3.5): comfortable here, compact below. */
   /* A small control is still a 44px touch target while the density is comfortable (§3.5); only compact shrinks it. */
-  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem;
+  --row-h: 2.75rem; --row-h-2: 3.5rem; --ctl-h: 2.75rem; --ctl-h-sm: 2.75rem; --seg-inset: var(--sp-4);
   --pad-x: var(--sp-12); --pad-y: var(--sp-10); --gap: var(--sp-12);
 
   --z-bar: 20; --z-dropdown: 50; --z-scrim: 100; --z-dialog: 200; --z-banner: 300; --z-toast: 500; --z-print: 510; --z-over-print: 520;
 
-  /* Chart series: categorical only (§6.17). */
-  --chart-1: var(--accent); --chart-2: light-dark(#2e75b6, #88b8e8); --chart-3: light-dark(#177a36, #6cd88a);
-  --chart-4: light-dark(#8a6b08, #d4b848); --chart-5: light-dark(#8b6c4a, #c8b898); --chart-6: light-dark(#6b4c8a, #b79ae0);
-  --chart-7: light-dark(#b5583a, #e8a888); --chart-8: light-dark(#2f7d7d, #7fd0d0); --chart-other: light-dark(#9a958c, #6e6a63);
-  /* Chart frames (§6.17). The -fs- sizes are in the drawing's own viewBox units, which scale with it. */
-  --chart-h: 15rem; --chart-h-wide: 20rem; --pie: 11.25rem; --pie-wide: 13.75rem; --legend-min: 13.75rem;
+  /* Chart frames (§6.17). The -fs- sizes are in the drawing's own viewBox units, which scale with it. A series' colour is a slot
+     (--series-1…6, --series-other, UI pass 3 §3d); the eight --chart-* colours are retired. */
+  --plot-h: 15rem; --plot-h-wide: 20rem; --pie: 11.25rem; --pie-wide: 13.75rem; --legend-min: 13.75rem;
   --legend-row-h: 1.5rem; --legend-pct-w: 2.75rem; --swatch: 0.625rem; --track-h: 0.5rem;
-  --chart-fs-axis: 0.5625rem; --chart-fs-centre: 0.9375rem;
+  --plot-fs-axis: 0.5625rem; --plot-fs-centre: 0.9375rem;
 }
 @media (pointer: fine) {
   :root[data-density="compact"] {
-    --row-h: 2rem; --row-h-2: 2.75rem; --ctl-h: 1.875rem; --ctl-h-sm: 1.625rem; --pad-y: var(--sp-8);
+    --row-h: 2rem; --row-h-2: 2.75rem; --ctl-h: 1.875rem; --ctl-h-sm: 1.625rem; --pad-y: var(--sp-8); --seg-inset: var(--sp-2);
   }
 }
 
@@ -169,13 +204,14 @@ body.inv-desktop .inv-topbar-trail:empty { display: none; }
    into office tab, that way we have 5 icons again, which can be arranged in a better way"). Every door is one geometry, its mark (the
    icon in a pill) over its word, so the five words share a line; the workspace on screen fills its pill in the accent's soft
    colour, and Add, the centre door, fills its pill in the accent: the same shape, the strongest fill. The card is the surface's
-   colour, rounded as a card and lifted by the floating layers' shadow (DR-6); the page fades into its own colour under it, so
-   nothing scrolled beneath it shows as a line cut in the gap. The desktop's rail draws the same doors (.inv-side). */
+   colour with a card's fine edge and corners, lifted as a card being moved is (--lift-2; UI pass 3, §3b; DR-6); the page fades
+   into its own colour under it, so nothing scrolled beneath it shows as a line cut in the gap. The desktop's rail draws the same
+   doors (.inv-side). */
 .inv-navbar {
   position: fixed; left: var(--nav-gap); right: var(--nav-gap); bottom: max(var(--nav-gap), env(safe-area-inset-bottom)); z-index: var(--z-bar);
   display: flex; align-items: stretch; height: var(--nav-h); padding: 0 var(--sp-4);
   max-width: calc(var(--max-w) - var(--nav-gap) - var(--nav-gap)); margin: 0 auto;
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl); box-shadow: var(--shadow-pop);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-2);
 }
 body:not(.inv-desktop)::after {
   content: ''; position: fixed; left: 0; right: 0; bottom: 0; z-index: calc(var(--z-bar) - 1); pointer-events: none;
@@ -198,32 +234,58 @@ body:not(.inv-desktop)::after {
 .inv-navbar-add .inv-navbar-mark { background: var(--accent); color: var(--on-accent); }
 .inv-navbar-add:active .inv-navbar-mark { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
 
+/* Icons v3 (docs/UI_PASS_3.md §4; ICONS, state.js): two inks. The line is the text's colour; a thing's main part carries one tint
+   (a path stored `d:` in ICONS), the accent at a fifth, never a stroke. In a toned place (a coded card and the boxes in it, a deck
+   card, a notice) the tint is the tone, and in a status badge and on the accent (a primary button, the print bar) the ink's own
+   colour, so a tint never says a status by itself. A door at rest draws its line alone, the workspace on screen its tint too (the
+   board's "resting" and "on screen"). */
+.inv-ico-tint { fill: var(--ico-tint, var(--accent)); fill-opacity: 0.22; stroke: none; }
+.inv-hero, .inv-coded, .inv-deck-item, :is(.inv-hero, .inv-coded) .inv-tile, .inv-kb-notice { --ico-tint: var(--tone); }
+.inv-badge, .inv-btn-primary, .inv-print-toolbar { --ico-tint: currentColor; }
+.inv-navbar-item:not(.inv-navbar-item-on) .inv-ico-tint, .inv-side .inv-side-item:not(.inv-side-item-on) .inv-ico-tint { display: none; }
+/* A tick inside a step's small dot (today.js, faces.js): the set's check, heavier to read at its size. */
+.inv-ico-bold { stroke-width: 3; }
+
 /* ===== PAGES ===== */
 .inv-page { display: none; padding: var(--sp-16); }
 .inv-page-active { display: block; }
 
-/* Segmented control (design system §6.5): a setting of the current view, never navigation. */
+/* Segmented control (design system §6.5): a setting of the current view, never navigation. A well (UI pass 3, §3b): the track
+   sinks into its card and the pressed segment is a pill of the card's surface lifted in it. A segment is still a 44px touch
+   target on the phone: its transparent border is the track's inner margin and its fill is clipped inside it, so the pill sits
+   --seg-inset in from the track's edge (36px in the 44px track, as on the approved board). The pill's lift is its ::after, which
+   the segment's own clip lets show --seg-inset round it; the track's clip keeps it inside the well. */
 .inv-seg {
-  display: flex; width: 100%; max-width: 100%;
-  border: var(--hair) solid var(--border); border-radius: var(--r-md);
-  background: var(--surface); overflow: hidden;
+  display: flex; width: 100%; max-width: 100%; padding: 0 var(--sp-2);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl);
+  background: var(--well); box-shadow: var(--press-1); overflow: hidden;
 }
 .inv-seg-btn {
+  position: relative; isolation: isolate;
   flex: 1; min-width: 0; min-height: var(--ctl-h); padding: 0 var(--sp-10);
-  border: none; border-left: var(--hair) solid var(--border); background: none; cursor: pointer;
+  border: 0 solid transparent; border-width: var(--seg-inset) var(--sp-2);
+  border-radius: calc(var(--r-seg) + var(--sp-2)) / calc(var(--r-seg) + var(--seg-inset));
+  background: none; background-clip: padding-box; cursor: pointer;
   color: var(--text-2); font-size: var(--fs-13); font-weight: 500; white-space: nowrap;
-  overflow: hidden; text-overflow: ellipsis; transition: background var(--dur-1), color var(--dur-1);
+  overflow: clip; overflow-clip-margin: var(--seg-inset); text-overflow: ellipsis;
+  transition: background-color var(--dur-1), color var(--dur-1);
 }
-.inv-seg-btn:first-child { border-left: none; }
-.inv-seg-btn:hover { background: var(--surface-2); color: var(--text-1); }
-.inv-seg-btn[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-soft-text); font-weight: 600; }
+.inv-seg-btn:hover:not([aria-pressed="true"]) { background-color: color-mix(in oklab, var(--surface) 45%, transparent); color: var(--text-1); }
+.inv-seg-btn[aria-pressed="true"] { background-color: var(--surface); color: var(--text-1); font-weight: 600; }
+.inv-seg-btn[aria-pressed="true"]::after, .inv-seg-btn:focus-visible::after {
+  content: ''; position: absolute; inset: 0; z-index: -1; border-radius: var(--r-seg); pointer-events: none;
+  box-shadow: var(--lift-1), inset 0 0 0 var(--hair) var(--edge);
+}
+/* Focus is the accent ring drawn on the pill: the shared ring, outside the segment, would fall in the track's clip. */
+.inv-seg-btn:focus-visible { box-shadow: none; }
+.inv-seg-btn:focus-visible::after { box-shadow: inset 0 0 0 var(--rule) var(--accent); }
+.inv-seg-btn[aria-pressed="true"]:focus-visible::after { box-shadow: var(--lift-1), inset 0 0 0 var(--rule) var(--accent); }
 body.inv-desktop .inv-seg { width: auto; display: inline-flex; }
 body.inv-desktop .inv-seg-btn { flex: 0 1 auto; padding: 0 var(--sp-16); }
-body.inv-desktop .inv-seg-btn[aria-pressed="true"] { background: var(--surface-2); color: var(--text-1); }
 /* A segment that records a status (Staff → Day's P / H / A) is pressed in its tone, which switches with the theme. */
-.inv-seg .inv-seg-btn.inv-seg-btn-ok[aria-pressed="true"] { background: var(--ok-bg); color: var(--ok); }
-.inv-seg .inv-seg-btn.inv-seg-btn-warning[aria-pressed="true"] { background: var(--warning-bg); color: var(--warning); }
-.inv-seg .inv-seg-btn.inv-seg-btn-danger[aria-pressed="true"] { background: var(--danger-bg); color: var(--danger); }
+.inv-seg .inv-seg-btn.inv-seg-btn-ok[aria-pressed="true"] { background-color: var(--ok-bg); color: var(--ok); }
+.inv-seg .inv-seg-btn.inv-seg-btn-warning[aria-pressed="true"] { background-color: var(--warning-bg); color: var(--warning); }
+.inv-seg .inv-seg-btn.inv-seg-btn-danger[aria-pressed="true"] { background-color: var(--danger-bg); color: var(--danger); }
 /* A segmented control the width of its buttons, for a card's head or toolbar (Stats' Ranked / Share, the trend's series). */
 .inv-seg-fit { width: auto; display: inline-flex; flex: 0 0 auto; }
 .inv-seg-fit .inv-seg-btn { flex: 0 1 auto; min-height: var(--ctl-h-sm); }
@@ -345,6 +407,7 @@ body:not(.inv-booted) { pointer-events: none; }
   border-radius: var(--r-md); padding: 0 var(--sp-8);
 }
 .inv-print-toolbar-btn:active { opacity: 0.7; }
+.inv-print-toolbar-btn svg { width: 20px; height: 20px; flex-shrink: 0; }
 .inv-print-body { padding: var(--sp-8); }
 /* Every document in the preview is laid out at its paper width and scaled to the screen as a whole
    (printFit(), print.js), so what is seen is what prints, on a phone as on the desktop. */
@@ -820,13 +883,40 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
   .inv-cn-doc { border: none; margin: 0; width: auto; }
 }
 
-/* ===== CHARTS (design system §6.17) ===== */
-/* The line chart's parts: gridlines and their labels, the area under the line, the line, its points, the axis. */
-.inv-chart-grid { stroke: var(--border); stroke-width: calc(var(--hair) / 2); }
-.inv-chart-grid-label, .inv-chart-axis { font-size: var(--chart-fs-axis); fill: var(--text-3); font-family: var(--ff-mono); }
-.inv-chart-line { fill: none; stroke: var(--accent); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
-.inv-chart-area { fill: var(--surface-2); opacity: 0.5; }
-.inv-chart-dot { fill: var(--accent); stroke: var(--surface); stroke-width: var(--rule); }
+/* ===== CHARTS (design system §6.17; docs/UI_PASS_3.md §5) ===== */
+/* The marks, the same on every builder (the dataviz method): one axis; bars at most 24 units thick, their data end rounded
+   (--r-sm) and square where they stand; lines 2 (--rule); dots 8 across with a 2-unit ring in the surface colour; gridlines solid
+   hairlines; the axes and every word recessive, in text tokens, never in a series colour. A drawing is in its own viewBox units,
+   sized by CSS, and its marks scale with it. */
+.inv-chart-grid { stroke: var(--border); stroke-width: var(--hair); }
+.inv-chart-grid-label, .inv-chart-axis { font-size: var(--plot-fs-axis); fill: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-axis-title, .inv-chart-mark-label { font-size: var(--plot-fs-axis); fill: var(--text-2); font-family: var(--ff-base); }
+.inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
+
+/* The ink a mark wears (§3d): six series slots in one order, Other for the rest; the accent for the one against the rest (the
+   period on show, the thing picked: the accent marks what is selected, never a series); a status mark where the colour judges.
+   Each sets --ink on the mark, or on the group holding it; the stroke, the fill and a legend's swatch read it. */
+.inv-chart-s1 { --ink: var(--series-1); }
+.inv-chart-s2 { --ink: var(--series-2); }
+.inv-chart-s3 { --ink: var(--series-3); }
+.inv-chart-s4 { --ink: var(--series-4); }
+.inv-chart-s5 { --ink: var(--series-5); }
+.inv-chart-s6 { --ink: var(--series-6); }
+.inv-chart-other { --ink: var(--series-other); }
+.inv-chart-one { --ink: var(--accent); }
+.inv-chart-ok { --ink: var(--ok-mark); }
+.inv-chart-warning { --ink: var(--warning-mark); }
+.inv-chart-danger { --ink: var(--danger-mark); }
+.inv-chart-info { --ink: var(--info-mark); }
+.inv-chart-neutral { --ink: var(--text-3); }
+/* How much (a heat map's day): the one blue ramp, light to dark (dim to bright in dark). */
+.inv-chart-seq1 { --ink: var(--seq-1); }
+.inv-chart-seq2 { --ink: var(--seq-2); }
+.inv-chart-seq3 { --ink: var(--seq-3); }
+.inv-chart-seq4 { --ink: var(--seq-4); }
+.inv-chart-seq5 { --ink: var(--seq-5); }
+.inv-chart-seq6 { --ink: var(--seq-6); }
+.inv-chart-seq7 { --ink: var(--seq-7); }
 
 /* Drawn at their natural aspect and sized by CSS, so a circle is a circle on a
    phone and on a desktop. The old trend chart stretched a 400x160 drawing with
@@ -834,43 +924,78 @@ table.inv-qc-grid.inv-qc-no-top { border-top: 0; }
    markers came out as ellipses and text skewed. */
 .inv-chart-svg {
   width: 100%; height: auto; display: block;
-  max-height: var(--chart-h); margin: 0 auto;
+  max-height: var(--plot-h); margin: 0 auto;
 }
 /* A wider screen gets a taller frame: the same series, more room between
    gridlines, and labels that stop colliding. */
-:is(body.inv-tablet, body.inv-desktop) .inv-chart-svg { max-height: var(--chart-h-wide); }
-.inv-chart-bar { fill: var(--accent); }
-/* Phase 2 charts (docs/FINANCE_INTELLIGENCE_SPEC.md). A box holds the drawing, its keys and a readout
-   line: on a phone there is no hover to raise a <title>, so a tap writes the figure there. */
-.inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); }
-.inv-chart-readout { min-height: var(--row-h); display: flex; align-items: center; padding: 0; font-size: var(--fs-13); color: var(--text-2); }
-.inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
-.inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
-.inv-chart-zero { stroke: var(--text-3); stroke-width: var(--hair); }
-.inv-chart-band { fill: var(--chart-1); opacity: 0.16; }
-.inv-chart-path { fill: none; stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
-.inv-chart-s0 { stroke: var(--chart-1); } .inv-chart-s1 { stroke: var(--chart-2); } .inv-chart-s2 { stroke: var(--chart-3); }
-.inv-chart-s3 { stroke: var(--chart-4); } .inv-chart-s4 { stroke: var(--chart-5); } .inv-chart-s5 { stroke: var(--chart-6); }
-.inv-chart-s6 { stroke: var(--chart-7); } .inv-chart-s7 { stroke: var(--chart-8); }
-.inv-chart-pt, .inv-chart-seg, .inv-chart-wedge { cursor: pointer; stroke: var(--surface); stroke-width: var(--hair); }
+:is(body.inv-tablet, body.inv-desktop) .inv-chart-svg { max-height: var(--plot-h-wide); }
+
+/* Lines 2, round; the area under a line a wash of its colour; a band (a forecast's range, the period on show) a lighter one. */
+:is(.inv-chart-line, .inv-chart-path) { fill: none; stroke: var(--ink, var(--series-1)); stroke-width: var(--rule); stroke-linecap: round; stroke-linejoin: round; }
+.inv-chart-area { fill: var(--ink, var(--series-1)); opacity: 0.1; }
+.inv-chart-band { fill: var(--ink, var(--series-1)); opacity: 0.16; }
+/* A dot: 8 across, its ring drawn under the fill (paint-order), so the ring is 2 outside it in the surface colour. */
+:is(.inv-chart-dot, .inv-chart-pt) { fill: var(--ink, var(--series-1)); stroke: var(--surface); stroke-width: calc(var(--rule) * 2); paint-order: stroke; }
+:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-wedge, .inv-chart-cell) { fill: var(--ink, var(--series-1)); }
+/* A bar's data end: rounded where it ends, square where it stands (above zero the top, below zero the bottom). A stack's parts
+   stand a surface gap apart in their geometry; a pie's wedges by a ring of the surface. */
+.inv-chart-up { clip-path: inset(0 round var(--r-sm) var(--r-sm) 0 0); }
+.inv-chart-down { clip-path: inset(0 round 0 0 var(--r-sm) var(--r-sm)); }
+.inv-chart-wedge { stroke: var(--surface); stroke-width: var(--rule); }
+.inv-chart-hole { fill: var(--surface); }
+/* A reference: a mark's rule (the terms, a cost), a fitted line, a heat map's day with no record. */
+.inv-chart-mark { stroke: var(--text-2); stroke-width: var(--rule); }
+.inv-chart-fit { fill: none; stroke: var(--ink, var(--series-1)); stroke-width: var(--rule); stroke-linecap: round; opacity: 0.7; }
+.inv-chart-cell-none { fill: none; stroke: var(--border); stroke-width: var(--hair); }
+.inv-chart-hatch { stroke: var(--text-3); stroke-width: var(--hair); }
+/* A reference is never a datum: a tap on a mark's rule, its label, a zero rule or a fitted line falls through to the datum under
+   it (a histogram's mark stands over the bin it falls in). */
+:is(.inv-chart-mark, .inv-chart-mark-label, .inv-chart-zero, .inv-chart-fit) { pointer-events: none; }
 /* A period not yet ended (TM6b, §6.17): its line runs in dashed, its bar or point lighter; its label says "to date". */
 :is(.inv-chart-line, .inv-chart-path, .inv-spark-line).inv-chart-todate { stroke-dasharray: var(--sp-4) var(--sp-4); }
-:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-dot, .inv-chart-pt).inv-chart-todate { opacity: 0.5; }
+:is(.inv-chart-bar, .inv-chart-seg, .inv-chart-dot, .inv-chart-pt, .inv-chart-cell).inv-chart-todate { opacity: 0.5; }
+
+/* Every datum can be read: a mark that is its own datum, or a group with a hit area larger than its mark (never painted, never
+   outlined). The one read last is outlined in the text colour. */
+:is(.inv-chart-dot, .inv-chart-pt, .inv-chart-bar, .inv-chart-seg, .inv-chart-wedge)[data-action], .inv-chart-datum { cursor: pointer; }
+.inv-chart-hit { fill: transparent; stroke: none; pointer-events: all; }
 .inv-chart-read-on, .inv-chart-seg[aria-current="true"], .inv-chart-wedge[aria-current="true"] { stroke: var(--text-1); stroke-width: var(--rule); }
-.inv-chart-centre { font-size: var(--chart-fs-centre); font-weight: 600; fill: var(--text-1); font-family: var(--ff-mono); pointer-events: none; }
+:is(.inv-chart-dot, .inv-chart-pt).inv-chart-read-on, .inv-chart-read-on .inv-chart-pt { stroke: var(--text-1); stroke-width: calc(var(--rule) * 2); }
+.inv-chart-datum.inv-chart-read-on .inv-chart-hit { fill: var(--text-1); fill-opacity: 0.06; }
+.inv-chart-centre { font-size: var(--plot-fs-centre); font-weight: 600; fill: var(--text-1); stroke: none; font-family: var(--ff-mono); pointer-events: none; }
+
+/* The box (§5): the drawing, the table behind it, the readout line. A tap writes a datum's figure into the readout (a phone has
+   no hover); Table swaps the drawing for the table and back. */
+.inv-chart-box { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.inv-chart-draw { display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; }
+.inv-chart-draw[hidden], .inv-chart-table[hidden] { display: none; }
+.inv-chart-table { min-width: 0; }
+.inv-chart-readline { display: flex; align-items: center; gap: var(--sp-8); min-height: var(--row-h); min-width: 0; }
+.inv-chart-readout { flex: 1 1 auto; min-width: 0; padding: 0; font-size: var(--fs-13); color: var(--text-2); }
+.inv-chart-readline > .inv-btn { flex: none; }
+.inv-chart-box[data-table="on"] .inv-chart-readout { visibility: hidden; }
 .inv-chart-ranges { margin-bottom: var(--sp-8); }
+
+/* The keys under a drawing of two series or more: each swatch the shape of its mark, its name in text. */
+.inv-chart-keys { display: flex; flex-wrap: wrap; gap: var(--sp-6) var(--sp-16); font-size: var(--fs-12); color: var(--text-2); }
+.inv-chart-key { display: inline-flex; align-items: center; gap: var(--sp-6); }
+.inv-chart-swatch { width: var(--swatch); height: var(--swatch); border-radius: var(--r-sm); flex: 0 0 auto; background: var(--ink, var(--series-other)); }
+.inv-chart-swatch-line { height: var(--rule); border-radius: var(--r-full); }
+.inv-chart-swatch-dash { height: 0; border-radius: 0; background: none; border-top: var(--rule) dashed var(--ink, var(--series-other)); }
+.inv-chart-swatch-dot { border-radius: var(--r-full); }
+.inv-chart-swatch-tick, .inv-chart-swatch-rule { width: var(--rule); height: var(--sp-12); border-radius: 0; background: var(--text-2); }
+.inv-chart-swatch-hatch { background: repeating-linear-gradient(45deg, var(--text-3) 0 var(--hair), transparent var(--hair) var(--sp-4)); box-shadow: inset 0 0 0 var(--hair) var(--border); }
+.inv-chart-ramp { display: inline-flex; gap: var(--sp-2); }
+
+/* Composition: a pie's wedges in their slots (Other last, so the tail is visibly a tail), the legend a row a slice. */
 button.inv-chart-legend-row { width: 100%; background: none; border: none; font: inherit; color: inherit; text-align: left; cursor: pointer; }
 .inv-chart-legend-row[aria-pressed="true"] { background: var(--accent-soft); color: var(--accent-soft-text); }
-
-/* Composition. Eight series colours (--chart-*), plus a
-   ninth for the folded "others" wedge so the tail is visibly a tail. */
 .inv-chart-pie-wrap {
   display: flex; flex-wrap: wrap; gap: var(--sp-16);
   align-items: center; justify-content: center;
 }
 .inv-chart-pie-svg { width: var(--pie); height: var(--pie); flex: 0 0 auto; }
 :is(body.inv-tablet, body.inv-desktop) .inv-chart-pie-svg { width: var(--pie-wide); height: var(--pie-wide); }
-.inv-chart-hole { fill: var(--surface); }
 .inv-chart-legend { flex: 1 1 var(--legend-min); min-width: 0; display: flex; flex-direction: column; gap: var(--sp-4); }
 .inv-chart-legend-row {
   display: flex; align-items: center; gap: var(--sp-8);
@@ -884,7 +1009,6 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
    laptop) and 26px on the compact desktop, so the desktop legend stays a dense list (§6.17). */
 :is(button.inv-chart-legend-row, .inv-chart-legend-row[data-action]) { min-height: max(var(--legend-row-h), var(--ctl-h-sm)); }
 .inv-chart-legend-row[data-action]:active { background: var(--surface-2); }
-.inv-chart-swatch { width: var(--swatch); height: var(--swatch); border-radius: var(--r-sm); flex: 0 0 auto; }
 .inv-chart-legend-label {
   flex: 1; min-width: 0; color: var(--text-1);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
@@ -892,29 +1016,13 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-legend-val { color: var(--text-2); white-space: nowrap; }
 .inv-chart-legend-pct { color: var(--text-3); white-space: nowrap; min-width: var(--legend-pct-w); text-align: right; }
 
-.inv-chart-c0 { fill: var(--chart-1); }
-.inv-chart-c1 { fill: var(--chart-2); }
-.inv-chart-c2 { fill: var(--chart-3); }
-.inv-chart-c3 { fill: var(--chart-4); }
-.inv-chart-c4 { fill: var(--chart-5); }
-.inv-chart-c5 { fill: var(--chart-6); }
-.inv-chart-c6 { fill: var(--chart-7); }
-.inv-chart-c7 { fill: var(--chart-8); }
-.inv-chart-cx { fill: var(--chart-other); }
-.inv-chart-swatch.inv-chart-c0 { background: var(--chart-1); }
-.inv-chart-swatch.inv-chart-c1 { background: var(--chart-2); }
-.inv-chart-swatch.inv-chart-c2 { background: var(--chart-3); }
-.inv-chart-swatch.inv-chart-c3 { background: var(--chart-4); }
-.inv-chart-swatch.inv-chart-c4 { background: var(--chart-5); }
-.inv-chart-swatch.inv-chart-c5 { background: var(--chart-6); }
-.inv-chart-swatch.inv-chart-c6 { background: var(--chart-7); }
-.inv-chart-swatch.inv-chart-c7 { background: var(--chart-8); }
-.inv-chart-swatch.inv-chart-cx { background: var(--chart-other); }
-
-/* Ranked horizontal bars — for "top N by X", where reading the names matters
-   more than the profile of the series. */
+/* Ranked horizontal bars — for "top N by X", where reading the names matters more than the profile of the series. One series,
+   so one colour (slot 1); a status where the row judges. The track is drawn in percentages of its own width, never stretched,
+   so the data end is a true round and the start square. */
 .inv-chart-ranked { display: flex; flex-direction: column; gap: var(--sp-10); }
 .inv-chart-ranked-row { display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-chart-ranked-row[data-action] { cursor: pointer; }
+.inv-chart-ranked-row.inv-chart-read-on .inv-chart-ranked-label { color: var(--accent); }
 .inv-chart-ranked-head { display: flex; align-items: baseline; gap: var(--sp-8); }
 .inv-chart-ranked-label {
   flex: 1; min-width: 0; font-size: var(--fs-13); font-weight: 600;
@@ -923,14 +1031,43 @@ button.inv-chart-legend-row { width: 100%; background: none; border: none; font:
 .inv-chart-ranked-val { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
 .inv-chart-ranked-track { width: 100%; }
 .inv-chart-ranked-svg { width: 100%; height: var(--track-h); display: block; }
-.inv-chart-ranked-fill { fill: var(--accent); }
-.inv-chart-ranked-fill-danger { fill: var(--danger); }
-.inv-chart-ranked-fill-warning { fill: var(--warning); }
-.inv-chart-ranked-fill-good { fill: var(--ok); }
-.inv-chart-ranked-fill-info { fill: var(--info); }
+.inv-chart-ranked-fill { fill: var(--series-1); stroke: none; clip-path: inset(0 round 0 var(--r-sm) var(--r-sm) 0); }
+.inv-chart-ranked-fill-danger { fill: var(--danger-mark); }
+.inv-chart-ranked-fill-warning { fill: var(--warning-mark); }
+.inv-chart-ranked-fill-good { fill: var(--ok-mark); }
+.inv-chart-ranked-fill-info { fill: var(--info-mark); }
 .inv-chart-ranked-fill-neutral { fill: var(--text-3); }
-.inv-chart-ranked-mark { fill: var(--text-1); opacity: 0.55; }
+.inv-chart-ranked-mark { fill: var(--text-1); stroke: none; opacity: 0.55; }
 .inv-chart-ranked-sub { font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
+
+/* Rows on one scale (chartDots, chartDumbbell): a row a thing, its name, the track, its figure at the row's end. The rows' tracks
+   are one column (a subgrid), so a value sits at one place on every row and a mark's rule runs straight down; a row is its
+   datum, a button, a touch target. */
+.inv-chart-rows { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 3fr) auto; column-gap: var(--sp-8); min-width: 0; }
+.inv-chart-row {
+  grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; align-items: center; min-height: var(--ctl-h-sm); min-width: 0;
+  padding: 0; border: none; background: none; font: inherit; color: inherit; text-align: left; cursor: pointer;
+}
+.inv-chart-row:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-chart-row.inv-chart-read-on { background: var(--surface-2); }
+.inv-chart-row-label { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-13); color: var(--text-1); }
+.inv-chart-row-sub { margin-left: var(--sp-6); font-size: var(--fs-11); color: var(--text-3); }
+.inv-chart-row-val { font-size: var(--fs-12); color: var(--text-2); white-space: nowrap; }
+.inv-chart-track { display: block; width: 100%; height: var(--ctl-h-sm); overflow: visible; }
+.inv-chart-rail { stroke: var(--border); stroke-width: var(--hair); }
+.inv-chart-dumb-rule { stroke: var(--text-3); stroke-width: var(--rule); }
+.inv-chart-dumb-a { stroke: var(--text-2); stroke-width: var(--rule); }
+.inv-chart-scale { grid-column: 1 / -1; display: grid; grid-template-columns: subgrid; font-size: var(--fs-11); color: var(--text-3); font-family: var(--ff-mono); }
+.inv-chart-scale-ends { display: flex; justify-content: space-between; gap: var(--sp-8); }
+
+/* A heat map: a cell a day at its natural size, shrinking to the box on a narrow one. A ring: one share on a well track. */
+.inv-chart-heat-wrap { min-width: 0; }
+.inv-chart-heat { display: block; max-width: 100%; height: auto; }
+.inv-chart-ring-wrap { display: flex; justify-content: center; }
+.inv-chart-ring { display: block; width: var(--pie); height: var(--pie); }
+.inv-chart-ring-track { fill: none; stroke: var(--well); }
+.inv-chart-ring-arc { fill: none; stroke: var(--ink, var(--series-1)); }
+.inv-chart-ring-sub { font-size: var(--plot-fs-axis); fill: var(--text-3); stroke: none; font-family: var(--ff-base); pointer-events: none; }
 
 .inv-mt-16 { margin-top: var(--sp-16); }
 
@@ -972,11 +1109,16 @@ body.inv-desktop .inv-side {
   min-height: var(--sp-32); padding: 0 var(--sp-8); margin-bottom: var(--sp-6);
   font-size: var(--fs-13); font-weight: 600; color: var(--text-1);
 }
-.inv-side-mark { width: 20px; height: 20px; flex-shrink: 0; }
-.inv-side .inv-side-mark { width: var(--sp-32); height: var(--sp-32); }
-.inv-side-mark rect, .inv-side-mark circle { fill: var(--accent); }
-.inv-side-mark polygon { fill: none; stroke: var(--on-accent); stroke-width: 22; stroke-linejoin: round; }
-.inv-side-mark polygon + polygon { fill: var(--on-accent); stroke: none; }
+/* The brand's mark, the nut (markSvg, state.js): a tile of the accent with the nut's line on it in the accent's own ink (the rail,
+   the lock), or the nut cast in brass with its hole the colour behind it, lit from its top left in both themes (the sign-in
+   screen, the app's icon). */
+.inv-ico-mark { width: var(--sp-32); height: var(--sp-32); flex-shrink: 0; }
+.inv-ico-mark-lg { width: calc(var(--sp-32) * 2); height: calc(var(--sp-32) * 2); }
+.inv-ico-mark-tile rect { fill: var(--accent); }
+.inv-ico-mark-tile :is(path, circle) { fill: none; stroke: var(--on-accent); stroke-width: 1.75; stroke-linecap: round; stroke-linejoin: round; }
+.inv-ico-mark-brass stop:first-child { stop-color: light-dark(color-mix(in oklab, var(--accent) 60%, var(--accent-soft)), color-mix(in oklab, var(--accent) 55%, var(--accent-soft-text))); }
+.inv-ico-mark-brass stop:last-child { stop-color: light-dark(color-mix(in oklab, var(--accent) 80%, var(--text-1)), color-mix(in oklab, var(--accent) 70%, var(--bg))); }
+.inv-ico-mark-brass path + path { fill: none; stroke: light-dark(var(--accent-soft), var(--accent-soft-text)); stroke-width: 0.9; stroke-linecap: round; opacity: 0.8; }
 /* Settings' group list (its dialog's left pane) is a column of these too. */
 .inv-side-item {
   display: flex; align-items: center; gap: var(--sp-8); width: 100%;
@@ -1066,12 +1208,14 @@ body.inv-desktop :is(#regSelBar, #imSelBar) { bottom: 0; }
   --sr-page-pad: 6mm;
   --sr-rule-w: 0.5pt;
   --sr-sheet-w: 194mm;
+  /* The sheet's frame prints, in the grey it always printed in: paper reads no palette token (UI pass 3, §17 I12). */
+  --sr-frame: #c7d6d7;
 
   background: var(--sr-paper); color: var(--sr-ink);
   font-family: var(--ff-base); font-size: var(--sr-fs); line-height: 1.3;
   width: var(--sr-sheet-w); margin: 0 auto var(--sp-16) auto;
   padding: var(--sr-page-pad);
-  border: var(--hair) solid var(--border);
+  border: var(--hair) solid var(--sr-frame);
 }
 .inv-sr-head { text-align: center; margin-bottom: var(--sp-8); }
 .inv-sr-co { font-weight: 700; font-size: var(--sr-fs-co); }
@@ -1225,28 +1369,33 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
    Every screen is assembled from these. A module adds a modifier, never a parallel family (DR-7).
    ====================================================================== */
 
-/* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. */
+/* §6.3 Buttons. Secondary (surface + border) is the default; one primary per view. A button is a small card (UI pass 3, §3b): it
+   lifts (--lift-1), the one primary the accent deepening down its face and lifted further (--lift-2); a ghost and a link cast
+   nothing; pressed, a button sinks back to its card. Focus keeps the shared ring over the lift. */
 .inv-btn {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-6);
-  min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-md);
-  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-1);
+  min-height: var(--ctl-h); padding: 0 var(--sp-16); border-radius: var(--r-ctl);
+  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-1); box-shadow: var(--lift-1);
   font-size: var(--fs-14); font-weight: 500; line-height: 1.2; cursor: pointer;
-  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1);
+  transition: background var(--dur-1), border-color var(--dur-1), color var(--dur-1), box-shadow var(--dur-1);
 }
 .inv-btn:hover { background: var(--surface-2); }
-.inv-btn:active { background: var(--surface-3); }
-.inv-btn-primary { background: var(--accent); border-color: var(--accent); color: var(--on-accent); font-weight: 600; }
-.inv-btn-primary:hover { background: color-mix(in srgb, var(--accent) 88%, var(--text-1)); }
-.inv-btn-primary:active { background: color-mix(in srgb, var(--accent) 78%, var(--text-1)); }
+.inv-btn:active { background: var(--surface-3); box-shadow: none; }
+.inv-btn:focus-visible { box-shadow: var(--focus-ring), var(--lift-1); }
+.inv-btn-primary { background: linear-gradient(180deg, var(--accent), var(--accent-deep)); border-color: transparent; color: var(--on-accent); font-weight: 600; box-shadow: var(--lift-2); }
+.inv-btn-primary:hover { background: linear-gradient(180deg, color-mix(in oklab, var(--accent) 80%, var(--accent-deep)), var(--accent-deep)); }
+.inv-btn-primary:active { background: var(--accent-deep); box-shadow: var(--lift-1); }
+.inv-btn-primary:focus-visible { box-shadow: var(--focus-ring), var(--lift-2); }
 .inv-btn-secondary { background: var(--surface); border-color: var(--border); color: var(--text-1); }
-.inv-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-1); }
+.inv-btn-ghost { background: transparent; border-color: var(--border); color: var(--text-1); box-shadow: none; }
 .inv-btn-ghost:hover { background: var(--surface-2); color: var(--text-1); }
 .inv-btn-danger { background: var(--surface); border-color: var(--border); color: var(--danger); }
 .inv-btn-danger.inv-btn-solid { background: var(--danger); border-color: var(--danger); color: var(--surface); }
 .inv-btn-link {
-  min-height: auto; padding: 0; border: none; background: none;
+  min-height: auto; padding: 0; border: none; background: none; box-shadow: none;
   color: var(--accent); font-weight: 600; text-decoration: none; cursor: pointer;
 }
+:is(.inv-btn-ghost, .inv-btn-link):focus-visible { box-shadow: var(--focus-ring); }
 .inv-btn-link:hover { text-decoration: underline; background: none; color: var(--accent); }
 /* Before the icon rule: same specificity, so the later one wins. */
 .inv-btn svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
@@ -1259,16 +1408,13 @@ body.inv-desktop .inv-rpt-doc { padding: var(--rpt-gutter-top) var(--rpt-gutter-
 .inv-btn:disabled, .inv-btn-disabled { opacity: 0.45; cursor: not-allowed; pointer-events: none; }
 /* Looks disabled, still takes a tap: a button whose tap explains why it cannot act (a challan with a line invoiced). */
 .inv-btn[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
-/* A grid of launch buttons (Home's quick actions): three across on the phone, one row on the desktop. */
+/* A grid of launch buttons: three across, each label under its icon. In a dialog (Add's By hand) five across on the desktop; in a
+   widget (the quick actions) it follows the card, not the window: six across from 40rem (below, with the widgets). */
 .inv-btn-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap); }
 .inv-btn-grid > .inv-btn { flex-direction: column; gap: var(--sp-4); min-height: calc(var(--ctl-h) * 1.75); padding: var(--sp-8); text-align: center; }
 .inv-btn-grid > .inv-btn svg { width: 20px; height: 20px; }
 .inv-btn-grid > .inv-btn-secondary svg { color: var(--accent); }
-body.inv-desktop .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
-body.inv-desktop .inv-btn-grid > .inv-btn { flex-direction: row; min-height: var(--ctl-h); }
-/* In a dialog (Add's By hand) the desktop keeps icon over label, five across: six in a row left no room for a label. */
 body.inv-desktop .inv-dialog .inv-btn-grid { grid-template-columns: repeat(5, minmax(0, 1fr)); }
-body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn { flex-direction: column; min-height: calc(var(--ctl-h) * 1.75); }
 /* A last door alone on its row takes the row, as an odd last tile does: eleven forms since Cheque (the tab map, TM3b). Counted
    over the doors shown: a role's hidden ones ([data-grd-off]) had left Office's Task a row of its own beside an empty one. */
 body.inv-desktop .inv-dialog .inv-btn-grid > .inv-btn:nth-last-child(1 of :not([data-grd-off])):nth-child(5n+1 of :not([data-grd-off])) { grid-column: 1 / -1; }
@@ -1301,14 +1447,16 @@ body.inv-desktop .inv-viewtab { min-height: var(--ctl-h); font-size: var(--fs-13
 /* §6.6 Chips: a choice among options. Tokens: an applied filter. */
 .inv-chip {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--sp-4);
-  min-height: var(--ctl-h); padding: 0 var(--sp-12); border-radius: var(--r-md);
-  border: var(--hair) solid var(--border); background: var(--surface); color: var(--text-2);
+  min-height: var(--ctl-h); padding: 0 var(--sp-12); border-radius: var(--r-full);
+  border: var(--hair) solid var(--edge); background: var(--surface); color: var(--text-2); box-shadow: var(--lift-1);
   font-size: var(--fs-13); font-weight: 500; white-space: nowrap; cursor: pointer;
-  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1);
+  transition: background var(--dur-1), color var(--dur-1), border-color var(--dur-1), box-shadow var(--dur-1);
 }
 .inv-chip:hover { background: var(--surface-2); color: var(--text-1); }
+.inv-chip:focus-visible { box-shadow: var(--focus-ring), var(--lift-1); }
+/* Picked, a chip sinks into the accent's soft fill (UI pass 3, §3b): the choice is made. */
 .inv-chip-on, .inv-chip[aria-pressed="true"] {
-  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600;
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-soft-text); font-weight: 600; box-shadow: var(--press-2);
 }
 .inv-token {
   display: inline-flex; align-items: center; gap: var(--sp-6); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8);
@@ -1322,12 +1470,13 @@ button.inv-token:hover { background: var(--surface-3); }
 
 /* §6.7 Toolbar and search */
 .inv-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-12); }
+/* A search is a well (UI pass 3, §3b): sunk into what it sits on, its glass --text-2. */
 .inv-search {
   display: flex; align-items: center; gap: var(--sp-8); flex: 1 1 var(--search-min); min-width: 0;
-  min-height: var(--ctl-h); padding: 0 var(--sp-10);
-  border: var(--hair) solid var(--border); border-radius: var(--r-md); background: var(--surface); color: var(--text-3);
+  min-height: var(--ctl-h); padding: 0 var(--sp-12);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-1); color: var(--text-2);
 }
-.inv-search:focus-within { border-color: var(--accent); box-shadow: var(--focus-ring); }
+.inv-search:focus-within { border-color: var(--accent); box-shadow: var(--press-1), var(--focus-ring); }
 .inv-search svg { width: var(--sp-16); height: var(--sp-16); flex-shrink: 0; }
 .inv-search input { flex: 1; min-width: 0; border: none; outline: none; background: none; color: var(--text-1); font-size: var(--fs-14);
   align-self: stretch; margin-block: calc(-1 * var(--hair)); }
@@ -1375,12 +1524,11 @@ body.inv-desktop .inv-stepper-label { flex: 0 1 auto; min-width: calc(var(--col-
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 
-/* §6.8 Panel */
+/* §6.8 Panel: a card (UI pass 3, §3b), lifted off the page by --lift-1, its fine edge --edge and a card's corners on both layouts. */
 .inv-panel {
-  background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
+  background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-card); box-shadow: var(--lift-1);
   padding: var(--sp-16) var(--pad-x); margin-bottom: var(--gap);
 }
-body.inv-desktop .inv-panel { border-radius: var(--r-lg); }
 .inv-panel-flush { padding: 0; overflow: hidden; }
 .inv-panel-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
@@ -1413,8 +1561,9 @@ body.inv-desktop .inv-panels-wide { grid-column: 1 / -1; }
 /* A dashboard of half and wide panels (Stats): a half panel fills the gap beside another rather than sitting alone. */
 body.inv-desktop .inv-panels-dense { grid-auto-flow: row dense; }
 
-/* §6.9 Stat tiles: a strip of raised tiles (owner, 8 Oct 2026: "Let's give our tiles elevation as well"). Each tile is a box of its
-   own, lifted off what it sits on by --shadow-tile, the one shadow content carries (DR-6); the strip only lays them out. */
+/* §6.9 Stat tiles: a strip of tiles, each a box of its own (owner, 8 Oct 2026: "Let's give our tiles elevation as well"). A tile is
+   a well (UI pass 3, §3b; DR-6 amended): sunk a step into the card it stands in (--well, --press-2), so the card is what lifts and
+   its figures sit in it; the strip only lays them out, at least --sp-8 apart. */
 .inv-tiles {
   display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--sp-8); margin-bottom: var(--gap);
 }
@@ -1427,14 +1576,15 @@ body.inv-desktop .inv-tiles-4 { grid-template-columns: repeat(4, minmax(0, 1fr))
 /* Three counts that read as one row on the phone too (a check's Needs you · Check · Clear). */
 .inv-tiles-3, body.inv-desktop .inv-tiles-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 .inv-tile {
-  background: var(--surface); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; font: inherit; color: var(--text-1);
-  border: var(--hair) solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-tile);
+  background: var(--well); padding: var(--sp-10) var(--sp-12); min-width: 0; text-align: left; font: inherit; color: var(--text-1);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-tile); box-shadow: var(--press-2);
 }
 button.inv-tile { cursor: pointer; }
-button.inv-tile:hover { background: var(--surface-2); }
-/* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. Pressed, it is let down (no lift)
-   and edged in the accent. */
-button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: inset 0 -2px 0 var(--accent); }
+button.inv-tile:hover { background-color: color-mix(in oklab, var(--surface) 35%, transparent); }
+button.inv-tile:focus-visible { box-shadow: var(--press-2), var(--focus-ring); }
+/* A tile that filters its list, pressed: the list shows only its rows until it is pressed again. Pressed, it sinks deeper, into the
+   accent's soft fill, and is edged in the accent. */
+button.inv-tile[aria-pressed="true"] { background: var(--accent-soft); border-color: var(--accent); box-shadow: var(--press-1); }
 button.inv-tile[aria-pressed="true"] .inv-tile-label { color: var(--accent-soft-text); }
 .inv-tile-label {
   font-size: var(--fs-12); font-weight: 500; color: var(--text-3);
@@ -1495,25 +1645,27 @@ body:not(.inv-desktop) .inv-row-meta:not(.inv-row-wrap) {
 /* A task ticked done: still listed (never deleted), its text struck through. */
 .inv-row-done .inv-row-title { color: var(--text-2); text-decoration: line-through; }
 .inv-row-strong { font-weight: 600; }
-/* A tick box (and a radio) the app draws itself (HR-9): the browser paints an unticked box white whatever the theme. Ticked,
+/* A tick box (and a radio) the app draws itself (HR-9): the browser paints an unticked box white whatever the theme (a switch in
+   the same label, .inv-switch, is its own component and is left out). Ticked,
    it takes the accent with the tick cut out of --on-accent; a radio's mark is a dot. Focus is the shared ring (§3.6). */
-.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]) {
+.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch) {
   appearance: none; -webkit-appearance: none; display: inline-grid; place-content: center; margin: 0;
   width: var(--sp-20); height: var(--sp-20); flex-shrink: 0; cursor: pointer; color: var(--on-accent);
-  background: var(--surface); border: var(--rule) solid var(--text-3); border-radius: var(--r-sm);
+  background: var(--well); border: var(--rule) solid var(--text-3); border-radius: var(--r-sm); box-shadow: var(--press-2);
   transition: background var(--dur-1), border-color var(--dur-1);
 }
 .inv-check[type="radio"], .inv-field-check > input[type="radio"] { border-radius: var(--r-full); }
-.inv-check:hover, .inv-field-check > input:is([type="checkbox"], [type="radio"]):hover { border-color: var(--accent); }
-.inv-check:checked, .inv-field-check > input:is([type="checkbox"], [type="radio"]):checked { background: var(--accent); border-color: var(--accent); }
-.inv-check:not([type="radio"]):checked::before, .inv-field-check > input[type="checkbox"]:checked::before {
+.inv-check:hover, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch):hover { border-color: var(--accent); }
+.inv-check:checked, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch):checked { background: var(--accent); border-color: var(--accent); box-shadow: none; }
+:is(.inv-check, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch)):focus-visible { box-shadow: var(--focus-ring); }
+.inv-check:not([type="radio"]):checked::before, .inv-field-check > input[type="checkbox"]:not(.inv-switch):checked::before {
   content: ''; width: var(--sp-12); height: var(--sp-12); background: currentColor;
   clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0, 43% 62%);
 }
 .inv-check[type="radio"]:checked::before, .inv-field-check > input[type="radio"]:checked::before {
   content: ''; width: var(--sp-8); height: var(--sp-8); border-radius: var(--r-full); background: currentColor;
 }
-.inv-check:disabled, .inv-field-check > input:is([type="checkbox"], [type="radio"]):disabled { opacity: 0.55; cursor: not-allowed; }
+.inv-check:disabled, .inv-field-check > input:is([type="checkbox"], [type="radio"]):not(.inv-switch):disabled { opacity: 0.55; cursor: not-allowed; }
 /* A row's tick box is tapped through its label, which holds the full touch target. */
 .inv-row-tick { min-width: var(--touch); align-self: stretch; justify-content: center; cursor: pointer; }
 /* In a row that sizes to its content (a task), the tick box and the task's button still reach the row's edges, and the
@@ -1732,15 +1884,19 @@ body.inv-desktop .inv-pipe-rail .inv-tiles > .inv-tile:last-child:nth-child(odd)
 .inv-input, .inv-select, .inv-textarea { width: 100%; min-height: var(--ctl-h); padding: 0 var(--sp-12); }
 /* A picker or figure that sits in a row's end, beside the value it acts on. */
 .inv-select-sm, .inv-input-sm { width: var(--col-sm-w); min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); font-size: var(--fs-13); }
+/* A field is a well (UI pass 3, §3b): sunk into what it sits in, its fine edge --edge; focused, the accent edge and the ring. A
+   select's open list is drawn on the surface, never on the well's veil. */
 .inv-input, .inv-select, .inv-textarea {
-  border: var(--hair) solid var(--border); border-radius: var(--r-md); background-color: var(--surface); color: var(--text-1);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background-color: var(--well); box-shadow: var(--press-1); color: var(--text-1);
   font-size: var(--fs-14); transition: border-color var(--dur-1);
 }
+.inv-select option { background-color: var(--surface); color: var(--text-1); }
 .inv-textarea { padding: var(--sp-8) var(--sp-12); min-height: var(--textarea-h); }
 /* A message pasted as sent: kept in its own shape, one line per line. */
 .inv-textarea-mono { font-family: var(--ff-mono); font-size: var(--fs-13); line-height: 1.45; resize: vertical; }
-:is(.inv-input, .inv-select, .inv-textarea):focus { outline: none; border-color: var(--accent); box-shadow: var(--focus-ring); }
-.inv-input[readonly] { background: var(--surface-2); color: var(--text-2); }
+:is(.inv-input, .inv-select, .inv-textarea):focus { outline: none; border-color: var(--accent); box-shadow: var(--press-1), var(--focus-ring); }
+/* A field that shows a figure it will not take is flat: nothing to fill. */
+.inv-input[readonly] { background: var(--surface-2); color: var(--text-2); box-shadow: none; }
 .inv-input-num { font-family: var(--ff-mono); text-align: right; }
 .inv-fields { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0 var(--sp-12); }
 body.inv-desktop .inv-fields { grid-template-columns: repeat(auto-fit, minmax(var(--field-min), 1fr)); }
@@ -1850,15 +2006,21 @@ body.inv-desktop .inv-keys { display: flex; flex-wrap: wrap; gap: var(--sp-4) va
   background: var(--scrim);
 }
 .inv-scrim-dialog { z-index: var(--z-dialog); }
-.inv-dialog { background: var(--surface); border: var(--hair) solid var(--border); box-shadow: var(--shadow-dialog); }
+/* A layer (a dialog, the search, a menu) floats over everything: in dark it is a step lighter than a card (UI pass 3, §3c), and what
+   is drawn on it reads the layer as its surface, so a button, a panel or a pill on it never sits darker than the layer. */
+.inv-dialog, .inv-menu {
+  --surface: light-dark(var(--c-surface), var(--c-surface-2)); --surface-2: light-dark(var(--c-surface-2), var(--c-surface-3));
+  --surface-3: var(--c-surface-3);
+}
+.inv-dialog { background: var(--surface); border: var(--hair) solid var(--edge); box-shadow: var(--shadow-dialog); }
 /* A dialog is a sheet from the bottom on the phone and centred on the desktop. Its body scrolls; the foot stays put. */
 .inv-dialog {
   width: 100%; max-width: var(--max-w); max-height: var(--dialog-max-h); overflow-y: auto;
-  padding: var(--sp-20); border-bottom: none; border-radius: var(--r-xl) var(--r-xl) 0 0;
+  padding: var(--sp-20); border-bottom: none; border-radius: var(--r-card) var(--r-card) 0 0;
   font-size: var(--fs-14); line-height: 1.45; color: var(--text-1);
 }
 body.inv-desktop .inv-scrim-dialog { align-items: center; padding: var(--sp-16); }
-body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: none; max-height: var(--dialog-max-h-desk); border-bottom: var(--hair) solid var(--border); border-radius: var(--r-xl); }
+body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: none; max-height: var(--dialog-max-h-desk); border-bottom: var(--hair) solid var(--edge); border-radius: var(--r-card); }
 .inv-dialog-head {
   display: flex; align-items: center; justify-content: space-between; gap: var(--sp-8);
   margin-bottom: var(--sp-16); padding-bottom: var(--sp-8); border-bottom: var(--hair) solid var(--border);
@@ -1867,7 +2029,7 @@ body.inv-desktop .inv-dialog { width: min(90vw, var(--dialog-w)); max-width: non
 /* The content between a dialog's head and its foot: a name typed without a space (a part, a client) breaks rather than pushing
    the sheet past the phone's edge, and nothing else about its size changes. */
 .inv-dialog-body { overflow-wrap: break-word; }
-.inv-dialog-close { border-color: transparent; background: none; color: var(--text-3); font-size: var(--fs-19); }
+.inv-dialog-close { border-color: transparent; background: none; box-shadow: none; color: var(--text-3); font-size: var(--fs-19); }
 .inv-dialog-close:hover { color: var(--text-1); }
 /* The actions, primary last, held at the foot of a dialog that scrolls. */
 .inv-dialog-foot {
@@ -1898,7 +2060,7 @@ body.inv-desktop .inv-dialog-panes { overflow: hidden; display: grid; grid-templ
 body.inv-desktop .inv-dialog-nav { display: flex; flex-direction: column; gap: var(--sp-2); border-right: var(--hair) solid var(--border); padding-right: var(--sp-12); }
 body.inv-desktop .inv-dialog-main { overflow-y: auto; min-height: 0; padding-right: var(--sp-4); }
 body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
-.inv-menu { background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-md); box-shadow: var(--shadow-pop); }
+.inv-menu { background: var(--surface); border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); box-shadow: var(--shadow-pop); }
 /* A menu hangs off its field (inv-combo): suggestions for a part or a client, arrowed through by
    the keyboard. The cursor is the option's aria-selected; the create-a-part row reads as an action. */
 .inv-combo { position: relative; }
@@ -1914,11 +2076,13 @@ body.inv-desktop .inv-dialog-main > section:not([data-on]) { display: none; }
 .inv-menu-meta { font-size: var(--fs-12); color: var(--text-3); overflow-wrap: anywhere; }
 .inv-menu-add .inv-menu-title { color: var(--accent); font-weight: 600; }
 /* A toast sits under the top bar, clear of the action bar and the bottom bar; it inverts with the theme,
-   and its tone is the leading dot. */
+   and its tone is the leading dot. It is as wide as its words up to the room (a box placed at left: 50% would
+   otherwise wrap at half the screen), and its corners are half a line's height: a pill on one line, and a toast
+   that wraps keeps every word inside its fill (a pill's ends on four lines left the first word on the page). */
 .inv-toast {
   position: fixed; top: calc(var(--bar-h) + var(--sp-8)); left: 50%; transform: translateX(-50%); z-index: var(--z-toast);
-  max-width: min(calc(100% - var(--sp-24)), var(--toast-max)); padding: var(--sp-10) var(--sp-16);
-  background: var(--text-1); color: var(--surface); border-radius: var(--r-lg); box-shadow: var(--shadow-pop);
+  width: max-content; max-width: min(calc(100% - var(--sp-24)), var(--toast-max)); padding: var(--sp-10) var(--sp-16);
+  background: var(--text-1); color: var(--surface); border-radius: var(--r-toast); box-shadow: var(--shadow-pop);
   font-size: var(--fs-14); font-weight: 500;
 }
 .inv-toast::before {
@@ -1966,9 +2130,7 @@ summary.inv-summary::-webkit-details-marker { display: none; }
 .inv-board { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--gap); align-items: start; margin-bottom: var(--gap); }
 .inv-board .inv-panel { margin-bottom: 0; }
 body.inv-desktop .inv-board { grid-template-columns: repeat(auto-fill, minmax(var(--board-col), 1fr)); }
-/* Home's widgets sit in the page's one grid; the tiles and the quick actions carry no margin of their own there. */
-.inv-panels > [data-home-w] > .inv-tiles, .inv-panels > [data-home-w] > .inv-btn-grid { margin-bottom: 0; }
-/* A panel in the page's grid (a Home widget, a Stats story, a Finance card) lays its tiles out by the room it has (half,
+/* A panel in the page's grid (a Stats story, a Finance card) lays its tiles out by the room it has (half,
    a third or full width, on any window), never leaving a blank cell
    beside the last tile: the Money panel's four tiles sat three and one at 1280, and its three two and one at 1024. Where
    two across is all that fits, an odd last tile takes the row, as on the phone; four go four across only where four fit,
@@ -2003,21 +2165,24 @@ body.inv-desktop .inv-panels > * { container: panel-w / inline-size; }
 .inv-hero-warning, .inv-deck-item:is([data-tone="amber"], [data-tone="warning"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-warning, [data-tone="amber"], [data-tone="warning"]) { --tone: var(--warning); --tone-bg: var(--warning-bg); }
 .inv-hero-ok, .inv-deck-item:is([data-tone="green"], [data-tone="ok"]), :is(.inv-hero, .inv-coded) :is(.inv-tile-ok, [data-tone="green"], [data-tone="ok"]) { --tone: var(--ok); --tone-bg: var(--ok-bg); }
 .inv-hero-info, .inv-deck-item[data-tone="info"], :is(.inv-hero, .inv-coded) :is(.inv-tile-info, [data-tone="info"]) { --tone: var(--info); --tone-bg: var(--info-bg); }
-.inv-hero-neutral, :is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
+/* A plain card is the surface (UI pass 3, §3d); a plain box inside a coded one is a step of grey. */
+.inv-hero-neutral { --tone: var(--text-3); --tone-bg: var(--surface); }
+:is(.inv-hero, .inv-coded) [data-tone="neutral"] { --tone: var(--text-3); --tone-bg: var(--surface-2); }
 
 /* §6.21 Hero card: leads with what it is about (the eyebrow), says it in a line (the title), carries its figure in its
-   tone, and, as a <details>, folds open to what is under it. Its fill runs from its tone into its tone's background and
-   stays in it: the corner it starts from is the strongest, and no part of it is the plain surface. */
+   tone, and, as a <details>, folds open to what is under it. A card (UI pass 3, §3b, §3d): lifted (--lift-1), a card's corners,
+   filled in its tone from its tone's background to a step deeper (160°), as on the approved board; a plain card is the surface. */
 .inv-hero {
-  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--border));
-  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-xl); color: var(--text-1); margin-bottom: var(--gap);
-  background: linear-gradient(135deg, color-mix(in oklab, var(--tone) 18%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone) 8%, var(--tone-bg)) 55%, color-mix(in oklab, var(--tone) 4%, var(--tone-bg)) 100%);
+  --hero-tone: var(--accent-soft-text); --hero-line: color-mix(in oklab, var(--tone) 30%, var(--edge));
+  position: relative; display: block; min-width: 0; border: var(--hair) solid var(--hero-line); border-radius: var(--r-card); color: var(--text-1); margin-bottom: var(--gap);
+  box-shadow: var(--lift-1);
+  background: linear-gradient(160deg, var(--tone-bg) 0%, color-mix(in oklab, var(--tone) 7%, var(--tone-bg)) 100%);
 }
 .inv-hero-danger { --hero-tone: var(--danger); }
 .inv-hero-warning { --hero-tone: var(--warning); }
 .inv-hero-ok { --hero-tone: var(--ok); }
 .inv-hero-info { --hero-tone: var(--info); }
-.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--border); }
+.inv-hero-neutral { --hero-tone: var(--text-1); --hero-line: var(--edge); }
 .inv-hero-head {
   display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: var(--sp-12); row-gap: var(--sp-4); align-items: baseline;
   padding: var(--sp-12) var(--sp-16); list-style: none;
@@ -2027,7 +2192,7 @@ summary.inv-hero-head::-webkit-details-marker { display: none; }
 summary.inv-hero-head::after { content: ''; position: absolute; right: var(--sp-16); top: var(--sp-20); width: var(--sp-6); height: var(--sp-6);
   border-right: var(--rule) solid var(--text-2); border-bottom: var(--rule) solid var(--text-2); transform: translateY(-75%) rotate(45deg); transition: transform var(--dur-1); }
 details.inv-hero[open] > summary.inv-hero-head::after { transform: translateY(-25%) rotate(225deg); }
-summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-xl); }
+summary.inv-hero-head:focus-visible { outline: none; box-shadow: var(--focus-ring); border-radius: var(--r-card); }
 .inv-hero-eyebrow { grid-column: 1 / -1; display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
 /* The eyebrow sits on the fill's strongest corner, where --text-3 falls under 4.5:1 (§3.10): its count reads --text-2. */
 .inv-hero-eyebrow .inv-panel-count { color: var(--text-2); }
@@ -2046,30 +2211,41 @@ body.inv-desktop .inv-hero-fig { font-size: var(--fs-22); }
 .inv-hero-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-16) var(--sp-12); }
 .inv-hero-body + .inv-hero-foot { padding-top: 0; }
 
-/* §6.26 A box inside a card: what a hero opens to (a sheet of rows or tiles, a question's story), a card in its deck, a tile
-   in its strip. Its fill is its tone's background with a little of the tone in the corner it starts from, lightening into
-   the surface: lighter than the card around it, so it reads as laid on it, and coded by its own status where it has one. */
-.inv-hero-sheet, .inv-deck-item, .inv-hero .inv-tile, .inv-coded .inv-tile {
-  background: linear-gradient(150deg, color-mix(in oklab, var(--tone) 5%, var(--tone-bg)) 0%, color-mix(in oklab, var(--tone-bg) 45%, var(--surface)) 100%);
+/* §6.26 The boxes inside a card (UI pass 3, §3b): a card in its deck lifts off it, lighter than the card in both themes and in its
+   own tone where it has one; a tile sinks into it, a well; what a hero opens to (its sheet: rows, a question's story) draws no box
+   of its own, only a hairline under the head. */
+.inv-deck-item {
+  background: linear-gradient(160deg,
+    light-dark(color-mix(in oklab, var(--tone-bg) 40%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg))) 0%,
+    light-dark(color-mix(in oklab, var(--tone-bg) 75%, var(--surface)), color-mix(in oklab, var(--tone) 8%, var(--tone-bg))) 100%);
 }
-.inv-hero-sheet { border: var(--hair) solid color-mix(in oklab, var(--tone) 22%, var(--border)); border-radius: var(--r-lg); overflow: hidden; }
-/* What a sheet holds is drawn on the sheet: a panel or a strip inside it has no fill or box of its own, and its hairlines
+/* A tile in a coded block that names a tone is a well of it: a step deeper in its tone than the card in light, its tone sunk toward
+   the page in dark. A tile that names none is the card's own fill under the well's veil (.inv-tile), never coded in the card's tone. */
+:is(.inv-hero, .inv-coded) .inv-tile:is(.inv-tile-danger, .inv-tile-warning, .inv-tile-ok, .inv-tile-info, [data-tone]) {
+  background: linear-gradient(160deg,
+    light-dark(color-mix(in oklab, var(--tone) 13%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 60%, var(--bg))) 0%,
+    light-dark(color-mix(in oklab, var(--tone) 9%, var(--tone-bg)), color-mix(in oklab, var(--tone-bg) 45%, var(--bg))) 100%);
+}
+.inv-hero-sheet { border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+/* What a sheet holds is drawn on the card: a panel or a strip inside it has no fill or box of its own, and its hairlines
    take the card's tone. */
-.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; }
+.inv-hero-sheet > .inv-panel { border: none; border-radius: 0; margin-bottom: 0; background: transparent; box-shadow: none; }
 .inv-hero :is(.inv-row, .inv-panel-flush > .inv-panel-head, .inv-panel-body, .inv-tiles-flush) { border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
 /* An analysis's caption and its folded working (§6.27) are drawn on the card's box: no page-coloured band, the card's hairlines. */
 .inv-hero :is(.inv-row-group, .inv-row-children) { background: transparent; border-color: color-mix(in oklab, var(--tone) 16%, var(--border)); }
 .inv-hero details.inv-row-fold > summary:hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
-:is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--border)); }
+:is(.inv-hero, .inv-coded) .inv-tile { border-color: color-mix(in oklab, var(--tone) 22%, var(--edge)); }
 .inv-hero :is(button.inv-row, a.inv-row, button.inv-tile):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
 /* A control in a coded block is its tone's background lightened, never the plain surface it would be on a panel. */
 .inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)), .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)) {
-  background: color-mix(in oklab, var(--tone-bg) 55%, var(--surface)); border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
+  background: light-dark(color-mix(in oklab, var(--tone-bg) 55%, var(--surface)), color-mix(in oklab, var(--tone) 12%, var(--tone-bg)));
+  border-color: color-mix(in oklab, var(--tone) 28%, var(--border));
 }
 .inv-hero :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover, .inv-coded :is(.inv-btn-secondary, .inv-btn-icon:not(.inv-btn-ghost)):hover { background: color-mix(in oklab, var(--tone) 10%, var(--tone-bg)); }
-/* On the phone the sheet reaches the card's edges: a row inside keeps the width a flush panel's row has. */
-body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); border-left: none; border-right: none; border-radius: 0; }
-body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); border-bottom: none; border-radius: 0 0 calc(var(--r-xl) - var(--hair)) calc(var(--r-xl) - var(--hair)); }
+/* The sheet reaches the card's edges: a row inside keeps the width a flush panel's row has, and the last one keeps the card's
+   corners (a hovered row's fill stays inside them). */
+.inv-hero-body > .inv-hero-sheet { margin-left: calc(-1 * var(--sp-12)); margin-right: calc(-1 * var(--sp-12)); }
+.inv-hero-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
 /* A strip in a sheet carries no margin of its own; its tiles are each coded. */
 .inv-hero-sheet > .inv-tiles { margin-bottom: 0; }
 /* A sheet holding a strip alone lays its tiles on the card: the tiles are the boxes, and the sheet draws none of its own. The
@@ -2077,7 +2253,7 @@ body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:last-child { margin-bott
    the row's end, P128). */
 .inv-hero-sheet:has(> .inv-tiles:only-child) { background: none; border: none; overflow: visible; }
 .inv-hero-sheet > .inv-tiles:only-child { padding: 0; border-bottom: none; }
-body:not(.inv-desktop) .inv-hero-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: 0; border-radius: 0; }
+.inv-hero-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: 0; border-radius: 0; }
 /* On the desktop the sheet is its strip's container (panel-w, above), so the tiles lay out by the room the sheet has: measured
    from the widget around the card, Money's tiles left a blank cell at 1280. */
 body.inv-desktop .inv-hero-sheet { container: panel-w / inline-size; }
@@ -2112,15 +2288,15 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-deck[data-deck-sm] { --deck-min: var(--deck-min-sm); }
 .inv-deck-item {
   position: relative; display: flex; flex-direction: column; gap: var(--sp-6); min-width: 0; padding: var(--sp-12);
-  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--border)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
-  border-radius: var(--r-lg); box-shadow: var(--shadow-tile); transition: border-color var(--dur-1);
+  border: var(--hair) solid color-mix(in oklab, var(--tone) 26%, var(--edge)); border-left: var(--rule) solid color-mix(in oklab, var(--tone) 70%, var(--tone-bg));
+  border-radius: var(--r-card); box-shadow: var(--lift-1); transition: border-color var(--dur-1);
 }
 .inv-deck-item:hover { border-color: color-mix(in oklab, var(--tone) 55%, var(--border)); }
 .inv-deck-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; font-size: var(--fs-12); color: var(--text-2); }
 .inv-deck-word { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .inv-deck-fig { font-family: var(--ff-mono); font-size: var(--fs-13); font-weight: 600; color: var(--text-1); white-space: nowrap; }
 .inv-deck-main { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; padding: 0; border: none; background: none; color: inherit; font: inherit; text-align: left; cursor: pointer; }
-.inv-deck-main::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-lg); }
+.inv-deck-main::after { content: ''; position: absolute; inset: 0; border-radius: var(--r-card); }
 /* A card that is not itself a door (a move: its button is at its foot). */
 .inv-deck-body { display: flex; flex-direction: column; gap: var(--sp-4); min-width: 0; }
 /* "Show N more" under a deck, outside its grid (uiMoreDeckHtml). */
@@ -2131,6 +2307,8 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
 .inv-deck-sub { font-size: var(--fs-12); line-height: 1.4; color: var(--text-2);
   display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+/* A move's two lines (advice.js): what its worth is counted over, then what it rests on, a line each (the whole in its title). */
+.inv-deck-sub:is([data-adv-over], [data-adv-basis]) { -webkit-line-clamp: 1; }
 .inv-deck-foot { position: relative; z-index: 1; margin-top: auto; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding-top: var(--sp-4); }
 .inv-deck-head > .inv-row-tick { position: relative; z-index: 1; display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch); margin: calc(-1 * var(--sp-12)) 0 calc(-1 * var(--sp-12)) calc(-1 * var(--sp-12)); }
 .inv-deck-item.inv-row-done .inv-deck-title { text-decoration: line-through; color: var(--text-3); }
@@ -2167,8 +2345,9 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 .inv-spark-warning .inv-spark-line { stroke: var(--warning); }
 .inv-spark-ok .inv-spark-line { stroke: var(--ok); }
 .inv-spark-info .inv-spark-line { stroke: var(--info); }
-.inv-meter { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; }
-.inv-meter-track { fill: var(--surface-3); }
+.inv-meter { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; box-shadow: var(--press-1); }
+/* The track is a well (UI pass 3, §3b), the share in its tone lies in it. */
+.inv-meter-track { fill: var(--well); }
 .inv-meter-danger { fill: var(--danger); }
 .inv-meter-warning { fill: var(--warning); }
 .inv-meter-ok { fill: var(--ok); }
@@ -2185,7 +2364,9 @@ body:not(.inv-desktop) .inv-heroes > .inv-hero:last-child:nth-child(odd), body.i
 
 /* §6.25 A grid packed with no gaps (Needs you and Pulse's widgets on the desktop): each card spans as many small rows as its
    height takes (uiMasonry, state.js), so a short card no longer leaves its row's height empty beside it. One column, nothing to pack. */
-.inv-masonry-on { grid-auto-rows: var(--masonry-row); align-items: start; }
+/* Rows of a few pixels with no gap between them: a card spans its height and the gap under it (uiMasonryPack). The board's own
+   gap (.inv-wgrid, later in the sheet) is outranked here. */
+.inv-masonry-on, .inv-wgrid.inv-masonry-on { grid-auto-rows: var(--masonry-row); row-gap: 0; align-items: start; }
 .inv-masonry-on > * { grid-row-end: span var(--rows, 1); }
 
 /* The sidebar's brand opens Today → Pulse (owner, 8 Oct 2026). */
@@ -2345,7 +2526,6 @@ body.inv-locked > :not(#guardRoot) { visibility: hidden; }
   background: var(--surface); border: var(--hair) solid var(--border); border-radius: var(--r-xl);
 }
 .inv-guard-brand { display: flex; align-items: center; gap: var(--sp-8); margin-bottom: var(--sp-16); font-size: var(--fs-14); font-weight: 600; color: var(--text-2); }
-.inv-guard-brand .inv-side-mark { width: var(--sp-32); height: var(--sp-32); }
 .inv-guard-title { font-size: var(--fs-19); font-weight: 600; line-height: 1.3; margin-bottom: var(--sp-12); }
 /* Rows on their container's own padding (the lock's users, Settings' users, the user's menu), ruled off above. */
 .inv-guard-rows { border-top: var(--hair) solid var(--border); margin-bottom: var(--sp-12); }
@@ -2606,19 +2786,20 @@ body.inv-desktop .inv-pl-play { grid-template-columns: minmax(0, 1fr) minmax(0, 
 .inv-pl-pin { display: block; width: 100%; min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-md); color: var(--on-accent);
   font: 600 var(--fs-12) var(--ff-base); text-align: left; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; cursor: pointer; }
 .inv-pl-pin:focus-visible { box-shadow: var(--focus-ring); outline: none; }
-.inv-pl-lane-plant { background: var(--chart-2); } .inv-pl-lane-tech { background: var(--chart-6); } .inv-pl-lane-staff { background: var(--chart-7); }
-.inv-pl-lane-clients { background: var(--chart-1); } .inv-pl-lane-money { background: var(--chart-4); } .inv-pl-lane-custom { background: var(--chart-8); }
+/* The board's six lanes are six things: the six series colours in their order (docs/UI_PASS_3.md §3d). */
+.inv-pl-lane-plant { background: var(--series-1); } .inv-pl-lane-tech { background: var(--series-6); } .inv-pl-lane-staff { background: var(--series-2); }
+.inv-pl-lane-clients { background: var(--series-3); } .inv-pl-lane-money { background: var(--series-4); } .inv-pl-lane-custom { background: var(--series-5); }
 .inv-pl-pin-never { opacity: 0.5; text-decoration: line-through; }
 .inv-pl-ach { display: flex; flex-wrap: wrap; gap: var(--sp-6); margin: var(--sp-8) 0; }
-/* A day on the clock: rounds coloured by client (inv-chart-c*), the overtime and night windows, waiting, lunch, the cut. */
+/* A day on the clock: rounds coloured by client (their series slot, seriesSlot), the overtime and night windows, waiting, lunch, the cut. */
 .inv-pl-day { display: block; width: 100%; min-width: calc(var(--content-max) * 0.6); height: auto; }
-.inv-pl-day-l { fill: var(--text-2); font: 600 var(--chart-fs-centre) var(--ff-base); }
-.inv-pl-day-ot { fill: var(--warning); opacity: 0.14; } .inv-pl-day-night { fill: var(--chart-6); opacity: 0.16; }
+.inv-pl-day-l { fill: var(--text-2); font: 600 var(--plot-fs-centre) var(--ff-base); }
+.inv-pl-day-ot { fill: var(--warning); opacity: 0.14; } .inv-pl-day-night { fill: var(--series-6); opacity: 0.16; }
 .inv-pl-day-otr { opacity: 0.72; }
 .inv-pl-day-wait { fill: var(--warning); background: var(--warning); }
 .inv-pl-day-cut { fill: var(--danger); opacity: 0.18; background: var(--danger); }
 .inv-pl-day-lunch { fill: var(--text-3); opacity: 0.08; }
-.inv-pl-day-pick { fill: var(--chart-7); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
+.inv-pl-day-pick { fill: var(--series-other); opacity: 0.4; } .inv-pl-day-short { fill: var(--danger); }
 .inv-pl-board thead .inv-row-meta { display: block; white-space: nowrap; }
 
 /* The plant register (plant.js, owner 7 Oct 2026): a line's units are deck cards in their status's tone (§6.22; the tab map,
@@ -2705,3 +2886,285 @@ body:not(.inv-desktop) .inv-wstats { grid-template-columns: minmax(0, 1fr); }
 .inv-ck-steps { margin: 0; padding-left: var(--ck-indent); line-height: 1.5; max-width: var(--ck-steps-w); }
 .inv-ck-foot { margin-top: auto; font-size: var(--ck-fs-foot); color: #333; text-align: center; max-width: var(--ck-foot-w); }
 @media print { .inv-ck-sheet { border: none; } }
+
+/* ===== BLANK STATES (docs/UI_PASS_3.md §7c, §14b): nothing to show, said one way everywhere ===== */
+.inv-blank { display: flex; align-items: center; gap: var(--sp-12); padding: var(--pad-y) var(--pad-x); color: var(--text-2); min-width: 0; }
+.inv-blank-icon { flex: none; display: inline-flex; align-items: center; justify-content: center; width: var(--touch); height: var(--touch);
+  border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); }
+.inv-blank-text { flex: 1 1 auto; min-width: 0; display: flex; flex-direction: column; gap: var(--sp-2); }
+.inv-blank-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-blank-body { margin: 0; font-size: var(--fs-13); color: var(--text-2); }
+.inv-blank-act { flex: none; }
+.inv-blank-sm { flex-wrap: wrap; padding: var(--sp-6) 0; gap: var(--sp-8); }
+.inv-blank-sm .inv-blank-icon { width: var(--step-node); height: var(--step-node); }
+.inv-blank[data-blank="error"] .inv-blank-icon { color: var(--danger-mark); }
+.inv-blank[data-blank="offline"] .inv-blank-icon, .inv-blank[data-blank="notset"] .inv-blank-icon { color: var(--warning-mark); }
+
+
+/* ===== SWITCH (docs/UI_PASS_3.md §3b) =====
+   An on/off setting that takes effect at once (a widget shown on Home, a rule switched on): a tick box drawn as a well track with a
+   lifted knob, the accent's track when on. Written <input type="checkbox" role="switch" class="inv-switch"> inside a label that is
+   the whole touch target (.inv-field-check). */
+.inv-switch {
+  appearance: none; -webkit-appearance: none; position: relative; flex-shrink: 0; margin: 0; cursor: pointer;
+  width: var(--switch-w); height: var(--switch-h); border-radius: var(--r-full);
+  border: var(--hair) solid var(--edge); background: var(--well); box-shadow: var(--press-1);
+  transition: background-color var(--dur-1), border-color var(--dur-1);
+}
+.inv-switch::before {
+  content: ''; position: absolute; top: 50%; left: var(--sp-2); width: var(--switch-knob); height: var(--switch-knob);
+  border-radius: var(--r-full); background: var(--surface); box-shadow: var(--lift-1);
+  transform: translateY(-50%); transition: transform var(--dur-1);
+}
+.inv-switch:checked { background: var(--accent); border-color: var(--accent); }
+.inv-switch:checked::before { transform: translate(calc(var(--switch-w) - var(--switch-knob) - var(--sp-4) - var(--hair) - var(--hair)), -50%); }
+.inv-switch:focus-visible { box-shadow: var(--press-1), var(--focus-ring); }
+.inv-switch:disabled { opacity: 0.55; cursor: not-allowed; }
+@media (prefers-reduced-motion: reduce) { .inv-switch, .inv-switch::before { transition: none; } }
+
+
+/* ===== WIDGETS AND THE BOARD (docs/UI_PASS_3.md §7; widgets.js) =====
+   A widget is a card answering one question: a hero card's look (lifted, a card's corners, coded in its tone), its head the
+   section's icon, the title and the door to its screen. A board is a grid whose columns come from its own width: 12 from 60rem, 6
+   from 36rem, 2 under (the phone); a Small spans a quarter of the desktop's (3 of 12, 3 of 6, 1 of 2), a Medium half, a Large the
+   row. Height follows content, packed with no gap in the layout's order (uiMasonry), and capped by size. */
+.inv-wboard { container: wboard / inline-size; margin-bottom: var(--gap); }
+.inv-wgrid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--gap); align-items: start; }
+.inv-wgrid > * { grid-column: span 2; min-width: 0; }
+.inv-wgrid > [data-size="s"] { grid-column: span 1; }
+.inv-wgrid > .inv-wgrid-blank { grid-column: 1 / -1; }
+@container wboard (min-width: 36rem) {
+  .inv-wgrid { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .inv-wgrid > * { grid-column: span 6; }
+  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+}
+@container wboard (min-width: 60rem) {
+  .inv-wgrid { grid-template-columns: repeat(12, minmax(0, 1fr)); }
+  .inv-wgrid > * { grid-column: span 12; }
+  .inv-wgrid > [data-size="s"] { grid-column: span 3; }
+  .inv-wgrid > [data-size="m"] { grid-column: span 6; }
+}
+.inv-wgrid > .inv-widget { margin-bottom: 0; }
+/* The card: its parts arranged by its own width (each widget a container), its height capped by its size. */
+.inv-widget { container: widget / inline-size; display: flex; flex-direction: column; overflow: clip; overflow-clip-margin: var(--sp-4);
+  max-height: var(--wdg-cap-m); }
+.inv-widget[data-size="s"] { max-height: var(--wdg-cap-s); }
+.inv-widget[data-size="l"] { max-height: var(--wdg-cap-l); }
+body:not(.inv-desktop) .inv-widget:not([data-size="s"]) { max-height: var(--wdg-cap-phone); }
+.inv-widget-head { display: flex; align-items: center; gap: var(--sp-8); min-width: 0; padding: var(--sp-8) var(--sp-12) var(--sp-4); }
+.inv-widget-chip { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--wdg-chip); height: var(--wdg-chip);
+  border-radius: var(--r-full); background: var(--well); box-shadow: var(--press-1); color: var(--text-2); }
+.inv-widget-chip svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-door { display: inline-flex; align-items: center; gap: var(--sp-4); flex: 1 1 auto; min-width: 0; min-height: var(--ctl-h-sm);
+  padding: 0; border: none; background: none; font: inherit; color: var(--text-2); text-align: left; }
+button.inv-widget-door { cursor: pointer; color: var(--accent-soft-text); border-radius: var(--r-ctl); }
+button.inv-widget-door:hover .inv-widget-title { text-decoration: underline; }
+button.inv-widget-door:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+.inv-widget-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--fs-12); font-weight: 600; }
+.inv-widget-chev { flex-shrink: 0; width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-body { flex: 1 1 auto; min-width: 0; min-height: 0; padding: 0 var(--sp-12) var(--sp-12); }
+.inv-widget-foot { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-8); padding: 0 var(--sp-12) var(--sp-12); }
+/* What a widget says: its figure in its tone, its line (at most 60 characters), a few words under it, its chart. */
+.inv-widget-fig { font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.15;
+  color: var(--hero-tone); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.inv-widget-fig .inv-tile-of { font-size: var(--fs-14); color: var(--text-2); }
+.inv-widget-line { margin-top: var(--sp-2); font-size: var(--fs-14); font-weight: 600; line-height: 1.3; color: var(--text-1); }
+.inv-widget-sub { margin-top: var(--sp-2); font-size: var(--fs-12); line-height: 1.35; color: var(--text-2); }
+/* A Small says a figure and a line inside its 10rem: the line at most two lines and the words one, an ellipsis cutting the rest (the
+   whole in its title, uiOverflowCues), so a long client name never runs the card past its cap. */
+.inv-widget[data-size="s"] .inv-widget-line { display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+  text-overflow: ellipsis; }
+.inv-widget[data-size="s"] .inv-widget-sub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.inv-widget-viz { margin-top: var(--sp-8); min-width: 0; }
+.inv-widget-rows { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; border-top: var(--hair) solid color-mix(in oklab, var(--tone) 16%, var(--border)); }
+.inv-widget-body > .inv-tiles { margin-top: var(--sp-8); margin-bottom: 0; }
+/* A screen's hero sheet inside a widget runs to the card's edges, as in a hero's body. */
+.inv-widget-body > .inv-hero-sheet { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0; }
+.inv-widget-body > .inv-hero-sheet:last-child { margin-bottom: calc(-1 * var(--sp-12)); overflow: hidden; border-radius: 0 0 calc(var(--r-card) - var(--hair)) calc(var(--r-card) - var(--hair)); }
+.inv-widget-body > .inv-hero-sheet:has(> .inv-tiles:only-child) { margin: var(--sp-8) 0 0; border-radius: 0; }
+.inv-widget-foot:empty { display: none; }
+/* What a widget let go of to fit its size (wdgFit): how many more, and its screen's door. */
+.inv-widget-more { display: flex; align-items: center; padding-top: var(--sp-4); }
+.inv-widget-body [data-wdg-cut] { display: none !important; }
+/* The board's foot: the door to the gallery, centred under the widgets. */
+.inv-wboard-foot { display: flex; justify-content: center; padding: 0 0 var(--sp-16); }
+.inv-widget-body > .inv-blank { margin: 0; }
+/* Quick actions in a widget follow the card, not the window: three across with each label under its icon, six across from 40rem. */
+.inv-widget[data-w] .inv-btn-grid { margin-bottom: 0; }
+.inv-widget[data-w] .inv-btn-grid > .inv-btn { min-width: 0; }
+@container widget (min-width: 40rem) { .inv-widget[data-w] .inv-btn-grid { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+@container widget (max-width: 13rem) { .inv-widget-fig { font-size: var(--fs-19); } }
+/* A widget's parts by its width: stacked under 18rem, side by side to 36rem, in columns over it. */
+.inv-widget-parts { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-12); }
+@container widget (min-width: 18rem) { .inv-widget-parts { grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr); align-items: center; } }
+@container widget (min-width: 36rem) { .inv-widget-parts { grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); align-items: start; } }
+/* Arranging (§7e): the handle, the place, the size and Remove ride over the head; a widget lifted follows the pointer while a
+   placeholder of its size keeps its room. */
+.inv-wboard[data-arranging] .inv-widget { outline: var(--rule) dashed color-mix(in oklab, var(--accent) 45%, transparent); outline-offset: calc(-1 * var(--rule)); }
+/* While arranging a widget is as tall as it needs: its controls take a row, and nothing is let go of under them. */
+body .inv-wboard[data-arranging] .inv-widget[data-size] { max-height: none; }
+.inv-widget-ctl { display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-4); padding: var(--sp-8) var(--sp-8) 0 var(--sp-12); }
+.inv-widget-remove { margin-left: auto; }
+.inv-widget-handle { display: inline-flex; align-items: center; justify-content: center; min-width: var(--touch); min-height: var(--touch);
+  border: var(--hair) solid var(--edge); border-radius: var(--r-ctl); background: var(--surface); box-shadow: var(--lift-1); color: var(--text-2);
+  cursor: grab; touch-action: none; }
+.inv-widget-handle:focus-visible { outline: none; box-shadow: var(--focus-ring), var(--lift-1); }
+.inv-widget-handle svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-widget-place { font-family: var(--ff-mono); font-size: var(--fs-11); color: var(--text-3); white-space: nowrap; }
+.inv-widget-sizes { width: auto; flex-shrink: 0; }
+.inv-widget-sizes .inv-seg-btn { flex: 0 0 auto; padding: 0 var(--sp-6); }
+.inv-widget-lifted { position: fixed; left: var(--drag-x); top: var(--drag-y); width: var(--drag-w); z-index: var(--z-dialog); margin: 0;
+  box-shadow: var(--lift-2); pointer-events: none; opacity: 0.94; }
+.inv-widget-ph { min-height: var(--ph-h); border: var(--rule) dashed var(--edge); border-radius: var(--r-card); background: var(--well); }
+body.inv-wdg-dragging { user-select: none; -webkit-user-select: none; cursor: grabbing; }
+/* The gallery (§7f): the categories as chips, each widget a card with its live preview at its first size. */
+.inv-gallery-chips { display: flex; flex-shrink: 0; gap: var(--sp-6); overflow-x: auto; padding: var(--sp-8) 0; scrollbar-width: none; }
+.inv-gallery { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 18rem), 1fr));
+  gap: var(--gap); align-content: start; padding: var(--sp-4) 0 var(--sp-12); }
+.inv-gallery-card { display: flex; flex-direction: column; gap: var(--sp-8); min-width: 0; padding: var(--sp-12); border: var(--hair) solid var(--edge);
+  border-radius: var(--r-card); background: var(--surface-2); }
+/* A preview shows the widget's top, fading where the card stops, so a cut reads as a glimpse rather than a break. */
+/* A preview is one height, drawn or not (a Small widget's cap), so a preview drawn as it comes into view moves no card under the
+   finger, and the list drawn again after an Add puts every card back where it stood. */
+.inv-gallery-preview { pointer-events: none; height: var(--wdg-cap-s); overflow: hidden; border-radius: var(--r-card);
+  mask-image: linear-gradient(to bottom, var(--text-1) calc(100% - var(--sp-32)), transparent); }
+.inv-gallery-preview > .inv-widget { margin: 0; box-shadow: none; }
+.inv-gallery-title { margin: 0; font-size: var(--fs-14); font-weight: 600; color: var(--text-1); }
+.inv-gallery-q { margin: var(--sp-2) 0 0; font-size: var(--fs-13); line-height: 1.35; color: var(--text-2); }
+.inv-gallery-sizes { margin: var(--sp-2) 0 0; font-size: var(--fs-12); color: var(--text-3); }
+.inv-gallery-act { display: flex; align-items: center; justify-content: flex-end; gap: var(--sp-8); margin-top: auto; }
+/* A toast carrying one act (Remove's Undo). */
+.inv-toast-act { display: flex; align-items: center; gap: var(--sp-12); }
+.inv-toast-btn { min-height: var(--ctl-h-sm); padding: 0 var(--sp-8); border: none; border-radius: var(--r-ctl); background: none;
+  font: inherit; font-weight: 600; color: inherit; text-decoration: underline; cursor: pointer; }
+.inv-toast-btn:focus-visible { outline: none; box-shadow: var(--focus-ring); }
+/* Home's day card (§8b): its figure is the clock, ticking on the minute; under it when the general shift ends; the weather now. */
+.inv-homeday-clock { display: block; font-family: var(--ff-mono); font-size: var(--fs-28); font-weight: 600; letter-spacing: var(--ls-tight); line-height: 1.05;
+  color: var(--text-1); font-variant-numeric: tabular-nums; }
+body.inv-desktop .inv-homeday-clock { font-size: var(--fs-48); }
+/* The board's toolbar: the period, Customise and More at their own widths; arranging, Done ends the row. */
+[data-home-toolbar] > [data-action="invWdgDone"] { margin-left: auto; }
+.inv-homeday-shift { display: block; margin-top: var(--sp-2); font-family: var(--ff-base); font-size: var(--fs-12); font-weight: 500; color: var(--text-2); }
+.inv-homeday-wx { display: inline-flex; align-items: center; gap: var(--sp-6); font-size: var(--fs-13); color: var(--text-2); }
+.inv-homeday-wx svg { width: var(--sp-20); height: var(--sp-20); }
+/* widgets · money and office (U2d): each widget's own parts, after this line. */
+/* A chart in the cash and gst widgets keeps to the card's cap (§7b): at its natural aspect and no taller than seven tenths of a
+   plot, so the figure, its lines, the chart and its readout fit a Medium's 30rem on the phone, where the card's width binds first;
+   on the desktop's 26rem a Medium has room for eight tenths, and its labels read a size larger for it; a Large's chart, and one
+   beside its rows, a plot's. */
+.inv-widget:is([data-w="cash"], [data-w="gst"]) .inv-chart-svg { max-height: calc(var(--plot-h) * 0.7); }
+body.inv-desktop .inv-widget[data-size="m"]:is([data-w="cash"], [data-w="gst"]) .inv-chart-svg { max-height: calc(var(--plot-h) * 0.8); }
+.inv-widget[data-size="l"]:is([data-w="cash"], [data-w="gst"]) .inv-chart-svg { max-height: var(--plot-h); }
+/* A chart and the rows it rests on (cash's What it rests on, dtp's other clients, gst's notes), [data-wcm-cols]: under it on a narrow
+   card, its side [data-wcm-side] running to the card's edges as a sheet in a card does; beside it from 40rem, to the card's right
+   edge. The grid spans the card's inside with its own padding, so the side reaches the edges inside the grid's box, never past it. */
+.inv-widget [data-wcm-cols] { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--sp-8); margin: 0 calc(-1 * var(--sp-12)); padding: 0 var(--sp-12); }
+.inv-widget [data-wcm-side] { margin: 0 calc(-1 * var(--sp-12)); }
+@container widget (min-width: 40rem) {
+  .inv-widget [data-wcm-cols] { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); column-gap: var(--sp-16); align-items: start; }
+  .inv-widget [data-wcm-side] { margin: var(--sp-8) calc(-1 * var(--sp-12)) 0 0; }
+}
+/* The owed widget's key under its age bar: a band a dot and its words, set apart as a legend's items are, wrapping whole. */
+.inv-widget [data-wcm-ages] { display: flex; flex-wrap: wrap; column-gap: var(--sp-12); row-gap: var(--sp-4); }
+
+/* widgets · floor and people (U2d): each widget's own parts, after this line. */
+/* Production, the last day: its body keeps its height over the hero's foot, so what runs past the size's cap reaches the card's
+   edge, where the board lets go of the last rows (the fit reads the card; a body that shrank ran under the foot unseen). */
+.inv-widget[data-w="prodday"] > .inv-widget-body { flex-shrink: 0; }
+/* The floor now: its figure is the heads on site in their own judge's colour (the card is coded by the worst of what it holds, a
+   line's efficiency among it, and a red line must not paint a full crew red). */
+.inv-widget[data-w="floornow"] .inv-widget-fig { color: var(--text-1); }
+/* A chart in a Medium widget is drawn a step shorter, so the figure, its line and the chart sit inside the size's cap. */
+.inv-widget:is([data-w="risk"], [data-w="attweek"])[data-size="m"] .inv-chart-svg { max-height: calc(var(--plot-h) * 0.75); }
+/* Plated each day: the calendar is drawn at its cells' own size, which reads small in a wide card; there it is drawn larger. */
+@container widget (min-width: 30rem) {
+  .inv-widget[data-w="heat"] .inv-chart-heat { width: auto; height: calc(var(--plot-h) * 0.75); }
+}
+/* Line efficiency: a line's meter under its words and its end, across the row, so the lines' meters line up; the note on the lines
+   with no rounds counted under them. */
+.inv-widget [data-wc-eff] { flex-wrap: wrap; row-gap: var(--sp-4); }
+.inv-widget [data-wc-eff] > .inv-meter { flex: 1 0 100%; }
+.inv-widget [data-wc-eff-bare] { margin-top: var(--sp-8); }
+/* Overtime by area, Large: the overtime and the EXTRA side by side in two equal columns where the card has the room. */
+@container widget (min-width: 18rem) {
+  .inv-widget[data-w="ot"] .inv-widget-parts { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+}
+
+/* widgets · market, analysis and what's coming (U2d): each widget's own parts, after this line. */
+/* A widget's caption over a part of it (the plant's week, a chart, the headlines): the eyebrow's look, sentence case. */
+.inv-widget-cap { margin: var(--sp-8) 0 var(--sp-4); font-size: var(--fs-12); font-weight: 600; color: var(--text-2); }
+.inv-widget-credit { min-width: 0; }
+/* The weather now as a figure, its icon beside the temperature; the next 12 hours as small wells, a thunder hour in its warning and a
+   wet one in info (the plant's week's look). */
+.inv-wx-fig { display: flex; align-items: center; gap: var(--sp-6); }
+.inv-wx-fig .inv-wx-ico { flex: none; width: var(--sp-24); height: var(--sp-24); }
+.inv-wx-hours { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: var(--sp-4); }
+@container widget (min-width: 32rem) { .inv-wx-hours { grid-template-columns: repeat(12, minmax(0, 1fr)); } }
+.inv-wx-hour { display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-4) var(--sp-2);
+  border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); }
+.inv-wx-hour[data-tone="warning"] { background: var(--warning-bg); color: var(--warning); box-shadow: none; }
+.inv-wx-hour[data-tone="info"] { background: var(--info-bg); color: var(--info); box-shadow: none; }
+.inv-wx-hour-t { font-size: var(--fs-11); white-space: nowrap; }
+.inv-wx-hour-c { font-size: var(--fs-12); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.inv-wx-hour[data-tone] .inv-wx-hour-c { color: inherit; }
+/* Tata at Large: its three parts stacked, two side by side (the headlines under them) from 36rem, three across from 60rem. */
+.inv-widget-parts-3 { grid-template-columns: minmax(0, 1fr); align-items: start; margin-top: var(--sp-8); }
+@container widget (min-width: 36rem) {
+  .inv-widget-parts-3 { grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; }
+  .inv-widget-parts-3 > :last-child { grid-column: 1 / -1; }
+}
+@container widget (min-width: 60rem) {
+  .inv-widget-parts-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .inv-widget-parts-3 > :last-child { grid-column: auto; }
+}
+/* With no chart (the phone), its two parts are two across from 36rem, the headlines beside the figures. */
+@container widget (min-width: 36rem) { .inv-widget-parts-2 > :last-child { grid-column: auto; } }
+.inv-widget-part { min-width: 0; }
+.inv-widget-part > .inv-widget-rows { margin-left: 0; margin-right: 0; }
+.inv-widget-part > .inv-tiles { margin-top: 0; }
+/* The pair a "Does one move the other?" asks about: two pickers on a row, each as wide as the row allows. */
+.inv-corr-picks { display: flex; flex-wrap: wrap; gap: var(--sp-8); margin-top: var(--sp-8); }
+.inv-corr-pick { flex: 1 1 12rem; min-width: 0; margin: 0; }
+.inv-corr-pick .inv-select { width: 100%; }
+/* At Medium the dots are drawn a step shorter, so the pair, its words and the chart sit inside the card's cap at any width. */
+.inv-widget[data-w="corr"][data-size="m"] .inv-chart-svg { max-height: calc(var(--plot-h) * 0.7); }
+/* A tile's line of the months before, in a widget on the phone: Large has Medium's room there (30rem), so the line is drawn a
+   quarter lower and closer to its figure (a crore month's tiles had run Month to date past its cap). */
+body:not(.inv-desktop) .inv-widget .inv-tile-viz { margin-top: var(--sp-4); }
+body:not(.inv-desktop) .inv-widget .inv-tile-viz .inv-spark { height: calc(var(--spark-h) * 0.75); }
+/* A kilo's cost as one bar of 100%, each part in its own colour (seriesSlot 'cost'), a gap between parts, in a well. */
+.inv-sharebar { display: block; width: 100%; height: var(--meter-h); border-radius: var(--r-full); overflow: hidden; background: var(--well); box-shadow: var(--press-1); }
+.inv-sharebar-part { fill: var(--ink); }
+
+@media print { .inv-wboard, .inv-widget-lifted { display: none; } }
+@media (prefers-reduced-motion: reduce) { .inv-widget-lifted { transition: none; } }
+/* ===== THE WORLD OUTSIDE (feeds.js, docs/UI_PASS_3.md §9): the Tata dialog, a headline, the weather on one line =====
+   A headline is a row whose whole face is its link out. The month's figures are a grid: a label, then this year's field and the
+   same month's a year before. The plant's week is seven small wells, a day the calendar names filled in its tone (shut warning,
+   works info). The weather now is an icon, the temperature and the window of rain or thunder on one line (the day card's, §8b). */
+.inv-mkt-news { text-decoration: none; }
+.inv-mkt-news .inv-row-end { color: var(--text-3); }
+.inv-mkt-news .inv-row-end svg { width: var(--sp-16); height: var(--sp-16); }
+.inv-mkt-news:hover .inv-row-end, .inv-mkt-news:focus-visible .inv-row-end { color: var(--accent); }
+.inv-mkt-figs {
+  display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, var(--line-fig-w)) minmax(0, var(--line-fig-w));
+  gap: var(--sp-6) var(--sp-10); align-items: center; margin: var(--sp-12) 0;
+}
+.inv-mkt-figs > .inv-field-label:not(:first-child) { text-align: right; }
+.inv-mkt-fig-k { min-width: 0; font-size: var(--fs-14); color: var(--text-1); overflow-wrap: anywhere; }
+.inv-mkt-chips { display: flex; flex-wrap: wrap; gap: var(--sp-6); }
+.inv-mkt-week { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--sp-4); }
+.inv-mkt-day {
+  display: flex; flex-direction: column; align-items: center; gap: var(--sp-2); min-width: 0; padding: var(--sp-6) var(--sp-2);
+  border-radius: var(--r-ctl); background: var(--well); box-shadow: var(--press-2); color: var(--text-2); text-align: center;
+}
+.inv-mkt-day[data-tone="warning"] { background: var(--warning-bg); color: var(--warning); box-shadow: none; }
+.inv-mkt-day[data-tone="info"] { background: var(--info-bg); color: var(--info); box-shadow: none; }
+.inv-mkt-day-dow { font-size: var(--fs-11); font-weight: 600; }
+.inv-mkt-day-d { font-size: var(--fs-16); font-weight: 600; color: var(--text-1); font-variant-numeric: tabular-nums; }
+.inv-mkt-day[data-tone] .inv-mkt-day-d { color: inherit; }
+.inv-mkt-day-s { font-size: var(--fs-11); line-height: 1.2; overflow-wrap: anywhere; }
+.inv-wx-now { display: inline-flex; align-items: center; gap: var(--sp-4); max-width: 100%; color: var(--text-2); font-size: var(--fs-13); font-weight: 500; vertical-align: middle; }
+.inv-wx-ico { flex: none; width: var(--sp-16); height: var(--sp-16); }
+.inv-wx-temp { color: var(--text-1); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.inv-wx-say { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

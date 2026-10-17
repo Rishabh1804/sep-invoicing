@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, openSettingsAt, switchTab, todayIso, waitForBoot, openPulse } from './fixtures';
+import { loadAppWithState, openSettingsAt, switchTab, todayIso, waitForBoot, openPulse, openWidget } from './fixtures';
 import { CHALLAN_DAYS, STATE_CHECK, lastMonth10, pipeState, pipeStateCalm, sweepStages } from './p137-pipeline.fixture';
 import { bigSweepState, problems, sweepState, type Stop } from './sweep-fixture';
 
@@ -99,10 +99,10 @@ test.describe('P137: Office → Pipeline', () => {
     const dueTone = left < 0 ? 'danger' : left <= STATE_CHECK.fileWarnDays ? 'warning' : 'neutral';
     // The year is this year's, so the tile leaves it out (TM5a).
     expect(await readStage(page, 'delivered')).toMatchObject({ tone: dueTone, word: `GSTR-1 due 11 ${months[t.getMonth()]}` });
-    // Owed: the debt over 90 days, in the words Home's Money tile uses for it.
+    // Owed: the debt over 90 days, in the words Home's Money widget uses for it (put on the board: Pulse's presets hid it).
     const owed = await readStage(page, 'owed');
     expect(owed).toMatchObject({ tone: 'danger', word: '₹6,608 over 90 days' });
-    await openPulse(page);
+    await openWidget(page, 'money');
     await expect(page.locator('[data-home-fin="Owed to us"] .inv-tile-sub')).toHaveText(owed.word);
 
     // Settings move them: Created red at 6 days (the 5-day-old one is amber now), challans amber at 6 days.

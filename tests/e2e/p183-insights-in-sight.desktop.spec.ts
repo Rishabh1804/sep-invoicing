@@ -15,7 +15,7 @@ test('the name stands between Pulse and Stats, the row fits, and the name moves 
   const m = await page.evaluate(() => {
     const row = document.getElementById('wsTabs')!, q = (s: string) => document.querySelector('#wsTabs ' + s)!.getBoundingClientRect();
     return { over: row.scrollWidth > row.clientWidth + 1, more: row.getAttribute('data-more'), group: row.getAttribute('data-group'),
-      pulse: q('[data-v="pulse"]').right, name: [q('.inv-viewtab-group').left, q('.inv-viewtab-group').right], stats: q('[data-tab="pageStats"]').left,
+      pulse: q('[data-v="needs"]').right, name: [q('.inv-viewtab-group').left, q('.inv-viewtab-group').right], stats: q('[data-tab="pageStats"]').left,
       size: getComputedStyle(document.querySelector('#wsTabs .inv-viewtab-group')!).fontSize };
   });
   expect(m.over).toBe(false);

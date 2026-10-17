@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { loadAppWithState, openPulse as openToday, switchTab } from './fixtures';
+import { loadAppWithState, openPulse as openToday, switchTab, openNeeds } from './fixtures';
 import { adviceState, LYRA_TEL, ORION } from './p133-what-to-do.fixture';
 
 // P133 on the desktop: a question opens across its row, so a move's sentence must keep room to read beside its buttons, or
@@ -10,13 +10,14 @@ const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
 
 async function openPulse(page: Page) {
   await openToday(page);
-  const all = page.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="all"]');
+  const all = page.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
   await all.click();
   await expect(all).toHaveAttribute('aria-pressed', 'true');
 }
 async function openQ(page: Page, key: string) {
+  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its story and its moves.
   const q = page.locator(`[data-tdy-q="${key}"]`);
-  if (!(await q.evaluate(el => (el as HTMLDetailsElement).open))) await q.locator(':scope > summary').click();
+  await expect(q.locator('[data-tdy-story]')).toHaveCount(1);
   return q;
 }
 
@@ -28,10 +29,10 @@ test('a move keeps its sentence readable in its card, its call is a link drawn a
   await expect(page.locator('[data-tdy-q="clients"] [data-adv-move="reprice:1"]')).toContainText(`Ask ${ORION} for`);
 
   // Every visible move: inside its question (or Do first), its sentence at least 16rem wide or alone on its line above the
-  // buttons.
-  const rows = await page.locator('#homeQuestions [data-adv-move]:visible').evaluateAll(els => els.map(el => {
+  // buttons. A move is a card, or a row under an insight of What changed? (its story is open on the widget at Large since U2).
+  const rows = await page.locator('#homeDash [data-adv-move]:visible').evaluateAll(els => els.map(el => {
     const card = el.closest('[data-tdy-q], [data-card="first"]')!.getBoundingClientRect(), r = el.getBoundingClientRect();
-    const main = el.querySelector('.inv-deck-body')!.getBoundingClientRect(), end = el.querySelector('.inv-deck-foot')!.getBoundingClientRect();
+    const main = el.querySelector('.inv-deck-body, .inv-row-main')!.getBoundingClientRect(), end = el.querySelector('.inv-deck-foot, .inv-row-end')!.getBoundingClientRect();
     const rem = parseFloat(getComputedStyle(document.documentElement).fontSize);
     return { key: (el as HTMLElement).dataset.advMove, inside: r.left >= card.left - 1 && r.right <= card.right + 1 && end.right <= card.right + 1,
       readable: main.width >= 16 * rem - 1 || end.top >= main.bottom - 1 };
@@ -45,7 +46,7 @@ test('a move keeps its sentence readable in its card, its call is a link drawn a
   expect(await call.evaluate(a => getComputedStyle(a).textDecorationLine)).toBe('none');
 
   // A task's dialog, centred, lists its moves above what clears it; its one primary is still its own button.
-  await switchTab(page, 'pageHome');
+  await openNeeds(page);
   await page.locator('#wsTabs [data-v="needs"]').click();
   const btn = page.locator('#homeNeeds [data-action="invTodoOpenApp"][data-key="stock:PA"]');
   await btn.evaluate(b => { const d = b.closest('details'); if (d) (d as HTMLDetailsElement).open = true; });

@@ -7,6 +7,19 @@ carries **this repo's side** of it: the work queued here, and what this app prod
 
 ---
 
+## Built 16 Oct 2026: UI pass 3, U1 and U2, then the stop (read this first)
+
+- **The spec is `docs/UI_PASS_3.md`** (nine steps, U1–U9, one PR, #152). **U1** (the look, icons v3, charts v3, the data layer) and
+  **U2** (Home and its widgets: the day card, the board each person arranges, the gallery, the presets by role, the feeds Worker for
+  the news and the weather, Tata Motors' months) are built. **The build stops here for the owner to look** (§1a-1): the screenshots
+  went to the owner as a private page. **The next step is U3** (Stats as a board) once the owner has looked and said to go on.
+- **For the owner**: deploy the feeds Worker (`server/feeds`) on their own Cloudflare account at the address Settings → Connections →
+  News and weather names, and set the plant's place there; type Tata's months in the Tata dialog (Home's Tata widget), or switch the
+  To-do's reminder off.
+- **A data flow changed**: two new top-level keys in the book, `market` and `feedsCfg` (the interface table below). A Home layout is
+  never in the book.
+- **CI's e2e job is near its 45 minutes** (38.0 on 16 Oct at 2,030 tests): split it or raise the limit before it cuts a run off.
+
 ## Built 14 Oct 2026: printing at the office, and two answers (read this first)
 
 - **Remote print** (`remoteprint.js`, P217): Settings → Connections → Office printer. A preview is sent as a job to the sync repository
@@ -642,3 +655,4 @@ in the PR**, so the compile session knows to re-check.
 | **Consumes** the production history ← `soma-internal` | Production → Entries → Import takes the same `sep-production` v1 shape. Merges by id and never overwrites; a client is kept by id only where the book holds that id under the same name, else found by name, and a name the book does not hold is counted and kept as written, never invented. Entries without `src` are stamped `import` and raise no To-do task. |
 | **Produces** attendance from the supervisor's rolls → `soma-internal` | **Built 25 Sep 2026.** Staff → Paste message reads the in/out-time rolls into `S.attendance` in the seed's own shape (marks by worker id, `coverage` / `block` EXTRA rows), so the compile reads pasted days exactly as it reads seeded ones. Each roll is kept whole in `relayPastes`. The parser was calibrated against `analysis/sep-attendance-seed-2026-09-{07,12}.json`; if the decode conventions change there, say so here. |
 | **Produces** captured stock entries → `soma-internal` (the owner) | **Built 24 Sep 2026.** Stock → Export writes `sep-stock-YYYY-MM-DD.json`: `{format: 'sep-stock', version: 1, exportedAt, build, items, entries, pastes}`. Always the whole record; ids are stable, so the compile de-duplicates on them. Each entry: `{id, itemId, kind: count/received/used/charged, qty, date, from?, days?, rate?, price?, supplier?, billNo?, note?, unsettled?, voided?, at, by, sentBy, source: paste/manual/import, pasteId?, n?, raw?}`. `pastes` hold each message whole. The same data is also in the full backup under `stock`, with `stockCheck: {redDays, amberDays, chemModel}`. The ledger stays `soma-internal/operations/chemical-stock-log.md`. |
+| **Backup shape changed, 16 Oct 2026 (UI pass 3, U2: Home and its widgets)** | Two new top-level keys. `market: {tata: {YYYY-MM: {cvTotal: {now, ly}, cvDomestic, cvExport, hcv, released?, url?, note?, src, at, by}}, calendar: {YYYY-MM-DD: {state, why, src, url?, at, by}}, models: [..], weather: {YYYY-MM-DD: {tMax, tMin, rain, thunder, symbol, at}}}`: Tata Motors' months, the plant's calendar and the models followed are the owner's typed records (in the change log and the merge, under `market`); the weather days are a fetched copy, written quietly (never in the change log; the merge keeps this device's), and the compile may ignore them. `feedsCfg: {on, url, lat, lon, place}` is the feeds Worker's address and the plant's place. **Not in the book**: a Home layout (`sep_inv_layout`, per device and person) and the feeds' copies of the news and the weather (`sep_inv_feeds`). Nothing new crosses to soma-internal but the backup. |

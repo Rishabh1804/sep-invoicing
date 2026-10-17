@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, toolbarMoreLabels, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openNeeds, switchTab, todayIso, toolbarMoreLabels, type SepState } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P194 (desktop): across the app (docs/TAB_MAP.md TM6). The desktop's own places for the same facts: Needs you's floor card says
@@ -36,7 +36,8 @@ test.describe('P194 (desktop): across the app', () => {
   for (const [present, tone] of [[8, 'warning'], [7, 'danger']] as const) {
     test(`TM6a: Needs you’s floor card says ${present} of 10 on site in Floor’s tone (${tone})`, async ({ page }) => {
       await loadAppWithState(page, floorBook(present));
-      await switchTab(page, 'pageHome');
+      // Needs you is Home's second view since UI pass 3 (U2): Home opens on its board.
+      await openNeeds(page);
       await expect(page.locator('#pageHome [data-tdy-onsite]')).toContainText(present + ' of 10 on site');
       expect(await toneOf(page, '#pageHome [data-tdy-onsite]')).toBe(tone);
       await switchTab(page, 'pageFloor');

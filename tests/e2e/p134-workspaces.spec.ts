@@ -3,13 +3,13 @@ import type { Page } from '@playwright/test';
 import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, waitForBoot, type SepState } from './fixtures';
 
 // P134: workspaces, the shell of DIRECTION_B (owner, 1 Oct 2026; docs/DIRECTION_B.md, step B2). The phone bar is
-// Today · Office · Add · Floor · Money, with no More. A workspace is a layer over the pages that exist: every page keeps
+// Home · Office · Add · Floor · Money (Today until UI pass 3, U2; the workspace's id stays `today`), with no More. A workspace is a layer over the pages that exist: every page keeps
 // its id, its address and its own view tabs, and the workspace draws its views as a tab row above the page. The red count
 // moved from More to the bar. Swiping stays inside the workspace. Add and search are other steps' (add.js, search.js):
 // their buttons call them when they exist and do nothing when they do not. Insights was Office's review from 8 Oct 2026
 // (owner: "Move insights into office tab, that way we have 5 icons again"): five doors, Add the centre one. Since the tab map
-// (9 Oct 2026, P184) they are Today's, and History and Knowledge are the top bar's tools. Every name is made up; dates are
-// from today.
+// (9 Oct 2026, P184) they are Today's (Home's since UI pass 3), and History and Knowledge are the top bar's tools. Every name is
+// made up; dates are from today.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 const where = (p: Page) => { const u = new URL(p.url()); return [u.searchParams.get('tab'), u.searchParams.get('v') || '']; };
@@ -43,7 +43,7 @@ const swipe = (p: Page, from: number, to: number) => p.evaluate(([a, b]) => {
 }, [from, to]);
 
 /* The map, restated (split/workspace.js WORKSPACES; the tab map of 9 Oct 2026: Today holds its Insights, and History and
-   Knowledge are the top bar's tools, in no workspace). */
+   Knowledge are the top bar's tools, in no workspace; UI pass 3 named Today Home, its id kept). */
 const MAP: Record<string, string[]> = {
   today: ['pageHome', 'pageStats', 'pageReports', 'pagePlanner'],
   office: ['pagePipeline', 'pageIM', 'pageRegister', 'pageClients', 'pageCreate'],
@@ -52,12 +52,12 @@ const MAP: Record<string, string[]> = {
 };
 
 test.describe('P134: workspaces on the phone', () => {
-  test('the bar is Today · Office · Add · Floor · Money with no More, drawn from the map', async ({ page }) => {
+  test('the bar is Home · Office · Add · Floor · Money with no More, drawn from the map', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-navbar > .inv-navbar-item')).toHaveText([/^Today/, /^Office/, /^Add$/, /^Floor/, /^Money/]);
+    await expect(page.locator('.inv-navbar > .inv-navbar-item')).toHaveText([/^Home/, /^Office/, /^Add$/, /^Floor/, /^Money/]);
     await expect(page.locator('.inv-navbar > .inv-navbar-item:nth-child(3)')).toHaveAttribute('data-action', 'invAddOpen');
     await expect(page.locator('.inv-navbar-add')).toHaveAttribute('data-shell-primary', '');
-    expect(await g(page, `WORKSPACES.filter(function(w){ return w.bar; }).map(function(w){ return w.label; })`)).toEqual(['Today', 'Office', 'Floor', 'Money']);
+    expect(await g(page, `WORKSPACES.filter(function(w){ return w.bar; }).map(function(w){ return w.label; })`)).toEqual(['Home', 'Office', 'Floor', 'Money']);
     // More is gone: its button, its sheet and the code behind them.
     await expect(page.locator('.inv-navbar-more, #moreSheet, .inv-sheet, #moreBadge')).toHaveCount(0);
     expect(await g(page, `[typeof openMoreSheet, typeof closeMoreSheet, typeof MORE_TABS, typeof sideGo]`)).toEqual(['undefined', 'undefined', 'undefined', 'undefined']);
@@ -65,7 +65,7 @@ test.describe('P134: workspaces on the phone', () => {
     for (const h of await page.locator('.inv-navbar > .inv-navbar-item').evaluateAll(els => els.map(e => e.getBoundingClientRect().height))) expect(h).toBeGreaterThanOrEqual(44);
   });
 
-  test("each workspace item opens its workspace and is on for every page it holds, Today's Insights too", async ({ page }) => {
+  test("each workspace item opens its workspace and is on for every page it holds, Home's Insights too", async ({ page }) => {
     await loadAppWithState(page, state());
     for (const [ws, ids] of Object.entries(MAP)) {
       for (const id of await present(page, ids)) {
@@ -113,18 +113,17 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Floor');
     await switchTab(page, 'pageStats');
     await expect(row.locator('[aria-selected="true"]')).toHaveText('Stats');
-    await expect(page.locator('#topbarTitle')).toHaveText('Today');
-    // Today's Insights follow their name: one, just before Stats.
+    await expect(page.locator('#topbarTitle')).toHaveText('Home');
+    // Home's Insights follow their name: one, just before Stats.
     await expect(row.locator('.inv-viewtab-group')).toHaveText('Insights');
     expect(await g(page, `document.querySelector('#wsTabs .inv-viewtab-group').nextElementSibling.dataset.tab`)).toBe('pageStats');
     // Money is one view: no row, and its own six tabs are the only one.
     await switchTab(page, 'pageFinance');
     await expect(row).toBeHidden();
     await expect(page.locator('#topbarTitle')).toHaveText('Money');
-    // Today's two views are pageHome's own, drawn once pageHome declares them (the Today step).
+    // Home's two views are pageHome's own: Home, then Needs you (UI pass 3, U2; Needs you and Pulse until then).
     await switchTab(page, 'pageHome');
-    if (await g(page, `typeof homeViews === 'function'`)) await expect(row.locator('.inv-viewtab')).toHaveText(['Needs you', 'Pulse', 'Stats', 'Reports', 'Planner']);
-    else await expect(row).toBeHidden();
+    await expect(row.locator('.inv-viewtab')).toHaveText(['Home', 'Needs you', 'Stats', 'Reports', 'Planner']);
     // A page held without a tab lights its workspace, shows its row with nothing pressed, and names itself.
     await g(page, `switchTab('pageCreate')`);
     await expect(bar(page, 'office')).toHaveClass(/inv-navbar-item-on/);
@@ -133,7 +132,7 @@ test.describe('P134: workspaces on the phone', () => {
     await expect(page.locator('#topbarTitle')).toHaveText('Create invoice');
   });
 
-  test('a red stock line counts on Floor and on Today; More carried it before', async ({ page }) => {
+  test('a red stock line counts on Floor and on Home; More carried it before', async ({ page }) => {
     await loadAppWithState(page, state());
     await expect(page.locator('[data-ws-count="floor"]')).toHaveText('1');
     await expect(page.locator('[data-ws-count="today"]')).toHaveText('1');

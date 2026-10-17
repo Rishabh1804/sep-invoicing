@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openAttendance, openPulse, recentTs, setFilter, switchTab, todayIso, toolbarMoreLabels, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openAttendance, openPulse, recentTs, setFilter, switchTab, todayIso, toolbarMoreLabels, type SepState, openWidget } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P194 (docs/TAB_MAP.md TM6): across the app. A fact is drawn in one tone wherever it is drawn (TM6a: on site against the roster,
@@ -122,8 +122,8 @@ test.describe('P194: TM6a, one tone per fact', () => {
       expect(await toneOf(page, '#pageFinance [data-recv="1"] .inv-row-end'), 'Receivables').toBe(tone);
       await page.locator('#pageFinance [data-action="invFinTab"][data-tab="overview"]').click();
       expect(await toneOf(page, '#finOwed'), 'Money’s owed card').toBe(tone);
-      await openPulse(page);
-      expect(await toneOf(page, '#homeFin [data-home-fin="Owed to us"]'), 'Pulse’s Money').toBe(tone);
+      await openWidget(page, 'money');   // the Money widget, put on Home's board: Pulse's presets hid it (TM2c)
+      expect(await toneOf(page, '#homeFin [data-home-fin="Owed to us"]'), 'Home’s Money').toBe(tone);
       await switchTab(page, 'pagePipeline');
       expect(await toneOf(page, '[data-pipe-stage="owed"]'), 'Pipeline’s Owed to us').toBe(tone);
       // The client's Money panel: on its Performance (the phone opens a client there; the desktop's pane draws the same panel).

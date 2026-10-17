@@ -249,7 +249,8 @@ test.describe('P39: stock', () => {
 
   test('the bar is the workspaces and Add: Floor holds People, Production, Stock and Power, and lights up while one is open', async ({ page }) => {
     await loadAppWithState(page, state());
-    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Today/, /Office/, /Add/, /Floor/, /Money/]);
+    // The first door is Home since UI pass 3 (U2; Today until then).
+    await expect(page.locator('.inv-navbar .inv-navbar-item')).toHaveText([/Home/, /Office/, /Add/, /Floor/, /Money/]);
     await expect(page.locator('.inv-navbar-more, #moreSheet')).toHaveCount(0);
     await page.locator('.inv-navbar-item[data-ws="floor"]').click();
     // Floor's first view is its Overview since the tab map (9 Oct 2026; Floor → Day before).
@@ -257,7 +258,7 @@ test.describe('P39: stock', () => {
     await page.locator('#wsTabs [data-tab="pageStaff"]').click();
     await expect(page.locator('#pageStaff')).toHaveClass(/inv-page-active/);
     await expect(page.locator('.inv-navbar-item[data-ws="floor"]')).toHaveClass(/inv-navbar-item-on/);
-    // What More held besides: Finance is Money, Stats and Reports are Today's Insights (the tab map, 9 Oct 2026), History is the
+    // What More held besides: Finance is Money, Stats and Reports are Home's Insights (the tab map, 9 Oct 2026), History is the
     // top bar's tool, in no workspace, and the To-do is Needs you's (TM2a), no page at all.
     expect(await g(page, `['pageFinance', 'pageStats', 'pageReports', 'pageHistory', 'pageTodo'].map(wsOf)`)).toEqual(['money', 'today', 'today', null, null]);
   });

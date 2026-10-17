@@ -20,7 +20,7 @@
    paying its share of it. */
 
 /* Three tabs since the tab map (TM2b, 9 Oct 2026): Overview's questions, why it moved, the period in one line and the month's
-   pace are Today → Pulse's; Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
+   pace are Home's widgets (Pulse's until UI pass 3); Billing's cards are Money → GST's and Pipeline's (its dispatch cycle). A tab remembered from before
    (overview, billing) opens By client (docs/TAB_MAP.md §5). */
 var STATS_TABS = [['clients', 'By client'], ['cost', 'Cost'], ['trends', 'Trends']];
 var STATS_TAB_KEY = 'sep_inv_stats_tab';
@@ -75,11 +75,12 @@ function statsCostSplit(c) {
 function statsMoney(n) { return (n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 function statsSigned(n) { return (n > 0 ? '+' : n < 0 ? '&minus;' : '') + escHtml(formatCurrency(Math.abs(n))); }
 
-/* ---------- Today → Pulse: the period in one line (the tab map, TM2b; it was Stats → Overview's card) ----------
-   A hero (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the factors
-   are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its tile;
-   the floor's plated row under them. Shut on the phone, open on the desktop (§1a-3). */
-function statsOverviewHtml(period, filtered, tonnage) {
+/* ---------- The period in figures (Home's figures widget, widgetcards.js; Pulse's In one line until UI pass 3, Stats →
+   Overview's card before the tab map) ----------
+   A hero's options (§3c): the verdict is what a kilo left after the live cost, toned as Stats judges realisation against it; the
+   factors are tiles (realisation, live cost, capacity and, with a statement, cash), and what is not measured is a badge on its
+   tile; the floor's plated row under them (#statsOverview). */
+function statsOverviewOpts(period, filtered, tonnage) {
   var r = statsRangeIso(period), kg = tonnage.kg;
   var c = liveCost(r.from, r.to, kg);
   var real = kg > 0 ? tonnage.revKnown / kg : null;
@@ -109,10 +110,10 @@ function statsOverviewHtml(period, filtered, tonnage) {
   var body = '<div class="inv-hero-sheet"><div class="inv-tiles' + (factors.length === 4 ? ' inv-tiles-4' : ' inv-tiles-3') + '">' + factors.map(uiFactorTileHtml).join('') + '</div></div>';
   var plated = prodStatsRowHtml(r.from, r.to);
   if (plated) body += '<div class="inv-hero-sheet">' + plated + '</div>';
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>In one line</span>', title: escHtml(title),
+  return { tone: tone, eyebrow: '<span>The period in figures</span>', title: escHtml(title),
     fig: contrib != null ? figHtml(statsSigned(contrib) + perKg, tone === 'neutral' ? null : tone) : '',
     sub: contrib != null ? escHtml((contrib >= 0 ? '+' : '−') + formatCurrency(gstRound(Math.abs(contrib * kg))) + ' on the period') : '',
-    body: body, fold: 'pulse-overview', open: !!_isDesktop, attrs: ' id="statsOverview" data-card="overview" data-verdict' });
+    body: body, attrs: ' id="statsOverview" data-card="overview"', none: !(kg > 0) };
 }
 
 /* A signed figure in a table: the sign carries the tone (§5.4, DR-1). */
@@ -239,7 +240,7 @@ function statsMarginHtml(period, filtered, tonnage) {
    Owner, 30 Sep 2026: "Stats view needs an overhaul, it puts insights front and center and doesn't present itself in a
    really engaging way"; they chose the questions the owner asks, each answered as a story card: the figure, one sentence
    that says what it means and why, a small chart, and the way to the tab with the detail. Stats → Overview's until the tab
-   map (TM2b), Today → Pulse's since. The cards read the same figures as the panels beside them (statsOverviewHtml, the
+   map (TM2b), Pulse's, then Home's widgets (UI pass 3). The cards read the same figures as the panels beside them (statsOverviewHtml, the
    six months, the insights), never a second arithmetic. */
 function statsMonthRows(n) {
   var today = localDateStr(), rows = [], active = statsInvoices().filter(function(i) { return i.date; });
@@ -260,7 +261,7 @@ function statsStorySay(tone, text) { return statsBody('<div class="inv-row-wrap"
 /* The five cards Stats → Overview had (owner, 30 Sep 2026), each as {key, q, html, answer, vital}: the html is the card's
    body (the figure, the sentence, the small chart), `answer` the sentence that answers it ({tone, say}, `say` html with every
    name escaped), `vital` its face as a hero. advQuestions (advice.js) puts the new first question before them and the moves
-   under each; Today → Pulse draws them (today.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
+   under each; Home's question widgets draw them (widgetcards.js; since the tab map, TM2b, Stats has no Overview). `a` is statsPulseArgs' shape; `ctx` advice.js's per-render reading, so the
    margins and the To-do's tasks are worked out once. The clients card also hands on what it found (`worst`, `mover`) for
    the moves, and the plant card its capacity. */
 function statsStoryCards(a, ctx) {
@@ -287,13 +288,14 @@ function statsStoryCards(a, ctx) {
       moneyTone || ''));
   var mm = months.filter(function(x) { return x.real != null; });
   if (mm.length >= 2) body += statsBody(chartLines(mm.map(function(x) { return x.label; }), [
-    { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }) },
-    { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), tone: 3 }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
+    // The price in its slot, the cost it is set against in Other (docs/UI_PASS_3.md §3d).
+    { label: 'Realisation', values: mm.map(function(x) { return gstRound(x.real); }), slot: 1 },
+    { label: 'Cost', values: mm.map(function(x) { return x.cost != null ? gstRound(x.cost) : null; }), slot: 'other' }], { unit: 'rate', ariaLabel: 'Realisation against cost by month', toDate: atNow(mm) }));
   body += contrib == null ? say(c1, 'neutral', kg > 0 ? 'No cost to judge the price against yet.' : 'No weighed tonnage in the period.')
     : contrib >= 0 ? say(c1, 'ok', 'Yes: every kilo left ' + formatCurrency(contrib) + ' after the full cost, ' + formatCurrency(gstRound(contrib * kg)) + ' on the period.')
     : say(c1, moneyTone, 'Not yet: every kilo cost ' + formatCurrency(-contrib) + ' more than it was billed at, ' + formatCurrency(gstRound(-contrib * kg)) + ' on the period.');
   c1.html = body;
-  // The card as a tile on Today → Pulse (§6.21): the figure that answers it, its words, the six months as a line.
+  // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): the figure that answers it, its words, the six months as a line.
   c1.vital = { fig: contrib != null ? statsSigned(contrib) + perKg : real != null ? formatCurrency(real) + perKg : '&mdash;',
     title: contrib == null ? (kg > 0 ? 'No cost to judge it by' : 'Nothing weighed yet') : contrib >= 0 ? 'Left on every kilo' : 'Lost on every kilo',
     sub: real != null ? escHtml('realised ' + formatCurrency(real) + '/kg' + (cost != null ? ' against ' + formatCurrency(cost) + '/kg' : '')) : '',

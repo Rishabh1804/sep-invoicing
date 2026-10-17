@@ -4,43 +4,43 @@
 <!-- TOP BAR (design system §4, §6.1) -->
 <header class="inv-topbar">
   <button class="inv-topbar-btn inv-topbar-back" id="navBack" data-action="invNavBack" aria-label="Back" hidden>
-    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+    <span data-icon="back"></span>
   </button>
   <nav class="inv-topbar-trail" id="navTrail" aria-label="Trail"></nav>
-  <h1 class="inv-topbar-title" id="topbarTitle">Today</h1>
+  <h1 class="inv-topbar-title" id="topbarTitle">Home</h1>
   <span class="inv-topbar-ctx" id="topbarCtx"></span>
   <span class="inv-topbar-spacer"></span>
   <!-- Search (DIRECTION_B): a field-like button on the desktop, an icon on the phone; search.js builds what it opens. -->
   <button class="inv-search inv-ws-search" data-action="invSearchOpen" aria-keyshortcuts="Control+K">
-    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
+    <span data-icon="search"></span><span>Search</span><kbd class="inv-kbd">Ctrl K</kbd>
   </button>
   <button class="inv-topbar-btn" data-action="invSearchOpen" aria-label="Search">
-    <svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/></svg>
+    <span data-icon="search"></span>
   </button>
   <!-- History (the tab map, 9 Oct 2026): a tool on every screen, in no section's row. Hidden for a role that does not open it. -->
   <button class="inv-topbar-btn" data-action="invGoHistory" aria-label="History" title="History">
-    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
+    <span data-icon="history"></span>
   </button>
   <!-- The knowledge base (knowledge.js): the guides for the screen on show, else Start. -->
   <button class="inv-topbar-btn" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
-    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/></svg>
+    <span data-icon="book"></span>
   </button>
   <!-- History and the book on the desktop, where the phone's top bar icons are hidden (the QA chain of 5 Oct 2026: the desktop
        had no way to the guides for the screen on show). Hidden on the phone, which has the icons above. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invGoHistory" aria-label="History" title="History">
-    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3.5 12a8.5 8.5 0 1 0 2.5-6"/><path d="M3.5 4v4h4"/><path d="M12 8v4.5l3 1.8"/></svg>
+    <span data-icon="history"></span>
   </button>
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invKbHelp" aria-label="Knowledge: how and why" title="Knowledge: how and why">
-    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 19.5v-15A1.5 1.5 0 0 1 6.5 3H19v15H6.5A1.5 1.5 0 0 0 5 19.5zm0 0A1.5 1.5 0 0 0 6.5 21H19"/><path d="M9 7h6"/></svg>
+    <span data-icon="book"></span>
   </button>
   <!-- This screen in a new window (search.js). The desktop's: hidden on the phone. -->
   <button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invNewWindow" aria-label="Open this screen in a new window" title="Open this screen in a new window">
-    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 4h6v6M20 4l-8.5 8.5"/><path d="M18 13.5V19a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V7a1 1 0 0 1 1-1h5.5"/></svg>
+    <span data-icon="external"></span>
   </button>
   <!-- The guard (guard.js): who is signed in; their menu. Shown only while the guard is on. -->
   <button class="inv-guard-user" id="guardUserBtn" data-action="invGuardMenu" aria-label="Who is signed in" hidden></button>
   <button class="inv-topbar-btn" data-action="invOpenSettings" aria-label="Settings">
-    <svg width="1.8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
+    <span data-icon="settings"></span>
   </button>
 </header>
 <!-- The open workspace's views (workspace.js): here on the phone, moved into the top bar on the desktop. -->
@@ -48,35 +48,10 @@
 
 <!-- PAGES -->
 <div id="pageHome" class="inv-page inv-page-active">
-  <!-- Today (today.js): Needs you, then Pulse; one of the two shown (pageHome's own view, ?tab=pageHome&v=pulse). -->
-  <div id="homeNeeds" data-today="needs"></div>
-  <div id="homePulse" data-today="pulse" class="inv-hidden">
-  <div id="homeQuestions"></div>
-  <div id="homeEditArea"></div>
-  <div class="inv-panels inv-panels-3" id="homeWidgets">
-    <div data-home-w="mtd" class="inv-panels-wide" id="homeMtdCard"></div>
-    <div data-home-w="quick" class="inv-panels-wide">
-      <div class="inv-btn-grid inv-coded" role="group" aria-label="Quick actions">
-        <button class="inv-btn inv-btn-primary" data-action="invCreateNew"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 3H6.5A1.5 1.5 0 0 0 5 4.5v15A1.5 1.5 0 0 0 6.5 21h11a1.5 1.5 0 0 0 1.5-1.5V8z"/><path d="M14 3v5h5M12 11v6M9 14h6"/></svg><span>New invoice</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="challan"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 11V7.5L12 3 3.5 7.5v9L12 21l2-1"/><path d="M3.5 7.5 12 12l8.5-4.5M12 12v9M18.5 14v6M15.5 17h6"/></svg><span>New challan</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="stock"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9.5 3h5M10 3v6l-5 9a2 2 0 0 0 1.8 3h10.4a2 2 0 0 0 1.8-3l-5-9V3"/><path d="M7.5 15.5h9"/></svg><span>Stock entry</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="attendance"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.6-3.3 3.2-5 6.5-5s5.9 1.7 6.5 5M16 11l2 2 4-4"/></svg><span>Attendance</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="paste"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.5 12a8.5 8.5 0 0 1-12.4 7.5L3.5 21l1.5-4.6A8.5 8.5 0 1 1 20.5 12z"/><path d="M8.5 10.5h7M8.5 13.5h4.5"/></svg><span>Paste message</span></button>
-        <button class="inv-btn inv-btn-secondary" data-action="invHomeQuick" data-go="task"><svg width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3.5" y="3.5" width="17" height="17" rx="3"/><path d="M8 12l3 3 5-6"/></svg><span>Add task</span></button>
-      </div>
-    </div>
-    <div data-home-w="money" id="homeFinCard"></div>
-    <div data-home-w="todo" id="homeTodoCard"></div>
-    <div data-home-w="attendance" id="homeAttCard"></div>
-    <div data-home-w="unbilled" id="homeUnbilledCard"></div>
-    <div data-home-w="production" id="homeProdCard"></div>
-    <div data-home-w="power" id="homePowerCard"></div>
-    <div data-home-w="stock" id="homeStockCard"></div>
-    <div data-home-w="sync" id="homeSyncCard"></div>
-    <div data-home-w="zinc" id="homeZincCard"></div>
-    <div data-home-w="recent" class="inv-panels-wide" id="homeRecentCard"></div>
-  </div>
-  </div>
+  <!-- Home (today.js): the dashboard (the day card, its toolbar, the board of widgets: widgets.js, widgetcards.js) and Needs you;
+       one of the two shown (pageHome's own view, ?tab=pageHome&v=home | needs). -->
+  <div id="homeNeeds" data-today="needs" class="inv-hidden"></div>
+  <div id="homeDash" data-today="home"></div>
 </div>
 
 <div id="pageCreate" class="inv-page">
@@ -169,15 +144,15 @@
 <div id="invPrintView" class="inv-print-view">
   <div class="inv-print-toolbar">
     <button class="inv-print-toolbar-btn" data-action="invClosePrint">
-      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg>
+      <span data-icon="back"></span>
       Back
     </button>
     <button class="inv-print-toolbar-btn inv-hidden" id="invPrintRemote" data-action="invPrintRemote">
-      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-7.5L3 9.5z"/></svg>
+      <span data-icon="send"></span>
       Send to office
     </button>
     <button class="inv-print-toolbar-btn" data-action="invPrint">
-      <svg width="20" height="20" width="2" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V3.5h10V9"/><rect x="3" y="9" width="18" height="8.5" rx="2"/><path d="M7 14h10v6.5H7z"/></svg>
+      <span data-icon="print"></span>
       Print
     </button>
   </div>

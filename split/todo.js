@@ -1,5 +1,5 @@
 /* ===== TO-DO =====
-   Today → To-do, Needs you, and a Windows 11 widget. The owner's own list,
+   Home → Needs you (the To-do joined it), and a Windows 11 widget. The owner's own list,
    inside the app for now (owner, 25 Sep 2026); sep-dashboard can take it whole
    later — S.todo is self-contained.
 
@@ -295,8 +295,8 @@ var TODO_RULE_FNS = {
       clears: 'Clears itself when you export a backup or push to GitHub.',
       go: { kind: 'settings', sec: 'data' }, goLabel: 'Open backup', sig: String(last) }];
   },
-  // Settings → Costing → Zinc rate, where the rate is set and derived: the zinc card is a Pulse widget, and "Open Home"
-  // opened Needs you, where it is not (the QA audit, QA2-11).
+  // Settings → Costing → Zinc rate, where the rate is set and derived: the zinc card is a widget on Home's board, and "Open
+  // Home" opened Needs you, where it is not (the QA audit, QA2-11).
   zinc: function() {
     var age = zincAgeDays();
     if (age == null || age <= ZINC_STALE_DAYS) return [];
@@ -477,7 +477,8 @@ function todoFoldOf(rule, list) {
   var money = !todoGuardOn() || grdSeesMoney();
   var worth = list.reduce(function(s, m) { return s + (m.worth || 0); }, 0), w = money ? gstRound(worth) : 0;
   var tone = list[0].tone, top = list[0];
-  var name = function(m) { return todoFoldName(m) + (money && m.worth ? ' ' + formatCurrency(gstRound(m.worth)) : ''); };
+  // Named in one line (a long name shortened, whole in the fold's own list): never a block past P195's 120 characters.
+  var name = function(m) { return uiNameShort(todoFoldName(m)) + (money && m.worth ? ' ' + formatCurrency(gstRound(m.worth)) : ''); };
   // How sure (todoConfApply): said once on the fold when every member says it, and the fold ranks as they do.
   var conf = list.every(function(m) { return m.conf && TODO_CONF_WORD[m.conf.level]; }) ? { level: list[0].conf.level } : undefined;
   return { key: 'fold:' + rule, rule: 'fold', foldRule: rule, members: list, tone: tone, worth: worth, conf: conf,
@@ -600,21 +601,20 @@ function todoMineRowHtml(t) {
     (end ? '<span class="inv-row-end inv-row-stack">' + end + '</span>' : '') + '</div>';
 }
 
-/* Pulse: the To-do as a hero, grouped as Needs you groups it (Now, this week, to know: today.js tdyGroupOf), coded by its worst
-   task, with the top three as rows, both kinds labelled. */
-function renderTodoHomeCard() {
-  var el = document.getElementById('homeTodoCard');
-  if (!el) return;
-  if (typeof grdHeld === 'function' && grdHeld()) return;
-  var ranked = todoRanked(), groups = { now: 0, week: 0, later: 0 }, worth = 0;
+/* Needs you as a hero's options (Home's needs widget, widgetcards.js; Pulse's To-do card until UI pass 3), grouped as Needs you
+   groups it (Now, this week, to know: today.js tdyGroupOf), coded by its worst task: the Now group's first `n` as rows, both kinds
+   labelled; with nothing now, the next tasks. */
+function todoHomeOpts(n) {
+  var ranked = todoRanked(), groups = { now: 0, week: 0, later: 0 }, worth = 0, nowRows = [];
   ranked.forEach(function(r) {
     var g = typeof tdyGroupOf === 'function' ? tdyGroupOf(r) : r.tone === 'red' ? 'now' : r.tone === 'amber' ? 'week' : 'later';
     groups[g]++;
+    if (g === 'now') nowRows.push(r);
     if (g === 'now' && r.app && r.app.worth > 0) worth += r.app.worth;
   });
   var rows = '';
   if (!ranked.length) rows = '<div class="inv-empty">Nothing due</div>';
-  ranked.slice(0, 3).forEach(function(r) {
+  (nowRows.length ? nowRows : ranked).slice(0, n || 3).forEach(function(r) {
     var tone = uiTone(r.tone);
     if (r.app) {
       rows += '<button class="inv-row inv-row-2" data-todo="app" data-action="invTodoOpenApp" data-key="' + escHtml(r.app.key) + '">' +
@@ -635,20 +635,22 @@ function renderTodoHomeCard() {
   var money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
   var meter = ranked.length ? chartMeter([{ v: groups.now, tone: 'danger' }, { v: groups.week, tone: 'warning' }, { v: groups.later, tone: 'info' }],
     { title: groups.now + ' now · ' + groups.week + ' this week · ' + groups.later + ' later' }) : '';
-  el.innerHTML = uiHeroHtml({ tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
+  return { tone: !ranked.length ? 'ok' : red ? 'danger' : amber ? 'warning' : 'info',
     eyebrow: '<span>To-do</span>' + (ranked.length ? '<span class="inv-panel-count">' + ranked.length + '</span>' : ''),
     title: escHtml(!ranked.length ? 'Nothing due' : groups.now ? todoPlural(groups.now, 'thing needs', 'things need') + ' you now' : todoPlural(ranked.length, 'task') + ' open, none urgent'),
     fig: money && worth > 0.005 ? figWrapHtml(escHtml(formatCurrency(gstRound(worth)))) : '',
     sub: escHtml([groups.week ? groups.week + ' this week' : '', groups.later ? groups.later + ' to know' : ''].filter(Boolean).join(' · ')),
-    viz: meter, fold: 'pulse-todo', open: !!_isDesktop, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>',
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' });
+    viz: meter, attrs: ' data-card="todo"', body: '<div class="inv-hero-sheet">' + rows + '</div>', open: ranked.length, now: groups.now,
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs">' + (ranked.length ? 'See all' : 'Add a task') + '</button>' };
 }
 
 function todoRefreshViews() {
   var page = document.querySelector('.inv-page-active');
-  // Today → Needs you lists the tasks (today.js; the To-do page joined it, the tab map TM2a): a tick there is redrawn there.
+  // Home → Needs you lists the tasks (today.js; the To-do page joined it, the tab map TM2a): a tick there is redrawn there.
   if (page && page.id === 'pageHome' && typeof tdyView === 'function' && tdyView() === 'needs') keepScroll(renderNeeds);
-  renderTodoHomeCard();
+  // On Home's dashboard: the needs widget and the day card's count (today.js), each in place.
+  if (typeof wdgRefresh === 'function') wdgRefresh('needs');
+  if (typeof homeDayRefresh === 'function') homeDayRefresh();
   updateStockBadge();
 }
 
@@ -874,6 +876,8 @@ function todoGo(go) {
     // Awaiting shows a challan invoiced in part too; the status 'pending' it set hid exactly those (the QA sweep).
     case 'im': imJumpClient(go.clientId); break;
     case 'audit': switchTab('pageRegister'); showNumberAudit(); break;
+    // Tata Motors' month to type (feeds.js, mktTata): the dialog on that month, over the screen it was opened from.
+    case 'mktTata': mktTataOpen(go.month); break;
     case 'settings': openSettings(go.sec); break;
     case 'home': switchTab('pageHome'); break;
     case 'todoLearn': {
@@ -904,9 +908,9 @@ function todoGo(go) {
     case 'stats':
       // A move worked out for a period opens Stats on it, so the block it names is the one on screen (advice.js).
       if (go.period && PERIOD_LABELS[go.period]) _statsPeriod = go.period;
-      // A task saved naming a tab that moved (the tab map, TM2b, §5): Overview's cards are Pulse's, Billing's dispatch cycle
+      // A task saved naming a tab that moved (the tab map, TM2b, §5): Overview's cards are Home's widgets, Billing's dispatch cycle
       // Pipeline's.
-      if (go.tab === 'overview') { tdySetView('pulse'); switchTab('pageHome'); }
+      if (go.tab === 'overview') { tdySetView('home'); switchTab('pageHome'); }
       else if (go.tab === 'billing') switchTab('pagePipeline');
       else {
         try { localStorage.setItem(STATS_TAB_KEY, go.tab || 'clients'); } catch (e) { /* per-device */ }

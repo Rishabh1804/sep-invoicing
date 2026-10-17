@@ -250,27 +250,38 @@ function qtListHtml() {
     grp(rest), false, ' data-qt-group="closed"');
   return h;
 }
+/* The quotations counted, for Quotations' verdict and Home's quote widget (widgetcards.js): drafts; live (issued, within its
+   validity) and how many of those expire within a week; issued and expired, unanswered; accepted, those with a rate still to post;
+   declined. */
+function qtTally() {
+  var all = getQuotations(), n = function(f) { return all.filter(f).length; };
+  var live = all.filter(function(q) { return q.status === 'issued' && !qtExpired(q); });
+  return { all: all.length, drafts: n(function(q) { return q.status === 'draft'; }), live: live.length,
+    soon: live.filter(function(q) { var d = qtDaysLeft(q); return d != null && d <= 7; }).length,
+    expired: n(function(q) { return q.status === 'issued' && qtExpired(q); }),
+    accepted: n(function(q) { return q.status === 'accepted'; }), declined: n(function(q) { return q.status === 'declined'; }),
+    toPost: n(function(q) { return q.status === 'accepted' && qtPostPlan(q).post.length; }) };
+}
+/* What the tally says needs a look (an expired one unanswered, a rate to post, one expiring this week): a warning; live ones and
+   nothing waiting, ok; nothing out, plain. The reprice moves add to it on Quotations' own card. */
+function qtTallyTone(t) { return t.expired || t.toPost || t.soon ? 'warning' : t.live ? 'ok' : 'neutral'; }
 /* Quotations' verdict (the tab map, TM5g): how many are live, how many expire this week, the drafts; what waits on the owner (an
    expired one unanswered, an accepted one whose rate is not posted) in its facts. */
 function qtVerdictHtml(moves) {
-  var all = getQuotations(), drafts = all.filter(function(q) { return q.status === 'draft'; }).length;
-  var live = all.filter(function(q) { return q.status === 'issued' && !qtExpired(q); });
-  var soon = live.filter(function(q) { var d = qtDaysLeft(q); return d != null && d <= 7; }).length;
-  var expired = all.filter(function(q) { return q.status === 'issued' && qtExpired(q); }).length;
-  var toPost = all.filter(function(q) { return q.status === 'accepted' && qtPostPlan(q).post.length; }).length;
-  var verdict = !all.length ? 'No quotations yet' : live.length + ' live' + (soon ? ' · ' + soon + ' expiring this week' : '') + (drafts ? ' · ' + todoPlural(drafts, 'draft') : '');
+  var t = qtTally(), drafts = t.drafts, soon = t.soon, expired = t.expired, toPost = t.toPost;
+  var verdict = !t.all ? 'No quotations yet' : t.live + ' live' + (soon ? ' · ' + soon + ' expiring this week' : '') + (drafts ? ' · ' + todoPlural(drafts, 'draft') : '');
   // The reprice moves are a fact here, and the phone's card's body, shut (I10: under the card they had put the owner's book past one
   // screen); the desktop's are in the pane beside the list until a quotation is opened (qtShowPane), since under its open card they
   // pushed the list below the screen's foot (P80).
   moves = moves || [];
   // The card is in the worst tone of what it holds (the tab map, §3e), its reprice moves among them.
   var mTone = moves.length ? (moves.some(function(mv) { return mv.tone === 'red'; }) ? 'danger' : 'warning') : null;
-  var tone = expired || toPost || soon ? 'warning' : live.length ? 'ok' : 'neutral';
+  var tone = qtTallyTone(t);
   if (mTone && UI_TONE_RANK[mTone] > (UI_TONE_RANK[tone] || 0)) tone = mTone;
   return uiVerdictHtml({ screen: 'Quotations', tone: tone, verdict: verdict,
     facts: [expired ? { text: expired + ' expired, unanswered', tone: 'warning' } : '', toPost ? { text: todoPlural(toPost, 'accepted one', 'accepted ones') + ' with a rate to post', tone: 'warning' } : '',
       moves.length ? { text: todoPlural(moves.length, 'client') + ' to reprice', tone: mTone, money: true } : '',
-      all.filter(function(q) { return q.status === 'accepted'; }).length + ' accepted'].filter(Boolean).slice(0, 3),
+      t.accepted + ' accepted'].filter(Boolean).slice(0, 3),
     body: _isDesktop ? null : qtRepriceMovesHtml(moves), key: 'pageClients-quotes', attrs: ' id="qtVerdict"' });
 }
 /* The reprice moves Pulse's questions draw (the tab map, TM5g), the same moves, each opening its draft. A role that does not see
@@ -292,7 +303,7 @@ function qtRepriceMovesHtml(moves) {
 /* The desktop's, in the pane while no quotation is open: its head, then the moves a card each, the pane scrolling inside itself. */
 function qtRepricePaneHtml(moves) {
   return '<div class="inv-pane-head"><span class="inv-panel-title">To reprice <span class="inv-panel-count">' + moves.length + '</span></span>' +
-    '<span class="inv-note">Pulse’s moves</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
+    '<span class="inv-note">From Home’s questions</span></div><div class="inv-panel-body" data-qt-reprice>' + advMovesDeckHtml(moves, 'quotes', 3) + '</div>';
 }
 function qtViewHtml() {
   if (_qtForm) return qtFormHtml();

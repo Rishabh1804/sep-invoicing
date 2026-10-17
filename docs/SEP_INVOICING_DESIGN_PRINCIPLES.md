@@ -1,5 +1,9 @@
 # SEP Invoicing — Design System
 **Version 2.0 · "Dense console" · adopted 26 Sep 2026** (supersedes v1.0 of 13 Apr 2026)
+**UI pass 3, 16 Oct 2026** (`docs/UI_PASS_3.md`, U1): the look is the owner's *"B with wells"*: cards lift off the page, what you
+press or fill sits in a shallow well, text keeps full contrast, and colour means something. Zinc & brass is the default palette.
+Amended in place: DR-2, DR-6 and DR-8, §3.1, §3.3 and §3.6, the components of §6 (the switch and the blank state added, §6.31 and
+§6.32), and §6.28's closed list of looks, regenerated from the census.
 
 This is the one document the interface is built on. Read it before touching `split/styles.css` or any
 render function. **If a change needs something this document does not define, amend this document in the
@@ -18,7 +22,7 @@ Where a mock-up and this document disagree, **this document wins**.
   design away. Screens keep their data; "modern" comes from the chrome, the type and the discipline of
   colour. *(Research, 25 Sep 2026: expert daily users tolerate and prefer density — agency consensus,
   consistent with NN/g.)*
-- **Quiet chrome, loud status.** No coloured header bar, no drop shadows on content (a tile's lift aside, DR-6), no decorative boxes.
+- **Quiet chrome, loud status.** No coloured header bar, no decorative boxes; a card lifts and a well sinks, and nothing else casts a shadow (DR-6).
   Hierarchy comes from type weight, spacing and hairlines. Colour is spent on **meaning** — red, amber,
   green, blue — and on the one accent that marks what is interactive or selected.
 - **Tables are first-class.** A register, a stock list and a week grid are tables. They are drawn as
@@ -52,13 +56,13 @@ And the v2.0 rules, which carry the same weight:
 | DR | Rule |
 |----|------|
 | DR-1 | **Colour means status.** Only the status tones (§3.3) may colour text, dots or fills that convey state. Never colour alone: a tone always travels with a word or a symbol. |
-| DR-2 | **One accent, for interaction.** `--accent` marks the primary action, the current selection, the active tab/nav item, focus, links, and the current period in a chart. Nothing else. |
+| DR-2 | **One accent, for interaction.** `--accent` marks the primary action, the current selection, the active tab/nav item, focus, links, and the current period in a chart. Nothing else: it never marks a status (good or bad) or a series (UI pass 3, §3d). *One against the rest* (the period on show, or the thing picked, in the accent beside what it is set against in `--series-other`) is the accent marking what is selected. |
 | DR-3 | **One primary button per view.** Everything else is secondary, ghost or link. |
-| DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. |
+| DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. **From UI pass 3's U2R** (owner, 17 Oct 2026, call 2; `docs/UI_PASS_3.md` §24l): a figure is Geist with tabular figures (`--ff-num`), still right-aligned; only an identifier stays Geist Mono. |
 | DR-5 | **Sentence case everywhere** — titles, labels, buttons, column heads, tabs. No uppercase letter-spaced labels. |
-| DR-6 | **No shadows on content, but a tile's lift.** Surfaces are separated by a 1px `--border` hairline or by the surface tier. Shadows exist on floating layers (menus, dialogs, toasts, the phone's bar) and, since 8 Oct 2026, on a tile and a card in a deck, lifted by `--shadow-tile` (owner: *"Let's give our tiles elevation as well"*): the boxes a reader reads a figure off or taps. A panel, a hero, a row, a sheet and a control stay flat. |
+| DR-6 | **A card lifts, a well sinks, a layer floats; nothing else casts a shadow** (UI pass 3, 16 Oct 2026, amending 8 Oct's tile lift). A card (a panel, a hero, a card in a deck, the phone's bar, a chip, a button) is lifted off what it sits on by `--lift-1` (`--lift-2` for the one primary and a card being moved); a well (a field, a search, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card) is sunk into it by `--press-1` or `--press-2`; a layer (a menu, a dialog, a toast) floats on `--shadow-pop` or `--shadow-dialog`. A row, a hero's sheet, a head and a table's cell cast nothing. In dark a card is lifted by a lighter surface and its fine edge (`--edge`) more than by its shadow (§3.3). |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |
-| DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, `inv-fig-info` for a figure over its mark, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). |
+| DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, `inv-fig-info` for a figure over its mark, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). **A coded card and a status badge carry the tone's icon as well** (UI pass 3, §3d: `done` for ok, `alert` for warning, `cancel` for danger, `info`); a dot and the word stay where the row has no room. **From U2R** (call 1, §24c) a card on a board says its tone with its lamp and its words and, from amber, its top edge; the tone's icon stays on a status badge and a notice. |
 | DR-9 | **Every screen is one of four kinds, assembled one way for its kind** (the tab map, `docs/TAB_MAP.md` §3e; owner, 9 Oct 2026: *"UI still feels inconsistent to me"*). An **overview** leads with its heroes; a **work screen** with its verdict card (§6.28), then one toolbar row, what needs the owner, the list, the rest folded, and a row ends in its figure and status or one action; a **document** is paper fitted to the screen; a **form** is its fields and its action bar. A screen declares its kind (`data-screen`, `SCREEN_KINDS` in tabs.js) and P197 holds it to the kind's anatomy; its boxes wear only the closed list of looks (§6.28). |
 
 ---
@@ -71,49 +75,54 @@ meaning and are the only thing components read. A theme or palette swaps aliases
 ### 3.1 Palettes (primitives)
 
 **Three palettes, chosen per device in Settings → Data & device → Appearance** (owner, 26 Sep 2026:
-*"give different palette style options in settings, we'll start with Teal"*). **Teal is the default.** A
-palette is only a set of primitives: `<html data-palette="teal|zinc|terracotta">` selects which set the
-aliases read, so no component knows which palette is on. Adding a palette = one more block of primitives
-plus its row in §3.10; nothing else changes.
+*"give different palette style options in settings, we'll start with Teal"*). **Zinc & brass is the default since UI pass 3**
+(16 Oct 2026; the approved board's palette, `docs/UI_PASS_3.md` §1a-2): `head.html`'s first paint and `appearance.js` take it where
+the device has chosen none, so a device that never chose follows the new default and one that chose Teal or Terracotta keeps it. A
+palette is only a set of primitives: `<html data-palette="zinc|teal|terracotta">` selects which set the aliases read, so no component
+knows which palette is on. Adding a palette = one more block of primitives plus its row in §3.10; nothing else changes. UI pass 3
+took each page a step down (OKLab L 0.92), so a card stands off it, gave each palette a step-deeper accent for the primary button's
+face and a card's fine edge, and took `--c-text-3` a step darker in light, so it reads at 4.5:1 in a well on the page.
 
-**Teal** (default)
-
-| Primitive | Light | Dark |
-|---|---|---|
-| `--c-bg` | `#e1ebed` | `#0d1213` |
-| `--c-surface` | `#ecf4f5` | `#131a1b` |
-| `--c-surface-2` | `#dae6e7` | `#1a2224` |
-| `--c-surface-3` | `#cfdddf` | `#222c2e` |
-| `--c-border` | `#c7d6d7` | `#293537` |
-| `--c-text-1` | `#11191c` | `#ecf2f2` |
-| `--c-text-2` | `#4a585e` | `#a6b6b8` |
-| `--c-text-3` | `#57676d` | `#7d8f91` |
-| `--c-accent` | `#0d6b63` | `#4fc1b3` |
-| `--c-on-accent` | `#f6faf9` | `#04211d` |
-| `--c-accent-soft` | `#dcefec` | `#15302d` |
-| `--c-accent-soft-text` | `#0a4d47` | `#8fdcd2` |
-
-**Zinc & brass** — zinc-grey neutrals, brass accent (the trade's own materials).
+**Zinc & brass** (default) — zinc-grey neutrals, brass accent (the trade's own materials).
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` / `--c-surface` | `#e6eaee` / `#eff3f6` | `#0e1114` / `#15191d` |
+| `--c-bg` / `--c-surface` | `#e1e6eb` / `#eff3f6` | `#0e1114` / `#15191d` |
 | `--c-surface-2` / `--c-surface-3` | `#dfe3e9` / `#d5dbe1` | `#1c2126` / `#242a30` |
 | `--c-border` | `#cdd3da` | `#2b323a` |
-| `--c-text-1` / `-2` / `-3` | `#14191e` / `#4d5761` / `#5a6570` | `#edf0f3` / `#a9b3bd` / `#86919c` |
+| `--c-text-1` / `-2` / `-3` | `#14191e` / `#4d5761` / `#545e68` | `#edf0f3` / `#a9b3bd` / `#86919c` |
 | `--c-accent` / `--c-on-accent` | `#8a5d0c` / `#fbf7ef` | `#dcaa4c` / `#1b1204` |
+| `--c-accent-deep` | `#704b08` | `#b98f3f` |
 | `--c-accent-soft` / `-text` | `#f5ead3` / `#6a4606` | `#33291a` / `#ecc983` |
+| `--c-edge` | `rgb(20 25 30 / 0.06)` | `rgb(237 240 243 / 0.08)` |
+
+**Teal**
+
+| Primitive | Light | Dark |
+|---|---|---|
+| `--c-bg` / `--c-surface` | `#dee7e9` / `#ecf4f5` | `#0d1213` / `#131a1b` |
+| `--c-surface-2` / `--c-surface-3` | `#dae6e7` / `#cfdddf` | `#1a2224` / `#222c2e` |
+| `--c-border` | `#c7d6d7` | `#293537` |
+| `--c-text-1` / `-2` / `-3` | `#11191c` / `#4a585e` / `#516065` | `#ecf2f2` / `#a6b6b8` / `#7d8f91` |
+| `--c-accent` / `--c-on-accent` | `#0d6b63` / `#f6faf9` | `#4fc1b3` / `#04211d` |
+| `--c-accent-deep` | `#085650` | `#41a296` |
+| `--c-accent-soft` / `-text` | `#dcefec` / `#0a4d47` | `#15302d` / `#8fdcd2` |
+| `--c-edge` | `rgb(16 40 48 / 0.06)` | `rgb(236 242 242 / 0.08)` |
 
 **Terracotta** — warm neutrals, the v1.0 accent.
 
 | Primitive | Light | Dark |
 |---|---|---|
-| `--c-bg` / `--c-surface` | `#eee8df` / `#f7f2ea` | `#141311` / `#1c1b18` |
+| `--c-bg` / `--c-surface` | `#eae4db` / `#f7f2ea` | `#141311` / `#1c1b18` |
 | `--c-surface-2` / `--c-surface-3` | `#e9e2d6` / `#e2d9ca` | `#24221e` / `#2d2a25` |
 | `--c-border` | `#dbd1c1` | `#36322c` |
-| `--c-text-1` / `-2` / `-3` | `#1b1916` / `#58534b` / `#696358` | `#f3f0ea` / `#bcb6aa` / `#948d80` |
-| `--c-accent` / `--c-on-accent` | `#a94b28` / `#fbf6f2` | `#e98c64` / `#1f0e06` |
+| `--c-text-1` / `-2` / `-3` | `#1b1916` / `#58534b` / `#625c52` | `#f3f0ea` / `#bcb6aa` / `#948d80` |
+| `--c-accent` / `--c-on-accent` | `#a54926` / `#fbf6f2` | `#e98c64` / `#1f0e06` |
+| `--c-accent-deep` | `#863a1d` | `#c57553` |
 | `--c-accent-soft` / `-text` | `#f6e6dc` / `#7e3418` | `#3b2419` / `#f2b89c` |
+| `--c-edge` | `rgb(40 30 20 / 0.06)` | `rgb(243 240 234 / 0.08)` |
+
+Terracotta's light accent went from `#a94b28` to `#a54926` with its darker page, which had brought it under 4.5:1 there (4.46).
 
 The status tones (§3.3) are **shared by every palette**: red must mean the same thing whichever accent is on.
 
@@ -122,7 +131,7 @@ that puts a lot of stress at our eyes"*; 8 Oct 2026: *"we will be avoiding pure 
 an HR"*). The 26 Sep surface was an off-white a step below `#fff` (`#f8fafa`, OKLab L 0.984), and beside the coloured cards
 it still read as white: the owner called the boxes in Today's cards *"just white"*. So the rule is a measured ceiling, not
 the hex `#fff`: **no fill on screen is lighter than OKLab L 0.97.** Every light ramp was taken down a step and given its
-palette's hue, the surface at L 0.96 and the page at 0.93, each tier keeping its distance from the next; text-3 was darkened
+palette's hue, the surface at L 0.96 and the page at 0.93 (0.92 since UI pass 3), each tier keeping its distance from the next; text-3 was darkened
 a shade where it fell under 4.5:1 on `--surface-2`, and Terracotta's accent where it fell under it on the page (§3.10). Text
 on the accent is off-white (ink, not a fill), and the app icons use the same. **The one exception is paper**: the printed
 documents, their on-screen previews (a report, the power case) and a QR code, which a camera reads black on white, stay
@@ -159,7 +168,10 @@ says); P180 proves the sweep fails on the 26 Sep surface, and reads the styleshe
 | Alias | Use |
 |---|---|
 | `--bg` | the page behind everything |
-| `--surface` | panels, tables, bars, inputs |
+| `--surface` | cards (panels, heroes, chips, buttons), tables, bars, a segmented control's pressed pill |
+| `--well` | a well (UI pass 3): a field, a search, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card. A veil, `light-dark(rgb(20 25 30 / 0.05), rgb(0 0 0 / 0.22))`, over whatever it sits in, so it is a step under its card, a dialog or the page alike: over Zinc's card it reads `#e3e8ec` (L 0.929, the card 0.962) and `#101317` in dark (0.185, the card 0.211); over a coded card it is that card's own fill sunk. Never lighter than what it sits in, so never white |
+| `--edge` | a card's and a well's fine edge (`--c-edge`): in dark it, with the card's lighter surface, is what lifts a card |
+| `--accent-deep` | the step-deeper accent the primary button's face runs to (`--c-accent-deep`) |
 | `--surface-2` | table header band, selected nav item, segmented "on", hover, tokens |
 | `--surface-3` | pressed, inactive bars in charts, disabled fill |
 | `--border` | every hairline: panel edges, row dividers, inputs |
@@ -188,20 +200,31 @@ the theme and the palette and DR-1 holds (a fill's colour is its status, and its
 
 | Tier | What | Fill |
 |---|---|---|
-| Card | a hero (§6.21) | 135°: the tone 18% into its background, 8% at 55%, 4% at the end; it stays in its tone, never the plain surface |
-| Box | what a card holds (§6.26): a sheet, a card in a deck, a tile | 150°: the tone 5% into its background, lightening to that background 45% into the surface; lighter than the card it is on |
-| Control | a secondary or icon button in a coded block | the tone's background 55% into the surface, its edge the tone 28% into `--border` |
+| Card | a hero (§6.21), lifted | 160°: its tone's background to the tone 7% into it (UI pass 3, the approved board; it was 135° from the tone 18%); a plain card (`neutral`) is the surface to `--text-3` 7% into it |
+| Card in a card | a card in a deck (§6.22), lifted | 160°, lighter than the card it lies on in both themes: in light its background 40% → 75% into the surface; in dark the tone 12% → 8% into its background |
+| Well in a card | a tile that names a tone (§6.9), sunk | 160°, darker than the card in both themes: in light the tone 13% → 9% into its background; in dark its background 60% → 45% into the page. A tile that names none is the card's own fill under the well's veil |
+| Control | a secondary or icon button in a coded block | in light the tone's background 55% into the surface, in dark the tone 12% into its background (lighter than the card in both), its edge the tone 28% into `--border` |
 
 A hero is `inv-hero-danger|warning|ok|info|neutral`, the accent with none. A box names its own tone by its tone class
 (`inv-tile-<tone>`, which also colours its figure) or by `data-tone` (the fill alone: a task's `red|amber|info`, a move's
 `danger|warning|ok|info`, a tile whose figure is a plain fact but whose change has a direction); a card in a deck with none takes
-the card's. **A tile that names none is a plain fact** and is drawn plain (`--text-3` over `--surface`), never in its card's tone,
-which would say the fact is the card's verdict. `inv-coded` codes a block that is not a card (Pulse's quick actions). No other
-surface takes a gradient.
+the card's. **A tile that names none is a plain fact** and is drawn plain (the card's own fill under the well's veil), never in its
+card's tone, which would say the fact is the card's verdict. **What a hero opens to (its sheet) draws no box** of its own, only a
+hairline under the head. `inv-coded` codes a block that is not a card (the quick actions widget, Pipeline's stages). No other surface takes a gradient.
 
-**Chart series** (`--chart-1…8`, `--chart-other`) stay for categorical charts (pies, stacked bars), redrawn
-from this palette in both themes. A single-series chart uses `--surface-3` bars with the current/selected bar
-in `--accent` (§6.17).
+**On a board, from UI pass 3's U2R, salience follows severity** (owner, 17 Oct 2026, call 1; `docs/UI_PASS_3.md` §24c): a widget is its
+type's surface (a Ledger warm, `--ty-ledger`; a Plant cool, `--ty-plant`; the others the card's), quiet while all is well; amber adds a
+3 px top edge (`--tone-edge`, an inset line in `--warning-mark`); red adds the edge and the red tint (`--card-danger`) in place of the
+type's surface. No widget takes a gradient. Every other hero and verdict card takes the same rule in U7.
+
+**Series** (UI pass 3, §3d): six colours say which thing a line or bar is, `--series-1…6` (blue `#2e75b6`, orange `#c0622b`, green
+`#1f8a6a`, ochre `#a87c00`, magenta `#c2508a`, violet `#6b55c9`; dark `#5a98dc`, `#d9733d`, `#2fa37f`, `#b8890f`, `#d06a9c`,
+`#8576e8`) and `--series-other` (`#9aa4ae` / `#5d6772`), always in that order and never by rank: a thing keeps its slot app-wide
+(`seriesSlot`, charts.js). Checked with the dataviz validator on 16 Oct 2026 against the card and a well in light and the card in
+dark: every check passes (the worst adjacent colour-blind pair ΔE 8.4 light, 9.6 dark; dark's tritan 5.9 is under the 6 floor, so two
+series or more always carry a legend and, up to four, direct labels). The `--chart-*` tokens they replace failed the same check
+(their ochre, brown and green read alike). **How much** (a heat map, a scale) is one blue, `--seq-1…7`, light to dark (dark: dim to
+bright). A single-series chart uses `--surface-3` bars with the current/selected bar in `--accent` (§6.17).
 
 ### 3.4 Typography
 
@@ -210,7 +233,9 @@ Loaded from Google Fonts with `display=swap`; `sw.js` already lets the font CSS 
 fallback stacks are chosen to hold layout. Fraunces, Inter and IBM Plex Mono are dropped from the UI.
 **Printed documents keep their own faces and scales** (§8).
 
-`html { font-variant-numeric: tabular-nums slashed-zero lining-nums }` stays global.
+`html { font-variant-numeric: tabular-nums slashed-zero lining-nums }` stays global. **From U2R** (call 2, `docs/UI_PASS_3.md` §24l) a figure
+is set in `--ff-num` (Geist, tabular) and only an identifier in `--ff-mono`, which alone keeps `slashed-zero`; `--fs-26`, `--fs-30` and
+`--fs-44` join the sizes, `--fs-36` and `--fs-48` go.
 
 **Roles, not sizes.** A rule reads a role token; a role fixes size, line height and weight together.
 
@@ -256,12 +281,21 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 ### 3.6 Radius, elevation, motion, layers
 
-- Radius: `--r-sm 0.25rem (4)` chips, cells, checkboxes · `--r-md 0.375rem (6)` buttons, inputs, tokens ·
-  `--r-lg 0.5rem (8)` panels, tiles · `--r-xl 0.625rem (10)` phone panels, dialogs · `--r-full`.
-- Elevation (DR-6): `--shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14)` for menus, toasts and the phone's bar,
-  `--shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28)` for dialogs, and `--shadow-tile` (two soft shadows, a tight one under the
-  edge and a wide one under the box, each `light-dark()`: a 7–8% tinted shadow in light, 32–45% black in dark, where a light one
-  is not seen) for a tile and a deck card (owner, 8 Oct 2026). Nothing else casts a shadow.
+- Radius (UI pass 3, the same on both layouts; **from U2R** `--r-card` 14 px, `--r-tile` 10 px for every well, `--r-ctl` 8 px,
+  `--r-seg` 7 px and the phone's bar its own `--r-bar` 22 px, `docs/UI_PASS_3.md` §24b): `--r-card 1.125rem (18)` a card (a panel, a hero, a deck card, the phone's bar, a
+  dialog's corners) · `--r-tile 0.875rem (14)` a tile, a PIN box · `--r-ctl 0.75rem (12)` a field, a select, a button, a segmented
+  control's track, the search, a menu · `--r-seg 0.5625rem (9)` a segmented control's pressed pill · `--r-key 1rem (16)` a keypad's
+  key · `--r-full` a chip, a badge, a dot, a switch · `--r-toast` (half a line's height and the padding over it) the toast: a pill on one line, a rounded box when it wraps. `--r-sm 0.25rem (4)`, `--r-md`, `--r-lg` and `--r-xl` stay for what
+  they draw now (a tick box, a cell, a callout, a token, the sign-in card until U8) and are not used for a card.
+- Elevation (DR-6): **a card lifts** by `--lift-1` (two shadows, a tight one under the edge and a wide one under the card: 6–7%
+  tinted in light, 32–40% black in dark) and `--lift-2` (the same, further: the one primary, a card being moved, the phone's bar);
+  **a well sinks** by `--press-1` (a field, a track, a PIN box: one inset shadow, 14% light, 45% dark) and `--press-2` (a tile in a
+  card, lighter); **a layer floats** on `--shadow-pop: 0 0.25rem 1rem rgb(0 0 0 / 0.14)` (menus, toasts) and
+  `--shadow-dialog: 0 1rem 3rem rgb(0 0 0 / 0.28)` (dialogs). Nothing else casts a shadow. `--shadow-tile` (8 Oct 2026) is
+  retired: inside a card a tile is a well.
+- A layer in dark (a dialog, the search, a menu) is a step over a card, and what is drawn on it reads the layer as its surface:
+  inside `.inv-dialog` and `.inv-menu` the `--surface` tier is `--c-surface-2` in dark (and `--surface-2` is `--c-surface-3`), so a
+  button, a panel or a pill on a layer never sits darker than the layer. Light is unchanged.
 - Scrim: `--scrim: rgb(0 0 0 / 0.45)` (one token; v1.0 had four raw values).
 - Hairlines (§5.2): `--hair: 1px` every divider, control edge and tile gap · `--rule: 2px` an accent rule, a chevron's stroke.
 - Motion: `--dur-1: 120ms` (hover, press, toggle) · `--dur-2: 200ms` (panels, dialogs, tab switch, a two-faced dialog
@@ -332,7 +366,7 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 (`icons/icon-teal.svg`, `icon-zinc.svg`, `icon-terracotta.svg`), with PNG exports at 192 and 512;
 `icon-192.png` / `icon-512.png` at the root are the Teal exports the manifest names.
 
-- **In the app** — the browser tab icon, the Apple touch icon and the rail's brand mark — the icon follows
+- **In the app** — the browser tab icon, the Apple touch icon and the rail's brand mark (`markSvg`, §5.6) — the icon follows
   the device's palette at runtime.
 - ⚠ **The installed home-screen / Start-menu icon cannot follow it.** It is read from `manifest.json`, one
   file served to every device, and the browser fixes it at install and refreshes it only from that file. So
@@ -343,14 +377,15 @@ one file is also a valid **maskable** icon. Masters are SVG, one per palette
 
 ## 4. Information architecture
 
-**The tab map (owner, 8–9 Oct 2026; `docs/TAB_MAP.md`) is the map.** Four sections by subject, and a door: **Today** (Needs you ·
-Pulse, then its Insights, named in the row: Stats · Reports · Planner), **Office** (Pipeline · Challans · Invoices · Clients ·
+**The tab map (owner, 8–9 Oct 2026; `docs/TAB_MAP.md`) is the map.** Four sections by subject, and a door: **Home** (Home ·
+Needs you, then its Insights, named in the row: Stats · Reports · Planner; Today until UI pass 3, whose Pulse folded into Home's
+widgets), **Office** (Pipeline · Challans · Invoices · Clients ·
 Sales; Create is a page it holds without a tab), **Add** (one sheet, not a page), **Floor** (Overview · People · Production ·
 Stock · Power) and **Money** (its own tabs: Overview · Receivables · Payments · Bank · GST). **History and Knowledge are tools in
 the top bar** (a clock and a book), in no section, as Search and Settings are. An ID with a face (the entry faces) also has
 **Mine**, its own screen, its door drawn first. Its rules (the tab map §3a):
-1. **Four sections, by subject.** Today is the whole business, Office the paperwork, Floor the plant, Money the cash. Add is a door.
-2. **One overview per section, first in its row:** Pulse, Pipeline, Floor's Overview, Money's Overview.
+1. **Four sections, by subject.** Home is the whole business, Office the paperwork, Floor the plant, Money the cash. Add is a door.
+2. **One overview per section, first in its row:** Home, Pipeline, Floor's Overview, Money's Overview.
 3. **Three levels at most:** the bar, the section's row, the screen's row. A form, a record or a review opens behind a back
    arrow (a sub-view) or in a dialog, never in another row.
 4. **No row wider than five**, so every row fits a phone.
@@ -398,9 +433,9 @@ top bar, sub-tabs, the action bar and the content, and is amended where marked.
 
 - **Rail** (`--side-w`, `--surface`, right hairline): the phone's bar stood on its side (owner, 8 Oct 2026, above), the same
   doors drawn the same way:
-  - the brand mark (it opens Today → Pulse; *Soma Electro* is its label and title)
+  - the brand mark (it opens Home; *Soma Electro* is its label and title)
   - **Add** (the shell's one primary, key `A`)
-  - **Today** · **Office** · **Floor** · **Money**, each with its red count
+  - **Home** · **Office** · **Floor** · **Money**, each with its red count
   - Settings, pinned to the bottom.
   No view of a workspace is listed: the views are the tab row under the top bar, as on the phone. Search is the top bar's field
   (`Ctrl K`). A role's doors it may not open are hidden (the guard, `docs/GUARD.md`), a workspace whose views it opens none of
@@ -471,17 +506,34 @@ it fits; a title a template wrote is never touched).
 deltas that matter are `--ok`. Units after a figure are `--text-3` (`54 L`, `12 kg`). Deltas read
 "+12% on Aug", not arrows alone. **A figure breaks only after a comma group, never inside it or its paise**: a tile's value
 goes through `figWrapHtml()` (`state.js`), which puts a `<wbr>` after each comma and keeps the last group and its decimals
-`inv-nowrap`, so ₹10,46,48,655.51 wraps as "₹10,46,48," / "655.51".
+`inv-nowrap`, so ₹10,46,48,655.51 wraps as "₹10,46,48," / "655.51". **On a board, from U2R** (call 3, `docs/UI_PASS_3.md` §24k), an amount is
+`inrCard`'s (whole rupees under a lakh, lakhs and crores to two places) with its exact figure as its `title`; a Ledger's lines are whole
+rupees; a rate keeps its paise; every other screen keeps the paise.
 
 ### 5.5 States
 Hover `--surface-2` (pointer only) · pressed `--surface-3` · selected `--accent-soft` · disabled 45% opacity
 and `cursor: not-allowed` · focus `--focus-ring`.
 
 ### 5.6 Icons
-Inline SVG, 24 viewBox, `stroke: currentColor`, `stroke-width: 1.8` (2 at 16px), round caps and joins,
-no fill. 20px on the phone, 16px (compact) or 18px on the desktop. Icon-only buttons carry `aria-label`.
-The icon set is the one in `body.html`/`tabs.js` plus the additions in the mock-ups (items, pay, search,
-chevrons, settings sliders).
+**Icons v3** (UI pass 3, U1; `docs/UI_PASS_3.md` §4; the canvas's *Icon set v3*: *"24 grid, 1.75 stroke, round ends, 2 px clear
+of the edge. The ink line carries the shape; one brass tint fills its main part"*).
+- **One set**, `ICONS` in state.js, drawn by `iconSvg(name, cls)` and never by hand in a module: a 24 viewBox, `stroke: currentColor`
+  at 1.75, round caps and joins, `aria-hidden`, every glyph inside 2–22. Common shapes are Lucide's (lucide-static 0.460.0); the
+  plant's own things are drawn to match (`vat`, `barrel`, `pickling`, `rack`, `zinc`, `chemical`, `part`, `overtime`, `truck`,
+  `cheque`). A name kept from before keeps its call sites; aliases are one shape (`power` = `zap`, `upkeep` = `wrench`, `stats` =
+  `chart`, `know` = `info`, `warning` = `alert`, `receipt` = `invoice`).
+- **Two inks**: the line is the text's colour; a thing's main part carries one tint (a path stored `d:` in `ICONS`, drawn
+  `inv-ico-tint` under the lines, fill only): the accent at a fifth. In a toned place (a coded card and its boxes, a deck card, a
+  notice) the tint is the tone; in a status badge and on the accent (a primary button, the print bar) it is the ink's own colour,
+  so a tint never says a status by itself. A door at rest draws its line alone; the workspace on screen its tint too.
+- **The status icons** (§3.3, DR-8): ok `done`, warning `alert`, danger `cancel`, info `info`.
+- **The mark** (the nut): one builder, `markSvg(size, tone)`: `'tile'` (the accent's tile with the nut's line, the rail and the
+  lock) and `'brass'` (the nut cast in brass for the sign-in screen and the icon, U8); its gradient takes a new id each call.
+- **`body.html` holds slots** (`<span data-icon="name">`), filled from the set by `iconFill` at boot, before `inv-booted`.
+- Sizes: 20px on the phone, 16px (compact) or 18px on the desktop; a step's tick is `inv-ico-bold`. Icon-only buttons carry
+  `aria-label`. Drawings that are not icons (a person's bars and stars, the plant strip, the Planner's charts, a QR) are not in the set.
+- **The licences go with the build**: Lucide's ISC and Feather's MIT notices, in full, above `ICONS` and in Settings → Data & device →
+  Backup, storage & build → **Licences**. P228 (`p228-icons.spec.ts`) holds all of it.
 
 ---
 
@@ -500,7 +552,8 @@ look right … that way we have 5 icons again, which can be arranged in a better
 in `--accent-soft` (its word `--accent-soft-text`, 600); **Add** (`inv-navbar-add`, the centre door) fills its pill in the
 accent: the same shape, the strongest fill, never raised out of the bar; a red count (`inv-navbar-count`) is a pill on the
 mark's top corner, ringed in the surface. **The phone's bar** floats `--nav-gap` above the screen's foot (above the safe area),
-the surface's colour, `--r-xl`, edged by a hairline and casting `--shadow-pop` as the floating layer it is (DR-6); on a tablet it
+the surface's colour, a card's corners (`--r-card`) and fine edge (`--edge`), lifted by `--lift-2` as a card being moved is (DR-6,
+UI pass 3); on a tablet it
 keeps the phone's width, centred. **Under it the page fades into its own colour** (`body::after`, a gradient from clear to
 `--bg` over `--nav-gap`, under the bar and never printed), so nothing scrolled beneath shows as a line cut in the gap.
 `--nav-space` (the bar and its gap) is what the page keeps clear at its foot and where a sticky selection or action bar stands.
@@ -514,13 +567,16 @@ returns — and its title in `inv-pagehead-title` (`--t-heading`, one line). **T
 its verdict card (§6.28), and P197 fails a screen that draws a page-head line.
 
 ### 6.3 Buttons — `inv-btn`
-`inv-btn-primary` (accent fill) · `inv-btn-secondary` (surface + border — the default) · `inv-btn-ghost`
+`inv-btn-primary` (the accent deepening to `--accent-deep` down its face, lifted by `--lift-2`) · `inv-btn-secondary` (surface +
+border, lifted by `--lift-1` — the default) · `inv-btn-ghost`
 (transparent with a hairline border: a lighter secondary, never bare text, which reads as a label) · `inv-btn-danger` (danger text on the surface; `inv-btn-danger inv-btn-solid` is the filled one, used only
 for the final button of a confirm dialog) · `inv-btn-link` (accent
 text, no box) · `inv-btn-icon` (square, `aria-label`) · size `inv-btn-sm`, width `inv-btn-block`.
-`inv-btn-grid` lays launch buttons out — three across on the phone (icon over label), one row on the desktop;
-Home's quick actions are the one use.
-Height `--ctl-h`, radius `--r-md`, `--t-body` 500 (primary 600). Replaces `inv-stk-btn*`, `inv-stk-tool`,
+`inv-btn-grid` lays launch buttons out, three across with each label under its icon. In a dialog (Add's By hand) it is five
+across on the desktop. In a widget (Home's quick actions) it follows the card, not the window (UI pass 3): six across once the card
+is 40rem wide. The window's rule (one row on the desktop) set six across in a half-board card, and the labels had no room.
+Height `--ctl-h`, radius `--r-ctl`, `--t-body` 500 (primary 600). A button is a small card (UI pass 3): it lifts, a ghost and a link
+cast nothing, pressed it sinks back to its card, and focus keeps the shared ring over its lift. Replaces `inv-stk-btn*`, `inv-stk-tool`,
 `inv-stk-back`, `inv-link-btn`, `inv-quick-action`, `inv-header-btn`, `inv-overlay-close`,
 `inv-att-nav-btn`, `inv-im-sel-btn`, `inv-sel-clear-btn`, `inv-td-fold`.
 
@@ -542,11 +598,15 @@ cue to scroll a row that does not; only a row that would run past the screen kee
 without its note (`data-more` start | end | both); the workspace's row never fades, its cue being the group's name.
 
 ### 6.5 Segmented control — `inv-seg`
-Joined buttons in one bordered box, the "on" segment `--surface-2` + 600 (desktop) or `--accent-soft`
-(phone). For a **setting of the current view**, not navigation: period (MTD/QTD/YTD/All), span
+A well (UI pass 3): the track sinks into its card (`--well`, `--press-1`, `--r-ctl`, its fine edge) and the pressed segment is a
+pill of `--surface` lifted in it (`--lift-1` on its `::after`, `--r-seg`), its words `--text-1` 600, on both layouts (as on the
+approved board: a 36px pill in a 44px track). The pill sits `--seg-inset` in from the track (`--sp-4`, `--sp-2` compact) while the
+segment stays a 44px target on the phone: its transparent border is the track's margin and its fill is clipped inside it
+(`background-clip: padding-box`); its focus is the accent ring drawn on the pill, inside the track's clip. For a **setting of the
+current view**, not navigation: period (MTD/QTD/YTD/All), span
 (1/4/12 weeks), metric (₹ / Tonnes / ₹/kg), density. `inv-seg-btn` (`aria-pressed`). A segment that records a status
-(Staff → Day's P / H / A) carries its tone, `inv-seg-btn-ok|warning|danger`, and is pressed in the tone's bg and colour —
-in both themes and on the desktop too, where an ordinary pressed segment is grey. `inv-seg-fit` keeps a segmented control the width of its
+(Staff → Day's P / H / A) carries its tone, `inv-seg-btn-ok|warning|danger`, and its pill is the tone's bg in its colour, in
+both themes and on both layouts. `inv-seg-fit` keeps a segmented control the width of its
 buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the trend's series, step and chart). Replaces `inv-stk-seg`,
 `inv-stats-chips` as period pickers, `inv-pred-chip`.
 
@@ -556,12 +616,14 @@ buttons (`--ctl-h-sm`), for a card's head or toolbar (Stats' Ranked / Share, the
   (§6.7) stand under it as a row of tokens, each a `button.inv-token` clearing its own (`aria-label` *Clear Client: SSS Mehta*);
   a sort other than the default is a token too. The desktop shows the filters themselves inline and draws no tokens.
 - `inv-chip`: a **choice among options** inside a form (zero-rate reason, P/H/A on the desktop grid,
-  stock basis). `inv-chip-on`. One definition (v1.0 defined `.inv-chip` twice). Replaces `inv-zero-opt`,
+  stock basis). A pill (`--r-full`) of `--surface` lifted by `--lift-1` (UI pass 3); picked (`inv-chip-on`, `aria-pressed`) it
+  sinks into `--accent-soft` (`--press-2`), edged in the accent. One definition (v1.0 defined `.inv-chip` twice). Replaces `inv-zero-opt`,
   `inv-stk-choice`, `inv-td-pill`, `inv-att-chip`, `inv-rm-chip` as a picker.
 
 ### 6.7 Toolbar and search — `inv-toolbar`, `inv-search`
 `inv-toolbar`: search + tokens + view settings, one line on the desktop, wrapping to two on the phone.
-`inv-search`: bordered field with the search icon inside and, on the desktop, a `/` key hint.
+`inv-search`: a well (UI pass 3: `--well`, `--press-1`, `--r-ctl`, its fine edge) with the search icon (`--text-2`) inside and,
+on the desktop, a `/` key hint; focused, the accent edge and the ring.
 Every searchable list uses it. Its field fills the box to the border, so the whole `--ctl-h` box is the tap that types
 (it was a 16px line of text in a 44px box). `inv-stepper` is a period stepper: an `inv-btn-icon` back, the period in
 `inv-stepper-label` (a date field, or `inv-stepper-title` over `inv-stepper-sub`), forward, and a ghost *Today* / *This week*. Filters beside it are `inv-toolbar-item` (a select, a month, a labelled date field),
@@ -584,8 +646,8 @@ is one row on both layouts: the search, the filters, the view's one primary, at 
   item had on the row, so `events.js` routes them unchanged. A pick shuts the dialog first, then acts (a layer it opens is
   drawn after; Back passes over More's step). **A badge an item carries is carried by More**, summed, in the worst tone, so
   nothing waiting hides behind it; **a count that waits on nothing** (a neutral badge: how many credit notes there are) stays on
-  its row and is not carried (TM5c). Where a phone's row holds a stepper or a period beside its primary (the Planner's, Pulse's
-  head), or four controls besides (Invoices, Challans, Parts: TM5), More is its mark alone (`{icon: true}`), named *More* for a
+  its row and is not carried (TM5c). Where a phone's row holds a stepper or a period beside its primary (the Planner's, Home's
+  board), or four controls besides (Invoices, Challans, Parts: TM5), More is its mark alone (`{icon: true}`), named *More* for a
   screen reader.
 - **The phone's search shares its row**: beside other controls it takes what the row leaves, never under three quarters of a
   column (`--col-sm-w`), so the row stays one (TM5c). A choice picked inside Filter that is one choice (Parts' *No weight*) shuts
@@ -593,10 +655,11 @@ is one row on both layouts: the search, the filters, the view's one primary, at 
 - **Invoices' desktop row never wraps** (TM5c): at 1024px its six controls wanted 926px of 872. The row does not wrap, its search
   gives up room first (`--col-sm-w` its basis) and its client picker is at most a column and a half; the range is a dialog of its
   own (*Range*, the button saying the range in use), and select-all is the table head's box.
-- **A segmented control as the row's item** (`inv-seg inv-toolbar-item`: Pulse's period) takes what the row leaves on the phone
+- **A segmented control as the row's item** (`inv-seg inv-toolbar-item`: Home's period) takes what the row leaves on the phone
   and is as wide as its segments on the desktop.
 
 ### 6.8 Panel — `inv-panel`
+A card (UI pass 3): `--surface`, its fine edge `--edge`, `--r-card` on both layouts, lifted by `--lift-1`.
 `inv-panel-head` (`--t-heading` title · optional count in mono `--text-3` · spacer · actions as
 `inv-btn-link`/`-sm`: one phrase that never wraps, as tall as a small button, and with no side padding so it lines up with the figures below it), then body. A panel's sides and an `inv-panel-body`'s are `--pad-x`, the same as a flush panel's head and rows, so text in padded and flush panels starts on one line. `inv-panel-flush` for a panel whose body is rows or a table (no padding); inside one, `inv-panel-body` is a padded block (a form or a note) ruled off from the rows below it. A card's total sits in its head as `inv-num`. A picker or figure in a row's end is `inv-select-sm` / `inv-input-sm` (`--col-sm-w`, `--ctl-h-sm`). A set of four tiles that must read as one row on the desktop, even in a half-width panel, is `inv-tiles-4`; a cell that is one token to the reader (a month, a date) is `inv-nowrap`. `inv-panels` lays panels out: one column
 on the phone, two on the desktop, `inv-panels-wide` spanning both; an empty host is not drawn. `inv-panels-dense` lets a half panel
@@ -606,14 +669,16 @@ Replaces `inv-card`, `inv-card-list`, `inv-stats-card`, `inv-im-challan`, `inv-s
 `inv-set-sec`'s box, `inv-dupe-group`, `inv-td-facts`, `inv-rl-rows`.
 
 ### 6.9 Stat strip — `inv-tiles`, `inv-tile`
-A grid of **raised tiles** (owner, 8 Oct 2026: *"Let's give our tiles elevation as well"*): each tile a box of its own, `--surface`
-(its box tier inside a card, §6.26), a hairline edge, `--r-md`, lifted by `--shadow-tile` (DR-6); the strip lays them out with a
-`--sp-8` gap and draws nothing itself. Until 8 Oct 2026 the tiles were one bordered box divided by 1px gaps on `--border`.
+A grid of tiles, each a box of its own (owner, 8 Oct 2026: *"Let's give our tiles elevation as well"*), **a well since UI pass 3**:
+sunk a step into the card it stands in (`--well`, the fine edge, `--r-tile`, `--press-2`; in a coded card a well of its own tone,
+§3.3 *Fills*), so the card is what lifts and its figures sit in it (DR-6); the strip lays them out with a `--sp-8` gap and draws
+nothing itself. Until 8 Oct 2026 the tiles were one bordered box divided by 1px gaps on `--border`; from then until UI pass 3 each
+was lifted by `--shadow-tile`.
 `inv-tile-label` (`--t-label` `--text-3`), `inv-tile-value` (`--t-stat`), `inv-tile-sub` (`--t-caption`; a value too long for its tile — a crore on a phone — wraps rather than being cut by the tile;
 toned only when it states a status). A tile that filters its list is a `<button>`. Tone modifiers
 `inv-tile-danger|warning|ok|info` colour the **value only**. 2 columns on the phone, up to 5 on the desktop.
-A tile that filters is pressed with `aria-pressed` (`--accent-soft`, edged in the accent, an accent rule
-under it and no lift: it is let down) and pressed again to let every row back. `inv-tiles-3` keeps three counts on one row on the phone too. In the desktop pane
+A tile that filters is pressed with `aria-pressed` (`--accent-soft`, edged in the accent, sunk deeper: `--press-1`) and pressed
+again to let every row back. `inv-tiles-3` keeps three counts on one row on the phone too. In the desktop pane
 a strip is two across. `inv-tile-of` is the quiet denominator or unit after a value (`15/21`, `/kg`). `inv-tiles-flush` is a strip inside
 a flush panel: the panel draws the box; the strip keeps `--pad-x` round its tiles and a divider under it. In a grid of panels
 (`panel-w`) the strip goes two across under 32.5rem and four only from 43rem (three tiles and their gaps, then four, with a
@@ -711,7 +776,7 @@ Replaces `inv-client-badge`/`inv-badge-*`, `inv-state-badge`, `inv-cancelled-bad
 Desktop only: the right `--pane-w` of a list view, `--surface`, left hairline. **It takes room only while something
 is open** (a close button in its head), and where the screen cannot hold both it takes the list's place until closed. Two panes
 hold the screen's own working while no record is open, rather than push the list below the screen's foot: Stock's **Spend and
-prices** (a toolbar button, TM4d) and Quotations' **To reprice** (Pulse's reprice moves, TM5g; the phone's are its card's body). Head (identifier in `--t-hero`
+prices** (a toolbar button, TM4d) and Quotations' **To reprice** (the questions' reprice moves, TM5g; the phone's are its card's body). Head (identifier in `--t-hero`
 mono, status badge, party), a key/value grid (`inv-kv`), a nested table, totals, actions (one primary).
 On the phone the same content opens as a sheet (§6.16).
 The list and its pane sit in an `inv-pane-host` (the list is `inv-pane-list`), which carries `inv-pane-open` while something
@@ -726,10 +791,10 @@ wrapper between it and the page take the rest (`flex: 1 1 0`). The list and the 
 subtracted by hand. Content above the host taller than the screen squeezes it only to `--pane-host-min` (20rem), and past
 that the page scrolls like any long page. A host hidden under a form leaves the page an ordinary document.
 
-**Three columns on a wide screen.** `inv-panels` is two columns on the desktop; `inv-panels inv-panels-3` (Pulse's
-questions and widgets, Stats, Finance's Overview, Needs you) is three from a 100rem (about 1,600px) window, and only those: a
-grid of two lists or a few cards (To-do, Create, Floor, Production, Stock, Power) left a column empty at three. Needs you and
-Pulse's widgets are packed (§6.25), so cards of different heights leave no hole under the shorter.
+**Three columns on a wide screen.** `inv-panels` is two columns on the desktop; `inv-panels inv-panels-3` (Stats, Finance's
+Overview, Needs you) is three from a 100rem (about 1,600px) window, and only those: a grid of two lists or a few cards (To-do,
+Create, Floor, Production, Stock, Power) left a column empty at three. Needs you is packed (§6.25), so cards of different heights
+leave no hole under the shorter. Home's board has its own grid (§6.33).
 `inv-panels-wide` still spans the row. Every panel in a grid is a `panel-w` container, so a strip of tiles in a third of the row
 goes two across with an odd last tile taking the row, never a blank cell.
 
@@ -739,8 +804,9 @@ pane's `scrollTop` are put back after the swap, the pane's only while the host's
 ### 6.15 Forms — `inv-field`, `inv-input`, `inv-select`, `inv-actionbar`
 - `inv-field`: label **above** the control, `--t-label` `--text-2`, **sentence case** (DR-5); hint below
   in `--t-caption`; error below in `--danger` with the field's border `--danger`.
-- `inv-input` / `inv-select` / `inv-textarea`: `--ctl-h`, `--surface`, 1px `--border`, `--r-md`; focus
-  border `--accent` + `--focus-ring`. `inv-input-num`: mono, right-aligned. Read-only: `--surface-2`.
+- `inv-input` / `inv-select` / `inv-textarea`: `--ctl-h`, a well (UI pass 3: `--well`, `--press-1`, its fine edge `--edge`,
+  `--r-ctl`); focus border `--accent` + `--focus-ring` over the press. A select's open list is drawn on `--surface`.
+  `inv-input-num`: mono, right-aligned. Read-only: `--surface-2`, flat (nothing to fill).
 - `inv-fields` lays fields in a grid: 1 column phone, 2–4 desktop.
 - **Line editor** — `inv-lines` holding `inv-line`s, shared by the invoice and challan forms. On the phone a line is
   a three-up grid under "Line n" (`inv-line-num`, the remove icon button `inv-line-rm` beside it): `inv-line-part`
@@ -764,8 +830,8 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
 `inv-rm-*`, `inv-zero-*`, `inv-pred-*`, `inv-kbd-hint`, `inv-im-form*`, `inv-selected-client`, `inv-error`.
 
 ### 6.16 Overlays — `inv-dialog`, `inv-sheet`, `inv-menu`, `inv-toast`
-- `inv-dialog`: a sheet from the bottom on the phone (full width, `--r-xl` top corners) and centred on the desktop
-  (`--r-xl`, `--dialog-w`), `--shadow-dialog`, in an `inv-scrim inv-scrim-dialog` (the dialog's scrim, above the More
+- `inv-dialog`: a sheet from the bottom on the phone (full width, `--r-card` top corners) and centred on the desktop
+  (`--r-card`, `--dialog-w`), `--shadow-dialog`, edged by `--edge`, in dark a step over a card (§3.6), in an `inv-scrim inv-scrim-dialog` (the dialog's scrim, above the More
   sheet's). Head `inv-dialog-head`: the `inv-dialog-title` and the close button `inv-btn inv-btn-icon inv-dialog-close`
   (optionally actions before it); a body (`inv-dialog-body`, where a dialog wraps its content: a word with no space breaks rather than widening the sheet); `inv-dialog-foot` the actions, right-aligned, primary last, **sticky
   at the dialog's foot, so it is always its last child**. Every dialog is opened through `dialogOpen(html, {dismiss,
@@ -782,7 +848,7 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   on Cancel). Esc, the scrim and × answer cancel. If the shell cannot draw, the text goes to the **notice banner**
   (`inv-notice-bar`, a list of `inv-notice-text` under the top bar, beside the update and storage banners, until
   Dismiss) and a question is answered cancel; an uncaught error reaches the same banner.
-- `inv-menu`: dropdowns and autocompletes, `--surface`, `--border`, `--shadow-pop`, keyboard as now. It hangs off its
+- `inv-menu`: dropdowns and autocompletes, `--surface` (a layer, §3.6), its fine edge, `--r-ctl`, `--shadow-pop`, keyboard as now. It hangs off its
   field in an `inv-combo` (max `--menu-max`); options are `inv-menu-item` (`inv-menu-title`, `inv-menu-meta`), the
   arrow-key cursor is the option's `aria-selected`, and the create-a-part row is `inv-menu-add`.
   Replaces `inv-autocomplete-*`, `inv-ac-*`, `inv-search-results`/`-item`.
@@ -793,8 +859,11 @@ Replaces `inv-form-group/label/input/select/row`, `inv-stk-label`, `inv-stk-fiel
   desktop only; `inv-dialog-main` scrolls under a head that stays put, holding a `section[data-group]` per group (the
   open one `data-on`; the phone stacks them all under an `inv-pagehead-title`).
 - `inv-scroll`: a list inside a dialog scrolls within `--scroll-max` rather than pushing the dialog's buttons off screen.
-- `inv-toast`: under the top bar, centred (clear of the action bar and the bottom bar), `--text-1` background with
-  `--surface` text (it inverts with the theme), `--shadow-pop`, tone shown by a leading dot (`inv-toast-success|info|warning|error`; info says what another window did, *Updated from another window*).
+- `inv-toast`: under the top bar, centred (clear of the action bar and the bottom bar), as wide as its words up to the room
+  (`width: max-content`: placed at `left: 50%` it had wrapped at half the screen), a pill on one line whose corners stay half a
+  line's height when it wraps (`--r-toast`, UI pass 3: every word inside its fill, P228), `--text-1`
+  background with `--surface` text (it inverts with the theme), `--shadow-pop`, tone shown by a leading dot (its kind's icon arrives
+  with §14 of UI pass 3, U7) (`inv-toast-success|info|warning|error`; info says what another window did, *Updated from another window*).
 Replaces `inv-overlay-scrim/card/header/title/close`, `inv-more-scrim` (the duplicate scrim),
 `inv-confirm-*`, the To-do overlay's Fraunces title.
 
@@ -803,7 +872,7 @@ Same module, restyled: axis text mono `--text-3`, gridlines `--border`, baseline
 `inv-chart-grid` / `-grid-label`, `inv-chart-area`, `inv-chart-line`, `inv-chart-dot`, `inv-chart-axis` (v1.0 called them
 `inv-svg-*`); an empty chart is an `inv-empty`.
 **Single series:** bars `--surface-3`, the current or selected bar `--accent`, value labels mono above bars.
-**Second measure** (e.g. ₹/kg over revenue): a 1.5px `--text-2` line. **Categorical:** `--chart-*`.
+**Second measure** (e.g. ₹/kg over revenue): a 1.5px `--text-2` line. **Categorical:** a slot (below).
 Legend is inline in the panel head. Every datum keeps its `<title>`.
 **Axis, keys, legend and a pie's centre abbreviate money the Indian way** through one helper, `formatInrShort()` (`state.js`,
 read by `chartShort`): ₹950, ₹12.5K, ₹8.4L, ₹12.0Cr — thousands to 99.9K, lakh to 99.9L, then crore; negative `−₹`. A readout,
@@ -817,7 +886,7 @@ a `<title>`, a table and a tile keep `formatCurrency()`'s exact figure. **An x-a
 drawing, its keys (`inv-chart-keys`, each series with its last value), and an `inv-chart-readout` line (the base face: it reads as a sentence, "Tap a point to read it", until a tap writes a figure into it) — a phone has
 no hover, so a tap on any datum writes its exact figure there (`data-read`, action `invChartRead`, `chartShowRead`),
 and the tapped datum is ringed.
-- `chartLines(labels, series, opts)` — several series on one axis (`--chart-*` strokes `inv-chart-s0…7`), a range
+- `chartLines(labels, series, opts)` — several series on one axis (a slot's stroke, `inv-chart-s1…6`, `inv-chart-other`), a range
   that crosses zero draws a zero rule (`inv-chart-zero`), `opts.band` draws a forecast range (`inv-chart-band`).
   `opts.fit` frames a price around its data (`chartFitRange`: four steps of 1, 2, 2.5 or 5 × a power of ten) rather
   than from zero, where a few percent is invisible; `opts.xs` places each label at its distance in time (a day count),
@@ -833,10 +902,33 @@ read as a fall). `opts.toDate` names the index of the point, bar or segment of a
 current)` finds it among the keys; null where the current period is not drawn). A line's segment into it is dashed and its dot
 drawn hollow, a bar or a stacked segment lighter (`inv-chart-todate`, the one class); its axis label reads *to date*
 (`chartToDateLabel`) where the axis has room for it, and its `<title>` says so. `chartLine`, `chartBars`, `chartLines`,
-`chartStack` and `chartSpark` all take it, and every chart with a current period passes it: Trends and the six months, Pulse's
+`chartStack` and `chartSpark` all take it, and every chart with a current period passes it: Trends and the six months, the widgets'
 sparklines, Money's cash by month, outflow by category, GST and invoiced against received (a statement month only while the
 statement stops short of the month's end, `finMonthToDate`), Production's plated by line, Pay's weekly payouts, People's
 attendance by week, Stock's use by week, Power's cuts by month and Performance's months. P194 walks them.
+
+**Charts v3** (UI pass 3, U1; `docs/UI_PASS_3.md` §5; the dataviz method). **Every builder obeys the same marks**: one axis, never
+two; bars at most 24 px thick with 4 px rounded data ends anchored to the baseline; lines 2 px; dots at least 8 px with a 2 px ring
+in the surface; gridlines solid hairlines, the axes recessive; text in text tokens, never a series colour; selective direct
+labels, never a number on every mark; hit targets larger than the mark, and a reference mark (a target, a fitted line, a zero rule)
+lets a tap through to the datum under it.
+- **The eight new builders**: `chartDiverging` (bars up and down from a zero rule, coloured by status: a judgement),
+  `chartHistogram` (counts by bin, a reference mark), `chartDots` (a dot a row on one scale, marks as rules), `chartScatter`
+  (dots and the least-squares line; `chartFit(points)` → `{n, r, slope, intercept}`, null under 3 points, the one statistics
+  function, read by the words a widget says too), `chartHeat` (a calendar: a column a pay week, a row a day, the value on
+  `--seq-*`, a hatch for no record), `chartDumbbell` (a rule from `a` to a dot at `b`, the dot in the row's tone),
+  `chartStack100` (shares summing to 100%, 2 px surface gaps) and `chartRing` (one share of a whole, its figure in the centre).
+  A dial is never drawn: a figure against a mark is a meter or a diverging bar. A whole's parts on one line, in a widget, is
+  `chartShareBar` (U2: one bar of 100%, each part its slot's colour, its keys under it with each share; `inv-sharebar`).
+- **A colour follows the thing, never its rank** (`seriesSlot(kind, id)`, §3.3 *Series*): slots `inv-chart-s1…s6` read
+  `--series-1…6`, `inv-chart-other` reads `--series-other`, `inv-chart-one` the accent (the period on show against the rest, in
+  Other); a status series `inv-chart-ok`, `-warning`, `-danger`, `-info` reads the `--*-mark` tones, `-neutral` `--text-3`; the heat
+  ramp `inv-chart-seq1…7`. A seventh thing folds into *Other*. A filter that hides one never repaints the rest.
+- **Every boxed chart has a table behind it**: its readout line carries **Table** (`invChartTable`), which swaps the drawing for an
+  `inv-table` of the same data, the builder's own columns in its unit, and back, in place. A sparkline or meter inside a tile is
+  the tile's figure drawn, not a chart, and has none.
+- The frame's sizes are `--plot-h`, `--plot-h-wide`, `--plot-fs-axis`, `--plot-fs-centre` (the `--chart-*` tokens are retired).
+  P227 holds it.
 
 ### 6.18 Callout and empty state — `inv-callout`, `inv-empty`
 - `inv-callout-info|warning|danger|neutral`: tone bg + tone text, `--r-lg`, leading icon, `--t-body`.
@@ -874,15 +966,16 @@ A card that leads with what it is about and says it in a line, for a screen read
 *"If it is in list form, it should be presented better, maybe as a card or at least an expandable hero card. Right now we
 have empty spaces, and inefficient layout"*). Anatomy, in `inv-hero-head`: the eyebrow (`inv-hero-eyebrow`: what it is, a
 count `inv-panel-count`), the title (`inv-hero-title`, one sentence), the figure (`inv-hero-fig`, mono, in the card's tone),
-a sub line (`inv-hero-sub`, two lines at most) and a small drawing (`inv-hero-viz`: a sparkline or a meter, §6.24). Filled
-with its tone's gradient (§3.3 *Fills*: `inv-hero-danger|warning|ok|info|neutral`, the accent with none), its border the
-tone mixed into `--border`. With a body it is a `<details>` whose `summary` is the head (a chevron at its right) and whose
-`inv-hero-body` holds a deck (§6.22), steps (§6.23) or an `inv-hero-sheet`: one `--surface` sheet of rows, tiles or a
-question's story, which on the phone reaches the card's edges so its rows keep a flush panel's width. A fold the owner opens
+a sub line (`inv-hero-sub`, two lines at most) and a small drawing (`inv-hero-viz`: a sparkline or a meter, §6.24). A card (UI
+pass 3): lifted by `--lift-1`, `--r-card`, filled with its tone's gradient (§3.3 *Fills*: `inv-hero-danger|warning|ok|info|neutral`,
+the accent with none; a plain card is the surface), its border the tone mixed into `--edge`. With a body it is a `<details>` whose
+`summary` is the head (a chevron at its right) and whose `inv-hero-body` holds a deck (§6.22), steps (§6.23) or an
+`inv-hero-sheet`: rows, tiles or a question's story drawn on the card itself, with no box of its own (UI pass 3), only a hairline
+under the head; it reaches the card's edges so its rows keep a flush panel's width, its last row inside the card's corners. A fold the owner opens
 or shuts is remembered per device (`fold`, as `uiFoldHtml`). `inv-hero-vital` puts the figure first, for a question's answer.
 `inv-hero-foot` holds the card's own links and buttons (`foot`: *Import statement*, *Refresh*, *Back up now*), under its head
-or, where it folds, under its body. The sheet is a box (§6.26), its rows' hairlines the card's tone; on the desktop it is its
-strip's container (`panel-w`), so a strip of tiles lays out by the sheet's width.
+or, where it folds, under its body. The sheet's rows' hairlines are the card's tone; on the desktop it is its strip's container
+(`panel-w`), so a strip of tiles lays out by the sheet's width.
 `inv-heroes` sets heroes side by side (two on the phone, three on the desktop; one opened takes its row); `inv-hero-stack`
 stacks them with the grid's gap only. `inv-heroes-4` is an overview's four subjects (Money's: cash, owed, GST, paid out): two
 across on the phone and on a desktop under 80rem, four from 80rem, so four never read as three and one left over (the tab map, TM3).
@@ -896,7 +989,8 @@ leave a blank column). A card: `inv-deck-head` (a glyph or tick, a word for wher
 end), then either `inv-deck-main`, a button whose `::after` covers the card so the whole face opens what it names (its focus
 ring drawn on the card), or `inv-deck-body` for a card that is not itself a door; `inv-deck-title` and `inv-deck-sub` two
 lines each; `inv-deck-foot` its one move, above the stretched button. Each card is a box (§6.26) in its own tone, its left edge
-the tone (`--rule`), so the code reads at a glance, and lifted as a tile is (`--shadow-tile`). *Show N more* sits under the deck, outside its grid
+the tone (`--rule`), so the code reads at a glance: a card in a card, lifted (`--lift-1`, `--r-card`) and lighter than the card it
+lies on in both themes (§3.3 *Fills*). *Show N more* sits under the deck, outside its grid
 (`uiMoreDeckHtml`, `inv-deck-more`), so the rest open in place without a gap in the row. Today's tasks (`tdyAppCardHtml`,
 `tdyMineCardHtml`) and every move (`advMoveCardHtml`) are cards. So is every unit of the plant register on Production → Equipment (the tab map, TM4c, §1a-13): a
 thing with a status of its own, edged in its status's tone (`data-tone`), its kg a round and how long it has stood; the unit strips
@@ -914,24 +1008,25 @@ late step's meta is in the warning tone. The rail is the card's tone mixed into 
 Drawings small enough for a card's head or a tile. `chartSpark(values, {ref, tone, dot})`: a line over the values
 (`inv-spark-line`, in a tone with `inv-spark-<tone>`), a dashed reference (`inv-spark-ref`: the cost under realisation, last
 month's pace), the last value a dot; a gap is a gap. `chartMeter(parts, {max, mark})`: one bar of parts in their tones
-(`inv-meter-<tone>` on `inv-meter-track`; `neutral-2` a second grey, so two neutral parts side by side read as two), a mark
+(`inv-meter-<tone>` on `inv-meter-track`, a well's track since UI pass 3: `--well`, the bar pressed in by `--press-1`; `neutral-2`
+a second grey, so two neutral parts side by side read as two), a mark
 where a target sits (`inv-meter-mark`). Both carry a `<title>` with the
-figures and stretch to their box (`--spark-h`, `--meter-h`). A tile takes one in `inv-tile-viz` (the month's tiles on Pulse).
+figures and stretch to their box (`--spark-h`, `--meter-h`). A tile takes one in `inv-tile-viz` (the month's tiles in the Month to date widget).
 `chartDayStrip(spans, {title})`: a day on one bar, 6 AM to 6 AM the next (`inv-daystrip`, the meter's bar, with `inv-daystrip-axis`
 under it at its quarters: 6 AM, noon, 6 PM, midnight, 6 AM): when something ran in its tone (`inv-meter-ok`), when it stood (a cut,
 `inv-meter-danger`), the general shift's two ends marked; drawn in spans, so it sits inside a row's button. A line's runs on the day
 card (§7, Production).
 
 ### 6.26 Coded box — what a card holds (styles.css, §3.3 *Fills*)
-A box inside a hero: its sheet (`inv-hero-sheet`), a card in its deck (`inv-deck-item`), a tile in its strip. Filled from its
-tone (§3.3, the box tier): lighter than the card around it, so it reads as laid on it, coded by its own status where it has one
-and by its card's where it has none, except a tile, which is plain where it states nothing. A panel or a strip inside a sheet
-draws no fill or box of its own; its hairlines take the card's tone; a secondary button in it is the control tier. The owner
-(8 Oct 2026): *"the boxes inside the cards are still just white instead of colour coded gradients"*. A sheet holding a strip of
-tiles alone draws no box: the tiles are the boxes, laid on the card, each edged in its tone and lifted (§6.9).
+What a hero holds (UI pass 3): **a card in its deck** (`inv-deck-item`) lifts, lighter than the card around it in both themes, coded
+by its own status where it has one and by its card's where it has none; **a tile in its strip sinks**, a well, darker than the card,
+in its own tone where it names one and the card's own fill under the well's veil where it states nothing; **its sheet**
+(`inv-hero-sheet`) draws no box, only a hairline under the head, and a panel or a strip inside it draws no fill or box of its own; its
+hairlines take the card's tone; a secondary button in it is the control tier (§3.3 *Fills*). The owner (8 Oct 2026): *"the boxes
+inside the cards are still just white instead of colour coded gradients"*: none is (HR-9), and the colour still says the status.
 
 ### 6.25 Packed grid — `uiMasonry(el)` (state.js)
-A grid of cards of different heights packed with no hole (Needs you and Pulse's widgets on the desktop). Where the grid has
+A grid of cards of different heights packed with no hole (Needs you, and a board's widgets, §6.33, on the desktop). Where the grid has
 two columns or more it is `inv-masonry-on` (`grid-auto-rows: --masonry-row`), and each child spans as many of those rows as
 its own height takes (`--rows`, set from code, §3.9); a `ResizeObserver` packs it again when a card opens, shuts or draws a
 chart. One column, or the phone, is left an ordinary grid. `inv-panels-wide` still spans the row.
@@ -990,45 +1085,41 @@ anatomy once its step has assembled it (`docs/TAB_MAP.md` §3e).
 
 **The box looks, a closed list** (the tab map, TM6f; P197's `LOOKS`). A box look is what the census reads off a box at least 40 by
 24px on a walked screen: a fill of its own (`fill`: not the ground under it), a gradient (`grad`: a coded box, §6.26) or neither
-(`nofill`); its rules (`edge:` `all1` on every side, `B1` the bottom, `T1` the top, `L1` the left, `T1B1` the top and bottom,
-`none`); its corners (`r`, px); a lift (`lift`, `--shadow-tile`) or none (`flat`); and its padding, top and left (`p`, px), at the
-density the walk runs in. These are the app's looks and there are no others: a walked screen wearing one not listed fails P197,
-and a new one is listed here and on `LOOKS` in the same change, with what wears it. The list was taken from the long book over
-eleven days on the phone and one on the desktop, and checked against the owner's own book on both layouts, which drew five more:
-the Planner board's rule between lanes, listed, and three where a box wore two components at once (a register day's row filled
-as well as its cells; the EXTRA fold's lines padded as a panel's body), drawn now as their own components. Two of TM1's looks that
-nothing drew on either book any more were taken off. 41 looks:
+(`nofill`); its rules (`edge:` `all1` on every side, `B1` the bottom, `T1` the top, `L1` the left, `none`); its corners (`r`, px); a
+lift (`lift`: a shadow outside it), a well (`well`: every shadow inset) or neither (`flat`); and its padding, top and left (`p`,
+px), at the density the walk runs in. These are the app's looks and there are no others: a walked screen wearing one not listed
+fails P197, and a new one is listed here and on `LOOKS` in the same change, with what wears it. **Regenerated by UI pass 3** (U1, 16
+Oct 2026) from the census on both layouts over the long book (`LOOKS_DUMP` writes every look the walk sees with what wears it), the
+Planner board's two lane rules kept from the owner's book: the old corners (r6, r8, r10) collapsed into the card's, the tile's and
+the control's, and the tile's lift into a well, 41 looks to 35:
 
 | Look | What wears it |
 |---|---|
-| `grad edge:all1 r10 flat p0/0` | a hero card (§6.21) and the verdict card, both layouts |
-| `grad edge:T1 r0 flat p0/0`, `grad edge:T1B1 r0 flat p0/0` | a hero's sheet on the phone (`inv-hero-sheet`): a band ruled across the card |
-| `grad edge:all1 r8 flat p0/0` | a hero's sheet on the desktop: a box inside the card |
-| `grad edge:all1 r6 lift p10/12` | a coded tile (§6.9) |
-| `nofill edge:all1 r6 lift p10/12` | a plain tile, stating nothing |
-| `grad edge:all1 r8 lift p12/12` | a deck card (§6.22) |
-| `fill edge:all1 r10 flat p0/0`, `fill edge:all1 r8 flat p0/0` | a panel (§6.8), the phone and the desktop |
-| `fill edge:all1 r10 flat p16/12`, `fill edge:all1 r8 flat p16/12` | a padded panel, the phone and the desktop |
-| `nofill edge:B1 r0 flat p10/12` | a panel's head on the phone |
-| `nofill edge:B1 r0 flat p8/12` | a panel's head on the desktop, and a row at its density |
+| `fill edge:all1 r18 lift p16/12`, `fill edge:all1 r18 lift p0/0` | a panel (§6.8), padded and flush: a card |
+| `grad edge:all1 r18 lift p0/0` | a hero card (§6.21) and the verdict card, coded in its tone |
+| `grad edge:all1 r18 lift p12/12` | a card in a deck (§6.22) |
+| `fill edge:all1 r14 well p10/12` | a tile (§6.9): a well |
+| `grad edge:all1 r14 well p10/12` | a tile in a coded card that names a tone: a well of its tone |
+| `fill edge:all1 r12 well p0/12` | a search (§6.7): a well |
+| `fill edge:all1 r12 well p0/2` | a segmented control's track (§6.5): a well |
+| `nofill edge:none r0 well p0/0` | a tab row (§6.4): its rule, an inset line |
+| `nofill edge:T1 r0 flat p0/0` | a hero's sheet (§6.21): only its head rule |
+| `nofill edge:B1 r0 flat p10/12`, `nofill edge:B1 r0 flat p8/12` | a flush panel's head; a row at its density (`inv-row-auto`) |
 | `nofill edge:B1 r0 flat p16/12` | a panel's body |
-| `nofill edge:B1 r0 flat p12/12` | a strip of tiles in a flush panel (`inv-tiles`) |
+| `nofill edge:B1 r0 flat p12/12` | a strip of tiles in a flush panel (`inv-tiles-flush`) |
+| `nofill edge:B1 r0 flat p6/12`, `nofill edge:B1 r0 flat p6/28`, `nofill edge:B1 r0 flat p8/28` | a row (§6.10), the left padding wider under its parent; a table's cell at the row's padding |
+| `fill edge:B1 r0 flat p0/12` | a group's head (`inv-row-group`, a table's group row), a table's head cell |
+| `nofill edge:B1 r0 flat p0/12` | a table's cell: a figure, a word |
+| `fill edge:B1 r0 flat p0/0`, `nofill edge:B1 r0 flat p0/0` | the lines under an opened row (`inv-row-children`), on the page colour or a card's |
+| `fill edge:B1 r0 flat p4/12`, `fill edge:B1 r0 flat p4/8`, `nofill edge:B1 r0 flat p4/8` | the Planner ledger's head cells and figures (§6.11) |
+| `fill edge:B1 r0 flat p6/12` | a table's cell filled, on the desktop (History) |
+| `fill edge:B1 r0 flat p2/2`, `nofill edge:B1 r0 flat p2/2` | a grid's cell (the week, the register's month): a Sunday or holiday filled |
+| `nofill edge:T1 r0 flat p2/2`, `nofill edge:T1 r0 flat p2/12` | a grid's rule between groups (the Planner board's lanes), on a cell and on the lane's name |
+| `fill edge:T1 r0 flat p8/2`, `nofill edge:T1 r0 flat p8/2` | a table's foot, its totals |
 | `fill edge:L1 r0 flat p16/16` | the desktop's detail pane (§6.14) |
 | `fill edge:T1 r0 flat p8/12` | a form's action bar (§6.15), and Reports' under its sheet |
 | `fill edge:none r8 flat p10/12` | a callout (§6.18) |
 | `fill edge:none r4 flat p6/8` | the text as sent (`inv-quote`) |
-| `nofill edge:B1 r0 flat p6/12`, `nofill edge:B1 r0 flat p6/28`, `nofill edge:B1 r0 flat p8/28` | a row (§6.10), the left padding wider where it leads with a mark; a table's cell at the row's padding |
-| `fill edge:B1 r0 flat p0/12` | a group's head (`inv-row-group`, a table's group row), a table's head cell, a row picked |
-| `fill edge:B1 r0 flat p0/0`, `nofill edge:B1 r0 flat p0/0` | the lines under an opened row (`inv-row-children`), on the sunken ground or a card's |
-| `fill edge:B1 r0 flat p4/8`, `fill edge:B1 r0 flat p4/12` | a table's head cell (§6.11) |
-| `nofill edge:B1 r0 flat p4/8`, `nofill edge:B1 r0 flat p0/12` | a table's cell: a figure, a word |
-| `fill edge:B1 r0 flat p6/12` | a table's cell filled, on the desktop |
-| `fill edge:B1 r0 flat p2/2`, `nofill edge:B1 r0 flat p2/2` | a grid's cell (the week, the register's month): a Sunday or holiday filled |
-| `nofill edge:T1 r0 flat p2/2`, `nofill edge:T1 r0 flat p2/12` | a grid's rule between groups (the Planner board's lanes), on a cell and on the lane's name |
-| `fill edge:T1 r0 flat p8/2`, `nofill edge:T1 r0 flat p8/2` | a table's foot, its totals |
-| `fill edge:all1 r6 flat p0/0`, `nofill edge:all1 r6 flat p0/0` | a segmented control (§6.5), on a ground of its own or not |
-| `fill edge:all1 r6 flat p0/10`, `nofill edge:all1 r6 flat p0/10` | a search field (§6.7) |
-| `nofill edge:none r0 lift p0/0` | the workspace's tab row (§6.4), lifted off the page under it |
 
 ### 6.29 Register rows — `inv-rnd-row` (faces.js, F4)
 The register clerk's page on Mine, where thirty rounds must read in a few phone screens. A round is one grid row: its time, its
@@ -1059,13 +1150,71 @@ The one place in the app set as a document to read rather than a list to scan (d
   under 80rem the context is a rail (`--kb-rail-w`) opening over the article. On the phone the context is a sheet opened from a bar over the
   phone bar (`inv-kb-ctxbar`).
 
+### 6.31 Switch — `inv-switch` (UI pass 3, §3b)
+An on/off setting that takes effect at once (a widget shown on Home, a rule switched on): `<input type="checkbox" role="switch"
+class="inv-switch">` inside an `inv-field-check` label, which is the whole touch target. A well's track (`--well`, `--press-1`, its
+fine edge, `--r-full`, `--switch-w` × `--switch-h`) with a knob of `--surface` lifted by `--lift-1` (`--switch-knob`); on, the track
+is the accent and the knob slides across (`--dur-1`, none under reduced motion). The widget gallery (U2) and Settings' on/off rows
+take it; a choice that is saved with a form stays a tick box.
+
+### 6.32 Blank state — `uiBlankHtml` (state.js), `inv-blank` (UI pass 3, §7c, §14b)
+What a widget, a list or a chart says when it has nothing to show, one component: `kind` (`empty` nothing recorded yet, `early` too
+little to say it surely, `offline` no signal, `notset` a setting needed, `error` it could not be drawn, `loading` it is being
+fetched, `aria-busy`), its icon in a well's disc (`inv-blank-icon`; an error's in `--danger-mark`, offline and not set in
+`--warning-mark`), its title (`inv-blank-title`), a line under it (`inv-blank-body`, left out when `small`, for a Small widget or a
+chart's empty box) and one action (`inv-blank-act`). Never a zero standing for unknown. U7 replaces every screen's own empty text
+with it.
+
+### 6.33 Widget and board — `wdgDefine` (widgets.js), `inv-widget`, `inv-wgrid` (UI pass 3, §7)
+**U2R rebuilds the widget as the card family** (owner, 17 Oct 2026; `docs/UI_PASS_3.md` §24: one skeleton, seven card types, five
+action rows, fixed heights and a packed board, the masthead). This section is rewritten, and §6.34 (card types), §6.35 (action rows)
+and §6.36 (the masthead) are added, when U2R is built; until then it describes U2 as built.
+
+A **widget** answers one question in a card; a **board** is a grid of widgets that each person arranges (Home from U2, Stats from U3).
+- **The card is a hero** (`<section class="inv-widget inv-hero inv-hero-<tone>" data-w data-size data-tone data-state>`), coded in
+  the tone its `data` gives (§3.3 *Fills*), so a widget lifts and fills as every hero does. Its head is the section's icon in a well's
+  chip (`inv-widget-chip`), the title as its eyebrow and the door's chevron (`inv-widget-door`; a role that cannot follow the door
+  reads the title as text). Under it the body (`inv-widget-body`): a figure (`inv-widget-fig`), a line in its tone (`inv-widget-line`,
+  at most 60 characters), a sub line, a chart or meter (`inv-widget-viz`), rows (`inv-widget-rows`); its links in the foot
+  (`inv-hero-foot`). Built from a hero's options by `wdgFromHero`, so a figure Pulse's card drew is drawn once.
+- **Three sizes, each with a cap**: Small (`s`, a figure and its line), Medium (`m`, with a chart or a short list), Large (`l`, with
+  what it rests on). Small at most `--wdg-cap-s` (10rem) tall, Medium `--wdg-cap-m` (26rem), Large `--wdg-cap-l` (40rem); on the
+  phone Medium and Large `--wdg-cap-phone` (30rem). A list that would pass its cap lets go of its last rows (`wdgFit`, `data-wdg-cut`)
+  and says *N more: Show all*, its door; nothing is cut mid-row. Before any row, the parts the widget can do without go, all together
+  (`WDG_FIT_OPT`): a tile's line of the months before (its change line says it in words) and whatever the widget marks
+  `data-wdg-opt` (a question's story at Large, so its moves keep their room). A sheet, or a list of moves, whose rows all went goes
+  with them, its head too. In a widget on the phone a tile's sparkline is a quarter lower and closer to its figure.
+- **The board** (`inv-wboard` holding `inv-wgrid`) takes its columns from its own width: 12 from 60rem, 6 from 36rem, 2 under it.
+  A Small spans 3 (one of 2 on the phone), a Medium 6 (the row on the phone), a Large 12 (6 at six columns). Heights follow content,
+  packed in the layout's order by `uiMasonry` (§6.25): rows of `--masonry-row` with no row gap, each card spanning its own height and
+  the column gap under it, so cards stand one gap apart whatever their heights. Under the board, its foot: *Add a widget · N to
+  choose from*.
+- **States, one set** (§6.32): `ok` draws the body; `empty`, `early`, `notset`, `offline`, `loading` and `error` draw `uiBlankHtml`
+  at the widget's size, never a blank card and never a zero standing for unknown. A widget that throws draws `error` and the board
+  goes on.
+- **Arranging is a layer** (Customise, then Done; Back and Escape leave it): each card shows its controls over its head
+  (`inv-widget-ctl`: the handle `inv-widget-handle`, its place *3 of 11*, its sizes as an `inv-seg`, Remove), the toolbar Add a widget,
+  Reset and Done (the one primary). A mouse drags at once, a finger after a 250 ms hold within 8 px; the lifted card takes `--lift-2`
+  (`inv-widget-lifted`) over a placeholder of its size (`inv-widget-ph`). The handle's keys move it too (← ↑ → ↓, Home, End), said in
+  an `aria-live` line.
+- **The gallery** (`inv-gallery`, a dialog): the sections as chips, each widget a card (`inv-gallery-card`) with its live preview at
+  its first size (`inv-gallery-preview`, drawn as it comes into view), its title, question and sizes, and **Add to Home** or *On Home*
+  with Remove. A widget a role may not see is in no gallery and on no board. A preview is one height, drawn or not (a Small widget's
+  cap), so drawing one moves no card under the finger. A tap that changes the gallery swaps its parts inside the dialog, never the
+  dialog: a dialog replaced replays its entrance.
+- **A widget's own controls**: a button inside a card names its widget with `data-wid` (`data-w` is the card's alone). An action
+  the framework does not know goes to that widget's `act(action, btn, card)`, a change inside the card (or in a dialog naming it,
+  `data-wdg-for`) to its `change(el, card, board)`; a widget with `feed: true` is drawn again when a news or weather copy lands
+  (`sep-feeds`). A control that is a choice, not typed work (`corr`'s two pickers), carries `data-nodirty`.
+- **Rules**: a widget reads its screen's own functions and the views (§6 of UI pass 3), never a second arithmetic; its words are a
+  line, never a paragraph (P195's blocks); its colour is its tone's, never a series colour standing for good or bad.
+
 ## 7. How each screen is assembled
 
 | Screen | Phone | Desktop |
 |---|---|---|
-| Home | stat strip (invoices, revenue, plated, ₹/kg) · quick actions (3×2 `inv-btn-grid`, first primary) · Money (`button.inv-tile` ×4 into Finance: balance, owed, pays in, runway; *Import statement* in its head) · To-do, Attendance, Unbilled, Sync and Zinc panels · recent invoices as rows | same strip ×4 · quick actions in one row · panels two across · recent invoices spanning both. *Built.* The six-month chart and contribution table move here with Stats (they are Stats' renderers). |
-| Today → Needs you | the day's inputs as a hero (*N of 5 in*, a meter, the next due) opening to steps (§6.23), each with its Paste or Photo, then WhatsApp · the tasks as three heroes, **Now** (red or amber, open, its worth), **This week** and **Later** (folded to a line naming what is in them), each a deck of cards with the move at the foot · the recent invoices as a hero (the latest and its figure) opening to rows with their print buttons · the tasks' stack opens with the To-do's toolbar (the add field, **Add** the view's one primary, Details) and ends in Snoozed and Done, each a fold shut, then *Learnt from your answers* (the tab map, TM2a: the To-do page joined it) | the tasks across the top, the inputs, *Floor now* (a tile per line and Power) and the recent invoices packed under them (§6.25), three across from 100rem |
-| Today → Pulse | the head: the period an `inv-seg` filling the row (MTD · QTD · YTD · All, one with Stats), More as its mark (*Make a report* and *Open Stats* where the role opens them, *Edit Home*) · the questions as `inv-heroes`, two across: each its question, its answer as a figure and a word in the tone, a sparkline or meter, folded; opened it takes the row with the story and *What you can do* as a deck · **Do first**: the three moves worth most across the questions, as cards · **Why it moved**, **In one line** and **This month at its pace** as heroes led by their verdicts (the causes as fact rows; the factors as tiles, what is not measured a badge; the band folded), shut (Stats → Overview's until the tab map, TM2b) · the widgets the owner arranged, **each a hero** (8 Oct 2026: *"Pulse still holds generic cards as well, so it looks like a half designed space"*): its eyebrow, a one-line verdict, its figure where the line is not one, a meter or sparkline, coded by the worst of what it holds, opening (shut on the phone and open on the desktop until moved, remembered per device; the tab map, TM2c) to its tiles and rows as coded boxes with its links in its foot — Month to date (billing against the same days last month, realisation against the cost, the four tiles with their lines), Money (owed past 60 and 90 days, the ageing as a meter, the four tiles into Finance), To-do (grouped as Needs you groups it, the top three), Attendance (on site against the roster, the day as a meter), Unbilled (coded as Pipeline's first stage), Production, Power cuts, Stock running low, GitHub backup, Zinc (the landed rate, the market's last refreshes as a line), Recent invoices; the quick actions an `inv-coded` grid | the questions three across, the widgets packed. The sidebar's name and mark open Pulse (`invGoPulse`) |
+| Home → Home | the day card (§8b of UI pass 3): the greeting and the date as its eyebrow, the clock ticking on the minute and the shift's end as its figure, the weather now where the feed is set, one sentence in its tone (the forecast under zero, red tasks, a line half down, the month's pace, else *Nothing needs you now*), two facts, **Open Needs you · N** and *Make today's report* where the role opens Reports; shut on the phone to its head · one toolbar row: the period (`MTD · QTD · YTD · All`, one with Stats), **Customise** (an icon on the phone), More (*Make a report*, *Open Stats*, *Reset Home*) · the board (§6.33): the widgets the person arranged, two columns, a Small one, a Medium or Large the row · the board's foot, *Add a widget · N to choose from* | the same, open; the board twelve columns from 60rem (a Small 3, a Medium 6, a Large the row), six from 36rem; Customise a word |
+| Home → Needs you | the day's inputs as a hero (*N of 5 in*, a meter, the next due) opening to steps (§6.23), each with its Paste or Photo, then WhatsApp · the tasks as three heroes, **Now** (red or amber, open, its worth), **This week** and **Later** (folded to a line naming what is in them), each a deck of cards with the move at the foot · the recent invoices as a hero (the latest and its figure) opening to rows with their print buttons · the tasks' stack opens with the To-do's toolbar (the add field, **Add** the view's one primary, Details) and ends in Snoozed and Done, each a fold shut, then *Learnt from your answers* (the tab map, TM2a: the To-do page joined it) | the tasks across the top, the inputs, *Floor now* (a tile per line and Power) and the recent invoices packed under them (§6.25), three across from 100rem |
 | Power | view tabs Cuts · Causes · Load & bills · Case (the tab map, TM4e; its Overview went: the month, its cost and a year at this rate are Cuts' card and Floor's Power hero) · each view its own toolbar (§1a-12): Cuts **Enter a cut**, Import history under More; Causes none; Load & bills **Edit load**; Case **Print the case** with Options' figures · **Cuts**: the verdict (the month's cuts and what they cost; a year at this rate, the dark hours and the days recorded its facts; the month, its cost, the year and the load its factors; danger while an approved load is not billed) · *To look at*: the load approved and not yet billed first, in red, then the cuts to complete (no time back, or a recent one with no reason) with **Complete** at a row's end · the cuts by month, the newest open: a cut one line, its day and why as the title, two facts (its clock; how long, or the length it is costed at while it has no time back), its damage and where it fell at its end, opening to why it went and what the damage is made of, a fact a row · *Cuts by month* and *When they come* folded after them · **Causes**: the verdict (the costliest cause, kept to the card's 60 characters by `uiVerdictFit`; with a reason, from the grid, in the plant and the costliest its factors, **coloured only once three cuts stand behind a tile**, with fewer plain, with its count); the cuts to complete a link to Cuts · what causes them, `chartRankedBars` by what each cost, two facts a bar, coded by where it starts (danger: in the plant three times in 30 days; warning: in the plant; info: the grid; neutral: not placed) · where they hit, a tile per station in the plant's order, its line two facts (the last 30 days and what they cost; the hours dark and the units in its title) · what brings it back, fastest first · the lists of reasons and fixes, **Edit** for the owner · **Load & bills**: the verdict (the load billed against the load approved, the penalty since approval; danger while the approved load is not on the bill; billed at, approved, the peak and the penalty its factors, the owner's note in its body) · each bill one line (its month, its units and peak; its amount at its end) that opens to its details, a fact a row, and **Details** · the penalty by bill folded · **Case**: the document (`.inv-sr-doc`) in an `inv-rpt-sheet`, laid out at the sheet's width and fitted to the screen (`paperFit`) · the cut a dialog (§6.16): *Power in at* (a time field, or the record's time read-only), *Why it went* and *What brought it back* each a field over `inv-chip`s of the list (the most used first, filtered as typed) with what it will be saved as said under it (*Saved as …*, *Read as … · Keep as new*, *New: …* with where it starts as an `inv-seg`), *Where it hit* a `<select>` of the whole plant, the stations and their units | the same, panels two across; the case at life size where the sheet fits |
 | Office → Pipeline | an overview (§6.28; the tab map, TM5a): the verdict card naming the stage the page opens on in its own words and tone (*12 challans waiting · oldest 9 days*), with no figure (the stage's tile has its amount), the worst other stage running late its one fact · one toolbar row (**Create invoice**) · the stages as coded tiles (§6.26), two across, each its count, its amount and how long its oldest has waited in its age tone, plain with nothing to judge; one holding anything opens its list (`aria-pressed`) · the open stage's list: awaiting invoice a row a client (two facts, its oldest a line in its tone, **Create invoice** at its end) opening to its challans, an invoice state a row an invoice · how long dispatch takes, under the stages | the stages a column the pane's width (`.inv-pipe-rail`) beside the open stage's list (`#pipeList`), each scrolling inside itself |
 | Create | fields · unbilled-challan rows with checkboxes (ticking one brings its open lines in) · line editor · collapsible optional details (`inv-panel-fold`) · action bar (grand total, Clear, Create invoice) · an error shows only once its field is left or a save is tried, never on a form nobody has touched, and Save is held only while one shows (the tab map, TM5h) | same, two-column fields, lines as a table. *Built.* The add/edit challan form is assembled the same way, on the same line editor. |
@@ -1073,15 +1222,15 @@ The one place in the app set as a document to read rather than a list to scan (d
 | Register | the verdict card (the tab map, TM5c: the invoices late on a step by state and age, worst first, as Pipeline reads them, *3 created over 2 days · 2 delivered, GSTR-1 due 11 Oct*; the active invoices' taxable its figure; its screen line naming the month or range and *filtered*) · one toolbar row: the search, Filter (client, month, state, the range, the sort as one picker), Select, More (Credit notes with their count, Number audit with its badge, Sales register CSV and PDF, GSTR-1 CSV, Bulk mark filed), the filters in use as tokens under it · rows grouped by day with subtotal · selection bar | one toolbar row that never wraps: the search, the client, month and state pickers inline, *Range* (a dialog of its own; the button names the range in use), More · table (invoice, client, date, challans, kg, taxable, GST, total, state), select-all the head's tick box · selection bar · detail pane. *Built.* |
 | Office → Invoices → Credit notes | a dialog (§6.16; the tab map, TM3a): its head **Record issued** and **New note** (secondary; gone while a form is open), the form in its body when open (its own Cancel and **Record note** / **Issue note**), then the notes as rows: number · client (a *Cancelled* dot), *date · against X* the meta and the reason on a line of its own, the total over the taxable at the end, Reference, Invoice and Cancel a line of their own on the phone · a save or a cancel redraws the dialog, the Register's badge and the rows' CN marks | centred |
 | Clients / Items / Performance | tabs · each view led by its verdict card (the tab map, TM5d–f) · one toolbar row (search, the view's one primary: **Add client** / **Add part** — the floating + is gone) · Clients: the verdict counts the clients and names the rule flagged worst (*22 clients · 2 past terms*), how many are flagged and the next rules its facts; a client's row ends in its worst flag as a dot and a word (*past terms*, *gone quiet*, *below cost*; every flag in its title), an inactive one *Inactive* · rows (a client opens its edit sheet, which leads with its Money panel: owed, by age, pays in, last receipt, cheques; its rate, piece-rate and piece-weight cards are flush panels of rows with the add form in an `inv-panel-body`, and a fill from history reports what it left out as rows under the reason; then **Turnaround** (the flow thread, 10 Oct 2026): a flush panel, its head the target and the terms (*1-day target · 45-day terms*), a verdict row (*Back in 3 working days*, the share of the value on target, `Slipping` / `Past target` as a dot and a word), a row a step (to pickling, to plating, to despatch, to payment for a role that sees money) with its median and its tone, then the open challans as rows, each *Back ~13 Oct* or *Late · back ~10 Oct* in its tone, and the open invoices, each *Past terms*, *Slow · expected ~5 Oct* or *Expected ~24 Oct*; the form's own *Turnaround and terms* panel: the terms, the target, a part's own on a row each) · Parts (Items): the verdict (*168 parts · 3 with no weight*, parts billed by the piece, in its tone, **Enter weights** in its foot) · Filter (*No weight* and *Unused* as `aria-pressed` chips, one choice that shuts the phone's dialog on the pick; the sort `<select>` on `change`), More (Part weights with its count, Enter weights, Derive weights, Merge, Select unused) · a part's row two facts (its description and gauge), its end the rate over its kg a piece, else *No weight* (billed by the piece) or *Unused* · tick boxes and a selection bar · Performance: the client's verdict card (its realisation against the live cost in its tone, for a role that sees money, the change on the month before, its flags as coded tiles that open their tasks; shut on the phone) · client select · month on month (`inv-seg` ₹ / Tonnes / ₹/kg, chart, four tiles with "+12% on Aug" deltas) · the parts Stopped (warning while it holds a part) / New / Steady / One-off each a fold, an empty one plain, shut on both layouts, its head a dot and its count · Materials worked and By the hour folds, shut (By the hour open while its form is), By the hour's parts fact rows and each hint a row in its tone · a client's flagged tasks and linked articles brief (the title; the line in the row's title and the task's dialog) | tabs · table · detail pane on demand with the Money panel (as the Register's; the resizable split and its drag handle are gone). *Built.* |
-| To-do | *Joined Today → Needs you in the tab map (TM2a)*: its toolbar, Snoozed, Done and Learnt are Needs you's (above); the task dialogs are as they were, on `inv-field`s, the figures as rows, what clears it a callout | the same, packed with Needs you's cards |
+| To-do | *Joined Home → Needs you (Today → Needs you until UI pass 3) in the tab map (TM2a)*: its toolbar, Snoozed, Done and Learnt are Needs you's (above); the task dialogs are as they were, on `inv-field`s, the figures as rows, what clears it a callout | the same, packed with Needs you's cards |
 | Stock | one screen (the tab map, TM4d; its Overview and Lines tabs went): the verdict card (§6.28: the lines out, else at 7 days or less, and the reorder's cash with GST; the forecast's low after the order for a role that sees money; Out / ≤ 7 days / OK / No rate its factors, each a `button.inv-tile` that filters, `aria-pressed`; *Open the reorder list* its link) · one toolbar row: **Paste message** the one primary, Enter by hand, More (Reorder list, Print sheets, Export, Import) · what to check, a row with **Check them** · the lines grouped by status under `inv-row-group`s, level mono with its unit and status a dot and a word · **Spend and prices** folded at the foot: spend by supplier `chartPieTap` listing a slice's bills as rows, used ₹ by week `chartLines`, price trend with its line `<select>` (on Zinc the market against bills: range chips, four tiles, the market dashed beside each supplier's bills on a time axis, suppliers as rows that open their bills) · a line: back · tiles (on hand, days left, use a day, last paid) · Price and pattern (rows; *Add a bill* in the head, the bill form an `inv-panel-body`; *Order from* a row naming who the line is ordered from, with **Compare suppliers** at its end) · *By line, 60 days* (§6.27: a row a plating line, its kg/t at the end, its ₹/kg and additions under it, *so far* a badge, folding open to its additions a fact row each; *No bath named* a row) · the line (how it is used `inv-seg`, name and unit) · entries (rows, a count's gap a callout, the message text a fold of `inv-quote`, Void then *Tap again to void*) · Paste, Enter by hand and Reorder list are sub-views with a back button and the sticky `inv-actionbar` (Save / Copy as message); on the reorder list each line carries a row under it (`inv-row-children`) naming who it is ordered from and by when, with **Compare suppliers** · **Compare suppliers** is a dialog whose suppliers are a deck (§6.22) in `inv-coded`: a card a supplier, its role (*Your pick*, *The app's pick*, *Last bought from*, *Quoted*) the head's word and its price a unit the head's figure, its name the title, what its price rests on and its lead time the sub, what speaks for and against it each a dot and its words (`inv-row-meta inv-row-wrap`), the card coded by the worst against it (`data-tone`), **Order from them** its foot; the dialog's foot Close, *Let the app pick*, *Add a price quoted* (a form in its place, the price the one primary) · the More sheet is `inv-sheet` rows | the lines one table grouped by status (`tr.inv-table-group`), a line opening in the pane beside it, and **Spend and prices** a toolbar button opening the pane in its place (a second press shuts it); the reorder list is a table grouped by supplier. *Built.* |
 | Production | view tabs Lines · In plant · Entries · Equipment (the tab map, TM4c; its Overview went: the day is Floor's Production hero, the four weeks Lines') · each led by its verdict card (§6.28) · **Paste message** (*Paste* on the phone) the primary on Lines and Entries only, Enter by hand, Print sheets (a dialog: the day, the pickling sheet, the barrel batches and the two VAT register pages as tick boxes, **Blank** the primary and *As entered* beside it; the sheets in the one print view, F5), Export and Import under More (the empty page's More: Import); In plant has none; Equipment's is **Add a unit** · **Lines**: the line's day: `inv-seg` of the three lines and Pickling, the day ‹ › in the row, never past today; the verdict its efficiency (the week to the day against the weeks before, how many said, one of its facts; Plated, Pieces, **Earned** (Rounds for a role without money) and Power cuts its factors, Plated and Earned each with its change line against the line's usual day; *How it's worked out* folded); runs grouped General shift / Overtime / *Also reported* (muted); the week (`inv-table`); plated by line over four weeks (folded); *Into the bath*; labour ₹/kg by line · **In plant**: the verdict (the book open in rupees, plated and not invoiced; the stages its factors); what needs a look first (plated past its days, on the floor with no challan open); then a fold per client of its open challan lines, each a dot and a word for its stage · **Entries**: the verdict (*N entries in 60 days, M to look at*), its flags its factors, each a filter tile (`aria-pressed`: not weighed, cuts with no time back, the line unknown, no client, no challan, gauge unknown) · the latest thirty, the rest one tap away (`uiMoreHtml`); a row two facts (where and when; how much, with its kilos), badges for what qualifies its figure (an estimate, not weighed, no client, no challan, gauge unknown), one action at its end (Correct; a cut's Complete), the rest and where it came from in its fold; a client a jump filtered by is a token (phone) and a pressed chip (both), each clearing it · **Equipment**: the verdict (the station most down, a supporting one included; the lines its factors) · a deck card per unit (§6.22) in its status's tone, with its kg a round and how long it has stood · paste check and hand entry are sub-views with the back head and the action bar (the register photo's check went with the photo reading, 13 Oct 2026) | Entries a list beside the open entry (each row's source a badge, every action in the pane); the panels two across |
 | Floor → Overview | an overview (the tab map, TM4a; it was Floor → Day): an `inv-stepper` day · four heroes and the turnaround (`inv-heroes-4`, two to a row, the fifth on a row of its own, each shut to its line): **People** (who is on site against the day's roster, coded as the rest-day gate and the floor's number judge it, `attOnSiteTone`; the lines short of their number by name; the day's attendance panel inside; it carries the screen's verdict, `data-verdict`), **Production** (the day's card, `prodDayHeroHtml`, led by the worst line), **Stock** (now: the lines out and low, the first three by name, the reorder's cash with GST, which Stock shows every role that opens it) and **Power** (the day's cuts, the month to date, a year at this rate, the load to chase), each shown to a role that opens its screen, People to every role that opens Floor (with no link where People is not its); the three tiles that led the page are theirs now; then **Turnaround** (the flow thread, to a role that opens Production: the plant's median working days from challan to despatch as its figure, *Back in 1 working day, 71% of the value on target* its title, the lines past the target now its sub; open, a row a step and the lines past the target by where they stand, its door *Open In plant*) · a card per line as a hero (§6.21) **coloured by its efficiency**, **the worst first** (what it plated of what its working units could in the time it ran: 75% ok, 50% warning, under danger; half or more of its units down danger, and leading the card): the line as eyebrow with its efficiency, the figure its %, the title what it plated of what it could (or what needs following up), the plated-against-possible meter with three quarters marked; the sub the units, the hours run and the pieces not weighed; a sheet of the latest run, then **what it earned** (a fact row: the earnings at the clients' rates on record, coloured by its rupee a kilo against what a kilo costs, the usual day under it; for a role without money, the kilos against the usual day), the efficiency as an analysis (§6.27): a caption naming what moved it most, a strip of tiles, one a factor whose product is the figure (Time, Racks, Parts, and Weighed where rounds have no weight, each in the tone of what it lost and the parts only said, `info`), and *How it's worked out* folded under them, a fact a row (hours, the pace and the round with a *measured* / *set* / *typed* badge, the rounds allowed and run, the racks, each part run part-full, the parts' round, rounds with no weight); what went into its bath that day (a fact row, or a row folding open to several), its units and its crew; its staffing and EXTRA as buttons in the foot · Pickling's card coloured by its heads · *Not weighed*, a flush panel across both columns, each floor name with *Which part?* and *Set its weight* | the heroes four across from 80rem, the fifth on a row of its own; the cards two across |
-| Office → Sales → Prospects | the verdict card (the tab map, TM5g: *4 open · 6 t a month of 99 t spare*, in the tone of the follow-ups due; its factors open, the pipeline weighted (the chance per stage in its title), the spare a month over the last 90 days (`prsSpare`, the figure Pulse's *Is the plant full?* says too) and the share it fills) · one toolbar row (search, the stage `<select>` on `change`, behind Filter on the phone with a token, **Add prospect** the one primary) · rows, due first: the firm, two facts (its stage and size; the follow-up, else why it was lost, else the work), a dot and a word · the prospect a dialog: fields, its quotations and its stages as rows, *Draft quotation* and *Won: make client* secondary, Save the primary | the same |
-| Office → Sales → Quotations | the verdict card (the tab map, TM5g: *2 live · 1 expiring this week · 1 draft*; expired and unanswered, accepted with a rate to post and how many clients are to reprice its facts), its body **To reprice** as a Pulse question holds its moves (`inv-hero-moves`): the reprice moves Pulse's questions draw, as a deck (`advMovesDeckHtml`, one card, the rest a tap away), each opening its draft; none for a role that does not see money · one toolbar row (search, status `<select>` on `change`, behind Filter on the phone with a token, **New quotation** the one primary) · rows grouped Drafts / Live / Accepted, Superseded · Declined · Void folded (`uiFoldHtml`); each the number (or *Draft*) and recipient, two facts (*expires in N d*, else its date; its rate; its date and items in its title), and a dot and a word (an issued one past validity amber *Expired*) · the detail a dialog: the facts as rows, Close and the status's primary in the foot, the rest in a toolbar · the form a sub-view with the back head and the action bar (Save draft, **Issue**): recipient (a client or typed), lines (basis `inv-seg` kg / piece, ₹/kg beside a piece rate with a weight, the rate on record as context), transport `inv-seg`, the terms as editable rows with *Reset to the standard terms* · the printed quotation `.inv-qt-doc`, its own pt tokens, one A4 page, a frame table (`.inv-qt-frame`) whose repeating head and foot rows are the top and bottom gutters on paper | the same list with the detail in the pane (secondary buttons only); while no quotation is open the pane holds **To reprice** (the moves a card each; the card's body holds none, since open above the list it pushed the list below the screen's foot) |
+| Office → Sales → Prospects | the verdict card (the tab map, TM5g: *4 open · 6 t a month of 99 t spare*, in the tone of the follow-ups due; its factors open, the pipeline weighted (the chance per stage in its title), the spare a month over the last 90 days (`prsSpare`, the figure Home's *Is the plant full?* says too) and the share it fills) · one toolbar row (search, the stage `<select>` on `change`, behind Filter on the phone with a token, **Add prospect** the one primary) · rows, due first: the firm, two facts (its stage and size; the follow-up, else why it was lost, else the work), a dot and a word · the prospect a dialog: fields, its quotations and its stages as rows, *Draft quotation* and *Won: make client* secondary, Save the primary | the same |
+| Office → Sales → Quotations | the verdict card (the tab map, TM5g: *2 live · 1 expiring this week · 1 draft*; expired and unanswered, accepted with a rate to post and how many clients are to reprice its facts), its body **To reprice** as a question widget holds its moves (`inv-hero-moves`): the reprice moves the questions draw, as a deck (`advMovesDeckHtml`, one card, the rest a tap away), each opening its draft; none for a role that does not see money · one toolbar row (search, status `<select>` on `change`, behind Filter on the phone with a token, **New quotation** the one primary) · rows grouped Drafts / Live / Accepted, Superseded · Declined · Void folded (`uiFoldHtml`); each the number (or *Draft*) and recipient, two facts (*expires in N d*, else its date; its rate; its date and items in its title), and a dot and a word (an issued one past validity amber *Expired*) · the detail a dialog: the facts as rows, Close and the status's primary in the foot, the rest in a toolbar · the form a sub-view with the back head and the action bar (Save draft, **Issue**): recipient (a client or typed), lines (basis `inv-seg` kg / piece, ₹/kg beside a piece rate with a weight, the rate on record as context), transport `inv-seg`, the terms as editable rows with *Reset to the standard terms* · the printed quotation `.inv-qt-doc`, its own pt tokens, one A4 page, a frame table (`.inv-qt-frame`) whose repeating head and foot rows are the top and bottom gutters on paper | the same list with the detail in the pane (secondary buttons only); while no quotation is open the pane holds **To reprice** (the moves a card each; the card's body holds none, since open above the list it pushed the list below the screen's foot) |
 | Reports | two toolbar rows: the kind `inv-seg` (Daily · Weekly · Monthly · Quarterly · Yearly), and an `inv-stepper` with the period's picker (date, month, or a quarter / year `<select>` on `change`) and Now · the report itself, `.inv-rpt-doc`: one document drawn from the data on every render, laid out at the sheet's width and zoomed to the screen (`paperFit`; the tab map, TM2f) · **Print**, the one primary, in the `inv-actionbar` under the sheet, its line *A4, drawn from the records each time it is shown or printed* (TM6e: the row of Print and its note had made four toolbar rows on the phone) | the same document as an A4 sheet; in print the frame table's head and foot rows are the top and bottom gutters (the invoice's frame) |
 | Mine | an overview (the entry faces, F1): an `inv-stepper` day · the person's duties as a hero (`data-verdict`: *N of M in*, a meter, the next due; open, never folded away) whose steps (§6.23) each open where the duty is entered on that day, with **Enter** while it is not in, then WhatsApp · *What you entered* (a row a record from the change log: what, and when it was saved; a load or count made on the face is drawn as itself, its question a dot and a word, *Send to the group*, *Copy* and *Correct* a line of their own under it) · *Paper and backup* (*My sheets*: the person's sheets named in its meta, **Print my sheets** a secondary and **Print the day as entered** a ghost, disabled while the day holds nothing for them, a line of their own under the row, F5; *Sent to GitHub* with its dot). The owner looking at another's names it in the eyebrow (*…’s screen, as they see it*). **Its forms** (F2): a back head to Mine, one panel of fields (the client and part as `<select>`s with optgroups, open first; the figure, its unit, the time), a challan's lines as rows each ending in its count, *Saved from this form*, and Save in the action bar. **The rolls** (F3): a hand a row ending in its place (a `<select>`), the counts over them in one line, *Usual places* in the head; who went home a row a hand ending in their time (a small `<select>`, 5:00 PM unless set); each block a panel (on the out-time roll its From and Out at; its lines and its crew as `inv-chip`s pressed, what it is booked to as a note under the lines, EXTRA, work done, *Take this block off*); the EXTRA by line a panel of fields; the roll saved as a row (*Send to the group*, *Copy*) over its message as written (`inv-quote`). **A barrel batch** (F3): the load's form with the barrel and in and out. **The VAT register page** (F4): the line and *Rounds · Batches* as two `inv-seg`s, a note saying whether the page is new, typed on this phone or saved; the rounds as register rows (§6.29); the paper's day total a field, its disagreement a callout under it; the day's power cuts a panel of rows (each ending in *Power back* or *Why*) over a cut's two times and *Save the cut*; *In the book* the page's runs as rows with *Send to the group* and *Copy*; *Save the page* in the action bar over what is counted | the same |
-| Today → Planner | view tabs Play · Ledger · A day · Moves (the tab map, TM2d) · the verdict card (§6.28): the plan's margin a month against the goal, cash's low and CQI-11 its facts, the margin, cash, CQI-11 and the trials' stars its factors, the goal's words in its body · one toolbar row: **Roll** the primary, the month ‹ › (`inv-tb-step`, a period inside a toolbar row, as Attendance's, Pay's and Areas' are), the plan's `<select>` where there are two, More as its mark (New card, Make the report, Copy, Rename, Suggest a start, Start over, the goal) · on Moves an `inv-seg` (`inv-pl-moves`): Plant · Tech tree · Staff · Clients · Finance · a register's or a move's row: two facts and one thing at its end, the rest folded under it | the same; More a word, the registers and moves as tables |
+| Home → Planner | view tabs Play · Ledger · A day · Moves (the tab map, TM2d) · the verdict card (§6.28): the plan's margin a month against the goal, cash's low and CQI-11 its facts, the margin, cash, CQI-11 and the trials' stars its factors, the goal's words in its body · one toolbar row: **Roll** the primary, the month ‹ › (`inv-tb-step`, a period inside a toolbar row, as Attendance's, Pay's and Areas' are), the plan's `<select>` where there are two, More as its mark (New card, Make the report, Copy, Rename, Suggest a start, Start over, the goal) · on Moves an `inv-seg` (`inv-pl-moves`): Plant · Tech tree · Staff · Clients · Finance · a register's or a move's row: two facts and one thing at its end, the rest folded under it | the same; More a word, the registers and moves as tables |
 | Money → Overview | an overview (the tab map, TM3c): the range chips `3M · 6M · FY · All` in its head, driving every panel · four heroes, one a subject (`inv-heroes-4`, §6.21), each folding to its line on the phone: **Cash** carries `data-verdict` (the balance and its day as its figure and sub, overdrawn danger; the forecast's lowest point within 60 days as its title, below zero danger, *outflows only* warning; the cheques in hand added in its sub; the closing balance by month a sparkline; its sheet the balance, the cheques in hand, the lowest point and the balance in 30 and 60 days as fact rows), **Owed to us** (the sum over 90 or 60 days as its title, the age bar its meter in `FIN_AGE_TONE`, never red while a receipt is unplaced; the five largest debtors as rows in their age tone), **GST** (last month's due, toned by its status; six months a sparkline), **Paid out** (last month's outflow and where most of it went; its categories as fact rows) · then the charts, each a fold (`uiFoldCard`, shut on the phone): cash by month (`chartLines`: balance, in, out; tap a month) and its table, the cash forecast (`chartLines` with a band, *what it rests on*), where money went (`chartStack` over the range, `chartPieTap` for the month, a slice lists its payments), where it came from (`chartPieTap` by client, unplaced a named slice), invoiced against received (`chartLines`), GST due and paid (`chartStack` grouped) · whole rupees on the Overview only | the heroes two across, four from 80rem; the folds open, panels two across |
 | Money → Receivables | a work screen (§6.28): the verdict card (owed, over 60 days and receipts not placed; the age bands and *Not placed* its factors; days to pay, the cheques in hand and the receipts with no client its facts) · one toolbar, **Cheque received** secondary · what needs the owner: the returned cheques, then **Cheques received** (`#bankCheques`, its head a dot and *2 cheques in hand · ₹X · the oldest 5 days* in the held task's tone; a row a cheque, its received day the meta and *In hand · N days* / *In the bank* / *Returned* at its end, a same-amount credit offered under it with **Link**), then the receipts with no client (each offer a line of its own, its button at the row's end) · then *Owed by client*: one line saying where receipts start and how they are set (the method is the bank guide's), a row a client with owed at its end in its age tone and two facts of meta (*pays in 32 d · oldest 47 d*), opening to fact rows (invoiced, credited, received with the cheques among it, on account, the opening, rounding) and its invoices with the receipt or cheque that paid each · a cheque opens a dialog (§6.16): its facts, and *Not this deposit*, *Unlink* and *Void* in the foot | the list beside the open client (`recvHost`) |
 | Money → Payments | the verdict card (payees not sorted, months with no electricity bill; Not yet sorted, Bills missing, Paid out and Owed to suppliers its factors) · one toolbar, **Add a bill** the one primary (gone while the form is open, whose Save is) · *Not yet sorted* first, a payee a row with **Sort**, and under one whose initials are a supplier's short name a line of its own, *May be …: its initials*, with **Same supplier** · then the bills (`#billsPower`): the form when open; a missing month a row with **Add**, the bank's payment for it under it with *Add as bill*; the bills entered a fold (*12 bills entered, the latest Sep 2026*) of rows with their note and Void, a voided bill muted · then the sections, each a fold: electricity paid, the wages (Staff → Pay's legs), **Suppliers** (its head the total owed as a dot and a word; a supplier a row whose main opens it: what is owed and since when, its lead time; the figure, or *No balance set* as a dot), other · drawn with or without a statement. **A supplier** is a dialog: its facts (owed with how it is made up, unpaid from, lead time and GST: a figure in the figures' face, words in the text's), its bills and payments the latest first with the balance after each (a bill's row opens its total as printed; a payment recorded here carries Void; one soon after the balance's day *In their balance*), those before the day folded; the foot Close · Change · Set the balance · **Record a payment**, each form in the dialog's place | the same |
@@ -1172,7 +1321,12 @@ document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe whil
 
 | # | Question | Decided |
 |---|---|---|
-| 1 | Palette | **Three, per device; Teal the default** (owner, 26 Sep 2026) — §3.1 |
+| 1 | Palette | **Three, per device; Teal the default** (owner, 26 Sep 2026); **Zinc & brass the default since UI pass 3** (U1, 16 Oct 2026) — §3.1 |
 | 2 | App icon | **Redrawn in the palette**; the installed icon is Teal (platform limit) — §3.11 |
 | 3 | Default theme | **Follow the phone's setting** — §3.2 |
 | 4 | Ctrl K command palette on the desktop | Open. Shown in the mock-up; the research did not support it as an expectation. Not built in route 1. |
+| 5 | Cards on a board | **A family**: one skeleton, seven types (Ledger, Docket, Plant, Crew, Briefing, Outside, Tools), five action rows (Open, Choose, More, Act, Source) (owner, 17 Oct 2026: *"different types of card layouts but organised"*) — `docs/UI_PASS_3.md` §24, built in U2R |
+| 6 | A card's surface | **Salience follows severity**: quiet while all is well, an amber top edge, a red edge and tint (owner, 17 Oct 2026, call 1) — §3.3, `docs/UI_PASS_3.md` §24c |
+| 7 | The figures' face | **Geist with tabular figures**; Geist Mono for identifiers only (owner, 17 Oct 2026, call 2) — DR-4, `docs/UI_PASS_3.md` §24l |
+| 8 | Money on a board | **Short**: whole rupees under a lakh, lakhs and crores to two places, the exact figure its `title` (owner, 17 Oct 2026, call 3) — §5.4, `docs/UI_PASS_3.md` §24k |
+| 9 | A widget's height | **Fixed by its size**, the board packed with no hole (owner, 17 Oct 2026, call 4) — §6.33, `docs/UI_PASS_3.md` §24h |

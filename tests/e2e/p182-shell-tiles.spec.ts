@@ -6,7 +6,9 @@ import { sweepState } from './sweep-fixture';
 // P182 (owner, 8 Oct 2026): "The bottom bar still doesn't look right. Let's give our tiles elevation as well. Move insights into
 // office tab, that way we have 5 icons again, which can be arranged in a better way." The phone bar is five doors, Add the
 // centre one, every door one geometry (its mark over its word, the words on one line); the page fades into its own colour under
-// the floating bar, so nothing scrolled beneath it shows cut in the gap; a tile is a raised box of its own.
+// the floating bar, so nothing scrolled beneath it shows cut in the gap; a tile is a box of its own. UI pass 3 (docs/UI_PASS_3.md
+// §3b, §3g) rewrote the tile's facts, not weakened them: a card lifts (two outer shadows, a card's corners), a tile inside it sinks
+// (one inset shadow, a tile's corners), the bar is a floating card.
 
 const g = (p: Page, e: string) => p.evaluate(x => (0, eval)(x), e);
 
@@ -73,32 +75,53 @@ test.describe('P182: the five doors and the raised tiles (phone)', () => {
     expect(Math.abs(left - right)).toBeLessThanOrEqual(1);
   });
 
-  test('a tile is a raised box of its own; a pressed filter tile is let down', async ({ page }) => {
+  test('a card lifts and a tile sinks into it: two outer shadows and a card\'s corners, one inset shadow and a tile\'s; a pressed filter tile is edged in the accent', async ({ page }) => {
     await loadAppWithState(page, sweepState());
     await openPulse(page);
     const t = await g(page, `(function() {
       var tiles = Array.prototype.slice.call(document.querySelectorAll('#homeTiles .inv-tile')).filter(function(x) { return x.offsetParent; });
       var a = tiles[0].getBoundingClientRect(), b = tiles[1].getBoundingClientRect(), cs = getComputedStyle(tiles[0]);
+      var card = tiles[0].closest('.inv-hero, .inv-panel'), cc = getComputedStyle(card);
       var sheet = tiles[0].closest('.inv-hero-sheet'), ss = sheet ? getComputedStyle(sheet) : null;
+      var bar = getComputedStyle(document.querySelector('.inv-navbar'));
+      var probe = document.createElement('i'); probe.style.borderRadius = 'var(--r-tile)'; probe.style.padding = 'var(--r-card)'; document.body.appendChild(probe);
+      var r = getComputedStyle(probe), rTile = parseFloat(r.borderTopLeftRadius), rCard = parseFloat(r.paddingTop); probe.remove();
       return { shadow: cs.boxShadow, radius: parseFloat(cs.borderTopLeftRadius), gap: Math.max(b.left - a.right, b.top - a.bottom),
+        cardShadow: cc.boxShadow, cardRadius: parseFloat(cc.borderTopLeftRadius), rTile: rTile, rCard: rCard,
+        barShadow: bar.boxShadow, barRadius: parseFloat(bar.borderTopLeftRadius),
         sheetFill: ss ? ss.backgroundImage + '|' + ss.backgroundColor : '', sheetBorder: ss ? ss.borderTopStyle : '' };
-    })()`) as { shadow: string; radius: number; gap: number; sheetFill: string; sheetBorder: string };
-    expect(t.shadow).not.toBe('none');
-    expect(t.shadow.split('rgba').length - 1).toBe(2);
-    expect(t.radius).toBeGreaterThan(0);
+    })()`) as Record<string, any>;
+    const layers = (sh: string) => sh === 'none' ? [] : sh.split(/,(?![^(]*\))/);
+    // The card around the tiles lifts: two shadows, both outside it, and a card's corners.
+    expect(layers(t.cardShadow).length).toBe(2);
+    expect(layers(t.cardShadow).every((x: string) => !/inset/.test(x))).toBe(true);
+    expect(t.cardRadius).toBe(t.rCard);
+    // The tile sinks into it: one shadow, inset, and a tile's corners, smaller than the card's.
+    expect(layers(t.shadow).length).toBe(1);
+    expect(t.shadow).toContain('inset');
+    expect(t.radius).toBe(t.rTile);
+    expect(t.radius).toBeLessThan(t.cardRadius);
     expect(t.gap).toBeGreaterThanOrEqual(7.5);
-    // A sheet holding the strip alone draws no box: the tiles are the boxes.
+    // A sheet holding the strip alone draws no box: the tiles are the wells.
     expect(t.sheetFill).toBe('none|rgba(0, 0, 0, 0)');
     expect(t.sheetBorder).toBe('none');
-    // Stock's tiles filter the lines: pressed, the tile loses its lift and keeps only the accent's line along its foot.
+    // The phone bar is a floating card: lifted outside it, a card's corners.
+    expect(layers(t.barShadow).length).toBe(2);
+    expect(t.barRadius).toBe(t.rCard);
+    // Stock's tiles filter the lines: pressed, the tile sinks deeper (inset only) and is edged in the accent.
     // Stock is one screen; its filter tiles are its card's factors (TM4d), shut on the phone until opened.
     await switchTab(page, 'pageStock');
     await openVerdict(page);
     const filter = page.locator('#stockTiles button.inv-tile').first();
     await filter.click();
     await expect(page.locator('#stockTiles button.inv-tile[aria-pressed="true"]')).toHaveCount(1);
-    const pressed = await page.locator('#stockTiles button.inv-tile[aria-pressed="true"]').evaluate(el => getComputedStyle(el).boxShadow);
-    expect(pressed.split('rgba').length + pressed.split('rgb(').length - 2).toBe(1);
-    expect(pressed).toContain('inset');
+    const pressed = await page.locator('#stockTiles button.inv-tile[aria-pressed="true"]').evaluate(el => {
+      var cs = getComputedStyle(el), probe = document.createElement('i'); probe.style.color = 'var(--accent)'; document.body.appendChild(probe);
+      var accent = getComputedStyle(probe).color; probe.remove();
+      return { shadow: cs.boxShadow, edge: cs.borderTopColor, accent: accent };
+    });
+    expect(layers(pressed.shadow).length).toBe(1);
+    expect(pressed.shadow).toContain('inset');
+    expect(pressed.edge).toBe(pressed.accent);
   });
 });

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, readStoredState, todayIso, waitForBoot, workingDaysBack, answerAsk } from './fixtures';
+import { loadAppWithState, readStoredState, todayIso, waitForBoot, workingDaysBack, answerAsk, openNeeds } from './fixtures';
 import { PINS, guardBook, unlock, lockNow } from './p140-guard.fixture';
 
 // P200: the pickling hand's face (docs/ENTRY_FACES.md, F2; owner, 10 Oct 2026: "[the pickling hand] - Pickling", "When it goes
@@ -113,6 +113,7 @@ test.describe('P200: the pickling hand’s face', () => {
     // The message sent to the group and pasted later by the owner is known as entered: left out, nothing to save.
     await lockNow(page);
     await unlock(page, 'U-own', PINS.owner);
+    await openNeeds(page);
     await expect(page.locator('[data-tdy-input="pickling"] .inv-step-meta')).toContainText('by Dina Roy');
     const pasted = `${dmy(today)}, 11:34 am - Dina Roy: ` + msg;
     await ev(page, `prodOpenPaste(${JSON.stringify(pasted)})`);

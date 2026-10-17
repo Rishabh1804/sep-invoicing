@@ -4,7 +4,7 @@ import { sweepState } from './sweep-fixture';
 
 // P147 (desktop): UX overhaul 2, step 7. Four more screens are a list beside the open record (Finance → Receivables,
 // Production → Entries, Staff → Roster, History), each with an address a reload and Back follow; and above about 1,600px
-// Home's Pulse, Stats and Finance lay their panels three across, never leaving a blank cell in a strip of tiles.
+// Stats and Finance lay their panels three across (Home's Pulse too until UI pass 3), never leaving a blank cell in a strip of tiles.
 
 async function openFinanceTab(page: Page, tab: string) {
   await switchTab(page, 'pageFinance');
@@ -127,13 +127,13 @@ async function blankCells(page: Page) {
       const cs = getComputedStyle(t as HTMLElement);
       const box = (t as HTMLElement).getBoundingClientRect(), last = tiles[tiles.length - 1].getBoundingClientRect();
       const right = box.right - parseFloat(cs.paddingRight) - parseFloat(cs.borderRightWidth);
-      if (last.top > tiles[0].getBoundingClientRect().top + 1 && right - last.right > 4) bad.push((t.closest('[data-card], [id], [data-home-w]') as HTMLElement | null)?.outerHTML.slice(0, 80) || '?');
+      if (last.top > tiles[0].getBoundingClientRect().top + 1 && right - last.right > 4) bad.push((t.closest('[data-card], [id], [data-w]') as HTMLElement | null)?.outerHTML.slice(0, 80) || '?');
     });
     return bad;
   });
 }
 
-test('above about 1,600px Stats, Finance and Pulse take three columns, at 1280 two, with no blank tile cell', async ({ page }) => {
+test('above about 1,600px Stats and Finance take three columns, at 1280 two, with no blank tile cell; Home’s board keeps its twelve', async ({ page }) => {
   await loadAppWithState(page, sweepState());
   await switchTab(page, 'pageStats');
   expect(await columns(page, '#pageStats .inv-panels')).toBe(2);
@@ -143,14 +143,9 @@ test('above about 1,600px Stats, Finance and Pulse take three columns, at 1280 t
   await openFinanceTab(page, 'overview');
   expect(await columns(page, '#pageFinance .inv-panels')).toBe(3);
   expect(await blankCells(page)).toEqual([]);
+  // Pulse's widgets went three across until UI pass 3 (U2): Home's board has its own grid, twelve columns from 60rem, a widget's
+  // size its span, so the window's three columns do not reach it.
   await openPulse(page);
-  await expect(page.locator('#homeWidgets')).toBeVisible();
-  expect(await columns(page, '#homeWidgets')).toBe(3);
-  expect(await blankCells(page)).toEqual([]);
-  // A wide panel still spans the row.
-  const wide = page.locator('#pageHome .inv-panels > .inv-panels-wide').first();
-  if (await wide.count()) {
-    const [w, g] = await Promise.all([wide.evaluate(e => e.getBoundingClientRect().width), wide.evaluate(e => e.parentElement!.getBoundingClientRect().width)]);
-    expect(Math.abs(w - g)).toBeLessThan(2);
-  }
+  await expect(page.locator('#homeBoard')).toBeVisible();
+  expect(await columns(page, '#homeBoard .inv-wgrid')).toBe(12);
 });

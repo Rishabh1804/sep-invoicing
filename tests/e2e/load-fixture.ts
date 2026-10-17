@@ -1,4 +1,6 @@
 import { test, type Page } from '@playwright/test';
+import fs from 'fs';
+import path from 'path';
 import { loadAppWithState, switchTab, todayIso, type SepState } from './fixtures';
 import { PAPER, challan, dayOff, inv, sweepState } from './sweep-fixture';
 
@@ -258,7 +260,7 @@ export async function measureLoad(page: Page): Promise<Load> {
 
 /* P197's reading of the screen on show: its kind, its leading blocks, and every box's look (fill, edges, corners, lift and
    padding, the tone's colour left out, as the census of 9 Oct 2026 read them). */
-export type Census = { kind: string; lead: string[]; looks: string[]; verdicts: number; long: number; rowEndBtns: number; pageheadMeta: number };
+export type Census = { kind: string; lead: string[]; looks: string[]; wears: Record<string, string[]>; verdicts: number; long: number; rowEndBtns: number; pageheadMeta: number };
 export async function census(page: Page): Promise<Census> {
   return page.evaluate((PAPER) => {
     const act = document.querySelector('.inv-page.inv-page-active') as HTMLElement;
@@ -269,6 +271,8 @@ export async function census(page: Page): Promise<Census> {
       return 'rgb(0,0,0)';
     };
     const looks = new Set<string>();
+    // What wears each look: the element's first inv- class that is not a modifier (comp, below), for naming LOOKS.
+    const wears: Record<string, string[]> = {};
     for (const el of Array.from(act.querySelectorAll('*'))) {
       if ((el as HTMLElement).closest(PAPER)) continue;
       const rect = el.getBoundingClientRect();
@@ -282,9 +286,18 @@ export async function census(page: Page): Promise<Census> {
       const fill = !tr(cs.backgroundColor) && cs.backgroundColor !== bgOf(el.parentElement);
       const sides = ['Top', 'Right', 'Bottom', 'Left'].map(s => px((cs as any)['border' + s + 'Width']) > 0 && !tr((cs as any)['border' + s + 'Color']) && (cs as any)['border' + s + 'Style'] !== 'none' ? px((cs as any)['border' + s + 'Width']) : 0);
       const shadow = cs.boxShadow && cs.boxShadow !== 'none';
+      // A well (UI pass 3, docs/UI_PASS_3.md §3g) presses in: every one of its shadows is inset. A card lifts: one shadow or more
+      // falls outside it. The shadows split on the commas outside a colour's own brackets.
+      const parts: string[] = []; let depth = 0, cur = '';
+      for (const ch of shadow ? cs.boxShadow : '') { if (ch === '(') depth++; if (ch === ')') depth--; if (ch === ',' && !depth) { parts.push(cur); cur = ''; } else cur += ch; }
+      if (cur.trim()) parts.push(cur);
+      const well = shadow && parts.length > 0 && parts.every(s => /\binset\b/.test(s));
       if (!(grad || fill || sides.some(Boolean) || shadow)) continue;
       const edge = sides.every(Boolean) ? 'all' + sides[0] : sides.map((v, i) => v ? 'TRBL'[i] + v : '').join('') || 'none';
-      looks.add([grad ? 'grad' : fill ? 'fill' : 'nofill', 'edge:' + edge, 'r' + px(cs.borderTopLeftRadius), shadow ? 'lift' : 'flat', 'p' + px(cs.paddingTop) + '/' + px(cs.paddingLeft)].join(' '));
+      const look = [grad ? 'grad' : fill ? 'fill' : 'nofill', 'edge:' + edge, 'r' + px(cs.borderTopLeftRadius), well ? 'well' : shadow ? 'lift' : 'flat', 'p' + px(cs.paddingTop) + '/' + px(cs.paddingLeft)].join(' ');
+      looks.add(look);
+      const who = Array.from(el.classList).filter(x => x.startsWith('inv-')).join('.') || el.tagName.toLowerCase();
+      if (!(wears[look] = wears[look] || []).includes(who) && wears[look].length < 8) wears[look].push(who);
     }
     const comp = (el: Element) => {
       const c = Array.from(el.classList).filter(x => x.startsWith('inv-'));
@@ -303,7 +316,7 @@ export async function census(page: Page): Promise<Census> {
     };
     walk(act, 0);
     const rowEndBtns = Array.from(act.querySelectorAll('.inv-row-end')).filter(e => (e as HTMLElement).offsetParent !== null && e.querySelectorAll('.inv-btn').length > 1).length;
-    return { kind: act.dataset.screen || '', lead, looks: Array.from(looks).sort(), verdicts: act.querySelectorAll('[data-verdict]').length,
+    return { kind: act.dataset.screen || '', lead, looks: Array.from(looks).sort(), wears, verdicts: act.querySelectorAll('[data-verdict]').length,
       long: document.querySelectorAll('[data-verdict-long]').length, rowEndBtns,
       pageheadMeta: Array.from(act.querySelectorAll('.inv-pagehead-meta')).filter(e => (e as HTMLElement).offsetParent !== null).length };
   }, PAPER);
@@ -319,57 +332,60 @@ export async function census(page: Page): Promise<Census> {
    list: design §6.28 names each look and what wears it. The same census over the owner's own book (a scratch harness, never in the
    repository) found five more: the Planner board's rule between lanes (two, added: the long book plans nothing), and three where a
    box wore two components at once (a register day's row filled as well as its cells, the EXTRA fold's lines padded as a panel's
-   body), now drawn as their own components; and two of TM1's looks nothing draws on either book any more were taken off. */
+   body), now drawn as their own components; and two of TM1's looks nothing draws on either book any more were taken off.
+   UI pass 3's look (U1, 16 Oct 2026; docs/UI_PASS_3.md §3b, §3g) regenerated the list from the census on both layouts, each look
+   named with what wears it: a card lifts with a card's corners (r18), a tile, a search and a segmented track are wells (r14, r12),
+   a hero's sheet draws only its head rule; the old corners (r6, r8, r10) and the tile's lift are gone, 41 looks to 35. */
 export const LOOKS: string[] = [
-  'fill edge:B1 r0 flat p0/0',
-  'fill edge:B1 r0 flat p0/12',
-  'fill edge:B1 r0 flat p2/2',
-  'fill edge:B1 r0 flat p4/12',
-  'fill edge:B1 r0 flat p4/8',
-  'fill edge:B1 r0 flat p6/12',
-  'fill edge:T1 r0 flat p8/2',
-  'fill edge:all1 r10 flat p0/0',
-  'fill edge:all1 r10 flat p16/12',
-  'fill edge:all1 r6 flat p0/0',
-  'fill edge:all1 r6 flat p0/10',
-  'fill edge:all1 r8 flat p0/0',
-  'fill edge:all1 r8 flat p16/12',
-  'fill edge:L1 r0 flat p16/16',     // inv-pane, the desktop's detail pane (design §6.14): Quotations' To reprice while nothing is open, since TM5g
-  'fill edge:T1 r0 flat p8/12',      // inv-actionbar, a form's sticky bar (design §6.15): under Reports' sheet since TM6e, its Print
-  'fill edge:none r4 flat p6/8',     // inv-quote, the text as sent (design §6): in an entry's fold on Production → Entries since TM4c
-  'fill edge:none r8 flat p10/12',
-  'grad edge:T1 r0 flat p0/0',
-  'grad edge:T1B1 r0 flat p0/0',
-  'grad edge:all1 r10 flat p0/0',
-  'grad edge:all1 r6 lift p10/12',
-  'grad edge:all1 r8 flat p0/0',
-  'grad edge:all1 r8 lift p12/12',
-  'nofill edge:B1 r0 flat p0/0',
-  'nofill edge:B1 r0 flat p0/12',
-  'nofill edge:B1 r0 flat p10/12',
-  'nofill edge:B1 r0 flat p12/12',
-  'nofill edge:B1 r0 flat p16/12',
-  'nofill edge:B1 r0 flat p2/2',
-  'nofill edge:B1 r0 flat p4/8',
-  'nofill edge:B1 r0 flat p6/12',
-  'nofill edge:B1 r0 flat p6/28',
-  'nofill edge:B1 r0 flat p8/12',
-  'nofill edge:B1 r0 flat p8/28',
-  'nofill edge:T1 r0 flat p8/2',
+  // Cards (§6.8, §6.21, §6.22): lifted, a card's corners.
+  'fill edge:all1 r18 lift p16/12',  // inv-panel
+  'fill edge:all1 r18 lift p0/0',    // inv-panel-flush
+  'grad edge:all1 r18 lift p0/0',    // inv-hero, coded in its tone
+  'grad edge:all1 r18 lift p12/12',  // inv-deck-item, a card in a card's deck
+  // Wells (§6.5, §6.7, §6.9): sunk into what they sit in.
+  'fill edge:all1 r14 well p10/12',  // inv-tile
+  'grad edge:all1 r14 well p10/12',  // inv-tile in a coded card, a well of its own tone
+  'fill edge:all1 r12 well p0/12',   // inv-search
+  'fill edge:all1 r12 well p0/2',    // inv-seg, the segmented control's track
+  'nofill edge:none r0 well p0/0',   // inv-viewtabs, the tab row's rule (an inset line)
+  'fill edge:none r9999 well p0/0',  // inv-blank-icon, the blank state's icon in a round well (design §6.32), in a widget saying it is empty
+  // Inside a card: heads, bodies, strips, rows (§6.8, §6.10).
+  'nofill edge:B1 r0 flat p10/12',   // inv-panel-head, a flush card's head
+  'nofill edge:B1 r0 flat p8/12',    // inv-panel-head, inv-row-auto
+  'nofill edge:B1 r0 flat p16/12',   // inv-panel-body
+  'nofill edge:B1 r0 flat p12/12',   // inv-tiles-flush, a strip in a flush card
+  'nofill edge:B1 r0 flat p6/12',    // inv-row (and a table's cells)
+  'nofill edge:B1 r0 flat p6/28',    // inv-row under its parent, indented
+  'nofill edge:B1 r0 flat p8/28',    // inv-row-auto under its parent, indented
+  'nofill edge:T1 r0 flat p0/0',     // inv-hero-sheet: what a hero opens to draws only its head rule
+  'fill edge:B1 r0 flat p0/0',       // inv-row-children, a row's own lines on the page colour
+  'nofill edge:B1 r0 flat p0/0',     // inv-row-children
+  'fill edge:B1 r0 flat p0/12',      // inv-row-group, a group's head band; a table's head cells
+  'nofill edge:B1 r0 flat p0/12',    // a table's cells (the list's columns, inv-col-*)
+  // Tables (§6.12): the week grid's cells, the ledger's, History's on the desktop.
+  'fill edge:B1 r0 flat p2/2',       // td, the week grid
+  'nofill edge:B1 r0 flat p2/2',     // td, the week grid
+  'fill edge:T1 r0 flat p8/2',       // inv-num, the week grid's total row
+  'nofill edge:T1 r0 flat p8/2',     // inv-num, the week grid's total row
+  'fill edge:B1 r0 flat p4/12',      // th, the Planner's ledger
+  'fill edge:B1 r0 flat p4/8',       // inv-num th, the ledger's figures
+  'nofill edge:B1 r0 flat p4/8',     // inv-num, the ledger's figures
+  'fill edge:B1 r0 flat p6/12',      // td, History's table on the desktop
   'nofill edge:T1 r0 flat p2/2',     // a dense grid's lane rule (the Planner's board, a lane under another): seen on the owner's book, TM6f
   'nofill edge:T1 r0 flat p2/12',    // the same rule on the lane's name
-  'nofill edge:all1 r6 flat p0/0',
-  'nofill edge:all1 r6 flat p0/10',
-  'nofill edge:all1 r6 lift p10/12',
-  'nofill edge:none r0 lift p0/0'
+  // The rest (§6.14, §6.15, §6.18): the desktop's pane, a form's bar, a callout, the text as sent.
+  'fill edge:L1 r0 flat p16/16',     // inv-pane, the desktop's detail pane (design §6.14): Quotations' To reprice while nothing is open, since TM5g
+  'fill edge:T1 r0 flat p8/12',      // inv-actionbar, a form's sticky bar (design §6.15): under Reports' sheet since TM6e, its Print
+  'fill edge:none r8 flat p10/12',   // inv-callout
+  'fill edge:none r4 flat p6/8',     // inv-quote, the text as sent (design §6): in an entry's fold on Production → Entries since TM4c
 ];
 
 /* The screens assembled to one look, by the place walkMap names them; each joins in the step that assembles it (TM1: none). */
 export const ONE_LOOK: string[] = [
   // TM2: Today's two views, Stats' three tabs and the Planner's four views (Moves on the kind it opens on).
-  'Today › Needs you', 'Today › Pulse',
-  'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
-  'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+  'Home › Needs you', 'Home › Home',
+  'Home › Stats › By client', 'Home › Stats › Cost', 'Home › Stats › Trends',
+  'Home › Planner › Play', 'Home › Planner › Ledger', 'Home › Planner › A day', 'Home › Planner › Moves',
   // TM3: Money's five.
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
   // TM4: Floor's Overview, People (Attendance's Day, Week and Month, Pay, Areas, Roster), Production's four, Stock, Power's four.
@@ -385,7 +401,7 @@ export const ONE_LOOK: string[] = [
   'Office › Sales › Prospects', 'Office › Sales › Quotations',
   // TM6f: the screens no step had touched. Reports (a document), Challans' Invoiced, History and Knowledge's five views. The list is
   // now every screen of the map.
-  'Today › Reports', 'Office › Challans › Invoiced', 'History',
+  'Home › Reports', 'Office › Challans › Invoiced', 'History',
   'Knowledge › Start', 'Knowledge › Library', 'Knowledge › Troubleshoot', 'Knowledge › Records', 'Knowledge › Training',
 ];
 
@@ -487,5 +503,15 @@ export async function walkOneLook(page: Page) {
     if (!k) bad.push(id + ': no data-screen');
   }
   await test.info().attach('census', { body: JSON.stringify(report, null, 1), contentType: 'application/json' });
+  // LOOKS_DUMP=<dir> writes every look the walk saw with the screens that wear it, a file a layout: how LOOKS is regenerated after a
+  // step changes what boxes wear (UI pass 3 §3g), each look then named with what wears it.
+  if (process.env.LOOKS_DUMP) {
+    const seen: Record<string, string[]> = {};
+    for (const [name, c] of Object.entries(report)) for (const l of c.looks) {
+      (seen[l] = seen[l] || []).push(name);
+      for (const w of c.wears[l] || []) if (!seen[l].includes('wears ' + w)) seen[l].push('wears ' + w);
+    }
+    fs.writeFileSync(path.join(process.env.LOOKS_DUMP, 'looks-' + test.info().project.name + '.json'), JSON.stringify(seen, null, 1) + '\n');
+  }
   return { errs, bad, report };
 }

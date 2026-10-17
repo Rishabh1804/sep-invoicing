@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { answerAsk, loadAppWithState, readStoredState, switchTab, waitForBoot } from './fixtures';
+import { answerAsk, loadAppWithState, readStoredState, switchTab, waitForBoot, openNeeds } from './fixtures';
 import { sweepState } from './sweep-fixture';
 import { PINS, withUsers, unlock, windowGone } from './p140-guard.fixture';
 import { openSearch, search } from './p139-search.fixture';
@@ -33,10 +33,11 @@ test.describe('P153: the QA chain over step 7 (phone)', () => {
     await expect(page.locator(`#${floor[0]}`)).toHaveClass(/inv-page-active/);
   });
 
-  test('Pulse opened from another screen is drawn, not Needs you left on screen', async ({ page }) => {
+  test('Home opened from another screen is drawn, not Needs you left on screen', async ({ page }) => {
     await loadAppWithState(page, sweepState());
-    // Today drawn on Needs you with nothing left to redraw (the start's own save marks it once), then Office, and Pulse from
-    // search, with nothing saved between.
+    await openNeeds(page);
+    // Home drawn on Needs you with nothing left to redraw (the start's own save marks it once), then Office, and Home's board from
+    // search (Pulse until UI pass 3, whose word still finds it), with nothing saved between.
     const bar = (ws: string) => page.locator(`.inv-navbar-item[data-ws="${ws}"]`);
     await bar('office').click();
     await bar('today').click();
@@ -45,13 +46,13 @@ test.describe('P153: the QA chain over step 7 (phone)', () => {
     await expect(page.locator('#pageHome')).not.toHaveClass(/inv-page-active/);
     await openSearch(page);
     await search(page, 'pulse');
-    await expect(page.locator('#srchList [role="option"]').first()).toContainText('Pulse');
+    await expect(page.locator('#srchList [role="option"]').first()).toContainText('Home');
     await page.keyboard.press('Enter');
     await expect(page.locator('#pageHome')).toHaveClass(/inv-page-active/);
-    await expect(page.locator('#homePulse')).toBeVisible();
+    await expect(page.locator('#homeDash')).toBeVisible();
     await expect(page.locator('#homeNeeds')).toBeHidden();
-    await expect(page.locator('[data-tdy-pulse-head]')).toBeVisible();
-    expect(page.url()).toContain('v=pulse');
+    await expect(page.locator('[data-home-toolbar]')).toBeVisible();
+    await expect.poll(() => page.url()).toContain('v=home');
   });
 
   test("Production's Enter by hand opens from its address", async ({ page }) => {

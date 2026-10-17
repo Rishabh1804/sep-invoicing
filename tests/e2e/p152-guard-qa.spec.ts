@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { loadAppWithState, readStoredState, waitForBoot, answerAsk, openSettingsAt, switchTab, emptyState, noSeedIM, todayIso, workdayIso, type SepState } from './fixtures';
+import { loadAppWithState, readStoredState, waitForBoot, answerAsk, openSettingsAt, switchTab, emptyState, noSeedIM, todayIso, workdayIso, type SepState, openNeeds } from './fixtures';
 import { PINS, g, guardBook, withUsers, unlock, windowGone, lockNow } from './p140-guard.fixture';
 
 // P152: the guard's QA (the audit of 2 Oct 2026, QA4 and QA2). What it pins, each a finding the auditor reproduced:
@@ -111,8 +111,10 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(page.locator('[data-grd-recovery]')).toHaveText(/^[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}-[A-HJKMNP-Z2-9]{4}$/);
   });
 
-  test('QA4-2 / QA2-1: the first unlock after a fresh open draws Today for whoever unlocks', async ({ page }) => {
+  test('QA4-2 / QA2-1: the first unlock after a fresh open draws Needs you for whoever unlocks', async ({ page }) => {
     await loadAppWithState(page, taskBook());
+    // On Needs you (Home's second view since UI pass 3, U2): the reload keeps the view its address names.
+    await openNeeds(page);
     await withUsers(page);   // reloads onto the lock: the start drew the screen with nobody signed in
     await unlock(page, 'U-sup', PINS.super);
     await expect(page.locator('#homeNeeds [data-card="tasks"]')).toBeVisible();
@@ -124,26 +126,27 @@ test.describe('P152: the guard, after its QA', () => {
     await expect(page.locator('#homeNeeds [data-tdy-task^="challan:"]')).toHaveCount(1);
     await expect(page.locator('#homeNeeds [data-tdy-task="backup"]')).toHaveCount(1);
 
-    // Pulse at a fresh open (another tab: a session of its own): the questions are money, not the supervisor's.
+    // Pulse's old address at a fresh open (another tab: a session of its own) lands on Home's board, drawn for the supervisor: the
+    // Floor preset, no question (they are money), no money widget and no period; the toolbar holds Customise and More.
     const tab = await page.context().newPage();
     await tab.goto('/?tab=pageHome&v=pulse');
     await waitForBoot(tab);
     await unlock(tab, 'U-sup', PINS.super);
-    await expect(tab.locator('#homePulse')).toBeVisible();
-    // No question and no period: the head holds Edit Home alone (in its More since the tab map, TM2b).
-    await expect(tab.locator('#homeQuestions [data-tdy-q], #homeQuestions [data-action="invStatsPeriod"], #statsWhy, #statsOverview, #statsPace')).toHaveCount(0);
-    await expect(tab.locator('#homeQuestions [data-tdy-pulse-head] button')).toHaveText(['Edit Home']);
-    await expect(tab.locator('[data-home-w="mtd"]')).toBeHidden();
-    await expect(tab.locator('[data-home-w="money"]')).toBeHidden();
-    await expect(tab.locator('#homeFinCard')).toBeEmpty();
+    await expect(tab.locator('#homeDash')).toBeVisible();
+    await expect(tab.locator('#homeBoard .inv-widget').first()).toBeVisible();
+    await expect(tab.locator('#homeDash [data-tdy-q], #homeDash [data-action="invStatsPeriod"], #statsWhy, #statsOverview, #statsPace')).toHaveCount(0);
+    await expect(tab.locator('#homeDash [data-home-toolbar] [data-action="invWdgArrange"]')).toHaveCount(1);
+    await expect(tab.locator('#homeBoard [data-w="mtd"], #homeBoard [data-w="money"], #homeBoard [data-w="cash"]')).toHaveCount(0);
     await tab.close();
   });
 
   test('QA4-2: nothing a role decides is drawn under the lock; what changed meanwhile is drawn at the unlock', async ({ page }) => {
     await loadAppWithState(page, taskBook());
+    await openNeeds(page);   // the reload keeps the view its address names
     await withUsers(page);
-    // At the start nobody is signed in: Today waits for the unlock, and the bar counts nothing.
+    // At the start nobody is signed in: Needs you and Home's board wait for the unlock, and the bar counts nothing.
     expect(await ev(page, "document.getElementById('homeNeeds').innerHTML")).toBe('');
+    expect(await ev(page, "document.getElementById('homeDash').innerHTML")).toBe('');
     expect(await ev(page, 'JSON.stringify(wsRedCounts())')).toBe(JSON.stringify({ today: 0, office: 0, floor: 0, money: 0, mine: 0 }));
     await unlock(page, 'U-sup', PINS.super);
     await expect(page.locator('#homeNeeds [data-card="tasks"]')).toBeVisible();
@@ -346,7 +349,7 @@ test.describe('P152: the guard, after its QA', () => {
       sub: 'paid with no bill', why: 'Payments', facts: [], clears: '', go: { kind: 'stockList' }, goLabel: 'Open Stock', sig: '1' }]; };
       TODO_RULE_FNS.payCarry = function () { return [{ key: 'payCarry', rule: 'payCarry', tone: 'red', title: 'A worker carries a balance',
       sub: '', why: 'Pay', facts: [], clears: '', go: { kind: 'payDue' }, goLabel: 'Open Pay', sig: '1' }]; };`);
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     const appKeys = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#homeNeeds [data-todo="app"]'), function (b) { return b.dataset.tdyTask; })`) as Promise<string[]>;
     let keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup']) expect(keys).not.toContain(k);
@@ -365,7 +368,8 @@ test.describe('P152: the guard, after its QA', () => {
 
     // The owner sees every one, and the counts are theirs.
     await switchUser(page, 'U-own', PINS.owner);
-    await switchTab(page, 'pageHome');
+    // Needs you is Home's second view since UI pass 3 (U2).
+    await openNeeds(page);
     keys = await appKeys(page);
     for (const k of ['supplierNoBill:x', 'payCarry', 'challan:1', 'backup', 'flowLate:1']) expect(keys).toContain(k);
     const n = JSON.parse(await ev(page, 'JSON.stringify(wsRedCounts())') as string);
@@ -427,6 +431,7 @@ test.describe('P152: the guard, after its QA', () => {
 
   test('QA2-5: Needs you lists the day’s inputs a role’s screens take, and no task on Pay or Settings it may not open', async ({ page }) => {
     await loadAppWithState(page, taskBook());
+    await openNeeds(page);   // the reload keeps the view its address names
     await withFour(page);
     const inputs = (p: Page) => ev(p, `Array.prototype.map.call(document.querySelectorAll('#homeNeeds [data-tdy-input]'), function (r) { return r.dataset.tdyInput; })`);
     // The office: no floor screen, so no input of the floor's.

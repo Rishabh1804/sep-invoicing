@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { answerAsk, emptyState, loadAppWithState, readStoredState, switchTab, toolbarMore, filterControl } from './fixtures';
+import { answerAsk, emptyState, loadAppWithState, readStoredState, switchTab, toolbarMore, filterControl, openNeeds } from './fixtures';
 import { readFileSync } from 'fs';
 
 // P111: the shell's share of the QA sweep of 29 Sep 2026 — the frame every screen sits in.
@@ -349,7 +349,8 @@ test.describe("P111: the To-do's own list", () => {
     const st: any = emptyState();
     st.todo = { tasks: Array.from({ length: 60 }, (_, i) => task('TD-' + i, 'Task ' + i, { doneAt: Date.now() - i * 1000 })), snoozes: {} };
     await loadAppWithState(page, st);
-    // Done is folded at the foot of Needs you (the tab map, TM2a).
+    // Done is folded at the foot of Needs you (the tab map, TM2a), Home's second view since UI pass 3.
+    await openNeeds(page);
     const done = page.locator('#homeNeeds [data-card="done"]');
     await done.locator(':scope > summary').click();
     const rows = done.locator('[data-action="invTodoToggle"]');

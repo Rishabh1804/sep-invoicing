@@ -1,5 +1,6 @@
 import { expect, type Page } from '@playwright/test';
 import { emptyState, recentTs, switchTab, todayIso, type SepState } from './fixtures';
+import { newsAnswer } from './feeds-fixture';
 
 // The whole-app sweep for P76 (design system step 4): a book with something on every screen, a walker that opens
 // every page, every view tab on it and every dialog, and the checks run at each stop. Every name and figure is
@@ -375,12 +376,14 @@ export async function walkPages(page: Page, tag: string, stops: Stop[]) {
     await switchTab(page, id);
     stops.push(await sweep(page, id));
     await shot(page, `${tag}-${id}`);
-    // Today's two views are the shell's tabs (#wsTabs), not the page's: Pulse is opened by its own (it was never swept).
+    // Home's two views are the shell's tabs (#wsTabs), not the page's: Home opens on its dashboard (UI pass 3), Needs you by its own.
     if (id === 'pageHome') {
-      await page.locator('#wsTabs [data-v="pulse"]').click();
-      await page.locator('#homePulse:not(.inv-hidden)').waitFor();
-      stops.push(await sweep(page, 'pageHome › Pulse'));
-      await shot(page, `${tag}-pageHome-Pulse`);
+      await page.locator('#wsTabs [data-v="needs"]').click();
+      await page.locator('#homeNeeds:not(.inv-hidden)').waitFor();
+      stops.push(await sweep(page, 'pageHome › Needs you'));
+      await shot(page, `${tag}-pageHome-Needs-you`);
+      await page.locator('#wsTabs [data-v="home"]').click();
+      await page.locator('#homeDash:not(.inv-hidden)').waitFor();
     }
     const tabs = page.locator(`#${id} .inv-viewtab:visible`);
     const n = await tabs.count();
@@ -504,6 +507,8 @@ export async function walkQuoteForm(page: Page, tag: string, stops: Stop[]) {
 /* Every dialog, opened the way its button does. */
 export const DIALOGS: Array<[string, string]> = [
   ['settings', `openSettings()`],
+  // The icon set's licences (P228): Settings → Data & device → Backup, storage & build → Licences.
+  ['licences', `settingsLicencesOpen()`],
   ['client-add', `openClientAdd()`],
   ['client-edit', `openClientEdit(1)`],
   ['item-edit', `openItemEdit(1)`],
@@ -572,6 +577,11 @@ export const DIALOGS: Array<[string, string]> = [
   ['power-cut-reason', `pcsOpen('PD1')`],
   ['power-cause-edit', `pcsEditOpen('PCS-R1')`],
   ['checkin-review', `S.staff[0].card = 'SEP-0001'; ckReviewOpen(${JSON.stringify(`SEP check-in\nCard SEP-0001\nTime ${todayIso().split('-').reverse().join('/')} 08:20\nPlace 22.800100,86.150100 ±12 m\nCode ABCD`)})`],
+  // The Tata dialog (feeds.js, P225): the headlines on the device offering the month's figures and the plant's days, and a month
+  // typed before it.
+  ['market-tata', `localStorage.setItem('sep_inv_feeds', ${JSON.stringify(JSON.stringify({ news: { key: 'sweep', at: Date.now(), data: newsAnswer() } }))}); ` +
+    `mktData().tata[${JSON.stringify(monthOff(-2, 1).slice(0, 7))}] = { released: '', url: '', note: '', cvTotal: { now: 31000, ly: 30000 }, cvDomestic: { now: 27000, ly: null }, ` +
+    `cvExport: { now: 4000, ly: 3900 }, hcv: { now: 11000, ly: 10500 }, at: 1, by: '' }; mktTataOpen()`],
 ];
 
 export async function walkDialogs(page: Page, tag: string, stops: Stop[]) {

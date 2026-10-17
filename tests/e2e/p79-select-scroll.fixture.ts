@@ -195,7 +195,9 @@ export async function walkSelects(page: Page, jumps: Jump[]) {
   }
   // Dialogs whose form carries selects.
   // The credit notes are a dialog of Invoices (the tab map, TM3), its New note a form in it.
-  for (const [name, js] of [['client-edit', 'openClientEdit(1)'], ['worker-edit', 'openWorkerEdit(1)'], ['item-edit', 'openItemEdit(1)'], ['todo-new', 'todoOpenEdit(null)'], ['credit-note-new', "renderCreditNoteList(); billsCnFormOpen('new')"], ['settings', 'openSettings()']]) {
+  for (const [name, js] of [['client-edit', 'openClientEdit(1)'], ['worker-edit', 'openWorkerEdit(1)'], ['item-edit', 'openItemEdit(1)'], ['todo-new', 'todoOpenEdit(null)'], ['credit-note-new', "renderCreditNoteList(); billsCnFormOpen('new')"], ['settings', 'openSettings()'],
+    // The Tata dialog (feeds.js): its month, and the plant's day by hand.
+    ['market-tata', 'mktTataOpen()']]) {
     await page.evaluate(src => { (window as any).closeOverlay(); (window as any).closeSettings?.(); (0, eval)(src); }, js);
     // A sheet slides in: measure once it has landed, or the slide reads as a jump.
     await page.evaluate(() => Promise.all(document.getAnimations().map(a => a.finished.catch(() => null))));

@@ -26,16 +26,16 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
   // widgets shut on the phone).
   // Raised 3 → 3.5 by the flow thread (T1–T3, 10 Oct 2026), said in the PR (I10): material past its turnaround target is a red
   // task in Now, the long book's twelve clients folded into one card (3.09).
-  'Today › Needs you': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Pulse': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 2 },
-  'Today › Planner › Play': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Planner › A day': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
-  'Today › Planner › Moves': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Needs you': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Home': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › By client': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › Cost': { screens: 3, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Stats › Trends': { screens: 2, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Reports': { screens: 3, blocks: 0, chains: 0, toolbarRows: 2 },
+  'Home › Planner › Play': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Planner › Ledger': { screens: 3.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Planner › A day': { screens: 2.5, blocks: 0, chains: 0, toolbarRows: 1 },
+  'Home › Planner › Moves': { screens: 4, blocks: 0, chains: 0, toolbarRows: 1 },
   // TM5. Office's screens, each led by its verdict card, then one toolbar row; Invoices was eight rows of controls on the phone, Parts
   // four. Performance's long cards fold, and its five blocks and nine chains went. TM6f gave Challans → Invoiced its card, the month
   // inside its one row.
@@ -94,8 +94,8 @@ const LOAD_BUDGET: Record<string, Omit<Load, 'verdictTop'>> = {
 /* The screens §3d marks *verdict*: a [data-verdict] in the first phone screen. Each joins in the step that builds its verdict. */
 const VERDICT: string[] = [
   // TM2
-  'Today › Stats › By client', 'Today › Stats › Cost', 'Today › Stats › Trends',
-  'Today › Planner › Play', 'Today › Planner › Ledger', 'Today › Planner › A day', 'Today › Planner › Moves',
+  'Home › Stats › By client', 'Home › Stats › Cost', 'Home › Stats › Trends',
+  'Home › Planner › Play', 'Home › Planner › Ledger', 'Home › Planner › A day', 'Home › Planner › Moves',
   // TM3: Money's five (the Overview's first hero carries its verdict).
   'Money › Overview', 'Money › Receivables', 'Money › Payments', 'Money › Bank', 'Money › GST',
   // TM4: Floor's (the Overview's People card carries its verdict; the case is a document, with none).

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, type SepState, openPulse } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, todayIso, recentTs, type SepState, openPulse, openNeeds } from './fixtures';
 
 // P104: an invoice's state shows the moment it changes (owner, 29 Sep 2026: "the invoice state change to printed should
 // be immediately once the invoice is printed and when I mark it dispatched the state should change immediately, right
@@ -32,6 +32,8 @@ async function print(page: Page, from: string) {
 test.describe('P104: a state shows the moment it changes', () => {
   test.beforeEach(async ({ page }) => {
     await loadAppWithState(page, book());
+    // Today's recent rows are Needs you's: Home opens on its board since UI pass 3 (U2).
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds [data-card="recent"]')).toBeVisible();
     await page.evaluate(() => { window.print = function() {}; });
   });

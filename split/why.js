@@ -59,10 +59,10 @@ function whyPct(s) { return Math.round(s * 100) + '%'; }
    sentence's (whySentence). */
 function whyRealShort(c) {
   var rk = function(v) { return '₹' + formatNum(v, 2) + '/kg'; };
-  if (c.kind === 'rate') { c.short = c.name + '’s own rate'; c.sub = rk(c.r0) + ' → ' + rk(c.r1); }
-  else if (c.kind === 'mix') { c.short = c.name + '’s share'; c.sub = whyPct(c.s0) + ' → ' + whyPct(c.s1) + ' of the kilos, at ' + rk(c.r); }
-  else if (c.kind === 'new') { c.short = c.name + ', new'; c.sub = whyPct(c.s1) + ' of the kilos at ' + rk(c.r); }
-  else if (c.kind === 'gone') { c.short = c.name + ', not billed now'; c.sub = 'was ' + whyPct(c.s0) + ' of the kilos at ' + rk(c.r); }
+  if (c.kind === 'rate') { c.short = uiNameShort(c.name) + '’s own rate'; c.sub = rk(c.r0) + ' → ' + rk(c.r1); }
+  else if (c.kind === 'mix') { c.short = uiNameShort(c.name) + '’s share'; c.sub = whyPct(c.s0) + ' → ' + whyPct(c.s1) + ' of the kilos, at ' + rk(c.r); }
+  else if (c.kind === 'new') { c.short = uiNameShort(c.name) + ', new'; c.sub = whyPct(c.s1) + ' of the kilos at ' + rk(c.r); }
+  else if (c.kind === 'gone') { c.short = uiNameShort(c.name) + ', not billed now'; c.sub = 'was ' + whyPct(c.s0) + ' of the kilos at ' + rk(c.r); }
   return c;
 }
 function whyRealLabel(c, R0) {
@@ -146,12 +146,12 @@ function whyEarly(period) {
   var r = statsRangeIso(period), n = statsWorkingDays(r.from, r.to);
   return n < INS_EARLY_DAYS ? todoPlural(n, 'working day') + ' in, against the same days before: a few large invoices move these figures' : '';
 }
-/* Today → Pulse's Why it moved (the tab map, TM2b; it was a panel on Stats → Overview): a hero for the period shown against
-   the one before it. Its verdict names realisation's change and its largest cause, toned by direction; under it the causes,
-   which add up to the change exactly, as fact rows with their ₹, then contribution's and cash's the same way. Shut on the
-   phone, open on the desktop (§1a-3). How the bridges are drawn is the guide's (kbguides.js). */
-function whyHtml(period, filtered, prior) {
-  if (period === 'all' || !prior.length) return '';
+/* Why it moved as a hero's options (Home's why widget, widgetcards.js; Pulse's card until UI pass 3, a panel on Stats → Overview
+   before the tab map): the period shown against the one before it. Its verdict names realisation's change and its largest cause,
+   toned by direction; under it the causes, which add up to the change exactly, as fact rows with their ₹, then contribution's and
+   cash's the same way (#statsWhy). How the bridges are drawn is the guide's (kbguides.js). Null with nothing to compare. */
+function whyHeroOpts(period, filtered, prior, parts) {
+  if (period === 'all' || !prior.length) return null;
   var real = whyRealisation(filtered, prior), mg = real.none ? { none: real.none } : whyMargin(period, filtered, prior, real), cash = whyCash();
   var vs = PERIOD_PRIOR_LABELS[period] || 'the period before';
   var early = whyEarly(period);
@@ -166,6 +166,9 @@ function whyHtml(period, filtered, prior) {
     body += whyHeadRow('Realisation', '₹' + formatNum(real.R0, 2), '₹' + formatNum(real.R1, 2) + '/kg', whySigned(real.d, true), 'real');
     body += real.causes.map(function(c) { return whyCauseRow(c, 'kg'); }).join('');
   }
+  // `parts` 'real': realisation's bridge alone (the widget's Medium); else contribution's and cash's after it.
+  if (parts === 'real') return { tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
+    body: body ? '<div class="inv-hero-sheet">' + body + '</div>' : '', attrs: ' id="statsWhy" data-card="why"' };
   if (mg.none) body += '<div class="inv-row" data-why-none="margin"><span class="inv-row-main"><span class="inv-row-title">Contribution</span></span><span class="inv-row-end inv-row-meta">' + escHtml(mg.none) + '</span></div>';
   else {
     body += whyHeadRow('Contribution at the live cost', whySigned(mg.C0).replace(/^\+/, ''), whySigned(mg.C1).replace(/^\+/, ''), whySigned(mg.d), 'margin',
@@ -176,8 +179,8 @@ function whyHtml(period, filtered, prior) {
     body += whyHeadRow('Cash, net in the month, ' + billsMonthLabel(cash.m0) + ' to ' + billsMonthLabel(cash.m1), finRs(cash.net0), finRs(cash.net1), whySigned(cash.d), 'cash');
     body += cash.causes.map(function(c) { return whyCauseRow(c); }).join('');
   }
-  return uiHeroHtml({ tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
-    body: '<div class="inv-hero-sheet">' + body + '</div>', fold: 'pulse-why', open: !!_isDesktop, attrs: ' id="statsWhy" data-card="why" data-verdict' });
+  return { tone: tone, eyebrow: '<span>Why it moved</span>', title: escHtml(title), sub: sub,
+    body: '<div class="inv-hero-sheet">' + body + '</div>', attrs: ' id="statsWhy" data-card="why"' };
 }
 /* One sentence for What changed? (intel.js): realisation's change and its largest cause. */
 function whySentence(filtered, prior, period) {

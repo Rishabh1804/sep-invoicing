@@ -354,6 +354,29 @@ function flrEffHead(ef, last, isToday, day) {
     title: kg + ' of ' + prodKgFig(ef.possible) + ' (' + ef.word + '); the mark is three quarters' });
   return { title: title, fig: Math.round(ef.eff * 100) + '%', sub: sub, viz: viz };
 }
+/* What moved a line's efficiency most, the caption over its factors (§6.27): under its usual, the factor that lost most (lighter
+   parts are the work, not a fault); at or over it, the factor that raised it. The time is the rounds' worth: kilos written without
+   rounds count at the counted rounds' weight, and past a quarter of the line's kilos that is a guess at another mix, so the time
+   is not told apart and never named. → {title, key: the factor named (null where none is), timeKnown, noRounds: the share of the
+   kilos written without rounds}. Floor's line card and Home's eff widget read it. */
+var FLR_EFF_LOST = { racks: 'Part-full racks lost most', parts: 'Lighter parts than the line’s round', load: 'The load lost most', time: 'The time lost most',
+  weighed: 'Rounds with no weight read it low' };
+var FLR_EFF_RAISED = { parts: 'Heavier parts than the line’s round', load: 'Heavier rounds than the line’s round', time: 'Faster than its usual pace' };
+function flrEffMoved(ef) {
+  var noRounds = ef.kg > 0 ? (ef.kgNoRounds || 0) / ef.kg : 0, timeKnown = ef.pace != null && (ef.roundsOnly || noRounds <= 0.25);
+  var known = (ef.racks != null ? [['racks', ef.racks], ['parts', ef.parts]] : [['load', ef.load]]).concat(timeKnown ? [['time', ef.pace]] : [])
+    .concat(ef.roundsUnweighed ? [['weighed', ef.weighed]] : []).filter(function(x) { return x[1] != null; });
+  var title = 'How it splits', pick = null;
+  if (ef.eff >= 1) {
+    pick = known.filter(function(x) { return x[1] > 1 && FLR_EFF_RAISED[x[0]]; }).sort(function(a, b) { return b[1] - a[1]; })[0] || null;
+    if (pick) title = FLR_EFF_RAISED[pick[0]];
+    else if (timeKnown && !known.some(function(x) { return x[1] < 1; })) title = 'Nothing lost to the time, the racks or the parts';
+  } else {
+    pick = known.filter(function(x) { return x[1] < 1; }).sort(function(a, b) { return a[1] - b[1]; })[0] || null;
+    if (pick) title = FLR_EFF_LOST[pick[0]];
+  }
+  return { title: title, key: pick ? pick[0] : null, timeKnown: timeKnown, noRounds: noRounds };
+}
 /* How the efficiency splits where the register counted the rounds (owner, 9 Oct 2026: "We'll do both, so solutions for
    efficiency can be worked out"): the time (the rounds run, of the rounds the hours allowed), the racks (how full each round
    was, against its part's fullest round), the parts (what a full round of the day's parts weighs, against the line's round)
@@ -364,9 +387,8 @@ function flrEffRowHtml(ef, line) {
   // The rounds the hours allowed are hours over the pace, a fraction: shown to a tenth, so 25 against 24.5 reads as 102%.
   var pct = function(x) { return Math.round(x * 100) + '%'; }, T = ef.tank || {}, C = ef.cycle || {}, unitW = ef.unitWord || 'unit',
     rp = Math.abs(ef.roundsPossible - Math.round(ef.roundsPossible)) < 0.05 ? String(Math.round(ef.roundsPossible)) : formatNum(ef.roundsPossible, 1);
-  // The time is the rounds' worth: kilos written without rounds count at the counted rounds' weight. Past a quarter of the
-  // line's kilos that is a guess at a different mix (an evening of heavy clamps beside a day of pads), so it is not given.
-  var noRounds = ef.kg > 0 ? (ef.kgNoRounds || 0) / ef.kg : 0, timeKnown = ef.pace != null && (ef.roundsOnly || noRounds <= 0.25);
+  // The time is the rounds' worth, and what moved the figure most (flrEffMoved).
+  var mv = flrEffMoved(ef), noRounds = mv.noRounds, timeKnown = mv.timeKnown;
   var nr = Math.round(ef.rounds || 0), SRC = { measured: ['ok', 'measured'], set: ['neutral', 'set'], assumed: ['warning', 'assumed'], typed: ['neutral', 'typed'] };
   // Why a measure is not firm yet: the first of what it lacks, a few words; the rest follows once that is met.
   var lacks = function(why) { return String(why || '').split(', ')[0]; };
@@ -397,22 +419,8 @@ function flrEffRowHtml(ef, line) {
   } else if (ef.pace != null) facts.push({ label: 'Loaded', value: pct(ef.load), sub: 'of a full round' });
   if (ef.roundsUnweighed >= 0.5 && ef.weighed != null) facts.push({ label: 'Rounds with no weight', value: Math.round(ef.roundsUnweighed) + ' of ' + nr, sub: 'about ' + pct(1 - ef.weighed) + ' of the work: reads low' });
   if (ef.noEnd) facts.push({ label: 'Runs with no end time', value: ef.noEnd, sub: 'not counted' });
-  // What moved it most names the factors: under its usual, the factor that lost most (lighter parts are the work, not a fault);
-  // at or over it, the factor that raised it. A time not told apart is never named.
-  var known = (ef.racks != null ? [['racks', ef.racks], ['parts', ef.parts]] : [['load', ef.load]]).concat(timeKnown ? [['time', ef.pace]] : [])
-    .concat(ef.roundsUnweighed ? [['weighed', ef.weighed]] : []).filter(function(x) { return x[1] != null; });
-  var LOST = { racks: 'Part-full racks lost most', parts: 'Lighter parts than the line’s round', load: 'The load lost most', time: 'The time lost most',
-      weighed: 'Rounds with no weight read it low' },
-    RAISED = { parts: 'Heavier parts than the line’s round', load: 'Heavier rounds than the line’s round', time: 'Faster than its usual pace' };
-  var title = 'How it splits', pick;
-  if (ef.eff >= 1) {
-    pick = known.filter(function(x) { return x[1] > 1 && RAISED[x[0]]; }).sort(function(a, b) { return b[1] - a[1]; })[0];
-    if (pick) title = RAISED[pick[0]];
-    else if (timeKnown && !known.some(function(x) { return x[1] < 1; })) title = 'Nothing lost to the time, the racks or the parts';
-  } else {
-    pick = known.filter(function(x) { return x[1] < 1; }).sort(function(a, b) { return a[1] - b[1]; })[0];
-    if (pick) title = LOST[pick[0]];
-  }
+  // What moved it most names the factors (flrEffMoved): a time not told apart is never named.
+  var title = mv.title;
   var working = uiWorkingHtml('flr-eff-' + line, facts, null, ' data-flr-effworking');
   // With no rounds counted there are no factors to name: only the working.
   if (ef.pace == null) return working;

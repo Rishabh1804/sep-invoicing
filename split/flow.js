@@ -309,6 +309,9 @@ function flowRow(title, fig, sub, tone, attrs) {
   return '<div class="inv-row inv-row-2"' + (attrs || '') + '><span class="inv-row-main"><span class="inv-row-title">' + title + '</span>' + (sub ? '<span class="inv-row-meta inv-row-wrap">' + sub + '</span>' : '') + '</span>' +
     '<span class="inv-row-end">' + (tone ? uiDot(tone, fig) : '<span class="inv-num">' + fig + '</span>') + '</span></div>';
 }
+/* Days to pay against the payment terms, one judge wherever they are set side by side (the flow's payment step, Home's dtp widget):
+   within the terms ok, up to half as long again a warning, past that danger. null with no days. */
+function flowPayTone(days, terms) { return days == null ? null : days <= terms ? 'ok' : days <= terms * 1.5 ? 'warning' : 'danger'; }
 /* The steps of the flow as rows: challan to pickling, to plating, to despatch; and invoice to payment for a role that sees money. */
 function flowStepsHtml(st, clientId) {
   var v = flowVerdict(st, clientId), money = typeof grdSeesMoney !== 'function' || grdSeesMoney();
@@ -318,7 +321,7 @@ function flowStepsHtml(st, clientId) {
     flowRow('Challan to despatch', escHtml(flowDayText(st.toDespatch.d)), escHtml((st.toDespatch.n ? 'median of ' + todoPlural(st.toDespatch.n, 'line') : 'nothing despatched yet') + ' · the target: ' + flowDaysWord(v.t.days)),
       v.tone === 'neutral' ? null : v.tone, ' data-flow-step="despatch"');
   if (money) {
-    var pay = st.pay, terms = st.terms.days, tone = pay ? (pay.d <= terms ? 'ok' : pay.d <= terms * 1.5 ? 'warning' : 'danger') : null;
+    var pay = st.pay, terms = st.terms.days, tone = pay ? flowPayTone(pay.d, terms) : null;
     h += flowRow('Invoice to payment', pay ? escHtml(pay.d + ' d') : '—', escHtml((pay ? 'median of ' + todoPlural(pay.n, 'receipt') + ' set against invoices' : finSeen() ? 'no receipt set against an invoice yet' : 'no bank statement yet') + ' · terms ' + terms + ' days'), tone, ' data-flow-step="pay"');
   }
   return h;

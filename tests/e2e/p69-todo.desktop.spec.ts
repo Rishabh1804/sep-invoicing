@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openNeeds } from './fixtures';
 
 // P69 (desktop): the To-do on the desktop, on Today → Needs you since the tab map (TM2a): the tasks go across the top with the
 // add field on one line with its primary, and yours lead.
@@ -16,7 +16,7 @@ test('P69 desktop: the tasks go across the top, the add field on one line with i
     ...emptyState(), incomingMaterial: noSeedIM(),
     todo: { tasks: [{ id: 'TD-a', text: 'Late one', due: iso(-1), note: '', link: null, createdAt: 1, doneAt: null }], snoozes: {} },
   } as unknown as SepState);
-  await switchTab(page, 'pageHome');
+  await openNeeds(page);
   await expect(page.locator('#homeNeeds')).toBeVisible();
   const stack = await page.locator('#homeNeeds [data-card="tasks"]').boundingBox();
   const host = await page.locator('#homeNeeds').boundingBox();

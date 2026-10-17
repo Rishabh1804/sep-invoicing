@@ -24,8 +24,8 @@ test.describe('P211: the shell on the desktop', () => {
     await loadAppWithState(page, book());
     await switchTab(page, 'pageIM');
     const at = await g(page, `_navTrail[_navIdx - 1] = ${OLD_STEP}; navBarDraw(); _navIdx - 1`);
-    // It read "Today › Stats · Overview", and opened Pulse.
-    await expect(page.locator(`#navTrail [data-action="invNavGo"][data-to="${at}"]`)).toHaveText('Today › Pulse');
+    // It read "Home › Stats · Overview", and opened Pulse.
+    await expect(page.locator(`#navTrail [data-action="invNavGo"][data-to="${at}"]`)).toHaveText('Home › Home');
   });
 
   test('A1-6: and it is checked against the role where it now opens', async ({ page }) => {
@@ -35,7 +35,7 @@ test.describe('P211: the shell on the desktop', () => {
     await switchTab(page, 'pageIM');
     // Office opens no Stats, and opens Today: the step is shown (it was hidden, checked against Stats).
     const at = await g(page, `_navTrail[_navIdx - 1] = ${OLD_STEP}; navBarDraw(); _navIdx - 1`);
-    await expect(page.locator(`#navTrail [data-action="invNavGo"][data-to="${at}"]`)).toHaveText('Today › Pulse');
+    await expect(page.locator(`#navTrail [data-action="invNavGo"][data-to="${at}"]`)).toHaveText('Home › Home');
   });
 
   test('A1-8: Add’s By hand lays out only the doors the role is shown: Office’s Task sits in the row, not a row of its own', async ({ page }) => {

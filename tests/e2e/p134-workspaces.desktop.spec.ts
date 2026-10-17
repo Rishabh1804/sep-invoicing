@@ -28,11 +28,11 @@ test.describe('P134: workspaces on the desktop', () => {
     await page.setViewportSize({ width: 1280, height: 800 });
     await loadAppWithState(page, state());
     const doors = side(page).locator(':scope > button');
-    // The mark is a door (owner, 8 Oct 2026: it opens Pulse, P178), so it heads the buttons; Add follows it.
-    await expect(doors).toHaveText(['', /^Add$/, /^Today/, /^Office/, /^Floor/, /^Money/, /^Settings$/]);
+    // The mark is a door (owner, 8 Oct 2026: it opened Pulse, P178; Home since UI pass 3), so it heads the buttons; Add follows it.
+    await expect(doors).toHaveText(['', /^Add$/, /^Home/, /^Office/, /^Floor/, /^Money/, /^Settings$/]);
     await expect(doors.first()).toHaveClass(/inv-side-brand/);
-    await expect(doors.first()).toHaveAttribute('data-action', 'invGoPulse');
-    await expect(doors.first()).toHaveAttribute('aria-label', 'Soma Electro: open Pulse');
+    await expect(doors.first()).toHaveAttribute('data-action', 'invGoHome');
+    await expect(doors.first()).toHaveAttribute('aria-label', 'Soma Electro: open Home');
     await expect(doors.last()).toHaveAttribute('data-action', 'invOpenSettings');
     // Add is the shell's one primary, not a view's (P76 knows it by data-shell-primary), with its key.
     const add = doors.nth(1);

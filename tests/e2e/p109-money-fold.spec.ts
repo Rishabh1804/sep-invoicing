@@ -2,7 +2,7 @@ import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
 import fs from 'fs';
 import path from 'path';
-import { openFoldAt, answerAsk, bankImportDoor, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore } from './fixtures';
+import { openFoldAt, answerAsk, bankImportDoor, emptyState, loadAppWithState, noSeedIM, openSettingsAt, openStatsTab, readStoredState, recentTs, switchTab, todayIso, type SepState, toolbarMore, openWidget } from './fixtures';
 
 // P109: the QA sweep over Finance, the bank statement, receivables, payments, the live cost, zinc and bills. Each test
 // pins one finding so it cannot come back. Every date is built from today; names and figures are made up, and the only
@@ -344,10 +344,12 @@ test('B8: a date metals.dev answers with no zinc is not counted as looked up', a
 /* ---------- B9: the zinc rate's age ---------- */
 test('B9: a zinc rate set late yesterday reads a day old this morning', async ({ page }) => {
   await loadAppWithState(page, state({ zinc: { ratePerKg: 400, premiumPerKg: 20, upliftPct: 10.5, basis: 'manual', updatedAt: Date.now(), source: '' } }));
+  // The zinc widget on Home's board (UI pass 3, U2: a widget off the board is not drawn).
+  await openWidget(page, 'zinc');
   // A minute before midnight, on the page's own clock: under 24 hours ago, but yesterday.
   await ev(page, `S.zinc.updatedAt = new Date(new Date().setHours(0, 0, 0, 0)).getTime() - 60000; renderZincCard()`);
   expect(await ev(page, `zincAgeDays()`)).toBe(1);
-  await expect(page.locator('#homeZincCard [data-zinc-age]')).toContainText('updated 1 day ago');
+  await expect(page.locator('[data-w="zinc"] [data-zinc-age]')).toContainText('updated 1 day ago');
 });
 
 /* ---------- B10: a version 4 compound file ---------- */
@@ -461,7 +463,7 @@ test('BB3: money on account that has since settled later invoices is not shown a
 });
 
 /* ---------- BB4: a ninth category of money out ---------- */
-test('BB4: past the eighth, money-out categories fold into one named series in the stack, and none is dropped', async ({ page }) => {
+test('BB4: past the sixth, money-out categories fold into one named series in the stack, and none is dropped', async ({ page }) => {
   seq = 0;
   const m = ym(-1);
   const rows = [row(ym(-2) + '-28', 'NEFT-UTR0-ALPHA FORGINGS', 0, 100000, { cat: 'receipt', clientId: 1 }),
@@ -474,13 +476,17 @@ test('BB4: past the eighth, money-out categories fold into one named series in t
   await openFinance(page, 'overview');
   await page.locator('[data-action="invFinRange"][data-range="ALL"]').click();
   const stack = page.locator('#finWent .inv-chart-box').first();
-  await expect(stack.locator('.inv-chart-key')).toHaveCount(8);
-  await expect(stack.locator('.inv-chart-key').last()).toContainText('2 others: Bank charges, Returned');
+  // Six series colours (UI pass 3 §3d), each category's own in every range (wages, suppliers, cash wages, electricity, GST,
+  // income tax), and the other three folded into one named series.
+  await expect(stack.locator('.inv-chart-key')).toHaveCount(7);
+  await expect(stack.locator('.inv-chart-key').last()).toContainText('3 others: Other, Bank charges, Returned');
   // Every rupee paid out that month is in the stack: 45,000 in all.
   const segs = await stack.locator(`rect.inv-chart-seg[data-key="${m}"]`).evaluateAll(els => els.map(e => (e as HTMLElement).dataset.read || ''));
   const total = segs.reduce((s, t) => s + Number(t.replace(/^.*₹/, '').replace(/,/g, '')), 0);
   expect(total).toBe(45000);
-  await expect(stack.locator(`rect.inv-chart-cx[data-key="${m}"]`)).toHaveCount(1);
+  // The folded series is drawn in Other, and the six each in its own slot.
+  await expect(stack.locator(`rect.inv-chart-other[data-key="${m}"]`)).toHaveCount(1);
+  for (const n of [1, 2, 3, 4, 5, 6]) await expect(stack.locator(`rect.inv-chart-s${n}[data-key="${m}"]`)).toHaveCount(1);
 });
 
 /* ---------- BB5: a recorded note for a client with no invoice here ---------- */

@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openWidget, withHomeWidgets } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, switchTab, todayIso, type SepState, openWidget, withHomeWidgets, openNeeds } from './fixtures';
 
 // P88: Production linked into the rest of the app. Two To-do rules (plated and not invoiced; pickled with no open
 // challan) that read only what was captured here, never the imported history or rework; the Overview's tiles; the
@@ -75,7 +75,7 @@ test.describe('P88: Production in the rest of the app', () => {
     await expect(page.locator('#prodPlantClient')).toHaveValue('11');
     // It reaches the To-do list like every other rule.
     // The tasks are Needs you's (the tab map, TM2a).
-    await switchTab(page, 'pageHome');
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds')).toContainText('400 NOS plated, not invoiced');
   });
 
@@ -100,7 +100,8 @@ test.describe('P88: Production in the rest of the app', () => {
     expect(r.a2).toMatchObject({ days: 0, perKg: null });
     // The last day plated is Pulse's production card (one unit: 100 kg written, nothing estimated); Floor's is the day on its stepper.
     await openWidget(page, 'production');
-    await expect(page.locator('[data-home-w="production"] [data-prod-day] .inv-hero-fig')).toHaveText('100 kg');
+    // A widget since UI pass 3 (U2): the hero's day is on the card itself, its figure the widget's.
+    await expect(page.locator('[data-w="prodday"][data-prod-day] .inv-widget-fig')).toHaveText('100 kg');
     // Record coverage is Entries' since the tab map (TM4c), folded under its card.
     await switchTab(page, 'pageProduction');
     await page.locator('[data-action="invProdTab"][data-tab="entries"]').click();

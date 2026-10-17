@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse as openToday, readStoredState, switchTab, todayIso, recentTs } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse as openToday, readStoredState, switchTab, todayIso, recentTs, openNeeds } from './fixtures';
 import { sweepState } from './sweep-fixture';
 import { adviceState, dayOff, LYRA_TEL, ORION, ORION_KGPC, ORION_MONTH_KG, VEGA, VEGA_TEL } from './p133-what-to-do.fixture';
 
@@ -14,19 +14,20 @@ const g = (page: Page, expr: string) => page.evaluate(e => (0, eval)(e), expr);
  *  the tab map, TM2b). */
 async function openPulse(page: Page) {
   await openToday(page);
-  const all = page.locator('[data-tdy-pulse-head] [data-action="invStatsPeriod"][data-period="all"]');
+  const all = page.locator('[data-home-toolbar] [data-action="invStatsPeriod"][data-period="all"]');
   await all.click();
   await expect(all).toHaveAttribute('aria-pressed', 'true');
 }
 /** A question opens to its story and its moves (each is a hero, shut until opened). */
 async function openQ(page: Page, key: string) {
+  // A question is a widget on Home since UI pass 3 (U2): at Large (openPulse lays them out so) it holds its story and its moves.
   const q = page.locator(`[data-tdy-q="${key}"]`);
-  if (!(await q.evaluate(el => (el as HTMLDetailsElement).open))) await q.locator(':scope > summary').click();
+  await expect(q.locator('[data-tdy-story]')).toHaveCount(1);
   return q;
 }
 /** A task on Needs you, opened to its dialog: its group opened, and its card shown where the deck held it back. */
 async function openTask(page: Page, key: string) {
-  await switchTab(page, 'pageHome');
+  await openNeeds(page);
   await page.locator('#wsTabs [data-v="needs"]').click();
   const btn = page.locator(`#homeNeeds [data-action="invTodoOpenApp"][data-key="${key}"]`);
   await btn.evaluate(b => { const d = b.closest('details'); if (d) (d as HTMLDetailsElement).open = true; });
@@ -41,7 +42,7 @@ test.describe('P133: what to do', () => {
     await openPulse(page);
 
     // The six questions, in the plan's order.
-    const order = await page.locator('#homeQuestions [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
+    const order = await page.locator('#homeDash [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
     expect(order).toEqual(['smooth', 'money', 'clients', 'plant', 'cash', 'changed']);
     for (const k of order as string[]) await expect(page.locator(`[data-tdy-q="${k}"] [data-adv-head]`)).toHaveCount(k === 'changed' ? 0 : 1);
 
@@ -127,7 +128,7 @@ test.describe('P133: what to do', () => {
     const qs = (await readStoredState(page)).quotations;
     expect(qs.length).toBe(1);
     expect(qs[0]).toMatchObject({ status: 'draft', num: null, clientId: 1 });
-    expect(qs[0].draftNote).toContain('Drafted from the Pulse');
+    expect(qs[0].draftNote).toContain('Drafted from Home');
   });
 
   test('an app task’s dialog lists its moves above what clears it, and a move lands on its place', async ({ page }) => {
@@ -215,9 +216,9 @@ test.describe('P133: what to do', () => {
     await page.addInitScript(() => { try { localStorage.setItem('sep_inv_last_export', String(Date.now())); } catch { /* none */ } });
     await loadAppWithState(page, s);
     await openToday(page);
-    const stories = await page.locator('#homeQuestions [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
+    const stories = await page.locator('#homeDash [data-tdy-q]').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyQ));
     expect(stories).toEqual(['smooth', 'money', 'clients', 'plant', 'changed']);
-    await expect(page.locator('#homeQuestions [data-adv-move]')).toHaveCount(0);
+    await expect(page.locator('#homeDash [data-adv-move]')).toHaveCount(0);
     for (const k of stories as string[]) await expect(page.locator(`[data-tdy-q="${k}"] [data-adv-none]`)).toHaveCount(1);
     await expect(page.locator('[data-tdy-q="smooth"] [data-story-say]')).toContainText('nothing stands in the way');
     await expect(page.locator('[data-tdy-q="money"] [data-adv-none]')).toContainText('A weight per piece');

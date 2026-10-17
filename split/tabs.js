@@ -2,7 +2,7 @@
 /* Each page by the name it carries on screen (the tab map, 9 Oct 2026: one word, one meaning). They reach users in refusal
    toasts, the guard's roles grid and a screen that could not be drawn. */
 const PAGE_TITLES = {
-  pageHome: 'Today', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
+  pageHome: 'Home', pageCreate: 'Create invoice', pageIM: 'Challans', pageRegister: 'Invoices',
   pageClients: 'Clients', pageFinance: 'Money', pageProduction: 'Production', pagePower: 'Power', pageStock: 'Stock', pageStaff: 'People',
   pageFloor: 'Floor overview', pagePipeline: 'Pipeline', pageFace: 'Mine',
   pageStats: 'Stats', pageReports: 'Reports', pagePlanner: 'Planner', pageHistory: 'History', pageKnow: 'Knowledge'
@@ -73,6 +73,8 @@ function switchTab(tabId) {
   if (currentPage && currentPage.id === 'pageKnow' && typeof kbLeave === 'function') kbLeave();
   // A face's form is left with its page (faces.js): Mine opens on the face again, not on a form someone left half filled.
   if (currentPage && currentPage.id === 'pageFace' && tabId !== 'pageFace' && typeof _faceForm !== 'undefined') _faceForm = null;
+  // Home's clock and live widgets stop when Home is left (today.js homeLeave); they start again when it is shown.
+  if (currentPage && currentPage.id === 'pageHome' && tabId !== 'pageHome' && typeof homeLeave === 'function') homeLeave();
 
   // Another page is a navigation: a keepScroll around whatever called this does not hold the old place (P79).
   _viewTopAt++;
@@ -147,8 +149,10 @@ function tabRender(tabId, isDirty) {
     // Needs you is drawn every time it is shown: an input goes late by the clock, with nothing saved. Pulse is drawn when the
     // book changed or when Home was last drawn on the other view: opened from elsewhere on Pulse with nothing saved, the
     // address said Pulse and Needs you stayed on screen (the QA chain, 2 Oct 2026).
-    // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both).
-    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod) { renderHome(); _tabDirty.home = false; }
+    // Pulse is drawn again too when the period changed on Stats since (the tab map, TM2b: one period for both). Home's dashboard
+    // (UI pass 3) is drawn again on a new day too: its day card's date and what the calendar has made late.
+    if (isDirty || tdyView() === 'needs' || _homeDrawnView !== tdyView() || _homeDrawnPeriod !== _statsPeriod || _homeDrawnDay !== localDateStr()) { renderHome(); _tabDirty.home = false; }
+    else if (tdyView() === 'home' && typeof homeArrive === 'function') homeArrive();
   } else if (tabId === 'pageRegister') {
     if (_isDesktop) {
       renderRegisterTable();
@@ -235,15 +239,13 @@ function uiTone(t) { return UI_TONE[t] || (/^(danger|warning|ok|info|neutral)$/.
 var ICON_SEARCH = iconSvg('search');
 var ICON_PRINT = iconSvg('print');
 
-/* The month so far, for a role without money: not drawn at all, rather than another role's month left in it. */
-function homeBlankTiles() { var e = document.getElementById('homeMtdCard'); if (e) e.innerHTML = ''; }
-/* Home's month so far as a hero (§6.21): the month's billing against the same days last month, realisation against the
+/* The month so far as a hero's options (§6.21; Home's mtd widget draws it, widgetcards.js): the month's billing against the same days last month, realisation against the
    cost, and the four tiles under it, each with the tonnage behind the revenue (What Stats measures) and a line of the months
    before. A tile whose change has a direction is coded in it (§6.26: data-tone, its figure a plain fact); realisation, which
    the app judges against the cost, is coloured as well (inv-tile-<tone>). */
-function renderHomeTiles(active) {
-  var host = document.getElementById('homeMtdCard');
-  if (!host) return;
+function homeMtdOpts(active, opt) {
+  opt = opt || {};
+  var withViz = opt.viz !== false;   // the tiles' lines of the months before: the mtd widget draws them at Large only
   var w = weighLines(active);
   // The app's own month names ('Sep'); en-IN's locale string reads 'Sept'.
   var month = TREND_MONTH_LABELS[new Date().getMonth()];
@@ -268,7 +270,7 @@ function renderHomeTiles(active) {
     return '<div class="inv-tile' + (o.cls ? ' inv-tile-' + o.cls : '') + '"' + (o.id ? ' id="' + o.id + '"' : '') + (o.tone ? ' data-tone="' + o.tone + '"' : '') + '>' +
       '<div class="inv-tile-label">' + label + '</div><div class="inv-tile-value" id="mtd' + key + '">' + value + '</div>' +
       '<div class="inv-tile-sub" id="mtd' + key + 'Sub">' + sub + '</div><div class="inv-tile-sub" id="mtd' + key + 'Delta">' + delta + '</div>' +
-      '<div class="inv-tile-viz" id="mtd' + key + 'Viz">' + viz + '</div></div>';
+      (withViz ? '<div class="inv-tile-viz" id="mtd' + key + 'Viz">' + viz + '</div>' : '') + '</div>';
   };
   var tiles = tile('Count', 'Invoices', String(active.length), escHtml(month) + ' to date', has ? figDeltaHtml(active.length, p.invoices.length, lbl, null) : '',
       chartSpark(hist.map(function(x) { return x.n; }), { labels: labels, unit: 'count', dot: false, title: 'Invoices by month: ' + hist.map(function(x) { return x.label + ' ' + x.n; }).join(' · ') })) +
@@ -297,9 +299,14 @@ function renderHomeTiles(active) {
   var sub = real == null ? (active.length ? 'Nothing weighed yet, so no realisation' : '')
     : 'Realising ' + formatCurrency(real) + ' a kg' + (cost != null ? (real >= cost ? ', clearing the cost of ' : ' against a cost of ') + formatCurrency(cost) : '');
   var rank = { danger: 3, warning: 2, ok: 1 }, worst = [revTone, realTone].filter(Boolean).sort(function(x, y) { return rank[y] - rank[x]; })[0] || '';
-  host.innerHTML = uiHeroHtml({ tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
-    title: escHtml(title), sub: escHtml(sub), fold: 'pulse-mtd', open: !!_isDesktop, attrs: ' data-card="mtd"',
-    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' });
+  return { tone: worst, eyebrow: '<span>Month to date</span><span class="inv-panel-count">' + escHtml(month) + ' 1–' + new Date().getDate() + '</span>',
+    title: escHtml(title), sub: escHtml(sub), attrs: ' data-card="mtd"', rev: rev, revTone: revTone, revDelta: has ? figDeltaHtml(rev, prev, lbl, 'up') : '',
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles" id="homeTiles">' + tiles + '</div></div>' };
+}
+/* The month's invoices so far, net of their credit notes (statsInvoices), so Home and Stats read one revenue. */
+function homeMonthInvoices() {
+  var now = new Date(), ym = now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0');
+  return statsInvoices().filter(function(i) { return i.date && i.date.startsWith(ym); });
 }
 /* The last n months that have ended, oldest first, as Stats reads them (statsMonthRows: realisation over the weighed lines,
    at each month's own live cost), with the invoices counted. */
@@ -323,49 +330,23 @@ function homePriorSameDays() {
     invoices: statsInvoices().filter(function(i) { return i.date && i.date >= from && i.date <= to; }) };
 }
 
-/* Today (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
-var _homeDrawnView = '';   // the view of Today drawn last (tabRender)
-var _homeDrawnPeriod = '';   // the period Pulse was drawn on last: Stats and Pulse share one (tabRender)
+/* Home (today.js): the view on screen is drawn; the other is drawn when it is opened. Never for nobody (grdHeld). */
+var _homeDrawnView = '';   // the view of Home drawn last (tabRender)
+var _homeDrawnPeriod = '';   // the period the dashboard was drawn on last: Stats and Home share one (tabRender)
+var _homeDrawnDay = '';      // the day Home was drawn on last (tabRender)
 function renderHome() {
   if (typeof grdHeld === 'function' && grdHeld()) return;
   _homeDrawnView = tdyView();
   _homeDrawnPeriod = _statsPeriod;
+  _homeDrawnDay = localDateStr();
   tdyApplyView();
   // The bar's red counts on either view: Needs you had none drawn, so they stood as the start counted them (QA2-7).
-  if (tdyView() === 'needs') { renderNeeds(); updateStockBadge(); return; }
-  renderPulseQuestions();
-  renderHomeWidgets();
-}
-/* A widget's card emptied: one the role signed in does not see is not drawn at all, hidden or not (the QA audit, QA4-4:
-   the money cards were drawn in full and hidden, for any role). */
-function homeWidgetBlank(ids) { ids.forEach(function(id) { var e = document.getElementById(id); if (e) e.innerHTML = ''; }); }
-/* Pulse's widgets, as the owner arranged them. */
-function renderHomeWidgets() {
-  const now = new Date();
-  const ym = now.getFullYear() + '-' + String(now.getMonth()+1).padStart(2,'0');
-  // The month's invoices net of their credit notes (statsInvoices), so Home and Stats read one revenue.
-  if (homeWidgetSeen('mtd')) {
-    const active = statsInvoices().filter(i => i.date && i.date.startsWith(ym));
-    renderHomeTiles(active);
-  } else homeBlankTiles();
-
-  if (homeWidgetSeen('zinc')) renderZincCard(); else homeWidgetBlank(['homeZincCard']);
-  if (homeWidgetSeen('money')) renderFinHomeCard(); else homeWidgetBlank(['homeFinCard']);
-  renderTodoHomeCard();
-  if (homeWidgetSeen('attendance')) renderAttHomeCard(); else homeWidgetBlank(['homeAttCard']);
+  if (tdyView() === 'needs') renderNeeds(); else renderHomeBoard();
   updateStockBadge();
-  if (homeWidgetSeen('sync')) ghRenderCard(); else homeWidgetBlank(['homeSyncCard']);
-  renderHomeUnbilledCard();
-  renderHomeRecentCard();
-  // Laid out once every card is drawn: the packed grid measures their heights (§6.25).
-  homeApplyLayout();
 }
-/* Unbilled material as a hero: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline codes its
-   first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
-function renderHomeUnbilledCard() {
-  var el = document.getElementById('homeUnbilledCard');
-  if (!el) return;
-  if (!homeWidgetSeen('unbilled')) { el.innerHTML = ''; return; }
+/* Unbilled material as a hero's options: what is waiting to be invoiced and how long the oldest has waited, coded as Pipeline
+   codes its first stage (amber from the To-do's challan days, red at twice them); the two tiles and the latest challan under it. */
+function homeUnbilledOpts() {
   var pendingChallans = 0, pendingAmount = 0, pendingItemCount = 0, latestChallan = null, oldest = null;
   (S.incomingMaterial || []).forEach(function(im) {
     var hasPending = false;
@@ -375,7 +356,7 @@ function renderHomeUnbilledCard() {
     if (hasPending) { pendingChallans++; if (im.challanDate && (!oldest || im.challanDate < oldest)) oldest = im.challanDate; }
     if (!latestChallan || (im.createdAt || 0) > (latestChallan.createdAt || 0)) latestChallan = im;
   });
-  if (!pendingChallans && !latestChallan) { el.innerHTML = ''; return; }
+  if (!pendingChallans && !latestChallan) return null;
   var age = oldest ? isoDaysBetween(oldest, localDateStr()) : 0, amberD = todoCfg().challanDays;
   var tone = !pendingChallans ? 'ok' : age >= amberD * 2 ? 'danger' : age >= amberD ? 'warning' : '';
   var body = '';
@@ -393,32 +374,28 @@ function renderHomeUnbilledCard() {
       '<span class="inv-row-title"><span class="inv-id">' + (latestChallan.challanNo ? 'Ch. ' + escHtml(latestChallan.challanNo) : 'No number') + '</span> ' +
       escHtml(latestChallan.clientName) + '</span></span><span class="inv-row-end inv-row-meta">' + escHtml(formatDate(latestChallan.challanDate)) + '</span></div>';
   }
-  el.innerHTML = uiHeroHtml({ tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
+  return { tone: tone, eyebrow: '<span>Unbilled material</span>' + (pendingChallans ? '<span class="inv-panel-count">' + pendingChallans + '</span>' : ''),
     title: pendingChallans ? escHtml(todoPlural(pendingChallans, 'challan') + ' to invoice') : 'Everything received is invoiced',
     fig: pendingChallans ? figWrapHtml(escHtml(formatCurrency(pendingAmount))) : '',
     sub: pendingChallans && oldest ? escHtml('The oldest from ' + formatDate(oldest) + (age > 0 ? ', ' + todoPlural(age, 'day') + ' ago' : ', today')) : '',
-    fold: 'pulse-unbilled', open: !!_isDesktop, attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' });
+    attrs: ' data-card="unbilled-pulse"', body: '<div class="inv-hero-sheet">' + body + '</div>',
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageIM">View challans</button>' };
 }
-/* The recent invoices as a hero, as Needs you draws them (tdyRecentHtml), ten of them: the latest and its figure, opening to
-   the rows with their print buttons. With none yet, the way to the first. */
-function renderHomeRecentCard() {
-  var host = document.getElementById('homeRecentCard');
-  if (!host) return;
-  if (!homeWidgetSeen('recent')) { host.innerHTML = ''; return; }
-  var recent = homeRecentInvoices(10);
+/* The recent invoices as a hero's options, as Needs you draws them (tdyRecentHtml), `n` of them: the latest and its figure, its
+   rows with their print buttons. With none yet, the way to the first. */
+function homeRecentOpts(n) {
+  var recent = homeRecentInvoices(n || 10);
   var rows = recent.length ? recent.map(homeRecentRowHtml).join('') : '<div class="inv-empty">' +
     iconSvg('file', 'inv-empty-icon') +
     '<div>No invoices yet</div>' +
     '<button class="inv-btn inv-btn-secondary" data-action="invCreateNew">Create your first invoice</button>' +
     '</div>';
-  host.innerHTML = uiHeroHtml(Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
-    fold: 'pulse-recent', open: !!_isDesktop, attrs: ' data-card="recent-pulse"',
-    body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' }));
+  return Object.assign(recent.length ? tdyRecentHead(recent) : { eyebrow: '<span>Recent invoices</span>', title: 'No invoices yet' }, {
+    attrs: ' data-card="recent-pulse"', body: '<div class="inv-hero-sheet"><div id="recentInvoices">' + rows + '</div></div>' });
 }
 /* The invoices made last, newest first. */
 function homeRecentInvoices(n) { return [...(S.invoices || [])].sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0)).slice(0, n); }
-/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Today → Needs you and the
+/* A recent invoice: it opens its detail, and its print button opens the print preview at once (Home → Needs you and the
    Pulse widget draw the same row). */
 function homeRecentRowHtml(inv) {
   return '<div class="inv-row inv-row-2' + (inv.status === 'cancelled' ? ' inv-row-muted' : '') + '" data-recent-inv="' + escHtml(inv.id) + '">' +
@@ -431,188 +408,25 @@ function homeRecentRowHtml(inv) {
 }
 
 
-/* ===== HOME, AS THE OWNER ARRANGES IT =====
-   Owner, 30 Sep 2026: "Home screen needs an overhaul with an option to select what widget to show on the home screen and
-   where: a dynamic home screen which user can adjust." They chose presets and an edit mode, kept per device (the phone
-   and the PC each keep their own Home, like the theme; a backup or a pull never rearranges another device).
-
-   Every card on Home is a widget (`data-home-w`). A layout is {preset, order, hidden, wide}: the order the widgets stand
-   in, which are hidden, and which take the page's width on the desktop (half otherwise; the phone is one column). A preset
-   is a starting layout; Edit Home shows each widget with a switch, up and down, and half or full. */
-var HOME_LAYOUT_KEY = 'sep_inv_home';
-/* Each widget is a hero whose line answers at a glance: shut on the phone and open on the desktop until moved, remembered per
-   device (`pulse-<widget>`), as the verdict cards are (the tab map, §1a-3, TM2c: Pulse at or under three and a half phone screens
-   on the owner's book; open, its widgets alone ran past three). */
-var HOME_WIDGETS = [
-  ['mtd', 'Month to date'], ['quick', 'Quick actions'], ['money', 'Money'], ['todo', 'To-do'], ['attendance', 'Attendance'],
-  ['unbilled', 'Unbilled material'], ['production', 'Production'], ['power', 'Power cuts'], ['stock', 'Stock running low'],
-  ['sync', 'GitHub sync'], ['zinc', 'Zinc rate'], ['recent', 'Recent invoices']
-];
-/* Every preset hides the To-do, the recent invoices and Money (the tab map, TM2c): the tasks and the recent invoices are Needs
-   you's, the money is Money's own section, and Pulse gives that room to the cards it took from Stats. They come last, so a layout
-   made from a preset that shows one again puts it where it was. */
-var HOME_PRESETS = {
-  owner: { label: 'Owner', order: ['mtd', 'quick', 'attendance', 'unbilled', 'sync', 'zinc', 'production', 'power', 'stock', 'money', 'todo', 'recent'],
-    hidden: ['production', 'power', 'stock', 'money', 'todo', 'recent'], wide: ['mtd', 'quick', 'recent'] },
-  floor: { label: 'Floor', order: ['quick', 'attendance', 'production', 'stock', 'power', 'unbilled', 'mtd', 'sync', 'zinc', 'money', 'todo', 'recent'],
-    hidden: ['mtd', 'sync', 'zinc', 'money', 'todo', 'recent'], wide: ['quick'] },
-  money: { label: 'Money', order: ['mtd', 'unbilled', 'zinc', 'quick', 'attendance', 'production', 'power', 'stock', 'sync', 'money', 'todo', 'recent'],
-    hidden: ['quick', 'attendance', 'production', 'power', 'stock', 'sync', 'money', 'todo', 'recent'], wide: ['mtd', 'recent'] }
-};
-var _homeEdit = false;
-function homePresetLayout(k) {
-  var p = HOME_PRESETS[k] || HOME_PRESETS.owner, hid = {}, wide = {};
-  p.hidden.forEach(function(x) { hid[x] = true; });
-  p.wide.forEach(function(x) { wide[x] = true; });
-  return { preset: HOME_PRESETS[k] ? k : 'owner', order: p.order.slice(), hidden: hid, wide: wide };
+/* The last day plated, the month's power cuts and the stock running low, as heroes' options (Home's prodday, powercuts and
+   stockdays widgets draw them, widgetcards.js). Each says nothing rather than a zero. */
+/* The last day with plating on record, or '' with none. */
+function homeLastPlatedDay() {
+  var last = '';
+  prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && (!last || e.date > last)) last = e.date; });
+  return last;
 }
-function homeLayout() {
-  var l = null;
-  try { l = JSON.parse(localStorage.getItem(HOME_LAYOUT_KEY) || 'null'); } catch (e) { l = null; }
-  if (!l || !Array.isArray(l.order)) return homePresetLayout('owner');
-  // A device on a preset follows the preset as this build defines it (TM2c); a layout of the owner's own is kept as it is.
-  if (l.preset !== 'custom' && HOME_PRESETS[l.preset]) return homePresetLayout(l.preset);
-  // A widget added since the layout was saved joins at the end, hidden, so a new build never rearranges a Home.
-  HOME_WIDGETS.forEach(function(w) { if (l.order.indexOf(w[0]) < 0) { l.order.push(w[0]); (l.hidden = l.hidden || {})[w[0]] = true; } });
-  l.order = l.order.filter(function(k) { return HOME_WIDGETS.some(function(w) { return w[0] === k; }); });
-  l.hidden = l.hidden || {}; l.wide = l.wide || {};
-  return l;
-}
-function homeLayoutSave(l) {
-  try { localStorage.setItem(HOME_LAYOUT_KEY, JSON.stringify(l)); } catch (e) { /* a per-device convenience only */ }
-}
-/* The layout onto the page: each widget moved to its place, hidden or shown, full or half. */
-/* What a widget needs to be shown to the person signed in (guard.js; everything with the guard off): the money widgets
-   the finance permission, GitHub sync the owner, the others the screen they open. */
-var HOME_WIDGET_NEEDS = { mtd: 'money', money: 'money', zinc: 'money', sync: 'owner', unbilled: 'pageIM', recent: 'pageRegister',
-  attendance: 'pageStaff', production: 'pageProduction', power: 'pagePower', stock: 'pageStock', quick: 'pageCreate' };
-function homeWidgetSeen(k) {
-  var need = HOME_WIDGET_NEEDS[k];
-  if (!need || typeof grdOn !== 'function' || !grdOn()) return true;
-  if (need === 'money') return grdSeesMoney();
-  if (need === 'owner') return grdIsOwner();
-  return grdSees(need);
-}
-function homeApplyLayout() {
-  var host = document.getElementById('homeWidgets');
-  if (!host) return;
-  var l = homeLayout();
-  renderHomeExtraCards();
-  l.order.forEach(function(k) {
-    var el = host.querySelector('[data-home-w="' + k + '"]');
-    if (!el) return;
-    host.appendChild(el);
-    el.classList.toggle('inv-hidden', !!l.hidden[k] || !homeWidgetSeen(k));
-    el.classList.toggle('inv-panels-wide', !!l.wide[k]);
-  });
-  // Packed with no gaps on the desktop (§6.25): a short widget no longer leaves its row's height empty beside it.
-  if (_isDesktop) uiMasonry(host); else if (host.classList.contains('inv-masonry-on')) uiMasonry(host);
-  // Edit Home is opened from More in Pulse's head (the tab map, TM2b: one toolbar row; it was a toolbar of its own at the foot).
-  var area = document.getElementById('homeEditArea');
-  if (area) area.innerHTML = _homeEdit ? homeEditHtml(l) : '';
-}
-function homeEditHtml(l) {
-  var name = {}; HOME_WIDGETS.forEach(function(w) { name[w[0]] = w[1]; });
-  var h = '<div class="inv-panel inv-panel-flush" id="homeEdit" data-nodirty><div class="inv-panel-head"><span class="inv-panel-title">Edit Home</span>' +
-    '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invHomeEditDone">Done</button></div>' +
-    '<div class="inv-panel-body"><div class="inv-field-label">Start from</div><div class="inv-seg" role="group" aria-label="Preset">' +
-    Object.keys(HOME_PRESETS).map(function(k) { return '<button class="inv-seg-btn" data-action="invHomePreset" data-preset="' + k + '" aria-pressed="' + (l.preset === k) + '">' + HOME_PRESETS[k].label + '</button>'; }).join('') +
-    '</div><div class="inv-note inv-mt-8">' + (l.preset === 'custom' ? 'Your own arrangement. ' : '') + 'Kept on this device only. Half or full is the width on a wide screen; a phone shows one column.</div></div>';
-  l.order.forEach(function(k, i) {
-    if (!homeWidgetSeen(k)) return;
-    var on = !l.hidden[k];
-    h += '<div class="inv-row' + (on ? '' : ' inv-row-muted') + '" data-home-edit="' + k + '"><label class="inv-row-lead inv-row-tick"><input type="checkbox" class="inv-check" data-home-show="' + k + '"' + (on ? ' checked' : '') + ' aria-label="Show ' + escHtml(name[k]) + '"></label>' +
-      '<span class="inv-row-main"><span class="inv-row-title">' + escHtml(name[k]) + '</span></span><span class="inv-row-end">' +
-      '<span class="inv-seg" role="group" aria-label="Width of ' + escHtml(name[k]) + '">' +
-      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="0" aria-pressed="' + !l.wide[k] + '">Half</button>' +
-      '<button class="inv-seg-btn" data-action="invHomeWide" data-w="' + k + '" data-v="1" aria-pressed="' + !!l.wide[k] + '">Full</button></span>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="-1" aria-label="Move ' + escHtml(name[k]) + ' up"' + (i === 0 ? ' disabled' : '') + '>&uarr;</button>' +
-      '<button class="inv-btn inv-btn-icon inv-btn-ghost" data-action="invHomeMove" data-w="' + k + '" data-d="1" aria-label="Move ' + escHtml(name[k]) + ' down"' + (i === l.order.length - 1 ? ' disabled' : '') + '>&darr;</button></span></div>';
-  });
-  return h + '</div>';
-}
-function homeEditChange(fn) {
-  var l = homeLayout();
-  fn(l);
-  l.preset = 'custom';
-  homeLayoutSave(l);
-  homeApplyLayout();
-}
-function homeAction(action, btn) {
-  switch (action) {
-    case 'invHomeEdit':
-      _homeEdit = true;
-      homeApplyLayout();
-      // The panel is drawn under Pulse's questions and cards: brought into sight there, its head and Done under the bars (sent
-      // to the top of the page, it was screens below, out of sight).
-      var ed = document.getElementById('homeEdit');
-      if (ed) ed.scrollIntoView({ block: 'start' });
-      return true;
-    case 'invHomeEditDone': _homeEdit = false; homeApplyLayout(); return true;
-    case 'invHomePreset': homeLayoutSave(homePresetLayout(btn.dataset.preset)); homeApplyLayout(); return true;
-    case 'invHomeWide': homeEditChange(function(l) { l.wide[btn.dataset.w] = btn.dataset.v === '1'; }); return true;
-    case 'invHomeMove': homeEditChange(function(l) {
-      var i = l.order.indexOf(btn.dataset.w), j = i + parseInt(btn.dataset.d, 10);
-      if (i < 0 || j < 0 || j >= l.order.length) return;
-      l.order.splice(j, 0, l.order.splice(i, 1)[0]);
-    }); return true;
-  }
-  return false;
-}
-function homeShowToggle(el) {
-  homeEditChange(function(l) { if (el.checked) delete l.hidden[el.dataset.homeShow]; else l.hidden[el.dataset.homeShow] = true; });
-}
-
-/* The three widgets Home had no card for, as heroes. Each is drawn only while shown, to a role that sees it (homeWidgetSeen),
-   and says nothing rather than a zero. */
-function renderHomeExtraCards() {
-  var l = homeLayout(), set = function(id, html) { var e = document.getElementById(id); if (e) e.innerHTML = html; };
-  var open = function(go) { return '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="' + go + '">Open</button>'; };
-  // Production: the last day with plating on record, as Production's own day card (prodDayHeroHtml): one unit, the lines.
-  if (!l.hidden.production && homeWidgetSeen('production')) {
-    var h = '';
-    try {
-      var last = null;
-      prodIndex().counted.forEach(function(e) { if (e.kind === 'plated' && (!last || e.date > last)) last = e.date; });
-      h = prodDayHeroHtml(last, { compact: true, fold: 'pulse-production', open: !!_isDesktop, attrs: ' data-card="production"' });
-    } catch (e) { h = ''; }
-    set('homeProdCard', h);
-  } else set('homeProdCard', '');
-  // Power: this month's cuts and the last one.
-  if (!l.hidden.power && homeWidgetSeen('power')) {
-    var ph = '';
-    try {
-      var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
-      var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
-      var openCuts = cuts.filter(function(c) { return c.open; }).length;
-      ph = uiHeroHtml({ tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
-        title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
-        fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
-        fold: 'pulse-power', open: !!_isDesktop, attrs: ' data-card="power"',
-        body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
-          '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
-          '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
-          '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>',
-        foot: open('pagePower') });
-    } catch (e) { ph = ''; }
-    set('homePowerCard', ph);
-  } else set('homePowerCard', '');
-  // Stock: the lines red or amber, soonest out first.
-  if (!l.hidden.stock && homeWidgetSeen('stock')) {
-    var sh = '';
-    try {
-      var low = stockData().items.filter(function(i) { return i.active !== false; }).map(function(i) { return { i: i, s: stockStatus(i) }; })
-        .filter(function(x) { return x.s.tone === 'red' || x.s.tone === 'amber'; }).sort(function(a, b) { return (a.s.daysLeft == null ? -1 : a.s.daysLeft) - (b.s.daysLeft == null ? -1 : b.s.daysLeft); });
-      var red = low.filter(function(x) { return x.s.tone === 'red'; }).length;
-      sh = uiHeroHtml({ tone: red ? 'danger' : low.length ? 'warning' : 'ok', eyebrow: '<span>Stock running low</span>' + (low.length ? '<span class="inv-panel-count">' + low.length + '</span>' : ''),
-        title: low.length ? escHtml(todoPlural(low.length, 'line') + ' running low') : 'No line is running low',
-        sub: low.length ? escHtml(low.slice(0, 3).map(function(x) { return x.i.name; }).join(' · ') + (low.length > 3 ? ' · and ' + (low.length - 3) + ' more' : '')) : '',
-        fold: 'pulse-stock', open: !!_isDesktop, attrs: ' data-card="stock-low"',
-        body: low.length ? '<div class="inv-hero-sheet">' + low.slice(0, 5).map(function(x) {
-          return '<div class="inv-row"><span class="inv-row-main">' + escHtml(x.i.name) + '</span><span class="inv-row-end">' + uiDot(x.s.tone === 'red' ? 'danger' : 'warning', escHtml(stockStatusWord(x.s, true))) + '</span></div>';
-        }).join('') + (low.length > 5 ? '<div class="inv-row"><span class="inv-row-main inv-row-meta">and ' + (low.length - 5) + ' more</span></div>' : '') + '</div>' : null,
-        foot: open('pageStock') });
-    } catch (e) { sh = ''; }
-    set('homeStockCard', sh);
-  } else set('homeStockCard', '');
+/* Power: this month's cuts and the last one. */
+function homePowerOpts() {
+  var today = localDateStr(), cuts = powerCuts(today.slice(0, 8) + '01', today), all = powerCuts(null, today);
+  var mins = cuts.reduce(function(s, c) { return s + (c.min || 0); }, 0), lastCut = all[all.length - 1];
+  var openCuts = cuts.filter(function(c) { return c.open; }).length;
+  return { tone: openCuts ? 'warning' : cuts.length ? 'info' : 'ok', eyebrow: '<span>Power cuts</span><span class="inv-panel-count">' + cuts.length + '</span>',
+    title: cuts.length ? escHtml(todoPlural(cuts.length, 'cut') + ' this month') : 'No cut this month',
+    fig: mins ? escHtml(powerDur(mins)) : '', sub: escHtml(mins ? 'dark in all' + (openCuts ? ' · ' + todoPlural(openCuts, 'cut') + ' with no time back' : '') : 'none recorded'),
+    attrs: ' data-card="power"', cuts: cuts.length, mins: mins,
+    body: '<div class="inv-hero-sheet"><div class="inv-tiles inv-tiles-flush"><div class="inv-tile' + (cuts.length ? ' inv-tile-warning' : '') + '"><div class="inv-tile-label">This month</div><div class="inv-tile-value">' + cuts.length + '</div>' +
+      '<div class="inv-tile-sub">' + (mins ? powerDur(mins) + ' dark' : 'none recorded') + '</div></div>' +
+      '<div class="inv-tile"><div class="inv-tile-label">Last cut</div><div class="inv-tile-value">' + (lastCut ? escHtml(formatDate(lastCut.date)) : '&mdash;') + '</div>' +
+      '<div class="inv-tile-sub">' + (lastCut ? escHtml(powerClock(lastCut.from) + (lastCut.open ? ', no time back' : ' – ' + powerClock(lastCut.to))) : '') + '</div></div></div></div>' };
 }

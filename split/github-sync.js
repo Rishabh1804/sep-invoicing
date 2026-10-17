@@ -588,24 +588,23 @@ function ghRelTime(ts) {
 
 /* Home card. A backup whose state you cannot see is a backup you will not
    trust, so the last sync time sits on the first screen rather than three
-   taps into Settings. A hero (§6.21): when it last went, coded by whether a working day has passed since, with its button. */
-function ghRenderCard() {
-  var host = document.getElementById('homeSyncCard');
-  if (!host) return;
+   taps into Settings. A hero's options (§6.21; Home's sync widget, widgetcards.js): when it last went, coded by whether a working
+   day has passed since, with its button. Null where sync is not set up. */
+function ghRenderCard() { if (typeof wdgRefresh === 'function') wdgRefresh('sync'); }
+function ghCardOpts() {
   // The guard keeps this device from syncing (devices.js): the card says so, and offers to register it unless it was
   // removed. A removed device's token is gone, and the card stays to say why.
   var blockedShort = typeof devSyncBlockedShort === 'function' ? devSyncBlockedShort() : '';
   if (blockedShort) {
     var bc = getGhConfig();
-    if (!bc.owner || !bc.repo) { host.innerHTML = ''; return; }
+    if (!bc.owner || !bc.repo) return null;
     var removed = typeof devRemovedRow === 'function' && !!devRemovedRow();
     // Removed: the whole sentence, who and when and why. Not registered: the few words, with the way to fix it beside.
     var why = removed ? devSyncBlocked() : blockedShort.charAt(0).toUpperCase() + blockedShort.slice(1);
-    host.innerHTML = uiHeroHtml({ tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
-      attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' });
-    return;
+    return { tone: removed ? 'danger' : 'warning', eyebrow: '<span>GitHub backup</span>', title: escHtml(why),
+      attrs: ' data-card="sync"', foot: removed ? '' : '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invDevGo" data-sec="devices">Register</button>' };
   }
-  if (!ghIsConfigured()) { host.innerHTML = ''; return; }
+  if (!ghIsConfigured()) return null;
 
   var cfg = getGhConfig();
   var last = ghLastSyncAt();
@@ -613,11 +612,11 @@ function ghRenderCard() {
   // whose only other copy is the localStorage it is sitting in.
   var stale = !last || (Date.now() - last) > 86400000;
   var when = 'Last synced ' + ghRelTime(last);
-  host.innerHTML = uiHeroHtml({ tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
+  return { tone: stale ? 'warning' : 'ok', eyebrow: '<span>GitHub backup</span>',
     // The status is a dot and a word (DR-8), the title the time; the repository under it.
     title: stale ? uiDot('warning', escHtml(when)) : escHtml(when), sub: '<span class="inv-id">' + escHtml(cfg.owner + '/' + cfg.repo) + '</span>',
     attrs: ' data-card="sync"',
-    foot: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' + (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' });
+    foot: '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invGhPush"' + (_ghBusy ? ' disabled' : '') + '>' + (_ghBusy ? 'Syncing…' : 'Back up now') + '</button>' };
 }
 
 /* ===== SETTINGS SECTION ===== */

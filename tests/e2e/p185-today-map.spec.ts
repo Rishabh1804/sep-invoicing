@@ -1,7 +1,6 @@
 import { test, expect } from '@playwright/test';
 import type { Locator, Page } from '@playwright/test';
-import { emptyState, loadAppWithState, noSeedIM, openPulse, readStoredState, switchTab, toolbarMore, todayIso, waitForBoot, workingDaysBack,
-  type SepState } from './fixtures';
+import { emptyState, loadAppWithState, noSeedIM, openPulse, readStoredState, switchTab, toolbarMore, todayIso, waitForBoot, workingDaysBack, type SepState, openNeeds, openHome } from './fixtures';
 import { longBook } from './load-fixture';
 
 // P185: the tab map, step TM2 (docs/TAB_MAP.md TM2a–TM2f, §5). Today: the To-do joins Needs you (its Add, its Done, its Snoozed,
@@ -42,6 +41,7 @@ function stockRunningOut() {
 test.describe('P185: Today on the phone', () => {
   test('Needs you takes the To-do: Add heads the tasks, a tick goes to Done and back, a snooze waits under Snoozed; nothing is deleted', async ({ page }) => {
     await load(page, base({ stock: stockRunningOut() } as any));
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds')).toBeVisible();
     const tasks = page.locator('#homeNeeds [data-card="tasks"]');
     // The Add row is the first thing in the tasks, above Now, and Add is the view's one primary.
@@ -109,6 +109,7 @@ test.describe('P185: Today on the phone', () => {
   test('what the app learnt from your answers is on Needs you, and its task opens it there', async ({ page }) => {
     const resp = Array.from({ length: 3 }, (_, i) => ({ at: Date.now() - (i + 1) * 3600e3, key: 'challan:' + (i + 1), rule: 'challan', act: 'snooze', age: 0 }));
     await load(page, base({ todo: { tasks: [], snoozes: {}, resp } } as any));
+    await openNeeds(page);
     await expect(page.locator('#homeNeeds #todoLearn [data-learn="raise:challan"]')).toHaveCount(1);
     await switchTab(page, 'pageFinance');
     const t: any = await g(page, `todoAppAll(['learn'])[0]`);
@@ -117,42 +118,43 @@ test.describe('P185: Today on the phone', () => {
     await expect(page.locator('#todoLearn [data-learn="raise:challan"]')).toBeVisible();
   });
 
-  test('Pulse leads with the period and More; Why it moved, In one line and the pace fold to their verdicts; one period with Stats', async ({ page }) => {
+  test('Home leads with the day card and one toolbar row: the period, Customise and More; Pulse’s three are widgets; one period with Stats', async ({ page }) => {
     await loadAppWithState(page, longBook());
     await openPulse(page);
-    const head = page.locator('[data-tdy-pulse-head]');
+    const head = page.locator('[data-home-toolbar]');
     await expect(head.locator('.inv-seg-btn[aria-pressed="true"]')).toHaveText('MTD');
-    // One row: the period and More, nothing else (their middles level, whatever box an inline span draws).
+    // One row: the period, Customise and More (their middles level, whatever box an inline span draws).
     const mids = await head.evaluate(el => Array.from(el.children).map(c => { const r = (c as HTMLElement).getBoundingClientRect(); return r.top + r.height / 2; }));
-    expect(mids.length).toBe(2);
+    expect(mids.length).toBe(3);
     expect(Math.max(...mids) - Math.min(...mids), 'the head is one row').toBeLessThan(8);
+    // Why it moved, In one line (The period in figures since UI pass 3) and the pace: each a widget with its line.
     for (const id of ['statsWhy', 'statsOverview', 'statsPace']) {
       const card = page.locator('#' + id);
       await expect(card).toHaveCount(1);
-      expect(await card.evaluate(el => el.tagName === 'DETAILS' && !(el as HTMLDetailsElement).open), id + ' is shut to its verdict').toBe(true);
-      await expect(card.locator(':scope > summary .inv-hero-title')).not.toHaveText('');
+      await expect(card).toHaveClass(/inv-widget/);
+      await expect(card.locator('.inv-widget-line')).not.toHaveText('');
     }
-    // The questions lead, then Do first, then the three.
-    const order = await page.locator('#homeQuestions > *').evaluateAll(els => els.map(e => (e as HTMLElement).dataset.tdyPulseHead != null ? 'head'
-      : e.matches('[data-tdy-questions]') ? 'questions' : e.matches('[data-card="first"]') ? 'first' : e.matches('[data-tdy-pulse-cards]') ? 'cards' : e.className));
-    expect(order).toEqual(['head', 'questions', 'first', 'cards']);
+    // The day card leads, then the toolbar, then the board.
+    const order = await page.locator('#homeDash > *').evaluateAll(els => els.map(e => e.matches('[data-home-daycard]') ? 'day'
+      : e.matches('[data-home-toolbar]') ? 'head' : e.id === 'homeBoard' ? 'board' : e.matches('[data-home-foot]') ? 'foot' : e.className));
+    expect(order.slice(0, 3)).toEqual(['day', 'head', 'board']);
 
-    // The period is Stats' too: changed here, Stats shows it; changed there, Pulse is drawn again on it.
+    // The period is Stats' too: changed here, Stats shows it; changed there, Home is drawn again on it.
     await head.locator('.inv-seg-btn', { hasText: 'QTD' }).click();
     await expect(head.locator('.inv-seg-btn[aria-pressed="true"]')).toHaveText('QTD');
     await switchTab(page, 'pageStats');
     await expect(page.locator('#statsToolbar .inv-seg-btn[aria-pressed="true"]')).toHaveText('QTD');
     await page.locator('#statsToolbar .inv-seg-btn', { hasText: 'YTD' }).click();
     await openPulse(page);
-    await expect(page.locator('[data-tdy-pulse-head] .inv-seg-btn[aria-pressed="true"]')).toHaveText('YTD');
+    await expect(page.locator('[data-home-toolbar] .inv-seg-btn[aria-pressed="true"]')).toHaveText('YTD');
 
-    // More: Make a report opens Reports on the period; Edit Home opens the arrangement.
+    // More: Make a report opens Reports on the period; Customise arranges the board, its toolbar Add a widget, Reset and Done.
     await toolbarMore(page, 'Make a report');
     await expect(page.locator('#pageReports')).toHaveClass(/inv-page-active/);
     await openPulse(page);
-    await toolbarMore(page, 'Edit Home');
-    await expect(page.locator('#homeEdit')).toBeVisible();
-    await expect(page.locator('#homeEditBar')).toHaveCount(0);
+    await page.locator('[data-home-toolbar] [data-action="invWdgArrange"]').click();
+    await expect(page.locator('#homeBoard [data-wdg-handle]').first()).toBeVisible();
+    await expect(page.locator('[data-home-toolbar] .inv-btn')).toHaveText(['Add a widget', 'Reset', 'Done']);
   });
 
   test('Stats is By client · Cost · Trends, each led by its verdict card, shut on the phone', async ({ page }) => {
@@ -267,24 +269,30 @@ test.describe('P185: Today on the phone', () => {
     await expect(page.locator('[data-tb-more-dialog] [data-tb-pick]').filter({ hasText: /^Goal: / })).toHaveCount(3);
   });
 
-  test('every preset hides the To-do, the recent invoices and Money; a layout of your own keeps them', async ({ page }) => {
-    // A device on the Owner preset as an older build saved it: the three shown.
+  test('Pulse’s layout moves once: a preset starts on the role’s, without the To-do, the recent invoices and Money; a layout of your own keeps them', async ({ page }) => {
+    // A device on the Owner preset as an older build saved it (sep_inv_home, Pulse's), and no board layout yet.
     await page.addInitScript(() => {
       if (sessionStorage.getItem('p185-set')) return;
       sessionStorage.setItem('p185-set', '1');
+      localStorage.removeItem('sep_inv_layout');
       localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'owner', order: ['mtd', 'quick', 'money', 'todo', 'attendance', 'unbilled', 'production', 'power', 'stock', 'sync', 'zinc', 'recent'],
         hidden: { production: true, power: true, stock: true }, wide: { mtd: true, quick: true, recent: true } }));
     });
     await loadAppWithState(page, longBook());
-    await openPulse(page);
-    for (const w of ['money', 'todo', 'recent']) await expect(page.locator(`#homeWidgets [data-home-w="${w}"]`)).toHaveClass(/inv-hidden/);
-    await expect(page.locator('#homeWidgets [data-home-w="mtd"]')).not.toHaveClass(/inv-hidden/);
-    // A layout of the owner's own is kept as it is.
-    await page.evaluate(() => localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', order: ['mtd', 'money', 'todo', 'recent'], hidden: {}, wide: {} })));
+    await openHome(page);
+    // The Owner preset of UI pass 3 (U2): Needs you holds the tasks and the recent invoices; Money's figures are its own widgets.
+    await expect(page.locator('#homeBoard [data-w="needs"], #homeBoard [data-w="recent"], #homeBoard [data-w="money"]')).toHaveCount(0);
+    await expect(page.locator('#homeBoard [data-w="mtd"]')).toHaveCount(1);
+    // A layout of the owner's own is moved once onto the board, every widget it showed kept (by the new ids: the To-do is Needs you).
+    await page.evaluate(() => {
+      localStorage.removeItem('sep_inv_layout');
+      localStorage.setItem('sep_inv_home', JSON.stringify({ preset: 'custom', order: ['mtd', 'money', 'todo', 'recent'], hidden: {}, wide: {} }));
+    });
     await page.reload();
     await waitForBoot(page);
-    await openPulse(page);
-    for (const w of ['money', 'todo', 'recent']) await expect(page.locator(`#homeWidgets [data-home-w="${w}"]`)).not.toHaveClass(/inv-hidden/);
+    await openHome(page);
+    for (const w of ['money', 'needs', 'recent']) await expect(page.locator(`#homeBoard [data-w="${w}"]`)).toHaveCount(1);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem('sep_inv_layout')!).people['-'].home.from)).toBe('pulse');
   });
 
   test('the report on the page fits the phone’s width; the paper itself is unchanged', async ({ page }) => {
@@ -313,7 +321,7 @@ test.describe('P185: Today on the phone', () => {
   test('TM2’s old places redirect: Stats’ Overview to Pulse, its Billing to Pipeline, a Planner kind to Moves, the To-do to Needs you', async ({ page }) => {
     await loadAppWithState(page, longBook());
     const cases: Array<[string, string[]]> = [
-      ['/?tab=pageStats&v=overview', ['pageHome', 'pulse']],
+      ['/?tab=pageStats&v=overview', ['pageHome', 'home']],
       ['/?tab=pageStats&v=billing', ['pagePipeline', 'awaiting']],
       ['/?tab=pagePlanner&v=plant', ['pagePlanner', 'moves/plant']],
       ['/?tab=pagePlanner&v=finance', ['pagePlanner', 'moves/finance']],
@@ -331,7 +339,7 @@ test.describe('P185: Today on the phone', () => {
     await expect(page.locator('[data-pl-moves] .inv-seg-btn[aria-pressed="true"]')).toHaveText('Tech tree');
     // A task saved naming the old Stats tabs lands on their new homes.
     await g(page, `todoGo({ kind: 'stats', tab: 'overview' })`);
-    await expect(page.locator('#homePulse')).toBeVisible();
+    await expect(page.locator('#homeDash')).toBeVisible();
     await g(page, `todoGo({ kind: 'stats', tab: 'billing' })`);
     await expect(page.locator('#pagePipeline')).toHaveClass(/inv-page-active/);
     expect(todayIso()).toBeTruthy();

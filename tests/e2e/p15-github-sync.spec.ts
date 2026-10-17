@@ -135,7 +135,7 @@ test.describe('GitHub sync — push', () => {
     // Decline: nothing is written.
     await page.locator('[data-action="invGhPush"]').first().click();
     expect(await answerAsk(page, 'cancel')).toContain('has not seen');
-    await expect(page.locator('#homeSyncCard')).toBeVisible();
+    await expect(page.locator('[data-w="sync"]')).toBeVisible();
     expect(putCount).toBe(0);
 
     // Accept: the push carries the remote's current sha, not the stale one.
@@ -323,10 +323,13 @@ test.describe('GitHub sync — configuration', () => {
     expect(contents).not.toContain('github_pat_SECRETVALUE');
   });
 
-  test('the home card only appears once sync is configured', async ({ page }) => {
+  test('the backup widget says it is not set up until sync is configured, then names the repository', async ({ page }) => {
     await loadAppWithState(page, emptyState());
     await openPulse(page);
-    await expect(page.locator('#homeSyncCard [data-card="sync"]')).toHaveCount(0);
+    // A widget's blank state (UI pass 3, U2), where the card was left out before.
+    const card = page.locator('#homeBoard .inv-widget[data-w="sync"]');
+    await expect(card).toHaveAttribute('data-state', 'notset');
+    await expect(card.locator('.inv-blank')).toBeVisible();
 
     await openSettingsAt(page, 'sync');
     await page.locator('#setGhOwner').fill('testowner');
@@ -334,8 +337,8 @@ test.describe('GitHub sync — configuration', () => {
     await page.locator('#setGhToken').fill('github_pat_TESTTOKEN');
     await page.locator('[data-action="invSaveSettingsSec"][data-sec="sync"]').click();
 
-    await expect(page.locator('#homeSyncCard [data-card="sync"]')).toBeVisible();
-    await expect(page.locator('#homeSyncCard')).toContainText('testowner/testrepo');
+    await expect(card).toHaveAttribute('data-state', 'ok');
+    await expect(card).toContainText('testowner/testrepo');
   });
 
   test('changing the target repo drops the remembered sha', async ({ page }) => {

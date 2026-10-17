@@ -117,6 +117,19 @@ var CHG_TRACK = [
   { path: 'bank.cheques', kind: 'arr', noun: 'cheque received', cid: function(r) { return r.clientId; },
     label: function(r) { return chgJoin(chgClientName(r.clientId), r.number ? 'cheque ' + r.number : '', r.amount != null ? chgMoney(r.amount) : ''); } },
   { path: 'bank.reminders', kind: 'arr', noun: 'payment reminder', cid: function(r) { return r.clientId; }, label: function(r) { return chgJoin(chgClientName(r.clientId), r.amount != null ? formatCurrency(r.amount) : '', r.how); } },
+  // The world outside (feeds.js, UI pass 3 §16): Tata Motors' months and the plant's calendar as the owner typed them, and the
+  // models whose headlines are followed, each a record. The weather days are what a fetch wrote, not a change anybody made: kept
+  // QUIETLY (`quiet`), never compared here, and in the merge this device's, the other's filling what it lacks, never held.
+  // When and by whom a month or a day was typed is the record's stamp, not a change (`omit`), and two devices' stamps never
+  // conflict in the merge (`mrgQuiet`): the figures do. The models followed are one record (§16: the hub's id `-`), read as a list.
+  { path: 'market.tata', kind: 'map', noun: 'Tata month', omit: ['at', 'by'], mrgQuiet: ['at', 'by'],
+    label: function(r, k) { return typeof mktMonthLabel === 'function' ? mktMonthLabel(k) : k; } },
+  { path: 'market.calendar', kind: 'map', noun: 'plant calendar day', plural: 'plant calendar days', omit: ['at', 'by'], mrgQuiet: ['at', 'by'],
+    label: function(r, k) { return chgJoin(chgDay(k), r && r.state); } },
+  { path: 'market.models', kind: 'cfg', sec: 'Tata Motors → the models followed',
+    proj: function(v) { return { models: Array.isArray(v) ? v.map(String).join(', ') : '' }; },
+    dflt: function() { return { models: getDefaultState().market.models.join(', ') }; } },
+  { path: 'market.weather', kind: 'map', quiet: true, noun: 'weather day' },
   { path: 'todo.tasks', kind: 'arr', noun: 'task', label: function(r) { return r.text; } },
   { path: 'todo.snoozes', kind: 'map', noun: 'snooze', label: function(r, k) { return k; } },
   // A task answered (learn.js, I5) is a record of use, not a change anybody made: kept quietly, as a push's stamp is.
@@ -148,13 +161,14 @@ var CHG_TRACK = [
   { path: 'qtnCfg', kind: 'cfg', sec: 'Quotations', dflt: function() { return getDefaultState().qtnCfg; } },
   { path: 'flowCfg', kind: 'cfg', sec: 'Turnaround and terms', dflt: function() { return getDefaultState().flowCfg; } },
   { path: 'printer', kind: 'cfg', sec: 'Office printer', dflt: function() { return getDefaultState().printer; } },
+  { path: 'feedsCfg', kind: 'cfg', sec: 'News and weather', dflt: function() { return getDefaultState().feedsCfg; } },
   { path: 'zinc', kind: 'cfg', sec: 'Zinc rate', omit: ['lmeHistory'],
     dflt: function() { return { ratePerKg: null, premiumPerKg: 15, upliftPct: typeof ZINC_DEFAULT_UPLIFT !== 'undefined' ? ZINC_DEFAULT_UPLIFT : null, basis: 'manual', updatedAt: null, source: '' }; } },
   { path: 'perfCfg', kind: 'cfg', sec: 'Clients → Performance → By the hour' },
   { path: 'guardCfg', kind: 'cfg', sec: 'Users & access', dflt: function() { return getDefaultState().guardCfg || {}; } }
 ];
 // Stores a parent object holds; a key of theirs that no row above names is compared the same way (a list, a setting).
-var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1 };
+var CHG_PARENTS = { stock: 1, production: 1, bank: 1, todo: 1, power: 1, kb: 1, planner: 1, plant: 1, market: 1 };
 // Never compared: the log itself (a key starting _ never is either).
 var CHG_SKIP_TOP = { changeLog: 1, changeLogDropped: 1, mergeHeld: 1 };
 // The book's own figures, grouped by the Settings section that sets them. A figure no section names is its own record.
@@ -248,7 +262,8 @@ function chgUnits() {
   CHG_TRACK.forEach(function(sp) { known[sp.path] = sp; });
   function add(path, v) {
     var sp = known[path];
-    if (sp) { if (sp.kind !== 'skip') units.push(sp); return; }
+    // A store kept quietly (`quiet`: the weather days a fetch wrote) is never compared, like a skipped one.
+    if (sp) { if (sp.kind !== 'skip' && !sp.quiet) units.push(sp); return; }
     if (Array.isArray(v)) units.push({ path: path, kind: 'arr', generic: true });
     else if (v !== null && typeof v === 'object') units.push({ path: path, kind: 'cfg', generic: true, sec: path });
   }
@@ -402,7 +417,9 @@ function chgUnitDiff(sp, cont, ctx, out) {
     var before = changed.length ? changed[0][2] : adds.length ? null : removed.length ? removed[0][1] : undefined;
     if (before === undefined) return;
     var dfl = sp.dflt ? sp.dflt() || {} : {};
-    var d0 = chgFieldsOf(Object.assign({}, dfl, before == null ? {} : JSON.parse(before)), Object.assign({}, dfl, cont || {}), sp);
+    // A setting held as something else (a list) is compared as its projection, as its string was cached (chgStr).
+    var now = sp.proj && cont != null ? sp.proj(cont) : cont;
+    var d0 = chgFieldsOf(Object.assign({}, dfl, before == null ? {} : JSON.parse(before)), Object.assign({}, dfl, now || {}), sp);
     if (d0.out.length || d0.more) out.push(chgMake(ctx, 'change', coll, null, chgCfgLabel(sp, d0.out), d0, null));
     return;
   }
@@ -626,7 +643,10 @@ var CHG_FIELD_WORDS = { st: 'mark', invoiceState: 'state', qty: 'quantity', nosQ
   orderFrom: 'ordered from', 'orderFrom.name': 'ordered from', quotes: 'prices quoted', checkOk: 'kept as entered', 'checkOk.codes': 'kept as entered',
   voidReason: 'reason', cancelReason: 'reason', voidBy: 'by',
   // The flow thread's targets and terms (flow.js): the plant's in Settings, a client's own on the client.
-  turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms' };
+  turnDays: 'turnaround target', termsDays: 'payment terms', turnaroundDays: 'turnaround target', payTermsDays: 'payment terms',
+  // Tata Motors' month (feeds.js): each figure this year's and the same month a year before.
+  'cvTotal.now': 'all CVs', 'cvTotal.ly': 'all CVs a year before', 'cvDomestic.now': 'CVs in India', 'cvDomestic.ly': 'CVs in India a year before',
+  'cvExport.now': 'CV exports', 'cvExport.ly': 'CV exports a year before', 'hcv.now': 'heavy trucks', 'hcv.ly': 'heavy trucks a year before', released: 'released on' };
 // Voided or cancelled, read off the fields a change set: said as such.
 function chgAct(e) {
   if (e.coll === 'book') return 'replaced';

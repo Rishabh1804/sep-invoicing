@@ -34,7 +34,7 @@ test.describe('P142: devices, with the guard off', () => {
     expect(await g(page, 'getGhToken()')).toBe(TOKEN);
 
     // Push, from Home: the token in the header, the copy and its message as they always were.
-    await page.locator('#homeSyncCard [data-action="invGhPush"]').click();
+    await page.locator('[data-w="sync"] [data-action="invGhPush"]').click();
     await expect(page.locator('.inv-toast')).toContainText('Pushed to GitHub');
     expect(gh.auths).toEqual(['Bearer ' + TOKEN, 'Bearer ' + TOKEN]);
     expect(gh.puts[0].message).toMatch(/^SEP Invoicing backup — \d+ invoices, \d+ challans \(Bench PC\)$/);
@@ -76,7 +76,7 @@ test.describe('P142: devices, with the guard off', () => {
     ] }));
     expect(await g(page, 'devSyncBlocked()')).toBe('');
     expect(await g(page, 'devRegistered()')).toBe(false);
-    await expect(page.locator('#homeSyncCard [data-action="invGhPush"]')).toBeVisible();
+    await expect(page.locator('[data-w="sync"] [data-action="invGhPush"]')).toBeVisible();
     expect(await g(page, 'getGhToken()')).toBe(TOKEN);
     expect(await g(page, 'ghPushLocked()')).toBe(true);
     expect(gh.envelope()).not.toHaveProperty('_device');
@@ -107,7 +107,8 @@ test.describe('P142: devices, with the guard off', () => {
     await guardAfterBoot(page);
     await expect(page.locator('.inv-notice-bar')).toContainText('The GitHub token on this device could not be read: enter it again');
     expect(await g(page, 'getGhToken()')).toBe('');
-    await expect(page.locator('#homeSyncCard [data-card="sync"]')).toHaveCount(0);
+    // With no token the backup widget says sync is not set up (a widget's blank state since UI pass 3, U2; the card went before).
+    await expect(page.locator('#homeBoard .inv-widget[data-w="sync"]')).toHaveAttribute('data-state', 'notset');
     await openSettingsAt(page, 'sync');
     await expect(page.locator('#ghSyncStatus')).toContainText('could not be read: enter it again');
     await expect(page.locator('details[data-sec="sync"] [data-token-state]')).toContainText('Could not be read');
@@ -134,8 +135,8 @@ test.describe('P142: devices, with the guard on', () => {
     await seedDevice(page, { token: TOKEN, session: 'u-own', cfg: { autoPush: true } });
     await open(page, book({ users: [OWNER, SUPER] }));
 
-    await expect(page.locator('#homeSyncCard')).toContainText("Paused: this device isn't registered");
-    await expect(page.locator('#homeSyncCard [data-action="invGhPush"]')).toHaveCount(0);
+    await expect(page.locator('[data-w="sync"]')).toContainText("Paused: this device isn't registered");
+    await expect(page.locator('[data-w="sync"] [data-action="invGhPush"]')).toHaveCount(0);
     await openSettingsAt(page, 'sync');
     await expect(page.locator('[data-sync-blocked]')).toHaveText(new RegExp('^' + UNREG.replace(/[.()?]/g, '\\$&')));
     await expect(page.locator('[data-sum="sync"]')).toContainText("paused: this device isn't registered");
@@ -388,7 +389,7 @@ test.describe('P142: devices, with the guard on', () => {
     await tab.reload();
     await waitForBoot(tab);
     await guardAfterBoot(tab);
-    await expect(tab.locator('#homeSyncCard')).toContainText('This device was removed by Meera Rao on ' + day + ': Tablet lost on the floor.');
+    await expect(tab.locator('[data-w="sync"]')).toContainText('This device was removed by Meera Rao on ' + day + ': Tablet lost on the floor.');
     expect(await g(tab, 'ghPushLocked()')).toBe(false);
     await expect(tab.locator('.inv-toast')).toContainText('This device was removed by Meera Rao');
     await openSettingsAt(tab, 'sync');
@@ -443,14 +444,14 @@ test.describe('P142: devices, with the guard on', () => {
     expect(await answerAsk(page, 'cancel')).toContain('Register this device?');
     expect(await g(page, 'ghPushLocked()')).toBe(false);
     await expect(page.locator('.inv-toast')).toContainText("This device isn't registered");
-    await expect(page.locator('#homeSyncCard')).toContainText("Paused: this device isn't registered");
+    await expect(page.locator('[data-w="sync"]')).toContainText("Paused: this device isn't registered");
     expect(await g(page, '_ghPushTimer')).toBeNull();
     // Asked once: a later save does not ask again.
     await g(page, "S.company.name = 'CHANGED CO'; saveState()");
     await page.waitForTimeout(1200);
     await expect(page.locator('[data-ui-ask]')).toHaveCount(0);
     // Register from the card: Settings opens on Devices, and one PIN registers it.
-    await page.locator('#homeSyncCard [data-action="invDevGo"]').click();
+    await page.locator('[data-w="sync"] [data-action="invDevGo"]').click();
     await expect(page.locator('details[data-sec="devices"]')).toHaveAttribute('open', '');
     await page.locator('[data-action="invDevRegister"]').click();
     await expect(page.locator('.inv-toast')).toContainText('This device is registered, and a copy went to GitHub');
@@ -472,7 +473,7 @@ test.describe('P142: devices, with the guard on', () => {
     expect(await g(page, 'S.devices[0]')).toMatchObject({ id: 'dev-desk', name: 'Bench PC', user: 'u-own', registeredBy: 'u-own' });
     expect(gh.puts).toHaveLength(1);
     expect(gh.envelope()._device).toMatchObject({ id: 'dev-desk', user: 'u-own' });
-    await expect(page.locator('#homeSyncCard [data-action="invGhPush"]')).toBeVisible();
+    await expect(page.locator('[data-w="sync"] [data-action="invGhPush"]')).toBeVisible();
   });
 
   // P76 sweeps Settings with the guard off; this is the same sweep over what the guard changes, on the phone.
@@ -481,7 +482,7 @@ test.describe('P142: devices, with the guard on', () => {
     await gh.on(page);
     await seedDevice(page, { token: TOKEN, session: 'u-own', devId: 'dev-desk' });
     await open(page, book({ users: [OWNER, SUPER], devices: listedDevices() }));
-    await expect(page.locator('#homeSyncCard')).toContainText("Paused: this device isn't registered");
+    await expect(page.locator('[data-w="sync"]')).toContainText("Paused: this device isn't registered");
     const stops = [await sweep(page, 'home · sync paused')];
     await openSettingsAt(page, 'devices');
     await expect(page.locator('details[data-sec="devices"] [data-card="devices"] .inv-row')).toHaveCount(2);

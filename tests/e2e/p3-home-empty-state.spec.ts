@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { emptyState, loadAppWithState, switchTab, openPulse, withHomeWidgets, openWidget } from './fixtures';
+import { emptyState, loadAppWithState, switchTab, openPulse, withHomeWidgets, openWidget, openHome } from './fixtures';
 
 // P3 assertion: Home "Recent Invoices" empty-state upgraded from a bare muted-text
 // ("No invoices yet") to a more useful empty-state block with an icon + CTA that
@@ -10,8 +10,8 @@ import { emptyState, loadAppWithState, switchTab, openPulse, withHomeWidgets, op
 //   2. CTA wiring intact
 //   3. positive regression (empty-state absent when data exists)
 //
-// The widget is off in every preset since the tab map (TM2c: the recent invoices are Needs you's), so each test shows it as
-// Edit Home does; on a new device the way to the first invoice is Pulse's quick actions and Add, the first test's last check.
+// The widget is off in every preset since the tab map (TM2c: the recent invoices are Needs you's), so each test puts it on the
+// board as the gallery does; on a new device the way to the first invoice is Add, the second test's check.
 
 test.describe('P3: Home "Recent Invoices" empty-state', () => {
   test.beforeEach(async ({ page }) => { await withHomeWidgets(page, ['recent']); });
@@ -38,12 +38,15 @@ test.describe('P3: Home "Recent Invoices" empty-state', () => {
     await expect(recent.locator('svg')).toHaveCount(1);
   });
 
-  test('on a new device (the Owner preset) the first invoice is one tap from Pulse: New invoice among the quick actions', async ({ page }) => {
-    await page.addInitScript(() => { try { localStorage.removeItem('sep_inv_home'); } catch { /* none */ } });
+  test('on a new device (the Owner preset) the recent invoices are Needs you’s, and Add’s Invoice opens the form', async ({ page }) => {
+    // No layout of the device's own: the board is the Owner preset (UI pass 3, U2), which carries neither the recent invoices
+    // (Needs you lists them) nor the quick actions; Add, the bar's centre door, holds Invoice among its by-hand forms.
+    await page.addInitScript(() => { try { localStorage.removeItem('sep_inv_layout'); localStorage.removeItem('sep_inv_home'); } catch { /* none */ } });
     await loadAppWithState(page, emptyState());
-    await openPulse(page);
-    await expect(page.locator('[data-home-w="recent"]')).toBeHidden();
-    await page.locator('[data-home-w="quick"] [data-action="invCreateNew"]').first().click();
+    await openHome(page);
+    await expect(page.locator('#homeBoard [data-w="recent"]')).toHaveCount(0);
+    await page.locator('[data-action="invAddOpen"]:visible').first().click();
+    await page.locator('[data-action="invAddHand"][data-go="invoice"]').click();
     await expect(page.locator('#pageCreate.inv-page-active')).toBeVisible();
   });
 

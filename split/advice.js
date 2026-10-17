@@ -173,7 +173,7 @@ function advRepriceDraft(clientId, target, inv, basis) {
     return { item: item, partNumber: r.part, desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' };
   });
   if (!lines.length) lines = [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: gstRound(target), refWeightKg: null, note: '' }];
-  return { lines: lines, unweighed: unweighed, note: 'Drafted from the Pulse on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
+  return { lines: lines, unweighed: unweighed, note: 'Drafted from Home on ' + formatDate(today) + ': ' + formatCurrency(target) + '/kg, the full cost ' + (basis || 'then') };
 }
 /* Ask a client below the full cost for the full cost, a quotation drafted with its largest parts. */
 function advRepriceMove(ctx, x) {
@@ -305,9 +305,10 @@ function advQSmooth(ctx) {
     : { tone: 'ok', say: 'Yes: nothing stands in the way this week.' };
   var byTone = { red: 0, amber: 0, info: 0 };
   moves.forEach(function(mv) { if (byTone[mv.tone] != null) byTone[mv.tone]++; });
-  // The card as a tile on Today → Pulse (§6.21): how many things could stop the plant, coded by how soon.
+  // The card as a widget on Home (§6.21; Pulse's tile until UI pass 3): how many things could stop the plant, coded by how soon.
   var vital = { fig: String(moves.length), title: moves.length ? (moves.length === 1 ? 'thing could stop it' : 'things could stop it') : 'Nothing in the way',
-    sub: escHtml(moves.slice(0, 3).map(function(mv) { return mv.what; }).join(', ')),
+    // No words under the figure: the story's sentence under it names the same things (Home's widget draws both).
+    sub: '',
     viz: moves.length ? chartMeter([{ v: byTone.red, tone: 'danger' }, { v: byTone.amber, tone: 'warning' }, { v: byTone.info, tone: 'info' }],
       { title: [byTone.red ? byTone.red + ' to act on now' : '', byTone.amber ? byTone.amber + ' soon' : '', byTone.info ? byTone.info + ' to know' : ''].filter(Boolean).join(' · ') }) : '',
     tone: moves.length ? uiTone(worst === 'ok' ? 'info' : worst) : 'ok' };
@@ -480,7 +481,7 @@ function advPlantMoves(ctx) {
         worth: spare > 0 ? { amount: spare * (rate - base), sign: 1, per: 'period', label: 'on the period’s ' + advKg(spare) + ' spare' } : null,
         basis: 'the full cost ' + ctx.words + ' ' + formatCurrency(m.fullKg) + '/kg × 1.1' + (m.varKg != null ? ' · the variable cost ' + formatCurrency(m.varKg) + '/kg' : ''),
         go: { kind: 'quoteDraft', lines: [{ item: '', partNumber: '', desc: '', basis: 'kg', rate: rate, refWeightKg: null, note: '' }],
-          note: 'Drafted from the Pulse on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
+          note: 'Drafted from Home on ' + formatDate(ctx.today) + ': ' + formatCurrency(rate) + '/kg, the full cost then and 10%' },
         goLabel: 'Draft quotation', task: 'Quote new work at ' + formatCurrency(rate) + '/kg' });
     }
     // The line with the most working days and no plating on record, the last 30 days or since the record began: a day
@@ -573,8 +574,8 @@ function advChangedMoves(ctx, card) {
 
 /* ---------- The questions ---------- */
 /* The six questions in order, each {key, q, html, answer: {tone, say}, vital, moves, none, hints}: `html` the card's body
-   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Today →
-   Pulse draws them (today.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
+   (statsStoryCards, intel.js, for the five Stats' Overview had), `moves` what can be done, worked out from the book. Home's
+   question widgets draw them (widgetcards.js). `range` is a period ('mtd'…) or statsPulseArgs' object. */
 function advQuestions(range) {
   var a = range && typeof range === 'object' ? range : statsPulseArgs(range || _statsPeriod);
   var ctx = advCtx(a);
@@ -768,7 +769,7 @@ function advMovesHtml(moves, listKey, n) {
   var listed = advListedKeys();
   return uiMoreHtml('adv-' + listKey, moves.map(function(mv) { return advMoveRowHtml(mv, listed); }), { n: n || ADV_SHOW, noun: moves.length - (n || ADV_SHOW) === 1 ? 'move' : 'moves' });
 }
-/* A move as a card (§6.22, Today → Pulse): its mark and what it answers in the head with its worth, the move and what it
+/* A move as a card (§6.22, Home's questions): its mark and what it answers in the head with its worth, the move and what it
    rests on, its button and Add to my list at the foot. The same keys and refs as its row, so a tap acts as the row's does. */
 function advMoveCardHtml(mv, listed, word) {
   var ref = ' data-adv-row="' + escHtml(advRowRef(mv)) + '"';
@@ -779,7 +780,9 @@ function advMoveCardHtml(mv, listed, word) {
     '<div class="inv-deck-head">' + todoGlyph(mv.tone) + '<span class="inv-deck-word">' + escHtml(word || (mv.tone === 'red' || mv.tone === 'amber' ? TODO_TONE_WORD[mv.tone] : 'To know')) + '</span>' +
     (mv.worth && mv.worth.amount > 0.005 ? '<span class="inv-deck-fig">' + figHtml('<span class="inv-num" data-adv-worth>' + (mv.worth.sign < 0 ? '&minus;' : '+') + escHtml(advRs(mv.worth.amount)) + '</span>', mv.worth.sign < 0 ? 'danger' : 'ok') + '</span>' : '') + '</div>' +
     '<div class="inv-deck-body"><span class="inv-deck-title">' + escHtml(mv.say) + '</span>' +
-    ((mv.worth && mv.worth.amount > 0.005 && advWorthLabel(mv.worth)) || mv.basis ? '<span class="inv-deck-sub">' + escHtml([mv.worth && mv.worth.amount > 0.005 ? advWorthLabel(mv.worth) : '', mv.basis || ''].filter(Boolean).join(' · ')) + '</span>' : '') + '</div>' +
+    // What the worth is counted over, then what the move rests on: a line each, never one run-on line (P195's blocks).
+    (mv.worth && mv.worth.amount > 0.005 && advWorthLabel(mv.worth) ? '<span class="inv-deck-sub" data-adv-over>' + escHtml(advWorthLabel(mv.worth)) + '</span>' : '') +
+    (mv.basis ? '<span class="inv-deck-sub" data-adv-basis>' + escHtml(mv.basis) + '</span>' : '') + '</div>' +
     '<div class="inv-deck-foot">' + btn + add + '</div></article>';
 }
 /* Moves as a deck: the first `n` (all where none is given), the rest one tap away. */

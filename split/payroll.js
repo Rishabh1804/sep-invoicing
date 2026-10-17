@@ -1162,22 +1162,21 @@ function attDayPanelHtml(d, headBtn, id) {
   if (d.extraH) h += '<div class="inv-row"><span class="inv-row-main">EXTRA booked</span><span class="inv-row-end inv-num">' + formatNum(d.extraH, 1) + ' h</span></div>';
   return h + '</div>';
 }
-/* Pulse's Attendance as a hero: who is on site against the roster, judged at the rest-day gate's 90% and 80%, the floor
-   against its number, the day as a bar of present, half, absent and unmarked; the panel's tiles and rows under it. */
-function renderAttHomeCard() {
-  var el = document.getElementById('homeAttCard');
-  if (!el) return;
-  if (!staffActive().length) { el.innerHTML = ''; return; }
+/* Attendance today as a hero's options (Home's atttoday widget, widgetcards.js; Pulse's card until UI pass 3): who is on site
+   against the roster, judged at the rest-day gate's 90% and 80%, the floor against its number, the day as a bar of present, half,
+   absent and unmarked; the panel's tiles and rows under it (#homeAtt, #homeAttOnSite). Null with no roster. */
+function attHomeOpts() {
+  if (!staffActive().length) return null;
   var d = attDaySummary(), n = d.roster.length, on = d.p + d.half;
   var tone = attOnSiteTone(d);
   var meter = d.marked ? chartMeter([{ v: d.p, tone: 'ok' }, { v: d.half, tone: 'warning' }, { v: d.absent.length, tone: 'danger' }, { v: d.unmarked, tone: 'neutral' }],
     { title: d.p + ' present · ' + d.half + ' half day · ' + d.absent.length + ' absent' + (d.unmarked ? ' · ' + d.unmarked + ' unmarked' : '') }) : '';
   var floor = d.complement ? d.floorHeads + ' of ' + d.complement + ' on the floor' + (d.short ? ', ' + (d.complement - d.floorHeads) + ' short' : '') : '';
-  el.innerHTML = uiHeroHtml({ tone: d.marked ? tone || 'ok' : 'neutral',
+  return { tone: d.marked ? tone || 'ok' : 'neutral',
     eyebrow: '<span>Attendance</span><span class="inv-panel-count">' + (d.today ? 'today' : escHtml(attDayName(d.iso) + ' ' + formatDate(d.iso))) + '</span>',
     title: d.marked ? escHtml(on + ' of ' + n + ' on site') : 'Nothing recorded yet',
     sub: escHtml([floor, d.marked ? todoPlural(d.absent.length, 'absent', 'absent') : ''].filter(Boolean).join(' · ')), viz: meter,
-    fold: 'pulse-attendance', open: !!_isDesktop, attrs: ' data-card="attendance"',
+    attrs: ' data-card="attendance"', marked: d.marked, on: on, n: n, day: d,
     body: d.marked ? '<div class="inv-hero-sheet">' + attDayPanelHtml(d, null, 'homeAtt') + '</div>' : null,
-    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' });
+    foot: '<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invPayOpenAtt">Open</button>' };
 }

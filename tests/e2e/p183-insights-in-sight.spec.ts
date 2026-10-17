@@ -27,7 +27,7 @@ test.describe('P183: a group of a workspace\'s views is named where the phone ca
       await page.setViewportSize({ width, height: 800 });
       await loadAppWithState(page, emptyState());
       await page.locator('.inv-navbar [data-action="invWsGo"][data-ws="today"]').click();
-      const a = await rects(page, '[data-v="pulse"]');
+      const a = await rects(page, '[data-v="needs"]');
       expect(a.group).toBe('rule');
       expect(a.over).toBe(false);
       // The rule stands after Pulse's word and before Stats; Planner, the last, is wholly in sight.

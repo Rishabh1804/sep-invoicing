@@ -58,16 +58,17 @@ var SRCH_KIND_WORDS = { invoice: 'invoice inv', challan: 'challan ch', client: '
   worker: 'worker', stock: 'stock', bank: 'bank', quote: 'quotation quote qtn', cn: 'credit note cn', kb: 'knowledge article how why' };
 
 /* The workspaces (Direction B) and the screens Go to lists for each, first one first: G then the letter opens the first
-   that this build holds. Since the tab map (9 Oct 2026) the Insights are a group in Today's row, Sales ends Office's, and
-   History and Knowledge are the top bar's tools, in no workspace. */
+   that this build holds; the fourth is the workspace's id (its door's data-ws). Since the tab map (9 Oct 2026) the Insights are
+   a group in Home's row, Sales ends Office's, and History and Knowledge are the top bar's tools, in no workspace. Home was Today
+   until UI pass 3 (U2): G T still opens it, unlisted, for the hands that learnt it. */
 var SRCH_SPACES = [
-  ['t', 'Today', ['needs', 'pulse', 'stats', 'reports', 'planner']],
-  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'sales']],
-  ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power']],
-  ['m', 'Money', ['money']]
+  ['h', 'Home', ['home', 'needs', 'stats', 'reports', 'planner'], 'today'],
+  ['o', 'Office', ['pipeline', 'im', 'register', 'clients', 'sales'], 'office'],
+  ['f', 'Floor', ['floor', 'people', 'production', 'stock', 'power'], 'floor'],
+  ['m', 'Money', ['money'], 'money']
 ];
 /* Screens of their own key: Invoices (R), Challans (C), and Stats (I, the key Insights had while it was a workspace). */
-var SRCH_G_MORE = { r: ['register'], c: ['im'], i: ['stats'] };
+var SRCH_G_MORE = { r: ['register'], c: ['im'], i: ['stats'], t: ['home'] };
 
 /* ---------- Folding ---------- */
 /* An identifier folded: case, spaces and punctuation out, each run of digits without its leading zeros, so 00834 is 834
@@ -113,11 +114,11 @@ function srchScreens() {
   var at = function(tab, v) { return { kind: 'place', loc: { tab: tab, v: v || '', id: '' } }; };
   var act = function(a) { return { kind: 'act', act: a }; };
   var list = [
-    ['needs', 'Needs you', 'Today', 'home today dashboard inputs', at('pageHome', 'needs')],
-    ['pulse', 'Pulse', 'Today', 'home questions what to do widgets why it moved in one line pace contribution capacity overview', at('pageHome', 'pulse')],
+    ['home', 'Home', 'Home', 'dashboard today pulse widgets customise clock weather news tata questions what to do why it moved figures pace contribution capacity overview', at('pageHome', 'home')],
+    ['needs', 'Needs you', 'Home', 'today inputs tasks inbox', at('pageHome', 'needs')],
     // The To-do joined Needs you (the tab map, TM2a): its tasks are there, its Done a fold there.
-    ['todo', 'Your tasks', 'Today › Needs you', 'tasks todo to-do my list needs you', at('pageHome', 'needs')],
-    ['todo-done', 'Done tasks', 'Today › Needs you', 'tasks todo to-do ticked done', { kind: 'act', act: 'todoDone' }],
+    ['todo', 'Your tasks', 'Home › Needs you', 'tasks todo to-do my list needs you', at('pageHome', 'needs')],
+    ['todo-done', 'Done tasks', 'Home › Needs you', 'tasks todo to-do ticked done', { kind: 'act', act: 'todoDone' }],
     ['pipeline', 'Pipeline', 'Office', 'awaiting created printed dispatched delivered owed stages', at('pagePipeline')],
     ['im', 'Challans', 'Office · was IM', 'im incoming material awaiting invoice', at('pageIM', 'awaiting')],
     ['im-invoiced', 'Challans, invoiced', 'Office · was IM', 'im incoming material billed', at('pageIM', 'invoiced')],
@@ -160,20 +161,20 @@ function srchScreens() {
     ['bills', 'Bills', 'Money › Payments', 'electricity bills power bill other bills', at('pageFinance', 'payments')],
     ['cheques', 'Cheques received', 'Money › Receivables', 'cheque in hand received not deposited', at('pageFinance', 'receipts')],
     ['gst', 'GST', 'Money', 'gstr tax return output', at('pageFinance', 'gst')],
-    ['stats', 'Stats', 'Today', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
-    ['stats-clients', 'By client', 'Today › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
-    ['live-cost', 'Live cost', 'Today › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
+    ['stats', 'Stats', 'Home', 'statistics realisation tonnage insights', at('pageStats', 'clients')],
+    ['stats-clients', 'By client', 'Home › Stats', 'stats clients contribution realisation concentration revenue', at('pageStats', 'clients')],
+    ['live-cost', 'Live cost', 'Home › Stats', 'cost per kg labour chemicals zinc power', at('pageStats', 'cost')],
     ['stats-billing', 'Dispatch cycle', 'Office › Pipeline', 'dispatch delivered cycle days invoice states', at('pagePipeline')],
-    ['trends', 'Trends', 'Today › Stats', 'trend chart top items headline six months', at('pageStats', 'trends')],
-    ['reports', 'Reports', 'Today', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
-    ['planner', 'Planner', 'Today', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
-    ['planner-ledger', 'Planner ledger', 'Today › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
-    ['planner-day', 'A day, simulated', 'Today › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
-    ['planner-plant', 'Upgrade trees', 'Today › Planner › Moves', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'moves/plant')],
-    ['planner-tech', 'Tech tree', 'Today › Planner › Moves', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'moves/tech')],
-    ['planner-staff', 'Planner staff', 'Today › Planner › Moves', 'hire specialist lab hand night crew training', at('pagePlanner', 'moves/staff')],
-    ['planner-clients', 'Planner clients', 'Today › Planner › Moves', 'ask rate held back work certificates turnaround', at('pagePlanner', 'moves/clients')],
-    ['planner-finance', 'Planner finance', 'Today › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
+    ['trends', 'Trends', 'Home › Stats', 'trend chart top items headline six months', at('pageStats', 'trends')],
+    ['reports', 'Reports', 'Home', 'report daily weekly monthly quarterly yearly print insights', at('pageReports')],
+    ['planner', 'Planner', 'Home', 'planner simulation plan game scenario strategy loan certification cqi-11 iso upgrade insights', at('pagePlanner', 'play')],
+    ['planner-ledger', 'Planner ledger', 'Home › Planner', 'month by month margin adds up scenario', at('pagePlanner', 'ledger')],
+    ['planner-day', 'A day, simulated', 'Home › Planner', 'day rounds lines hours overtime simulation', at('pagePlanner', 'day')],
+    ['planner-plant', 'Upgrade trees', 'Home › Planner › Moves', 'machines upgrade tree plant equipment rectifier barrel pickling inverter', at('pagePlanner', 'moves/plant')],
+    ['planner-tech', 'Tech tree', 'Home › Planner › Moves', 'tech tree cqi-11 iso 9001 iatf checklist certification', at('pagePlanner', 'moves/tech')],
+    ['planner-staff', 'Planner staff', 'Home › Planner › Moves', 'hire specialist lab hand night crew training', at('pagePlanner', 'moves/staff')],
+    ['planner-clients', 'Planner clients', 'Home › Planner › Moves', 'ask rate held back work certificates turnaround', at('pagePlanner', 'moves/clients')],
+    ['planner-finance', 'Planner finance', 'Home › Planner › Moves', 'loan lenders interest instalment rates heard', at('pagePlanner', 'moves/finance')],
     // History and Knowledge are tools in the top bar on every screen, in no section (the tab map).
     ['history', 'History', 'Top bar', 'activity log audit trail events', at('pageHistory')],
     ['know', 'Knowledge', 'Top bar', 'knowledge base how to guide help training rulings', at('pageKnow', 'start')],
@@ -967,7 +968,7 @@ function srchKeysOpen() {
   var k = srchKbd, or = function(a, b) { return a + ' or ' + b; };
   var groups = [
     ['When no field has focus', [['Search', or(k('Ctrl K'), k('/'))], ['Add', k('A')], ['New invoice', k('N')], ['New challan', k('C')], ['This list', k('?')]]],
-    ['G, then a letter', [['Today', k('G') + k('T')], ['Office', k('G') + k('O')], ['Floor', k('G') + k('F')], ['Money', k('G') + k('M')],
+    ['G, then a letter', [['Home', k('G') + k('H')], ['Office', k('G') + k('O')], ['Floor', k('G') + k('F')], ['Money', k('G') + k('M')],
       ['Invoices', k('G') + k('R')], ['Challans', k('G') + k('C')], ['Stats', k('G') + k('I')]]],
     ['Invoices and Challans', [['Next row', k('J')], ['Previous row', k('K')], ['Open the row', k('Enter')], ['Close the pane', k('Esc')]]],
     ['Search', [['Move', k('\u2191') + k('\u2193')], ['Open', k('Enter')], ['Open in a new window', k('Ctrl') + k('Enter')]]],
@@ -1029,14 +1030,14 @@ function srchLocOf(el) {
   var act = a.dataset.action, d = a.dataset;
   if (act === 'invSearchPick') { var s = _srch && _srch.shown[+d.n]; return s && s.e ? srchEntryLoc(s.e) : null; }
   if (a.closest('.inv-scrim')) return null;
-  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Today's Needs you and Pulse). They
-  // carried data-sub before Direction B, and Pulse opened in a new window as Needs you (QA3-7).
+  // A door to a page: the workspace's tab row and the sidebar carry a view as data-v (Home's dashboard and Needs you). They
+  // carried data-sub before Direction B, and a view opened in a new window as the page's first (QA3-7).
   if (act === 'invSwitchTab') return isPageId(d.tab) ? { tab: d.tab, v: d.v || '', id: '' } : null;
-  // The rail's mark opens Pulse, as the sidebar's Pulse entry did before the rail; the top bar's History, History.
-  if (act === 'invGoPulse') return { tab: 'pageHome', v: 'pulse', id: '' };
+  // The rail's mark opens Home's dashboard (invGoPulse its old name, UI pass 3); the top bar's History, History.
+  if (act === 'invGoHome' || act === 'invGoPulse') return { tab: 'pageHome', v: 'home', id: '' };
   if (act === 'invGoHistory') return { tab: 'pageHistory', v: '', id: '' };
   if (act === 'invWsGo') {
-    var sp = SRCH_SPACES.find(function(x) { return x[1].toLowerCase() === String(d.ws || '').toLowerCase(); });
+    var sp = SRCH_SPACES.find(function(x) { return x[3] === String(d.ws || ''); });
     var go = sp ? srchGTarget(sp[0]) : null;
     return go && go.kind === 'place' ? go.loc : null;
   }

@@ -1,30 +1,35 @@
-/* ===== TODAY: NEEDS YOU AND PULSE (Direction B, step 3; P135) =====
-   Owner, 1 Oct 2026 (docs/DIRECTION_B.md): Home becomes Today, two views of pageHome.
+/* ===== HOME: THE DASHBOARD AND NEEDS YOU (Direction B, step 3; UI pass 3, U2; P135, P223) =====
+   Owner, 1 Oct 2026 (docs/DIRECTION_B.md), then 15–16 Oct 2026 (docs/UI_PASS_3.md §8: "a Home page and dashboard for it as
+   well, a clean, live and informative dashboard. It should show the time, some predictions, some news"). Two views of pageHome:
+   - Home, the dashboard (the default): the day card, Home's verdict (the greeting, the clock ticking on the minute, the general
+     shift's end, the weather now, the first thing that needs the owner), then one toolbar row (the period, Customise, More), then
+     the board of widgets each person arranges (widgets.js, widgetcards.js). Pulse's questions, Do first, Why it moved, the
+     period in figures and the month's pace are widgets on it.
    - Needs you, the inbox:
      - the day's inputs, each saying whether it is in and, if not, when it usually arrives, with the one tap that brings it
        (Add's paste box, the hand form for the register's page);
      - on the desktop, the floor now;
      - the last five invoices, each with its print button;
      - every open task, grouped Now / This week / Later, each with its one-tap move.
-   - Pulse: the six questions with what to do (advice.js), then the widgets the owner arranged (tabs.js), with Edit.
 
-   The views are pageHome's own `v` (?tab=pageHome&v=pulse). The shell (workspace.js) draws their tabs once homeViews
-   says they exist, and nav.js reads and applies the view. Nothing here is stored and nothing is worked out twice: each
-   figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine, powerCuts, todoRanked,
-   advTaskMoves, advQuestions, whyHtml, statsOverviewHtml, paceCardHtml). What a role may not open is not offered (guard.js): an input whose screen it does not open,
-   a task it may not see (todo.js todoSees), and Pulse's money is the finance permission's. */
+   The views are pageHome's own `v` (?tab=pageHome&v=needs; an old ?v=pulse opens the dashboard, nav.js NAV_REDIRECTS). The shell
+   (workspace.js) draws their tabs once homeViews says they exist, and nav.js reads and applies the view. Nothing here is stored and
+   nothing is worked out twice: each figure comes from the function its own screen uses (attDaySummary, prodDayLoads, prodDayLine,
+   powerCuts, todoRanked, advTaskMoves, finForecast, pltCapacity, predMonthPace). What a role may not open is not offered
+   (guard.js): an input whose screen it does not open, a task it may not see (todo.js todoSees), a widget it may not see. */
 
-var TDY_VIEWS = [{ v: 'needs', label: 'Needs you' }, { v: 'pulse', label: 'Pulse' }];
+var TDY_VIEWS = [{ v: 'home', label: 'Home' }, { v: 'needs', label: 'Needs you' }];
 var TDY_SHOW = 10;            // a group of tasks shows its first ten; the rest one tap away (uiMoreHtml)
 var TDY_LATE_MIN = 45;        // an input this long past its usual time is amber
 var TDY_LEARN_DAYS = 28;      // the usual time is read off the last four weeks
 var TDY_MIN_SEEN = 3;         // under three days seen, the usual time is the shop's own (TDY_INPUTS' `usual`)
-var _tdyView = 'needs';
+var _tdyView = 'home';
 
-/* The shell draws Today's two tabs once this says it has them (workspace.js, wsViewsPresent). */
+/* The shell draws Home's two tabs once this says it has them (workspace.js, wsViewsPresent). The dashboard is the default; an
+   old view's name (Pulse's) is the dashboard. */
 function homeViews() { return TDY_VIEWS.slice(); }
-function tdyView() { return _tdyView === 'pulse' ? 'pulse' : 'needs'; }
-function tdySetView(v) { _tdyView = v === 'pulse' ? 'pulse' : 'needs'; }
+function tdyView() { return _tdyView === 'needs' ? 'needs' : 'home'; }
+function tdySetView(v) { _tdyView = v === 'needs' ? 'needs' : 'home'; }
 
 /* What a role may see on Today. With the guard off, everything (guard.js answers yes). */
 function tdySees(tabId) { return typeof grdSees !== 'function' || grdSees(tabId); }
@@ -166,7 +171,7 @@ function tdyInput(def, day) {
 }
 var TDY_STATE_DOT = { in: ['ok', 'In'], part: ['neutral', 'Part'], wait: ['neutral', 'Not yet'], late: ['warning', 'Late'], off: ['neutral', 'Not expected'] };
 var TDY_INPUT_SHORT = { 'roll-in': 'In-time roll', pickling: 'Pickling loads', stock: 'Stock message', production: 'Production records', 'roll-out': 'Out-time roll' };
-var TDY_CHECK_SVG = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + ICONS.check + '</svg>';   // a tick inside a step's small dot: the set's check, heavier to read at its size
+var TDY_CHECK_SVG = iconSvg('check', 'inv-ico-bold');   // a tick inside a step's small dot: the set's check, heavier to read at its size
 /* An input's line on its step: what came, or when it is looked for (owner, 8 Oct 2026: less to read). */
 function tdyStepMeta(r) {
   if (r.state === 'in' || r.state === 'off') return r.text;
@@ -458,66 +463,190 @@ function tdyRecentHead(list) {
     title: escHtml(made.length ? todoPlural(made.length, 'invoice') + ' made today' : last ? 'The last made ' + formatDate(last.date) : 'No invoices yet'),
     fig: made.length && tdySeesMoney() ? figWrapHtml(escHtml(formatCurrency(sum))) : '' };
 }
-/* Pulse: the questions as hero tiles (§6.21), read for the period Stats shows (statsPulseArgs): each says its answer in a
-   figure, a word and a small chart, and opens, across its row, to the whole story and what can be done about it. Then the
-   moves worth most across every question, then what was Stats → Overview's (the tab map, TM2b): why the period moved, the
-   period in one line and the month's pace, each a hero shut on the phone. Its head is the period, one with Stats', and More:
-   Make a report and Open Stats where the role opens them, and Edit Home. Without the finance permission there are no questions,
-   since every one reads money, and the head is Edit Home alone. */
+/* ---------- Home, the dashboard (docs/UI_PASS_3.md §8b, §8c) ----------
+   The day card leads (Home's verdict), then one toolbar row, then the board of widgets (widgets.js), then the foot's door to the
+   gallery. The questions Pulse asked are widgets now (widgetcards.js: q-*, dofirst, why, figures, pace); the moves worth most across
+   them are worked out here once a draw (tdyFirstMoves), for the dofirst widget. */
 var TDY_Q_WORD = { smooth: 'Running', money: 'Money', clients: 'Clients', plant: 'Capacity', cash: 'Cash', changed: 'What changed' };
-function renderPulseQuestions() {
-  var el = document.getElementById('homeQuestions');
-  if (!el) return;
-  if (!tdySeesMoney()) {
-    el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head><button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invHomeEdit">Edit Home</button></div>';
-    return;
+/* The questions for the period the board shows, worked out once a book, a period and a person (wdgMemo). */
+function tdyQuestions() {
+  if (!tdySeesMoney()) return [];
+  var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
+  return wdgMemo('tdy-questions', function() {
+    try { return advQuestions(statsPulseArgs(per)); } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Home questions'); return []; }
+  });
+}
+/* The moves worth most across every question, best first: what to do first, before reading any answer. Each keeps the word of
+   the question it came from. */
+function tdyFirstMoves(qs, n) {
+  var from = {}, all = [];
+  (qs || []).forEach(function(q) { if (!q.inline) (q.moves || []).forEach(function(mv) { if (!from[mv.key]) { from[mv.key] = q.key; all.push(mv); } }); });
+  return advRank(all, null).slice(0, n || 3).map(function(mv) { return { mv: mv, word: TDY_Q_WORD[from[mv.key]] }; });
+}
+
+/* The day card (§8b): the greeting and the date, the clock with the general shift's end under it, the weather now, and the first
+   of what holds as its verdict, the next two as its facts. Its tone is the worst of them. A role without money reads only what
+   it may (the forecast and the pace are money). */
+function homeGreeting(now) {
+  var h = now.getHours(), part = h < 12 ? 'morning' : h < 17 ? 'afternoon' : 'evening';
+  var u = typeof grdUser === 'function' ? grdUser() : null, name = u && u.name ? String(u.name).trim().split(/\s+/)[0] : '';
+  var day = now.toLocaleDateString('en-IN', { weekday: 'long' }) + ', ' + now.getDate() + ' ' + now.toLocaleDateString('en-IN', { month: 'long' });
+  return 'Good ' + part + (name ? ', ' + name : '') + ' · ' + day;
+}
+/* The clock (9:42 AM, 2:00 PM: a clock keeps its minutes, where a roll's time drops ":00"), and the general shift's end: "General
+   shift ends 5:00 PM · 7 h 18 min", or that it has ended. The shift is the roll's own (relay.js: 8:30 AM to 5:00 PM). */
+function homeClockMin(m) { var h = Math.floor(m / 60) % 24, mm = m % 60; return (h % 12 || 12) + ':' + String(mm).padStart(2, '0') + ' ' + (h < 12 ? 'AM' : 'PM'); }
+function homeClockText(now) { return homeClockMin(now.getHours() * 60 + now.getMinutes()); }
+function homeShiftText(now) {
+  var m = now.getHours() * 60 + now.getMinutes(), end = RELAY_GENERAL_OUT, start = RELAY_GENERAL;
+  if (m >= end) return 'The general shift has ended';
+  if (m < start) return 'General shift starts ' + homeClockMin(start);
+  var left = end - m, h = Math.floor(left / 60), mm = left % 60;
+  return 'General shift ends ' + homeClockMin(end) + ' · ' + [h ? h + ' h' : '', mm ? mm + ' min' : ''].filter(Boolean).join(' ');
+}
+/* What may lead the day card, in the order it leads: each {tone, text, money}. */
+function homeDayFacts() {
+  var out = [], today = localDateStr(), money = tdySeesMoney();
+  if (money && tdySees('pageFinance') && typeof finHasBank === 'function' && finHasBank()) {
+    try {
+      var fc = finForecast(60);
+      if (fc && fc.overdrawn) out.push({ tone: 'danger', text: 'The bank account is overdrawn', money: true });
+      else if (fc && fc.cross && isoDaysBetween(today, fc.cross) <= 14) out.push({ tone: 'danger', text: 'Cash dips below zero on ' + stockShortDate(fc.cross), money: true });
+    } catch (e) { /* the forecast's own screen says what went wrong */ }
+  }
+  var red = tdyTasks().filter(function(r) { return r.tone === 'red'; }).length;
+  if (red) out.push({ tone: 'danger', text: todoPlural(red, 'thing needs', 'things need') + ' you now' });
+  if (tdySees('pageProduction') && typeof pltCapacity === 'function') {
+    PROD_LINES.forEach(function(l) {
+      try {
+        var c = pltCapacity(l, null, true);
+        if (c && c.n >= 2 && c.down.length * 2 >= c.n) out.push({ tone: 'danger', text: prodLineName(l) + ': ' + c.down.length + ' of ' + c.n + ' down' });
+      } catch (e) { /* the plant register says what went wrong */ }
+    });
+  }
+  if (money && tdySees('pageRegister') && typeof predMonthPace === 'function') {
+    try {
+      var p = predMonthPace();
+      if (p && p.prevRev > 0) {
+        var ahead = p.projRev >= p.prevRev;
+        out.push({ tone: ahead ? 'ok' : 'warning', text: 'On pace for ' + formatInrShort(p.projRev) + ', ' + (ahead ? 'ahead of ' : 'behind ') + p.prevLabel, money: true });
+      }
+    } catch (e) { /* the pace's own widget says what went wrong */ }
+  }
+  return out;
+}
+var HOME_TONE_RANK = { danger: 3, warning: 2, ok: 1, info: 1, neutral: 0 };
+function homeDayCardHtml() {
+  var now = new Date(), facts = homeDayFacts(), lead = facts[0] || { tone: 'ok', text: 'Nothing needs you now' };
+  var rest = facts.slice(1, 3), tone = [lead].concat(rest).map(function(f) { return f.tone; })
+    .sort(function(a, b) { return (HOME_TONE_RANK[b] || 0) - (HOME_TONE_RANK[a] || 0); })[0] || 'ok';
+  var open = tdyTasks().length;
+  var links = ['<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invSwitchTab" data-tab="pageHome" data-v="needs" data-home-needs>Open Needs you' +
+    (open ? ' · ' + open : '') + '</button>'];
+  if (tdySees('pageReports')) links.push('<button class="inv-btn inv-btn-link inv-btn-sm" data-action="invHomeReport">Make today’s report</button>');
+  var wx = typeof feedWeatherVizHtml === 'function' ? feedWeatherVizHtml() : '';
+  return uiVerdictHtml({ key: 'home-day', screen: homeGreeting(now), verdict: lead.text, tone: tone,
+    fig: '<span class="inv-homeday-clock" data-home-clock>' + escHtml(homeClockText(now)) + '</span>' +
+      '<span class="inv-homeday-shift" data-home-shift>' + escHtml(homeShiftText(now)) + '</span>',
+    viz: wx ? '<span class="inv-homeday-wx" data-home-wx>' + wx + '</span>' : '',
+    facts: rest.map(function(f) { return { text: f.text, tone: f.tone }; }), links: links, attrs: ' data-home-day' });
+}
+/* The day card drawn again in place (a task ticked on the board changes what leads it and its count), its clock running on. */
+function homeDayRefresh() {
+  var host = document.querySelector('#homeDash [data-home-daycard]');
+  if (!host || !host.isConnected || typeof grdHeld === 'function' && grdHeld()) return;
+  keepScroll(function() { host.innerHTML = homeDayCardHtml(); });
+  homeClockTick();
+}
+/* The clock ticks on the minute while the dashboard is drawn and visible (§8b): it sets the two texts, waits to the next minute and
+   then every 60 s, and stops when the page is hidden or Home is left; coming back sets them at once. Only the two texts change: no
+   node is added, so nothing that watches the page is woken. */
+var _homeClockT = null;
+function homeClockTick() {
+  var c = document.querySelector('#homeDash [data-home-clock]'), s = document.querySelector('#homeDash [data-home-shift]');
+  if (!homeClockShown(c)) { homeClockStop(); return; }
+  var now = new Date(), ct = homeClockText(now), st = homeShiftText(now);
+  if (c.textContent !== ct) c.textContent = ct;
+  if (s && s.textContent !== st) s.textContent = st;
+}
+/* The clock on screen: drawn, on the page shown, its view not hidden and the window in view. */
+function homeClockShown(c) {
+  c = c || document.querySelector('#homeDash [data-home-clock]');
+  return !!(c && c.isConnected && c.closest('.inv-page-active') && !c.closest('.inv-hidden') && !document.hidden);
+}
+function homeClockStart() {
+  homeClockStop();
+  if (!homeClockShown()) return;
+  homeClockTick();
+  homeFeedsAsk();
+  var wait = 60000 - (Date.now() % 60000);
+  _homeClockT = setTimeout(function next() {
+    homeClockTick();
+    if (_homeClockT === null) return;   // Home went out of view: the tick stopped the clock, and nothing is asked
+    homeFeedsAsk();
+    _homeClockT = setTimeout(next, 60000 - (Date.now() % 60000));
+  }, wait);
+}
+/* The news and the weather are asked for when Home is drawn, and on the minute while it shows: feeds.js asks only for a copy over
+   30 minutes old, never offline, hidden or twice within the minute (§9b). */
+function homeFeedsAsk() { if (typeof feedEnsure === 'function') { try { feedEnsure(); } catch (e) { /* a feed failing is not Home failing */ } } }
+/* A copy landed: the day card's weather is drawn again with it (the board's feed widgets draw themselves, widgets.js). */
+document.addEventListener('sep-feeds', function(e) { if (!(e.detail && e.detail.busy)) homeDayRefresh(); });
+function homeClockStop() { if (_homeClockT) clearTimeout(_homeClockT); _homeClockT = null; }
+document.addEventListener('visibilitychange', function() {
+  if (document.hidden) { homeClockStop(); return; }
+  var dash = document.getElementById('homeDash');
+  if (dash && !dash.classList.contains('inv-hidden') && dash.closest('.inv-page-active')) homeClockStart();
+});
+
+/* The board's toolbar (§8c): the period (one with Stats'), Customise and More (Make a report, Open Stats, Reset Home). Arranging,
+   the toolbar is Add a widget, Reset and Done, the one primary. A door the role does not open is not offered. */
+function homeToolbarHtml() {
+  if (wdgArrangeOn('home')) {
+    return '<div class="inv-toolbar" data-home-toolbar data-arranging>' +
+      '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgGallery" data-board="home">' + iconSvg('plus') + '<span>Add a widget</span></button>' +
+      '<button class="inv-btn inv-btn-ghost inv-btn-sm" data-action="invWdgReset" data-board="home">Reset</button>' +
+      '<button class="inv-btn inv-btn-primary inv-btn-sm" data-action="invWdgDone" data-board="home">Done</button></div>';
   }
   var per = typeof _statsPeriod === 'string' ? _statsPeriod : 'mtd';
-  var a = null, qs = [], cards = '';
-  try { a = statsPulseArgs(per); qs = advQuestions(a); } catch (e) { qs = []; if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
-  if (a) [function() { return whyHtml(per, a.filtered, a.prior); }, function() { return statsOverviewHtml(per, a.filtered, a.tonnage); }, paceCardHtml].forEach(function(f) {
-    try { cards += f() || ''; } catch (e) { if (typeof errReport === 'function') errReport(e, 'render: Pulse'); }
-  });
-  // One toolbar row on both layouts (§1a-10): the period, and More with the rest (Edit Home was a toolbar at the foot). A door to
-  // a page the role does not open is not offered: More's rows wait in a template, where the guard's doors cannot reach them.
-  el.innerHTML = '<div class="inv-toolbar" data-tdy-pulse-head>' +
-    statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') +
-    uiToolbarMoreHtml([tdySees('pageReports') ? { label: 'Make a report', action: 'invRptFromStats' } : null,
+  return '<div class="inv-toolbar" data-home-toolbar>' +
+    (tdySeesMoney() ? statsSeg('invStatsPeriod', 'period', { mtd: 'MTD', qtd: 'QTD', ytd: 'YTD', all: 'All' }, per, 'Period', false, 'inv-toolbar-item') : '') +
+    (_isDesktop ? '<button class="inv-btn inv-btn-secondary inv-btn-sm" data-action="invWdgArrange" data-board="home" aria-label="Customise Home">' + iconSvg('widgets') + '<span>Customise</span></button>'
+      : '<button class="inv-btn inv-btn-secondary inv-btn-icon" data-action="invWdgArrange" data-board="home" aria-label="Customise Home" title="Customise Home">' + iconSvg('widgets') + '</button>') +
+    uiToolbarMoreHtml([tdySees('pageReports') && tdySeesMoney() ? { label: 'Make a report', action: 'invRptFromStats' } : null,
       tdySees('pageStats') ? { label: 'Open Stats', action: 'invSwitchTab', attrs: ' data-tab="pageStats"' } : null,
-      { label: 'Edit Home', action: 'invHomeEdit' }], { icon: !_isDesktop }) + '</div>' +
-    (qs.length ? '<div class="inv-heroes" data-tdy-questions>' + qs.map(tdyQuestionHtml).join('') + '</div>' + tdyFirstHtml(qs)
-      : '<div class="inv-empty">The questions could not be worked out: Stats has the figures.</div>') +
-    (cards ? '<div class="inv-hero-stack" data-tdy-pulse-cards>' + cards + '</div>' : '');
+      { label: 'Reset Home', action: 'invWdgReset', attrs: ' data-board="home"' }], { icon: !_isDesktop }) + '</div>';
 }
-function tdyQuestionHtml(x) {
-  var v = x.vital || { fig: '', title: x.answer ? x.answer.say : '', sub: '', viz: '', tone: x.answer ? x.answer.tone : 'neutral' };
-  var moves = '';
-  // What you can do heads the moves, or says what would make one appear (an insight's moves are under its row: inline).
-  if (!x.inline || !x.moves.length) {
-    moves = '<div class="inv-hero-moves" data-tdy-moves><div class="inv-hero-eyebrow inv-mt-8 inv-mb-8" data-adv-head>What you can do' +
-      (x.moves.length ? ' <span class="inv-panel-count">' + x.moves.length + '</span>' : '') + '</div>' +
-      (x.moves.length ? advMovesDeckHtml(x.moves, 'q-' + x.key, ADV_SHOW) : '<div class="inv-note" data-adv-none>' + escHtml(x.none || 'Nothing to do here yet.') + '</div>') +
-      (x.hints || []).map(function(t) { return '<div class="inv-note inv-mt-8" data-adv-hint>' + escHtml(t) + '</div>'; }).join('') + '</div>';
-  }
-  return uiHeroHtml({ tone: v.tone || 'neutral', vital: true, eyebrow: '<span>' + escHtml(x.q) + '</span>', fig: v.fig || '', title: v.title || '', sub: v.sub || '', viz: v.viz || '',
-    fold: 'tdy-q-' + x.key, open: false, body: '<div class="inv-hero-sheet">' + x.html + '</div>' + moves, attrs: ' data-tdy-q="' + escHtml(x.key) + '" data-verdict' });
+/* The dashboard drawn: the day card, the toolbar, the board, the foot. */
+function renderHomeBoard() {
+  var el = document.getElementById('homeDash');
+  if (!el) return;
+  if (typeof grdHeld === 'function' && grdHeld()) return;
+  var n = wdgAddable('home');
+  el.innerHTML = '<div data-home-daycard>' + homeDayCardHtml() + '</div>' + homeToolbarHtml() + '<div id="homeBoard"></div>' +
+    (n && !wdgArrangeOn('home') ? '<div class="inv-wboard-foot" data-home-foot><button class="inv-btn inv-btn-link inv-btn-sm" data-action="invWdgGallery" data-board="home">Add a widget · ' +
+      n + ' to choose from</button></div>' : '');
+  wdgBoardDraw(document.getElementById('homeBoard'), 'home');
+  homeClockStart();
 }
-/* The moves worth most across every question, as cards: what to do first, before reading any answer. */
-function tdyFirstHtml(qs) {
-  var from = {}, all = [];
-  qs.forEach(function(q) { if (!q.inline) (q.moves || []).forEach(function(mv) { if (!from[mv.key]) { from[mv.key] = q.key; all.push(mv); } }); });
-  var top = advRank(all, null).slice(0, 3);
-  if (!top.length) return '';
-  var listed = advListedKeys();
-  return uiHeroHtml({ eyebrow: '<span>Do first</span><span class="inv-panel-count">' + top.length + '</span>', title: 'The moves worth most',
-    sub: 'Across every question above, by what each is worth a month; each question opens to its own', fold: 'tdy-first', open: true, attrs: ' data-card="first"',
-    body: '<div class="inv-deck" data-adv-deck="first">' + top.map(function(mv) { return advMoveCardHtml(mv, listed, TDY_Q_WORD[from[mv.key]]); }).join('') + '</div>' });
-}
-/* The view on screen: one of the two blocks shown. */
+/* The view on screen: one of the two blocks shown. Leaving the dashboard stops its clock and its live widgets. */
 function tdyApplyView() {
-  var v = tdyView(), needs = document.getElementById('homeNeeds'), pulse = document.getElementById('homePulse');
+  var v = tdyView(), needs = document.getElementById('homeNeeds'), dash = document.getElementById('homeDash');
   if (needs) needs.classList.toggle('inv-hidden', v !== 'needs');
-  if (pulse) pulse.classList.toggle('inv-hidden', v !== 'pulse');
+  if (dash) dash.classList.toggle('inv-hidden', v !== 'home');
+  if (v !== 'home') homeLeave();
+}
+/* Home left, for Needs you or another page (tabs.js switchTab): its clock and live widgets stop and arranging ends. Shown again
+   with nothing to draw anew, they start at once (homeArrive, tabs.js tabRender). */
+function homeLeave() {
+  homeClockStop(); wdgLiveStop('home');
+  // Arranging ends with Home, and Home is drawn plain when it is next shown (its handles and Done would otherwise stay drawn).
+  if (wdgArrangeOn('home')) { wdgArrangeDone(true); _tabDirty.home = true; }
+}
+function homeArrive() {
+  homeClockStart();
+  var host = document.getElementById('homeBoard');
+  if (host && tdyView() === 'home') wdgLiveStart(host, 'home');
 }
 
 function tdyAction(action, btn) {
@@ -527,6 +656,8 @@ function tdyAction(action, btn) {
     case 'invTdyHand': flrOpenLine(btn.dataset.line || 'vat-a1'); prodOpenHand(null, null, true); return true;
     case 'invTdyFloor': flrSetDay(null); switchTab('pageFloor'); return true;
     case 'invTdyPower': powerSetTab('cuts'); switchTab('pagePower'); return true;
+    // The day card's link: today's report (the daily kind on today), on Reports.
+    case 'invHomeReport': rptSet('daily', localDateStr()); switchTab('pageReports'); return true;
   }
   return false;
 }

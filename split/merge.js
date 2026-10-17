@@ -14,7 +14,8 @@
      (`S.mergeHeld`), listed for the owner (To-do `mergeHeld`, Settings → GitHub sync), who keeps what stands or uses the one held.
      A record removed on one side and changed on the other is kept, and the removal is held.
    - **Quiet fields** never conflict: a series' next number takes the higher (`MRG_MAX`); a push's stamp, the LME history,
-     what a challan has billed (worked out again after the merge) take this device's, the other's filling what it lacks.
+     what a challan has billed (worked out again after the merge) take this device's, the other's filling what it lacks. A quiet
+     STORE (CHG_TRACK `quiet`: the weather days a fetch wrote, feeds.js) is merged the same way, record by record, never held.
    - **After a merge** the book is migrated as a pull's is, and two invoices, credit notes or quotations carrying one number
      (two devices issuing offline) are held for the owner too. The change log is the union of both, and one line says what the
      merge took and held.
@@ -202,7 +203,7 @@ function mrgRecord(ctx, sp, key, b, m, t) {
       else if (jm === jb) { v = ft; ctx.taken++; }
       else if (jt === jb) v = fm;
       else if (MRG_MAX[f] && typeof fm === 'number' && typeof ft === 'number') v = Math.max(fm, ft);
-      else if (MRG_QUIET[f]) v = mrgIsObj(fm) && mrgIsObj(ft) ? Object.assign({}, ft, fm) : fm === undefined ? ft : fm;
+      else if (MRG_QUIET[f] || (sp.mrgQuiet && sp.mrgQuiet.indexOf(f) >= 0)) v = mrgIsObj(fm) && mrgIsObj(ft) ? Object.assign({}, ft, fm) : fm === undefined ? ft : fm;
       else {
         if (!w) w = mrgWinner(ctx, sp.path === '#top' ? 'settings' : sp.path, key === '' ? null : key);
         v = w === 'm' ? fm : ft;
@@ -218,10 +219,17 @@ function mrgRecord(ctx, sp, key, b, m, t) {
   if (w2 === 't') ctx.taken++;
   return w2 === 'm' ? m : t;
 }
+/* A store a fetch wrote (CHG_TRACK `quiet`: the weather days, feeds.js): this device's records, the other's filling what this one
+   lacks, never held. A forecast is not a change anybody made, so there is nothing to settle. */
+function mrgQuiet(sp, m, t) {
+  if (sp.kind === 'map' && (mrgIsObj(m) || mrgIsObj(t))) return Object.assign({}, mrgIsObj(t) ? t : {}, mrgIsObj(m) ? m : {});
+  return m === undefined ? t : m;
+}
 /* A store three ways: its records merged, this device's order kept and GitHub's new ones after it. */
 function mrgStore(ctx, sp, b, m, t) {
   // A store kept quietly (the change log skips it: a record of use, a plan on show): this device's, else GitHub's.
   if (sp.kind === 'skip') return mrgJ(m) === mrgJ(b) ? t : m;
+  if (sp.quiet) return mrgQuiet(sp, m, t);
   var rb = mrgRecs(sp, b), rm = mrgRecs(sp, m), rt = mrgRecs(sp, t);
   if (rb.atomic || rm.atomic || rt.atomic) return mrgRecord(ctx, sp, '', b, m, t);
   if (sp.kind === 'cfg') return mrgRecord(ctx, sp, '', b, m, t);

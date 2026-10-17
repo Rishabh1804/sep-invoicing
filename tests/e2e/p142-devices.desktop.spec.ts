@@ -15,7 +15,7 @@ test.describe('P142 desktop: devices', () => {
     await seedDevice(page, { token: TOKEN, session: 'u-own', devId: 'dev-desk' });
     await open(page, book({ users: [OWNER, SUPER], devices: listedDevices() }));
     await page.evaluate(() => localStorage.removeItem('sep_inv_settings_ui'));
-    await expect(page.locator('#homeSyncCard')).toContainText("Paused: this device isn't registered");
+    await expect(page.locator('[data-w="sync"]')).toContainText("Paused: this device isn't registered");
     const stops = [await sweep(page, 'home · sync paused')];
 
     await openSettingsAt(page, 'devices');

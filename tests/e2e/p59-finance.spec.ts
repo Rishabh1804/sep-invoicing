@@ -257,7 +257,8 @@ test('the dashboard reads one range, and a tap on a month, a slice or a client g
   // month, so that month is drawn to date on both, its stretch dashed (the tab map, TM6b).
   await finTab(page, 'overview');
   await expect(page.locator('#finGstChart rect.inv-chart-seg').first()).toBeVisible();
-  await expect(page.locator('#finInvRec polyline.inv-chart-s0').first()).toBeVisible();
+  // Invoiced and received, each line in its own series slot (UI pass 3 §3d).
+  await expect(page.locator('#finInvRec polyline.inv-chart-s1').first()).toBeVisible();
   await expect(page.locator('#finInvRec polyline.inv-chart-s2').first()).toBeVisible();
   await expect(page.locator('#finInvRec polyline.inv-chart-path.inv-chart-todate')).toHaveCount(2);
   await expect(page.locator('#finInvRec text.inv-chart-axis').last()).toContainText('to date');

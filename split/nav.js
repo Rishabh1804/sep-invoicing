@@ -97,8 +97,11 @@ function navLocFromUrl(search) {
 var NAV_REDIRECTS = [
   // TM2a: the To-do joined Needs you. A widget's launch (todo=) still works: init.js reads it once the address has landed here.
   { tab: 'pageTodo', v: null, to: function() { return { tab: 'pageHome', v: 'needs' }; } },
-  // TM2b: Stats → Overview went to Today → Pulse; Stats → Billing's dispatch cycle to Pipeline, its other cards to Money → GST.
-  { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'pulse' }; } },
+  // TM2b: Stats → Overview went to Today → Pulse (Home's board since UI pass 3); Stats → Billing's dispatch cycle to Pipeline, its
+  // other cards to Money → GST.
+  { tab: 'pageStats', v: 'overview', to: function() { return { tab: 'pageHome', v: 'home' }; } },
+  // UI pass 3, U2 (§8d): Pulse folded into Home's dashboard; its questions, its widgets and its cards are widgets on the board.
+  { tab: 'pageHome', v: 'pulse', to: function() { return { tab: 'pageHome', v: 'home' }; } },
   { tab: 'pageStats', v: 'billing', to: function() { return { tab: 'pagePipeline', v: '' }; } },
   // TM2d: the Planner's five kinds of move are one view, Moves, with a switch.
   { tab: 'pagePlanner', v: ['plant', 'tech', 'staff', 'clients', 'finance'], to: function(loc) { return { tab: 'pagePlanner', v: 'moves/' + String(loc.v).split('/')[0] }; } },
@@ -163,7 +166,7 @@ function navLabel(loc) {
       var pe = loc.id && prodData().entries.find(function(e) { return e.id === loc.id; });
       if (pe) rec = pe.kind === 'downtime' ? 'Power cut' : prodEntryTitle(pe);
       break;
-    case 'pageHome': sub.push(parts[0] === 'pulse' ? 'Pulse' : 'Needs you'); break;
+    case 'pageHome': sub.push(parts[0] === 'needs' ? 'Needs you' : 'Home'); break;
     case 'pagePower': sub.push(_navFind(POWER_TABS, parts[0])); break;
     case 'pageStaff':
       // Attendance's three views are a switch under one tab (the tab map, TM4b): "Attendance · Month, Sep 2026".
@@ -296,7 +299,8 @@ function navApply(loc) {
 }
 
 /* ---------- Recording ---------- */
-function navLayerOpen() { return !!document.querySelector('.inv-scrim-dialog, .inv-print-view-active'); }
+// A board being arranged is a layer too (UI pass 3 §7e): Back and Escape leave it, a swipe does nothing while it is on.
+function navLayerOpen() { return !!document.querySelector('.inv-scrim-dialog, .inv-print-view-active, .inv-wboard[data-arranging]'); }
 function navState(loc, extra) { return Object.assign({ sep: 1, idx: _navIdx, loc: loc }, extra || {}); }
 function navTrailPut(loc) {
   _navTrail.length = _navIdx + 1;
@@ -309,7 +313,7 @@ function navPush(loc, extra) {
   history.pushState(navState(loc, extra), '', navUrl(loc));
   navTrailPut(extra && extra.layer ? null : loc);
 }
-/* Opens a place as a new step: a workspace tab naming one of a page's own views (Today → Pulse). The step is taken first
+/* Opens a place as a new step: a workspace tab naming one of a page's own views (Home → Needs you). The step is taken first
    and navApply puts the app there, writing onto it where the app arrived. */
 function navOpen(loc) {
   if (_navBooted && navKey(loc) !== navKey(navLoc())) navPush(loc);
@@ -356,9 +360,9 @@ function navLeaveOk() {
    Caught before events.js sees it (capture), so the screen is never left and then asked about. Add and search open a
    layer over the screen and leave nothing. */
 // The top bar's book (knowledge.js) opens another screen too: it had dropped a half-typed challan unasked.
-// So do the top bar's History and the brand's mark (Pulse): both leave the screen.
+// So do the top bar's History and the brand's mark (Home): both leave the screen.
 var NAV_LEAVE_ACTIONS = { invSwitchTab: 1, invWsGo: 1, invStockBack: 1, invProdBack: 1, invProdHandDone: 1, invAttView: 1, invQtBack: 1, invKbHelp: 1,
-  invGoHistory: 1, invGoPulse: 1, invFaceFormDone: 1 };
+  invGoHistory: 1, invGoHome: 1, invGoPulse: 1, invFaceFormDone: 1 };
 function navIsLeave(el) {
   // A tab inside a dialog moves within the dialog, not off the screen.
   return !!(el && el.dataset && !el.closest('.inv-scrim-dialog') && (NAV_LEAVE_ACTIONS[el.dataset.action] || el.getAttribute('role') === 'tab'));
@@ -385,6 +389,7 @@ function navCloseLayer() {
     return dialogLeaveOk(top).then(function(ok) { if (ok) dialogCloseScrim(top); });
   }
   if (document.querySelector('.inv-print-view-active')) closePrintPreview();
+  else if (document.querySelector('.inv-wboard[data-arranging]') && typeof wdgArrangeDone === 'function') wdgArrangeDone();
   return Promise.resolve();
 }
 

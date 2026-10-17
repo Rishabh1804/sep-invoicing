@@ -53,8 +53,10 @@ behind every chart; widgets on boards each person arranges (Home, then Stats); P
 with a 4-digit PIN. Nine steps, U1–U9, one PR, **a stop after U2 for the owner to look**. Written to `docs/SERVER.md`: widgets read
 views shaped like the hub's typed tables, and the one change four digits force on the server plan is said (§15c). **U1 and U2 are
 built** (16 Oct 2026): the look (*UI pass 3: the look* below), icons v3, charts v3 and the data layer; Home, its board of widgets, the
-gallery and the feeds (*UI pass 3: Home and its widgets* below). **The build stops here for the owner to look** (§1a-1): U3 waits on
-their word.
+gallery and the feeds (*UI pass 3: Home and its widgets* below). **The owner looked** (17 Oct 2026: *"looking for a more finished
+product"*, then *"different types of card layouts but organised … Same for … the action rows"*): the card family was drawn on a canvas
+and is specified, `docs/UI_PASS_3.md` §24, step **U2R** (*UI pass 3: the card family* below). U2R is built next, then a second stop;
+U3 waits on it.
 
 **The server is specified — read `docs/SERVER.md`** (owner, 15 Oct 2026: *"We definitely need SQL to store our data"*; the hub
 both in the cloud and in the office). A Cloudflare Worker and D1 at `api.somaelectro.co.in` on the owner's own Cloudflare account,
@@ -867,6 +869,25 @@ rewritten to where each fact now lives (§21), never weakened. **The build stops
   on, shown only what it may see.
 - Fixtures: `openHome`, `openNeeds`, `openPulse` (puts Pulse's widgets on the board at Large for the person signed in, then draws
   Home), `openWidget(page, id)`, `withWidgets(page, list)`; a spec reading a widget puts it on the board first.
+
+### UI pass 3: the card family (U2R, specified 17 Oct 2026, not built)
+`docs/UI_PASS_3.md` §24 (owner, 17 Oct 2026, after U2's stop; the canvas *Home card types*, answered *"Write the spec"*, taken as the
+canvas approved with its four calls as proposed). What a builder of U2R needs to know before opening §24:
+- **One skeleton** for every card on a board, in one order: head (Open; Choose at Large), figure, verdict, body (More at its list's
+  end), Act, Source. **Seven types**, each a surface and the parts only it draws: Ledger (money; warm `--ty-ledger`), Docket (documents
+  in motion), Plant (lines and machines; cool `--ty-plant`), Crew (people), Briefing (the questions), Outside (the world outside; no
+  Act), Tools (starting things). **Five action rows**: Open (the head), Choose (a segmented control in the head), More (the list's last
+  row), Act (one tinted `inv-btn-tint`, one text button at most), Source (the last line; only Refresh and a feed's credit are links).
+- **The four calls**: salience follows severity (quiet, an amber top edge, a red edge and tint; no wash); figures in Geist with
+  tabular figures, Geist Mono only for identifiers (DR-4, app-wide); money on a board short (`inrCard`: ₹66,476, ₹3.50 L, ₹1.24 Cr,
+  the exact figure its `title`; a Ledger's lines whole rupees that add up; a rate keeps its paise); a card exactly its size's height
+  (`--wdg-row`), the board packed dense, holes shown as slots while arranging.
+- **Corners** 14 / 10 / 8 px (`--r-card`, `--r-tile` for every well, `--r-ctl`), the phone's bar `--r-bar`. The day card becomes a
+  flat **masthead**. Four **presets**, each packing with no hole for its role's default pages (a Supervisor's of its own).
+- **Geist under test**: the fonts and their OFL licence in `tests/fixtures/fonts/`, routed in the fixtures, in their own commit before
+  anything else, so heights and titles are measured in the real face.
+- **The book does not change**; a widget's Choose is kept with the layout (`opts`), `prefs` on the hub at S1.
+- §1a's calls 13–20 say where the spec departs from or goes past the canvas, for the owner at U2R's stop. P235–P239 are U2R's specs.
 
 ## Business Domain
 

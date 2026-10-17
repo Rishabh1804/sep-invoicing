@@ -25,7 +25,8 @@ design was confirmed: *"B with wells, 4-digit PIN, widgets should be flexible so
 UI."* And on what else the pass should cover: *"Yes to Home, all of 1–11, news Worker now, no Hindi."*
 
 **This file is the spec builders follow.** One PR, steps U1–U9, one commit (or more) per step, in order, **with a stop after U2 for
-the owner to look** (§1a-1); then the QA chain on the owner's word. Read §1–§6 and §16–§18 before any step, then the step's own
+the owner to look** (§1a-1), **and a second after U2R**, the card family the owner asked for at the first (§24, 17 Oct 2026); then the
+QA chain on the owner's word. Read §1–§6 and §16–§18 before any step, then the step's own
 section. It sits on `docs/TAB_MAP.md` (one look: four kinds of screen, the verdict card, one toolbar row) and changes none of its
 rules except where §3f says so. It is written to `docs/SERVER.md`: everything it adds to the book is a record the hub can hold, every
 widget reads through views shaped like the hub's typed tables (§6), and the one place the server plan had to change is said (§16).
@@ -36,7 +37,9 @@ widget reads through views shaped like the hub's typed tables (§6), and the one
 |---|---|---|
 | U1 | Foundations: the look's tokens (lift, wells, radii, dark elevation), the default palette, icons v3, the chart builders and the table behind every chart, the blank states, the data layer (§3–§6) | Built, 16 Oct 2026 (P226, P227, P228) |
 | U2 | Home and its widgets: the door renamed, the day card with its clock and weather, Pulse folded in, the widget grid, sizes, arranging, the gallery, presets by role; the feeds Worker and its client; Tata's figures and the plant's calendar (§7–§9) | Built, 16 Oct 2026 (P223, P224, P225): every widget §7d marks U2; the Worker is the owner's to deploy (§9e) |
-| ⏸ | **Stop: the owner looks** at Home and the gallery on the phone and the desktop, in both themes (§1a-1) | |
+| ⏸ | **Stop: the owner looks** at Home and the gallery on the phone and the desktop, in both themes (§1a-1) | Looked, 17 Oct 2026: *"looking for a more finished product"*; the card family drawn on a canvas and approved (*"Write the spec"*) |
+| U2R | The card family on Home: one skeleton, seven card types, five action rows; quiet cards (salience follows severity); figures in Geist; money short on a board; fixed heights, the board packed; the masthead; the presets that pack (§24) | Specified, 17 Oct 2026 |
+| ⏸ | **Stop: the owner looks** at the card family on Home, both layouts and themes, and answers §1a's calls 13–20 | |
 | U3 | Stats as a dashboard: its own board of widgets and the tables behind them (§10) | Not built |
 | U4 | Stock's Spend and prices takes the room; every Enter by hand a guided flow; Mine in the new look; two stock lines merged into one (§11) | Not built |
 | U5 | People leads: each view opens on what to do next and a picture of it; the Roster as cards (§12) | Not built |
@@ -78,6 +81,10 @@ All the owner's, 15–16 Oct 2026.
    is a picture first and the full text an optional copy, *"our copy"*; People's views lead by design, the Roster as cards; Stats a
    modern dashboard; an upgraded icon set; a Home page with a live clock, the weather, predictions and Tata Motors' news (domestic and
    export CV sales, the Prima trucks and the models before and after them, the plant's calendar); a sign-in page.
+10. **A card family, organised** (17 Oct 2026, after U2's stop): *"looking for a more finished product"*, and *"different types of
+    card layouts but organised, so maybe a financial card layout looks and feels different than an industrial one. Same for anything
+    that we are putting under one label, like the action rows."* One skeleton, seven card types, five action rows, drawn on a canvas
+    (*"Go"*) and answered *"Write the spec"*, which this spec takes as the canvas approved with its four calls as proposed (§24a).
 
 **Out of this pass**: paper. The invoice, the test certificate (its format is Tata Motors QA's, approved, *"No alterations are
 permissible"*), the credit note, the statement of account, the pay slip, the attendance and stock sheets and the ID cards print
@@ -110,12 +117,33 @@ exactly as they do. The server's own steps (S0–S5) keep their track; only the 
 12. **The 4-digit PIN changes one line of the server plan**: the key that seals the sensitive records is never wrapped by a PIN
     alone, since ten thousand PINs can be tried against a copy in seconds; it travels wrapped by the recovery code (§15c, §16).
 
+**Calls the card family makes (§24), for the owner at U2R's stop.** Each is where the spec departs from the canvas or goes past it:
+13. **The presets are redrawn so each packs with no hole for its role** (§24i): U2's Office preset held four widgets the office role
+    cannot see by default (Month to date, Owed and Days to pay need money; Turnaround needs Production), so it drew with holes; it now
+    holds what the role sees. The supervisor gets a preset of its own (it shared the Floor's, whose pages it outnumbers), and the
+    Owner's gains *Attendance* at Small, as the canvas drew it.
+14. **The phone's Owner preset leaves out Do first** if Home measures over four phone screens (I10's cap for Home). By the canvas's own
+    heights the Owner's phone Home is about 4.4 screens with it and 3.9 without; each question's card carries the same moves.
+15. **A chart in a card is bare**: no readout line and no *Table* button (the canvas drew none). The table is on the screen behind,
+    which the card's head opens, and the card's verdict says what the chart shows.
+16. **The recent invoices keep their Print at each row's end**, which the canvas did not draw: four taps to print a recent invoice was
+    the owner's complaint of 6 Oct 2026.
+17. **A feed's credit stays a link in its Source** (*The GDELT Project*, *MET Norway*), where the canvas wrote the name plain: GDELT's
+    data is free for commercial use with a citation and a link (§1a-7). It is the one link a Source holds besides Refresh.
+18. **Every rate keeps its paise**, zinc's included (₹392.40 a kilo), where the canvas wrote zinc's whole: a rate is not an amount.
+19. **Quick actions' *Started here and not saved* shows the forms the app holds this session**: Create's invoice form, which the app
+    keeps as typed when it is left. No form is kept across a reload today, and a challan's typed work is dropped when it is left (after
+    asking), so the canvas's *a challan typed yesterday* is not built. Keeping drafts is a separate change, the owner's to ask for.
+20. **Every other hero and verdict card keeps its wash until U7** (§14a), which gives them the board's rule (§24c), so the app ends with
+    one rule for a card's tone.
+
 ## 2. What changes, screen by screen
 
 | Screen | Step | What happens |
 |---|---|---|
-| The shell (bars, rail, top bar, tab rows) | U1, U2 | the look; icons v3; the door named Home |
-| Home (was Today: Needs you, Pulse) | U2 | the dashboard view (`home`), the day card, the widget grid; Pulse folded in; Needs you in the look |
+| The shell (bars, rail, top bar, tab rows) | U1, U2, U2R | the look; icons v3; the door named Home; the card's corners (U2R) |
+| Home (was Today: Needs you, Pulse) | U2, U2R | the dashboard view (`home`), the day card, the widget grid; Pulse folded in; Needs you in the look; the card family, the masthead (U2R) |
+| Every screen's figures | U2R | Geist with tabular figures in place of Geist Mono; identifiers stay mono (§24l) |
 | Stats (By client, Cost, Trends) | U3 | a board of widgets (`board`) and the tables (`tables`) |
 | Reports | U6 | the picture page first, the report its appendix |
 | Planner | U7 | the look only |
@@ -197,9 +225,15 @@ is a well (§3b). `--shadow-pop` and `--shadow-dialog` stay for layers.
 
 `--r-sm`…`--r-xl` stay for what they draw now (a dot's ring, a chart's bar end, the table's corners) and are not used for a card.
 
+**U2R takes the corners down** (the card family, §24b; owner, 17 Oct 2026: *"It should look crisp"*): `--r-card` 0.875rem (14 px),
+`--r-tile` 0.625rem (10 px) for every well (a tile, a field, the search, a segmented control's track, a PIN box), `--r-ctl` 0.5rem
+(8 px) for a button and a menu, `--r-seg` 0.4375rem (7 px), and the phone's bar its own `--r-bar` 1.375rem (22 px).
+
 **Type**: Geist and Geist Mono as now (`head.html:18`; `sw.js`'s `FONT_CSS` repeats the URL). Three sizes are added for the
 dashboard's figures, on the scale: `--fs-28: 1.75rem` (a widget's figure, M and L), `--fs-36: 2.25rem` (the day card's clock on the
-phone) and `--fs-48: 3rem` (the clock on the desktop). A figure is Geist Mono, tabular, as now (DR-4).
+phone) and `--fs-48: 3rem` (the clock on the desktop). A figure is Geist Mono, tabular, as now (DR-4). **From U2R a figure is Geist
+with tabular figures and only an identifier Geist Mono** (DR-4 amended, §24l); a Small's figure takes `--fs-26`, and the masthead's
+clock `--fs-44` on the desktop and `--fs-30` on the phone, which retire `--fs-36` and `--fs-48` (§24j).
 
 ### 3b. Where the look goes
 
@@ -259,6 +293,8 @@ them:
   and icon in `--tone`, its figure in `--tone`. Inside it a card in its deck lies lighter in both themes and a tile sinks darker
   (design §3.3 *Fills*). **A card takes the tone of the worst
   thing it holds**, as now (HR-9's coded boxes). A plain card is `--c-surface`.
+- **On a board, from U2R, salience follows severity instead** (call 1, §24c): a card is quiet while all is well, amber adds a 3 px top
+  edge, red adds the edge and a tint; nothing is washed. Every other hero and verdict card takes the same rule in U7 (§14a).
 - **A coloured figure always has its reason in words beside it and its icon** (DR-8, amended in §3f): the colour is never the only
   signal. Where a row has no room, a dot and the word stay (`uiRowEndHtml`), as now.
 - `--*-mark` (new) colours an icon, a dot or a chart's status mark: a step lighter than the text tone, so a small mark is seen. Dark
@@ -313,6 +349,10 @@ now.
 - **§3.1 Palettes**: Zinc & brass the default; the well and the edge added to each palette.
 - **§6** names the new components (§3b's switch, §5's charts, §7's widget and grid, §11's flow, §14's blank state, §15's keypad) with
   what each replaces, and **§6.28's table of box looks** is regenerated (§3g).
+- **In U2R** (§24): **DR-4** becomes *a figure is Geist with tabular figures, right-aligned in a column or a tile; an identifier is
+  Geist Mono*; **DR-6** adds a key on a tray, lifted by `--lift-key`; **DR-8**'s card clause becomes *a card says its tone with its
+  lamp and words and, from amber, its top edge; the tone's icon stays on a status badge and a notice*; §3.3's *Fills* and §3.6's radii
+  follow, §6.33 is rewritten to the family, and §6.34 (card types), §6.35 (action rows) and §6.36 (the masthead) are new.
 
 ### 3g. What holds it (the tests, in U1)
 
@@ -507,6 +547,9 @@ per widget, so the framework has no widget's arithmetic in it. An entry:
   of `S`. A widget that needs a figure no function makes asks for the function in its screen's module first.
 - **Its words** follow the house: a verdict-like line of at most 60 characters, figures in Geist Mono, units as the app writes them,
   no paragraph (P195's blocks: none over 120 characters), certainty as a sign (≈, ≥) or a badge.
+- **Amended by U2R** (§24g): an entry names its `type` and its Small title (`short`), and may have a `choose`, an `actRow` and a
+  `source`; `foot` is retired; the card is no longer an `inv-hero`; its figures are Geist with tabular figures (§24l) and its money
+  short (§24k).
 
 ### 7b. Sizes, the grid and arrangement by width
 
@@ -531,6 +574,9 @@ per widget, so the framework has no widget's arithmetic in it. An entry:
   to the list's screen. The sweep (§7i) fails on any widget over its cap. *As built (U2):* past its cap a widget first lets go of the
   parts it can do without, all together (a tile's line of the months before; a part marked `data-wdg-opt`), then its last rows, and
   says *N more: Show all* (`wdgFit`); a crore month or a long story never cuts a card.
+- **Amended by U2R** (call 4, §24h): a card is exactly its size's height (a Small one row of `--wdg-row`, a Medium and a Large two, the
+  phone's Large three), the board packs dense (`grid-auto-flow: row dense`) with the DOM in the layout's order, the caps and the
+  masonry leave the board, and the fit works against the card's height.
 
 ### 7c. States, one set
 
@@ -552,7 +598,8 @@ A state other than `ok` is drawn at the widget's size (Small: one line), never a
 
 Built in U2 unless the last column says U3. *Who* is the page the role must open (`needs.page`) and **M** where the widget shows
 money (`needs.money`) or **W** wages; a role without it does not see the widget in the gallery or on a board. *Reads* names the
-functions behind it; every figure is its screen's.
+functions behind it; every figure is its screen's. **Each widget's type, Small title, Choose, Act and Source are §24f's** (U2R). As
+built, every question widget needs money (`needs.money`), where this table writes *anyone*.
 
 **Money**
 
@@ -682,6 +729,8 @@ client's next challan by its rhythm (`predCadence`), the month's landing (`predM
 - **Reset**: asks first (`uiConfirm`: *Put Home back as the Owner layout? Your arrangement goes.*), then the person's role preset
   (§7g) for this board and this layout.
 - Arranging the desktop changes the desktop's layout only, the phone's the phone's (§7h): their sizes differ.
+- **From U2R, arranging turns the board's packing off** (§24h): each card stands where its order puts it, and a hole is a slot (*Room
+  for a Small*, **Add here**) that the gallery fills at that place in the order.
 
 ### 7f. The gallery
 
@@ -713,7 +762,8 @@ A board starts from its role's preset; any change makes it the person's own (`pr
 | Floor (supervisor, floor) | `floornow` l · `prodday` s · `atttoday` s · `risk` s · `weather` s · `eff` m · `stockdays` m · `attweek` m · `ot` m · `tata` m | as the desktop's order |
 
 A preset lists only what its role may see; a widget a role cannot see is left out when the preset is drawn, never shown empty. The
-Stats board's preset is U3's (§10).
+Stats board's preset is U3's (§10). **U2R redraws the presets** (§24i): four (a Supervisor's of its own), each packing with no hole
+for its role's default pages, the Owner's with *Attendance* at Small.
 
 ### 7h. Where a layout is kept
 
@@ -779,7 +829,8 @@ predictions, some news."* The canvas's boards *Home, desktop (live)* and *Home, 
 ### 8b. The day card: Home's verdict
 
 Home is an overview (TAB_MAP §3e): it leads with one hero carrying its verdict, and that hero is **the day card**
-(`homeDayCardHtml`, today.js), drawn with `uiVerdictHtml` (its `screen` the greeting and the date, its `fig` the clock):
+(`homeDayCardHtml`, today.js), drawn with `uiVerdictHtml` (its `screen` the greeting and the date, its `fig` the clock). **From U2R the
+day card is the masthead** (§24j): the same parts and the same rules, drawn flat on the page, never folded, its links the Act.
 
 | Part | What | From |
 |---|---|---|
@@ -1130,6 +1181,9 @@ optional copy and our copy, so that we know the entire context."*
 
 ### 14a. Lists, dialogs, sheets, toasts and search
 
+- **Every hero and verdict card takes the board's rule for its tone** (call 1, §24c; built on the boards in U2R): quiet while all is
+  well, a 3 px top edge from amber, the edge and the red tint for red; the 160° wash of §3d goes. A tile in it that names a tone stays
+  a well of that tone, a card in a deck keeps its tone's left rule, and the card's corners, figures and money are already U2R's.
 - **Lists** (Invoices, Challans, Clients, Parts, the bank statement, and every list-and-pane screen): the list stands in a card on the
   page; **rows keep their heights** (`--row-h`, the density as now); the table's head stays at the card's top; the selected row
   `--accent-soft`, a hovered row `--surface-2`; a day's group head in small capitals `--text-3`; a status alone as a badge with its
@@ -1236,6 +1290,7 @@ list is not synced until it is listed*).
 | A merged stock line | `mergedInto`, `retiredAt` on the line; `mergedFrom` on its entries | yes | as their stores | as their stores |
 | The PIN's length | `len` on a user's secret | as the users' store (the secret never compared) | as users | as users; no PIN is sent (SERVER.md §6) |
 | A board's layout | the device (`sep_inv_layout`) | — | — | store `prefs`, id the person; the later wins; served to that person only (§7h) |
+| A widget's Choose (U2R) | the layout's `opts.<id>.choose`, on the device | — | — | with the layout, in the person's `prefs` (§24n) |
 | The feeds' copy, the pointers seen | the device (`sep_inv_feeds`, `sep_inv_pointers`) | — | — | never |
 
 - **The views (§6) are the typed tables' columns**, so S1 fills them on the hub and a widget reads either.
@@ -1272,13 +1327,19 @@ TAB_MAP's I1–I11 hold, with these words for this pass:
 - **I9. Build and commit** as CLAUDE.md says; no model name anywhere.
 - **I10. Measured, never longer.** P195 measures every screen; a step lowers its screens' budgets to its measure and never raises one.
   **Home's dashboard** is new: its budget is set at U2's measure with the Owner preset on the long book, and may not exceed Pulse's 4
-  phone screens.
+  phone screens. U2R's fixed heights may lengthen it: the phone's Owner preset then leaves out Do first (§24i, §1a-14), and Home's
+  budget is set at U2R's measure, never over 4.
 - **I11. One look.** Home's dashboard joins `ONE_LOOK` as an overview; Stats' two views (U3) as work screens; P197 holds them.
 - **I12. Paper does not move.** P228 records the computed style of every element under each paper root (the invoice, the test
   certificate, the credit note, the sales register, the quotation, the statement, the pay slip, the attendance and stock sheets, the
   ID cards) on the build before U1 and fails on any difference after any step.
 - **I13. A feed never breaks a screen.** Every feed widget, and the day card's weather, draws whole with the feed missing, slow (a
   timeout of 8 s), failing, offline or answering nonsense (P225).
+- **I14. One skeleton, five rows** (U2R). Every card on a board is drawn by the framework in one order (head, figure, verdict, body,
+  More, Act, Source); everything a person can press in it is one of the five action rows or an item's own (§24e); a widget draws its
+  type's parts through the framework's builders, never markup of its own (P235, P236).
+- **I15. Money on a board is short and exact underneath** (U2R): every amount a widget draws is `inrCard`'s with the exact figure as
+  its `title`; a Ledger's lines are whole rupees and add up to the total ruled under them; a rate keeps its paise (P238).
 
 ## 18. The redirect table
 
@@ -1338,6 +1399,36 @@ the grep checklist's output, anything decided differently and why).
 - **Then stop.** The owner looks at Home and the gallery on the phone and the desktop, light and dark: screenshots on the long book in
   an artifact (as the photo reading's comparison was), and the build's own page once merged or from the branch.
 
+### U2R — The card family (§24)
+
+1. **Geist under test first** (its own commit, §24m): the fonts and their licence in `tests/fixtures/fonts/`, routed in the fixtures;
+   the suite run on it before anything else moves. A spec that moves with the real face is read and rewritten to the same fact in
+   Geist, never loosened; the commit says which and why.
+2. **Tokens** (styles.css's block): the corners (`--r-card`, `--r-tile`, `--r-ctl`, `--r-seg`) and `--r-bar`, the wells moved from
+   `--r-ctl` to `--r-tile` (the segmented track, the search, a field, the weather's hours, the market's days); the type surfaces per
+   palette (`--c-ty-ledger`, `--c-ty-plant`, aliases `--ty-ledger`, `--ty-plant`); `--card-danger`; `--tone-edge`; `--wdg-row`,
+   `--wdg-gap`, `--wdg-pad-sm`, `--wdg-head-h`; `--ff-num`; `--fs-26`, `--fs-30`, `--fs-44`; `--lift-key`; `--mast-h`. Retired:
+   `--wdg-cap-s`, `-m`, `-l`, `-phone`, `--fs-36`, `--fs-48`. And a fix found writing §24: `head.html`'s first paint falls back to Teal
+   when storage throws (`catch(e){…palette="teal"}`); the default is Zinc & brass.
+3. **Figures in Geist** (§24l), app-wide: every figure rule reads `--ff-num`; the identifiers keep `--ff-mono` and take `slashed-zero`.
+4. **`inrCard`** and `inrFigHtml` (§24k), with their cases.
+5. **The framework** (§24g, §24h): the card off `inv-hero`; the skeleton, its head and the Choose; the five rows (`wdgActHtml`,
+   `wdgSourceHtml`, `wdgChooseHtml`, `wdgFit`'s More); the type builders; the move dialog (`advMoveOpen`, advice.js); `wdgPlace`, the
+   board's rows and dense packing, Customise's slots and *Add here*; `wdgFromHero`'s Source; a chart's `opts.bare` (charts.js).
+6. **The widgets** (§24f), each in its type with its short title, Choose, Act and Source; the old feet and second doors gone.
+7. **The masthead** (§24j): `homeMastHtml`, the tick, the shift before, during and after.
+8. **The presets** (§24i): four, each packing with no hole; the phone's Owner without Do first if Home measures over four screens.
+9. **Specs** (§20): P235–P239 new; the rewrites (§21); P195 and P197 measured, Home's budget set (I10), `LOOKS` regenerated; the guide
+   *Using the app: Home*, version 6 (the five rows, the Choose, Customise's slots, the masthead).
+10. **Docs**: the design doc (§3f's U2R list: DR-4, DR-6's key, DR-8, §3.3, §3.4, §3.6, §5.4, §6.3, §6.17, §6.28, §6.33 rewritten,
+    §6.34–§6.36 new, §10's decisions); CLAUDE.md (the class count, the modules' lines, the card family's section); this file's status.
+- **Grep checklist**: `inv-hero` on a widget's card; `inv-widget-chip`, `inv-widget-credit`, `inv-homeday-`, `homeDayCardHtml`,
+  `wdgHeroFoot`, `wcFeedFoot`, `foot:` in `WIDGET_DEFS`; `--wdg-cap-`, `--fs-36`, `--fs-48`; `inv-btn-secondary`, `inv-btn-ghost` and
+  `inv-chip` in a card's markup in widgetcards.js; `formatCurrency(` in widgetcards.js outside a `title`; `--ff-mono` on a figure's rule.
+  Each comes back empty.
+- **Then stop.** The owner looks at Home on the long book, both layouts and both themes, beside the canvas (screenshots in an
+  artifact), and answers §1a's calls 13–20. U3 waits on their word.
+
 ### U3 — Stats (§10)
 
 The two views, Stats' verdict, its board and preset (`pricecost` added), the Tables and their export, the redirects; the U3 widgets
@@ -1390,6 +1481,11 @@ in the scratchpad's harness) with before → after; the full suite; then the QA 
 | P233 `p233-across` | U7 | §14 |
 | P234 `p234-sign-in` | U8 | §15: the keypad and typed digits, the rules, the old PIN's path, the counts and lockout, nothing of the book before sign-in, the manifest's icons |
 | `server/feeds/test` (vitest) | U2 | §9a |
+| P235 `p235-card-family` (phone and desktop) | U2R | §24b–§24d: the skeleton on every widget at every size (the head 44 px, `--r-card` 14 px, the sides, the parts in their order); each widget's type and surface; the salience (quiet, the amber edge, the red edge and tint replacing the type's surface; an Outside card never edged); every short title whole at Small and every title whole at its sizes, in Geist (`document.fonts.check` first); every chart label in a card at 11 px or more; nothing focused when Home is drawn |
+| P236 `p236-action-rows` (phone and desktop) | U2R | §24e: a census of everything a person can press in every widget at every size, on the long book and the empty book: each in one of the five rows or an item's own; at most one tinted and one text button in an Act; the Source the last line, its links only Refresh and a feed's credit; a Choose only at Large, in the head (under it on the phone), kept per person across a reload; no secondary, ghost or chip in a card; every target 44 px on the phone; a move's dialog with *Add to my list* |
+| P237 `p237-board-heights` (phone, and desktop at 1280 and 1024 px) | U2R | §24h–§24i: each size's height; every preset with no hole for its role's default pages, packing on and off; a hole in a person's layout filled by a later card with the DOM in the layout's order; Customise's slots and *Add here* inserting at the slot; `wdgPlace` against the browser's own placement; the fit (the optional parts, then the rows, More's count, a Ledger's rest line adding up) |
+| P238 `p238-figures-money` (phone and desktop) | U2R | §24k–§24l: `inrCard`'s cases (§24k's table and its edges); every amount on a board short, its exact figure its `title`; a Ledger's lines whole and adding up to their total; a rate with its paise; on every screen a figure in Geist (`--ff-num`, tabular) and an identifier in Geist Mono with its slashed zero; paper unchanged (P228's record) |
+| P239 `p239-masthead` (phone and desktop) | U2R | §24j: flat (no fill, edge or lift; the hairline), 148 px on the desktop, never folded; its parts in order on both layouts; the clock and the shift before, during and after the shift (`page.clock`); the Act by role; the six-second test (the sentence and the clock in the first 200 px on the phone) |
 
 ## 21. Existing specs the steps rewrite (not weaken)
 
@@ -1406,6 +1502,15 @@ From the survey of 16 Oct 2026 (the fixtures and the 76 files that open Pulse or
   sight (and .desktop); p147-desktop-layouts.desktop (Home's widgets three across → the board's columns); p3-home-empty-state;
   p64-finance-links; p88-prod-links; p120-stats-stories; p128-qa-intel; p129-qa-platform; p133-what-to-do (and .desktop); p152-guard-qa;
   p153-qa-step7 (and .desktop); p159-why; p194-load-across (and .desktop); p210-rulings. Each asserts the same fact where it now lives.
+- **U2R**: p223-home-board (the day card's parts → the masthead's; the board's spans → its heights and packing; arranging's slots;
+  the presets), p224-widget-sweep (each widget's cap → its height; the type; a chart bare; the titles), p197 (`LOOKS` regenerated at
+  14, 10 and 8 px, with the type surfaces, the edge, the red tint, the masthead and the tray; `ONE_LOOK`'s Home led by its masthead),
+  p195 (Home's budget, I10), p180 (the type surfaces and the red tint in every palette and theme: HR-9, the steps over the page, every
+  text tier at 4.5:1 on each and in a well on it), p182 (the corners' new values), p76 (the classes; every target on the phone), p42
+  (the quick actions' keys on a tray: three across, six from 40rem of card), p225 (the feeds' Source: its credit and its Refresh),
+  p227 (a chart's `opts.bare`, beside the boxed default), p228 (the paper record unchanged with Geist loaded), and every spec that
+  reads `inv-widget-credit`, `inv-widget-chip`, `inv-homeday-*`, a widget's old foot (*View challans*, *Open the lines*, *Open
+  Quotations*, *See all*, *Change the pair*, Tata's model chips) or a figure's face. Each asserts the same fact where it now lives.
 - **U3**: the Stats specs (p47-stats-intel, p73-stats and .desktop, p105-stats-fold, p120-stats-stories, p185-today-map's Stats half,
   p194-load-across's) to the board and the tables.
 - **U4**: the specs reading Stock's Spend and prices fold (p65-overviews, p99-zinc-trend, p188-floor-map and .desktop); the forms'
@@ -1433,6 +1538,17 @@ From the survey of 16 Oct 2026 (the fixtures and the 76 files that open Pulse or
 8. **Home is slow** with thirteen widgets each reading the book: the views cache once a book; P223 bounds the draw on the long book;
    the step reports the owner's book's time.
 9. **The icons' licence**: both notices in the build (P228).
+10. **A fixed height cuts what a card says** (U2R): the fit lets go of the optional parts, then whole rows with their count, and the
+    sweep (P224, P237) draws every widget at every size on three books; a widget that cannot say its answer at a size loses that size
+    (it is no longer offered), never its words halfway.
+11. **Dense packing changes the order seen**: the DOM keeps the layout's order (the tab order, a screen reader), no preset leaves a
+    hole, and arranging shows the true order with its holes as slots.
+12. **The figures' face changes every screen at once** (call 2): Geist's digits are narrower than Geist Mono's, so a figure only
+    gains room; a column stays aligned (tabular figures); P76 sweeps every screen, view and dialog, and P197's census reads them.
+13. **Fonts in a public repository**: Geist and Geist Mono are under the SIL Open Font License 1.1, which permits it with its text
+    beside them; under 200 KB, under `tests/` only (the app keeps loading them from Google Fonts).
+14. **Home grows on the phone** with fixed heights: measured by P195; the phone's Owner preset leaves out Do first if it would pass
+    four screens (§24i).
 
 ## 23. Builder protocol
 
@@ -1441,9 +1557,473 @@ From the survey of 16 Oct 2026 (the fixtures and the 76 files that open Pulse or
 2. Grep every new top-level name across `split/*.js` before adding it (the prefixes this pass takes: `wdg`, `dv`, `feed`, `mkt`,
    `uiFlow`, `uiBlank`, `uiPointer`, `markSvg`, `iconFill`, `chartFit`, `seriesSlot`, `homeDay`, `homeClock`; the classes:
    `inv-widget*`, `inv-wgrid*`, `inv-gallery*`, `inv-switch*`, `inv-blank*`, `inv-flow*`, `inv-pointer*`, `inv-keypad*`, `inv-pinbox*`,
-   `inv-pcp-*`, `inv-mkt-*`, `inv-wx-*`, `inv-ico-*`, none of them a retired prefix in P76's `V1_PREFIX`).
+   `inv-pcp-*`, `inv-mkt-*`, `inv-wx-*`, `inv-ico-*`, none of them a retired prefix in P76's `V1_PREFIX`). U2R adds the names `inrCard`,
+   `inrFigHtml`, `homeMastHtml`, `wdgPlace`, `wdgActHtml`, `wdgSourceHtml`, `wdgChooseHtml`, `wdgLedgerHtml`, `wdgDocketRowHtml`,
+   `wdgPlantRowHtml`, `wdgSeatsHtml`, `wdgMoveRowHtml`, `wdgMoveCardHtml`, `wdgWireHtml`, `wdgTrayHtml`, `advMoveOpen` (each grepped
+   free on 17 Oct 2026), and the classes `inv-btn-tint`, `inv-seg-choose`, `inv-cur`, `inv-meter-key`, `inv-widget-act`,
+   `inv-widget-src`, `inv-wgrid-slot`, `inv-mast*`, `inv-ledger-*`, `inv-docket-*`, `inv-plant-row`, `inv-plate`, `inv-reading`,
+   `inv-seat*`, `inv-crew-*`, `inv-brief-*`, `inv-wire-*`, `inv-tray*`. `inv-card*`, `inv-more-*` and `inv-total*` are retired
+   prefixes: no part of a card takes those names.
 3. Measure before; build; the step's specs, the rewritten ones, the full suite (about 27 minutes on CI, longer locally: not a hang);
    measure after; lower the budgets.
 4. Commit each step with what moved and why and the trailers CLAUDE.md gives; no model name.
 5. Never: delete or skip a test; raise a budget; write the owner's data, a worker's or a supplier's name into the repo; call a browser
    pop-up; add an inline style; change paper; change the book beyond §16.
+
+## 24. The card family (U2R)
+
+The owner looked at Home after U2's stop, 17 Oct 2026: *"The chips under the cards are still unfinished and looks out of touch with
+the overall design. It should look crisp, I guess we are missing that as well. We need to manage white spaces better. We are in the
+right direction but i am looking for a more finished product. What's your take?"* Then: *"If we are going to have one card layout,
+then we can have different types of card layouts but organised, so maybe a financial card layout looks and feels different than an
+industrial one. Same for anything that we are putting under one label, like the action rows."* On *"Go"* the family was drawn on a
+canvas (the owner's artifact *Home card types*: Home on the desktop and the phone in both themes; one skeleton and seven types at each
+size; the five action rows; the four calls, each beside today's build), and the owner answered *"Write the spec"* (17 Oct 2026). This
+section is that spec. It takes the canvas as approved and the four calls as the canvas proposed them (§24a); where it departs from
+or adds to the canvas, it says so, and §1a lists each for the owner's next look.
+
+**What the canvas fixed, as measured on U2's build** (its *Today, as built* crops, the long book):
+- a card's foot mixed outlined buttons, chips and links, each card its own way: the day card's outlined pill and link, Tata's model
+  chips under its headlines, a source line holding two links, Do first's moves as cards inside a card, each with a bordered button
+  and a link;
+- ten of the Owner preset's fourteen cards were washed in their tone, so the red ones did not stand out;
+- every amount was written to the paisa: ₹1,19,656.80 where the owner reads *about one lakh twenty*;
+- the figures, in Geist Mono, read like code;
+- a card was as tall as what it held, so the board left holes beside the short cards, and a card with little in it still stretched.
+
+**It is one step, U2R, on Home's board, before U3** (Stats' board is built in the family from its start), **and it ends in a stop for
+the owner to look**, as U2 did. Read §24 with §7 and §8: it amends §3a's radii, §3d's coded card, §7a's entry, §7b's sizes and
+packing, §7g's presets and §8b's day card, and each of those says so where it stands.
+
+### 24a. The owner's four calls, as taken
+
+| Call | Taken (A, as the canvas proposed it) | The other (B) | A reversal is |
+|---|---|---|---|
+| 1. A card's surface | **Salience follows severity**: a card is quiet while all is well; amber adds a 3 px top edge; red adds the edge and tints the card. The figure and the lamp always carry the tone (§24c). | Every coded card washed in its tone, as U2 drew it | the tone rules of §24c |
+| 2. The figures' face | **Geist with tabular figures**, every digit one width, so a column still lines up; Geist Mono only for document numbers, codes and nameplates (*SEP/26-27/00841*, *CH 0801*, *VAT A1*). Amends DR-4 (§24l). | Geist Mono for every figure, as U1 set it | `--ff-num` set back to `--ff-mono` |
+| 3. Money on Home | **Whole rupees under a lakh, lakhs to two places from a lakh, crores from a crore** (₹66,476 · ₹3.50 L · ₹1.24 Cr); a Ledger's statement lines in whole rupees; the paise in each figure's `title` and on the screens behind (§24k) | To the paisa everywhere, as U2 wrote it | `inrCard` returning `formatCurrency`'s text |
+| 4. Heights | **Fixed by size, the board packed**: on the desktop a Small one row and a Medium or a Large two; on the phone a Small one, a Medium two, a Large three; no hole (§24h) | As tall as its content, packed in order, as U2 built it | the board's rows back to `--masonry-row` |
+
+The canvas drew each call's B beside its A on Home, through switches on its own root (`data-surface`, `data-figs`, `data-money`); the
+app builds A alone and has no such switch.
+
+### 24b. One skeleton
+
+Every card on a board is one frame, drawn by the framework (`wdgCardHtml`, §24g), whatever its type.
+
+| Size | Desktop: 12 columns (6) | Phone: 2 columns | At 1280 px (the canvas) |
+|---|---|---|---|
+| Small | 3 columns (3 of 6) × 1 row | 1 column × 1 row | 270 × 172 · on the phone half the board × 168 |
+| Medium | 6 columns (6 of 6) × 2 rows | 2 columns × 2 rows | 556 × 360 · the row × 348 |
+| Large | 12 columns (6 of 6) × 2 rows | 2 columns × 3 rows | the row × 360 · the row × 528 |
+
+- **Rows**: on a 12- or 6-column board a row is `--wdg-row` 10.75rem (172 px) and the gap `--wdg-gap` 1rem (16 px); on the 2-column
+  board 10.5rem (168 px) and 0.75rem (12 px). A Medium is two rows and the gap between (360 = 2 × 172 + 16), the phone's Large three
+  rows and two gaps (528 = 3 × 168 + 2 × 12). Rem, so a larger text setting gives larger rows.
+- **Corners**: `--r-card` 0.875rem (14 px; 18 before) on every card in the app; a well (a field, the search, a segmented control's
+  track, a tile in a card) `--r-tile` 0.625rem (10 px); a button and a menu `--r-ctl` 0.5rem (8 px); a segmented control's pill
+  `--r-seg` 0.4375rem (7 px: the track's corner less its inset, so the two curves are one). The phone's floating bar keeps a rounder
+  corner of its own, `--r-bar` 1.375rem (22 px), as the canvas drew it. They are tokens, so every card in the app takes them at once.
+- **The frame**: the card's surface (its type's, §24d), a hairline edge (`--edge`), `--lift-1`; nothing else. U2's card was an
+  `inv-hero` and took the hero's wash; a widget is no longer one (§24c).
+- **Spacing**: 16 px at a card's sides (`--wdg-pad-sm` 0.875rem, 14 px, on a phone's Small); the head 44 px tall (`--wdg-head-h`);
+  the parts of the body 6 px apart (5 on a Small); the body's last part 14 px from the card's foot where no foot follows.
+- **Type**: the title 13 px semibold in `--text-1` (U2 drew it in the accent's soft text; the accent is for what can be pressed, and
+  the title is not a button of its own); the figure 28 px semibold (26 on a Small, 24 on a phone's Small: `--fs-28`, `--fs-26` new,
+  `--fs-24`), `--ls-tight`; a unit after it 13 px in `--text-2` (`inv-unit`); the rupee sign at 0.62 em, raised and in `--text-2`
+  (`inv-cur`); a sign before the figure (≥, ≈, −) at 0.8 em; the verdict 13 px medium; a detail line 12 px in `--text-2`; the
+  Source 11 px in `--text-3`.
+- **Colour**: status only, on the lamp (the app's dot, `inv-dot-<tone>`), the figure where the card judges it, and from amber the top
+  edge (§24c); the accent only on what can be pressed. Nothing else on a card is coloured.
+- **The order, always** (every type, every size): **head** (Open; Choose at its right), **figure**, **verdict**, **body** (the type's
+  own parts, with **More** at its list's end), **Act**, **Source**. A part a card has no use for is left out; the others never change
+  places.
+- **A Small** holds the head (its short title, §24f), the figure and the verdict (a Briefing: its answer and one detail line), and at
+  most one thing more: a small picture (bars, a gauge, the seats), one line, the tray (Tools), or one tinted button (the backup's).
+  Never a list, a More, a Choose, a text button or a Source.
+- **Nothing is focused when a board is drawn** (the canvas review found a focus ring on a card at load): the draw moves no focus.
+
+### 24c. Salience follows severity (call 1)
+
+| Tone | Surface | Top edge | Figure | Lamp |
+|---|---|---|---|---|
+| neutral | the type's (§24d) | none | `--text-1` | `inv-dot-neutral` |
+| ok | the type's | none | `--ok` where the card judges it | ok |
+| info | the type's | none | `--info` where judged | info |
+| warning | the type's | 3 px of `--warning-mark` | `--warning` where judged | warning |
+| danger | **the red tint**, `--card-danger`, in place of the type's | 3 px of `--danger-mark` | `--danger` | danger |
+
+- `--card-danger` is `--danger-bg` mixed into `--surface` in OKLab, 70% in light (`#f9eeee` on Zinc, OKLab L 0.958) and 78% in dark
+  (`#321a18`, L 0.250): `light-dark()` of the two `color-mix()`es.
+- The edge is an inset shadow along the top (`inset 0 var(--tone-edge) 0 0 <mark>`, `--tone-edge` 0.1875rem), so it follows the card's
+  corners and takes no room; the lift stays as it is.
+- **A card's tone is the worst of what it holds that is the plant's to act on**, as now. An Outside card (§24d) is never edged or
+  tinted: the world outside is to know (its tone is info at most), and its figures keep their own tones. A card in a blank state is
+  neutral, as now.
+- **Never colour alone** (DR-8): the lamp stands beside the verdict's words. On a card the tone is said by the lamp and the words and,
+  from amber, the edge; the tone icons (`done`, `alert`, `cancel`, `info`) stay on a status badge and a notice (DR-8 as U1 amended it,
+  amended again in U2R).
+- **Measured** (the scratchpad's harness, Zinc, both themes): every text tier reads at 4.5:1 or more on each surface and in a well on
+  it. The worst: `--text-3` in a well on the Plant card in light, 5.18:1; the accent there, 4.51:1; on the red tint, 5.28:1 in a well
+  in light and 5.05:1 on the card in dark. Every light surface is under OKLab L 0.97 (HR-9): Ledger 0.956, Plant 0.950, the red tint
+  0.958. P180 holds each, in every palette.
+- **On the boards in U2R** (Home now, Stats from U3). **Every other hero and verdict card takes the same rule in U7** (§14a), so the app
+  ends with one rule; until then a hero elsewhere keeps its wash (§1a-20).
+
+### 24d. Seven types
+
+A type is a card's surface and the parts only it draws; it never changes the skeleton. A widget names its type (`type`, §24g) and
+the card carries it as `data-type`. The framework draws a type's parts with its builders (§24g); a widget never draws them itself.
+
+| Type | For | Feels like | Surface | Rows it may use |
+|---|---|---|---|---|
+| **Ledger** · money | `money`, `cash`, `owed`, `dtp`, `gst`, `mtd`, `pace`, `clientprice`, `kilo`, `zincpaid`, `figures`; U3's `share`, `labour`, `months`, `trend`, `topitems`, `costcheck`, `pricecost` | a bank statement, a ledger page | warm, `--ty-ledger` | Open, Choose, More, Act, Source |
+| **Docket** · documents in motion | `unbilled`, `recent`, `pipe`, `turn`, `quote` | the despatch register on the office desk | the card's | Open, More, Act, Source |
+| **Plant** · lines and machines | `floornow`, `prodday`, `eff`, `heat`, `risk`, `powercuts`, `stockdays` | the panel by the rectifiers | cool, `--ty-plant` | Open, Choose, More, Act, Source |
+| **Crew** · people | `atttoday`, `attweek`, `ot` | the roster board at the gate | the card's | Open, More, Act, Source |
+| **Briefing** · the questions | `q-smooth`, `q-money`, `q-clients`, `q-plant`, `q-cash`, `q-changed`, `dofirst`, `why`, `coming`, `needs`, `corr` | a briefing note on the desk at nine | the card's; the answer in large type | Open, Choose, More, Act, Source |
+| **Outside** · the world outside | `tata`, `weather`, `zinc` | a news wire on the desk | the card's | Open, Choose, More, Source (no Act) |
+| **Tools** · starting things | `quick`, `sync` | the switch panel on the wall | the card's; the keys on a sunk tray | Open, Act, Source |
+
+`corr` was not drawn on the canvas: a Briefing, since its answer is a sentence (*a pattern, not proof*). Briefing's Choose is
+`corr`'s alone (§24f).
+
+**The two surfaces, per palette** (light, dark), each the palette's card moved by Zinc's own step in OKLab, the Ledger warmer and a
+shade under the card, the Plant cooler and a shade more, so the three palettes keep one structure:
+
+| Palette | `--c-ty-ledger` | `--c-ty-plant` |
+|---|---|---|
+| Zinc & brass | `#f3f0e9` · `#1b1a16` | `#eaeff4` · `#121920` |
+| Teal | `#f0f1e8` · `#191b14` | `#e7f0f3` · `#101a1e` |
+| Terracotta | `#fbefdd` · `#221c10` | `#f2eee8` · `#191b1b` |
+
+Measured: over the page by 0.027 to 0.035 OKLab L in light and 0.033 to 0.042 in dark; every text tier at 4.5:1 or more on each and in
+a well on each; the accent at 4.51:1 or more. The aliases are `--ty-ledger` and `--ty-plant`; nothing else reads the primitives.
+
+**What only each type draws:**
+- **Ledger**: the rupee raised and small (`inv-cur`); amounts on dotted leaders, right-aligned (`inv-ledger-line`: the label, its
+  meta in 12 px `--text-2`, a dotted leader `inv-ledger-lead` in `--border`, the amount at the right); a total ruled once above and
+  twice below (`inv-ledger-total`: a `--rule` of `--text-2` over it, a 3 px double rule under its amount), **drawn only where the lines
+  above it add up to it** (to half a rupee a line: each is rounded from its exact amount); a list that is cut ends in one line for the
+  rest and their sum (*7 more clients · ₹2,86,040*), so the lines still add up; the age bar (`chartMeter`, as Money's) with its key
+  under it (`inv-meter-key`: four columns, each its swatch, its band and its sum).
+- **Docket**: document numbers in Geist Mono (`inv-id`); a document's state as steps (`inv-docket-steps`: a pip a state, those passed
+  in `--text-3`, the one it stands at longer and in the tone of its age, `invStateTone` or `imWaitTone`, those to come in `--border`;
+  an invoice's five, Created to Filed, a challan's four, received, pickled, plated, invoiced); rows that read across like a register
+  (`inv-docket-row`: the number, then the party and its meta, then the amount and the steps, and a row's own action where it has one);
+  the pipeline's stages as one strip in a well (`inv-docket-stage`: a stage a cell with its count and sum, the stage the card leads
+  with lifted; each opens Pipeline at that stage).
+- **Plant**: a lamp on each line or unit, ringed in its tone (an `outline`, never a shadow: DR-6); nameplates (`inv-plate`: the name
+  as the app writes it, *VAT A1*, *Barrel*, in Geist Mono in a small well with a hairline, never upper-cased by style: DR-5); readings
+  with their units (`inv-reading`: 14 px semibold, the unit 11 px `--text-2`); gauges with their mark (`chartMeter` and its mark: the
+  usual day, 75% efficiency); the day strip, 6 AM to 6 AM (`chartDayStrip`, as built); a line a row (`inv-plant-row`: the lamp, the
+  nameplate, what it runs and its meta, the gauge with its figure).
+- **Crew**: a seat a hand the day needs (`inv-seats`, `inv-seat`: filled in `--text-2` when on site, ringed in `--warning-mark` when
+  short, a seat ringed in `--info-mark` for each hand over), for the floor's areas against their need (`areaNeedOn`); an area a row
+  with its seats and its word (`inv-crew-row`); the names of who is away (`inv-crew-away`: *Away:* and the names, from the roster on
+  the device); weeks as bars against the 90% gate, the week to date hatched (the bar builder with its reference line, `opts.toDate`).
+- **Briefing**: the answer as a sentence, its key figure in its tone (`inv-brief-ans`: 19 px semibold, 17 on a Small, 22 at Large;
+  the figure `inv-fig-<tone>`); facts on one line (`inv-brief-facts`: 12 px `--text-2`, each value semibold in `--text-1`); moves as
+  rows, each ending in its one action (`inv-brief-move`: its lamp, its sentence, its worth and what the worth rests on, the move's
+  button tinted and small), at Large as cards with their worth (`inv-brief-movecard`: a well, three across from 40rem of card, the
+  worth 17 px semibold in the tone of its sign, the sentence, the reason, the action at its foot); dated rows led by their day
+  (`inv-brief-when`: the day in a small well, *Today* in the accent's soft colour, the period on show, DR-2); causes that add up to the
+  change, ruled under them as a Ledger's total.
+- **Outside**: headlines with their dateline (`inv-wire-item`, an `a` opening the article, `rel="noopener noreferrer"`,
+  `target="_blank"`: the headline in two lines at most, `inv-wire-head`; the site and the time in 10.5 px Geist Mono `--text-3`,
+  `inv-wire-dateline`; the external-link icon); the figures typed from the release, each with its change (`inv-mkt-*`, U2); the plant's
+  week (`inv-mkt-week`); the hours ahead (`inv-wx-hours`); the Source always shown, with its Refresh.
+- **Tools**: keys on a sunk tray (`inv-tray`, a well, `--r-tile`, three across, six once the card is 40rem wide, as U2's quick actions
+  rule; `inv-tray-key`: the card's surface, its edge, `--lift-key`, `--r-ctl`, the icon in the accent over its word, 58 px tall, 92 on
+  a phone's Small, which holds two); no figure.
+
+**A chart in a card is bare** (`opts.bare`, charts.js): no box, no readout line and no *Table* button; each datum keeps its `<title>`
+with its exact figure. A card is a glance: its chart's table is on the screen behind, which the card's Open reaches, and its verdict
+says in words what the chart shows (§1a-15). **Every label a card's chart draws renders at 11 px or more**: a bare chart is drawn at
+the card's own width (its `viewBox` in the card's pixels), or its labels are HTML beside the drawing, as the canvas drew them.
+
+### 24e. Five action rows
+
+Everything a card lets a person do is one of five rows, each with one look and one place:
+
+| Row | Does | Where | Looks |
+|---|---|---|---|
+| **Open** | goes to the screen the card comes from | the head: the whole head is the target (`inv-widget-door`), the chevron after the title says so | no button repeats it; a role that cannot follow it reads the head as text, with no chevron (I4) |
+| **Choose** | changes what the card shows: a model, a line, a view, a pair | at Large, a small segmented control at the head's right (`inv-seg inv-seg-choose`); on the phone under the head at the card's width; never at the foot (`corr`'s pair at Medium too, as one button naming it, §24f) | a well with 24 px pills on the desktop and 44 px on the phone; what is picked is kept per person with the layout (`opts`, §7h). The board's own period stays in the board's toolbar |
+| **More** | the rows the card had no room for | the list's last row, in the list's rhythm: *5 more*, *4 more moves*, *6 more headlines* (`inv-widget-more`, `wdgFit`'s) | 12 px semibold `--text-2`, a chevron at its end; it opens the rest on the screen behind, or in a dialog where the screen is not the list's (§24f) |
+| **Act** | does something now | after the body, before the Source (`inv-widget-act`) | one tinted button (`inv-btn-tint`) and at most one text button (`inv-btn-link`) beside it. A row in a list may end in its own one action, a small tinted button, as rows do now |
+| **Source** | where it comes from, and how fresh | the card's last line, always (`inv-widget-src`) | 11 px `--text-3`, facts parted by a middle dot; a Refresh is a link inside it, never a button; besides Refresh, the only link it holds is a feed's credit where the feed's terms ask for one (§1a-17) |
+
+- **The tinted button** (`inv-btn-tint`, new; design §6.3): `--accent-soft` fill, `--accent-soft-text`, an inset ring of the accent at
+  24%, `--r-ctl`; 32 px tall on the desktop (28 for a row's own), 44 px on the phone, both. It is not the view's primary (DR-3 counts
+  `inv-btn-primary`); a board has none.
+- **What goes**: the outlined pill; a chip as a control inside a card (a chip stays a toolbar's filter); a link or button in a card's
+  body that is not one of its items' own; a Source holding more than its Refresh and a credit; a card inside a card (Do first's
+  moves); a button in a card's foot beside the Act; a second door to the screen the head already opens (*View challans*, *Open*,
+  *Open the lines*, *Open Quotations*, *See all*).
+- **What a body may hold that can be pressed**: its items, each opening what it names (a row, a tile, a stage, a key on a tray, a
+  headline, a chart's row that opens a client); a row's own one action; a task of your own's tick box, as Needs you draws it. Nothing
+  else.
+- **A blank state's action is the card's Act** (tinted) at Medium and Large; a Small's blank has none, as on U2's phone. An error's
+  *Report it* is the Act's text button.
+- **Add to my list leaves the move's row**: a row or a card of moves ends in the move's one action, and a tap on the move (anywhere but
+  its action) opens **the move's dialog** (`advMoveOpen`, new): its sentence, its worth and what the worth rests on, its action (the
+  one primary) and **Add to my list** (*On your list* once it is). A question's Medium card keeps *Add to my list* as its Act's text
+  button, for the first move, which is that Act's tinted button.
+- **On the phone** every Act button, row action and More row is 44 px tall, a Choose's segments 44 px, and a Source holding a Refresh a
+  44 px line.
+
+### 24f. Every widget in the family
+
+The bodies are §7d's, as built (the inventory of 17 Oct 2026), unless the last column says otherwise. A Small title is the card's
+title at Small (`short`); every one is whole on a phone's Small in Geist (P235). `<d>` is a day and `<t>` a time the widget's own
+reading gives; *—* means none.
+
+**Ledger**
+
+| Widget | Small title | Choose (Large) | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `money` | — | — | *Import a statement* (tint), only while the statement is over 7 days old | Bank statement to `<d>` | its tiles in short money; its foot had shown *Import statement* even with a statement in |
+| `cash` | Cash | — | — | Bank statement to `<d>` · each client at its own pace (Large: · the band is the likely range) | Medium: the balance, the money in and the money out the forecast places over its 60 days, and the balance at their end, as statement lines that add up (summed from `finForecast`'s own `days`, which already carry each day's in and out); Large: the lines and the forecast's chart, bare |
+| `owed` | Owed to us | By client · By age | *Place the N receipts* (tint), while receipts have no client; *Send a reminder* (text): the statement and reminder of the client longest past its terms (`advGoTo` `soa`) | Bank statement to `<d>` · receipts set oldest first · age from the invoice date | By client (Medium's, and Large's first): the clients largest first as statement lines with their oldest days, the rest one line, the total ruled; By age: the age bar and its four bands as lines ruled to the total; Large: the receipts with no client as rows |
+| `dtp` | Days to pay | — | — | Receipts set against invoices · a client judged from 3 receipts | Small: a gauge of the median against the terms, its mark at the terms; the dumbbell bare |
+| `gst` | GST | — | *Add a note* (tint), for a month the bank shows unpaid with no note | Invoices and notes · paid read off the bank statement to `<d>` | Small: last month's due, its status as the verdict, the month before as one statement line; the chart bare |
+| `mtd` | Month to date | — | — | Invoices, `<Oct 1–17>` · net of credit notes | Small: the months before it as small bars, this month to date hatched (`opts.toDate`); the eyebrow's period, which `wdgFromHero` dropped, is the Source |
+| `pace` | — | — | — | Invoices to `<d>` · net of credit notes | so far, unbilled in hand and the likely range as statement lines, **no total ruled**: the landing is a pace, not their sum (the canvas ruled it twice) |
+| `clientprice` | — | — | — | Invoices, the period · the live cost N% measured · labour fixed | the ranked bars bare, each client's row opening its page |
+| `kilo` | A kilo's cost | — | — | Live cost, the period · N% measured | — |
+| `zincpaid` | — | — | — | Zinc bills · the market at today's uplift and premium | the suppliers as rows, their rates with paise |
+| `figures` | — | — | — | Invoices of the period, net of notes · the live cost N% measured | *Plated (floor)* a row opening Production (its *Production* link goes) |
+
+**Docket**
+
+| Widget | Small title | Choose | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `unbilled` | Unbilled | — | — | Challans to `<t>` · amber at 3 days, red at 6 | Small: the count to bill as the figure and the oldest's wait as the verdict; Medium: the open amount and the oldest challans as register rows, each ending in *Create invoice* (`advGoTo` `createFor`); *View challans* goes |
+| `recent` | — | — | *Mark the N dispatched* (tint), while printed invoices wait (Invoices with them ticked, `regState`); *New invoice* (text) | Invoices to `<t>` | rows: the number, the client and its meta, the amount and the state as steps, **each ending in its Print** (owner, 6 Oct 2026: four taps to print a recent invoice; the canvas drew none, §1a-16); the state badge goes, the steps say it |
+| `pipe` | Pipeline | — | — | Challans and invoices to `<t>` · ages in working days | Medium: the stages as one strip (on a card under 32rem wide, a stage a row with its count and sum); Large: the strip and the oldest of the stage it leads with as rows, each ending in that stage's own action |
+| `turn` | Turnaround | — | — | Challans of the last 90 days · working days, Sundays out | the slowest clients and the steps as register rows |
+| `quote` | Quotations | — | *Follow up N* (tint), while follow-ups are due (Prospects, the due first) | Sales · weighted at a chance per stage | *Open Quotations* goes (the head opens Sales) |
+
+**Plant**
+
+| Widget | Small title | Choose | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `floornow` | Floor now | — | — | In-time roll `<t>` · register to `<t>` · the day's cuts | Medium: lines running with heads on site beside it as a reading; the day strip; a line a row; Large: + units down, the EXTRA booked |
+| `prodday` | Production | All lines · VAT A1 · VAT A2 · Barrel | — | Register pages of `<d>` · pickling messages · each run weighed by the surest route | Small: a gauge against the usual day; Large: the day, or the line picked, and its pieces not weighed as rows, each ending in *Which part?* or *Set its weight*; *Open the lines* goes (the head opens Lines on that day) |
+| `eff` | Efficiency | — | — | Register to `<t>` · a round every N minutes, measured or set | the lines as rows with their gauges, the mark at 75% |
+| `heat` | — | — | — | Plated, weighed by the surest route · a usual day ≈ X t | the heat bare; Large: the light days that had a cut as rows |
+| `risk` | Cut risk | — | — | N cuts on record · thunder from MET Norway, `<age>` · Refresh | Small: the hours as bars, the window in `--warning-mark`, the thunder hours hatched in `--info-mark` |
+| `powercuts` | Power cuts | — | *Complete the cut* (tint), while a cut has no time back (`pcsOpen` on it) | Cuts from the register, the messages and by hand · this month | — |
+| `stockdays` | Stock days | — | *Order <line>* (tint), while the first is amber or red: the reorder list at it (`advGoTo` `reorder`); nothing is ordered from the app | Stock messages to `<d>` · use over 3 weeks, Sundays out | Small: *4 days* with the line's name as the unit, the order-by day as the verdict |
+
+**Crew**
+
+| Widget | Small title | Choose | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `atttoday` | Attendance | — | — | In-time roll `<t>` · the out-time roll `<in, or not in yet>` | Small: the floor's heads against the day's need as the figure (*14 of 16 on the floor*), the shortfalls as the verdict, the seats; Medium: the areas as rows with their seats and who is away; its *Open* goes |
+| `attweek` | — | — | — | Marks to `<d>` · the week Sunday to Saturday · weekdays only, as the gate counts them | weeks as bars against the 90% gate, the week to date hatched (U2 drew a line) |
+| `ot` | — | — | — | Attendance, four weeks to `<d>` · overtime where it was worked | the ranked bars bare |
+
+**Briefing**
+
+| Widget | Small title | Choose | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `q-smooth` | Running well? | — | Medium: the first move (tint) and *Add to my list* (text) | what the answer reads, and its period (each question as `statsStoryCards` names it) | Small: the answer as a sentence (the vital's figure set in its words, at most 40 characters: *Losing ₹17.67 on every kilo*, *4 things could stop the plant*) and the vital's picture; Medium: the story's sentence and rows; Large: the moves as cards |
+| `q-money` | Making money? | — | as above | Invoices net of credit notes · the live cost N% measured · labour counted as fixed | as above |
+| `q-clients` | Who drives it? | — | as above | as above | as above |
+| `q-plant` | Plant full? | — | as above | Invoices, the period · ~2 t a shift, two shifts | as above |
+| `q-cash` | Cash coming in? | — | as above | Bank statement to `<d>` | as above |
+| `q-changed` | What changed? | — | as above | The month to `<d>` against its pace | as above; its insights as rows |
+| `dofirst` | — | — | — (each move's at its row's end) | Every question's moves, by what each is worth a month | the moves as rows (Large: cards); a move opens its dialog (§24e); *4 more moves* opens Do first's dialog |
+| `why` | — | — | — | Against `<the period before>` · weighed lines only | the causes as rows, the change ruled under them |
+| `coming` | — | — | — | — | the predictions as dated rows; *5 more* lists the rest in place |
+| `needs` | — | — | *Add a task* (text) | — | *See all* goes (the head opens Needs you) |
+| `corr` | — | the pair: at Large its two pickers (*Across*, *Up*); at Medium one button in the head naming the pair, opening its picker | — | Day by day, working days · N points from `<d>` | *Change the pair* becomes the Choose |
+
+**Outside**
+
+| Widget | Small title | Choose | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `tata` | — | the models followed (*All models · Prima · Signa*, `S.market.models`) | — | *The GDELT Project* (its credit, a link) · `<age>` · Refresh · figures typed from the `<month>` release | the model chips leave the foot for the Choose, which filters the headlines; *6 more headlines* opens the Tata dialog on the model picked; Large: three columns from 60rem of card (the figures and the week; the chart, bare; the headlines), two from 36rem, one under |
+| `weather` | Weather | — | — | *MET Norway* (its credit, a link) · `<age>` · Refresh · at the plant's place | — |
+| `zinc` | Zinc rate | — | — | metals.dev · `<age>` · Refresh · MCX estimated from LME | its *Refresh* button becomes the Source's link; the rate keeps its paise (§1a-18) |
+
+**Tools**
+
+| Widget | Small title | Choose | Act | Source | What changes |
+|---|---|---|---|---|---|
+| `quick` | Quick actions | — | — | — | the keys on a tray (Small three, the phone's Small two: *New invoice* and *Paste*; Medium six); Medium: *Started here and not saved*, the forms the app holds this session with **Continue** (§1a-19) |
+| `sync` | Backup | — | *Back up now* or *Register* (tint, small) | — | its verdict *Backed up 12 minutes ago* with its lamp; the repository as its detail |
+
+U3's widgets (`share`, `labour`, `months`, `trend`, `topitems`, `costcheck`, `pricecost`) are Ledgers, built in the family by U3 (§10).
+
+### 24g. The framework (`widgets.js`)
+
+A widget's entry (§7a) gains, and loses:
+
+```js
+wdgDefine({ id: 'owed', title: 'Owed to us, by age', short: 'Owed to us', q: '…', section: 'money',
+  type: 'ledger',                                   // ledger | docket | plant | crew | brief | outside | tools; required
+  sizes: ['m', 's', 'l'], needs: { page: 'pageFinance', money: true }, go: { tab: 'pageFinance', v: 'receipts' },
+  choose: { def: 'client', opts: function (ctx) { return [{ v: 'client', label: 'By client' }, { v: 'age', label: 'By age' }]; } },
+  data: function (ctx) { … },                       // ctx.choose: the value picked, else def
+  draw: function (d, size, ctx) { … },              // the body, through the type's builders
+  actRow: function (d, size, ctx) { return { tint: { label: 'Place the 21 receipts', action: 'invFinGo', data: { tab: 'receipts' } },
+                                              text: { label: 'Send a reminder', action: 'invAdvGo', data: { … } } }; },
+  source: function (d, size, ctx) { return { facts: ['Bank statement to 16 Oct', 'receipts set oldest first'] }; },
+  act: …, change: … });                             // the handlers, as now
+```
+
+- **`type`** is required; a widget without one is refused when it is defined (an error in a test build, nothing drawn). **`short`** is
+  required where `sizes` holds `s`.
+- **`choose`** is drawn at Large (§24e); a pick writes `opts[id].choose` through `wdgOptsPut` and draws that card again alone, in
+  `keepScroll`. `corr` keeps its `opts.corr` pair (`{x, y}`) as its Choose.
+- **`actRow`** returns the Act's one tinted and one text button, either or neither; **`source`** returns its facts, and for a feed
+  `refresh` (the feed's kind: the framework draws the link and its handler, as `wcFeedFoot` did) and `credit` (`{label, href}`).
+  Neither is drawn at Small (§24b).
+- **Retired**: `foot` and `wdgHeroFoot`; `wcFeedFoot` becomes the Source's builder. **`wdgFromHero` keeps the hero's eyebrow as the
+  Source's first fact** (it dropped it: Money's *statement to …*, Zinc's age, Month to date's *Oct 1–17*).
+- **The card** is `<section class="inv-widget" data-w data-size data-type data-tone data-state>`: no longer `inv-hero` and
+  `inv-hero-<tone>`, so the hero's wash, gradient and sheet box do not reach it. Its head (`inv-widget-head`): the section's icon alone
+  in `--text-2` with its tint (the chip, `inv-widget-chip`, retired), the title (`short` at Small), the chevron where Open can be
+  followed, and the Choose at Large. Its body (`inv-widget-body`): the figure (`inv-widget-fig`), the verdict (`inv-widget-line`, its
+  dot and its words, two lines at most), the type's parts, More. Its foot (`inv-widget-foot`): the Act (`inv-widget-act`) and the
+  Source (`inv-widget-src`, which replaces `inv-widget-credit`). The hooks specs read stay where they are (`data-card`, the ids, §8c).
+- **The type's builders**, presentation only, in widgets.js: `wdgLedgerHtml(lines, total)`, `wdgDocketRowHtml(o)`,
+  `wdgPlantRowHtml(o)`, `wdgSeatsHtml(o)`, `wdgMoveRowHtml(mv)`, `wdgMoveCardHtml(mv)`, `wdgWireHtml(items)`, `wdgTrayHtml(keys)`,
+  `wdgActHtml(row)`, `wdgSourceHtml(src)`, `wdgChooseHtml(def, ctx)`. A widget reads its screen's functions for its figures (I8) and
+  hands them to these; no widget writes a row's markup of its own.
+- **The money in a card** is `inrCard` (§24k); a Ledger's lines are `finRs`, as now.
+
+### 24h. Heights, packing and the fit (call 4)
+
+- **The grid** (`.inv-wgrid`): `grid-auto-rows: var(--wdg-row)`, `gap: var(--wdg-gap)`, `grid-auto-flow: row dense`; a Small spans
+  one row, a Medium and a Large two, the phone's Large three; the columns as U2 built them (12 from 60rem of board, 6 from 36rem, 2
+  under). A card fills its area (`height: 100%`) and nothing runs past it. **`--wdg-cap-*` are retired**, and the board leaves
+  `uiMasonry` and `--masonry-row` (which stay for the grids that use them); the gallery's preview is one row tall (`--wdg-row`).
+- **Packing** (`dense`): a later card moves up into a hole an earlier one left. The DOM keeps the layout's order, so the tab order and a
+  screen reader read the order the person arranged; no preset leaves a hole (§24i), so a board as preset reads as it looks.
+- **Arranging** (§7e) turns packing off (`grid-auto-flow: row`): what is arranged is where it stands, and **each hole is a slot**
+  (`inv-wgrid-slot`: a dashed well, *Room for a Small* or *Room for a Medium*, and **Add here**, which opens the gallery; a widget added
+  there goes into the order at the slot). The places come from `wdgPlace(items, cols)` (pure, new: each card's row and column as the
+  browser places them sparse, and the holes), set on each element as `--wdg-r` and `--wdg-c` (as the drag sets `--drag-x`). Done turns
+  packing back on. `wdgPack` keeps its name and draws the slots while arranging.
+- **The fit** (`wdgFit`, as built, measured against the card's height): first the parts a card can do without, all together
+  (`data-wdg-opt`, a tile's sparkline, a chart's key); then its list's last rows one at a time (`.inv-row`, `.inv-ledger-line` but never
+  the total, `.inv-docket-row`, `.inv-plant-row`, `.inv-brief-move`, `.inv-brief-movecard`, `.inv-wire-item`, a chart's rows), the More
+  row saying how many and a Ledger's rest line their sum; last, a verdict past its two lines is cut at a word, its whole text its
+  `title`. Nothing is cut halfway and nothing runs past the card (P224, P237).
+- **The room a card does not fill** is one space, between what it says and what it shows: a Small's picture is pushed to the body's
+  foot (`data-wdg-push`), and the foot (Act, Source) stands at the card's foot. Never a strip of empty card under the last line.
+
+### 24i. The presets
+
+Each preset is drawn from what its role sees by default (`grdRoleDefaults`, guard.js) and **packs with no hole on both layouts, with
+packing on or off**. U2's Office preset held four widgets its role cannot see (money's and Production's), so it drew with holes; and
+the supervisor shared the Floor preset, whose pages it outnumbers. On the phone a preset keeps the desktop's order, a Small stays
+Small and everything else is Medium (as U2).
+
+| Preset (role) | Home, in order (desktop size) |
+|---|---|
+| Owner (the owner; the guard off) | `mtd` s · `q-money` s · `prodday` s · `cash` s · `pace` m · `coming` m · `tata` l · `floornow` m · `risk` s · `turn` s · `dtp` s · **`atttoday` s** · `q-smooth` m · `dofirst` m |
+| Office (office) | `needs` m · `quick` s · `unbilled` s · `quote` s · `weather` s · `pipe` m · `recent` m · `tata` m · `coming` m |
+| Supervisor (supervisor, new) | `floornow` l · `eff` m · `prodday` s · `atttoday` s · `risk` s · `weather` s · `stockdays` m · `attweek` m · `ot` m · `tata` m |
+| Floor (floor) | `floornow` l · `eff` m · `prodday` s · `stockdays` s · `weather` s · `quick` s · `heat` m · `needs` m · `tata` m · `coming` m |
+
+- The Owner's `atttoday` fills the hole beside `floornow` (the canvas added it). A role whose pages the owner has changed may meet a
+  hole; packing fills what it can and Customise shows the rest.
+- **The phone's Owner preset leaves out `dofirst`** if Home measures over four phone screens on the long book (I10's cap for Home;
+  each question's Act and Large cards carry the same moves). By the canvas's own heights the Owner's phone Home is about 4.4 screens
+  with it and 3.9 without; P195 decides, and the step reports both (§1a-14).
+- A device on a preset follows the new one; a layout of the person's own is kept (§7g).
+
+### 24j. The masthead (§8b, amended)
+
+The day card becomes a **masthead**: Home's verdict drawn flat on the page, under the top bar, never a card.
+
+| Part | Desktop | Phone | From |
+|---|---|---|---|
+| date | *Good afternoon, <name> · Saturday, 17 October*, 12 px semibold `--text-2` | the same | §8b |
+| sentence | its lamp (10 px, ringed in its tone) and the verdict, 22 px semibold, at most 60 characters; after it *· 23 open*, 14 px `--text-2`, where the sentence counts tasks | 19 px; nothing after it | §8b's first that holds |
+| facts | up to two more of §8b's, then the weather now (its icon, *31° · thunder from 4 to 6 PM*), 13 px, each led by its lamp or icon | under the sentence and the clock, the masthead's width | §8b; §9's feed (nothing when it is not set) |
+| Act | **Open Needs you** (tint) and *Make today's report* (text, for a role that opens Reports) | **Open Needs you · 23** | `tdyTasks`, `rptFromStats` |
+| clock | *2:30* and *PM*, 44 px semibold (`--fs-44`; the unit 17 px `--text-2`), at the right | 30 px (`--fs-30`), at the sentence's right | the device's clock, on the minute |
+| shift | *General shift ends 5:00 PM · 2 h 30 min left* over a track of the shift gone | *Shift ends 5:00 PM*, no track | the labour settings |
+
+- **Flat**: no fill, no edge, no lift; a hairline under it. **Never folded** (the day card was shut on the phone: the masthead's first
+  two lines answer the six-second test on both layouts). 9.25rem (148 px) tall on the desktop (`--mast-h`); on the phone as tall as it
+  needs (about 184 px on the long book).
+- **The shift**: before 8:30 AM *General shift starts 8:30 AM · in 1 h 10 min* over an empty track; after 5 PM *The general shift has
+  ended* and no track (U2 said nothing before the shift).
+- **The tick** (`homeClockStart`, `homeClockStop`) sets the clock's text, the shift's text and the track's `--shift-done`, nothing else.
+- **Hooks kept**: the masthead carries the day card's (`data-home-daycard`, `[data-home-clock]`, `[data-home-shift]`).
+  `homeDayCardHtml` becomes `homeMastHtml`; `inv-homeday-*` (3) go for `inv-mast`, `-date`, `-say`, `-facts`, `-clock`, `-shift`.
+- **P197**: Home's anatomy leads with its masthead (an overview's verdict, drawn flat), then one toolbar row, then the board.
+
+### 24k. Money on a board (call 3)
+
+`inrCard(v)` (state.js, new, beside `formatInrShort`) returns `{text, num, unit, neg, exact}`: `text` the whole (*₹3.50 L*), `num`
+and `unit` for a figure's parts (*3.50*, *L*), `neg` for the sign, `exact` the amount to the paisa (`formatCurrency`), every step
+through `gstRound` (HR-8):
+
+1. `r = gstRound(|v|, 0)`. Under 1,00,000: *₹* and `r` grouped the Indian way.
+2. Else `L = gstRound(|v| / 1e5, 2)`. Under 100: *₹`L.toFixed(2)` L*.
+3. Else `C = gstRound(|v| / 1e7, 2)`: *₹`C` Cr*, its whole part grouped the Indian way (*₹1,234.57 Cr*).
+4. Negative: *−₹* (U+2212, design §5.4). Zero: *₹0*.
+
+| Amount | `inrCard` |
+|---|---|
+| 0 | ₹0 |
+| 66,476.00 | ₹66,476 |
+| 99,999.40 | ₹99,999 |
+| 99,999.60 | ₹1.00 L |
+| 3,49,800.00 | ₹3.50 L (the canvas wrote ₹3.49 L: it rounds, HR-8) |
+| 1,19,656.80 | ₹1.20 L |
+| 99,99,999.00 | ₹1.00 Cr |
+| 1,23,84,210.00 | ₹1.24 Cr |
+| 12,34,56,789.00 (the crore book) | ₹12.35 Cr |
+| −66,476.40 | −₹66,476 |
+
+- **Where**: every money figure a widget draws (its figure, verdict, facts, tiles, a move's worth with its sign, *+₹7.98 L a month*) and
+  the masthead's; the exact amount is the element's `title`. Drawn as a figure, *₹* is `inv-cur` and *L* or *Cr* `inv-unit`
+  (`inrFigHtml(v)`).
+- **A Ledger's statement lines and their total are whole rupees** (`finRs`), at any size, so they add up (§24d).
+- **A rate keeps its paise** (₹17.67 a kilo, ₹392.40 a kilo, ₹47.50 an hour): it is not an amount (§1a-18).
+- **A chart keeps `formatInrShort`** on its axis and keys (design §6.17's chart money); its `<title>`s stay exact.
+- **Every other screen keeps the paise**: the call is the boards'. A widget draws the same on Home and on Stats' board (U3).
+
+### 24l. Figures in Geist (call 2)
+
+- **`--ff-num`** (new) is `var(--ff-base)`. Every rule that sets a figure reads it: `.inv-num`, `.inv-input-num`, `.inv-tile-value`,
+  `.inv-hero-fig`, `.inv-deck-fig`, `.inv-widget-fig`, the masthead's clock, `.inv-actionbar-value`, `.inv-selbar-sum`, `.inv-wstat-v`,
+  `.inv-cell`, `.inv-table-grid-date`, `.inv-step-node`, `.inv-panel-count`, `.inv-widget-place`, `.inv-verdict-text`, the
+  knowledge base's step numbers, and the charts' axis, scale, centre and ranked labels. App-wide, in U2R: a figure reads the same on
+  every screen.
+- **Identifiers keep `--ff-mono`**: `.inv-id` (an invoice, challan, credit note, quotation or P.O. number, a vehicle, a GSTIN, a
+  cheque), the text as sent (`inv-quote`), `.inv-textarea-mono`, the recovery code (`.inv-guard-code`), a key's name (`.inv-kbd`), and
+  the family's `inv-plate` and `inv-wire-dateline`.
+- **`slashed-zero` leaves `html`** (`tabular-nums lining-nums` stay there) for the identifiers above: a zero in a document number must
+  not read as an O; a figure in Geist reads as a figure.
+- **Paper does not move** (I12): the printed documents declare their own faces, and P228's record of them must not change.
+
+### 24m. Geist under test
+
+The test browser cannot reach Google Fonts (in this sandbox it refuses the certificate; on CI the invoice's own spec found the runner
+drawing in a fallback face), so every measure so far was taken in whatever face the machine had. A fixed height, a Small's title and a
+line's room are measured in Geist or not at all:
+- `tests/fixtures/fonts/`: Geist and Geist Mono, latin, variable `woff2`, with the SIL Open Font License 1.1 text that permits it
+  (`OFL.txt`), under 200 KB in all.
+- The fixtures route `fonts.googleapis.com` to a local stylesheet naming those two files (`page.route`), so every spec draws in Geist.
+  The paper faces (Fraunces, Inter, IBM Plex Mono) are not served, as now: P228's paper record was taken without them.
+- **A spec that moves with the real face is read, not loosened**: where it measured the fallback's widths, it is rewritten to the same
+  fact in Geist (I6). The fonts land in their own commit, the suite run on it, before the family is built.
+
+### 24n. The book and the server
+
+- **The book does not change.** Nothing of the family is a record: the type, the rows, the money and the faces are drawing.
+- **The layout** gains each widget's Choose in its `opts` (`opts.<id>.choose`), on the device in `sep_inv_layout` (§7h) and at S1 in
+  the person's `prefs` on the hub, *the later wins*. §16 gains the row.
+- **A Source's facts** are read off the functions each widget already reads (the statement's last day is `finForecast`'s `asOf`, the
+  roll's time the day's, the register's last row Production's); at S1 the same days come from the hub's tables (each view's
+  newest row, `docs/SERVER.md` §4). No store is added for them.

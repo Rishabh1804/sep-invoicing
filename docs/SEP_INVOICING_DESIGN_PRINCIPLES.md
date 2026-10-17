@@ -58,11 +58,11 @@ And the v2.0 rules, which carry the same weight:
 | DR-1 | **Colour means status.** Only the status tones (§3.3) may colour text, dots or fills that convey state. Never colour alone: a tone always travels with a word or a symbol. |
 | DR-2 | **One accent, for interaction.** `--accent` marks the primary action, the current selection, the active tab/nav item, focus, links, and the current period in a chart. Nothing else: it never marks a status (good or bad) or a series (UI pass 3, §3d). *One against the rest* (the period on show, or the thing picked, in the accent beside what it is set against in `--series-other`) is the accent marking what is selected. |
 | DR-3 | **One primary button per view.** Everything else is secondary, ghost or link. |
-| DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. |
+| DR-4 | **Figures are `--ff-mono`, tabular, right-aligned** in any column or tile. Identifiers (invoice, challan, P.O., vehicle, GSTIN) are mono too. Prose numbers inside a sentence are not. **From UI pass 3's U2R** (owner, 17 Oct 2026, call 2; `docs/UI_PASS_3.md` §24l): a figure is Geist with tabular figures (`--ff-num`), still right-aligned; only an identifier stays Geist Mono. |
 | DR-5 | **Sentence case everywhere** — titles, labels, buttons, column heads, tabs. No uppercase letter-spaced labels. |
 | DR-6 | **A card lifts, a well sinks, a layer floats; nothing else casts a shadow** (UI pass 3, 16 Oct 2026, amending 8 Oct's tile lift). A card (a panel, a hero, a card in a deck, the phone's bar, a chip, a button) is lifted off what it sits on by `--lift-1` (`--lift-2` for the one primary and a card being moved); a well (a field, a search, a segmented control's track, a tick box, a switch's track, a meter's track, a tile inside a card) is sunk into it by `--press-1` or `--press-2`; a layer (a menu, a dialog, a toast) floats on `--shadow-pop` or `--shadow-dialog`. A row, a hero's sheet, a head and a table's cell cast nothing. In dark a card is lifted by a lighter surface and its fine edge (`--edge`) more than by its shadow (§3.3). |
 | DR-7 | **Components, not one-offs.** A screen is assembled from §6. A module may add a modifier (`inv-table-week`), never a parallel family (`inv-stk-row` beside `inv-row`). |
-| DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, `inv-fig-info` for a figure over its mark, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). **A coded card and a status badge carry the tone's icon as well** (UI pass 3, §3d: `done` for ok, `alert` for warning, `cancel` for danger, `info`); a dot and the word stay where the row has no room. |
+| DR-8 | **Status is a dot + a word** in rows and tables (`● Dispatched`); a soft badge only where the state needs more weight than the row around it. **A figure the app judges is coloured in its status tone** (`inv-fig-ok/warning/danger`, `inv-fig-info` for a figure over its mark, or the tile's `inv-tile-<tone>`), always beside the words that give the reason (*below cost ₹8.56*, *owed, over 90 d*, *+12.3% on Aug*); a plain fact — a count, a date — stays in the text colour (owner, 29 Sep 2026). **A coded card and a status badge carry the tone's icon as well** (UI pass 3, §3d: `done` for ok, `alert` for warning, `cancel` for danger, `info`); a dot and the word stay where the row has no room. **From U2R** (call 1, §24c) a card on a board says its tone with its lamp and its words and, from amber, its top edge; the tone's icon stays on a status badge and a notice. |
 | DR-9 | **Every screen is one of four kinds, assembled one way for its kind** (the tab map, `docs/TAB_MAP.md` §3e; owner, 9 Oct 2026: *"UI still feels inconsistent to me"*). An **overview** leads with its heroes; a **work screen** with its verdict card (§6.28), then one toolbar row, what needs the owner, the list, the rest folded, and a row ends in its figure and status or one action; a **document** is paper fitted to the screen; a **form** is its fields and its action bar. A screen declares its kind (`data-screen`, `SCREEN_KINDS` in tabs.js) and P197 holds it to the kind's anatomy; its boxes wear only the closed list of looks (§6.28). |
 
 ---
@@ -212,6 +212,11 @@ the card's. **A tile that names none is a plain fact** and is drawn plain (the c
 card's tone, which would say the fact is the card's verdict. **What a hero opens to (its sheet) draws no box** of its own, only a
 hairline under the head. `inv-coded` codes a block that is not a card (the quick actions widget, Pipeline's stages). No other surface takes a gradient.
 
+**On a board, from UI pass 3's U2R, salience follows severity** (owner, 17 Oct 2026, call 1; `docs/UI_PASS_3.md` §24c): a widget is its
+type's surface (a Ledger warm, `--ty-ledger`; a Plant cool, `--ty-plant`; the others the card's), quiet while all is well; amber adds a
+3 px top edge (`--tone-edge`, an inset line in `--warning-mark`); red adds the edge and the red tint (`--card-danger`) in place of the
+type's surface. No widget takes a gradient. Every other hero and verdict card takes the same rule in U7.
+
 **Series** (UI pass 3, §3d): six colours say which thing a line or bar is, `--series-1…6` (blue `#2e75b6`, orange `#c0622b`, green
 `#1f8a6a`, ochre `#a87c00`, magenta `#c2508a`, violet `#6b55c9`; dark `#5a98dc`, `#d9733d`, `#2fa37f`, `#b8890f`, `#d06a9c`,
 `#8576e8`) and `--series-other` (`#9aa4ae` / `#5d6772`), always in that order and never by rank: a thing keeps its slot app-wide
@@ -228,7 +233,9 @@ Loaded from Google Fonts with `display=swap`; `sw.js` already lets the font CSS 
 fallback stacks are chosen to hold layout. Fraunces, Inter and IBM Plex Mono are dropped from the UI.
 **Printed documents keep their own faces and scales** (§8).
 
-`html { font-variant-numeric: tabular-nums slashed-zero lining-nums }` stays global.
+`html { font-variant-numeric: tabular-nums slashed-zero lining-nums }` stays global. **From U2R** (call 2, `docs/UI_PASS_3.md` §24l) a figure
+is set in `--ff-num` (Geist, tabular) and only an identifier in `--ff-mono`, which alone keeps `slashed-zero`; `--fs-26`, `--fs-30` and
+`--fs-44` join the sizes, `--fs-36` and `--fs-48` go.
 
 **Roles, not sizes.** A rule reads a role token; a role fixes size, line height and weight together.
 
@@ -274,7 +281,8 @@ their **own** paddings and heights — they read density aliases, so one attribu
 
 ### 3.6 Radius, elevation, motion, layers
 
-- Radius (UI pass 3, the same on both layouts): `--r-card 1.125rem (18)` a card (a panel, a hero, a deck card, the phone's bar, a
+- Radius (UI pass 3, the same on both layouts; **from U2R** `--r-card` 14 px, `--r-tile` 10 px for every well, `--r-ctl` 8 px,
+  `--r-seg` 7 px and the phone's bar its own `--r-bar` 22 px, `docs/UI_PASS_3.md` §24b): `--r-card 1.125rem (18)` a card (a panel, a hero, a deck card, the phone's bar, a
   dialog's corners) · `--r-tile 0.875rem (14)` a tile, a PIN box · `--r-ctl 0.75rem (12)` a field, a select, a button, a segmented
   control's track, the search, a menu · `--r-seg 0.5625rem (9)` a segmented control's pressed pill · `--r-key 1rem (16)` a keypad's
   key · `--r-full` a chip, a badge, a dot, a switch · `--r-toast` (half a line's height and the padding over it) the toast: a pill on one line, a rounded box when it wraps. `--r-sm 0.25rem (4)`, `--r-md`, `--r-lg` and `--r-xl` stay for what
@@ -498,7 +506,9 @@ it fits; a title a template wrote is never touched).
 deltas that matter are `--ok`. Units after a figure are `--text-3` (`54 L`, `12 kg`). Deltas read
 "+12% on Aug", not arrows alone. **A figure breaks only after a comma group, never inside it or its paise**: a tile's value
 goes through `figWrapHtml()` (`state.js`), which puts a `<wbr>` after each comma and keeps the last group and its decimals
-`inv-nowrap`, so ₹10,46,48,655.51 wraps as "₹10,46,48," / "655.51".
+`inv-nowrap`, so ₹10,46,48,655.51 wraps as "₹10,46,48," / "655.51". **On a board, from U2R** (call 3, `docs/UI_PASS_3.md` §24k), an amount is
+`inrCard`'s (whole rupees under a lakh, lakhs and crores to two places) with its exact figure as its `title`; a Ledger's lines are whole
+rupees; a rate keeps its paise; every other screen keeps the paise.
 
 ### 5.5 States
 Hover `--surface-2` (pointer only) · pressed `--surface-3` · selected `--accent-soft` · disabled 45% opacity
@@ -1156,6 +1166,10 @@ chart's empty box) and one action (`inv-blank-act`). Never a zero standing for u
 with it.
 
 ### 6.33 Widget and board — `wdgDefine` (widgets.js), `inv-widget`, `inv-wgrid` (UI pass 3, §7)
+**U2R rebuilds the widget as the card family** (owner, 17 Oct 2026; `docs/UI_PASS_3.md` §24: one skeleton, seven card types, five
+action rows, fixed heights and a packed board, the masthead). This section is rewritten, and §6.34 (card types), §6.35 (action rows)
+and §6.36 (the masthead) are added, when U2R is built; until then it describes U2 as built.
+
 A **widget** answers one question in a card; a **board** is a grid of widgets that each person arranges (Home from U2, Stats from U3).
 - **The card is a hero** (`<section class="inv-widget inv-hero inv-hero-<tone>" data-w data-size data-tone data-state>`), coded in
   the tone its `data` gives (§3.3 *Fills*), so a widget lifts and fills as every hero does. Its head is the section's icon in a well's
@@ -1307,7 +1321,12 @@ document. See `docs/NEXT_SESSION.md` for the rule that keeps the books safe whil
 
 | # | Question | Decided |
 |---|---|---|
-| 1 | Palette | **Three, per device; Teal the default** (owner, 26 Sep 2026) — §3.1 |
+| 1 | Palette | **Three, per device; Teal the default** (owner, 26 Sep 2026); **Zinc & brass the default since UI pass 3** (U1, 16 Oct 2026) — §3.1 |
 | 2 | App icon | **Redrawn in the palette**; the installed icon is Teal (platform limit) — §3.11 |
 | 3 | Default theme | **Follow the phone's setting** — §3.2 |
 | 4 | Ctrl K command palette on the desktop | Open. Shown in the mock-up; the research did not support it as an expectation. Not built in route 1. |
+| 5 | Cards on a board | **A family**: one skeleton, seven types (Ledger, Docket, Plant, Crew, Briefing, Outside, Tools), five action rows (Open, Choose, More, Act, Source) (owner, 17 Oct 2026: *"different types of card layouts but organised"*) — `docs/UI_PASS_3.md` §24, built in U2R |
+| 6 | A card's surface | **Salience follows severity**: quiet while all is well, an amber top edge, a red edge and tint (owner, 17 Oct 2026, call 1) — §3.3, `docs/UI_PASS_3.md` §24c |
+| 7 | The figures' face | **Geist with tabular figures**; Geist Mono for identifiers only (owner, 17 Oct 2026, call 2) — DR-4, `docs/UI_PASS_3.md` §24l |
+| 8 | Money on a board | **Short**: whole rupees under a lakh, lakhs and crores to two places, the exact figure its `title` (owner, 17 Oct 2026, call 3) — §5.4, `docs/UI_PASS_3.md` §24k |
+| 9 | A widget's height | **Fixed by its size**, the board packed with no hole (owner, 17 Oct 2026, call 4) — §6.33, `docs/UI_PASS_3.md` §24h |
